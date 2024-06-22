@@ -5,5 +5,8 @@ edition = "2021"
 
 [dependencies]
 serde = { version = "1.0.203", features = ["derive"] }
+tensor-macros = { path = "../tensor-macros" }
 num-complex = "0.4"
-half = "2.3.1"
+half = { version = "2.3.1", features = ["num-traits", "rand_distr"] }
+paste = "1.0.15"
+num-traits = "0.2.19"

@@ -110,26 +110,264 @@ pub fn infer_cal_res_type(input: TokenStream) -> TokenStream {
     let rhs_str = res.rhs.to_string();
     let method = res.method;
     let left_type = TypeInfo::new(&lhs_str);
-    let right_type = TypeInfo::new(&rhs_str);
     let mut ret = proc_macro2::TokenStream::new();
 
     match method.to_string().as_str() {
-        "add" | "sub" | "mul" => {
-            let res_type = left_type.infer_normal_res_type(&right_type);
-            ret.extend(quote! { #res_type });
+        "normal" => {
+            if rhs_str.is_empty() {
+                let res_type = left_type.infer_normal_res_type_uary();
+                ret.extend(quote! { #res_type });
+            } else {
+                let right_type = TypeInfo::new(&rhs_str);
+                let res_type = left_type.infer_normal_res_type(&right_type);
+                ret.extend(quote! { #res_type });
+            }
         }
-        "div" => {
-            let res_type = left_type.infer_float_res_type(&right_type);
-            ret.extend(quote! { #res_type });
+        "float" => {
+            if rhs_str.is_empty() {
+                let res_type = left_type.infer_float_res_type_uary();
+                ret.extend(quote! { #res_type });
+            } else {
+                let right_type = TypeInfo::new(&rhs_str);
+                let res_type = left_type.infer_float_res_type(&right_type);
+                ret.extend(quote! { #res_type });
+            }
         }
-        #[rustfmt::skip]
-        "sin" | "cos" | "tan" | "asin" | "acos" | "atan" | "sinh" | "cosh" | "tanh" | "asinh" | "acosh" | "atanh" |
-        "exp" | "exp2" | "log" | "ln" | "log2" | "log10" | "sqrt" => {
-            let res_type = left_type.infer_float_res_type_uary();
-            ret.extend(quote! { #res_type });
-        }
-
         _ => todo!(),
     }
+    ret.into()
+}
+
+#[proc_macro]
+pub fn impl_float_out(_: TokenStream) -> TokenStream {
+    let mut ret = proc_macro2::TokenStream::new();
+
+    let types = [
+        "bool",
+        "f16",
+        "f32",
+        "f64",
+        "i8",
+        "i16",
+        "i32",
+        "i64",
+        "u8",
+        "u16",
+        "u32",
+        "u64",
+        "isize",
+        "usize",
+    ];
+
+    for lhs in types.iter() {
+        for rhs in types.iter() {
+            let lhs_type = TypeInfo::new(lhs);
+            let rhs_type = TypeInfo::new(rhs);
+            let lhs_dtype = lhs_type.dtype;
+            let rhs_dtype = rhs_type.dtype;
+            let res_type = lhs_type.infer_float_res_type(&rhs_type);
+            let res =
+                quote! {
+                impl FloatOut<#rhs_dtype> for #lhs_dtype {
+                    type Output = #res_type;
+                
+                    fn _div(self, rhs: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() / rhs.[<to_ #res_type>]()
+                        }
+                    }
+                    fn _exp(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().exp()
+                        }
+                    }
+                    fn _exp2(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().exp2()
+                        }
+                    }
+                    fn _ln(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().ln()
+                        }
+                    }
+                    fn _log(self, base: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().log(base.[<to_ #res_type>]())
+                        }
+                    }
+                    fn _log2(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().log2()
+                        }
+                    }
+                    fn _log10(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().log10()
+                        }
+                    }
+                    fn _sqrt(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().sqrt()
+                        }
+                    }
+                    fn _sin(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().sin()
+                        }
+                    }
+                    fn _cos(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().cos()
+                        }
+                    }
+                    fn _tan(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().tan()
+                        }
+                    }
+                    fn _asin(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().asin()
+                        }
+                    }
+                    fn _acos(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().acos()
+                        }
+                    }
+                    fn _atan(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().atan()
+                        }
+                    }
+                    fn _sinh(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().sinh()
+                        }
+                    }
+                    fn _cosh(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().cosh()
+                        }
+                    }
+                    fn _tanh(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().tanh()
+                        }
+                    }
+                    fn _asinh(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().asinh()
+                        }
+                    }
+                    fn _acosh(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().acosh()
+                        }
+                    }
+                    fn _atanh(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().atanh()
+                        }
+                    }
+                    fn _recip(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().recip()
+                        }
+                    }
+                }
+            };
+            ret.extend(res);
+        }
+    }
+
+    ret.into()
+}
+
+#[proc_macro]
+pub fn impl_normal_out(_: TokenStream) -> TokenStream {
+    let mut ret = proc_macro2::TokenStream::new();
+
+    let types = [
+        "bool",
+        "f16",
+        "f32",
+        "f64",
+        "i8",
+        "i16",
+        "i32",
+        "i64",
+        "u8",
+        "u16",
+        "u32",
+        "u64",
+        "isize",
+        "usize",
+    ];
+
+    for lhs in types.iter() {
+        for rhs in types.iter() {
+            let lhs_type = TypeInfo::new(lhs);
+            let rhs_type = TypeInfo::new(rhs);
+            let lhs_dtype = lhs_type.dtype;
+            let rhs_dtype = rhs_type.dtype;
+            let res_type = lhs_type.infer_normal_res_type(&rhs_type);
+
+            let pow_method = if res_type.is_float() {
+                quote! {
+                    fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().powf(rhs.[<to_ #res_type>]())
+                        }
+                    }
+                }
+            } else {
+                quote! {
+                    fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().pow(rhs.to_u32())
+                        }
+                    }
+                }
+            };
+
+            let res =
+                quote! {
+                impl NormalOut<#rhs_dtype> for #lhs_dtype {
+                    type Output = #res_type;
+                    fn _add(self, rhs: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() + rhs.[<to_ #res_type>]()
+                        }
+                    }
+                    fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() - rhs.[<to_ #res_type>]()
+                        }
+                    }
+                    fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() * rhs.[<to_ #res_type>]()
+                        }
+                    }
+                    #pow_method
+
+                    fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() % rhs.[<to_ #res_type>]()
+                        }
+                    }
+                    fn _square(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() * self.[<to_ #res_type>]()
+                        }
+                    }
+                }
+            };
+            ret.extend(res);
+        }
+    }
+
     ret.into()
 }

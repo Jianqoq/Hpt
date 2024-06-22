@@ -1,6 +1,5 @@
 use quote::ToTokens;
 use quote::quote;
-use syn::Token;
 
 pub fn is_float(list: &str) -> bool {
     matches!(list, "BF16" | "F16" | "F32" | "F64")
@@ -88,6 +87,17 @@ pub(crate) enum Type {
     C64,
     Isize,
     Usize,
+    Complex32,
+    Complex64,
+}
+
+impl Type {
+    pub fn is_float(&self) -> bool {
+        match self {
+            Type::BF16 | Type::F16 | Type::F32 | Type::F64 | Type::C32 | Type::C64 => true,
+            _ => false,
+        }
+    }
 }
 
 impl ToTokens for Type {
@@ -110,6 +120,8 @@ impl ToTokens for Type {
             Type::C64 => quote!(c64),
             Type::Isize => quote!(isize),
             Type::Usize => quote!(usize),
+            Type::Complex32 => quote!(num_complex::Complex32),
+            Type::Complex64 => quote!(num_complex::Complex64),
         };
         tokens.extend(token);
     }
@@ -245,6 +257,20 @@ impl TypeInfo {
                     level: 8,
                     dtype: Type::Usize,
                 },
+            "complex32" =>
+                Self {
+                    is_float: true,
+                    is_signed: true,
+                    level: 6,
+                    dtype: Type::Complex32,
+                },
+            "complex64" =>
+                Self {
+                    is_float: true,
+                    is_signed: true,
+                    level: 8,
+                    dtype: Type::Complex64,
+                },
             _ => unreachable!("Invalid type"),
         }
     }
@@ -268,6 +294,16 @@ impl TypeInfo {
         }
     }
 
+    pub(crate) fn infer_normal_res_type_uary(&self) -> Type {
+        if self.is_float {
+            self.dtype
+        } else if self.is_signed {
+            level_to_int(self.level)
+        } else {
+            level_to_uint(self.level)
+        }
+    }
+
     pub(crate) fn infer_float_res_type(&self, other: &Self) -> Type {
         match (self.is_float, other.is_float) {
             (true, true) => {
@@ -279,17 +315,11 @@ impl TypeInfo {
             (false, true) => {
                 if self.level > other.level { level_to_float(self.level) } else { other.dtype }
             }
-            (false, false) => {
-                level_to_float(std::cmp::max(self.level, other.level))
-            }
+            (false, false) => { level_to_float(std::cmp::max(self.level, other.level)) }
         }
     }
 
     pub(crate) fn infer_float_res_type_uary(&self) -> Type {
-        if self.is_float {
-            self.dtype
-        } else {
-            level_to_float(self.level)
-        }
+        if self.is_float { self.dtype } else { level_to_float(self.level) }
     }
 }
