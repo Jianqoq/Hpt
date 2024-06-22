@@ -3,7 +3,7 @@ use syn::{ parse, parse_macro_input, Expr, Ident, Token };
 mod type_utils;
 mod list_enum;
 use quote::quote;
-use type_utils::{ is_float, is_signed, type_level, TypeInfo };
+use type_utils::TypeInfo;
 
 /// match (lhs, rhs), execute the corresponding function
 fn match_helper(
