@@ -1,0 +1,6 @@
+{
+    "rust-analyzer.linkedProjects": [
+        ".\\tensor-tests\\Cargo.toml",
+        ".\\tensor-types\\Cargo.toml"
+    ]
+}

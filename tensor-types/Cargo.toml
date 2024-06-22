@@ -1,0 +1,9 @@
+[package]
+name = "tensor-types"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0.203", features = ["derive"] }
+num-complex = "0.4"
+half = "2.3.1"
