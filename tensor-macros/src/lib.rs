@@ -1,6 +1,9 @@
-use syn::{ parse, Expr, Ident, Token };
+use proc_macro::TokenStream;
+use syn::{ parse, parse_macro_input, Expr, Ident, Token };
+mod type_utils;
 mod list_enum;
 use quote::quote;
+use type_utils::{ is_float, is_signed, type_level, TypeInfo };
 
 /// match (lhs, rhs), execute the corresponding function
 fn match_helper(
@@ -40,7 +43,7 @@ impl syn::parse::Parse for InferEnumType {
 pub fn infer_enum_type(input: TokenStream) -> TokenStream {
     let res: InferEnumType = parse_macro_input!(input as InferEnumType);
     let enum_name = res.mode.to_string();
-    let mut ret = TokenStream2::new();
+    let mut ret = proc_macro2::TokenStream::new();
     let lhs = res.lhs;
     let rhs = res.rhs;
 
@@ -101,23 +104,32 @@ impl syn::parse::Parse for GenericCal {
 }
 
 #[proc_macro]
-fn generic_cal(input: TokenStream) -> TokenStream {
+pub fn infer_cal_res_type(input: TokenStream) -> TokenStream {
     let res: GenericCal = parse_macro_input!(input as GenericCal);
-    let mut ret = TokenStream2::new();
-    let lhs = res.lhs;
-    let rhs = res.rhs;
+    let lhs_str = res.lhs.to_string();
+    let rhs_str = res.rhs.to_string();
     let method = res.method;
+    let left_type = TypeInfo::new(&lhs_str);
+    let right_type = TypeInfo::new(&rhs_str);
+    let mut ret = proc_macro2::TokenStream::new();
 
-    let tmp = match method.to_string().as_str() {
-        "add" => {
-            let res_type = infer_enum_type(quote!(#lhs, #rhs, normal)).into();
-            println!("{:?}", res_type);
+    match method.to_string().as_str() {
+        "add" | "sub" | "mul" => {
+            let res_type = left_type.infer_normal_res_type(&right_type);
+            ret.extend(quote! { #res_type });
         }
-        "sub" => quote!(#lhs - #rhs),
-        "mul" => quote!(#lhs * #rhs),
-        "div" => quote!(#lhs / #rhs),
-        _ => quote!(todo!()),
-    };
-    ret.extend(tmp);
+        "div" => {
+            let res_type = left_type.infer_float_res_type(&right_type);
+            ret.extend(quote! { #res_type });
+        }
+        #[rustfmt::skip]
+        "sin" | "cos" | "tan" | "asin" | "acos" | "atan" | "sinh" | "cosh" | "tanh" | "asinh" | "acosh" | "atanh" |
+        "exp" | "exp2" | "log" | "ln" | "log2" | "log10" | "sqrt" => {
+            let res_type = left_type.infer_float_res_type_uary();
+            ret.extend(quote! { #res_type });
+        }
+
+        _ => todo!(),
+    }
     ret.into()
 }
