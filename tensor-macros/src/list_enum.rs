@@ -2,10 +2,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::parse_quote;
 
-use crate::{
-    match_helper,
-    type_utils::{ is_float, is_signed, level_to_float, level_to_int, type_level },
-};
+use crate::{ match_helper, type_utils::{ is_float, is_signed, type_level } };
 
 pub fn list_enums() -> TokenStream2 {
     let mut token_stream = TokenStream2::new();
@@ -369,7 +366,6 @@ pub fn list_enums_out_float_uary() -> TokenStream2 {
     ];
     for (idx, e) in enums.iter().enumerate() {
         let lhs_str = strs[idx];
-        let lhs_level = type_level(lhs_str);
         let lhs_signed = is_signed(lhs_str);
         let lhs_float = is_float(lhs_str);
         let ret = match lhs_signed {
