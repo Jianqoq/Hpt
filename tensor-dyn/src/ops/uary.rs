@@ -4,10 +4,10 @@ use rayon::iter::{
     IntoParallelRefMutIterator,
     ParallelIterator,
 };
-use tensor_traits::ops::uary::TensorUaryOps;
+use tensor_traits::ops::uary::{ FloatUaryOps, Neg, NormalUaryOps };
 use tensor_traits::tensor::{ CommonBounds, TensorInfo, TensorLike };
 use tensor_traits::tensor::TensorCreator;
-use tensor_types::type_promote::FloatOut;
+use tensor_types::type_promote::{ FloatOut, NormalOut };
 use crate::tensor::_Tensor;
 
 /// Applies a unary function to a tensor, returning a tensor with float type elements.
@@ -73,7 +73,7 @@ pub fn uary_fn_with_out<A, O, K, Q, F>(inp: &_Tensor<A>, f: F, out: O) -> anyhow
 
 type FloatType<T> = <T as FloatOut>::Output;
 
-impl<T> TensorUaryOps for _Tensor<T> where T: FloatOut + CommonBounds, FloatType<T>: CommonBounds {
+impl<T> FloatUaryOps for _Tensor<T> where T: FloatOut + CommonBounds, FloatType<T>: CommonBounds {
     type Output = _Tensor<FloatType<T>>;
 
     type InplaceOutput = _Tensor<FloatType<T>>;
@@ -306,5 +306,61 @@ impl<T> TensorUaryOps for _Tensor<T> where T: FloatOut + CommonBounds, FloatType
                 TensorInfo<Self::OutputMeta>
     {
         uary_fn_with_out(self, |x| x._log2(), out)
+    }
+}
+
+type NormalType<T> = <T as NormalOut>::Output;
+
+impl<T> NormalUaryOps for _Tensor<T> where T: NormalOut + CommonBounds, NormalType<T>: CommonBounds {
+    type Output = _Tensor<NormalType<T>>;
+
+    type InplaceOutput = _Tensor<NormalType<T>>;
+
+    type OutputMeta = NormalType<T>;
+
+    fn square(&self) -> anyhow::Result<Self::Output> {
+        uary_fn(self, |x| x._square())
+    }
+
+    fn square_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        uary_fn_with_out(self, |x| x._square(), out)
+    }
+
+    fn abs(&self) -> anyhow::Result<Self::Output> {
+        uary_fn(self, |x| x._abs())
+    }
+
+    fn abs_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        uary_fn_with_out(self, |x| x._abs(), out)
+    }
+}
+
+type NegType<T> = <T as std::ops::Neg>::Output;
+
+impl<T> Neg for _Tensor<T> where T: std::ops::Neg + CommonBounds, NegType<T>: CommonBounds {
+    type Output = _Tensor<NegType<T>>;
+
+    type InplaceOutput = _Tensor<NegType<T>>;
+
+    type OutputMeta = NegType<T>;
+
+    fn neg(&self) -> anyhow::Result<Self::Output> {
+        uary_fn(self, |x| -x)
+    }
+
+    fn neg_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        uary_fn_with_out(self, |x| -x, out)
     }
 }

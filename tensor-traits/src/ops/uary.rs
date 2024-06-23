@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use crate::tensor::{ TensorInfo, TensorLike };
 
-pub trait TensorUaryOps {
+pub trait FloatUaryOps {
     type Output;
     type InplaceOutput;
     type OutputMeta;
@@ -456,6 +456,90 @@ pub trait TensorUaryOps {
     /// assert!(a.allclose(&Tensor::<f64>::new([0f64, 0.3010299956639812f64, 0.47712125471966244f64])));
     /// ```
     fn log10_<U>(&self, out: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>;
+}
+
+pub trait NormalUaryOps {
+    type Output;
+    type InplaceOutput;
+    type OutputMeta;
+    /// Compute square, element-wise.
+    /// # Example
+    /// ```rust
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::new([1f64, 2f64, 3f64]);
+    /// let b = a.square().unwrap();
+    /// assert!(b.allclose(&Tensor::<f64>::new([1f64, 4f64, 9f64])));
+    /// ```
+    fn square(&self) -> Result<Self::Output>;
+
+    /// Inplace Version of square. Compute square, element-wise.
+    /// # Example
+    /// ```rust
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::<f64>::new([1f64, 2f64, 3f64]);
+    /// let c = Tensor::<f64>::new([1f64, 2f64, 3f64]);
+    /// a.square_(c).unwrap();
+    /// assert!(a.allclose(&Tensor::<f64>::new([1f64, 4f64, 9f64])));
+    /// ```
+    fn square_<U>(&self, out: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>;
+
+    /// Compute absolute value element-wise.
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::new([-1f32, 0f32, 3.]);
+    /// let b = a.abs().unwrap();
+    /// assert_eq!(b, Tensor::new([1f32, 0f32, 3.]));
+    /// ```
+    fn abs(&self) -> Result<Self::Output>;
+
+    /// Inplace Version of abs. Compute absolute value element-wise.
+    /// # Example
+    /// ```rust
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::<f64>::new([-1f64, 0f64, 3f64]);
+    /// let c = Tensor::<f64>::new([-1f64, 0f64, 3f64]);
+    /// a.abs_(c).unwrap();
+    /// assert!(a.allclose(&Tensor::<f64>::new([1f64, 0f64, 3f64])));
+    /// ```
+    fn abs_<U>(&self, out: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>;
+}
+
+pub trait Neg {
+    type Output;
+    type InplaceOutput;
+    type OutputMeta;
+    /// Compute negative value element-wise.
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::new([-1f32, 0f32, 3.]);
+    /// let b = a.neg().unwrap();
+    /// assert_eq!(b, Tensor::new([1f32, 0f32, -3.]));
+    /// ```
+    fn neg(&self) -> Result<Self::Output>;
+
+    /// Inplace Version of neg. Compute negative value element-wise.
+    /// # Example
+    /// ```rust
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::<f64>::new([-1f64, 0f64, 3f64]);
+    /// let c = Tensor::<f64>::new([-1f64, 0f64, 3f64]);
+    /// a.neg_(c).unwrap();
+    /// assert!(a.allclose(&Tensor::<f64>::new([1f64, 0f64, -3f64])));
+    /// ```
+    fn neg_<U>(&self, out: U) -> Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>;
