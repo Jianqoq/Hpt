@@ -2,6 +2,11 @@ use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
 use tensor_traits::tensor::CommonBounds;
+use tensor_common::shape_utils::predict_broadcast_shape;
+use tensor_traits::tensor::TensorInfo;
+use tensor_traits::tensor::TensorLike;
+use crate::tensor::_Tensor;
+use tensor_traits::tensor::TensorCreator;
 
 macro_rules! impl_binary_fn {
     ($tensor_type:ident, $func_name:ident) => {
@@ -78,15 +83,13 @@ macro_rules! impl_binary_fn {
             Q: CommonBounds,
             F: Fn(A, B) -> K + Sync + Send + Copy,
         {
-            if lhs.size == 1 {
+            if lhs.size() == 1 {
                 let val = lhs.as_raw()[0];
                 let ret;
-                if out.size() * std::mem::size_of::<Q>() != rhs.size * std::mem::size_of::<B>() {
-                    ret = $tensor_type::empty(rhs.shape().inner()).unwrap();
-                } else if out.ref_cnt() == 1 && out.parent().is_none() {
-                    ret = out.static_cast()?;
+                if out.size() * std::mem::size_of::<Q>() != rhs.size() * std::mem::size_of::<B>() {
+                    ret = $tensor_type::empty(rhs.shape()).unwrap();
                 } else {
-                    ret = $tensor_type::empty(rhs.shape().inner()).unwrap();
+                    ret = $tensor_type::empty(rhs.shape()).unwrap();
                 }
                 ret.as_raw_mut()
                     .par_iter_mut()
@@ -95,15 +98,13 @@ macro_rules! impl_binary_fn {
                         *a = f(val, b);
                     });
                 Ok(ret)
-            } else if rhs.size == 1 {
+            } else if rhs.size() == 1 {
                 let val = rhs.as_raw()[0];
                 let ret;
-                if out.size() * std::mem::size_of::<Q>() != lhs.size * std::mem::size_of::<A>() {
-                    ret = $tensor_type::empty(lhs.shape().inner()).unwrap();
-                } else if out.ref_cnt() == 1 && out.parent().is_none() {
-                    ret = out.static_cast()?;
+                if out.size() * std::mem::size_of::<Q>() != lhs.size() * std::mem::size_of::<A>() {
+                    ret = $tensor_type::empty(lhs.shape()).unwrap();
                 } else {
-                    ret = $tensor_type::empty(lhs.shape().inner()).unwrap();
+                    ret = $tensor_type::empty(lhs.shape()).unwrap();
                 }
                 ret.as_raw_mut()
                     .par_iter_mut()
@@ -115,17 +116,15 @@ macro_rules! impl_binary_fn {
             } else {
                 let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape())?;
                 let ret;
-                let ret_size: usize = res_shape.iter().product::<isize>() as usize;
+                let ret_size: usize = res_shape.iter().product::<i64>() as usize;
                 if out.size() * std::mem::size_of::<Q>() != ret_size * std::mem::size_of::<A>() {
-                    ret = $tensor_type::empty(res_shape.inner()).unwrap();
-                } else if out.ref_cnt() == 1 && out.parent().is_none() {
-                    ret = out.static_cast()?;
+                    ret = $tensor_type::empty(res_shape).unwrap();
                 } else {
-                    ret = $tensor_type::empty(res_shape.inner()).unwrap();
+                    ret = $tensor_type::empty(res_shape).unwrap();
                 }
                 if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
                     let min_len: usize =
-                        ret.size / (((rayon::current_num_threads() as f64) * 1.3) as usize);
+                        ret.size() / (((rayon::current_num_threads() as f64) * 1.3) as usize);
                     ret.as_raw_mut()
                         .par_iter_mut()
                         .with_min_len(min_len)
@@ -135,10 +134,9 @@ macro_rules! impl_binary_fn {
                             *ret = f(lhs, rhs);
                         });
                 } else {
-                    ret.strided_par_iter_mut()
-                        .zip(lhs.strided_par_iter())
-                        .zip(rhs.strided_par_iter())
-                        .for_each(|((res, x), y)| {
+                    ret.iter_mut()
+                        .zip(lhs.iter().zip(rhs.iter()))
+                        .for_each(|(res, (x, y))| {
                             *res = f(x, y);
                         });
                 }
@@ -155,9 +153,9 @@ where
     K: CommonBounds,
     F: Fn(A, B) -> K + Sync + Send + Copy,
 {
-    if lhs.size == 1 {
+    if lhs.size() == 1 {
         let val = lhs.as_raw()[0];
-        let res = _Tensor::empty(rhs.shape().inner()).unwrap();
+        let res = _Tensor::empty(rhs.shape()).unwrap();
         res.as_raw_mut()
             .par_iter_mut()
             .zip(rhs.as_raw().par_iter())
@@ -165,9 +163,9 @@ where
                 *a = f(val, b);
             });
         Ok(res)
-    } else if rhs.size == 1 {
+    } else if rhs.size() == 1 {
         let val = rhs.as_raw()[0];
-        let res = _Tensor::empty(lhs.shape().inner()).unwrap();
+        let res = _Tensor::empty(lhs.shape()).unwrap();
         res.as_raw_mut()
             .par_iter_mut()
             .zip(lhs.as_raw().par_iter())
@@ -179,9 +177,9 @@ where
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
             let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape())?;
             let ret;
-            ret = _Tensor::empty(res_shape.inner()).unwrap();
+            ret = _Tensor::empty(res_shape).unwrap();
             let min_len: usize =
-                ret.size / (((rayon::current_num_threads() as f64) * 1.3) as usize);
+                ret.size() / (((rayon::current_num_threads() as f64) * 1.3) as usize);
             ret.as_raw_mut()
                 .par_iter_mut()
                 .with_min_len(min_len)
@@ -193,8 +191,8 @@ where
             Ok(ret)
         } else {
             let ret = lhs
-                .strided_par_iter()
-                .zip(rhs.strided_par_iter())
+                .iter()
+                .zip(rhs.iter())
                 .strided_map(|(x, y)| f(x, y))
                 .collect::<_Tensor<K>>();
             Ok(ret)

@@ -21,7 +21,7 @@ impl<
         where
             F: Fn(T) -> U::Meta + Sync + Send + 'a,
             U: Clone + TensorInfo<U::Meta>,
-            <I as IterGetSet>::Item: CommonBounds,
+            <I as IterGetSet>::Item: Send,
             <U as TensorAlloc>::Meta: CommonBounds
     {
         let res = U::_empty(self.iter.shape().clone()).unwrap();

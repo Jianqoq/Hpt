@@ -2,7 +2,7 @@ use std::{ ops::{ Div, Mul, Sub }, sync::Arc };
 
 use tensor_allocator::CACHE;
 use tensor_common::{ layout::Layout, pointer::Pointer, shape::Shape };
-use tensor_iterator::strided::Strided;
+use tensor_iterator::{strided::Strided, strided_mut::StridedMut};
 use tensor_traits::tensor::{ CommonBounds, TensorAlloc, TensorCreator, TensorInfo };
 use anyhow::Result;
 use tensor_types::{
@@ -137,7 +137,7 @@ impl<T: CommonBounds> _Tensor<T> {
     /// let direct_memory_access = tensor.as_raw();
     /// // Use direct_memory_access for operations requiring direct memory access
     /// ```
-    fn as_raw(&self) -> &[T] {
+    pub fn as_raw(&self) -> &[T] {
         let ptr = self.data.ptr;
         let size;
         if !self.is_contiguous() {
@@ -168,7 +168,7 @@ impl<T: CommonBounds> _Tensor<T> {
     /// let direct_memory_access_mut = tensor.as_raw_mut();
     /// // Perform operations requiring direct and mutable memory access
     /// ```
-    fn as_raw_mut(&self) -> &mut [T] {
+    pub fn as_raw_mut(&self) -> &mut [T] {
         let ptr = self.data.ptr;
         let size;
         if !self.is_contiguous() {
@@ -182,6 +182,10 @@ impl<T: CommonBounds> _Tensor<T> {
 
     pub fn iter(&self) -> Strided<T> {
         Strided::new(self)
+    }
+
+    pub fn iter_mut(&self) -> StridedMut<T> {
+        StridedMut::new(self)
     }
 
     /// Converts the tensor to a new type.

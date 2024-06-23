@@ -61,7 +61,7 @@ impl<T: CommonBounds> Strided<T> {
     }
 
     pub fn zip<'a, C>(mut self, mut other: C) -> StridedZip<'a, Self, C>
-        where C: UnindexedProducer + 'a + IterGetSet + ParallelIterator
+        where C: UnindexedProducer + 'a + IterGetSet + ParallelIterator, <C as IterGetSet>::Item: Send
     {
         let new_shape = predict_broadcast_shape(&self.shape(), &other.shape()).expect(
             "Cannot broadcast shapes"

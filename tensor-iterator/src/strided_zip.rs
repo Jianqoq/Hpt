@@ -1,13 +1,18 @@
 use std::sync::Arc;
 
-use rayon::iter::{ plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer }, ParallelIterator };
+use rayon::iter::{
+    plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
+    ParallelIterator,
+};
 use tensor_common::{
     shape::Shape,
     shape_utils::{ mt_intervals, predict_broadcast_shape },
     strides::Strides,
 };
+use tensor_traits::tensor::CommonBounds;
 
-use crate::iterator_traits::{ IterGetSet, ShapeManipulator };
+use crate::{ iterator_traits::{ IterGetSet, ShapeManipulator } };
+use crate::strided_map::StridedMap;
 
 #[derive(Clone)]
 pub struct StridedZip<'a, A: 'a, B: 'a> {
@@ -57,7 +62,13 @@ impl<'a, A, B> IterGetSet for StridedZip<'a, A, B> where A: IterGetSet, B: IterG
     }
 }
 
-impl<'a, A, B> StridedZip<'a, A, B> where A: UnindexedProducer + 'a, B: UnindexedProducer + 'a {
+impl<'a, A, B> StridedZip<'a, A, B>
+    where
+        A: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
+        B: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
+        <A as IterGetSet>::Item: Send,
+        <B as IterGetSet>::Item: Send
+{
     pub fn new(a: A, b: B) -> Self {
         StridedZip {
             a,
@@ -68,8 +79,10 @@ impl<'a, A, B> StridedZip<'a, A, B> where A: UnindexedProducer + 'a, B: Unindexe
 
     pub fn zip<C>(mut self, mut other: C) -> StridedZip<'a, Self, C>
         where
-            C: UnindexedProducer + IterGetSet + ShapeManipulator,
-            Self: UnindexedProducer + IterGetSet + ShapeManipulator
+            C: UnindexedProducer + IterGetSet + ShapeManipulator + rayon::iter::ParallelIterator,
+            Self: UnindexedProducer + IterGetSet + ShapeManipulator,
+            <C as IterGetSet>::Item: Send,
+            <Self as IterGetSet>::Item: Send
     {
         let new_shape = predict_broadcast_shape(&self.shape(), &other.shape()).expect(
             "Cannot broadcast shapes"
@@ -97,6 +110,20 @@ impl<'a, A, B> StridedZip<'a, A, B> where A: UnindexedProducer + 'a, B: Unindexe
         a.set_shape(new_shape.clone());
         b.set_shape(new_shape.clone());
         StridedZip::new(a, b)
+    }
+
+    pub fn strided_map<F, U>(self, func: F) -> StridedMap<'a, Self, <Self as IterGetSet>::Item, F>
+        where
+            F: Fn(<Self as IterGetSet>::Item) -> U + Sync + Send + 'a,
+            U: CommonBounds,
+            <A as IterGetSet>::Item: Send,
+            <B as IterGetSet>::Item: Send
+    {
+        StridedMap {
+            iter: self,
+            f: func,
+            phantom: std::marker::PhantomData,
+        }
     }
 }
 
@@ -141,22 +168,17 @@ impl<'a, A, B> UnindexedProducer
     }
 }
 
-impl<'a, A, B> ParallelIterator for StridedZip<'a, A, B>
-where
-    A: UnindexedProducer + ParallelIterator + IterGetSet,
-    B: UnindexedProducer + ParallelIterator + IterGetSet,
-    <A as IterGetSet>::Item: Send,
-    <B as IterGetSet>::Item: Send,
-{
-    type Item = (
-        <A as IterGetSet>::Item,
-        <B as IterGetSet>::Item,
-    );
-
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+impl<'a, A, B> ParallelIterator
+    for StridedZip<'a, A, B>
     where
-        C: UnindexedConsumer<Self::Item>,
-    {
+        A: UnindexedProducer + ParallelIterator + IterGetSet,
+        B: UnindexedProducer + ParallelIterator + IterGetSet,
+        <A as IterGetSet>::Item: Send,
+        <B as IterGetSet>::Item: Send
+{
+    type Item = (<A as IterGetSet>::Item, <B as IterGetSet>::Item);
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item> {
         bridge_unindexed(self, consumer)
     }
 }

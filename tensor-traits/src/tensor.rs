@@ -22,6 +22,16 @@ pub trait TensorInfo<T> {
     }
 }
 
+pub trait TensorLike<T, OutputMeta = T, Output = Self> {
+    type Output;
+    fn to_raw(&self) -> &[T];
+    fn to_raw_mut(&self) -> &mut [T];
+    fn elsize() -> usize {
+        std::mem::size_of::<T>()
+    }
+    fn static_cast(&self) -> anyhow::Result<Self::Output>;
+}
+
 pub trait TensorCreator<T, Output = Self> where Self: Sized {
     type StridedIter;
     type Mask;

@@ -4,13 +4,14 @@ use rayon::iter::{
     plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
     ParallelIterator,
 };
-use tensor_common::{ pointer::Pointer, shape::Shape, shape_utils::mt_intervals, strides::Strides };
+use tensor_common::{ pointer::Pointer, shape::Shape, shape_utils::mt_intervals };
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
-
+use tensor_common::shape_utils::try_pad_shape;
+use tensor_common::strides_utils::preprocess_strides;
 use crate::{ iterator_traits::IterGetSet, strided_zip::StridedZip };
 
 #[derive(Debug)]
-pub struct StridedMapMut<'a, T> {
+pub struct StridedMut<'a, T> {
     pub(crate) ptr: Pointer<T>,
     pub(crate) intervals: Arc<Vec<(usize, usize)>>,
     pub(crate) shape: Shape,
@@ -20,7 +21,7 @@ pub struct StridedMapMut<'a, T> {
     pub(crate) phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl<'a, T> StridedMapMut<'a, T> where T: CommonBounds {
+impl<'a, T: CommonBounds> StridedMut<'a, T> {
     pub fn new<U: TensorInfo<T>>(res_tensor: U) -> Self {
         let inner_loop_size = res_tensor.shape()[res_tensor.shape().len() - 1] as usize;
         let outer_loop_size = res_tensor.size() / (inner_loop_size as usize);
@@ -30,7 +31,7 @@ impl<'a, T> StridedMapMut<'a, T> where T: CommonBounds {
         }
         let intervals: Vec<(usize, usize)> = mt_intervals(outer_loop_size, num_threads);
         let len = intervals.len();
-        StridedMapMut {
+        StridedMut {
             ptr: res_tensor.ptr(),
             shape: res_tensor.shape().clone(),
             intervals: Arc::new(intervals),
@@ -41,14 +42,20 @@ impl<'a, T> StridedMapMut<'a, T> where T: CommonBounds {
         }
     }
 
-    pub fn zip<C>(self, other: C) -> StridedZip<'a, Self, C>
+    pub fn zip<C>(self, mut other: C) -> StridedZip<'a, Self, C>
         where C: UnindexedProducer + 'a + IterGetSet + ParallelIterator, <C as IterGetSet>::Item: Send
     {
+        let other_padded_shape = try_pad_shape(&other.shape(), self.shape.len());
+        let inp_strides = preprocess_strides(&other_padded_shape, &other.strides());
+        other.set_strides(inp_strides.into());
+        other.set_end_index(self.end_index);
+        other.set_intervals(self.intervals.clone());
+        other.set_shape(self.shape.clone());
         StridedZip::new(self, other)
     }
 }
 
-impl<'a, T> ParallelIterator for StridedMapMut<'a, T> where T: Clone + Sync + Send + 'a {
+impl<'a, T> ParallelIterator for StridedMut<'a, T> where T: Clone + Sync + Send + 'a {
     type Item = &'a mut T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item> {
@@ -56,7 +63,7 @@ impl<'a, T> ParallelIterator for StridedMapMut<'a, T> where T: Clone + Sync + Se
     }
 }
 
-impl<'a, T> UnindexedProducer for StridedMapMut<'a, T> where T: Clone + Sync + Send + 'a {
+impl<'a, T> UnindexedProducer for StridedMut<'a, T> where T: Clone + Sync + Send + 'a {
     type Item = &'a mut T;
 
     fn split(mut self) -> (Self, Option<Self>) {
@@ -69,7 +76,7 @@ impl<'a, T> UnindexedProducer for StridedMapMut<'a, T> where T: Clone + Sync + S
         let left = _left_interval.len() / 2;
         let right = _left_interval.len() / 2 + (_left_interval.len() % 2);
         (
-            StridedMapMut {
+            StridedMut {
                 ptr: self.ptr,
                 shape: self.shape.clone(),
                 intervals: self.intervals.clone(),
@@ -78,7 +85,7 @@ impl<'a, T> UnindexedProducer for StridedMapMut<'a, T> where T: Clone + Sync + S
                 last_stride: self.last_stride,
                 phantom: std::marker::PhantomData,
             },
-            Some(StridedMapMut {
+            Some(StridedMut {
                 ptr: self.ptr,
                 shape: self.shape.clone(),
                 intervals: self.intervals.clone(),
@@ -95,7 +102,7 @@ impl<'a, T> UnindexedProducer for StridedMapMut<'a, T> where T: Clone + Sync + S
     }
 }
 
-impl<'a, T: 'a> IterGetSet for StridedMapMut<'a, T> {
+impl<'a, T: 'a> IterGetSet for StridedMut<'a, T> {
     type Item = &'a mut T;
 
     fn set_end_index(&mut self, end_index: usize) {
@@ -106,7 +113,9 @@ impl<'a, T: 'a> IterGetSet for StridedMapMut<'a, T> {
         self.intervals = intervals;
     }
 
-    fn set_strides(&mut self, _: Strides) {}
+    fn set_strides(&mut self, last_stride: tensor_common::strides::Strides) {
+        self.last_stride = last_stride[0];
+    }
 
     fn set_shape(&mut self, shape: Shape) {
         self.shape = shape;
@@ -116,8 +125,8 @@ impl<'a, T: 'a> IterGetSet for StridedMapMut<'a, T> {
         &self.intervals
     }
 
-    fn strides(&self) -> &Strides {
-        unreachable!()
+    fn strides(&self) -> &tensor_common::strides::Strides {
+        todo!()
     }
 
     fn shape(&self) -> &Shape {
