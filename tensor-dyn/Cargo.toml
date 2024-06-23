@@ -12,6 +12,7 @@ tensor-allocator = { path = "../tensor-allocator" }
 tensor-macros = { path = "../tensor-macros" }
 tensor-display = { path = "../tensor-display" }
 rand_distr = "0.4.3"
+rustfft = "6.1.0"
 rand = "0.8.5"
 threadpool = "1.8.1"
 anyhow = "1.0.75"

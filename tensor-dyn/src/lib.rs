@@ -8,6 +8,7 @@ pub mod ops {
     pub mod reduce;
     pub mod reduce_kernels;
     pub mod tensordot;
+    pub mod fft;
 }
 pub mod tensor;
 pub mod random;

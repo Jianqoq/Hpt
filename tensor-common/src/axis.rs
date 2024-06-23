@@ -38,9 +38,21 @@ impl<'a> From<&'a [i64]> for Axis {
     }
 }
 
+impl<const N: usize> From<[i64; N]> for Axis {
+    fn from(axes: [i64; N]) -> Self {
+        Axis { axes: axes.to_vec() }
+    }
+}
+
 impl From<Vec<i64>> for Axis {
     fn from(axes: Vec<i64>) -> Self {
         Axis { axes }
+    }
+}
+
+impl<'a> From<&'a Vec<i64>> for Axis {
+    fn from(axes: &'a Vec<i64>) -> Self {
+        Axis { axes: axes.clone() }
     }
 }
 
