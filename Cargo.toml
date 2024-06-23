@@ -13,7 +13,7 @@ members = [
     "tensor-types",
     "tensor-macros",
     "tensor-tests",
-    "tensor-iterator",
+    "tensor-iterator", "tensor-display",
 ]
 
 [dependencies]

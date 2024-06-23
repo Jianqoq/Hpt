@@ -7,3 +7,4 @@ pub mod err_handler;
 pub mod pointer;
 pub mod axis;
 pub mod slice;
+pub mod tensordot_args;

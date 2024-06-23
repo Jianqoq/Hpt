@@ -7,6 +7,7 @@ pub mod ops {
     pub mod matmul;
     pub mod reduce;
     pub mod reduce_kernels;
+    pub mod tensordot;
 }
 pub mod random;
 pub mod slice;

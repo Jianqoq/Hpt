@@ -1,4 +1,4 @@
-use std::{ ops::{ Div, Mul, Sub }, sync::Arc };
+use std::{ fmt::{ Display, Debug }, ops::{ Div, Mul, Sub }, sync::Arc };
 
 use tensor_allocator::CACHE;
 use tensor_common::{
@@ -10,6 +10,7 @@ use tensor_common::{
     shape_utils::{ yield_one_after, yield_one_before },
     slice::Slice,
 };
+use tensor_display::display;
 use tensor_macros::match_selection;
 use tensor_common::slice;
 use tensor_iterator::{ strided::Strided, strided_mut::StridedMut };
@@ -1200,5 +1201,17 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             parent: self.parent.clone(),
             mem_layout: self.mem_layout.clone(),
         });
+    }
+}
+
+impl<T> Display for _Tensor<T> where T: CommonBounds {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        display(self, f, 1000, 20, 6, 12, 4, false)
+    }
+}
+
+impl<T> Debug for _Tensor<T> where T: CommonBounds {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        display(self, f, 1000, 20, 6, 12, 4, false)
     }
 }

@@ -1,4 +1,4 @@
-use std::ops::{ Div, Sub };
+use std::{fmt::Display, ops::{ Div, Sub }};
 
 use tensor_common::{ axis::Axis, layout::Layout, pointer::Pointer, shape::Shape, strides::Strides };
 use tensor_types::{
@@ -703,5 +703,5 @@ where
     fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }
 
-pub trait CommonBounds: Sync + Send + Clone + Copy + TypeCommon + 'static {}
-impl<T: Sync + Send + Clone + Copy + TypeCommon + 'static> CommonBounds for T {}
+pub trait CommonBounds: Sync + Send + Clone + Copy + TypeCommon + 'static + Display {}
+impl<T: Sync + Send + Clone + Copy + TypeCommon + 'static + Display> CommonBounds for T {}
