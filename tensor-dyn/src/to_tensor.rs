@@ -8,7 +8,7 @@ use tensor_traits::tensor::TensorCreator;
 use std::sync::Arc;
 use tensor_common::strides_utils::shape_to_strides;
 use tensor_allocator::CACHE;
-use num::complex::{Complex32, Complex64};
+use num::complex::{ Complex32, Complex64 };
 use half::bf16;
 
 macro_rules! from_scalar {
