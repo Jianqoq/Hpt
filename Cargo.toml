@@ -1,0 +1,40 @@
+[package]
+name = "e_tensor"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+members = [
+    "tensor-allocator",
+    "tensor-common",
+    "tensor-dyn",
+    "tensor-static",
+    "tensor-traits",
+    "tensor-types",
+    "tensor-macros",
+    "tensor-tests",
+]
+
+[dependencies]
+tensor-allocator = { path = "tensor-allocator" }
+tensor-common = { path = "tensor-common" }
+tensor-dyn = { path = "tensor-dyn" }
+tensor-static = { path = "tensor-static" }
+tensor-traits = { path = "tensor-traits" }
+tensor-types = { path = "tensor-types" }
+tensor-macros = { path = "tensor-macros" }
+tensor-tests = { path = "tensor-tests" }
+
+[[bin]]
+name = "etensor"
+path = "src/main.rs"
+
+[profile.dev]
+opt-level = 0
+incremental = true
+debug = true
+
+[profile.release]
+opt-level = 0
+incremental = true
+debug = true
