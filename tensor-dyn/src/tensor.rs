@@ -2,8 +2,8 @@ use std::{ ops::{ Div, Mul, Sub }, sync::Arc };
 
 use tensor_allocator::CACHE;
 use tensor_common::{ layout::Layout, pointer::Pointer, shape::Shape };
-use tensor_iterator::{strided::Strided, strided_mut::StridedMut};
-use tensor_traits::tensor::{ CommonBounds, TensorAlloc, TensorCreator, TensorInfo };
+use tensor_iterator::{ strided::Strided, strided_mut::StridedMut };
+use tensor_traits::tensor::{ CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike };
 use anyhow::Result;
 use tensor_types::{
     convertion::{ Convertor, FromScalar },
@@ -33,10 +33,28 @@ use rayon::iter::{
 /// - `mem_layout`: std::alloc::layout, use for deallocate the memory.
 #[derive(Clone)]
 pub struct _Tensor<T> {
-    data: Pointer<T>,
-    parent: Option<Pointer<T>>,
-    layout: Layout,
-    mem_layout: Arc<std::alloc::Layout>,
+    pub(crate) data: Pointer<T>,
+    pub(crate) parent: Option<Pointer<T>>,
+    pub(crate) layout: Layout,
+    pub(crate) mem_layout: Arc<std::alloc::Layout>,
+}
+
+impl<T, U> TensorLike<T, U, _Tensor<U>>
+    for _Tensor<T>
+    where T: IntoScalar<U> + CommonBounds, U: CommonBounds
+{
+    type Output = _Tensor<U>;
+    fn to_raw(&self) -> &[T] {
+        self.as_raw()
+    }
+
+    fn to_raw_mut(&self) -> &mut [T] {
+        self.as_raw_mut()
+    }
+
+    fn static_cast(&self) -> Result<Self::Output> {
+        self.static_cast()
+    }
 }
 
 impl<T> TensorInfo<T> for _Tensor<T> {
@@ -107,11 +125,11 @@ impl<T> TensorInfo<T> for &_Tensor<T> {
     }
 }
 
-impl<T> TensorAlloc for _Tensor<T> {
+impl<T: CommonBounds> TensorAlloc for _Tensor<T> {
     type Meta = T;
 
     fn _empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Self> where Self: Sized {
-        todo!()
+        Self::empty(shape)
     }
 }
 
@@ -684,7 +702,9 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         return Ok(res);
     }
 
-    fn tril(&self, k: i64) -> anyhow::Result<Self> {
+    fn tril(&self, k: i64) -> anyhow::Result<Self>
+        where T: NormalOut<bool, Output = T> + IntoScalar<T>
+    {
         if self.shape().len() < 2 {
             let message = format!("_Tensor must have at least 2 dimensions for tril method");
             return Err(anyhow::Error::msg(message));
@@ -699,7 +719,9 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         return Ok(res);
     }
 
-    fn triu(&self, k: i64) -> anyhow::Result<Self> {
+    fn triu(&self, k: i64) -> anyhow::Result<Self>
+        where T: NormalOut<bool, Output = T> + IntoScalar<T>
+    {
         if self.shape().len() < 2 {
             let message: String = format!(
                 "_Tensor must have at least 2 dimensions for tril method"

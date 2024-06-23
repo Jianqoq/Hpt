@@ -313,7 +313,8 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
                 FromScalar<usize> +
                 FromScalar<f64> +
                 Div<Output = <T as FloatOut>::Output> +
-                NormalOut<Output = <T as FloatOut>::Output> + CommonBounds;
+                NormalOut<Output = <T as FloatOut>::Output> +
+                CommonBounds;
 
     /// Creates a triangular matrix with dimensions `n` x `m`.
     ///
@@ -351,7 +352,8 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// let tensor = YourType::new(...);
     /// let lower_tri_matrix = tensor.tril(0); // Creates a lower triangular matrix from tensor
     /// ```
-    fn tril(&self, k: i64) -> anyhow::Result<Self>;
+    fn tril(&self, k: i64) -> anyhow::Result<Self>
+        where T: NormalOut<bool, Output = T> + IntoScalar<T>;
 
     /// Creates an upper triangular matrix from the existing tensor.
     ///
@@ -371,7 +373,8 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// let tensor = YourType::new(...);
     /// let upper_tri_matrix = tensor.triu(0); // Creates an upper triangular matrix from tensor
     /// ```
-    fn triu(&self, k: i64) -> anyhow::Result<Self>;
+    fn triu(&self, k: i64) -> anyhow::Result<Self>
+        where T: NormalOut<bool, Output = T> + IntoScalar<T>;
 
     /// Creates an identity matrix of size `n` x `n`.
     ///

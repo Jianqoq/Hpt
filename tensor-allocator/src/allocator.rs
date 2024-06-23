@@ -26,7 +26,6 @@ impl Allocator {
             allocator: Mutex::new(_Allocator {
                 cache: LruCache::new(NonZeroUsize::new(capacity).unwrap()),
                 allocated: HashSet::new(),
-                capacity,
             }),
         }
     }
@@ -35,7 +34,6 @@ impl Allocator {
 struct _Allocator {
     cache: LruCache<Layout, Vec<*mut u8>>,
     allocated: HashSet<*mut u8>,
-    capacity: usize,
 }
 
 impl _Allocator {

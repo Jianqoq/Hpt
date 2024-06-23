@@ -390,3 +390,72 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
 
     ret.into()
 }
+
+#[proc_macro]
+pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
+    let mut ret = proc_macro2::TokenStream::new();
+
+    let types = [
+        "bool",
+        "i8",
+        "i16",
+        "i32",
+        "i64",
+        "u8",
+        "u16",
+        "u32",
+        "u64",
+        "isize",
+        "usize",
+    ];
+
+    for lhs in types.iter() {
+        for rhs in types.iter() {
+            let lhs_type = TypeInfo::new(lhs);
+            let rhs_type = TypeInfo::new(rhs);
+            let lhs_dtype = lhs_type.dtype;
+            let rhs_dtype = rhs_type.dtype;
+            let res_type = lhs_type.infer_normal_res_type(&rhs_type);
+
+            let res =
+                quote! {
+                impl BitWiseOut<#rhs_dtype> for #lhs_dtype {
+                    type Output = #res_type;
+                    fn _and(self, rhs: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() & rhs.[<to_ #res_type>]()
+                        }
+                    }
+                    fn _or(self, rhs: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() | rhs.[<to_ #res_type>]()
+                        }
+                    }
+                    fn _xor(self, rhs: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() ^ rhs.[<to_ #res_type>]()
+                        }
+                    }
+                    fn _not(self) -> Self::Output {
+                        paste::paste! {
+                            !self.[<to_ #res_type>]()
+                        }
+                    }
+                    fn _shl(self, rhs: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() << rhs.[<to_ #res_type>]()
+                        }
+                    }
+                    fn _shr(self, rhs: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() >> rhs.[<to_ #res_type>]()
+                        }
+                    }
+                }
+            };
+            ret.extend(res);
+        }
+    }
+
+    ret.into()
+}

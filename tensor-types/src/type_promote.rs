@@ -1,4 +1,4 @@
-use tensor_macros::{impl_float_out, impl_normal_out};
+use tensor_macros::{ impl_bitwise_out, impl_float_out, impl_normal_out };
 use half::f16;
 use crate::convertion::Convertor;
 use num_traits::float::Float;
@@ -43,3 +43,15 @@ pub trait NormalOut<RHS = Self> {
 }
 
 impl_normal_out!();
+
+pub trait BitWiseOut<RHS = Self> {
+    type Output;
+    fn _and(self, rhs: RHS) -> Self::Output;
+    fn _or(self, rhs: RHS) -> Self::Output;
+    fn _xor(self, rhs: RHS) -> Self::Output;
+    fn _not(self) -> Self::Output;
+    fn _shl(self, rhs: RHS) -> Self::Output;
+    fn _shr(self, rhs: RHS) -> Self::Output;
+}
+
+impl_bitwise_out!();
