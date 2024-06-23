@@ -8,7 +8,7 @@ use crate::{ tensor::Tensor, tensor_base::_Tensor };
 
 use super::{ binary_normal::binary_fn_with_out, matmul::{ matmul_no_out, matmul_with_out } };
 
-type NormalType<T> = <T as NormalOut>::Output;
+type NormalType<A, B> = <A as NormalOut<B>>::Output;
 
 macro_rules! impl_bin_ops {
     (
@@ -16,56 +16,52 @@ macro_rules! impl_bin_ops {
         [$($rhs:tt)*],
         $output:ident
     ) => {
-        impl<T> NormalBinOps<$($rhs)*> for $($lhs)* where T: NormalOut + CommonBounds, NormalType<T>: CommonBounds {
-            type Output = $output<NormalType<T>>;
-        
-            type OutputMeta = NormalType<T>;
-        
-            type InplaceOutput = $output<NormalType<T>>;
-        
-            fn add_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
-                where
-                    U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                        TensorInfo<Self::OutputMeta>
-            {
-                binary_fn_with_out(self, &rhs, |a, b| a._add(b), out)
-            }
-        
-            fn sub_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
-                where
-                    U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                        TensorInfo<Self::OutputMeta>
-            {
-                binary_fn_with_out(self, &rhs, |a, b| a._sub(b), out)
-            }
-        
-            fn mul_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
-                where
-                    U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                        TensorInfo<Self::OutputMeta>
-            {
-                binary_fn_with_out(self, &rhs, |a, b| a._mul(b), out)
-            }
-        
-            fn rem_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
-                where
-                    U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                        TensorInfo<Self::OutputMeta>
-            {
-                binary_fn_with_out(self, &rhs, |a, b| a._rem(b), out)
-            }
-        
-            fn convolve(&self, _: $($rhs)*) -> anyhow::Result<Self::Output> {
-                todo!()
-            }
+    impl<A, B> NormalBinOps<$($rhs)*>
+        for $($lhs)*
+        where A: CommonBounds + NormalOut<B>, B: CommonBounds, <A as NormalOut<B>>::Output: CommonBounds
+    {
+        type Output = $output<NormalType<A, B>>;
+        type OutputMeta = NormalType<A, B>;
+        type InplaceOutput = _Tensor<NormalType<A, B>>;
+        fn add_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
+            where
+                U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                    TensorInfo<Self::OutputMeta>
+        {
+            binary_fn_with_out(self, &rhs, |a, b| a._add(b), out)
         }
+        fn sub_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
+            where
+                U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                    TensorInfo<Self::OutputMeta>
+        {
+            binary_fn_with_out(self, &rhs, |a, b| a._sub(b), out)
+        }
+        fn mul_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
+            where
+                U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                    TensorInfo<Self::OutputMeta>
+        {
+            binary_fn_with_out(self, &rhs, |a, b| a._mul(b), out)
+        }
+        fn rem_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
+            where
+                U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                    TensorInfo<Self::OutputMeta>
+        {
+            binary_fn_with_out(self, &rhs, |a, b| a._rem(b), out)
+        }
+        fn convolve(&self, _: $($rhs)*) -> anyhow::Result<Self::Output> {
+            todo!()
+        }
+    }
     };
 }
 
-impl_bin_ops!([_Tensor<T>], [_Tensor<T>], _Tensor);
-impl_bin_ops!([_Tensor<T>], [&_Tensor<T>], _Tensor);
-impl_bin_ops!([&_Tensor<T>], [&_Tensor<T>], _Tensor);
-impl_bin_ops!([&_Tensor<T>], [_Tensor<T>], _Tensor);
+impl_bin_ops!([_Tensor<A>], [&_Tensor<B>], _Tensor);
+impl_bin_ops!([_Tensor<A>], [_Tensor<B>], _Tensor);
+impl_bin_ops!([&_Tensor<A>], [&_Tensor<B>], _Tensor);
+impl_bin_ops!([&_Tensor<A>], [_Tensor<B>], _Tensor);
 
 macro_rules! impl_bin_ops_basic {
     (
@@ -73,72 +69,71 @@ macro_rules! impl_bin_ops_basic {
         [$($rhs:tt)*],
         $output:ident
     ) => {
-        impl<T> NormalBinOps<$($rhs)*> for $($lhs)* where T: NormalOut + CommonBounds, NormalType<T>: CommonBounds {
-            type Output = $output<NormalType<T>>;
-        
-            type OutputMeta = NormalType<T>;
-        
-            type InplaceOutput = _Tensor<NormalType<T>>;
-        
-            fn add_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
-                where
-                    U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                        TensorInfo<Self::OutputMeta>
-            {
-                Ok(binary_fn_with_out(self, &rhs, |a, b| a._add(b), out)?.into())
-            }
-        
-            fn sub_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
-                where
-                    U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                        TensorInfo<Self::OutputMeta>
-            {
-                Ok(binary_fn_with_out(self, &rhs, |a, b| a._sub(b), out)?.into())
-            }
-        
-            fn mul_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
-                where
-                    U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                        TensorInfo<Self::OutputMeta>
-            {
-                Ok(binary_fn_with_out(self, &rhs, |a, b| a._mul(b), out)?.into())
-            }
-        
-            fn rem_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
-                where
-                    U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                        TensorInfo<Self::OutputMeta>
-            {
-                Ok(binary_fn_with_out(self, &rhs, |a, b| a._rem(b), out)?.into())
-            }
-        
-            fn convolve(&self, _: $($rhs)*) -> anyhow::Result<Self::Output> {
-                todo!()
-            }
+        impl<A, B> NormalBinOps<$($rhs)*>
+        for $($lhs)*
+        where A: CommonBounds + NormalOut<B>, B: CommonBounds, <A as NormalOut<B>>::Output: CommonBounds
+    {
+        type Output = Tensor<NormalType<A, B>>;
+        type OutputMeta = NormalType<A, B>;
+        type InplaceOutput = _Tensor<NormalType<A, B>>;
+        fn add_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
+            where
+                U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                    TensorInfo<Self::OutputMeta>
+        {
+            Ok(binary_fn_with_out(self, &rhs, |a, b| a._add(b), out)?.into())
         }
+        fn sub_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
+            where
+                U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                    TensorInfo<Self::OutputMeta>
+        {
+            Ok(binary_fn_with_out(self, &rhs, |a, b| a._sub(b), out)?.into())
+        }
+        fn mul_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
+            where
+                U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                    TensorInfo<Self::OutputMeta>
+        {
+            Ok(binary_fn_with_out(self, &rhs, |a, b| a._mul(b), out)?.into())
+        }
+        fn rem_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
+            where
+                U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                    TensorInfo<Self::OutputMeta>
+        {
+            Ok(binary_fn_with_out(self, &rhs, |a, b| a._rem(b), out)?.into())
+        }
+        fn convolve(&self, _: $($rhs)*) -> anyhow::Result<Self::Output> {
+            todo!()
+        }
+    }
     };
 }
 
-impl_bin_ops_basic!([Tensor<T>], [Tensor<T>], Tensor);
-impl_bin_ops_basic!([Tensor<T>], [&Tensor<T>], Tensor);
-impl_bin_ops_basic!([&Tensor<T>], [&Tensor<T>], Tensor);
-impl_bin_ops_basic!([&Tensor<T>], [Tensor<T>], Tensor);
+impl_bin_ops_basic!([Tensor<A>], [&Tensor<B>], Tensor);
+impl_bin_ops_basic!([Tensor<A>], [Tensor<B>], Tensor);
+impl_bin_ops_basic!([&Tensor<A>], [&Tensor<B>], Tensor);
+impl_bin_ops_basic!([&Tensor<A>], [Tensor<B>], Tensor);
 
-impl<T> Matmul
-    for _Tensor<T>
-    where T: NormalOut + CommonBounds + IntoScalar<NormalType<T>>, NormalType<T>: CommonBounds
+impl<A, B> Matmul<_Tensor<B>>
+    for _Tensor<A>
+    where
+        A: CommonBounds + NormalOut<B> + IntoScalar<<A as NormalOut<B>>::Output>,
+        B: CommonBounds + IntoScalar<<A as NormalOut<B>>::Output>,
+        <A as NormalOut<B>>::Output: CommonBounds
 {
-    type Output = _Tensor<NormalType<T>>;
+    type Output = _Tensor<<A as NormalOut<B>>::Output>;
 
-    type OutputMeta = NormalType<T>;
+    type OutputMeta = <A as NormalOut<B>>::Output;
 
-    type InplaceOutput = _Tensor<NormalType<T>>;
+    type InplaceOutput = _Tensor<<A as NormalOut<B>>::Output>;
 
-    fn matmul(&self, rhs: Self) -> anyhow::Result<Self::Output> {
+    fn matmul(&self, rhs: _Tensor<B>) -> anyhow::Result<Self::Output> {
         matmul_no_out(self, &rhs)
     }
 
-    fn matmul_<U>(&self, rhs: Self, out: U) -> anyhow::Result<Self::Output>
+    fn matmul_<U>(&self, rhs: _Tensor<B>, out: U) -> anyhow::Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>
