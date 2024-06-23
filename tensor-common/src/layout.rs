@@ -1,5 +1,5 @@
 use crate::{
-    axis::Axis,
+    axis::{process_axes, Axis},
     err_handler::ErrHandler,
     shape::Shape,
     shape_utils::{ is_reshape_possible, predict_broadcast_shape },
@@ -23,8 +23,16 @@ impl Layout {
         &self.shape
     }
 
+    pub fn set_shape(&mut self, shape: Shape) {
+        self.shape = shape;
+    }
+
     pub fn strides(&self) -> &Strides {
         &self.strides
+    }
+
+    pub fn set_strides(&mut self, strides: Strides) {
+        self.strides = strides;
     }
 
     pub fn ndim(&self) -> usize {
@@ -69,8 +77,8 @@ impl Layout {
         return (self.shape[max_idx] * max_stride) as usize;
     }
 
-    pub fn permute<A: Axis>(&self, axes: A) -> anyhow::Result<Layout> {
-        let axes = axes.process_axes(self.shape.len())?;
+    pub fn permute<A: Into<Axis>>(&self, axes: A) -> anyhow::Result<Layout> {
+        let axes = process_axes(axes, self.shape.len())?;
         ErrHandler::check_ndim_match(axes.len(), self.shape.len())?;
         let mut new_shape = self.shape().to_vec();
         let mut new_strides = self.strides().to_vec();
@@ -126,8 +134,8 @@ impl Layout {
         Ok(Layout { shape, strides })
     }
 
-    pub fn reduce<A: Axis>(&self, axes: A, keep_dims: bool) -> anyhow::Result<Layout> {
-        let axis = axes.process_axes(self.shape.len())?;
+    pub fn reduce<A: Into<Axis>>(&self, axes: A, keep_dims: bool) -> anyhow::Result<Layout> {
+        let axis = process_axes(axes, self.shape.len())?;
         let new_shape = if keep_dims {
             let mut vec = Vec::with_capacity(self.shape.len());
             for i in 0..self.shape.len() {

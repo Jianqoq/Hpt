@@ -103,9 +103,9 @@ impl<T> Pointer<T> {
     /// unsafe { std::alloc::dealloc(_a as *mut u8, std::alloc::Layout::new::<i32>()); }
     /// ```
     #[inline(always)]
-    pub fn modify(&mut self, offset: isize, value: T) {
+    pub fn modify(&mut self, offset: i64, value: T) {
         unsafe {
-            self.ptr.offset(offset).write(value);
+            self.ptr.offset(offset as isize).write(value);
         }
     }
 
@@ -190,9 +190,9 @@ impl<T> Pointer<T> {
     /// unsafe { std::alloc::dealloc(_a as *mut u8, std::alloc::Layout::new::<i32>()); }
     /// ```
     #[inline(always)]
-    pub fn offset(&mut self, offset: isize) {
+    pub fn offset(&mut self, offset: i64) {
         unsafe {
-            self.ptr = self.ptr.offset(offset);
+            self.ptr = self.ptr.offset(offset as isize);
         }
     }
 
@@ -227,10 +227,10 @@ impl<T> Clone for Pointer<T> {
     }
 }
 
-impl<T> Index<isize> for Pointer<T> {
+impl<T> Index<i64> for Pointer<T> {
     type Output = T;
-    fn index(&self, index: isize) -> &Self::Output {
-        unsafe { &*self.ptr.offset(index) }
+    fn index(&self, index: i64) -> &Self::Output {
+        unsafe { &*self.ptr.offset(index as isize) }
     }
 }
 
@@ -382,9 +382,9 @@ impl VoidPointer {
     /// unsafe { std::alloc::dealloc(_a as *mut u8, std::alloc::Layout::new::<i32>()); }
     /// ```
     #[inline(always)]
-    pub fn offset(&mut self, offset: isize, elsize: isize) {
+    pub fn offset(&mut self, offset: i64, elsize: i64) {
         unsafe {
-            self.ptr = self.ptr.offset(offset * elsize);
+            self.ptr = self.ptr.offset((offset * elsize) as isize);
         }
     }
 }

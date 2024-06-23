@@ -57,11 +57,12 @@ impl ErrHandler {
         }
     }
 
-    pub fn check_axes_in_range(ndim: usize, axes: &[i64]) -> anyhow::Result<(), ErrHandler> {
+    pub fn check_axes_in_range<'a, Iter: Iterator<Item = i64>>(ndim: usize, axes: Iter) -> anyhow::Result<(), ErrHandler> {
         let mut set = HashSet::new();
-        for (idx, axis) in axes.iter().enumerate() {
-            if *axis < 0 {
-                let val = *axis % (ndim as i64);
+        let ndim = ndim as i64;
+        for (idx, axis) in axes.enumerate() {
+            if axis < 0 {
+                let val = axis % ndim;
                 let val = if val < 0 { val + ndim as i64 } else { val };
                 if !set.insert(val) {
                     return Err(ErrHandler::IndexRepeated(format!(
@@ -70,13 +71,13 @@ impl ErrHandler {
                     )));
                 }
             } else {
-                if *axis >= ndim as i64 {
+                if axis >= ndim  {
                     return Err(ErrHandler::IndexOutOfRange(format!(
                         "axes[{}]: {} out of range(should be in range {}..{}).",
                         idx, axis, 0, ndim
                     )));
                 }
-                if !set.insert(*axis) {
+                if !set.insert(axis) {
                     return Err(ErrHandler::IndexRepeated(format!(
                         "axes[{}] {} repeated.",
                         idx, axis
