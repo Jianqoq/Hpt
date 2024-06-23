@@ -8,5 +8,7 @@ tensor-types = { path = "../tensor-types" }
 tensor-common = { path = "../tensor-common" }
 tensor-iterator = { path = "../tensor-iterator" }
 tensor-traits = { path = "../tensor-traits" }
+tensor-allocator = { path = "../tensor-allocator" }
 anyhow = "1.0.75"
 rayon = "1.8.0"
+num = "0.4.1"

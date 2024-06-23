@@ -113,6 +113,14 @@ impl DerefMut for Shape {
     }
 }
 
+impl Into<Shape> for &Shape {
+    fn into(self) -> Shape {
+        Shape {
+            inner: Arc::clone(&self.inner),
+        }
+    }
+}
+
 impl From<Arc<Vec<i64>>> for Shape {
     fn from(v: Arc<Vec<i64>>) -> Self {
         Shape { inner: v }

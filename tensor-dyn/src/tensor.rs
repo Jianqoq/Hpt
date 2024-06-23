@@ -1,9 +1,23 @@
+use std::{ ops::{ Div, Mul, Sub }, sync::Arc };
+
+use tensor_allocator::CACHE;
 use tensor_common::{ layout::Layout, pointer::Pointer, shape::Shape };
 use tensor_iterator::strided::Strided;
-use tensor_traits::tensor::{ CommonBounds, TensorAlloc, TensorInfo };
+use tensor_traits::tensor::{ CommonBounds, TensorAlloc, TensorCreator, TensorInfo };
 use anyhow::Result;
-use tensor_types::{ convertion::Convertor, into_scalar::IntoScalar };
-use rayon::iter::{ IntoParallelRefIterator, ParallelIterator };
+use tensor_types::{
+    convertion::{ Convertor, FromScalar },
+    dtype::Dtype,
+    into_scalar::IntoScalar,
+    type_promote::{ FloatOut, NormalOut },
+};
+use rayon::iter::{
+    IndexedParallelIterator,
+    IntoParallelIterator,
+    IntoParallelRefIterator,
+    IntoParallelRefMutIterator,
+    ParallelIterator,
+};
 /// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
 ///
 /// All the operations are happen on this struct.
@@ -17,11 +31,12 @@ use rayon::iter::{ IntoParallelRefIterator, ParallelIterator };
 ///
 ///  If the tensor is a view of another tensor, the parent tensor will be the original tensor.
 /// - `mem_layout`: std::alloc::layout, use for deallocate the memory.
+#[derive(Clone)]
 pub struct _Tensor<T> {
     data: Pointer<T>,
     parent: Option<Pointer<T>>,
     layout: Layout,
-    mem_layout: std::alloc::Layout,
+    mem_layout: Arc<std::alloc::Layout>,
 }
 
 impl<T> TensorInfo<T> for _Tensor<T> {
@@ -324,9 +339,380 @@ impl<T: CommonBounds> _Tensor<T> {
     /// assert!(contiguous_tensor.is_contiguous())
     /// ```
     pub fn contiguous(&self) -> Result<Self> {
-        let res = self.iter().strided_map(|x|{
-            x
-        }).collect();
+        let res = self
+            .iter()
+            .strided_map(|x| { x })
+            .collect();
         Ok(res)
+    }
+}
+
+impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
+    type StridedIter = Strided<T>;
+
+    type Mask = _Tensor<bool>;
+
+    type Basic = _Tensor<T>;
+
+    fn empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Self> {
+        let _shape = shape.into();
+        let res_shape = Shape::from(_shape);
+        let mut size = 1;
+        let mut strides = vec![0; res_shape.len()];
+        for i in (0..res_shape.len()).rev() {
+            let tmp = res_shape[i];
+            strides[i] = size as i64;
+            size *= tmp as usize;
+        }
+        let layout = std::alloc::Layout
+            ::from_size_align((size as usize) * std::mem::size_of::<T>(), 8)
+            .unwrap();
+        let ptr = unsafe { CACHE.allocate(layout) };
+        return Ok(_Tensor {
+            data: Pointer::new(ptr as *mut T),
+            parent: None,
+            layout: Layout::new(res_shape, strides.into()),
+            mem_layout: Arc::new(layout),
+        });
+    }
+
+    fn zeros<S: Into<Shape>>(shape: S) -> anyhow::Result<Self> {
+        let _shape = shape.into();
+        let res_shape = Shape::from(_shape);
+        let mut size = 1;
+        let mut strides = vec![0; res_shape.len()];
+        for i in (0..res_shape.len()).rev() {
+            let tmp = res_shape[i] as usize;
+            strides[i] = size as i64;
+            size *= tmp;
+        }
+        let layout = std::alloc::Layout
+            ::from_size_align(size * std::mem::size_of::<T>(), 8)
+            .unwrap();
+        let ptr = unsafe { CACHE.allocate(layout) };
+        unsafe {
+            std::ptr::write_bytes(ptr as *mut T, 0, size);
+        }
+        return Ok(_Tensor {
+            data: Pointer::new(ptr as *mut T),
+            parent: None,
+            layout: Layout::new(res_shape, strides.into()),
+            mem_layout: Arc::new(layout),
+        });
+    }
+
+    fn ones<S: Into<Shape>>(shape: S) -> anyhow::Result<Self> where u8: IntoScalar<T> {
+        let _shape = shape.into();
+        let res_shape = Shape::from(_shape);
+        let mut size = 1;
+        let mut strides = vec![0; res_shape.len()];
+        for i in (0..res_shape.len()).rev() {
+            let tmp = res_shape[i] as usize;
+            strides[i] = size as i64;
+            size *= tmp;
+        }
+        let layout = std::alloc::Layout
+            ::from_size_align(size * std::mem::size_of::<T>(), 8)
+            .unwrap();
+        let ptr = unsafe { CACHE.allocate(layout) };
+        unsafe {
+            std::ptr::write_bytes(ptr as *mut T, 1, size);
+        }
+        return Ok(_Tensor {
+            data: Pointer::new(ptr as *mut T),
+            parent: None,
+            layout: Layout::new(res_shape, strides.into()),
+            mem_layout: Arc::new(layout),
+        });
+    }
+
+    fn empty_like(&self) -> anyhow::Result<Self> {
+        return Self::empty(self.shape());
+    }
+
+    fn zeros_like(&self) -> anyhow::Result<Self> {
+        return Self::zeros(self.shape());
+    }
+
+    fn ones_like(&self) -> anyhow::Result<Self> where u8: IntoScalar<T> {
+        return Self::ones(self.shape());
+    }
+
+    fn full<S: Into<Shape>>(val: T, shape: S) -> anyhow::Result<Self> {
+        let _shape = shape.into();
+        let res_shape = Shape::from(_shape);
+        let ret = _Tensor::empty(res_shape)?;
+        ret.as_raw_mut()
+            .into_par_iter()
+            .for_each(|x| {
+                *x = val;
+            });
+        return Ok(ret);
+    }
+
+    fn full_like(&self, val: T) -> anyhow::Result<Self> {
+        _Tensor::full(val, self.shape())
+    }
+
+    fn arange<U>(start: U, end: U) -> anyhow::Result<Self>
+        where T: Convertor + FromScalar<usize> + FromScalar<U> + NormalOut<T, Output = T>
+    {
+        let start = T::__from(start);
+        let end = T::__from(end);
+        let size: i64 = end.to_i64() - start.to_i64();
+        if size <= 0 {
+            return _Tensor::empty(Arc::new(vec![0]));
+        }
+        let data: _Tensor<T> = _Tensor::empty(Arc::new(vec![size]))?;
+
+        data.as_raw_mut()
+            .into_par_iter()
+            .enumerate()
+            .for_each(|(i, x)| {
+                *x = start._add(T::__from(i));
+            });
+        return Ok(data);
+    }
+
+    fn arange_step(start: T, end: T, step: T) -> anyhow::Result<Self>
+        where T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>
+    {
+        let step_float: f64 = step.to_f64();
+        let end_usize = end.to_i64();
+        let start_usize = start.to_i64();
+        let size: usize = ((end_usize - start_usize) as usize) / (step_float.abs() as usize);
+        let data = _Tensor::empty(Arc::new(vec![size as i64]))?;
+        data.as_raw_mut()
+            .into_par_iter()
+            .enumerate()
+            .for_each(|(i, x)| {
+                *x = start._add(T::__from(i)._mul(step));
+            });
+        return Ok(data);
+    }
+
+    fn eye(n: usize, m: usize, k: usize) -> anyhow::Result<Self> where u8: IntoScalar<T> {
+        let shape = vec![n as i64, m as i64];
+        let res = _Tensor::empty(Arc::new(shape))?;
+        let _r = res.as_raw_mut();
+        let one = (1).into_scalar();
+        let zero = (0).into_scalar();
+        _r.into_par_iter()
+            .enumerate()
+            .for_each(|(i, x)| {
+                let row = i / m;
+                let col = i % m;
+                if col == row + k {
+                    *x = one;
+                } else {
+                    *x = zero;
+                }
+            });
+        return Ok(res);
+    }
+
+    fn linspace(start: T, end: T, num: usize, include_end: bool) -> anyhow::Result<Self>
+        where
+            T: Convertor +
+                num::Float +
+                FromScalar<usize> +
+                FromScalar<f64> +
+                NormalOut<T, Output = T>
+    {
+        let _start: f64 = start.to_f64();
+        let _end: f64 = end.to_f64();
+        let n: f64 = num as f64;
+        let step: f64 = if include_end { (_end - _start) / (n - 1.0) } else { (_end - _start) / n };
+        let step_t: T = T::__from(step);
+        let data = _Tensor::empty(Arc::new(vec![n as i64]))?;
+        data.as_raw_mut()
+            .into_par_iter()
+            .enumerate()
+            .for_each(|(i, x)| {
+                *x = start._add(T::__from(i)._mul(step_t));
+            });
+        return Ok(data);
+    }
+
+    fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> anyhow::Result<Self>
+        where
+            T: Convertor +
+                num::Float +
+                FromScalar<usize> +
+                FromScalar<f64> +
+                NormalOut<T, Output = T>
+    {
+        let _start: f64 = start.to_f64();
+        let _end: f64 = end.to_f64();
+        let n: f64 = num as f64;
+        let step: f64 = if include_end { (_end - _start) / (n - 1.0) } else { (_end - _start) / n };
+        let step_t: T = T::__from(step);
+        let data = _Tensor::empty(Arc::new(vec![n as i64]))?;
+        data.as_raw_mut()
+            .into_par_iter()
+            .enumerate()
+            .for_each(|(i, x)| {
+                *x = base._pow(start._add(T::__from(i)._mul(step_t)));
+            });
+        return Ok(data);
+    }
+
+    fn geomspace(start: T, end: T, n: usize, include_end: bool) -> anyhow::Result<Self>
+        where
+            T: PartialOrd +
+                FloatOut<T> +
+                NormalOut<T, Output = T> +
+                FromScalar<<T as FloatOut>::Output> +
+                std::ops::Neg<Output = T>,
+            <T as FloatOut>::Output: Sub<Output = <T as FloatOut>::Output> +
+                FromScalar<usize> +
+                FromScalar<f64> +
+                Div<Output = <T as FloatOut>::Output> +
+                NormalOut<Output = <T as FloatOut>::Output> +
+                CommonBounds
+    {
+        let both_negative = start < T::ZERO && end < T::ZERO;
+        let float_n = <T as FloatOut>::Output::__from(n);
+        let step = if include_end {
+            if start > T::ZERO && end > T::ZERO {
+                (end._log10() - start._log10()) / (float_n - <T as FloatOut>::Output::__from(1f64))
+            } else if start < T::ZERO && end < T::ZERO {
+                (end._abs()._log10() - start._abs()._log10()) /
+                    (float_n - <T as FloatOut>::Output::__from(1.0))
+            } else {
+                return Err(anyhow::Error::msg("start and end must have the same sign"));
+            }
+        } else {
+            if start > T::ZERO && end > T::ZERO {
+                (end._log10() - start._log10()) / <T as FloatOut>::Output::__from(n)
+            } else if start < T::ZERO && end < T::ZERO {
+                (end._abs()._log10() - start._abs()._log10()) / float_n
+            } else {
+                return Err(anyhow::Error::msg("start and end must have the same sign"));
+            }
+        };
+        let data = _Tensor::<T>::empty(Arc::new(vec![n as i64]))?;
+        let ten: <T as FloatOut>::Output = <T as FloatOut>::Output::__from(10.0);
+        let start = if start > T::ZERO { start._log10() } else { start._abs()._log10() };
+        if T::ID == Dtype::F32 || T::ID == Dtype::F64 {
+            if both_negative {
+                data.as_raw_mut()
+                    .into_par_iter()
+                    .enumerate()
+                    .for_each(|(i, x)| {
+                        let val = ten._pow(
+                            start._add(<T as FloatOut>::Output::__from(i)._mul(step))
+                        );
+                        *x = -T::__from(val);
+                    });
+            } else {
+                data.as_raw_mut()
+                    .into_par_iter()
+                    .enumerate()
+                    .for_each(|(i, x)| {
+                        let val = ten._pow(
+                            start._add(<T as FloatOut>::Output::__from(i)._mul(step))
+                        );
+                        *x = T::__from(val);
+                    });
+            }
+            return Ok(data);
+        } else {
+            if both_negative {
+                data.as_raw_mut()
+                    .into_par_iter()
+                    .enumerate()
+                    .for_each(|(i, x)| {
+                        let val = ten._pow(
+                            start._add(<T as FloatOut>::Output::__from(i)._mul(step))
+                        );
+                        *x = -T::__from(val);
+                    });
+            } else {
+                data.as_raw_mut()
+                    .into_par_iter()
+                    .enumerate()
+                    .for_each(|(i, x)| {
+                        let val = ten._pow(
+                            start._add(<T as FloatOut>::Output::__from(i)._mul(step))
+                        );
+                        *x = T::__from(val);
+                    });
+            }
+        }
+        return Ok(data);
+    }
+
+    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> anyhow::Result<Self>
+        where u8: IntoScalar<T>
+    {
+        let shape = vec![n as i64, m as i64];
+        let res = _Tensor::empty(Arc::new(shape))?;
+        let _r = res.as_raw_mut();
+        let one = (1).into_scalar();
+        let zero = (0).into_scalar();
+        if low_triangle {
+            _r.into_par_iter()
+                .enumerate()
+                .for_each(|(i, x)| {
+                    let row = i / m;
+                    let col = i % m;
+                    if (col as i64) <= (row as i64) + k {
+                        *x = one;
+                    } else {
+                        *x = zero;
+                    }
+                });
+        } else {
+            let k = k - 1;
+            _r.into_par_iter()
+                .enumerate()
+                .for_each(|(i, x)| {
+                    let row = i / m;
+                    let col = i % m;
+                    if (col as i64) <= (row as i64) + k {
+                        *x = zero;
+                    } else {
+                        *x = one;
+                    }
+                });
+        }
+        return Ok(res);
+    }
+
+    fn tril(&self, k: i64) -> anyhow::Result<Self> {
+        if self.shape().len() < 2 {
+            let message = format!("_Tensor must have at least 2 dimensions for tril method");
+            return Err(anyhow::Error::msg(message));
+        }
+        let mask: _Tensor<bool> = _Tensor::<bool>::tri(
+            self.shape()[self.shape().len() - 2] as usize,
+            self.shape()[self.shape().len() - 1] as usize,
+            k,
+            true
+        )?;
+        let res: <_Tensor<T> as Mul<_Tensor<bool>>>::Output = self.clone() * mask;
+        return Ok(res);
+    }
+
+    fn triu(&self, k: i64) -> anyhow::Result<Self> {
+        if self.shape().len() < 2 {
+            let message: String = format!(
+                "_Tensor must have at least 2 dimensions for tril method"
+            );
+            return Err(anyhow::Error::msg(message));
+        }
+        let mask: _Tensor<bool> = _Tensor::<bool>::tri(
+            self.shape()[self.shape().len() - 2] as usize,
+            self.shape()[self.shape().len() - 1] as usize,
+            k,
+            false
+        )?;
+        let res = self.clone() * mask;
+        return Ok(res);
+    }
+
+    fn identity(n: usize) -> anyhow::Result<Self> where u8: IntoScalar<T> {
+        _Tensor::eye(n, n, 0)
     }
 }

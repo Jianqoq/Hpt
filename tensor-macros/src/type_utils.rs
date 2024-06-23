@@ -98,6 +98,12 @@ impl Type {
             _ => false,
         }
     }
+    pub fn is_unsigned(&self) -> bool {
+        match self {
+            Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Usize => true,
+            _ => false,
+        }
+    }
 }
 
 impl ToTokens for Type {

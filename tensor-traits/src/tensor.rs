@@ -1,8 +1,11 @@
+use std::ops::{ Div, Sub };
+
 use tensor_common::{ layout::Layout, pointer::Pointer, shape::Shape, strides::Strides };
 use tensor_types::{
     convertion::{ Convertor, FromScalar },
     dtype::TypeCommon,
     into_scalar::IntoScalar,
+    type_promote::{ FloatOut, NormalOut },
 };
 
 pub trait TensorInfo<T> {
@@ -19,9 +22,8 @@ pub trait TensorInfo<T> {
     }
 }
 
-pub trait TensorCreator<'iter, T, Output = Self> where Self: Sized {
-    type StridedIter: 'iter;
-    type StridedIterMut: 'iter;
+pub trait TensorCreator<T, Output = Self> where Self: Sized {
+    type StridedIter;
     type Mask;
     type Basic;
 
@@ -174,7 +176,7 @@ pub trait TensorCreator<'iter, T, Output = Self> where Self: Sized {
     /// let range_tensor = YourType::arange(0, 10); // Creates a tensor with values from 0 to 9
     /// ```
     fn arange<U>(start: U, end: U) -> anyhow::Result<Output>
-        where T: Convertor + FromScalar<usize> + FromScalar<U>;
+        where T: Convertor + FromScalar<usize> + FromScalar<U> + NormalOut<T, Output = T>;
 
     /// Creates a tensor with a range of values from `start` to `end` (exclusive), using a specified step.
     ///
@@ -194,7 +196,7 @@ pub trait TensorCreator<'iter, T, Output = Self> where Self: Sized {
     /// let range_step_tensor = YourType::arange_step(0, 10, 2); // Creates a tensor with values [0, 2, 4, 6, 8]
     /// ```
     fn arange_step(start: T, end: T, step: T) -> anyhow::Result<Output>
-        where T: Convertor + FromScalar<usize>;
+        where T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>;
 
     /// Creates an identity matrix of size `n` x `m`, with ones on the k-th diagonal and zeros elsewhere.
     ///
@@ -233,7 +235,12 @@ pub trait TensorCreator<'iter, T, Output = Self> where Self: Sized {
     /// // Creates a tensor with values [0., 2.5, 5., 7.5, 10.]
     /// ```
     fn linspace(start: T, end: T, num: usize, include_end: bool) -> anyhow::Result<Output>
-        where T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64>;
+        where
+            T: Convertor +
+                num::Float +
+                FromScalar<usize> +
+                FromScalar<f64> +
+                NormalOut<T, Output = T>;
 
     /// Returns numbers spaced evenly on a log scale.
     ///
@@ -256,7 +263,12 @@ pub trait TensorCreator<'iter, T, Output = Self> where Self: Sized {
     /// // Creates a tensor with values [1., 2.160119483, 4.641588833, 10., 21.5443469]
     /// ```
     fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> anyhow::Result<Output>
-        where T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64>;
+        where
+            T: Convertor +
+                num::Float +
+                FromScalar<usize> +
+                FromScalar<f64> +
+                NormalOut<T, Output = T>;
 
     /// Returns numbers spaced evenly on a geometric scale.
     ///
@@ -280,7 +292,18 @@ pub trait TensorCreator<'iter, T, Output = Self> where Self: Sized {
     /// let geomspace_tensor = YourType::geomspace(1., 1000., 4, true);
     /// // Creates a tensor with values [1., 10., 100., 1000.]
     /// ```
-    fn geomspace(start: T, end: T, n: usize, include_end: bool) -> anyhow::Result<Output>;
+    fn geomspace(start: T, end: T, n: usize, include_end: bool) -> anyhow::Result<Output>
+        where
+            T: PartialOrd +
+                FloatOut<T> +
+                NormalOut<T, Output = T> +
+                FromScalar<<T as FloatOut>::Output> +
+                std::ops::Neg<Output = T>,
+            <T as FloatOut<T>>::Output: Sub<Output = <T as FloatOut>::Output> +
+                FromScalar<usize> +
+                FromScalar<f64> +
+                Div<Output = <T as FloatOut>::Output> +
+                NormalOut<Output = <T as FloatOut>::Output> + CommonBounds;
 
     /// Creates a triangular matrix with dimensions `n` x `m`.
     ///

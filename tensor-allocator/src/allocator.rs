@@ -4,19 +4,19 @@ use hashbrown::HashSet;
 use lru::LruCache;
 use once_cell::sync::Lazy;
 
-static mut CACHE: Lazy<Allocator> = Lazy::new(|| Allocator::new(1000));
+pub static mut CACHE: Lazy<Allocator> = Lazy::new(|| Allocator::new(1000));
 
-struct Allocator {
+pub struct Allocator {
     allocator: Mutex<_Allocator>,
 }
 
 impl Allocator {
-    pub fn allocate(layout: Layout) -> *mut u8 {
-        unsafe { CACHE.allocator.lock().unwrap().allocate(layout) }
+    pub fn allocate(&self, layout: Layout) -> *mut u8 {
+        self.allocator.lock().unwrap().allocate(layout)
     }
 
-    pub fn deallocate(ptr: *mut u8, layout: Layout) {
-        unsafe { CACHE.allocator.lock().unwrap().deallocate(ptr, layout) }
+    pub fn deallocate(&self, ptr: *mut u8, layout: Layout) {
+        self.allocator.lock().unwrap().deallocate(ptr, layout);
     }
 }
 

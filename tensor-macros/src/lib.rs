@@ -332,6 +332,24 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                 }
             };
 
+            let abs_method = if res_type.is_unsigned() {
+                quote! {
+                    fn _abs(self) -> Self::Output {
+                        paste::paste! {
+                            self
+                        }
+                    }
+                }
+            } else {
+                quote! {
+                    fn _abs(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().abs()
+                        }
+                    }
+                }
+            };
+
             let res =
                 quote! {
                 impl NormalOut<#rhs_dtype> for #lhs_dtype {
@@ -363,6 +381,7 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                             self.[<to_ #res_type>]() * self.[<to_ #res_type>]()
                         }
                     }
+                    #abs_method
                 }
             };
             ret.extend(res);
