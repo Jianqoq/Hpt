@@ -104,6 +104,9 @@ impl Type {
             _ => false,
         }
     }
+    pub fn is_bool(&self) -> bool {
+        matches!(self, Type::Bool)
+    }
 }
 
 impl ToTokens for Type {

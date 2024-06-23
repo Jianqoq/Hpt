@@ -1,7 +1,8 @@
-use tensor_macros::{ impl_bitwise_out, impl_float_out, impl_normal_out };
+use tensor_macros::{ impl_bitwise_out, impl_cmp, impl_eval, impl_float_out, impl_normal_out };
 use half::f16;
 use crate::convertion::Convertor;
 use num_traits::float::Float;
+use crate::dtype::TypeCommon;
 
 /// this trait is used to perform type promotion in dynamic graph
 pub trait FloatOut<RHS = Self> {
@@ -55,3 +56,21 @@ pub trait BitWiseOut<RHS = Self> {
 }
 
 impl_bitwise_out!();
+
+pub trait Cmp<RHS = Self> {
+    fn _eq(self, rhs: RHS) -> bool;
+    fn _ne(self, rhs: RHS) -> bool;
+    fn _lt(self, rhs: RHS) -> bool;
+    fn _le(self, rhs: RHS) -> bool;
+    fn _gt(self, rhs: RHS) -> bool;
+    fn _ge(self, rhs: RHS) -> bool;
+}
+
+impl_cmp!();
+
+pub trait Eval {
+    fn _is_nan(&self) -> bool;
+    fn _is_true(&self) -> bool;
+}
+
+impl_eval!();

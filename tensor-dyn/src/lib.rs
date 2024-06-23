@@ -5,7 +5,7 @@ pub mod ops {
     pub mod uary;
     pub mod binary;
     pub mod matmul;
-    pub mod reduce_funcs;
+    pub mod reduce;
     pub mod reduce_kernels;
 }
 pub mod slice;

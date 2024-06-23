@@ -4,7 +4,7 @@ mod type_utils;
 mod list_enum;
 use quote::quote;
 use type_utils::TypeInfo;
-use proc_macro2::{TokenStream as TokenStream2, TokenTree};
+use proc_macro2::{ TokenStream as TokenStream2, TokenTree };
 
 #[derive(Debug)]
 struct SelectionParser {
@@ -60,10 +60,9 @@ impl syn::parse::Parse for SelectionParser {
                 only_scalar: true,
             });
         } else {
-            return Err(syn::Error::new(
-                input.span(),
-                "unexpected token, expected `:`, Int or Ident",
-            ));
+            return Err(
+                syn::Error::new(input.span(), "unexpected token, expected `:`, Int or Ident")
+            );
         }
         if input.peek(syn::LitInt) {
             end = Some(input.parse::<syn::LitInt>()?.base10_parse::<isize>()?);
@@ -131,9 +130,10 @@ pub fn match_selection(input: TokenStream) -> TokenStream {
     let mut ret_stream = TokenStream2::new();
     let len = slices.len();
     for (idx, x) in slices.into_iter().enumerate() {
-        if (x.start.is_some() || x.start_ident.is_some())
-            && (x.end.is_some() || x.end_ident.is_some())
-            && (x.step.is_some() || x.step_ident.is_some())
+        if
+            (x.start.is_some() || x.start_ident.is_some()) &&
+            (x.end.is_some() || x.end_ident.is_some()) &&
+            (x.step.is_some() || x.step_ident.is_some())
         {
             // start:end:step
             let start_token;
@@ -172,12 +172,14 @@ pub fn match_selection(input: TokenStream) -> TokenStream {
                 let step = x.step.unwrap();
                 step_token = quote!(#step);
             }
-            ret_stream
-                .extend(quote!(Slice::StepByRangeFromTo((#start_token, #end_token, #step_token))));
-        } else if x.start.is_none()
-            && x.start_ident.is_none()
-            && (x.end.is_some() || x.end_ident.is_some())
-            && (x.step.is_some() || x.step_ident.is_some())
+            ret_stream.extend(
+                quote!(Slice::StepByRangeFromTo((#start_token, #end_token, #step_token)))
+            );
+        } else if
+            x.start.is_none() &&
+            x.start_ident.is_none() &&
+            (x.end.is_some() || x.end_ident.is_some()) &&
+            (x.step.is_some() || x.step_ident.is_some())
         {
             // :end:step
             let end_token;
@@ -205,10 +207,11 @@ pub fn match_selection(input: TokenStream) -> TokenStream {
                 step_token = quote!(#step);
             }
             ret_stream.extend(quote!(Slice::StepByRangeTo((#end_token, #step_token))));
-        } else if (x.start.is_some() || x.start_ident.is_some())
-            && x.end.is_none()
-            && x.end_ident.is_none()
-            && (x.step.is_some() || x.step_ident.is_some())
+        } else if
+            (x.start.is_some() || x.start_ident.is_some()) &&
+            x.end.is_none() &&
+            x.end_ident.is_none() &&
+            (x.step.is_some() || x.step_ident.is_some())
         {
             // start::step
             let start_token;
@@ -236,10 +239,11 @@ pub fn match_selection(input: TokenStream) -> TokenStream {
                 step_token = quote!(#step);
             }
             ret_stream.extend(quote!(Slice::StepByRangeFrom((#start_token, #step_token))));
-        } else if (x.start.is_some() || x.start_ident.is_some())
-            && (x.end.is_some() || x.end_ident.is_some())
-            && x.step.is_none()
-            && x.step_ident.is_none()
+        } else if
+            (x.start.is_some() || x.start_ident.is_some()) &&
+            (x.end.is_some() || x.end_ident.is_some()) &&
+            x.step.is_none() &&
+            x.step_ident.is_none()
         {
             // start:end:
             let start_token;
@@ -267,11 +271,12 @@ pub fn match_selection(input: TokenStream) -> TokenStream {
                 end_token = quote!(#end);
             }
             ret_stream.extend(quote!(Slice::Range((#start_token, #end_token))));
-        } else if x.start.is_none()
-            && x.start_ident.is_none()
-            && (x.end.is_some() || x.end_ident.is_some())
-            && x.step.is_none()
-            && x.step_ident.is_none()
+        } else if
+            x.start.is_none() &&
+            x.start_ident.is_none() &&
+            (x.end.is_some() || x.end_ident.is_some()) &&
+            x.step.is_none() &&
+            x.step_ident.is_none()
         {
             // :end:
             let end_token;
@@ -287,11 +292,12 @@ pub fn match_selection(input: TokenStream) -> TokenStream {
                 end_token = quote!(#end);
             }
             ret_stream.extend(quote!(Slice::RangeTo(#end_token)));
-        } else if (x.start.is_some() || x.start_ident.is_some())
-            && x.end.is_none()
-            && x.end_ident.is_none()
-            && x.step.is_none()
-            && x.step_ident.is_none()
+        } else if
+            (x.start.is_some() || x.start_ident.is_some()) &&
+            x.end.is_none() &&
+            x.end_ident.is_none() &&
+            x.step.is_none() &&
+            x.step_ident.is_none()
         {
             // start::
             let start_token;
@@ -311,11 +317,12 @@ pub fn match_selection(input: TokenStream) -> TokenStream {
             } else {
                 ret_stream.extend(quote!(Slice::RangeFrom(#start_token)));
             }
-        } else if x.start.is_none()
-            && x.start_ident.is_none()
-            && x.end.is_none()
-            && x.end_ident.is_none()
-            && (x.step.is_some() || x.step_ident.is_some())
+        } else if
+            x.start.is_none() &&
+            x.start_ident.is_none() &&
+            x.end.is_none() &&
+            x.end_ident.is_none() &&
+            (x.step.is_some() || x.step_ident.is_some())
         {
             // ::step
             let step_token;
@@ -732,19 +739,7 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
 pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
 
-    let types = [
-        "bool",
-        "i8",
-        "i16",
-        "i32",
-        "i64",
-        "u8",
-        "u16",
-        "u32",
-        "u64",
-        "isize",
-        "usize",
-    ];
+    let types = ["bool", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "isize", "usize"];
 
     for lhs in types.iter() {
         for rhs in types.iter() {
@@ -792,6 +787,144 @@ pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
             };
             ret.extend(res);
         }
+    }
+
+    ret.into()
+}
+
+#[proc_macro]
+pub fn impl_cmp(_: TokenStream) -> TokenStream {
+    let mut ret = proc_macro2::TokenStream::new();
+
+    let types = [
+        "bool",
+        "f16",
+        "f32",
+        "f64",
+        "i8",
+        "i16",
+        "i32",
+        "i64",
+        "u8",
+        "u16",
+        "u32",
+        "u64",
+        "isize",
+        "usize",
+    ];
+
+    for lhs in types.iter() {
+        for rhs in types.iter() {
+            let lhs_type = TypeInfo::new(lhs);
+            let rhs_type = TypeInfo::new(rhs);
+            let lhs_dtype = lhs_type.dtype;
+            let rhs_dtype = rhs_type.dtype;
+            let res_type = lhs_type.infer_normal_res_type(&rhs_type);
+
+            let res =
+                quote! {
+                impl Cmp<#rhs_dtype> for #lhs_dtype {
+                    fn _eq(self, rhs: #rhs_dtype) -> bool {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() == rhs.[<to_ #res_type>]()
+                        }
+                    }
+                    fn _ne(self, rhs: #rhs_dtype) -> bool {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() != rhs.[<to_ #res_type>]()
+                        }
+                    }
+                    fn _lt(self, rhs: #rhs_dtype) -> bool {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() < rhs.[<to_ #res_type>]()
+                        }
+                    }
+
+                    fn _le(self, rhs: #rhs_dtype) -> bool {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() <= rhs.[<to_ #res_type>]()
+                        }
+                    }
+                    fn _gt(self, rhs: #rhs_dtype) -> bool {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() > self.[<to_ #res_type>]()
+                        }
+                    }
+                    fn _ge(self, rhs: #rhs_dtype) -> bool {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() >= self.[<to_ #res_type>]()
+                        }
+                    }
+                }
+            };
+            ret.extend(res);
+        }
+    }
+
+    ret.into()
+}
+
+#[proc_macro]
+pub fn impl_eval(_: TokenStream) -> TokenStream {
+    let mut ret = proc_macro2::TokenStream::new();
+
+    let types = [
+        "bool",
+        "f16",
+        "f32",
+        "f64",
+        "i8",
+        "i16",
+        "i32",
+        "i64",
+        "u8",
+        "u16",
+        "u32",
+        "u64",
+        "isize",
+        "usize",
+    ];
+
+    for lhs in types.iter() {
+        let lhs_type = TypeInfo::new(lhs);
+        let lhs_dtype = lhs_type.dtype;
+
+        let is_nan = if lhs_dtype.is_float() {
+            quote! {
+                fn _is_nan(&self) -> bool {
+                    self.is_nan()
+                }
+            }
+        } else {
+            quote! {
+                fn _is_nan(&self) -> bool {
+                    false
+                }
+            }
+        };
+
+        let is_true = if lhs_dtype.is_bool() {
+            quote! {
+                fn _is_true(&self) -> bool {
+                    *self
+                }
+            }
+        } else {
+            quote! {
+                fn _is_true(&self) -> bool {
+                    self == &#lhs_dtype::ZERO
+                }
+            }
+        };
+
+        let res =
+            quote! {
+                impl Eval for #lhs_dtype {
+                    #is_nan
+                    #is_true
+                }
+            };
+        ret.extend(res);
     }
 
     ret.into()

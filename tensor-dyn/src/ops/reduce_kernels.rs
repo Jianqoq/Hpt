@@ -251,7 +251,7 @@ macro_rules! nansum_kernel {
             let mut tmp = $result_ptr[0];
             for i in 0..$loop_size as i64 {
                 let a_val = $a_ptr[i * $a_last_stride];
-                if a_val._isnan() {
+                if a_val._is_nan() {
                     tmp = T::ZERO._add(tmp);
                 } else {
                     tmp = a_val._add(tmp);
@@ -285,7 +285,7 @@ macro_rules! nansum_kernel {
         for _ in 0..$loop_size2 {
             for i in 0..$loop_size as i64 {
                 let a_val = $a_ptr[i * $a_stride];
-                if a_val._isnan() {
+                if a_val._is_nan() {
                     $result_ptr.modify(i, T::ZERO._add($result_ptr[i]));
                 } else {
                     $result_ptr.modify(i, a_val._add($result_ptr[i]));
@@ -317,7 +317,7 @@ macro_rules! nansum_kernel {
     };
     (reduce_all, $result_data:ident, $inp_name:ident, $init_val:expr) => {
         let val = $inp_name.as_raw_mut().par_iter().fold(|| $init_val, |acc, &x|
-            if x._isnan() {
+            if x._is_nan() {
                 acc
             } else {
              acc._add(x)
@@ -420,7 +420,7 @@ macro_rules! nanprod_kernel {
             let mut tmp = $result_ptr[0];
             for i in 0..$loop_size as i64 {
                 let a_val = $a_ptr[i * $a_last_stride];
-                if !a_val._isnan() {
+                if !a_val._is_nan() {
                     tmp = a_val._mul(tmp);
                 }
             }
@@ -453,7 +453,7 @@ macro_rules! nanprod_kernel {
             for i in 0..$loop_size  as i64{
                 let a_val = $a_ptr[i * $a_stride];
                 let result_val = $result_ptr[i];
-                if !a_val._isnan() {
+                if !a_val._is_nan() {
                     $result_ptr.modify(i, a_val._mul(result_val));
                 }
             }
@@ -483,7 +483,7 @@ macro_rules! nanprod_kernel {
     };
     (reduce_all, $result_data:ident, $inp_name:ident, $init_val:expr) => {
         let val = $inp_name.as_raw_mut().par_iter().fold(|| $init_val, |acc, &x|
-             if x._isnan(){
+             if x._is_nan(){
                 acc
             } else {
                 acc._mul(x)
@@ -508,7 +508,7 @@ macro_rules! min_kernel {
             let mut tmp = $result_ptr[0];
             for i in 0..$loop_size as i64 {
                 let a_val = $a_ptr[i * $a_last_stride];
-                if a_val.__lt(tmp) {
+                if a_val._lt(tmp) {
                     tmp = a_val;
                 }
             }
@@ -541,7 +541,7 @@ macro_rules! min_kernel {
             for i in 0..$loop_size as i64 {
                 let a_val = $a_ptr[i * $a_stride];
                 let result_val = $result_ptr[i];
-                if a_val.__lt(result_val) {
+                if a_val._lt(result_val) {
                     $result_ptr.modify(i, a_val);
                 }
             }
@@ -570,7 +570,7 @@ macro_rules! min_kernel {
         $iterator.reset_prg();
     };
     (reduce_all, $result_data:ident, $inp_name:ident, $init_val:expr) => {
-        let val = $inp_name.as_raw_mut().par_iter().fold(|| $init_val, |acc, &x| if acc.__lt(x) {acc} else {x}).reduce(|| $init_val,|a, b| if a.__lt(b) {a} else {b});
+        let val = $inp_name.as_raw_mut().par_iter().fold(|| $init_val, |acc, &x| if acc._lt(x) {acc} else {x}).reduce(|| $init_val,|a, b| if a._lt(b) {a} else {b});
         $result_data.write(val);
     };
 }
@@ -674,7 +674,7 @@ macro_rules! all_kernel {
             let mut tmp = $result_ptr[0];
             for i in 0..$loop_size as i64 {
                 let a_val = $a_ptr[i * $a_last_stride];
-                tmp = a_val._istrue() & tmp;
+                tmp = a_val._is_true() & tmp;
             }
             $result_ptr.modify(0, tmp);
             for j in (0..=$shape_len - 2).rev() {
@@ -705,7 +705,7 @@ macro_rules! all_kernel {
             for i in 0..$loop_size as i64 {
                 let a_val = $a_ptr[i * $a_stride];
                 let result_val = $result_ptr[i];
-                $result_ptr.modify(i, a_val._istrue() & result_val);
+                $result_ptr.modify(i, a_val._is_true() & result_val);
             }
             for j in ($shape_len..=$iterator.a_shape.len() as i64 - 1).rev() {
                 if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
@@ -733,7 +733,7 @@ macro_rules! all_kernel {
     };
     (reduce_all, $result_data:ident, $inp_name:ident, $init_val:expr) => {
         let val = $inp_name.as_raw_mut().par_iter()
-        .fold(|| $init_val, |acc, &x| acc == x._istrue())
+        .fold(|| $init_val, |acc, &x| acc == x._is_true())
         .reduce(|| $init_val,|a, b| a == b);
         $result_data.write(val);
     };
@@ -755,7 +755,7 @@ macro_rules! any_kernel {
             let mut tmp = $result_ptr[0];
             for i in 0..$loop_size as i64 {
                 let a_val = $a_ptr[i * $a_last_stride];
-                tmp = a_val._istrue() | tmp;
+                tmp = a_val._is_true() | tmp;
             }
             $result_ptr.modify(0, tmp);
             for j in (0..=$shape_len - 2).rev() {
@@ -786,7 +786,7 @@ macro_rules! any_kernel {
             for i in 0..$loop_size as i64 {
                 let a_val = $a_ptr[i * $a_stride];
                 let result_val = $result_ptr[i];
-                $result_ptr.modify(i, a_val._istrue() | result_val);
+                $result_ptr.modify(i, a_val._is_true() | result_val);
             }
             for j in ($shape_len..=$iterator.a_shape.len() as i64 - 1).rev() {
                 if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
@@ -814,7 +814,7 @@ macro_rules! any_kernel {
     };
     (reduce_all, $result_data:ident, $inp_name:ident, $init_val:expr) => {
         let val = $inp_name.as_raw_mut().par_iter()
-        .fold(|| $init_val, |acc, &x| acc || x._istrue())
+        .fold(|| $init_val, |acc, &x| acc || x._is_true())
         .reduce(|| $init_val,|a, b| a || b);
         $result_data.write(val);
     };

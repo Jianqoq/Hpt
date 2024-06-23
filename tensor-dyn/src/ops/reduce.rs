@@ -13,10 +13,11 @@ use crate::{
     sum_kernel,
     sum_with_cast_kernel,
 };
+use tensor_common::axis::{ process_axes, Axis };
 use tensor_types::into_scalar::IntoScalar;
 use rayon::iter::IntoParallelRefIterator;
 use tensor_types::dtype::TypeCommon;
-use tensor_traits::tensor::TensorInfo;
+use tensor_traits::tensor::{ FloatReduce, IndexReduce, NormalReduce, TensorInfo };
 use rayon::iter::IntoParallelRefMutIterator;
 use rayon::iter::ParallelIterator;
 use std::borrow::BorrowMut;
@@ -27,7 +28,7 @@ use tensor_common::pointer::Pointer;
 use anyhow;
 use tensor_traits::tensor::CommonBounds;
 use tensor_types::convertion::FromScalar;
-use tensor_types::type_promote::{ FloatOut, NormalOut };
+use tensor_types::type_promote::{ Cmp, Eval, FloatOut, NormalOut };
 use std::sync::Arc;
 use std::sync::Barrier;
 use tensor_traits::shape_manipulate::ShapeManipulate;
@@ -42,7 +43,6 @@ struct ReductionPreprocessor<T, U> {
     pub prg: Vec<i64>,
     pub a_prg: Vec<i64>,
     pub shape: Arc<Vec<i64>>,
-    pub a_ndim: usize,
     pub a_shape: Arc<Vec<i64>>,
 }
 
@@ -109,7 +109,6 @@ impl<T, U> ReductionPreprocessor<T, U> {
                 prg,
                 a_prg: vec![],
                 shape: res_shape.clone(),
-                a_ndim: a_shape.len(),
                 a_shape: a_shape.clone(),
             });
         }
@@ -166,7 +165,6 @@ impl<T, U> ReductionPreprocessor<T, U> {
                 prg,
                 a_prg: progress_init_a_data_cpy,
                 shape: res_shape.clone(),
-                a_ndim: transposed_shape.len(),
                 a_shape: transposed_shape.clone(),
             });
         }
@@ -823,7 +821,7 @@ register_reduction!(
     nansum,
     nansum_kernel,
     T::ZERO,
-    where T: CommonBounds + NormalOut<T, Output = T>
+    where T: CommonBounds + NormalOut<T, Output = T> + Eval
 );
 
 register_reduction!(
@@ -839,7 +837,7 @@ register_reduction!(
     nanprod,
     nanprod_kernel,
     T::ONE,
-    where T: CommonBounds + NormalOut<T, Output = T>
+    where T: CommonBounds + NormalOut<T, Output = T> + Eval
 );
 
 register_reduction!(
@@ -847,7 +845,7 @@ register_reduction!(
     min,
     min_kernel,
     T::INF,
-    where T: CommonBounds + NormalOut<T, Output = T>
+    where T: CommonBounds + NormalOut<T, Output = T> + Cmp
 );
 
 register_reduction!(
@@ -855,7 +853,7 @@ register_reduction!(
     max,
     max_kernel,
     T::NEG_INF,
-    where T: CommonBounds + NormalOut<T, Output = T>
+    where T: CommonBounds + NormalOut<T, Output = T> + Cmp
 );
 
 register_reduction!(
@@ -863,7 +861,7 @@ register_reduction!(
     all,
     all_kernel,
     true,
-    where T: CommonBounds + NormalOut<T, Output = T>,
+    where T: CommonBounds + NormalOut<T, Output = T> + Eval,
     bool: NormalOut<bool> + CommonBounds
 );
 
@@ -872,7 +870,7 @@ register_reduction!(
     any,
     any_kernel,
     false,
-    where T: CommonBounds + NormalOut<T, Output = T>,
+    where T: CommonBounds + NormalOut<T, Output = T> + Eval,
     bool: NormalOut<bool> + CommonBounds,
 );
 
@@ -895,14 +893,14 @@ register_reduction_one_axis!(
     T => [i64],
     argmax,
     argmax_kernel,
-    where T: CommonBounds + NormalOut<T, Output = T>
+    where T: CommonBounds + NormalOut<T, Output = T> + Cmp
 );
 
 register_reduction_one_axis!(
     T => [i64],
     argmin,
     argmin_kernel,
-    where T: CommonBounds + NormalOut<T, Output = T>
+    where T: CommonBounds + NormalOut<T, Output = T> + Cmp
 );
 
 macro_rules! impl_stack {
@@ -1047,3 +1045,154 @@ macro_rules! impl_stack {
 }
 
 impl_stack!(_Tensor, stack);
+
+impl<T: CommonBounds + NormalOut<Output = T> + Cmp> IndexReduce for _Tensor<T> {
+    type Output = _Tensor<i64>;
+
+    fn argmax<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        argmax(self, axes, 0, keep_dims, None)
+    }
+
+    fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        argmin(self, axes, 0, keep_dims, None)
+    }
+}
+
+impl<T: CommonBounds + NormalOut<Output = T> + Eval + Cmp> NormalReduce<T> for _Tensor<T> {
+    type Output = _Tensor<T>;
+
+    type BoolOutput = _Tensor<bool>;
+
+    fn sum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+        sum(self, &axes, T::ZERO, keep_dims, false, None)
+    }
+
+    fn sum_<S: Into<Axis>>(
+        &self,
+        axes: S,
+        keep_dims: bool,
+        init_out: bool,
+        out: Self::Output
+    ) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+        sum(self, &axes, T::ZERO, keep_dims, init_out, Some(out))
+    }
+
+    fn sum_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool
+    ) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+        sum(self, &axes, init_val, keep_dims, false, None)
+    }
+
+    fn nansum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+        nansum(self, &axes, T::ZERO, keep_dims, false, None)
+    }
+
+    fn nansum_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool
+    ) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+        nansum(self, &axes, init_val, keep_dims, false, None)
+    }
+
+    fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        prod(self, &axes, T::ONE, keep_dims, false, None)
+    }
+
+    fn prod_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool
+    ) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+        prod(self, &axes, init_val, keep_dims, false, None)
+    }
+
+    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        nanprod(self, &axes, T::ONE, keep_dims, false, None)
+    }
+
+    fn nanprod_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool
+    ) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+        nanprod(self, &axes, init_val, keep_dims, false, None)
+    }
+
+    fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        min(self, &axes, T::INF, keep_dims, false, None)
+    }
+
+    fn min_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool
+    ) -> anyhow::Result<Self> {
+        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+        min(self, &axes, init_val, keep_dims, false, None)
+    }
+
+    fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        max(self, &axes, T::NEG_INF, keep_dims, false, None)
+    }
+
+    fn max_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool
+    ) -> anyhow::Result<Self> {
+        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+        max(self, &axes, init_val, keep_dims, false, None)
+    }
+
+    fn all<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
+        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+        all(self, &axes, true, keep_dims, false, None)
+    }
+
+    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        any(self, &axes, false, keep_dims, false, None)
+    }
+}
+
+impl<T> FloatReduce<T>
+    for _Tensor<T>
+    where
+        T: CommonBounds                                                                                 // prettier-ignore
+        + NormalOut<T>                                                                                  // prettier-ignore
+        + NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output>                          // prettier-ignore
+        + FloatOut, // prettier-ignore
+        <T as FloatOut>::Output: CommonBounds                                                           // prettier-ignore
+        + NormalOut<T, Output = <T as FloatOut>::Output>, // prettier-ignore
+        <T as FloatOut>::Output: FloatOut<Output = <T as FloatOut>::Output>, // prettier-ignore
+        <T as FloatOut>::Output: NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output>   // prettier-ignore
+        + FromScalar<usize> // prettier-ignore
+{
+    type Output = _Tensor<<T as FloatOut>::Output>;
+    fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        mean(self, &axes, <T as FloatOut>::Output::ZERO, keep_dims, false, None)
+    }
+}

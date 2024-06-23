@@ -7,7 +7,8 @@ use tensor_common::{
     layout::Layout,
     pointer::Pointer,
     shape::Shape,
-    shape_utils::{yield_one_after, yield_one_before}, slice::Slice,
+    shape_utils::{ yield_one_after, yield_one_before },
+    slice::Slice,
 };
 use tensor_macros::match_selection;
 use tensor_common::slice;
@@ -32,7 +33,7 @@ use rayon::iter::{
     ParallelIterator,
 };
 
-use crate::slice::SliceOps;
+use crate::{ ops::reduce::stack, slice::SliceOps };
 /// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
 ///
 /// All the operations are happen on this struct.
@@ -381,6 +382,145 @@ impl<T: CommonBounds> _Tensor<T> {
             .strided_map(|x| { x })
             .collect();
         Ok(res)
+    }
+
+    /// Stacks a sequence of tensors along a specified axis.
+    ///
+    /// Given a list of tensors, this function concatenates them along the specified axis.
+    /// All tensors must have the same shape, except in the dimension corresponding to `axis`.
+    ///
+    /// # Arguments
+    /// - `tensors`: A vector of tensor references to be stacked.
+    /// - `axis`: The axis along which the tensors will be stacked.
+    /// - `keepdims`: A boolean indicating whether to keep the dimension of the axis or not.
+    ///
+    /// # Returns
+    /// A `Result` containing the stacked tensor or an error if the operation fails.
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_core::_Tensor;
+    /// let tensor1 = _Tensor::<f32>::new([1.0, 2.0, 3.0]);
+    /// let tensor2 = _Tensor::<f32>::new([4.0, 5.0, 6.0]);
+    /// let stacked_tensor = _Tensor::stack(vec![&tensor1, &tensor2], 0, true).unwrap();
+    /// assert!(stacked_tensor.allclose(&_Tensor::<f64>::new([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])));
+    /// ```
+    pub fn stack(tensors: Vec<&_Tensor<T>>, axis: usize, keepdims: bool) -> Result<Self>
+        where T: 'static
+    {
+        stack(tensors, axis, keepdims)
+    }
+
+    /// Vertically stacks a sequence of tensors.
+    ///
+    /// This is a convenience method for stacking tensors along the first axis (axis=0).
+    /// All tensors must have the same number of dimensions and the same shape,
+    /// except for the first axis.
+    ///
+    /// # Arguments
+    /// - `tensors`: A vector of tensor references to be vertically stacked.
+    ///
+    /// # Returns
+    /// A `Result` containing the vertically stacked tensor or an error if the operation fails.
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_core::_Tensor;
+    /// let tensor1 = _Tensor::<f32>::new([1.0, 2.0, 3.0]);
+    /// let tensor2 = _Tensor::<f32>::new([4.0, 5.0, 6.0]);
+    /// let vstacked_tensor = _Tensor::vstack(vec![&tensor1, &tensor2]).unwrap();
+    /// assert!(vstacked_tensor.allclose(&_Tensor::<f64>::new([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])));
+    /// ```
+    pub fn vstack(tensors: Vec<&_Tensor<T>>) -> Result<_Tensor<T>> {
+        return stack(tensors, 0, false);
+    }
+    /// Horizontally stacks a sequence of tensors.
+    ///
+    /// This function concatenates tensors along the second axis (axis=1).
+    /// It automatically reshapes tensors with fewer dimensions to have an additional axis.
+    /// For 1-dimensional tensors, they are reshaped to 2D before stacking.
+    /// Scalars are reshaped to 1x1 tensors.
+    ///
+    /// # Arguments
+    /// - `tensors`: A vector of references to the tensors to be horizontally stacked.
+    ///
+    /// # Returns
+    /// A `Result` containing the horizontally stacked tensor or an error if the operation fails.
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_core::_Tensor;
+    /// let tensor1 = _Tensor::<f32>::new([1.0, 2.0, 3.0]);
+    /// let tensor2 = _Tensor::<f32>::new([4.0, 5.0, 6.0]);
+    /// let hstacked_tensor = _Tensor::hstack(vec![&tensor1, &tensor2]).unwrap();
+    /// assert!(hstacked_tensor.allclose(&_Tensor::<f64>::new([1.0, 2.0, 3.0,4.0, 5.0, 6.0])));
+    /// ```
+    pub fn hstack(mut tensors: Vec<&_Tensor<T>>) -> Result<_Tensor<T>> {
+        for tensor in tensors.iter_mut() {
+            if tensor.shape().len() < 2 {
+                if tensor.shape().len() == 1 {
+                    return stack(tensors, 0, false);
+                } else {
+                    // scalar
+                    let mut tensors_ref = Vec::with_capacity(tensors.len());
+                    let mut tensors_holder = Vec::with_capacity(tensors.len());
+                    for tensor in tensors {
+                        tensors_holder.push(tensor.reshape(vec![1])?);
+                    }
+                    for tensor in tensors_holder.iter() {
+                        tensors_ref.push(tensor);
+                    }
+                    return stack(tensors_ref, 0, false);
+                }
+            }
+        }
+        return stack(tensors, 1, false);
+    }
+
+    /// Depth-stacks a sequence of tensors.
+    ///
+    /// This function concatenates tensors along the third axis (axis=2).
+    /// It automatically reshapes tensors with fewer dimensions to match the required number of dimensions.
+    /// For 1-dimensional tensors, they are reshaped to 1xNx1 before stacking.
+    /// For 2-dimensional tensors, they are reshaped to NxMx1.
+    /// Scalars are reshaped to 1x1x1 tensors.
+    ///
+    /// # Arguments
+    /// - `tensors`: A vector of references to the tensors to be depth-stacked.
+    ///
+    /// # Returns
+    /// A `Result` containing the depth-stacked tensor or an error if the operation fails.
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_core::_Tensor;
+    /// let tensor1 = _Tensor::<f32>::new([1.0, 2.0, 3.0]);
+    /// let tensor2 = _Tensor::<f32>::new([4.0, 5.0, 6.0]);
+    /// let dstacked_tensor = _Tensor::dstack(vec![&tensor1, &tensor2]).unwrap();
+    /// assert!(dstacked_tensor.allclose(&_Tensor::<f64>::new([[[1.0, 4.0], [2.0, 5.0], [3.0, 6.0]]])));
+    /// ```
+    pub fn dstack(mut tensors: Vec<&_Tensor<T>>) -> Result<_Tensor<T>> {
+        let mut new_tensors = Vec::with_capacity(tensors.len());
+        for tensor in tensors.iter_mut() {
+            if tensor.shape().len() < 3 {
+                if tensor.shape().len() == 1 {
+                    new_tensors.push(tensor.reshape(vec![1, tensor.shape()[0], 1])?);
+                } else if tensor.shape().len() == 0 {
+                    new_tensors.push(tensor.reshape(vec![1, 1, 1])?);
+                } else {
+                    new_tensors.push(
+                        tensor.reshape(vec![tensor.shape()[0], tensor.shape()[1], 1])?
+                    );
+                }
+            } else {
+                new_tensors.push(tensor.clone());
+            }
+        }
+        let mut tensors_ref = Vec::with_capacity(new_tensors.len());
+        for tensor in new_tensors.iter() {
+            tensors_ref.push(tensor);
+        }
+        return stack(tensors_ref, 2, false);
     }
 }
 

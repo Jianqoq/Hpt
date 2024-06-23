@@ -1,6 +1,6 @@
 use std::ops::{ Div, Sub };
 
-use tensor_common::{ layout::Layout, pointer::Pointer, shape::Shape, strides::Strides };
+use tensor_common::{ axis::Axis, layout::Layout, pointer::Pointer, shape::Shape, strides::Strides };
 use tensor_types::{
     convertion::{ Convertor, FromScalar },
     dtype::TypeCommon,
@@ -396,6 +396,311 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
 pub trait TensorAlloc<Output = Self> {
     type Meta;
     fn _empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Output> where Self: Sized;
+}
+
+pub trait IndexReduce
+where
+    Self: Sized,
+{
+    type Output;
+
+    /// find the index of the max value along a specific axis
+    ///
+    /// 'axis': `isize` or `[usize]`
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::new([1, 2, 3]);
+    /// assert_eq!(a.argmax(0, false).unwrap(), Tensor::new(2));
+    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
+    /// assert_eq!(a.argmax(0, false).unwrap(), Tensor::new([1, 1, 1]));
+    /// assert_eq!(a.argmax(1, false).unwrap(), Tensor::new([2, 2]));
+    /// ```
+    fn argmax<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+
+    /// find the index of the min value along a specific axis
+    ///
+    /// 'axis': `isize` or `[usize]`
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::new([1, 2, 3]);
+    /// assert_eq!(a.argmin(0, false).unwrap(), Tensor::new(0));
+    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
+    /// assert_eq!(a.argmin(0, false).unwrap(), Tensor::new([0, 0, 0]));
+    /// assert_eq!(a.argmin(1, false).unwrap(), Tensor::new([0, 0]));
+    /// ```
+    fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+}
+
+pub trait NormalReduce<T>
+where
+    Self: Sized,
+{
+    type Output;
+    type BoolOutput;
+
+    /// sum along a specific axis or a set of axis
+    ///
+    /// `axis`: `isize` | `[usize]`
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::new([1, 2, 3])
+    /// assert_eq!(a.sum(0, false).unwrap(), Tensor::new(6));
+    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
+    /// assert_eq!(a.sum(0, false).unwrap(), Tensor::new([5, 7, 9]));
+    /// assert_eq!(a.sum(1, false).unwrap(), Tensor::new([6, 15]));
+    /// ```
+    fn sum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+
+    fn sum_<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+        init_out: bool,
+        out: Self::Output,
+    ) -> anyhow::Result<Self::Output>;
+
+    /// sum along a specific axis or a set of axis, with initial value
+    ///
+    /// `axis`: `isize` | `[usize]`
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::new([1, 2, 3]);
+    /// assert_eq!(a.sum_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new(7));
+    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
+    /// assert_eq!(a.sum_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new([6, 8, 10]));
+    /// assert_eq!(a.sum_with_init(/*init_val*/1, /*axes*/1, /*keep_dims*/false).unwrap(), Tensor::new([7, 16]));
+    /// ```
+    fn sum_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool,
+    ) -> anyhow::Result<Self::Output>;
+
+    /// sum along a specific axis, NaN will be treated as 0
+    ///
+    /// `axis`: `isize` or `[usize]`
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::<f32>::new([1f32, f32::NAN, 3.]);
+    /// assert_eq!(a.nansum(0, false).unwrap(), Tensor::new(4.));
+    /// let a = Tensor::new([[1., 2., f32::NAN], [4., f32::NAN, 6.]]);
+    /// assert_eq!(a.nansum(0, false).unwrap(), Tensor::new([5., 2., 6.]));
+    /// assert_eq!(a.nansum(1, false).unwrap(), Tensor::new([3., 10.]));
+    /// ```
+    fn nansum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+
+    /// sum along a specific axis, NaN will be treated as 0, with initial value
+    ///
+    /// `axis`: `isize` or `[usize]`
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::<f32>::new([1f32, f32::NAN, 3.]);
+    /// assert_eq!(a.nansum_with_init(1f32, 0, false).unwrap(), Tensor::new(5.));
+    /// let a = Tensor::new([[1., 2., f32::NAN], [4., f32::NAN, 6.]]);
+    /// assert_eq!(a.nansum_with_init(1f32, 0, false).unwrap(), Tensor::new([6., 3., 7.]));
+    /// assert_eq!(a.nansum_with_init(1f32, 1, false).unwrap(), Tensor::new([4., 11.]));
+    /// ```
+    fn nansum_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool,
+    ) -> anyhow::Result<Self::Output>;
+
+    /// product along a specific axis
+    ///
+    /// `axis`: `isize` or `[usize]`
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::new([1, 2, 3]);
+    /// assert_eq!(a.prod(0, false).unwrap(), Tensor::new(6));
+    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
+    /// assert_eq!(a.prod(0, false).unwrap(), Tensor::new([4, 10, 18]));
+    /// assert_eq!(a.prod(1, false).unwrap(), Tensor::new([6, 120]));
+    /// ```
+    fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+
+    /// product along a specific axis, with initial value
+    ///
+    /// `axis`: `isize` or `[usize]`
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::new([1, 2, 3]);
+    /// assert_eq!(a.prod_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new(6));
+    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
+    /// assert_eq!(a.prod_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new([4, 10, 18]));
+    /// assert_eq!(a.prod_with_init(/*init_val*/1, /*axes*/1, /*keep_dims*/false).unwrap(), Tensor::new([6, 120]));
+    /// ```
+    fn prod_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool,
+    ) -> anyhow::Result<Self::Output>;
+
+    /// product along a specific axis, NaN will be treated as 0
+    ///
+    /// `axis`: `isize` or `[usize]`
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::<f32>::new([1f32, f32::NAN, 3.]);
+    /// assert_eq!(a.nanprod(0, false).unwrap(), Tensor::new(3.));
+    /// let a = Tensor::new([[1., 2., f32::NAN], [4., f32::NAN, 6.]]);
+    /// assert_eq!(a.nanprod(0, false).unwrap(), Tensor::new([4., 2., 6.]));
+    /// assert_eq!(a.nanprod(1, false).unwrap(), Tensor::new([2., 24.]));
+    /// ```
+    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+
+    /// product along a specific axis, NaN will be treated as 0, with initial value
+    ///
+    /// `axis`: `isize` or `[usize]`
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::<f32>::new([1f32, f32::NAN, 3.]);
+    /// assert_eq!(a.nanprod_with_init(1f32, 0, false).unwrap(), Tensor::new(3.));
+    /// let a = Tensor::new([[1., 2., f32::NAN], [4., f32::NAN, 6.]]);
+    /// assert_eq!(a.nanprod_with_init(1f32, 0, false).unwrap(), Tensor::new([4., 2., 6.]));
+    /// assert_eq!(a.nanprod_with_init(1f32, 1, false).unwrap(), Tensor::new([2., 24.]));
+    /// ```
+    fn nanprod_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool,
+    ) -> anyhow::Result<Self::Output>;
+
+    /// find the min value along a specific axis or a set of axis
+    ///
+    /// 'axis': `isize` or `[usize]`
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::new([1, 2, 3]);
+    /// assert_eq!(a.min(0, false).unwrap(), Tensor::new(1));
+    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
+    /// assert_eq!(a.min(0, false).unwrap(), Tensor::new([1, 2, 3]));
+    /// assert_eq!(a.min(1, false).unwrap(), Tensor::new([1, 4]));
+    /// ```
+    fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self>;
+
+    /// find the min value along a specific axis or a set of axis, with initial value
+    ///
+    /// `axis`: `isize` or `[usize]`
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::new([1, 2, 3]);
+    /// assert_eq!(a.min_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new(1));
+    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
+    /// assert_eq!(a.min_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new([1, 2, 3]));
+    /// assert_eq!(a.min_with_init(/*init_val*/1, /*axes*/1, /*keep_dims*/false).unwrap(), Tensor::new([1, 4]));
+    /// ```
+    fn min_with_init<S: Into<Axis>>(&self, init_val: T, axes: S, keep_dims: bool) -> anyhow::Result<Self>;
+
+    /// find the max value along a specific axis or a set of axis
+    ///
+    /// 'axis': `isize` or `[usize]`
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::new([1, 2, 3]);
+    /// assert_eq!(a.max(0, false).unwrap(), Tensor::new(3));
+    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
+    /// assert_eq!(a.max(0, false).unwrap(), Tensor::new([4, 5, 6]));
+    /// assert_eq!(a.max(1, false).unwrap(), Tensor::new([3, 6]));
+    /// ```
+    fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self>;
+
+    /// find the max value along a specific axis or a set of axis, with initial value
+    ///
+    /// `axis`: `isize` or `[usize]`
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::new([1, 2, 3]);
+    /// assert_eq!(a.max_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new(3));
+    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
+    /// assert_eq!(a.max_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new([4, 5, 6]));
+    /// assert_eq!(a.max_with_init(/*init_val*/1, /*axes*/1, /*keep_dims*/false).unwrap(), Tensor::new([3, 6]));
+    /// ```
+    fn max_with_init<S: Into<Axis>>(&self, init_val: T, axes: S, keep_dims: bool) -> anyhow::Result<Self>;
+
+    /// check if all values are true along a specific axis or a set of axis
+    ///
+    /// 'axis': `isize` or `[usize]`
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::new([true, true, true]);
+    /// assert_eq!(a.all(0, false).unwrap(), Tensor::new(true));
+    /// let a = Tensor::new([[true, true, true], [true, true, true]]);
+    /// assert_eq!(a.all(0, false).unwrap(), Tensor::new([true, true, true]));
+    /// assert_eq!(a.all(1, false).unwrap(), Tensor::new([true, true]));
+    /// ```
+    fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput>;
+
+    /// check if any value is true along a specific axis or a set of axis
+    ///
+    /// 'axis': `isize` or `[usize]`
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::new([true, false, true]);
+    /// assert_eq!(a.any(0, false).unwrap(), Tensor::new(true));
+    /// let a = Tensor::new([[true, false, true], [false, false, false]]);
+    /// assert_eq!(a.any(0, false).unwrap(), Tensor::new([true, false, true]));
+    /// assert_eq!(a.any(1, false).unwrap(), Tensor::new([true, false]));
+    /// ```
+    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput>;
+}
+
+pub trait FloatReduce<T>
+where
+    Self: Sized,
+{
+    type Output;
+
+    /// calculate average value along a specific axis or a set of axis
+    ///
+    /// `axis`: `isize` or `[usize]`
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::new([1., 2., 3.]);
+    /// assert_eq!(a.mean(0, false).unwrap(), Tensor::new(2.));
+    /// let a = Tensor::new([[1., 2., 3.], [4., 5., 6.]]);
+    /// assert_eq!(a.mean(0, false).unwrap(), Tensor::new([2.5, 3.5, 4.5]));
+    /// assert_eq!(a.mean(1, false).unwrap(), Tensor::new([2., 5.]));
+    /// ```
+    fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }
 
 pub trait CommonBounds: Sync + Send + Clone + Copy + TypeCommon + 'static {}
