@@ -6,3 +6,7 @@ edition = "2021"
 [dependencies]
 tensor-types = { path = "../tensor-types" }
 tensor-common = { path = "../tensor-common" }
+tensor-iterator = { path = "../tensor-iterator" }
+tensor-traits = { path = "../tensor-traits" }
+anyhow = "1.0.75"
+rayon = "1.8.0"

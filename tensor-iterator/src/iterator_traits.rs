@@ -14,13 +14,8 @@ pub trait IterGetSet {
     fn broadcast_set_strides(&mut self, shape: &Shape);
 }
 
-pub trait ResIter<'a> {
-    type Res;
-}
-
 pub trait ShapeManipulator {
     fn reshape<S: Into<Shape>>(self, shape: S) -> Self;
     fn transpose<AXIS: Into<Axis>>(self, axes: AXIS) -> Self;
     fn expand<S: Into<Shape>>(self, shape: S) -> Self;
-
 }

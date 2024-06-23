@@ -7,3 +7,4 @@ edition = "2021"
 tensor-common ={ path = "../tensor-common" }
 tensor-types = { path = "../tensor-types" }
 anyhow = "1.0.75"
+num = "0.4"

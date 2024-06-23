@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use rayon::iter::plumbing::{ Folder, UnindexedProducer };
+use rayon::iter::{
+    plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
+    ParallelIterator,
+};
 use tensor_common::{
     axis::{ process_axes, Axis },
     err_handler::ErrHandler,
@@ -11,9 +14,9 @@ use tensor_common::{
     strides::Strides,
     strides_utils::preprocess_strides,
 };
-use tensor_traits::tensor::TensorInfo;
-
-use crate::iterator_traits::{ IterGetSet, ShapeManipulator };
+use tensor_traits::tensor::{ CommonBounds, TensorInfo };
+use tensor_common::shape_utils::predict_broadcast_shape;
+use crate::{ iterator_traits::{ IterGetSet, ShapeManipulator }, strided_map::StridedMap, strided_zip::StridedZip };
 
 #[derive(Clone)]
 pub struct Strided<T> {
@@ -26,7 +29,7 @@ pub struct Strided<T> {
     pub(crate) last_stride: i64,
 }
 
-impl<T> Strided<T> {
+impl<T: CommonBounds> Strided<T> {
     pub fn shape(&self) -> &Shape {
         &self.layout.shape()
     }
@@ -54,6 +57,53 @@ impl<T> Strided<T> {
             start_index: 0,
             end_index: len,
             last_stride: tensor.strides()[tensor.strides().len() - 1],
+        }
+    }
+
+    pub fn zip<'a, C>(mut self, mut other: C) -> StridedZip<'a, Self, C>
+        where C: UnindexedProducer + 'a + IterGetSet + ParallelIterator
+    {
+        let new_shape = predict_broadcast_shape(&self.shape(), &other.shape()).expect(
+            "Cannot broadcast shapes"
+        );
+
+        let inner_loop_size = new_shape[new_shape.len() - 1] as usize;
+
+        // if collapse all is true, then the outer loop size is the product of all the elements in the shape
+        // inner_loop_size in this case will be useless
+        let outer_loop_size = (new_shape.size() as usize) / inner_loop_size;
+
+        let num_threads;
+        if outer_loop_size < rayon::current_num_threads() {
+            num_threads = outer_loop_size;
+        } else {
+            num_threads = rayon::current_num_threads();
+        }
+        let intervals = Arc::new(mt_intervals(outer_loop_size, num_threads));
+        let len = intervals.len();
+        self.set_intervals(intervals.clone());
+        self.set_end_index(len);
+        other.set_intervals(intervals.clone());
+        other.set_end_index(len);
+
+        other.broadcast_set_strides(&new_shape);
+        self.broadcast_set_strides(&new_shape);
+
+        other.set_shape(new_shape.clone());
+        self.set_shape(new_shape.clone());
+
+        StridedZip::new(self, other)
+    }
+
+    pub fn strided_map<'a, F, U>(self, f: F) -> StridedMap<'a, Strided<T>, T, F>
+    where
+        F: Fn(T) -> U + Sync + Send + 'a,
+        U: CommonBounds,
+    {
+        StridedMap {
+            iter: self,
+            f,
+            phantom: std::marker::PhantomData,
         }
     }
 }
@@ -96,7 +146,15 @@ impl<T> IterGetSet for Strided<T> {
     }
 }
 
-impl<T> UnindexedProducer for Strided<T> where T: Clone + Sync + Copy {
+impl<T> ParallelIterator for Strided<T> where T: CommonBounds {
+    type Item = T;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item> {
+        bridge_unindexed(self, consumer)
+    }
+}
+
+impl<T> UnindexedProducer for Strided<T> where T: CommonBounds {
     type Item = T;
 
     fn split(mut self) -> (Self, Option<Self>) {
