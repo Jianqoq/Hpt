@@ -1,6 +1,5 @@
-use std::{ fmt::{ Display, Debug }, ops::{ Div, Mul, Sub }, sync::Arc };
+use std::{ fmt::{ Debug, Display }, ops::{ Deref, Div, Sub }, sync::Arc };
 
-use tensor_allocator::CACHE;
 use tensor_common::{ axis::Axis, layout::Layout, pointer::Pointer, shape::Shape };
 use tensor_display::display;
 use tensor_iterator::{ strided::Strided, strided_mut::StridedMut };
@@ -10,12 +9,11 @@ use tensor_traits::{
 };
 use tensor_types::{
     convertion::{ Convertor, FromScalar },
-    dtype::Dtype,
     into_scalar::IntoScalar,
     type_promote::{ FloatOut, NormalOut },
 };
 use anyhow::Result;
-use crate::{ ops::reduce::stack, tensor_base::{ _Tensor } };
+use crate::{ ops::reduce::stack, tensor_base::_Tensor };
 
 /// A wrapper of `Tensor` for user.
 /// This is the main tensor for user.
@@ -23,7 +21,15 @@ use crate::{ ops::reduce::stack, tensor_base::{ _Tensor } };
 /// # Properties
 /// - `basic`: The pointer of `Tensor`.
 pub struct Tensor<T> {
-    pub(crate) inner: Arc<Tensor<T>>,
+    pub(crate) inner: Arc<_Tensor<T>>,
+}
+
+impl<T> Deref for Tensor<T> {
+    type Target = _Tensor<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
 }
 
 impl<T, U> TensorLike<T, U, Tensor<U>>
@@ -209,17 +215,7 @@ impl<T: CommonBounds> Tensor<T> {
     /// assert!(tensor.allclose(&converted_tensor))
     /// ```
     pub fn astype<U>(&self) -> Result<Tensor<U>> where U: CommonBounds, T: IntoScalar<U> {
-        // Create an empty tensor of the new type with the same shape.
-        let ret: Tensor<U> = Tensor::<U>::empty(self.layout.shape().clone())?;
-
-        // Parallel iteration to convert and copy each element to the new tensor.
-        ret.as_raw_mut()
-            .par_iter_mut()
-            .zip(self.as_raw().par_iter())
-            .for_each(|(a, &b)| {
-                *a = b.into_scalar();
-            });
-        Ok(ret)
+        Ok(_Tensor::astype(self)?.into())
     }
 
     /// Try to cast the tensor to a new type, with an optimization for same-type casting.
@@ -263,27 +259,7 @@ impl<T: CommonBounds> Tensor<T> {
     /// assert!(tensor.allclose(&static_cast_tensor))
     /// ```
     pub fn static_cast<U>(&self) -> Result<Tensor<U>> where U: CommonBounds {
-        assert_eq!(U::ID, T::ID);
-        match self.parent {
-            Some(parent) => {
-                let new_parent = Pointer::new(parent.ptr as *mut U);
-                return Ok(Tensor {
-                    data: Pointer::new(self.data.ptr as *mut U),
-                    parent: Some(new_parent),
-                    mem_layout: self.mem_layout.clone(),
-                    layout: self.layout.clone(),
-                });
-            }
-            None => {
-                let new_parent = Pointer::new(self.data.ptr as *mut U);
-                return Ok(Tensor {
-                    data: Pointer::new(self.data.ptr as *mut U),
-                    parent: Some(new_parent),
-                    mem_layout: self.mem_layout.clone(),
-                    layout: self.layout.clone(),
-                });
-            }
-        }
+        Ok(_Tensor::static_cast(self)?.into())
     }
 
     /// Checks if all elements of the tensor are close to the elements of another tensor.
@@ -308,26 +284,7 @@ impl<T: CommonBounds> Tensor<T> {
     pub fn allclose<U: CommonBounds>(&self, other: &Tensor<U>) -> bool
         where T: Convertor, U: Convertor
     {
-        if self.shape() != other.shape() {
-            return false;
-        }
-        let folder = self
-            .iter()
-            .zip(other.iter())
-            .fold(
-                || true,
-                |acc, (a, b)| {
-                    let a_val: f64 = a.to_f64();
-                    let b_val: f64 = b.to_f64();
-                    let abs_diff: f64 = (a_val - b_val).abs();
-                    let torlerance: f64 = 1.0e-8 + 1.0e-5 * b_val.abs();
-                    acc && abs_diff <= torlerance
-                }
-            );
-        return folder.reduce(
-            || true,
-            |a, b| a && b
-        );
+        self.inner.allclose(&other.inner)
     }
 
     /// Create a contiguous copy of the tensor.
@@ -348,11 +305,7 @@ impl<T: CommonBounds> Tensor<T> {
     /// assert!(contiguous_tensor.is_contiguous())
     /// ```
     pub fn contiguous(&self) -> Result<Self> {
-        let res = self
-            .iter()
-            .strided_map(|x| { x })
-            .collect();
-        Ok(res)
+        Ok(_Tensor::contiguous(self)?.into())
     }
 
     /// Stacks a sequence of tensors along a specified axis.
@@ -379,7 +332,16 @@ impl<T: CommonBounds> Tensor<T> {
     pub fn stack(tensors: Vec<&Tensor<T>>, axis: usize, keepdims: bool) -> Result<Self>
         where T: 'static
     {
-        stack(tensors, axis, keepdims)
+        Ok(
+            stack(
+                tensors
+                    .iter()
+                    .map(|x| x.inner.as_ref())
+                    .collect(),
+                axis,
+                keepdims
+            )?.into()
+        )
     }
 
     /// Vertically stacks a sequence of tensors.
@@ -403,7 +365,16 @@ impl<T: CommonBounds> Tensor<T> {
     /// assert!(vstacked_tensor.allclose(&Tensor::<f64>::new([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])));
     /// ```
     pub fn vstack(tensors: Vec<&Tensor<T>>) -> Result<Tensor<T>> {
-        return stack(tensors, 0, false);
+        Ok(
+            _Tensor
+                ::vstack(
+                    tensors
+                        .into_iter()
+                        .map(|x| x.inner.as_ref())
+                        .collect()
+                )?
+                .into()
+        )
     }
     /// Horizontally stacks a sequence of tensors.
     ///
@@ -427,25 +398,16 @@ impl<T: CommonBounds> Tensor<T> {
     /// assert!(hstacked_tensor.allclose(&Tensor::<f64>::new([1.0, 2.0, 3.0,4.0, 5.0, 6.0])));
     /// ```
     pub fn hstack(mut tensors: Vec<&Tensor<T>>) -> Result<Tensor<T>> {
-        for tensor in tensors.iter_mut() {
-            if tensor.shape().len() < 2 {
-                if tensor.shape().len() == 1 {
-                    return stack(tensors, 0, false);
-                } else {
-                    // scalar
-                    let mut tensors_ref = Vec::with_capacity(tensors.len());
-                    let mut tensors_holder = Vec::with_capacity(tensors.len());
-                    for tensor in tensors {
-                        tensors_holder.push(tensor.reshape(vec![1])?);
-                    }
-                    for tensor in tensors_holder.iter() {
-                        tensors_ref.push(tensor);
-                    }
-                    return stack(tensors_ref, 0, false);
-                }
-            }
-        }
-        return stack(tensors, 1, false);
+        Ok(
+            stack(
+                tensors
+                    .iter_mut()
+                    .map(|x| x.inner.as_ref())
+                    .collect(),
+                1,
+                false
+            )?.into()
+        )
     }
 
     /// Depth-stacks a sequence of tensors.
@@ -471,27 +433,16 @@ impl<T: CommonBounds> Tensor<T> {
     /// assert!(dstacked_tensor.allclose(&Tensor::<f64>::new([[[1.0, 4.0], [2.0, 5.0], [3.0, 6.0]]])));
     /// ```
     pub fn dstack(mut tensors: Vec<&Tensor<T>>) -> Result<Tensor<T>> {
-        let mut new_tensors = Vec::with_capacity(tensors.len());
-        for tensor in tensors.iter_mut() {
-            if tensor.shape().len() < 3 {
-                if tensor.shape().len() == 1 {
-                    new_tensors.push(tensor.reshape(vec![1, tensor.shape()[0], 1])?);
-                } else if tensor.shape().len() == 0 {
-                    new_tensors.push(tensor.reshape(vec![1, 1, 1])?);
-                } else {
-                    new_tensors.push(
-                        tensor.reshape(vec![tensor.shape()[0], tensor.shape()[1], 1])?
-                    );
-                }
-            } else {
-                new_tensors.push(tensor.clone());
-            }
-        }
-        let mut tensors_ref = Vec::with_capacity(new_tensors.len());
-        for tensor in new_tensors.iter() {
-            tensors_ref.push(tensor);
-        }
-        return stack(tensors_ref, 2, false);
+        Ok(
+            stack(
+                tensors
+                    .iter_mut()
+                    .map(|x| x.inner.as_ref())
+                    .collect(),
+                2,
+                false
+            )?.into()
+        )
     }
 }
 
@@ -710,7 +661,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
         )
     }
 
-    fn swap_axes(&self, mut axis1: i64, mut axis2: i64) -> Result<Self> {
+    fn swap_axes(&self, axis1: i64, axis2: i64) -> Result<Self> {
         Ok(_Tensor::swap_axes(self, axis1, axis2)?.into())
     }
 }
