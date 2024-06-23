@@ -10,6 +10,8 @@ tensor-iterator = { path = "../tensor-iterator" }
 tensor-traits = { path = "../tensor-traits" }
 tensor-allocator = { path = "../tensor-allocator" }
 tensor-macros = { path = "../tensor-macros" }
+rand_distr = "0.4.3"
+rand = "0.8.5"
 threadpool = "1.8.1"
 anyhow = "1.0.75"
 rayon = "1.8.0"

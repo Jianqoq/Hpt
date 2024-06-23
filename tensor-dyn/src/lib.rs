@@ -8,6 +8,7 @@ pub mod ops {
     pub mod reduce;
     pub mod reduce_kernels;
 }
+pub mod random;
 pub mod slice;
 
 pub mod to_tensor;

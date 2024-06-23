@@ -1,6 +1,7 @@
 use anyhow::Result;
+use tensor_types::type_promote::NormalOut;
 
-use crate::tensor::{ TensorInfo, TensorLike };
+use crate::tensor::{ CommonBounds, TensorInfo, TensorLike };
 
 pub trait FloatUaryOps {
     type Output;
@@ -513,6 +514,39 @@ pub trait NormalUaryOps {
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>;
+}
+
+pub trait Cum
+where
+    Self: Sized,
+{
+    type Meta: CommonBounds;
+
+    /// Comput cumsum along specified axis.
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::new([[1f32, 2f32, 3f32], [4f32, 5f32, 6f32]]);
+    /// let b = a.cumsum(Some(0)).unwrap();
+    /// assert_eq!(b, Tensor::new([[1f32, 2f32, 3f32], [5f32, 7f32, 9f32]]));
+    /// ```
+    fn cumsum(&self, axis: Option<i64>) -> Result<Self>
+    where
+        Self::Meta: NormalOut<Self::Meta, Output = Self::Meta>;
+
+    /// Comput cumprod along specified axis.
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_core::prelude::*;
+    /// let a = Tensor::new([[1f32, 2f32, 3f32], [4f32, 5f32, 6f32]]);
+    /// let b = a.cumprod(Some(0)).unwrap();
+    /// assert_eq!(b, Tensor::new([[1f32, 2f32, 3f32], [4f32, 10f32, 18f32]]));
+    /// ```
+    fn cumprod(&self, axis: Option<i64>) -> Result<Self>
+    where
+        Self::Meta: NormalOut<Self::Meta, Output = Self::Meta>;
 }
 
 pub trait Neg {

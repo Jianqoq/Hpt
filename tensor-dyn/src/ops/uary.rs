@@ -4,7 +4,10 @@ use rayon::iter::{
     IntoParallelRefMutIterator,
     ParallelIterator,
 };
-use tensor_traits::ops::uary::{ FloatUaryOps, Neg, NormalUaryOps };
+use tensor_common::shape_utils::mt_intervals;
+use threadpool::ThreadPool;
+use crate::THREAD_POOL;
+use tensor_traits::ops::uary::{ Cum, FloatUaryOps, Neg, NormalUaryOps };
 use tensor_traits::tensor::{ CommonBounds, TensorInfo, TensorLike };
 use tensor_traits::tensor::TensorCreator;
 use tensor_types::type_promote::{ FloatOut, NormalOut };
@@ -362,5 +365,259 @@ impl<T> Neg for _Tensor<T> where T: std::ops::Neg + CommonBounds, NegType<T>: Co
                 TensorInfo<Self::OutputMeta>
     {
         uary_fn_with_out(self, |x| -x, out)
+    }
+}
+
+impl<T> Cum for _Tensor<T> where T: CommonBounds {
+    type Meta = T;
+
+    fn cumsum(&self, axis: Option<i64>) -> anyhow::Result<Self>
+        where Self::Meta: NormalOut<Self::Meta, Output = Self::Meta>
+    {
+        match axis {
+            Some(axis) => {
+                let mut _axis = axis;
+                if axis < 0 {
+                    _axis = (self.ndim() as i64) + axis;
+                    if _axis < 0 {
+                        anyhow::bail!("axis out of range");
+                    }
+                }
+                let stride = self.strides()[_axis as usize];
+                let inner_loop = self.shape()[_axis as usize] as usize;
+                let outer_loop = self.size() / inner_loop;
+                let mut shape = self.shape().to_vec();
+                shape.iter_mut().for_each(|x| {
+                    *x -= 1;
+                });
+                shape.swap(_axis as usize, self.shape().len() - 1);
+                let mut strides = self.strides().to_vec();
+                strides.swap(_axis as usize, self.strides().len() - 1);
+                let res = self.empty_like()?;
+                let res_stride = res.strides()[_axis as usize];
+                let mut res_strides = res.strides().to_vec();
+                res_strides.swap(_axis as usize, res.strides().len() - 1);
+                THREAD_POOL.with_borrow_mut(|pool: &mut ThreadPool| {
+                    let num_threads;
+                    if outer_loop < pool.max_count() {
+                        num_threads = outer_loop;
+                    } else {
+                        num_threads = pool.max_count();
+                    }
+                    let mut intervals = mt_intervals(outer_loop, num_threads);
+
+                    let mut prgs = Vec::with_capacity(num_threads);
+                    let mut ptrs = Vec::with_capacity(num_threads);
+                    let mut res_ptrs = Vec::with_capacity(num_threads);
+                    let mut shapes = Vec::with_capacity(num_threads);
+                    let mut __res_strides = Vec::with_capacity(num_threads);
+                    let mut __inp_strides = Vec::with_capacity(num_threads);
+                    let mut amount = 0i64;
+                    for i in 0..num_threads {
+                        let (start, end) = intervals[i];
+                        let mut amount_cpy = amount;
+                        let mut prg_tmp = vec![0; self.shape().len() - 1];
+                        let mut ptr_tmp = self.ptr();
+                        let mut res_ptr_tmp = res.ptr();
+                        for j in (0..(self.shape().len() as i64) - 1).rev() {
+                            prg_tmp[j as usize] = amount_cpy % (shape[j as usize] + 1);
+                            amount_cpy /= self.shape()[j as usize];
+                            let inp_gap = prg_tmp[j as usize] * strides[j as usize];
+                            let res_gap = prg_tmp[j as usize] * res_strides[j as usize];
+                            ptr_tmp.offset(inp_gap);
+                            res_ptr_tmp.offset(res_gap);
+                        }
+                        amount += ((end - start) as i64) * (shape[shape.len() - 1] + 1);
+                        prgs.push(prg_tmp);
+                        ptrs.push(ptr_tmp);
+                        res_ptrs.push(res_ptr_tmp);
+                        shapes.push(shape.clone());
+                        __res_strides.push(res_strides.clone());
+                        __inp_strides.push(strides.clone());
+                    }
+                    for _ in 0..num_threads {
+                        let (start, end) = intervals.pop().unwrap();
+                        let mut prg = prgs.pop().unwrap();
+                        let mut ptr = ptrs.pop().unwrap();
+                        let mut res_ptr = res_ptrs.pop().unwrap();
+                        let current_size = end - start;
+                        let __shape = shapes.pop().unwrap();
+                        let __res_strides = __res_strides.pop().unwrap();
+                        let __strides = __inp_strides.pop().unwrap();
+                        pool.execute(move || {
+                            for _ in 0..current_size {
+                                let mut tmp = T::ZERO;
+                                for i in 0..inner_loop as i64 {
+                                    tmp = tmp._add(ptr[i * stride]);
+                                    res_ptr.modify(i * res_stride, tmp);
+                                }
+                                for j in (0..(__shape.len() as i64) - 1).rev() {
+                                    let j = j as usize;
+                                    if prg[j] < __shape[j] {
+                                        prg[j] += 1;
+                                        res_ptr.offset(__res_strides[j]);
+                                        ptr.offset(__strides[j]);
+                                        break;
+                                    } else {
+                                        prg[j] = 0;
+                                        res_ptr.offset(-__shape[j] * __res_strides[j]);
+                                        ptr.offset(-__shape[j] * __strides[j]);
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+                return Ok(res);
+            }
+            None => {
+                let res = _Tensor::empty(vec![self.size() as i64])?;
+                let mut tmp = T::ZERO;
+                if self.is_contiguous() {
+                    let raw = self.as_raw();
+                    let res_raw = res.as_raw_mut();
+                    for i in 0..self.size() {
+                        tmp = tmp._add(raw[i]);
+                        res_raw[i] = tmp;
+                    }
+                    return Ok(res);
+                } else {
+                    let new_self = self.contiguous()?;
+                    let raw = new_self.as_raw();
+                    let mut tmp = T::ZERO;
+                    let res_raw = res.as_raw_mut();
+                    for i in 0..self.size() {
+                        tmp = tmp._add(raw[i]);
+                        res_raw[i] = tmp;
+                    }
+                    return Ok(res);
+                }
+            }
+        }
+    }
+
+    fn cumprod(&self, axis: Option<i64>) -> anyhow::Result<Self>
+        where Self::Meta: NormalOut<Self::Meta, Output = Self::Meta>
+    {
+        match axis {
+            Some(axis) => {
+                let mut _axis = axis;
+                if axis < 0 {
+                    _axis = (self.ndim() as i64) + axis;
+                    if _axis < 0 {
+                        anyhow::bail!("axis out of range");
+                    }
+                }
+                let stride = self.strides()[_axis as usize];
+                let inner_loop = self.shape()[_axis as usize] as usize;
+                let outer_loop = (self.size() as usize) / inner_loop;
+                let mut shape = self.shape().to_vec();
+                shape.iter_mut().for_each(|x| {
+                    *x -= 1;
+                });
+                shape.swap(_axis as usize, self.shape().len() - 1);
+                let mut strides = self.strides().to_vec();
+                strides.swap(_axis as usize, self.strides().len() - 1);
+                let res = self.empty_like()?;
+                let res_stride = res.strides()[_axis as usize];
+                let mut res_strides = res.strides().to_vec();
+                res_strides.swap(_axis as usize, res.strides().len() - 1);
+                THREAD_POOL.with_borrow_mut(|pool: &mut ThreadPool| {
+                    let num_threads;
+                    if outer_loop < pool.max_count() {
+                        num_threads = outer_loop;
+                    } else {
+                        num_threads = pool.max_count();
+                    }
+                    let mut intervals = mt_intervals(outer_loop, num_threads);
+
+                    let mut prgs = Vec::with_capacity(num_threads);
+                    let mut ptrs = Vec::with_capacity(num_threads);
+                    let mut res_ptrs = Vec::with_capacity(num_threads);
+                    let mut shapes = Vec::with_capacity(num_threads);
+                    let mut __res_strides = Vec::with_capacity(num_threads);
+                    let mut __inp_strides = Vec::with_capacity(num_threads);
+                    let mut amount = 0i64;
+                    for i in 0..num_threads {
+                        let (start, end) = intervals[i];
+                        let mut amount_cpy = amount;
+                        let mut prg_tmp = vec![0; self.shape().len() - 1];
+                        let mut ptr_tmp = self.ptr();
+                        let mut res_ptr_tmp = res.ptr();
+                        for j in (0..(self.shape().len() as i64) - 1).rev() {
+                            prg_tmp[j as usize] = amount_cpy % (shape[j as usize] + 1);
+                            amount_cpy /= self.shape()[j as usize];
+                            let inp_gap = prg_tmp[j as usize] * strides[j as usize];
+                            let res_gap = prg_tmp[j as usize] * res_strides[j as usize];
+                            ptr_tmp.offset(inp_gap);
+                            res_ptr_tmp.offset(res_gap);
+                        }
+                        amount += ((end - start) as i64) * (shape[shape.len() - 1] + 1);
+                        prgs.push(prg_tmp);
+                        ptrs.push(ptr_tmp);
+                        res_ptrs.push(res_ptr_tmp);
+                        shapes.push(shape.clone());
+                        __res_strides.push(res_strides.clone());
+                        __inp_strides.push(strides.clone());
+                    }
+                    for _ in 0..num_threads {
+                        let (start, end) = intervals.pop().unwrap();
+                        let mut prg = prgs.pop().unwrap();
+                        let mut ptr = ptrs.pop().unwrap();
+                        let mut res_ptr = res_ptrs.pop().unwrap();
+                        let current_size = end - start;
+                        let __shape = shapes.pop().unwrap();
+                        let __res_strides = __res_strides.pop().unwrap();
+                        let __strides = __inp_strides.pop().unwrap();
+                        pool.execute(move || {
+                            for _ in 0..current_size {
+                                let mut tmp = T::ONE;
+                                for i in 0..inner_loop as i64 {
+                                    tmp = tmp._mul(ptr[i * stride]);
+                                    res_ptr.modify(i * res_stride, tmp);
+                                }
+                                for j in (0..(__shape.len() as i64) - 1).rev() {
+                                    let j = j as usize;
+                                    if prg[j] < __shape[j] {
+                                        prg[j] += 1;
+                                        res_ptr.offset(__res_strides[j]);
+                                        ptr.offset(__strides[j]);
+                                        break;
+                                    } else {
+                                        prg[j] = 0;
+                                        res_ptr.offset(-__shape[j] * __res_strides[j]);
+                                        ptr.offset(-__shape[j] * __strides[j]);
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+                return Ok(res);
+            }
+            None => {
+                let res = _Tensor::empty(vec![self.size() as i64])?;
+                let mut tmp = T::ONE;
+                return if self.is_contiguous() {
+                    let raw = self.as_raw();
+                    let res_raw = res.as_raw_mut();
+                    for i in 0..self.size() {
+                        tmp = tmp._mul(raw[i]);
+                        res_raw[i] = tmp;
+                    }
+                    Ok(res)
+                } else {
+                    let new_self = self.contiguous()?;
+                    let raw = new_self.as_raw();
+                    let mut tmp = T::ONE;
+                    let res_raw = res.as_raw_mut();
+                    for i in 0..self.size() {
+                        tmp = tmp._mul(raw[i]);
+                        res_raw[i] = tmp;
+                    }
+                    Ok(res)
+                };
+            }
+        }
     }
 }

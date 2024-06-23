@@ -4,3 +4,4 @@ pub mod ops {
     pub mod binary;
 }
 pub mod shape_manipulate;
+pub mod random;
