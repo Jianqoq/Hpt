@@ -11,7 +11,7 @@ use tensor_common::{
 };
 use tensor_traits::tensor::CommonBounds;
 
-use crate::{ iterator_traits::{ IterGetSet, ShapeManipulator } };
+use crate::iterator_traits::{ IterGetSet, ShapeManipulator };
 use crate::strided_map::StridedMap;
 
 #[derive(Clone)]
