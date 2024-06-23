@@ -5,7 +5,7 @@ use tensor_traits::tensor::CommonBounds;
 use tensor_common::shape_utils::predict_broadcast_shape;
 use tensor_traits::tensor::TensorInfo;
 use tensor_traits::tensor::TensorLike;
-use crate::tensor::_Tensor;
+use crate::tensor_base::_Tensor;
 use tensor_traits::tensor::TensorCreator;
 
 macro_rules! impl_binary_fn {

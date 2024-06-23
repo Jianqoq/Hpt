@@ -4,7 +4,7 @@ use tensor_traits::{
 };
 use tensor_types::{ into_scalar::IntoScalar, type_promote::NormalOut };
 
-use crate::tensor::_Tensor;
+use crate::tensor_base::_Tensor;
 
 use super::{ binary_normal::binary_fn_with_out, matmul::{ matmul_no_out, matmul_with_out } };
 

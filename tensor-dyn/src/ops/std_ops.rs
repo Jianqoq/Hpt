@@ -24,7 +24,7 @@ use crate::ops::binary_normal::binary_fn;
 use crate::ops::binary_normal::binary_fn_with_out;
 use tensor_common::shape_utils::predict_broadcast_shape;
 use tensor_types::type_promote::NormalOut;
-use crate::tensor::_Tensor;
+use crate::tensor_base::_Tensor;
 
 macro_rules! normal_promote_ops_1 {
     ($([$op:ident, $op2:ident, $op3:ident]),*) => {

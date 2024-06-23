@@ -1,22 +1,63 @@
-use std::sync::Arc;
+use std::{ fmt::{ Display, Debug }, ops::{ Div, Mul, Sub }, sync::Arc };
 
-use tensor_traits::tensor::{CommonBounds, TensorLike};
-use tensor_types::into_scalar::IntoScalar;
+use tensor_allocator::CACHE;
+use tensor_common::{
+    axis::{ process_axes, Axis },
+    err_handler::ErrHandler,
+    layout::Layout,
+    pointer::Pointer,
+    shape::Shape,
+    shape_utils::{ yield_one_after, yield_one_before },
+    slice::Slice,
+};
+use tensor_display::display;
+use tensor_macros::match_selection;
+use tensor_common::slice;
+use tensor_iterator::{ strided::Strided, strided_mut::StridedMut };
+use tensor_traits::{
+    shape_manipulate::ShapeManipulate,
+    tensor::{ CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike },
+};
+use tensor_common::shape_utils::try_pad_shape;
 use anyhow::Result;
-use crate::tensor_base::_Tensor;
+use tensor_types::{
+    convertion::{ Convertor, FromScalar },
+    dtype::Dtype,
+    into_scalar::IntoScalar,
+    type_promote::{ FloatOut, NormalOut },
+};
+use rayon::iter::{
+    IndexedParallelIterator,
+    IntoParallelIterator,
+    IntoParallelRefIterator,
+    IntoParallelRefMutIterator,
+    ParallelIterator,
+};
 
-
-/// A wrapper of `_Tensor` for user.
-/// This is the main tensor for user.
+use crate::{ tensor::Tensor, ops::reduce::stack, slice::SliceOps };
+/// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
+///
+/// All the operations are happen on this struct.
+///
+/// The `DiffTensors` and `BasicTensors` are just call `_Tensor` methods and add extra logic.
 ///
 /// # Properties
-/// - `basic`: The pointer of `_Tensor`.
-pub struct Tensor<T> {
-    pub(crate) inner: Arc<_Tensor<T>>,
+/// - `data`: The pointer to the data.
+/// - `layout`: The layout of the tensor. We can get strides, shape, ndim, size from it.
+/// - `parent`: The parent tensor of the tensor.
+///
+///  If the tensor is a view of another tensor, the parent tensor will be the original tensor.
+/// - `mem_layout`: std::alloc::layout, use for deallocate the memory.
+#[derive(Clone)]
+pub struct _Tensor<T> {
+    pub(crate) data: Pointer<T>,
+    pub(crate) parent: Option<Pointer<T>>,
+    pub(crate) layout: Layout,
+    pub(crate) mem_layout: Arc<std::alloc::Layout>,
 }
 
-impl<T, U> TensorLike<T, U, Tensor<U>>
-    for Tensor<T>
+impl<T, U> TensorLike<T, U, _Tensor<U>>
+    for _Tensor<T>
     where T: IntoScalar<U> + CommonBounds, U: CommonBounds
 {
     type Output = _Tensor<U>;
@@ -1172,5 +1213,13 @@ impl<T> Display for _Tensor<T> where T: CommonBounds {
 impl<T> Debug for _Tensor<T> where T: CommonBounds {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         display(self, f, 1000, 20, 6, 12, 4, false)
+    }
+}
+
+impl<T> Into<Tensor<T>> for _Tensor<T> {
+    fn into(self) -> Tensor<T> {
+        Tensor {
+            inner: self.into(),
+        }
     }
 }

@@ -14,7 +14,7 @@ use rayon::iter::{ IntoParallelIterator, ParallelIterator };
 use tensor_common::shape::Shape;
 use tensor_traits::{ random::Random, tensor::{ CommonBounds, TensorCreator, TensorInfo } };
 use anyhow::Result;
-use crate::tensor::_Tensor;
+use crate::tensor_base::_Tensor;
 
 impl<T> Random
     for _Tensor<T>

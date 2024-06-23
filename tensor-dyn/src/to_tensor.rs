@@ -1,5 +1,5 @@
 use half::f16;
-use crate::tensor::_Tensor;
+use crate::tensor_base::_Tensor;
 use tensor_common::shape::Shape;
 use tensor_common::pointer::Pointer;
 use std::alloc::Layout;

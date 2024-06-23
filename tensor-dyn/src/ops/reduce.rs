@@ -1,4 +1,4 @@
-use crate::tensor::_Tensor;
+use crate::tensor_base::_Tensor;
 use crate::{
     all_kernel,
     any_kernel,

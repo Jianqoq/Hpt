@@ -7,7 +7,7 @@ use tensor_common::{
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use anyhow::Result;
 
-use crate::tensor::_Tensor;
+use crate::tensor_base::_Tensor;
 
 pub trait SliceOps<T, U> where T: CommonBounds {
     // slice operation mostly change the shape of tensor only

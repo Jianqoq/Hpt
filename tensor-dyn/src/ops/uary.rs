@@ -11,7 +11,7 @@ use tensor_traits::ops::uary::{ Cum, FloatUaryOps, Neg, NormalUaryOps };
 use tensor_traits::tensor::{ CommonBounds, TensorInfo, TensorLike };
 use tensor_traits::tensor::TensorCreator;
 use tensor_types::type_promote::{ FloatOut, NormalOut };
-use crate::tensor::_Tensor;
+use crate::tensor_base::_Tensor;
 
 /// Applies a unary function to a tensor, returning a tensor with float type elements.
 ///

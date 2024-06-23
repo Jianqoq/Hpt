@@ -1,4 +1,4 @@
-use crate::tensor::_Tensor;
+use crate::tensor_base::_Tensor;
 use tensor_traits::ops::binary::Matmul;
 use tensor_common::tensordot_args::TensorDotArgs;
 use tensor_types::type_promote::NormalOut;

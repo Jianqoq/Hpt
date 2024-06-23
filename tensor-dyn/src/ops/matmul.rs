@@ -8,7 +8,7 @@ use tensor_common::shape_utils::predict_broadcast_shape;
 use tensor_common::strides_utils::preprocess_strides;
 use tensor_common::pointer::Pointer;
 use tensor_common::shape_utils::mt_intervals;
-use crate::tensor::_Tensor;
+use crate::tensor_base::_Tensor;
 use crate::THREAD_POOL;
 use tensor_traits::tensor::TensorLike;
 use tensor_traits::tensor::TensorInfo;
