@@ -9,6 +9,7 @@ tensor-common = { path = "../tensor-common" }
 tensor-iterator = { path = "../tensor-iterator" }
 tensor-traits = { path = "../tensor-traits" }
 tensor-allocator = { path = "../tensor-allocator" }
+tensor-macros = { path = "../tensor-macros" }
 threadpool = "1.8.1"
 anyhow = "1.0.75"
 rayon = "1.8.0"

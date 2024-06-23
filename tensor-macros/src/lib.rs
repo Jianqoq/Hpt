@@ -4,6 +4,343 @@ mod type_utils;
 mod list_enum;
 use quote::quote;
 use type_utils::TypeInfo;
+use proc_macro2::{TokenStream as TokenStream2, TokenTree};
+
+#[derive(Debug)]
+struct SelectionParser {
+    start: Option<isize>,
+    end: Option<isize>,
+    step: Option<isize>,
+    start_neg: bool,
+    start_ident: Option<Ident>,
+    end_neg: bool,
+    end_ident: Option<Ident>,
+    step_neg: bool,
+    step_ident: Option<Ident>,
+    only_scalar: bool,
+}
+
+struct Selections {
+    selections: Vec<TokenStream>,
+}
+
+impl syn::parse::Parse for SelectionParser {
+    fn parse(input: parse::ParseStream) -> syn::Result<Self> {
+        let mut start: Option<isize> = None;
+        let mut end: Option<isize> = None;
+        let mut step: Option<isize> = None;
+        let mut start_ident: Option<Ident> = None;
+        let mut end_ident: Option<Ident> = None;
+        let mut step_ident: Option<Ident> = None;
+        let mut start_neg = false;
+        let mut end_neg = false;
+        let mut step_neg = false;
+        if input.peek(syn::LitInt) {
+            start = Some(input.parse::<syn::LitInt>()?.base10_parse::<isize>()?);
+        } else if input.peek(Ident) {
+            start_ident = Some(input.parse::<Ident>()?);
+        } else if input.peek(Token![-]) && input.peek2(syn::Ident) {
+            let _ = input.parse::<Token![-]>()?;
+            start_ident = Some(input.parse::<Ident>()?);
+            start_neg = true;
+        }
+        if input.peek(Token![:]) {
+            input.parse::<Token![:]>()?;
+        } else if input.is_empty() {
+            return Ok(Self {
+                start,
+                end,
+                step,
+                start_neg,
+                start_ident,
+                end_neg,
+                end_ident,
+                step_neg,
+                step_ident,
+                only_scalar: true,
+            });
+        } else {
+            return Err(syn::Error::new(
+                input.span(),
+                "unexpected token, expected `:`, Int or Ident",
+            ));
+        }
+        if input.peek(syn::LitInt) {
+            end = Some(input.parse::<syn::LitInt>()?.base10_parse::<isize>()?);
+        } else if input.peek(Ident) {
+            end_ident = Some(input.parse::<Ident>()?);
+        } else if input.peek(Token![-]) && input.peek2(syn::Ident) {
+            let _ = input.parse::<Token![-]>()?;
+            end_ident = Some(input.parse::<Ident>()?);
+            end_neg = true;
+        }
+        if input.peek(Token![:]) {
+            input.parse::<Token![:]>()?;
+        }
+        if input.peek(syn::LitInt) {
+            step = Some(input.parse::<syn::LitInt>()?.base10_parse::<isize>()?);
+        } else if input.peek(Ident) {
+            step_ident = Some(input.parse::<Ident>()?);
+        } else if input.peek(Token![-]) && input.peek2(syn::Ident) {
+            let _ = input.parse::<Token![-]>()?;
+            step_ident = Some(input.parse::<Ident>()?);
+            step_neg = true;
+        }
+        Ok(Self {
+            start,
+            end,
+            step,
+            start_neg,
+            start_ident,
+            end_neg,
+            end_ident,
+            step_neg,
+            step_ident,
+            only_scalar: false,
+        })
+    }
+}
+
+impl syn::parse::Parse for Selections {
+    fn parse(input: parse::ParseStream) -> syn::Result<Self> {
+        let mut selections: Vec<TokenStream> = vec![];
+        let mut tokenstream = TokenStream2::new();
+        while !input.is_empty() {
+            let lookahead = input.lookahead1();
+            if lookahead.peek(Token![,]) {
+                selections.push(tokenstream.into());
+                tokenstream = TokenStream2::new();
+                input.parse::<Token![,]>()?;
+            } else {
+                let t = input.parse::<TokenTree>()?;
+                tokenstream.extend(quote!(#t));
+            }
+        }
+        selections.push(tokenstream.into());
+        syn::Result::Ok(Self { selections })
+    }
+}
+
+#[proc_macro]
+pub fn match_selection(input: TokenStream) -> TokenStream {
+    let res: Selections = parse_macro_input!(input as Selections);
+    let mut slices: Vec<SelectionParser> = vec![];
+    for x in res.selections {
+        slices.push(parse_macro_input!(x as SelectionParser));
+    }
+    let mut ret_stream = TokenStream2::new();
+    let len = slices.len();
+    for (idx, x) in slices.into_iter().enumerate() {
+        if (x.start.is_some() || x.start_ident.is_some())
+            && (x.end.is_some() || x.end_ident.is_some())
+            && (x.step.is_some() || x.step_ident.is_some())
+        {
+            // start:end:step
+            let start_token;
+            if x.start_ident.is_some() {
+                let start_ident = x.start_ident.unwrap();
+                if x.start_neg {
+                    start_token = quote!(-#start_ident);
+                } else {
+                    start_token = quote!(#start_ident);
+                }
+            } else {
+                let start = x.start.unwrap();
+                start_token = quote!(#start);
+            }
+            let end_token;
+            if x.end_ident.is_some() {
+                let end_ident = x.end_ident.unwrap();
+                if x.end_neg {
+                    end_token = quote!(-#end_ident);
+                } else {
+                    end_token = quote!(#end_ident);
+                }
+            } else {
+                let end = x.end.unwrap();
+                end_token = quote!(#end);
+            }
+            let step_token;
+            if x.step_ident.is_some() {
+                let step_ident = x.step_ident.unwrap();
+                if x.step_neg {
+                    step_token = quote!(-#step_ident);
+                } else {
+                    step_token = quote!(#step_ident);
+                }
+            } else {
+                let step = x.step.unwrap();
+                step_token = quote!(#step);
+            }
+            ret_stream
+                .extend(quote!(Slice::StepByRangeFromTo((#start_token, #end_token, #step_token))));
+        } else if x.start.is_none()
+            && x.start_ident.is_none()
+            && (x.end.is_some() || x.end_ident.is_some())
+            && (x.step.is_some() || x.step_ident.is_some())
+        {
+            // :end:step
+            let end_token;
+            if x.end_ident.is_some() {
+                let end_ident = x.end_ident.unwrap();
+                if x.end_neg {
+                    end_token = quote!(-#end_ident);
+                } else {
+                    end_token = quote!(#end_ident);
+                }
+            } else {
+                let end = x.end.unwrap();
+                end_token = quote!(#end);
+            }
+            let step_token;
+            if x.step_ident.is_some() {
+                let step_ident = x.step_ident.unwrap();
+                if x.step_neg {
+                    step_token = quote!(-#step_ident);
+                } else {
+                    step_token = quote!(#step_ident);
+                }
+            } else {
+                let step = x.step.unwrap();
+                step_token = quote!(#step);
+            }
+            ret_stream.extend(quote!(Slice::StepByRangeTo((#end_token, #step_token))));
+        } else if (x.start.is_some() || x.start_ident.is_some())
+            && x.end.is_none()
+            && x.end_ident.is_none()
+            && (x.step.is_some() || x.step_ident.is_some())
+        {
+            // start::step
+            let start_token;
+            if x.start_ident.is_some() {
+                let start_ident = x.start_ident.unwrap();
+                if x.start_neg {
+                    start_token = quote!(-#start_ident);
+                } else {
+                    start_token = quote!(#start_ident);
+                }
+            } else {
+                let start = x.start.unwrap();
+                start_token = quote!(#start);
+            }
+            let step_token;
+            if x.step_ident.is_some() {
+                let step_ident = x.step_ident.unwrap();
+                if x.step_neg {
+                    step_token = quote!(-#step_ident);
+                } else {
+                    step_token = quote!(#step_ident);
+                }
+            } else {
+                let step = x.step.unwrap();
+                step_token = quote!(#step);
+            }
+            ret_stream.extend(quote!(Slice::StepByRangeFrom((#start_token, #step_token))));
+        } else if (x.start.is_some() || x.start_ident.is_some())
+            && (x.end.is_some() || x.end_ident.is_some())
+            && x.step.is_none()
+            && x.step_ident.is_none()
+        {
+            // start:end:
+            let start_token;
+            if x.start_ident.is_some() {
+                let start_ident = x.start_ident.unwrap();
+                if x.start_neg {
+                    start_token = quote!(-#start_ident);
+                } else {
+                    start_token = quote!(#start_ident);
+                }
+            } else {
+                let start = x.start.unwrap();
+                start_token = quote!(#start);
+            }
+            let end_token;
+            if x.end_ident.is_some() {
+                let end_ident = x.end_ident.unwrap();
+                if x.end_neg {
+                    end_token = quote!(-#end_ident);
+                } else {
+                    end_token = quote!(#end_ident);
+                }
+            } else {
+                let end = x.end.unwrap();
+                end_token = quote!(#end);
+            }
+            ret_stream.extend(quote!(Slice::Range((#start_token, #end_token))));
+        } else if x.start.is_none()
+            && x.start_ident.is_none()
+            && (x.end.is_some() || x.end_ident.is_some())
+            && x.step.is_none()
+            && x.step_ident.is_none()
+        {
+            // :end:
+            let end_token;
+            if x.end_ident.is_some() {
+                let end_ident = x.end_ident.unwrap();
+                if x.end_neg {
+                    end_token = quote!(-#end_ident);
+                } else {
+                    end_token = quote!(#end_ident);
+                }
+            } else {
+                let end = x.end.unwrap();
+                end_token = quote!(#end);
+            }
+            ret_stream.extend(quote!(Slice::RangeTo(#end_token)));
+        } else if (x.start.is_some() || x.start_ident.is_some())
+            && x.end.is_none()
+            && x.end_ident.is_none()
+            && x.step.is_none()
+            && x.step_ident.is_none()
+        {
+            // start::
+            let start_token;
+            if x.start_ident.is_some() {
+                let start_ident = x.start_ident.unwrap();
+                if x.start_neg {
+                    start_token = quote!(-#start_ident);
+                } else {
+                    start_token = quote!(#start_ident);
+                }
+            } else {
+                let start = x.start.unwrap();
+                start_token = quote!(#start);
+            }
+            if x.only_scalar {
+                ret_stream.extend(quote!(Slice::From(#start_token)));
+            } else {
+                ret_stream.extend(quote!(Slice::RangeFrom(#start_token)));
+            }
+        } else if x.start.is_none()
+            && x.start_ident.is_none()
+            && x.end.is_none()
+            && x.end_ident.is_none()
+            && (x.step.is_some() || x.step_ident.is_some())
+        {
+            // ::step
+            let step_token;
+            if x.step_ident.is_some() {
+                let step_ident = x.step_ident.unwrap();
+                if x.step_neg {
+                    step_token = quote!(-#step_ident);
+                } else {
+                    step_token = quote!(#step_ident);
+                }
+            } else {
+                let step = x.step.unwrap();
+                step_token = quote!(#step);
+            }
+            ret_stream.extend(quote!(Slice::StepByFullRange(#step_token)));
+        } else {
+            // ::
+            ret_stream.extend(quote!(Slice::Full));
+        }
+        if idx != len - 1 {
+            ret_stream.extend(quote!(,));
+        }
+    }
+    quote!([#ret_stream]).into()
+}
 
 /// match (lhs, rhs), execute the corresponding function
 fn match_helper(

@@ -1,9 +1,22 @@
 use std::{ ops::{ Div, Mul, Sub }, sync::Arc };
 
 use tensor_allocator::CACHE;
-use tensor_common::{ layout::Layout, pointer::Pointer, shape::Shape };
+use tensor_common::{
+    axis::{ process_axes, Axis },
+    err_handler::ErrHandler,
+    layout::Layout,
+    pointer::Pointer,
+    shape::Shape,
+    shape_utils::{yield_one_after, yield_one_before}, slice::Slice,
+};
+use tensor_macros::match_selection;
+use tensor_common::slice;
 use tensor_iterator::{ strided::Strided, strided_mut::StridedMut };
-use tensor_traits::tensor::{ CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike };
+use tensor_traits::{
+    shape_manipulate::ShapeManipulate,
+    tensor::{ CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike },
+};
+use tensor_common::shape_utils::try_pad_shape;
 use anyhow::Result;
 use tensor_types::{
     convertion::{ Convertor, FromScalar },
@@ -18,6 +31,8 @@ use rayon::iter::{
     IntoParallelRefMutIterator,
     ParallelIterator,
 };
+
+use crate::slice::SliceOps;
 /// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
 ///
 /// All the operations are happen on this struct.
@@ -740,5 +755,310 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
 
     fn identity(n: usize) -> anyhow::Result<Self> where u8: IntoScalar<T> {
         _Tensor::eye(n, n, 0)
+    }
+}
+
+impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
+    type Meta = T;
+    fn squeeze<A: Into<Axis>>(&self, axes: A) -> Result<_Tensor<T>> {
+        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+        for i in 0..axes.len() {
+            if self.shape()[axes[i]] != 1 {
+                return Err(
+                    anyhow::anyhow!(
+                        "cannot select an axis to squeeze out which has size not equal to one, try to squeeze axis {} with size {} in shape {:?}",
+                        axes[i],
+                        self.shape()[axes[i]],
+                        self.shape()
+                    )
+                );
+            }
+        }
+        let new_shape: Vec<i64> = self
+            .shape()
+            .iter()
+            .enumerate()
+            .filter(|&(i, _)| !axes.contains(&i))
+            .map(|(_, &x)| x)
+            .collect();
+        return self.reshape(new_shape);
+    }
+
+    fn unsqueeze<A: Into<Axis>>(&self, axes: A) -> Result<_Tensor<T>> {
+        let mut res_shape: Vec<i64> = self.shape().to_vec();
+        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+        axes.iter().for_each(|&x| {
+            res_shape = yield_one_before(&res_shape, x);
+        });
+        return self.reshape(res_shape);
+    }
+
+    fn reshape<S: Into<Shape>>(&self, shape: S) -> Result<_Tensor<T>> {
+        let shape = shape.into();
+        ErrHandler::check_size_match(&shape, self.shape())?;
+        if let Ok(new_layout) = self.layout.inplace_reshape(&shape) {
+            return Ok(_Tensor {
+                data: self.data.clone(),
+                parent: self.parent.clone(),
+                mem_layout: self.mem_layout.clone(),
+                layout: new_layout,
+            });
+        } else {
+            return self.contiguous()?.reshape(shape);
+        }
+    }
+
+    fn transpose(&self, axis1: i64, axis2: i64) -> Result<_Tensor<T>> {
+        if self.ndim() < 2 {
+            return Err(
+                anyhow::Error::msg(
+                    "_Tensor with less than 2 dimensions for `transpose` method is not allowed"
+                )
+            );
+        } else {
+            self.permute(vec![axis1, axis2])
+        }
+    }
+
+    fn permute<A: Into<Axis>>(&self, axes: A) -> Result<_Tensor<T>> {
+        let permuted_layout = self.layout.permute(axes)?;
+        return Ok(_Tensor {
+            data: self.data.clone(),
+            layout: permuted_layout,
+            parent: self.parent,
+            mem_layout: self.mem_layout.clone(),
+        });
+    }
+
+    fn expand<S: Into<Shape>>(&self, shape: S) -> Result<_Tensor<T>> {
+        let res_shape = Shape::from(shape.into());
+        ErrHandler::check_expand_dims(self.shape(), &res_shape).unwrap();
+        let res_strides = self.layout.expand_strides(&res_shape);
+        return Ok(Self {
+            data: self.data.clone(),
+            parent: self.parent.clone(),
+            mem_layout: self.mem_layout.clone(),
+            layout: Layout::new(res_shape, res_strides.into()),
+        });
+    }
+
+    fn t(&self) -> Result<Self> {
+        if self.ndim() < 2 {
+            return Err(
+                anyhow::Error::msg(
+                    "_Tensor with less than 2 dimensions for `t` method is not allowed"
+                )
+            );
+        } else if self.ndim() > 2 {
+            let mut axes = (0..self.ndim() as i64).collect::<Vec<i64>>();
+            axes.swap(self.ndim() - 1, self.ndim() - 2);
+            return self.permute(axes);
+        }
+        return self.transpose(1, 0);
+    }
+
+    fn mt(&self) -> Result<Self> {
+        return self.permute((0..self.ndim() as i64).rev().collect::<Vec<i64>>());
+    }
+
+    fn flip<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
+        let axes = process_axes(axes, self.ndim())?;
+        let mut new_strides = self.strides().to_vec();
+        let mut ptr = self.ptr();
+        for &i in axes.iter() {
+            new_strides[i as usize] = -new_strides[i as usize];
+            ptr.offset(self.strides()[i as usize]);
+        }
+        if self.parent.is_none() {
+            return Ok(Self {
+                data: ptr,
+                parent: Some(self.data),
+                mem_layout: self.mem_layout.clone(),
+                layout: Layout::new(self.shape().clone(), new_strides.into()),
+            });
+        } else {
+            return Ok(Self {
+                data: ptr,
+                parent: self.parent.clone(),
+                mem_layout: self.mem_layout.clone(),
+                layout: Layout::new(self.shape().clone(), new_strides.into()),
+            });
+        }
+    }
+
+    fn fliplr(&self) -> Result<Self> {
+        if self.ndim() < 2 {
+            return Err(anyhow::Error::msg("_Tensor must have at least 2 dimensions for fliplr"));
+        }
+        return self.flip(1);
+    }
+
+    fn flipud(&self) -> Result<Self> {
+        if self.ndim() < 1 {
+            return Err(anyhow::Error::msg("_Tensor must have at least 1 dimensions for flipud"));
+        }
+        return self.flip(0);
+    }
+
+    fn tile<S: Into<Axis>>(&self, repeats: S) -> Result<Self> {
+        let repeats: Vec<usize> = process_axes(repeats, self.ndim())?;
+        let repeats: Vec<i64> = repeats
+            .into_iter()
+            .map(|x| x as i64)
+            .collect::<Vec<i64>>();
+        let final_repeats;
+        let mut final_shape;
+        if repeats.len() > self.ndim() {
+            final_shape = try_pad_shape(self.shape().as_ref(), repeats.len());
+            final_repeats = repeats.clone();
+        } else {
+            final_shape = self.shape().to_vec();
+            final_repeats = try_pad_shape(repeats.as_ref(), self.ndim());
+        }
+        let mut res = self.reshape(&final_shape)?;
+        let mut cnt = 0;
+        for (idx, &i) in final_repeats.iter().enumerate() {
+            if i == 1 {
+                continue;
+            } else {
+                let tmp_shape = yield_one_before(res.shape().as_ref(), idx);
+                res = res.reshape(tmp_shape)?;
+                res = res.repeat(i as usize, (idx + cnt) as i16)?;
+                final_shape[idx] *= i;
+                cnt += 1;
+            }
+        }
+        return res.reshape(final_shape);
+    }
+
+    fn trim_zeros(&self, trim: &str) -> Result<Self> where Self::Meta: PartialEq {
+        if !(trim == "fb" || trim == "f" || trim == "b") {
+            return Err(anyhow::Error::msg("trim must be one of 'fb', 'f', 'b'"));
+        }
+        if self.ndim() > 1 {
+            return Err(
+                anyhow::Error::msg("_Tensor must have at most 1 dimension for trim_zeros method")
+            );
+        }
+        let stride = self.strides()[0] as isize;
+        let raw = self.as_raw();
+        let mut ptr = raw.as_ptr();
+        let mut left_len = 0;
+        if trim.contains('f') {
+            unsafe {
+                for i in 0..raw.len() as isize {
+                    if *ptr.offset(i * stride) != T::ZERO {
+                        break;
+                    } else {
+                        left_len += 1;
+                    }
+                }
+            }
+        }
+        let mut right_len = raw.len() as i64;
+        if trim.contains('b') {
+            unsafe {
+                ptr = raw.as_ptr().offset(((raw.len() - 1) as isize) * stride);
+                let stride = -stride;
+                for i in 0..raw.len() as isize {
+                    if *ptr.offset(i * stride) != T::ZERO {
+                        break;
+                    } else {
+                        right_len -= 1;
+                    }
+                }
+            }
+        }
+        return slice!(self[left_len:right_len]);
+    }
+
+    fn repeat(&self, repeats: usize, axes: i16) -> Result<_Tensor<T>> {
+        let mut val: usize = axes as usize;
+        if axes < 0 {
+            val = self.shape().len() + (axes as usize);
+        }
+        let mut new_shape = yield_one_after(&self.shape(), val);
+        let mut new_tensor: _Tensor<T> = self.reshape(&new_shape)?;
+        new_shape[val + 1] *= repeats as i64;
+        new_tensor = new_tensor.expand(new_shape)?;
+        new_shape = self.shape().to_vec();
+        new_shape[val] *= repeats as i64;
+        return Ok(new_tensor.contiguous()?.reshape(new_shape)?);
+    }
+
+    fn split(&self, indices_or_sections: &[i64], axis: i64) -> Result<Vec<Self>> {
+        let mut new_axis = axis;
+        if axis < 0 {
+            new_axis = (self.ndim() as i64) + axis;
+        }
+        assert!(new_axis >= 0);
+        let mut reses = vec![];
+        let mut tmp: Vec<Slice> = Vec::with_capacity(self.ndim());
+        for _ in 0..self.ndim() {
+            tmp.push(Slice::Full);
+        }
+        let mut prev = 0;
+        for &i in indices_or_sections.iter() {
+            tmp[axis as usize] = Slice::Range((prev, i));
+            prev = i;
+            reses.push(self.slice(&tmp)?);
+        }
+        let last = *indices_or_sections.last().unwrap();
+        let remain = self.slice([Slice::RangeFrom(last)])?;
+        reses.push(remain);
+        return Ok(reses);
+    }
+
+    fn dsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
+        if self.shape().len() < 3 {
+            return Err(
+                anyhow::Error::msg("_Tensor must have at least 3 dimensions for dsplit method")
+            );
+        }
+        return self.split(indices, 2);
+    }
+
+    fn hsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
+        if self.shape().len() < 2 {
+            return Err(
+                anyhow::Error::msg("_Tensor must have at least 2 dimensions for hsplit method")
+            );
+        }
+        return self.split(indices, 1);
+    }
+
+    fn vsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
+        if self.shape().len() < 1 {
+            return Err(
+                anyhow::Error::msg("_Tensor must have at least 1 dimensions for vsplit method")
+            );
+        }
+        return self.split(indices, 0);
+    }
+
+    fn swap_axes(&self, mut axis1: i64, mut axis2: i64) -> Result<Self> {
+        if axis1 < 0 {
+            while axis1 < 0 {
+                axis1 += self.ndim() as i64;
+            }
+        }
+        if axis2 < 0 {
+            while axis2 < 0 {
+                axis2 += self.ndim() as i64;
+            }
+        }
+        ErrHandler::check_index_in_range(self.ndim(), axis1 as usize)?;
+        ErrHandler::check_index_in_range(self.ndim(), axis2 as usize)?;
+        let mut new_shape = self.shape().to_vec();
+        let mut new_strides = self.strides().to_vec();
+        new_shape.swap(axis1 as usize, axis2 as usize);
+        new_strides.swap(axis1 as usize, axis2 as usize);
+        let layout = Layout::new(Shape::from(new_shape), new_strides.into());
+        return Ok(Self {
+            data: self.data.clone(),
+            layout,
+            parent: self.parent.clone(),
+            mem_layout: self.mem_layout.clone(),
+        });
     }
 }

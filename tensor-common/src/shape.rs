@@ -77,6 +77,10 @@ impl Shape {
     pub fn to_vec(&self) -> Vec<i64> {
         self.inner.as_ref().clone()
     }
+
+    pub fn inner(&self) -> &Vec<i64> {
+        &self.inner
+    }
 }
 
 impl std::fmt::Debug for Shape {

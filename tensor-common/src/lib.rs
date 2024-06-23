@@ -6,3 +6,4 @@ pub mod strides_utils;
 pub mod err_handler;
 pub mod pointer;
 pub mod axis;
+pub mod slice;

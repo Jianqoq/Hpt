@@ -12,6 +12,12 @@ pub struct Strides {
     pub(crate) inner: Arc<Vec<i64>>,
 }
 
+impl Strides {
+    pub fn inner(&self) -> &Vec<i64> {
+        &self.inner
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct StridesHelper {
     pub(crate) inner: Vec<i64>,
@@ -122,32 +128,6 @@ impl Deref for Strides {
 impl DerefMut for Strides {
     fn deref_mut(&mut self) -> &mut Self::Target {
         Arc::make_mut(&mut self.inner)
-    }
-}
-
-impl IntoStrides for Vec<i64> {
-    fn into_strides(self) -> Strides {
-        Strides {
-            inner: Arc::new(self),
-        }
-    }
-}
-
-impl IntoStrides for Strides {
-    fn into_strides(self) -> Strides {
-        self
-    }
-}
-
-impl IntoStrides for &[i64] {
-    fn into_strides(self) -> Strides {
-        self.to_vec().into_strides()
-    }
-}
-
-impl<const C: usize> IntoStrides for [i64; C] {
-    fn into_strides(self) -> Strides {
-        self.to_vec().into_strides()
     }
 }
 

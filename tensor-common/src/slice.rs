@@ -1,0 +1,249 @@
+use anyhow::Result;
+
+#[derive(Debug, Clone)]
+pub enum Slice {
+    From(i64),
+    Full,
+    RangeFrom(i64),
+    RangeTo(i64),
+    Range((i64, i64)),
+    StepByRangeFrom((i64, i64)),
+    StepByFullRange(i64),
+    StepByRangeFromTo((i64, i64, i64)),
+    StepByRangeTo((i64, i64)),
+}
+
+pub fn slice_process(
+    shape: Vec<i64>,
+    strides: Vec<i64>,
+    index: &[Slice],
+    alpha: i64,
+) -> Result<(Vec<i64>, Vec<i64>, i64)> {
+    let mut res_shape: Vec<i64> = shape.clone();
+    let mut res_strides: Vec<i64> = strides.clone();
+    res_shape.iter_mut().for_each(|x| {
+        *x *= alpha;
+    });
+    res_strides.iter_mut().for_each(|x| {
+        *x *= alpha;
+    });
+    let mut res_ptr = 0;
+    if index.len() > res_shape.len() {
+        let message = format!("slice input out of range");
+        return Err(anyhow::Error::msg(message));
+    }
+    for (idx, slice) in index.into_iter().enumerate() {
+        match slice {
+            Slice::From(mut __index) => {
+                let mut index;
+                if __index >= 0 {
+                    index = __index;
+                } else {
+                    index = __index + shape[idx];
+                }
+                index *= alpha;
+                if index >= shape[idx] {
+                    let message = format!(
+                        "slice index out of range for {} (arg: {}). It should < {}",
+                        index, idx, shape[idx]
+                    );
+                    return Err(anyhow::Error::msg(message));
+                }
+                res_shape[idx] = 1 * alpha;
+                res_ptr += res_strides[idx] * index;
+            }
+            // tested
+            Slice::RangeFrom(mut __index) => {
+                let index;
+                if __index >= 0 {
+                    index = __index;
+                } else {
+                    index = __index + shape[idx];
+                }
+                let length = (shape[idx] - index) * alpha;
+                res_shape[idx] = if length > 0 { length } else { 0 };
+                res_ptr += res_strides[idx] * index;
+            }
+            Slice::RangeTo(r) => {
+                let range_to;
+                if *r >= 0 {
+                    range_to = ..*r;
+                } else {
+                    range_to = ..*r + shape[idx];
+                }
+                let mut end = range_to.end;
+                end *= alpha;
+                if range_to.end > res_shape[idx] {
+                    end = res_shape[idx];
+                }
+                res_shape[idx] = end;
+            }
+            // tested
+            Slice::Range((start, end)) => {
+                let range;
+                if *start >= 0 {
+                    if *end >= 0 {
+                        range = *start..*end;
+                    } else {
+                        range = *start..*end + shape[idx];
+                    }
+                } else {
+                    if *end >= 0 {
+                        range = *start + shape[idx]..*end;
+                    } else {
+                        range = start + shape[idx]..*end + shape[idx];
+                    }
+                }
+                let mut start = range.start;
+                start *= alpha;
+                let mut end = range.end;
+                end *= alpha;
+                if start >= res_shape[idx] {
+                    start = res_shape[idx];
+                }
+                if end >= res_shape[idx] {
+                    end = res_shape[idx];
+                }
+                if start > end {
+                    res_shape[idx] = 0;
+                } else {
+                    res_shape[idx] = end - start;
+                    res_ptr += strides[idx] * (start as i64);
+                }
+            }
+            // tested
+            Slice::StepByRangeFromTo((start, end, step)) => {
+                let mut start = if *start >= 0 {
+                    *start
+                } else {
+                    *start + shape[idx]
+                };
+                let mut end = if *end >= 0 { *end } else { *end + shape[idx] };
+                if start >= shape[idx] {
+                    start = shape[idx] - 1;
+                }
+                if end >= shape[idx] {
+                    end = shape[idx] - 1;
+                }
+                let length;
+                if start <= end && *step > 0 {
+                    length = (end - 1 - start + step) / step;
+                } else if start >= end && *step < 0 {
+                    length = (end + 1 - start + step) / step;
+                } else {
+                    length = 0;
+                }
+                if length == 1 {
+                    res_shape[idx] = alpha;
+                    res_ptr += res_strides[idx] * (start as i64);
+                } else if length >= 0 {
+                    res_shape[idx] = length * alpha;
+                    res_ptr += start * res_strides[idx];
+                    res_strides[idx] = res_strides[idx] * (*step as i64);
+                } else {
+                    res_shape[idx] = 0;
+                }
+            }
+            // tested
+            Slice::StepByRangeFrom((start, step)) => {
+                let mut start = if *start >= 0 {
+                    *start
+                } else {
+                    *start + shape[idx]
+                };
+                let end;
+                if *step > 0 {
+                    end = shape[idx];
+                } else {
+                    end = 0;
+                }
+                if start >= shape[idx] {
+                    start = shape[idx] - 1;
+                }
+                let length;
+                if start <= end && *step > 0 {
+                    length = (end - 1 - start + step) / step;
+                } else if start >= end && *step < 0 {
+                    length = (end - start + step) / step;
+                } else {
+                    length = 0;
+                }
+                if length == 1 {
+                    res_shape[idx] = alpha;
+                    res_ptr += res_strides[idx] * (start as i64);
+                } else if length >= 0 {
+                    res_shape[idx] = length * alpha;
+                    res_ptr += start * res_strides[idx];
+                    res_strides[idx] = res_strides[idx] * (*step as i64);
+                } else {
+                    res_shape[idx] = 0;
+                }
+            }
+            // tested
+            Slice::StepByFullRange(step) => {
+                let start;
+                if *step > 0 {
+                    start = 0;
+                } else {
+                    start = shape[idx] - 1;
+                }
+                let end;
+                if *step > 0 {
+                    end = shape[idx] - 1;
+                } else {
+                    end = 0;
+                }
+                let length;
+                if (start <= end && *step > 0) || (start >= end && *step < 0) {
+                    length = (end - start + step) / step;
+                } else {
+                    length = 0;
+                }
+                if length == 1 {
+                    res_shape[idx] = alpha;
+                    res_ptr += res_strides[idx] * start;
+                } else if length >= 0 {
+                    res_shape[idx] = length * alpha;
+                    res_ptr += start * res_strides[idx];
+                    res_strides[idx] = res_strides[idx] * (*step);
+                } else {
+                    res_shape[idx] = 0;
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok((res_shape, res_strides, res_ptr))
+}
+
+/// slice operation for tensor
+/// slicing uses the same syntax as numpy
+///
+/// `[:::]` and `[:]` and `[::]`: load all the elements along the corresponding dimension
+///
+/// `[1:]`: load from the first element to the end along the corresponding dimension
+///
+/// `[:10]`: load from the beginning to index 9 along the corresponding dimension
+///
+/// `[1:10]`: load from index 1 to index 9 along the corresponding dimension
+///
+/// `[1:10:2]`: load from index 1 to index 9 with step 2 along the corresponding dimension
+///
+/// `[1:10:2, 2:10:3]`: load from index 1 to index 9 with step 2 for the first dimension, and load from index 2 to index 9 with step 3 for the second dimension
+///
+/// `[::2]`: load all the elements with step 2 along the corresponding dimension
+/// Example:
+/// ```
+/// use tensor_core::prelude::*;
+/// let a = Tensor::<f32>::rand([128, 128, 128])?;
+/// let res = slice!(a[::2]); // load all the elements with step 2 along the first dimension
+/// let res = slice!(a[1:10:2, 2:10:3]); // load from index 1 to index 9 with step 2 for the first dimension, and load from index 2 to index 9 with step 3 for the second dimension
+/// ```
+#[macro_export]
+macro_rules! slice {
+    (
+        $tensor:ident [$($indexes:tt)*]
+    ) => {
+        $tensor.slice(match_selection!($($indexes)*))
+    };
+}

@@ -20,8 +20,8 @@ use std::ops::{
 use tensor_types::dtype::TypeCommon;
 use tensor_types::type_promote::BitWiseOut;
 use tensor_types::type_promote::FloatOut;
-use crate::ops::binary_funcs_normal::binary_fn;
-use crate::ops::binary_funcs_normal::binary_fn_with_out;
+use crate::ops::binary_normal::binary_fn;
+use crate::ops::binary_normal::binary_fn_with_out;
 use tensor_common::shape_utils::predict_broadcast_shape;
 use tensor_types::type_promote::NormalOut;
 use crate::tensor::_Tensor;

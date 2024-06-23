@@ -1,5 +1,3 @@
-
-
 use crate::err_handler::ErrHandler;
 
 pub struct Axis {
@@ -43,5 +41,33 @@ impl<'a> From<&'a [i64]> for Axis {
 impl From<Vec<i64>> for Axis {
     fn from(axes: Vec<i64>) -> Self {
         Axis { axes }
+    }
+}
+
+impl<'a> From<&'a [usize]> for Axis {
+    fn from(axes: &'a [usize]) -> Self {
+        Axis {
+            axes: axes
+                .iter()
+                .map(|x| *x as i64)
+                .collect(),
+        }
+    }
+}
+
+impl From<Vec<usize>> for Axis {
+    fn from(axes: Vec<usize>) -> Self {
+        Axis {
+            axes: axes
+                .iter()
+                .map(|x| *x as i64)
+                .collect(),
+        }
+    }
+}
+
+impl From<i64> for Axis {
+    fn from(axes: i64) -> Self {
+        Axis { axes: vec![axes] }
     }
 }
