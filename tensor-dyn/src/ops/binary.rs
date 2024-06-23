@@ -49,7 +49,7 @@ impl<T> NormalBinOps for _Tensor<T> where T: NormalOut + CommonBounds, NormalTyp
         binary_fn_with_out(self, &rhs, |a, b| a._rem(b), out)
     }
 
-    fn convolve(&self, rhs: Self) -> anyhow::Result<Self::Output> {
+    fn convolve(&self, _: Self) -> anyhow::Result<Self::Output> {
         todo!()
     }
 }
