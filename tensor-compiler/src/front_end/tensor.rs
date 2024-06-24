@@ -142,16 +142,30 @@ impl Tensor {
         ctx: Rc<RefCell<_Context>>,
         scalar: T
     ) -> Self {
-        let mut ret = Tensor::_empty(
-            vec![],
-            T::ID,
-            Op::Null,
-            Layout::new(vec![1].into(), vec![1].into()),
-            None,
-            Rc::new(vec![]),
-            ctx
-        );
+        let mut ret = {
+            let inputs = vec![];
+            let dtype = T::ID;
+            let op = Op::Null;
+            let layout = Layout::new(vec![1].into(), vec![1].into());
+            let error_msg = Rc::new(vec![]);
+            let block_id = ctx.borrow().block_stack().last().unwrap().current_id();
+            let ret = Tensor {
+                inputs: inputs.into(),
+                dtype,
+                op,
+                const_val: None,
+                layout,
+                name: None,
+                error_msg,
+                block_id,
+                id: *ctx.borrow().acc_node_id(),
+                ctx: ctx.clone(),
+            };
+            ret
+        };
         ret.const_val = Some(Float::new(scalar.to_f64()));
+        ctx.borrow_mut().nodes_mut().insert(ret.id, ret.clone().into());
+        ctx.borrow_mut().increment_id();
         ret
     }
 

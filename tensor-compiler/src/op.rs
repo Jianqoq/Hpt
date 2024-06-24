@@ -77,7 +77,11 @@ pub enum Op {
 impl Serialize for Op {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
         match self {
-            Op::Add => serializer.serialize_unit_variant("Operation", 0, "Add"),
+            Op::Add => {
+                let mut state = serializer.serialize_struct("Operation", 1)?;
+                state.serialize_field("op", "Add")?;
+                state.end()
+            },
             Op::Sum { axes } => {
                 let mut state = serializer.serialize_struct("Operation", 2)?;
                 state.serialize_field("op", "Sum")?;

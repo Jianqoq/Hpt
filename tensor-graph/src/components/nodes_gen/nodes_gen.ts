@@ -34,8 +34,7 @@ export interface BlockNode {
 export interface PrimitiveNode {
     id: string;
     label: string;
-    left: string | null,
-    right: string | null,
+    inputs: Array<string>;
     block_id: number;
     layout: { shape: Array<number>, strides: Array<number> };
     type: NodeType;
@@ -43,13 +42,13 @@ export interface PrimitiveNode {
     parent_block?: any;
     fuse_group?: Array<number>;
     group_id?: number;
+    is_const?: boolean;
 }
 
 export interface OpNode {
     id: string;
     label: string;
-    left: string | "null";
-    right: string | "null";
+    inputs: Array<string>;
     result_id: string;
     block_id: number;
     type: NodeType;
@@ -63,11 +62,10 @@ export interface RustNode {
     is_leaf: boolean,
     dtype: string,
     id: number,
-    layout: { shape: { inner: Array<number> }, strides: { inner: Array<number> } },
+    layout: { shape: Array<number>, strides: Array<number> },
     fuse_group: undefined | Array<number>,
     fuse_group_id: number,
-    left: null | number,
-    right: null | number,
+    inputs: Array<number>,
     output_id: [number, number], // currently not used
     ref_cnt: number, // currently not used
     requires_grad: boolean, // currently not used
@@ -174,10 +172,10 @@ export function generate_primitive_nodes(graph: any): any[] {
         let node: RustNode = graph[node_id];
         let cy_node: PrimitiveNode = {
             id: node_id.toString(),
-            label: '',
-            left: node.left === null ? null : node.left.toString(),
-            right: node.right === null ? null : node.right.toString(),
-            layout: { shape: node.layout.shape.inner, strides: node.layout.strides.inner },
+            label: node.const_val === null ? '' : `const(${node.const_val})`,
+            is_const: node.const_val !== null,
+            inputs: node.inputs.map((input) => input.toString()),
+            layout: { shape: node.layout.shape, strides: node.layout.strides },
             block_id: node.block_id,
             dtype: node.dtype,
             type: NodeType.Primitive,
@@ -197,24 +195,23 @@ export function generate_op_nodes(graph: any, random_id_set: Set<string>): { dat
 
     for (const node_id of Object.keys(graph)) {
         let node = graph[node_id];
-
-        if (!node.is_leaf) {
-            let op_id = generateUniqueId(random_id_set);
-            let op_name = to_op_str(node.op);
-            let cy_node: OpNode = {
-                id: op_id,
-                label: op_name,
-                left: node.left === null ? null : node.left.toString(),
-                right: node.right === null ? null : node.right.toString(),
-                result_id: node_id,
-                block_id: node.block_id,
-                type: NodeType.Op,
-                span_msg: node.span_msg,
-            }
-            cy_nodes.push({
-                data: cy_node
-            });
+        let op_id = generateUniqueId(random_id_set);
+        let op_name = to_op_str(node.op);
+        if (op_name === "Null") {
+            continue;
         }
+        let cy_node: OpNode = {
+            id: op_id,
+            label: op_name,
+            inputs: node.inputs.map((input: any) => input.toString()),
+            result_id: node_id,
+            block_id: node.block_id,
+            type: NodeType.Op,
+            span_msg: node.span_msg,
+        }
+        cy_nodes.push({
+            data: cy_node
+        });
     }
     return cy_nodes;
 }
@@ -222,28 +219,16 @@ export function generate_op_nodes(graph: any, random_id_set: Set<string>): { dat
 export function connect_nodes(op_nodes: { data: OpNode }[]) {
     let edges = [];
     for (const node of op_nodes) {
-        let left_id = node.data.left;
-        let right_id = node.data.right;
-        let result_id = node.data.result_id;
-
-        if (left_id !== null) {
+        for (const input of node.data.inputs) {
             edges.push({
                 group: "edges",
                 data: {
-                    source: left_id.toString(),
-                    target: node.data.id.toString(),
-                }
-            });
-        }
-        if (right_id !== null) {
-            edges.push({
-                group: "edges",
-                data: {
-                    source: right_id.toString(),
+                    source: input,
                     target: node.data.id,
                 }
             });
         }
+        let result_id = node.data.result_id;
         edges.push({
             group: "edges",
             data: {

@@ -6,7 +6,7 @@ use serde::ser::SerializeStruct;
 use tensor_common::{ err_handler::ErrHandler, layout::Layout };
 use tensor_types::dtype::Dtype;
 
-use crate::op::Op;
+use crate::{ float::Float, op::Op };
 
 use super::tensor::Tensor;
 
@@ -14,6 +14,7 @@ use super::tensor::Tensor;
 #[derive(Clone)]
 pub(crate) struct _Tensor {
     pub(crate) inputs: Rc<Vec<usize>>,
+    pub(crate) const_val: Option<Float>,
     pub(crate) dtype: Dtype,
     pub(crate) op: Op,
     pub(crate) layout: Layout,
@@ -34,6 +35,7 @@ impl Serialize for _Tensor {
         state.serialize_field("error_msg", &*self.error_msg)?;
         state.serialize_field("block_id", &self.block_id)?;
         state.serialize_field("id", &self.id)?;
+        state.serialize_field("const_val", &self.const_val)?;
         state.end()
     }
 }
@@ -49,6 +51,7 @@ impl From<Tensor> for _Tensor {
             error_msg: tensor.error_msg,
             block_id: tensor.block_id,
             id: tensor.id,
+            const_val: tensor.const_val,
         }
     }
 }

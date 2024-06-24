@@ -180,7 +180,6 @@ export default {
         },
 
         async loadGraphData(computation_graph, format_method, mode, special_menu = null) {
-            console.log(computation_graph);
             const nodes = [];
             let op_ids = new Set();
             let has_error = false;

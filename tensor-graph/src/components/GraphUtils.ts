@@ -131,7 +131,7 @@ export function html_label(cy: any, mode: string) {
     if (mode == "raw") {
         return cy.nodeHtmlLabel([
             {
-                query: 'node[type = 1]',
+                query: 'node[type = 1][!is_const]',
                 halign: 'center',
                 valign: 'center',
                 halignBox: 'center',
@@ -176,7 +176,6 @@ export function html_label(cy: any, mode: string) {
                 valignBox: 'center',
                 cssClass: 'html-node-label',
                 tpl(data: any) {
-                    console.log(data.group_id);
                     let shape_property = getTextWidthHeight(`shape: [${data.layout.shape}]`, "14px Arial");
                     let strides_property = getTextWidthHeight(`strides: [${data.layout.strides}]`, "14px Arial");
                     let dtype_property = getTextWidthHeight(`dtype: [${data.dtype}]`, "14px Arial");
@@ -225,7 +224,7 @@ export function html_label(cy: any, mode: string) {
 
 export function format_mir(cy: any) {
     cy.nodes().forEach((node: any) => {
-        if (node.data('type') === 1) {
+        if (node.data('type') === 1 && node.data('is_const') === false) {
             let data = node.data();
             let shape_property = getTextWidthHeight(`shape: [${data.layout.shape}]`, "14px Arial");
             let strides_property = getTextWidthHeight(`strides: [${data.layout.strides}]`, "14px Arial");
