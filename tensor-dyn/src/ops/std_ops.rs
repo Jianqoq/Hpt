@@ -775,7 +775,7 @@ impl<T, U> PartialEq<_Tensor<U>> for _Tensor<T> where T: CommonBounds, U: Common
     }
 }
 
-macro_rules! normal_scalar {
+macro_rules! normal_scalar_rhs {
     (
         $([
             $type:ident,
@@ -819,11 +819,49 @@ macro_rules! normal_scalar {
         })*
     };
 }
+
+macro_rules! normal_scalar_lhs {
+    (
+        $([
+            $type:ident,
+            [$($tokens:tt)*]
+        ]),*
+    ) => {
+        $(impl<T> Add<$($tokens)*_Tensor<T>> for $type where T: CommonBounds, <$type as NormalOut<T>>::Output: CommonBounds, $type: NormalOut<T> {
+            type Output = _Tensor<<$type as NormalOut<T>>::Output>;
+            fn add(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
+                let lhs: _Tensor<$type> = self.into();
+                return binary_fn(&lhs, &rhs, |x, y| x._add(y)).unwrap();
+            }
+        }
+        impl<T> Mul<$($tokens)*_Tensor<T>> for $type where T: CommonBounds, <$type as NormalOut<T>>::Output: CommonBounds, $type: NormalOut<T> {
+            type Output = _Tensor<<$type as NormalOut<T>>::Output>;
+            fn mul(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
+                let lhs: _Tensor<$type> = self.into();
+                return binary_fn(&lhs, &rhs, |x, y| x._mul(y)).unwrap();
+            }
+        }
+        impl<T> Sub<$($tokens)*_Tensor<T>> for $type where T: CommonBounds, <$type as NormalOut<T>>::Output: CommonBounds, $type: NormalOut<T> {
+            type Output = _Tensor<<$type as NormalOut<T>>::Output>;
+            fn sub(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
+                let lhs: _Tensor<$type> = self.into();
+                return binary_fn(&lhs, &rhs, |x, y| x._sub(y)).unwrap();
+            }
+        }
+        impl<T> Div<$($tokens)*_Tensor<T>> for $type where T: FloatOut<T> + CommonBounds, <$type as FloatOut<T>>::Output: CommonBounds, $type: FloatOut<T> {
+            type Output = _Tensor<<$type as FloatOut<T>>::Output>;
+            fn div(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
+                let lhs: _Tensor<$type> = self.into();
+                return binary_fn(&lhs, &rhs, |x, y| x._div(y)).unwrap();
+            }
+        })*
+    };
+}
 use half::f16;
 use half::bf16;
 use num::complex::Complex32;
 use num::complex::Complex64;
-normal_scalar!(
+normal_scalar_rhs!(
     [bool, []],
     [i8, []],
     [i16, []],
@@ -841,7 +879,43 @@ normal_scalar!(
     [Complex64, []]
 );
 
-normal_scalar!(
+normal_scalar_rhs!(
+    [bool, [&]],
+    [i8, [&]],
+    [i16, [&]],
+    [i32, [&]],
+    [i64, [&]],
+    [u8, [&]],
+    [u16, [&]],
+    [u32, [&]],
+    [u64, [&]],
+    [f16, [&]],
+    [f32, [&]],
+    [f64, [&]],
+    [bf16, [&]],
+    [Complex32, [&]],
+    [Complex64, [&]]
+);
+
+normal_scalar_lhs!(
+    [bool, []],
+    [i8, []],
+    [i16, []],
+    [i32, []],
+    [i64, []],
+    [u8, []],
+    [u16, []],
+    [u32, []],
+    [u64, []],
+    [f16, []],
+    [f32, []],
+    [f64, []],
+    [bf16, []],
+    [Complex32, []],
+    [Complex64, []]
+);
+
+normal_scalar_lhs!(
     [bool, [&]],
     [i8, [&]],
     [i16, [&]],
