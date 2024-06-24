@@ -101,17 +101,15 @@ pub fn calculate_new_strides(last_stride: i64, shape: &[i64]) -> Vec<i64> {
 /// let is_contiguous = strides_is_contiguous(&strides);
 /// ```
 pub(crate) fn strides_is_contiguous(strides: &Vec<i64>) -> bool {
-    let mut contiguous = true;
     let mut prev_stride = strides[strides.len() - 1];
     for i in (0..strides.len()).rev() {
         if strides[i] < prev_stride {
-            contiguous = false;
-            break;
+            return false;
         } else {
             prev_stride = strides[i];
         }
     }
-    return contiguous;
+    return true;
 }
 
 pub fn strides_is_contiguous_ignore_zero(strides: &Vec<i64>) -> bool {
