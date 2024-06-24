@@ -2,7 +2,10 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::parse_quote;
 
-use crate::{ match_helper, type_utils::{ is_float, is_signed, type_level } };
+use crate::{
+    match_helper,
+    type_utils::{ is_float, is_signed, level_to_float_expr, level_to_int_expr, type_level },
+};
 
 pub fn list_enums() -> TokenStream2 {
     let mut token_stream = TokenStream2::new();
@@ -85,16 +88,12 @@ pub fn list_enums() -> TokenStream2 {
                             if lhs_level > rhs_level {
                                 e.clone()
                             } else {
-                                parse_quote! {
-                                    level_to_float(rhs_level)
-                                }
+                                level_to_float_expr(rhs_level)
                             }
                         },
                         || {
                             if lhs_level > rhs_level {
-                                parse_quote! {
-                                    level_to_float(lhs_level)
-                                }
+                                level_to_float_expr(lhs_level)
                             } else {
                                 e2.clone()
                             }
@@ -109,34 +108,26 @@ pub fn list_enums() -> TokenStream2 {
                         ret = if lhs_level > rhs_level {
                             e.clone()
                         } else {
-                            parse_quote! {
-                                level_to_float(rhs_level)
-                            }
+                            level_to_float_expr(rhs_level)
                         };
                     } else {
                         ret = if lhs_level > rhs_level {
                             e.clone()
                         } else {
-                            parse_quote! {
-                                level_to_int(rhs_level)
-                            }
+                            level_to_int_expr(rhs_level)
                         };
                     }
                 }
                 (false, true) => {
                     if rhs_float {
                         ret = if lhs_level > rhs_level {
-                            parse_quote! {
-                                level_to_float(lhs_level)
-                            }
+                            level_to_float_expr(lhs_level)
                         } else {
                             e2.clone()
                         };
                     } else {
                         ret = if lhs_level > rhs_level {
-                            parse_quote! {
-                                level_to_int(lhs_level)
-                            }
+                            level_to_int_expr(lhs_level)
                         } else {
                             e2.clone()
                         };
@@ -238,59 +229,35 @@ pub fn list_enums_out_float() -> TokenStream2 {
                             if lhs_level > rhs_level {
                                 e.clone()
                             } else {
-                                parse_quote! {
-                                    level_to_float(rhs_level)
-                                }
+                                level_to_float_expr(rhs_level)
                             }
                         },
                         || {
                             if lhs_level > rhs_level {
-                                parse_quote! {
-                                    level_to_float(lhs_level)
-                                }
+                                level_to_float_expr(lhs_level)
                             } else {
                                 e2.clone()
                             }
                         },
                         || {
                             if lhs_level > rhs_level {
-                                parse_quote! {
-                                    level_to_float(lhs_level)
-                                }
+                                level_to_float_expr(lhs_level)
                             } else {
-                                parse_quote! {
-                                    level_to_float(rhs_level)
-                                }
+                                level_to_float_expr(rhs_level)
                             }
                         }
                     ),
                 (true, false) => {
-                    if lhs_level > rhs_level {
-                        e.clone()
-                    } else {
-                        parse_quote! {
-                            level_to_float(rhs_level)
-                        }
-                    }
+                    if lhs_level > rhs_level { e.clone() } else { level_to_float_expr(rhs_level) }
                 }
                 (false, true) => {
-                    if lhs_level > rhs_level {
-                        parse_quote! {
-                            level_to_float(lhs_level)
-                        }
-                    } else {
-                        e2.clone()
-                    }
+                    if lhs_level > rhs_level { level_to_float_expr(lhs_level) } else { e2.clone() }
                 }
                 (false, false) => {
                     if lhs_level > rhs_level {
-                        parse_quote! {
-                            level_to_float(lhs_level)
-                        }
+                        level_to_float_expr(lhs_level)
                     } else {
-                        parse_quote! {
-                            level_to_float(rhs_level)
-                        }
+                        level_to_float_expr(rhs_level)
                     }
                 }
             };
@@ -368,21 +335,12 @@ pub fn list_enums_out_float_uary() -> TokenStream2 {
         let lhs_str = strs[idx];
         let lhs_signed = is_signed(lhs_str);
         let lhs_float = is_float(lhs_str);
+        let lhs_level = type_level(lhs_str);
         let ret = match lhs_signed {
             true => {
-                if lhs_float {
-                    e.clone()
-                } else {
-                    parse_quote! {
-                        level_to_float(lhs_level)
-                    }
-                }
+                if lhs_float { e.clone() } else { level_to_float_expr(lhs_level) }
             }
-            false => {
-                parse_quote! {
-                    level_to_float(lhs_level)
-                }
-            }
+            false => { level_to_float_expr(lhs_level) }
         };
         let tmp_stream = quote! {
             #e => {

@@ -36,6 +36,7 @@ pub mod front_end {
     pub mod context;
     pub mod graph;
     pub mod tensor;
+    pub mod _tensor;
 }
 
 pub mod op;

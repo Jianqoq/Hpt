@@ -1,5 +1,6 @@
 use quote::ToTokens;
 use quote::quote;
+use syn::parse_quote;
 
 pub fn is_float(list: &str) -> bool {
     matches!(list, "BF16" | "F16" | "F32" | "F64")
@@ -65,6 +66,34 @@ pub(crate) fn level_to_uint(level: u8) -> Type {
         7 => Type::U32,
         8 => Type::U64,
         _ => Type::U64,
+    }
+}
+
+pub fn level_to_float_expr(level: u8) -> syn::Expr {
+    match level {
+        1 => parse_quote! { Dtype::F16 },
+        2 => parse_quote! { Dtype::F16 },
+        3 => parse_quote! { Dtype::F16 },
+        4 => parse_quote! { Dtype::F16 },
+        5 => parse_quote! { Dtype::F32 },
+        6 => parse_quote! { Dtype::F32 },
+        7 => parse_quote! { Dtype::F64 },
+        8 => parse_quote! { Dtype::F64 },
+        _ => parse_quote! { Dtype::F64 },
+    }
+}
+
+pub fn level_to_int_expr(level: u8) -> syn::Expr {
+    match level {
+        1 => parse_quote! { Dtype::I8 },
+        2 => parse_quote! { Dtype::I8 },
+        3 => parse_quote! { Dtype::I16 },
+        4 => parse_quote! { Dtype::I16 },
+        5 => parse_quote! { Dtype::I32 },
+        6 => parse_quote! { Dtype::I32 },
+        7 => parse_quote! { Dtype::I64 },
+        8 => parse_quote! { Dtype::I64 },
+        _ => parse_quote! { Dtype::I64 },
     }
 }
 

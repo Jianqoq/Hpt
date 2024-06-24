@@ -1,7 +1,10 @@
 use half::{ bf16, f16 };
 use num_complex::{ Complex32, Complex64 };
+use tensor_macros::infer_enum_type;
 use std::fmt::Display;
 use serde::{ Deserialize, Serialize };
+
+use crate::type_promote::{ BitWiseOut, FloatOut, NormalOut };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Dtype {
@@ -146,3 +149,151 @@ impl_type_common!(
     Complex64::new(f64::NEG_INFINITY, f64::NEG_INFINITY),
     Complex64::new(2.0, 0.0)
 );
+
+impl NormalOut for Dtype {
+    type Output = Dtype;
+
+    fn _add(self, rhs: Self) -> Dtype {
+        infer_enum_type!(self, rhs, normal)
+    }
+
+    fn _sub(self, rhs: Self) -> Dtype {
+        infer_enum_type!(self, rhs, normal)
+    }
+
+    fn _mul(self, rhs: Self) -> Dtype {
+        infer_enum_type!(self, rhs, normal)
+    }
+
+    fn _rem(self, rhs: Self) -> Dtype {
+        infer_enum_type!(self, rhs, normal)
+    }
+
+    fn _pow(self, rhs: Self) -> Self::Output {
+        infer_enum_type!(self, rhs, normal)
+    }
+
+    fn _square(self) -> Self::Output {
+        self
+    }
+
+    fn _abs(self) -> Self::Output {
+        self
+    }
+}
+
+impl BitWiseOut for Dtype {
+    type Output = Dtype;
+
+    fn _and(self, rhs: Self) -> Self::Output {
+        infer_enum_type!(self, rhs, normal)
+    }
+
+    fn _or(self, rhs: Self) -> Self::Output {
+        infer_enum_type!(self, rhs, normal)
+    }
+
+    fn _xor(self, rhs: Self) -> Self::Output {
+        infer_enum_type!(self, rhs, normal)
+    }
+
+    fn _not(self) -> Self::Output {
+        self
+    }
+
+    fn _shl(self, rhs: Self) -> Self::Output {
+        infer_enum_type!(self, rhs, normal)
+    }
+
+    fn _shr(self, rhs: Self) -> Self::Output {
+        infer_enum_type!(self, rhs, normal)
+    }
+}
+
+impl FloatOut for Dtype {
+    type Output = Dtype;
+
+    fn _div(self, rhs: Self) -> Self::Output {
+        infer_enum_type!(self, rhs, binary_float)
+    }
+
+    fn _exp(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _exp2(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _ln(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _log(self, base: Self) -> Self::Output {
+        infer_enum_type!(self, base, binary_float)
+    }
+
+    fn _log2(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _log10(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _sqrt(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _sin(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _cos(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _tan(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _asin(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _acos(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _atan(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _sinh(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _cosh(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _tanh(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _asinh(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _acosh(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _atanh(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _recip(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+}

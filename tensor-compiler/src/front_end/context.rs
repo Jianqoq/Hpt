@@ -9,9 +9,9 @@ use tensor_common::{
 use tensor_traits::tensor::CommonBounds;
 use tensor_types::{ convertion::Convertor, dtype::Dtype };
 
-use super::tensor::Tensor;
+use super::{ _tensor::_Tensor, tensor::Tensor };
 
-#[derive(Debug, Clone, Getters, Setters, MutGetters, CopyGetters)]
+#[derive(Clone, Getters, Setters, MutGetters, CopyGetters)]
 pub struct Context {
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     ctx: Rc<RefCell<_Context>>,
@@ -34,7 +34,7 @@ impl Context {
     }
 }
 
-#[derive(Debug, Clone, Getters, Setters, MutGetters, CopyGetters)]
+#[derive(Clone, Getters, Setters, MutGetters, CopyGetters)]
 pub struct _Context {
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     saved_blocks: HashMap<usize, usize>,
@@ -46,6 +46,8 @@ pub struct _Context {
     block_id: usize,
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     acc_node_id: usize,
+    #[getset(get = "pub", set = "pub", get_mut = "pub")]
+    nodes: HashMap<usize, _Tensor>,
 }
 
 impl _Context {
