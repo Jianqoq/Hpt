@@ -13,19 +13,19 @@ use tensor_types::{
     type_promote::{ FloatOut, NormalOut },
 };
 use anyhow::Result;
-use crate::{ ops::cpu::reduce::stack, tensor_base::_Tensor };
+use crate::{ backend::Cpu, ops::cpu::reduce::stack, tensor_base::_Tensor };
 
 /// A wrapper of `Tensor` for user.
 /// This is the main tensor for user.
 ///
 /// # Properties
 /// - `basic`: The pointer of `Tensor`.
-pub struct Tensor<T> {
-    pub(crate) inner: Arc<_Tensor<T>>,
+pub struct Tensor<T, B=Cpu> {
+    pub(crate) inner: Arc<_Tensor<T, B>>,
 }
 
-impl<T> Deref for Tensor<T> {
-    type Target = _Tensor<T>;
+impl<T, B> Deref for Tensor<T, B> {
+    type Target = _Tensor<T, B>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
