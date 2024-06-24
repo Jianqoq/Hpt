@@ -19,6 +19,7 @@ pub(crate) struct _Tensor {
     pub(crate) layout: Layout,
     pub(crate) name: Option<Rc<String>>,
     pub(crate) error_msg: Rc<Vec<ErrHandler>>,
+    pub(crate) id: usize,
     pub(crate) block_id: usize,
 }
 
@@ -32,7 +33,8 @@ impl Serialize for _Tensor {
         state.serialize_field("name", &self.name.as_ref().map(|x| x.as_ref()))?;
         state.serialize_field("error_msg", &*self.error_msg)?;
         state.serialize_field("block_id", &self.block_id)?;
-        todo!()
+        state.serialize_field("id", &self.id)?;
+        state.end()
     }
 }
 
@@ -46,6 +48,7 @@ impl From<Tensor> for _Tensor {
             name: tensor.name,
             error_msg: tensor.error_msg,
             block_id: tensor.block_id,
+            id: tensor.id,
         }
     }
 }
