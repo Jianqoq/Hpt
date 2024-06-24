@@ -1,10 +1,7 @@
-use std::{
-    ops::{Deref, DerefMut},
-    sync::Arc,
-};
+use std::{ ops::{ Deref, DerefMut }, sync::Arc };
 
-use serde::{Deserialize, Serialize};
-
+use serde::Serialize;
+use serde::ser::SerializeStruct;
 use crate::strides_utils::strides_is_contiguous;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -12,38 +9,17 @@ pub struct Strides {
     pub(crate) inner: Arc<Vec<i64>>,
 }
 
+impl Serialize for Strides {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+        let mut state = serializer.serialize_struct("Strides", 1)?;
+        state.serialize_field("inner", self.inner.as_ref())?;
+        state.end()
+    }
+}
+
 impl Strides {
     pub fn inner(&self) -> &Vec<i64> {
         &self.inner
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct StridesHelper {
-    pub(crate) inner: Vec<i64>,
-}
-
-impl Serialize for Strides {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        StridesHelper {
-            inner: self.inner.as_ref().clone(),
-        }
-        .serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for Strides {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let helper = StridesHelper::deserialize(deserializer)?;
-        Ok(Strides {
-            inner: helper.inner.into(),
-        })
     }
 }
 

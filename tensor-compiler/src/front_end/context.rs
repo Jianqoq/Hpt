@@ -1,6 +1,7 @@
 use std::{ cell::RefCell, rc::Rc };
 use getset::{ CopyGetters, Getters, MutGetters, Setters };
 use hashbrown::HashMap;
+use serde::Serialize;
 use tensor_common::{
     block_info::BlockInfo,
     block_manager::{ BlockManager, BlockType },
@@ -18,6 +19,18 @@ pub struct Context {
 }
 
 impl Context {
+    pub fn new() -> Self {
+        let ctx = Rc::new(RefCell::new(_Context {
+            saved_blocks: HashMap::new(),
+            blocks_manager: BlockManager::new(),
+            block_stack: vec![BlockInfo::new(0, 0)],
+            block_id: 0,
+            acc_node_id: 0,
+            nodes: HashMap::new(),
+        }));
+        Self { ctx }
+    }
+
     pub fn push_stack(&self, name: &str, block_type: BlockType) {
         self.ctx.borrow_mut().push_stack(name, block_type);
     }
@@ -34,7 +47,7 @@ impl Context {
     }
 }
 
-#[derive(Clone, Getters, Setters, MutGetters, CopyGetters)]
+#[derive(Clone, Getters, Setters, MutGetters, CopyGetters, Serialize)]
 pub struct _Context {
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
     saved_blocks: HashMap<usize, usize>,

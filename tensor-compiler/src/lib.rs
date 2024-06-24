@@ -1,4 +1,6 @@
+use front_end::{ context::Context, tensor::Tensor };
 use halide::r#type::{ HalideirTypeCode, Type };
+use serde_json::json;
 
 pub mod halide {
     pub mod expr;
@@ -44,3 +46,9 @@ pub mod op;
 pub mod float;
 
 static I64_TYPE: Type = Type::new(HalideirTypeCode::Int, 64, 1);
+
+pub fn visualize<const C: usize, T: FnMut(&Context) -> [Tensor; C]>(mut f: T) -> serde_json::Value {
+    let mut context = Context::new();
+    let _ = f(&mut context);
+    json!(context.ctx().as_ref().clone())
+}

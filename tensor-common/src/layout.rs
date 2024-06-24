@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 use crate::{
     axis::{process_axes, Axis},
     err_handler::ErrHandler,
@@ -7,7 +9,7 @@ use crate::{
     strides_utils::{shape_to_strides, strides_is_contiguous},
 };
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize)]
 pub struct Layout {
     shape: Shape,
     strides: Strides,

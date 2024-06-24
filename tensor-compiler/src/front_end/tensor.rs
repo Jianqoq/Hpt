@@ -134,6 +134,10 @@ impl Tensor {
         self.name = Some(name.to_string().into());
     }
 
+    pub fn ctx(&self) -> Rc<RefCell<_Context>> {
+        self.ctx.clone()
+    }
+
     pub(crate) fn scalar<T: Convertor + CommonBounds>(
         ctx: Rc<RefCell<_Context>>,
         scalar: T
@@ -229,7 +233,7 @@ impl Tensor {
         ret
     }
 
-    pub(crate) fn reshape<S: Into<Shape>>(&self, shape: S) -> Self {
+    pub fn reshape<S: Into<Shape>>(&self, shape: S) -> Self {
         let res_shape = shape.into();
         let err = ErrHandler::check_size_match(self.shape(), &res_shape);
         if let Err(err) = err {

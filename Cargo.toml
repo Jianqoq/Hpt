@@ -15,6 +15,7 @@ members = [
     "tensor-iterator",
     "tensor-display",
     "tensor-compiler",
+    "tensor-graph\\src-tauri",
 ]
 
 [dependencies]

@@ -1,0 +1,37 @@
+{
+  "name": "tensor-graph",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^6.5.2",
+    "@tauri-apps/api": "^1",
+    "cytoscape": "^3.29.2",
+    "cytoscape-context-menus": "^4.1.0",
+    "cytoscape-dagre": "^2.5.0",
+    "cytoscape-html-label": "^1.1.7",
+    "cytoscape-node-html-label": "^1.2.2",
+    "cytoscape-node-html-label-custom": "^1.2.42",
+    "cytoscape-popper": "^4.0.0",
+    "dagre": "^0.8.5",
+    "graphology": "^0.25.4",
+    "graphology-types": "^0.24.7",
+    "jquery": "^3.7.1",
+    "sigma": "^3.0.0-beta.19",
+    "vue": "^3.3.4"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^1",
+    "@types/cytoscape": "^3.21.2",
+    "@vitejs/plugin-vue": "^5.0.4",
+    "typescript": "^5.0.2",
+    "vite": "^5.0.0",
+    "vue-tsc": "^1.8.5"
+  }
+}

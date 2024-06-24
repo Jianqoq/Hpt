@@ -109,6 +109,10 @@ impl BlockManager {
         }
         self.remove_block(&0);
     }
+
+    pub fn new() -> Self {
+        Default::default()
+    }
 }
 
 fn get_parents(block_id: usize, block_manager: &BlockManager) -> HashSet<usize> {
