@@ -130,6 +130,10 @@ impl Tensor {
     impl_trigs!(acosh, Acosh, _acosh);
     impl_trigs!(atanh, Atanh, _atanh);
 
+    pub fn set_name(&mut self, name: &str) {
+        self.name = Some(name.to_string().into());
+    }
+
     pub(crate) fn scalar<T: Convertor + CommonBounds>(
         ctx: Rc<RefCell<_Context>>,
         scalar: T
