@@ -3,7 +3,7 @@ use std::sync::Arc;
 use super::{
     expr::Expr,
     stmt::Stmt,
-    traits::{IRMutVisitor, IRMutateVisitor, IRVisitor},
+    traits::{ IRMutVisitor, IRMutateVisitor, IRVisitor },
     variable::Variable,
 };
 
@@ -40,7 +40,7 @@ impl For {
         var: &Variable,
         start: T,
         end: T,
-        stmt: S,
+        stmt: S
     ) -> Self {
         For {
             var: var.clone(),
@@ -65,11 +65,7 @@ impl For {
 
 impl std::fmt::Display for For {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "for {} in {}..{} {{\n{}\n}}",
-            self.var, self.start, self.end, self.stmt
-        )
+        write!(f, "for {} in {}..{} {{\n{}\n}}", self.var, self.start, self.end, self.stmt)
     }
 }
 

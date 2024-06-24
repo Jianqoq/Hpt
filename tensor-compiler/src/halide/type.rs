@@ -30,7 +30,7 @@ impl HalideirType {
     }
 
     const fn bytes(&self) -> usize {
-        (self.bits as usize + 7) / 8
+        ((self.bits as usize) + 7) / 8
     }
 }
 
@@ -40,7 +40,6 @@ pub struct Type {
 }
 
 impl Type {
-
     pub const fn new(code: HalideirTypeCode, bits: u8, lanes: u16) -> Self {
         Self {
             halideir_type: HalideirType::new(code, bits, lanes),

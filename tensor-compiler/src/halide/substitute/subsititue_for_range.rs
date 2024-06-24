@@ -1,6 +1,16 @@
 use hashbrown::HashMap;
 
-use crate::{expr::Expr, exprs::Int, for_stmt::For, stmt::Stmt, traits::{IRMutateVisitor, MutatorGetSet}, variable::Variable, I64_TYPE};
+use crate::{
+    halide::{
+        expr::Expr,
+        exprs::Int,
+        for_stmt::For,
+        stmt::Stmt,
+        traits::{ IRMutateVisitor, MutatorGetSet },
+        variable::Variable,
+    },
+    I64_TYPE,
+};
 
 pub struct SubstituteForMeta {
     replace: HashMap<(i64, i64, Variable), (i64, i64, Variable)>,
@@ -28,29 +38,29 @@ impl SubstituteForMeta {
         old_var: Variable,
         new_start: i64,
         new_end: i64,
-        new_var: T,
+        new_var: T
     ) {
-        self.replace.insert(
-            (old_start, old_end, old_var),
-            (new_start, new_end, new_var.into()),
-        );
+        self.replace.insert((old_start, old_end, old_var), (new_start, new_end, new_var.into()));
     }
 }
 
 impl IRMutateVisitor for SubstituteForMeta {
     fn visit_for(&mut self, for_stmt: &For) {
-        if let Some((new_start, new_end, new_var)) = self.find_replacement(&(
-            for_stmt.start().to_int().unwrap().value(),
-            for_stmt.end().to_int().unwrap().value(),
-            for_stmt.var().clone(),
-        )) {
+        if
+            let Some((new_start, new_end, new_var)) = self.find_replacement(
+                &(
+                    for_stmt.start().to_int().unwrap().value(),
+                    for_stmt.end().to_int().unwrap().value(),
+                    for_stmt.var().clone(),
+                )
+            )
+        {
             self.stmt = For::make(
                 new_var,
                 Int::make(I64_TYPE, *new_start),
                 Int::make(I64_TYPE, *new_end),
-                for_stmt.stmt(),
-            )
-            .into();
+                for_stmt.stmt()
+            ).into();
         } else {
             self.stmt = for_stmt.clone().into();
         }

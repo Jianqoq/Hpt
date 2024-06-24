@@ -1,7 +1,6 @@
-use std::{fmt::Display, sync::Arc};
+use std::{ fmt::Display, sync::Arc };
 
-use super::{expr::Expr, stmt::Stmt, traits::{IRMutVisitor, IRMutateVisitor, IRVisitor}};
-
+use super::{ expr::Expr, stmt::Stmt, traits::{ IRMutVisitor, IRMutateVisitor, IRVisitor } };
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct InplaceStore {
@@ -10,7 +9,6 @@ pub struct InplaceStore {
 }
 
 impl InplaceStore {
-
     pub fn make<T: Into<Expr>>(to_store: T, val: T) -> Self {
         InplaceStore {
             to_store: to_store.into().into(),
@@ -71,7 +69,6 @@ pub struct InplaceAdd {
 }
 
 impl InplaceAdd {
-
     pub fn make<T: Into<Expr>>(to_store: T, val: T) -> Self {
         InplaceAdd {
             to_store: to_store.into().into(),
@@ -132,7 +129,6 @@ pub struct InplaceSub {
 }
 
 impl InplaceSub {
-
     pub fn make<T: Into<Expr>>(to_store: T, val: T) -> Self {
         InplaceSub {
             to_store: to_store.into().into(),
@@ -186,7 +182,6 @@ pub struct InplaceMul {
 }
 
 impl InplaceMul {
-
     pub fn make<T: Into<Expr>>(to_store: T, val: T) -> Self {
         InplaceMul {
             to_store: to_store.into().into(),
@@ -240,7 +235,6 @@ pub struct InplaceDiv {
 }
 
 impl InplaceDiv {
-
     pub fn make<A: Into<Expr>, B: Into<Expr>>(to_store: A, val: B) -> Self {
         InplaceDiv {
             to_store: to_store.into().into(),

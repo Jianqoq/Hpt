@@ -1,8 +1,8 @@
-use std::{fmt::Display, sync::Arc};
+use std::{ fmt::Display, sync::Arc };
 
 use super::{
     exprs::*,
-    traits::{Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor},
+    traits::{ Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor },
     variable::Variable,
 };
 
@@ -71,7 +71,7 @@ pub enum ExprType {
 }
 
 macro_rules! cast_expr {
-    ($fn_name: ident, $t:ident) => {
+    ($fn_name:ident, $t:ident) => {
         pub fn $fn_name(&self) -> Option<&$t> {
             match self {
                 Expr::$t(e) => Some(e),
@@ -97,82 +97,82 @@ impl Expr {
                 Arc::ptr_eq(c1.expr_(), c2.expr_()) && c1.dtype() == c2.dtype()
             }
             (Expr::Add(a1), Expr::Add(a2)) => {
-                (Arc::ptr_eq(a1.e1_(), a2.e1_()) && Arc::ptr_eq(a1.e2_(), a2.e2_()))
-                    || (Arc::ptr_eq(a1.e1_(), a2.e2_()) && Arc::ptr_eq(a1.e2_(), a2.e1_()))
+                (Arc::ptr_eq(a1.e1_(), a2.e1_()) && Arc::ptr_eq(a1.e2_(), a2.e2_())) ||
+                    (Arc::ptr_eq(a1.e1_(), a2.e2_()) && Arc::ptr_eq(a1.e2_(), a2.e1_()))
             }
             (Expr::Sub(s1), Expr::Sub(s2)) => {
-                (Arc::ptr_eq(s1.e1_(), s2.e1_()) && Arc::ptr_eq(s1.e2_(), s2.e2_()))
-                    || (Arc::ptr_eq(s1.e1_(), s2.e2_()) && Arc::ptr_eq(s1.e2_(), s2.e1_()))
+                (Arc::ptr_eq(s1.e1_(), s2.e1_()) && Arc::ptr_eq(s1.e2_(), s2.e2_())) ||
+                    (Arc::ptr_eq(s1.e1_(), s2.e2_()) && Arc::ptr_eq(s1.e2_(), s2.e1_()))
             }
             (Expr::Mul(m1), Expr::Mul(m2)) => {
-                (Arc::ptr_eq(m1.e1_(), m2.e1_()) && Arc::ptr_eq(m1.e2_(), m2.e2_()))
-                    || (Arc::ptr_eq(m1.e1_(), m2.e2_()) && Arc::ptr_eq(m1.e2_(), m2.e1_()))
+                (Arc::ptr_eq(m1.e1_(), m2.e1_()) && Arc::ptr_eq(m1.e2_(), m2.e2_())) ||
+                    (Arc::ptr_eq(m1.e1_(), m2.e2_()) && Arc::ptr_eq(m1.e2_(), m2.e1_()))
             }
             (Expr::Div(d1), Expr::Div(d2)) => {
-                (Arc::ptr_eq(d1.e1_(), d2.e1_()) && Arc::ptr_eq(d1.e2_(), d2.e2_()))
-                    || (Arc::ptr_eq(d1.e1_(), d2.e2_()) && Arc::ptr_eq(d1.e2_(), d2.e1_()))
+                (Arc::ptr_eq(d1.e1_(), d2.e1_()) && Arc::ptr_eq(d1.e2_(), d2.e2_())) ||
+                    (Arc::ptr_eq(d1.e1_(), d2.e2_()) && Arc::ptr_eq(d1.e2_(), d2.e1_()))
             }
             (Expr::Mod(m1), Expr::Mod(m2)) => {
-                (Arc::ptr_eq(m1.e1_(), m2.e1_()) && Arc::ptr_eq(m1.e2_(), m2.e2_()))
-                    || (Arc::ptr_eq(m1.e1_(), m2.e2_()) && Arc::ptr_eq(m1.e2_(), m2.e1_()))
+                (Arc::ptr_eq(m1.e1_(), m2.e1_()) && Arc::ptr_eq(m1.e2_(), m2.e2_())) ||
+                    (Arc::ptr_eq(m1.e1_(), m2.e2_()) && Arc::ptr_eq(m1.e2_(), m2.e1_()))
             }
             (Expr::Min(m1), Expr::Min(m2)) => {
-                (Arc::ptr_eq(m1.e1_(), m2.e1_()) && Arc::ptr_eq(m1.e2_(), m2.e2_()))
-                    || (Arc::ptr_eq(m1.e1_(), m2.e2_()) && Arc::ptr_eq(m1.e2_(), m2.e1_()))
+                (Arc::ptr_eq(m1.e1_(), m2.e1_()) && Arc::ptr_eq(m1.e2_(), m2.e2_())) ||
+                    (Arc::ptr_eq(m1.e1_(), m2.e2_()) && Arc::ptr_eq(m1.e2_(), m2.e1_()))
             }
             (Expr::Max(m1), Expr::Max(m2)) => {
-                (Arc::ptr_eq(m1.e1_(), m2.e1_()) && Arc::ptr_eq(m1.e2_(), m2.e2_()))
-                    || (Arc::ptr_eq(m1.e1_(), m2.e2_()) && Arc::ptr_eq(m1.e2_(), m2.e1_()))
+                (Arc::ptr_eq(m1.e1_(), m2.e1_()) && Arc::ptr_eq(m1.e2_(), m2.e2_())) ||
+                    (Arc::ptr_eq(m1.e1_(), m2.e2_()) && Arc::ptr_eq(m1.e2_(), m2.e1_()))
             }
             (Expr::Eq(e1), Expr::Eq(e2)) => {
-                (Arc::ptr_eq(e1.e1_(), e2.e1_()) && Arc::ptr_eq(e1.e2_(), e2.e2_()))
-                    || (Arc::ptr_eq(e1.e1_(), e2.e2_()) && Arc::ptr_eq(e1.e2_(), e2.e1_()))
+                (Arc::ptr_eq(e1.e1_(), e2.e1_()) && Arc::ptr_eq(e1.e2_(), e2.e2_())) ||
+                    (Arc::ptr_eq(e1.e1_(), e2.e2_()) && Arc::ptr_eq(e1.e2_(), e2.e1_()))
             }
             (Expr::Ne(n1), Expr::Ne(n2)) => {
-                (Arc::ptr_eq(n1.e1_(), n2.e1_()) && Arc::ptr_eq(n1.e2_(), n2.e2_()))
-                    || (Arc::ptr_eq(n1.e1_(), n2.e2_()) && Arc::ptr_eq(n1.e2_(), n2.e1_()))
+                (Arc::ptr_eq(n1.e1_(), n2.e1_()) && Arc::ptr_eq(n1.e2_(), n2.e2_())) ||
+                    (Arc::ptr_eq(n1.e1_(), n2.e2_()) && Arc::ptr_eq(n1.e2_(), n2.e1_()))
             }
             (Expr::Lt(l1), Expr::Lt(l2)) => {
-                (Arc::ptr_eq(l1.e1_(), l2.e1_()) && Arc::ptr_eq(l1.e2_(), l2.e2_()))
-                    || (Arc::ptr_eq(l1.e1_(), l2.e2_()) && Arc::ptr_eq(l1.e2_(), l2.e1_()))
+                (Arc::ptr_eq(l1.e1_(), l2.e1_()) && Arc::ptr_eq(l1.e2_(), l2.e2_())) ||
+                    (Arc::ptr_eq(l1.e1_(), l2.e2_()) && Arc::ptr_eq(l1.e2_(), l2.e1_()))
             }
             (Expr::Le(l1), Expr::Le(l2)) => {
-                (Arc::ptr_eq(l1.e1_(), l2.e1_()) && Arc::ptr_eq(l1.e2_(), l2.e2_()))
-                    || (Arc::ptr_eq(l1.e1_(), l2.e2_()) && Arc::ptr_eq(l1.e2_(), l2.e1_()))
+                (Arc::ptr_eq(l1.e1_(), l2.e1_()) && Arc::ptr_eq(l1.e2_(), l2.e2_())) ||
+                    (Arc::ptr_eq(l1.e1_(), l2.e2_()) && Arc::ptr_eq(l1.e2_(), l2.e1_()))
             }
             (Expr::Gt(g1), Expr::Gt(g2)) => {
-                (Arc::ptr_eq(g1.e1_(), g2.e1_()) && Arc::ptr_eq(g1.e2_(), g2.e2_()))
-                    || (Arc::ptr_eq(g1.e1_(), g2.e2_()) && Arc::ptr_eq(g1.e2_(), g2.e1_()))
+                (Arc::ptr_eq(g1.e1_(), g2.e1_()) && Arc::ptr_eq(g1.e2_(), g2.e2_())) ||
+                    (Arc::ptr_eq(g1.e1_(), g2.e2_()) && Arc::ptr_eq(g1.e2_(), g2.e1_()))
             }
             (Expr::Ge(g1), Expr::Ge(g2)) => {
-                (Arc::ptr_eq(g1.e1_(), g2.e1_()) && Arc::ptr_eq(g1.e2_(), g2.e2_()))
-                    || (Arc::ptr_eq(g1.e1_(), g2.e2_()) && Arc::ptr_eq(g1.e2_(), g2.e1_()))
+                (Arc::ptr_eq(g1.e1_(), g2.e1_()) && Arc::ptr_eq(g1.e2_(), g2.e2_())) ||
+                    (Arc::ptr_eq(g1.e1_(), g2.e2_()) && Arc::ptr_eq(g1.e2_(), g2.e1_()))
             }
             (Expr::And(a1), Expr::And(a2)) => {
-                (Arc::ptr_eq(a1.e1_(), a2.e1_()) && Arc::ptr_eq(a1.e2_(), a2.e2_()))
-                    || (Arc::ptr_eq(a1.e1_(), a2.e2_()) && Arc::ptr_eq(a1.e2_(), a2.e1_()))
+                (Arc::ptr_eq(a1.e1_(), a2.e1_()) && Arc::ptr_eq(a1.e2_(), a2.e2_())) ||
+                    (Arc::ptr_eq(a1.e1_(), a2.e2_()) && Arc::ptr_eq(a1.e2_(), a2.e1_()))
             }
             (Expr::Xor(x1), Expr::Xor(x2)) => {
-                (Arc::ptr_eq(x1.e1_(), x2.e1_()) && Arc::ptr_eq(x1.e2_(), x2.e2_()))
-                    || (Arc::ptr_eq(x1.e1_(), x2.e2_()) && Arc::ptr_eq(x1.e2_(), x2.e1_()))
+                (Arc::ptr_eq(x1.e1_(), x2.e1_()) && Arc::ptr_eq(x1.e2_(), x2.e2_())) ||
+                    (Arc::ptr_eq(x1.e1_(), x2.e2_()) && Arc::ptr_eq(x1.e2_(), x2.e1_()))
             }
             (Expr::Or(o1), Expr::Or(o2)) => {
-                (Arc::ptr_eq(o1.e1_(), o2.e1_()) && Arc::ptr_eq(o1.e2_(), o2.e2_()))
-                    || (Arc::ptr_eq(o1.e1_(), o2.e2_()) && Arc::ptr_eq(o1.e2_(), o2.e1_()))
+                (Arc::ptr_eq(o1.e1_(), o2.e1_()) && Arc::ptr_eq(o1.e2_(), o2.e2_())) ||
+                    (Arc::ptr_eq(o1.e1_(), o2.e2_()) && Arc::ptr_eq(o1.e2_(), o2.e1_()))
             }
             (Expr::Not(n1), Expr::Not(n2)) => Arc::ptr_eq(n1.e_(), n2.e_()),
             (Expr::Call(c1), Expr::Call(c2)) => {
-                c1.name() == c2.name()
-                    && c1
+                c1.name() == c2.name() &&
+                    c1
                         .args()
                         .iter()
                         .zip(c2.args().iter())
                         .all(|(a1, a2)| Arc::ptr_eq(a1, a2))
             }
             (Expr::Select(s1), Expr::Select(s2)) => {
-                Arc::ptr_eq(s1.cond_(), s2.cond_())
-                    && Arc::ptr_eq(s1.true_expr_(), s2.true_expr_())
-                    && Arc::ptr_eq(s1.false_expr_(), s2.false_expr_())
+                Arc::ptr_eq(s1.cond_(), s2.cond_()) &&
+                    Arc::ptr_eq(s1.true_expr_(), s2.true_expr_()) &&
+                    Arc::ptr_eq(s1.false_expr_(), s2.false_expr_())
             }
             (Expr::Let(l1), Expr::Let(l2)) => {
                 Arc::ptr_eq(l1.e1_(), l2.e1_()) && l1.name() == l2.name()
@@ -336,8 +336,10 @@ impl std::ops::Add for Expr {
         match (&self, &rhs) {
             (Expr::Int(i1), Expr::Int(i2)) => Expr::Int(i1 + i2),
             (Expr::Float(f1), Expr::Float(f2)) => Expr::Float(Float::new(f1.value() + f2.value())),
-            (Expr::Int(i), Expr::Float(f)) => Expr::Float(Float::new(i.value() as f64 + f.value())),
-            (Expr::Float(f), Expr::Int(i)) => Expr::Float(Float::new(f.value() + i.value() as f64)),
+            (Expr::Int(i), Expr::Float(f)) =>
+                Expr::Float(Float::new((i.value() as f64) + f.value())),
+            (Expr::Float(f), Expr::Int(i)) =>
+                Expr::Float(Float::new(f.value() + (i.value() as f64))),
             (Expr::UInt(u1), Expr::UInt(u2)) => Expr::UInt(u1 + u2),
             (Expr::Mul(m1), Expr::Mul(m2)) => Expr::Add(Add::new(m1.into(), m2.into())),
             (Expr::Add(a1), Expr::Add(a2)) => Expr::Add(Add::new(a1.into(), a2.into())),

@@ -1,9 +1,6 @@
-use crate::traits::Accepter;
+use crate::halide::traits::Accepter;
 
-use super::{
-    stmt::Stmt,
-    traits::{AccepterMut, IRMutVisitor, IRMutateVisitor, IRVisitor},
-};
+use super::{ stmt::Stmt, traits::{ AccepterMut, IRMutVisitor, IRMutateVisitor, IRVisitor } };
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Seq {

@@ -1,6 +1,10 @@
-use crate::{expr::Expr, ir_cmp::expr_equal, let_stmt::LetStmt, stmt::Stmt, traits::{mutate_expr, IRMutateVisitor, MutatorGetSet}};
-
-
+use crate::halide::{
+    expr::Expr,
+    ir_cmp::expr_equal,
+    let_stmt::LetStmt,
+    stmt::Stmt,
+    traits::{ mutate_expr, IRMutateVisitor, MutatorGetSet },
+};
 
 #[derive(Clone, Debug)]
 pub struct SubstituteExpr {

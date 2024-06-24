@@ -3,7 +3,7 @@ use super::{
     exprs::*,
     for_stmt::For,
     if_stmt::IfThenElse,
-    inplace_store_stmt::{InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub},
+    inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub },
     let_stmt::LetStmt,
     seq_stmt::Seq,
     stmt::Stmt,
@@ -12,10 +12,7 @@ use super::{
 };
 
 #[allow(unused_variables)]
-pub trait IRVisitor
-where
-    Self: Sized,
-{
+pub trait IRVisitor where Self: Sized {
     fn visit_expr(&self, expr: &Expr) {
         match expr {
             Expr::Int(int) => self.visit_int(&int),
@@ -208,10 +205,7 @@ where
 }
 
 #[allow(unused_variables)]
-pub trait IRMutVisitor
-where
-    Self: Sized,
-{
+pub trait IRMutVisitor where Self: Sized {
     fn visit_expr(&mut self, expr: &Expr) {
         match expr {
             Expr::Int(int) => self.visit_int(&int),
@@ -412,7 +406,7 @@ pub trait MutatorGetSet {
 }
 
 macro_rules! mutate_binop {
-    ($self: ident, $op: ident, $T: ident) => {
+    ($self:ident, $op:ident, $T:ident) => {
         let a = $self.mutate_expr($op.e1());
         let b = $self.mutate_expr($op.e2());
         if a.same_as($op.e1()) && b.same_as($op.e2()) {
@@ -424,8 +418,7 @@ macro_rules! mutate_binop {
 }
 
 pub(crate) fn mutate_expr<V>(visitor: &mut V, expr: &Expr) -> Expr
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     if expr.is_none() {
         visitor.set_expr(Expr::None);
@@ -437,8 +430,7 @@ where
 }
 
 pub(crate) fn mutate_stmt<V>(visitor: &mut V, stmt: &Stmt) -> Stmt
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     if stmt.is_none() {
         visitor.set_stmt(Stmt::None);
@@ -450,8 +442,7 @@ where
 }
 
 pub(crate) fn visit_expr<V>(visitor: &mut V, expr: &Expr)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     match expr {
         Expr::Int(int) => visitor.visit_int(&int),
@@ -486,8 +477,7 @@ where
 }
 
 pub(crate) fn visit_stmt<V>(visitor: &mut V, stmt: &Stmt)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     match stmt {
         Stmt::LetStmt(let_stmt) => visitor.visit_let_stmt(&let_stmt),
@@ -507,22 +497,19 @@ where
 }
 
 pub(crate) fn visit_variable<V>(visitor: &mut V, var: &Variable)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     visitor.set_expr(var);
 }
 
 pub(crate) fn visit_str<V>(visitor: &mut V, string: &Str)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     visitor.set_expr(string);
 }
 
 pub(crate) fn visit_cast<V>(visitor: &mut V, cast: &Cast)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let a = mutate_expr(visitor, cast.expr());
     if a.same_as(cast.expr()) {
@@ -533,120 +520,89 @@ where
 }
 
 pub(crate) fn visit_add<V>(visitor: &mut V, add: &Add)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     mutate_binop!(visitor, add, Add);
 }
 
 pub(crate) fn visit_sub<V>(visitor: &mut V, sub: &Sub)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     mutate_binop!(visitor, sub, Sub);
 }
 
 pub(crate) fn visit_mul<V>(visitor: &mut V, mul: &Mul)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     mutate_binop!(visitor, mul, Mul);
 }
 
 pub(crate) fn visit_div<V>(visitor: &mut V, div: &Div)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     mutate_binop!(visitor, div, Div);
 }
 
 pub(crate) fn visit_mod<V>(visitor: &mut V, mod_: &Mod)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     mutate_binop!(visitor, mod_, Mod);
 }
 
 pub(crate) fn visit_min<V>(visitor: &mut V, min: &Min)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     mutate_binop!(visitor, min, Min);
 }
 
 pub(crate) fn visit_max<V>(visitor: &mut V, max: &Max)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     mutate_binop!(visitor, max, Max);
 }
 
-pub(crate) fn visit_ge<V>(visitor: &mut V, ge: &Ge)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
-{
+pub(crate) fn visit_ge<V>(visitor: &mut V, ge: &Ge) where V: MutatorGetSet + Sized + IRMutateVisitor {
     mutate_binop!(visitor, ge, Ge);
 }
 
-pub(crate) fn visit_gt<V>(visitor: &mut V, gt: &Gt)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
-{
+pub(crate) fn visit_gt<V>(visitor: &mut V, gt: &Gt) where V: MutatorGetSet + Sized + IRMutateVisitor {
     mutate_binop!(visitor, gt, Gt);
 }
 
-pub(crate) fn visit_le<V>(visitor: &mut V, le: &Le)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
-{
+pub(crate) fn visit_le<V>(visitor: &mut V, le: &Le) where V: MutatorGetSet + Sized + IRMutateVisitor {
     mutate_binop!(visitor, le, Le);
 }
 
-pub(crate) fn visit_lt<V>(visitor: &mut V, lt: &Lt)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
-{
+pub(crate) fn visit_lt<V>(visitor: &mut V, lt: &Lt) where V: MutatorGetSet + Sized + IRMutateVisitor {
     mutate_binop!(visitor, lt, Lt);
 }
 
-pub(crate) fn visit_eq<V>(visitor: &mut V, eq: &Eq)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
-{
+pub(crate) fn visit_eq<V>(visitor: &mut V, eq: &Eq) where V: MutatorGetSet + Sized + IRMutateVisitor {
     mutate_binop!(visitor, eq, Eq);
 }
 
-pub(crate) fn visit_ne<V>(visitor: &mut V, ne: &Ne)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
-{
+pub(crate) fn visit_ne<V>(visitor: &mut V, ne: &Ne) where V: MutatorGetSet + Sized + IRMutateVisitor {
     mutate_binop!(visitor, ne, Ne);
 }
 
 pub(crate) fn visit_and<V>(visitor: &mut V, and: &And)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     mutate_binop!(visitor, and, And);
 }
 
 pub(crate) fn visit_xor<V>(visitor: &mut V, xor: &Xor)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     mutate_binop!(visitor, xor, Xor);
 }
 
-pub(crate) fn visit_or<V>(visitor: &mut V, or: &Or)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
-{
+pub(crate) fn visit_or<V>(visitor: &mut V, or: &Or) where V: MutatorGetSet + Sized + IRMutateVisitor {
     mutate_binop!(visitor, or, Or);
 }
 
 pub(crate) fn visit_not<V>(visitor: &mut V, not: &Not)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let a = mutate_expr(visitor, not.e());
     if a.same_as(not.e()) {
@@ -657,8 +613,7 @@ where
 }
 
 pub(crate) fn visit_let_stmt<V>(visitor: &mut V, let_stmt: &LetStmt)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let name = let_stmt.var().into();
     let body = let_stmt.body();
@@ -677,8 +632,7 @@ where
 }
 
 pub(crate) fn visit_let<V>(visitor: &mut V, let_stmt: &Let)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let name = let_stmt.name().into();
     let e1 = let_stmt.e1();
@@ -697,18 +651,18 @@ where
 }
 
 pub(crate) fn visit_for<V>(visitor: &mut V, for_stmt: &For)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let var = for_stmt.var().into();
     let new_var = visitor.mutate_expr(&var);
     let start = visitor.mutate_expr(for_stmt.start());
     let end = visitor.mutate_expr(for_stmt.end());
     let stmt = visitor.mutate_stmt(for_stmt.stmt());
-    if new_var.same_as(&var)
-        && start.same_as(for_stmt.start())
-        && end.same_as(for_stmt.end())
-        && stmt.same_as(for_stmt.stmt())
+    if
+        new_var.same_as(&var) &&
+        start.same_as(for_stmt.start()) &&
+        end.same_as(for_stmt.end()) &&
+        stmt.same_as(for_stmt.stmt())
     {
         visitor.set_stmt(for_stmt);
     } else {
@@ -722,8 +676,7 @@ where
 }
 
 pub(crate) fn visit_seq_stmt<V>(visitor: &mut V, seq: &Seq)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let stmts = seq.stmts();
     let mut changed = false;
@@ -743,29 +696,25 @@ where
 }
 
 pub(crate) fn visit_int<V>(visitor: &mut V, int: &Int)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     visitor.set_expr(int);
 }
 
 pub(crate) fn visit_uint<V>(visitor: &mut V, uint: &UInt)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     visitor.set_expr(uint);
 }
 
 pub(crate) fn visit_float<V>(visitor: &mut V, float: &Float)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     visitor.set_expr(float);
 }
 
 pub(crate) fn visit_call<V>(visitor: &mut V, call: &Call)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let args = call.args();
     let mut changed = false;
@@ -785,15 +734,15 @@ where
 }
 
 pub(crate) fn visit_select<V>(visitor: &mut V, select: &Select)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let cond = visitor.mutate_expr(select.cond());
     let true_value = visitor.mutate_expr(select.true_expr());
     let false_value = visitor.mutate_expr(select.false_expr());
-    if cond.same_as(select.cond())
-        && true_value.same_as(select.true_expr())
-        && false_value.same_as(select.false_expr())
+    if
+        cond.same_as(select.cond()) &&
+        true_value.same_as(select.true_expr()) &&
+        false_value.same_as(select.false_expr())
     {
         visitor.set_expr(select);
     } else {
@@ -802,8 +751,7 @@ where
 }
 
 pub(crate) fn visit_load<V>(visitor: &mut V, load: &Load)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let var = visitor.mutate_expr(load.name());
     let indices = visitor.mutate_expr(load.indices());
@@ -815,8 +763,7 @@ where
 }
 
 pub(crate) fn visit_store<V>(visitor: &mut V, store: &StoreStmt)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let var = store.var().into();
     let new_var = visitor.mutate_expr(&var);
@@ -835,15 +782,15 @@ where
 }
 
 pub(crate) fn visit_if_then_else<V>(visitor: &mut V, if_then_else: &IfThenElse)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let cond = visitor.mutate_expr(if_then_else.cond());
     let then_case = visitor.mutate_stmt(if_then_else.then_case());
     let else_case = visitor.mutate_stmt(if_then_else.else_case());
-    if cond.same_as(if_then_else.cond())
-        && then_case.same_as(if_then_else.then_case())
-        && else_case.same_as(if_then_else.else_case())
+    if
+        cond.same_as(if_then_else.cond()) &&
+        then_case.same_as(if_then_else.then_case()) &&
+        else_case.same_as(if_then_else.else_case())
     {
         visitor.set_stmt(if_then_else);
     } else {
@@ -852,8 +799,7 @@ where
 }
 
 pub(crate) fn visit_inplace_store<V>(visitor: &mut V, inplace_store: &InplaceStore)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let to_store = visitor.mutate_expr(inplace_store.to_store());
     let val = visitor.mutate_expr(inplace_store.val());
@@ -865,8 +811,7 @@ where
 }
 
 pub(crate) fn visit_inplace_add<V>(visitor: &mut V, inplace_add: &InplaceAdd)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let to_store = visitor.mutate_expr(inplace_add.to_store());
     let val = visitor.mutate_expr(inplace_add.val());
@@ -878,8 +823,7 @@ where
 }
 
 pub(crate) fn visit_inplace_sub<V>(visitor: &mut V, inplace_sub: &InplaceSub)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let to_store = visitor.mutate_expr(inplace_sub.to_store());
     let val = visitor.mutate_expr(inplace_sub.val());
@@ -891,8 +835,7 @@ where
 }
 
 pub(crate) fn visit_inplace_mul<V>(visitor: &mut V, inplace_mul: &InplaceMul)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let to_store = visitor.mutate_expr(inplace_mul.to_store());
     let val = visitor.mutate_expr(inplace_mul.val());
@@ -904,8 +847,7 @@ where
 }
 
 pub(crate) fn visit_inplace_div<V>(visitor: &mut V, inplace_div: &InplaceDiv)
-where
-    V: MutatorGetSet + Sized + IRMutateVisitor,
+    where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let to_store = visitor.mutate_expr(inplace_div.to_store());
     let val = visitor.mutate_expr(inplace_div.val());
@@ -916,10 +858,7 @@ where
     }
 }
 
-pub trait IRMutateVisitor
-where
-    Self: MutatorGetSet + Sized,
-{
+pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     fn mutate_expr(&mut self, expr: &Expr) -> Expr {
         mutate_expr(self, expr)
     }

@@ -8,7 +8,7 @@ use super::{
     r#type::{ HalideirTypeCode, Type },
     variable::Variable,
 };
-use crate::traits::{ Accepter, AccepterMut };
+use crate::halide::traits::{ Accepter, AccepterMut };
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct StoreStmt {

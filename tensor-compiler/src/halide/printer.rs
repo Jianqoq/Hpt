@@ -1,4 +1,4 @@
-use super::{expr::Expr, stmt::Stmt};
+use super::{ expr::Expr, stmt::Stmt };
 
 pub struct IRPrinter;
 
@@ -88,5 +88,4 @@ impl _IRPrinter {
             Stmt::None => {}
         }
     }
-
 }

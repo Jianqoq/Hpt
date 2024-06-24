@@ -1,11 +1,11 @@
-use std::{fmt::Display, sync::Arc};
+use std::{ fmt::Display, sync::Arc };
 
 use tensor_types::dtype::Dtype;
 
 use super::{
     expr::Expr,
-    r#type::{HalideirTypeCode, Type},
-    traits::{Accepter, IRVisitor},
+    r#type::{ HalideirTypeCode, Type },
+    traits::{ Accepter, IRVisitor },
     variable::Variable,
 };
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
@@ -101,7 +101,7 @@ impl Into<Expr> for &UInt {
 }
 
 macro_rules! impl_binop {
-    ($lhs: ident, $rhs: ident, $res: ident, $std_op: ident, $std_op_name: ident, $op: tt) => {
+    ($lhs:ident, $rhs:ident, $res:ident, $std_op:ident, $std_op_name:ident, $op:tt) => {
         impl std::ops::$std_op for $lhs {
             type Output = $res;
 
@@ -904,7 +904,10 @@ impl Call {
     pub fn make(name: &str, args: &[Expr]) -> Self {
         Call {
             name: Variable::make(name),
-            args: args.iter().map(|e| (*e).clone().into()).collect(),
+            args: args
+                .iter()
+                .map(|e| (*e).clone().into())
+                .collect(),
         }
     }
 
@@ -1005,11 +1008,7 @@ impl Select {
 
 impl Display for Select {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "({} ? {} : {})",
-            self.cond, self.true_expr, self.false_expr
-        )
+        write!(f, "({} ? {} : {})", self.cond, self.true_expr, self.false_expr)
     }
 }
 
@@ -1044,7 +1043,11 @@ impl Load {
 
     pub fn make_from_strides(name: &Variable, indices: &[Variable], strides: &[i64]) -> Self {
         if indices.len() != strides.len() {
-            panic!("Indices and strides must have the same length, got {:?} and {:?}", indices, strides);
+            panic!(
+                "Indices and strides must have the same length, got {:?} and {:?}",
+                indices,
+                strides
+            );
         }
         let sum = strides
             .iter()

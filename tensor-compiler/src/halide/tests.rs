@@ -4,11 +4,11 @@ use std::sync::Arc;
 
 use super::{
     expr::Expr,
-    exprs::{Int, Load},
+    exprs::{ Int, Load },
     for_stmt::For,
     let_stmt::LetStmt,
-    printer::{self, IRPrinter},
-    r#type::{HalideirTypeCode, Type},
+    printer::{ self, IRPrinter },
+    r#type::{ HalideirTypeCode, Type },
     seq_stmt::Seq,
     stmt::Stmt,
     store_stmt::StoreStmt,
@@ -80,7 +80,7 @@ fn test_fusion() {
         &x,
         &start2,
         &end2,
-        StoreStmt::make_from_strides(&res1, &[&x, &y], &[1, 1], &load),
+        StoreStmt::make_from_strides(&res1, &[&x, &y], &[1, 1], &load)
     );
     let for_loop2 = For::make(&y, &start, &end, &for_loop);
     IRPrinter.print_stmt(&for_loop2);
@@ -98,7 +98,7 @@ fn test_fusion() {
         &z,
         &start,
         &end,
-        StoreStmt::make_from_strides(&res2, &[&z, &w], &[1, 1], &load),
+        StoreStmt::make_from_strides(&res2, &[&z, &w], &[1, 1], &load)
     );
     let for_loop2 = For::make(&w, &start2, &end2, &for_loop);
     IRPrinter.print_stmt(&for_loop2);

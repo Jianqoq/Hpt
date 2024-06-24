@@ -3,7 +3,7 @@ use std::sync::Arc;
 use super::{
     expr::Expr,
     stmt::Stmt,
-    traits::{IRMutVisitor, IRMutateVisitor, IRVisitor},
+    traits::{ IRMutVisitor, IRMutateVisitor, IRVisitor },
     variable::Variable,
 };
 

@@ -1,13 +1,13 @@
 #![allow(unused)]
 
-use std::hash::{BuildHasher, Hash, Hasher};
+use std::hash::{ BuildHasher, Hash, Hasher };
 
 use super::{
     expr::Expr,
-    exprs::{Cast, Float, Int, Str, UInt},
+    exprs::{ Cast, Float, Int, Str, UInt },
     r#type::Type,
     stmt::Stmt,
-    traits::{AccepterMut, IRMutVisitor},
+    traits::{ AccepterMut, IRMutVisitor },
     variable::Variable,
 };
 
@@ -92,8 +92,7 @@ impl IRComparator {
     }
 
     pub fn compare_exprs<T: Into<Expr>>(&mut self, a: &[T], b: &[T]) -> CmpResult
-    where
-        for<'a> &'a T: Into<Expr>,
+        where for<'a> &'a T: Into<Expr>
     {
         if self.result != CmpResult::Equal {
             return self.result;

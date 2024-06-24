@@ -1,5 +1,10 @@
-use crate::{expr::Expr, exprs::Load, ir_cmp::expr_equal, stmt::Stmt, traits::{mutate_expr, IRMutateVisitor, MutatorGetSet}};
-
+use crate::halide::{
+    expr::Expr,
+    exprs::Load,
+    ir_cmp::expr_equal,
+    stmt::Stmt,
+    traits::{ mutate_expr, IRMutateVisitor, MutatorGetSet },
+};
 
 pub struct SubstituteLoadPartialIdx {
     load_var: Expr,

@@ -1,7 +1,11 @@
 use hashbrown::HashMap;
 
-use crate::{expr::Expr, stmt::Stmt, traits::{IRMutateVisitor, MutatorGetSet}, variable::Variable};
-
+use crate::halide::{
+    expr::Expr,
+    stmt::Stmt,
+    traits::{ IRMutateVisitor, MutatorGetSet },
+    variable::Variable,
+};
 
 pub struct SubstituteVar {
     expr: Expr,

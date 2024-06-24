@@ -1,13 +1,6 @@
-use std::{
-    fmt::{Display, Formatter},
-    sync::Arc,
-};
+use std::{ fmt::{ Display, Formatter }, sync::Arc };
 
-use super::{
-    expr::Expr,
-    stmt::Stmt,
-    traits::{IRMutVisitor, IRMutateVisitor, IRVisitor},
-};
+use super::{ expr::Expr, stmt::Stmt, traits::{ IRMutVisitor, IRMutateVisitor, IRVisitor } };
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct IfThenElse {
@@ -20,7 +13,7 @@ impl IfThenElse {
     pub fn make<T: Into<Expr>, U: Into<Stmt>, V: Into<Stmt>>(
         cond: T,
         then_case: U,
-        else_case: V,
+        else_case: V
     ) -> Self {
         IfThenElse {
             cond: cond.into(),
@@ -68,10 +61,6 @@ impl Into<Stmt> for &IfThenElse {
 
 impl Display for IfThenElse {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "if {} {{\n{}}} else {{\n{}}}",
-            self.cond, self.then_case, self.else_case
-        )
+        write!(f, "if {} {{\n{}}} else {{\n{}}}", self.cond, self.then_case, self.else_case)
     }
 }

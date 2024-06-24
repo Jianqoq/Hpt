@@ -3,11 +3,11 @@ use std::fmt::Display;
 use super::{
     for_stmt::For,
     if_stmt::IfThenElse,
-    inplace_store_stmt::{InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub},
+    inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub },
     let_stmt::LetStmt,
     seq_stmt::Seq,
     store_stmt::StoreStmt,
-    traits::{Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor},
+    traits::{ Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor },
 };
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
@@ -41,7 +41,7 @@ pub enum StmtType {
 }
 
 macro_rules! cast_stmt {
-    ($fn_name: ident, $t:ident) => {
+    ($fn_name:ident, $t:ident) => {
         pub fn $fn_name(&self) -> Option<&$t> {
             match self {
                 Stmt::$t(e) => Some(e),
@@ -52,7 +52,7 @@ macro_rules! cast_stmt {
 }
 
 macro_rules! cast_stmt_mut {
-    ($fn_name: ident, $t:ident) => {
+    ($fn_name:ident, $t:ident) => {
         pub fn $fn_name(&mut self) -> Option<&mut $t> {
             match self {
                 Stmt::$t(e) => Some(e),
@@ -76,16 +76,17 @@ impl Stmt {
                 a.var() == b.var() && a.indices().same_as(b.indices()) && a.val().same_as(b.val())
             }
             (Stmt::For(a), Stmt::For(b)) => {
-                a.var() == b.var()
-                    && a.start().same_as(b.start())
-                    && a.end().same_as(b.end())
-                    && a.stmt().same_as(b.stmt())
+                a.var() == b.var() &&
+                    a.start().same_as(b.start()) &&
+                    a.end().same_as(b.end()) &&
+                    a.stmt().same_as(b.stmt())
             }
-            (Stmt::Seq(a), Stmt::Seq(b)) => a
-                .stmts()
-                .iter()
-                .zip(b.stmts().iter())
-                .all(|(a, b)| a.same_as(b)),
+            (Stmt::Seq(a), Stmt::Seq(b)) =>
+                a
+                    .stmts()
+                    .iter()
+                    .zip(b.stmts().iter())
+                    .all(|(a, b)| a.same_as(b)),
             (Stmt::None, Stmt::None) => true,
             _ => false,
         }
