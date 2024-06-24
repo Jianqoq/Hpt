@@ -21,6 +21,7 @@ pub struct Tensor {
     pub(crate) inputs: Rc<Vec<usize>>,
     pub(crate) dtype: Dtype,
     pub(crate) op: Op,
+    pub(crate) const_val: Option<Float>,
     pub(crate) layout: Layout,
     pub(crate) name: Option<Rc<String>>,
     pub(crate) error_msg: Rc<Vec<ErrHandler>>,
@@ -129,6 +130,23 @@ impl Tensor {
     impl_trigs!(acosh, Acosh, _acosh);
     impl_trigs!(atanh, Atanh, _atanh);
 
+    pub(crate) fn scalar<T: Convertor + CommonBounds>(
+        ctx: Rc<RefCell<_Context>>,
+        scalar: T
+    ) -> Self {
+        let mut ret = Tensor::_empty(
+            vec![],
+            T::ID,
+            Op::Null,
+            Layout::new(vec![1].into(), vec![1].into()),
+            None,
+            Rc::new(vec![]),
+            ctx
+        );
+        ret.const_val = Some(Float::new(scalar.to_f64()));
+        ret
+    }
+
     pub(crate) fn _empty(
         inputs: Vec<usize>,
         dtype: Dtype,
@@ -143,6 +161,7 @@ impl Tensor {
             inputs: inputs.into(),
             dtype,
             op,
+            const_val: None,
             layout,
             name,
             error_msg,
