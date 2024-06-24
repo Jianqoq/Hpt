@@ -7,7 +7,7 @@ use tensor_common::{
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use anyhow::Result;
 
-use crate::tensor_base::_Tensor;
+use crate::{backend::{Backend, TensorBackend}, tensor_base::_Tensor};
 
 pub trait SliceOps<T, U> where T: CommonBounds {
     // slice operation mostly change the shape of tensor only
@@ -33,6 +33,7 @@ impl<T> _Tensor<T> where T: CommonBounds {
                 parent: Some(self.data),
                 mem_layout: self.mem_layout.clone(),
                 layout: Layout::new(shape.into(), strides.into()),
+                _backend: Backend::new(),
             };
         } else {
             return Self {
@@ -40,6 +41,7 @@ impl<T> _Tensor<T> where T: CommonBounds {
                 parent: self.parent,
                 mem_layout: self.mem_layout.clone(),
                 layout: Layout::new(Shape::from(shape), strides.into()),
+                _backend: Backend::new(),
             };
         }
     }

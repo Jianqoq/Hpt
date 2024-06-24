@@ -12,6 +12,7 @@ pub mod ops {
         pub mod fft;
     }
 }
+pub mod backend;
 pub mod tensor;
 pub mod random;
 pub mod slice;

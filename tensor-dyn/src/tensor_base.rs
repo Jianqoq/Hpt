@@ -34,7 +34,7 @@ use rayon::iter::{
     ParallelIterator,
 };
 
-use crate::{ tensor::Tensor, ops::reduce::stack, slice::SliceOps };
+use crate::{ backend::{Backend, Cpu, TensorBackend}, ops::cpu::reduce::stack, slice::SliceOps, tensor::Tensor };
 /// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
 ///
 /// All the operations are happen on this struct.
@@ -49,11 +49,12 @@ use crate::{ tensor::Tensor, ops::reduce::stack, slice::SliceOps };
 ///  If the tensor is a view of another tensor, the parent tensor will be the original tensor.
 /// - `mem_layout`: std::alloc::layout, use for deallocate the memory.
 #[derive(Clone)]
-pub struct _Tensor<T> {
+pub struct _Tensor<T, B=Cpu> {
     pub(crate) data: Pointer<T>,
     pub(crate) parent: Option<Pointer<T>>,
     pub(crate) layout: Layout,
     pub(crate) mem_layout: Arc<std::alloc::Layout>,
+    pub(crate) _backend: Backend<B>,
 }
 
 impl<T, U> TensorLike<T, U, _Tensor<U>>
@@ -302,6 +303,7 @@ impl<T: CommonBounds> _Tensor<T> {
                     parent: Some(new_parent),
                     mem_layout: self.mem_layout.clone(),
                     layout: self.layout.clone(),
+                    _backend: self._backend,
                 });
             }
             None => {
@@ -311,6 +313,7 @@ impl<T: CommonBounds> _Tensor<T> {
                     parent: Some(new_parent),
                     mem_layout: self.mem_layout.clone(),
                     layout: self.layout.clone(),
+                    _backend: self._backend,
                 });
             }
         }
@@ -551,6 +554,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             parent: None,
             layout: Layout::new(res_shape, strides.into()),
             mem_layout: Arc::new(layout),
+            _backend: Backend::new(),
         });
     }
 
@@ -576,6 +580,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             parent: None,
             layout: Layout::new(res_shape, strides.into()),
             mem_layout: Arc::new(layout),
+            _backend: Backend::new(),
         });
     }
 
@@ -601,6 +606,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             parent: None,
             layout: Layout::new(res_shape, strides.into()),
             mem_layout: Arc::new(layout),
+            _backend: Backend::new(),
         });
     }
 
@@ -943,6 +949,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
                 parent: self.parent.clone(),
                 mem_layout: self.mem_layout.clone(),
                 layout: new_layout,
+                _backend: Backend::new(),
             });
         } else {
             return self.contiguous()?.reshape(shape);
@@ -968,6 +975,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             layout: permuted_layout,
             parent: self.parent,
             mem_layout: self.mem_layout.clone(),
+            _backend: Backend::new(),
         });
     }
 
@@ -980,6 +988,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             parent: self.parent.clone(),
             mem_layout: self.mem_layout.clone(),
             layout: Layout::new(res_shape, res_strides.into()),
+            _backend: Backend::new(),
         });
     }
 
@@ -1016,6 +1025,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
                 parent: Some(self.data),
                 mem_layout: self.mem_layout.clone(),
                 layout: Layout::new(self.shape().clone(), new_strides.into()),
+                _backend: Backend::new(),
             });
         } else {
             return Ok(Self {
@@ -1023,6 +1033,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
                 parent: self.parent.clone(),
                 mem_layout: self.mem_layout.clone(),
                 layout: Layout::new(self.shape().clone(), new_strides.into()),
+                _backend: Backend::new(),
             });
         }
     }
@@ -1200,6 +1211,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             layout,
             parent: self.parent.clone(),
             mem_layout: self.mem_layout.clone(),
+            _backend: Backend::new(),
         });
     }
 }

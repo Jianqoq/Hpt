@@ -13,7 +13,7 @@ use tensor_types::{
     type_promote::{ FloatOut, NormalOut },
 };
 use anyhow::Result;
-use crate::{ ops::reduce::stack, tensor_base::_Tensor };
+use crate::{ ops::cpu::reduce::stack, tensor_base::_Tensor };
 
 /// A wrapper of `Tensor` for user.
 /// This is the main tensor for user.

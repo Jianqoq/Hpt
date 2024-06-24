@@ -10,6 +10,8 @@ use tensor_common::strides_utils::shape_to_strides;
 use tensor_allocator::CACHE;
 use num::complex::{ Complex32, Complex64 };
 use half::bf16;
+use crate::backend::TensorBackend;
+use crate::backend::Backend;
 
 macro_rules! from_scalar {
     ($($t:ident),*) => {
@@ -57,6 +59,7 @@ macro_rules! impl_type_num {
                         parent: None,
                         layout: tensor_common::layout::Layout::new(res_shape, vec![1].into()),
                         mem_layout: Arc::new(layout),
+                        _backend: Backend::new(),
                     };
                 }
             }
@@ -91,6 +94,7 @@ macro_rules! impl_type_num {
                         parent: None,
                         layout: tensor_common::layout::Layout::new(shape, strides),
                         mem_layout: Arc::new(layout),
+                        _backend: Backend::new(),
                     };
                 }
             }
@@ -125,6 +129,7 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: tensor_common::layout::Layout::new(shape, strides),
                     mem_layout: Arc::new(layout),
+                    _backend: Backend::new(),
                 };
             }
         }
@@ -199,6 +204,7 @@ macro_rules! impl_type_num {
                 parent: None,
                 layout: tensor_common::layout::Layout::new(shape, strides),
                 mem_layout: Arc::new(layout),
+                _backend: Backend::new(),
             };
         }
     }
@@ -233,6 +239,7 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: tensor_common::layout::Layout::new(shape, strides),
                     mem_layout: Arc::new(layout),
+                    _backend: Backend::new(),
                 };
             }
         }
@@ -267,6 +274,7 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: tensor_common::layout::Layout::new(shape, strides),
                     mem_layout: Arc::new(layout),
+                    _backend: Backend::new(),
                 };
             }
         }
