@@ -28,7 +28,17 @@ pub mod halide {
 }
 
 pub mod hlir {
-    pub mod expr_node;
+    pub mod node;
+    pub mod traits;
 }
+
+pub mod front_end {
+    pub mod context;
+    pub mod graph;
+    pub mod tensor;
+}
+
+pub mod op;
+pub mod float;
 
 static I64_TYPE: Type = Type::new(HalideirTypeCode::Int, 64, 1);
