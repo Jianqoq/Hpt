@@ -22,6 +22,15 @@ pub trait TensorInfo<T> {
     }
 }
 
+pub trait StaticTensorInfo {
+    fn size(&self) -> usize;
+    fn shape(&self) -> &Shape;
+    fn strides(&self) -> &Strides;
+    fn layout(&self) -> &Layout;
+    fn ndim(&self) -> usize;
+    fn is_contiguous(&self) -> bool;
+}
+
 pub trait TensorLike<T, OutputMeta = T, Output = Self> {
     type Output;
     fn to_raw(&self) -> &[T];

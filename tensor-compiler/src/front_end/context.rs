@@ -1,7 +1,15 @@
 use std::{ cell::RefCell, rc::Rc };
 use getset::{ CopyGetters, Getters, MutGetters, Setters };
 use hashbrown::HashMap;
-use tensor_common::{ block_info::BlockInfo, block_manager::{ BlockManager, BlockType } };
+use tensor_common::{
+    block_info::BlockInfo,
+    block_manager::{ BlockManager, BlockType },
+    shape::Shape,
+};
+use tensor_traits::tensor::CommonBounds;
+use tensor_types::{ convertion::Convertor, dtype::Dtype };
+
+use super::tensor::Tensor;
 
 #[derive(Debug, Clone, Getters, Setters, MutGetters, CopyGetters)]
 pub struct Context {
@@ -12,6 +20,17 @@ pub struct Context {
 impl Context {
     pub fn push_stack(&self, name: &str, block_type: BlockType) {
         self.ctx.borrow_mut().push_stack(name, block_type);
+    }
+
+    pub fn arange<T: Convertor + CommonBounds>(&self, start: T, end: T, step: T) -> Tensor {
+        let ret = Tensor::arange(start, end, step, self.ctx.clone());
+        ret
+    }
+
+    pub fn randn<S: Into<Shape>>(&self, shape: S, mean: f64, std: f64, dtype: Dtype) -> Tensor {
+        let shape = shape.into();
+        let ret = Tensor::randn(self.ctx.clone(), mean, std, shape, dtype);
+        ret
     }
 }
 
