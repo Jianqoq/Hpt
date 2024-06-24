@@ -1,14 +1,16 @@
 pub mod tensor_base;
 pub mod ops {
-    pub mod binary_normal;
-    pub mod std_ops;
-    pub mod uary;
-    pub mod binary;
-    pub mod matmul;
-    pub mod reduce;
-    pub mod reduce_kernels;
-    pub mod tensordot;
-    pub mod fft;
+    pub mod cpu {
+        pub mod binary_normal;
+        pub mod std_ops;
+        pub mod uary;
+        pub mod binary;
+        pub mod matmul;
+        pub mod reduce;
+        pub mod reduce_kernels;
+        pub mod tensordot;
+        pub mod fft;
+    }
 }
 pub mod tensor;
 pub mod random;
