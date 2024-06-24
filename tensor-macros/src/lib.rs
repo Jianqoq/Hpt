@@ -929,3 +929,71 @@ pub fn impl_eval(_: TokenStream) -> TokenStream {
 
     ret.into()
 }
+
+#[proc_macro]
+pub fn impl_static_tensor_scalar_std_ops(_: TokenStream) -> TokenStream {
+    let mut ret = proc_macro2::TokenStream::new();
+
+    let types = [
+        quote!(bool),
+        quote!(f16),
+        quote!(bf16),
+        quote!(f32),
+        quote!(f64),
+        quote!(i8),
+        quote!(i16),
+        quote!(i32),
+        quote!(i64),
+        quote!(u8),
+        quote!(u16),
+        quote!(u32),
+        quote!(u64),
+        quote!(isize),
+        quote!(usize),
+    ];
+
+    let std_ops = [
+        quote!(Add),
+        quote!(Div),
+        quote!(Mul),
+        quote!(Sub),
+    ];
+
+    let std_ops_method = [
+        quote!(add),
+        quote!(div),
+        quote!(mul),
+        quote!(sub),
+    ];
+
+    for lhs in types.iter() {
+        for (op, method) in std_ops.iter().zip(std_ops_method.iter()) {
+            ret.extend(quote!(
+                impl_scalar_op_lhs!(#op, [], #lhs, [], Tensor, #method);
+            ));
+            ret.extend(quote!(
+                impl_scalar_op_lhs!(#op, [&], #lhs, [], Tensor, #method);
+            ));
+            ret.extend(quote!(
+                impl_scalar_op_lhs!(#op, [&], #lhs, [&], Tensor, #method);
+            ));
+            ret.extend(quote!(
+                impl_scalar_op_lhs!(#op, [], #lhs, [&], Tensor, #method);
+            ));
+            ret.extend(quote!(
+                impl_scalar_op_rhs!(#op, [], Tensor, [], #lhs, #method);
+            ));
+            ret.extend(quote!(
+                impl_scalar_op_rhs!(#op, [], Tensor, [&], #lhs, #method);
+            ));
+            ret.extend(quote!(
+                impl_scalar_op_rhs!(#op, [&], Tensor, [], #lhs, #method);
+            ));
+            ret.extend(quote!(
+                impl_scalar_op_rhs!(#op, [&], Tensor, [&], #lhs, #method);
+            ));
+        }
+    }
+
+    ret.into()
+}

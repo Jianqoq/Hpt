@@ -1,4 +1,3 @@
-
 macro_rules! impl_std_op {
     (
         $std_op:ident,
@@ -34,8 +33,50 @@ macro_rules! impl_std_op {
     };
 }
 
-use std::ops::{Add, Div, Mul, Sub};
+macro_rules! impl_scalar_op_rhs {
+    (
+        $std_op:ident,
+        [$($life_time:tt)*],
+        $lhs:ident,
+        [$($life_time2:tt)*],
+        $rhs:ident,
+        $op:ident
+    ) => {
+        impl $std_op<$($life_time2)*$rhs> for $($life_time)*$lhs {
+            type Output = Tensor;
+
+            fn $op(self, rhs: $($life_time2)*$rhs) -> Self::Output {
+                let scalar = Tensor::scalar(self.ctx.clone(), rhs.clone());
+                scalar.$op(self)
+            }
+        }
+    };
+}
+
+macro_rules! impl_scalar_op_lhs {
+    (
+        $std_op:ident,
+        [$($life_time:tt)*],
+        $lhs:ident,
+        [$($life_time2:tt)*],
+        $rhs:ident,
+        $op:ident
+    ) => {
+        impl $std_op<$($life_time2)*$rhs> for $($life_time)*$lhs {
+            type Output = Tensor;
+
+            fn $op(self, rhs: $($life_time2)*$rhs) -> Self::Output {
+                let scalar = Tensor::scalar(rhs.ctx.clone(), self.clone());
+                scalar.$op(rhs)
+            }
+        }
+    };
+}
+
+use std::ops::{ Add, Div, Mul, Sub };
 use crate::front_end::tensor::Tensor;
+use half::{ f16, bf16 };
+use tensor_macros::impl_static_tensor_scalar_std_ops;
 use tensor_types::type_promote::NormalOut;
 use tensor_common::shape::Shape;
 use tensor_common::shape_utils::predict_broadcast_shape;
@@ -64,3 +105,5 @@ impl_std_op!(Add, [&], Tensor, [&], Tensor, add, _add);
 impl_std_op!(Sub, [&], Tensor, [&], Tensor, sub, _sub);
 impl_std_op!(Mul, [&], Tensor, [&], Tensor, mul, _mul);
 impl_std_op!(Div, [&], Tensor, [&], Tensor, div, _div);
+
+impl_static_tensor_scalar_std_ops!();
