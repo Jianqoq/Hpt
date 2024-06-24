@@ -243,4 +243,16 @@ impl Tensor {
         );
         ret
     }
+
+    pub fn abs(&self) -> Self {
+        Tensor::_empty(
+            vec![self.id],
+            self.dtype,
+            Op::Abs,
+            self.layout.clone(),
+            None,
+            Rc::new(vec![]),
+            self.ctx.clone()
+        )
+    }
 }
