@@ -28,7 +28,7 @@ pub mod halide {
 }
 
 pub mod hlir {
-    pub mod expr;
+    pub mod expr_node;
 }
 
 static I64_TYPE: Type = Type::new(HalideirTypeCode::Int, 64, 1);

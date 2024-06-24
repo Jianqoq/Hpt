@@ -8,19 +8,19 @@ members = [
     "tensor-allocator",
     "tensor-common",
     "tensor-dyn",
-    "tensor-static",
     "tensor-traits",
     "tensor-types",
     "tensor-macros",
     "tensor-tests",
-    "tensor-iterator", "tensor-display", "tensor-compiler",
+    "tensor-iterator",
+    "tensor-display",
+    "tensor-compiler",
 ]
 
 [dependencies]
 tensor-allocator = { path = "tensor-allocator" }
 tensor-common = { path = "tensor-common" }
 tensor-dyn = { path = "tensor-dyn" }
-tensor-static = { path = "tensor-static" }
 tensor-traits = { path = "tensor-traits" }
 tensor-types = { path = "tensor-types" }
 tensor-macros = { path = "tensor-macros" }
