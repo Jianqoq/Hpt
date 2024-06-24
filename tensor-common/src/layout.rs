@@ -1,18 +1,27 @@
 use serde::Serialize;
-
+use serde::ser::SerializeStruct;
 use crate::{
-    axis::{process_axes, Axis},
+    axis::{ process_axes, Axis },
     err_handler::ErrHandler,
     shape::Shape,
     shape_utils::{ is_reshape_possible, predict_broadcast_shape },
     strides::Strides,
-    strides_utils::{shape_to_strides, strides_is_contiguous},
+    strides_utils::{ shape_to_strides, strides_is_contiguous },
 };
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct Layout {
     shape: Shape,
     strides: Strides,
+}
+
+impl Serialize for Layout {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+        let mut state = serializer.serialize_struct("Layout", 2)?;
+        state.serialize_field("shape", &self.shape.inner())?;
+        state.serialize_field("strides", &self.strides.inner())?;
+        state.end()
+    }
 }
 
 impl Layout {
