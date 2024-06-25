@@ -17,15 +17,6 @@ pub enum BlockType {
     Placeholder,
 }
 
-pub enum Block {
-    If,
-    While,
-    For(i64, i64, i64),
-    Function(String),
-    Loop,
-    Placeholder,
-}
-
 #[derive(Getters, Setters, MutGetters, CopyGetters, Debug, Clone, Serialize, Deserialize)]
 pub struct BlockManager {
     #[getset(get = "pub", set = "pub", get_mut = "pub")]
