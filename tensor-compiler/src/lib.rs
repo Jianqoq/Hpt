@@ -29,6 +29,7 @@ pub mod halide {
 }
 
 pub mod hlir {
+    pub mod _value;
     pub mod node;
     pub mod traits;
     pub mod exprs;

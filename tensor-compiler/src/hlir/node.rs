@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use super::exprs::*;
 
-
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum Expr {
     Value(Value),
     Str(Str),
@@ -29,6 +29,7 @@ pub enum Expr {
     Call(Call),
     Select(Select),
     Let(Let),
+    Alloc(Alloc),
     None,
 }
 
@@ -60,6 +61,7 @@ impl Display for Expr {
             Expr::Call(v) => write!(f, "{}", v),
             Expr::Select(v) => write!(f, "{}", v),
             Expr::Let(v) => write!(f, "{}", v),
+            Expr::Alloc(v) => write!(f, "{}", v),
             Expr::None => write!(f, ""),
         }
     }
