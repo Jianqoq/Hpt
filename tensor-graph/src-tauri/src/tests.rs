@@ -42,7 +42,7 @@ pub fn test1() -> serde_json::Value {
         let a = a.reshape(&[1, 1024]);
         let b = context.arange(0.0, 1024.0, 1.0);
         let cond = context.cond(|| { &a + &b });
-        let res = context
+        let [res1, _] = context
             .r#if(cond)
             .then(|| {
                 let c = custom_op3(&a, &b);
@@ -55,24 +55,36 @@ pub fn test1() -> serde_json::Value {
                 [c, t]
             })
             .end();
-        let c = &res[0] * 2.0;
+        let c = &res1 * 2.0;
         return [c];
     });
     graph
 }
 
-// pub fn test2() -> serde_json::Value {
-//     let graph = visualize(|context| {
-//         let a = context.arange(0.0, 1024.0, 1.0);
-//         let a = a.reshape(&[1, 1024]);
-//         let b = context.arange(0.0, 1024.0, 1.0);
-//         let c = custom_op3(&a, &b);
-//         let d = custom_op4(&c, &c);
-//         context.set_inputs(vec![a.id(), b.id()]);
-//         return [d];
-//     });
-//     serde_json::json!(graph)
-// }
+pub fn test2() -> serde_json::Value {
+    let graph = visualize(|context| {
+        let a = context.arange(0.0, 1024.0, 1.0);
+        let a = a.reshape(&[1, 1024]);
+        let b = context.arange(0.0, 1024.0, 1.0);
+        let cond = context.cond(|| { &a + &b });
+        let [res1, _] = context
+            .r#if(cond)
+            .then(|| {
+                let c = custom_op3(&a, &b);
+                let t = &c + &a;
+                [c, t]
+            })
+            .r#else(|| {
+                let c = custom_op2(&a, &b);
+                let t = &c + &b;
+                [c, t]
+            })
+            .end();
+        let c = &res1 * 2.0;
+        return [c];
+    });
+    graph
+}
 
 // pub fn test3() -> serde_json::Value {
 //     let graph = visualize(|context| {

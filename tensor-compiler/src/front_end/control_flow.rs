@@ -32,6 +32,10 @@ pub struct Else<'a, R> {
     ret: Vec<R>,
 }
 
+pub struct For<'a> {
+    context: &'a Context,
+}
+
 pub struct While<'a> {
     cond_block_id: usize,
     context: &'a Context,
@@ -89,6 +93,19 @@ impl<'a> While<'a> {
         block();
         self.context.pop_stack();
         self
+    }
+}
+
+impl<'a> For<'a> {
+    pub fn new(context: &'a Context) -> Self {
+        context.push_stack("for", BlockType::For);
+        For { context }
+    }
+
+    pub fn body<F>(self, block: F) where F: FnOnce() {
+        self.context.push_stack("for_body", BlockType::Function);
+        block();
+        self.context.pop_stack();
     }
 }
 
