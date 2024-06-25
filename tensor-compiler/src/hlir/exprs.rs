@@ -31,6 +31,14 @@ pub struct Str {
     value: Arc<String>,
 }
 
+impl Str {
+    pub fn make(value: &str) -> Self {
+        Self {
+            value: Arc::new(value.into()),
+        }
+    }
+}
+
 impl Display for Str {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.value)
@@ -40,6 +48,14 @@ impl Display for Str {
 #[derive(Clone, PartialEq, Hash, Eq, Debug)]
 pub struct Variable {
     value: Arc<String>,
+}
+
+impl Variable {
+    pub fn make(value: &str) -> Self {
+        Self {
+            value: Arc::new(value.into()),
+        }
+    }
 }
 
 impl Display for Variable {
@@ -54,10 +70,26 @@ pub struct Cast {
     dtype: Dtype,
 }
 
+impl Cast {
+    pub fn make<T: Into<Expr>>(expr: T, dtype: Dtype) -> Self {
+        Self { expr: expr.into().into(), dtype }
+    }
+}
+
 impl Display for Cast {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "({} as {})", self.expr, self.dtype)
     }
+}
+
+macro_rules! impl_binop {
+    ($struct:ident) => {
+        impl $struct {
+            pub fn make<T: Into<Expr>, U: Into<Expr>>(lhs: T, rhs: U) -> Self {
+                Self { lhs: lhs.into().into(), rhs: rhs.into().into() }
+            }
+        }
+    };
 }
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
@@ -269,6 +301,18 @@ pub struct Call {
     args: Vec<Arc<Expr>>,
 }
 
+impl Call {
+    pub fn make<T: Into<String>, U: IntoIterator<Item: Into<Expr>>>(name: T, args: U) -> Self {
+        Self {
+            name: Arc::new(name.into()),
+            args: args
+                .into_iter()
+                .map(|x| x.into().into())
+                .collect(),
+        }
+    }
+}
+
 impl Display for Call {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
@@ -291,6 +335,20 @@ pub struct Select {
     false_value: Arc<Expr>,
 }
 
+impl Select {
+    pub fn make<T: Into<Expr>, U: Into<Expr>, V: Into<Expr>>(
+        cond: T,
+        true_value: U,
+        false_value: V
+    ) -> Self {
+        Self {
+            cond: cond.into().into(),
+            true_value: true_value.into().into(),
+            false_value: false_value.into().into(),
+        }
+    }
+}
+
 impl Display for Select {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "({} ? {} : {})", self.cond, self.true_value, self.false_value)
@@ -301,6 +359,15 @@ impl Display for Select {
 pub struct Let {
     var: Arc<Variable>,
     value: Arc<Expr>,
+}
+
+impl Let {
+    pub fn make<T: Into<Variable>, U: Into<Expr>>(var: T, value: U) -> Self {
+        Self {
+            var: var.into().into(),
+            value: value.into().into(),
+        }
+    }
 }
 
 impl Display for Let {
@@ -316,6 +383,16 @@ pub struct Tensor {
     dtype: Dtype,
 }
 
+impl Tensor {
+    pub fn make<T: Into<String>>(name: T, layout: Layout, dtype: Dtype) -> Self {
+        Self {
+            name: Arc::new(name.into()),
+            layout: Arc::new(layout),
+            dtype,
+        }
+    }
+}
+
 impl Display for Tensor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}{{{:?},{}}}", self.name, self.layout.shape().inner(), self.dtype)
@@ -326,6 +403,15 @@ impl Display for Tensor {
 pub struct Alloc {
     shape: Arc<Expr>,
     dtype: Dtype,
+}
+
+impl Alloc {
+    pub fn make<T: Into<Expr>>(shape: T, dtype: Dtype) -> Self {
+        Self {
+            shape: shape.into().into(),
+            dtype,
+        }
+    }
 }
 
 impl Display for Alloc {
@@ -339,6 +425,16 @@ pub struct If {
     cond: Arc<Expr>,
     then: Arc<Expr>,
     else_: Arc<Expr>,
+}
+
+impl If {
+    pub fn make<T: Into<Expr>, U: Into<Expr>, V: Into<Expr>>(cond: T, then: U, else_: V) -> Self {
+        Self {
+            cond: cond.into().into(),
+            then: then.into().into(),
+            else_: else_.into().into(),
+        }
+    }
 }
 
 impl Display for If {
@@ -356,6 +452,24 @@ pub struct For {
     body: Arc<Expr>,
 }
 
+impl For {
+    pub fn make<T: Into<Variable>, U: Into<Expr>, V: Into<Expr>, W: Into<Expr>, X: Into<Expr>>(
+        var: T,
+        start: U,
+        end: V,
+        step: W,
+        body: X
+    ) -> Self {
+        Self {
+            var: var.into().into(),
+            start: start.into().into(),
+            end: end.into().into(),
+            step: step.into().into(),
+            body: body.into().into(),
+        }
+    }
+}
+
 impl Display for For {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "for {} in {}..{} {{\n{}\n}}", self.var, self.start, self.end, self.body)
@@ -368,6 +482,15 @@ pub struct While {
     body: Arc<Expr>,
 }
 
+impl While {
+    pub fn make<T: Into<Expr>, U: Into<Expr>>(cond: T, body: U) -> Self {
+        Self {
+            cond: cond.into().into(),
+            body: body.into().into(),
+        }
+    }
+}
+
 impl Display for While {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "while {} {{\n{}\n}}", self.cond, self.body)
@@ -378,20 +501,41 @@ impl Display for While {
 pub struct Function {
     name: Arc<String>,
     args: Vec<Arc<Variable>>,
+    return_type: Arc<Expr>,
     body: Arc<Expr>,
+}
+
+impl Function {
+    pub fn make<
+        T: Into<String>,
+        U: IntoIterator<Item: Into<Variable>>,
+        V: Into<Expr>,
+        W: Into<Expr>
+    >(name: T, args: U, return_type: V, body: W) -> Self {
+        Self {
+            name: Arc::new(name.into()),
+            args: args
+                .into_iter()
+                .map(|x| x.into().into())
+                .collect(),
+            return_type: return_type.into().into(),
+            body: body.into().into(),
+        }
+    }
 }
 
 impl Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "fn {}({}) {{\n{}\n}}",
+            "fn {}({}) -> {} {{\n{}\n}}",
             self.name,
             self.args
                 .iter()
                 .map(|x| format!("{}", x))
                 .collect::<Vec<String>>()
                 .join(", "),
+            self.return_type,
             self.body
         )
     }
@@ -439,3 +583,20 @@ impl_into_expr!(Select);
 impl_into_expr!(Let);
 impl_into_expr!(Tensor);
 impl_into_expr!(Alloc);
+
+impl_binop!(Add);
+impl_binop!(Sub);
+impl_binop!(Mul);
+impl_binop!(Div);
+impl_binop!(Mod);
+impl_binop!(Min);
+impl_binop!(Max);
+impl_binop!(Eq);
+impl_binop!(Ne);
+impl_binop!(Lt);
+impl_binop!(Le);
+impl_binop!(Gt);
+impl_binop!(Ge);
+impl_binop!(And);
+impl_binop!(Or);
+impl_binop!(Xor);
