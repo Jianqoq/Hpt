@@ -34,7 +34,12 @@ use rayon::iter::{
     ParallelIterator,
 };
 
-use crate::{ backend::{Backend, Cpu, TensorBackend}, ops::cpu::reduce::stack, slice::SliceOps, tensor::Tensor };
+use crate::{
+    backend::{ Backend, Cpu, TensorBackend },
+    ops::cpu::reduce::stack,
+    slice::SliceOps,
+    tensor::Tensor,
+};
 /// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
 ///
 /// All the operations are happen on this struct.
@@ -49,7 +54,7 @@ use crate::{ backend::{Backend, Cpu, TensorBackend}, ops::cpu::reduce::stack, sl
 ///  If the tensor is a view of another tensor, the parent tensor will be the original tensor.
 /// - `mem_layout`: std::alloc::layout, use for deallocate the memory.
 #[derive(Clone)]
-pub struct _Tensor<T, B=Cpu> {
+pub struct _Tensor<T, B = Cpu> {
     pub(crate) data: Pointer<T>,
     pub(crate) parent: Option<Pointer<T>>,
     pub(crate) layout: Layout,
@@ -552,7 +557,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         return Ok(_Tensor {
             data: Pointer::new(ptr as *mut T),
             parent: None,
-            layout: Layout::new(res_shape, strides.into()),
+            layout: Layout::new(res_shape, strides),
             mem_layout: Arc::new(layout),
             _backend: Backend::new(),
         });
@@ -578,7 +583,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         return Ok(_Tensor {
             data: Pointer::new(ptr as *mut T),
             parent: None,
-            layout: Layout::new(res_shape, strides.into()),
+            layout: Layout::new(res_shape, strides),
             mem_layout: Arc::new(layout),
             _backend: Backend::new(),
         });
@@ -604,7 +609,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         return Ok(_Tensor {
             data: Pointer::new(ptr as *mut T),
             parent: None,
-            layout: Layout::new(res_shape, strides.into()),
+            layout: Layout::new(res_shape, strides),
             mem_layout: Arc::new(layout),
             _backend: Backend::new(),
         });
@@ -987,7 +992,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             data: self.data.clone(),
             parent: self.parent.clone(),
             mem_layout: self.mem_layout.clone(),
-            layout: Layout::new(res_shape, res_strides.into()),
+            layout: Layout::new(res_shape, res_strides),
             _backend: Backend::new(),
         });
     }
@@ -1024,7 +1029,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
                 data: ptr,
                 parent: Some(self.data),
                 mem_layout: self.mem_layout.clone(),
-                layout: Layout::new(self.shape().clone(), new_strides.into()),
+                layout: Layout::new(self.shape().clone(), new_strides),
                 _backend: Backend::new(),
             });
         } else {
@@ -1032,7 +1037,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
                 data: ptr,
                 parent: self.parent.clone(),
                 mem_layout: self.mem_layout.clone(),
-                layout: Layout::new(self.shape().clone(), new_strides.into()),
+                layout: Layout::new(self.shape().clone(), new_strides),
                 _backend: Backend::new(),
             });
         }
@@ -1205,7 +1210,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         let mut new_strides = self.strides().to_vec();
         new_shape.swap(axis1 as usize, axis2 as usize);
         new_strides.swap(axis1 as usize, axis2 as usize);
-        let layout = Layout::new(Shape::from(new_shape), new_strides.into());
+        let layout = Layout::new(new_shape, new_strides);
         return Ok(Self {
             data: self.data.clone(),
             layout,

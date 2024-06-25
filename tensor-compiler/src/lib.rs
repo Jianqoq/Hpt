@@ -34,6 +34,7 @@ pub mod hlir {
     pub mod traits;
     pub mod exprs;
     pub mod printer;
+    pub mod tests;
 }
 
 pub mod op;

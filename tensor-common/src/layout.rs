@@ -25,7 +25,9 @@ impl Serialize for Layout {
 }
 
 impl Layout {
-    pub fn new(shape: Shape, strides: Strides) -> Self {
+    pub fn new<A: Into<Shape>, B: Into<Strides>>(shape: A, strides: B) -> Self {
+        let shape = shape.into();
+        let strides = strides.into();
         assert_eq!(shape.len(), strides.len());
         Layout { shape, strides }
     }
@@ -136,7 +138,7 @@ impl Layout {
         let mut new_strides = self.strides().to_vec();
         new_shape.swap(axis1 as usize, axis2 as usize);
         new_strides.swap(axis1 as usize, axis2 as usize);
-        Ok(Layout::new(Shape::from(new_shape), new_strides.into()))
+        Ok(Layout::new(new_shape, new_strides))
     }
 
     pub fn broadcast(&self, other: &Layout) -> anyhow::Result<Layout> {

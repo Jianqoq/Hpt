@@ -4,7 +4,7 @@ use super::node::Expr;
 pub struct HlirPrinter;
 
 impl HlirPrinter {
-    pub fn print_expr<T: Into<Expr>>(&mut self, expr: T) {
+    pub fn print<T: Into<Expr>>(&mut self, expr: T) {
         let expr = expr.into();
         println!("{}", expr);
     }

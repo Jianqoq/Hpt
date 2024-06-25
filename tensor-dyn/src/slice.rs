@@ -1,13 +1,8 @@
-use tensor_common::{
-    layout::Layout,
-    pointer::Pointer,
-    shape::Shape,
-    slice::{ slice_process, Slice },
-};
+use tensor_common::{ layout::Layout, pointer::Pointer, slice::{ slice_process, Slice } };
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use anyhow::Result;
 
-use crate::{backend::{Backend, TensorBackend}, tensor_base::_Tensor};
+use crate::{ backend::{ Backend, TensorBackend }, tensor_base::_Tensor };
 
 pub trait SliceOps<T, U> where T: CommonBounds {
     // slice operation mostly change the shape of tensor only
@@ -32,7 +27,7 @@ impl<T> _Tensor<T> where T: CommonBounds {
                 data: Pointer::new(ptr),
                 parent: Some(self.data),
                 mem_layout: self.mem_layout.clone(),
-                layout: Layout::new(shape.into(), strides.into()),
+                layout: Layout::new(shape, strides),
                 _backend: Backend::new(),
             };
         } else {
@@ -40,7 +35,7 @@ impl<T> _Tensor<T> where T: CommonBounds {
                 data: Pointer::new(ptr),
                 parent: self.parent,
                 mem_layout: self.mem_layout.clone(),
-                layout: Layout::new(Shape::from(shape), strides.into()),
+                layout: Layout::new(shape, strides),
                 _backend: Backend::new(),
             };
         }

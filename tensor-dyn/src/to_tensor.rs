@@ -57,7 +57,7 @@ macro_rules! impl_type_num {
                     return _Tensor {
                         data: Pointer::new(ptr),
                         parent: None,
-                        layout: tensor_common::layout::Layout::new(res_shape, vec![1].into()),
+                        layout: tensor_common::layout::Layout::new(res_shape, vec![1]),
                         mem_layout: Arc::new(layout),
                         _backend: Backend::new(),
                     };
