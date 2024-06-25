@@ -31,6 +31,7 @@ pub mod halide {
 pub mod hlir {
     pub mod node;
     pub mod traits;
+    pub mod exprs;
 }
 
 pub mod op;
