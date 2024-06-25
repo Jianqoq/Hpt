@@ -3,7 +3,7 @@ use std::{ fmt::Display, sync::Arc };
 use tensor_common::layout::Layout;
 use tensor_types::dtype::Dtype;
 
-use super::{_value::_Value, node::Expr};
+use super::{ _value::_Value, node::Expr };
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct Value {
@@ -331,6 +331,69 @@ pub struct Alloc {
 impl Display for Alloc {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "alloc({}, {})", self.shape, self.dtype)
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
+pub struct If {
+    cond: Arc<Expr>,
+    then: Arc<Expr>,
+    else_: Arc<Expr>,
+}
+
+impl Display for If {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "if {} {{\n{}}} else {{\n{}}}", self.cond, self.then, self.else_)
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
+pub struct For {
+    var: Arc<Variable>,
+    start: Arc<Expr>,
+    end: Arc<Expr>,
+    step: Arc<Expr>,
+    body: Arc<Expr>,
+}
+
+impl Display for For {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "for {} in {}..{} {{\n{}\n}}", self.var, self.start, self.end, self.body)
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
+pub struct While {
+    cond: Arc<Expr>,
+    body: Arc<Expr>,
+}
+
+impl Display for While {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "while {} {{\n{}\n}}", self.cond, self.body)
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
+pub struct Function {
+    name: Arc<String>,
+    args: Vec<Arc<Variable>>,
+    body: Arc<Expr>,
+}
+
+impl Display for Function {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "fn {}({}) {{\n{}\n}}",
+            self.name,
+            self.args
+                .iter()
+                .map(|x| format!("{}", x))
+                .collect::<Vec<String>>()
+                .join(", "),
+            self.body
+        )
     }
 }
 

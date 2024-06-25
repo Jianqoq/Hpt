@@ -30,6 +30,10 @@ pub enum Expr {
     Select(Select),
     Let(Let),
     Alloc(Alloc),
+    If(If),
+    For(For),
+    While(While),
+    Function(Function),
     None,
 }
 
@@ -62,6 +66,10 @@ impl Display for Expr {
             Expr::Select(v) => write!(f, "{}", v),
             Expr::Let(v) => write!(f, "{}", v),
             Expr::Alloc(v) => write!(f, "{}", v),
+            Expr::If(v) => write!(f, "{}", v),
+            Expr::For(v) => write!(f, "{}", v),
+            Expr::While(v) => write!(f, "{}", v),
+            Expr::Function(v) => write!(f, "{}", v),
             Expr::None => write!(f, ""),
         }
     }
