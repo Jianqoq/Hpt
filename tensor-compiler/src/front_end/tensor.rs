@@ -145,6 +145,14 @@ impl Tensor {
     impl_trigs!(acosh, Acosh, _acosh);
     impl_trigs!(atanh, Atanh, _atanh);
 
+    pub fn layout_mut(&mut self) -> &mut Layout {
+        &mut self.layout
+    }
+
+    pub fn inputs(&self) -> &Vec<usize> {
+        &self.inputs
+    }
+
     pub fn inputs_mut(&mut self) -> &mut Vec<usize> {
         Rc::make_mut(&mut self.inputs)
     }

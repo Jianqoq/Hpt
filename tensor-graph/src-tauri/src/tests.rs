@@ -53,7 +53,7 @@ pub fn test1() -> serde_json::Value {
                 c
             })
             .end();
-        let c = custom_op(&res, &b);
+        let c = &res * 2.0;
         return [c];
     });
     graph

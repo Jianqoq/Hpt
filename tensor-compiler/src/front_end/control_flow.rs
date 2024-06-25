@@ -69,7 +69,9 @@ impl<'a, R> Then<'a, R> {
 impl<'a, R> Else<'a, R> where R: Merge<Output = R> {
     pub fn end(self) -> R {
         self.context.pop_stack();
-        self.ret.into_iter().fold(R::init(self.context), |acc, r| acc.merge(r))
+        let ret = self.ret.into_iter().fold(R::init(self.context), |acc, r| acc.merge(r));
+        ret.update_ctx(self.context);
+        ret
     }
 }
 
@@ -117,6 +119,7 @@ pub trait Merge {
     type Output;
     fn merge(self, other: Self) -> Self::Output;
     fn init(ctx: &Context) -> Self::Output;
+    fn update_ctx(&self, ctx: &Context);
 }
 
 impl<const N: usize> Merge for [Tensor; N] {
@@ -142,19 +145,28 @@ impl<const N: usize> Merge for [Tensor; N] {
         }
         res
     }
+    fn update_ctx(&self, ctx: &Context) {
+        for t in self.iter() {
+            let mut inner = ctx.ctx().borrow_mut();
+            inner.nodes_mut().insert(t.id, t.clone().into());
+        }
+    }
 }
 
 impl Merge for Tensor {
     type Output = Tensor;
     fn merge(mut self, other: Self) -> Self::Output {
         Rc::make_mut(&mut self.inputs).push(other.id);
+        *self.layout_mut() = other.layout.clone();
         self
     }
     fn init(ctx: &Context) -> Self::Output {
         let mut res: Tensor = ctx.into();
-        let id = res.id;
         *res.op_mut() = Op::Merge;
-        res.inputs_mut().push(id);
         res
+    }
+    fn update_ctx(&self, ctx: &Context) {
+        let mut inner = ctx.ctx().borrow_mut();
+        inner.nodes_mut().insert(self.id, self.clone().into());
     }
 }

@@ -47,7 +47,7 @@ macro_rules! impl_scalar_op_rhs {
 
             fn $op(self, rhs: $($life_time2)*$rhs) -> Self::Output {
                 let scalar = Tensor::scalar(self.ctx.clone(), rhs.clone());
-                scalar.$op(self)
+                self.$op(scalar)
             }
         }
     };

@@ -5,3 +5,6 @@ edition = "2021"
 
 [dependencies]
 tensor-macros = { path = "../tensor-macros" }
+tensor-compiler = { path = "../tensor-compiler" }
+tensor-common = { path = "../tensor-common" }
+serde_json = "1"
