@@ -59,7 +59,6 @@ macro_rules! cast_expr {
 }
 
 impl Expr {
-
     pub const fn is_none(&self) -> bool {
         matches!(self, Expr::None)
     }
