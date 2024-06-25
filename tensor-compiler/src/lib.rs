@@ -33,6 +33,7 @@ pub mod hlir {
     pub mod node;
     pub mod traits;
     pub mod exprs;
+    pub mod printer;
 }
 
 pub mod op;

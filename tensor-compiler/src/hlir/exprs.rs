@@ -535,7 +535,14 @@ impl Tensor {
 
 impl Display for Tensor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}{{{:?},{}}}", self.name, self.layout.shape().inner(), self.dtype)
+        write!(
+            f,
+            "Tensor({}, shape={:?}, strides={:?}, {})",
+            self.name,
+            self.layout.shape(),
+            self.layout.strides(),
+            self.dtype
+        )
     }
 }
 
