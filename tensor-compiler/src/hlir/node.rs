@@ -47,7 +47,23 @@ pub enum Expr {
     None,
 }
 
+macro_rules! cast_expr {
+    ($fn_name:ident, $t:ident) => {
+        pub fn $fn_name(&self) -> Option<&$t> {
+            match self {
+                Expr::$t(e) => Some(e),
+                _ => None,
+            }
+        }
+    };
+}
+
 impl Expr {
+
+    pub const fn is_none(&self) -> bool {
+        matches!(self, Expr::None)
+    }
+
     const fn precedence(&self) -> i32 {
         match self {
             Expr::Add(_) | Expr::Sub(_) => 1,
@@ -97,6 +113,8 @@ impl Expr {
             s
         }
     }
+
+    cast_expr!(to_variable, Variable);
 }
 
 impl Display for Expr {
@@ -152,5 +170,11 @@ impl HlirAccepterMut for Expr {
 impl HlirAccepterMutate for Expr {
     fn accept_mutate<V: HlirMutateVisitor>(&self, visitor: &mut V) {
         visitor.visit_expr(self);
+    }
+}
+
+impl Into<Expr> for &Expr {
+    fn into(self) -> Expr {
+        self.clone()
     }
 }

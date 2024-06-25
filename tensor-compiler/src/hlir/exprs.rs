@@ -3,7 +3,18 @@ use std::{ fmt::Display, sync::Arc };
 use tensor_common::layout::Layout;
 use tensor_types::dtype::Dtype;
 
-use super::{ _value::_Value, node::Expr, traits::{HlirAccepterMut, HlirAccepterMutate, HlirAcceptor, HlirMutVisitor, HlirMutateVisitor, HlirVisitor} };
+use super::{
+    _value::_Value,
+    node::Expr,
+    traits::{
+        HlirAccepterMut,
+        HlirAccepterMutate,
+        HlirAcceptor,
+        HlirMutVisitor,
+        HlirMutateVisitor,
+        HlirVisitor,
+    },
+};
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct Value {
@@ -94,6 +105,18 @@ impl HlirAccepterMutate for Variable {
     }
 }
 
+impl From<Arc<Variable>> for Variable {
+    fn from(v: Arc<Variable>) -> Self {
+        Self { value: v.value.clone() }
+    }
+}
+
+impl From<&Arc<Variable>> for Variable {
+    fn from(v: &Arc<Variable>) -> Self {
+        Self { value: v.value.clone() }
+    }
+}
+
 impl Display for Variable {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.value)
@@ -134,7 +157,7 @@ impl Display for Cast {
 }
 
 macro_rules! impl_binop {
-    ($struct:ident, $visit_method: ident) => {
+    ($struct:ident, $visit_method:ident) => {
         impl $struct {
             pub fn make<T: Into<Expr>, U: Into<Expr>>(lhs: T, rhs: U) -> Self {
                 Self { lhs: lhs.into().into(), rhs: rhs.into().into() }
@@ -757,6 +780,10 @@ impl_into_expr!(Select);
 impl_into_expr!(Let);
 impl_into_expr!(Tensor);
 impl_into_expr!(Alloc);
+impl_into_expr!(If);
+impl_into_expr!(For);
+impl_into_expr!(While);
+impl_into_expr!(Function);
 
 impl_binop!(Add, visit_add);
 impl_binop!(Sub, visit_sub);
