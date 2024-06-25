@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use std::{ mem::MaybeUninit, rc::Rc };
+use std::rc::Rc;
 
 use tensor_common::block_manager::BlockType;
 
@@ -125,7 +125,7 @@ pub trait Merge {
 impl<const N: usize> Merge for [Tensor; N] {
     type Output = [Tensor; N];
     fn merge(self, other: Self) -> Self::Output {
-        let mut res: [Tensor; N] = unsafe { MaybeUninit::uninit().assume_init() };
+        let mut res = self.clone();
         self.into_iter()
             .zip(other.into_iter())
             .enumerate()
@@ -135,15 +135,11 @@ impl<const N: usize> Merge for [Tensor; N] {
         res
     }
     fn init(ctx: &Context) -> Self::Output {
-        let mut res: [Tensor; N] = unsafe { MaybeUninit::uninit().assume_init() };
-        for i in 0..N {
+        std::array::from_fn(|_| {
             let mut t: Tensor = ctx.into();
-            let id = t.id;
             *t.op_mut() = Op::Merge;
-            t.inputs_mut().push(id);
-            res[i] = t;
-        }
-        res
+            t
+        })
     }
     fn update_ctx(&self, ctx: &Context) {
         for t in self.iter() {

@@ -46,14 +46,16 @@ pub fn test1() -> serde_json::Value {
             .r#if(cond)
             .then(|| {
                 let c = custom_op3(&a, &b);
-                c
+                let t = &c + &a;
+                [c, t]
             })
             .r#else(|| {
                 let c = custom_op2(&a, &b);
-                c
+                let t = &c + &b;
+                [c, t]
             })
             .end();
-        let c = &res * 2.0;
+        let c = &res[0] * 2.0;
         return [c];
     });
     graph

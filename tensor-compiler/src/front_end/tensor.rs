@@ -145,6 +145,21 @@ impl Tensor {
     impl_trigs!(acosh, Acosh, _acosh);
     impl_trigs!(atanh, Atanh, _atanh);
 
+    pub fn unitialized(ctx: Rc<RefCell<_Context>>) -> Self {
+        Tensor {
+            inputs: vec![].into(),
+            dtype: Dtype::F64,
+            op: Op::Null,
+            const_val: None,
+            layout: Layout::new(vec![].into(), vec![].into()),
+            name: None,
+            error_msg: Rc::new(vec![]),
+            block_id: ctx.clone().borrow().block_stack().last().unwrap().current_id(),
+            id: *ctx.clone().borrow().acc_node_id(),
+            ctx,
+        }
+    }
+
     pub fn layout_mut(&mut self) -> &mut Layout {
         &mut self.layout
     }
