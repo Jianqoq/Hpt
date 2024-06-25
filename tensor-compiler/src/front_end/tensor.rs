@@ -14,7 +14,7 @@ use tensor_types::{ convertion::Convertor, dtype::Dtype, type_promote::{ FloatOu
 
 use crate::{ float::Float, op::Op };
 
-use super::context::_Context;
+use super::context::{ Context, _Context };
 
 #[derive(Clone)]
 pub struct Tensor {
@@ -28,6 +28,21 @@ pub struct Tensor {
     pub(crate) block_id: usize,
     pub(crate) id: usize,
     pub(crate) ctx: Rc<RefCell<_Context>>,
+}
+
+impl<'a> From<&'a Context> for Tensor {
+    fn from(value: &'a Context) -> Self {
+        let ctx = value.ctx().clone();
+        Tensor::_empty(
+            vec![],
+            Dtype::F64,
+            Op::Null,
+            Layout::new(vec![].into(), vec![].into()),
+            None,
+            Rc::new(vec![]),
+            ctx
+        )
+    }
 }
 
 macro_rules! impl_trigs {
@@ -129,6 +144,14 @@ impl Tensor {
     impl_trigs!(asinh, Asinh, _asinh);
     impl_trigs!(acosh, Acosh, _acosh);
     impl_trigs!(atanh, Atanh, _atanh);
+
+    pub fn inputs_mut(&mut self) -> &mut Vec<usize> {
+        Rc::make_mut(&mut self.inputs)
+    }
+
+    pub fn op_mut(&mut self) -> &mut Op {
+        &mut self.op
+    }
 
     pub fn set_name(&mut self, name: &str) {
         self.name = Some(name.to_string().into());

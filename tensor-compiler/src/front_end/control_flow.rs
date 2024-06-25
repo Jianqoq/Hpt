@@ -1,0 +1,160 @@
+#![allow(dead_code)]
+use std::{ mem::MaybeUninit, rc::Rc };
+
+use tensor_common::block_manager::BlockType;
+
+use crate::op::Op;
+
+use super::{ context::Context, tensor::Tensor };
+
+pub trait ControlFlowState {
+    fn block_id(&self) -> usize;
+    fn push_stack(&self, name: &str, block_type: BlockType);
+    fn pop_stack(&self);
+}
+
+pub struct BranchResult {
+    res: Vec<Tensor>,
+}
+
+pub struct If<'a, T> {
+    condition: T,
+    context: &'a Context,
+}
+
+pub struct Then<'a, R> {
+    context: &'a Context,
+    ret: R,
+}
+
+pub struct Else<'a, R> {
+    context: &'a Context,
+    ret: Vec<R>,
+}
+
+pub struct While<'a> {
+    cond_block_id: usize,
+    context: &'a Context,
+}
+
+impl<'a, T> If<'a, T> {
+    pub fn new(condition: T, context: &'a Context) -> Self {
+        context.push_stack("if", BlockType::If);
+        If { condition, context }
+    }
+
+    pub fn then<F, R>(self, block: F) -> Then<'a, R> where F: FnOnce() -> R {
+        self.context.push_stack("if_then", BlockType::Function);
+        let ret = block();
+        self.context.pop_stack();
+        Then {
+            context: self.context,
+            ret,
+        }
+    }
+}
+
+impl<'a, R> Then<'a, R> {
+    pub fn r#else<F>(self, block: F) -> Else<'a, R> where F: FnOnce() -> R {
+        self.context.push_stack("then_else", BlockType::Function);
+        let ret = block();
+        self.context.pop_stack();
+        Else {
+            context: self.context,
+            ret: vec![self.ret, ret],
+        }
+    }
+}
+
+impl<'a, R> Else<'a, R> where R: Merge<Output = R> {
+    pub fn end(self) -> R {
+        self.context.pop_stack();
+        self.ret.into_iter().fold(R::init(self.context), |acc, r| acc.merge(r))
+    }
+}
+
+impl<'a> While<'a> {
+    pub fn new(context: &'a Context) -> Self {
+        let cond_block_id = context.block_id();
+        While {
+            cond_block_id,
+            context,
+        }
+    }
+
+    pub fn body<F>(self, block: F) -> Self where F: FnOnce() {
+        self.context.push_stack("while_body", BlockType::Function);
+        block();
+        self.context.pop_stack();
+        self
+    }
+}
+
+pub struct Condition {
+    then: usize,
+    else_: usize,
+}
+
+impl Condition {
+    pub fn new(then: usize, else_: usize) -> Self {
+        Condition { then, else_ }
+    }
+}
+
+impl Into<BranchResult> for Tensor {
+    fn into(self) -> BranchResult {
+        BranchResult { res: vec![self] }
+    }
+}
+
+impl<const N: usize> From<[Tensor; N]> for BranchResult {
+    fn from(tensors: [Tensor; N]) -> Self {
+        BranchResult { res: tensors.to_vec() }
+    }
+}
+
+pub trait Merge {
+    type Output;
+    fn merge(self, other: Self) -> Self::Output;
+    fn init(ctx: &Context) -> Self::Output;
+}
+
+impl<const N: usize> Merge for [Tensor; N] {
+    type Output = [Tensor; N];
+    fn merge(self, other: Self) -> Self::Output {
+        let mut res: [Tensor; N] = unsafe { MaybeUninit::uninit().assume_init() };
+        self.into_iter()
+            .zip(other.into_iter())
+            .enumerate()
+            .for_each(|(i, (a, b))| {
+                res[i] = a.merge(b);
+            });
+        res
+    }
+    fn init(ctx: &Context) -> Self::Output {
+        let mut res: [Tensor; N] = unsafe { MaybeUninit::uninit().assume_init() };
+        for i in 0..N {
+            let mut t: Tensor = ctx.into();
+            let id = t.id;
+            *t.op_mut() = Op::Merge;
+            t.inputs_mut().push(id);
+            res[i] = t;
+        }
+        res
+    }
+}
+
+impl Merge for Tensor {
+    type Output = Tensor;
+    fn merge(mut self, other: Self) -> Self::Output {
+        Rc::make_mut(&mut self.inputs).push(other.id);
+        self
+    }
+    fn init(ctx: &Context) -> Self::Output {
+        let mut res: Tensor = ctx.into();
+        let id = res.id;
+        *res.op_mut() = Op::Merge;
+        res.inputs_mut().push(id);
+        res
+    }
+}

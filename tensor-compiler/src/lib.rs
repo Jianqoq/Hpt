@@ -40,6 +40,7 @@ pub mod front_end {
     pub mod tensor;
     pub mod _tensor;
     pub mod std_ops;
+    pub mod control_flow;
 }
 
 pub mod op;

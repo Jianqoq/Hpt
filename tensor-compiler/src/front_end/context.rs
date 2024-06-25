@@ -10,7 +10,7 @@ use tensor_common::{
 use tensor_traits::tensor::CommonBounds;
 use tensor_types::{ convertion::Convertor, dtype::Dtype };
 
-use super::{ _tensor::_Tensor, tensor::Tensor };
+use super::{ _tensor::_Tensor, control_flow::{ ControlFlowState, If }, tensor::Tensor };
 
 #[derive(Clone, Getters, Setters, MutGetters, CopyGetters)]
 pub struct Context {
@@ -20,14 +20,16 @@ pub struct Context {
 
 impl Context {
     pub fn new() -> Self {
-        let ctx = Rc::new(RefCell::new(_Context {
-            saved_blocks: HashMap::new(),
-            blocks_manager: BlockManager::new(),
-            block_stack: vec![BlockInfo::new(0, 0)],
-            block_id: 0,
-            acc_node_id: 0,
-            nodes: HashMap::new(),
-        }));
+        let ctx = Rc::new(
+            RefCell::new(_Context {
+                saved_blocks: HashMap::new(),
+                blocks_manager: BlockManager::new(),
+                block_stack: vec![BlockInfo::new(0, 0)],
+                block_id: 0,
+                acc_node_id: 0,
+                nodes: HashMap::new(),
+            })
+        );
         Self { ctx }
     }
 
@@ -43,6 +45,17 @@ impl Context {
     pub fn randn<S: Into<Shape>>(&self, shape: S, mean: f64, std: f64, dtype: Dtype) -> Tensor {
         let shape = shape.into();
         let ret = Tensor::randn(self.ctx.clone(), mean, std, shape, dtype);
+        ret
+    }
+
+    pub fn r#if(&self, cond: Tensor) -> If<Tensor> {
+        If::new(cond, self)
+    }
+
+    pub fn cond<F>(&self, f: F) -> Tensor where F: FnOnce() -> Tensor {
+        self.push_stack("cond", BlockType::Function);
+        let ret = f();
+        self.pop_stack();
         ret
     }
 }
@@ -83,5 +96,17 @@ impl _Context {
 
     pub fn increment_id(&mut self) {
         self.acc_node_id += 1;
+    }
+}
+
+impl ControlFlowState for Context {
+    fn block_id(&self) -> usize {
+        *self.ctx.borrow().block_id()
+    }
+    fn pop_stack(&self) {
+        self.ctx.borrow_mut().pop_stack();
+    }
+    fn push_stack(&self, name: &str, block_type: BlockType) {
+        self.ctx.borrow_mut().push_stack(name, block_type);
     }
 }

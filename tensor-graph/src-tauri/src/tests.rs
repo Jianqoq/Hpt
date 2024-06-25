@@ -1,7 +1,5 @@
 use tensor_common::block_manager::BlockType;
-use tensor_compiler::{front_end::tensor::Tensor, visualize};
-
-
+use tensor_compiler::{ front_end::tensor::Tensor, visualize };
 
 pub fn custom_op(lhs: &Tensor, rhs: &Tensor) -> Tensor {
     let context = lhs.ctx().clone();
@@ -43,7 +41,19 @@ pub fn test1() -> serde_json::Value {
         let a = context.arange(0.0, 1024.0, 1.0);
         let a = a.reshape(&[1, 1024]);
         let b = context.arange(0.0, 1024.0, 1.0);
-        let c = custom_op(&a, &b);
+        let cond = context.cond(|| { &a + &b });
+        let res = context
+            .r#if(cond)
+            .then(|| {
+                let c = custom_op3(&a, &b);
+                c
+            })
+            .r#else(|| {
+                let c = custom_op2(&a, &b);
+                c
+            })
+            .end();
+        let c = custom_op(&res, &b);
         return [c];
     });
     graph

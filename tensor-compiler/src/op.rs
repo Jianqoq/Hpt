@@ -70,6 +70,10 @@ pub enum Op {
     Asinh,
     Acosh,
     Atanh,
+    // Vec<Vec<usize>> means for each branch, each branch might return multiple nodes
+    // this op is used to merge the results of multiple branches
+    // only one branch contains the real data, other branches must return dead nodes,
+    Merge,
     #[default]
     Null,
 }
@@ -81,7 +85,7 @@ impl Serialize for Op {
                 let mut state = serializer.serialize_struct("Operation", 1)?;
                 state.serialize_field("op", "Add")?;
                 state.end()
-            },
+            }
             Op::Sum { axes } => {
                 let mut state = serializer.serialize_struct("Operation", 2)?;
                 state.serialize_field("op", "Sum")?;
@@ -299,6 +303,11 @@ impl Serialize for Op {
             Op::Null => {
                 let mut state = serializer.serialize_struct("Operation", 1)?;
                 state.serialize_field("op", "Null")?;
+                state.end()
+            }
+            Op::Merge => {
+                let mut state = serializer.serialize_struct("Operation", 1)?;
+                state.serialize_field("op", "Merge")?;
                 state.end()
             }
         }

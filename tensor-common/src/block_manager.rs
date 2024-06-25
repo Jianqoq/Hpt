@@ -9,14 +9,8 @@ use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum BlockType {
-    If(
-        usize, /* condition block id */
-        usize, /* then block id */
-        usize, /* else block id */
-    ),
+    If,
     While,
-    WhileCond,
-    WhileBody(usize), /* cond block id */
     For,
     Function,
     Loop,
