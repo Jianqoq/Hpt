@@ -1,5 +1,4 @@
 use super::{ exprs::*, node::Expr };
-use paste::paste;
 
 pub trait HlirAcceptor {
     fn accept<V: HlirVisitor>(&self, visitor: &V);
