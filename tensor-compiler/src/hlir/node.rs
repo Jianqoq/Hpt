@@ -1,6 +1,16 @@
-use std::fmt::Display;
+use std::{ fmt::Display, sync::Arc };
 
-use super::exprs::*;
+use super::{
+    exprs::*,
+    traits::{
+        HlirAccepterMut,
+        HlirAccepterMutate,
+        HlirAcceptor,
+        HlirMutVisitor,
+        HlirMutateVisitor,
+        HlirVisitor,
+    },
+};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum Expr {
@@ -35,6 +45,58 @@ pub enum Expr {
     While(While),
     Function(Function),
     None,
+}
+
+impl Expr {
+    const fn precedence(&self) -> i32 {
+        match self {
+            Expr::Add(_) | Expr::Sub(_) => 1,
+            Expr::Mul(_) | Expr::Div(_) | Expr::Mod(_) => 2,
+            _ => 3,
+        }
+    }
+
+    fn print(&self, parent_prec: i32) -> String {
+        let prec = self.precedence();
+        let s = match self {
+            Expr::Value(a) => a.to_string(),
+            Expr::Str(a) => a.to_string(),
+            Expr::Variable(a) => a.to_string(),
+            Expr::Cast(a) => a.to_string(),
+            Expr::Add(a) => format!("{} + {}", a.lhs().print(prec), a.rhs().print(prec + 1)),
+            Expr::Sub(a) => format!("{} - {}", a.lhs().print(prec), a.rhs().print(prec + 1)),
+            Expr::Mul(a) => format!("{} * {}", a.lhs().print(prec), a.rhs().print(prec + 1)),
+            Expr::Div(a) => format!("{} / {}", a.lhs().print(prec), a.rhs().print(prec + 1)),
+            Expr::Mod(a) => format!("{} % {}", a.lhs().print(prec), a.rhs().print(prec + 1)),
+            Expr::Min(a) => a.to_string(),
+            Expr::Max(a) => a.to_string(),
+            Expr::Eq(a) => a.to_string(),
+            Expr::Ne(a) => a.to_string(),
+            Expr::Lt(a) => a.to_string(),
+            Expr::Le(a) => a.to_string(),
+            Expr::Gt(a) => a.to_string(),
+            Expr::Ge(a) => a.to_string(),
+            Expr::And(a) => a.to_string(),
+            Expr::Xor(a) => a.to_string(),
+            Expr::Or(a) => a.to_string(),
+            Expr::Not(a) => a.to_string(),
+            Expr::Call(a) => a.to_string(),
+            Expr::Select(a) => a.to_string(),
+            Expr::Let(a) => a.to_string(),
+            Expr::Alloc(a) => a.to_string(),
+            Expr::If(a) => a.to_string(),
+            Expr::For(a) => a.to_string(),
+            Expr::While(a) => a.to_string(),
+            Expr::Function(a) => a.to_string(),
+            Expr::Tensor(a) => a.to_string(),
+            Expr::None => "".to_string(),
+        };
+        if prec < parent_prec {
+            format!("({})", s)
+        } else {
+            s
+        }
+    }
 }
 
 impl Display for Expr {
@@ -72,5 +134,23 @@ impl Display for Expr {
             Expr::Function(v) => write!(f, "{}", v),
             Expr::None => write!(f, ""),
         }
+    }
+}
+
+impl HlirAcceptor for Expr {
+    fn accept<V: HlirVisitor>(&self, visitor: &V) {
+        visitor.visit_expr(self);
+    }
+}
+
+impl HlirAccepterMut for Expr {
+    fn accept_mut<V: HlirMutVisitor>(&self, visitor: &mut V) {
+        visitor.visit_expr(self);
+    }
+}
+
+impl HlirAccepterMutate for Expr {
+    fn accept_mutate<V: HlirMutateVisitor>(&self, visitor: &mut V) {
+        visitor.visit_expr(self);
     }
 }

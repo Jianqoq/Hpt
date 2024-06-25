@@ -72,7 +72,7 @@ impl IRMutateVisitor for SubstituteLoadPartialIdx {
     fn visit_load(&mut self, load: &Load) {
         if expr_equal(load.name(), &self.load_var) {
             let indices = self.mutate_expr(load.indices());
-            if indices.same_as(load.indices()) {
+            if &indices == load.indices() {
                 self.set_expr(load);
             } else {
                 self.set_expr(Expr::Load(Load::make(load.name(), &indices)));

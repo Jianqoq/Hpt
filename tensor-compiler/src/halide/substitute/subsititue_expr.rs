@@ -70,7 +70,7 @@ impl IRMutateVisitor for SubstituteExpr {
 
     fn visit_let_stmt(&mut self, let_stmt: &LetStmt) {
         let body = self.mutate_expr(let_stmt.body());
-        if body.same_as(let_stmt.body()) {
+        if &body==let_stmt.body() {
             self.set_stmt(let_stmt);
         } else {
             self.set_stmt(LetStmt::make(let_stmt.var(), body));

@@ -70,16 +70,16 @@ impl Stmt {
     pub fn same_as(&self, other: &Stmt) -> bool {
         match (self, other) {
             (Stmt::LetStmt(a), Stmt::LetStmt(b)) => {
-                a.var() == b.var() && a.body().same_as(b.body())
+                a.var() == b.var() && a.body() == b.body()
             }
             (Stmt::StoreStmt(a), Stmt::StoreStmt(b)) => {
-                a.var() == b.var() && a.indices().same_as(b.indices()) && a.val().same_as(b.val())
+                a.var() == b.var() && a.indices() == b.indices() && a.val() == b.val()
             }
             (Stmt::For(a), Stmt::For(b)) => {
                 a.var() == b.var() &&
-                    a.start().same_as(b.start()) &&
-                    a.end().same_as(b.end()) &&
-                    a.stmt().same_as(b.stmt())
+                    a.start() == b.start() &&
+                    a.end() == b.end() &&
+                    a.stmt() == b.stmt()
             }
             (Stmt::Seq(a), Stmt::Seq(b)) =>
                 a

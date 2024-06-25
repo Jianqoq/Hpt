@@ -3,7 +3,7 @@ use std::{ fmt::Display, sync::Arc };
 use tensor_common::layout::Layout;
 use tensor_types::dtype::Dtype;
 
-use super::{ _value::_Value, node::Expr };
+use super::{ _value::_Value, node::Expr, traits::{HlirAccepterMut, HlirAccepterMutate, HlirAcceptor, HlirMutVisitor, HlirMutateVisitor, HlirVisitor} };
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct Value {
@@ -17,6 +17,12 @@ impl Value {
             dtype,
             value: value.into(),
         }
+    }
+}
+
+impl HlirAcceptor for Value {
+    fn accept<V: HlirVisitor>(&self, visitor: &V) {
+        visitor.visit_value(self);
     }
 }
 
@@ -37,6 +43,15 @@ impl Str {
             value: Arc::new(value.into()),
         }
     }
+    pub fn value(&self) -> &str {
+        &self.value
+    }
+}
+
+impl HlirAcceptor for Str {
+    fn accept<V: HlirVisitor>(&self, visitor: &V) {
+        visitor.visit_str(self);
+    }
 }
 
 impl Display for Str {
@@ -56,6 +71,27 @@ impl Variable {
             value: Arc::new(value.into()),
         }
     }
+    pub fn value(&self) -> &str {
+        &self.value
+    }
+}
+
+impl HlirAcceptor for Variable {
+    fn accept<V: HlirVisitor>(&self, visitor: &V) {
+        visitor.visit_variable(self);
+    }
+}
+
+impl HlirAccepterMut for Variable {
+    fn accept_mut<V: HlirMutVisitor>(&self, visitor: &mut V) {
+        visitor.visit_variable(self);
+    }
+}
+
+impl HlirAccepterMutate for Variable {
+    fn accept_mutate<V: HlirMutateVisitor>(&self, visitor: &mut V) {
+        visitor.visit_variable(self);
+    }
 }
 
 impl Display for Variable {
@@ -74,6 +110,21 @@ impl Cast {
     pub fn make<T: Into<Expr>>(expr: T, dtype: Dtype) -> Self {
         Self { expr: expr.into().into(), dtype }
     }
+    pub fn expr(&self) -> &Expr {
+        &self.expr
+    }
+    pub fn expr_(&self) -> &Arc<Expr> {
+        &self.expr
+    }
+    pub fn dtype(&self) -> Dtype {
+        self.dtype
+    }
+}
+
+impl HlirAcceptor for Cast {
+    fn accept<V: HlirVisitor>(&self, visitor: &V) {
+        visitor.visit_cast(self);
+    }
 }
 
 impl Display for Cast {
@@ -83,10 +134,28 @@ impl Display for Cast {
 }
 
 macro_rules! impl_binop {
-    ($struct:ident) => {
+    ($struct:ident, $visit_method: ident) => {
         impl $struct {
             pub fn make<T: Into<Expr>, U: Into<Expr>>(lhs: T, rhs: U) -> Self {
                 Self { lhs: lhs.into().into(), rhs: rhs.into().into() }
+            }
+            pub fn lhs(&self) -> &Expr {
+                &self.lhs
+            }
+            pub fn rhs(&self) -> &Expr {
+                &self.rhs
+            }
+            pub fn lhs_(&self) -> &Arc<Expr> {
+                &self.lhs
+            }
+            pub fn rhs_(&self) -> &Arc<Expr> {
+                &self.rhs
+            }
+        }
+
+        impl HlirAcceptor for $struct {
+            fn accept<V: HlirVisitor>(&self, visitor: &V) {
+                visitor.$visit_method(self);
             }
         }
     };
@@ -289,6 +358,18 @@ pub struct Not {
     expr: Arc<Expr>,
 }
 
+impl Not {
+    pub fn make<T: Into<Expr>>(expr: T) -> Self {
+        Self { expr: expr.into().into() }
+    }
+    pub fn expr(&self) -> &Expr {
+        &self.expr
+    }
+    pub fn expr_(&self) -> &Arc<Expr> {
+        &self.expr
+    }
+}
+
 impl Display for Not {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "!{}", self.expr)
@@ -310,6 +391,12 @@ impl Call {
                 .map(|x| x.into().into())
                 .collect(),
         }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub fn args(&self) -> &[Arc<Expr>] {
+        &self.args
     }
 }
 
@@ -347,6 +434,24 @@ impl Select {
             false_value: false_value.into().into(),
         }
     }
+    pub fn cond(&self) -> &Expr {
+        &self.cond
+    }
+    pub fn true_value(&self) -> &Expr {
+        &self.true_value
+    }
+    pub fn false_value(&self) -> &Expr {
+        &self.false_value
+    }
+    pub fn cond_(&self) -> &Arc<Expr> {
+        &self.cond
+    }
+    pub fn true_value_(&self) -> &Arc<Expr> {
+        &self.true_value
+    }
+    pub fn false_value_(&self) -> &Arc<Expr> {
+        &self.false_value
+    }
 }
 
 impl Display for Select {
@@ -367,6 +472,18 @@ impl Let {
             var: var.into().into(),
             value: value.into().into(),
         }
+    }
+    pub fn var(&self) -> &Variable {
+        &self.var
+    }
+    pub fn value(&self) -> &Expr {
+        &self.value
+    }
+    pub fn var_(&self) -> &Arc<Variable> {
+        &self.var
+    }
+    pub fn value_(&self) -> &Arc<Expr> {
+        &self.value
     }
 }
 
@@ -412,6 +529,12 @@ impl Alloc {
             dtype,
         }
     }
+    pub fn shape(&self) -> &Expr {
+        &self.shape
+    }
+    pub fn dtype(&self) -> Dtype {
+        self.dtype
+    }
 }
 
 impl Display for Alloc {
@@ -434,6 +557,24 @@ impl If {
             then: then.into().into(),
             else_: else_.into().into(),
         }
+    }
+    pub fn cond(&self) -> &Expr {
+        &self.cond
+    }
+    pub fn then(&self) -> &Expr {
+        &self.then
+    }
+    pub fn else_(&self) -> &Expr {
+        &self.else_
+    }
+    pub fn cond_(&self) -> &Arc<Expr> {
+        &self.cond
+    }
+    pub fn then_(&self) -> &Arc<Expr> {
+        &self.then
+    }
+    pub fn else__(&self) -> &Arc<Expr> {
+        &self.else_
     }
 }
 
@@ -468,6 +609,21 @@ impl For {
             body: body.into().into(),
         }
     }
+    pub fn var(&self) -> &Variable {
+        &self.var
+    }
+    pub fn start(&self) -> &Expr {
+        &self.start
+    }
+    pub fn end(&self) -> &Expr {
+        &self.end
+    }
+    pub fn step(&self) -> &Expr {
+        &self.step
+    }
+    pub fn body(&self) -> &Expr {
+        &self.body
+    }
 }
 
 impl Display for For {
@@ -488,6 +644,12 @@ impl While {
             cond: cond.into().into(),
             body: body.into().into(),
         }
+    }
+    pub fn cond(&self) -> &Expr {
+        &self.cond
+    }
+    pub fn body(&self) -> &Expr {
+        &self.body
     }
 }
 
@@ -521,6 +683,18 @@ impl Function {
             return_type: return_type.into().into(),
             body: body.into().into(),
         }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub fn args(&self) -> &[Arc<Variable>] {
+        &self.args
+    }
+    pub fn return_type(&self) -> &Expr {
+        &self.return_type
+    }
+    pub fn body(&self) -> &Expr {
+        &self.body
     }
 }
 
@@ -584,19 +758,19 @@ impl_into_expr!(Let);
 impl_into_expr!(Tensor);
 impl_into_expr!(Alloc);
 
-impl_binop!(Add);
-impl_binop!(Sub);
-impl_binop!(Mul);
-impl_binop!(Div);
-impl_binop!(Mod);
-impl_binop!(Min);
-impl_binop!(Max);
-impl_binop!(Eq);
-impl_binop!(Ne);
-impl_binop!(Lt);
-impl_binop!(Le);
-impl_binop!(Gt);
-impl_binop!(Ge);
-impl_binop!(And);
-impl_binop!(Or);
-impl_binop!(Xor);
+impl_binop!(Add, visit_add);
+impl_binop!(Sub, visit_sub);
+impl_binop!(Mul, visit_mul);
+impl_binop!(Div, visit_div);
+impl_binop!(Mod, visit_mod);
+impl_binop!(Min, visit_min);
+impl_binop!(Max, visit_max);
+impl_binop!(Eq, visit_eq);
+impl_binop!(Ne, visit_ne);
+impl_binop!(Lt, visit_lt);
+impl_binop!(Le, visit_le);
+impl_binop!(Gt, visit_gt);
+impl_binop!(Ge, visit_ge);
+impl_binop!(And, visit_and);
+impl_binop!(Or, visit_or);
+impl_binop!(Xor, visit_xor);

@@ -409,7 +409,7 @@ macro_rules! mutate_binop {
     ($self:ident, $op:ident, $T:ident) => {
         let a = $self.mutate_expr($op.e1());
         let b = $self.mutate_expr($op.e2());
-        if a.same_as($op.e1()) && b.same_as($op.e2()) {
+        if &a==$op.e1() && &b==$op.e2() {
             $self.set_expr($op);
         } else {
             $self.set_expr($T::make(a, b));
@@ -512,7 +512,7 @@ pub(crate) fn visit_cast<V>(visitor: &mut V, cast: &Cast)
     where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let a = mutate_expr(visitor, cast.expr());
-    if a.same_as(cast.expr()) {
+    if &a == cast.expr() {
         visitor.set_expr(cast);
     } else {
         visitor.set_expr(Cast::make(a, *cast.dtype()));
@@ -605,7 +605,7 @@ pub(crate) fn visit_not<V>(visitor: &mut V, not: &Not)
     where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let a = mutate_expr(visitor, not.e());
-    if a.same_as(not.e()) {
+    if &a == not.e() {
         visitor.set_expr(not);
     } else {
         visitor.set_expr(Not::make(a));
@@ -619,7 +619,7 @@ pub(crate) fn visit_let_stmt<V>(visitor: &mut V, let_stmt: &LetStmt)
     let body = let_stmt.body();
     let var = mutate_expr(visitor, &name);
     let val = mutate_expr(visitor, body);
-    if var.same_as(&name) && val.same_as(body) {
+    if &var == &name && &val == body {
         visitor.set_stmt(let_stmt);
     } else {
         if let Some(var) = var.to_variable() {
@@ -638,7 +638,7 @@ pub(crate) fn visit_let<V>(visitor: &mut V, let_stmt: &Let)
     let e1 = let_stmt.e1();
     let var = mutate_expr(visitor, &name);
     let val = mutate_expr(visitor, e1);
-    if var.same_as(&name) && val.same_as(e1) {
+    if &var == &name && &val == e1 {
         visitor.set_expr(let_stmt);
     } else {
         if let Some(var) = var.to_variable() {
@@ -659,10 +659,10 @@ pub(crate) fn visit_for<V>(visitor: &mut V, for_stmt: &For)
     let end = visitor.mutate_expr(for_stmt.end());
     let stmt = visitor.mutate_stmt(for_stmt.stmt());
     if
-        new_var.same_as(&var) &&
-        start.same_as(for_stmt.start()) &&
-        end.same_as(for_stmt.end()) &&
-        stmt.same_as(for_stmt.stmt())
+        &new_var == &var &&
+        &start == for_stmt.start() &&
+        &end == for_stmt.end() &&
+        &stmt == for_stmt.stmt()
     {
         visitor.set_stmt(for_stmt);
     } else {
@@ -683,7 +683,7 @@ pub(crate) fn visit_seq_stmt<V>(visitor: &mut V, seq: &Seq)
     let mut new_stmts = Vec::with_capacity(stmts.len());
     for stmt in stmts.iter() {
         let new_stmt = visitor.mutate_stmt(stmt);
-        if !new_stmt.same_as(stmt) {
+        if &new_stmt != stmt {
             changed = true;
         }
         new_stmts.push(new_stmt);
@@ -721,7 +721,7 @@ pub(crate) fn visit_call<V>(visitor: &mut V, call: &Call)
     let mut new_args = Vec::with_capacity(args.len());
     for arg in args.iter() {
         let new_arg = visitor.mutate_expr(arg);
-        if !new_arg.same_as(arg) {
+        if &new_arg != arg.as_ref() {
             changed = true;
         }
         new_args.push(new_arg);
@@ -740,9 +740,9 @@ pub(crate) fn visit_select<V>(visitor: &mut V, select: &Select)
     let true_value = visitor.mutate_expr(select.true_expr());
     let false_value = visitor.mutate_expr(select.false_expr());
     if
-        cond.same_as(select.cond()) &&
-        true_value.same_as(select.true_expr()) &&
-        false_value.same_as(select.false_expr())
+        &cond == select.cond() &&
+        &true_value == select.true_expr() &&
+        &false_value == select.false_expr()
     {
         visitor.set_expr(select);
     } else {
@@ -755,7 +755,7 @@ pub(crate) fn visit_load<V>(visitor: &mut V, load: &Load)
 {
     let var = visitor.mutate_expr(load.name());
     let indices = visitor.mutate_expr(load.indices());
-    if var.same_as(load.name()) && indices.same_as(load.indices()) {
+    if &var == load.name() && &indices == load.indices() {
         visitor.set_expr(load);
     } else {
         visitor.set_expr(Load::make(var, indices));
@@ -769,7 +769,7 @@ pub(crate) fn visit_store<V>(visitor: &mut V, store: &StoreStmt)
     let new_var = visitor.mutate_expr(&var);
     let indices = visitor.mutate_expr(store.indices());
     let val = visitor.mutate_expr(store.val());
-    if new_var.same_as(&var) && indices.same_as(store.indices()) && val.same_as(store.val()) {
+    if &new_var == &var && &indices == store.indices() && &val == store.val() {
         visitor.set_stmt(store);
     } else {
         if let Some(new_var) = new_var.to_variable() {
@@ -788,9 +788,9 @@ pub(crate) fn visit_if_then_else<V>(visitor: &mut V, if_then_else: &IfThenElse)
     let then_case = visitor.mutate_stmt(if_then_else.then_case());
     let else_case = visitor.mutate_stmt(if_then_else.else_case());
     if
-        cond.same_as(if_then_else.cond()) &&
-        then_case.same_as(if_then_else.then_case()) &&
-        else_case.same_as(if_then_else.else_case())
+        &cond == if_then_else.cond() &&
+        &then_case == if_then_else.then_case() &&
+        &else_case == if_then_else.else_case()
     {
         visitor.set_stmt(if_then_else);
     } else {
@@ -803,7 +803,7 @@ pub(crate) fn visit_inplace_store<V>(visitor: &mut V, inplace_store: &InplaceSto
 {
     let to_store = visitor.mutate_expr(inplace_store.to_store());
     let val = visitor.mutate_expr(inplace_store.val());
-    if to_store.same_as(inplace_store.to_store()) && val.same_as(inplace_store.val()) {
+    if &to_store == inplace_store.to_store() && &val == inplace_store.val() {
         visitor.set_stmt(inplace_store);
     } else {
         visitor.set_stmt(InplaceStore::make(to_store, val));
@@ -815,7 +815,7 @@ pub(crate) fn visit_inplace_add<V>(visitor: &mut V, inplace_add: &InplaceAdd)
 {
     let to_store = visitor.mutate_expr(inplace_add.to_store());
     let val = visitor.mutate_expr(inplace_add.val());
-    if to_store.same_as(inplace_add.to_store()) && val.same_as(inplace_add.val()) {
+    if &to_store == inplace_add.to_store() && &val == inplace_add.val() {
         visitor.set_stmt(inplace_add);
     } else {
         visitor.set_stmt(InplaceAdd::make(to_store, val));
@@ -827,7 +827,7 @@ pub(crate) fn visit_inplace_sub<V>(visitor: &mut V, inplace_sub: &InplaceSub)
 {
     let to_store = visitor.mutate_expr(inplace_sub.to_store());
     let val = visitor.mutate_expr(inplace_sub.val());
-    if to_store.same_as(inplace_sub.to_store()) && val.same_as(inplace_sub.val()) {
+    if &to_store == inplace_sub.to_store() && &val == inplace_sub.val() {
         visitor.set_stmt(inplace_sub);
     } else {
         visitor.set_stmt(InplaceSub::make(to_store, val));
@@ -839,7 +839,7 @@ pub(crate) fn visit_inplace_mul<V>(visitor: &mut V, inplace_mul: &InplaceMul)
 {
     let to_store = visitor.mutate_expr(inplace_mul.to_store());
     let val = visitor.mutate_expr(inplace_mul.val());
-    if to_store.same_as(inplace_mul.to_store()) && val.same_as(inplace_mul.val()) {
+    if &to_store == inplace_mul.to_store() && &val == inplace_mul.val() {
         visitor.set_stmt(inplace_mul);
     } else {
         visitor.set_stmt(InplaceMul::make(to_store, val));
@@ -851,7 +851,7 @@ pub(crate) fn visit_inplace_div<V>(visitor: &mut V, inplace_div: &InplaceDiv)
 {
     let to_store = visitor.mutate_expr(inplace_div.to_store());
     let val = visitor.mutate_expr(inplace_div.val());
-    if to_store.same_as(inplace_div.to_store()) && val.same_as(inplace_div.val()) {
+    if &to_store == inplace_div.to_store() && &val == inplace_div.val() {
         visitor.set_stmt(inplace_div);
     } else {
         visitor.set_stmt(InplaceDiv::make(to_store, val));

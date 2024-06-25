@@ -64,7 +64,7 @@ impl IRComparator {
         }
         let a: Expr = a.into();
         let b: Expr = b.into();
-        if a.same_as(&b) {
+        if &a == &b {
             return CmpResult::Equal;
         }
         if a.is_none() {
