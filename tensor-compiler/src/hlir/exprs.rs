@@ -14,6 +14,7 @@ use super::{
         HlirMutVisitor,
         HlirMutateVisitor,
         HlirVisitor,
+        IntoVar,
     },
 };
 
@@ -527,19 +528,26 @@ impl Display for Select {
 pub struct Let {
     var: Arc<Variable>,
     value: Arc<Expr>,
+    body: Arc<Expr>,
 }
 
 impl Let {
-    pub fn make<U: Into<Expr>>(var: &str, value: U) -> Self {
+    pub fn make<U: Into<Expr>, T: IntoVar, C: Into<Expr>>(var: T, value: U, body: C) -> Self {
         Self {
-            var: Variable::make(var).into(),
+            var: var.into_var().into(),
             value: value.into().into(),
+            body: body.into().into(),
         }
     }
-    pub fn make_from_expr<T: Into<Variable>, U: Into<Expr>>(var: T, value: U) -> Self {
+    pub fn make_from_expr<T: Into<Variable>, U: Into<Expr>, C: Into<Expr>>(
+        var: T,
+        value: U,
+        body: C
+    ) -> Self {
         Self {
             var: var.into().into(),
             value: value.into().into(),
+            body: body.into().into(),
         }
     }
     pub fn var(&self) -> &Variable {
@@ -554,11 +562,22 @@ impl Let {
     pub fn value_(&self) -> &Arc<Expr> {
         &self.value
     }
+    pub fn body(&self) -> &Expr {
+        &self.body
+    }
+    pub fn body_(&self) -> &Arc<Expr> {
+        &self.body
+    }
 }
 
 impl Display for Let {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "let {} = {}", self.var, self.value)
+        match self.body.as_ref() {
+            Expr::Let(_) | Expr::For(_) | Expr::While(_) | Expr::If(_) =>
+                write!(f, "let {} = {};\n{}", self.var, self.value, self.body),
+            Expr::None => write!(f, "let {} = {}", self.var, self.value),
+            _ => write!(f, "let {} = {} in {}", self.var, self.value, self.body),
+        }
     }
 }
 
@@ -703,7 +722,7 @@ pub struct For {
 }
 
 impl For {
-    pub fn make<T: Into<Variable>, U: Into<Expr>, V: Into<Expr>, W: Into<Expr>, X: Into<Expr>>(
+    pub fn make<T: IntoVar, U: Into<Expr>, V: Into<Expr>, W: Into<Expr>, X: Into<Expr>>(
         var: T,
         start: U,
         end: V,
@@ -711,7 +730,7 @@ impl For {
         body: X
     ) -> Self {
         Self {
-            var: var.into().into(),
+            var: var.into_var().into(),
             start: start.into().into(),
             end: end.into().into(),
             step: step.into().into(),
@@ -839,10 +858,21 @@ pub struct Slice {
 }
 
 impl Slice {
-    pub fn make<T: Into<Variable>, U: IntoIterator<Item: Into<(Expr, Expr, Expr)>>>(var: T, selections: U) -> Self {
+    pub fn make<T: IntoVar, U: IntoIterator<Item = (A, B, C)>, A, B, C>(
+        var: T,
+        selections: U
+    )
+        -> Self
+        where A: Into<Expr>, B: Into<Expr>, C: Into<Expr>
+    {
         Self {
-            var: var.into().into(),
-            selections: Arc::new(selections.into_iter().map(|x| x.into()).collect()),
+            var: var.into_var().into(),
+            selections: Arc::new(
+                selections
+                    .into_iter()
+                    .map(|x| (x.0.into(), x.1.into(), x.2.into()))
+                    .collect()
+            ),
         }
     }
     pub fn var(&self) -> &Variable {
@@ -934,3 +964,45 @@ impl_binop!(Ge, visit_ge);
 impl_binop!(And, visit_and);
 impl_binop!(Or, visit_or);
 impl_binop!(Xor, visit_xor);
+
+impl IntoVar for Variable {
+    fn into_var(self) -> Variable {
+        self
+    }
+}
+
+impl IntoVar for &Variable {
+    fn into_var(self) -> Variable {
+        self.clone()
+    }
+}
+
+impl IntoVar for Arc<Variable> {
+    fn into_var(self) -> Variable {
+        self.as_ref().clone()
+    }
+}
+
+impl IntoVar for &Arc<Variable> {
+    fn into_var(self) -> Variable {
+        self.as_ref().clone()
+    }
+}
+
+impl IntoVar for &str {
+    fn into_var(self) -> Variable {
+        Variable::make(self)
+    }
+}
+
+impl IntoVar for String {
+    fn into_var(self) -> Variable {
+        Variable::make(&self)
+    }
+}
+
+impl IntoVar for &String {
+    fn into_var(self) -> Variable {
+        Variable::make(self)
+    }
+}

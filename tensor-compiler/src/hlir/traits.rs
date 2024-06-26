@@ -475,13 +475,15 @@ pub(crate) fn visit_let<V>(visitor: &mut V, let_stmt: &Let)
 {
     let name = let_stmt.var().into();
     let e1 = let_stmt.value();
+    let body = let_stmt.body();
     let var = mutate_expr(visitor, &name);
     let val = mutate_expr(visitor, e1);
-    if &var == &name && &val == e1 {
+    let new_body = mutate_expr(visitor, body);
+    if &var == &name && &val == e1 && &new_body == body {
         visitor.set_expr(let_stmt);
     } else {
         if let Some(var) = var.to_variable() {
-            visitor.set_expr(Let::make_from_expr(var.clone(), val));
+            visitor.set_expr(Let::make_from_expr(var.clone(), val, new_body));
         } else {
             eprintln!("Failed to convert variable, from: {} to: {}", name, var);
             visitor.set_expr(Expr::None);
@@ -810,4 +812,8 @@ pub trait HlirMutateVisitor where Self: Sized + MutatorGetSet {
     fn visit_if(&mut self, if_: &If) {
         visit_if(self, if_);
     }
+}
+
+pub trait IntoVar {
+    fn into_var(self) -> Variable;
 }
