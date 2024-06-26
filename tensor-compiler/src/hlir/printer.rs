@@ -32,7 +32,7 @@ impl _HlirPrinter {
                 let body = let_.body();
                 match body {
                     Expr::Let(_) | Expr::For(_) | Expr::While(_) | Expr::If(_) => {
-                        println!("let {} = {};\n", var, value);
+                        println!("let {} = {};", var, value);
                         self.print(body);
                     }
                     Expr::None => print!("let {} = {}", var, value),
