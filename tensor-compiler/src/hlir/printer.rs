@@ -5,7 +5,7 @@ pub struct HlirPrinter;
 
 impl HlirPrinter {
     pub fn print<T: Into<Expr>>(&mut self, expr: T) {
-        _HlirPrinter::new().print(expr);
+        _HlirPrinter::new().print(expr, true);
     }
 }
 
@@ -22,23 +22,40 @@ impl _HlirPrinter {
         print!("{}", "    ".repeat(self.indent));
     }
 
-    pub fn print<T: Into<Expr>>(&mut self, stmt: T) {
+    pub fn print<T: Into<Expr>>(&mut self, stmt: T, next_line: bool) {
         let stmt = stmt.into();
         match stmt {
             Expr::Let(let_) => {
                 self.do_indent();
                 let var = let_.var();
                 let value = let_.value();
+                match value {
+                    Expr::Let(_) => {
+                        panic!("let statement cannot have let statement as value");
+                    }
+                    Expr::For(_) | Expr::While(_) | Expr::If(_) => {
+                        println!("let {} =", var);
+                        self.print(value, false);
+                    }
+                    Expr::None => {
+                        panic!("let statement cannot have None as value");
+                    }
+                    _ => {
+                        print!("let {} = {}", var, value);
+                    }
+                }
                 let body = let_.body();
                 match body {
                     Expr::Let(_) | Expr::For(_) | Expr::While(_) | Expr::If(_) => {
-                        println!("let {} = {};", var, value);
-                        self.print(body);
+                        println!(";");
+                        self.print(body, true);
                     }
-                    Expr::None => println!("let {} = {};", var, value),
+                    Expr::None => {
+                        println!(";");
+                    }
                     _ => {
-                        print!("let {} = {} in ", var, value);
-                        self.print(body)
+                        print!(" in ");
+                        self.print(body, true);
                     }
                 }
             }
@@ -52,33 +69,45 @@ impl _HlirPrinter {
                     var.step()
                 );
                 self.indent += 1;
-                self.print(var.body());
+                self.print(var.body(), true);
                 self.indent -= 1;
                 self.do_indent();
-                println!("}}");
+                if next_line {
+                    println!("}}");
+                } else {
+                    print!("}}");
+                }
             }
             Expr::While(w) => {
                 self.do_indent();
                 println!("while {} {{", w.cond());
                 self.indent += 1;
-                self.print(w.body());
+                self.print(w.body(), true);
                 self.indent -= 1;
                 self.do_indent();
-                println!("}}");
+                if next_line {
+                    println!("}}");
+                } else {
+                    print!("}}");
+                }
             }
             Expr::If(if_) => {
                 self.do_indent();
                 println!("if {} {{", if_.cond());
                 self.indent += 1;
-                self.print(if_.then());
+                self.print(if_.then(), true);
                 self.indent -= 1;
                 self.do_indent();
                 println!("}} else {{");
                 self.indent += 1;
-                self.print(if_.else_());
+                self.print(if_.else_(), true);
                 self.indent -= 1;
                 self.do_indent();
-                println!("}}");
+                if next_line {
+                    println!("}}");
+                } else {
+                    print!("}}");
+                }
             }
             Expr::Add(a) => {
                 self.do_indent();
@@ -166,10 +195,14 @@ impl _HlirPrinter {
                     a.return_type()
                 );
                 self.indent += 1;
-                self.print(a.body());
+                self.print(a.body(), true);
                 self.indent -= 1;
                 self.do_indent();
-                println!("}}");
+                if next_line {
+                    println!("}}");
+                } else {
+                    print!("}}");
+                }
             }
             Expr::Tensor(a) => {
                 self.do_indent();
