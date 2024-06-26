@@ -28,7 +28,8 @@ fn test_for() {
     let slice = Slice::make("b", [
         (Value::make(Dtype::I32, 0), Value::make(Dtype::I32, 0), Value::make(Dtype::I32, 0)),
     ]);
-    let for_ = For::make("i", start, end, step, slice);
+    let let_ = Let::make("d", &slice, Expr::None);
+    let for_ = For::make("i", start, end, step, let_);
 
     let b = Let::make("b", &a, for_);
 

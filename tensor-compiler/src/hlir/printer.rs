@@ -35,7 +35,7 @@ impl _HlirPrinter {
                         println!("let {} = {};", var, value);
                         self.print(body);
                     }
-                    Expr::None => print!("let {} = {}", var, value),
+                    Expr::None => println!("let {} = {};", var, value),
                     _ => {
                         print!("let {} = {} in ", var, value);
                         self.print(body)
