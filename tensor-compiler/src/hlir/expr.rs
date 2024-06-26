@@ -1,15 +1,14 @@
 use std::fmt::Display;
 
 use super::{
-    exprs::*,
-    traits::{
+    exprs::*, func_type::Type, traits::{
         HlirAccepterMut,
         HlirAccepterMutate,
         HlirAcceptor,
         HlirMutVisitor,
         HlirMutateVisitor,
         HlirVisitor,
-    },
+    }
 };
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -17,7 +16,10 @@ pub enum Expr {
     Value(Value),
     Str(Str),
     Variable(Variable),
+    Tuple(Tuple),
+    Type(Type),
     Tensor(Tensor),
+    TensorType(TensorType),
     Cast(Cast),
     Add(Add),
     Sub(Sub),
@@ -104,6 +106,9 @@ impl Expr {
             Expr::While(a) => a.to_string(),
             Expr::Function(a) => a.to_string(),
             Expr::Tensor(a) => a.to_string(),
+            Expr::Tuple(a) => a.to_string(),
+            Expr::Type(a) => a.to_string(),
+            Expr::TensorType(a) => a.to_string(),
             Expr::None => "".to_string(),
         };
         if prec < parent_prec {
@@ -114,6 +119,7 @@ impl Expr {
     }
 
     cast_expr!(to_variable, Variable);
+    cast_expr!(to_type, Type);
 }
 
 impl Display for Expr {

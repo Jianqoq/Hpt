@@ -5,7 +5,8 @@ use tensor_types::dtype::Dtype;
 
 use super::{
     _value::_Value,
-    node::Expr,
+    expr::Expr,
+    func_type::Type,
     traits::{
         HlirAccepterMut,
         HlirAccepterMutate,
@@ -40,6 +41,45 @@ impl HlirAcceptor for Value {
 impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.value)
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
+pub struct Tuple {
+    values: Vec<Arc<Expr>>,
+}
+
+impl Tuple {
+    pub fn make<T: IntoIterator<Item: Into<Expr>>>(values: T) -> Self {
+        Self {
+            values: values
+                .into_iter()
+                .map(|x| x.into().into())
+                .collect(),
+        }
+    }
+    pub fn values(&self) -> &[Arc<Expr>] {
+        &self.values
+    }
+}
+
+impl HlirAcceptor for Tuple {
+    fn accept<V: HlirVisitor>(&self, visitor: &V) {
+        visitor.visit_tuple(self);
+    }
+}
+
+impl Display for Tuple {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "({})",
+            self.values
+                .iter()
+                .map(|x| format!("{}", x))
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
     }
 }
 
@@ -553,6 +593,39 @@ impl Display for Tensor {
 }
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
+pub struct TensorType {
+    dtype: Dtype,
+    layout: Arc<Layout>,
+}
+
+impl TensorType {
+    pub fn make(dtype: Dtype, layout: Layout) -> Self {
+        Self {
+            dtype,
+            layout: Arc::new(layout),
+        }
+    }
+    pub fn dtype(&self) -> Dtype {
+        self.dtype
+    }
+    pub fn layout(&self) -> &Layout {
+        &self.layout
+    }
+}
+
+impl Display for TensorType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "Tensor(dtype={}, shape={:?}, strides={:?})",
+            self.dtype,
+            self.layout.shape().inner(),
+            self.layout.strides().inner()
+        )
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct Alloc {
     shape: Arc<Expr>,
     dtype: Dtype,
@@ -704,19 +777,20 @@ pub struct Function {
 }
 
 impl Function {
-    pub fn make<
-        T: Into<String>,
-        U: IntoIterator<Item: Into<Variable>>,
-        V: Into<Expr>,
-        W: Into<Expr>
-    >(name: T, args: U, return_type: V, body: W) -> Self {
+    pub fn make<T: Into<String>, U: IntoIterator<Item: Into<Variable>>, W: Into<Expr>>(
+        name: T,
+        args: U,
+        return_type: &Type,
+        body: W
+    ) -> Self {
+        let ret_type: Expr = return_type.into();
         Self {
             name: Arc::new(name.into()),
             args: args
                 .into_iter()
                 .map(|x| x.into().into())
                 .collect(),
-            return_type: return_type.into().into(),
+            return_type: ret_type.into(),
             body: body.into().into(),
         }
     }
@@ -804,6 +878,8 @@ impl_into_expr!(If);
 impl_into_expr!(For);
 impl_into_expr!(While);
 impl_into_expr!(Function);
+impl_into_expr!(Tuple);
+impl_into_expr!(TensorType);
 
 impl_binop!(Add, visit_add);
 impl_binop!(Sub, visit_sub);

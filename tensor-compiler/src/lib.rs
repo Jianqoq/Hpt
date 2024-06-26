@@ -30,10 +30,11 @@ pub mod halide {
 
 pub mod hlir {
     pub mod _value;
-    pub mod node;
+    pub mod expr;
     pub mod traits;
     pub mod exprs;
     pub mod printer;
+    pub mod func_type;
     pub mod tests;
 }
 

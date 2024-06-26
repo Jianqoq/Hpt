@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use super::node::Expr;
+use super::expr::Expr;
 
 pub struct HlirPrinter;
 
@@ -184,6 +184,18 @@ impl _HlirPrinter {
                 println!("{}", a);
             }
             Expr::Max(a) => {
+                self.do_indent();
+                println!("{}", a);
+            }
+            Expr::Tuple(a) => {
+                self.do_indent();
+                println!("{}", a);
+            }
+            Expr::Type(a) => {
+                self.do_indent();
+                println!("{}", a);
+            }
+            Expr::TensorType(a) => {
                 self.do_indent();
                 println!("{}", a);
             }

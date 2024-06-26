@@ -1,4 +1,4 @@
-use super::{ exprs::*, node::Expr };
+use super::{ exprs::*, expr::Expr };
 
 pub trait HlirAcceptor {
     fn accept<V: HlirVisitor>(&self, visitor: &V);
@@ -49,7 +49,32 @@ pub trait HlirVisitor where Self: Sized {
             Expr::Tensor(tensor) => {
                 self.visit_tensor(&tensor);
             }
+            Expr::Tuple(tuple) => {
+                self.visit_tuple(&tuple);
+            }
+            Expr::Type(a) => {
+                match a {
+                    super::func_type::Type::Dtype(_) => {}
+                    super::func_type::Type::Tensor(tensor_type) => {
+                        self.visit_tensor_type(tensor_type);
+                    }
+                    super::func_type::Type::Tuple(tuple) => {
+                        self.visit_tuple(tuple);
+                    }
+                    super::func_type::Type::Str => {}
+                    super::func_type::Type::None => {}
+                }
+            }
+            Expr::TensorType(a) => {
+                self.visit_tensor_type(a);
+            }
             Expr::None => {}
+        }
+    }
+    fn visit_tensor_type(&self, _: &TensorType) {}
+    fn visit_tuple(&self, tuple: &Tuple) {
+        for value in tuple.values() {
+            value.accept(self);
         }
     }
     fn visit_tensor(&self, _: &Tensor) {}
@@ -205,7 +230,32 @@ pub trait HlirMutVisitor where Self: Sized {
             Expr::Tensor(tensor) => {
                 self.visit_tensor(&tensor);
             }
+            Expr::Tuple(tuple) => {
+                self.visit_tuple(&tuple);
+            }
+            Expr::Type(a) => {
+                match a {
+                    super::func_type::Type::Dtype(_) => {}
+                    super::func_type::Type::Tensor(tensor_type) => {
+                        self.visit_tensor_type(tensor_type);
+                    }
+                    super::func_type::Type::Tuple(tuple) => {
+                        self.visit_tuple(tuple);
+                    }
+                    super::func_type::Type::Str => {}
+                    super::func_type::Type::None => {}
+                }
+            }
+            Expr::TensorType(a) => {
+                self.visit_tensor_type(a);
+            }
             Expr::None => {}
+        }
+    }
+    fn visit_tensor_type(&mut self, _: &TensorType) {}
+    fn visit_tuple(&mut self, tuple: &Tuple) {
+        for value in tuple.values() {
+            value.accept_mut(self);
         }
     }
     fn visit_tensor(&mut self, _: &Tensor) {}
@@ -528,7 +578,26 @@ pub(crate) fn visit_function<V>(visitor: &mut V, func: &Function)
     if &body == func.body() && &return_type == func.return_type() {
         visitor.set_expr(func);
     } else {
-        visitor.set_expr(Function::make(func.name(), func.args(), return_type, body));
+        visitor.set_expr(Function::make(func.name(), func.args(), return_type.to_type().unwrap(), body));
+    }
+}
+
+pub(crate) fn visit_tuple<V>(visitor: &mut V, tuple: &Tuple)
+    where V: MutatorGetSet + Sized + HlirMutateVisitor
+{
+    let mut changed = false;
+    let mut new_values = Vec::with_capacity(tuple.values().len());
+    for value in tuple.values() {
+        let new_value = visitor.mutate_expr(&value.as_ref().into());
+        if &new_value != value.as_ref() {
+            changed = true;
+        }
+        new_values.push(new_value);
+    }
+    if !changed {
+        visitor.set_expr(tuple);
+    } else {
+        visitor.set_expr(Tuple::make(&new_values));
     }
 }
 
@@ -573,8 +642,30 @@ pub trait HlirMutateVisitor where Self: Sized + MutatorGetSet {
             Expr::Tensor(tensor) => {
                 self.visit_tensor(tensor);
             }
+            Expr::Tuple(tuple) => {
+                self.visit_tuple(tuple);
+            }
+            Expr::Type(a) => {
+                match a {
+                    super::func_type::Type::Dtype(_) => {}
+                    super::func_type::Type::Tensor(tensor_type) => {
+                        self.set_expr(tensor_type.clone());
+                    }
+                    super::func_type::Type::Tuple(tuple) => {
+                        self.set_expr(tuple.clone());
+                    }
+                    super::func_type::Type::Str => todo!(),
+                    super::func_type::Type::None => {}
+                }
+            }
+            Expr::TensorType(a) => {
+                self.set_expr(a.clone());
+            }
             Expr::None => {}
         }
+    }
+    fn visit_tuple(&mut self, tuple: &Tuple) {
+        visit_tuple(self, tuple)
     }
     fn visit_tensor(&mut self, tensor: &Tensor) {
         self.set_expr(tensor.clone());
