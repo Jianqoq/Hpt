@@ -25,9 +25,22 @@ impl _HlirPrinter {
     pub fn print<T: Into<Expr>>(&mut self, stmt: T) {
         let stmt = stmt.into();
         match stmt {
-            Expr::Let(var) => {
+            Expr::Let(let_) => {
                 self.do_indent();
-                println!("let {} = {};", var.var(), var.value());
+                let var = let_.var();
+                let value = let_.value();
+                let body = let_.body();
+                match body {
+                    Expr::Let(_) | Expr::For(_) | Expr::While(_) | Expr::If(_) => {
+                        println!("let {} = {};\n", var, value);
+                        self.print(body);
+                    }
+                    Expr::None => print!("let {} = {}", var, value),
+                    _ => {
+                        print!("let {} = {} in ", var, value);
+                        self.print(body)
+                    }
+                }
             }
             Expr::For(var) => {
                 self.do_indent();
