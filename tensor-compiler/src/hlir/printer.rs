@@ -199,6 +199,10 @@ impl _HlirPrinter {
                 self.do_indent();
                 println!("{}", a);
             }
+            Expr::Slice(a) => {
+                self.do_indent();
+                println!("{}", a);
+            }
         }
     }
 }

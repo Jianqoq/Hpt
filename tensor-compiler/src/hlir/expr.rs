@@ -46,6 +46,7 @@ pub enum Expr {
     For(For),
     While(While),
     Function(Function),
+    Slice(Slice),
     None,
 }
 
@@ -109,6 +110,7 @@ impl Expr {
             Expr::Tuple(a) => a.to_string(),
             Expr::Type(a) => a.to_string(),
             Expr::TensorType(a) => a.to_string(),
+            Expr::Slice(a) => a.to_string(),
             Expr::None => "".to_string(),
         };
         if prec < parent_prec {

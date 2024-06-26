@@ -68,7 +68,18 @@ pub trait HlirVisitor where Self: Sized {
             Expr::TensorType(a) => {
                 self.visit_tensor_type(a);
             }
+            Expr::Slice(slcie) => {
+                self.visit_slice(slcie);
+            }
             Expr::None => {}
+        }
+    }
+    fn visit_slice(&self, slice: &Slice) {
+        slice.var().accept(self);
+        for (start, end, step) in slice.selections() {
+            start.accept(self);
+            end.accept(self);
+            step.accept(self);
         }
     }
     fn visit_tensor_type(&self, _: &TensorType) {}
@@ -249,7 +260,18 @@ pub trait HlirMutVisitor where Self: Sized {
             Expr::TensorType(a) => {
                 self.visit_tensor_type(a);
             }
+            Expr::Slice(slcie) => {
+                self.visit_slice(slcie);
+            }
             Expr::None => {}
+        }
+    }
+    fn visit_slice(&mut self, slice: &Slice) {
+        slice.var().accept_mut(self);
+        for (start, end, step) in slice.selections() {
+            start.accept_mut(self);
+            end.accept_mut(self);
+            step.accept_mut(self);
         }
     }
     fn visit_tensor_type(&mut self, _: &TensorType) {}
@@ -369,9 +391,10 @@ pub trait HlirMutVisitor where Self: Sized {
     }
 }
 
-pub(crate) fn mutate_expr<V>(visitor: &mut V, expr: &Expr) -> Expr
+pub(crate) fn mutate_expr<V, T: Into<Expr>>(visitor: &mut V, expr: T) -> Expr
     where V: MutatorGetSet + Sized + HlirMutateVisitor
 {
+    let expr = expr.into();
     if expr.is_none() {
         visitor.set_expr(Expr::None);
     } else {
@@ -500,7 +523,7 @@ pub(crate) fn visit_call<V>(visitor: &mut V, call: &Call)
     let mut changed = false;
     let mut new_args = Vec::with_capacity(args.len());
     for arg in args.iter() {
-        let new_arg = visitor.mutate_expr(arg);
+        let new_arg = visitor.mutate_expr(arg.as_ref());
         if &new_arg != arg.as_ref() {
             changed = true;
         }
@@ -578,7 +601,9 @@ pub(crate) fn visit_function<V>(visitor: &mut V, func: &Function)
     if &body == func.body() && &return_type == func.return_type() {
         visitor.set_expr(func);
     } else {
-        visitor.set_expr(Function::make(func.name(), func.args(), return_type.to_type().unwrap(), body));
+        visitor.set_expr(
+            Function::make(func.name(), func.args(), return_type.to_type().unwrap(), body)
+        );
     }
 }
 
@@ -588,7 +613,7 @@ pub(crate) fn visit_tuple<V>(visitor: &mut V, tuple: &Tuple)
     let mut changed = false;
     let mut new_values = Vec::with_capacity(tuple.values().len());
     for value in tuple.values() {
-        let new_value = visitor.mutate_expr(&value.as_ref().into());
+        let new_value = visitor.mutate_expr(value.as_ref());
         if &new_value != value.as_ref() {
             changed = true;
         }
@@ -601,8 +626,30 @@ pub(crate) fn visit_tuple<V>(visitor: &mut V, tuple: &Tuple)
     }
 }
 
+pub(crate) fn visit_slcie<V>(visitor: &mut V, slice: &Slice)
+    where V: MutatorGetSet + Sized + HlirMutateVisitor
+{
+    let var = visitor.mutate_expr(slice.var());
+    let mut changed = false;
+    let mut new_selections = Vec::with_capacity(slice.selections().len());
+    for (start, end, step) in slice.selections() {
+        let new_start = visitor.mutate_expr(start);
+        let new_end = visitor.mutate_expr(end);
+        let new_step = visitor.mutate_expr(step);
+        if &new_start != start || &new_end != end || &new_step != step {
+            changed = true;
+        }
+        new_selections.push((new_start, new_end, new_step));
+    }
+    if !changed {
+        visitor.set_expr(slice);
+    } else {
+        visitor.set_expr(Slice::make(var.to_variable().unwrap().clone(), new_selections));
+    }
+}
+
 pub trait HlirMutateVisitor where Self: Sized + MutatorGetSet {
-    fn mutate_expr(&mut self, expr: &Expr) -> Expr {
+    fn mutate_expr<T: Into<Expr>>(&mut self, expr: T) -> Expr {
         mutate_expr(self, expr)
     }
 
@@ -661,8 +708,14 @@ pub trait HlirMutateVisitor where Self: Sized + MutatorGetSet {
             Expr::TensorType(a) => {
                 self.set_expr(a.clone());
             }
+            Expr::Slice(slcie) => {
+                self.visit_slice(slcie);
+            }
             Expr::None => {}
         }
+    }
+    fn visit_slice(&mut self, slice: &Slice) {
+        visit_slcie(self, slice);
     }
     fn visit_tuple(&mut self, tuple: &Tuple) {
         visit_tuple(self, tuple)

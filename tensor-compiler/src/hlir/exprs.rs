@@ -832,6 +832,42 @@ impl Display for Function {
     }
 }
 
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
+pub struct Slice {
+    var: Arc<Variable>,
+    selections: Arc<Vec<(Expr, Expr, Expr)>>,
+}
+
+impl Slice {
+    pub fn make<T: Into<Variable>, U: IntoIterator<Item: Into<(Expr, Expr, Expr)>>>(var: T, selections: U) -> Self {
+        Self {
+            var: var.into().into(),
+            selections: Arc::new(selections.into_iter().map(|x| x.into()).collect()),
+        }
+    }
+    pub fn var(&self) -> &Variable {
+        &self.var
+    }
+    pub fn selections(&self) -> &[(Expr, Expr, Expr)] {
+        &self.selections
+    }
+}
+
+impl Display for Slice {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}[{}]",
+            self.var,
+            self.selections
+                .iter()
+                .map(|(start, end, step)| format!("{}:{}:{}", start, end, step))
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
+    }
+}
+
 macro_rules! impl_into_expr {
     ($struct:ident) => {
         impl Into<Expr> for $struct {
@@ -880,6 +916,7 @@ impl_into_expr!(While);
 impl_into_expr!(Function);
 impl_into_expr!(Tuple);
 impl_into_expr!(TensorType);
+impl_into_expr!(Slice);
 
 impl_binop!(Add, visit_add);
 impl_binop!(Sub, visit_sub);
