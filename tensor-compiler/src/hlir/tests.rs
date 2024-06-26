@@ -27,7 +27,6 @@ fn test_for_fail() {
     let step = Value::make(Dtype::I32, 1);
 
     let for_var = Variable::make("i");
-
     let slice = Slice::make("b", [
         (Value::make(Dtype::I32, 0), &for_var, Value::make(Dtype::I32, 2)),
     ]);

@@ -854,12 +854,12 @@ pub struct Slice {
 }
 
 impl Slice {
-    pub fn make<T: IntoVar, U: IntoIterator<Item = (A, B, C)>, A, B, C>(
+    pub fn make<T: IntoVar, U, A, B, C>(
         var: T,
         selections: U
     )
         -> Self
-        where A: Into<Expr>, B: Into<Expr>, C: Into<Expr>
+        where A: Into<Expr>, B: Into<Expr>, C: Into<Expr>, U: IntoIterator<Item = (A, B, C)>
     {
         Self {
             var: var.into_var().into(),
