@@ -25,11 +25,13 @@ fn test_for() {
     let end = Value::make(Dtype::I32, 10);
     let step = Value::make(Dtype::I32, 1);
 
+    let for_var = Variable::make("i");
+
     let slice = Slice::make("b", [
-        (Value::make(Dtype::I32, 0), Value::make(Dtype::I32, 1), Value::make(Dtype::I32, 2)),
+        (Value::make(Dtype::I32, 0), &for_var, Value::make(Dtype::I32, 2)),
     ]);
     let let_ = Let::make("d", &slice, Expr::None);
-    let for_ = For::make("i", start, end, step, let_);
+    let for_ = For::make(for_var, start, end, step, let_);
 
     let b = Let::make("b", &a, for_);
 
