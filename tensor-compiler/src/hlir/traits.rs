@@ -525,8 +525,8 @@ pub(crate) fn visit_call<V>(visitor: &mut V, call: &Call)
     let mut changed = false;
     let mut new_args = Vec::with_capacity(args.len());
     for arg in args.iter() {
-        let new_arg = visitor.mutate_expr(arg.as_ref());
-        if &new_arg != arg.as_ref() {
+        let new_arg = visitor.mutate_expr(arg);
+        if &new_arg != arg {
             changed = true;
         }
         new_args.push(new_arg);
@@ -615,8 +615,8 @@ pub(crate) fn visit_tuple<V>(visitor: &mut V, tuple: &Tuple)
     let mut changed = false;
     let mut new_values = Vec::with_capacity(tuple.values().len());
     for value in tuple.values() {
-        let new_value = visitor.mutate_expr(value.as_ref());
-        if &new_value != value.as_ref() {
+        let new_value = visitor.mutate_expr(value);
+        if &new_value != value {
             changed = true;
         }
         new_values.push(new_value);

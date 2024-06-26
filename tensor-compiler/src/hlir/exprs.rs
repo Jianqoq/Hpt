@@ -47,7 +47,7 @@ impl Display for Value {
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct Tuple {
-    values: Vec<Arc<Expr>>,
+    values: Arc<Vec<Expr>>,
 }
 
 impl Tuple {
@@ -56,10 +56,11 @@ impl Tuple {
             values: values
                 .into_iter()
                 .map(|x| x.into().into())
-                .collect(),
+                .collect::<Vec<Expr>>()
+                .into(),
         }
     }
-    pub fn values(&self) -> &[Arc<Expr>] {
+    pub fn values(&self) -> &[Expr] {
         &self.values
     }
 }
@@ -146,14 +147,8 @@ impl HlirAccepterMutate for Variable {
     }
 }
 
-impl From<Arc<Variable>> for Variable {
-    fn from(v: Arc<Variable>) -> Self {
-        Self { value: v.value.clone() }
-    }
-}
-
-impl From<&Arc<Variable>> for Variable {
-    fn from(v: &Arc<Variable>) -> Self {
+impl From<&Variable> for Variable {
+    fn from(v: &Variable) -> Self {
         Self { value: v.value.clone() }
     }
 }
@@ -443,7 +438,7 @@ impl Display for Not {
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct Call {
     name: Arc<String>,
-    args: Vec<Arc<Expr>>,
+    args: Arc<Vec<Expr>>,
 }
 
 impl Call {
@@ -453,13 +448,13 @@ impl Call {
             args: args
                 .into_iter()
                 .map(|x| x.into().into())
-                .collect(),
+                .collect::<Vec<Expr>>().into(),
         }
     }
     pub fn name(&self) -> &str {
         &self.name
     }
-    pub fn args(&self) -> &[Arc<Expr>] {
+    pub fn args(&self) -> &[Expr] {
         &self.args
     }
 }
@@ -790,7 +785,7 @@ impl Display for While {
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct Function {
     name: Arc<String>,
-    args: Vec<Arc<Variable>>,
+    args: Arc<Vec<Variable>>,
     return_type: Arc<Expr>,
     body: Arc<Expr>,
 }
@@ -808,7 +803,8 @@ impl Function {
             args: args
                 .into_iter()
                 .map(|x| x.into().into())
-                .collect(),
+                .collect::<Vec<Variable>>()
+                .into(),
             return_type: ret_type.into(),
             body: body.into().into(),
         }
@@ -816,7 +812,7 @@ impl Function {
     pub fn name(&self) -> &str {
         &self.name
     }
-    pub fn args(&self) -> &[Arc<Variable>] {
+    pub fn args(&self) -> &[Variable] {
         &self.args
     }
     pub fn return_type(&self) -> &Expr {
