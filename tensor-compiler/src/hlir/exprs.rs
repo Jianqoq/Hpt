@@ -490,7 +490,13 @@ pub struct Let {
 }
 
 impl Let {
-    pub fn make<T: Into<Variable>, U: Into<Expr>>(var: T, value: U) -> Self {
+    pub fn make<U: Into<Expr>>(var: &str, value: U) -> Self {
+        Self {
+            var: Variable::make(var).into(),
+            value: value.into().into(),
+        }
+    }
+    pub fn make_from_expr<T: Into<Variable>, U: Into<Expr>>(var: T, value: U) -> Self {
         Self {
             var: var.into().into(),
             value: value.into().into(),
@@ -539,8 +545,8 @@ impl Display for Tensor {
             f,
             "Tensor({}, shape={:?}, strides={:?}, {})",
             self.name,
-            self.layout.shape(),
-            self.layout.strides(),
+            self.layout.shape().inner(),
+            self.layout.strides().inner(),
             self.dtype
         )
     }
@@ -725,6 +731,13 @@ impl Function {
     }
     pub fn body(&self) -> &Expr {
         &self.body
+    }
+    pub fn body_mut(&mut self) -> &mut Expr {
+        Arc::make_mut(&mut self.body)
+    }
+
+    pub fn set_body<T: Into<Expr>>(&mut self, body: T) {
+        self.body = body.into().into();
     }
 }
 

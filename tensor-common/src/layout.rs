@@ -187,3 +187,17 @@ impl Layout {
         shape_to_strides(&self.shape)
     }
 }
+
+impl From<Shape> for Layout {
+    fn from(shape: Shape) -> Self {
+        let strides = shape_to_strides(&shape);
+        Layout { shape, strides }
+    }
+}
+
+impl From<&Shape> for Layout {
+    fn from(shape: &Shape) -> Self {
+        let strides = shape_to_strides(&shape);
+        Layout { shape: shape.clone(), strides }
+    }
+}

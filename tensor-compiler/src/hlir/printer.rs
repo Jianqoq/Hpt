@@ -5,8 +5,7 @@ pub struct HlirPrinter;
 
 impl HlirPrinter {
     pub fn print<T: Into<Expr>>(&mut self, expr: T) {
-        let expr = expr.into();
-        println!("{}", expr);
+        _HlirPrinter::new().print(expr);
     }
 }
 
@@ -142,7 +141,22 @@ impl _HlirPrinter {
             }
             Expr::Function(a) => {
                 self.do_indent();
-                println!("{}", a);
+                println!(
+                    "fn {}({}) -> {} {{",
+                    a.name(),
+                    a
+                        .args()
+                        .iter()
+                        .map(|x| format!("{}", x))
+                        .collect::<Vec<String>>()
+                        .join(", "),
+                    a.return_type()
+                );
+                self.indent += 1;
+                self.print(a.body());
+                self.indent -= 1;
+                self.do_indent();
+                println!("}}");
             }
             Expr::Tensor(a) => {
                 self.do_indent();

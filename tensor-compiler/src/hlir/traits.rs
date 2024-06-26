@@ -408,7 +408,7 @@ pub(crate) fn visit_let<V>(visitor: &mut V, let_stmt: &Let)
         visitor.set_expr(let_stmt);
     } else {
         if let Some(var) = var.to_variable() {
-            visitor.set_expr(Let::make(var.clone(), val));
+            visitor.set_expr(Let::make_from_expr(var.clone(), val));
         } else {
             eprintln!("Failed to convert variable, from: {} to: {}", name, var);
             visitor.set_expr(Expr::None);
