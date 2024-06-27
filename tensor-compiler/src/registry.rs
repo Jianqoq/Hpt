@@ -151,7 +151,3 @@ lazy_static! {
         ret.into()
     };
 }
-
-pub trait Callable {
-    fn call(&self);
-}
