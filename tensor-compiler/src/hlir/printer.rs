@@ -257,6 +257,10 @@ impl _HlirPrinter {
                 self.do_indent();
                 println!("{}", a);
             }
+            Expr::CommonReduce(a) => {
+                self.do_indent();
+                println!("{}", a);
+            }
         }
     }
 }

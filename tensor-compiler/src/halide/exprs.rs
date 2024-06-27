@@ -3,30 +3,27 @@ use std::{ fmt::Display, sync::Arc };
 use tensor_types::dtype::Dtype;
 
 use super::{
-    prime_expr::PrimeExpr,
-    r#type::{ HalideirTypeCode, Type },
-    traits::{ Accepter, IRVisitor },
-    variable::Variable,
+    prime_expr::PrimeExpr, traits::{ Accepter, IRVisitor }, r#type::HalideirTypeCode, variable::Variable
 };
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Int {
     value: i64,
-    r#type: Type,
+    dtype: Dtype,
 }
 
 impl Int {
-    pub fn make(r#type: Type, mut value: i64) -> Self {
-        value = value << (64 - r#type.bits());
-        value = value >> (64 - r#type.bits());
-        Int { value, r#type }
+    pub fn make(dtype: Dtype, mut value: i64) -> Self {
+        value = value << (64 - dtype.bits());
+        value = value >> (64 - dtype.bits());
+        Int { value, dtype }
     }
 
     pub fn value(&self) -> i64 {
         self.value
     }
 
-    pub fn r#type(&self) -> &Type {
-        &self.r#type
+    pub fn dtype(&self) -> &Dtype {
+        &self.dtype
     }
 }
 
@@ -57,22 +54,22 @@ impl Into<PrimeExpr> for &Int {
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct UInt {
     value: u64,
-    r#type: Type,
+    dtype: Dtype,
 }
 
 impl UInt {
-    pub fn make(r#type: Type, mut value: u64) -> Self {
-        value = value << (64 - r#type.bits());
-        value = value >> (64 - r#type.bits());
-        UInt { value, r#type }
+    pub fn make(dtype: Dtype, mut value: u64) -> Self {
+        value = value << (64 - dtype.bits());
+        value = value >> (64 - dtype.bits());
+        UInt { value, dtype }
     }
 
     pub fn value(&self) -> u64 {
         self.value
     }
 
-    pub fn r#type(&self) -> &Type {
-        &self.r#type
+    pub fn dtype(&self) -> &Dtype {
+        &self.dtype
     }
 }
 
@@ -106,14 +103,14 @@ macro_rules! impl_binop {
             type Output = $res;
 
             fn $std_op_name(self, rhs: $rhs) -> Self::Output {
-                $res::make(self.r#type().clone(), self.value $op rhs.value)
+                $res::make(self.dtype().clone(), self.value $op rhs.value)
             }
         }
         impl std::ops::$std_op for &$lhs {
             type Output = $res;
 
             fn $std_op_name(self, rhs: &$rhs) -> Self::Output {
-                $res::make(self.r#type().clone(), self.value $op rhs.value)
+                $res::make(self.dtype().clone(), self.value $op rhs.value)
             }
         }
 
@@ -121,7 +118,7 @@ macro_rules! impl_binop {
             type Output = $res;
 
             fn $std_op_name(self, rhs: $rhs) -> Self::Output {
-                $res::make(self.r#type().clone(), self.value $op rhs.value)
+                $res::make(self.dtype().clone(), self.value $op rhs.value)
             }
         }
 
@@ -129,7 +126,7 @@ macro_rules! impl_binop {
             type Output = $res;
 
             fn $std_op_name(self, rhs: &$rhs) -> Self::Output {
-                $res::make(self.r#type().clone(), self.value $op rhs.value)
+                $res::make(self.dtype().clone(), self.value $op rhs.value)
             }
         }
     };
@@ -1053,7 +1050,7 @@ impl Load {
             .iter()
             .zip(indices.iter())
             .map(|(stride, index)| {
-                index * Int::make(Type::new(HalideirTypeCode::Int, 64, 1), *stride)
+                index * Int::make(Dtype::I64, *stride)
             })
             .reduce(|acc, e| acc + e)
             .expect("Failed to reduce");
@@ -1063,7 +1060,7 @@ impl Load {
         }
     }
 
-    pub fn make<T: Into<PrimeExpr>>(name: T, indices: T) -> Self {
+    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(name: A, indices: B) -> Self {
         Load {
             name: Arc::new(name.into().into()),
             indices: indices.into().into(),

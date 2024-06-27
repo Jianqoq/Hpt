@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
+use tensor_types::dtype::Dtype;
+
 use super::{
     prime_expr::PrimeExpr,
     exprs::Int,
     stmt::Stmt,
     traits::{ IRMutVisitor, IRMutateVisitor, IRVisitor },
-    r#type::{ HalideirTypeCode, Type },
     variable::Variable,
 };
 use crate::halide::traits::{ Accepter, AccepterMut };
@@ -43,7 +44,7 @@ impl StoreStmt {
             .iter()
             .zip(indices.iter())
             .map(|(stride, index)| {
-                *index * Int::make(Type::new(HalideirTypeCode::Int, 64, 1), *stride)
+                *index * Int::make(Dtype::I64, *stride)
             })
             .reduce(|acc, e| acc + e)
             .expect("Failed to reduce");

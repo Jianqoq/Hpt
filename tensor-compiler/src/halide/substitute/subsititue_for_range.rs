@@ -1,16 +1,14 @@
 use hashbrown::HashMap;
+use tensor_types::dtype::Dtype;
 
-use crate::{
-    halide::{
+use crate::halide::{
         prime_expr::PrimeExpr,
         exprs::Int,
         for_stmt::For,
         stmt::Stmt,
         traits::{ IRMutateVisitor, MutatorGetSet },
         variable::Variable,
-    },
-    I64_TYPE,
-};
+    };
 
 pub struct SubstituteForMeta {
     replace: HashMap<(i64, i64, Variable), (i64, i64, Variable)>,
@@ -57,8 +55,8 @@ impl IRMutateVisitor for SubstituteForMeta {
         {
             self.stmt = For::make(
                 new_var,
-                Int::make(I64_TYPE, *new_start),
-                Int::make(I64_TYPE, *new_end),
+                Int::make(Dtype::I64, *new_start),
+                Int::make(Dtype::I64, *new_end),
                 for_stmt.stmt()
             ).into();
         } else {

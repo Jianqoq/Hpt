@@ -49,6 +49,12 @@ impl Into<Variable> for &Variable {
     }
 }
 
+impl Into<Variable> for &str {
+    fn into(self) -> Variable {
+        Variable::new(self.to_string())
+    }
+}
+
 impl Display for Variable {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.name)

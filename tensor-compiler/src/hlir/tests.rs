@@ -2,13 +2,17 @@
 use tensor_common::{ layout::Layout, shape::Shape };
 use tensor_types::dtype::Dtype;
 
-use crate::halide::variable::Variable;
+use crate::{
+    halide::{ exprs::{ Int, Load }, printer::IRPrinter, variable::Variable },
+    registry::{ Closures, MANAGER },
+};
 
 use super::{ expr::Expr, exprs::*, func_type::Type, printer::HlirPrinter };
 
 #[test]
 fn test_build_main() {
-    let mut main = Function::make("main", &[], &Type::make_none(), Expr::None);
+    let args: [Variable; 0] = [];
+    let mut main = Function::make("main", &args, &Type::make_none(), Expr::None);
 
     let a = Tensor::make("a", Shape::new([1, 2, 3]).into(), Dtype::BF16);
 
@@ -20,7 +24,8 @@ fn test_build_main() {
 // this should panic, for loop should always return value
 #[test]
 fn test_for_fail() {
-    let mut main = Function::make("main", &[], &Type::make_none(), Expr::None);
+    let args: [Variable; 0] = [];
+    let mut main = Function::make("main", &args, &Type::make_none(), Expr::None);
 
     let a = Tensor::make("a", Shape::new([1, 2, 3]).into(), Dtype::BF16);
 
@@ -44,7 +49,8 @@ fn test_for_fail() {
 // this should work
 #[test]
 fn test_for() {
-    let mut main = Function::make("main", &[], &Type::make_none(), Expr::None);
+    let args: [Variable; 0] = [];
+    let mut main = Function::make("main", &args, &Type::make_none(), Expr::None);
 
     let a = Tensor::make("a", Shape::new([1, 2, 3]).into(), Dtype::BF16);
 
@@ -66,4 +72,19 @@ fn test_for() {
 
     main.set_body(b);
     HlirPrinter.print(main)
+}
+
+#[test]
+fn test_fusion() {
+    let args: [Variable; 0] = [];
+    let a = Tensor::make("a", Shape::new([1, 8, 8]).into(), Dtype::BF16);
+    let b = Tensor::make("b", Shape::new([1]).into(), Dtype::BF16);
+    let div_op = MANAGER.lock().unwrap().get("div").cloned().unwrap();
+    let a_load = Load::make(
+        a.name(),
+        Int::make(Dtype::I32, 1) + Int::make(Dtype::I32, 2) + Int::make(Dtype::I32, 3)
+    );
+    let b_load = Load::make(b.name(), Int::make(Dtype::I32, 0));
+    let expr = div_op.get_binop_expr(a_load, b_load);
+    IRPrinter.print_expr(expr);
 }

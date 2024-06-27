@@ -1,14 +1,12 @@
 use tensor_common::shape::Shape;
+use tensor_types::dtype::Dtype;
 
 use crate::halide::{
     exprs::Int,
     for_stmt::For,
     stmt::Stmt,
-    r#type::{ HalideirTypeCode, Type },
     variable::Variable,
 };
-
-static INT_TYPE: Type = Type::new(HalideirTypeCode::Int, 64, 1);
 
 pub fn build_nested_for<T: Into<Stmt>>(vars: &[Variable], shape: &Shape, main_stmt: T) -> Stmt {
     fn build_recursive<T: Into<Stmt>>(
@@ -23,8 +21,8 @@ pub fn build_nested_for<T: Into<Stmt>>(vars: &[Variable], shape: &Shape, main_st
             let var = &vars[idx];
             let to_add = For::make(
                 var,
-                Int::make(INT_TYPE, 0),
-                Int::make(INT_TYPE, shape[idx] as i64),
+                Int::make(Dtype::I64, 0),
+                Int::make(Dtype::I64, shape[idx] as i64),
                 build_recursive(idx + 1, vars, shape, main_stmt)
             );
             Stmt::For(to_add)

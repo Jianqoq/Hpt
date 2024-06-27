@@ -21,4 +21,12 @@ impl MutatorGetSet for FuseComputeNode {
     }
 }
 
-impl HlirMutateVisitor for FuseComputeNode {}
+impl HlirMutateVisitor for FuseComputeNode {
+    fn visit_let(&mut self, let_: &crate::hlir::exprs::Let) {
+        let var = let_.var();
+        let value = let_.value();
+        let body = let_.body();
+
+        self.visit_expr(body);
+    }
+}

@@ -2,6 +2,8 @@
 
 use std::sync::Arc;
 
+use tensor_types::dtype::Dtype;
+
 use super::{
     prime_expr::PrimeExpr,
     exprs::{ Int, Load },
@@ -17,18 +19,15 @@ use super::{
     variable::Variable,
 };
 
-#[allow(dead_code)]
-static INT_TYPE: Type = Type::new(HalideirTypeCode::Int, 64, 1);
-
 #[test]
 fn test_halide_expr() {
     let x = Variable::make("x");
-    let start = Int::make(INT_TYPE, 0);
-    let end = Int::make(INT_TYPE, 10);
+    let start = Int::make(Dtype::I64, 0);
+    let end = Int::make(Dtype::I64, 10);
     let y = Variable::make("y");
     let i = Variable::make("i");
     let res = Variable::make("res");
-    let let_stmt = LetStmt::make(&y, &x + Int::make(INT_TYPE, 1));
+    let let_stmt = LetStmt::make(&y, &x + Int::make(Dtype::I64, 1));
     let load = Load::make_from_strides(&Variable::make("a"), &[i.clone(), x.clone()], &[1, 3]);
     let seq = Seq::make([
         let_stmt.clone().into(),
@@ -42,12 +41,12 @@ fn test_halide_expr() {
 #[test]
 fn test_substitue() {
     let x = Variable::make("x");
-    let start = Int::make(INT_TYPE, 0);
-    let end = Int::make(INT_TYPE, 10);
+    let start = Int::make(Dtype::I64, 0);
+    let end = Int::make(Dtype::I64, 10);
     let y = Variable::make("y");
     let i = Variable::make("i");
     let res = Variable::make("res");
-    let let_stmt = LetStmt::make(&y, &x + Int::make(INT_TYPE, 1));
+    let let_stmt = LetStmt::make(&y, &x + Int::make(Dtype::I64, 1));
     let load = Load::make_from_strides(&Variable::make("a"), &[i.clone(), x.clone()], &[1, 3]);
     let seq = Seq::make([
         let_stmt.clone().into(),
@@ -69,11 +68,11 @@ fn test_substitue() {
 fn test_fusion() {
     // loop1
     let x = Variable::make("x");
-    let start = Int::make(INT_TYPE, 0);
-    let end = Int::make(INT_TYPE, 512);
+    let start = Int::make(Dtype::I64, 0);
+    let end = Int::make(Dtype::I64, 512);
     let y = Variable::make("y");
-    let start2 = Int::make(INT_TYPE, 0);
-    let end2 = Int::make(INT_TYPE, 1);
+    let start2 = Int::make(Dtype::I64, 0);
+    let end2 = Int::make(Dtype::I64, 1);
     let res1 = Variable::make("res1");
     let load = Load::make_from_strides(&Variable::make("a"), &[x.clone(), y.clone()], &[1, 3]);
     let for_loop = For::make(
@@ -87,11 +86,11 @@ fn test_fusion() {
 
     // loop2
     let z = Variable::make("z");
-    let start = Int::make(INT_TYPE, 0);
-    let end = Int::make(INT_TYPE, 512);
+    let start = Int::make(Dtype::I64, 0);
+    let end = Int::make(Dtype::I64, 512);
     let w = Variable::make("w");
-    let start2 = Int::make(INT_TYPE, 0);
-    let end2 = Int::make(INT_TYPE, 1);
+    let start2 = Int::make(Dtype::I64, 0);
+    let end2 = Int::make(Dtype::I64, 1);
     let res2 = Variable::make("res2");
     let load = Load::make_from_strides(&Variable::make("a"), &[z.clone(), w.clone()], &[1, 3]);
     let for_loop = For::make(

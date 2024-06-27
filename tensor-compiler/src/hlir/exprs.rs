@@ -3,7 +3,11 @@ use std::{ fmt::Display, sync::Arc };
 use tensor_common::{ layout::Layout, shape::Shape };
 use tensor_types::dtype::Dtype;
 
-use crate::{ halide::{prime_expr::PrimeExpr, variable::Variable}, op::OpType };
+use crate::{
+    halide::{ prime_expr::PrimeExpr, variable::Variable },
+    op::OpType,
+    registry::Closures,
+};
 
 use super::{
     _value::_Value,
@@ -196,7 +200,7 @@ macro_rules! impl_binop {
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct OpNode {
-    name: Arc<String>,
+    name: Variable,
     args: Option<
         Arc<Vec<(String /* arg name */, String /* arg type */, String /* arg description */)>>
     >,
@@ -207,9 +211,9 @@ pub struct OpNode {
 }
 
 impl OpNode {
-    pub fn new<T: Into<String>>(name: T) -> Self {
+    pub fn new<T: Into<Variable>>(name: T) -> Self {
         Self {
-            name: Arc::new(name.into()),
+            name: name.into(),
             args: None,
             registry_idx: 0,
             num_inputs: 0,
@@ -217,8 +221,11 @@ impl OpNode {
             op_type: OpType::Opaque,
         }
     }
-    pub fn name(&self) -> &str {
+    pub fn var(&self) -> &Variable {
         &self.name
+    }
+    pub fn name(&self) -> &str {
+        &self.name.name
     }
     pub fn registry_idx(&self) -> usize {
         self.registry_idx
@@ -613,18 +620,22 @@ impl Display for Let {
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct Tensor {
-    name: Arc<String>,
+    name: Variable,
     shape: Shape,
     dtype: Dtype,
 }
 
 impl Tensor {
-    pub fn make<T: Into<String>>(name: T, layout: Shape, dtype: Dtype) -> Self {
+    pub fn make<T: IntoVar>(name: T, layout: Shape, dtype: Dtype) -> Self {
         Self {
-            name: Arc::new(name.into()),
+            name: name.into_var(),
             shape: layout,
             dtype,
         }
+    }
+
+    pub fn name(&self) -> &Variable {
+        &self.name
     }
 }
 
@@ -637,44 +648,32 @@ impl Display for Tensor {
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct ComputeNode {
     name: Variable,
-    shape: Arc<Vec<PrimeExpr>>,
-    strides: Arc<Vec<PrimeExpr>>,
+    compute_expr: PrimeExpr,
     ndim: usize,
 }
 
 impl ComputeNode {
-    pub fn make<T: IntoVar, U: IntoIterator<Item: Into<PrimeExpr>>>(
-        name: T,
-        shape: U,
-        strides: U,
-        ndim: usize
-    ) -> Self {
+    pub fn make<T: Into<Variable>>(name: T, compute_expr: PrimeExpr, ndim: usize) -> Self {
         Self {
-            name: name.into_var(),
-            shape: shape
-                .into_iter()
-                .map(|x| x.into())
-                .collect::<Vec<PrimeExpr>>()
-                .into(),
-            strides: strides
-                .into_iter()
-                .map(|x| x.into())
-                .collect::<Vec<PrimeExpr>>()
-                .into(),
+            name: name.into(),
+            compute_expr,
             ndim,
         }
+    }
+    pub fn name(&self) -> &Variable {
+        &self.name
+    }
+    pub fn compute_expr(&self) -> &PrimeExpr {
+        &self.compute_expr
+    }
+    pub fn ndim(&self) -> usize {
+        self.ndim
     }
 }
 
 impl Display for ComputeNode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "ComputeNode({}, shape={:?}, strides={:?})",
-            self.name,
-            self.shape,
-            self.strides
-        )
+        write!(f, "ComputeNode({}, compute_expr={})", self.name, self.compute_expr)
     }
 }
 
@@ -863,7 +862,7 @@ pub struct Function {
 }
 
 impl Function {
-    pub fn make<T: Into<String>, U: IntoIterator<Item: Into<Variable>>, W: Into<Expr>>(
+    pub fn make<T: Into<String>, U: IntoIterator<Item: IntoVar>, W: Into<Expr>>(
         name: T,
         args: U,
         return_type: &Type,
@@ -874,7 +873,7 @@ impl Function {
             name: Arc::new(name.into()),
             args: args
                 .into_iter()
-                .map(|x| x.into().into())
+                .map(|x| x.into_var())
                 .collect::<Vec<Variable>>()
                 .into(),
             return_type: ret_type.into(),
@@ -962,6 +961,55 @@ impl Display for Slice {
     }
 }
 
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
+pub struct CommonReduce {
+    value: Arc<Expr>,
+    axes: Arc<Vec<Expr>>,
+    closure: Closures,
+}
+
+impl CommonReduce {
+    pub fn make<T: Into<Expr>, U: IntoIterator<Item: Into<Expr>>>(
+        value: T,
+        axes: U,
+        closure: Closures
+    ) -> Self {
+        Self {
+            value: value.into().into(),
+            axes: axes
+                .into_iter()
+                .map(|x| x.into().into())
+                .collect::<Vec<Expr>>()
+                .into(),
+            closure,
+        }
+    }
+    pub fn value(&self) -> &Expr {
+        &self.value
+    }
+    pub fn axes(&self) -> &[Expr] {
+        &self.axes
+    }
+    pub fn closure(&self) -> &Closures {
+        &self.closure
+    }
+}
+
+impl Display for CommonReduce {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}[{}]",
+            self.value,
+            self.axes
+                .iter()
+                .map(|x| format!("{}", x))
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
+    }
+}
+
 macro_rules! impl_into_expr {
     ($struct:ident) => {
         impl Into<Expr> for $struct {
@@ -1013,6 +1061,7 @@ impl_into_expr!(TensorType);
 impl_into_expr!(Slice);
 impl_into_expr!(OpNode);
 impl_into_expr!(ComputeNode);
+impl_into_expr!(CommonReduce);
 
 impl_binop!(Add, visit_add);
 impl_binop!(Sub, visit_sub);
@@ -1040,6 +1089,12 @@ impl IntoVar for Variable {
 impl IntoVar for &Variable {
     fn into_var(self) -> Variable {
         self.clone()
+    }
+}
+
+impl IntoVar for &[Variable] {
+    fn into_var(self) -> Variable {
+        Variable::make("")
     }
 }
 

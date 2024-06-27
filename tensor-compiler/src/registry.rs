@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use hashbrown::HashMap;
 use lazy_static::lazy_static;
 
-use crate::{ hlir::{ expr::Expr, exprs::{ Call, OpNode } }, op::OpType };
+use crate::{ halide::{ exprs::Call, prime_expr::PrimeExpr }, hlir::exprs::OpNode, op::OpType };
 
 pub(crate) fn add_binop(registory: &mut AttrRegistry, name: &str) {
     let op_node = registory.register_or_get(name);
@@ -20,13 +20,35 @@ pub(crate) fn add_unop(registry: &mut AttrRegistry, name: &str) {
     op_node.set_op_type(OpType::OneToOne);
 }
 
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub enum Closures {
-    Binop(fn(Expr, Expr) -> Call),
-    Unop(fn(Expr) -> Call),
+    Binop(fn(PrimeExpr, PrimeExpr) -> Call),
+    Unop(fn(PrimeExpr) -> Call),
+}
+
+impl Closures {
+    pub fn get_binop_expr<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(&self, lhs: A, rhs: B) -> Call {
+        match self {
+            Closures::Binop(f) => f(lhs.into(), rhs.into()),
+            _ => panic!("not binop"),
+        }
+    }
+    pub fn get_unop_expr(&self, lhs: PrimeExpr) -> Call {
+        match self {
+            Closures::Unop(f) => f(lhs),
+            _ => panic!("not unop"),
+        }
+    }
 }
 
 pub struct Manager {
     map: HashMap<String, Closures>,
+}
+
+impl Manager {
+    pub fn get(&self, name: &str) -> Option<&Closures> {
+        self.map.get(name)
+    }
 }
 
 pub struct AttrRegistry {
@@ -40,7 +62,7 @@ impl AttrRegistry {
 }
 
 lazy_static! {
-    static ref REGISTRY: Mutex<AttrRegistry> = {
+    pub static ref REGISTRY: Mutex<AttrRegistry> = {
         let mut ret = AttrRegistry {
             map: HashMap::new(),
         };
@@ -93,7 +115,7 @@ macro_rules! binop {
         $ret.map.insert(stringify!($op_name).to_string(), Closures::Binop(|lhs, rhs| {
             let locked = REGISTRY.lock().unwrap();
             let op = locked.map.get(stringify!($op_name)).unwrap();
-            Call::make(op.as_ref().clone(), &[lhs, rhs])
+            Call::make(op.name(), &[lhs, rhs])
         }));
     };
 }
@@ -103,13 +125,13 @@ macro_rules! unop {
         $ret.map.insert(stringify!($op_name).to_string(), Closures::Unop(|lhs| {
             let locked = REGISTRY.lock().unwrap();
             let op = locked.map.get(stringify!($op_name)).unwrap();
-            Call::make(op.as_ref().clone(), &[lhs])
+            Call::make(op.name(), &[lhs])
         }));
     };
 }
 
 lazy_static! {
-    static ref MANAGER: Mutex<Manager> = {
+    pub static ref MANAGER: Mutex<Manager> = {
         let mut ret = Manager {
             map: HashMap::new(),
         };
