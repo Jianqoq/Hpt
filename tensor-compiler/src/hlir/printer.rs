@@ -109,6 +109,10 @@ impl _HlirPrinter {
                     print!("}}");
                 }
             }
+            Expr::OpNode(a) => {
+                self.do_indent();
+                println!("{}", a);
+            }
             Expr::Add(a) => {
                 self.do_indent();
                 println!("{}", a);

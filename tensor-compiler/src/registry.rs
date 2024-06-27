@@ -91,7 +91,9 @@ lazy_static! {
 macro_rules! binop {
     ($ret:ident, $op_name:ident) => {
         $ret.map.insert(stringify!($op_name).to_string(), Closures::Binop(|lhs, rhs| {
-            Call::make(stringify!($op_name), &[lhs, rhs])
+            let locked = REGISTRY.lock().unwrap();
+            let op = locked.map.get(stringify!($op_name)).unwrap();
+            Call::make(op.as_ref().clone(), &[lhs, rhs])
         }));
     };
 }
@@ -99,7 +101,9 @@ macro_rules! binop {
 macro_rules! unop {
     ($ret:ident, $op_name:ident) => {
         $ret.map.insert(stringify!($op_name).to_string(), Closures::Unop(|lhs| {
-            Call::make(stringify!($op_name), &[lhs])
+            let locked = REGISTRY.lock().unwrap();
+            let op = locked.map.get(stringify!($op_name)).unwrap();
+            Call::make(op.as_ref().clone(), &[lhs])
         }));
     };
 }

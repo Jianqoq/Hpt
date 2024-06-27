@@ -20,6 +20,7 @@ pub enum Expr {
     Type(Type),
     Tensor(Tensor),
     TensorType(TensorType),
+    OpNode(OpNode),
     Cast(Cast),
     Add(Add),
     Sub(Sub),
@@ -111,6 +112,7 @@ impl Expr {
             Expr::Type(a) => a.to_string(),
             Expr::TensorType(a) => a.to_string(),
             Expr::Slice(a) => a.to_string(),
+            Expr::OpNode(a) => a.to_string(),
             Expr::None => "".to_string(),
         };
         if prec < parent_prec {

@@ -1,6 +1,5 @@
-use std::{ fmt::Display, sync::{ Arc, Mutex } };
+use std::{ fmt::Display, sync::Arc };
 
-use hashbrown::HashMap;
 use tensor_common::layout::Layout;
 use tensor_types::dtype::Dtype;
 
@@ -277,6 +276,12 @@ impl OpNode {
     }
 }
 
+impl Display for OpNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "OpNode({})", self.name)
+    }
+}
+
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct Add {
     lhs: Arc<Expr>,
@@ -494,14 +499,14 @@ impl Display for Not {
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct Call {
-    name: Arc<String>,
+    op: Arc<Expr>,
     args: Arc<Vec<Expr>>,
 }
 
 impl Call {
-    pub fn make<T: Into<String>, U: IntoIterator<Item: Into<Expr>>>(name: T, args: U) -> Self {
+    pub fn make<T: Into<Expr>, U: IntoIterator<Item: Into<Expr>>>(name: T, args: U) -> Self {
         Self {
-            name: Arc::new(name.into()),
+            op: Arc::new(name.into()),
             args: args
                 .into_iter()
                 .map(|x| x.into().into())
@@ -509,8 +514,8 @@ impl Call {
                 .into(),
         }
     }
-    pub fn name(&self) -> &str {
-        &self.name
+    pub fn name(&self) -> &Expr {
+        &self.op
     }
     pub fn args(&self) -> &[Expr] {
         &self.args
@@ -522,7 +527,7 @@ impl Display for Call {
         write!(
             f,
             "{}({})",
-            self.name,
+            self.op,
             self.args
                 .iter()
                 .map(|x| format!("{}", x))
@@ -997,6 +1002,7 @@ impl_into_expr!(Function);
 impl_into_expr!(Tuple);
 impl_into_expr!(TensorType);
 impl_into_expr!(Slice);
+impl_into_expr!(OpNode);
 
 impl_binop!(Add, visit_add);
 impl_binop!(Sub, visit_sub);
