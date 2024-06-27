@@ -647,33 +647,33 @@ impl Display for Tensor {
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct ComputeNode {
-    name: Variable,
     compute_expr: PrimeExpr,
-    ndim: usize,
 }
 
 impl ComputeNode {
-    pub fn make<T: Into<Variable>>(name: T, compute_expr: PrimeExpr, ndim: usize) -> Self {
+    pub fn make(compute_expr: PrimeExpr) -> Self {
         Self {
-            name: name.into(),
             compute_expr,
-            ndim,
         }
     }
-    pub fn name(&self) -> &Variable {
-        &self.name
+    pub fn make_binop<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(
+        func: Closures,
+        lhs: A,
+        rhs: B
+    ) -> Self {
+        let expr = func.get_binop_expr(lhs, rhs);
+        Self {
+            compute_expr: expr.into(),
+        }
     }
     pub fn compute_expr(&self) -> &PrimeExpr {
         &self.compute_expr
-    }
-    pub fn ndim(&self) -> usize {
-        self.ndim
     }
 }
 
 impl Display for ComputeNode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "ComputeNode({}, compute_expr={})", self.name, self.compute_expr)
+        write!(f, "{}", self.compute_expr)
     }
 }
 

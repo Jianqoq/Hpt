@@ -84,6 +84,6 @@ fn test_fusion() {
         [Int::make(Dtype::I32, 1), Int::make(Dtype::I32, 2), Int::make(Dtype::I32, 3)]
     );
     let b_load = Load::make(b.name(), [Int::make(Dtype::I32, 0)]);
-    let expr = div_op.get_binop_expr(a_load, b_load);
-    IRPrinter.print_expr(expr);
+    let expr = ComputeNode::make_binop(div_op, a_load, b_load);
+    println!("{}", expr);
 }

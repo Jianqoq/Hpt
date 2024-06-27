@@ -26,6 +26,11 @@ pub enum Closures {
     Unop(fn(PrimeExpr) -> Call),
 }
 
+pub enum ClosuresType {
+    Binop,
+    Unop,
+}
+
 impl Closures {
     pub fn get_binop_expr<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(&self, lhs: A, rhs: B) -> Call {
         match self {
