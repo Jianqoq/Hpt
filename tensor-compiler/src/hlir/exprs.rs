@@ -223,6 +223,7 @@ macro_rules! impl_binop {
     };
 }
 
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct OpNode {
     name: Arc<String>,
     args: Option<

@@ -314,6 +314,7 @@ impl Serialize for Op {
     }
 }
 
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub enum OpType {
     OneToMany,
     OneToOne,
