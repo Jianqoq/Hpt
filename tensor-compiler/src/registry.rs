@@ -13,6 +13,13 @@ pub(crate) fn add_binop(registory: &mut AttrRegistry, name: &str) {
     op_node.set_op_type(OpType::OneToMany);
 }
 
+pub(crate) fn add_unop(registry: &mut AttrRegistry, name: &str) {
+    let op_node = registry.register_or_get(name);
+    op_node.set_num_inputs(1);
+    op_node.add_argument("lhs", "Tensor", "");
+    op_node.set_op_type(OpType::OneToOne);
+}
+
 pub enum Closures {
     Binop(fn(Expr, Expr) -> Call),
     Unop(fn(Expr) -> Call),
@@ -56,6 +63,27 @@ lazy_static! {
         add_binop(&mut ret, "le");
         add_binop(&mut ret, "gt");
         add_binop(&mut ret, "ge");
+        add_unop(&mut ret, "not");
+        add_unop(&mut ret, "neg");
+        add_unop(&mut ret, "abs");
+        add_unop(&mut ret, "sqrt");
+        add_unop(&mut ret, "exp");
+        add_unop(&mut ret, "log");
+        add_unop(&mut ret, "log2");
+        add_unop(&mut ret, "log10");
+        add_unop(&mut ret, "sin");
+        add_unop(&mut ret, "cos");
+        add_unop(&mut ret, "tan");
+        add_unop(&mut ret, "asin");
+        add_unop(&mut ret, "acos");
+        add_unop(&mut ret, "atan");
+        add_unop(&mut ret, "sinh");
+        add_unop(&mut ret, "cosh");
+        add_unop(&mut ret, "tanh");
+        add_unop(&mut ret, "asinh");
+        add_unop(&mut ret, "acosh");
+        add_unop(&mut ret, "atanh");
+
         ret.into()
     };
 }
