@@ -313,3 +313,11 @@ impl Serialize for Op {
         }
     }
 }
+
+pub enum OpType {
+    OneToMany,
+    OneToOne,
+    ManyToOne,
+    ManyToMany,
+    Opaque
+}

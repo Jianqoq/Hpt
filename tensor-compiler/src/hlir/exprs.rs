@@ -1,8 +1,10 @@
-use std::{ fmt::Display, sync::{Arc, Mutex} };
+use std::{ fmt::Display, sync::{ Arc, Mutex } };
 
 use hashbrown::HashMap;
 use tensor_common::layout::Layout;
 use tensor_types::dtype::Dtype;
+
+use crate::op::OpType;
 
 use super::{
     _value::_Value,
@@ -223,8 +225,13 @@ macro_rules! impl_binop {
 
 pub struct OpNode {
     name: Arc<String>,
-    args: Option<Arc<Vec<Expr>>>,
+    args: Option<
+        Arc<Vec<(String /* arg name */, String /* arg type */, String /* arg description */)>>
+    >,
+    num_inputs: i64,
+    fn_type: Arc<Type>,
     registry_idx: usize,
+    op_type: OpType,
 }
 
 impl OpNode {
@@ -233,6 +240,9 @@ impl OpNode {
             name: Arc::new(name.into()),
             args: None,
             registry_idx: 0,
+            num_inputs: 0,
+            fn_type: Arc::new(Type::None),
+            op_type: OpType::Opaque,
         }
     }
     pub fn name(&self) -> &str {
@@ -244,16 +254,26 @@ impl OpNode {
     pub fn set_registry_idx(&mut self, idx: usize) {
         self.registry_idx = idx;
     }
-    pub fn set_args<T: IntoIterator<Item: Into<Expr>>>(&mut self, args: T) {
-        self.args = Some(
-            args
-                .into_iter()
-                .map(|x| x.into().into())
-                .collect::<Vec<Expr>>()
-                .into()
-        );
+
+    pub fn set_num_inputs(&mut self, num_inputs: i64) {
+        self.num_inputs = num_inputs;
+    }
+    pub fn add_argument<A: Into<String>, B: Into<String>, C: Into<String>>(
+        &mut self,
+        arg_name: A,
+        arg_type: B,
+        arg_desc: C
+    ) {
+        if let Some(args) = self.args.as_mut() {
+            Arc::make_mut(args).push((arg_name.into(), arg_type.into(), arg_desc.into()));
+        } else {
+            self.args = Some(vec![(arg_name.into(), arg_type.into(), arg_desc.into())].into());
+        }
     }
 
+    pub fn set_op_type(&mut self, op_type: OpType) {
+        self.op_type = op_type;
+    }
 }
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
@@ -484,7 +504,8 @@ impl Call {
             args: args
                 .into_iter()
                 .map(|x| x.into().into())
-                .collect::<Vec<Expr>>().into(),
+                .collect::<Vec<Expr>>()
+                .into(),
         }
     }
     pub fn name(&self) -> &str {
@@ -890,11 +911,7 @@ pub struct Slice {
 }
 
 impl Slice {
-    pub fn make<T: IntoVar, U, A, B, C>(
-        var: T,
-        selections: U
-    )
-        -> Self
+    pub fn make<T: IntoVar, U, A, B, C>(var: T, selections: U) -> Self
         where A: Into<Expr>, B: Into<Expr>, C: Into<Expr>, U: IntoIterator<Item = (A, B, C)>
     {
         Self {
