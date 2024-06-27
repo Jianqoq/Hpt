@@ -21,11 +21,6 @@ pub struct Manager {
     map: HashMap<String, Closures>,
 }
 
-pub struct Registry<F> {
-    name: String,
-    f: F,
-}
-
 pub struct AttrRegistry {
     map: HashMap<String, Box<OpNode>>,
 }
@@ -33,15 +28,6 @@ pub struct AttrRegistry {
 impl AttrRegistry {
     pub fn register_or_get(&mut self, name: &str) -> &mut OpNode {
         self.map.entry(name.to_string()).or_insert_with(|| Box::new(OpNode::new(name)))
-    }
-}
-
-impl<F> Registry<F> {
-    pub fn new<T: Into<String>>(name: T, f: F) -> Self {
-        Self {
-            name: name.into(),
-            f,
-        }
     }
 }
 
@@ -74,7 +60,7 @@ lazy_static! {
 }
 
 macro_rules! binop {
-    ($ret: ident, $op_name:ident) => {
+    ($ret:ident, $op_name:ident) => {
         $ret.map.insert(stringify!($op_name).to_string(), Closures::Binop(|lhs, rhs| {
             Call::make(stringify!($op_name), &[lhs, rhs])
         }));
