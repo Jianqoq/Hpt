@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use crate::halide::variable::Variable;
+
 use super::{
     exprs::*, func_type::Type, traits::{
         HlirAccepterMut,

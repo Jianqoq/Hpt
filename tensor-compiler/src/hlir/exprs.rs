@@ -3,7 +3,7 @@ use std::{ fmt::Display, sync::Arc };
 use tensor_common::{ layout::Layout, shape::Shape };
 use tensor_types::dtype::Dtype;
 
-use crate::{ halide::prime_expr::PrimeExpr, op::OpType };
+use crate::{ halide::{prime_expr::PrimeExpr, variable::Variable}, op::OpType };
 
 use super::{
     _value::_Value,
@@ -115,22 +115,6 @@ impl Display for Str {
     }
 }
 
-#[derive(Clone, PartialEq, Hash, Eq, Debug)]
-pub struct Variable {
-    value: Arc<String>,
-}
-
-impl Variable {
-    pub fn make(value: &str) -> Self {
-        Self {
-            value: Arc::new(value.into()),
-        }
-    }
-    pub fn value(&self) -> &str {
-        &self.value
-    }
-}
-
 impl HlirAcceptor for Variable {
     fn accept<V: HlirVisitor>(&self, visitor: &V) {
         visitor.visit_variable(self);
@@ -146,18 +130,6 @@ impl HlirAccepterMut for Variable {
 impl HlirAccepterMutate for Variable {
     fn accept_mutate<V: HlirMutateVisitor>(&self, visitor: &mut V) {
         visitor.visit_variable(self);
-    }
-}
-
-impl From<&Variable> for Variable {
-    fn from(v: &Variable) -> Self {
-        Self { value: v.value.clone() }
-    }
-}
-
-impl Display for Variable {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.value)
     }
 }
 

@@ -2,6 +2,8 @@
 use tensor_common::{ layout::Layout, shape::Shape };
 use tensor_types::dtype::Dtype;
 
+use crate::halide::variable::Variable;
+
 use super::{ expr::Expr, exprs::*, func_type::Type, printer::HlirPrinter };
 
 #[test]

@@ -29,6 +29,9 @@ pub mod halide {
 }
 
 pub mod hlir {
+    pub mod substitute {
+        pub mod fuse_cmp;
+    }
     pub mod _value;
     pub mod expr;
     pub mod traits;

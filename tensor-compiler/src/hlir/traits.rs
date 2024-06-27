@@ -1,3 +1,5 @@
+use crate::halide::variable::Variable;
+
 use super::{ exprs::*, expr::Expr };
 
 pub trait HlirAcceptor {

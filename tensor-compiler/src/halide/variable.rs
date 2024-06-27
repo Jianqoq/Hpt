@@ -1,12 +1,12 @@
 use std::{fmt::Display, sync::Arc};
 
 use super::{
-    prime_expr::PrimeExpr, exprs::{Add, Int, Mul}, traits::{IRMutVisitor, IRMutateVisitor, IRVisitor}
+    exprs::{Add, Int, Mul}, prime_expr::PrimeExpr, traits::{Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor}
 };
 
 #[derive(Clone, PartialEq, Hash, Eq, Debug)]
 pub struct Variable {
-    name: Arc<String>,
+    pub(crate) name: Arc<String>,
 }
 
 impl Variable {
@@ -23,16 +23,22 @@ impl Variable {
     pub fn make(name: &str) -> Self {
         Variable::new(name.to_string())
     }
+}
 
-    pub fn accept<V: IRVisitor>(&self, visitor: &V) {
+impl Accepter for Variable {
+    fn accept<V: IRVisitor>(&self, visitor: &V) {
         visitor.visit_variable(self);
     }
+}
 
-    pub fn accept_mutate<V: IRMutateVisitor>(&self, visitor: &mut V) {
+impl AccepterMut for Variable {
+    fn accept_mut<V: IRMutVisitor>(&self, visitor: &mut V) {
         visitor.visit_variable(self);
     }
+}
 
-    pub fn accept_mut<V: IRMutVisitor>(&self, visitor: &mut V) {
+impl AccepterMutate for Variable {
+    fn accept_mutate<V: IRMutateVisitor>(&self, visitor: &mut V) {
         visitor.visit_variable(self);
     }
 }
