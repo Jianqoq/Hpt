@@ -13,6 +13,14 @@ pub(crate) fn add_binop(registory: &mut AttrRegistry, name: &str) {
     op_node.set_op_type(OpType::OneToMany);
 }
 
+pub enum Closures {
+    Binop(fn(Expr, Expr) -> Call),
+}
+
+pub struct Manager {
+    map: HashMap<String, Closures>,
+}
+
 pub struct Registry<F> {
     name: String,
     f: F,
@@ -66,31 +74,41 @@ lazy_static! {
 }
 
 macro_rules! binop {
-    ($var_name:ident, $op_name:ident) => {
-        lazy_static! {
-            static ref $var_name: Registry<fn(Expr, Expr) -> Call> = Registry::new(stringify!($op_name), |lhs, rhs| {
-                Call::make(stringify!($op_name), &[lhs, rhs])
-            });
-        }
+    ($ret: ident, $op_name:ident) => {
+        $ret.map.insert(stringify!($op_name).to_string(), Closures::Binop(|lhs, rhs| {
+            Call::make(stringify!($op_name), &[lhs, rhs])
+        }));
     };
 }
 
-binop!(REGISTRY_0, add);
-binop!(REGISTRY_1, sub);
-binop!(REGISTRY_2, mul);
-binop!(REGISTRY_3, div);
-binop!(REGISTRY_4, mod);
-binop!(REGISTRY_5, left_shift);
-binop!(REGISTRY_6, right_shift);
-binop!(REGISTRY_7, and);
-binop!(REGISTRY_8, or);
-binop!(REGISTRY_9, xor);
-binop!(REGISTRY_10, max);
-binop!(REGISTRY_11, min);
-binop!(REGISTRY_12, power);
-binop!(REGISTRY_13, eq);
-binop!(REGISTRY_14, ne);
-binop!(REGISTRY_15, lt);
-binop!(REGISTRY_16, le);
-binop!(REGISTRY_17, gt);
-binop!(REGISTRY_18, ge);
+lazy_static! {
+    static ref MANAGER: Mutex<Manager> = {
+        let mut ret = Manager {
+            map: HashMap::new(),
+        };
+        binop!(ret, add);
+        binop!(ret, sub);
+        binop!(ret, mul);
+        binop!(ret, div);
+        binop!(ret, mod);
+        binop!(ret, left_shift);
+        binop!(ret, right_shift);
+        binop!(ret, and);
+        binop!(ret, or);
+        binop!(ret, xor);
+        binop!(ret, max);
+        binop!(ret, min);
+        binop!(ret, power);
+        binop!(ret, eq);
+        binop!(ret, ne);
+        binop!(ret, lt);
+        binop!(ret, le);
+        binop!(ret, gt);
+        binop!(ret, ge);
+        ret.into()
+    };
+}
+
+pub trait Callable {
+    fn call(&self);
+}
