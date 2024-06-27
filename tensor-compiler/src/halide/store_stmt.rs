@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::{
-    expr::Expr,
+    prime_expr::PrimeExpr,
     exprs::Int,
     stmt::Stmt,
     traits::{ IRMutVisitor, IRMutateVisitor, IRVisitor },
@@ -13,8 +13,8 @@ use crate::halide::traits::{ Accepter, AccepterMut };
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct StoreStmt {
     var: Variable,
-    indices: Arc<Expr>,
-    val: Arc<Expr>,
+    indices: Arc<PrimeExpr>,
+    val: Arc<PrimeExpr>,
 }
 
 impl StoreStmt {
@@ -22,15 +22,15 @@ impl StoreStmt {
         &self.var
     }
 
-    pub fn indices(&self) -> &Expr {
+    pub fn indices(&self) -> &PrimeExpr {
         &self.indices
     }
 
-    pub fn val(&self) -> &Expr {
+    pub fn val(&self) -> &PrimeExpr {
         &self.val
     }
 
-    pub fn make_from_strides<T: Into<Expr>>(
+    pub fn make_from_strides<T: Into<PrimeExpr>>(
         var: &Variable,
         indices: &[&Variable],
         strides: &[i64],
@@ -54,7 +54,7 @@ impl StoreStmt {
         }
     }
 
-    pub fn make<T: Into<Expr>>(var: &Variable, indices: T, e2: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(var: &Variable, indices: T, e2: T) -> Self {
         StoreStmt {
             var: var.clone(),
             indices: indices.into().into(),

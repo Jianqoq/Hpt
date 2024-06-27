@@ -1,16 +1,16 @@
 use std::{ fmt::{ Display, Formatter }, sync::Arc };
 
-use super::{ expr::Expr, stmt::Stmt, traits::{ IRMutVisitor, IRMutateVisitor, IRVisitor } };
+use super::{ prime_expr::PrimeExpr, stmt::Stmt, traits::{ IRMutVisitor, IRMutateVisitor, IRVisitor } };
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct IfThenElse {
-    cond: Expr,
+    cond: PrimeExpr,
     then_case: Arc<Stmt>,
     else_case: Arc<Stmt>,
 }
 
 impl IfThenElse {
-    pub fn make<T: Into<Expr>, U: Into<Stmt>, V: Into<Stmt>>(
+    pub fn make<T: Into<PrimeExpr>, U: Into<Stmt>, V: Into<Stmt>>(
         cond: T,
         then_case: U,
         else_case: V
@@ -34,7 +34,7 @@ impl IfThenElse {
         visitor.visit_if_then_else(self);
     }
 
-    pub fn cond(&self) -> &Expr {
+    pub fn cond(&self) -> &PrimeExpr {
         &self.cond
     }
 

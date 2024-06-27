@@ -1,33 +1,33 @@
 use std::{ fmt::Display, sync::Arc };
 
-use super::{ expr::Expr, stmt::Stmt, traits::{ IRMutVisitor, IRMutateVisitor, IRVisitor } };
+use super::{ prime_expr::PrimeExpr, stmt::Stmt, traits::{ IRMutVisitor, IRMutateVisitor, IRVisitor } };
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct InplaceStore {
-    to_store: Arc<Expr>,
-    val: Arc<Expr>,
+    to_store: Arc<PrimeExpr>,
+    val: Arc<PrimeExpr>,
 }
 
 impl InplaceStore {
-    pub fn make<T: Into<Expr>>(to_store: T, val: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(to_store: T, val: T) -> Self {
         InplaceStore {
             to_store: to_store.into().into(),
             val: val.into().into(),
         }
     }
 
-    pub fn new<T: Into<Expr>>(to_store: T, val: T) -> Self {
+    pub fn new<T: Into<PrimeExpr>>(to_store: T, val: T) -> Self {
         InplaceStore {
             to_store: to_store.into().into(),
             val: val.into().into(),
         }
     }
 
-    pub fn to_store(&self) -> &Expr {
+    pub fn to_store(&self) -> &PrimeExpr {
         &self.to_store
     }
 
-    pub fn val(&self) -> &Expr {
+    pub fn val(&self) -> &PrimeExpr {
         &self.val
     }
 
@@ -64,30 +64,30 @@ impl Display for InplaceStore {
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct InplaceAdd {
-    to_store: Arc<Expr>,
-    val: Arc<Expr>,
+    to_store: Arc<PrimeExpr>,
+    val: Arc<PrimeExpr>,
 }
 
 impl InplaceAdd {
-    pub fn make<T: Into<Expr>>(to_store: T, val: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(to_store: T, val: T) -> Self {
         InplaceAdd {
             to_store: to_store.into().into(),
             val: val.into().into(),
         }
     }
 
-    pub fn new<T: Into<Expr>>(to_store: T, val: T) -> Self {
+    pub fn new<T: Into<PrimeExpr>>(to_store: T, val: T) -> Self {
         InplaceAdd {
             to_store: to_store.into().into(),
             val: val.into().into(),
         }
     }
 
-    pub fn to_store(&self) -> &Expr {
+    pub fn to_store(&self) -> &PrimeExpr {
         &self.to_store
     }
 
-    pub fn val(&self) -> &Expr {
+    pub fn val(&self) -> &PrimeExpr {
         &self.val
     }
 
@@ -124,23 +124,23 @@ impl Display for InplaceAdd {
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct InplaceSub {
-    to_store: Arc<Expr>,
-    val: Arc<Expr>,
+    to_store: Arc<PrimeExpr>,
+    val: Arc<PrimeExpr>,
 }
 
 impl InplaceSub {
-    pub fn make<T: Into<Expr>>(to_store: T, val: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(to_store: T, val: T) -> Self {
         InplaceSub {
             to_store: to_store.into().into(),
             val: val.into().into(),
         }
     }
 
-    pub fn to_store(&self) -> &Expr {
+    pub fn to_store(&self) -> &PrimeExpr {
         &self.to_store
     }
 
-    pub fn val(&self) -> &Expr {
+    pub fn val(&self) -> &PrimeExpr {
         &self.val
     }
 
@@ -177,23 +177,23 @@ impl Display for InplaceSub {
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct InplaceMul {
-    to_store: Arc<Expr>,
-    val: Arc<Expr>,
+    to_store: Arc<PrimeExpr>,
+    val: Arc<PrimeExpr>,
 }
 
 impl InplaceMul {
-    pub fn make<T: Into<Expr>>(to_store: T, val: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(to_store: T, val: T) -> Self {
         InplaceMul {
             to_store: to_store.into().into(),
             val: val.into().into(),
         }
     }
 
-    pub fn to_store(&self) -> &Expr {
+    pub fn to_store(&self) -> &PrimeExpr {
         &self.to_store
     }
 
-    pub fn val(&self) -> &Expr {
+    pub fn val(&self) -> &PrimeExpr {
         &self.val
     }
 
@@ -230,23 +230,23 @@ impl Display for InplaceMul {
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct InplaceDiv {
-    to_store: Arc<Expr>,
-    val: Arc<Expr>,
+    to_store: Arc<PrimeExpr>,
+    val: Arc<PrimeExpr>,
 }
 
 impl InplaceDiv {
-    pub fn make<A: Into<Expr>, B: Into<Expr>>(to_store: A, val: B) -> Self {
+    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(to_store: A, val: B) -> Self {
         InplaceDiv {
             to_store: to_store.into().into(),
             val: val.into().into(),
         }
     }
 
-    pub fn to_store(&self) -> &Expr {
+    pub fn to_store(&self) -> &PrimeExpr {
         &self.to_store
     }
 
-    pub fn val(&self) -> &Expr {
+    pub fn val(&self) -> &PrimeExpr {
         &self.val
     }
 

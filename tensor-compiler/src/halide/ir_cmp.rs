@@ -3,7 +3,7 @@
 use std::hash::{ BuildHasher, Hash, Hasher };
 
 use super::{
-    expr::Expr,
+    prime_expr::PrimeExpr,
     exprs::{ Cast, Float, Int, Str, UInt },
     r#type::Type,
     stmt::Stmt,
@@ -21,7 +21,7 @@ enum CmpResult {
 
 struct IRComparator {
     result: CmpResult,
-    expr_: Expr,
+    expr_: PrimeExpr,
     stmt_: Stmt,
 }
 
@@ -29,7 +29,7 @@ impl IRComparator {
     pub fn new() -> Self {
         IRComparator {
             result: CmpResult::Equal,
-            expr_: Expr::None,
+            expr_: PrimeExpr::None,
             stmt_: Stmt::None,
         }
     }
@@ -58,12 +58,12 @@ impl IRComparator {
         return self.result;
     }
 
-    pub fn compare_expr<T: Into<Expr>>(&mut self, a: T, b: T) -> CmpResult {
+    pub fn compare_expr<T: Into<PrimeExpr>>(&mut self, a: T, b: T) -> CmpResult {
         if self.result != CmpResult::Equal {
             return self.result;
         }
-        let a: Expr = a.into();
-        let b: Expr = b.into();
+        let a: PrimeExpr = a.into();
+        let b: PrimeExpr = b.into();
         if &a == &b {
             return CmpResult::Equal;
         }
@@ -91,8 +91,8 @@ impl IRComparator {
         return self.result;
     }
 
-    pub fn compare_exprs<T: Into<Expr>>(&mut self, a: &[T], b: &[T]) -> CmpResult
-        where for<'a> &'a T: Into<Expr>
+    pub fn compare_exprs<T: Into<PrimeExpr>>(&mut self, a: &[T], b: &[T]) -> CmpResult
+        where for<'a> &'a T: Into<PrimeExpr>
     {
         if self.result != CmpResult::Equal {
             return self.result;
@@ -384,7 +384,7 @@ impl IRMutVisitor for IRComparator {
                     let res = x.as_ref();
                     res
                 })
-                .collect::<Vec<&Expr>>();
+                .collect::<Vec<&PrimeExpr>>();
             let call_expr = call
                 .args()
                 .iter()
@@ -392,7 +392,7 @@ impl IRMutVisitor for IRComparator {
                     let res = x.as_ref();
                     res
                 })
-                .collect::<Vec<&Expr>>();
+                .collect::<Vec<&PrimeExpr>>();
             self.compare_exprs(&self_expr, &call_expr);
         } else {
             self.result = CmpResult::LessThan;
@@ -449,7 +449,7 @@ pub fn stmt_equal(a: &Stmt, b: &Stmt) -> bool {
     comparator.result == CmpResult::Equal
 }
 
-pub fn expr_equal<T: Into<Expr>>(a: T, b: T) -> bool {
+pub fn expr_equal<T: Into<PrimeExpr>>(a: T, b: T) -> bool {
     let mut comparator = IRComparator::new();
     comparator.compare_expr(a, b);
     comparator.result == CmpResult::Equal

@@ -1,5 +1,5 @@
 use crate::halide::{
-    expr::Expr,
+    prime_expr::PrimeExpr,
     exprs::Load,
     ir_cmp::expr_equal,
     stmt::Stmt,
@@ -7,43 +7,43 @@ use crate::halide::{
 };
 
 pub struct SubstituteLoadPartialIdx {
-    load_var: Expr,
-    find: Expr,
-    replace: Expr,
+    load_var: PrimeExpr,
+    find: PrimeExpr,
+    replace: PrimeExpr,
     stmt: Stmt,
-    expr: Expr,
+    expr: PrimeExpr,
 }
 
 impl SubstituteLoadPartialIdx {
-    pub fn new<T: Into<Expr>>(load_var: T) -> Self {
+    pub fn new<T: Into<PrimeExpr>>(load_var: T) -> Self {
         SubstituteLoadPartialIdx {
             load_var: load_var.into(),
-            find: Expr::None,
-            replace: Expr::None,
+            find: PrimeExpr::None,
+            replace: PrimeExpr::None,
             stmt: Stmt::None,
-            expr: Expr::None,
+            expr: PrimeExpr::None,
         }
     }
 
-    pub fn find(&self) -> &Expr {
+    pub fn find(&self) -> &PrimeExpr {
         &self.find
     }
 
-    pub fn replace(&self) -> &Expr {
+    pub fn replace(&self) -> &PrimeExpr {
         &self.replace
     }
 
-    pub fn set_find<T: Into<Expr>>(&mut self, find: T) {
+    pub fn set_find<T: Into<PrimeExpr>>(&mut self, find: T) {
         self.find = find.into();
     }
 
-    pub fn set_replace<T: Into<Expr>>(&mut self, replace: T) {
+    pub fn set_replace<T: Into<PrimeExpr>>(&mut self, replace: T) {
         self.replace = replace.into();
     }
 }
 
 impl MutatorGetSet for SubstituteLoadPartialIdx {
-    fn set_expr<T: Into<Expr>>(&mut self, expr: T) {
+    fn set_expr<T: Into<PrimeExpr>>(&mut self, expr: T) {
         self.expr = expr.into();
     }
 
@@ -51,7 +51,7 @@ impl MutatorGetSet for SubstituteLoadPartialIdx {
         self.stmt = stmt.into();
     }
 
-    fn expr(&self) -> &Expr {
+    fn expr(&self) -> &PrimeExpr {
         &self.expr
     }
 
@@ -61,7 +61,7 @@ impl MutatorGetSet for SubstituteLoadPartialIdx {
 }
 
 impl IRMutateVisitor for SubstituteLoadPartialIdx {
-    fn mutate_expr(&mut self, expr: &Expr) -> Expr {
+    fn mutate_expr(&mut self, expr: &PrimeExpr) -> PrimeExpr {
         if expr_equal(&self.find, expr) {
             return self.replace.clone();
         } else {
@@ -75,7 +75,7 @@ impl IRMutateVisitor for SubstituteLoadPartialIdx {
             if &indices == load.indices() {
                 self.set_expr(load);
             } else {
-                self.set_expr(Expr::Load(Load::make(load.name(), &indices)));
+                self.set_expr(PrimeExpr::Load(Load::make(load.name(), &indices)));
             }
         } else {
             self.set_expr(load);

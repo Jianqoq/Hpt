@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::{
-    expr::Expr,
+    prime_expr::PrimeExpr,
     stmt::Stmt,
     traits::{ IRMutVisitor, IRMutateVisitor, IRVisitor },
     variable::Variable,
@@ -10,7 +10,7 @@ use super::{
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct LetStmt {
     var: Variable,
-    body: Arc<Expr>,
+    body: Arc<PrimeExpr>,
 }
 
 impl LetStmt {
@@ -18,11 +18,11 @@ impl LetStmt {
         &self.var
     }
 
-    pub fn body(&self) -> &Expr {
+    pub fn body(&self) -> &PrimeExpr {
         &self.body
     }
 
-    pub fn make<T: Into<Expr>>(var: &Variable, body: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(var: &Variable, body: T) -> Self {
         LetStmt {
             var: var.clone(),
             body: body.into().into(),

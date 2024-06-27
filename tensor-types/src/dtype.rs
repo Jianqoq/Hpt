@@ -73,6 +73,27 @@ impl Dtype {
             Dtype::Usize => std::mem::size_of::<usize>(),
         }
     }
+    pub const fn bits(&self) -> usize {
+        match self {
+            Dtype::Bool => 1,
+            Dtype::I8 => 8,
+            Dtype::U8 => 8,
+            Dtype::I16 => 16,
+            Dtype::U16 => 16,
+            Dtype::I32 => 32,
+            Dtype::U32 => 32,
+            Dtype::I64 => 64,
+            Dtype::U64 => 64,
+            Dtype::BF16 => 16,
+            Dtype::F16 => 16,
+            Dtype::F32 => 32,
+            Dtype::F64 => 64,
+            Dtype::C32 => 32,
+            Dtype::C64 => 64,
+            Dtype::Isize => 64,
+            Dtype::Usize => 64,
+        }
+    }
 }
 
 pub trait TypeCommon {

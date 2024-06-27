@@ -1,5 +1,5 @@
 use super::{
-    expr::Expr,
+    prime_expr::PrimeExpr,
     exprs::*,
     for_stmt::For,
     if_stmt::IfThenElse,
@@ -13,36 +13,36 @@ use super::{
 
 #[allow(unused_variables)]
 pub trait IRVisitor where Self: Sized {
-    fn visit_expr(&self, expr: &Expr) {
+    fn visit_expr(&self, expr: &PrimeExpr) {
         match expr {
-            Expr::Int(int) => self.visit_int(&int),
-            Expr::Float(float) => self.visit_float(&float),
-            Expr::UInt(uint) => self.visit_uint(&uint),
-            Expr::Str(string) => self.visit_str(&string),
-            Expr::Variable(var) => self.visit_variable(&var),
-            Expr::Cast(cast) => self.visit_cast(&cast),
-            Expr::Add(add) => self.visit_add(&add),
-            Expr::Sub(sub) => self.visit_sub(&sub),
-            Expr::Mul(mul) => self.visit_mul(&mul),
-            Expr::Div(div) => self.visit_div(&div),
-            Expr::Mod(r#mod) => self.visit_mod(&r#mod),
-            Expr::Min(min) => self.visit_min(&min),
-            Expr::Max(max) => self.visit_max(&max),
-            Expr::Eq(eq) => self.visit_eq(&eq),
-            Expr::Ne(ne) => self.visit_ne(&ne),
-            Expr::Lt(lt) => self.visit_lt(&lt),
-            Expr::Le(le) => self.visit_le(&le),
-            Expr::Gt(gt) => self.visit_gt(&gt),
-            Expr::Ge(ge) => self.visit_ge(&ge),
-            Expr::And(and) => self.visit_and(&and),
-            Expr::Xor(or) => self.visit_xor(&or),
-            Expr::Or(or) => self.visit_or(&or),
-            Expr::Not(not) => self.visit_not(&not),
-            Expr::Call(call) => self.visit_call(&call),
-            Expr::Select(select) => self.visit_select(&select),
-            Expr::Load(load) => self.visit_load(&load),
-            Expr::Let(let_) => self.visit_let(&let_),
-            Expr::None => {}
+            PrimeExpr::Int(int) => self.visit_int(&int),
+            PrimeExpr::Float(float) => self.visit_float(&float),
+            PrimeExpr::UInt(uint) => self.visit_uint(&uint),
+            PrimeExpr::Str(string) => self.visit_str(&string),
+            PrimeExpr::Variable(var) => self.visit_variable(&var),
+            PrimeExpr::Cast(cast) => self.visit_cast(&cast),
+            PrimeExpr::Add(add) => self.visit_add(&add),
+            PrimeExpr::Sub(sub) => self.visit_sub(&sub),
+            PrimeExpr::Mul(mul) => self.visit_mul(&mul),
+            PrimeExpr::Div(div) => self.visit_div(&div),
+            PrimeExpr::Mod(r#mod) => self.visit_mod(&r#mod),
+            PrimeExpr::Min(min) => self.visit_min(&min),
+            PrimeExpr::Max(max) => self.visit_max(&max),
+            PrimeExpr::Eq(eq) => self.visit_eq(&eq),
+            PrimeExpr::Ne(ne) => self.visit_ne(&ne),
+            PrimeExpr::Lt(lt) => self.visit_lt(&lt),
+            PrimeExpr::Le(le) => self.visit_le(&le),
+            PrimeExpr::Gt(gt) => self.visit_gt(&gt),
+            PrimeExpr::Ge(ge) => self.visit_ge(&ge),
+            PrimeExpr::And(and) => self.visit_and(&and),
+            PrimeExpr::Xor(or) => self.visit_xor(&or),
+            PrimeExpr::Or(or) => self.visit_or(&or),
+            PrimeExpr::Not(not) => self.visit_not(&not),
+            PrimeExpr::Call(call) => self.visit_call(&call),
+            PrimeExpr::Select(select) => self.visit_select(&select),
+            PrimeExpr::Load(load) => self.visit_load(&load),
+            PrimeExpr::Let(let_) => self.visit_let(&let_),
+            PrimeExpr::None => {}
         }
     }
     fn visit_stmt(&self, stmt: &Stmt) {
@@ -206,36 +206,36 @@ pub trait IRVisitor where Self: Sized {
 
 #[allow(unused_variables)]
 pub trait IRMutVisitor where Self: Sized {
-    fn visit_expr(&mut self, expr: &Expr) {
+    fn visit_expr(&mut self, expr: &PrimeExpr) {
         match expr {
-            Expr::Int(int) => self.visit_int(&int),
-            Expr::Float(float) => self.visit_float(&float),
-            Expr::UInt(uint) => self.visit_uint(&uint),
-            Expr::Str(string) => self.visit_str(&string),
-            Expr::Variable(var) => self.visit_variable(&var),
-            Expr::Cast(cast) => self.visit_cast(&cast),
-            Expr::Add(add) => self.visit_add(&add),
-            Expr::Sub(sub) => self.visit_sub(&sub),
-            Expr::Mul(mul) => self.visit_mul(&mul),
-            Expr::Div(div) => self.visit_div(&div),
-            Expr::Mod(r#mod) => self.visit_mod(&r#mod),
-            Expr::Min(min) => self.visit_min(&min),
-            Expr::Max(max) => self.visit_max(&max),
-            Expr::Eq(eq) => self.visit_eq(&eq),
-            Expr::Ne(ne) => self.visit_ne(&ne),
-            Expr::Lt(lt) => self.visit_lt(&lt),
-            Expr::Le(le) => self.visit_le(&le),
-            Expr::Gt(gt) => self.visit_gt(&gt),
-            Expr::Ge(ge) => self.visit_ge(&ge),
-            Expr::And(and) => self.visit_and(&and),
-            Expr::Xor(or) => self.visit_xor(&or),
-            Expr::Or(or) => self.visit_or(&or),
-            Expr::Not(not) => self.visit_not(&not),
-            Expr::Call(call) => self.visit_call(&call),
-            Expr::Select(select) => self.visit_select(&select),
-            Expr::Load(load) => self.visit_load(&load),
-            Expr::Let(let_) => self.visit_let(&let_),
-            Expr::None => {}
+            PrimeExpr::Int(int) => self.visit_int(&int),
+            PrimeExpr::Float(float) => self.visit_float(&float),
+            PrimeExpr::UInt(uint) => self.visit_uint(&uint),
+            PrimeExpr::Str(string) => self.visit_str(&string),
+            PrimeExpr::Variable(var) => self.visit_variable(&var),
+            PrimeExpr::Cast(cast) => self.visit_cast(&cast),
+            PrimeExpr::Add(add) => self.visit_add(&add),
+            PrimeExpr::Sub(sub) => self.visit_sub(&sub),
+            PrimeExpr::Mul(mul) => self.visit_mul(&mul),
+            PrimeExpr::Div(div) => self.visit_div(&div),
+            PrimeExpr::Mod(r#mod) => self.visit_mod(&r#mod),
+            PrimeExpr::Min(min) => self.visit_min(&min),
+            PrimeExpr::Max(max) => self.visit_max(&max),
+            PrimeExpr::Eq(eq) => self.visit_eq(&eq),
+            PrimeExpr::Ne(ne) => self.visit_ne(&ne),
+            PrimeExpr::Lt(lt) => self.visit_lt(&lt),
+            PrimeExpr::Le(le) => self.visit_le(&le),
+            PrimeExpr::Gt(gt) => self.visit_gt(&gt),
+            PrimeExpr::Ge(ge) => self.visit_ge(&ge),
+            PrimeExpr::And(and) => self.visit_and(&and),
+            PrimeExpr::Xor(or) => self.visit_xor(&or),
+            PrimeExpr::Or(or) => self.visit_or(&or),
+            PrimeExpr::Not(not) => self.visit_not(&not),
+            PrimeExpr::Call(call) => self.visit_call(&call),
+            PrimeExpr::Select(select) => self.visit_select(&select),
+            PrimeExpr::Load(load) => self.visit_load(&load),
+            PrimeExpr::Let(let_) => self.visit_let(&let_),
+            PrimeExpr::None => {}
         }
     }
     fn visit_stmt(&mut self, stmt: &Stmt) {
@@ -399,9 +399,9 @@ pub trait IRMutVisitor where Self: Sized {
 }
 
 pub trait MutatorGetSet {
-    fn set_expr<T: Into<Expr>>(&mut self, expr: T);
+    fn set_expr<T: Into<PrimeExpr>>(&mut self, expr: T);
     fn set_stmt<T: Into<Stmt>>(&mut self, stmt: T);
-    fn expr(&self) -> &Expr;
+    fn expr(&self) -> &PrimeExpr;
     fn stmt(&self) -> &Stmt;
 }
 
@@ -417,11 +417,11 @@ macro_rules! mutate_binop {
     };
 }
 
-pub(crate) fn mutate_expr<V>(visitor: &mut V, expr: &Expr) -> Expr
+pub(crate) fn mutate_expr<V>(visitor: &mut V, expr: &PrimeExpr) -> PrimeExpr
     where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     if expr.is_none() {
-        visitor.set_expr(Expr::None);
+        visitor.set_expr(PrimeExpr::None);
     } else {
         expr.accept_mutate(visitor);
     }
@@ -437,42 +437,42 @@ pub(crate) fn mutate_stmt<V>(visitor: &mut V, stmt: &Stmt) -> Stmt
     } else {
         stmt.accept_mutate(visitor);
     }
-    visitor.set_expr(Expr::None);
+    visitor.set_expr(PrimeExpr::None);
     return visitor.stmt().clone();
 }
 
-pub(crate) fn visit_expr<V>(visitor: &mut V, expr: &Expr)
+pub(crate) fn visit_expr<V>(visitor: &mut V, expr: &PrimeExpr)
     where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     match expr {
-        Expr::Int(int) => visitor.visit_int(&int),
-        Expr::Float(float) => visitor.visit_float(&float),
-        Expr::UInt(uint) => visitor.visit_uint(&uint),
-        Expr::Str(string) => visitor.visit_str(&string),
-        Expr::Variable(var) => visitor.visit_variable(&var),
-        Expr::Cast(cast) => visitor.visit_cast(&cast),
-        Expr::Add(add) => visitor.visit_add(&add),
-        Expr::Sub(sub) => visitor.visit_sub(&sub),
-        Expr::Mul(mul) => visitor.visit_mul(&mul),
-        Expr::Div(div) => visitor.visit_div(&div),
-        Expr::Mod(r#mod) => visitor.visit_mod(&r#mod),
-        Expr::Min(min) => visitor.visit_min(&min),
-        Expr::Max(max) => visitor.visit_max(&max),
-        Expr::Eq(eq) => visitor.visit_eq(&eq),
-        Expr::Ne(ne) => visitor.visit_ne(&ne),
-        Expr::Lt(lt) => visitor.visit_lt(&lt),
-        Expr::Le(le) => visitor.visit_le(&le),
-        Expr::Gt(gt) => visitor.visit_gt(&gt),
-        Expr::Ge(ge) => visitor.visit_ge(&ge),
-        Expr::And(and) => visitor.visit_and(&and),
-        Expr::Xor(or) => visitor.visit_xor(&or),
-        Expr::Or(or) => visitor.visit_or(&or),
-        Expr::Not(not) => visitor.visit_not(&not),
-        Expr::Call(call) => visitor.visit_call(&call),
-        Expr::Select(select) => visitor.visit_select(&select),
-        Expr::Load(load) => visitor.visit_load(&load),
-        Expr::Let(let_) => visitor.visit_let(&let_),
-        Expr::None => {}
+        PrimeExpr::Int(int) => visitor.visit_int(&int),
+        PrimeExpr::Float(float) => visitor.visit_float(&float),
+        PrimeExpr::UInt(uint) => visitor.visit_uint(&uint),
+        PrimeExpr::Str(string) => visitor.visit_str(&string),
+        PrimeExpr::Variable(var) => visitor.visit_variable(&var),
+        PrimeExpr::Cast(cast) => visitor.visit_cast(&cast),
+        PrimeExpr::Add(add) => visitor.visit_add(&add),
+        PrimeExpr::Sub(sub) => visitor.visit_sub(&sub),
+        PrimeExpr::Mul(mul) => visitor.visit_mul(&mul),
+        PrimeExpr::Div(div) => visitor.visit_div(&div),
+        PrimeExpr::Mod(r#mod) => visitor.visit_mod(&r#mod),
+        PrimeExpr::Min(min) => visitor.visit_min(&min),
+        PrimeExpr::Max(max) => visitor.visit_max(&max),
+        PrimeExpr::Eq(eq) => visitor.visit_eq(&eq),
+        PrimeExpr::Ne(ne) => visitor.visit_ne(&ne),
+        PrimeExpr::Lt(lt) => visitor.visit_lt(&lt),
+        PrimeExpr::Le(le) => visitor.visit_le(&le),
+        PrimeExpr::Gt(gt) => visitor.visit_gt(&gt),
+        PrimeExpr::Ge(ge) => visitor.visit_ge(&ge),
+        PrimeExpr::And(and) => visitor.visit_and(&and),
+        PrimeExpr::Xor(or) => visitor.visit_xor(&or),
+        PrimeExpr::Or(or) => visitor.visit_or(&or),
+        PrimeExpr::Not(not) => visitor.visit_not(&not),
+        PrimeExpr::Call(call) => visitor.visit_call(&call),
+        PrimeExpr::Select(select) => visitor.visit_select(&select),
+        PrimeExpr::Load(load) => visitor.visit_load(&load),
+        PrimeExpr::Let(let_) => visitor.visit_let(&let_),
+        PrimeExpr::None => {}
     }
 }
 
@@ -645,7 +645,7 @@ pub(crate) fn visit_let<V>(visitor: &mut V, let_stmt: &Let)
             visitor.set_expr(Let::make(var, val));
         } else {
             eprintln!("Failed to convert variable, from: {} to: {}", name, var);
-            visitor.set_expr(Expr::None);
+            visitor.set_expr(PrimeExpr::None);
         }
     }
 }
@@ -859,7 +859,7 @@ pub(crate) fn visit_inplace_div<V>(visitor: &mut V, inplace_div: &InplaceDiv)
 }
 
 pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
-    fn mutate_expr(&mut self, expr: &Expr) -> Expr {
+    fn mutate_expr(&mut self, expr: &PrimeExpr) -> PrimeExpr {
         mutate_expr(self, expr)
     }
 
@@ -867,7 +867,7 @@ pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
         mutate_stmt(self, stmt)
     }
 
-    fn visit_expr(&mut self, expr: &Expr) {
+    fn visit_expr(&mut self, expr: &PrimeExpr) {
         visit_expr(self, expr);
     }
     fn visit_stmt(&mut self, stmt: &Stmt) {

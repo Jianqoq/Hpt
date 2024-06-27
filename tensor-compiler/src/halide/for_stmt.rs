@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::{
-    expr::Expr,
+    prime_expr::PrimeExpr,
     stmt::Stmt,
     traits::{ IRMutVisitor, IRMutateVisitor, IRVisitor },
     variable::Variable,
@@ -10,8 +10,8 @@ use super::{
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct For {
     var: Variable,
-    start: Arc<Expr>,
-    end: Arc<Expr>,
+    start: Arc<PrimeExpr>,
+    end: Arc<PrimeExpr>,
     stmt: Arc<Stmt>,
 }
 
@@ -20,11 +20,11 @@ impl For {
         &self.var
     }
 
-    pub fn start(&self) -> &Expr {
+    pub fn start(&self) -> &PrimeExpr {
         &self.start
     }
 
-    pub fn end(&self) -> &Expr {
+    pub fn end(&self) -> &PrimeExpr {
         &self.end
     }
 
@@ -36,7 +36,7 @@ impl For {
         self.stmt = stmt.into().into();
     }
 
-    pub fn make<T: Into<Expr> + Clone, S: Into<Stmt> + Clone>(
+    pub fn make<T: Into<PrimeExpr> + Clone, S: Into<Stmt> + Clone>(
         var: &Variable,
         start: T,
         end: T,

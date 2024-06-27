@@ -1,4 +1,4 @@
-use super::{ expr::Expr, stmt::Stmt };
+use super::{ prime_expr::PrimeExpr, stmt::Stmt };
 
 pub struct IRPrinter;
 
@@ -7,7 +7,7 @@ impl IRPrinter {
         _IRPrinter::new().print_stmt(stmt);
     }
 
-    pub fn print_expr<T: Into<Expr>>(&mut self, expr: T) {
+    pub fn print_expr<T: Into<PrimeExpr>>(&mut self, expr: T) {
         let expr = expr.into();
         println!("{}", expr);
     }

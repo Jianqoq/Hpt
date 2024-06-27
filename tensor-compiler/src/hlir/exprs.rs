@@ -1,5 +1,6 @@
-use std::{ fmt::Display, sync::Arc };
+use std::{ fmt::Display, sync::{Arc, Mutex} };
 
+use hashbrown::HashMap;
 use tensor_common::layout::Layout;
 use tensor_types::dtype::Dtype;
 
@@ -218,6 +219,41 @@ macro_rules! impl_binop {
             }
         }
     };
+}
+
+pub struct OpNode {
+    name: Arc<String>,
+    args: Option<Arc<Vec<Expr>>>,
+    registry_idx: usize,
+}
+
+impl OpNode {
+    pub fn new<T: Into<String>>(name: T) -> Self {
+        Self {
+            name: Arc::new(name.into()),
+            args: None,
+            registry_idx: 0,
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub fn registry_idx(&self) -> usize {
+        self.registry_idx
+    }
+    pub fn set_registry_idx(&mut self, idx: usize) {
+        self.registry_idx = idx;
+    }
+    pub fn set_args<T: IntoIterator<Item: Into<Expr>>>(&mut self, args: T) {
+        self.args = Some(
+            args
+                .into_iter()
+                .map(|x| x.into().into())
+                .collect::<Vec<Expr>>()
+                .into()
+        );
+    }
+
 }
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]

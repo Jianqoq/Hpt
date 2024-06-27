@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use super::{
-    expr::Expr,
+    prime_expr::PrimeExpr,
     exprs::{ Int, Load },
     for_stmt::For,
     let_stmt::LetStmt,

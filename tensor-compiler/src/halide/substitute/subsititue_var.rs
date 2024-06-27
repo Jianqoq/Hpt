@@ -1,14 +1,14 @@
 use hashbrown::HashMap;
 
 use crate::halide::{
-    expr::Expr,
+    prime_expr::PrimeExpr,
     stmt::Stmt,
     traits::{ IRMutateVisitor, MutatorGetSet },
     variable::Variable,
 };
 
 pub struct SubstituteVar {
-    expr: Expr,
+    expr: PrimeExpr,
     stmt: Stmt,
     replace: HashMap<Variable, Variable>,
 }
@@ -16,7 +16,7 @@ pub struct SubstituteVar {
 impl SubstituteVar {
     pub fn new() -> Self {
         SubstituteVar {
-            expr: Expr::None,
+            expr: PrimeExpr::None,
             stmt: Stmt::None,
             replace: HashMap::new(),
         }
@@ -42,7 +42,7 @@ impl IRMutateVisitor for SubstituteVar {
 }
 
 impl MutatorGetSet for SubstituteVar {
-    fn set_expr<T: Into<Expr>>(&mut self, expr: T) {
+    fn set_expr<T: Into<PrimeExpr>>(&mut self, expr: T) {
         self.expr = expr.into();
     }
 
@@ -50,7 +50,7 @@ impl MutatorGetSet for SubstituteVar {
         self.stmt = stmt.into();
     }
 
-    fn expr(&self) -> &Expr {
+    fn expr(&self) -> &PrimeExpr {
         &self.expr
     }
 

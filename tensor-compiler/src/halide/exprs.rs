@@ -3,7 +3,7 @@ use std::{ fmt::Display, sync::Arc };
 use tensor_types::dtype::Dtype;
 
 use super::{
-    expr::Expr,
+    prime_expr::PrimeExpr,
     r#type::{ HalideirTypeCode, Type },
     traits::{ Accepter, IRVisitor },
     variable::Variable,
@@ -42,15 +42,15 @@ impl Display for Int {
     }
 }
 
-impl Into<Expr> for Int {
-    fn into(self) -> Expr {
-        Expr::Int(self)
+impl Into<PrimeExpr> for Int {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Int(self)
     }
 }
 
-impl Into<Expr> for &Int {
-    fn into(self) -> Expr {
-        Expr::Int(self.clone())
+impl Into<PrimeExpr> for &Int {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Int(self.clone())
     }
 }
 
@@ -88,15 +88,15 @@ impl Display for UInt {
     }
 }
 
-impl Into<Expr> for UInt {
-    fn into(self) -> Expr {
-        Expr::UInt(self)
+impl Into<PrimeExpr> for UInt {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::UInt(self)
     }
 }
 
-impl Into<Expr> for &UInt {
-    fn into(self) -> Expr {
-        Expr::UInt(self.clone())
+impl Into<PrimeExpr> for &UInt {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::UInt(self.clone())
     }
 }
 
@@ -186,15 +186,15 @@ impl Display for Float {
     }
 }
 
-impl Into<Expr> for Float {
-    fn into(self) -> Expr {
-        Expr::Float(self)
+impl Into<PrimeExpr> for Float {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Float(self)
     }
 }
 
-impl Into<Expr> for &Float {
-    fn into(self) -> Expr {
-        Expr::Float(self.clone())
+impl Into<PrimeExpr> for &Float {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Float(self.clone())
     }
 }
 
@@ -233,41 +233,41 @@ impl Display for Str {
     }
 }
 
-impl Into<Expr> for Str {
-    fn into(self) -> Expr {
-        Expr::Str(self)
+impl Into<PrimeExpr> for Str {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Str(self)
     }
 }
 
-impl Into<Expr> for &Str {
-    fn into(self) -> Expr {
-        Expr::Str(self.clone())
+impl Into<PrimeExpr> for &Str {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Str(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Cast {
-    expr: Arc<Expr>,
+    expr: Arc<PrimeExpr>,
     dtype: Dtype,
 }
 
 impl Cast {
-    pub fn new(expr: Arc<Expr>, dtype: Dtype) -> Self {
+    pub fn new(expr: Arc<PrimeExpr>, dtype: Dtype) -> Self {
         Cast { expr, dtype }
     }
 
-    pub fn make<T: Into<Expr>>(expr: T, dtype: Dtype) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(expr: T, dtype: Dtype) -> Self {
         Cast {
             expr: expr.into().into(),
             dtype,
         }
     }
 
-    pub fn expr(&self) -> &Expr {
+    pub fn expr(&self) -> &PrimeExpr {
         &self.expr
     }
 
-    pub fn expr_(&self) -> &Arc<Expr> {
+    pub fn expr_(&self) -> &Arc<PrimeExpr> {
         &self.expr
     }
 
@@ -288,52 +288,52 @@ impl Display for Cast {
     }
 }
 
-impl Into<Expr> for Cast {
-    fn into(self) -> Expr {
-        Expr::Cast(self)
+impl Into<PrimeExpr> for Cast {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Cast(self)
     }
 }
 
-impl Into<Expr> for &Cast {
-    fn into(self) -> Expr {
-        Expr::Cast(self.clone())
+impl Into<PrimeExpr> for &Cast {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Cast(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Add {
-    e1: Arc<Expr>,
-    e2: Arc<Expr>,
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
 }
 
 impl Add {
-    pub fn new(e1: Expr, e2: Expr) -> Self {
+    pub fn new(e1: PrimeExpr, e2: PrimeExpr) -> Self {
         Add {
             e1: e1.into(),
             e2: e2.into(),
         }
     }
 
-    pub fn make<T: Into<Expr>>(e1: T, e2: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
         Add {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
     }
 
-    pub fn e1(&self) -> &Expr {
+    pub fn e1(&self) -> &PrimeExpr {
         &self.e1
     }
 
-    pub fn e2(&self) -> &Expr {
+    pub fn e2(&self) -> &PrimeExpr {
         &self.e2
     }
 
-    pub fn e1_(&self) -> &Arc<Expr> {
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
         &self.e1
     }
 
-    pub fn e2_(&self) -> &Arc<Expr> {
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
         &self.e2
     }
 }
@@ -350,22 +350,22 @@ impl Display for Add {
     }
 }
 
-impl Into<Expr> for Add {
-    fn into(self) -> Expr {
-        Expr::Add(self)
+impl Into<PrimeExpr> for Add {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Add(self)
     }
 }
 
-impl Into<Expr> for &Add {
-    fn into(self) -> Expr {
-        Expr::Add(self.clone())
+impl Into<PrimeExpr> for &Add {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Add(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Sub {
-    e1: Arc<Expr>,
-    e2: Arc<Expr>,
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
 }
 
 impl Accepter for Sub {
@@ -375,30 +375,30 @@ impl Accepter for Sub {
 }
 
 impl Sub {
-    pub fn new(e1: Arc<Expr>, e2: Arc<Expr>) -> Self {
+    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
         Sub { e1, e2 }
     }
 
-    pub fn make<T: Into<Expr>>(e1: T, e2: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
         Sub {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
     }
 
-    pub fn e1(&self) -> &Expr {
+    pub fn e1(&self) -> &PrimeExpr {
         &self.e1
     }
 
-    pub fn e2(&self) -> &Expr {
+    pub fn e2(&self) -> &PrimeExpr {
         &self.e2
     }
 
-    pub fn e1_(&self) -> &Arc<Expr> {
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
         &self.e1
     }
 
-    pub fn e2_(&self) -> &Arc<Expr> {
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
         &self.e2
     }
 }
@@ -409,22 +409,22 @@ impl Display for Sub {
     }
 }
 
-impl Into<Expr> for Sub {
-    fn into(self) -> Expr {
-        Expr::Sub(self)
+impl Into<PrimeExpr> for Sub {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Sub(self)
     }
 }
 
-impl Into<Expr> for &Sub {
-    fn into(self) -> Expr {
-        Expr::Sub(self.clone())
+impl Into<PrimeExpr> for &Sub {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Sub(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Mul {
-    e1: Arc<Expr>,
-    e2: Arc<Expr>,
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
 }
 
 impl Accepter for Mul {
@@ -434,30 +434,30 @@ impl Accepter for Mul {
 }
 
 impl Mul {
-    pub fn new(e1: Arc<Expr>, e2: Arc<Expr>) -> Self {
+    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
         Mul { e1, e2 }
     }
 
-    pub fn make<T: Into<Expr>>(e1: T, e2: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
         Mul {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
     }
 
-    pub fn e1(&self) -> &Expr {
+    pub fn e1(&self) -> &PrimeExpr {
         &self.e1
     }
 
-    pub fn e2(&self) -> &Expr {
+    pub fn e2(&self) -> &PrimeExpr {
         &self.e2
     }
 
-    pub fn e1_(&self) -> &Arc<Expr> {
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
         &self.e1
     }
 
-    pub fn e2_(&self) -> &Arc<Expr> {
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
         &self.e2
     }
 }
@@ -468,22 +468,22 @@ impl Display for Mul {
     }
 }
 
-impl Into<Expr> for Mul {
-    fn into(self) -> Expr {
-        Expr::Mul(self)
+impl Into<PrimeExpr> for Mul {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Mul(self)
     }
 }
 
-impl Into<Expr> for &Mul {
-    fn into(self) -> Expr {
-        Expr::Mul(self.clone())
+impl Into<PrimeExpr> for &Mul {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Mul(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Div {
-    e1: Arc<Expr>,
-    e2: Arc<Expr>,
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
 }
 
 impl Accepter for Div {
@@ -493,30 +493,30 @@ impl Accepter for Div {
 }
 
 impl Div {
-    pub fn new(e1: Arc<Expr>, e2: Arc<Expr>) -> Self {
+    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
         Div { e1, e2 }
     }
 
-    pub fn make<T: Into<Expr>>(e1: T, e2: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
         Div {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
     }
 
-    pub fn e1(&self) -> &Expr {
+    pub fn e1(&self) -> &PrimeExpr {
         &self.e1
     }
 
-    pub fn e2(&self) -> &Expr {
+    pub fn e2(&self) -> &PrimeExpr {
         &self.e2
     }
 
-    pub fn e1_(&self) -> &Arc<Expr> {
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
         &self.e1
     }
 
-    pub fn e2_(&self) -> &Arc<Expr> {
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
         &self.e2
     }
 }
@@ -527,22 +527,22 @@ impl Display for Div {
     }
 }
 
-impl Into<Expr> for Div {
-    fn into(self) -> Expr {
-        Expr::Div(self)
+impl Into<PrimeExpr> for Div {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Div(self)
     }
 }
 
-impl Into<Expr> for &Div {
-    fn into(self) -> Expr {
-        Expr::Div(self.clone())
+impl Into<PrimeExpr> for &Div {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Div(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Gt {
-    e1: Arc<Expr>,
-    e2: Arc<Expr>,
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
 }
 
 impl Accepter for Gt {
@@ -552,30 +552,30 @@ impl Accepter for Gt {
 }
 
 impl Gt {
-    pub fn new(e1: Arc<Expr>, e2: Arc<Expr>) -> Self {
+    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
         Gt { e1, e2 }
     }
 
-    pub fn make<T: Into<Expr>>(e1: T, e2: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
         Gt {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
     }
 
-    pub fn e1(&self) -> &Expr {
+    pub fn e1(&self) -> &PrimeExpr {
         &self.e1
     }
 
-    pub fn e2(&self) -> &Expr {
+    pub fn e2(&self) -> &PrimeExpr {
         &self.e2
     }
 
-    pub fn e1_(&self) -> &Arc<Expr> {
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
         &self.e1
     }
 
-    pub fn e2_(&self) -> &Arc<Expr> {
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
         &self.e2
     }
 }
@@ -586,22 +586,22 @@ impl Display for Gt {
     }
 }
 
-impl Into<Expr> for Gt {
-    fn into(self) -> Expr {
-        Expr::Gt(self)
+impl Into<PrimeExpr> for Gt {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Gt(self)
     }
 }
 
-impl Into<Expr> for &Gt {
-    fn into(self) -> Expr {
-        Expr::Gt(self.clone())
+impl Into<PrimeExpr> for &Gt {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Gt(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Ge {
-    e1: Arc<Expr>,
-    e2: Arc<Expr>,
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
 }
 
 impl Accepter for Ge {
@@ -611,30 +611,30 @@ impl Accepter for Ge {
 }
 
 impl Ge {
-    pub fn new(e1: Arc<Expr>, e2: Arc<Expr>) -> Self {
+    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
         Ge { e1, e2 }
     }
 
-    pub fn make<T: Into<Expr>>(e1: T, e2: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
         Ge {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
     }
 
-    pub fn e1(&self) -> &Expr {
+    pub fn e1(&self) -> &PrimeExpr {
         &self.e1
     }
 
-    pub fn e2(&self) -> &Expr {
+    pub fn e2(&self) -> &PrimeExpr {
         &self.e2
     }
 
-    pub fn e1_(&self) -> &Arc<Expr> {
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
         &self.e1
     }
 
-    pub fn e2_(&self) -> &Arc<Expr> {
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
         &self.e2
     }
 }
@@ -645,22 +645,22 @@ impl Display for Ge {
     }
 }
 
-impl Into<Expr> for Ge {
-    fn into(self) -> Expr {
-        Expr::Ge(self)
+impl Into<PrimeExpr> for Ge {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Ge(self)
     }
 }
 
-impl Into<Expr> for &Ge {
-    fn into(self) -> Expr {
-        Expr::Ge(self.clone())
+impl Into<PrimeExpr> for &Ge {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Ge(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct And {
-    e1: Arc<Expr>,
-    e2: Arc<Expr>,
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
 }
 
 impl Accepter for And {
@@ -670,30 +670,30 @@ impl Accepter for And {
 }
 
 impl And {
-    pub fn new(e1: Arc<Expr>, e2: Arc<Expr>) -> Self {
+    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
         And { e1, e2 }
     }
 
-    pub fn make<T: Into<Expr>>(e1: T, e2: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
         And {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
     }
 
-    pub fn e1(&self) -> &Expr {
+    pub fn e1(&self) -> &PrimeExpr {
         &self.e1
     }
 
-    pub fn e2(&self) -> &Expr {
+    pub fn e2(&self) -> &PrimeExpr {
         &self.e2
     }
 
-    pub fn e1_(&self) -> &Arc<Expr> {
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
         &self.e1
     }
 
-    pub fn e2_(&self) -> &Arc<Expr> {
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
         &self.e2
     }
 }
@@ -704,22 +704,22 @@ impl Display for And {
     }
 }
 
-impl Into<Expr> for And {
-    fn into(self) -> Expr {
-        Expr::And(self)
+impl Into<PrimeExpr> for And {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::And(self)
     }
 }
 
-impl Into<Expr> for &And {
-    fn into(self) -> Expr {
-        Expr::And(self.clone())
+impl Into<PrimeExpr> for &And {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::And(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Or {
-    e1: Arc<Expr>,
-    e2: Arc<Expr>,
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
 }
 
 impl Accepter for Or {
@@ -729,30 +729,30 @@ impl Accepter for Or {
 }
 
 impl Or {
-    pub fn new(e1: Arc<Expr>, e2: Arc<Expr>) -> Self {
+    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
         Or { e1, e2 }
     }
 
-    pub fn make<T: Into<Expr>>(e1: T, e2: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
         Or {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
     }
 
-    pub fn e1(&self) -> &Expr {
+    pub fn e1(&self) -> &PrimeExpr {
         &self.e1
     }
 
-    pub fn e2(&self) -> &Expr {
+    pub fn e2(&self) -> &PrimeExpr {
         &self.e2
     }
 
-    pub fn e1_(&self) -> &Arc<Expr> {
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
         &self.e1
     }
 
-    pub fn e2_(&self) -> &Arc<Expr> {
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
         &self.e2
     }
 }
@@ -763,22 +763,22 @@ impl Display for Or {
     }
 }
 
-impl Into<Expr> for Or {
-    fn into(self) -> Expr {
-        Expr::Or(self)
+impl Into<PrimeExpr> for Or {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Or(self)
     }
 }
 
-impl Into<Expr> for &Or {
-    fn into(self) -> Expr {
-        Expr::Or(self.clone())
+impl Into<PrimeExpr> for &Or {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Or(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Xor {
-    e1: Arc<Expr>,
-    e2: Arc<Expr>,
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
 }
 
 impl Accepter for Xor {
@@ -788,30 +788,30 @@ impl Accepter for Xor {
 }
 
 impl Xor {
-    pub fn new(e1: Arc<Expr>, e2: Arc<Expr>) -> Self {
+    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
         Xor { e1, e2 }
     }
 
-    pub fn make<T: Into<Expr>>(e1: T, e2: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
         Xor {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
     }
 
-    pub fn e1(&self) -> &Expr {
+    pub fn e1(&self) -> &PrimeExpr {
         &self.e1
     }
 
-    pub fn e2(&self) -> &Expr {
+    pub fn e2(&self) -> &PrimeExpr {
         &self.e2
     }
 
-    pub fn e1_(&self) -> &Arc<Expr> {
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
         &self.e1
     }
 
-    pub fn e2_(&self) -> &Arc<Expr> {
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
         &self.e2
     }
 }
@@ -822,21 +822,21 @@ impl Display for Xor {
     }
 }
 
-impl Into<Expr> for Xor {
-    fn into(self) -> Expr {
-        Expr::Xor(self)
+impl Into<PrimeExpr> for Xor {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Xor(self)
     }
 }
 
-impl Into<Expr> for &Xor {
-    fn into(self) -> Expr {
-        Expr::Xor(self.clone())
+impl Into<PrimeExpr> for &Xor {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Xor(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Not {
-    e: Arc<Expr>,
+    e: Arc<PrimeExpr>,
 }
 
 impl Accepter for Not {
@@ -846,19 +846,19 @@ impl Accepter for Not {
 }
 
 impl Not {
-    pub fn new(e: Arc<Expr>) -> Self {
+    pub fn new(e: Arc<PrimeExpr>) -> Self {
         Not { e }
     }
 
-    pub fn make<T: Into<Expr>>(e: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(e: T) -> Self {
         Not { e: e.into().into() }
     }
 
-    pub fn e(&self) -> &Expr {
+    pub fn e(&self) -> &PrimeExpr {
         &self.e
     }
 
-    pub fn e_(&self) -> &Arc<Expr> {
+    pub fn e_(&self) -> &Arc<PrimeExpr> {
         &self.e
     }
 }
@@ -869,22 +869,22 @@ impl Display for Not {
     }
 }
 
-impl Into<Expr> for Not {
-    fn into(self) -> Expr {
-        Expr::Not(self)
+impl Into<PrimeExpr> for Not {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Not(self)
     }
 }
 
-impl Into<Expr> for &Not {
-    fn into(self) -> Expr {
-        Expr::Not(self.clone())
+impl Into<PrimeExpr> for &Not {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Not(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Call {
     name: Variable,
-    args: Vec<Arc<Expr>>,
+    args: Vec<Arc<PrimeExpr>>,
 }
 
 impl Accepter for Call {
@@ -894,14 +894,14 @@ impl Accepter for Call {
 }
 
 impl Call {
-    pub fn new(name: &str, args: Vec<Arc<Expr>>) -> Self {
+    pub fn new(name: &str, args: Vec<Arc<PrimeExpr>>) -> Self {
         Call {
             name: Variable::make(name),
             args,
         }
     }
 
-    pub fn make(name: &str, args: &[Expr]) -> Self {
+    pub fn make(name: &str, args: &[PrimeExpr]) -> Self {
         Call {
             name: Variable::make(name),
             args: args
@@ -915,11 +915,11 @@ impl Call {
         &self.name
     }
 
-    pub fn args(&self) -> &Vec<Arc<Expr>> {
+    pub fn args(&self) -> &Vec<Arc<PrimeExpr>> {
         &self.args
     }
 
-    pub fn args_(&self) -> &Vec<Arc<Expr>> {
+    pub fn args_(&self) -> &Vec<Arc<PrimeExpr>> {
         &self.args
     }
 }
@@ -939,23 +939,23 @@ impl Display for Call {
     }
 }
 
-impl Into<Expr> for Call {
-    fn into(self) -> Expr {
-        Expr::Call(self)
+impl Into<PrimeExpr> for Call {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Call(self)
     }
 }
 
-impl Into<Expr> for &Call {
-    fn into(self) -> Expr {
-        Expr::Call(self.clone())
+impl Into<PrimeExpr> for &Call {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Call(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Select {
-    cond: Arc<Expr>,
-    true_expr: Arc<Expr>,
-    false_expr: Arc<Expr>,
+    cond: Arc<PrimeExpr>,
+    true_expr: Arc<PrimeExpr>,
+    false_expr: Arc<PrimeExpr>,
 }
 
 impl Accepter for Select {
@@ -965,7 +965,7 @@ impl Accepter for Select {
 }
 
 impl Select {
-    pub fn new(cond: Arc<Expr>, true_expr: Arc<Expr>, false_expr: Arc<Expr>) -> Self {
+    pub fn new(cond: Arc<PrimeExpr>, true_expr: Arc<PrimeExpr>, false_expr: Arc<PrimeExpr>) -> Self {
         Select {
             cond,
             true_expr,
@@ -973,7 +973,7 @@ impl Select {
         }
     }
 
-    pub fn make<T: Into<Expr>>(cond: T, true_expr: T, false_expr: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(cond: T, true_expr: T, false_expr: T) -> Self {
         Select {
             cond: cond.into().into(),
             true_expr: true_expr.into().into(),
@@ -981,27 +981,27 @@ impl Select {
         }
     }
 
-    pub fn cond(&self) -> &Expr {
+    pub fn cond(&self) -> &PrimeExpr {
         &self.cond
     }
 
-    pub fn true_expr(&self) -> &Expr {
+    pub fn true_expr(&self) -> &PrimeExpr {
         &self.true_expr
     }
 
-    pub fn false_expr(&self) -> &Expr {
+    pub fn false_expr(&self) -> &PrimeExpr {
         &self.false_expr
     }
 
-    pub fn cond_(&self) -> &Arc<Expr> {
+    pub fn cond_(&self) -> &Arc<PrimeExpr> {
         &self.cond
     }
 
-    pub fn true_expr_(&self) -> &Arc<Expr> {
+    pub fn true_expr_(&self) -> &Arc<PrimeExpr> {
         &self.true_expr
     }
 
-    pub fn false_expr_(&self) -> &Arc<Expr> {
+    pub fn false_expr_(&self) -> &Arc<PrimeExpr> {
         &self.false_expr
     }
 }
@@ -1012,22 +1012,22 @@ impl Display for Select {
     }
 }
 
-impl Into<Expr> for Select {
-    fn into(self) -> Expr {
-        Expr::Select(self)
+impl Into<PrimeExpr> for Select {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Select(self)
     }
 }
 
-impl Into<Expr> for &Select {
-    fn into(self) -> Expr {
-        Expr::Select(self.clone())
+impl Into<PrimeExpr> for &Select {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Select(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Load {
-    name: Arc<Expr>,
-    indices: Arc<Expr>,
+    name: Arc<PrimeExpr>,
+    indices: Arc<PrimeExpr>,
 }
 
 impl Accepter for Load {
@@ -1037,7 +1037,7 @@ impl Accepter for Load {
 }
 
 impl Load {
-    pub fn new(name: Arc<Expr>, indices: Arc<Expr>) -> Self {
+    pub fn new(name: Arc<PrimeExpr>, indices: Arc<PrimeExpr>) -> Self {
         Load { name, indices }
     }
 
@@ -1063,26 +1063,26 @@ impl Load {
         }
     }
 
-    pub fn make<T: Into<Expr>>(name: T, indices: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(name: T, indices: T) -> Self {
         Load {
             name: Arc::new(name.into().into()),
             indices: indices.into().into(),
         }
     }
 
-    pub fn name(&self) -> &Expr {
+    pub fn name(&self) -> &PrimeExpr {
         &self.name
     }
 
-    pub fn indices(&self) -> &Expr {
+    pub fn indices(&self) -> &PrimeExpr {
         &self.indices
     }
 
-    pub fn name_(&self) -> &Arc<Expr> {
+    pub fn name_(&self) -> &Arc<PrimeExpr> {
         &self.name
     }
 
-    pub fn indices_(&self) -> &Arc<Expr> {
+    pub fn indices_(&self) -> &Arc<PrimeExpr> {
         &self.indices
     }
 }
@@ -1093,22 +1093,22 @@ impl Display for Load {
     }
 }
 
-impl Into<Expr> for Load {
-    fn into(self) -> Expr {
-        Expr::Load(self)
+impl Into<PrimeExpr> for Load {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Load(self)
     }
 }
 
-impl Into<Expr> for &Load {
-    fn into(self) -> Expr {
-        Expr::Load(self.clone())
+impl Into<PrimeExpr> for &Load {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Load(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Let {
     name: Variable,
-    e1: Arc<Expr>,
+    e1: Arc<PrimeExpr>,
 }
 
 impl Accepter for Let {
@@ -1118,11 +1118,11 @@ impl Accepter for Let {
 }
 
 impl Let {
-    pub fn new(name: Variable, e1: Arc<Expr>) -> Self {
+    pub fn new(name: Variable, e1: Arc<PrimeExpr>) -> Self {
         Let { name, e1 }
     }
 
-    pub fn make<T: Into<Expr>>(name: &Variable, e1: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(name: &Variable, e1: T) -> Self {
         Let {
             name: name.clone(),
             e1: e1.into().into(),
@@ -1133,11 +1133,11 @@ impl Let {
         &self.name
     }
 
-    pub fn e1(&self) -> &Expr {
+    pub fn e1(&self) -> &PrimeExpr {
         &self.e1
     }
 
-    pub fn e1_(&self) -> &Arc<Expr> {
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
         &self.e1
     }
 }
@@ -1148,49 +1148,49 @@ impl Display for Let {
     }
 }
 
-impl Into<Expr> for Let {
-    fn into(self) -> Expr {
-        Expr::Let(self)
+impl Into<PrimeExpr> for Let {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Let(self)
     }
 }
 
-impl Into<Expr> for &Let {
-    fn into(self) -> Expr {
-        Expr::Let(self.clone())
+impl Into<PrimeExpr> for &Let {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Let(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Eq {
-    e1: Arc<Expr>,
-    e2: Arc<Expr>,
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
 }
 
 impl Eq {
-    pub fn new(e1: Arc<Expr>, e2: Arc<Expr>) -> Self {
+    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
         Eq { e1, e2 }
     }
 
-    pub fn make<T: Into<Expr>>(e1: T, e2: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
         Eq {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
     }
 
-    pub fn e1(&self) -> &Expr {
+    pub fn e1(&self) -> &PrimeExpr {
         &self.e1
     }
 
-    pub fn e2(&self) -> &Expr {
+    pub fn e2(&self) -> &PrimeExpr {
         &self.e2
     }
 
-    pub fn e1_(&self) -> &Arc<Expr> {
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
         &self.e1
     }
 
-    pub fn e2_(&self) -> &Arc<Expr> {
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
         &self.e2
     }
 }
@@ -1201,49 +1201,49 @@ impl Display for Eq {
     }
 }
 
-impl Into<Expr> for Eq {
-    fn into(self) -> Expr {
-        Expr::Eq(self)
+impl Into<PrimeExpr> for Eq {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Eq(self)
     }
 }
 
-impl Into<Expr> for &Eq {
-    fn into(self) -> Expr {
-        Expr::Eq(self.clone())
+impl Into<PrimeExpr> for &Eq {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Eq(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Ne {
-    e1: Arc<Expr>,
-    e2: Arc<Expr>,
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
 }
 
 impl Ne {
-    pub fn new(e1: Arc<Expr>, e2: Arc<Expr>) -> Self {
+    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
         Ne { e1, e2 }
     }
 
-    pub fn make<T: Into<Expr>>(e1: T, e2: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
         Ne {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
     }
 
-    pub fn e1(&self) -> &Expr {
+    pub fn e1(&self) -> &PrimeExpr {
         &self.e1
     }
 
-    pub fn e2(&self) -> &Expr {
+    pub fn e2(&self) -> &PrimeExpr {
         &self.e2
     }
 
-    pub fn e1_(&self) -> &Arc<Expr> {
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
         &self.e1
     }
 
-    pub fn e2_(&self) -> &Arc<Expr> {
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
         &self.e2
     }
 }
@@ -1254,49 +1254,49 @@ impl Display for Ne {
     }
 }
 
-impl Into<Expr> for Ne {
-    fn into(self) -> Expr {
-        Expr::Ne(self)
+impl Into<PrimeExpr> for Ne {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Ne(self)
     }
 }
 
-impl Into<Expr> for &Ne {
-    fn into(self) -> Expr {
-        Expr::Ne(self.clone())
+impl Into<PrimeExpr> for &Ne {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Ne(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Lt {
-    e1: Arc<Expr>,
-    e2: Arc<Expr>,
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
 }
 
 impl Lt {
-    pub fn new(e1: Arc<Expr>, e2: Arc<Expr>) -> Self {
+    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
         Lt { e1, e2 }
     }
 
-    pub fn make<T: Into<Expr>>(e1: T, e2: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
         Lt {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
     }
 
-    pub fn e1(&self) -> &Expr {
+    pub fn e1(&self) -> &PrimeExpr {
         &self.e1
     }
 
-    pub fn e2(&self) -> &Expr {
+    pub fn e2(&self) -> &PrimeExpr {
         &self.e2
     }
 
-    pub fn e1_(&self) -> &Arc<Expr> {
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
         &self.e1
     }
 
-    pub fn e2_(&self) -> &Arc<Expr> {
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
         &self.e2
     }
 }
@@ -1307,22 +1307,22 @@ impl Display for Lt {
     }
 }
 
-impl Into<Expr> for Lt {
-    fn into(self) -> Expr {
-        Expr::Lt(self)
+impl Into<PrimeExpr> for Lt {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Lt(self)
     }
 }
 
-impl Into<Expr> for &Lt {
-    fn into(self) -> Expr {
-        Expr::Lt(self.clone())
+impl Into<PrimeExpr> for &Lt {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Lt(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Le {
-    e1: Arc<Expr>,
-    e2: Arc<Expr>,
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
 }
 
 impl Accepter for Le {
@@ -1332,30 +1332,30 @@ impl Accepter for Le {
 }
 
 impl Le {
-    pub fn new(e1: Arc<Expr>, e2: Arc<Expr>) -> Self {
+    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
         Le { e1, e2 }
     }
 
-    pub fn make<T: Into<Expr>>(e1: T, e2: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
         Le {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
     }
 
-    pub fn e1(&self) -> &Expr {
+    pub fn e1(&self) -> &PrimeExpr {
         &self.e1
     }
 
-    pub fn e2(&self) -> &Expr {
+    pub fn e2(&self) -> &PrimeExpr {
         &self.e2
     }
 
-    pub fn e1_(&self) -> &Arc<Expr> {
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
         &self.e1
     }
 
-    pub fn e2_(&self) -> &Arc<Expr> {
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
         &self.e2
     }
 }
@@ -1366,22 +1366,22 @@ impl Display for Le {
     }
 }
 
-impl Into<Expr> for Le {
-    fn into(self) -> Expr {
-        Expr::Le(self)
+impl Into<PrimeExpr> for Le {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Le(self)
     }
 }
 
-impl Into<Expr> for &Le {
-    fn into(self) -> Expr {
-        Expr::Le(self.clone())
+impl Into<PrimeExpr> for &Le {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Le(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Mod {
-    e1: Arc<Expr>,
-    e2: Arc<Expr>,
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
 }
 
 impl Accepter for Mod {
@@ -1391,30 +1391,30 @@ impl Accepter for Mod {
 }
 
 impl Mod {
-    pub fn new(e1: Arc<Expr>, e2: Arc<Expr>) -> Self {
+    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
         Mod { e1, e2 }
     }
 
-    pub fn make<T: Into<Expr>>(e1: T, e2: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
         Mod {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
     }
 
-    pub fn e1(&self) -> &Expr {
+    pub fn e1(&self) -> &PrimeExpr {
         &self.e1
     }
 
-    pub fn e2(&self) -> &Expr {
+    pub fn e2(&self) -> &PrimeExpr {
         &self.e2
     }
 
-    pub fn e1_(&self) -> &Arc<Expr> {
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
         &self.e1
     }
 
-    pub fn e2_(&self) -> &Arc<Expr> {
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
         &self.e2
     }
 }
@@ -1425,22 +1425,22 @@ impl Display for Mod {
     }
 }
 
-impl Into<Expr> for Mod {
-    fn into(self) -> Expr {
-        Expr::Mod(self)
+impl Into<PrimeExpr> for Mod {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Mod(self)
     }
 }
 
-impl Into<Expr> for &Mod {
-    fn into(self) -> Expr {
-        Expr::Mod(self.clone())
+impl Into<PrimeExpr> for &Mod {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Mod(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Min {
-    e1: Arc<Expr>,
-    e2: Arc<Expr>,
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
 }
 
 impl Accepter for Min {
@@ -1450,30 +1450,30 @@ impl Accepter for Min {
 }
 
 impl Min {
-    pub fn new(e1: Arc<Expr>, e2: Arc<Expr>) -> Self {
+    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
         Min { e1, e2 }
     }
 
-    pub fn make<T: Into<Expr>>(e1: T, e2: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
         Min {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
     }
 
-    pub fn e1(&self) -> &Expr {
+    pub fn e1(&self) -> &PrimeExpr {
         &self.e1
     }
 
-    pub fn e2(&self) -> &Expr {
+    pub fn e2(&self) -> &PrimeExpr {
         &self.e2
     }
 
-    pub fn e1_(&self) -> &Arc<Expr> {
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
         &self.e1
     }
 
-    pub fn e2_(&self) -> &Arc<Expr> {
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
         &self.e2
     }
 }
@@ -1484,22 +1484,22 @@ impl Display for Min {
     }
 }
 
-impl Into<Expr> for Min {
-    fn into(self) -> Expr {
-        Expr::Min(self)
+impl Into<PrimeExpr> for Min {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Min(self)
     }
 }
 
-impl Into<Expr> for &Min {
-    fn into(self) -> Expr {
-        Expr::Min(self.clone())
+impl Into<PrimeExpr> for &Min {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Min(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Max {
-    e1: Arc<Expr>,
-    e2: Arc<Expr>,
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
 }
 
 impl Accepter for Max {
@@ -1509,30 +1509,30 @@ impl Accepter for Max {
 }
 
 impl Max {
-    pub fn new(e1: Arc<Expr>, e2: Arc<Expr>) -> Self {
+    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
         Max { e1, e2 }
     }
 
-    pub fn make<T: Into<Expr>>(e1: T, e2: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
         Max {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
     }
 
-    pub fn e1(&self) -> &Expr {
+    pub fn e1(&self) -> &PrimeExpr {
         &self.e1
     }
 
-    pub fn e2(&self) -> &Expr {
+    pub fn e2(&self) -> &PrimeExpr {
         &self.e2
     }
 
-    pub fn e1_(&self) -> &Arc<Expr> {
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
         &self.e1
     }
 
-    pub fn e2_(&self) -> &Arc<Expr> {
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
         &self.e2
     }
 }
@@ -1543,14 +1543,14 @@ impl Display for Max {
     }
 }
 
-impl Into<Expr> for Max {
-    fn into(self) -> Expr {
-        Expr::Max(self)
+impl Into<PrimeExpr> for Max {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Max(self)
     }
 }
 
-impl Into<Expr> for &Max {
-    fn into(self) -> Expr {
-        Expr::Max(self.clone())
+impl Into<PrimeExpr> for &Max {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Max(self.clone())
     }
 }

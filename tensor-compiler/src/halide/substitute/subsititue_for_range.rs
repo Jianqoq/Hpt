@@ -2,7 +2,7 @@ use hashbrown::HashMap;
 
 use crate::{
     halide::{
-        expr::Expr,
+        prime_expr::PrimeExpr,
         exprs::Int,
         for_stmt::For,
         stmt::Stmt,
@@ -15,7 +15,7 @@ use crate::{
 pub struct SubstituteForMeta {
     replace: HashMap<(i64, i64, Variable), (i64, i64, Variable)>,
     stmt: Stmt,
-    expr: Expr,
+    expr: PrimeExpr,
 }
 
 impl SubstituteForMeta {
@@ -23,7 +23,7 @@ impl SubstituteForMeta {
         SubstituteForMeta {
             replace: HashMap::new(),
             stmt: Stmt::None,
-            expr: Expr::None,
+            expr: PrimeExpr::None,
         }
     }
 
@@ -68,7 +68,7 @@ impl IRMutateVisitor for SubstituteForMeta {
 }
 
 impl MutatorGetSet for SubstituteForMeta {
-    fn set_expr<T: Into<Expr>>(&mut self, expr: T) {
+    fn set_expr<T: Into<PrimeExpr>>(&mut self, expr: T) {
         self.expr = expr.into();
     }
 
@@ -76,7 +76,7 @@ impl MutatorGetSet for SubstituteForMeta {
         self.stmt = stmt.into();
     }
 
-    fn expr(&self) -> &Expr {
+    fn expr(&self) -> &PrimeExpr {
         &self.expr
     }
 

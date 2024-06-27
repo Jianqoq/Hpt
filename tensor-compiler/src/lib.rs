@@ -2,7 +2,7 @@
 use halide::r#type::{ HalideirTypeCode, Type };
 
 pub mod halide {
-    pub mod expr;
+    pub mod prime_expr;
     pub mod for_stmt;
     pub mod let_stmt;
     pub mod substitute {
@@ -37,7 +37,7 @@ pub mod hlir {
     pub mod func_type;
     pub mod tests;
 }
-
+pub mod registry;
 pub mod op;
 pub mod float;
 

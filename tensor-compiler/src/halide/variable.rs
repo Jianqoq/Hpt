@@ -1,7 +1,7 @@
 use std::{fmt::Display, sync::Arc};
 
 use super::{
-    expr::Expr, exprs::{Add, Int, Mul}, traits::{IRMutVisitor, IRMutateVisitor, IRVisitor}
+    prime_expr::PrimeExpr, exprs::{Add, Int, Mul}, traits::{IRMutVisitor, IRMutateVisitor, IRVisitor}
 };
 
 #[derive(Clone, PartialEq, Hash, Eq, Debug)]
@@ -50,199 +50,199 @@ impl Display for Variable {
 }
 
 impl std::ops::Mul for Variable {
-    type Output = Expr;
+    type Output = PrimeExpr;
 
     fn mul(self, rhs: Variable) -> Self::Output {
-        Expr::Mul(Mul::new(
-            Expr::Variable(self).into(),
-            Expr::Variable(rhs).into(),
+        PrimeExpr::Mul(Mul::new(
+            PrimeExpr::Variable(self).into(),
+            PrimeExpr::Variable(rhs).into(),
         ))
     }
 }
 
 impl std::ops::Mul<&Int> for &Variable {
-    type Output = Expr;
+    type Output = PrimeExpr;
 
     fn mul(self, rhs: &Int) -> Self::Output {
-        Expr::Mul(Mul::new(
-            Expr::Variable(self.clone()).into(),
-            Expr::Int(rhs.clone()).into(),
+        PrimeExpr::Mul(Mul::new(
+            PrimeExpr::Variable(self.clone()).into(),
+            PrimeExpr::Int(rhs.clone()).into(),
         ))
     }
 }
 
 impl std::ops::Mul<Int> for &Variable {
-    type Output = Expr;
+    type Output = PrimeExpr;
 
     fn mul(self, rhs: Int) -> Self::Output {
-        Expr::Mul(Mul::new(
-            Expr::Variable(self.clone()).into(),
-            Expr::Int(rhs).into(),
+        PrimeExpr::Mul(Mul::new(
+            PrimeExpr::Variable(self.clone()).into(),
+            PrimeExpr::Int(rhs).into(),
         ))
     }
 }
 
 impl std::ops::Mul<&Int> for Variable {
-    type Output = Expr;
+    type Output = PrimeExpr;
 
     fn mul(self, rhs: &Int) -> Self::Output {
-        Expr::Mul(Mul::new(
-            Expr::Variable(self).into(),
-            Expr::Int(rhs.clone()).into(),
+        PrimeExpr::Mul(Mul::new(
+            PrimeExpr::Variable(self).into(),
+            PrimeExpr::Int(rhs.clone()).into(),
         ))
     }
 }
 
 impl std::ops::Mul<Int> for Variable {
-    type Output = Expr;
+    type Output = PrimeExpr;
 
     fn mul(self, rhs: Int) -> Self::Output {
-        Expr::Mul(Mul::new(Expr::Variable(self).into(), Expr::Int(rhs).into()))
+        PrimeExpr::Mul(Mul::new(PrimeExpr::Variable(self).into(), PrimeExpr::Int(rhs).into()))
     }
 }
 
 impl std::ops::Mul<Variable> for Int {
-    type Output = Expr;
+    type Output = PrimeExpr;
 
     fn mul(self, rhs: Variable) -> Self::Output {
-        Expr::Mul(Mul::new(Expr::Int(self).into(), Expr::Variable(rhs).into()))
+        PrimeExpr::Mul(Mul::new(PrimeExpr::Int(self).into(), PrimeExpr::Variable(rhs).into()))
     }
 }
 
 impl std::ops::Mul<&Variable> for Int {
-    type Output = Expr;
+    type Output = PrimeExpr;
 
     fn mul(self, rhs: &Variable) -> Self::Output {
-        Expr::Mul(Mul::new(
-            Expr::Int(self).into(),
-            Expr::Variable(rhs.clone()).into(),
+        PrimeExpr::Mul(Mul::new(
+            PrimeExpr::Int(self).into(),
+            PrimeExpr::Variable(rhs.clone()).into(),
         ))
     }
 }
 
 impl std::ops::Mul<Variable> for &Int {
-    type Output = Expr;
+    type Output = PrimeExpr;
 
     fn mul(self, rhs: Variable) -> Self::Output {
-        Expr::Mul(Mul::new(
-            Expr::Int(self.clone()).into(),
-            Expr::Variable(rhs).into(),
+        PrimeExpr::Mul(Mul::new(
+            PrimeExpr::Int(self.clone()).into(),
+            PrimeExpr::Variable(rhs).into(),
         ))
     }
 }
 
 impl std::ops::Mul<&Variable> for &Int {
-    type Output = Expr;
+    type Output = PrimeExpr;
 
     fn mul(self, rhs: &Variable) -> Self::Output {
-        Expr::Mul(Mul::new(
-            Expr::Int(self.clone()).into(),
-            Expr::Variable(rhs.clone()).into(),
+        PrimeExpr::Mul(Mul::new(
+            PrimeExpr::Int(self.clone()).into(),
+            PrimeExpr::Variable(rhs.clone()).into(),
         ))
     }
 }
 
 impl std::ops::Add for Variable {
-    type Output = Expr;
+    type Output = PrimeExpr;
 
     fn add(self, rhs: Variable) -> Self::Output {
-        Expr::Add(Add::new(
-            Expr::Variable(self).into(),
-            Expr::Variable(rhs).into(),
+        PrimeExpr::Add(Add::new(
+            PrimeExpr::Variable(self).into(),
+            PrimeExpr::Variable(rhs).into(),
         ))
     }
 }
 
 impl std::ops::Add<&Int> for &Variable {
-    type Output = Expr;
+    type Output = PrimeExpr;
 
     fn add(self, rhs: &Int) -> Self::Output {
-        Expr::Add(Add::new(
-            Expr::Variable(self.clone()).into(),
-            Expr::Int(rhs.clone()).into(),
+        PrimeExpr::Add(Add::new(
+            PrimeExpr::Variable(self.clone()).into(),
+            PrimeExpr::Int(rhs.clone()).into(),
         ))
     }
 }
 
 impl std::ops::Add<Int> for &Variable {
-    type Output = Expr;
+    type Output = PrimeExpr;
 
     fn add(self, rhs: Int) -> Self::Output {
-        Expr::Add(Add::new(
-            Expr::Variable(self.clone()).into(),
-            Expr::Int(rhs).into(),
+        PrimeExpr::Add(Add::new(
+            PrimeExpr::Variable(self.clone()).into(),
+            PrimeExpr::Int(rhs).into(),
         ))
     }
 }
 
 impl std::ops::Add<&Int> for Variable {
-    type Output = Expr;
+    type Output = PrimeExpr;
 
     fn add(self, rhs: &Int) -> Self::Output {
-        Expr::Add(Add::new(
-            Expr::Variable(self).into(),
-            Expr::Int(rhs.clone()).into(),
+        PrimeExpr::Add(Add::new(
+            PrimeExpr::Variable(self).into(),
+            PrimeExpr::Int(rhs.clone()).into(),
         ))
     }
 }
 
 impl std::ops::Add<Int> for Variable {
-    type Output = Expr;
+    type Output = PrimeExpr;
 
     fn add(self, rhs: Int) -> Self::Output {
-        Expr::Add(Add::new(Expr::Variable(self).into(), Expr::Int(rhs).into()))
+        PrimeExpr::Add(Add::new(PrimeExpr::Variable(self).into(), PrimeExpr::Int(rhs).into()))
     }
 }
 
 impl std::ops::Add<Variable> for Int {
-    type Output = Expr;
+    type Output = PrimeExpr;
 
     fn add(self, rhs: Variable) -> Self::Output {
-        Expr::Add(Add::new(Expr::Int(self).into(), Expr::Variable(rhs).into()))
+        PrimeExpr::Add(Add::new(PrimeExpr::Int(self).into(), PrimeExpr::Variable(rhs).into()))
     }
 }
 
 impl std::ops::Add<&Variable> for Int {
-    type Output = Expr;
+    type Output = PrimeExpr;
 
     fn add(self, rhs: &Variable) -> Self::Output {
-        Expr::Add(Add::new(
-            Expr::Int(self).into(),
-            Expr::Variable(rhs.clone()).into(),
+        PrimeExpr::Add(Add::new(
+            PrimeExpr::Int(self).into(),
+            PrimeExpr::Variable(rhs.clone()).into(),
         ))
     }
 }
 
 impl std::ops::Add<Variable> for &Int {
-    type Output = Expr;
+    type Output = PrimeExpr;
 
     fn add(self, rhs: Variable) -> Self::Output {
-        Expr::Add(Add::new(
-            Expr::Int(self.clone()).into(),
-            Expr::Variable(rhs).into(),
+        PrimeExpr::Add(Add::new(
+            PrimeExpr::Int(self.clone()).into(),
+            PrimeExpr::Variable(rhs).into(),
         ))
     }
 }
 
 impl std::ops::Add<&Variable> for &Int {
-    type Output = Expr;
+    type Output = PrimeExpr;
 
     fn add(self, rhs: &Variable) -> Self::Output {
-        Expr::Add(Add::new(
-            Expr::Int(self.clone()).into(),
-            Expr::Variable(rhs.clone()).into(),
+        PrimeExpr::Add(Add::new(
+            PrimeExpr::Int(self.clone()).into(),
+            PrimeExpr::Variable(rhs.clone()).into(),
         ))
     }
 }
 
-impl Into<Expr> for Variable {
-    fn into(self) -> Expr {
-        Expr::Variable(self)
+impl Into<PrimeExpr> for Variable {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Variable(self)
     }
 }
 
-impl Into<Expr> for &Variable {
-    fn into(self) -> Expr {
-        Expr::Variable(self.clone())
+impl Into<PrimeExpr> for &Variable {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Variable(self.clone())
     }
 }
