@@ -76,15 +76,14 @@ fn test_for() {
 
 #[test]
 fn test_fusion() {
-    let args: [Variable; 0] = [];
     let a = Tensor::make("a", Shape::new([1, 8, 8]).into(), Dtype::BF16);
     let b = Tensor::make("b", Shape::new([1]).into(), Dtype::BF16);
     let div_op = MANAGER.lock().unwrap().get("div").cloned().unwrap();
     let a_load = Load::make(
         a.name(),
-        Int::make(Dtype::I32, 1) + Int::make(Dtype::I32, 2) + Int::make(Dtype::I32, 3)
+        [Int::make(Dtype::I32, 1), Int::make(Dtype::I32, 2), Int::make(Dtype::I32, 3)]
     );
-    let b_load = Load::make(b.name(), Int::make(Dtype::I32, 0));
+    let b_load = Load::make(b.name(), [Int::make(Dtype::I32, 0)]);
     let expr = div_op.get_binop_expr(a_load, b_load);
     IRPrinter.print_expr(expr);
 }

@@ -165,7 +165,9 @@ pub trait IRVisitor where Self: Sized {
     }
     fn visit_load(&self, load: &Load) {
         load.name().accept(self);
-        load.indices().accept(self);
+        for idx in load.indices() {
+            idx.accept(self);
+        }
     }
     fn visit_store(&self, store: &StoreStmt) {
         store.var().accept(self);
@@ -358,7 +360,9 @@ pub trait IRMutVisitor where Self: Sized {
     }
     fn visit_load(&mut self, load: &Load) {
         load.name().accept_mut(self);
-        load.indices().accept_mut(self);
+        for idx in load.indices() {
+            idx.accept_mut(self);
+        }
     }
     fn visit_store(&mut self, store: &StoreStmt) {
         store.var().accept_mut(self);
@@ -754,7 +758,11 @@ pub(crate) fn visit_load<V>(visitor: &mut V, load: &Load)
     where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let var = visitor.mutate_expr(load.name());
-    let indices = visitor.mutate_expr(load.indices());
+    let indices = load
+        .indices()
+        .iter()
+        .map(|index| visitor.mutate_expr(index))
+        .collect::<Vec<_>>();
     if &var == load.name() && &indices == load.indices() {
         visitor.set_expr(load);
     } else {

@@ -367,7 +367,9 @@ impl IRMutVisitor for IRComparator {
         let expr = self.expr_.to_load().cloned();
         if let Some(load) = expr {
             self.compare_expr(load.name(), load.name());
-            self.compare_expr(load.indices(), load.indices());
+            for (a, b) in load.indices().iter().zip(load.indices().iter()) {
+                self.compare_expr(a, b);
+            }
         } else {
             self.result = CmpResult::LessThan;
         }

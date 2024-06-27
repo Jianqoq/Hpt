@@ -2,9 +2,7 @@ use std::{ fmt::Display, sync::Arc };
 
 use tensor_types::dtype::Dtype;
 
-use super::{
-    prime_expr::PrimeExpr, traits::{ Accepter, IRVisitor }, r#type::HalideirTypeCode, variable::Variable
-};
+use super::{ prime_expr::PrimeExpr, traits::{ Accepter, IRVisitor }, variable::Variable };
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Int {
     value: i64,
@@ -435,7 +433,7 @@ impl Mul {
         Mul { e1, e2 }
     }
 
-    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
+    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(e1: A, e2: B) -> Self {
         Mul {
             e1: e1.into().into(),
             e2: e2.into().into(),
@@ -962,7 +960,11 @@ impl Accepter for Select {
 }
 
 impl Select {
-    pub fn new(cond: Arc<PrimeExpr>, true_expr: Arc<PrimeExpr>, false_expr: Arc<PrimeExpr>) -> Self {
+    pub fn new(
+        cond: Arc<PrimeExpr>,
+        true_expr: Arc<PrimeExpr>,
+        false_expr: Arc<PrimeExpr>
+    ) -> Self {
         Select {
             cond,
             true_expr,
@@ -1024,7 +1026,7 @@ impl Into<PrimeExpr> for &Select {
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Load {
     name: Arc<PrimeExpr>,
-    indices: Arc<PrimeExpr>,
+    indices: Arc<Vec<PrimeExpr>>,
 }
 
 impl Accepter for Load {
@@ -1034,10 +1036,6 @@ impl Accepter for Load {
 }
 
 impl Load {
-    pub fn new(name: Arc<PrimeExpr>, indices: Arc<PrimeExpr>) -> Self {
-        Load { name, indices }
-    }
-
     pub fn make_from_strides(name: &Variable, indices: &[Variable], strides: &[i64]) -> Self {
         if indices.len() != strides.len() {
             panic!(
@@ -1046,24 +1044,28 @@ impl Load {
                 strides
             );
         }
-        let sum = strides
+        let indices = indices
             .iter()
-            .zip(indices.iter())
-            .map(|(stride, index)| {
-                index * Int::make(Dtype::I64, *stride)
-            })
-            .reduce(|acc, e| acc + e)
-            .expect("Failed to reduce");
+            .zip(strides.iter())
+            .map(|(v, s)| Mul::make(v.clone(), Int::make(Dtype::I64, *s)).into())
+            .collect::<Vec<PrimeExpr>>();
         Load {
             name: Arc::new(name.clone().into()),
-            indices: sum.into(),
+            indices: indices.into(),
         }
     }
 
-    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(name: A, indices: B) -> Self {
+    pub fn make<A: Into<PrimeExpr>, B: IntoIterator<Item: Into<PrimeExpr>>>(
+        name: A,
+        indices: B
+    ) -> Self {
         Load {
             name: Arc::new(name.into().into()),
-            indices: indices.into().into(),
+            indices: indices
+                .into_iter()
+                .map(|e| e.into().into())
+                .collect::<Vec<PrimeExpr>>()
+                .into(),
         }
     }
 
@@ -1071,7 +1073,7 @@ impl Load {
         &self.name
     }
 
-    pub fn indices(&self) -> &PrimeExpr {
+    pub fn indices(&self) -> &Vec<PrimeExpr> {
         &self.indices
     }
 
@@ -1079,14 +1081,23 @@ impl Load {
         &self.name
     }
 
-    pub fn indices_(&self) -> &Arc<PrimeExpr> {
+    pub fn indices_(&self) -> &Arc<Vec<PrimeExpr>> {
         &self.indices
     }
 }
 
 impl Display for Load {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}[{}]", self.name, self.indices)
+        write!(
+            f,
+            "{}[{}]",
+            self.name,
+            self.indices
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
     }
 }
 
