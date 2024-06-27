@@ -74,9 +74,13 @@ pub trait HlirVisitor where Self: Sized {
             Expr::OpNode(op_node) => {
                 self.visit_op_node(op_node);
             }
+            Expr::ComputeNode(cmp_node) => {
+                self.visit_compute_node(cmp_node);
+            },
             Expr::None => {}
         }
     }
+    fn visit_compute_node(&self, _: &ComputeNode) {}
     fn visit_op_node(&self, _: &OpNode) {}
     fn visit_slice(&self, slice: &Slice) {
         slice.var().accept(self);
@@ -270,9 +274,13 @@ pub trait HlirMutVisitor where Self: Sized {
             Expr::OpNode(op_node) => {
                 self.visit_op_node(op_node);
             }
+            Expr::ComputeNode(cmp_node) => {
+                self.visit_compute_node(cmp_node);
+            },
             Expr::None => {}
         }
     }
+    fn visit_compute_node(&mut self, _: &ComputeNode) {}
     fn visit_op_node(&mut self, _: &OpNode) {}
     fn visit_slice(&mut self, slice: &Slice) {
         slice.var().accept_mut(self);
@@ -724,9 +732,13 @@ pub trait HlirMutateVisitor where Self: Sized + MutatorGetSet {
             Expr::OpNode(op_node) => {
                 self.visit_op_node(op_node);
             }
+            Expr::ComputeNode(cmp_node) => {
+                self.visit_compute_node(cmp_node);
+            },
             Expr::None => {}
         }
     }
+    fn visit_compute_node(&mut self, _: &ComputeNode) {}
     fn visit_op_node(&mut self, _: &OpNode) {}
     fn visit_slice(&mut self, slice: &Slice) {
         visit_slcie(self, slice);

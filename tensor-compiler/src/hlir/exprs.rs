@@ -1,9 +1,9 @@
 use std::{ fmt::Display, sync::Arc };
 
-use tensor_common::layout::Layout;
+use tensor_common::{ layout::Layout, shape::Shape };
 use tensor_types::dtype::Dtype;
 
-use crate::op::OpType;
+use crate::{ halide::prime_expr::PrimeExpr, op::OpType };
 
 use super::{
     _value::_Value,
@@ -642,15 +642,15 @@ impl Display for Let {
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct Tensor {
     name: Arc<String>,
-    layout: Arc<Layout>,
+    shape: Shape,
     dtype: Dtype,
 }
 
 impl Tensor {
-    pub fn make<T: Into<String>>(name: T, layout: Layout, dtype: Dtype) -> Self {
+    pub fn make<T: Into<String>>(name: T, layout: Shape, dtype: Dtype) -> Self {
         Self {
             name: Arc::new(name.into()),
-            layout: Arc::new(layout),
+            shape: layout,
             dtype,
         }
     }
@@ -658,13 +658,50 @@ impl Tensor {
 
 impl Display for Tensor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Tensor({}, shape={:?}, {})", self.name, self.shape.inner(), self.dtype)
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
+pub struct ComputeNode {
+    name: Variable,
+    shape: Arc<Vec<PrimeExpr>>,
+    strides: Arc<Vec<PrimeExpr>>,
+    ndim: usize,
+}
+
+impl ComputeNode {
+    pub fn make<T: IntoVar, U: IntoIterator<Item: Into<PrimeExpr>>>(
+        name: T,
+        shape: U,
+        strides: U,
+        ndim: usize
+    ) -> Self {
+        Self {
+            name: name.into_var(),
+            shape: shape
+                .into_iter()
+                .map(|x| x.into())
+                .collect::<Vec<PrimeExpr>>()
+                .into(),
+            strides: strides
+                .into_iter()
+                .map(|x| x.into())
+                .collect::<Vec<PrimeExpr>>()
+                .into(),
+            ndim,
+        }
+    }
+}
+
+impl Display for ComputeNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "Tensor({}, shape={:?}, strides={:?}, {})",
+            "ComputeNode({}, shape={:?}, strides={:?})",
             self.name,
-            self.layout.shape().inner(),
-            self.layout.strides().inner(),
-            self.dtype
+            self.shape,
+            self.strides
         )
     }
 }
@@ -1003,6 +1040,7 @@ impl_into_expr!(Tuple);
 impl_into_expr!(TensorType);
 impl_into_expr!(Slice);
 impl_into_expr!(OpNode);
+impl_into_expr!(ComputeNode);
 
 impl_binop!(Add, visit_add);
 impl_binop!(Sub, visit_sub);
