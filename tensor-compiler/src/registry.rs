@@ -15,6 +15,7 @@ pub(crate) fn add_binop(registory: &mut AttrRegistry, name: &str) {
 
 pub enum Closures {
     Binop(fn(Expr, Expr) -> Call),
+    Unop(fn(Expr) -> Call),
 }
 
 pub struct Manager {
@@ -67,6 +68,14 @@ macro_rules! binop {
     };
 }
 
+macro_rules! unop {
+    ($ret:ident, $op_name:ident) => {
+        $ret.map.insert(stringify!($op_name).to_string(), Closures::Unop(|lhs| {
+            Call::make(stringify!($op_name), &[lhs])
+        }));
+    };
+}
+
 lazy_static! {
     static ref MANAGER: Mutex<Manager> = {
         let mut ret = Manager {
@@ -91,6 +100,26 @@ lazy_static! {
         binop!(ret, le);
         binop!(ret, gt);
         binop!(ret, ge);
+        unop!(ret, not);
+        unop!(ret, neg);
+        unop!(ret, abs);
+        unop!(ret, sqrt);
+        unop!(ret, exp);
+        unop!(ret, log);
+        unop!(ret, log2);
+        unop!(ret, log10);
+        unop!(ret, sin);
+        unop!(ret, cos);
+        unop!(ret, tan);
+        unop!(ret, asin);
+        unop!(ret, acos);
+        unop!(ret, atan);
+        unop!(ret, sinh);
+        unop!(ret, cosh);
+        unop!(ret, tanh);
+        unop!(ret, asinh);
+        unop!(ret, acosh);
+        unop!(ret, atanh);
         ret.into()
     };
 }
