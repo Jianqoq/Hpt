@@ -688,6 +688,7 @@ impl ComputeNode {
                 panic!("Cannot reshape strides");
             }
         } else {
+            /* this code is being used in strided iterator reshape, should refactor */
             let self_shape = try_pad_shape(&lhs.shape(), broadcast_shape.len());
 
             let axes_to_broadcast = get_broadcast_axes_from(&self_shape, &broadcast_shape).expect(
@@ -715,6 +716,7 @@ impl ComputeNode {
                 panic!("Cannot reshape strides");
             }
         } else {
+            /* this code is being used in strided iterator reshape, should refactor */
             let self_shape = try_pad_shape(&rhs.shape(), broadcast_shape.len());
 
             let axes_to_broadcast = get_broadcast_axes_from(&self_shape, &broadcast_shape).expect(
