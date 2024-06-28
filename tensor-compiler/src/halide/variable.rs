@@ -55,6 +55,12 @@ impl Into<Variable> for &str {
     }
 }
 
+impl From<String> for Variable {
+    fn from(s: String) -> Self {
+        Variable::new(s)
+    }
+}
+
 impl Display for Variable {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.name)

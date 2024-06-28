@@ -22,27 +22,26 @@ pub(crate) fn add_unop(registry: &mut AttrRegistry, name: &str) {
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub enum Closures {
-    Binop(fn(PrimeExpr, PrimeExpr) -> Call),
-    Unop(fn(PrimeExpr) -> Call),
+    Common(fn(Vec<PrimeExpr>) -> Call),
     Init(fn(Variable, PrimeExpr) -> Call),
 }
 
 pub enum ClosuresType {
-    Binop,
+    Common,
     Unop,
 }
 
 impl Closures {
     pub fn get_binop_expr<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(&self, lhs: A, rhs: B) -> Call {
         match self {
-            Closures::Binop(f) => f(lhs.into(), rhs.into()),
+            Closures::Common(f) => f(vec![lhs.into(), rhs.into()]),
             _ => panic!("not binop"),
         }
     }
-    pub fn get_unop_expr(&self, lhs: PrimeExpr) -> Call {
+    pub fn call_common(&self, vec: Vec<PrimeExpr>) -> Call {
         match self {
-            Closures::Unop(f) => f(lhs),
-            _ => panic!("not unop"),
+            Closures::Common(f) => f(vec),
+            _ => panic!("not common"),
         }
     }
 }
@@ -118,20 +117,20 @@ lazy_static! {
 
 macro_rules! binop {
     ($ret:ident, $op_name:ident) => {
-        $ret.map.insert(stringify!($op_name).to_string(), Closures::Binop(|lhs, rhs| {
+        $ret.map.insert(stringify!($op_name).to_string(), Closures::Common(|vec| {
             let locked = REGISTRY.lock().unwrap();
             let op = locked.map.get(stringify!($op_name)).unwrap();
-            Call::make(op.name(), &[lhs, rhs])
+            Call::make(op.name(), &[vec[0].clone(), vec[1].clone()])
         }));
     };
 }
 
 macro_rules! unop {
     ($ret:ident, $op_name:ident) => {
-        $ret.map.insert(stringify!($op_name).to_string(), Closures::Unop(|lhs| {
+        $ret.map.insert(stringify!($op_name).to_string(), Closures::Common(|vec| {
             let locked = REGISTRY.lock().unwrap();
             let op = locked.map.get(stringify!($op_name)).unwrap();
-            Call::make(op.name(), &[lhs])
+            Call::make(op.name(), &[vec[0].clone()])
         }));
     };
 }

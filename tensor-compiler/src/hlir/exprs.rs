@@ -1,4 +1,5 @@
 use std::{ fmt::Display, sync::Arc };
+use hashbrown::HashMap;
 use tensor_common::shape_utils::predict_reduce_shape;
 use tensor_common::{
     layout::Layout,
@@ -8,7 +9,12 @@ use tensor_common::{
 };
 use tensor_types::dtype::Dtype;
 
+use crate::halide::exprs::Load;
+use crate::halide::let_stmt::LetStmt;
+use crate::halide::seq_stmt::Seq;
 use crate::halide::stmt::Stmt;
+use crate::halide::utils::for_utils::build_nested_for;
+use crate::registry::MANAGER;
 use crate::{
     halide::{ exprs::Int, prime_expr::PrimeExpr, variable::Variable },
     op::OpType,
@@ -679,6 +685,15 @@ impl CmpNode {
         })
     }
 
+    pub fn make(shape: Shape, id: usize) -> Self {
+        CmpNode::Base(BaseNode {
+            reduced_strides: vec![].into(),
+            layout: Layout::from(shape),
+            load_fn: |var, expr| { crate::halide::exprs::Call::make(var.name(), &[expr]) },
+            id,
+        })
+    }
+
     pub fn make_unop<A: Into<Self>>(func: Closures, lhs: A, id: usize) -> Self {
         let lhs: Self = lhs.into();
         match lhs {
@@ -705,11 +720,12 @@ impl CmpNode {
     }
 
     pub fn make_binop<A: Into<Self>, B: Into<Self>>(
-        func: Closures,
+        fn_name: &str,
         lhs: A,
         rhs: B,
         id: usize
     ) -> Self {
+        let func = MANAGER.lock().unwrap().get(fn_name).expect("Cannot find op").clone();
         let mut lhs: Self = lhs.into();
         let mut rhs: Self = rhs.into();
         match (&mut lhs, &mut rhs) {
@@ -809,12 +825,13 @@ impl CmpNode {
     }
 
     pub fn make_reduce<A: Into<Self>, B: Into<Vec<Int>>>(
-        func: Closures,
+        fn_name: &str,
         lhs: A,
         axes: B,
         init: PrimeExpr,
         id: usize
     ) -> Self {
+        let func = MANAGER.lock().unwrap().get(fn_name).expect("Cannot find op").clone();
         let mut lhs: Self = lhs.into();
         let axes: Vec<Int> = axes.into();
         let axes = axes
@@ -914,16 +931,62 @@ impl CmpNode {
         }
     }
 
-    pub fn lower(&self) -> Stmt {
+    pub fn lower(&self, push_vars: bool, vars: &mut Vec<Variable>, map: &mut HashMap<usize, PrimeExpr>) -> PrimeExpr {
         match self {
             CmpNode::Base(base) => {
                 let strides = base.layout.strides().to_vec();
-                let f = base.load_fn;
-
-                todo!()
+                assert!(vars.len() == strides.len());
+                let variable_name = Variable::from(format!("%{}", base.id));
+                let indices = vars
+                    .iter()
+                    .zip(strides.iter())
+                    .map(|(v, s)| v * Int::make(Dtype::I64, *s))
+                    .reduce(|a, b| a + b);
+                let load = Load::make(variable_name, indices.unwrap());
+                load.into()
             }
-            CmpNode::Reduce(reduce) => { todo!() }
-            CmpNode::Fuse(fuse) => { todo!() }
+            CmpNode::Reduce(reduce) => {
+                let mut exprs = vec![];
+                for input in reduce.inputs.iter() {
+                    exprs.push(input.lower(false, vars, map));
+                }
+                let call = reduce.func.call_common(exprs);
+                call.into()
+            }
+            CmpNode::Fuse(fuse) => {
+                if push_vars || (fuse.inputs.len() == 1 && fuse.inputs[0].is_reduce()) {
+                    for i in fuse.common_vars.iter() {
+                        vars.push(i.clone());
+                    }
+                }
+                let mut exprs = vec![];
+                for input in fuse.inputs.iter() {
+                    exprs.push(input.lower(false, vars, map));
+                }
+                if fuse.inputs.len() == 1 && fuse.inputs[0].is_reduce() {
+                    exprs.push(fuse.inputs[0].to_reduce().identity);
+                    let call = fuse.func.call_common(exprs);
+                    map.insert(fuse.id, call.into());
+                    return Variable::from(format!("%r{}", fuse.id)).into();
+                } else {
+                    let call = fuse.func.call_common(exprs);
+                    call.into()
+                }
+            }
+        }
+    }
+
+    pub fn is_reduce(&self) -> bool {
+        match self {
+            CmpNode::Reduce(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn to_reduce(&self) -> ReduceNode {
+        match self {
+            CmpNode::Reduce(reduce) => reduce.clone(),
+            _ => panic!("Cannot convert non-reduce node to reduce node"),
         }
     }
 }

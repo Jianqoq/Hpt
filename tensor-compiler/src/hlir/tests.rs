@@ -1,4 +1,5 @@
 #![allow(unused_imports)]
+use hashbrown::HashMap;
 use tensor_common::{ layout::Layout, shape::Shape };
 use tensor_types::dtype::Dtype;
 
@@ -76,17 +77,19 @@ fn test_for() {
 
 #[test]
 fn test_fusion() {
-    let a = Tensor::make("a", Shape::new([1, 8, 8]).into(), Dtype::BF16);
-    let b = Tensor::make("b", Shape::new([1]).into(), Dtype::BF16);
-    let div_op = MANAGER.lock().unwrap().get("div").cloned().unwrap();
-    let div = CmpNode::make_binop(div_op, (a, 0), (b, 1), 2);
-    let max_op = MANAGER.lock().unwrap().get("max").cloned().unwrap();
+    let a = CmpNode::make(Shape::new([1, 8, 8]).into(), 0);
+    let b = CmpNode::make(Shape::new([1]).into(), 1);
+    let div = CmpNode::make_binop("div", a, b, 2);
     let comp = CmpNode::make_reduce(
-        max_op,
+        "max",
         &div,
         [Int::make(Dtype::I64, 2)],
         Int::make(Dtype::I64, 0).into(),
         3
     );
-    comp.lower();
+    let mut saved_exprs = HashMap::new();
+    let expr = comp.lower(true, &mut vec![], &mut saved_exprs);
+    for (k, v) in saved_exprs.iter() {
+        println!("{}: {}", k, v);
+    }
 }
