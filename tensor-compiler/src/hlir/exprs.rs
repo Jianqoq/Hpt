@@ -668,17 +668,11 @@ impl Display for Tensor {
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct ComputeNode {
     compute_expr: PrimeExpr,
-    // =========== common load indices ==============
-    vars: Arc<Vec<Variable>>,
-    strides: Arc<Vec<Int>>,
-    // =========== reduced load indices =============
+    iter_vars: Arc<Vec<Variable>>,
     reduce_vars: Arc<Vec<Variable>>,
-    reduced_strides: Arc<Vec<Int>>,
-    // ===============================
+    strides: Arc<Vec<Int>>,
     shape: Shape,
-
-    // identity of compute node, it is currently used for reduce_vars
-    id: usize,
+    id: usize
 }
 
 impl ComputeNode {
@@ -702,15 +696,13 @@ impl ComputeNode {
         Self {
             compute_expr: load.into(),
             shape: tensor.shape().clone(),
-            vars: iter_vars.into(),
+            iter_vars: iter_vars.into(),
             reduce_vars: vec![].into(),
             strides: strides.into(),
-            reduced_strides: vec![].into(),
             id,
         }
     }
-
-    pub fn make_binop<A: Into<Self>, B: Into<Self>>(func: Closures, lhs: A, rhs: B) -> Self {
+    pub fn make_binop<A: Into<Self>, B: Into<Self>>(func: Closures, lhs: A, rhs: B, id: usize) -> Self {
         let lhs: Self = lhs.into();
         let rhs: Self = rhs.into();
         let lhs_shape = &lhs.shape;
@@ -718,6 +710,27 @@ impl ComputeNode {
         let new_shape = predict_broadcast_shape(lhs_shape, rhs_shape).expect(
             "Cannot broadcast shapes"
         );
+        // lhs strides and rhs strides will include reduced
+        let lhs_strides = lhs.strides
+            .iter()
+            .map(|x| x.value())
+            .collect::<Vec<_>>();
+        let rhs_strides = rhs.strides
+            .iter()
+            .map(|x| x.value())
+            .collect::<Vec<_>>();
+        let lhs_brocast_strides = predict_broadcast_strides(&new_shape, (
+            lhs_shape,
+            &lhs_strides[..lhs_shape.len()],
+        ));
+        let rhs_broadcast_strides = predict_broadcast_strides(&new_shape, (
+            rhs_shape,
+            &rhs_strides[..rhs_shape.len()],
+        ));
+
+        let new_common_vars = (0..new_shape.len())
+            .map(|i| Variable::new(format!("i{}", i)))
+            .collect::<Vec<_>>();
 
         todo!()
     }
@@ -728,7 +741,7 @@ impl ComputeNode {
 
 impl Display for ComputeNode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "ComputeNode({})", self.compute_expr)
+        write!(f, "{}", self.compute_expr)
     }
 }
 
