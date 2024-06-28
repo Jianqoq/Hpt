@@ -729,6 +729,30 @@ impl FuseNode {
         }
     }
 
+    pub fn make_unop<A: Into<Self>>(func: Closures, lhs: A, id: usize) -> Self {
+        let lhs: Self = lhs.into();
+        let new_shape = lhs.shape.clone();
+        Self {
+            iter_vars: lhs.iter_vars.clone(),
+            reduce_vars: vec![].into(),
+            inputs: vec![lhs].into(),
+            strides: None,
+            shape: new_shape,
+            func,
+            id,
+        }
+    }
+
+    pub fn make_reduce<A: Into<Self>, B: Into<Variable>>(
+        func: Closures,
+        lhs: A,
+        reduce_vars: B,
+        id: usize
+    ) -> Self {
+        let lhs: Self = lhs.into();
+        todo!()
+    }
+
     fn update_strides(&mut self, new_shape: &Shape) {
         if let Some(strides) = self.strides.as_ref() {
             let strides = predict_broadcast_strides(new_shape, (&self.shape, strides.as_ref()));
