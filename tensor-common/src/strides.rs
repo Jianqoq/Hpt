@@ -21,6 +21,9 @@ impl Strides {
     pub fn inner(&self) -> &Vec<i64> {
         &self.inner
     }
+    pub fn inner_(&self) -> &Arc<Vec<i64>> {
+        &self.inner
+    }
 }
 
 impl std::fmt::Debug for Strides {

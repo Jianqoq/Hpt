@@ -664,25 +664,15 @@ impl Display for Tensor {
 pub enum CmpNode {
     Reduce(ReduceNode),
     Fuse(FuseNode),
+    Base(BaseNode),
 }
 
 impl CmpNode {
     pub fn make_from_tensor<T: Into<Tensor>>(tensor: T, id: usize) -> Self {
         let tensor: Tensor = tensor.into();
-        let iter_vars = (0..tensor.layout.ndim())
-            .map(|i| Variable::new(format!("i{}", i)))
-            .collect::<Vec<_>>();
-        let strides = tensor.layout.strides().clone();
-        let closure = Closures::Init(|var, x| {
-            let load = Load::make(var, x);
-            crate::halide::exprs::Call::make("load", &[load.into()])
-        });
-        CmpNode::Fuse(FuseNode {
-            iter_vars: iter_vars.into(),
-            inputs: vec![].into(),
-            strides: Some(strides.into()),
-            shape: tensor.shape().clone(),
-            func: closure,
+        CmpNode::Base(BaseNode {
+            reduced_strides: vec![].into(),
+            layout: tensor.layout.clone(),
             id,
         })
     }
@@ -691,13 +681,19 @@ impl CmpNode {
         let lhs: Self = lhs.into();
         match lhs {
             CmpNode::Fuse(fuse) => {
-                let shape = fuse.shape.clone();
-                let strides = fuse.strides.clone();
+                let mut new_fuse = fuse.clone();
+                new_fuse.func = func;
+                CmpNode::Fuse(new_fuse)
+            }
+            CmpNode::Base(base) => {
+                let new_shape = base.layout.shape().clone();
+                let new_common_vars = (0..new_shape.len())
+                    .map(|i| Variable::new(format!("i{}", i)))
+                    .collect::<Vec<_>>();
                 CmpNode::Fuse(FuseNode {
-                    iter_vars: fuse.iter_vars.clone(),
-                    inputs: vec![fuse.into()].into(),
-                    strides,
-                    shape,
+                    common_vars: new_common_vars.into(),
+                    inputs: vec![CmpNode::Base(base)].into(),
+                    shape: new_shape,
                     func,
                     id,
                 })
@@ -712,12 +708,12 @@ impl CmpNode {
         rhs: B,
         id: usize
     ) -> Self {
-        let lhs: Self = lhs.into();
-        let rhs: Self = rhs.into();
-        match (lhs, rhs) {
-            (CmpNode::Fuse(mut lhs), CmpNode::Fuse(mut rhs)) => {
-                let lhs_shape = &lhs.shape;
-                let rhs_shape = &rhs.shape;
+        let mut lhs: Self = lhs.into();
+        let mut rhs: Self = rhs.into();
+        match (&mut lhs, &mut rhs) {
+            (CmpNode::Fuse(_lhs), CmpNode::Fuse(_rhs)) => {
+                let lhs_shape = &_lhs.shape;
+                let rhs_shape = &_rhs.shape;
                 let new_shape = predict_broadcast_shape(lhs_shape, rhs_shape).expect(
                     "Cannot broadcast shapes"
                 );
@@ -728,16 +724,80 @@ impl CmpNode {
                     .map(|i| Variable::new(format!("i{}", i)))
                     .collect::<Vec<_>>();
 
+                todo!()
+            }
+            (CmpNode::Fuse(_lhs), CmpNode::Base(_rhs)) => {
+                let new_shape = predict_broadcast_shape(&_lhs.shape, &_rhs.layout.shape()).expect(
+                    "Cannot broadcast shapes"
+                );
+                let new_common_vars = (0..new_shape.len())
+                    .map(|i| Variable::new(format!("i{}", i)))
+                    .collect::<Vec<_>>();
+                rhs.update_strides(&new_shape);
+                lhs.update_strides(&new_shape);
                 CmpNode::Fuse(FuseNode {
-                    iter_vars: new_common_vars.into(),
-                    inputs: vec![lhs.into(), rhs.into()].into(),
-                    strides: None,
+                    common_vars: new_common_vars.into(),
+                    inputs: vec![lhs, rhs].into(),
                     shape: new_shape,
                     func,
                     id,
                 })
             }
-            _ => unreachable!(), // unreachable because we always convert fuse node to reduce node, then wrap it back to fuse node
+            (CmpNode::Base(_lhs), CmpNode::Fuse(_rhs)) => {
+                let new_shape = predict_broadcast_shape(_lhs.layout.shape(), &_rhs.shape).expect(
+                    "Cannot broadcast shapes"
+                );
+                let new_common_vars = (0..new_shape.len())
+                    .map(|i| Variable::new(format!("i{}", i)))
+                    .collect::<Vec<_>>();
+                lhs.update_strides(&new_shape);
+                rhs.update_strides(&new_shape);
+                CmpNode::Fuse(FuseNode {
+                    common_vars: new_common_vars.into(),
+                    inputs: vec![lhs, rhs].into(),
+                    shape: new_shape,
+                    func,
+                    id,
+                })
+            }
+            (CmpNode::Base(_lhs), CmpNode::Base(_rhs)) => {
+                let new_shape = predict_broadcast_shape(
+                    &_lhs.layout.shape(),
+                    &_rhs.layout.shape()
+                ).expect("Cannot broadcast shapes");
+                let new_common_vars = (0..new_shape.len())
+                    .map(|i| Variable::new(format!("i{}", i)))
+                    .collect::<Vec<_>>();
+                lhs.update_strides(&new_shape);
+                rhs.update_strides(&new_shape);
+                CmpNode::Fuse(FuseNode {
+                    common_vars: new_common_vars.into(),
+                    inputs: vec![lhs, rhs].into(),
+                    shape: new_shape,
+                    func,
+                    id,
+                })
+            }
+            _ => panic!("Cannot make binop from non-fuse node"),
+        }
+    }
+
+    pub fn update_strides(&mut self, new_shape: &Shape) {
+        match self {
+            CmpNode::Fuse(fuse) => {
+                for i in Arc::make_mut(&mut fuse.inputs).iter_mut() {
+                    i.update_strides(new_shape);
+                }
+            }
+            CmpNode::Base(base) => {
+                let new_strides = predict_broadcast_strides(new_shape, &base.layout);
+                base.layout = Layout::new(new_shape.clone(), new_strides);
+            }
+            CmpNode::Reduce(reduce) => {
+                for i in Arc::make_mut(&mut reduce.inputs).iter_mut() {
+                    i.update_strides(new_shape);
+                }
+            }
         }
     }
 
@@ -755,7 +815,7 @@ impl CmpNode {
             .map(|x| x.value() as usize)
             .collect::<Vec<_>>();
 
-        match lhs {
+        match &mut lhs {
             CmpNode::Fuse(fuse) => {
                 let res_shape = predict_reduce_shape(&fuse.shape, &axes).1;
                 let mut new_common_vars = vec![];
@@ -764,10 +824,26 @@ impl CmpNode {
                 }
                 // the shape of fuse should all be the same
                 let mut reduce_vars = vec![];
-                for i in 0..axes.len() {
+                for i in axes.iter() {
                     reduce_vars.push(Variable::new(format!("r{}_{}", fuse.id, i)));
                 }
-                todo!()
+                fuse.update_reduce_strides(&axes);
+
+                let reduce = ReduceNode {
+                    inputs: fuse.inputs.clone(),
+                    reduce_vars: reduce_vars.into(),
+                    identity: init,
+                    func: fuse.func.clone(),
+                    id,
+                };
+                let wrapper = FuseNode {
+                    common_vars: new_common_vars.into(),
+                    shape: res_shape.into(),
+                    inputs: vec![CmpNode::Reduce(reduce)].into(),
+                    func,
+                    id,
+                };
+                wrapper.into()
             }
             _ => panic!("Cannot make reduce from non-fuse node"),
         }
@@ -780,36 +856,52 @@ impl CmpNode {
                     i.update_reduce_strides(axes);
                 }
             CmpNode::Fuse(fuse) => {
-                if let Some(strides) = fuse.strides.as_ref() {
-                    let (a_shape_cpy, _) = predict_reduce_shape(&fuse.shape, &axes);
-                    let mut j = fuse.shape.len() - axes.len();
-                    let mut k = 0;
-                    let mut track_idx = 0;
-                    let mut transposed_axis = vec![0; fuse.shape.len()];
-                    for i in 0..fuse.shape.len() {
-                        if a_shape_cpy[i] != 0 {
-                            transposed_axis[k] = i;
-                            k += 1;
-                        } else {
-                            transposed_axis[j] = axes[track_idx];
-                            j += 1;
-                            track_idx += 1;
-                        }
-                    }
-                    transposed_axis[fuse.shape.len() - axes.len()..].sort();
-                    let mut transposed_shape = fuse.shape.clone();
-                    for i in transposed_axis.iter() {
-                        transposed_shape[*i] = fuse.shape[transposed_axis[*i]];
-                    }
-                    let mut transposed_strides = strides.inner().clone();
-                    for i in transposed_axis.iter() {
-                        transposed_strides[*i] = strides[transposed_axis[*i]];
-                    }
-                    let common_strides = transposed_strides[0..fuse.shape.len() - axes.len()].to_vec();
-                    let mut reduce_strides = transposed_strides[fuse.shape.len() - axes.len()..].to_vec();
-                    fuse.strides = Some(common_strides.into());
+                for i in Arc::make_mut(&mut fuse.inputs).iter_mut() {
+                    i.update_reduce_strides(axes);
                 }
-            },
+            }
+            CmpNode::Base(base) => {
+                let (a_shape_cpy, _) = predict_reduce_shape(base.layout.shape(), &axes);
+                let mut j = base.layout.ndim() - axes.len();
+                let mut k = 0;
+                let mut track_idx = 0;
+                let mut transposed_axis = vec![0; base.layout.ndim()];
+                for i in 0..base.layout.ndim() {
+                    if a_shape_cpy[i] != 0 {
+                        transposed_axis[k] = i;
+                        k += 1;
+                    } else {
+                        transposed_axis[j] = axes[track_idx];
+                        j += 1;
+                        track_idx += 1;
+                    }
+                }
+                transposed_axis[base.layout.ndim() - axes.len()..].sort();
+                let mut transposed_shape = base.layout.shape().to_vec();
+                for i in transposed_axis.iter() {
+                    transposed_shape[*i] = base.layout.shape()[transposed_axis[*i]];
+                }
+                let mut transposed_strides = base.layout.strides().to_vec();
+                for i in transposed_axis.iter() {
+                    transposed_strides[*i] = base.layout.strides()[transposed_axis[*i]];
+                }
+                base.layout = Layout::new(
+                    &transposed_shape[..base.layout.ndim() - axes.len()],
+                    &transposed_strides[..base.layout.ndim() - axes.len()]
+                );
+                if base.reduced_strides.len() > 0 {
+                    let mut new_reduced_strides = vec![];
+                    for i in transposed_axis.iter() {
+                        new_reduced_strides.push(transposed_strides[*i]);
+                    }
+                    new_reduced_strides.extend(base.reduced_strides.iter());
+                    base.reduced_strides = new_reduced_strides.into();
+                } else {
+                    base.reduced_strides = transposed_strides[base.layout.ndim() - axes.len()..]
+                        .to_vec()
+                        .into();
+                }
+            }
         }
     }
 }
@@ -827,35 +919,32 @@ impl Into<CmpNode> for FuseNode {
 }
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
+pub struct BaseNode {
+    layout: Layout,
+    reduced_strides: Strides,
+    id: usize,
+}
+
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct ReduceNode {
     inputs: Arc<Vec<CmpNode>>,
     reduce_vars: Arc<Vec<Variable>>,
-    reduce_strides: Strides,
     identity: PrimeExpr,
+    func: Closures,
     id: usize,
 }
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct FuseNode {
-    iter_vars: Arc<Vec<Variable>>,
-    strides: Option<Strides>,
-    inputs: Arc<Vec<CmpNode>>,
+    common_vars: Arc<Vec<Variable>>,
     shape: Shape,
+    inputs: Arc<Vec<CmpNode>>,
     func: Closures,
     id: usize,
 }
 
 impl FuseNode {
     pub fn to_compute_node(self) -> ComputeNode {
-        let strides = if let Some(strides) = self.strides.as_ref() {
-            let mut ret = vec![];
-            for i in strides.iter() {
-                ret.push(Int::make(Dtype::I64, *i));
-            }
-            Some(Arc::new(ret))
-        } else {
-            None
-        };
         todo!()
         // ComputeNode {
         //     compute_expr: self.get_expr(),
@@ -947,23 +1036,6 @@ impl FuseNode {
         //     Arc::make_mut(&mut self.inputs)
         //         .iter_mut()
         //         .for_each(|x| x.update_reduce_strides(axes));
-        // }
-    }
-
-    fn update_strides(&mut self, new_shape: &Shape) {
-        // if let Some(strides) = self.strides.as_ref() {
-        //     let strides = predict_broadcast_strides(new_shape, (&self.shape, strides));
-        //     let new_iter_vars = (0..new_shape.len())
-        //         .map(|i| Variable::new(format!("i{}", i)))
-        //         .collect::<Vec<_>>();
-        //     self.shape = new_shape.clone();
-        //     self.iter_vars = new_iter_vars.into();
-        //     self.strides = Some(strides.into());
-        // }
-        // if self.inputs.len() > 0 {
-        //     Arc::make_mut(&mut self.inputs)
-        //         .iter_mut()
-        //         .for_each(|x| x.update_strides(new_shape));
         // }
     }
 }
