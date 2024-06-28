@@ -1,5 +1,4 @@
-use crate::{err_handler::ErrHandler, shape::Shape, strides::Strides};
-
+use crate::{ err_handler::ErrHandler, shape::Shape, strides::Strides };
 
 /// # Internal Function
 /// yield `1` before `idx` for `shape`, use when you want to `manipulate the shape of a tensor`
@@ -138,35 +137,38 @@ pub fn predict_broadcast_shape(a_shape: &[i64], b_shape: &[i64]) -> anyhow::Resu
         } else if longer_dim == 1 {
             shorter_dim
         } else {
-            return Err(ErrHandler::BroadcastError(format!(
-                "Cannot broadcast shape: {:?} to {:?}, at axis {}.",
-                a_shape, b_shape, i
-            ))
-            .into());
+            return Err(
+                ErrHandler::BroadcastError(
+                    format!(
+                        "Cannot broadcast shape: {:?} to {:?}, at axis {}.",
+                        a_shape,
+                        b_shape,
+                        i
+                    )
+                ).into()
+            );
         };
     }
 
     Ok(Shape::from(result_shape))
 }
 
-pub fn get_broadcast_axes_from(
-    a_shape: &[i64],
-    res_shape: &[i64],
-) -> anyhow::Result<Vec<usize>> {
+pub fn get_broadcast_axes_from(a_shape: &[i64], res_shape: &[i64]) -> anyhow::Result<Vec<usize>> {
     assert!(a_shape.len() <= res_shape.len());
 
     let padded_a = try_pad_shape(a_shape, res_shape.len());
 
     let mut axes = Vec::new();
+    let padded_axes = (0..res_shape.len() - a_shape.len()).collect::<Vec<usize>>();
+    for i in padded_axes.iter() {
+        axes.push(*i);
+    }
 
     for (i, (&res_dim, &a_dim)) in res_shape.iter().zip(&padded_a).enumerate() {
-        if a_dim == 1 && res_dim != 1 {
+        if a_dim == 1 && res_dim != 1 && !padded_axes.contains(&i) {
             axes.push(i);
         } else if res_dim == 1 && a_dim != 1 {
-            anyhow::bail!(format!(
-                "Invalid broadcast shape: {:?} -> {:?}",
-                a_shape, res_shape
-            ));
+            anyhow::bail!(format!("Invalid broadcast shape: {:?} -> {:?}", a_shape, res_shape));
         }
     }
 
@@ -325,7 +327,7 @@ pub fn predict_reduce_shape_with_zero(shape: &[i64], axes: &[usize]) -> Vec<i64>
 pub fn is_reshape_possible(
     original_shape: &[i64],
     original_strides: &[i64],
-    new_shape: &[i64],
+    new_shape: &[i64]
 ) -> Option<Strides> {
     let mut new_strides = vec![0; new_shape.len()];
     let mut old_strides = vec![0; original_shape.len()];
@@ -440,9 +442,10 @@ pub fn mt_intervals(outer_loop_size: usize, num_threads: usize) -> Vec<(usize, u
     for i in 0..num_threads {
         let start_index =
             i * (outer_loop_size / num_threads) + std::cmp::min(i, outer_loop_size % num_threads);
-        let end_index = start_index
-            + outer_loop_size / num_threads
-            + ((i < outer_loop_size % num_threads) as usize);
+        let end_index =
+            start_index +
+            outer_loop_size / num_threads +
+            ((i < outer_loop_size % num_threads) as usize);
         intervals.push((start_index, end_index));
     }
     return intervals;

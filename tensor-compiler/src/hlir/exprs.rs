@@ -1,10 +1,15 @@
 use std::{ fmt::Display, sync::Arc };
 
-use tensor_common::{ layout::Layout, shape::Shape };
+use tensor_common::{
+    axis,
+    layout::Layout,
+    shape::Shape,
+    shape_utils::{ get_broadcast_axes_from, predict_broadcast_shape, try_pad_shape },
+};
 use tensor_types::dtype::Dtype;
 
 use crate::{
-    halide::{ prime_expr::PrimeExpr, variable::Variable },
+    halide::{ exprs::{ Int, Load }, prime_expr::PrimeExpr, variable::Variable },
     op::OpType,
     registry::Closures,
 };
@@ -637,6 +642,12 @@ impl Tensor {
     pub fn name(&self) -> &Variable {
         &self.name
     }
+    pub fn shape(&self) -> &Shape {
+        &self.shape
+    }
+    pub fn dtype(&self) -> Dtype {
+        self.dtype
+    }
 }
 
 impl Display for Tensor {
@@ -648,22 +659,46 @@ impl Display for Tensor {
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct ComputeNode {
     compute_expr: PrimeExpr,
+    shape: Shape,
 }
 
 impl ComputeNode {
-    pub fn make(compute_expr: PrimeExpr) -> Self {
-        Self {
-            compute_expr,
-        }
+    pub fn make_from_tensor<T: Into<Tensor>>(tensor: T) -> Self {
+        todo!()
     }
-    pub fn make_binop<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(
-        func: Closures,
-        lhs: A,
-        rhs: B
-    ) -> Self {
-        let expr = func.get_binop_expr(lhs, rhs);
+    pub fn make_binop<A: Into<Tensor>, B: Into<Tensor>>(func: Closures, lhs: A, rhs: B) -> Self {
+        let lhs = lhs.into();
+        let rhs = rhs.into();
+        let a_shape = lhs.shape();
+        let b_shape = rhs.shape();
+        let broadcast_shape = predict_broadcast_shape(a_shape, b_shape).unwrap();
+        let axis = (0..broadcast_shape.len())
+            .map(|i| Variable::new(format!("ax{}", i)).into())
+            .collect::<Vec<PrimeExpr>>();
+        let one: PrimeExpr = Int::make(Dtype::I64, 1).into();
+        let a_axes = get_broadcast_axes_from(&a_shape, &broadcast_shape).unwrap();
+        let b_axes = get_broadcast_axes_from(&b_shape, &broadcast_shape).unwrap();
+
+        let a_axes_var = axis
+            .iter()
+            .enumerate()
+            .map(|(i, axis)| {
+                if a_axes.contains(&i) { one.clone() } else { axis.clone() }
+            })
+            .collect::<Vec<PrimeExpr>>();
+        let b_axes_var = axis
+            .iter()
+            .enumerate().rev()
+            .map(|(i, axis)| {
+                if b_axes.contains(&i) { one.clone() } else { axis.clone() }
+            })
+            .collect::<Vec<PrimeExpr>>();
+        let a_load = Load::make(lhs.name(), a_axes_var);
+        let b_load = Load::make(rhs.name(), b_axes_var);
+        let expr = func.get_binop_expr(a_load, b_load);
         Self {
             compute_expr: expr.into(),
+            shape: broadcast_shape,
         }
     }
     pub fn compute_expr(&self) -> &PrimeExpr {
