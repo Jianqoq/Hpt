@@ -8,9 +8,9 @@ use tensor_common::{
 };
 use tensor_types::dtype::Dtype;
 
-use crate::registry::MANAGER;
+use crate::halide::stmt::Stmt;
 use crate::{
-    halide::{ exprs::{ Int, Load }, prime_expr::PrimeExpr, variable::Variable },
+    halide::{ exprs::Int, prime_expr::PrimeExpr, variable::Variable },
     op::OpType,
     registry::Closures,
 };
@@ -914,20 +914,16 @@ impl CmpNode {
         }
     }
 
-    pub fn lower(&self) -> PrimeExpr {
+    pub fn lower(&self) -> Stmt {
         match self {
             CmpNode::Base(base) => {
                 let strides = base.layout.strides().to_vec();
                 let f = base.load_fn;
-                
+
                 todo!()
             }
-            CmpNode::Reduce(reduce) => {
-                todo!()
-            }
-            CmpNode::Fuse(fuse) => {
-                todo!()
-            }
+            CmpNode::Reduce(reduce) => { todo!() }
+            CmpNode::Fuse(fuse) => { todo!() }
         }
     }
 }
