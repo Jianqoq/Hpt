@@ -79,7 +79,8 @@ fn test_fusion() {
     let a = Tensor::make("a", Shape::new([1, 8, 8]).into(), Dtype::BF16);
     let b = Tensor::make("b", Shape::new([1]).into(), Dtype::BF16);
     let div_op = MANAGER.lock().unwrap().get("div").cloned().unwrap();
-    let expr = FuseNode::make_binop(div_op, (a, 0), (b, 1), 2);
-    let comp = expr.to_compute_node();
-    println!("{}", comp);
+    let div = FuseNode::make_binop(div_op, (a, 0), (b, 1), 2);
+    let max_op = MANAGER.lock().unwrap().get("max").cloned().unwrap();
+    let comp = FuseNode::make_reduce(max_op, &div, [Int::make(Dtype::I64, 2)], 3);
+    println!("{}", comp.to_compute_node());
 }

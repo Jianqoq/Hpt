@@ -661,12 +661,34 @@ impl Display for Tensor {
 }
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
+pub enum CmpNode {
+    Reduce(ReduceNode),
+    Fuse(FuseNode),
+}
+
+impl Into<CmpNode> for ReduceNode {
+    fn into(self) -> CmpNode {
+        CmpNode::Reduce(self)
+    }
+}
+
+impl Into<CmpNode> for FuseNode {
+    fn into(self) -> CmpNode {
+        CmpNode::Fuse(self)
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
+pub struct ReduceNode {
+    reduce_vars: Arc<Vec<Variable>>,
+    reduce_strides: Strides,
+}
+
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct FuseNode {
     iter_vars: Arc<Vec<Variable>>,
-    reduce_vars: Arc<Vec<Variable>>,
     strides: Option<Strides>,
-    reduce_strides: Option<Strides>,
-    inputs: Arc<Vec<Self>>,
+    inputs: Arc<Vec<CmpNode>>,
     shape: Shape,
     func: Closures,
     id: usize,
@@ -674,10 +696,6 @@ pub struct FuseNode {
 
 impl FuseNode {
     pub fn to_compute_node(self) -> ComputeNode {
-        let mut inputs = vec![];
-        for input in self.inputs.as_ref().clone().into_iter() {
-            inputs.push(input.to_compute_node());
-        }
         let strides = if let Some(strides) = self.strides.as_ref() {
             let mut ret = vec![];
             for i in strides.iter() {
@@ -687,43 +705,45 @@ impl FuseNode {
         } else {
             None
         };
-        ComputeNode {
-            compute_expr: self.get_expr(),
-            iter_vars: self.iter_vars,
-            reduce_vars: self.reduce_vars,
-            strides,
-            shape: self.shape,
-            id: self.id,
-        }
+        todo!()
+        // ComputeNode {
+        //     compute_expr: self.get_expr(),
+        //     iter_vars: self.iter_vars,
+        //     reduce_vars: self.reduce_vars,
+        //     strides,
+        //     shape: self.shape,
+        //     id: self.id,
+        // }
     }
 
     pub fn get_expr(&self) -> PrimeExpr {
-        match &self.func {
-            Closures::Binop(f) => f(self.inputs[0].get_expr(), self.inputs[1].get_expr()).into(),
-            Closures::Unop(f) => f(self.inputs[0].get_expr()).into(),
-            Closures::Init(f) => {
-                let common_indices = self.iter_vars
-                    .iter()
-                    .zip(self.strides.as_ref().unwrap().iter())
-                    .map(|(x, y)| { x.clone() * Int::make(Dtype::I64, *y) })
-                    .reduce(|x, y| { x + y })
-                    .unwrap();
-                if let Some(reduce_strides) = &self.reduce_strides {
-                    let reduce_indices = self.reduce_vars
-                        .iter()
-                        .zip(reduce_strides.iter())
-                        .map(|(x, y)| { x.clone() * Int::make(Dtype::I64, *y) })
-                        .reduce(|x, y| { x + y })
-                        .unwrap();
-                    f(
-                        Variable::new(format!("%{}", self.id)),
-                        common_indices + reduce_indices
-                    ).into()
-                } else {
-                    f(Variable::new(format!("%{}", self.id)), common_indices).into()
-                }
-            }
-        }
+        todo!()
+        // match &self.func {
+        //     Closures::Binop(f) => f(self.inputs[0].get_expr(), self.inputs[1].get_expr()).into(),
+        //     Closures::Unop(f) => f(self.inputs[0].get_expr()).into(),
+        //     Closures::Init(f) => {
+        //         let common_indices = self.iter_vars
+        //             .iter()
+        //             .zip(self.strides.as_ref().unwrap().iter())
+        //             .map(|(x, y)| { x.clone() * Int::make(Dtype::I64, *y) })
+        //             .reduce(|x, y| { x + y })
+        //             .unwrap();
+        //         if let Some(reduce_strides) = &self.reduce_strides {
+        //             let reduce_indices = self.reduce_vars
+        //                 .iter()
+        //                 .zip(reduce_strides.iter())
+        //                 .map(|(x, y)| { x.clone() * Int::make(Dtype::I64, *y) })
+        //                 .reduce(|x, y| { x + y })
+        //                 .unwrap();
+        //             f(
+        //                 Variable::new(format!("%{}", self.id)),
+        //                 common_indices + reduce_indices
+        //             ).into()
+        //         } else {
+        //             f(Variable::new(format!("%{}", self.id)), common_indices).into()
+        //         }
+        //     }
+        // }
     }
 
     pub fn make_from_tensor<T: Into<Tensor>>(tensor: T, id: usize) -> Self {
@@ -738,11 +758,9 @@ impl FuseNode {
         });
         Self {
             iter_vars: iter_vars.into(),
-            reduce_vars: vec![].into(),
             inputs: vec![].into(),
             strides: Some(strides.into()),
             shape: tensor.shape().clone(),
-            reduce_strides: None,
             func: closure,
             id,
         }
@@ -770,10 +788,8 @@ impl FuseNode {
 
         Self {
             iter_vars: new_common_vars.into(),
-            reduce_vars: vec![].into(),
-            inputs: vec![lhs, rhs].into(),
+            inputs: vec![lhs.into(), rhs.into()].into(),
             strides: None,
-            reduce_strides: None,
             shape: new_shape,
             func,
             id,
@@ -785,10 +801,8 @@ impl FuseNode {
         let new_shape = lhs.shape.clone();
         Self {
             iter_vars: lhs.iter_vars.clone(),
-            reduce_vars: vec![].into(),
-            inputs: vec![lhs].into(),
+            inputs: vec![lhs.into()].into(),
             strides: None,
-            reduce_strides: None,
             shape: new_shape,
             func,
             id,
@@ -811,14 +825,12 @@ impl FuseNode {
         let (_, res_shape) = predict_reduce_shape(&lhs.shape, &axes);
         let mut new_common_vars = vec![];
         for i in 0..res_shape.len() {
-            new_common_vars.push(Variable::new(format!("reduced_{}_{}", id, i)));
+            new_common_vars.push(Variable::new(format!("i{}", i)));
         }
         Self {
             iter_vars: new_common_vars.into(),
-            reduce_vars: lhs.iter_vars.clone(),
-            inputs: vec![lhs].into(),
+            inputs: vec![lhs.into()].into(),
             strides: None,
-            reduce_strides: None,
             shape: res_shape.into(),
             func,
             id,
@@ -826,91 +838,85 @@ impl FuseNode {
     }
 
     fn update_reduce_strides(&mut self, axes: &[usize]) {
-        if let Some(strides) = self.strides.as_ref() {
-            let (a_shape_cpy, _) = predict_reduce_shape(&self.shape, &axes);
-            let mut j = self.shape.len() - axes.len();
-            let mut k = 0;
-            let mut track_idx = 0;
-            let mut transposed_axis = vec![0; self.shape.len()];
-            for i in 0..self.shape.len() {
-                if a_shape_cpy[i] != 0 {
-                    transposed_axis[k] = i;
-                    k += 1;
-                } else {
-                    transposed_axis[j] = axes[track_idx];
-                    j += 1;
-                    track_idx += 1;
-                }
-            }
-            transposed_axis[self.shape.len() - axes.len()..].sort();
-            let mut transposed_shape = self.shape.clone();
-            for i in transposed_axis.iter() {
-                transposed_shape[*i] = self.shape[transposed_axis[*i]];
-            }
-            let mut transposed_strides = strides.inner().clone();
-            for i in transposed_axis.iter() {
-                transposed_strides[*i] = strides[transposed_axis[*i]];
-            }
-            let common_strides = transposed_strides[0..self.shape.len() - axes.len()].to_vec();
-            let mut reduce_strides = transposed_strides[self.shape.len() - axes.len()..].to_vec();
-            self.strides = Some(common_strides.into());
-            if let Some(_reduce_strides) = self.reduce_strides.as_mut() {
-                let new_reduce_strides = _reduce_strides
-                    .iter()
-                    .map(|x| *x)
-                    .collect::<Vec<_>>();
-                reduce_strides.extend(new_reduce_strides.into_iter());
-                self.reduce_strides = Some(reduce_strides.into());
-            } else {
-                self.reduce_strides = Some(reduce_strides.into());
-            }
-        }
-        if self.inputs.len() > 0 {
-            Arc::make_mut(&mut self.inputs)
-                .iter_mut()
-                .for_each(|x| x.update_reduce_strides(axes));
-        }
+        todo!()
+        // if let Some(strides) = self.strides.as_ref() {
+        //     let (a_shape_cpy, _) = predict_reduce_shape(&self.shape, &axes);
+        //     let mut j = self.shape.len() - axes.len();
+        //     let mut k = 0;
+        //     let mut track_idx = 0;
+        //     let mut transposed_axis = vec![0; self.shape.len()];
+        //     for i in 0..self.shape.len() {
+        //         if a_shape_cpy[i] != 0 {
+        //             transposed_axis[k] = i;
+        //             k += 1;
+        //         } else {
+        //             transposed_axis[j] = axes[track_idx];
+        //             j += 1;
+        //             track_idx += 1;
+        //         }
+        //     }
+        //     transposed_axis[self.shape.len() - axes.len()..].sort();
+        //     let mut transposed_shape = self.shape.clone();
+        //     for i in transposed_axis.iter() {
+        //         transposed_shape[*i] = self.shape[transposed_axis[*i]];
+        //     }
+        //     let mut transposed_strides = strides.inner().clone();
+        //     for i in transposed_axis.iter() {
+        //         transposed_strides[*i] = strides[transposed_axis[*i]];
+        //     }
+        //     let common_strides = transposed_strides[0..self.shape.len() - axes.len()].to_vec();
+        //     let mut reduce_strides = transposed_strides[self.shape.len() - axes.len()..].to_vec();
+        //     self.strides = Some(common_strides.into());
+        //     if let Some(_reduce_strides) = self.reduce_strides.as_mut() {
+        //         let new_reduce_strides = _reduce_strides
+        //             .iter()
+        //             .map(|x| *x)
+        //             .collect::<Vec<_>>();
+        //         reduce_strides.extend(new_reduce_strides.into_iter());
+        //         self.reduce_strides = Some(reduce_strides.into());
+        //     } else {
+        //         self.reduce_strides = Some(reduce_strides.into());
+        //     }
+        //     let new_reduce_vars = axes
+        //         .iter()
+        //         .map(|x| Variable::new(format!("ri{}", x)))
+        //         .collect::<Vec<_>>();
+        //     self.reduce_vars = new_reduce_vars.into();
+        // }
+        // if self.inputs.len() > 0 {
+        //     Arc::make_mut(&mut self.inputs)
+        //         .iter_mut()
+        //         .for_each(|x| x.update_reduce_strides(axes));
+        // }
     }
 
     fn update_strides(&mut self, new_shape: &Shape) {
-        if let Some(strides) = self.strides.as_ref() {
-            let strides = predict_broadcast_strides(new_shape, (&self.shape, strides));
-            let new_iter_vars = (0..new_shape.len())
-                .map(|i| Variable::new(format!("i{}", i)))
-                .collect::<Vec<_>>();
-            self.iter_vars = new_iter_vars.into();
-            self.strides = Some(strides.into());
-        }
-        if self.inputs.len() > 0 {
-            Arc::make_mut(&mut self.inputs)
-                .iter_mut()
-                .for_each(|x| x.update_strides(new_shape));
-        }
-    }
-}
-
-impl Display for FuseNode {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "FuseNode({}, {})",
-            self.iter_vars
-                .iter()
-                .map(|x| format!("{}", x))
-                .collect::<Vec<String>>()
-                .join(", "),
-            self.reduce_vars
-                .iter()
-                .map(|x| format!("{}", x))
-                .collect::<Vec<String>>()
-                .join(", ")
-        )
+        // if let Some(strides) = self.strides.as_ref() {
+        //     let strides = predict_broadcast_strides(new_shape, (&self.shape, strides));
+        //     let new_iter_vars = (0..new_shape.len())
+        //         .map(|i| Variable::new(format!("i{}", i)))
+        //         .collect::<Vec<_>>();
+        //     self.shape = new_shape.clone();
+        //     self.iter_vars = new_iter_vars.into();
+        //     self.strides = Some(strides.into());
+        // }
+        // if self.inputs.len() > 0 {
+        //     Arc::make_mut(&mut self.inputs)
+        //         .iter_mut()
+        //         .for_each(|x| x.update_strides(new_shape));
+        // }
     }
 }
 
 impl Into<FuseNode> for (Tensor, usize) {
     fn into(self) -> FuseNode {
         FuseNode::make_from_tensor(self.0, self.1)
+    }
+}
+
+impl Into<FuseNode> for &FuseNode {
+    fn into(self) -> FuseNode {
+        self.clone()
     }
 }
 
