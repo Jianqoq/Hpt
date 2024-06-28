@@ -675,6 +675,14 @@ pub enum CmpNode {
 }
 
 impl CmpNode {
+    pub fn id(&self) -> usize {
+        match self {
+            CmpNode::Reduce(reduce) => reduce.id,
+            CmpNode::Fuse(fuse) => fuse.id,
+            CmpNode::Base(base) => base.id,
+        }
+    }
+
     pub fn make_from_tensor<T: Into<Tensor>>(tensor: T, id: usize) -> Self {
         let tensor: Tensor = tensor.into();
         CmpNode::Base(BaseNode {
@@ -937,7 +945,7 @@ impl CmpNode {
         &self,
         push_vars: bool,
         vars: &mut Vec<Variable>,
-        map: &mut HashMap<usize, PrimeExpr>
+        map: &mut HashMap<PrimeExpr, PrimeExpr>
     ) -> PrimeExpr {
         match self {
             CmpNode::Base(base) => {
@@ -978,8 +986,9 @@ impl CmpNode {
                 if fuse.inputs.len() == 1 && fuse.inputs[0].is_reduce() {
                     exprs.push(fuse.inputs[0].to_reduce().identity);
                     let call = fuse.func.call_common(exprs);
-                    map.insert(fuse.id, call.into());
-                    return Variable::from(format!("%r{}", fuse.id)).into();
+                    let var = Variable::from(format!("%r{}", fuse.id));
+                    map.insert(var.clone().into(), call.into());
+                    return var.into();
                 } else {
                     let call = fuse.func.call_common(exprs);
                     call.into()

@@ -91,8 +91,9 @@ fn test_fusion() {
     let sub = CmpNode::make_binop("sub", div, comp, 4);
     let exp = CmpNode::make_unop("exp", sub, 5);
     let mut saved_exprs = HashMap::new();
+    let exp_id = exp.id();
     let expr = exp.lower(true, &mut vec![], &mut saved_exprs);
-    saved_exprs.insert(9, expr);
+    saved_exprs.insert(Variable::new(format!("%{}", exp_id)).into(), expr);
     for (k, v) in saved_exprs.iter() {
         println!("{}: {}", k, v);
     }
