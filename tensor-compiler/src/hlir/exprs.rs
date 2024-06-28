@@ -917,13 +917,15 @@ impl CmpNode {
                 );
                 if base.reduced_strides.len() > 0 {
                     let mut new_reduced_strides = vec![];
-                    for i in transposed_axis.iter() {
+                    for i in transposed_axis[transposed_axis.len() - axes.len()..].iter() {
                         new_reduced_strides.push(transposed_strides[*i]);
                     }
                     new_reduced_strides.extend(base.reduced_strides.iter());
                     base.reduced_strides = new_reduced_strides.into();
                 } else {
-                    base.reduced_strides = transposed_strides[base.layout.ndim() - axes.len()..]
+                    base.reduced_strides = transposed_strides[
+                        transposed_strides.len() - axes.len()..
+                    ]
                         .to_vec()
                         .into();
                 }
@@ -931,10 +933,17 @@ impl CmpNode {
         }
     }
 
-    pub fn lower(&self, push_vars: bool, vars: &mut Vec<Variable>, map: &mut HashMap<usize, PrimeExpr>) -> PrimeExpr {
+    pub fn lower(
+        &self,
+        push_vars: bool,
+        vars: &mut Vec<Variable>,
+        map: &mut HashMap<usize, PrimeExpr>
+    ) -> PrimeExpr {
         match self {
             CmpNode::Base(base) => {
-                let strides = base.layout.strides().to_vec();
+                let mut strides = base.layout.strides().to_vec();
+                let reduced_strides = base.reduced_strides.to_vec();
+                strides.extend(reduced_strides.iter());
                 assert!(vars.len() == strides.len());
                 let variable_name = Variable::from(format!("%{}", base.id));
                 let indices = vars
@@ -947,6 +956,9 @@ impl CmpNode {
             }
             CmpNode::Reduce(reduce) => {
                 let mut exprs = vec![];
+                for var in reduce.reduce_vars.iter() {
+                    vars.push(var.clone());
+                }
                 for input in reduce.inputs.iter() {
                     exprs.push(input.lower(false, vars, map));
                 }

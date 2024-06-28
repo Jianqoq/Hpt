@@ -89,6 +89,7 @@ fn test_fusion() {
     );
     let mut saved_exprs = HashMap::new();
     let expr = comp.lower(true, &mut vec![], &mut saved_exprs);
+    saved_exprs.insert(4, expr);
     for (k, v) in saved_exprs.iter() {
         println!("{}: {}", k, v);
     }
