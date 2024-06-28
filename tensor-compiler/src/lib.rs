@@ -1,6 +1,4 @@
 
-use halide::r#type::{ HalideirTypeCode, Type };
-
 pub mod halide {
     pub mod prime_expr;
     pub mod for_stmt;
@@ -43,5 +41,3 @@ pub mod hlir {
 pub mod registry;
 pub mod op;
 pub mod float;
-
-static I64_TYPE: Type = Type::new(HalideirTypeCode::Int, 64, 1);

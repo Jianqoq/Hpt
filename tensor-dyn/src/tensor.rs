@@ -90,7 +90,7 @@ impl<T> TensorInfo<T> for &Tensor<T> {
     }
 
     fn size(&self) -> usize {
-        self.layout.size()
+        self.layout.size() as usize
     }
 
     fn shape(&self) -> &tensor_common::shape::Shape {

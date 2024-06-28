@@ -1,12 +1,10 @@
 use std::{ fmt::Display, sync::Arc };
 
 use tensor_common::{
-    axis,
     layout::Layout,
     shape::Shape,
     shape_utils::{ get_broadcast_axes_from, predict_broadcast_shape, try_pad_shape },
     strides::Strides,
-    strides_utils::preprocess_strides,
 };
 use tensor_types::dtype::Dtype;
 
