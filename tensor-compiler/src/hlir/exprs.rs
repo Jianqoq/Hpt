@@ -914,6 +914,22 @@ impl CmpNode {
         }
     }
 
+    pub fn to_compute_node(&self, iter_vars: Vec<Variable>, id: usize) -> ComputeNode {
+        match self {
+            CmpNode::Base(base) => {
+                let strides = base.layout.strides().to_vec();
+                let f = base.load_fn;
+                
+                todo!()
+            }
+            CmpNode::Reduce(reduce) => {
+                todo!()
+            }
+            CmpNode::Fuse(fuse) => {
+                todo!()
+            }
+        }
+    }
 }
 
 impl Into<CmpNode> for ReduceNode {
