@@ -5,6 +5,8 @@ use tensor_common::{
     layout::Layout,
     shape::Shape,
     shape_utils::{ get_broadcast_axes_from, predict_broadcast_shape, try_pad_shape },
+    strides::Strides,
+    strides_utils::preprocess_strides,
 };
 use tensor_types::dtype::Dtype;
 
@@ -626,15 +628,16 @@ impl Display for Let {
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct Tensor {
     name: Variable,
-    shape: Shape,
+    layout: Layout,
     dtype: Dtype,
 }
 
 impl Tensor {
-    pub fn make<T: IntoVar>(name: T, layout: Shape, dtype: Dtype) -> Self {
+    pub fn make<T: IntoVar>(name: T, shape: Shape, dtype: Dtype) -> Self {
+        let layout = Layout::from(shape);
         Self {
             name: name.into_var(),
-            shape: layout,
+            layout,
             dtype,
         }
     }
@@ -643,7 +646,10 @@ impl Tensor {
         &self.name
     }
     pub fn shape(&self) -> &Shape {
-        &self.shape
+        &self.layout.shape()
+    }
+    pub fn strides(&self) -> &Strides {
+        &self.layout.strides()
     }
     pub fn dtype(&self) -> Dtype {
         self.dtype
@@ -652,7 +658,7 @@ impl Tensor {
 
 impl Display for Tensor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Tensor({}, shape={:?}, {})", self.name, self.shape.inner(), self.dtype)
+        write!(f, "Tensor({}, shape={:?}, {})", self.name, self.layout.shape().inner(), self.dtype)
     }
 }
 
@@ -667,34 +673,38 @@ impl ComputeNode {
         todo!()
     }
     pub fn make_binop<A: Into<Tensor>, B: Into<Tensor>>(func: Closures, lhs: A, rhs: B) -> Self {
-        let lhs = lhs.into();
-        let rhs = rhs.into();
+        let lhs: Tensor = lhs.into();
+        let rhs: Tensor = rhs.into();
         let a_shape = lhs.shape();
         let b_shape = rhs.shape();
         let broadcast_shape = predict_broadcast_shape(a_shape, b_shape).unwrap();
-        let axis = (0..broadcast_shape.len())
-            .map(|i| Variable::new(format!("ax{}", i)).into())
-            .collect::<Vec<PrimeExpr>>();
-        let one: PrimeExpr = Int::make(Dtype::I64, 1).into();
-        let a_axes = get_broadcast_axes_from(&a_shape, &broadcast_shape).unwrap();
-        let b_axes = get_broadcast_axes_from(&b_shape, &broadcast_shape).unwrap();
-
-        let a_axes_var = axis
+        let vars = (0..broadcast_shape.len())
+            .map(|i| Variable::new(format!("i{}", i)))
+            .collect::<Vec<_>>();
+        let a_strides = if let Some(new_strides) = lhs.layout.is_reshape_possible(&broadcast_shape) {
+            new_strides
+        } else {
+            panic!("Cannot reshape strides");
+        };
+        let b_strides = if let Some(new_strides) = rhs.layout.is_reshape_possible(&broadcast_shape) {
+            new_strides
+        } else {
+            panic!("Cannot reshape strides");
+        };
+        let a_load_indice = vars
             .iter()
-            .enumerate()
-            .map(|(i, axis)| {
-                if a_axes.contains(&i) { one.clone() } else { axis.clone() }
-            })
-            .collect::<Vec<PrimeExpr>>();
-        let b_axes_var = axis
+            .zip(a_strides.iter())
+            .map(|(index, stride)| { index * Int::make(Dtype::I64, *stride) })
+            .reduce(|a, b| a + b)
+            .unwrap();
+        let b_load_indice = vars
             .iter()
-            .enumerate().rev()
-            .map(|(i, axis)| {
-                if b_axes.contains(&i) { one.clone() } else { axis.clone() }
-            })
-            .collect::<Vec<PrimeExpr>>();
-        let a_load = Load::make(lhs.name(), a_axes_var);
-        let b_load = Load::make(rhs.name(), b_axes_var);
+            .zip(b_strides.iter())
+            .map(|(index, stride)| { index * Int::make(Dtype::I64, *stride) })
+            .reduce(|a, b| a + b)
+            .unwrap();
+        let a_load = Load::make(lhs.name(), a_load_indice);
+        let b_load = Load::make(rhs.name(), b_load_indice);
         let expr = func.get_binop_expr(a_load, b_load);
         Self {
             compute_expr: expr.into(),

@@ -365,11 +365,9 @@ impl IRMutVisitor for IRComparator {
 
     fn visit_load(&mut self, load: &super::exprs::Load) {
         let expr = self.expr_.to_load().cloned();
-        if let Some(load) = expr {
-            self.compare_expr(load.name(), load.name());
-            for (a, b) in load.indices().iter().zip(load.indices().iter()) {
-                self.compare_expr(a, b);
-            }
+        if let Some(_load) = expr {
+            self.compare_expr(_load.name(), load.name());
+            self.compare_expr(_load.indices(), load.indices());
         } else {
             self.result = CmpResult::LessThan;
         }

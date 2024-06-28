@@ -1026,7 +1026,7 @@ impl Into<PrimeExpr> for &Select {
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Load {
     name: Arc<PrimeExpr>,
-    indices: Arc<Vec<PrimeExpr>>,
+    indices: Arc<PrimeExpr>,
 }
 
 impl Accepter for Load {
@@ -1047,25 +1047,21 @@ impl Load {
         let indices = indices
             .iter()
             .zip(strides.iter())
-            .map(|(v, s)| Mul::make(v.clone(), Int::make(Dtype::I64, *s)).into())
-            .collect::<Vec<PrimeExpr>>();
+            .map(|(v, s)| v.clone() * Int::make(Dtype::I64, *s))
+            .reduce(|a, b| a + b).unwrap();
         Load {
             name: Arc::new(name.clone().into()),
             indices: indices.into(),
         }
     }
 
-    pub fn make<A: Into<PrimeExpr>, B: IntoIterator<Item: Into<PrimeExpr>>>(
+    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(
         name: A,
         indices: B
     ) -> Self {
         Load {
             name: Arc::new(name.into().into()),
-            indices: indices
-                .into_iter()
-                .map(|e| e.into().into())
-                .collect::<Vec<PrimeExpr>>()
-                .into(),
+            indices: indices.into().into(),
         }
     }
 
@@ -1073,7 +1069,7 @@ impl Load {
         &self.name
     }
 
-    pub fn indices(&self) -> &Vec<PrimeExpr> {
+    pub fn indices(&self) -> &PrimeExpr {
         &self.indices
     }
 
@@ -1081,7 +1077,7 @@ impl Load {
         &self.name
     }
 
-    pub fn indices_(&self) -> &Arc<Vec<PrimeExpr>> {
+    pub fn indices_(&self) -> &Arc<PrimeExpr> {
         &self.indices
     }
 }
@@ -1093,10 +1089,6 @@ impl Display for Load {
             "{}[{}]",
             self.name,
             self.indices
-                .iter()
-                .map(|e| e.to_string())
-                .collect::<Vec<String>>()
-                .join(", ")
         )
     }
 }
