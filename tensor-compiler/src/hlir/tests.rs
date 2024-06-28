@@ -80,6 +80,6 @@ fn test_fusion() {
     let b = Tensor::make("b", Shape::new([1]).into(), Dtype::BF16);
     let div_op = MANAGER.lock().unwrap().get("div").cloned().unwrap();
     let expr = FuseNode::make_binop(div_op, (a, 0), (b, 1), 2);
-
-    println!("{}", expr);
+    let comp = expr.to_compute_node();
+    println!("{}", comp);
 }

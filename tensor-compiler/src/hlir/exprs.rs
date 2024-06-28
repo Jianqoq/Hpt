@@ -708,13 +708,20 @@ impl FuseNode {
                     .map(|(x, y)| { x.clone() * Int::make(Dtype::I64, *y) })
                     .reduce(|x, y| { x + y })
                     .unwrap();
-                let reduce_indices = self.reduce_vars
-                    .iter()
-                    .zip(self.reduce_strides.as_ref().unwrap().iter())
-                    .map(|(x, y)| { x.clone() * Int::make(Dtype::I64, *y) })
-                    .reduce(|x, y| { x + y })
-                    .unwrap();
-                f(Variable::new(format!("%{}", self.id)), common_indices + reduce_indices).into()
+                if let Some(reduce_strides) = &self.reduce_strides {
+                    let reduce_indices = self.reduce_vars
+                        .iter()
+                        .zip(reduce_strides.iter())
+                        .map(|(x, y)| { x.clone() * Int::make(Dtype::I64, *y) })
+                        .reduce(|x, y| { x + y })
+                        .unwrap();
+                    f(
+                        Variable::new(format!("%{}", self.id)),
+                        common_indices + reduce_indices
+                    ).into()
+                } else {
+                    f(Variable::new(format!("%{}", self.id)), common_indices).into()
+                }
             }
         }
     }
