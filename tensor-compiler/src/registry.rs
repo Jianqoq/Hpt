@@ -90,6 +90,7 @@ lazy_static! {
         add_binop(&mut ret, "le");
         add_binop(&mut ret, "gt");
         add_binop(&mut ret, "ge");
+        add_binop(&mut ret, "sum");
         add_unop(&mut ret, "not");
         add_unop(&mut ret, "neg");
         add_unop(&mut ret, "abs");
@@ -119,7 +120,7 @@ macro_rules! binop {
     ($ret:ident, $op_name:ident) => {
         $ret.map.insert(stringify!($op_name).to_string(), Closures::Common(|vec| {
             let locked = REGISTRY.lock().unwrap();
-            let op = locked.map.get(stringify!($op_name)).unwrap();
+            let op = locked.map.get(stringify!($op_name)).expect(&format!("{} not found", stringify!($op_name)));
             Call::make(op.name(), &[vec[0].clone(), vec[1].clone()])
         }));
     };
@@ -152,6 +153,7 @@ lazy_static! {
         binop!(ret, xor);
         binop!(ret, max);
         binop!(ret, min);
+        binop!(ret, sum);
         binop!(ret, power);
         binop!(ret, eq);
         binop!(ret, ne);

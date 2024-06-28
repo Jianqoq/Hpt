@@ -90,9 +90,12 @@ fn test_fusion() {
     comp.reshape(&Shape::new([1, 8, 1]));
     let sub = CmpNode::make_binop("sub", div, comp, 4);
     let exp = CmpNode::make_unop("exp", sub, 5);
+    let mut sum = CmpNode::make_reduce("sum", &exp, [Int::make(Dtype::I64, 2)], Int::make(Dtype::I64, 0).into(), 6);
+    sum.reshape(&Shape::new([1, 8, 1]));
+    let div = CmpNode::make_binop("div", exp, sum, 7);
     let mut saved_exprs = HashMap::new();
-    let exp_id = exp.id();
-    let expr = exp.lower(true, &mut vec![], &mut saved_exprs);
+    let exp_id = div.id();
+    let expr = div.lower(true, &mut vec![], &mut saved_exprs);
     saved_exprs.insert(Variable::new(format!("%{}", exp_id)).into(), expr);
     for (k, v) in saved_exprs.iter() {
         println!("{}: {}", k, v);
