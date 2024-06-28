@@ -681,15 +681,59 @@ impl ComputeNode {
         let vars = (0..broadcast_shape.len())
             .map(|i| Variable::new(format!("i{}", i)))
             .collect::<Vec<_>>();
-        let a_strides = if let Some(new_strides) = lhs.layout.is_reshape_possible(&broadcast_shape) {
-            new_strides
+        let a_strides = if lhs.layout.size() == broadcast_shape.size() {
+            if let Some(new_strides) = lhs.layout.is_reshape_possible(&broadcast_shape) {
+                new_strides
+            } else {
+                panic!("Cannot reshape strides");
+            }
         } else {
-            panic!("Cannot reshape strides");
+            let self_shape = try_pad_shape(&lhs.shape(), broadcast_shape.len());
+
+            let axes_to_broadcast = get_broadcast_axes_from(&self_shape, &broadcast_shape).expect(
+                "Cannot broadcast shapes"
+            );
+
+            let mut new_strides = vec![0; broadcast_shape.len()];
+            new_strides
+                .iter_mut()
+                .rev()
+                .zip(lhs.strides().iter().rev())
+                .for_each(|(a, b)| {
+                    *a = *b;
+                });
+            for &axis in axes_to_broadcast.iter() {
+                assert_eq!(self_shape[axis], 1);
+                new_strides[axis] = 0;
+            }
+            new_strides.into()
         };
-        let b_strides = if let Some(new_strides) = rhs.layout.is_reshape_possible(&broadcast_shape) {
-            new_strides
+        let b_strides = if rhs.layout.size() == broadcast_shape.size() {
+            if let Some(new_strides) = rhs.layout.is_reshape_possible(&broadcast_shape) {
+                new_strides
+            } else {
+                panic!("Cannot reshape strides");
+            }
         } else {
-            panic!("Cannot reshape strides");
+            let self_shape = try_pad_shape(&rhs.shape(), broadcast_shape.len());
+
+            let axes_to_broadcast = get_broadcast_axes_from(&self_shape, &broadcast_shape).expect(
+                "Cannot broadcast shapes"
+            );
+
+            let mut new_strides = vec![0; broadcast_shape.len()];
+            new_strides
+                .iter_mut()
+                .rev()
+                .zip(rhs.strides().iter().rev())
+                .for_each(|(a, b)| {
+                    *a = *b;
+                });
+            for &axis in axes_to_broadcast.iter() {
+                assert_eq!(self_shape[axis], 1);
+                new_strides[axis] = 0;
+            }
+            new_strides.into()
         };
         let a_load_indice = vars
             .iter()

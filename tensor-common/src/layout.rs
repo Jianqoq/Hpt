@@ -175,8 +175,8 @@ impl Layout {
         })
     }
 
-    pub fn size(&self) -> usize {
-        self.shape.iter().product::<i64>() as usize
+    pub fn size(&self) -> i64 {
+        self.shape.iter().product::<i64>()
     }
 
     pub fn is_contiguous(&self) -> bool {

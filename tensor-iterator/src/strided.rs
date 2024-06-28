@@ -230,7 +230,7 @@ impl<T> ShapeManipulator for Strided<T> {
         self.set_end_index(len);
         let self_size = self.layout.size();
 
-        if size > self_size {
+        if size > self_size as usize {
             let self_shape = try_pad_shape(&self.shape(), res_shape.len());
 
             let axes_to_broadcast = get_broadcast_axes_from(&self_shape, &res_shape).expect(
