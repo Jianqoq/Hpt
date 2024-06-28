@@ -666,13 +666,90 @@ impl Display for Tensor {
 }
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
+pub struct FuseNode {
+    iter_vars: Arc<Vec<Variable>>,
+    reduce_vars: Arc<Vec<Variable>>,
+    strides: Option<Arc<Strides>>,
+    inputs: Arc<Vec<Self>>,
+    shape: Shape,
+    func: Closures,
+    id: usize,
+}
+
+impl FuseNode {
+    pub fn make_from_tensor<T: Into<Tensor>>(tensor: T, id: usize) -> Self {
+        let tensor: Tensor = tensor.into();
+        let iter_vars = (0..tensor.layout.ndim())
+            .map(|i| Variable::new(format!("i{}", i)))
+            .collect::<Vec<_>>();
+        let strides = tensor.layout.strides().clone();
+        let closure = Closures::Init(|var, x| {
+            let load = Load::make(var, x);
+            crate::halide::exprs::Call::make("load", &[load.into()])
+        });
+        Self {
+            iter_vars: iter_vars.into(),
+            reduce_vars: vec![].into(),
+            inputs: vec![].into(),
+            strides: Some(strides.into()),
+            shape: tensor.shape().clone(),
+            func: closure,
+            id,
+        }
+    }
+
+    pub fn make_binop<A: Into<Self>, B: Into<Self>>(
+        func: Closures,
+        lhs: A,
+        rhs: B,
+        id: usize
+    ) -> Self {
+        let mut lhs: Self = lhs.into();
+        let mut rhs: Self = rhs.into();
+        let lhs_shape = &lhs.shape;
+        let rhs_shape = &rhs.shape;
+        let new_shape = predict_broadcast_shape(lhs_shape, rhs_shape).expect(
+            "Cannot broadcast shapes"
+        );
+        lhs.update_strides(&new_shape);
+        rhs.update_strides(&new_shape);
+
+        let new_common_vars = (0..new_shape.len())
+            .map(|i| Variable::new(format!("i{}", i)))
+            .collect::<Vec<_>>();
+
+        Self {
+            iter_vars: new_common_vars.into(),
+            reduce_vars: vec![].into(),
+            inputs: vec![lhs, rhs].into(),
+            strides: None,
+            shape: new_shape,
+            func,
+            id,
+        }
+    }
+
+    fn update_strides(&mut self, new_shape: &Shape) {
+        if let Some(strides) = self.strides.as_ref() {
+            let strides = predict_broadcast_strides(new_shape, (&self.shape, strides.as_ref()));
+            self.strides = Some(strides.into());
+        }
+        if self.inputs.len() > 0 {
+            Arc::make_mut(&mut self.inputs)
+                .iter_mut()
+                .for_each(|x| x.update_strides(new_shape));
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct ComputeNode {
     compute_expr: PrimeExpr,
     iter_vars: Arc<Vec<Variable>>,
     reduce_vars: Arc<Vec<Variable>>,
     strides: Arc<Vec<Int>>,
     shape: Shape,
-    id: usize
+    id: usize,
 }
 
 impl ComputeNode {
@@ -702,7 +779,12 @@ impl ComputeNode {
             id,
         }
     }
-    pub fn make_binop<A: Into<Self>, B: Into<Self>>(func: Closures, lhs: A, rhs: B, id: usize) -> Self {
+    pub fn make_binop<A: Into<Self>, B: Into<Self>>(
+        func: Closures,
+        lhs: A,
+        rhs: B,
+        id: usize
+    ) -> Self {
         let lhs: Self = lhs.into();
         let rhs: Self = rhs.into();
         let lhs_shape = &lhs.shape;

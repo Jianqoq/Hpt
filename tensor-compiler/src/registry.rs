@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use hashbrown::HashMap;
 use lazy_static::lazy_static;
 
-use crate::{ halide::{ exprs::Call, prime_expr::PrimeExpr }, hlir::exprs::OpNode, op::OpType };
+use crate::{ halide::{ exprs::Call, prime_expr::PrimeExpr, variable::Variable }, hlir::exprs::OpNode, op::OpType };
 
 pub(crate) fn add_binop(registory: &mut AttrRegistry, name: &str) {
     let op_node = registory.register_or_get(name);
@@ -24,6 +24,7 @@ pub(crate) fn add_unop(registry: &mut AttrRegistry, name: &str) {
 pub enum Closures {
     Binop(fn(PrimeExpr, PrimeExpr) -> Call),
     Unop(fn(PrimeExpr) -> Call),
+    Init(fn(Variable, PrimeExpr) -> Call),
 }
 
 pub enum ClosuresType {
