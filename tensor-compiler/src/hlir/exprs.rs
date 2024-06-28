@@ -875,6 +875,10 @@ impl FuseNode {
     fn update_strides(&mut self, new_shape: &Shape) {
         if let Some(strides) = self.strides.as_ref() {
             let strides = predict_broadcast_strides(new_shape, (&self.shape, strides));
+            let new_iter_vars = (0..new_shape.len())
+                .map(|i| Variable::new(format!("i{}", i)))
+                .collect::<Vec<_>>();
+            self.iter_vars = new_iter_vars.into();
             self.strides = Some(strides.into());
         }
         if self.inputs.len() > 0 {
