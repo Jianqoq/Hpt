@@ -945,7 +945,7 @@ impl CmpNode {
         &self,
         push_vars: bool,
         vars: &mut Vec<Variable>,
-        map: &mut HashMap<PrimeExpr, PrimeExpr>
+        map: &mut Vec<(PrimeExpr, PrimeExpr)>
     ) -> PrimeExpr {
         match self {
             CmpNode::Base(base) => {
@@ -990,7 +990,7 @@ impl CmpNode {
                     exprs.push(fuse.inputs[0].to_reduce().identity);
                     let call = fuse.func.call_common(exprs);
                     let var = Variable::from(format!("%r{}", fuse.id));
-                    map.insert(var.clone().into(), call.into());
+                    map.push((var.clone().into(), call.into()));
                     return var.into();
                 } else {
                     let call = fuse.func.call_common(exprs);
