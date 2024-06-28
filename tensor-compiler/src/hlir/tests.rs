@@ -79,7 +79,7 @@ fn test_fusion() {
     let a = Tensor::make("a", Shape::new([1, 8, 8]).into(), Dtype::BF16);
     let b = Tensor::make("b", Shape::new([1]).into(), Dtype::BF16);
     let div_op = MANAGER.lock().unwrap().get("div").cloned().unwrap();
-    let expr = ComputeNode::make_binop(div_op, a, b);
-    
-    println!("{}", expr);
+    // let expr = ComputeNode::make_binop(div_op, a, b);
+
+    // println!("{}", expr);
 }

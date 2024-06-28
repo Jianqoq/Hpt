@@ -676,10 +676,13 @@ pub struct ComputeNode {
     reduced_strides: Arc<Vec<Int>>,
     // ===============================
     shape: Shape,
+
+    // identity of compute node, it is currently used for reduce_vars
+    id: usize,
 }
 
 impl ComputeNode {
-    pub fn make_from_tensor<T: Into<Tensor>>(tensor: T) -> Self {
+    pub fn make_from_tensor<T: Into<Tensor>>(tensor: T, id: usize) -> Self {
         let tensor: Tensor = tensor.into();
         let iter_vars = (0..tensor.layout.ndim())
             .map(|i| Variable::new(format!("i{}", i)))
@@ -703,6 +706,7 @@ impl ComputeNode {
             reduce_vars: vec![].into(),
             strides: strides.into(),
             reduced_strides: vec![].into(),
+            id,
         }
     }
 
