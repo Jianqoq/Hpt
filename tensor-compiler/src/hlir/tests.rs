@@ -77,22 +77,22 @@ fn test_for() {
 
 #[test]
 fn test_fusion() {
-    let a = CmpNode::make(Shape::new([1, 8, 8]).into(), 0);
-    let b = CmpNode::make(Shape::new([1]).into(), 1);
-    let div = CmpNode::make_binop("div", a, b, 2);
+    let a = CmpNode::make(Shape::new([1, 8, 8]).into(), 4);
+    let b = CmpNode::make(Shape::new([1]).into(), 5);
+    let div = CmpNode::make_binop("div", a, b, 6);
     let mut comp = CmpNode::make_reduce(
         "max",
         &div,
         [Int::make(Dtype::I64, 2)],
         Int::make(Dtype::I64, 0).into(),
-        3
+        7
     );
     comp.reshape(&Shape::new([1, 8, 1]));
-    let sub = CmpNode::make_binop("sub", div, comp, 4);
+    let sub = CmpNode::make_binop("sub", div, comp, 8);
     let exp = CmpNode::make_unop("exp", sub, 5);
-    let mut sum = CmpNode::make_reduce("sum", &exp, [Int::make(Dtype::I64, 2)], Int::make(Dtype::I64, 0).into(), 6);
+    let mut sum = CmpNode::make_reduce("sum", &exp, [Int::make(Dtype::I64, 2)], Int::make(Dtype::I64, 0).into(), 9);
     sum.reshape(&Shape::new([1, 8, 1]));
-    let div = CmpNode::make_binop("div", exp, sum, 7);
+    let div = CmpNode::make_binop("div", exp, sum, 10);
     let mut saved_exprs = HashMap::new();
     let exp_id = div.id();
     let expr = div.lower(true, &mut vec![], &mut saved_exprs);

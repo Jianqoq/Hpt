@@ -901,8 +901,8 @@ impl CmpNode {
                 );
                 if base.reduced_strides.len() > 0 {
                     let mut new_reduced_strides = vec![];
-                    for i in transposed_axis[transposed_axis.len() - axes.len()..].iter() {
-                        new_reduced_strides.push(transposed_strides[*i]);
+                    for i in transposed_strides[transposed_strides.len() - axes.len()..].iter() {
+                        new_reduced_strides.push(*i);
                     }
                     new_reduced_strides.extend(base.reduced_strides.iter());
                     base.reduced_strides = new_reduced_strides.into();
@@ -969,6 +969,9 @@ impl CmpNode {
                 }
                 for input in reduce.inputs.iter() {
                     exprs.push(input.lower(false, vars, map));
+                }
+                for _ in reduce.reduce_vars.iter() {
+                    vars.pop();
                 }
                 let call = reduce.func.call_common(exprs);
                 call.into()
