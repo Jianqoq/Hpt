@@ -914,51 +914,6 @@ impl CmpNode {
         }
     }
 
-    pub fn to_compute_node(&self, iter_vars: Vec<Variable>, id: usize) -> ComputeNode {
-        match self {
-            CmpNode::Base(base) => {
-                let strides = base.layout.strides().to_vec();
-                let f = base.load_fn;
-                
-                ComputeNode {
-                    compute_expr: Load::make(base.id, iter_vars.clone(), strides).into(),
-                    iter_vars: iter_vars.into(),
-                    reduce_vars: vec![].into(),
-                    strides: Some(strides.into()),
-                    shape: base.layout.shape().clone(),
-                    id,
-                }
-            }
-            CmpNode::Reduce(reduce) => {
-                let mut reduce_vars = vec![];
-                for i in reduce.reduce_vars.iter() {
-                    reduce_vars.push(i.clone());
-                }
-                let mut iter_vars = iter_vars.clone();
-                iter_vars.extend(reduce_vars.iter().cloned());
-                ComputeNode {
-                    compute_expr: reduce.func.clone(),
-                    iter_vars: iter_vars.into(),
-                    reduce_vars: reduce_vars.into(),
-                    strides: None,
-                    shape: reduce.inputs[0].shape().clone(),
-                    id,
-                }
-            }
-            CmpNode::Fuse(fuse) => {
-                let mut iter_vars = iter_vars.clone();
-                iter_vars.extend(fuse.common_vars.iter().cloned());
-                ComputeNode {
-                    compute_expr: fuse.func.clone(),
-                    iter_vars: iter_vars.into(),
-                    reduce_vars: vec![].into(),
-                    strides: None,
-                    shape: fuse.shape.clone(),
-                    id,
-                }
-            }
-        }
-    }
 }
 
 impl Into<CmpNode> for ReduceNode {
