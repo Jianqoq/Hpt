@@ -52,7 +52,7 @@ impl Layout {
         self.shape.len()
     }
 
-    pub fn is_reshape_possible(&self, shape: &Shape) -> Option<Strides> {
+    pub fn is_reshape_possible(&self, shape: &[i64]) -> Option<Strides> {
         is_reshape_possible(&self.shape, &self.strides, shape)
     }
 
@@ -199,5 +199,47 @@ impl From<&Shape> for Layout {
     fn from(shape: &Shape) -> Self {
         let strides = shape_to_strides(&shape);
         Layout { shape: shape.clone(), strides }
+    }
+}
+
+impl From<(Shape, Strides)> for Layout {
+    fn from((shape, strides): (Shape, Strides)) -> Self {
+        Layout { shape, strides }
+    }
+}
+
+impl From<(Shape, Vec<i64>)> for Layout {
+    fn from((shape, strides): (Shape, Vec<i64>)) -> Self {
+        Layout { shape, strides: strides.into() }
+    }
+}
+
+impl From<(&Shape, Vec<i64>)> for Layout {
+    fn from((shape, strides): (&Shape, Vec<i64>)) -> Self {
+        Layout { shape: shape.into(), strides: strides.into() }
+    }
+}
+
+impl From<(&Shape, &[i64])> for Layout {
+    fn from((shape, strides): (&Shape, &[i64])) -> Self {
+        Layout { shape: shape.into(), strides: strides.into() }
+    }
+}
+
+impl From<&(Shape, Strides)> for Layout {
+    fn from((shape, strides): &(Shape, Strides)) -> Self {
+        Layout { shape: shape.clone(), strides: strides.clone() }
+    }
+}
+
+impl From<&Layout> for Layout {
+    fn from(layout: &Layout) -> Self {
+        Layout { shape: layout.shape.clone(), strides: layout.strides.clone() }
+    }
+}
+
+impl From<(&Shape, &Strides)> for Layout {
+    fn from((shape, strides): (&Shape, &Strides)) -> Self {
+        Layout { shape: shape.clone(), strides: strides.clone() }
     }
 }

@@ -3,7 +3,12 @@ use std::{ fmt::Display, sync::Arc };
 use tensor_common::{
     layout::Layout,
     shape::Shape,
-    shape_utils::{ get_broadcast_axes_from, predict_broadcast_shape, try_pad_shape },
+    shape_utils::{
+        get_broadcast_axes_from,
+        predict_broadcast_shape,
+        predict_broadcast_strides,
+        try_pad_shape,
+    },
     strides::Strides,
 };
 use tensor_types::dtype::Dtype;
@@ -663,97 +668,54 @@ impl Display for Tensor {
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct ComputeNode {
     compute_expr: PrimeExpr,
+    // =========== common load indices ==============
+    vars: Arc<Vec<Variable>>,
+    strides: Arc<Vec<Int>>,
+    // =========== reduced load indices =============
+    reduce_vars: Arc<Vec<Variable>>,
+    reduced_strides: Arc<Vec<Int>>,
+    // ===============================
     shape: Shape,
 }
 
 impl ComputeNode {
     pub fn make_from_tensor<T: Into<Tensor>>(tensor: T) -> Self {
-        todo!()
-    }
-    pub fn make_binop<A: Into<Tensor>, B: Into<Tensor>>(func: Closures, lhs: A, rhs: B) -> Self {
-        let lhs: Tensor = lhs.into();
-        let rhs: Tensor = rhs.into();
-        let a_shape = lhs.shape();
-        let b_shape = rhs.shape();
-        let broadcast_shape = predict_broadcast_shape(a_shape, b_shape).unwrap();
-        let vars = (0..broadcast_shape.len())
+        let tensor: Tensor = tensor.into();
+        let iter_vars = (0..tensor.layout.ndim())
             .map(|i| Variable::new(format!("i{}", i)))
             .collect::<Vec<_>>();
-        let a_strides = if lhs.layout.size() == broadcast_shape.size() {
-            if let Some(new_strides) = lhs.layout.is_reshape_possible(&broadcast_shape) {
-                new_strides
-            } else {
-                panic!("Cannot reshape strides");
-            }
-        } else {
-            /* this code is being used in strided iterator reshape, should refactor */
-            let self_shape = try_pad_shape(&lhs.shape(), broadcast_shape.len());
-
-            let axes_to_broadcast = get_broadcast_axes_from(&self_shape, &broadcast_shape).expect(
-                "Cannot broadcast shapes"
-            );
-
-            let mut new_strides = vec![0; broadcast_shape.len()];
-            new_strides
-                .iter_mut()
-                .rev()
-                .zip(lhs.strides().iter().rev())
-                .for_each(|(a, b)| {
-                    *a = *b;
-                });
-            for &axis in axes_to_broadcast.iter() {
-                assert_eq!(self_shape[axis], 1);
-                new_strides[axis] = 0;
-            }
-            new_strides.into()
-        };
-        let b_strides = if rhs.layout.size() == broadcast_shape.size() {
-            if let Some(new_strides) = rhs.layout.is_reshape_possible(&broadcast_shape) {
-                new_strides
-            } else {
-                panic!("Cannot reshape strides");
-            }
-        } else {
-            /* this code is being used in strided iterator reshape, should refactor */
-            let self_shape = try_pad_shape(&rhs.shape(), broadcast_shape.len());
-
-            let axes_to_broadcast = get_broadcast_axes_from(&self_shape, &broadcast_shape).expect(
-                "Cannot broadcast shapes"
-            );
-
-            let mut new_strides = vec![0; broadcast_shape.len()];
-            new_strides
-                .iter_mut()
-                .rev()
-                .zip(rhs.strides().iter().rev())
-                .for_each(|(a, b)| {
-                    *a = *b;
-                });
-            for &axis in axes_to_broadcast.iter() {
-                assert_eq!(self_shape[axis], 1);
-                new_strides[axis] = 0;
-            }
-            new_strides.into()
-        };
-        let a_load_indice = vars
+        let strides: Vec<Int> = tensor.layout
+            .strides()
             .iter()
-            .zip(a_strides.iter())
-            .map(|(index, stride)| { index * Int::make(Dtype::I64, *stride) })
+            .map(|&x| Int::make(Dtype::I64, x))
+            .collect();
+        let load_indice = iter_vars
+            .iter()
+            .zip(strides.iter())
+            .map(|(index, stride)| { index * stride })
             .reduce(|a, b| a + b)
             .unwrap();
-        let b_load_indice = vars
-            .iter()
-            .zip(b_strides.iter())
-            .map(|(index, stride)| { index * Int::make(Dtype::I64, *stride) })
-            .reduce(|a, b| a + b)
-            .unwrap();
-        let a_load = Load::make(lhs.name(), a_load_indice);
-        let b_load = Load::make(rhs.name(), b_load_indice);
-        let expr = func.get_binop_expr(a_load, b_load);
+        let load = Load::make(tensor.name(), load_indice);
         Self {
-            compute_expr: expr.into(),
-            shape: broadcast_shape,
+            compute_expr: load.into(),
+            shape: tensor.shape().clone(),
+            vars: iter_vars.into(),
+            reduce_vars: vec![].into(),
+            strides: strides.into(),
+            reduced_strides: vec![].into(),
         }
+    }
+
+    pub fn make_binop<A: Into<Self>, B: Into<Self>>(func: Closures, lhs: A, rhs: B) -> Self {
+        let lhs: Self = lhs.into();
+        let rhs: Self = rhs.into();
+        let lhs_shape = &lhs.shape;
+        let rhs_shape = &rhs.shape;
+        let new_shape = predict_broadcast_shape(lhs_shape, rhs_shape).expect(
+            "Cannot broadcast shapes"
+        );
+
+        todo!()
     }
     pub fn compute_expr(&self) -> &PrimeExpr {
         &self.compute_expr
@@ -762,7 +724,7 @@ impl ComputeNode {
 
 impl Display for ComputeNode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.compute_expr)
+        write!(f, "ComputeNode({})", self.compute_expr)
     }
 }
 

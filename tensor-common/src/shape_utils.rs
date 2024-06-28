@@ -1,4 +1,4 @@
-use crate::{ err_handler::ErrHandler, shape::Shape, strides::Strides };
+use crate::{ err_handler::ErrHandler, layout::Layout, shape::Shape, strides::Strides };
 
 /// # Internal Function
 /// yield `1` before `idx` for `shape`, use when you want to `manipulate the shape of a tensor`
@@ -151,6 +151,49 @@ pub fn predict_broadcast_shape(a_shape: &[i64], b_shape: &[i64]) -> anyhow::Resu
     }
 
     Ok(Shape::from(result_shape))
+}
+
+pub fn predict_broadcast_strides<T: Into<Layout>>(
+    brocasted_shape: &[i64],
+    original_layout: T
+) -> Strides {
+    let original_layout: Layout = original_layout.into();
+    let brocasted_size = brocasted_shape.iter().product::<i64>();
+    let original_size = original_layout.size();
+
+    // if true, it is brocasted
+    if brocasted_size > original_size {
+        let shape = try_pad_shape(original_layout.shape(), brocasted_shape.len());
+        let axes_to_broadcast = get_broadcast_axes_from(&shape, brocasted_shape).expect(
+            "Cannot broadcast shapes"
+        );
+
+        let mut new_strides = vec![0; brocasted_shape.len()];
+        new_strides
+            .iter_mut()
+            .rev()
+            .zip(original_layout.strides().iter().rev())
+            .for_each(|(a, b)| {
+                *a = *b;
+            });
+        for &axis in axes_to_broadcast.iter() {
+            assert_eq!(shape[axis], 1);
+            new_strides[axis] = 0;
+        }
+        new_strides.into()
+    } else {
+        ErrHandler::check_size_match(original_layout.shape(), brocasted_shape).unwrap();
+        if let Some(new_strides) = original_layout.is_reshape_possible(brocasted_shape) {
+            new_strides
+        } else {
+            ErrHandler::raise_requires_allocation_when_use_iterator(
+                original_layout.shape(),
+                original_layout.strides(),
+            )
+            .unwrap();
+            unreachable!()
+        }
+    }
 }
 
 pub fn get_broadcast_axes_from(a_shape: &[i64], res_shape: &[i64]) -> anyhow::Result<Vec<usize>> {

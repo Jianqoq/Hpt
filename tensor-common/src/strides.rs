@@ -45,6 +45,12 @@ impl From<Vec<i64>> for Strides {
     }
 }
 
+impl From<&[i64]> for Strides {
+    fn from(v: &[i64]) -> Self {
+        Strides { inner: Arc::new(v.to_vec()) }
+    }
+}
+
 impl<const N: usize> From<[i64; N]> for Strides {
     fn from(v: [i64; N]) -> Self {
         Strides {
