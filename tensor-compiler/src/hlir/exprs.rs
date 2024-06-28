@@ -666,6 +666,117 @@ pub enum CmpNode {
     Fuse(FuseNode),
 }
 
+impl CmpNode {
+    pub fn make_from_tensor<T: Into<Tensor>>(tensor: T, id: usize) -> Self {
+        let tensor: Tensor = tensor.into();
+        let iter_vars = (0..tensor.layout.ndim())
+            .map(|i| Variable::new(format!("i{}", i)))
+            .collect::<Vec<_>>();
+        let strides = tensor.layout.strides().clone();
+        let closure = Closures::Init(|var, x| {
+            let load = Load::make(var, x);
+            crate::halide::exprs::Call::make("load", &[load.into()])
+        });
+        CmpNode::Fuse(FuseNode {
+            iter_vars: iter_vars.into(),
+            inputs: vec![].into(),
+            strides: Some(strides.into()),
+            shape: tensor.shape().clone(),
+            func: closure,
+            id,
+        })
+    }
+
+    pub fn make_unop<A: Into<Self>>(func: Closures, lhs: A, id: usize) -> Self {
+        let lhs: Self = lhs.into();
+        match lhs {
+            CmpNode::Fuse(fuse) => {
+                let shape = fuse.shape.clone();
+                let strides = fuse.strides.clone();
+                CmpNode::Fuse(FuseNode {
+                    iter_vars: fuse.iter_vars.clone(),
+                    inputs: vec![fuse.into()].into(),
+                    strides,
+                    shape,
+                    func,
+                    id,
+                })
+            }
+            _ => panic!("Cannot make unop from non-fuse node"),
+        }
+    }
+
+    pub fn make_binop<A: Into<Self>, B: Into<Self>>(
+        func: Closures,
+        lhs: A,
+        rhs: B,
+        id: usize
+    ) -> Self {
+        let lhs: Self = lhs.into();
+        let rhs: Self = rhs.into();
+        match (lhs, rhs) {
+            (CmpNode::Fuse(mut lhs), CmpNode::Fuse(mut rhs)) => {
+                let lhs_shape = &lhs.shape;
+                let rhs_shape = &rhs.shape;
+                let new_shape = predict_broadcast_shape(lhs_shape, rhs_shape).expect(
+                    "Cannot broadcast shapes"
+                );
+                lhs.update_strides(&new_shape);
+                rhs.update_strides(&new_shape);
+
+                let new_common_vars = (0..new_shape.len())
+                    .map(|i| Variable::new(format!("i{}", i)))
+                    .collect::<Vec<_>>();
+
+                CmpNode::Fuse(FuseNode {
+                    iter_vars: new_common_vars.into(),
+                    inputs: vec![lhs.into(), rhs.into()].into(),
+                    strides: None,
+                    shape: new_shape,
+                    func,
+                    id,
+                })
+            }
+            _ => unreachable!(), // unreachable because we always convert fuse node to reduce node, then wrap it back to fuse node
+        }
+    }
+
+    pub fn make_reduce<A: Into<Self>, B: Into<Vec<Int>>>(
+        func: Closures,
+        lhs: A,
+        axes: B,
+        id: usize
+    ) -> Self {
+        let mut lhs: Self = lhs.into();
+        let axes: Vec<Int> = axes.into();
+        let axes = axes
+            .iter()
+            .map(|x| x.value() as usize)
+            .collect::<Vec<_>>();
+
+        match lhs {
+            CmpNode::Fuse(fuse) => {
+                // lhs.update_reduce_strides(&axes);
+                // let (_, res_shape) = predict_reduce_shape(&lhs.shape, &axes);
+                // let mut new_common_vars = vec![];
+                // for i in 0..res_shape.len() {
+                //     new_common_vars.push(Variable::new(format!("i{}", i)));
+                // }
+                // Self {
+                //     iter_vars: new_common_vars.into(),
+                //     inputs: vec![lhs.into()].into(),
+                //     strides: None,
+                //     shape: res_shape.into(),
+                //     func,
+                //     id,
+                // }
+                todo!()
+            },
+            _ => panic!("Cannot make reduce from non-fuse node"),
+        }
+    }
+}
+
 impl Into<CmpNode> for ReduceNode {
     fn into(self) -> CmpNode {
         CmpNode::Reduce(self)
@@ -680,8 +791,11 @@ impl Into<CmpNode> for FuseNode {
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct ReduceNode {
+    inputs: Arc<Vec<CmpNode>>,
     reduce_vars: Arc<Vec<Variable>>,
     reduce_strides: Strides,
+    identity: Arc<PrimeExpr>,
+    id: usize,
 }
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
@@ -744,69 +858,6 @@ impl FuseNode {
         //         }
         //     }
         // }
-    }
-
-    pub fn make_from_tensor<T: Into<Tensor>>(tensor: T, id: usize) -> Self {
-        let tensor: Tensor = tensor.into();
-        let iter_vars = (0..tensor.layout.ndim())
-            .map(|i| Variable::new(format!("i{}", i)))
-            .collect::<Vec<_>>();
-        let strides = tensor.layout.strides().clone();
-        let closure = Closures::Init(|var, x| {
-            let load = Load::make(var, x);
-            crate::halide::exprs::Call::make("load", &[load.into()])
-        });
-        Self {
-            iter_vars: iter_vars.into(),
-            inputs: vec![].into(),
-            strides: Some(strides.into()),
-            shape: tensor.shape().clone(),
-            func: closure,
-            id,
-        }
-    }
-
-    pub fn make_binop<A: Into<Self>, B: Into<Self>>(
-        func: Closures,
-        lhs: A,
-        rhs: B,
-        id: usize
-    ) -> Self {
-        let mut lhs: Self = lhs.into();
-        let mut rhs: Self = rhs.into();
-        let lhs_shape = &lhs.shape;
-        let rhs_shape = &rhs.shape;
-        let new_shape = predict_broadcast_shape(lhs_shape, rhs_shape).expect(
-            "Cannot broadcast shapes"
-        );
-        lhs.update_strides(&new_shape);
-        rhs.update_strides(&new_shape);
-
-        let new_common_vars = (0..new_shape.len())
-            .map(|i| Variable::new(format!("i{}", i)))
-            .collect::<Vec<_>>();
-
-        Self {
-            iter_vars: new_common_vars.into(),
-            inputs: vec![lhs.into(), rhs.into()].into(),
-            strides: None,
-            shape: new_shape,
-            func,
-            id,
-        }
-    }
-
-    pub fn make_unop<A: Into<Self>>(func: Closures, lhs: A, id: usize) -> Self {
-        let lhs: Self = lhs.into();
-        let new_shape = lhs.shape.clone();
-        Self {
-            iter_vars: lhs.iter_vars.clone(),
-            inputs: vec![lhs.into()].into(),
-            strides: None,
-            shape: new_shape,
-            func,
-            id,
-        }
     }
 
     pub fn make_reduce<A: Into<Self>, B: Into<Vec<Int>>>(
@@ -908,14 +959,14 @@ impl FuseNode {
     }
 }
 
-impl Into<FuseNode> for (Tensor, usize) {
-    fn into(self) -> FuseNode {
-        FuseNode::make_from_tensor(self.0, self.1)
+impl Into<CmpNode> for (Tensor, usize) {
+    fn into(self) -> CmpNode {
+        CmpNode::make_from_tensor(self.0, self.1)
     }
 }
 
-impl Into<FuseNode> for &FuseNode {
-    fn into(self) -> FuseNode {
+impl Into<CmpNode> for &CmpNode {
+    fn into(self) -> CmpNode {
         self.clone()
     }
 }
