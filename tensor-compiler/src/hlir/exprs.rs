@@ -745,6 +745,7 @@ impl CmpNode {
         func: Closures,
         lhs: A,
         axes: B,
+        init: PrimeExpr,
         id: usize
     ) -> Self {
         let mut lhs: Self = lhs.into();
@@ -756,23 +757,59 @@ impl CmpNode {
 
         match lhs {
             CmpNode::Fuse(fuse) => {
-                // lhs.update_reduce_strides(&axes);
-                // let (_, res_shape) = predict_reduce_shape(&lhs.shape, &axes);
-                // let mut new_common_vars = vec![];
-                // for i in 0..res_shape.len() {
-                //     new_common_vars.push(Variable::new(format!("i{}", i)));
-                // }
-                // Self {
-                //     iter_vars: new_common_vars.into(),
-                //     inputs: vec![lhs.into()].into(),
-                //     strides: None,
-                //     shape: res_shape.into(),
-                //     func,
-                //     id,
-                // }
+                let res_shape = predict_reduce_shape(&fuse.shape, &axes).1;
+                let mut new_common_vars = vec![];
+                for i in 0..res_shape.len() {
+                    new_common_vars.push(Variable::new(format!("i{}", i)));
+                }
+                // the shape of fuse should all be the same
+                let mut reduce_vars = vec![];
+                for i in 0..axes.len() {
+                    reduce_vars.push(Variable::new(format!("r{}_{}", fuse.id, i)));
+                }
                 todo!()
-            },
+            }
             _ => panic!("Cannot make reduce from non-fuse node"),
+        }
+    }
+
+    pub fn update_reduce_strides(&mut self, axes: &[usize]) {
+        match self {
+            CmpNode::Reduce(reduce) =>
+                for i in Arc::make_mut(&mut reduce.inputs).iter_mut() {
+                    i.update_reduce_strides(axes);
+                }
+            CmpNode::Fuse(fuse) => {
+                if let Some(strides) = fuse.strides.as_ref() {
+                    let (a_shape_cpy, _) = predict_reduce_shape(&fuse.shape, &axes);
+                    let mut j = fuse.shape.len() - axes.len();
+                    let mut k = 0;
+                    let mut track_idx = 0;
+                    let mut transposed_axis = vec![0; fuse.shape.len()];
+                    for i in 0..fuse.shape.len() {
+                        if a_shape_cpy[i] != 0 {
+                            transposed_axis[k] = i;
+                            k += 1;
+                        } else {
+                            transposed_axis[j] = axes[track_idx];
+                            j += 1;
+                            track_idx += 1;
+                        }
+                    }
+                    transposed_axis[fuse.shape.len() - axes.len()..].sort();
+                    let mut transposed_shape = fuse.shape.clone();
+                    for i in transposed_axis.iter() {
+                        transposed_shape[*i] = fuse.shape[transposed_axis[*i]];
+                    }
+                    let mut transposed_strides = strides.inner().clone();
+                    for i in transposed_axis.iter() {
+                        transposed_strides[*i] = strides[transposed_axis[*i]];
+                    }
+                    let common_strides = transposed_strides[0..fuse.shape.len() - axes.len()].to_vec();
+                    let mut reduce_strides = transposed_strides[fuse.shape.len() - axes.len()..].to_vec();
+                    fuse.strides = Some(common_strides.into());
+                }
+            },
         }
     }
 }
@@ -794,7 +831,7 @@ pub struct ReduceNode {
     inputs: Arc<Vec<CmpNode>>,
     reduce_vars: Arc<Vec<Variable>>,
     reduce_strides: Strides,
-    identity: Arc<PrimeExpr>,
+    identity: PrimeExpr,
     id: usize,
 }
 
@@ -858,34 +895,6 @@ impl FuseNode {
         //         }
         //     }
         // }
-    }
-
-    pub fn make_reduce<A: Into<Self>, B: Into<Vec<Int>>>(
-        func: Closures,
-        lhs: A,
-        axes: B,
-        id: usize
-    ) -> Self {
-        let mut lhs: Self = lhs.into();
-        let axes: Vec<Int> = axes.into();
-        let axes = axes
-            .iter()
-            .map(|x| x.value() as usize)
-            .collect::<Vec<_>>();
-        lhs.update_reduce_strides(&axes);
-        let (_, res_shape) = predict_reduce_shape(&lhs.shape, &axes);
-        let mut new_common_vars = vec![];
-        for i in 0..res_shape.len() {
-            new_common_vars.push(Variable::new(format!("i{}", i)));
-        }
-        Self {
-            iter_vars: new_common_vars.into(),
-            inputs: vec![lhs.into()].into(),
-            strides: None,
-            shape: res_shape.into(),
-            func,
-            id,
-        }
     }
 
     fn update_reduce_strides(&mut self, axes: &[usize]) {
