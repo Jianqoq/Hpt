@@ -1,14 +1,9 @@
 use std::{ fmt::Display, sync::Arc };
-
+use tensor_common::shape_utils::predict_reduce_shape;
 use tensor_common::{
     layout::Layout,
     shape::Shape,
-    shape_utils::{
-        get_broadcast_axes_from,
-        predict_broadcast_shape,
-        predict_broadcast_strides,
-        try_pad_shape,
-    },
+    shape_utils::{ predict_broadcast_shape, predict_broadcast_strides },
     strides::Strides,
 };
 use tensor_types::dtype::Dtype;
@@ -743,14 +738,68 @@ impl FuseNode {
         }
     }
 
-    pub fn make_reduce<A: Into<Self>, B: Into<Variable>>(
+    pub fn make_reduce<A: Into<Self>, B: Into<Vec<Int>>>(
         func: Closures,
         lhs: A,
-        reduce_vars: B,
+        axes: B,
         id: usize
     ) -> Self {
-        let lhs: Self = lhs.into();
-        todo!()
+        let mut lhs: Self = lhs.into();
+        let axes: Vec<Int> = axes.into();
+        let axes = axes
+            .iter()
+            .map(|x| x.value() as usize)
+            .collect::<Vec<_>>();
+        lhs.update_reduce_strides(&axes);
+        let (_, res_shape) = predict_reduce_shape(&lhs.shape, &axes);
+        let mut new_common_vars = vec![];
+        for i in 0..res_shape.len() {
+            new_common_vars.push(Variable::new(format!("i{}", i)));
+        }
+        Self {
+            iter_vars: new_common_vars.into(),
+            reduce_vars: lhs.iter_vars.clone(),
+            inputs: vec![lhs].into(),
+            strides: None,
+            shape: res_shape.into(),
+            func,
+            id,
+        }
+    }
+
+    fn update_reduce_strides(&mut self, axes: &[usize]) {
+        if let Some(strides) = self.strides.as_ref() {
+            let (a_shape_cpy, _) = predict_reduce_shape(&self.shape, &axes);
+            let mut j = self.shape.len() - axes.len();
+            let mut k = 0;
+            let mut track_idx = 0;
+            let mut transposed_axis = vec![0; self.shape.len()];
+            for i in 0..self.shape.len() {
+                if a_shape_cpy[i] != 0 {
+                    transposed_axis[k] = i;
+                    k += 1;
+                } else {
+                    transposed_axis[j] = axes[track_idx];
+                    j += 1;
+                    track_idx += 1;
+                }
+            }
+            transposed_axis[self.shape.len() - axes.len()..].sort();
+            let mut transposed_shape = self.shape.clone();
+            for i in transposed_axis.iter() {
+                transposed_shape[*i] = self.shape[transposed_axis[*i]];
+            }
+            let mut transposed_strides = strides.clone().as_ref().inner().clone();
+            for i in transposed_axis.iter() {
+                transposed_strides[*i] = strides[transposed_axis[*i]];
+            }
+            self.strides = Some(Arc::new(transposed_strides.into()));
+        }
+        if self.inputs.len() > 0 {
+            Arc::make_mut(&mut self.inputs)
+                .iter_mut()
+                .for_each(|x| x.update_reduce_strides(axes));
+        }
     }
 
     fn update_strides(&mut self, new_shape: &Shape) {
