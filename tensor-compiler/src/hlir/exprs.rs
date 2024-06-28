@@ -8,6 +8,7 @@ use tensor_common::{
 };
 use tensor_types::dtype::Dtype;
 
+use crate::registry::MANAGER;
 use crate::{
     halide::{ exprs::{ Int, Load }, prime_expr::PrimeExpr, variable::Variable },
     op::OpType,
@@ -673,6 +674,7 @@ impl CmpNode {
         CmpNode::Base(BaseNode {
             reduced_strides: vec![].into(),
             layout: tensor.layout.clone(),
+            load_fn: |var, expr| { crate::halide::exprs::Call::make(var.name(), &[expr]) },
             id,
         })
     }
@@ -723,8 +725,13 @@ impl CmpNode {
                 let new_common_vars = (0..new_shape.len())
                     .map(|i| Variable::new(format!("i{}", i)))
                     .collect::<Vec<_>>();
-
-                todo!()
+                CmpNode::Fuse(FuseNode {
+                    common_vars: new_common_vars.into(),
+                    inputs: vec![lhs, rhs].into(),
+                    shape: new_shape,
+                    func,
+                    id,
+                })
             }
             (CmpNode::Fuse(_lhs), CmpNode::Base(_rhs)) => {
                 let new_shape = predict_broadcast_shape(&_lhs.shape, &_rhs.layout.shape()).expect(
@@ -827,7 +834,9 @@ impl CmpNode {
                 for i in axes.iter() {
                     reduce_vars.push(Variable::new(format!("r{}_{}", fuse.id, i)));
                 }
-                fuse.update_reduce_strides(&axes);
+                for i in Arc::make_mut(&mut fuse.inputs).iter_mut() {
+                    i.update_reduce_strides(&axes);
+                }
 
                 let reduce = ReduceNode {
                     inputs: fuse.inputs.clone(),
@@ -904,6 +913,52 @@ impl CmpNode {
             }
         }
     }
+
+    pub fn to_compute_node(&self, iter_vars: Vec<Variable>, id: usize) -> ComputeNode {
+        match self {
+            CmpNode::Base(base) => {
+                let strides = base.layout.strides().to_vec();
+                let f = base.load_fn;
+                
+                ComputeNode {
+                    compute_expr: Load::make(base.id, iter_vars.clone(), strides).into(),
+                    iter_vars: iter_vars.into(),
+                    reduce_vars: vec![].into(),
+                    strides: Some(strides.into()),
+                    shape: base.layout.shape().clone(),
+                    id,
+                }
+            }
+            CmpNode::Reduce(reduce) => {
+                let mut reduce_vars = vec![];
+                for i in reduce.reduce_vars.iter() {
+                    reduce_vars.push(i.clone());
+                }
+                let mut iter_vars = iter_vars.clone();
+                iter_vars.extend(reduce_vars.iter().cloned());
+                ComputeNode {
+                    compute_expr: reduce.func.clone(),
+                    iter_vars: iter_vars.into(),
+                    reduce_vars: reduce_vars.into(),
+                    strides: None,
+                    shape: reduce.inputs[0].shape().clone(),
+                    id,
+                }
+            }
+            CmpNode::Fuse(fuse) => {
+                let mut iter_vars = iter_vars.clone();
+                iter_vars.extend(fuse.common_vars.iter().cloned());
+                ComputeNode {
+                    compute_expr: fuse.func.clone(),
+                    iter_vars: iter_vars.into(),
+                    reduce_vars: vec![].into(),
+                    strides: None,
+                    shape: fuse.shape.clone(),
+                    id,
+                }
+            }
+        }
+    }
 }
 
 impl Into<CmpNode> for ReduceNode {
@@ -922,6 +977,7 @@ impl Into<CmpNode> for FuseNode {
 pub struct BaseNode {
     layout: Layout,
     reduced_strides: Strides,
+    load_fn: fn(Variable, PrimeExpr) -> crate::halide::exprs::Call,
     id: usize,
 }
 
@@ -941,103 +997,6 @@ pub struct FuseNode {
     inputs: Arc<Vec<CmpNode>>,
     func: Closures,
     id: usize,
-}
-
-impl FuseNode {
-    pub fn to_compute_node(self) -> ComputeNode {
-        todo!()
-        // ComputeNode {
-        //     compute_expr: self.get_expr(),
-        //     iter_vars: self.iter_vars,
-        //     reduce_vars: self.reduce_vars,
-        //     strides,
-        //     shape: self.shape,
-        //     id: self.id,
-        // }
-    }
-
-    pub fn get_expr(&self) -> PrimeExpr {
-        todo!()
-        // match &self.func {
-        //     Closures::Binop(f) => f(self.inputs[0].get_expr(), self.inputs[1].get_expr()).into(),
-        //     Closures::Unop(f) => f(self.inputs[0].get_expr()).into(),
-        //     Closures::Init(f) => {
-        //         let common_indices = self.iter_vars
-        //             .iter()
-        //             .zip(self.strides.as_ref().unwrap().iter())
-        //             .map(|(x, y)| { x.clone() * Int::make(Dtype::I64, *y) })
-        //             .reduce(|x, y| { x + y })
-        //             .unwrap();
-        //         if let Some(reduce_strides) = &self.reduce_strides {
-        //             let reduce_indices = self.reduce_vars
-        //                 .iter()
-        //                 .zip(reduce_strides.iter())
-        //                 .map(|(x, y)| { x.clone() * Int::make(Dtype::I64, *y) })
-        //                 .reduce(|x, y| { x + y })
-        //                 .unwrap();
-        //             f(
-        //                 Variable::new(format!("%{}", self.id)),
-        //                 common_indices + reduce_indices
-        //             ).into()
-        //         } else {
-        //             f(Variable::new(format!("%{}", self.id)), common_indices).into()
-        //         }
-        //     }
-        // }
-    }
-
-    fn update_reduce_strides(&mut self, axes: &[usize]) {
-        todo!()
-        // if let Some(strides) = self.strides.as_ref() {
-        //     let (a_shape_cpy, _) = predict_reduce_shape(&self.shape, &axes);
-        //     let mut j = self.shape.len() - axes.len();
-        //     let mut k = 0;
-        //     let mut track_idx = 0;
-        //     let mut transposed_axis = vec![0; self.shape.len()];
-        //     for i in 0..self.shape.len() {
-        //         if a_shape_cpy[i] != 0 {
-        //             transposed_axis[k] = i;
-        //             k += 1;
-        //         } else {
-        //             transposed_axis[j] = axes[track_idx];
-        //             j += 1;
-        //             track_idx += 1;
-        //         }
-        //     }
-        //     transposed_axis[self.shape.len() - axes.len()..].sort();
-        //     let mut transposed_shape = self.shape.clone();
-        //     for i in transposed_axis.iter() {
-        //         transposed_shape[*i] = self.shape[transposed_axis[*i]];
-        //     }
-        //     let mut transposed_strides = strides.inner().clone();
-        //     for i in transposed_axis.iter() {
-        //         transposed_strides[*i] = strides[transposed_axis[*i]];
-        //     }
-        //     let common_strides = transposed_strides[0..self.shape.len() - axes.len()].to_vec();
-        //     let mut reduce_strides = transposed_strides[self.shape.len() - axes.len()..].to_vec();
-        //     self.strides = Some(common_strides.into());
-        //     if let Some(_reduce_strides) = self.reduce_strides.as_mut() {
-        //         let new_reduce_strides = _reduce_strides
-        //             .iter()
-        //             .map(|x| *x)
-        //             .collect::<Vec<_>>();
-        //         reduce_strides.extend(new_reduce_strides.into_iter());
-        //         self.reduce_strides = Some(reduce_strides.into());
-        //     } else {
-        //         self.reduce_strides = Some(reduce_strides.into());
-        //     }
-        //     let new_reduce_vars = axes
-        //         .iter()
-        //         .map(|x| Variable::new(format!("ri{}", x)))
-        //         .collect::<Vec<_>>();
-        //     self.reduce_vars = new_reduce_vars.into();
-        // }
-        // if self.inputs.len() > 0 {
-        //     Arc::make_mut(&mut self.inputs)
-        //         .iter_mut()
-        //         .for_each(|x| x.update_reduce_strides(axes));
-        // }
-    }
 }
 
 impl Into<CmpNode> for (Tensor, usize) {
