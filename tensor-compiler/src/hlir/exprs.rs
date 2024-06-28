@@ -914,7 +914,7 @@ impl CmpNode {
         }
     }
 
-    pub fn to_compute_node(&self, iter_vars: Vec<Variable>, id: usize) -> ComputeNode {
+    pub fn lower(&self) -> PrimeExpr {
         match self {
             CmpNode::Base(base) => {
                 let strides = base.layout.strides().to_vec();

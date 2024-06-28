@@ -88,5 +88,5 @@ fn test_fusion() {
         Int::make(Dtype::I64, 0).into(),
         3
     );
-    
+    comp.lower();
 }
