@@ -694,21 +694,19 @@ impl CmpNode {
         })
     }
 
-    pub fn make_unop<A: Into<Self>>(func: Closures, lhs: A, id: usize) -> Self {
+    pub fn make_unop<A: Into<Self>>(fn_name: &str, lhs: A, id: usize) -> Self {
+        let func = MANAGER.lock().unwrap().get(fn_name).expect("Cannot find op").clone();
         let lhs: Self = lhs.into();
         match lhs {
-            CmpNode::Fuse(fuse) => {
+            CmpNode::Fuse(ref fuse) => {
                 let mut new_fuse = fuse.clone();
+                new_fuse.inputs = vec![lhs].into();
                 new_fuse.func = func;
                 CmpNode::Fuse(new_fuse)
             }
             CmpNode::Base(base) => {
                 let new_shape = base.layout.shape().clone();
-                let new_common_vars = (0..new_shape.len())
-                    .map(|i| Variable::new(format!("i{}", i)))
-                    .collect::<Vec<_>>();
                 CmpNode::Fuse(FuseNode {
-                    common_vars: new_common_vars.into(),
                     inputs: vec![CmpNode::Base(base)].into(),
                     shape: new_shape,
                     func,
@@ -737,12 +735,7 @@ impl CmpNode {
                 );
                 lhs.update_strides(&new_shape);
                 rhs.update_strides(&new_shape);
-
-                let new_common_vars = (0..new_shape.len())
-                    .map(|i| Variable::new(format!("i{}", i)))
-                    .collect::<Vec<_>>();
                 CmpNode::Fuse(FuseNode {
-                    common_vars: new_common_vars.into(),
                     inputs: vec![lhs, rhs].into(),
                     shape: new_shape,
                     func,
@@ -753,13 +746,9 @@ impl CmpNode {
                 let new_shape = predict_broadcast_shape(&_lhs.shape, &_rhs.layout.shape()).expect(
                     "Cannot broadcast shapes"
                 );
-                let new_common_vars = (0..new_shape.len())
-                    .map(|i| Variable::new(format!("i{}", i)))
-                    .collect::<Vec<_>>();
                 rhs.update_strides(&new_shape);
                 lhs.update_strides(&new_shape);
                 CmpNode::Fuse(FuseNode {
-                    common_vars: new_common_vars.into(),
                     inputs: vec![lhs, rhs].into(),
                     shape: new_shape,
                     func,
@@ -770,13 +759,9 @@ impl CmpNode {
                 let new_shape = predict_broadcast_shape(_lhs.layout.shape(), &_rhs.shape).expect(
                     "Cannot broadcast shapes"
                 );
-                let new_common_vars = (0..new_shape.len())
-                    .map(|i| Variable::new(format!("i{}", i)))
-                    .collect::<Vec<_>>();
                 lhs.update_strides(&new_shape);
                 rhs.update_strides(&new_shape);
                 CmpNode::Fuse(FuseNode {
-                    common_vars: new_common_vars.into(),
                     inputs: vec![lhs, rhs].into(),
                     shape: new_shape,
                     func,
@@ -788,13 +773,9 @@ impl CmpNode {
                     &_lhs.layout.shape(),
                     &_rhs.layout.shape()
                 ).expect("Cannot broadcast shapes");
-                let new_common_vars = (0..new_shape.len())
-                    .map(|i| Variable::new(format!("i{}", i)))
-                    .collect::<Vec<_>>();
                 lhs.update_strides(&new_shape);
                 rhs.update_strides(&new_shape);
                 CmpNode::Fuse(FuseNode {
-                    common_vars: new_common_vars.into(),
                     inputs: vec![lhs, rhs].into(),
                     shape: new_shape,
                     func,
@@ -842,10 +823,6 @@ impl CmpNode {
         match &mut lhs {
             CmpNode::Fuse(fuse) => {
                 let res_shape = predict_reduce_shape(&fuse.shape, &axes).1;
-                let mut new_common_vars = vec![];
-                for i in 0..res_shape.len() {
-                    new_common_vars.push(Variable::new(format!("i{}", i)));
-                }
                 // the shape of fuse should all be the same
                 let mut reduce_vars = vec![];
                 for i in axes.iter() {
@@ -863,7 +840,6 @@ impl CmpNode {
                     id,
                 };
                 let wrapper = FuseNode {
-                    common_vars: new_common_vars.into(),
                     shape: res_shape.into(),
                     inputs: vec![CmpNode::Reduce(reduce)].into(),
                     func,
@@ -933,6 +909,30 @@ impl CmpNode {
         }
     }
 
+    pub fn reshape(&mut self, res_shape: &Shape) {
+        match self {
+            CmpNode::Reduce(reduce) => {
+                for i in Arc::make_mut(&mut reduce.inputs).iter_mut() {
+                    i.reshape(res_shape);
+                }
+            }
+            CmpNode::Fuse(fuse) => {
+                for i in Arc::make_mut(&mut fuse.inputs).iter_mut() {
+                    i.reshape(res_shape);
+                }
+                fuse.shape = res_shape.clone();
+            }
+            CmpNode::Base(base) => {
+                assert!(res_shape.size() == base.layout.size());
+                if let Some(new_strides) = base.layout.is_reshape_possible(res_shape) {
+                    base.layout = Layout::new(res_shape.clone(), new_strides);
+                } else {
+                    panic!("Cannot reshape base node");
+                }
+            }
+        }
+    }
+
     pub fn lower(
         &self,
         push_vars: bool,
@@ -966,9 +966,9 @@ impl CmpNode {
                 call.into()
             }
             CmpNode::Fuse(fuse) => {
-                if push_vars || (fuse.inputs.len() == 1 && fuse.inputs[0].is_reduce()) {
-                    for i in fuse.common_vars.iter() {
-                        vars.push(i.clone());
+                if push_vars {
+                    for i in 0..fuse.shape.len() {
+                        vars.push(Variable::new(format!("i{}", i)));
                     }
                 }
                 let mut exprs = vec![];
@@ -1034,7 +1034,6 @@ pub struct ReduceNode {
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct FuseNode {
-    common_vars: Arc<Vec<Variable>>,
     shape: Shape,
     inputs: Arc<Vec<CmpNode>>,
     func: Closures,

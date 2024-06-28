@@ -80,16 +80,19 @@ fn test_fusion() {
     let a = CmpNode::make(Shape::new([1, 8, 8]).into(), 0);
     let b = CmpNode::make(Shape::new([1]).into(), 1);
     let div = CmpNode::make_binop("div", a, b, 2);
-    let comp = CmpNode::make_reduce(
+    let mut comp = CmpNode::make_reduce(
         "max",
         &div,
         [Int::make(Dtype::I64, 2)],
         Int::make(Dtype::I64, 0).into(),
         3
     );
+    comp.reshape(&Shape::new([1, 8, 1]));
+    let sub = CmpNode::make_binop("sub", div, comp, 4);
+    let exp = CmpNode::make_unop("exp", sub, 5);
     let mut saved_exprs = HashMap::new();
-    let expr = comp.lower(true, &mut vec![], &mut saved_exprs);
-    saved_exprs.insert(4, expr);
+    let expr = exp.lower(true, &mut vec![], &mut saved_exprs);
+    saved_exprs.insert(9, expr);
     for (k, v) in saved_exprs.iter() {
         println!("{}: {}", k, v);
     }
