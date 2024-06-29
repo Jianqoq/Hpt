@@ -1185,9 +1185,9 @@ impl<T> FloatReduce<T>
         + NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output>                          // prettier-ignore
         + FloatOut, // prettier-ignore
         <T as FloatOut>::Output: CommonBounds                                                           // prettier-ignore
-        + NormalOut<T, Output = <T as FloatOut>::Output>, // prettier-ignore
-        <T as FloatOut>::Output: FloatOut<Output = <T as FloatOut>::Output>, // prettier-ignore
-        <T as FloatOut>::Output: NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output>   // prettier-ignore
+        + NormalOut<T, Output = <T as FloatOut>::Output>
+        + FloatOut<Output = <T as FloatOut>::Output>
+        + NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output> // prettier-ignore
         + FromScalar<usize> // prettier-ignore
 {
     type Output = _Tensor<<T as FloatOut>::Output>;
