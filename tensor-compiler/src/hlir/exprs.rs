@@ -44,6 +44,9 @@ impl Value {
             value: value.into(),
         }
     }
+    pub fn dtype(&self) -> Dtype {
+        self.dtype
+    }
 }
 
 impl HlirAcceptor for Value {
@@ -55,6 +58,12 @@ impl HlirAcceptor for Value {
 impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.value)
+    }
+}
+
+impl Into<Value> for &Value {
+    fn into(self) -> Value {
+        self.clone()
     }
 }
 
@@ -661,9 +670,19 @@ impl Tensor {
             reduced_strides: vec![].into(),
             layout: Layout::from(shape),
             load_fn: |var, expr| { crate::halide::exprs::Call::make(var.name(), &[expr]) },
+            const_val: None,
             id,
             dtype,
         })
+    }
+
+    pub fn set_value<T: Into<Value>>(&mut self, value: T) {
+        match self {
+            Tensor::Base(base) => {
+                base.const_val = Some(value.into());
+            }
+            _ => panic!("Cannot set value to non-base node"),
+        }
     }
 
     pub fn make_unop<A: Into<Self>>(fn_name: &str, lhs: A, id: usize) -> Self {
@@ -1028,6 +1047,7 @@ impl Display for Tensor {
 pub struct BaseTensor {
     layout: Layout,
     reduced_strides: Strides,
+    const_val: Option<Value>,
     load_fn: fn(Variable, PrimeExpr) -> crate::halide::exprs::Call,
     id: usize,
     dtype: Dtype,
