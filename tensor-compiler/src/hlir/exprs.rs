@@ -1,5 +1,4 @@
 use std::{ fmt::Display, sync::Arc };
-use hashbrown::HashMap;
 use tensor_common::shape_utils::predict_reduce_shape;
 use tensor_common::{
     layout::Layout,
@@ -10,10 +9,6 @@ use tensor_common::{
 use tensor_types::dtype::Dtype;
 
 use crate::halide::exprs::Load;
-use crate::halide::let_stmt::LetStmt;
-use crate::halide::seq_stmt::Seq;
-use crate::halide::stmt::Stmt;
-use crate::halide::utils::for_utils::build_nested_for;
 use crate::registry::MANAGER;
 use crate::{
     halide::{ exprs::Int, prime_expr::PrimeExpr, variable::Variable },
@@ -631,74 +626,43 @@ impl Display for Let {
 }
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct Tensor {
-    name: Variable,
-    layout: Layout,
-    dtype: Dtype,
+pub enum Tensor {
+    Reduce(ReduceTensor),
+    Fuse(FuseTensor),
+    Base(BaseTensor),
 }
 
 impl Tensor {
-    pub fn make<T: IntoVar>(name: T, shape: Shape, dtype: Dtype) -> Self {
-        let layout = Layout::from(shape);
-        Self {
-            name: name.into_var(),
-            layout,
-            dtype,
-        }
-    }
-
-    pub fn name(&self) -> &Variable {
-        &self.name
-    }
     pub fn shape(&self) -> &Shape {
-        &self.layout.shape()
-    }
-    pub fn strides(&self) -> &Strides {
-        &self.layout.strides()
+        match self {
+            Tensor::Reduce(reduce) => &reduce.inputs[0].shape(),
+            Tensor::Fuse(fuse) => &fuse.shape,
+            Tensor::Base(base) => &base.layout.shape(),
+        }
     }
     pub fn dtype(&self) -> Dtype {
-        self.dtype
-    }
-}
-
-impl Display for Tensor {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Tensor({}, shape={:?}, {})", self.name, self.layout.shape().inner(), self.dtype)
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub enum CmpNode {
-    Reduce(ReduceNode),
-    Fuse(FuseNode),
-    Base(BaseNode),
-}
-
-impl CmpNode {
-    pub fn id(&self) -> usize {
         match self {
-            CmpNode::Reduce(reduce) => reduce.id,
-            CmpNode::Fuse(fuse) => fuse.id,
-            CmpNode::Base(base) => base.id,
+            Tensor::Reduce(reduce) => reduce.dtype,
+            Tensor::Fuse(fuse) => fuse.dtype,
+            Tensor::Base(base) => base.dtype,
         }
     }
 
-    pub fn make_from_tensor<T: Into<Tensor>>(tensor: T, id: usize) -> Self {
-        let tensor: Tensor = tensor.into();
-        CmpNode::Base(BaseNode {
-            reduced_strides: vec![].into(),
-            layout: tensor.layout.clone(),
-            load_fn: |var, expr| { crate::halide::exprs::Call::make(var.name(), &[expr]) },
-            id,
-        })
+    pub fn id(&self) -> usize {
+        match self {
+            Tensor::Reduce(reduce) => reduce.id,
+            Tensor::Fuse(fuse) => fuse.id,
+            Tensor::Base(base) => base.id,
+        }
     }
 
-    pub fn make(shape: Shape, id: usize) -> Self {
-        CmpNode::Base(BaseNode {
+    pub fn make(shape: Shape, dtype: Dtype, id: usize) -> Self {
+        Tensor::Base(BaseTensor {
             reduced_strides: vec![].into(),
             layout: Layout::from(shape),
             load_fn: |var, expr| { crate::halide::exprs::Call::make(var.name(), &[expr]) },
             id,
+            dtype,
         })
     }
 
@@ -706,18 +670,21 @@ impl CmpNode {
         let func = MANAGER.lock().unwrap().get(fn_name).expect("Cannot find op").clone();
         let lhs: Self = lhs.into();
         match lhs {
-            CmpNode::Fuse(ref fuse) => {
+            Tensor::Fuse(ref fuse) => {
                 let mut new_fuse = fuse.clone();
                 new_fuse.inputs = vec![lhs].into();
                 new_fuse.func = func;
-                CmpNode::Fuse(new_fuse)
+                Tensor::Fuse(new_fuse)
             }
-            CmpNode::Base(base) => {
+            Tensor::Base(base) => {
                 let new_shape = base.layout.shape().clone();
-                CmpNode::Fuse(FuseNode {
-                    inputs: vec![CmpNode::Base(base)].into(),
+                let dtype = base.dtype;
+                Tensor::Fuse(FuseTensor {
+                    inputs: vec![Tensor::Base(base)].into(),
                     shape: new_shape,
                     func,
+                    op_name: fn_name.to_string(),
+                    dtype,
                     id,
                 })
             }
@@ -733,9 +700,10 @@ impl CmpNode {
     ) -> Self {
         let func = MANAGER.lock().unwrap().get(fn_name).expect("Cannot find op").clone();
         let mut lhs: Self = lhs.into();
+        let dtype = lhs.dtype();
         let mut rhs: Self = rhs.into();
         match (&mut lhs, &mut rhs) {
-            (CmpNode::Fuse(_lhs), CmpNode::Fuse(_rhs)) => {
+            (Tensor::Fuse(_lhs), Tensor::Fuse(_rhs)) => {
                 let lhs_shape = &_lhs.shape;
                 let rhs_shape = &_rhs.shape;
                 let new_shape = predict_broadcast_shape(lhs_shape, rhs_shape).expect(
@@ -743,50 +711,58 @@ impl CmpNode {
                 );
                 lhs.update_strides(&new_shape);
                 rhs.update_strides(&new_shape);
-                CmpNode::Fuse(FuseNode {
+                Tensor::Fuse(FuseTensor {
                     inputs: vec![lhs, rhs].into(),
                     shape: new_shape,
                     func,
+                    op_name: fn_name.to_string(),
+                    dtype,
                     id,
                 })
             }
-            (CmpNode::Fuse(_lhs), CmpNode::Base(_rhs)) => {
+            (Tensor::Fuse(_lhs), Tensor::Base(_rhs)) => {
                 let new_shape = predict_broadcast_shape(&_lhs.shape, &_rhs.layout.shape()).expect(
                     "Cannot broadcast shapes"
                 );
                 rhs.update_strides(&new_shape);
                 lhs.update_strides(&new_shape);
-                CmpNode::Fuse(FuseNode {
+                Tensor::Fuse(FuseTensor {
                     inputs: vec![lhs, rhs].into(),
                     shape: new_shape,
                     func,
+                    op_name: fn_name.to_string(),
+                    dtype,
                     id,
                 })
             }
-            (CmpNode::Base(_lhs), CmpNode::Fuse(_rhs)) => {
+            (Tensor::Base(_lhs), Tensor::Fuse(_rhs)) => {
                 let new_shape = predict_broadcast_shape(_lhs.layout.shape(), &_rhs.shape).expect(
                     "Cannot broadcast shapes"
                 );
                 lhs.update_strides(&new_shape);
                 rhs.update_strides(&new_shape);
-                CmpNode::Fuse(FuseNode {
+                Tensor::Fuse(FuseTensor {
                     inputs: vec![lhs, rhs].into(),
                     shape: new_shape,
                     func,
+                    op_name: fn_name.to_string(),
+                    dtype,
                     id,
                 })
             }
-            (CmpNode::Base(_lhs), CmpNode::Base(_rhs)) => {
+            (Tensor::Base(_lhs), Tensor::Base(_rhs)) => {
                 let new_shape = predict_broadcast_shape(
                     &_lhs.layout.shape(),
                     &_rhs.layout.shape()
                 ).expect("Cannot broadcast shapes");
                 lhs.update_strides(&new_shape);
                 rhs.update_strides(&new_shape);
-                CmpNode::Fuse(FuseNode {
+                Tensor::Fuse(FuseTensor {
                     inputs: vec![lhs, rhs].into(),
                     shape: new_shape,
                     func,
+                    op_name: fn_name.to_string(),
+                    dtype,
                     id,
                 })
             }
@@ -796,16 +772,16 @@ impl CmpNode {
 
     pub fn update_strides(&mut self, new_shape: &Shape) {
         match self {
-            CmpNode::Fuse(fuse) => {
+            Tensor::Fuse(fuse) => {
                 for i in Arc::make_mut(&mut fuse.inputs).iter_mut() {
                     i.update_strides(new_shape);
                 }
             }
-            CmpNode::Base(base) => {
+            Tensor::Base(base) => {
                 let new_strides = predict_broadcast_strides(new_shape, &base.layout);
                 base.layout = Layout::new(new_shape.clone(), new_strides);
             }
-            CmpNode::Reduce(reduce) => {
+            Tensor::Reduce(reduce) => {
                 for i in Arc::make_mut(&mut reduce.inputs).iter_mut() {
                     i.update_strides(new_shape);
                 }
@@ -829,7 +805,7 @@ impl CmpNode {
             .collect::<Vec<_>>();
 
         match &mut lhs {
-            CmpNode::Fuse(fuse) => {
+            Tensor::Fuse(fuse) => {
                 let res_shape = predict_reduce_shape(&fuse.shape, &axes).1;
                 // the shape of fuse should all be the same
                 let mut reduce_vars = vec![];
@@ -839,18 +815,23 @@ impl CmpNode {
                 for i in Arc::make_mut(&mut fuse.inputs).iter_mut() {
                     i.update_reduce_strides(&axes);
                 }
-
-                let reduce = ReduceNode {
+                let shape: Shape = res_shape.into();
+                let reduce = ReduceTensor {
                     inputs: fuse.inputs.clone(),
                     reduce_vars: reduce_vars.into(),
                     identity: init,
                     func: fuse.func.clone(),
+                    op_name: fn_name.to_string(),
+                    dtype: fuse.dtype,
                     id,
+                    shape: shape.clone(),
                 };
-                let wrapper = FuseNode {
-                    shape: res_shape.into(),
-                    inputs: vec![CmpNode::Reduce(reduce)].into(),
+                let wrapper = FuseTensor {
+                    shape: shape.clone(),
+                    inputs: vec![Tensor::Reduce(reduce)].into(),
                     func,
+                    op_name: fn_name.to_string(),
+                    dtype: fuse.dtype,
                     id,
                 };
                 wrapper.into()
@@ -861,16 +842,16 @@ impl CmpNode {
 
     pub fn update_reduce_strides(&mut self, axes: &[usize]) {
         match self {
-            CmpNode::Reduce(reduce) =>
+            Tensor::Reduce(reduce) =>
                 for i in Arc::make_mut(&mut reduce.inputs).iter_mut() {
                     i.update_reduce_strides(axes);
                 }
-            CmpNode::Fuse(fuse) => {
+            Tensor::Fuse(fuse) => {
                 for i in Arc::make_mut(&mut fuse.inputs).iter_mut() {
                     i.update_reduce_strides(axes);
                 }
             }
-            CmpNode::Base(base) => {
+            Tensor::Base(base) => {
                 let (a_shape_cpy, _) = predict_reduce_shape(base.layout.shape(), &axes);
                 let mut j = base.layout.ndim() - axes.len();
                 let mut k = 0;
@@ -919,18 +900,18 @@ impl CmpNode {
 
     pub fn reshape(&mut self, res_shape: &Shape) {
         match self {
-            CmpNode::Reduce(reduce) => {
+            Tensor::Reduce(reduce) => {
                 for i in Arc::make_mut(&mut reduce.inputs).iter_mut() {
                     i.reshape(res_shape);
                 }
             }
-            CmpNode::Fuse(fuse) => {
+            Tensor::Fuse(fuse) => {
                 for i in Arc::make_mut(&mut fuse.inputs).iter_mut() {
                     i.reshape(res_shape);
                 }
                 fuse.shape = res_shape.clone();
             }
-            CmpNode::Base(base) => {
+            Tensor::Base(base) => {
                 assert!(res_shape.size() == base.layout.size());
                 if let Some(new_strides) = base.layout.is_reshape_possible(res_shape) {
                     base.layout = Layout::new(res_shape.clone(), new_strides);
@@ -948,7 +929,7 @@ impl CmpNode {
         map: &mut Vec<(PrimeExpr, PrimeExpr)>
     ) -> PrimeExpr {
         match self {
-            CmpNode::Base(base) => {
+            Tensor::Base(base) => {
                 let mut strides = base.layout.strides().to_vec();
                 let reduced_strides = base.reduced_strides.to_vec();
                 strides.extend(reduced_strides.iter());
@@ -962,7 +943,7 @@ impl CmpNode {
                 let load = Load::make(variable_name, indices.unwrap());
                 load.into()
             }
-            CmpNode::Reduce(reduce) => {
+            Tensor::Reduce(reduce) => {
                 let mut exprs = vec![];
                 for var in reduce.reduce_vars.iter() {
                     vars.push(var.clone());
@@ -976,7 +957,7 @@ impl CmpNode {
                 let call = reduce.func.call_common(exprs);
                 call.into()
             }
-            CmpNode::Fuse(fuse) => {
+            Tensor::Fuse(fuse) => {
                 if push_vars {
                     for i in 0..fuse.shape.len() {
                         vars.push(Variable::new(format!("i{}", i)));
@@ -1002,64 +983,80 @@ impl CmpNode {
 
     pub fn is_reduce(&self) -> bool {
         match self {
-            CmpNode::Reduce(_) => true,
+            Tensor::Reduce(_) => true,
             _ => false,
         }
     }
 
-    pub fn to_reduce(&self) -> ReduceNode {
+    pub fn to_reduce(&self) -> ReduceTensor {
         match self {
-            CmpNode::Reduce(reduce) => reduce.clone(),
+            Tensor::Reduce(reduce) => reduce.clone(),
             _ => panic!("Cannot convert non-reduce node to reduce node"),
         }
     }
 }
 
-impl Into<CmpNode> for ReduceNode {
-    fn into(self) -> CmpNode {
-        CmpNode::Reduce(self)
+impl Into<Tensor> for ReduceTensor {
+    fn into(self) -> Tensor {
+        Tensor::Reduce(self)
     }
 }
 
-impl Into<CmpNode> for FuseNode {
-    fn into(self) -> CmpNode {
-        CmpNode::Fuse(self)
+impl Into<Tensor> for FuseTensor {
+    fn into(self) -> Tensor {
+        Tensor::Fuse(self)
+    }
+}
+
+impl Display for Tensor {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "Tensor(shape=({}), {})",
+            self
+                .shape()
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<String>>()
+                .join(", "),
+            self.dtype()
+        )
     }
 }
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct BaseNode {
+pub struct BaseTensor {
     layout: Layout,
     reduced_strides: Strides,
     load_fn: fn(Variable, PrimeExpr) -> crate::halide::exprs::Call,
     id: usize,
+    dtype: Dtype,
 }
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct ReduceNode {
-    inputs: Arc<Vec<CmpNode>>,
+pub struct ReduceTensor {
+    inputs: Arc<Vec<Tensor>>,
     reduce_vars: Arc<Vec<Variable>>,
+    shape: Shape,
     identity: PrimeExpr,
     func: Closures,
+    op_name: String,
     id: usize,
+    dtype: Dtype,
 }
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct FuseNode {
+pub struct FuseTensor {
     shape: Shape,
-    inputs: Arc<Vec<CmpNode>>,
+    inputs: Arc<Vec<Tensor>>,
     func: Closures,
+    op_name: String,
     id: usize,
+    dtype: Dtype,
 }
 
-impl Into<CmpNode> for (Tensor, usize) {
-    fn into(self) -> CmpNode {
-        CmpNode::make_from_tensor(self.0, self.1)
-    }
-}
-
-impl Into<CmpNode> for &CmpNode {
-    fn into(self) -> CmpNode {
+impl Into<Tensor> for &Tensor {
+    fn into(self) -> Tensor {
         self.clone()
     }
 }
@@ -1371,6 +1368,44 @@ impl Display for Slice {
 }
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
+pub struct Return {
+    expr: Arc<Vec<Expr>>,
+}
+
+impl Return {
+    pub fn make<T: IntoIterator<Item: Into<Expr>>>(expr: T) -> Self {
+        Self {
+            expr: expr
+                .into_iter()
+                .map(|x| x.into().into())
+                .collect::<Vec<Expr>>()
+                .into(),
+        }
+    }
+    pub fn expr(&self) -> &[Expr] {
+        &self.expr
+    }
+
+    pub fn expr_mut(&mut self) -> &mut Vec<Expr> {
+        Arc::make_mut(&mut self.expr)
+    }
+}
+
+impl Display for Return {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "return {}",
+            self.expr
+                .iter()
+                .map(|x| format!("{}", x))
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct CommonReduce {
     value: Arc<Expr>,
     axes: Arc<Vec<Expr>>,
@@ -1432,6 +1467,12 @@ macro_rules! impl_into_expr {
                 Expr::$struct(self.clone())
             }
         }
+
+        impl Into<Expr> for &&$struct {
+            fn into(self) -> Expr {
+                Expr::$struct((*self).clone())
+            }
+        }
     };
 }
 
@@ -1459,7 +1500,6 @@ impl_into_expr!(Not);
 impl_into_expr!(Call);
 impl_into_expr!(Select);
 impl_into_expr!(Let);
-impl_into_expr!(Tensor);
 impl_into_expr!(Alloc);
 impl_into_expr!(If);
 impl_into_expr!(For);
@@ -1469,8 +1509,8 @@ impl_into_expr!(Tuple);
 impl_into_expr!(TensorType);
 impl_into_expr!(Slice);
 impl_into_expr!(OpNode);
-impl_into_expr!(ComputeNode);
-impl_into_expr!(CommonReduce);
+impl_into_expr!(Tensor);
+impl_into_expr!(Return);
 
 impl_binop!(Add, visit_add);
 impl_binop!(Sub, visit_sub);

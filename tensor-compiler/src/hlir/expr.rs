@@ -20,11 +20,9 @@ pub enum Expr {
     Variable(Variable),
     Tuple(Tuple),
     Type(Type),
-    Tensor(Tensor),
     TensorType(TensorType),
     OpNode(OpNode),
-    ComputeNode(ComputeNode),
-    CommonReduce(CommonReduce),
+    Tensor(Tensor),
     Cast(Cast),
     Add(Add),
     Sub(Sub),
@@ -52,6 +50,7 @@ pub enum Expr {
     While(While),
     Function(Function),
     Slice(Slice),
+    Return(Return),
     None,
 }
 
@@ -111,14 +110,13 @@ impl Expr {
             Expr::For(a) => a.to_string(),
             Expr::While(a) => a.to_string(),
             Expr::Function(a) => a.to_string(),
-            Expr::Tensor(a) => a.to_string(),
             Expr::Tuple(a) => a.to_string(),
             Expr::Type(a) => a.to_string(),
             Expr::TensorType(a) => a.to_string(),
             Expr::Slice(a) => a.to_string(),
             Expr::OpNode(a) => a.to_string(),
-            Expr::ComputeNode(a) => a.to_string(),
-            Expr::CommonReduce(a) => a.to_string(),
+            Expr::Tensor(a) => a.to_string(),
+            Expr::Return(a) => a.to_string(),
             Expr::None => "".to_string(),
         };
         if prec < parent_prec {

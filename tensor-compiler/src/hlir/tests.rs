@@ -4,83 +4,19 @@ use tensor_common::{ layout::Layout, shape::Shape };
 use tensor_types::dtype::Dtype;
 
 use crate::{
-    halide::{ exprs::{ Int, Load }, printer::IRPrinter, variable::Variable },
+    halide::{ exprs::{ Call, Int, Load }, printer::IRPrinter, variable::Variable },
     registry::{ Closures, MANAGER },
 };
 
 use super::{ expr::Expr, exprs::*, func_type::Type, printer::HlirPrinter };
-
-#[test]
-fn test_build_main() {
-    let args: [Variable; 0] = [];
-    let mut main = Function::make("main", &args, &Type::make_none(), Expr::None);
-
-    let a = Tensor::make("a", Shape::new([1, 2, 3]).into(), Dtype::BF16);
-
-    let let_ = Let::make("b", &a, Expr::None);
-    main.set_body(let_);
-    HlirPrinter.print(main)
-}
-
-// this should panic, for loop should always return value
-#[test]
-fn test_for_fail() {
-    let args: [Variable; 0] = [];
-    let mut main = Function::make("main", &args, &Type::make_none(), Expr::None);
-
-    let a = Tensor::make("a", Shape::new([1, 2, 3]).into(), Dtype::BF16);
-
-    let start = Value::make(Dtype::I32, 0);
-    let end = Value::make(Dtype::I32, 10);
-    let step = Value::make(Dtype::I32, 1);
-
-    let for_var = Variable::make("i");
-    let slice = Slice::make("b", [
-        (Value::make(Dtype::I32, 0), &for_var, Value::make(Dtype::I32, 2)),
-    ]);
-    let let_ = Let::make("d", &slice, Expr::None);
-    let for_ = For::make(for_var, start, end, step, let_);
-
-    let b = Let::make("b", &a, for_);
-
-    main.set_body(b);
-    HlirPrinter.print(main)
-}
-
-// this should work
-#[test]
-fn test_for() {
-    let args: [Variable; 0] = [];
-    let mut main = Function::make("main", &args, &Type::make_none(), Expr::None);
-
-    let a = Tensor::make("a", Shape::new([1, 2, 3]).into(), Dtype::BF16);
-
-    let start = Value::make(Dtype::I32, 0);
-    let end = Value::make(Dtype::I32, 10);
-    let step = Value::make(Dtype::I32, 1);
-
-    let for_var = Variable::make("i");
-
-    let slice = Slice::make("b", [
-        (Value::make(Dtype::I32, 0), &for_var, Value::make(Dtype::I32, 2)),
-    ]);
-    let let_ = Let::make("d", &slice, Expr::None);
-    let for_ = For::make(for_var, start, end, step, let_);
-
-    let ret = Let::make("ret", &for_, Expr::None);
-
-    let b = Let::make("b", &a, ret);
-
-    main.set_body(b);
-    HlirPrinter.print(main)
-}
+use super::exprs::Call as HirCall;
 
 #[test]
 fn test_fusion() {
-    let a = CmpNode::make(Shape::new([1, 8, 8]).into(), 4);
-    let b = CmpNode::make(Shape::new([1]).into(), 5);
-    let div = CmpNode::make_binop("div", a, b, 6);
-    let mut comp = CmpNode::make_reduce(
+    let a = Tensor::make(Shape::new([1, 8, 8]).into(), Dtype::BF16, 4);
+    let b = Tensor::make(Shape::new([1]).into(), Dtype::BF16, 5);
+    let div = Tensor::make_binop("div", a, b, 6);
+    let mut comp = Tensor::make_reduce(
         "max",
         &div,
         [Int::make(Dtype::I64, 2)],
@@ -88,11 +24,17 @@ fn test_fusion() {
         7
     );
     comp.reshape(&Shape::new([1, 8, 1]));
-    let sub = CmpNode::make_binop("sub", div, comp, 8);
-    let exp = CmpNode::make_unop("exp", sub, 5);
-    let mut sum = CmpNode::make_reduce("sum", &exp, [Int::make(Dtype::I64, 2)], Int::make(Dtype::I64, 0).into(), 9);
+    let sub = Tensor::make_binop("sub", div, comp, 8);
+    let exp = Tensor::make_unop("exp", sub, 5);
+    let mut sum = Tensor::make_reduce(
+        "sum",
+        &exp,
+        [Int::make(Dtype::I64, 2)],
+        Int::make(Dtype::I64, 0).into(),
+        9
+    );
     sum.reshape(&Shape::new([1, 8, 1]));
-    let div = CmpNode::make_binop("div", exp, sum, 10);
+    let div = Tensor::make_binop("div", exp, sum, 10);
     let mut saved_exprs = Vec::new();
     let exp_id = div.id();
     let expr = div.lower(true, &mut vec![], &mut saved_exprs);
@@ -100,4 +42,71 @@ fn test_fusion() {
     for (k, v) in saved_exprs.iter() {
         println!("{}: {}", k, v);
     }
+}
+
+#[test]
+fn test_let_bind_plus_fusion() {
+    let args: [Variable; 0] = [];
+    let mut main = Function::make("main", &args, &Type::make_none(), Expr::None);
+
+    let a = Tensor::make(Shape::new([1, 8, 8]).into(), Dtype::BF16, 0);
+    let b = Tensor::make(Shape::new([1]).into(), Dtype::BF16, 1);
+
+    let a_var = Variable::make("a");
+    let b_var = Variable::make("b");
+    let c = Variable::make("c");
+    let reshape_var = Variable::make("reshape");
+    let max_var = Variable::make("max");
+    let d_var = Variable::make("max_val");
+    let e = Variable::make("e");
+    let f = Variable::make("f");
+    let g = Variable::make("g");
+    let h = Variable::make("h");
+
+    let let_ = Let::make(
+        &a_var,
+        &a,
+        Let::make(
+            &b_var,
+            &b,
+            Let::make(
+                &c,
+                Div::make(&a_var, &b_var),
+                Let::make(
+                    &d_var,
+                    HirCall::make(&max_var, &[&c]),
+                    Let::make(
+                        &e,
+                        HirCall::make(&reshape_var, &[&d_var]),
+                        Let::make(
+                            &f,
+                            Sub::make(&c, &e),
+                            Let::make(
+                                g.clone(),
+                                HirCall::make(Variable::make("exp"), &[&f]),
+                                Let::make(
+                                    &h,
+                                    If::make(
+                                        HirCall::make(
+                                            Variable::make("gt"),
+                                            &[
+                                                Expr::Variable(g.clone().into()),
+                                                Value::make(Dtype::BF16, 0.0).into(),
+                                            ]
+                                        ),
+                                        Add::make(&g, &f),
+                                        Mul::make(&g, &f)
+                                    ),
+                                    Return::make(&[&h])
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    );
+
+    main.set_body(let_);
+    HlirPrinter.print(main)
 }

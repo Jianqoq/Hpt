@@ -48,9 +48,6 @@ pub trait HlirVisitor where Self: Sized {
             Expr::Function(func) => {
                 self.visit_function(&func);
             }
-            Expr::Tensor(tensor) => {
-                self.visit_tensor(&tensor);
-            }
             Expr::Tuple(tuple) => {
                 self.visit_tuple(&tuple);
             }
@@ -76,17 +73,21 @@ pub trait HlirVisitor where Self: Sized {
             Expr::OpNode(op_node) => {
                 self.visit_op_node(op_node);
             }
-            Expr::ComputeNode(cmp_node) => {
-                self.visit_compute_node(cmp_node);
-            },
-            Expr::CommonReduce(a) => {
-                self.visit_common_reduce(a);
+            Expr::Tensor(cmp_node) => {
+                self.visit_tensor(cmp_node);
+            }
+            Expr::Return(return_) => {
+                self.visit_return(&return_);
             }
             Expr::None => {}
         }
     }
-    fn visit_common_reduce(&self, _: &CommonReduce) {}
-    fn visit_compute_node(&self, _: &ComputeNode) {}
+    fn visit_return(&self, ret: &Return) {
+        for value in ret.expr() {
+            value.accept(self);
+        }
+    }
+    fn visit_tensor(&self, _: &Tensor) {}
     fn visit_op_node(&self, _: &OpNode) {}
     fn visit_slice(&self, slice: &Slice) {
         slice.var().accept(self);
@@ -102,7 +103,6 @@ pub trait HlirVisitor where Self: Sized {
             value.accept(self);
         }
     }
-    fn visit_tensor(&self, _: &Tensor) {}
     fn visit_function(&self, func: &Function) {
         func.body().accept(self);
     }
@@ -249,11 +249,9 @@ pub trait HlirMutVisitor where Self: Sized {
             Expr::For(for_) => self.visit_for(&for_),
             Expr::While(while_) => self.visit_while(&while_),
             Expr::Let(let_) => self.visit_let(&let_),
+            Expr::Return(return_) => self.visit_return(&return_),
             Expr::Function(func) => {
                 self.visit_function(&func);
-            }
-            Expr::Tensor(tensor) => {
-                self.visit_tensor(&tensor);
             }
             Expr::Tuple(tuple) => {
                 self.visit_tuple(&tuple);
@@ -280,17 +278,18 @@ pub trait HlirMutVisitor where Self: Sized {
             Expr::OpNode(op_node) => {
                 self.visit_op_node(op_node);
             }
-            Expr::ComputeNode(cmp_node) => {
-                self.visit_compute_node(cmp_node);
-            },
-            Expr::CommonReduce(a) => {
-                self.visit_common_reduce(a);
+            Expr::Tensor(cmp_node) => {
+                self.visit_tensor(cmp_node);
             }
             Expr::None => {}
         }
     }
-    fn visit_common_reduce(&mut self, _: &CommonReduce) {}
-    fn visit_compute_node(&mut self, _: &ComputeNode) {}
+    fn visit_return(&mut self, ret: &Return) {
+        for value in ret.expr() {
+            value.accept_mut(self);
+        }
+    }
+    fn visit_tensor(&mut self, _: &Tensor) {}
     fn visit_op_node(&mut self, _: &OpNode) {}
     fn visit_slice(&mut self, slice: &Slice) {
         slice.var().accept_mut(self);
@@ -306,7 +305,6 @@ pub trait HlirMutVisitor where Self: Sized {
             value.accept_mut(self);
         }
     }
-    fn visit_tensor(&mut self, _: &Tensor) {}
     fn visit_function(&mut self, func: &Function) {
         func.body().accept_mut(self);
     }
@@ -676,6 +674,25 @@ pub(crate) fn visit_slcie<V>(visitor: &mut V, slice: &Slice)
     }
 }
 
+pub(crate) fn visit_return<V>(visitor: &mut V, return_: &Return)
+    where V: MutatorGetSet + Sized + HlirMutateVisitor
+{
+    let mut changed = false;
+    let mut new_exprs = Vec::with_capacity(return_.expr().len());
+    for expr in return_.expr() {
+        let new_expr = visitor.mutate_expr(expr);
+        if &new_expr != expr {
+            changed = true;
+        }
+        new_exprs.push(new_expr);
+    }
+    if !changed {
+        visitor.set_expr(return_);
+    } else {
+        visitor.set_expr(Return::make(&new_exprs));
+    }
+}
+
 pub trait HlirMutateVisitor where Self: Sized + MutatorGetSet {
     fn mutate_expr<T: Into<Expr>>(&mut self, expr: T) -> Expr {
         mutate_expr(self, expr)
@@ -714,9 +731,6 @@ pub trait HlirMutateVisitor where Self: Sized + MutatorGetSet {
             Expr::Function(func) => {
                 self.visit_function(func);
             }
-            Expr::Tensor(tensor) => {
-                self.visit_tensor(tensor);
-            }
             Expr::Tuple(tuple) => {
                 self.visit_tuple(tuple);
             }
@@ -742,26 +756,25 @@ pub trait HlirMutateVisitor where Self: Sized + MutatorGetSet {
             Expr::OpNode(op_node) => {
                 self.visit_op_node(op_node);
             }
-            Expr::ComputeNode(cmp_node) => {
-                self.visit_compute_node(cmp_node);
-            },
-            Expr::CommonReduce(a) => {
-                self.visit_common_reduce(a);
+            Expr::Tensor(cmp_node) => {
+                self.visit_tensor(cmp_node);
+            }
+            Expr::Return(return_) => {
+                self.visit_return(return_);
             }
             Expr::None => {}
         }
     }
-    fn visit_common_reduce(&mut self, _: &CommonReduce) {}
-    fn visit_compute_node(&mut self, _: &ComputeNode) {}
+    fn visit_return(&mut self, ret: &Return) {
+        visit_return(self, ret);
+    }
+    fn visit_tensor(&mut self, _: &Tensor) {}
     fn visit_op_node(&mut self, _: &OpNode) {}
     fn visit_slice(&mut self, slice: &Slice) {
         visit_slcie(self, slice);
     }
     fn visit_tuple(&mut self, tuple: &Tuple) {
         visit_tuple(self, tuple)
-    }
-    fn visit_tensor(&mut self, tensor: &Tensor) {
-        self.set_expr(tensor.clone());
     }
     fn visit_function(&mut self, func: &Function) {
         visit_function(self, func)

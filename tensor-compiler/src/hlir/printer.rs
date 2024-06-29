@@ -46,7 +46,11 @@ impl _HlirPrinter {
                 }
                 let body = let_.body();
                 match body {
-                    Expr::Let(_) | Expr::For(_) | Expr::While(_) | Expr::If(_) => {
+                    | Expr::Let(_)
+                    | Expr::For(_)
+                    | Expr::While(_)
+                    | Expr::If(_)
+                    | Expr::Return(_) => {
                         println!(";");
                         self.print(body, true);
                     }
@@ -208,10 +212,6 @@ impl _HlirPrinter {
                     print!("}}");
                 }
             }
-            Expr::Tensor(a) => {
-                self.do_indent();
-                println!("{}", a);
-            }
             Expr::Value(a) => {
                 self.do_indent();
                 println!("{}", a);
@@ -253,11 +253,11 @@ impl _HlirPrinter {
                 self.do_indent();
                 println!("{}", a);
             }
-            Expr::ComputeNode(a) => {
+            Expr::Tensor(a) => {
                 self.do_indent();
                 println!("{}", a);
             }
-            Expr::CommonReduce(a) => {
+            Expr::Return(a) => {
                 self.do_indent();
                 println!("{}", a);
             }
