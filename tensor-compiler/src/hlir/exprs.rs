@@ -1321,6 +1321,18 @@ pub struct BaseTensor {
     dtype: Dtype,
 }
 
+impl BaseTensor {
+    pub fn layout(&self) -> &Layout {
+        &self.layout
+    }
+    pub fn reduced_strides(&self) -> &Strides {
+        &self.reduced_strides
+    }
+    pub fn id(&self) -> usize {
+        self.id
+    }
+}
+
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct ReduceTensor {
     inputs: Arc<Vec<Tensor>>,
@@ -1333,6 +1345,21 @@ pub struct ReduceTensor {
     dtype: Dtype,
 }
 
+impl ReduceTensor {
+    pub fn reduce_vars(&self) -> &[Variable] {
+        &self.reduce_vars
+    }
+    pub fn inputs(&self) -> &[Tensor] {
+        &self.inputs
+    }
+    pub fn func(&self) -> &Closures {
+        &self.func
+    }
+    pub fn identity(&self) -> &PrimeExpr {
+        &self.identity
+    }
+}
+
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct FuseTensor {
     shape: Shape,
@@ -1341,6 +1368,24 @@ pub struct FuseTensor {
     op_name: String,
     id: usize,
     dtype: Dtype,
+}
+
+impl FuseTensor {
+    pub fn shape(&self) -> &Shape {
+        &self.shape
+    }
+    pub fn ndim(&self) -> usize {
+        self.shape.len()
+    }
+    pub fn inputs(&self) -> &[Tensor] {
+        &self.inputs
+    }
+    pub fn func(&self) -> &Closures {
+        &self.func
+    }
+    pub fn id(&self) -> usize {
+        self.id
+    }
 }
 
 impl Into<Tensor> for &Tensor {

@@ -123,9 +123,6 @@ fn test_let_bind_plus_fusion() {
 
     let mut visitor = FuseComputeNode::new();
     visitor.visit_function(&main);
-    for (k, v) in visitor.map().iter() {
-        println!("{}: {}", k, v);
-    }
     HlirPrinter.print(main);
     let g = visitor.map().get(&g).unwrap();
     let mut saved_exprs = Vec::new();

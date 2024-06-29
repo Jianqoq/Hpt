@@ -36,6 +36,7 @@ pub mod hlir {
     pub mod exprs;
     pub mod printer;
     pub mod func_type;
+    pub mod lowering;
     pub mod tests;
 }
 pub mod registry;
