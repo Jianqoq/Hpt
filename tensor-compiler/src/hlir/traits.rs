@@ -60,6 +60,7 @@ pub trait HlirVisitor where Self: Sized {
                     super::func_type::Type::Tuple(tuple) => {
                         self.visit_tuple(tuple);
                     }
+                    super::func_type::Type::Ptr(_) => {}
                     super::func_type::Type::Str => {}
                     super::func_type::Type::None => {}
                 }
@@ -265,6 +266,7 @@ pub trait HlirMutVisitor where Self: Sized {
                     super::func_type::Type::Tuple(tuple) => {
                         self.visit_tuple(tuple);
                     }
+                    super::func_type::Type::Ptr(_) => {}
                     super::func_type::Type::Str => {}
                     super::func_type::Type::None => {}
                 }
@@ -743,6 +745,7 @@ pub trait HlirMutateVisitor where Self: Sized + MutatorGetSet {
                     super::func_type::Type::Tuple(tuple) => {
                         self.set_expr(tuple.clone());
                     }
+                    super::func_type::Type::Ptr(_) => {}
                     super::func_type::Type::Str => todo!(),
                     super::func_type::Type::None => {}
                 }

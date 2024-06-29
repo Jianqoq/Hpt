@@ -9,6 +9,7 @@ pub enum Type {
     Dtype(Dtype),
     Tensor(TensorType),
     Tuple(Tuple),
+    Ptr(Dtype),
     Str,
     None,
 }
@@ -38,6 +39,7 @@ impl Display for Type {
             Type::Tensor(tensor) => write!(f, "{}", tensor),
             Type::Tuple(tuple) => write!(f, "{}", tuple),
             Type::Str => write!(f, "str"),
+            Type::Ptr(dtype) => write!(f, "*{}", dtype),
             Type::None => write!(f, "()"),
         }
     }
