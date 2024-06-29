@@ -88,10 +88,7 @@ fn test_let_bind_plus_fusion() {
                                 Let::make(
                                     &h,
                                     If::make(
-                                        Gt::make(
-                                            Expr::Value(i),
-                                            Value::make(Dtype::BF16, 0.0)
-                                        ),
+                                        Gt::make(Expr::Value(i), Value::make(Dtype::BF16, 0.0)),
                                         Add::make(&g, &f),
                                         Mul::make(&g, &f)
                                     ),
