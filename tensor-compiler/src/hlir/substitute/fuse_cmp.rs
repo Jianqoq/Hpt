@@ -21,6 +21,9 @@ impl FuseComputeNode {
             expr: Expr::None,
         }
     }
+    pub fn map(&self) -> &HashMap<Variable, Tensor> {
+        &self.map
+    }
 }
 
 impl MutatorGetSet for FuseComputeNode {
