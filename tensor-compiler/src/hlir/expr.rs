@@ -1,16 +1,18 @@
 use std::fmt::Display;
 
-use crate::halide::variable::Variable;
+use crate::halide::{ prime_expr::PrimeExpr, variable::Variable };
 
 use super::{
-    exprs::*, func_type::Type, traits::{
+    exprs::*,
+    func_type::Type,
+    traits::{
         HlirAccepterMut,
         HlirAccepterMutate,
         HlirAcceptor,
         HlirMutVisitor,
         HlirMutateVisitor,
         HlirVisitor,
-    }
+    },
 };
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -24,22 +26,6 @@ pub enum Expr {
     OpNode(OpNode),
     Tensor(Tensor),
     Cast(Cast),
-    Add(Add),
-    Sub(Sub),
-    Mul(Mul),
-    Div(Div),
-    Mod(Mod),
-    Min(Min),
-    Max(Max),
-    Eq(Eq),
-    Ne(Ne),
-    Lt(Lt),
-    Le(Le),
-    Gt(Gt),
-    Ge(Ge),
-    And(And),
-    Or(Or),
-    Xor(Xor),
     Not(Not),
     Call(Call),
     Select(Select),
@@ -70,37 +56,12 @@ impl Expr {
         matches!(self, Expr::None)
     }
 
-    const fn precedence(&self) -> i32 {
-        match self {
-            Expr::Add(_) | Expr::Sub(_) => 1,
-            Expr::Mul(_) | Expr::Div(_) | Expr::Mod(_) => 2,
-            _ => 3,
-        }
-    }
-
-    fn print(&self, parent_prec: i32) -> String {
-        let prec = self.precedence();
+    fn print(&self) -> String {
         let s = match self {
             Expr::Value(a) => a.to_string(),
             Expr::Str(a) => a.to_string(),
             Expr::Variable(a) => a.to_string(),
             Expr::Cast(a) => a.to_string(),
-            Expr::Add(a) => format!("{} + {}", a.lhs().print(prec), a.rhs().print(prec + 1)),
-            Expr::Sub(a) => format!("{} - {}", a.lhs().print(prec), a.rhs().print(prec + 1)),
-            Expr::Mul(a) => format!("{} * {}", a.lhs().print(prec), a.rhs().print(prec + 1)),
-            Expr::Div(a) => format!("{} / {}", a.lhs().print(prec), a.rhs().print(prec + 1)),
-            Expr::Mod(a) => format!("{} % {}", a.lhs().print(prec), a.rhs().print(prec + 1)),
-            Expr::Min(a) => a.to_string(),
-            Expr::Max(a) => a.to_string(),
-            Expr::Eq(a) => a.to_string(),
-            Expr::Ne(a) => a.to_string(),
-            Expr::Lt(a) => a.to_string(),
-            Expr::Le(a) => a.to_string(),
-            Expr::Gt(a) => a.to_string(),
-            Expr::Ge(a) => a.to_string(),
-            Expr::And(a) => a.to_string(),
-            Expr::Xor(a) => a.to_string(),
-            Expr::Or(a) => a.to_string(),
             Expr::Not(a) => a.to_string(),
             Expr::Call(a) => a.to_string(),
             Expr::Select(a) => a.to_string(),
@@ -119,21 +80,34 @@ impl Expr {
             Expr::Return(a) => a.to_string(),
             Expr::None => "".to_string(),
         };
-        if prec < parent_prec {
-            format!("({})", s)
-        } else {
-            s
-        }
+        s
     }
 
     cast_expr!(to_variable, Variable);
     cast_expr!(to_value, Value);
     cast_expr!(to_type, Type);
+    cast_expr!(to_tensor, Tensor);
+    cast_expr!(to_tuple, Tuple);
+
+    pub fn to_primexpr(&self) -> Option<PrimeExpr> {
+        match self {
+            Expr::Value(a) => { Some(a.to_primexpr()) }
+            Expr::Str(a) => { Some(a.to_primexpr()) }
+            Expr::Variable(a) => { Some(a.into()) }
+            Expr::Cast(a) => {
+                crate::halide::prime_expr::PrimeExpr
+                    ::Cast(crate::halide::exprs::Cast::make(a.value().to_primexpr(), a.dtype()))
+                    .into()
+            }
+            Expr::Tensor(a) => { a.const_val().map(|v| v.to_primexpr()) }
+            _ => None,
+        }
+    }
 }
 
 impl Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.print(0))
+        write!(f, "{}", self.print())
     }
 }
 
@@ -158,5 +132,11 @@ impl HlirAccepterMutate for Expr {
 impl Into<Expr> for &Expr {
     fn into(self) -> Expr {
         self.clone()
+    }
+}
+
+impl Into<Expr> for &&Expr {
+    fn into(self) -> Expr {
+        (*self).clone()
     }
 }

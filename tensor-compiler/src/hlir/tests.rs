@@ -8,7 +8,14 @@ use crate::{
     registry::{ Closures, MANAGER },
 };
 
-use super::{ expr::Expr, exprs::*, func_type::Type, printer::HlirPrinter };
+use super::{
+    expr::Expr,
+    exprs::*,
+    func_type::Type,
+    printer::HlirPrinter,
+    substitute::fuse_cmp::FuseComputeNode,
+    traits::HlirMutateVisitor,
+};
 use super::exprs::Call as HirCall;
 
 #[test]
@@ -55,9 +62,11 @@ fn test_let_bind_plus_fusion() {
     let a_var = Variable::make("a");
     let b_var = Variable::make("b");
     let c = Variable::make("c");
+    let c_expr: Expr = c.clone().into();
     let reshape_var = Variable::make("reshape");
     let max_var = Variable::make("max");
     let d_var = Variable::make("max_val");
+    let d_var_expr: Expr = d_var.clone().into();
     let e = Variable::make("e");
     let f = Variable::make("f");
     let g = Variable::make("g");
@@ -70,16 +79,33 @@ fn test_let_bind_plus_fusion() {
             &b,
             Let::make(
                 &c,
-                Div::make(&a_var, &b_var),
+                HirCall::make(Variable::make("div"), &[&a_var, &b_var]),
                 Let::make(
                     &d_var,
-                    HirCall::make(&max_var, &[&c]),
+                    HirCall::make(
+                        &max_var,
+                        &[
+                            &c_expr,
+                            &Tuple::make([Int::make(Dtype::I64, 2)]).into(),
+                            &Int::make(Dtype::I64, 0).into(),
+                        ]
+                    ),
                     Let::make(
                         &e,
-                        HirCall::make(&reshape_var, &[&d_var]),
+                        HirCall::make(
+                            &reshape_var,
+                            &[
+                                &d_var_expr,
+                                &Tuple::make([
+                                    Int::make(Dtype::I64, 1),
+                                    Int::make(Dtype::I64, 8),
+                                    Int::make(Dtype::I64, 1),
+                                ]).into(),
+                            ]
+                        ),
                         Let::make(
                             &f,
-                            Add::make(&e, &e),
+                            HirCall::make(Variable::make("add"), &[&e, &e]),
                             Let::make(
                                 g.clone(),
                                 HirCall::make(Variable::make("exp"), &[&f]),
@@ -93,5 +119,8 @@ fn test_let_bind_plus_fusion() {
     );
 
     main.set_body(let_);
+
+    let mut visitor = FuseComputeNode::new();
+    visitor.visit_function(&main);
     HlirPrinter.print(main)
 }

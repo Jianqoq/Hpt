@@ -117,63 +117,7 @@ impl _HlirPrinter {
                 self.do_indent();
                 println!("{}", a);
             }
-            Expr::Add(a) => {
-                self.do_indent();
-                println!("{}", a);
-            }
-            Expr::Sub(a) => {
-                self.do_indent();
-                println!("{}", a);
-            }
-            Expr::Mul(a) => {
-                self.do_indent();
-                println!("{}", a);
-            }
-            Expr::Div(a) => {
-                self.do_indent();
-                println!("{}", a);
-            }
-            Expr::Mod(a) => {
-                self.do_indent();
-                println!("{}", a);
-            }
-            Expr::Eq(a) => {
-                self.do_indent();
-                println!("{}", a);
-            }
-            Expr::Ne(a) => {
-                self.do_indent();
-                println!("{}", a);
-            }
-            Expr::Lt(a) => {
-                self.do_indent();
-                println!("{}", a);
-            }
-            Expr::Le(a) => {
-                self.do_indent();
-                println!("{}", a);
-            }
-            Expr::Gt(a) => {
-                self.do_indent();
-                println!("{}", a);
-            }
-            Expr::Ge(a) => {
-                self.do_indent();
-                println!("{}", a);
-            }
-            Expr::And(a) => {
-                self.do_indent();
-                println!("{}", a);
-            }
-            Expr::Or(a) => {
-                self.do_indent();
-                println!("{}", a);
-            }
             Expr::Not(a) => {
-                self.do_indent();
-                println!("{}", a);
-            }
-            Expr::Xor(a) => {
                 self.do_indent();
                 println!("{}", a);
             }
@@ -226,14 +170,6 @@ impl _HlirPrinter {
                 println!("{}", a);
             }
             Expr::Cast(a) => {
-                self.do_indent();
-                println!("{}", a);
-            }
-            Expr::Min(a) => {
-                self.do_indent();
-                println!("{}", a);
-            }
-            Expr::Max(a) => {
                 self.do_indent();
                 println!("{}", a);
             }

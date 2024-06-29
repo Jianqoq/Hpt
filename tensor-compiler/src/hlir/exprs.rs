@@ -8,7 +8,7 @@ use tensor_common::{
 };
 use tensor_types::dtype::Dtype;
 
-use crate::halide::exprs::Load;
+use crate::halide::exprs::{ Float, Load, UInt };
 use crate::registry::MANAGER;
 use crate::{
     halide::{ exprs::Int, prime_expr::PrimeExpr, variable::Variable },
@@ -442,6 +442,20 @@ impl Value {
     pub fn dtype(&self) -> Dtype {
         self.dtype
     }
+    pub fn to_int(&self) -> Option<Int> {
+        match self.value {
+            _Value::Int(val) => Some(Int::make(Dtype::I64, val)),
+            _ => None,
+        }
+    }
+    pub fn to_primexpr(&self) -> PrimeExpr {
+        match self.value {
+            _Value::Int(val) => Int::make(Dtype::I64, val).into(),
+            _Value::Float(val) => Float::make(val).into(),
+            _Value::Bool(val) => Int::make(Dtype::Bool, val as i64).into(),
+            _Value::Uint(val) => UInt::make(Dtype::U64, val).into(),
+        }
+    }
 }
 
 impl HlirAcceptor for Value {
@@ -492,6 +506,26 @@ impl Tuple {
     pub fn values(&self) -> &[Expr] {
         &self.values
     }
+    pub fn to_shape(&self) -> Option<Shape> {
+        let mut shape = vec![];
+        for value in self.values.iter() {
+            match value {
+                Expr::Value(val) => {
+                    match val.value {
+                        _Value::Int(val) => shape.push(val),
+                        _Value::Uint(val) => shape.push(val as i64),
+                        _ => {
+                            return None;
+                        }
+                    }
+                }
+                _ => {
+                    return None;
+                }
+            }
+        }
+        Some(shape.into())
+    }
 }
 
 impl HlirAcceptor for Tuple {
@@ -514,6 +548,24 @@ impl Display for Tuple {
     }
 }
 
+impl Into<Vec<Int>> for &Tuple {
+    fn into(self) -> Vec<Int> {
+        self.values
+            .iter()
+            .map(|x| x.clone().to_value().unwrap().to_int().unwrap())
+            .collect()
+    }
+}
+
+impl Into<Vec<Int>> for Tuple {
+    fn into(self) -> Vec<Int> {
+        self.values
+            .iter()
+            .map(|x| x.clone().to_value().unwrap().to_int().unwrap())
+            .collect()
+    }
+}
+
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct Str {
     value: Arc<String>,
@@ -527,6 +579,9 @@ impl Str {
     }
     pub fn value(&self) -> &str {
         &self.value
+    }
+    pub fn to_primexpr(&self) -> PrimeExpr {
+        PrimeExpr::Str(crate::halide::exprs::Str::make(&self.value))
     }
 }
 
@@ -593,34 +648,6 @@ impl Display for Cast {
     }
 }
 
-macro_rules! impl_binop {
-    ($struct:ident, $visit_method:ident) => {
-        impl $struct {
-            pub fn make<T: Into<Expr>, U: Into<Expr>>(lhs: T, rhs: U) -> Self {
-                Self { lhs: lhs.into().into(), rhs: rhs.into().into() }
-            }
-            pub fn lhs(&self) -> &Expr {
-                &self.lhs
-            }
-            pub fn rhs(&self) -> &Expr {
-                &self.rhs
-            }
-            pub fn lhs_(&self) -> &Arc<Expr> {
-                &self.lhs
-            }
-            pub fn rhs_(&self) -> &Arc<Expr> {
-                &self.rhs
-            }
-        }
-
-        impl HlirAcceptor for $struct {
-            fn accept<V: HlirVisitor>(&self, visitor: &V) {
-                visitor.$visit_method(self);
-            }
-        }
-    };
-}
-
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct OpNode {
     name: Variable,
@@ -681,198 +708,6 @@ impl OpNode {
 impl Display for OpNode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "OpNode({})", self.name)
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct Add {
-    lhs: Arc<Expr>,
-    rhs: Arc<Expr>,
-}
-
-impl Display for Add {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} + {})", self.lhs, self.rhs)
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct Sub {
-    lhs: Arc<Expr>,
-    rhs: Arc<Expr>,
-}
-
-impl Display for Sub {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} - {})", self.lhs, self.rhs)
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct Mul {
-    lhs: Arc<Expr>,
-    rhs: Arc<Expr>,
-}
-
-impl Display for Mul {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} * {})", self.lhs, self.rhs)
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct Div {
-    lhs: Arc<Expr>,
-    rhs: Arc<Expr>,
-}
-
-impl Display for Div {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} / {})", self.lhs, self.rhs)
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct Mod {
-    lhs: Arc<Expr>,
-    rhs: Arc<Expr>,
-}
-
-impl Display for Mod {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} % {})", self.lhs, self.rhs)
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct Min {
-    lhs: Arc<Expr>,
-    rhs: Arc<Expr>,
-}
-
-impl Display for Min {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "min({}, {})", self.lhs, self.rhs)
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct Max {
-    lhs: Arc<Expr>,
-    rhs: Arc<Expr>,
-}
-
-impl Display for Max {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "max({}, {})", self.lhs, self.rhs)
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct Eq {
-    lhs: Arc<Expr>,
-    rhs: Arc<Expr>,
-}
-
-impl Display for Eq {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} == {})", self.lhs, self.rhs)
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct Ne {
-    lhs: Arc<Expr>,
-    rhs: Arc<Expr>,
-}
-
-impl Display for Ne {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} != {})", self.lhs, self.rhs)
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct Lt {
-    lhs: Arc<Expr>,
-    rhs: Arc<Expr>,
-}
-
-impl Display for Lt {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} < {})", self.lhs, self.rhs)
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct Le {
-    lhs: Arc<Expr>,
-    rhs: Arc<Expr>,
-}
-
-impl Display for Le {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} <= {})", self.lhs, self.rhs)
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct Gt {
-    lhs: Arc<Expr>,
-    rhs: Arc<Expr>,
-}
-
-impl Display for Gt {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} > {})", self.lhs, self.rhs)
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct Ge {
-    lhs: Arc<Expr>,
-    rhs: Arc<Expr>,
-}
-
-impl Display for Ge {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} >= {})", self.lhs, self.rhs)
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct And {
-    lhs: Arc<Expr>,
-    rhs: Arc<Expr>,
-}
-
-impl Display for And {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} && {})", self.lhs, self.rhs)
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct Or {
-    lhs: Arc<Expr>,
-    rhs: Arc<Expr>,
-}
-
-impl Display for Or {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} || {})", self.lhs, self.rhs)
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Hash, Eq)]
-pub struct Xor {
-    lhs: Arc<Expr>,
-    rhs: Arc<Expr>,
-}
-
-impl Display for Xor {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} ^ {})", self.lhs, self.rhs)
     }
 }
 
@@ -1049,6 +884,12 @@ pub enum Tensor {
 }
 
 impl Tensor {
+    pub fn const_val(&self) -> Option<Value> {
+        match self {
+            Tensor::Base(base) => base.const_val.clone(),
+            _ => None,
+        }
+    }
     pub fn shape(&self) -> &Shape {
         match self {
             Tensor::Reduce(reduce) => &reduce.inputs[0].shape(),
@@ -1918,22 +1759,6 @@ impl_into_expr!(Value);
 impl_into_expr!(Str);
 impl_into_expr!(Variable);
 impl_into_expr!(Cast);
-impl_into_expr!(Add);
-impl_into_expr!(Sub);
-impl_into_expr!(Mul);
-impl_into_expr!(Div);
-impl_into_expr!(Mod);
-impl_into_expr!(Min);
-impl_into_expr!(Max);
-impl_into_expr!(Eq);
-impl_into_expr!(Ne);
-impl_into_expr!(Lt);
-impl_into_expr!(Le);
-impl_into_expr!(Gt);
-impl_into_expr!(Ge);
-impl_into_expr!(And);
-impl_into_expr!(Or);
-impl_into_expr!(Xor);
 impl_into_expr!(Not);
 impl_into_expr!(Call);
 impl_into_expr!(Select);
@@ -1949,23 +1774,6 @@ impl_into_expr!(Slice);
 impl_into_expr!(OpNode);
 impl_into_expr!(Tensor);
 impl_into_expr!(Return);
-
-impl_binop!(Add, visit_add);
-impl_binop!(Sub, visit_sub);
-impl_binop!(Mul, visit_mul);
-impl_binop!(Div, visit_div);
-impl_binop!(Mod, visit_mod);
-impl_binop!(Min, visit_min);
-impl_binop!(Max, visit_max);
-impl_binop!(Eq, visit_eq);
-impl_binop!(Ne, visit_ne);
-impl_binop!(Lt, visit_lt);
-impl_binop!(Le, visit_le);
-impl_binop!(Gt, visit_gt);
-impl_binop!(Ge, visit_ge);
-impl_binop!(And, visit_and);
-impl_binop!(Or, visit_or);
-impl_binop!(Xor, visit_xor);
 
 impl IntoVar for Variable {
     fn into_var(self) -> Variable {

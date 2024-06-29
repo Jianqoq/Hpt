@@ -21,22 +21,6 @@ pub trait HlirVisitor where Self: Sized {
             Expr::Str(string) => self.visit_str(&string),
             Expr::Variable(var) => self.visit_variable(&var),
             Expr::Cast(cast) => self.visit_cast(&cast),
-            Expr::Add(add) => self.visit_add(&add),
-            Expr::Sub(sub) => self.visit_sub(&sub),
-            Expr::Mul(mul) => self.visit_mul(&mul),
-            Expr::Div(div) => self.visit_div(&div),
-            Expr::Mod(r#mod) => self.visit_mod(&r#mod),
-            Expr::Min(min) => self.visit_min(&min),
-            Expr::Max(max) => self.visit_max(&max),
-            Expr::Eq(eq) => self.visit_eq(&eq),
-            Expr::Ne(ne) => self.visit_ne(&ne),
-            Expr::Lt(lt) => self.visit_lt(&lt),
-            Expr::Le(le) => self.visit_le(&le),
-            Expr::Gt(gt) => self.visit_gt(&gt),
-            Expr::Ge(ge) => self.visit_ge(&ge),
-            Expr::And(and) => self.visit_and(&and),
-            Expr::Xor(or) => self.visit_xor(&or),
-            Expr::Or(or) => self.visit_or(&or),
             Expr::Not(not) => self.visit_not(&not),
             Expr::Call(call) => self.visit_call(&call),
             Expr::Select(select) => self.visit_select(&select),
@@ -120,70 +104,6 @@ pub trait HlirVisitor where Self: Sized {
     fn visit_cast(&self, cast: &Cast) {
         cast.value().accept(self);
     }
-    fn visit_add(&self, add: &Add) {
-        add.lhs().accept(self);
-        add.rhs().accept(self);
-    }
-    fn visit_sub(&self, sub: &Sub) {
-        sub.lhs().accept(self);
-        sub.rhs().accept(self);
-    }
-    fn visit_mul(&self, mul: &Mul) {
-        mul.lhs().accept(self);
-        mul.rhs().accept(self);
-    }
-    fn visit_div(&self, div: &Div) {
-        div.lhs().accept(self);
-        div.rhs().accept(self);
-    }
-    fn visit_mod(&self, mod_: &Mod) {
-        mod_.lhs().accept(self);
-        mod_.rhs().accept(self);
-    }
-    fn visit_min(&self, min: &Min) {
-        min.lhs().accept(self);
-        min.rhs().accept(self);
-    }
-    fn visit_max(&self, max: &Max) {
-        max.lhs().accept(self);
-        max.rhs().accept(self);
-    }
-    fn visit_ge(&self, ge: &Ge) {
-        ge.lhs().accept(self);
-        ge.rhs().accept(self);
-    }
-    fn visit_xor(&self, xor: &Xor) {
-        xor.lhs().accept(self);
-        xor.rhs().accept(self);
-    }
-    fn visit_gt(&self, gt: &Gt) {
-        gt.lhs().accept(self);
-        gt.rhs().accept(self);
-    }
-    fn visit_le(&self, le: &Le) {
-        le.lhs().accept(self);
-        le.rhs().accept(self);
-    }
-    fn visit_lt(&self, lt: &Lt) {
-        lt.lhs().accept(self);
-        lt.rhs().accept(self);
-    }
-    fn visit_eq(&self, eq: &Eq) {
-        eq.lhs().accept(self);
-        eq.rhs().accept(self);
-    }
-    fn visit_ne(&self, ne: &Ne) {
-        ne.lhs().accept(self);
-        ne.rhs().accept(self);
-    }
-    fn visit_and(&self, and: &And) {
-        and.lhs().accept(self);
-        and.rhs().accept(self);
-    }
-    fn visit_or(&self, or: &Or) {
-        or.lhs().accept(self);
-        or.rhs().accept(self);
-    }
     fn visit_not(&self, not: &Not) {
         not.expr().accept(self);
     }
@@ -226,22 +146,6 @@ pub trait HlirMutVisitor where Self: Sized {
             Expr::Str(string) => self.visit_str(&string),
             Expr::Variable(var) => self.visit_variable(&var),
             Expr::Cast(cast) => self.visit_cast(&cast),
-            Expr::Add(add) => self.visit_add(&add),
-            Expr::Sub(sub) => self.visit_sub(&sub),
-            Expr::Mul(mul) => self.visit_mul(&mul),
-            Expr::Div(div) => self.visit_div(&div),
-            Expr::Mod(r#mod) => self.visit_mod(&r#mod),
-            Expr::Min(min) => self.visit_min(&min),
-            Expr::Max(max) => self.visit_max(&max),
-            Expr::Eq(eq) => self.visit_eq(&eq),
-            Expr::Ne(ne) => self.visit_ne(&ne),
-            Expr::Lt(lt) => self.visit_lt(&lt),
-            Expr::Le(le) => self.visit_le(&le),
-            Expr::Gt(gt) => self.visit_gt(&gt),
-            Expr::Ge(ge) => self.visit_ge(&ge),
-            Expr::And(and) => self.visit_and(&and),
-            Expr::Xor(or) => self.visit_xor(&or),
-            Expr::Or(or) => self.visit_or(&or),
             Expr::Not(not) => self.visit_not(&not),
             Expr::Call(call) => self.visit_call(&call),
             Expr::Select(select) => self.visit_select(&select),
@@ -323,70 +227,6 @@ pub trait HlirMutVisitor where Self: Sized {
     fn visit_cast(&mut self, cast: &Cast) {
         cast.value().accept_mut(self);
     }
-    fn visit_add(&mut self, add: &Add) {
-        add.lhs().accept_mut(self);
-        add.rhs().accept_mut(self);
-    }
-    fn visit_sub(&mut self, sub: &Sub) {
-        sub.lhs().accept_mut(self);
-        sub.rhs().accept_mut(self);
-    }
-    fn visit_mul(&mut self, mul: &Mul) {
-        mul.lhs().accept_mut(self);
-        mul.rhs().accept_mut(self);
-    }
-    fn visit_div(&mut self, div: &Div) {
-        div.lhs().accept_mut(self);
-        div.rhs().accept_mut(self);
-    }
-    fn visit_mod(&mut self, mod_: &Mod) {
-        mod_.lhs().accept_mut(self);
-        mod_.rhs().accept_mut(self);
-    }
-    fn visit_min(&mut self, min: &Min) {
-        min.lhs().accept_mut(self);
-        min.rhs().accept_mut(self);
-    }
-    fn visit_max(&mut self, max: &Max) {
-        max.lhs().accept_mut(self);
-        max.rhs().accept_mut(self);
-    }
-    fn visit_ge(&mut self, ge: &Ge) {
-        ge.lhs().accept_mut(self);
-        ge.rhs().accept_mut(self);
-    }
-    fn visit_xor(&mut self, xor: &Xor) {
-        xor.lhs().accept_mut(self);
-        xor.rhs().accept_mut(self);
-    }
-    fn visit_gt(&mut self, gt: &Gt) {
-        gt.lhs().accept_mut(self);
-        gt.rhs().accept_mut(self);
-    }
-    fn visit_le(&mut self, le: &Le) {
-        le.lhs().accept_mut(self);
-        le.rhs().accept_mut(self);
-    }
-    fn visit_lt(&mut self, lt: &Lt) {
-        lt.lhs().accept_mut(self);
-        lt.rhs().accept_mut(self);
-    }
-    fn visit_eq(&mut self, eq: &Eq) {
-        eq.lhs().accept_mut(self);
-        eq.rhs().accept_mut(self);
-    }
-    fn visit_ne(&mut self, ne: &Ne) {
-        ne.lhs().accept_mut(self);
-        ne.rhs().accept_mut(self);
-    }
-    fn visit_and(&mut self, and: &And) {
-        and.lhs().accept_mut(self);
-        and.rhs().accept_mut(self);
-    }
-    fn visit_or(&mut self, or: &Or) {
-        or.lhs().accept_mut(self);
-        or.rhs().accept_mut(self);
-    }
     fn visit_not(&mut self, not: &Not) {
         not.expr().accept_mut(self);
     }
@@ -452,39 +292,6 @@ pub(crate) fn visit_cast<V>(visitor: &mut V, cast: &Cast)
         visitor.set_expr(Cast::make(expr.to_value().unwrap(), cast.dtype()));
     }
 }
-
-macro_rules! mutate_binop {
-    ($fn_name:ident, $op:ident, $T:ident) => {
-        pub(crate) fn $fn_name <V>(visitor: &mut V, $op: &$T)
-    where V: MutatorGetSet + Sized + HlirMutateVisitor
-        {
-            let a = visitor.mutate_expr($op.lhs());
-            let b = visitor.mutate_expr($op.rhs());
-            if &a == $op.lhs() && &b == $op.rhs() {
-                visitor.set_expr($op);
-            } else {
-                visitor.set_expr($T::make(a, b));
-            }
-        }
-    };
-}
-
-mutate_binop!(visit_add, add, Add);
-mutate_binop!(visit_sub, sub, Sub);
-mutate_binop!(visit_mul, mul, Mul);
-mutate_binop!(visit_div, div, Div);
-mutate_binop!(visit_mod, mod_, Mod);
-mutate_binop!(visit_min, min, Min);
-mutate_binop!(visit_max, max, Max);
-mutate_binop!(visit_ge, ge, Ge);
-mutate_binop!(visit_xor, xor, Xor);
-mutate_binop!(visit_gt, gt, Gt);
-mutate_binop!(visit_le, le, Le);
-mutate_binop!(visit_lt, lt, Lt);
-mutate_binop!(visit_eq, eq, Eq);
-mutate_binop!(visit_ne, ne, Ne);
-mutate_binop!(visit_and, and, And);
-mutate_binop!(visit_or, or, Or);
 
 pub(crate) fn visit_not<V>(visitor: &mut V, not: &Not)
     where V: MutatorGetSet + Sized + HlirMutateVisitor
@@ -707,22 +514,6 @@ pub trait HlirMutateVisitor where Self: Sized + MutatorGetSet {
             Expr::Str(string) => self.visit_str(string),
             Expr::Variable(var) => self.visit_variable(var),
             Expr::Cast(cast) => self.visit_cast(cast),
-            Expr::Add(add) => self.visit_add(add),
-            Expr::Sub(sub) => self.visit_sub(sub),
-            Expr::Mul(mul) => self.visit_mul(mul),
-            Expr::Div(div) => self.visit_div(div),
-            Expr::Mod(r#mod) => self.visit_mod(r#mod),
-            Expr::Min(min) => self.visit_min(min),
-            Expr::Max(max) => self.visit_max(max),
-            Expr::Eq(eq) => self.visit_eq(eq),
-            Expr::Ne(ne) => self.visit_ne(ne),
-            Expr::Lt(lt) => self.visit_lt(lt),
-            Expr::Le(le) => self.visit_le(le),
-            Expr::Gt(gt) => self.visit_gt(gt),
-            Expr::Ge(ge) => self.visit_ge(ge),
-            Expr::And(and) => self.visit_and(and),
-            Expr::Xor(or) => self.visit_xor(or),
-            Expr::Or(or) => self.visit_or(or),
             Expr::Not(not) => self.visit_not(not),
             Expr::Call(call) => self.visit_call(call),
             Expr::Select(select) => self.visit_select(select),
@@ -800,54 +591,6 @@ pub trait HlirMutateVisitor where Self: Sized + MutatorGetSet {
     }
     fn visit_cast(&mut self, cast: &Cast) {
         visit_cast(self, cast);
-    }
-    fn visit_add(&mut self, add: &Add) {
-        visit_add(self, add);
-    }
-    fn visit_sub(&mut self, sub: &Sub) {
-        visit_sub(self, sub);
-    }
-    fn visit_mul(&mut self, mul: &Mul) {
-        visit_mul(self, mul);
-    }
-    fn visit_div(&mut self, div: &Div) {
-        visit_div(self, div);
-    }
-    fn visit_mod(&mut self, mod_: &Mod) {
-        visit_mod(self, mod_);
-    }
-    fn visit_min(&mut self, min: &Min) {
-        visit_min(self, min);
-    }
-    fn visit_max(&mut self, max: &Max) {
-        visit_max(self, max);
-    }
-    fn visit_ge(&mut self, ge: &Ge) {
-        visit_ge(self, ge);
-    }
-    fn visit_xor(&mut self, xor: &Xor) {
-        visit_xor(self, xor);
-    }
-    fn visit_gt(&mut self, gt: &Gt) {
-        visit_gt(self, gt);
-    }
-    fn visit_le(&mut self, le: &Le) {
-        visit_le(self, le);
-    }
-    fn visit_lt(&mut self, lt: &Lt) {
-        visit_lt(self, lt);
-    }
-    fn visit_eq(&mut self, eq: &Eq) {
-        visit_eq(self, eq);
-    }
-    fn visit_ne(&mut self, ne: &Ne) {
-        visit_ne(self, ne);
-    }
-    fn visit_and(&mut self, and: &And) {
-        visit_and(self, and);
-    }
-    fn visit_or(&mut self, or: &Or) {
-        visit_or(self, or);
     }
     fn visit_not(&mut self, not: &Not) {
         visit_not(self, not);

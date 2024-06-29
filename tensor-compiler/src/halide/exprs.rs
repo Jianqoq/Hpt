@@ -2,6 +2,8 @@ use std::{ fmt::Display, sync::Arc };
 
 use tensor_types::dtype::Dtype;
 
+use crate::hlir::{expr::Expr, exprs::Value};
+
 use super::{ prime_expr::PrimeExpr, traits::{ Accepter, IRVisitor }, variable::Variable };
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Int {
@@ -46,6 +48,18 @@ impl Into<PrimeExpr> for Int {
 impl Into<PrimeExpr> for &Int {
     fn into(self) -> PrimeExpr {
         PrimeExpr::Int(self.clone())
+    }
+}
+
+impl Into<Expr> for Int {
+    fn into(self) -> Expr {
+        Expr::Value(Value::make(Dtype::I64, self.value))
+    }
+}
+
+impl Into<Expr> for &Int {
+    fn into(self) -> Expr {
+        Expr::Value(Value::make(Dtype::I64, self.value))
     }
 }
 
