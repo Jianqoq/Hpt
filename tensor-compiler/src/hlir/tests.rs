@@ -43,8 +43,9 @@ fn test_fusion() {
     sum.reshape(&Shape::new([1, 8, 1]));
     let div = Tensor::make_binop("div", exp, sum, 10);
     let mut saved_exprs = Vec::new();
+    let mut saved_cnt = HashMap::new();
     let exp_id = div.id();
-    let expr = div.lower(true, &mut vec![], &mut saved_exprs);
+    let expr = div.lower(true, &mut saved_cnt, &mut vec![], &mut saved_exprs);
     saved_exprs.push((Variable::new(format!("%{}", exp_id)).into(), expr));
     for (k, v) in saved_exprs.iter() {
         println!("{}: {}", k, v);
@@ -128,8 +129,9 @@ fn test_let_bind_plus_fusion() {
     HlirPrinter.print(main);
     let g = visitor.map().get(&g).unwrap();
     let mut saved_exprs = Vec::new();
+    let mut saved_cnt = HashMap::new();
     let exp_id = g.id();
-    let expr = g.lower(true, &mut vec![], &mut saved_exprs);
+    let expr = g.lower(true, &mut saved_cnt, &mut vec![], &mut saved_exprs);
     saved_exprs.push((Variable::new(format!("%{}", exp_id)).into(), expr));
     for (k, v) in saved_exprs.iter() {
         println!("{}: {}", k, v);

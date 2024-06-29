@@ -1,4 +1,5 @@
 use std::{ fmt::Display, sync::Arc };
+use hashbrown::HashMap;
 use tensor_common::shape_utils::predict_reduce_shape;
 use tensor_common::{
     layout::Layout,
@@ -1203,6 +1204,7 @@ impl Tensor {
     pub fn lower(
         &self,
         push_vars: bool,
+        saved_cnt: &mut HashMap<PrimeExpr, usize>,
         vars: &mut Vec<Variable>,
         map: &mut Vec<(PrimeExpr, PrimeExpr)>
     ) -> PrimeExpr {
@@ -1227,7 +1229,7 @@ impl Tensor {
                     vars.push(var.clone());
                 }
                 for input in reduce.inputs.iter() {
-                    exprs.push(input.lower(false, vars, map));
+                    exprs.push(input.lower(false, saved_cnt, vars, map));
                 }
                 for _ in reduce.reduce_vars.iter() {
                     vars.pop();
@@ -1243,12 +1245,19 @@ impl Tensor {
                 }
                 let mut exprs = vec![];
                 for input in fuse.inputs.iter() {
-                    exprs.push(input.lower(false, vars, map));
+                    exprs.push(input.lower(false, saved_cnt, vars, map));
                 }
                 if fuse.inputs.len() == 1 && fuse.inputs[0].is_reduce() {
                     exprs.push(fuse.inputs[0].to_reduce().identity);
                     let call = fuse.func.call_common(exprs);
-                    let var = Variable::from(format!("%r{}", fuse.id));
+                    let mut var: PrimeExpr = Variable::from(format!("%r{}", fuse.id)).into();
+                    if let Some(saved) = saved_cnt.get_mut(&var) {
+                        *saved += 1;
+                        var = Variable::from(format!("%r{}_{}", fuse.id, *saved)).into();
+                    } else {
+                        var = Variable::from(format!("%r{}_{}", fuse.id, 0)).into();
+                        saved_cnt.insert(Variable::from(format!("%r{}", fuse.id)).into(), 0);
+                    }
                     map.push((var.clone().into(), call.into()));
                     return var.into();
                 } else {
