@@ -80,7 +80,7 @@ fn test_let_bind_plus_fusion() {
                         HirCall::make(&reshape_var, &[&d_var]),
                         Let::make(
                             &f,
-                            Sub::make(&c, &e),
+                            Add::make(&e, &e),
                             Let::make(
                                 g.clone(),
                                 HirCall::make(Variable::make("exp"), &[&f]),
@@ -97,7 +97,7 @@ fn test_let_bind_plus_fusion() {
                                         Add::make(&g, &f),
                                         Mul::make(&g, &f)
                                     ),
-                                    Return::make(&[&h])
+                                    Return::make(&[&h, &g])
                                 )
                             )
                         )
