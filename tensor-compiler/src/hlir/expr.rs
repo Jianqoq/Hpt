@@ -127,6 +127,7 @@ impl Expr {
     }
 
     cast_expr!(to_variable, Variable);
+    cast_expr!(to_value, Value);
     cast_expr!(to_type, Type);
 }
 

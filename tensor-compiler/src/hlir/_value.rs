@@ -142,6 +142,30 @@ impl From<&i32> for _Value {
     }
 }
 
+impl From<isize> for _Value {
+    fn from(v: isize) -> Self {
+        _Value::Int(v as i64)
+    }
+}
+
+impl From<&isize> for _Value {
+    fn from(v: &isize) -> Self {
+        _Value::Int(*v as i64)
+    }
+}
+
+impl From<usize> for _Value {
+    fn from(v: usize) -> Self {
+        _Value::Uint(v as u64)
+    }
+}
+
+impl From<&usize> for _Value {
+    fn from(v: &usize) -> Self {
+        _Value::Uint(*v as u64)
+    }
+}
+
 impl From<f16> for _Value {
     fn from(v: f16) -> Self {
         _Value::Float(f64::from(v))

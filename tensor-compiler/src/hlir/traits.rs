@@ -118,7 +118,7 @@ pub trait HlirVisitor where Self: Sized {
     fn visit_variable(&self, _: &Variable) {}
     fn visit_str(&self, _: &Str) {}
     fn visit_cast(&self, cast: &Cast) {
-        cast.expr().accept(self);
+        cast.value().accept(self);
     }
     fn visit_add(&self, add: &Add) {
         add.lhs().accept(self);
@@ -321,7 +321,7 @@ pub trait HlirMutVisitor where Self: Sized {
     fn visit_variable(&mut self, _: &Variable) {}
     fn visit_str(&mut self, _: &Str) {}
     fn visit_cast(&mut self, cast: &Cast) {
-        cast.expr().accept_mut(self);
+        cast.value().accept_mut(self);
     }
     fn visit_add(&mut self, add: &Add) {
         add.lhs().accept_mut(self);
@@ -444,11 +444,12 @@ pub(crate) fn visit_str<V>(visitor: &mut V, string: &Str)
 pub(crate) fn visit_cast<V>(visitor: &mut V, cast: &Cast)
     where V: MutatorGetSet + Sized + HlirMutateVisitor
 {
-    let a = mutate_expr(visitor, cast.expr());
-    if &a == cast.expr() {
+    let a = mutate_expr(visitor, cast.value());
+    let expr: Expr = a.clone().into();
+    if a == expr {
         visitor.set_expr(cast);
     } else {
-        visitor.set_expr(Cast::make(a, cast.dtype()));
+        visitor.set_expr(Cast::make(expr.to_value().unwrap(), cast.dtype()));
     }
 }
 

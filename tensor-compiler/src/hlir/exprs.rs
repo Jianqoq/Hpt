@@ -44,6 +44,401 @@ impl Value {
             value: value.into(),
         }
     }
+    pub fn casted_value(&self, target: Dtype) -> Value {
+        match self.dtype {
+            Dtype::Bool =>
+                match self.value {
+                    _Value::Bool(val) => {
+                        match target {
+                            Dtype::Bool => Value::make(Dtype::Bool, val),
+                            Dtype::I8 => Value::make(Dtype::I8, val as i8),
+                            Dtype::U8 => Value::make(Dtype::U8, val as u8),
+                            Dtype::I16 => Value::make(Dtype::I16, val as i16),
+                            Dtype::U16 => Value::make(Dtype::U16, val as u16),
+                            Dtype::I32 => Value::make(Dtype::I32, val as i32),
+                            Dtype::U32 => Value::make(Dtype::U32, val as u32),
+                            Dtype::I64 => Value::make(Dtype::I64, val as i64),
+                            Dtype::U64 => Value::make(Dtype::U64, val as u64),
+                            Dtype::BF16 => Value::make(Dtype::BF16, val as i8 as f32),
+                            Dtype::F16 => Value::make(Dtype::F16, val as i8 as f32),
+                            Dtype::F32 => Value::make(Dtype::F32, val as i8 as f32),
+                            Dtype::F64 => Value::make(Dtype::F64, val as i8 as f64),
+                            Dtype::C32 => todo!(),
+                            Dtype::C64 => todo!(),
+                            Dtype::Isize => Value::make(Dtype::Isize, val as isize),
+                            Dtype::Usize => Value::make(Dtype::Usize, val as usize),
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            Dtype::I8 => {
+                match self.value {
+                    _Value::Int(val) => {
+                        match target {
+                            Dtype::Bool => Value::make(Dtype::Bool, val != 0),
+                            Dtype::I8 => Value::make(Dtype::I8, val as i8),
+                            Dtype::U8 => Value::make(Dtype::U8, val as u8),
+                            Dtype::I16 => Value::make(Dtype::I16, val as i16),
+                            Dtype::U16 => Value::make(Dtype::U16, val as u16),
+                            Dtype::I32 => Value::make(Dtype::I32, val as i32),
+                            Dtype::U32 => Value::make(Dtype::U32, val as u32),
+                            Dtype::I64 => Value::make(Dtype::I64, val as i64),
+                            Dtype::U64 => Value::make(Dtype::U64, val as u64),
+                            Dtype::BF16 => Value::make(Dtype::BF16, val as i8 as f32),
+                            Dtype::F16 => Value::make(Dtype::F16, val as i8 as f32),
+                            Dtype::F32 => Value::make(Dtype::F32, val as i8 as f32),
+                            Dtype::F64 => Value::make(Dtype::F64, val as i8 as f64),
+                            Dtype::C32 => todo!(),
+                            Dtype::C64 => todo!(),
+                            Dtype::Isize => Value::make(Dtype::Isize, val as isize),
+                            Dtype::Usize => Value::make(Dtype::Usize, val as usize),
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            Dtype::U8 => {
+                match self.value {
+                    _Value::Uint(val) => {
+                        match target {
+                            Dtype::Bool => Value::make(Dtype::Bool, val != 0),
+                            Dtype::I8 => Value::make(Dtype::I8, val as i8),
+                            Dtype::U8 => Value::make(Dtype::U8, val as u8),
+                            Dtype::I16 => Value::make(Dtype::I16, val as i16),
+                            Dtype::U16 => Value::make(Dtype::U16, val as u16),
+                            Dtype::I32 => Value::make(Dtype::I32, val as i32),
+                            Dtype::U32 => Value::make(Dtype::U32, val as u32),
+                            Dtype::I64 => Value::make(Dtype::I64, val as i64),
+                            Dtype::U64 => Value::make(Dtype::U64, val as u64),
+                            Dtype::BF16 => Value::make(Dtype::BF16, val as u8 as f32),
+                            Dtype::F16 => Value::make(Dtype::F16, val as u8 as f32),
+                            Dtype::F32 => Value::make(Dtype::F32, val as u8 as f32),
+                            Dtype::F64 => Value::make(Dtype::F64, val as u8 as f64),
+                            Dtype::C32 => todo!(),
+                            Dtype::C64 => todo!(),
+                            Dtype::Isize => Value::make(Dtype::Isize, val as isize),
+                            Dtype::Usize => Value::make(Dtype::Usize, val as usize),
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            Dtype::I16 => {
+                match self.value {
+                    _Value::Int(val) => {
+                        match target {
+                            Dtype::Bool => Value::make(Dtype::Bool, val != 0),
+                            Dtype::I8 => Value::make(Dtype::I8, val as i8),
+                            Dtype::U8 => Value::make(Dtype::U8, val as u8),
+                            Dtype::I16 => Value::make(Dtype::I16, val as i16),
+                            Dtype::U16 => Value::make(Dtype::U16, val as u16),
+                            Dtype::I32 => Value::make(Dtype::I32, val as i32),
+                            Dtype::U32 => Value::make(Dtype::U32, val as u32),
+                            Dtype::I64 => Value::make(Dtype::I64, val as i64),
+                            Dtype::U64 => Value::make(Dtype::U64, val as u64),
+                            Dtype::BF16 => Value::make(Dtype::BF16, val as i16 as f32),
+                            Dtype::F16 => Value::make(Dtype::F16, val as i16 as f32),
+                            Dtype::F32 => Value::make(Dtype::F32, val as i16 as f32),
+                            Dtype::F64 => Value::make(Dtype::F64, val as i16 as f64),
+                            Dtype::C32 => todo!(),
+                            Dtype::C64 => todo!(),
+                            Dtype::Isize => Value::make(Dtype::Isize, val as isize),
+                            Dtype::Usize => Value::make(Dtype::Usize, val as usize),
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            Dtype::U16 => {
+                match self.value {
+                    _Value::Uint(val) => {
+                        match target {
+                            Dtype::Bool => Value::make(Dtype::Bool, val != 0),
+                            Dtype::I8 => Value::make(Dtype::I8, val as i8),
+                            Dtype::U8 => Value::make(Dtype::U8, val as u8),
+                            Dtype::I16 => Value::make(Dtype::I16, val as i16),
+                            Dtype::U16 => Value::make(Dtype::U16, val as u16),
+                            Dtype::I32 => Value::make(Dtype::I32, val as i32),
+                            Dtype::U32 => Value::make(Dtype::U32, val as u32),
+                            Dtype::I64 => Value::make(Dtype::I64, val as i64),
+                            Dtype::U64 => Value::make(Dtype::U64, val as u64),
+                            Dtype::BF16 => Value::make(Dtype::BF16, val as u16 as f32),
+                            Dtype::F16 => Value::make(Dtype::F16, val as u16 as f32),
+                            Dtype::F32 => Value::make(Dtype::F32, val as u16 as f32),
+                            Dtype::F64 => Value::make(Dtype::F64, val as u16 as f64),
+                            Dtype::C32 => todo!(),
+                            Dtype::C64 => todo!(),
+                            Dtype::Isize => Value::make(Dtype::Isize, val as isize),
+                            Dtype::Usize => Value::make(Dtype::Usize, val as usize),
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            Dtype::I32 => {
+                match self.value {
+                    _Value::Int(val) => {
+                        match target {
+                            Dtype::Bool => Value::make(Dtype::Bool, val != 0),
+                            Dtype::I8 => Value::make(Dtype::I8, val as i8),
+                            Dtype::U8 => Value::make(Dtype::U8, val as u8),
+                            Dtype::I16 => Value::make(Dtype::I16, val as i16),
+                            Dtype::U16 => Value::make(Dtype::U16, val as u16),
+                            Dtype::I32 => Value::make(Dtype::I32, val as i32),
+                            Dtype::U32 => Value::make(Dtype::U32, val as u32),
+                            Dtype::I64 => Value::make(Dtype::I64, val as i64),
+                            Dtype::U64 => Value::make(Dtype::U64, val as u64),
+                            Dtype::BF16 => Value::make(Dtype::BF16, val as i32 as f32),
+                            Dtype::F16 => Value::make(Dtype::F16, val as i32 as f32),
+                            Dtype::F32 => Value::make(Dtype::F32, val as i32 as f32),
+                            Dtype::F64 => Value::make(Dtype::F64, val as i32 as f64),
+                            Dtype::C32 => todo!(),
+                            Dtype::C64 => todo!(),
+                            Dtype::Isize => Value::make(Dtype::Isize, val as isize),
+                            Dtype::Usize => Value::make(Dtype::Usize, val as usize),
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            Dtype::U32 => {
+                match self.value {
+                    _Value::Uint(val) => {
+                        match target {
+                            Dtype::Bool => Value::make(Dtype::Bool, val != 0),
+                            Dtype::I8 => Value::make(Dtype::I8, val as i8),
+                            Dtype::U8 => Value::make(Dtype::U8, val as u8),
+                            Dtype::I16 => Value::make(Dtype::I16, val as i16),
+                            Dtype::U16 => Value::make(Dtype::U16, val as u16),
+                            Dtype::I32 => Value::make(Dtype::I32, val as i32),
+                            Dtype::U32 => Value::make(Dtype::U32, val as u32),
+                            Dtype::I64 => Value::make(Dtype::I64, val as i64),
+                            Dtype::U64 => Value::make(Dtype::U64, val as u64),
+                            Dtype::BF16 => Value::make(Dtype::BF16, val as u32 as f32),
+                            Dtype::F16 => Value::make(Dtype::F16, val as u32 as f32),
+                            Dtype::F32 => Value::make(Dtype::F32, val as u32 as f32),
+                            Dtype::F64 => Value::make(Dtype::F64, val as u32 as f64),
+                            Dtype::C32 => todo!(),
+                            Dtype::C64 => todo!(),
+                            Dtype::Isize => Value::make(Dtype::Isize, val as isize),
+                            Dtype::Usize => Value::make(Dtype::Usize, val as usize),
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            Dtype::I64 => {
+                match self.value {
+                    _Value::Int(val) => {
+                        match target {
+                            Dtype::Bool => Value::make(Dtype::Bool, val != 0),
+                            Dtype::I8 => Value::make(Dtype::I8, val as i8),
+                            Dtype::U8 => Value::make(Dtype::U8, val as u8),
+                            Dtype::I16 => Value::make(Dtype::I16, val as i16),
+                            Dtype::U16 => Value::make(Dtype::U16, val as u16),
+                            Dtype::I32 => Value::make(Dtype::I32, val as i32),
+                            Dtype::U32 => Value::make(Dtype::U32, val as u32),
+                            Dtype::I64 => Value::make(Dtype::I64, val as i64),
+                            Dtype::U64 => Value::make(Dtype::U64, val as u64),
+                            Dtype::BF16 => Value::make(Dtype::BF16, val as i64 as f32),
+                            Dtype::F16 => Value::make(Dtype::F16, val as i64 as f32),
+                            Dtype::F32 => Value::make(Dtype::F32, val as i64 as f32),
+                            Dtype::F64 => Value::make(Dtype::F64, val as i64 as f64),
+                            Dtype::C32 => todo!(),
+                            Dtype::C64 => todo!(),
+                            Dtype::Isize => Value::make(Dtype::Isize, val as isize),
+                            Dtype::Usize => Value::make(Dtype::Usize, val as usize),
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            Dtype::U64 => {
+                match self.value {
+                    _Value::Uint(val) => {
+                        match target {
+                            Dtype::Bool => Value::make(Dtype::Bool, val != 0),
+                            Dtype::I8 => Value::make(Dtype::I8, val as i8),
+                            Dtype::U8 => Value::make(Dtype::U8, val as u8),
+                            Dtype::I16 => Value::make(Dtype::I16, val as i16),
+                            Dtype::U16 => Value::make(Dtype::U16, val as u16),
+                            Dtype::I32 => Value::make(Dtype::I32, val as i32),
+                            Dtype::U32 => Value::make(Dtype::U32, val as u32),
+                            Dtype::I64 => Value::make(Dtype::I64, val as i64),
+                            Dtype::U64 => Value::make(Dtype::U64, val as u64),
+                            Dtype::BF16 => Value::make(Dtype::BF16, val as u64 as f32),
+                            Dtype::F16 => Value::make(Dtype::F16, val as u64 as f32),
+                            Dtype::F32 => Value::make(Dtype::F32, val as u64 as f32),
+                            Dtype::F64 => Value::make(Dtype::F64, val as u64 as f64),
+                            Dtype::C32 => todo!(),
+                            Dtype::C64 => todo!(),
+                            Dtype::Isize => Value::make(Dtype::Isize, val as isize),
+                            Dtype::Usize => Value::make(Dtype::Usize, val as usize),
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            Dtype::BF16 => {
+                match self.value {
+                    _Value::Float(val) => {
+                        match target {
+                            Dtype::Bool => Value::make(Dtype::Bool, val != 0.0),
+                            Dtype::I8 => Value::make(Dtype::I8, val as i8),
+                            Dtype::U8 => Value::make(Dtype::U8, val as u8),
+                            Dtype::I16 => Value::make(Dtype::I16, val as i16),
+                            Dtype::U16 => Value::make(Dtype::U16, val as u16),
+                            Dtype::I32 => Value::make(Dtype::I32, val as i32),
+                            Dtype::U32 => Value::make(Dtype::U32, val as u32),
+                            Dtype::I64 => Value::make(Dtype::I64, val as i64),
+                            Dtype::U64 => Value::make(Dtype::U64, val as u64),
+                            Dtype::BF16 => Value::make(Dtype::BF16, val as f32),
+                            Dtype::F16 => Value::make(Dtype::F16, val as f32),
+                            Dtype::F32 => Value::make(Dtype::F32, val as f32),
+                            Dtype::F64 => Value::make(Dtype::F64, val as f64),
+                            Dtype::C32 => todo!(),
+                            Dtype::C64 => todo!(),
+                            Dtype::Isize => Value::make(Dtype::Isize, val as isize),
+                            Dtype::Usize => Value::make(Dtype::Usize, val as usize),
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            Dtype::F16 => {
+                match self.value {
+                    _Value::Float(val) => {
+                        match target {
+                            Dtype::Bool => Value::make(Dtype::Bool, val != 0.0),
+                            Dtype::I8 => Value::make(Dtype::I8, val as i8),
+                            Dtype::U8 => Value::make(Dtype::U8, val as u8),
+                            Dtype::I16 => Value::make(Dtype::I16, val as i16),
+                            Dtype::U16 => Value::make(Dtype::U16, val as u16),
+                            Dtype::I32 => Value::make(Dtype::I32, val as i32),
+                            Dtype::U32 => Value::make(Dtype::U32, val as u32),
+                            Dtype::I64 => Value::make(Dtype::I64, val as i64),
+                            Dtype::U64 => Value::make(Dtype::U64, val as u64),
+                            Dtype::BF16 => Value::make(Dtype::BF16, val as f32),
+                            Dtype::F16 => Value::make(Dtype::F16, val as f32),
+                            Dtype::F32 => Value::make(Dtype::F32, val as f32),
+                            Dtype::F64 => Value::make(Dtype::F64, val as f64),
+                            Dtype::C32 => todo!(),
+                            Dtype::C64 => todo!(),
+                            Dtype::Isize => Value::make(Dtype::Isize, val as isize),
+                            Dtype::Usize => Value::make(Dtype::Usize, val as usize),
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            Dtype::F32 => {
+                match self.value {
+                    _Value::Float(val) => {
+                        match target {
+                            Dtype::Bool => Value::make(Dtype::Bool, val != 0.0),
+                            Dtype::I8 => Value::make(Dtype::I8, val as i8),
+                            Dtype::U8 => Value::make(Dtype::U8, val as u8),
+                            Dtype::I16 => Value::make(Dtype::I16, val as i16),
+                            Dtype::U16 => Value::make(Dtype::U16, val as u16),
+                            Dtype::I32 => Value::make(Dtype::I32, val as i32),
+                            Dtype::U32 => Value::make(Dtype::U32, val as u32),
+                            Dtype::I64 => Value::make(Dtype::I64, val as i64),
+                            Dtype::U64 => Value::make(Dtype::U64, val as u64),
+                            Dtype::BF16 => Value::make(Dtype::BF16, val as f32),
+                            Dtype::F16 => Value::make(Dtype::F16, val as f32),
+                            Dtype::F32 => Value::make(Dtype::F32, val as f32),
+                            Dtype::F64 => Value::make(Dtype::F64, val as f64),
+                            Dtype::C32 => todo!(),
+                            Dtype::C64 => todo!(),
+                            Dtype::Isize => Value::make(Dtype::Isize, val as isize),
+                            Dtype::Usize => Value::make(Dtype::Usize, val as usize),
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            Dtype::F64 => {
+                match self.value {
+                    _Value::Float(val) => {
+                        match target {
+                            Dtype::Bool => Value::make(Dtype::Bool, val != 0.0),
+                            Dtype::I8 => Value::make(Dtype::I8, val as i8),
+                            Dtype::U8 => Value::make(Dtype::U8, val as u8),
+                            Dtype::I16 => Value::make(Dtype::I16, val as i16),
+                            Dtype::U16 => Value::make(Dtype::U16, val as u16),
+                            Dtype::I32 => Value::make(Dtype::I32, val as i32),
+                            Dtype::U32 => Value::make(Dtype::U32, val as u32),
+                            Dtype::I64 => Value::make(Dtype::I64, val as i64),
+                            Dtype::U64 => Value::make(Dtype::U64, val as u64),
+                            Dtype::BF16 => Value::make(Dtype::BF16, val as f32),
+                            Dtype::F16 => Value::make(Dtype::F16, val as f32),
+                            Dtype::F32 => Value::make(Dtype::F32, val as f32),
+                            Dtype::F64 => Value::make(Dtype::F64, val as f64),
+                            Dtype::C32 => todo!(),
+                            Dtype::C64 => todo!(),
+                            Dtype::Isize => Value::make(Dtype::Isize, val as isize),
+                            Dtype::Usize => Value::make(Dtype::Usize, val as usize),
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            Dtype::C32 => todo!(),
+            Dtype::C64 => todo!(),
+            Dtype::Isize => {
+                match self.value {
+                    _Value::Int(val) => {
+                        match target {
+                            Dtype::Bool => Value::make(Dtype::Bool, val != 0),
+                            Dtype::I8 => Value::make(Dtype::I8, val as i8),
+                            Dtype::U8 => Value::make(Dtype::U8, val as u8),
+                            Dtype::I16 => Value::make(Dtype::I16, val as i16),
+                            Dtype::U16 => Value::make(Dtype::U16, val as u16),
+                            Dtype::I32 => Value::make(Dtype::I32, val as i32),
+                            Dtype::U32 => Value::make(Dtype::U32, val as u32),
+                            Dtype::I64 => Value::make(Dtype::I64, val as i64),
+                            Dtype::U64 => Value::make(Dtype::U64, val as u64),
+                            Dtype::BF16 => Value::make(Dtype::BF16, val as i64 as f32),
+                            Dtype::F16 => Value::make(Dtype::F16, val as i64 as f32),
+                            Dtype::F32 => Value::make(Dtype::F32, val as i64 as f32),
+                            Dtype::F64 => Value::make(Dtype::F64, val as i64 as f64),
+                            Dtype::C32 => todo!(),
+                            Dtype::C64 => todo!(),
+                            Dtype::Isize => Value::make(Dtype::Isize, val as isize),
+                            Dtype::Usize => Value::make(Dtype::Usize, val as usize),
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            Dtype::Usize => {
+                match self.value {
+                    _Value::Uint(val) => {
+                        match target {
+                            Dtype::Bool => Value::make(Dtype::Bool, val != 0),
+                            Dtype::I8 => Value::make(Dtype::I8, val as i8),
+                            Dtype::U8 => Value::make(Dtype::U8, val as u8),
+                            Dtype::I16 => Value::make(Dtype::I16, val as i16),
+                            Dtype::U16 => Value::make(Dtype::U16, val as u16),
+                            Dtype::I32 => Value::make(Dtype::I32, val as i32),
+                            Dtype::U32 => Value::make(Dtype::U32, val as u32),
+                            Dtype::I64 => Value::make(Dtype::I64, val as i64),
+                            Dtype::U64 => Value::make(Dtype::U64, val as u64),
+                            Dtype::BF16 => Value::make(Dtype::BF16, val as u64 as f32),
+                            Dtype::F16 => Value::make(Dtype::F16, val as u64 as f32),
+                            Dtype::F32 => Value::make(Dtype::F32, val as u64 as f32),
+                            Dtype::F64 => Value::make(Dtype::F64, val as u64 as f64),
+                            Dtype::C32 => todo!(),
+                            Dtype::C64 => todo!(),
+                            Dtype::Isize => Value::make(Dtype::Isize, val as isize),
+                            Dtype::Usize => Value::make(Dtype::Usize, val as usize),
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+        }
+    }
     pub fn dtype(&self) -> Dtype {
         self.dtype
     }
@@ -51,6 +446,18 @@ impl Value {
 
 impl HlirAcceptor for Value {
     fn accept<V: HlirVisitor>(&self, visitor: &V) {
+        visitor.visit_value(self);
+    }
+}
+
+impl HlirAccepterMut for Value {
+    fn accept_mut<V: HlirMutVisitor>(&self, visitor: &mut V) {
+        visitor.visit_value(self);
+    }
+}
+
+impl HlirAccepterMutate for Value {
+    fn accept_mutate<V: HlirMutateVisitor>(&self, visitor: &mut V) {
         visitor.visit_value(self);
     }
 }
@@ -155,18 +562,18 @@ impl HlirAccepterMutate for Variable {
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]
 pub struct Cast {
-    expr: Arc<Expr>,
+    expr: Arc<Value>,
     dtype: Dtype,
 }
 
 impl Cast {
-    pub fn make<T: Into<Expr>>(expr: T, dtype: Dtype) -> Self {
+    pub fn make<T: Into<Value>>(expr: T, dtype: Dtype) -> Self {
         Self { expr: expr.into().into(), dtype }
     }
-    pub fn expr(&self) -> &Expr {
+    pub fn value(&self) -> &Value {
         &self.expr
     }
-    pub fn expr_(&self) -> &Arc<Expr> {
+    pub fn value_(&self) -> &Arc<Value> {
         &self.expr
     }
     pub fn dtype(&self) -> Dtype {
@@ -671,6 +1078,17 @@ impl Tensor {
             layout: Layout::from(shape),
             load_fn: |var, expr| { crate::halide::exprs::Call::make(var.name(), &[expr]) },
             const_val: None,
+            id,
+            dtype,
+        })
+    }
+
+    pub fn make_const(dtype: Dtype, value: Value, id: usize) -> Self {
+        Tensor::Base(BaseTensor {
+            reduced_strides: vec![].into(),
+            layout: Layout::from(Shape::from([1])),
+            load_fn: |var, expr| { crate::halide::exprs::Call::make(var.name(), &[expr]) },
+            const_val: Some(value),
             id,
             dtype,
         })
