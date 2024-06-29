@@ -62,6 +62,7 @@ fn test_let_bind_plus_fusion() {
     let f = Variable::make("f");
     let g = Variable::make("g");
     let h = Variable::make("h");
+    let i = Value::make(Dtype::I64, 1);
 
     let let_ = Let::make(
         &a_var,
@@ -87,12 +88,9 @@ fn test_let_bind_plus_fusion() {
                                 Let::make(
                                     &h,
                                     If::make(
-                                        HirCall::make(
-                                            Variable::make("gt"),
-                                            &[
-                                                Expr::Variable(g.clone().into()),
-                                                Value::make(Dtype::BF16, 0.0).into(),
-                                            ]
+                                        Gt::make(
+                                            Expr::Value(i),
+                                            Value::make(Dtype::BF16, 0.0)
                                         ),
                                         Add::make(&g, &f),
                                         Mul::make(&g, &f)
