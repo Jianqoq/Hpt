@@ -7,6 +7,7 @@ use tensor_types::dtype::Dtype;
 use crate::{
     edges::Edges,
     halide::{
+        assign_stmt::AssignStmt,
         exprs::{ Int, Load },
         let_stmt::LetStmt,
         loop_utils::build_nested::build_nested_for,
@@ -178,9 +179,7 @@ impl HlirLower {
 
     fn _build_nested_loop(&mut self) {
         let mut loop_indexes_map = HashMap::new();
-        for (loop_index, (name, _, _)) in self.loop_indexes
-            .iter()
-            .zip(self.ordered_exprs.iter()) {
+        for (loop_index, (name, _, _)) in self.loop_indexes.iter().zip(self.ordered_exprs.iter()) {
             loop_indexes_map.insert(name, loop_index);
         }
         let mut sorted_edges = HashMap::new();
@@ -200,7 +199,9 @@ impl HlirLower {
             sorted_edges.insert(name, ordered_set);
         }
         let mut loop_generated = HashMap::<&String, Stmt>::new();
-        for ((name, is_reduce, body), indexes) in self.ordered_exprs.iter().zip(self.loop_indexes.iter()) {
+        for ((name, is_reduce, body), indexes) in self.ordered_exprs
+            .iter()
+            .zip(self.loop_indexes.iter()) {
             let shape: Shape = indexes
                 .iter()
                 .map(|(_, dim)| *dim)
@@ -214,11 +215,11 @@ impl HlirLower {
             let dependencies = &sorted_edges[name];
 
             let mut seq = vec![];
-            
+
             let tmp_val = Variable::make(name);
-            if *is_reduce {
-                seq.push(LetStmt::make(&tmp_val, body.clone()).into());
-            }
+            // if *is_reduce {
+            //     seq.push(LetStmt::make(&tmp_val, body.clone()).into());
+            // }
 
             for dep in dependencies.iter() {
                 if let Some(stmt) = loop_generated.get(dep) {
@@ -227,6 +228,9 @@ impl HlirLower {
                     panic!("{} not found in loop_generated", dep);
                 }
             }
+            // if *is_reduce {
+            //     seq.push(AssignStmt::make(&tmp_val, body.clone()).into());
+            // }
             seq.push(LetStmt::make(&tmp_val, body.clone()).into());
             let stmt = build_nested_for(&vars, &shape, Seq::make(seq));
             self.lowered_fors.push((name.clone(), stmt.clone()));
@@ -247,7 +251,9 @@ impl HlirLower {
 
 impl Display for HlirLower {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        for (loop_idx, (name, _, compute)) in self.loop_indexes.iter().zip(self.ordered_exprs.iter()) {
+        for (loop_idx, (name, _, compute)) in self.loop_indexes
+            .iter()
+            .zip(self.ordered_exprs.iter()) {
             write!(
                 f,
                 "{} = [{}], {}\n",
