@@ -49,7 +49,7 @@ fn test_fusion() {
 }
 
 #[test]
-fn test_fusion_mul_sum() {
+fn test_convle2d() {
     let a = Tensor::make(Shape::new([8, 8]).into(), Dtype::BF16, 1);
     let b = Tensor::make(Shape::new([8, 8]).into(), Dtype::BF16, 2);
     let mul = Tensor::make_binop("mul", a, b, 3);
