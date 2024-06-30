@@ -38,6 +38,7 @@ pub mod hlir {
     pub mod lowering;
     pub mod tests;
 }
+pub mod edges;
 pub mod registry;
 pub mod op;
 pub mod float;
