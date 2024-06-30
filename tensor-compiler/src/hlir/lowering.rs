@@ -22,7 +22,7 @@ use super::exprs::Tensor;
 
 pub struct HlirLower {
     /// this ordered exprs is the order of computation
-    ordered_exprs: Vec<(PrimeExpr, PrimeExpr)>,
+    ordered_exprs: Vec<(String, PrimeExpr)>,
     /// this unique exprs is the unique exprs in the computation
     unique_exprs: HashSet<PrimeExpr>,
     /// in compilation, each node could have multiple different compute
@@ -30,13 +30,11 @@ pub struct HlirLower {
     cnts: HashMap<usize, usize>,
     /// a stack to get the for loop variables correctly
     var_stack: Vec<Variable>,
-    /// temp var stack
-    temp_var_stack: Vec<Variable>,
     /// for loop index variable
-    loop_indexes: Vec<Vec<Variable>>,
+    loop_indexes: Vec<Vec<(Variable, i64)>>,
     /// for loop range
     loop_ranges: Vec<Vec<(i64, i64, i64)>>, // (start, end, step)
-    lowered_fors: Vec<(PrimeExpr, Stmt)>,
+    lowered_fors: Vec<(String, Stmt)>,
     loop_dependencies: Edges<String>,
     temp_loop_ids: HashSet<String>,
     common_depends: Vec<String>,
@@ -51,7 +49,6 @@ impl HlirLower {
             cnts: HashMap::new(),
             var_stack: vec![],
             loop_indexes: vec![],
-            temp_var_stack: vec![],
             loop_ranges: vec![],
             lowered_fors: vec![],
             common_shape: Shape::new(vec![]),
@@ -75,21 +72,19 @@ impl HlirLower {
                     .or_insert(HashSet::new())
                     .insert(input.clone());
             }
-            self.ordered_exprs.push((variable_name.into(), expr.clone()));
-            if tensor.is_reduce() {
-                self.loop_indexes.push(self.temp_var_stack.clone());
-                let reduce_shape = tensor.to_reduce().shape().clone();
-                let mut vec = vec![];
-                for i in 0..reduce_shape.len() {
-                    vec.push((0, reduce_shape[i] as i64, 1));
-                }
-                self.loop_ranges.push(vec);
-            }
+            let common_var_stack = self.var_stack
+                .iter()
+                .zip(self.common_shape.iter())
+                .map(|(x, y)| (x.clone(), *y))
+                .collect::<Vec<_>>();
+            self.loop_indexes.push(common_var_stack);
+            self.ordered_exprs.push((variable_name.name().to_string(), expr.clone()));
         }
+
         self._build_nested_loop();
     }
 
-    fn _lower(&mut self, output: &Tensor, push_vars: bool) -> PrimeExpr {
+    fn _lower(&mut self, output: &Tensor, root: bool) -> PrimeExpr {
         match output {
             Tensor::Base(base) => {
                 let mut strides = base.layout().strides().to_vec();
@@ -109,7 +104,6 @@ impl HlirLower {
                 let mut exprs = vec![];
                 for var in reduce.reduce_vars().iter() {
                     self.var_stack.push(var.clone());
-                    self.temp_var_stack.push(var.clone());
                 }
                 for input in reduce.inputs().iter() {
                     exprs.push(self._lower(input, false));
@@ -121,14 +115,14 @@ impl HlirLower {
                 call.into()
             }
             Tensor::Fuse(fuse) => {
-                if push_vars {
+                if root {
                     for i in 0..fuse.ndim() {
                         self.var_stack.push(Variable::new(format!("i{}", i)));
                     }
                 }
                 let mut exprs = vec![];
                 for input in fuse.inputs().iter() {
-                    if push_vars {
+                    if root {
                         self.temp_loop_ids.clear();
                         exprs.push(self._lower(input, false));
                         self.common_depends.extend(self.temp_loop_ids.iter().cloned());
@@ -154,8 +148,12 @@ impl HlirLower {
                     }
                     let var = Variable::new(format!("%{}_{}", fuse.id(), self.cnts[&fuse.id()]));
                     if !contains {
-                        self.ordered_exprs.push((var.clone().into(), call.into()));
-                        self.loop_indexes.push(self.temp_var_stack.clone());
+                        self.ordered_exprs.push((var.name.to_string(), call.into()));
+                        let mut vec = vec![];
+                        for (var, dim) in reduce.reduce_vars().iter().zip(reduce.shape().iter()) {
+                            vec.push((var.clone(), *dim));
+                        }
+                        self.loop_indexes.push(vec);
                         self.loop_dependencies.insert(
                             var.name().to_string(),
                             self.temp_loop_ids.clone()
@@ -168,9 +166,6 @@ impl HlirLower {
                         }
                         self.loop_ranges.push(vec);
                     }
-                    for _ in reduce.reduce_vars().iter() {
-                        self.temp_var_stack.pop();
-                    }
                     self.temp_loop_ids.insert(var.name().to_string());
                     return var.into();
                 } else {
@@ -182,7 +177,53 @@ impl HlirLower {
     }
 
     fn _build_nested_loop(&mut self) {
-        for (name, body) in self.ordered_exprs.iter() {
+        let mut loop_indexes_map = HashMap::new();
+        for (loop_index, (name, _)) in self.loop_indexes.iter().zip(self.ordered_exprs.iter()) {
+            loop_indexes_map.insert(name, loop_index);
+        }
+        let mut sorted_edges = HashMap::new();
+        for (name, depends) in self.loop_dependencies.iter() {
+            let mut ordered_set = depends
+                .iter()
+                .map(|x| x)
+                .collect::<Vec<_>>();
+
+            ordered_set.sort_by_key(|k|
+                self.ordered_exprs
+                    .iter()
+                    .map(|(x, _)| x)
+                    .position(|x| x == *k)
+                    .expect(&format!("{} not found in ordered_exprs", k))
+            );
+            sorted_edges.insert(name, ordered_set);
+        }
+        let mut loop_generated = HashMap::<&String, Stmt>::new();
+        for ((name, body), indexes) in self.ordered_exprs.iter().zip(self.loop_indexes.iter()) {
+            let shape: Shape = indexes
+                .iter()
+                .map(|(_, dim)| *dim)
+                .collect::<Vec<_>>()
+                .into();
+            let vars = indexes
+                .iter()
+                .map(|(var, _)| var.clone())
+                .collect::<Vec<_>>();
+
+            let dependencies = &sorted_edges[name];
+
+            let mut seq = vec![];
+
+            for dep in dependencies.iter() {
+                if let Some(stmt) = loop_generated.get(dep) {
+                    seq.push(stmt.clone());
+                } else {
+                    panic!("{} not found in loop_generated", dep);
+                }
+            }
+            seq.push(LetStmt::make(&Variable::make("test"), body.clone()).into());
+            let stmt = build_nested_for(&vars, &shape, Seq::make(seq));
+            self.lowered_fors.push((name.clone(), stmt.clone()));
+            loop_generated.insert(name, stmt);
         }
     }
 
@@ -206,22 +247,8 @@ impl Display for HlirLower {
                 name,
                 loop_idx
                     .iter()
-                    .map(|x| x.name())
-                    .collect::<Vec<&str>>()
-                    .join(", "),
-                compute
-            )?;
-        }
-        if self.loop_indexes.len() < self.ordered_exprs.len() {
-            let (name, compute) = self.ordered_exprs.last().unwrap();
-            write!(
-                f,
-                "{} = [{}], {}\n",
-                name,
-                self.var_stack
-                    .iter()
-                    .map(|x| x.name())
-                    .collect::<Vec<&str>>()
+                    .map(|(var, dim)| format!("({}:{})", var.name(), dim))
+                    .collect::<Vec<String>>()
                     .join(", "),
                 compute
             )?;

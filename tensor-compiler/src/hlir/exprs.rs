@@ -1096,13 +1096,14 @@ impl Tensor {
                 let res_shape = predict_reduce_shape(&fuse.shape, &axes).1;
                 // the shape of fuse should all be the same
                 let mut reduce_vars = vec![];
+                let mut reduce_shape = vec![];
                 for i in axes.iter() {
                     reduce_vars.push(Variable::new(format!("r{}_{}", fuse.id, i)));
+                    reduce_shape.push(fuse.shape[*i]);
                 }
                 for i in Arc::make_mut(&mut fuse.inputs).iter_mut() {
                     i.update_reduce_strides(&axes);
                 }
-                let shape: Shape = res_shape.into();
                 let reduce = ReduceTensor {
                     inputs: fuse.inputs.clone(),
                     reduce_vars: reduce_vars.into(),
@@ -1111,10 +1112,10 @@ impl Tensor {
                     op_name: fn_name.to_string(),
                     dtype: fuse.dtype,
                     id,
-                    shape: shape.clone(),
+                    reduce_shape: reduce_shape.into(),
                 };
                 let wrapper = FuseTensor {
-                    shape: shape.clone(),
+                    shape: res_shape.into(),
                     inputs: vec![Tensor::Reduce(reduce)].into(),
                     func,
                     op_name: fn_name.to_string(),
@@ -1345,7 +1346,7 @@ impl BaseTensor {
 pub struct ReduceTensor {
     inputs: Arc<Vec<Tensor>>,
     reduce_vars: Arc<Vec<Variable>>,
-    shape: Shape,
+    reduce_shape: Shape,
     identity: PrimeExpr,
     func: Closures,
     op_name: String,
@@ -1367,7 +1368,7 @@ impl ReduceTensor {
         &self.identity
     }
     pub fn shape(&self) -> &Shape {
-        &self.shape
+        &self.reduce_shape
     }
     pub fn id(&self) -> usize {
         self.id
