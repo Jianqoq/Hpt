@@ -885,6 +885,14 @@ pub enum Tensor {
 }
 
 impl Tensor {
+    pub fn inputs(&self) -> Option<&Vec<Tensor>> {
+        match self {
+            Tensor::Reduce(reduce) => Some(&reduce.inputs),
+            Tensor::Fuse(fuse) => Some(&fuse.inputs),
+            _ => None,
+        }
+    }
+
     pub fn const_val(&self) -> Option<Value> {
         match self {
             Tensor::Base(base) => base.const_val.clone(),
@@ -1357,6 +1365,12 @@ impl ReduceTensor {
     }
     pub fn identity(&self) -> &PrimeExpr {
         &self.identity
+    }
+    pub fn shape(&self) -> &Shape {
+        &self.shape
+    }
+    pub fn id(&self) -> usize {
+        self.id
     }
 }
 

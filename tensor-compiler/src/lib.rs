@@ -1,4 +1,3 @@
-
 pub mod halide {
     pub mod prime_expr;
     pub mod for_stmt;
@@ -9,8 +8,8 @@ pub mod halide {
         pub mod subsititue_for_range;
         pub mod substitue_load_partial_idx;
     }
-    pub mod utils {
-        pub mod for_utils;
+    pub mod loop_utils {
+        pub mod build_nested;
     }
     pub mod if_stmt;
     pub mod inplace_store_stmt;

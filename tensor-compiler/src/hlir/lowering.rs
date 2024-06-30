@@ -1,9 +1,19 @@
 use std::fmt::Display;
 
 use hashbrown::{ HashMap, HashSet };
+use tensor_common::shape::Shape;
 use tensor_types::dtype::Dtype;
 
-use crate::halide::{ exprs::{ Int, Load }, prime_expr::PrimeExpr, variable::Variable };
+use crate::halide::{
+    exprs::{ Int, Load },
+    let_stmt::LetStmt,
+    loop_utils::build_nested::build_nested_for,
+    prime_expr::PrimeExpr,
+    printer::IRPrinter,
+    seq_stmt::Seq,
+    stmt::Stmt,
+    variable::Variable,
+};
 
 use super::exprs::Tensor;
 
@@ -17,6 +27,16 @@ pub struct HlirLower {
     cnts: HashMap<usize, usize>,
     /// a stack to get the for loop variables correctly
     var_stack: Vec<Variable>,
+    /// temp var stack
+    temp_var_stack: Vec<Variable>,
+    /// for loop index variable
+    loop_indexes: Vec<Vec<Variable>>,
+    /// for loop range
+    loop_ranges: Vec<Vec<(i64, i64, i64)>>, // (start, end, step)
+    lowered_fors: Vec<(PrimeExpr, Stmt)>,
+    loop_dependencies: HashMap<String, HashSet<String>>,
+    temp_loop_ids: HashSet<String>,
+    common_shape: Shape,
 }
 
 impl HlirLower {
@@ -26,20 +46,42 @@ impl HlirLower {
             unique_exprs: HashSet::new(),
             cnts: HashMap::new(),
             var_stack: vec![],
+            loop_indexes: vec![],
+            temp_var_stack: vec![],
+            loop_ranges: vec![],
+            lowered_fors: vec![],
+            common_shape: Shape::new(vec![]),
+            loop_dependencies: HashMap::new(),
+            temp_loop_ids: HashSet::new(),
         }
     }
 
     pub fn lower<T: Into<Tensor>>(&mut self, output: T) {
         let tensor: &Tensor = &output.into();
+        self.common_shape = tensor.shape().clone();
         let expr = self._lower(tensor, true);
         if !self.unique_exprs.contains(&expr) {
             self.unique_exprs.insert(expr.clone());
             let variable_name = Variable::from(format!("%{}", tensor.id()));
+            self.loop_dependencies.insert(
+                variable_name.name().to_string(),
+                self.temp_loop_ids.clone()
+            );
             self.ordered_exprs.push((variable_name.into(), expr.clone()));
+            if tensor.is_reduce() {
+                self.loop_indexes.push(self.temp_var_stack.clone());
+                let reduce_shape = tensor.to_reduce().shape().clone();
+                let mut vec = vec![];
+                for i in 0..reduce_shape.len() {
+                    vec.push((0, reduce_shape[i] as i64, 1));
+                }
+                self.loop_ranges.push(vec);
+            }
         }
+        self._build_nested_loop();
     }
 
-    pub fn _lower(&mut self, output: &Tensor, push_vars: bool) -> PrimeExpr {
+    fn _lower(&mut self, output: &Tensor, push_vars: bool) -> PrimeExpr {
         match output {
             Tensor::Base(base) => {
                 let mut strides = base.layout().strides().to_vec();
@@ -59,6 +101,7 @@ impl HlirLower {
                 let mut exprs = vec![];
                 for var in reduce.reduce_vars().iter() {
                     self.var_stack.push(var.clone());
+                    self.temp_var_stack.push(var.clone());
                 }
                 for input in reduce.inputs().iter() {
                     exprs.push(self._lower(input, false));
@@ -77,10 +120,14 @@ impl HlirLower {
                 }
                 let mut exprs = vec![];
                 for input in fuse.inputs().iter() {
+                    if push_vars {
+                        self.temp_loop_ids.clear();
+                    }
                     exprs.push(self._lower(input, false));
                 }
                 if fuse.inputs().len() == 1 && fuse.inputs()[0].is_reduce() {
-                    exprs.push(fuse.inputs()[0].to_reduce().identity().clone());
+                    let reduce = fuse.inputs()[0].to_reduce();
+                    exprs.push(reduce.identity().clone());
                     let call: PrimeExpr = fuse.func().call_common(exprs).into();
                     let mut contains = true;
                     if let Some(saved) = self.cnts.get_mut(&fuse.id()) {
@@ -97,7 +144,23 @@ impl HlirLower {
                     let var = Variable::new(format!("%{}_{}", fuse.id(), self.cnts[&fuse.id()]));
                     if !contains {
                         self.ordered_exprs.push((var.clone().into(), call.into()));
+                        self.loop_indexes.push(self.temp_var_stack.clone());
+                        self.loop_dependencies.insert(
+                            var.name().to_string(),
+                            self.temp_loop_ids.clone()
+                        );
+                        self.temp_loop_ids.clear();
+                        let reduce_shape = reduce.shape().clone();
+                        let mut vec = vec![];
+                        for i in 0..reduce_shape.len() {
+                            vec.push((0, reduce_shape[i] as i64, 1));
+                        }
+                        self.loop_ranges.push(vec);
                     }
+                    for _ in reduce.reduce_vars().iter() {
+                        self.temp_var_stack.pop();
+                    }
+                    self.temp_loop_ids.insert(var.name().to_string());
                     return var.into();
                 } else {
                     let call = fuse.func().call_common(exprs);
@@ -106,12 +169,78 @@ impl HlirLower {
             }
         }
     }
+
+    fn _build_nested_loop(&mut self) {
+        for ((loop_idx, (name, compute)), shape) in self.loop_indexes
+            .iter()
+            .zip(self.ordered_exprs.iter())
+            .zip(self.loop_ranges.iter()) {
+            let shape: Shape = shape
+                .iter()
+                .map(|x| x.1)
+                .collect::<Vec<i64>>()
+                .into();
+            let let_stmt = LetStmt::make(&Variable::make("test"), compute);
+            let nested_for = build_nested_for(
+                &loop_idx,
+                &shape,
+                Stmt::Seq(Seq::make(vec![let_stmt.into()]))
+            );
+            self.lowered_fors.push((name.clone(), nested_for));
+        }
+        if self.loop_indexes.len() < self.ordered_exprs.len() {
+            assert!(self.loop_indexes.len() + 1 == self.ordered_exprs.len());
+            let (name, compute) = self.ordered_exprs.last().unwrap();
+            let let_stmt = LetStmt::make(&Variable::make("test"), compute);
+            let nested_for = build_nested_for(
+                &self.var_stack,
+                &self.common_shape,
+                Stmt::Seq(Seq::make(vec![let_stmt.into()]))
+            );
+            self.lowered_fors.push((name.clone(), nested_for));
+        }
+        let last_loop = self.lowered_fors.last().unwrap().1.clone();
+    }
+
+    pub fn print_lowered_fors(&self) {
+        for (name, stmt) in self.lowered_fors.iter() {
+            print!("{} =\n", name);
+            IRPrinter.print_stmt(stmt);
+        }
+    }
+    pub fn loop_dependencies(&self) -> &HashMap<String, HashSet<String>> {
+        &self.loop_dependencies
+    }
 }
 
 impl Display for HlirLower {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        for (k, v) in self.ordered_exprs.iter() {
-            write!(f, "{} = {}\n", k, v)?;
+        for (loop_idx, (name, compute)) in self.loop_indexes.iter().zip(self.ordered_exprs.iter()) {
+            write!(
+                f,
+                "{} = [{}], {}\n",
+                name,
+                loop_idx
+                    .iter()
+                    .map(|x| x.name())
+                    .collect::<Vec<&str>>()
+                    .join(", "),
+                compute
+            )?;
+        }
+        if self.loop_indexes.len() < self.ordered_exprs.len() {
+            let (name, compute) = self.ordered_exprs.last().unwrap();
+            write!(
+                f,
+                "{} = [{}], {}\n",
+                name,
+                self.var_stack
+                    .iter()
+                    .map(|x| x.name())
+                    .collect::<Vec<&str>>()
+                    .join(", "),
+                compute
+            )?;
         }
         Ok(())
     }

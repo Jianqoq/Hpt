@@ -45,6 +45,7 @@ fn test_fusion() {
     let div = Tensor::make_binop("div", exp, sum, 10);
     let mut lower = HlirLower::new();
     lower.lower(div);
+    println!("dependencies: {:?}", lower.loop_dependencies());
     println!("{}", lower);
 }
 

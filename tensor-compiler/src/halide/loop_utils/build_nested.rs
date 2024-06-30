@@ -1,12 +1,7 @@
 use tensor_common::shape::Shape;
 use tensor_types::dtype::Dtype;
 
-use crate::halide::{
-    exprs::Int,
-    for_stmt::For,
-    stmt::Stmt,
-    variable::Variable,
-};
+use crate::halide::{ exprs::Int, for_stmt::For, stmt::Stmt, variable::Variable };
 
 pub fn build_nested_for<T: Into<Stmt>>(vars: &[Variable], shape: &Shape, main_stmt: T) -> Stmt {
     fn build_recursive<T: Into<Stmt>>(
