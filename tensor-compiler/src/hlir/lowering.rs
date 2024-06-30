@@ -23,7 +23,7 @@ use super::exprs::Tensor;
 
 pub struct HlirLower {
     /// this ordered exprs is the order of computation
-    ordered_exprs: Vec<(String, bool, PrimeExpr)>,
+    ordered_exprs: Vec<(String, Option<PrimeExpr>, PrimeExpr)>,
     /// this unique exprs is the unique exprs in the computation
     unique_exprs: HashSet<PrimeExpr>,
     /// in compilation, each node could have multiple different compute
@@ -79,7 +79,7 @@ impl HlirLower {
                 .map(|(x, y)| (x.clone(), *y))
                 .collect::<Vec<_>>();
             self.loop_indexes.push(common_var_stack);
-            self.ordered_exprs.push((variable_name.name().to_string(), false, expr.clone()));
+            self.ordered_exprs.push((variable_name.name().to_string(), None, expr.clone()));
         }
 
         self._build_nested_loop();
@@ -134,7 +134,7 @@ impl HlirLower {
                 if fuse.inputs().len() == 1 && fuse.inputs()[0].is_reduce() {
                     let reduce = fuse.inputs()[0].to_reduce();
                     exprs.push(reduce.identity().clone());
-                    let call: PrimeExpr = fuse.func().call_common(exprs).into();
+                    let call: PrimeExpr = fuse.func().call_common(exprs.clone()).into();
                     let mut contains = true;
                     if let Some(saved) = self.cnts.get_mut(&fuse.id()) {
                         if !self.unique_exprs.contains(&call) {
@@ -149,7 +149,14 @@ impl HlirLower {
                     }
                     let var = Variable::new(format!("%{}_{}", fuse.id(), self.cnts[&fuse.id()]));
                     if !contains {
-                        self.ordered_exprs.push((var.name.to_string(), true, call.into()));
+                        // the identity will be replaced with the variable
+                        exprs[1] = var.clone().into();
+                        let call = fuse.func().call_common(exprs);
+                        self.ordered_exprs.push((
+                            var.name.to_string(),
+                            Some(reduce.identity().clone()),
+                            call.into(),
+                        ));
                         let mut vec = vec![];
                         for (var, dim) in reduce.reduce_vars().iter().zip(reduce.shape().iter()) {
                             vec.push((var.clone(), *dim));
@@ -199,7 +206,7 @@ impl HlirLower {
             sorted_edges.insert(name, ordered_set);
         }
         let mut loop_generated = HashMap::<&String, Stmt>::new();
-        for ((name, is_reduce, body), indexes) in self.ordered_exprs
+        for ((name, identity, body), indexes) in self.ordered_exprs
             .iter()
             .zip(self.loop_indexes.iter()) {
             let shape: Shape = indexes
@@ -217,9 +224,6 @@ impl HlirLower {
             let mut seq = vec![];
 
             let tmp_val = Variable::make(name);
-            // if *is_reduce {
-            //     seq.push(LetStmt::make(&tmp_val, body.clone()).into());
-            // }
 
             for dep in dependencies.iter() {
                 if let Some(stmt) = loop_generated.get(dep) {
@@ -228,11 +232,15 @@ impl HlirLower {
                     panic!("{} not found in loop_generated", dep);
                 }
             }
-            // if *is_reduce {
-            //     seq.push(AssignStmt::make(&tmp_val, body.clone()).into());
-            // }
-            seq.push(LetStmt::make(&tmp_val, body.clone()).into());
-            let stmt = build_nested_for(&vars, &shape, Seq::make(seq));
+            if identity.is_some() {
+                seq.push(AssignStmt::make(&tmp_val, body.clone()).into());
+            } else {
+                seq.push(LetStmt::make(&tmp_val, body.clone()).into());
+            }
+            let mut stmt = build_nested_for(&vars, &shape, Seq::make(seq));
+            if let Some(init) = identity {
+                stmt = Seq::make(vec![LetStmt::make(&tmp_val, init.clone()).into(), stmt]).into();
+            }
             self.lowered_fors.push((name.clone(), stmt.clone()));
             loop_generated.insert(name, stmt);
         }
