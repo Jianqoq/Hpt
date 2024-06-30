@@ -125,3 +125,24 @@ fn test_let_bind_plus_fusion() {
     lower.lower(g);
     lower.print_lowered_fors();
 }
+
+#[test]
+fn test_slice() {
+    let args: [Variable; 0] = [];
+    let mut main = Function::make("main", &args, &Type::make_none(), Expr::None);
+
+    let a = Tensor::make(Shape::new([4, 5, 6]).into(), Dtype::BF16, 0);
+    let sliced = Variable::make("sliced");
+
+    let let_ = Let::make(&sliced, HirCall::make(Variable::make("slice"), &[&a]), Return::make(&[&sliced]));
+
+    main.set_body(let_);
+
+    let mut visitor = FuseComputeNode::new();
+    visitor.visit_function(&main);
+    HlirPrinter.print(main);
+    let g = visitor.map().get(&sliced).unwrap();
+    let mut lower = HlirLower::new();
+    lower.lower(g);
+    lower.print_lowered_fors();
+}

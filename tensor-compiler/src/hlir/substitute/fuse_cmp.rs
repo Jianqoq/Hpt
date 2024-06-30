@@ -161,6 +161,31 @@ impl HlirMutateVisitor for FuseComputeNode {
                                     panic!("tuple cannot be converted to shape");
                                 }
                             }
+                            "slice" => {
+                                let tensor = tensor_args[0].to_tensor().unwrap().clone();
+                                let shape = tensor.shape();
+                                let tuple = tensor_args[1].to_tuple().unwrap();
+                                if tuple.values().len() != shape.len() {
+                                    panic!(
+                                        "slice must have the same number of dimensions as the tensor"
+                                    );
+                                }
+                                let mut slices = Vec::<(&Expr, &Expr, &Expr)>::new();
+                                for val in tuple.values().iter() {
+                                    let (start, end, step) = match val {
+                                        Expr::Tuple(tuple) => {
+                                            assert!(tuple.values().len() == 3, "slice requires 3 arguments, 1: start, 2: end, 3: step"); // prettier-ignore
+                                            let start = &tuple.values()[0]; // prettier-ignore
+                                            let end = &tuple.values()[1]; // prettier-ignore
+                                            let step = &tuple.values()[2]; // prettier-ignore
+                                            (start, end, step)
+                                        }
+                                        _ => panic!("slice requires tuple"),
+                                    };
+                                    slices.push((start, end, step));
+                                }
+                                todo!();
+                            }
                             "exp" => { impl_unop_call!(var, "exp", tensor_args, self.id, self.map, "exp requires 1 argument, 1: tensor to apply exp"); } // prettier-ignore
                             "log" => { impl_unop_call!(var, "log", tensor_args, self.id, self.map, "log requires 1 argument, 1: tensor to apply log"); } // prettier-ignore
                             "abs" => { impl_unop_call!(var, "abs", tensor_args, self.id, self.map, "abs requires 1 argument, 1: tensor to apply abs"); } // prettier-ignore
