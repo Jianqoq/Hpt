@@ -1,9 +1,13 @@
-use std::sync::Mutex;
-
+use std::{ fmt::{ self, Debug, Formatter }, hash::Hasher, sync::{ Arc, Mutex } };
+use core::hash::Hash;
 use hashbrown::HashMap;
 use lazy_static::lazy_static;
 
-use crate::{ halide::{ exprs::Call, prime_expr::PrimeExpr, variable::Variable }, hlir::exprs::OpNode, op::OpType };
+use crate::{
+    halide::{ exprs::Call, prime_expr::PrimeExpr, variable::Variable },
+    hlir::exprs::OpNode,
+    op::OpType,
+};
 
 pub(crate) fn add_binop(registory: &mut AttrRegistry, name: &str) {
     let op_node = registory.register_or_get(name);
@@ -20,10 +24,46 @@ pub(crate) fn add_unop(registry: &mut AttrRegistry, name: &str) {
     op_node.set_op_type(OpType::OneToOne);
 }
 
-#[derive(Clone, PartialEq, Debug, Hash, Eq)]
+#[derive(Clone)]
 pub enum Closures {
-    Common(fn(Vec<PrimeExpr>) -> Call),
-    Init(fn(Variable, PrimeExpr) -> Call),
+    Common(Arc<dyn (Fn(Vec<PrimeExpr>) -> Call) + Send + Sync>),
+    Init(Arc<dyn (Fn(Variable, PrimeExpr) -> Call) + Send + Sync>),
+}
+
+impl PartialEq for Closures {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Closures::Common(a), Closures::Common(b)) => Arc::ptr_eq(a, b),
+            (Closures::Init(a), Closures::Init(b)) => Arc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
+}
+
+impl Eq for Closures {}
+
+impl Hash for Closures {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Closures::Common(f) => {
+                let ptr = Arc::as_ptr(f) as *const ();
+                ptr.hash(state);
+            }
+            Closures::Init(f) => {
+                let ptr = Arc::as_ptr(f) as *const ();
+                ptr.hash(state);
+            }
+        }
+    }
+}
+
+impl Debug for Closures {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Closures::Common(_) => write!(f, "Common"),
+            Closures::Init(_) => write!(f, "Init"),
+        }
+    }
 }
 
 pub enum ClosuresType {
@@ -118,21 +158,21 @@ lazy_static! {
 
 macro_rules! binop {
     ($ret:ident, $op_name:ident) => {
-        $ret.map.insert(stringify!($op_name).to_string(), Closures::Common(|vec| {
+        $ret.map.insert(stringify!($op_name).to_string(), Closures::Common(Arc::new(|vec: Vec<PrimeExpr>| {
             let locked = REGISTRY.lock().unwrap();
             let op = locked.map.get(stringify!($op_name)).expect(&format!("{} not found", stringify!($op_name)));
             Call::make(op.name(), &[vec[0].clone(), vec[1].clone()])
-        }));
+        })));
     };
 }
 
 macro_rules! unop {
     ($ret:ident, $op_name:ident) => {
-        $ret.map.insert(stringify!($op_name).to_string(), Closures::Common(|vec| {
+        $ret.map.insert(stringify!($op_name).to_string(), Closures::Common(Arc::new(|vec: Vec<PrimeExpr>| {
             let locked = REGISTRY.lock().unwrap();
             let op = locked.map.get(stringify!($op_name)).unwrap();
             Call::make(op.name(), &[vec[0].clone()])
-        }));
+        })));
     };
 }
 
