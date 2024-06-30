@@ -15,6 +15,7 @@ use crate::{
         printer::IRPrinter,
         seq_stmt::Seq,
         stmt::Stmt,
+        store_stmt::StoreStmt,
         variable::Variable,
     },
 };
@@ -235,7 +236,19 @@ impl HlirLower {
             if identity.is_some() {
                 seq.push(AssignStmt::make(&tmp_val, body.clone()).into());
             } else {
-                seq.push(LetStmt::make(&tmp_val, body.clone()).into());
+                let strides = shape.to_strides();
+                seq.push(
+                    StoreStmt::make(
+                        &tmp_val,
+                        vars
+                            .iter()
+                            .zip(strides.iter())
+                            .map(|(x, i)| x.clone() * Int::make(Dtype::I64, *i))
+                            .reduce(|acc, x| acc + x)
+                            .unwrap(),
+                        body.clone()
+                    ).into()
+                );
             }
             let mut stmt = build_nested_for(&vars, &shape, Seq::make(seq));
             if let Some(init) = identity {
