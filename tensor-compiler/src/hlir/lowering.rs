@@ -248,7 +248,6 @@ impl HlirLower {
 
     pub fn print_lowered_fors(&self) {
         if let Some(last) = self.lowered_fors.last() {
-            print!("{} =\n", last.0);
             IRPrinter.print_stmt(last.1.clone());
         } else {
             println!("No lowered for loop found");
