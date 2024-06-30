@@ -38,7 +38,7 @@ fn test_fusion() {
         "sum",
         &exp,
         [Int::make(Dtype::I64, 2)],
-        Int::make(Dtype::I64, 0).into(),
+        Int::make(Dtype::I64, 1).into(),
         9
     );
     sum.reshape(&Shape::new([1, 8, 1]));

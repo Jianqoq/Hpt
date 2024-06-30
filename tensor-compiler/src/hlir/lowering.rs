@@ -65,7 +65,7 @@ impl HlirLower {
         let expr = self._lower(tensor, true);
         if !self.unique_exprs.contains(&expr) {
             self.unique_exprs.insert(expr.clone());
-            let variable_name = Variable::from(format!("%{}", tensor.id()));
+            let variable_name = Variable::from(format!("ptr{}", tensor.id()));
             let name = variable_name.name().to_string();
             for input in self.common_depends.iter() {
                 self.loop_dependencies
@@ -92,7 +92,7 @@ impl HlirLower {
                 let reduced_strides = base.reduced_strides().to_vec();
                 strides.extend(reduced_strides.iter());
                 assert!(self.var_stack.len() == strides.len());
-                let variable_name = Variable::from(format!("%{}", base.id()));
+                let variable_name = Variable::from(format!("ptr{}", base.id()));
                 let indices = self.var_stack
                     .iter()
                     .zip(strides.iter())
@@ -147,7 +147,7 @@ impl HlirLower {
                         self.unique_exprs.insert(call.clone());
                         contains = false;
                     }
-                    let var = Variable::new(format!("%{}_{}", fuse.id(), self.cnts[&fuse.id()]));
+                    let var = Variable::new(format!("{}_{}", fuse.id(), self.cnts[&fuse.id()]));
                     if !contains {
                         // the identity will be replaced with the variable
                         exprs[1] = var.clone().into();
