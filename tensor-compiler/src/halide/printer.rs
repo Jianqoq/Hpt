@@ -37,6 +37,10 @@ impl _IRPrinter {
                 self.do_indent();
                 println!("{}", var);
             }
+            Stmt::AssignStmt(var) => {
+                self.do_indent();
+                println!("{} = {};", var.lhs(), var.rhs());
+            }
             Stmt::For(var) => {
                 self.do_indent();
                 println!("for {} in {}..{} {{", var.var(), var.start(), var.end());

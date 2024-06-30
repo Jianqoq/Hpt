@@ -19,6 +19,7 @@ pub mod halide {
     pub mod seq_stmt;
     pub mod stmt;
     pub mod store_stmt;
+    pub mod assign_stmt;
     pub mod tests;
     pub mod traits;
     pub mod exprs;

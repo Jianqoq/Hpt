@@ -1,14 +1,5 @@
 use super::{
-    prime_expr::PrimeExpr,
-    exprs::*,
-    for_stmt::For,
-    if_stmt::IfThenElse,
-    inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub },
-    let_stmt::LetStmt,
-    seq_stmt::Seq,
-    stmt::Stmt,
-    store_stmt::StoreStmt,
-    variable::Variable,
+    assign_stmt::AssignStmt, exprs::*, for_stmt::For, if_stmt::IfThenElse, inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub }, let_stmt::LetStmt, prime_expr::PrimeExpr, seq_stmt::Seq, stmt::Stmt, store_stmt::StoreStmt, variable::Variable
 };
 
 #[allow(unused_variables)]
@@ -61,8 +52,13 @@ pub trait IRVisitor where Self: Sized {
             Stmt::InplaceSub(inplace_sub) => self.visit_inplace_sub(&inplace_sub),
             Stmt::InplaceMul(inplace_mul) => self.visit_inplace_mul(&inplace_mul),
             Stmt::InplaceDiv(inplace_div) => self.visit_inplace_div(&inplace_div),
+            Stmt::AssignStmt(assign) => self.visit_assign(&assign),
             Stmt::None => {}
         }
+    }
+    fn visit_assign(&self, assign: &AssignStmt) {
+        assign.lhs().accept(self);
+        assign.rhs().accept(self);
     }
     fn visit_variable(&self, var: &Variable) {}
     fn visit_str(&self, string: &Str) {}
@@ -254,11 +250,16 @@ pub trait IRMutVisitor where Self: Sized {
             Stmt::InplaceSub(inplace_sub) => self.visit_inplace_sub(&inplace_sub),
             Stmt::InplaceMul(inplace_mul) => self.visit_inplace_mul(&inplace_mul),
             Stmt::InplaceDiv(inplace_div) => self.visit_inplace_div(&inplace_div),
+            Stmt::AssignStmt(assign) => self.visit_assign(&assign),
             Stmt::None => {}
         }
     }
     fn visit_variable(&mut self, var: &Variable) {}
     fn visit_str(&mut self, string: &Str) {}
+    fn visit_assign(&mut self, assign: &AssignStmt) {
+        assign.lhs().accept_mut(self);
+        assign.rhs().accept_mut(self);
+    }
     fn visit_cast(&mut self, cast: &Cast) {
         cast.expr().accept_mut(self);
     }
@@ -492,6 +493,7 @@ pub(crate) fn visit_stmt<V>(visitor: &mut V, stmt: &Stmt)
         Stmt::InplaceSub(inplace_sub) => visitor.visit_inplace_sub(&inplace_sub),
         Stmt::InplaceMul(inplace_mul) => visitor.visit_inplace_mul(&inplace_mul),
         Stmt::InplaceDiv(inplace_div) => visitor.visit_inplace_div(&inplace_div),
+        Stmt::AssignStmt(assign) => visitor.visit_assign(&assign),
         Stmt::None => {}
     }
 }
@@ -858,6 +860,24 @@ pub(crate) fn visit_inplace_div<V>(visitor: &mut V, inplace_div: &InplaceDiv)
     }
 }
 
+pub(crate) fn visit_assign<V>(visitor: &mut V, assign: &AssignStmt)
+    where V: MutatorGetSet + Sized + IRMutateVisitor
+{
+    let lhs: PrimeExpr = assign.lhs().into();
+    let new_lhs = visitor.mutate_expr(&lhs);
+    let new_rhs = visitor.mutate_expr(assign.rhs());
+    if new_lhs == lhs && &new_rhs == assign.rhs() {
+        visitor.set_stmt(assign);
+    } else {
+        if let Some(lhs) = lhs.to_variable() {
+            visitor.set_stmt(AssignStmt::make(lhs, new_rhs));
+        } else {
+            eprintln!("Failed to convert variable, from: {} to: {}", assign.lhs(), lhs);
+            visitor.set_stmt(Stmt::None);
+        }
+    }
+}
+
 pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     fn mutate_expr(&mut self, expr: &PrimeExpr) -> PrimeExpr {
         mutate_expr(self, expr)
@@ -866,7 +886,9 @@ pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     fn mutate_stmt(&mut self, stmt: &Stmt) -> Stmt {
         mutate_stmt(self, stmt)
     }
-
+    fn visit_assign(&mut self, assign: &AssignStmt) {
+        visit_assign(self, assign);
+    }
     fn visit_expr(&mut self, expr: &PrimeExpr) {
         visit_expr(self, expr);
     }
