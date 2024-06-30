@@ -123,5 +123,5 @@ fn test_let_bind_plus_fusion() {
     let g = visitor.map().get(&g).unwrap();
     let mut lower = HlirLower::new();
     lower.lower(g);
-    println!("{}", lower);
+    lower.print_lowered_fors();
 }

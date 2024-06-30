@@ -4,7 +4,11 @@ use hashbrown::HashMap;
 use lazy_static::lazy_static;
 
 use crate::{
-    halide::{ exprs::Call, prime_expr::PrimeExpr, variable::Variable },
+    halide::{
+        exprs::{ Add, And, Call, Div, Ge, Gt, Le, Lt, Max, Min, Mod, Mul, Ne, Or, Sub, Xor, Eq },
+        prime_expr::PrimeExpr,
+        variable::Variable,
+    },
     hlir::exprs::OpNode,
     op::OpType,
 };
@@ -26,8 +30,8 @@ pub(crate) fn add_unop(registry: &mut AttrRegistry, name: &str) {
 
 #[derive(Clone)]
 pub enum Closures {
-    Common(Arc<dyn (Fn(Vec<PrimeExpr>) -> Call) + Send + Sync>),
-    Init(Arc<dyn (Fn(Variable, PrimeExpr) -> Call) + Send + Sync>),
+    Common(Arc<dyn (Fn(Vec<PrimeExpr>) -> PrimeExpr) + Send + Sync>),
+    Init(Arc<dyn (Fn(Variable, PrimeExpr) -> PrimeExpr) + Send + Sync>),
 }
 
 impl PartialEq for Closures {
@@ -40,7 +44,7 @@ impl PartialEq for Closures {
     }
 }
 
-impl Eq for Closures {}
+impl std::cmp::Eq for Closures {}
 
 impl Hash for Closures {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -72,13 +76,17 @@ pub enum ClosuresType {
 }
 
 impl Closures {
-    pub fn get_binop_expr<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(&self, lhs: A, rhs: B) -> Call {
+    pub fn get_binop_expr<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(
+        &self,
+        lhs: A,
+        rhs: B
+    ) -> PrimeExpr {
         match self {
             Closures::Common(f) => f(vec![lhs.into(), rhs.into()]),
             _ => panic!("not binop"),
         }
     }
-    pub fn call_common(&self, vec: Vec<PrimeExpr>) -> Call {
+    pub fn call_common(&self, vec: Vec<PrimeExpr>) -> PrimeExpr {
         match self {
             Closures::Common(f) => f(vec),
             _ => panic!("not common"),
@@ -161,7 +169,15 @@ macro_rules! binop {
         $ret.map.insert(stringify!($op_name).to_string(), Closures::Common(Arc::new(|vec: Vec<PrimeExpr>| {
             let locked = REGISTRY.lock().unwrap();
             let op = locked.map.get(stringify!($op_name)).expect(&format!("{} not found", stringify!($op_name)));
-            Call::make(op.name(), &[vec[0].clone(), vec[1].clone()])
+            Call::make(op.name(), &[vec[0].clone(), vec[1].clone()]).into()
+        })));
+    };
+}
+
+macro_rules! std_binop {
+    ($ret:ident, $op_name:ident, $op:ident) => {
+        $ret.map.insert(stringify!($op_name).to_string(), Closures::Common(Arc::new(|vec: Vec<PrimeExpr>| {
+            $op::make(vec[0].clone(), vec[1].clone()).into()
         })));
     };
 }
@@ -171,7 +187,7 @@ macro_rules! unop {
         $ret.map.insert(stringify!($op_name).to_string(), Closures::Common(Arc::new(|vec: Vec<PrimeExpr>| {
             let locked = REGISTRY.lock().unwrap();
             let op = locked.map.get(stringify!($op_name)).unwrap();
-            Call::make(op.name(), &[vec[0].clone()])
+            Call::make(op.name(), &[vec[0].clone()]).into()
         })));
     };
 }
@@ -181,26 +197,26 @@ lazy_static! {
         let mut ret = Manager {
             map: HashMap::new(),
         };
-        binop!(ret, add);
-        binop!(ret, sub);
-        binop!(ret, mul);
-        binop!(ret, div);
-        binop!(ret, mod);
+        std_binop!(ret, add, Add);
+        std_binop!(ret, sub, Sub);
+        std_binop!(ret, mul, Mul);
+        std_binop!(ret, div, Div);
+        std_binop!(ret, mod, Mod);
         binop!(ret, left_shift);
         binop!(ret, right_shift);
-        binop!(ret, and);
-        binop!(ret, or);
-        binop!(ret, xor);
-        binop!(ret, max);
-        binop!(ret, min);
+        std_binop!(ret, and, And);
+        std_binop!(ret, or, Or);
+        std_binop!(ret, xor, Xor);
+        std_binop!(ret, max, Max);
+        std_binop!(ret, min, Min);
         binop!(ret, sum);
         binop!(ret, power);
-        binop!(ret, eq);
-        binop!(ret, ne);
-        binop!(ret, lt);
-        binop!(ret, le);
-        binop!(ret, gt);
-        binop!(ret, ge);
+        std_binop!(ret, eq, Eq);
+        std_binop!(ret, ne, Ne);
+        std_binop!(ret, lt, Lt);
+        std_binop!(ret, le, Le);
+        std_binop!(ret, gt, Gt);
+        std_binop!(ret, ge, Ge);
         unop!(ret, not);
         unop!(ret, neg);
         unop!(ret, abs);
