@@ -171,7 +171,7 @@ impl HlirMutateVisitor for FuseComputeNode {
                                     );
                                 }
                                 let mut slices = Vec::<(&Expr, &Expr, &Expr)>::new();
-                                for val in tuple.values().iter() {
+                                for val in tuple.values() {
                                     let (start, end, step) = match val {
                                         Expr::Tuple(tuple) => {
                                             assert!(tuple.values().len() == 3, "slice requires 3 arguments, 1: start, 2: end, 3: step"); // prettier-ignore
