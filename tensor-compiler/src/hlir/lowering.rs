@@ -68,6 +68,11 @@ impl HlirLower {
             self.unique_exprs.insert(expr.clone());
             let variable_name = Variable::from(format!("ptr{}", tensor.id()));
             let name = variable_name.name().to_string();
+            if let Some(inputs) = tensor.inputs() {
+                if inputs.len() == 1 && inputs[0].is_reduce() {
+                    self.common_depends.extend(self.temp_loop_ids.iter().cloned());
+                }
+            }
             for input in self.common_depends.iter() {
                 self.loop_dependencies
                     .entry(name.clone())
@@ -82,7 +87,6 @@ impl HlirLower {
             self.loop_indexes.push(common_var_stack);
             self.ordered_exprs.push((variable_name.name().to_string(), None, expr.clone()));
         }
-
         self._build_nested_loop();
     }
 
@@ -219,7 +223,6 @@ impl HlirLower {
                 .iter()
                 .map(|(var, _)| var.clone())
                 .collect::<Vec<_>>();
-
             let dependencies = &sorted_edges[name];
 
             let mut seq = vec![];

@@ -1094,6 +1094,15 @@ impl Tensor {
         match &mut lhs {
             Tensor::Fuse(fuse) => {
                 let res_shape = predict_reduce_shape(&fuse.shape, &axes).1;
+                if res_shape.len() == 1 && res_shape[0] == 1 {
+                    let mut res_shape = vec![1];
+                    res_shape.extend(fuse.shape.iter());
+                    let res_shape: Shape = res_shape.into();
+                    for i in Arc::make_mut(&mut fuse.inputs).iter_mut() {
+                        i.reshape(&res_shape);
+                    }
+                    fuse.shape = res_shape.clone();
+                }
                 // the shape of fuse should all be the same
                 let mut reduce_vars = vec![];
                 let mut reduce_shape = vec![];
@@ -1340,6 +1349,14 @@ impl BaseTensor {
     pub fn id(&self) -> usize {
         self.id
     }
+}
+
+#[derive(Clone, PartialEq, Debug, Hash, Eq)]
+pub struct SliceTensor {
+    input: Arc<BaseTensor>,
+    selections: Arc<Vec<(PrimeExpr, PrimeExpr, PrimeExpr)>>,
+    dtype: Dtype,
+    id: usize,
 }
 
 #[derive(Clone, PartialEq, Debug, Hash, Eq)]

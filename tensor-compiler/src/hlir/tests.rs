@@ -49,6 +49,23 @@ fn test_fusion() {
 }
 
 #[test]
+fn test_fusion_mul_sum() {
+    let a = Tensor::make(Shape::new([8, 8]).into(), Dtype::BF16, 1);
+    let b = Tensor::make(Shape::new([8, 8]).into(), Dtype::BF16, 2);
+    let mul = Tensor::make_binop("mul", a, b, 3);
+    let sum = Tensor::make_reduce(
+        "sum",
+        &mul,
+        [Int::make(Dtype::I64, 0), Int::make(Dtype::I64, 1)],
+        Int::make(Dtype::I64, 0).into(),
+        4
+    );
+    let mut lower = HlirLower::new();
+    lower.lower(sum);
+    lower.print_lowered_fors();
+}
+
+#[test]
 fn test_let_bind_plus_fusion() {
     let args: [Variable; 0] = [];
     let mut main = Function::make("main", &args, &Type::make_none(), Expr::None);
