@@ -46,6 +46,7 @@ fn test_fusion() {
     let mut lower = HlirLower::new();
     lower.lower(div);
     println!("dependencies: {:?}", lower.loop_dependencies());
+    println!("inv dependencies: {:?}", lower.loop_dependencies().invert());
     println!("{}", lower);
 }
 
