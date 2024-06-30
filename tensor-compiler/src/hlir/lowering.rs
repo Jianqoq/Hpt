@@ -247,9 +247,11 @@ impl HlirLower {
     }
 
     pub fn print_lowered_fors(&self) {
-        for (name, stmt) in self.lowered_fors.iter() {
-            print!("{} =\n", name);
-            IRPrinter.print_stmt(stmt);
+        if let Some(last) = self.lowered_fors.last() {
+            print!("{} =\n", last.0);
+            IRPrinter.print_stmt(last.1.clone());
+        } else {
+            println!("No lowered for loop found");
         }
     }
     pub fn loop_dependencies(&self) -> &Edges<String> {
