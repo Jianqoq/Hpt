@@ -153,26 +153,17 @@ impl Schedule {
                         "sum" => {
                             assert!(reduce.identity().len() == 1);
                             assert!(reduce.expr().len() == 1);
+                            let out_name = Variable::make(&format!("output_{}", name));
                             main_stmt.push(
                                 StoreStmt::make(
-                                    &Variable::make(&format!("output_{}", name)),
+                                    &out_name,
                                     indices,
                                     &reduce.identity()[0].clone()
                                 ).into()
                             );
                             build_nested_for(
                                 iter_vars,
-                                StoreStmt::make(
-                                    &Variable::make(&format!("output_{}", name)),
-                                    indices,
-                                    &Add::make(
-                                        &Load::make(
-                                            Variable::make(&format!("output_{}", name)),
-                                            indices
-                                        ),
-                                        &reduce.expr()[0]
-                                    )
-                                )
+                                InplaceAdd::make(Load::make(&out_name, indices), &reduce.expr()[0])
                             )
                         }
                         "min" => {
@@ -313,67 +304,12 @@ mod tests {
     use crate::{
         halide::{
             exprs::{ Float, Int },
-            loop_utils::sum::{ argmax, argmin, sum },
+            loop_utils::reduction::{ argmax, argmin, max, min, sum },
             prime_expr::PrimeExpr,
             printer::IRPrinter,
         },
         hlir::traits::IntoVar,
     };
-
-    #[test]
-    fn test_reduce() {
-        let n = Variable::make("n");
-        let m = Variable::make("m");
-        let a = Tensor::placeholder([&n, &m], "a");
-        let a_op = a.op.clone();
-        let c = compute([&n], "c", move |[i]| {
-            sum(
-                [a_op(vec![i, Variable::make("k").into()])],
-                [Int::make(Dtype::BF16, 0)],
-                [(0, &m, 1, "k")]
-            )
-        });
-        let schedule = Schedule::create(vec![c]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
-    }
-
-    #[test]
-    fn test_nested_reduce() {
-        let n = Variable::make("n");
-        let m = Variable::make("m");
-        let u = Variable::make("u");
-        let end1 = Variable::make("end1");
-        let end2 = Variable::make("end2");
-        let end3 = Variable::make("end3");
-        let a = Tensor::placeholder([&u, &n, &m], "a");
-        let _a = a.clone();
-        let c = compute([&u, &n], "c", move |[u, n]| {
-            sum(
-                [_a.slice([u, n, "k".into_var().into()])],
-                [0],
-                [
-                    (0, &end1, 1, "k".into_var()),
-                    (0, &end2, 1, "n".into_var()),
-                ]
-            )
-        });
-        let _c = c.clone();
-        let d = compute([&u], "d", move |[i]| {
-            sum(
-                [_c.slice([i, "j".into_var().into()])],
-                [Int::make(Dtype::BF16, 0)],
-                [(0, &end3, 1, "j".into_var())]
-            )
-        });
-        let schedule = Schedule::create(vec![d, c]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
-    }
 
     #[test]
     fn test_argmax() {
@@ -414,6 +350,64 @@ mod tests {
                     PrimeExpr::Float(Float::make(Dtype::F64, f64::INFINITY)),
                 ],
                 [(0, &m_clone, 1, "k")]
+            )
+        });
+        let schedule = Schedule::create(vec![c]);
+        let lowered = schedule.lower();
+        for stmt in lowered {
+            IRPrinter.print_stmt(stmt);
+        }
+    }
+    #[test]
+    fn test_max() {
+        let n = Variable::make("n");
+        let m = Variable::make("m");
+        let a = Tensor::placeholder([&n, &m], "a");
+        let a_op = a.op.clone();
+        let c = compute([&n], "c", move |[i]| {
+            max(
+                [a_op(vec![i, Variable::make("k").into()])],
+                [Int::make(Dtype::BF16, 0)],
+                [(0, &m, 1, "k")]
+            )
+        });
+        let schedule = Schedule::create(vec![c]);
+        let lowered = schedule.lower();
+        for stmt in lowered {
+            IRPrinter.print_stmt(stmt);
+        }
+    }
+
+    #[test]
+    fn test_min() {
+        let n = Variable::make("n");
+        let m = Variable::make("m");
+        let a = Tensor::placeholder([&n, &m], "a");
+        let a_op = a.op.clone();
+        let c = compute([&n], "c", move |[i]| {
+            min(
+                [a_op(vec![i, Variable::make("k").into()])],
+                [Int::make(Dtype::BF16, 0)],
+                [(0, &m, 1, "k")]
+            )
+        });
+        let schedule = Schedule::create(vec![c]);
+        let lowered = schedule.lower();
+        for stmt in lowered {
+            IRPrinter.print_stmt(stmt);
+        }
+    }
+    #[test]
+    fn test_sum() {
+        let n = Variable::make("n");
+        let m = Variable::make("m");
+        let a = Tensor::placeholder([&n, &m], "a");
+        let a_op = a.op.clone();
+        let c = compute([&n], "c", move |[i]| {
+            sum(
+                [a_op(vec![i, Variable::make("k").into()])],
+                [Int::make(Dtype::BF16, 0)],
+                [(0, &m, 1, "k")]
             )
         });
         let schedule = Schedule::create(vec![c]);

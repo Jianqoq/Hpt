@@ -10,7 +10,7 @@ pub mod halide {
     }
     pub mod loop_utils {
         pub mod build_nested;
-        pub mod sum;
+        pub mod reduction;
     }
     pub mod if_stmt;
     pub mod inplace_store_stmt;
