@@ -210,19 +210,34 @@ mod tests {
     fn test_nested_reduce() {
         let n = Variable::make("n");
         let m = Variable::make("m");
-        let a = Tensor::placeholder(vec![n.clone().into(), m.clone().into()], "a");
+        let u = Variable::make("u");
+        let end1 = Variable::make("end1");
+        let end2 = Variable::make("end2");
+        let end3 = Variable::make("end3");
+        let a = Tensor::placeholder(vec![u.clone().into(), n.clone().into(), m.clone().into()], "a");
         let a_op = a.op.clone();
-        let c = compute([n.clone().into()], "c", move |[i]| {
+        let c = compute([u.clone().into(), n.clone().into()], "c", move |[u, n]| {
             sum(
-                [a_op(vec![i, Variable::make("k").into()])],
+                [a_op(vec![u, n, Variable::make("k").into()])],
                 [Int::make(Dtype::BF16, 0)],
                 [Int::make(Dtype::BF16, 0)],
-                [m.clone()],
+                [end1.clone(), end2.clone()],
                 [Int::make(Dtype::BF16, 1)],
                 vec!["k"]
             )
         });
-        let schedule = Schedule::create(vec![c]);
+        let c_op = c.op.clone();
+        let d = compute([u.clone().into()], "d", move |[i]| {
+            sum(
+                [c_op(vec![i, Variable::make("j").into()])],
+                [Int::make(Dtype::BF16, 0)],
+                [Int::make(Dtype::BF16, 0)],
+                [end3.clone()],
+                [Int::make(Dtype::BF16, 1)],
+                vec!["j"]
+            )
+        });
+        let schedule = Schedule::create(vec![d]);
         let lowered = schedule.lower();
         for stmt in lowered {
             IRPrinter.print_stmt(stmt);
