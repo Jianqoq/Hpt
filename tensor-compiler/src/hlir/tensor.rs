@@ -3,14 +3,16 @@ use std::sync::Arc;
 
 use hashbrown::HashMap;
 use tensor_common::shape::Shape;
+use tensor_types::dtype::Dtype;
 
 use crate::halide::{
-    exprs::Load,
+    exprs::{ Int, Load },
     let_stmt::LetStmt,
     loop_utils::build_nested::build_nested_for,
     prime_expr::PrimeExpr,
     seq_stmt::Seq,
     stmt::Stmt,
+    store_stmt::StoreStmt,
     variable::Variable,
 };
 
@@ -88,16 +90,52 @@ impl Schedule {
             let loop_indexes = (0..shape.len())
                 .map(|i| Variable::new(format!("i{}", i)))
                 .collect::<Vec<_>>();
+            let name = tensor.name.clone();
             let expr = op(
                 loop_indexes
                     .iter()
                     .map(|x| x.clone().into())
                     .collect::<Vec<_>>()
             );
+            let mut main_stmt: Vec<Stmt> = vec![];
+            match expr {
+                PrimeExpr::Reduce(reduce) => {
+                    main_stmt.push(
+                        StoreStmt::make(
+                            &Variable::make(&format!("output_{}", name)),
+                            &loop_indexes
+                                .iter()
+                                .map(|x| x.clone().into())
+                                .reduce(|acc, x| acc + x).unwrap(),
+                            reduce.identity()
+                        ).into()
+                    );
+                    let end = reduce.end();
+                    let loop_vars = reduce
+                        .loop_var()
+                        .iter()
+                        .map(|x| x.to_variable().unwrap().clone())
+                        .collect::<Vec<_>>();
+                    let fors = build_nested_for(
+                        &loop_vars,
+                        end,
+                        StoreStmt::make(
+                            &Variable::make(&format!("output_{}", name)),
+                                &loop_indexes
+                                    .iter()
+                                    .map(|x| x.clone().into())
+                                    .reduce(|acc, x| acc + x).unwrap(),
+                            reduce.expr()
+                        )
+                    );
+                    main_stmt.push(fors);
+                }
+                _ => todo!(),
+            }
             let loop_stmt = build_nested_for(
                 &loop_indexes,
                 &shape,
-                Stmt::Seq(Seq::make(vec![LetStmt::make(&Variable::make("test"), expr).into()]))
+                Stmt::Seq(Seq::make(main_stmt))
             );
             stmts.push(loop_stmt);
         }
@@ -110,41 +148,30 @@ mod tests {
     use tensor_types::dtype::Dtype;
 
     use super::*;
-    use crate::halide::{ exprs::Int, prime_expr::PrimeExpr, printer::IRPrinter };
+    use crate::halide::{
+        exprs::Int,
+        loop_utils::sum::sum,
+        prime_expr::PrimeExpr,
+        printer::IRPrinter,
+    };
 
     #[test]
     fn test_tensor() {
-        let a = Tensor::placeholder(
-            vec![
-                Int::make(Dtype::I64, 50).into(),
-                Int::make(Dtype::I64, 3).into(),
-                Int::make(Dtype::I64, 8).into(),
-                Int::make(Dtype::I64, 8).into()
-            ],
-            "a"
-        );
-        let b = Tensor::placeholder(
-            vec![
-                Int::make(Dtype::I64, 50).into(),
-                Int::make(Dtype::I64, 3).into(),
-                Int::make(Dtype::I64, 8).into(),
-                Int::make(Dtype::I64, 8).into()
-            ],
-            "b"
-        );
+        let n = Variable::make("n");
+        let m = Variable::make("m");
+        let a = Tensor::placeholder(vec![n.clone().into(), m.clone().into()], "a");
         let a_op = a.op.clone();
-        let b_op = b.op.clone();
-        let c = compute(
-            vec![
-                Int::make(Dtype::I64, 50).into(),
-                Int::make(Dtype::I64, 3).into(),
-                Int::make(Dtype::I64, 8).into(),
-                Int::make(Dtype::I64, 8).into()
-            ],
-            "c",
-            move |vec| { a_op(vec.clone()) + b_op(vec) }
-        );
-        let schedule = Schedule::create(vec![a, b, c]);
+        let c = compute(vec![n.clone().into()], "c", move |vec| {
+            sum(
+                a_op(vec![vec[0].clone(), Variable::make("k").into()]),
+                Int::make(Dtype::BF16, 0).into(),
+                vec![Int::make(Dtype::BF16, 0).into()],
+                vec![m.clone().into()],
+                vec![Int::make(Dtype::BF16, 1).into()],
+                vec!["k"]
+            )
+        });
+        let schedule = Schedule::create(vec![c]);
         let lowered = schedule.lower();
         for stmt in lowered {
             IRPrinter.print_stmt(stmt);

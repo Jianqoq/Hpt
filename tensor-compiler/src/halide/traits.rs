@@ -70,10 +70,6 @@ pub trait IRVisitor where Self: Sized {
     fn visit_reduce(&self, reduce: &Reduce) {
         reduce.expr().accept(self);
         reduce.identity().accept(self);
-        reduce.start().accept(self);
-        reduce.end().accept(self);
-        reduce.step().accept(self);
-        reduce.loop_var().accept(self);
     }
     fn visit_assign(&self, assign: &AssignStmt) {
         assign.lhs().accept(self);
@@ -277,10 +273,6 @@ pub trait IRMutVisitor where Self: Sized {
     fn visit_reduce(&mut self, reduce: &Reduce) {
         reduce.expr().accept_mut(self);
         reduce.identity().accept_mut(self);
-        reduce.start().accept_mut(self);
-        reduce.end().accept_mut(self);
-        reduce.step().accept_mut(self);
-        reduce.loop_var().accept_mut(self);
     }
     fn visit_variable(&mut self, var: &Variable) {}
     fn visit_str(&mut self, string: &Str) {}
@@ -912,21 +904,21 @@ pub(crate) fn visit_reduce<V>(visitor: &mut V, reduce: &Reduce)
 {
     let expr = visitor.mutate_expr(reduce.expr());
     let identity = visitor.mutate_expr(reduce.identity());
-    let start = visitor.mutate_expr(reduce.start());
-    let end = visitor.mutate_expr(reduce.end());
-    let step = visitor.mutate_expr(reduce.step());
-    let loop_var = visitor.mutate_expr(reduce.loop_var());
+    let new_starts: Vec<PrimeExpr> = reduce.start().iter().map(|start| visitor.mutate_expr(start)).collect();
+    let new_ends: Vec<PrimeExpr> = reduce.end().iter().map(|end| visitor.mutate_expr(end)).collect();
+    let new_steps: Vec<PrimeExpr> = reduce.step().iter().map(|step| visitor.mutate_expr(step)).collect();
+    let new_loop_vars: Vec<PrimeExpr> = reduce.loop_var().iter().map(|loop_var| visitor.mutate_expr(loop_var)).collect();
     if
         &expr == reduce.expr() &&
         &identity == reduce.identity() &&
-        &start == reduce.start() &&
-        &end == reduce.end() &&
-        &step == reduce.step() &&
-        &loop_var == reduce.loop_var()
+        new_starts.iter().zip(reduce.start().iter()).all(|(a, b)| a == b) &&
+        new_ends.iter().zip(reduce.end().iter()).all(|(a, b)| a == b) &&
+        new_steps.iter().zip(reduce.step().iter()).all(|(a, b)| a == b) &&
+        new_loop_vars.iter().zip(reduce.loop_var().iter()).all(|(a, b)| a == b)
     {
         visitor.set_expr(reduce);
     } else {
-        visitor.set_expr(Reduce::make(expr, identity, start, end, step, loop_var));
+        visitor.set_expr(Reduce::make(expr, identity, new_starts, new_ends, new_steps, new_loop_vars));
     }
 }
 

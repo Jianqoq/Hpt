@@ -1572,10 +1572,10 @@ impl Into<PrimeExpr> for &Max {
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Reduce {
     identity: Arc<PrimeExpr>,
-    start: Arc<PrimeExpr>,
-    end: Arc<PrimeExpr>,
-    step: Arc<PrimeExpr>,
-    loop_var: Arc<PrimeExpr>,
+    start: Arc<Vec<PrimeExpr>>,
+    end: Arc<Vec<PrimeExpr>>,
+    step: Arc<Vec<PrimeExpr>>,
+    loop_var: Arc<Vec<PrimeExpr>>,
     expr: Arc<PrimeExpr>,
 }
 
@@ -1589,10 +1589,10 @@ impl Reduce {
     pub fn new(
         expr: Arc<PrimeExpr>,
         identity: Arc<PrimeExpr>,
-        start: Arc<PrimeExpr>,
-        end: Arc<PrimeExpr>,
-        step: Arc<PrimeExpr>,
-        loop_var: Arc<PrimeExpr>
+        start: Arc<Vec<PrimeExpr>>,
+        end: Arc<Vec<PrimeExpr>>,
+        step: Arc<Vec<PrimeExpr>>,
+        loop_var: Arc<Vec<PrimeExpr>>
     ) -> Self {
         Reduce {
             expr,
@@ -1607,18 +1607,18 @@ impl Reduce {
     pub fn make<T: Into<PrimeExpr>>(
         expr: T,
         identity: T,
-        start: T,
-        end: T,
-        step: T,
-        loop_var: T
+        start: Vec<T>,
+        end: Vec<T>,
+        step: Vec<T>,
+        loop_var: Vec<T>
     ) -> Self {
         Reduce {
             expr: expr.into().into(),
             identity: identity.into().into(),
-            start: start.into().into(),
-            end: end.into().into(),
-            step: step.into().into(),
-            loop_var: loop_var.into().into()
+            start: Arc::new(start.into_iter().map(|e| e.into().into()).collect()),
+            end: Arc::new(end.into_iter().map(|e| e.into().into()).collect()),
+            step: Arc::new(step.into_iter().map(|e| e.into().into()).collect()),
+            loop_var: Arc::new(loop_var.into_iter().map(|e| e.into().into()).collect())
         }
     }
 
@@ -1626,19 +1626,19 @@ impl Reduce {
         &self.identity
     }
 
-    pub fn start(&self) -> &PrimeExpr {
+    pub fn start(&self) -> &Vec<PrimeExpr> {
         &self.start
     }
 
-    pub fn end(&self) -> &PrimeExpr {
+    pub fn end(&self) -> &Vec<PrimeExpr> {
         &self.end
     }
 
-    pub fn step(&self) -> &PrimeExpr {
+    pub fn step(&self) -> &Vec<PrimeExpr> {
         &self.step
     }
 
-    pub fn loop_var(&self) -> &PrimeExpr {
+    pub fn loop_var(&self) -> &Vec<PrimeExpr> {
         &self.loop_var
     }
 
@@ -1646,19 +1646,19 @@ impl Reduce {
         &self.identity
     }
 
-    pub fn start_(&self) -> &Arc<PrimeExpr> {
+    pub fn start_(&self) -> &Arc<Vec<PrimeExpr>> {
         &self.start
     }
 
-    pub fn end_(&self) -> &Arc<PrimeExpr> {
+    pub fn end_(&self) -> &Arc<Vec<PrimeExpr>> {
         &self.end
     }
 
-    pub fn step_(&self) -> &Arc<PrimeExpr> {
+    pub fn step_(&self) -> &Arc<Vec<PrimeExpr>> {
         &self.step
     }
 
-    pub fn loop_var_(&self) -> &Arc<PrimeExpr> {
+    pub fn loop_var_(&self) -> &Arc<Vec<PrimeExpr>> {
         &self.loop_var
     }
     pub fn expr(&self) -> &PrimeExpr {
@@ -1673,12 +1673,7 @@ impl Display for Reduce {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "reduce({}, {}, {}, {}, {})",
-            self.identity,
-            self.start,
-            self.end,
-            self.step,
-            self.loop_var
+            "reduce",
         )
     }
 }

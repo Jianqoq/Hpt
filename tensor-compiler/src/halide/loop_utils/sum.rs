@@ -3,10 +3,20 @@ use crate::halide::{ exprs::Reduce, prime_expr::PrimeExpr, variable::Variable };
 pub fn sum(
     expr: PrimeExpr,
     init: PrimeExpr,
-    start: PrimeExpr,
-    end: PrimeExpr,
-    step: PrimeExpr,
-    name: &str
+    start: Vec<PrimeExpr>,
+    end: Vec<PrimeExpr>,
+    step: Vec<PrimeExpr>,
+    names: Vec<&str>
 ) -> PrimeExpr {
-    Reduce::make(expr, init, start, end, step, Variable::make(name).into()).into()
+    Reduce::make(
+        expr,
+        init,
+        start,
+        end,
+        step,
+        names
+            .iter()
+            .map(|x| Variable::new(x.to_string()).into())
+            .collect()
+    ).into()
 }
