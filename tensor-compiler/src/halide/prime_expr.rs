@@ -13,6 +13,7 @@ pub enum PrimeExpr {
     UInt(UInt),
     Str(Str),
     Variable(Variable),
+    Reduce(Reduce),
     Cast(Cast),
     Add(Add),
     Sub(Sub),
@@ -45,6 +46,7 @@ pub enum PrimeType {
     UInt,
     Str,
     Variable,
+    Reduce,
     Cast,
     Add,
     Sub,
@@ -115,6 +117,7 @@ impl PrimeExpr {
             PrimeExpr::Select(_) => PrimeType::Select,
             PrimeExpr::Let(_) => PrimeType::Let,
             PrimeExpr::Load(_) => PrimeType::Load,
+            PrimeExpr::Reduce(_) => PrimeType::Reduce,
             PrimeExpr::None => PrimeType::None,
         }
     }
@@ -157,6 +160,7 @@ impl PrimeExpr {
             PrimeExpr::Select(a) => a.to_string(),
             PrimeExpr::Let(a) => a.to_string(),
             PrimeExpr::Load(a) => a.to_string(),
+            PrimeExpr::Reduce(a) => a.to_string(),
             PrimeExpr::None => "".to_string(),
         };
         if prec < parent_prec {

@@ -1568,3 +1568,129 @@ impl Into<PrimeExpr> for &Max {
         PrimeExpr::Max(self.clone())
     }
 }
+
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
+pub struct Reduce {
+    identity: Arc<PrimeExpr>,
+    start: Arc<PrimeExpr>,
+    end: Arc<PrimeExpr>,
+    step: Arc<PrimeExpr>,
+    loop_var: Arc<PrimeExpr>,
+    expr: Arc<PrimeExpr>,
+}
+
+impl Accepter for Reduce {
+    fn accept<V: IRVisitor>(&self, visitor: &V) {
+        visitor.visit_reduce(self);
+    }
+}
+
+impl Reduce {
+    pub fn new(
+        expr: Arc<PrimeExpr>,
+        identity: Arc<PrimeExpr>,
+        start: Arc<PrimeExpr>,
+        end: Arc<PrimeExpr>,
+        step: Arc<PrimeExpr>,
+        loop_var: Arc<PrimeExpr>
+    ) -> Self {
+        Reduce {
+            expr,
+            identity,
+            start,
+            end,
+            step,
+            loop_var
+        }
+    }
+
+    pub fn make<T: Into<PrimeExpr>>(
+        expr: T,
+        identity: T,
+        start: T,
+        end: T,
+        step: T,
+        loop_var: T
+    ) -> Self {
+        Reduce {
+            expr: expr.into().into(),
+            identity: identity.into().into(),
+            start: start.into().into(),
+            end: end.into().into(),
+            step: step.into().into(),
+            loop_var: loop_var.into().into()
+        }
+    }
+
+    pub fn identity(&self) -> &PrimeExpr {
+        &self.identity
+    }
+
+    pub fn start(&self) -> &PrimeExpr {
+        &self.start
+    }
+
+    pub fn end(&self) -> &PrimeExpr {
+        &self.end
+    }
+
+    pub fn step(&self) -> &PrimeExpr {
+        &self.step
+    }
+
+    pub fn loop_var(&self) -> &PrimeExpr {
+        &self.loop_var
+    }
+
+    pub fn identity_(&self) -> &Arc<PrimeExpr> {
+        &self.identity
+    }
+
+    pub fn start_(&self) -> &Arc<PrimeExpr> {
+        &self.start
+    }
+
+    pub fn end_(&self) -> &Arc<PrimeExpr> {
+        &self.end
+    }
+
+    pub fn step_(&self) -> &Arc<PrimeExpr> {
+        &self.step
+    }
+
+    pub fn loop_var_(&self) -> &Arc<PrimeExpr> {
+        &self.loop_var
+    }
+    pub fn expr(&self) -> &PrimeExpr {
+        &self.expr
+    }
+    pub fn expr_(&self) -> &Arc<PrimeExpr> {
+        &self.expr
+    }
+}
+
+impl Display for Reduce {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "reduce({}, {}, {}, {}, {})",
+            self.identity,
+            self.start,
+            self.end,
+            self.step,
+            self.loop_var
+        )
+    }
+}
+
+impl Into<PrimeExpr> for Reduce {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Reduce(self)
+    }
+}
+
+impl Into<PrimeExpr> for &Reduce {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Reduce(self.clone())
+    }
+}

@@ -1,5 +1,15 @@
 use super::{
-    assign_stmt::AssignStmt, exprs::*, for_stmt::For, if_stmt::IfThenElse, inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub }, let_stmt::LetStmt, prime_expr::PrimeExpr, seq_stmt::Seq, stmt::Stmt, store_stmt::StoreStmt, variable::Variable
+    assign_stmt::AssignStmt,
+    exprs::*,
+    for_stmt::For,
+    if_stmt::IfThenElse,
+    inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub },
+    let_stmt::LetStmt,
+    prime_expr::PrimeExpr,
+    seq_stmt::Seq,
+    stmt::Stmt,
+    store_stmt::StoreStmt,
+    variable::Variable,
 };
 
 #[allow(unused_variables)]
@@ -33,6 +43,7 @@ pub trait IRVisitor where Self: Sized {
             PrimeExpr::Select(select) => self.visit_select(&select),
             PrimeExpr::Load(load) => self.visit_load(&load),
             PrimeExpr::Let(let_) => self.visit_let(&let_),
+            PrimeExpr::Reduce(reduce) => self.visit_reduce(&reduce),
             PrimeExpr::None => {}
         }
     }
@@ -55,6 +66,14 @@ pub trait IRVisitor where Self: Sized {
             Stmt::AssignStmt(assign) => self.visit_assign(&assign),
             Stmt::None => {}
         }
+    }
+    fn visit_reduce(&self, reduce: &Reduce) {
+        reduce.expr().accept(self);
+        reduce.identity().accept(self);
+        reduce.start().accept(self);
+        reduce.end().accept(self);
+        reduce.step().accept(self);
+        reduce.loop_var().accept(self);
     }
     fn visit_assign(&self, assign: &AssignStmt) {
         assign.lhs().accept(self);
@@ -231,6 +250,7 @@ pub trait IRMutVisitor where Self: Sized {
             PrimeExpr::Select(select) => self.visit_select(&select),
             PrimeExpr::Load(load) => self.visit_load(&load),
             PrimeExpr::Let(let_) => self.visit_let(&let_),
+            PrimeExpr::Reduce(reduce) => self.visit_reduce(&reduce),
             PrimeExpr::None => {}
         }
     }
@@ -253,6 +273,14 @@ pub trait IRMutVisitor where Self: Sized {
             Stmt::AssignStmt(assign) => self.visit_assign(&assign),
             Stmt::None => {}
         }
+    }
+    fn visit_reduce(&mut self, reduce: &Reduce) {
+        reduce.expr().accept_mut(self);
+        reduce.identity().accept_mut(self);
+        reduce.start().accept_mut(self);
+        reduce.end().accept_mut(self);
+        reduce.step().accept_mut(self);
+        reduce.loop_var().accept_mut(self);
     }
     fn visit_variable(&mut self, var: &Variable) {}
     fn visit_str(&mut self, string: &Str) {}
@@ -473,6 +501,7 @@ pub(crate) fn visit_expr<V>(visitor: &mut V, expr: &PrimeExpr)
         PrimeExpr::Select(select) => visitor.visit_select(&select),
         PrimeExpr::Load(load) => visitor.visit_load(&load),
         PrimeExpr::Let(let_) => visitor.visit_let(&let_),
+        PrimeExpr::Reduce(reduce) => visitor.visit_reduce(&reduce),
         PrimeExpr::None => {}
     }
 }
@@ -878,6 +907,29 @@ pub(crate) fn visit_assign<V>(visitor: &mut V, assign: &AssignStmt)
     }
 }
 
+pub(crate) fn visit_reduce<V>(visitor: &mut V, reduce: &Reduce)
+    where V: MutatorGetSet + Sized + IRMutateVisitor
+{
+    let expr = visitor.mutate_expr(reduce.expr());
+    let identity = visitor.mutate_expr(reduce.identity());
+    let start = visitor.mutate_expr(reduce.start());
+    let end = visitor.mutate_expr(reduce.end());
+    let step = visitor.mutate_expr(reduce.step());
+    let loop_var = visitor.mutate_expr(reduce.loop_var());
+    if
+        &expr == reduce.expr() &&
+        &identity == reduce.identity() &&
+        &start == reduce.start() &&
+        &end == reduce.end() &&
+        &step == reduce.step() &&
+        &loop_var == reduce.loop_var()
+    {
+        visitor.set_expr(reduce);
+    } else {
+        visitor.set_expr(Reduce::make(expr, identity, start, end, step, loop_var));
+    }
+}
+
 pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     fn mutate_expr(&mut self, expr: &PrimeExpr) -> PrimeExpr {
         mutate_expr(self, expr)
@@ -1005,6 +1057,9 @@ pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     }
     fn visit_inplace_div(&mut self, inplace_div: &InplaceDiv) {
         visit_inplace_div(self, inplace_div);
+    }
+    fn visit_reduce(&mut self, reduce: &Reduce) {
+        visit_reduce(self, reduce);
     }
 }
 

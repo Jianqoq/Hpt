@@ -58,14 +58,12 @@ impl Tensor {
     }
 }
 
-pub fn compute(
-    res_shape: Vec<PrimeExpr>,
-    name: &str,
-    op: Arc<dyn Fn(Vec<PrimeExpr>) -> PrimeExpr>
-) -> Tensor {
+pub fn compute<F>(res_shape: Vec<PrimeExpr>, name: &str, op: F) -> Tensor
+    where F: Fn(Vec<PrimeExpr>) -> PrimeExpr + 'static
+{
     Tensor {
         shape: Arc::new(res_shape),
-        op,
+        op: Arc::new(op),
         name: name.to_string().into(),
     }
 }
@@ -144,10 +142,7 @@ mod tests {
                 Int::make(Dtype::I64, 8).into()
             ],
             "c",
-            Arc::new(move |vec| {
-                a_op(vec![vec[0].clone(), vec[1].clone(), vec[2].clone(), vec[3].clone()]) +
-                    b_op(vec![vec[0].clone(), vec[1].clone(), vec[2].clone(), vec[3].clone()])
-            })
+            move |vec| { a_op(vec.clone()) + b_op(vec) }
         );
         let schedule = Schedule::create(vec![a, b, c]);
         let lowered = schedule.lower();
