@@ -363,10 +363,10 @@ mod tests {
         let n = Variable::make("n");
         let m = Variable::make("m");
         let a = Tensor::placeholder([&n, &m], "a");
-        let a_op = a.op.clone();
+        let _a = a.clone();
         let c = compute([&n], "c", move |[i]| {
             max(
-                [a_op(vec![i, Variable::make("k").into()])],
+                [_a.slice([i, Variable::make("k").into()])],
                 [Int::make(Dtype::BF16, 0)],
                 [(0, &m, 1, "k")]
             )
@@ -383,10 +383,10 @@ mod tests {
         let n = Variable::make("n");
         let m = Variable::make("m");
         let a = Tensor::placeholder([&n, &m], "a");
-        let a_op = a.op.clone();
+        let _a = a.clone();
         let c = compute([&n], "c", move |[i]| {
             min(
-                [a_op(vec![i, Variable::make("k").into()])],
+                [_a.slice([i, Variable::make("k").into()])],
                 [Int::make(Dtype::BF16, 0)],
                 [(0, &m, 1, "k")]
             )
@@ -402,10 +402,10 @@ mod tests {
         let n = Variable::make("n");
         let m = Variable::make("m");
         let a = Tensor::placeholder([&n, &m], "a");
-        let a_op = a.op.clone();
+        let _a = a.clone();
         let c = compute([&n], "c", move |[i]| {
             sum(
-                [a_op(vec![i, Variable::make("k").into()])],
+                [_a.slice([i, Variable::make("k").into()])],
                 [Int::make(Dtype::BF16, 0)],
                 [(0, &m, 1, "k")]
             )
