@@ -58,6 +58,16 @@ impl Tensor {
             name: name.to_string().into(),
         }
     }
+    pub fn slice<T: IntoIterator<Item: Into<PrimeExpr>>>(&self, indices: T) -> PrimeExpr {
+        Load::make(
+            Variable::make(&self.name),
+            indices
+                .into_iter()
+                .map(|x| x.into())
+                .reduce(|acc, x| acc + x)
+                .unwrap()
+        ).into()
+    }
 }
 
 pub fn compute<const N: usize, F>(res_shape: [PrimeExpr; N], name: &str, op: F) -> Tensor
@@ -214,11 +224,14 @@ mod tests {
         let end1 = Variable::make("end1");
         let end2 = Variable::make("end2");
         let end3 = Variable::make("end3");
-        let a = Tensor::placeholder(vec![u.clone().into(), n.clone().into(), m.clone().into()], "a");
-        let a_op = a.op.clone();
+        let a = Tensor::placeholder(
+            vec![u.clone().into(), n.clone().into(), m.clone().into()],
+            "a"
+        );
+        let _a = a.clone();
         let c = compute([u.clone().into(), n.clone().into()], "c", move |[u, n]| {
             sum(
-                [a_op(vec![u, n, Variable::make("k").into()])],
+                [_a.slice([u, n, Variable::make("k").into()])],
                 [Int::make(Dtype::BF16, 0)],
                 [Int::make(Dtype::BF16, 0)],
                 [end1.clone(), end2.clone()],
@@ -226,10 +239,10 @@ mod tests {
                 vec!["k"]
             )
         });
-        let c_op = c.op.clone();
+        let _c = c.clone();
         let d = compute([u.clone().into()], "d", move |[i]| {
             sum(
-                [c_op(vec![i, Variable::make("j").into()])],
+                [_c.slice([i, Variable::make("j").into()])],
                 [Int::make(Dtype::BF16, 0)],
                 [Int::make(Dtype::BF16, 0)],
                 [end3.clone()],
@@ -237,7 +250,7 @@ mod tests {
                 vec!["j"]
             )
         });
-        let schedule = Schedule::create(vec![d]);
+        let schedule = Schedule::create(vec![d, c]);
         let lowered = schedule.lower();
         for stmt in lowered {
             IRPrinter.print_stmt(stmt);
