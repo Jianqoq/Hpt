@@ -100,34 +100,59 @@ impl Schedule {
             let mut main_stmt: Vec<Stmt> = vec![];
             match expr {
                 PrimeExpr::Reduce(reduce) => {
-                    main_stmt.push(
-                        StoreStmt::make(
-                            &Variable::make(&format!("output_{}", name)),
-                            &loop_indexes
-                                .iter()
-                                .map(|x| x.clone().into())
-                                .reduce(|acc, x| acc + x).unwrap(),
-                            reduce.identity()
-                        ).into()
-                    );
-                    let end = reduce.end();
+                    let indices = &loop_indexes
+                        .iter()
+                        .map(|x| x.clone().into())
+                        .reduce(|acc, x| acc + x)
+                        .unwrap();
                     let loop_vars = reduce
                         .loop_var()
                         .iter()
                         .map(|x| x.to_variable().unwrap().clone())
                         .collect::<Vec<_>>();
-                    let fors = build_nested_for(
-                        &loop_vars,
-                        end,
-                        StoreStmt::make(
-                            &Variable::make(&format!("output_{}", name)),
-                                &loop_indexes
-                                    .iter()
-                                    .map(|x| x.clone().into())
-                                    .reduce(|acc, x| acc + x).unwrap(),
-                            reduce.expr()
-                        )
-                    );
+                    let end = reduce.end();
+                    let fors = match reduce.op() {
+                        "sum" => {
+                            assert!(reduce.identity().len() == 1);
+                            assert!(reduce.expr().len() == 1);
+                            main_stmt.push(
+                                StoreStmt::make(
+                                    &Variable::make(&format!("output_{}", name)),
+                                    indices,
+                                    &reduce.identity()[0].clone()
+                                ).into()
+                            );
+                            build_nested_for(
+                                &loop_vars,
+                                end,
+                                StoreStmt::make(
+                                    &Variable::make(&format!("output_{}", name)),
+                                    &loop_indexes
+                                        .iter()
+                                        .map(|x| x.clone().into())
+                                        .reduce(|acc, x| acc + x)
+                                        .unwrap(),
+                                    &reduce.expr()[0]
+                                )
+                            )
+                        }
+                        "min" => {
+                            todo!();
+                        }
+                        "max" => {
+                            todo!();
+                        }
+                        "prod" => {
+                            todo!();
+                        }
+                        "argmin" => {
+                            todo!();
+                        }
+                        "argmax" => {
+                            todo!();
+                        }
+                        _ => todo!(),
+                    };
                     main_stmt.push(fors);
                 }
                 _ => todo!(),
@@ -156,15 +181,15 @@ mod tests {
     };
 
     #[test]
-    fn test_tensor() {
+    fn test_reduce() {
         let n = Variable::make("n");
         let m = Variable::make("m");
         let a = Tensor::placeholder(vec![n.clone().into(), m.clone().into()], "a");
         let a_op = a.op.clone();
         let c = compute(vec![n.clone().into()], "c", move |vec| {
             sum(
-                a_op(vec![vec[0].clone(), Variable::make("k").into()]),
-                Int::make(Dtype::BF16, 0).into(),
+                vec![a_op(vec![vec[0].clone(), Variable::make("k").into()])],
+                vec![Int::make(Dtype::BF16, 0).into()],
                 vec![Int::make(Dtype::BF16, 0).into()],
                 vec![m.clone().into()],
                 vec![Int::make(Dtype::BF16, 1).into()],

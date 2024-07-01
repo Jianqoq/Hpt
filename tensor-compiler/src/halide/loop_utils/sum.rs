@@ -1,8 +1,8 @@
 use crate::halide::{ exprs::Reduce, prime_expr::PrimeExpr, variable::Variable };
 
 pub fn sum(
-    expr: PrimeExpr,
-    init: PrimeExpr,
+    expr: Vec<PrimeExpr>,
+    init: Vec<PrimeExpr>,
     start: Vec<PrimeExpr>,
     end: Vec<PrimeExpr>,
     step: Vec<PrimeExpr>,
@@ -17,6 +17,7 @@ pub fn sum(
         names
             .iter()
             .map(|x| Variable::new(x.to_string()).into())
-            .collect()
+            .collect(),
+        "sum"
     ).into()
 }

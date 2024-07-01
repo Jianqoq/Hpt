@@ -2,7 +2,7 @@ use std::{ fmt::Display, sync::Arc };
 
 use tensor_types::dtype::Dtype;
 
-use crate::hlir::{expr::Expr, exprs::Value};
+use crate::{hlir::{expr::Expr, exprs::Value}, op};
 
 use super::{ prime_expr::PrimeExpr, traits::{ Accepter, IRVisitor }, variable::Variable };
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
@@ -1571,12 +1571,13 @@ impl Into<PrimeExpr> for &Max {
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Reduce {
-    identity: Arc<PrimeExpr>,
+    identity: Arc<Vec<PrimeExpr>>,
     start: Arc<Vec<PrimeExpr>>,
     end: Arc<Vec<PrimeExpr>>,
     step: Arc<Vec<PrimeExpr>>,
     loop_var: Arc<Vec<PrimeExpr>>,
-    expr: Arc<PrimeExpr>,
+    expr: Arc<Vec<PrimeExpr>>,
+    op: &'static str
 }
 
 impl Accepter for Reduce {
@@ -1587,12 +1588,13 @@ impl Accepter for Reduce {
 
 impl Reduce {
     pub fn new(
-        expr: Arc<PrimeExpr>,
-        identity: Arc<PrimeExpr>,
+        expr: Arc<Vec<PrimeExpr>>,
+        identity: Arc<Vec<PrimeExpr>>,
         start: Arc<Vec<PrimeExpr>>,
         end: Arc<Vec<PrimeExpr>>,
         step: Arc<Vec<PrimeExpr>>,
-        loop_var: Arc<Vec<PrimeExpr>>
+        loop_var: Arc<Vec<PrimeExpr>>,
+        op: &'static str
     ) -> Self {
         Reduce {
             expr,
@@ -1600,29 +1602,36 @@ impl Reduce {
             start,
             end,
             step,
-            loop_var
+            loop_var,
+            op
         }
     }
 
     pub fn make<T: Into<PrimeExpr>>(
-        expr: T,
-        identity: T,
+        expr: Vec<T>,
+        identity: Vec<T>,
         start: Vec<T>,
         end: Vec<T>,
         step: Vec<T>,
-        loop_var: Vec<T>
+        loop_var: Vec<T>,
+        op: &'static str
     ) -> Self {
         Reduce {
-            expr: expr.into().into(),
-            identity: identity.into().into(),
+            expr: expr.into_iter().map(|e| e.into().into()).collect::<Vec<PrimeExpr>>().into(),
+            identity: identity.into_iter().map(|e| e.into().into()).collect::<Vec<PrimeExpr>>().into(),
             start: Arc::new(start.into_iter().map(|e| e.into().into()).collect()),
             end: Arc::new(end.into_iter().map(|e| e.into().into()).collect()),
             step: Arc::new(step.into_iter().map(|e| e.into().into()).collect()),
-            loop_var: Arc::new(loop_var.into_iter().map(|e| e.into().into()).collect())
+            loop_var: Arc::new(loop_var.into_iter().map(|e| e.into().into()).collect()),
+            op
         }
     }
 
-    pub fn identity(&self) -> &PrimeExpr {
+    pub fn op(&self) -> &'static str {
+        self.op
+    }
+
+    pub fn identity(&self) -> &Vec<PrimeExpr> {
         &self.identity
     }
 
@@ -1642,7 +1651,7 @@ impl Reduce {
         &self.loop_var
     }
 
-    pub fn identity_(&self) -> &Arc<PrimeExpr> {
+    pub fn identity_(&self) -> &Arc<Vec<PrimeExpr>> {
         &self.identity
     }
 
@@ -1661,10 +1670,10 @@ impl Reduce {
     pub fn loop_var_(&self) -> &Arc<Vec<PrimeExpr>> {
         &self.loop_var
     }
-    pub fn expr(&self) -> &PrimeExpr {
+    pub fn expr(&self) -> &Vec<PrimeExpr> {
         &self.expr
     }
-    pub fn expr_(&self) -> &Arc<PrimeExpr> {
+    pub fn expr_(&self) -> &Arc<Vec<PrimeExpr>> {
         &self.expr
     }
 }
