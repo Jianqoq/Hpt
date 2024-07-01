@@ -2,7 +2,7 @@ use std::{ fmt::Display, sync::Arc };
 
 use tensor_types::dtype::Dtype;
 
-use crate::{ hlir::{ expr::Expr, exprs::Value }, iter_val::IterVar, op };
+use crate::{ hlir::{ expr::Expr, exprs::Value }, iter_val::IterVar };
 
 use super::{ prime_expr::PrimeExpr, traits::{ Accepter, IRVisitor }, variable::Variable };
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
