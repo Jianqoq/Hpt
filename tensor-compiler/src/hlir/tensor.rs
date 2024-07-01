@@ -201,11 +201,9 @@ mod tests {
     use tensor_types::dtype::Dtype;
 
     use super::*;
-    use crate::halide::{
-        exprs::Int,
-        loop_utils::sum::sum,
-        prime_expr::PrimeExpr,
-        printer::IRPrinter,
+    use crate::{
+        halide::{ exprs::Int, loop_utils::sum::sum, prime_expr::PrimeExpr, printer::IRPrinter },
+        hlir::traits::IntoVar,
     };
 
     #[test]
@@ -240,20 +238,20 @@ mod tests {
         let _a = a.clone();
         let c = compute([u.clone().into(), n.clone().into()], "c", move |[u, n]| {
             sum(
-                [_a.slice([u, n, Variable::make("k").into()])],
+                [_a.slice([u, n, "k".into_var().into()])],
                 [0],
                 [
-                    (0, &end1, 1, "k"),
-                    (0, &end2, 1, "n"),
+                    (0, &end1, 1, "k".into_var()),
+                    (0, &end2, 1, "n".into_var()),
                 ]
             )
         });
         let _c = c.clone();
         let d = compute([u.clone().into()], "d", move |[i]| {
             sum(
-                [_c.slice([i, Variable::make("j").into()])],
+                [_c.slice([i, "j".into_var().into()])],
                 [Int::make(Dtype::BF16, 0)],
-                [(0, &end3, 1, "j")]
+                [(0, &end3, 1, "j".into_var())]
             )
         });
         let schedule = Schedule::create(vec![d, c]);
