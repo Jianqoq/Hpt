@@ -28,9 +28,6 @@ pub mod halide {
 }
 
 pub mod hlir {
-    pub mod substitute {
-        pub mod fuse_cmp;
-    }
     pub mod tensor;
     pub mod _value;
     pub mod expr;
@@ -38,11 +35,11 @@ pub mod hlir {
     pub mod exprs;
     pub mod printer;
     pub mod func_type;
+    pub mod input_visitor;
     // pub mod lowering;
     // pub mod tests;
 }
 pub mod iter_val;
 pub mod edges;
-pub mod registry;
 pub mod op;
 pub mod float;

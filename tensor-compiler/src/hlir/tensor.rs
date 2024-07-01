@@ -1,8 +1,8 @@
 #![allow(unused_imports)]
-use std::sync::Arc;
+use std::{fmt::{Display, Formatter}, sync::Arc};
 
 use hashbrown::HashMap;
-use tensor_common::shape::Shape;
+use tensor_common::{ axis::{ process_axes, Axis }, shape::Shape };
 use tensor_types::dtype::Dtype;
 
 use crate::{
@@ -18,8 +18,7 @@ use crate::{
         stmt::Stmt,
         store_stmt::StoreStmt,
         variable::Variable,
-    },
-    iter_val::IterVar,
+    }, hlir::input_visitor::InputVisitor, iter_val::IterVar
 };
 
 #[derive(Clone)]
@@ -27,6 +26,48 @@ pub struct Tensor {
     shape: Arc<Vec<IterVar>>,
     op: Arc<dyn Fn(Vec<PrimeExpr>) -> PrimeExpr>,
     name: Arc<String>,
+    inputs: Arc<Vec<Arc<Tensor>>>,
+}
+
+impl std::fmt::Debug for Tensor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Tensor")
+            .field("shape", &self.shape)
+            .field("name", &self.name)
+            .field("inputs", &self.inputs)
+            .finish()
+    }
+}
+
+impl Tensor {
+    pub fn ndim(&self) -> usize {
+        self.shape.len()
+    }
+    pub fn sum<AXIS: Into<Axis>>(&self, axes: AXIS, name: &str) -> Self {
+        let axes: Vec<usize> = process_axes(axes, self.ndim()).unwrap();
+        let _a = self.clone();
+        let res_shape = self.shape
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| !axes.contains(i))
+            .map(|(_, x)| x.clone())
+            .collect::<Vec<_>>();
+
+        // let c = compute([&n], name, move |[i]| {
+        //     sum(
+        //         [_a.slice([i, Variable::make("k").into()])],
+        //         [Int::make(Dtype::BF16, 0)],
+        //         [(0, &m, 1, "k")]
+        //     )
+        // });
+        todo!()
+    }
+}
+
+impl Display for Tensor {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
 }
 
 impl Eq for Tensor {}
@@ -75,6 +116,7 @@ impl Tensor {
                 ).into()
             }),
             name: name.to_string().into(),
+            inputs: vec![].into(),
         }
     }
     pub fn slice<T: IntoIterator<Item: Into<PrimeExpr>>>(&self, indices: T) -> PrimeExpr {
@@ -109,11 +151,20 @@ pub fn compute<const N: usize, F, T: Into<PrimeExpr> + Clone>(
             )
         })
         .collect::<Vec<_>>();
-    Tensor {
-        shape: Arc::new(iter_vars),
-        op: Arc::new(new_fn),
-        name: name.to_string().into(),
-    }
+    let val = new_fn(
+        iter_vars
+            .iter()
+            .map(|x| x.var().clone().into())
+            .collect::<Vec<_>>()
+    );
+    // let mut input_visitor = InputVisitor::visit(&val);
+    
+    todo!()
+    // Tensor {
+    //     shape: Arc::new(iter_vars),
+    //     op: Arc::new(new_fn),
+    //     name: name.to_string().into(),
+    // }
 }
 
 pub struct Schedule {

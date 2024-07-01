@@ -3,16 +3,14 @@ use std::fmt::Display;
 use crate::halide::{ prime_expr::PrimeExpr, variable::Variable };
 
 use super::{
-    exprs::*,
-    func_type::Type,
-    traits::{
+    exprs::*, func_type::Type, tensor::Tensor, traits::{
         HlirAccepterMut,
         HlirAccepterMutate,
         HlirAcceptor,
         HlirMutVisitor,
         HlirMutateVisitor,
         HlirVisitor,
-    },
+    }
 };
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -99,7 +97,6 @@ impl Expr {
                     ::Cast(crate::halide::exprs::Cast::make(a.value().to_primexpr(), a.dtype()))
                     .into()
             }
-            Expr::Tensor(a) => { a.const_val().map(|v| v.to_primexpr()) }
             _ => None,
         }
     }

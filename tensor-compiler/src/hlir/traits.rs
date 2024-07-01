@@ -1,6 +1,6 @@
 use crate::halide::variable::Variable;
 
-use super::{ exprs::*, expr::Expr };
+use super::{ expr::Expr, exprs::*, tensor::Tensor };
 
 pub trait HlirAcceptor {
     fn accept<V: HlirVisitor>(&self, visitor: &V);
