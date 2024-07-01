@@ -565,7 +565,7 @@ impl Gt {
         Gt { e1, e2 }
     }
 
-    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
+    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(e1: A, e2: B) -> Self {
         Gt {
             e1: e1.into().into(),
             e2: e2.into().into(),
@@ -1284,7 +1284,7 @@ impl Lt {
         Lt { e1, e2 }
     }
 
-    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
+    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(e1: A, e2: B) -> Self {
         Lt {
             e1: e1.into().into(),
             e2: e2.into().into(),
@@ -1461,7 +1461,7 @@ impl Min {
         Min { e1, e2 }
     }
 
-    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
+    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(e1: A, e2: B) -> Self {
         Min {
             e1: e1.into().into(),
             e2: e2.into().into(),
@@ -1520,7 +1520,7 @@ impl Max {
         Max { e1, e2 }
     }
 
-    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
+    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(e1: A, e2: B) -> Self {
         Max {
             e1: e1.into().into(),
             e2: e2.into().into(),

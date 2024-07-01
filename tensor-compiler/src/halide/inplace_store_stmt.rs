@@ -69,7 +69,7 @@ pub struct InplaceAdd {
 }
 
 impl InplaceAdd {
-    pub fn make<T: Into<PrimeExpr>>(to_store: T, val: T) -> Self {
+    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(to_store: A, val: B) -> Self {
         InplaceAdd {
             to_store: to_store.into().into(),
             val: val.into().into(),

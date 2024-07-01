@@ -7,7 +7,9 @@ use tensor_types::dtype::Dtype;
 
 use crate::{
     halide::{
-        exprs::{ Add, Int, Load },
+        exprs::{ Add, Gt, Int, Load, Lt, Max, Min, Mul },
+        if_stmt::IfThenElse,
+        inplace_store_stmt::InplaceAdd,
         let_stmt::LetStmt,
         loop_utils::build_nested::build_nested_for,
         prime_expr::PrimeExpr,
@@ -169,19 +171,123 @@ impl Schedule {
                             )
                         }
                         "min" => {
-                            todo!();
+                            assert!(reduce.identity().len() == 1);
+                            assert!(reduce.expr().len() == 1);
+                            main_stmt.push(
+                                StoreStmt::make(
+                                    &Variable::make(&format!("output_{}", name)),
+                                    indices,
+                                    &reduce.identity()[0].clone()
+                                ).into()
+                            );
+                            build_nested_for(
+                                iter_vars,
+                                StoreStmt::make(
+                                    &Variable::make(&format!("output_{}", name)),
+                                    indices,
+                                    &Min::make(
+                                        &Load::make(
+                                            Variable::make(&format!("output_{}", name)),
+                                            indices
+                                        ),
+                                        &reduce.expr()[0]
+                                    )
+                                )
+                            )
                         }
                         "max" => {
-                            todo!();
+                            assert!(reduce.identity().len() == 1);
+                            assert!(reduce.expr().len() == 1);
+                            main_stmt.push(
+                                StoreStmt::make(
+                                    &Variable::make(&format!("output_{}", name)),
+                                    indices,
+                                    &reduce.identity()[0].clone()
+                                ).into()
+                            );
+                            build_nested_for(
+                                iter_vars,
+                                StoreStmt::make(
+                                    &Variable::make(&format!("output_{}", name)),
+                                    indices,
+                                    &Max::make(
+                                        &Load::make(
+                                            Variable::make(&format!("output_{}", name)),
+                                            indices
+                                        ),
+                                        &reduce.expr()[0]
+                                    )
+                                )
+                            )
                         }
                         "prod" => {
-                            todo!();
+                            assert!(reduce.identity().len() == 1);
+                            assert!(reduce.expr().len() == 1);
+                            main_stmt.push(
+                                StoreStmt::make(
+                                    &Variable::make(&format!("output_{}", name)),
+                                    indices,
+                                    &reduce.identity()[0].clone()
+                                ).into()
+                            );
+                            build_nested_for(
+                                iter_vars,
+                                StoreStmt::make(
+                                    &Variable::make(&format!("output_{}", name)),
+                                    indices,
+                                    &Mul::make(
+                                        &Load::make(
+                                            Variable::make(&format!("output_{}", name)),
+                                            indices
+                                        ),
+                                        &reduce.expr()[0]
+                                    )
+                                )
+                            )
                         }
                         "argmin" => {
-                            todo!();
+                            assert!(reduce.identity().len() == 2);
+                            assert!(reduce.expr().len() == 1);
+                            let idx = Variable::make(&format!("idx{}", name));
+                            main_stmt.push(
+                                StoreStmt::make(&idx, indices, Int::make(Dtype::I64, 0)).into()
+                            );
+                            let max_val = Variable::make(&format!("max_{}", name));
+                            main_stmt.push(
+                                LetStmt::make(&max_val, &reduce.identity()[1].clone()).into()
+                            );
+                            let mut body: Vec<Stmt> = vec![];
+                            let name = Variable::make(&format!("{}", name));
+                            let cond = Lt::make(&Load::make(&name, indices), &max_val);
+                            let then_case = Seq::make(
+                                vec![StoreStmt::make(&name, indices, &idx).into()]
+                            );
+                            let else_case = Seq::make(vec![]);
+                            body.push(IfThenElse::make(cond, then_case, else_case).into());
+                            body.push(InplaceAdd::make(&idx, Int::make(Dtype::I64, 1)).into());
+                            build_nested_for(iter_vars, Seq::make(body))
                         }
                         "argmax" => {
-                            todo!();
+                            assert!(reduce.identity().len() == 2);
+                            assert!(reduce.expr().len() == 1);
+                            let idx = Variable::make(&format!("idx{}", name));
+                            main_stmt.push(
+                                StoreStmt::make(&idx, indices, Int::make(Dtype::I64, 0)).into()
+                            );
+                            let max_val = Variable::make(&format!("min_{}", name));
+                            main_stmt.push(
+                                LetStmt::make(&max_val, &reduce.identity()[1].clone()).into()
+                            );
+                            let mut body: Vec<Stmt> = vec![];
+                            let name = Variable::make(&format!("{}", name));
+                            let cond = Gt::make(&Load::make(&name, indices), &max_val);
+                            let then_case = Seq::make(
+                                vec![StoreStmt::make(&name, indices, &idx).into()]
+                            );
+                            let else_case = Seq::make(vec![]);
+                            body.push(IfThenElse::make(cond, then_case, else_case).into());
+                            body.push(InplaceAdd::make(&idx, Int::make(Dtype::I64, 1)).into());
+                            build_nested_for(iter_vars, Seq::make(body))
                         }
                         _ => todo!(),
                     };
