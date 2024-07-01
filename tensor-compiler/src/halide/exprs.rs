@@ -2,7 +2,7 @@ use std::{ fmt::Display, sync::Arc };
 
 use tensor_types::dtype::Dtype;
 
-use crate::{hlir::{expr::Expr, exprs::Value}, op};
+use crate::{ hlir::{ expr::Expr, exprs::Value }, iter_val::IterVar, op };
 
 use super::{ prime_expr::PrimeExpr, traits::{ Accepter, IRVisitor }, variable::Variable };
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
@@ -1062,17 +1062,15 @@ impl Load {
             .iter()
             .zip(strides.iter())
             .map(|(v, s)| v.clone() * Int::make(Dtype::I64, *s))
-            .reduce(|a, b| a + b).unwrap();
+            .reduce(|a, b| a + b)
+            .unwrap();
         Load {
             name: Arc::new(name.clone().into()),
             indices: indices.into(),
         }
     }
 
-    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(
-        name: A,
-        indices: B
-    ) -> Self {
+    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(name: A, indices: B) -> Self {
         Load {
             name: Arc::new(name.into().into()),
             indices: indices.into().into(),
@@ -1098,12 +1096,7 @@ impl Load {
 
 impl Display for Load {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{}[{}]",
-            self.name,
-            self.indices
-        )
+        write!(f, "{}[{}]", self.name, self.indices)
     }
 }
 
@@ -1572,12 +1565,9 @@ impl Into<PrimeExpr> for &Max {
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Reduce {
     identity: Arc<Vec<PrimeExpr>>,
-    start: Arc<Vec<PrimeExpr>>,
-    end: Arc<Vec<PrimeExpr>>,
-    step: Arc<Vec<PrimeExpr>>,
-    loop_var: Arc<Vec<PrimeExpr>>,
+    iter_vars: Arc<Vec<IterVar>>,
     expr: Arc<Vec<PrimeExpr>>,
-    op: &'static str
+    op: &'static str,
 }
 
 impl Accepter for Reduce {
@@ -1590,85 +1580,53 @@ impl Reduce {
     pub fn new(
         expr: Arc<Vec<PrimeExpr>>,
         identity: Arc<Vec<PrimeExpr>>,
-        start: Arc<Vec<PrimeExpr>>,
-        end: Arc<Vec<PrimeExpr>>,
-        step: Arc<Vec<PrimeExpr>>,
-        loop_var: Arc<Vec<PrimeExpr>>,
+        iter_vars: Arc<Vec<IterVar>>,
         op: &'static str
     ) -> Self {
         Reduce {
             expr,
             identity,
-            start,
-            end,
-            step,
-            loop_var,
-            op
+            iter_vars,
+            op,
         }
     }
 
-    pub fn make<T: Into<PrimeExpr>>(
-        expr: Vec<T>,
-        identity: Vec<T>,
-        start: Vec<T>,
-        end: Vec<T>,
-        step: Vec<T>,
-        loop_var: Vec<T>,
+    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>, C: Into<IterVar>>(
+        expr: Vec<A>,
+        identity: Vec<B>,
+        iter_vars: Vec<C>,
         op: &'static str
     ) -> Self {
         Reduce {
-            expr: expr.into_iter().map(|e| e.into().into()).collect::<Vec<PrimeExpr>>().into(),
-            identity: identity.into_iter().map(|e| e.into().into()).collect::<Vec<PrimeExpr>>().into(),
-            start: Arc::new(start.into_iter().map(|e| e.into().into()).collect()),
-            end: Arc::new(end.into_iter().map(|e| e.into().into()).collect()),
-            step: Arc::new(step.into_iter().map(|e| e.into().into()).collect()),
-            loop_var: Arc::new(loop_var.into_iter().map(|e| e.into().into()).collect()),
-            op
+            expr: expr
+                .into_iter()
+                .map(|e| e.into().into())
+                .collect::<Vec<PrimeExpr>>()
+                .into(),
+            identity: identity
+                .into_iter()
+                .map(|e| e.into().into())
+                .collect::<Vec<PrimeExpr>>()
+                .into(),
+            iter_vars: iter_vars
+                .into_iter()
+                .map(|e| e.into())
+                .collect::<Vec<IterVar>>()
+                .into(),
+            op,
         }
     }
-
     pub fn op(&self) -> &'static str {
         self.op
     }
-
     pub fn identity(&self) -> &Vec<PrimeExpr> {
         &self.identity
     }
-
-    pub fn start(&self) -> &Vec<PrimeExpr> {
-        &self.start
+    pub fn iter_vars(&self) -> &Vec<IterVar> {
+        &self.iter_vars
     }
-
-    pub fn end(&self) -> &Vec<PrimeExpr> {
-        &self.end
-    }
-
-    pub fn step(&self) -> &Vec<PrimeExpr> {
-        &self.step
-    }
-
-    pub fn loop_var(&self) -> &Vec<PrimeExpr> {
-        &self.loop_var
-    }
-
     pub fn identity_(&self) -> &Arc<Vec<PrimeExpr>> {
         &self.identity
-    }
-
-    pub fn start_(&self) -> &Arc<Vec<PrimeExpr>> {
-        &self.start
-    }
-
-    pub fn end_(&self) -> &Arc<Vec<PrimeExpr>> {
-        &self.end
-    }
-
-    pub fn step_(&self) -> &Arc<Vec<PrimeExpr>> {
-        &self.step
-    }
-
-    pub fn loop_var_(&self) -> &Arc<Vec<PrimeExpr>> {
-        &self.loop_var
     }
     pub fn expr(&self) -> &Vec<PrimeExpr> {
         &self.expr
@@ -1680,10 +1638,7 @@ impl Reduce {
 
 impl Display for Reduce {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "reduce",
-        )
+        write!(f, "reduce")
     }
 }
 

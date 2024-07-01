@@ -1,3 +1,5 @@
+use crate::iter_val::IterVar;
+
 use super::{
     assign_stmt::AssignStmt,
     exprs::*,
@@ -68,8 +70,14 @@ pub trait IRVisitor where Self: Sized {
         }
     }
     fn visit_reduce(&self, reduce: &Reduce) {
-        reduce.expr().iter().for_each(|x| x.accept(self));
-        reduce.identity().iter().for_each(|x| x.accept(self));
+        reduce
+            .expr()
+            .iter()
+            .for_each(|x| x.accept(self));
+        reduce
+            .identity()
+            .iter()
+            .for_each(|x| x.accept(self));
     }
     fn visit_assign(&self, assign: &AssignStmt) {
         assign.lhs().accept(self);
@@ -271,8 +279,14 @@ pub trait IRMutVisitor where Self: Sized {
         }
     }
     fn visit_reduce(&mut self, reduce: &Reduce) {
-        reduce.expr().iter().for_each(|x| x.accept_mut(self));
-        reduce.identity().iter().for_each(|x| x.accept_mut(self));
+        reduce
+            .expr()
+            .iter()
+            .for_each(|x| x.accept_mut(self));
+        reduce
+            .identity()
+            .iter()
+            .for_each(|x| x.accept_mut(self));
     }
     fn visit_variable(&mut self, var: &Variable) {}
     fn visit_str(&mut self, string: &Str) {}
@@ -902,23 +916,45 @@ pub(crate) fn visit_assign<V>(visitor: &mut V, assign: &AssignStmt)
 pub(crate) fn visit_reduce<V>(visitor: &mut V, reduce: &Reduce)
     where V: MutatorGetSet + Sized + IRMutateVisitor
 {
-    let expr = reduce.expr().iter().map(|expr| visitor.mutate_expr(expr)).collect();
-    let identity = reduce.identity().iter().map(|identity| visitor.mutate_expr(identity)).collect();
-    let new_starts: Vec<PrimeExpr> = reduce.start().iter().map(|start| visitor.mutate_expr(start)).collect();
-    let new_ends: Vec<PrimeExpr> = reduce.end().iter().map(|end| visitor.mutate_expr(end)).collect();
-    let new_steps: Vec<PrimeExpr> = reduce.step().iter().map(|step| visitor.mutate_expr(step)).collect();
-    let new_loop_vars: Vec<PrimeExpr> = reduce.loop_var().iter().map(|loop_var| visitor.mutate_expr(loop_var)).collect();
+    let expr = reduce
+        .expr()
+        .iter()
+        .map(|expr| visitor.mutate_expr(expr))
+        .collect();
+    let identity = reduce
+        .identity()
+        .iter()
+        .map(|identity| visitor.mutate_expr(identity))
+        .collect();
+    let mut is_diff = false;
+    let new_iter_vars = reduce
+        .iter_vars()
+        .iter()
+        .map(|vars| {
+            let new_start = visitor.mutate_expr(vars.start());
+            let new_end = visitor.mutate_expr(vars.end());
+            let new_step = visitor.mutate_expr(vars.step());
+            let new_var = visitor.mutate_expr(&vars.var().into());
+            if &new_start != vars.start() || &new_end != vars.end() || &new_step != vars.step() {
+                is_diff = true;
+            }
+            IterVar::new(new_start, new_end, new_step, new_var.to_variable().unwrap().clone())
+        }).collect();
     if
         &expr == reduce.expr() &&
         &identity == reduce.identity() &&
-        &new_starts == reduce.start() &&
-        &new_ends == reduce.end() &&
-        &new_steps == reduce.step() &&
-        &new_loop_vars == reduce.loop_var()
+        !is_diff
     {
         visitor.set_expr(reduce);
     } else {
-        visitor.set_expr(Reduce::make(expr, identity, new_starts, new_ends, new_steps, new_loop_vars, reduce.op()));
+        visitor.set_expr(
+            Reduce::make(
+                expr,
+                identity,
+                new_iter_vars,
+                reduce.op()
+            )
+        );
     }
 }
 

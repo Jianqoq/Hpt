@@ -5,20 +5,23 @@ use hashbrown::HashMap;
 use tensor_common::shape::Shape;
 use tensor_types::dtype::Dtype;
 
-use crate::halide::{
-    exprs::{ Add, Int, Load },
-    let_stmt::LetStmt,
-    loop_utils::build_nested::build_nested_for,
-    prime_expr::PrimeExpr,
-    seq_stmt::Seq,
-    stmt::Stmt,
-    store_stmt::StoreStmt,
-    variable::Variable,
+use crate::{
+    halide::{
+        exprs::{ Add, Int, Load },
+        let_stmt::LetStmt,
+        loop_utils::build_nested::build_nested_for,
+        prime_expr::PrimeExpr,
+        seq_stmt::Seq,
+        stmt::Stmt,
+        store_stmt::StoreStmt,
+        variable::Variable,
+    },
+    iter_val::IterVar,
 };
 
 #[derive(Clone)]
 pub struct Tensor {
-    shape: Arc<Vec<PrimeExpr>>,
+    shape: Arc<Vec<IterVar>>,
     op: Arc<dyn Fn(Vec<PrimeExpr>) -> PrimeExpr>,
     name: Arc<String>,
 }
@@ -43,13 +46,21 @@ impl PartialEq for Tensor {
 impl Tensor {
     pub fn placeholder<T: IntoIterator<Item: Into<PrimeExpr>>>(shape: T, name: &str) -> Self {
         let tensor_name = name.to_string();
+        let iter_vars = shape
+            .into_iter()
+            .map(|x| x.into())
+            .enumerate()
+            .map(|(i, x)| {
+                IterVar::new(
+                    Int::make(Dtype::I64, 0),
+                    x,
+                    Int::make(Dtype::I64, 1),
+                    Variable::new(format!("i{}", i))
+                )
+            })
+            .collect::<Vec<_>>();
         Self {
-            shape: Arc::new(
-                shape
-                    .into_iter()
-                    .map(|x| x.into())
-                    .collect()
-            ),
+            shape: Arc::new(iter_vars),
             op: Arc::new(move |vec| {
                 Load::make(
                     Variable::new(tensor_name.to_string()),
@@ -79,8 +90,20 @@ pub fn compute<const N: usize, F>(res_shape: [PrimeExpr; N], name: &str, op: F) 
     where F: Fn([PrimeExpr; N]) -> PrimeExpr + 'static
 {
     let new_fn = move |vec: Vec<PrimeExpr>| -> PrimeExpr { op(vec.try_into().unwrap()) };
+    let iter_vars = res_shape
+        .iter()
+        .enumerate()
+        .map(|(i, x)| {
+            IterVar::new(
+                Int::make(Dtype::I64, 0),
+                x.clone(),
+                Int::make(Dtype::I64, 1),
+                Variable::new(format!("i{}", i))
+            )
+        })
+        .collect::<Vec<_>>();
     Tensor {
-        shape: Arc::new(res_shape.to_vec()),
+        shape: Arc::new(iter_vars),
         op: Arc::new(new_fn),
         name: name.to_string().into(),
     }
@@ -103,30 +126,22 @@ impl Schedule {
         let mut stmts = Vec::new();
         for (tensor, op) in &self.ops {
             let shape = tensor.shape.clone();
-            let loop_indexes = (0..shape.len())
-                .map(|i| Variable::new(format!("i{}", i)))
-                .collect::<Vec<_>>();
             let name = tensor.name.clone();
             let expr = op(
-                loop_indexes
+                shape
                     .iter()
-                    .map(|x| x.clone().into())
-                    .collect::<Vec<_>>()
+                    .map(|x| x.var().clone().into())
+                    .collect()
             );
             let mut main_stmt: Vec<Stmt> = vec![];
             match expr {
                 PrimeExpr::Reduce(reduce) => {
-                    let indices = &loop_indexes
+                    let indices = &shape
                         .iter()
-                        .map(|x| x.clone().into())
+                        .map(|x| x.var().into())
                         .reduce(|acc: PrimeExpr, x| acc + x)
                         .unwrap();
-                    let loop_vars = reduce
-                        .loop_var()
-                        .iter()
-                        .map(|x| x.to_variable().unwrap().clone())
-                        .collect::<Vec<_>>();
-                    let end = reduce.end();
+                    let iter_vars = reduce.iter_vars();
                     let fors = match reduce.op() {
                         "sum" => {
                             assert!(reduce.identity().len() == 1);
@@ -139,8 +154,7 @@ impl Schedule {
                                 ).into()
                             );
                             build_nested_for(
-                                &loop_vars,
-                                end,
+                                iter_vars,
                                 StoreStmt::make(
                                     &Variable::make(&format!("output_{}", name)),
                                     indices,
@@ -175,11 +189,7 @@ impl Schedule {
                 }
                 _ => todo!(),
             }
-            let loop_stmt = build_nested_for(
-                &loop_indexes,
-                &shape,
-                Stmt::Seq(Seq::make(main_stmt))
-            );
+            let loop_stmt = build_nested_for(&shape, Stmt::Seq(Seq::make(main_stmt)));
             stmts.push(loop_stmt);
         }
         stmts
@@ -208,10 +218,7 @@ mod tests {
             sum(
                 [a_op(vec![i, Variable::make("k").into()])],
                 [Int::make(Dtype::BF16, 0)],
-                [Int::make(Dtype::BF16, 0)],
-                [m.clone()],
-                [Int::make(Dtype::BF16, 1)],
-                vec!["k"]
+                [(0, &m, 1, "k")]
             )
         });
         let schedule = Schedule::create(vec![c]);
@@ -234,11 +241,11 @@ mod tests {
         let c = compute([u.clone().into(), n.clone().into()], "c", move |[u, n]| {
             sum(
                 [_a.slice([u, n, Variable::make("k").into()])],
-                [Int::make(Dtype::BF16, 0)],
-                [Int::make(Dtype::BF16, 0)],
-                [end1.clone(), end2.clone()],
-                [Int::make(Dtype::BF16, 1)],
-                vec!["k"]
+                [0],
+                [
+                    (0, &end1, 1, "k"),
+                    (0, &end2, 1, "n"),
+                ]
             )
         });
         let _c = c.clone();
@@ -246,10 +253,7 @@ mod tests {
             sum(
                 [_c.slice([i, Variable::make("j").into()])],
                 [Int::make(Dtype::BF16, 0)],
-                [Int::make(Dtype::BF16, 0)],
-                [end3.clone()],
-                [Int::make(Dtype::BF16, 1)],
-                vec!["j"]
+                [(0, &end3, 1, "j")]
             )
         });
         let schedule = Schedule::create(vec![d, c]);

@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use tensor_types::dtype::Dtype;
+
 use super::{
     exprs::*,
     traits::{ Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor },
@@ -240,17 +242,23 @@ impl std::ops::Add for PrimeExpr {
     fn add(self, rhs: PrimeExpr) -> Self::Output {
         match (&self, &rhs) {
             (PrimeExpr::Int(i1), PrimeExpr::Int(i2)) => PrimeExpr::Int(i1 + i2),
-            (PrimeExpr::Float(f1), PrimeExpr::Float(f2)) => PrimeExpr::Float(Float::new(f1.value() + f2.value())),
+            (PrimeExpr::Float(f1), PrimeExpr::Float(f2)) =>
+                PrimeExpr::Float(Float::new(f1.value() + f2.value())),
             (PrimeExpr::Int(i), PrimeExpr::Float(f)) =>
                 PrimeExpr::Float(Float::new((i.value() as f64) + f.value())),
             (PrimeExpr::Float(f), PrimeExpr::Int(i)) =>
                 PrimeExpr::Float(Float::new(f.value() + (i.value() as f64))),
             (PrimeExpr::UInt(u1), PrimeExpr::UInt(u2)) => PrimeExpr::UInt(u1 + u2),
-            (PrimeExpr::Mul(m1), PrimeExpr::Mul(m2)) => PrimeExpr::Add(Add::new(m1.into(), m2.into())),
-            (PrimeExpr::Add(a1), PrimeExpr::Add(a2)) => PrimeExpr::Add(Add::new(a1.into(), a2.into())),
-            (PrimeExpr::Sub(s1), PrimeExpr::Sub(s2)) => PrimeExpr::Add(Add::new(s1.into(), s2.into())),
-            (PrimeExpr::Div(d1), PrimeExpr::Div(d2)) => PrimeExpr::Add(Add::new(d1.into(), d2.into())),
-            (PrimeExpr::Mod(m1), PrimeExpr::Mod(m2)) => PrimeExpr::Add(Add::new(m1.into(), m2.into())),
+            (PrimeExpr::Mul(m1), PrimeExpr::Mul(m2)) =>
+                PrimeExpr::Add(Add::new(m1.into(), m2.into())),
+            (PrimeExpr::Add(a1), PrimeExpr::Add(a2)) =>
+                PrimeExpr::Add(Add::new(a1.into(), a2.into())),
+            (PrimeExpr::Sub(s1), PrimeExpr::Sub(s2)) =>
+                PrimeExpr::Add(Add::new(s1.into(), s2.into())),
+            (PrimeExpr::Div(d1), PrimeExpr::Div(d2)) =>
+                PrimeExpr::Add(Add::new(d1.into(), d2.into())),
+            (PrimeExpr::Mod(m1), PrimeExpr::Mod(m2)) =>
+                PrimeExpr::Add(Add::new(m1.into(), m2.into())),
             (PrimeExpr::Add(a), PrimeExpr::Mul(m)) => PrimeExpr::Add(Add::new(a.into(), m.into())),
             (PrimeExpr::Add(a), PrimeExpr::Sub(s)) => PrimeExpr::Add(Add::new(a.into(), s.into())),
             (PrimeExpr::Add(a), PrimeExpr::Div(d)) => PrimeExpr::Add(Add::new(a.into(), d.into())),
@@ -264,17 +272,95 @@ impl std::ops::Add for PrimeExpr {
             (PrimeExpr::Mul(m), PrimeExpr::Int(i)) => PrimeExpr::Add(Add::new(m.into(), i.into())),
             (PrimeExpr::Div(d), PrimeExpr::Int(i)) => PrimeExpr::Add(Add::new(d.into(), i.into())),
             (PrimeExpr::Mod(m), PrimeExpr::Int(i)) => PrimeExpr::Add(Add::new(m.into(), i.into())),
-            (PrimeExpr::Variable(v), PrimeExpr::Int(i)) => PrimeExpr::Add(Add::new(v.into(), i.into())),
-            (PrimeExpr::Int(i), PrimeExpr::Variable(v)) => PrimeExpr::Add(Add::new(i.into(), v.into())),
-            (PrimeExpr::Variable(v), PrimeExpr::Variable(v2)) => PrimeExpr::Add(Add::new(v.into(), v2.into())),
-            (PrimeExpr::Variable(v), PrimeExpr::Add(i)) => PrimeExpr::Add(Add::new(v.into(), i.into())),
-            (PrimeExpr::Add(i), PrimeExpr::Variable(v)) => PrimeExpr::Add(Add::new(i.into(), v.into())),
+            (PrimeExpr::Variable(v), PrimeExpr::Int(i)) =>
+                PrimeExpr::Add(Add::new(v.into(), i.into())),
+            (PrimeExpr::Int(i), PrimeExpr::Variable(v)) =>
+                PrimeExpr::Add(Add::new(i.into(), v.into())),
+            (PrimeExpr::Variable(v), PrimeExpr::Variable(v2)) =>
+                PrimeExpr::Add(Add::new(v.into(), v2.into())),
+            (PrimeExpr::Variable(v), PrimeExpr::Add(i)) =>
+                PrimeExpr::Add(Add::new(v.into(), i.into())),
+            (PrimeExpr::Add(i), PrimeExpr::Variable(v)) =>
+                PrimeExpr::Add(Add::new(i.into(), v.into())),
             (PrimeExpr::Load(l), PrimeExpr::Int(i)) => PrimeExpr::Add(Add::new(l.into(), i.into())),
             (PrimeExpr::Int(i), PrimeExpr::Load(l)) => PrimeExpr::Add(Add::new(i.into(), l.into())),
-            (PrimeExpr::Load(l), PrimeExpr::Load(l2)) => PrimeExpr::Add(Add::new(l.into(), l2.into())),
+            (PrimeExpr::Load(l), PrimeExpr::Load(l2)) =>
+                PrimeExpr::Add(Add::new(l.into(), l2.into())),
             (PrimeExpr::Load(l), PrimeExpr::Add(i)) => PrimeExpr::Add(Add::new(l.into(), i.into())),
             (PrimeExpr::Add(i), PrimeExpr::Load(l)) => PrimeExpr::Add(Add::new(i.into(), l.into())),
             _ => panic!("{}", &format!("Failed to add {} and {}", self, rhs)),
         }
+    }
+}
+
+impl Into<PrimeExpr> for i8 {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Int(Int::make(Dtype::I8, self as i64))
+    }
+}
+
+impl Into<PrimeExpr> for i16 {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Int(Int::make(Dtype::I16, self as i64))
+    }
+}
+
+impl Into<PrimeExpr> for i32 {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Int(Int::make(Dtype::I32, self as i64))
+    }
+}
+
+impl Into<PrimeExpr> for i64 {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Int(Int::make(Dtype::I64, self))
+    }
+}
+
+impl Into<PrimeExpr> for f32 {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Float(Float::new(self as f64))
+    }
+}
+
+impl Into<PrimeExpr> for f64 {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Float(Float::new(self))
+    }
+}
+
+impl Into<PrimeExpr> for u8 {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::UInt(UInt::make(Dtype::U8, self as u64))
+    }
+}
+
+impl Into<PrimeExpr> for u16 {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::UInt(UInt::make(Dtype::U16, self as u64))
+    }
+}
+
+impl Into<PrimeExpr> for u32 {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::UInt(UInt::make(Dtype::U32, self as u64))
+    }
+}
+
+impl Into<PrimeExpr> for u64 {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::UInt(UInt::make(Dtype::U64, self))
+    }
+}
+
+impl Into<PrimeExpr> for &str {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Str(Str::make(self))
+    }
+}
+
+impl Into<PrimeExpr> for String {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Str(Str::make(&self))
     }
 }

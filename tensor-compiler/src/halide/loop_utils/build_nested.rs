@@ -1,28 +1,19 @@
-use tensor_common::shape::Shape;
-use tensor_types::dtype::Dtype;
+use crate::{ halide::{ for_stmt::For, stmt::Stmt }, iter_val::IterVar };
 
-use crate::halide::{ exprs::Int, for_stmt::For, prime_expr::PrimeExpr, stmt::Stmt, variable::Variable };
-
-pub fn build_nested_for<T: Into<Stmt>>(vars: &[Variable], shape: &[PrimeExpr], main_stmt: T) -> Stmt {
-    fn build_recursive<T: Into<Stmt>>(
-        idx: usize,
-        vars: &[Variable],
-        shape: &[PrimeExpr],
-        main_stmt: T
-    ) -> Stmt {
-        if idx == vars.len() {
+pub fn build_nested_for<T: Into<Stmt>>(iter_vars: &[IterVar], main_stmt: T) -> Stmt {
+    fn build_recursive<T: Into<Stmt>>(idx: usize, iter_vars: &[IterVar], main_stmt: T) -> Stmt {
+        if idx == iter_vars.len() {
             main_stmt.into()
         } else {
-            let var = &vars[idx];
             let to_add = For::make(
-                var,
-                Int::make(Dtype::I64, 0),
-                &shape[idx],
-                build_recursive(idx + 1, vars, shape, main_stmt)
+                iter_vars[idx].var(),
+                iter_vars[idx].start(),
+                iter_vars[idx].end(),
+                build_recursive(idx + 1, iter_vars, main_stmt)
             );
             Stmt::For(to_add)
         }
     }
 
-    build_recursive(0, vars, shape, main_stmt)
+    build_recursive(0, iter_vars, main_stmt)
 }
