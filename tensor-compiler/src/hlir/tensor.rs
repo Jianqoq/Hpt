@@ -60,12 +60,13 @@ impl Tensor {
     }
 }
 
-pub fn compute<F>(res_shape: Vec<PrimeExpr>, name: &str, op: F) -> Tensor
-    where F: Fn(Vec<PrimeExpr>) -> PrimeExpr + 'static
+pub fn compute<const N: usize, F>(res_shape: [PrimeExpr; N], name: &str, op: F) -> Tensor
+    where F: Fn([PrimeExpr; N]) -> PrimeExpr + 'static
 {
+    let new_fn = move |vec: Vec<PrimeExpr>| -> PrimeExpr { op(vec.try_into().unwrap()) };
     Tensor {
-        shape: Arc::new(res_shape),
-        op: Arc::new(op),
+        shape: Arc::new(res_shape.to_vec()),
+        op: Arc::new(new_fn),
         name: name.to_string().into(),
     }
 }
@@ -188,9 +189,9 @@ mod tests {
         let m = Variable::make("m");
         let a = Tensor::placeholder(vec![n.clone().into(), m.clone().into()], "a");
         let a_op = a.op.clone();
-        let c = compute(vec![n.clone().into()], "c", move |vec| {
+        let c = compute([n.clone().into()], "c", move |[i]| {
             sum(
-                [a_op(vec![vec[0].clone(), Variable::make("k").into()])],
+                [a_op(vec![i, Variable::make("k").into()])],
                 [Int::make(Dtype::BF16, 0)],
                 [Int::make(Dtype::BF16, 0)],
                 [m.clone()],
@@ -211,9 +212,9 @@ mod tests {
         let m = Variable::make("m");
         let a = Tensor::placeholder(vec![n.clone().into(), m.clone().into()], "a");
         let a_op = a.op.clone();
-        let c = compute(vec![n.clone().into()], "c", move |vec| {
+        let c = compute([n.clone().into()], "c", move |[i]| {
             sum(
-                [a_op(vec![vec[0].clone(), Variable::make("k").into()])],
+                [a_op(vec![i, Variable::make("k").into()])],
                 [Int::make(Dtype::BF16, 0)],
                 [Int::make(Dtype::BF16, 0)],
                 [m.clone()],
