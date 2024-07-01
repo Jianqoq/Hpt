@@ -62,12 +62,18 @@ impl _IRPrinter {
                 self.print_stmt(stmt.then_case());
                 self.indent -= 1;
                 self.do_indent();
-                println!("}} else {{");
-                self.indent += 1;
-                self.print_stmt(stmt.else_case());
-                self.indent -= 1;
-                self.do_indent();
-                println!("}}");
+                let else_case = stmt.else_case();
+                if else_case.is_none() {
+                    println!("}}");
+                    return;
+                } else {
+                    println!("}} else {{");
+                    self.indent += 1;
+                    self.print_stmt(stmt.else_case());
+                    self.indent -= 1;
+                    self.do_indent();
+                    println!("}}");
+                }
             }
             Stmt::InplaceStore(var) => {
                 self.do_indent();

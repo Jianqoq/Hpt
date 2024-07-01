@@ -452,7 +452,7 @@ impl Value {
     pub fn to_primexpr(&self) -> PrimeExpr {
         match self.value {
             _Value::Int(val) => Int::make(Dtype::I64, val).into(),
-            _Value::Float(val) => Float::make(val).into(),
+            _Value::Float(val) => Float::make(Dtype::F64, val).into(),
             _Value::Bool(val) => Int::make(Dtype::Bool, val as i64).into(),
             _Value::Uint(val) => UInt::make(Dtype::U64, val).into(),
         }

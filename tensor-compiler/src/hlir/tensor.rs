@@ -7,6 +7,7 @@ use tensor_types::dtype::Dtype;
 
 use crate::{
     halide::{
+        assign_stmt::AssignStmt,
         exprs::{ Add, Gt, Int, Load, Lt, Max, Min, Mul },
         if_stmt::IfThenElse,
         inplace_store_stmt::InplaceAdd,
@@ -57,7 +58,7 @@ impl Tensor {
                     Int::make(Dtype::I64, 0),
                     x,
                     Int::make(Dtype::I64, 1),
-                    Variable::new(format!("i{}", i))
+                    Variable::new(format!("ax{}", i))
                 )
             })
             .collect::<Vec<_>>();
@@ -88,7 +89,11 @@ impl Tensor {
     }
 }
 
-pub fn compute<const N: usize, F>(res_shape: [PrimeExpr; N], name: &str, op: F) -> Tensor
+pub fn compute<const N: usize, F, T: Into<PrimeExpr> + Clone>(
+    res_shape: [T; N],
+    name: &str,
+    op: F
+) -> Tensor
     where F: Fn([PrimeExpr; N]) -> PrimeExpr + 'static
 {
     let new_fn = move |vec: Vec<PrimeExpr>| -> PrimeExpr { op(vec.try_into().unwrap()) };
@@ -100,7 +105,7 @@ pub fn compute<const N: usize, F>(res_shape: [PrimeExpr; N], name: &str, op: F) 
                 Int::make(Dtype::I64, 0),
                 x.clone(),
                 Int::make(Dtype::I64, 1),
-                Variable::new(format!("i{}", i))
+                Variable::new(format!("ax{}", i))
             )
         })
         .collect::<Vec<_>>();
@@ -248,44 +253,42 @@ impl Schedule {
                         "argmin" => {
                             assert!(reduce.identity().len() == 2);
                             assert!(reduce.expr().len() == 1);
-                            let idx = Variable::make(&format!("idx{}", name));
+                            let idx = Variable::make(&format!("idx_{}", name));
+                            main_stmt.push(LetStmt::make(&idx, Int::make(Dtype::I64, 0)).into());
+                            let min_val = Variable::make(&format!("min_val_{}", name));
+                            main_stmt.push(LetStmt::make(&min_val, &reduce.identity()[1]).into());
+                            let name = Variable::make(&format!("{}", name));
                             main_stmt.push(
-                                StoreStmt::make(&idx, indices, Int::make(Dtype::I64, 0)).into()
-                            );
-                            let max_val = Variable::make(&format!("max_{}", name));
-                            main_stmt.push(
-                                LetStmt::make(&max_val, &reduce.identity()[1].clone()).into()
+                                StoreStmt::make(&name, &indices, Int::make(Dtype::I64, 0)).into()
                             );
                             let mut body: Vec<Stmt> = vec![];
-                            let name = Variable::make(&format!("{}", name));
-                            let cond = Lt::make(&Load::make(&name, indices), &max_val);
-                            let then_case = Seq::make(
-                                vec![StoreStmt::make(&name, indices, &idx).into()]
-                            );
-                            let else_case = Seq::make(vec![]);
-                            body.push(IfThenElse::make(cond, then_case, else_case).into());
+                            let cond = Lt::make(&reduce.expr()[0], &min_val);
+                            let then_case = Seq::make([
+                                Stmt::AssignStmt(AssignStmt::make(min_val, &reduce.expr()[0])),
+                                Stmt::StoreStmt(StoreStmt::make(&name, &indices, &idx)),
+                            ]);
+                            body.push(IfThenElse::make(cond, then_case, Stmt::None).into());
                             body.push(InplaceAdd::make(&idx, Int::make(Dtype::I64, 1)).into());
                             build_nested_for(iter_vars, Seq::make(body))
                         }
                         "argmax" => {
                             assert!(reduce.identity().len() == 2);
                             assert!(reduce.expr().len() == 1);
-                            let idx = Variable::make(&format!("idx{}", name));
+                            let idx = Variable::make(&format!("idx_{}", name));
+                            main_stmt.push(LetStmt::make(&idx, Int::make(Dtype::I64, 0)).into());
+                            let max_val = Variable::make(&format!("max_val_{}", name));
+                            main_stmt.push(LetStmt::make(&max_val, &reduce.identity()[1]).into());
+                            let name = Variable::make(&format!("{}", name));
                             main_stmt.push(
-                                StoreStmt::make(&idx, indices, Int::make(Dtype::I64, 0)).into()
-                            );
-                            let max_val = Variable::make(&format!("min_{}", name));
-                            main_stmt.push(
-                                LetStmt::make(&max_val, &reduce.identity()[1].clone()).into()
+                                StoreStmt::make(&name, &indices, Int::make(Dtype::I64, 0)).into()
                             );
                             let mut body: Vec<Stmt> = vec![];
-                            let name = Variable::make(&format!("{}", name));
-                            let cond = Gt::make(&Load::make(&name, indices), &max_val);
-                            let then_case = Seq::make(
-                                vec![StoreStmt::make(&name, indices, &idx).into()]
-                            );
-                            let else_case = Seq::make(vec![]);
-                            body.push(IfThenElse::make(cond, then_case, else_case).into());
+                            let cond = Gt::make(&reduce.expr()[0], &max_val);
+                            let then_case = Seq::make([
+                                Stmt::AssignStmt(AssignStmt::make(max_val, &reduce.expr()[0])),
+                                Stmt::StoreStmt(StoreStmt::make(&name, &indices, &idx)),
+                            ]);
+                            body.push(IfThenElse::make(cond, then_case, Stmt::None).into());
                             body.push(InplaceAdd::make(&idx, Int::make(Dtype::I64, 1)).into());
                             build_nested_for(iter_vars, Seq::make(body))
                         }
@@ -308,7 +311,12 @@ mod tests {
 
     use super::*;
     use crate::{
-        halide::{ exprs::Int, loop_utils::sum::sum, prime_expr::PrimeExpr, printer::IRPrinter },
+        halide::{
+            exprs::{ Float, Int },
+            loop_utils::sum::{ argmax, argmin, sum },
+            prime_expr::PrimeExpr,
+            printer::IRPrinter,
+        },
         hlir::traits::IntoVar,
     };
 
@@ -318,7 +326,7 @@ mod tests {
         let m = Variable::make("m");
         let a = Tensor::placeholder([&n, &m], "a");
         let a_op = a.op.clone();
-        let c = compute([n.clone().into()], "c", move |[i]| {
+        let c = compute([&n], "c", move |[i]| {
             sum(
                 [a_op(vec![i, Variable::make("k").into()])],
                 [Int::make(Dtype::BF16, 0)],
@@ -342,7 +350,7 @@ mod tests {
         let end3 = Variable::make("end3");
         let a = Tensor::placeholder([&u, &n, &m], "a");
         let _a = a.clone();
-        let c = compute([u.clone().into(), n.clone().into()], "c", move |[u, n]| {
+        let c = compute([&u, &n], "c", move |[u, n]| {
             sum(
                 [_a.slice([u, n, "k".into_var().into()])],
                 [0],
@@ -353,7 +361,7 @@ mod tests {
             )
         });
         let _c = c.clone();
-        let d = compute([u.clone().into()], "d", move |[i]| {
+        let d = compute([&u], "d", move |[i]| {
             sum(
                 [_c.slice([i, "j".into_var().into()])],
                 [Int::make(Dtype::BF16, 0)],
@@ -361,6 +369,54 @@ mod tests {
             )
         });
         let schedule = Schedule::create(vec![d, c]);
+        let lowered = schedule.lower();
+        for stmt in lowered {
+            IRPrinter.print_stmt(stmt);
+        }
+    }
+
+    #[test]
+    fn test_argmax() {
+        let n = Variable::make("n");
+        let m = Variable::make("m");
+        let a = Tensor::placeholder([&n, &m], "a");
+        let _a = a.clone();
+        let m_clone = m.clone();
+        let c = compute([&n], "c", move |[i]| {
+            argmax(
+                [_a.slice([i, Variable::make("k").into()])],
+                [
+                    PrimeExpr::Int(Int::make(Dtype::BF16, 0)),
+                    PrimeExpr::Float(Float::make(Dtype::F64, f64::NEG_INFINITY)),
+                ],
+                [(0, &m_clone, 1, "k")]
+            )
+        });
+        let schedule = Schedule::create(vec![c]);
+        let lowered = schedule.lower();
+        for stmt in lowered {
+            IRPrinter.print_stmt(stmt);
+        }
+    }
+
+    #[test]
+    fn test_argmin() {
+        let n = Variable::make("n");
+        let m = Variable::make("m");
+        let a = Tensor::placeholder([&n, &m], "a");
+        let _a = a.clone();
+        let m_clone = m.clone();
+        let c = compute([&n], "c", move |[i]| {
+            argmin(
+                [_a.slice([i, Variable::make("k").into()])],
+                [
+                    PrimeExpr::Int(Int::make(Dtype::BF16, 0)),
+                    PrimeExpr::Float(Float::make(Dtype::F64, f64::INFINITY)),
+                ],
+                [(0, &m_clone, 1, "k")]
+            )
+        });
+        let schedule = Schedule::create(vec![c]);
         let lowered = schedule.lower();
         for stmt in lowered {
             IRPrinter.print_stmt(stmt);

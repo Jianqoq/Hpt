@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use tensor_types::dtype::Dtype;
-
+use tensor_types::type_promote::NormalOut;
 use super::{
     exprs::*,
     traits::{ Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor },
@@ -243,11 +243,17 @@ impl std::ops::Add for PrimeExpr {
         match (&self, &rhs) {
             (PrimeExpr::Int(i1), PrimeExpr::Int(i2)) => PrimeExpr::Int(i1 + i2),
             (PrimeExpr::Float(f1), PrimeExpr::Float(f2)) =>
-                PrimeExpr::Float(Float::new(f1.value() + f2.value())),
+                PrimeExpr::Float(
+                    Float::make(f1.dtype()._add(*f2.dtype()), f1.value() + f2.value())
+                ),
             (PrimeExpr::Int(i), PrimeExpr::Float(f)) =>
-                PrimeExpr::Float(Float::new((i.value() as f64) + f.value())),
+                PrimeExpr::Float(
+                    Float::make(i.dtype()._add(*f.dtype()), (i.value() as f64) + f.value())
+                ),
             (PrimeExpr::Float(f), PrimeExpr::Int(i)) =>
-                PrimeExpr::Float(Float::new(f.value() + (i.value() as f64))),
+                PrimeExpr::Float(
+                    Float::make(f.dtype()._add(*i.dtype()), f.value() + (i.value() as f64))
+                ),
             (PrimeExpr::UInt(u1), PrimeExpr::UInt(u2)) => PrimeExpr::UInt(u1 + u2),
             (PrimeExpr::Mul(m1), PrimeExpr::Mul(m2)) =>
                 PrimeExpr::Add(Add::new(m1.into(), m2.into())),
@@ -319,13 +325,13 @@ impl Into<PrimeExpr> for i64 {
 
 impl Into<PrimeExpr> for f32 {
     fn into(self) -> PrimeExpr {
-        PrimeExpr::Float(Float::new(self as f64))
+        PrimeExpr::Float(Float::make(Dtype::F32, self as f64))
     }
 }
 
 impl Into<PrimeExpr> for f64 {
     fn into(self) -> PrimeExpr {
-        PrimeExpr::Float(Float::new(self))
+        PrimeExpr::Float(Float::make(Dtype::F64, self))
     }
 }
 

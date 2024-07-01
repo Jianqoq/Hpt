@@ -1,6 +1,10 @@
 use std::{ fmt::{ Display, Formatter }, sync::Arc };
 
-use super::{ prime_expr::PrimeExpr, stmt::Stmt, traits::{ IRMutVisitor, IRMutateVisitor, IRVisitor } };
+use super::{
+    prime_expr::PrimeExpr,
+    stmt::Stmt,
+    traits::{ IRMutVisitor, IRMutateVisitor, IRVisitor },
+};
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct IfThenElse {
@@ -61,6 +65,16 @@ impl Into<Stmt> for &IfThenElse {
 
 impl Display for IfThenElse {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "if {} {{\n{}}} else {{\n{}}}", self.cond, self.then_case, self.else_case)
+        match self.else_case.as_ref() {
+            Stmt::None => write!(f, "if {} {{\n{}}}", self.cond, self.then_case),
+            _ =>
+                write!(
+                    f,
+                    "if {} {{\n{}}} else {{\n{}}}",
+                    self.cond,
+                    self.then_case,
+                    self.else_case
+                ),
+        }
     }
 }

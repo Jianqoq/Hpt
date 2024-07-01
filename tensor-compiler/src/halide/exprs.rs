@@ -159,6 +159,7 @@ impl_binop!(UInt, UInt, UInt, Rem, rem, %);
 #[derive(Clone, PartialEq, Debug)]
 pub struct Float {
     value: f64,
+    dtype: Dtype,
 }
 
 impl std::cmp::Eq for Float {}
@@ -170,16 +171,15 @@ impl std::hash::Hash for Float {
 }
 
 impl Float {
-    pub fn new(value: f64) -> Self {
-        Float { value }
-    }
-
     pub fn value(&self) -> f64 {
         self.value
     }
 
-    pub fn make(value: f64) -> Self {
-        Float { value }
+    pub fn make(dtype: Dtype, value: f64) -> Self {
+        Float { value, dtype }
+    }
+    pub fn dtype(&self) -> &Dtype {
+        &self.dtype
     }
 }
 

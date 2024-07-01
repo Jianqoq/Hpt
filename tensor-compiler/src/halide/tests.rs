@@ -30,7 +30,7 @@ fn test_halide_expr() {
     let let_stmt = LetStmt::make(&y, &x + Int::make(Dtype::I64, 1));
     let load = Load::make_from_strides(&Variable::make("a"), &[i.clone(), x.clone()], &[1, 3]);
     let seq = Seq::make([
-        let_stmt.clone().into(),
+        Stmt::LetStmt(let_stmt.clone().into()),
         StoreStmt::make_from_strides(&res, &[&i, &x], &[1, 1], &load).into(),
     ]);
     let for_loop = For::make(&x, &start, &end, &seq);
@@ -49,8 +49,8 @@ fn test_substitue() {
     let let_stmt = LetStmt::make(&y, &x + Int::make(Dtype::I64, 1));
     let load = Load::make_from_strides(&Variable::make("a"), &[i.clone(), x.clone()], &[1, 3]);
     let seq = Seq::make([
-        let_stmt.clone().into(),
-        StoreStmt::make_from_strides(&res, &[&i, &x], &[1, 1], &load).into(),
+        Stmt::LetStmt(let_stmt.clone()),
+        Stmt::StoreStmt(StoreStmt::make_from_strides(&res, &[&i, &x], &[1, 1], &load)),
     ]);
     let for_loop = For::make(&x, &start, &end, &seq);
     let for_loop2 = For::make(&i, &start, &end, &for_loop);

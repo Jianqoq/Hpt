@@ -12,9 +12,9 @@ impl Seq {
         &self.stmts
     }
 
-    pub fn make<T: Into<Vec<Stmt>>>(stmts: T) -> Self {
+    pub fn make<T: IntoIterator<Item: Into<Stmt>>>(stmts: T) -> Self {
         Seq {
-            stmts: stmts.into(),
+            stmts: stmts.into_iter().map(|stmt| stmt.into()).collect(),
         }
     }
 
