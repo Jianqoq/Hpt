@@ -6,7 +6,7 @@ use tensor_common::shape::Shape;
 use tensor_types::dtype::Dtype;
 
 use crate::halide::{
-    exprs::{ Int, Load },
+    exprs::{ Add, Int, Load },
     let_stmt::LetStmt,
     loop_utils::build_nested::build_nested_for,
     prime_expr::PrimeExpr,
@@ -103,7 +103,7 @@ impl Schedule {
                     let indices = &loop_indexes
                         .iter()
                         .map(|x| x.clone().into())
-                        .reduce(|acc, x| acc + x)
+                        .reduce(|acc: PrimeExpr, x| acc + x)
                         .unwrap();
                     let loop_vars = reduce
                         .loop_var()
@@ -127,12 +127,14 @@ impl Schedule {
                                 end,
                                 StoreStmt::make(
                                     &Variable::make(&format!("output_{}", name)),
-                                    &loop_indexes
-                                        .iter()
-                                        .map(|x| x.clone().into())
-                                        .reduce(|acc, x| acc + x)
-                                        .unwrap(),
-                                    &reduce.expr()[0]
+                                    indices,
+                                    &Add::make(
+                                        &Load::make(
+                                            Variable::make(&format!("output_{}", name)),
+                                            indices
+                                        ),
+                                        &reduce.expr()[0]
+                                    )
                                 )
                             )
                         }
@@ -188,11 +190,34 @@ mod tests {
         let a_op = a.op.clone();
         let c = compute(vec![n.clone().into()], "c", move |vec| {
             sum(
-                vec![a_op(vec![vec[0].clone(), Variable::make("k").into()])],
-                vec![Int::make(Dtype::BF16, 0).into()],
-                vec![Int::make(Dtype::BF16, 0).into()],
-                vec![m.clone().into()],
-                vec![Int::make(Dtype::BF16, 1).into()],
+                [a_op(vec![vec[0].clone(), Variable::make("k").into()])],
+                [Int::make(Dtype::BF16, 0)],
+                [Int::make(Dtype::BF16, 0)],
+                [m.clone()],
+                [Int::make(Dtype::BF16, 1)],
+                vec!["k"]
+            )
+        });
+        let schedule = Schedule::create(vec![c]);
+        let lowered = schedule.lower();
+        for stmt in lowered {
+            IRPrinter.print_stmt(stmt);
+        }
+    }
+
+    #[test]
+    fn test_nested_reduce() {
+        let n = Variable::make("n");
+        let m = Variable::make("m");
+        let a = Tensor::placeholder(vec![n.clone().into(), m.clone().into()], "a");
+        let a_op = a.op.clone();
+        let c = compute(vec![n.clone().into()], "c", move |vec| {
+            sum(
+                [a_op(vec![vec[0].clone(), Variable::make("k").into()])],
+                [Int::make(Dtype::BF16, 0)],
+                [Int::make(Dtype::BF16, 0)],
+                [m.clone()],
+                [Int::make(Dtype::BF16, 1)],
                 vec!["k"]
             )
         });

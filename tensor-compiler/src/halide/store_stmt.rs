@@ -55,7 +55,7 @@ impl StoreStmt {
         }
     }
 
-    pub fn make<T: Into<PrimeExpr>>(var: &Variable, indices: T, e2: T) -> Self {
+    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(var: &Variable, indices: A, e2: B) -> Self {
         StoreStmt {
             var: var.clone(),
             indices: indices.into().into(),
