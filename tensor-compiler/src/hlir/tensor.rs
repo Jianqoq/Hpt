@@ -41,10 +41,15 @@ impl PartialEq for Tensor {
 }
 
 impl Tensor {
-    pub fn placeholder(shape: Vec<PrimeExpr>, name: &str) -> Self {
+    pub fn placeholder<T: IntoIterator<Item: Into<PrimeExpr>>>(shape: T, name: &str) -> Self {
         let tensor_name = name.to_string();
         Self {
-            shape: Arc::new(shape),
+            shape: Arc::new(
+                shape
+                    .into_iter()
+                    .map(|x| x.into())
+                    .collect()
+            ),
             op: Arc::new(move |vec| {
                 Load::make(
                     Variable::new(tensor_name.to_string()),
@@ -197,7 +202,7 @@ mod tests {
     fn test_reduce() {
         let n = Variable::make("n");
         let m = Variable::make("m");
-        let a = Tensor::placeholder(vec![n.clone().into(), m.clone().into()], "a");
+        let a = Tensor::placeholder([&n, &m], "a");
         let a_op = a.op.clone();
         let c = compute([n.clone().into()], "c", move |[i]| {
             sum(
@@ -224,10 +229,7 @@ mod tests {
         let end1 = Variable::make("end1");
         let end2 = Variable::make("end2");
         let end3 = Variable::make("end3");
-        let a = Tensor::placeholder(
-            vec![u.clone().into(), n.clone().into(), m.clone().into()],
-            "a"
-        );
+        let a = Tensor::placeholder([&u, &n, &m], "a");
         let _a = a.clone();
         let c = compute([u.clone().into(), n.clone().into()], "c", move |[u, n]| {
             sum(
