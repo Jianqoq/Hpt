@@ -30,14 +30,15 @@ pub mod hlir {
     pub mod substitute {
         pub mod fuse_cmp;
     }
+    pub mod tensor;
     pub mod _value;
     pub mod expr;
     pub mod traits;
     pub mod exprs;
     pub mod printer;
     pub mod func_type;
-    pub mod lowering;
-    pub mod tests;
+    // pub mod lowering;
+    // pub mod tests;
 }
 pub mod edges;
 pub mod registry;

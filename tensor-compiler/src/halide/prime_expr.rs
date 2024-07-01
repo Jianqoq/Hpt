@@ -265,6 +265,11 @@ impl std::ops::Add for PrimeExpr {
             (PrimeExpr::Variable(v), PrimeExpr::Variable(v2)) => PrimeExpr::Add(Add::new(v.into(), v2.into())),
             (PrimeExpr::Variable(v), PrimeExpr::Add(i)) => PrimeExpr::Add(Add::new(v.into(), i.into())),
             (PrimeExpr::Add(i), PrimeExpr::Variable(v)) => PrimeExpr::Add(Add::new(i.into(), v.into())),
+            (PrimeExpr::Load(l), PrimeExpr::Int(i)) => PrimeExpr::Add(Add::new(l.into(), i.into())),
+            (PrimeExpr::Int(i), PrimeExpr::Load(l)) => PrimeExpr::Add(Add::new(i.into(), l.into())),
+            (PrimeExpr::Load(l), PrimeExpr::Load(l2)) => PrimeExpr::Add(Add::new(l.into(), l2.into())),
+            (PrimeExpr::Load(l), PrimeExpr::Add(i)) => PrimeExpr::Add(Add::new(l.into(), i.into())),
+            (PrimeExpr::Add(i), PrimeExpr::Load(l)) => PrimeExpr::Add(Add::new(i.into(), l.into())),
             _ => panic!("{}", &format!("Failed to add {} and {}", self, rhs)),
         }
     }

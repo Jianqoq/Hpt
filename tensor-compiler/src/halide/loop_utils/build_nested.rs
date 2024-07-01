@@ -1,13 +1,13 @@
 use tensor_common::shape::Shape;
 use tensor_types::dtype::Dtype;
 
-use crate::halide::{ exprs::Int, for_stmt::For, stmt::Stmt, variable::Variable };
+use crate::halide::{ exprs::Int, for_stmt::For, prime_expr::PrimeExpr, stmt::Stmt, variable::Variable };
 
-pub fn build_nested_for<T: Into<Stmt>>(vars: &[Variable], shape: &Shape, main_stmt: T) -> Stmt {
+pub fn build_nested_for<T: Into<Stmt>>(vars: &[Variable], shape: &[PrimeExpr], main_stmt: T) -> Stmt {
     fn build_recursive<T: Into<Stmt>>(
         idx: usize,
         vars: &[Variable],
-        shape: &Shape,
+        shape: &[PrimeExpr],
         main_stmt: T
     ) -> Stmt {
         if idx == vars.len() {
@@ -17,7 +17,7 @@ pub fn build_nested_for<T: Into<Stmt>>(vars: &[Variable], shape: &Shape, main_st
             let to_add = For::make(
                 var,
                 Int::make(Dtype::I64, 0),
-                Int::make(Dtype::I64, shape[idx] as i64),
+                &shape[idx],
                 build_recursive(idx + 1, vars, shape, main_stmt)
             );
             Stmt::For(to_add)

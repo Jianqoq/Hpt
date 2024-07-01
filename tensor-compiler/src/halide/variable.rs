@@ -61,6 +61,12 @@ impl From<String> for Variable {
     }
 }
 
+impl From<Arc<String>> for Variable {
+    fn from(s: Arc<String>) -> Self {
+        Variable { name: s }
+    }
+}
+
 impl Display for Variable {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.name)

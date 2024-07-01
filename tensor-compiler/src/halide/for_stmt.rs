@@ -36,10 +36,10 @@ impl For {
         self.stmt = stmt.into().into();
     }
 
-    pub fn make<T: Into<PrimeExpr> + Clone, S: Into<Stmt> + Clone>(
+    pub fn make<T: Into<PrimeExpr> + Clone, S: Into<Stmt> + Clone, B: Into<PrimeExpr> + Clone>(
         var: &Variable,
         start: T,
-        end: T,
+        end: B,
         stmt: S
     ) -> Self {
         For {

@@ -50,13 +50,13 @@ fn test_fusion() {
 
 #[test]
 fn test_convle2d() {
-    let a = Tensor::make(Shape::new([8, 8]).into(), Dtype::BF16, 1);
-    let b = Tensor::make(Shape::new([8, 8]).into(), Dtype::BF16, 2);
-    let mul = Tensor::make_binop("mul", a, b, 3);
+    let a = Tensor::make(Shape::new([50, 3, 8, 8]).into(), Dtype::BF16, 1);
+    let kernel = Tensor::make(Shape::new([2, 2]).into(), Dtype::BF16, 2);
+    let mul = Tensor::make_binop("mul", a, kernel, 3);
     let sum = Tensor::make_reduce(
         "sum",
         &mul,
-        [Int::make(Dtype::I64, 0), Int::make(Dtype::I64, 1)],
+        [Int::make(Dtype::I64, 1), Int::make(Dtype::I64, 2)],
         Int::make(Dtype::I64, 0).into(),
         4
     );

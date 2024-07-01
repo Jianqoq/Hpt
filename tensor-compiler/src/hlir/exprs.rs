@@ -1086,7 +1086,7 @@ impl Tensor {
         let func = MANAGER.lock().unwrap().get(fn_name).expect("Cannot find op").clone();
         let mut lhs: Self = lhs.into();
         let axes: Vec<Int> = axes.into();
-        let axes = axes
+        let mut axes = axes
             .iter()
             .map(|x| x.value() as usize)
             .collect::<Vec<_>>();
@@ -1102,6 +1102,7 @@ impl Tensor {
                         i.reshape(&res_shape);
                     }
                     fuse.shape = res_shape.clone();
+                    axes.iter_mut().for_each(|x| *x += 1);
                 }
                 // the shape of fuse should all be the same
                 let mut reduce_vars = vec![];
