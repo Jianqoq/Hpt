@@ -38,6 +38,9 @@ impl IterVar {
     pub fn var(&self) -> &Variable {
         &self.var
     }
+    pub fn set_var(&mut self, var: Variable) {
+        self.var = var;
+    }
 }
 
 impl<A, B, C, D> Into<IterVar>

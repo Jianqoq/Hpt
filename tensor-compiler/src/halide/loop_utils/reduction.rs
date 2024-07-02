@@ -27,7 +27,7 @@ macro_rules! register_reduce {
 }
 
 register_reduce!(sum);
-register_reduce!(product);
+register_reduce!(prod);
 register_reduce!(max);
 register_reduce!(min);
 register_reduce!(argmax);
