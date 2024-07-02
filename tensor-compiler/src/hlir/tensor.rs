@@ -153,7 +153,7 @@ impl Tensor {
             }
         )
     }
-    pub fn argmax<T: Into<PrimeExpr> + Clone + TypeCommon>(&self, init: T, axes: i64) -> Self {
+    pub fn argmax(&self, init: i64, axes: i64) -> Self {
         let axes: Vec<usize> = process_axes([axes], self.ndim()).unwrap();
         let axis = axes[0];
         let _a = self.clone();
@@ -163,7 +163,6 @@ impl Tensor {
             .filter(|(i, _)| !axes.contains(i))
             .map(|(_, x)| x.clone())
             .collect::<Vec<_>>();
-        let init: PrimeExpr = init.clone().into();
         _compute_known_iter(
             Dtype::I64,
             res_shape,
@@ -180,15 +179,11 @@ impl Tensor {
                 indices.push(var.clone().into());
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var);
-                argmax(
-                    [inputs[0].slice(indices)],
-                    [init.clone(), T::NEG_INF.into()],
-                    [reduce_iter_var]
-                )
+                argmax([inputs[0].slice(indices)], [init, i64::NEG_INF.into()], [reduce_iter_var])
             }
         )
     }
-    pub fn argmin<T: Into<PrimeExpr> + Clone + TypeCommon>(&self, init: T, axes: i64) -> Self {
+    pub fn argmin(&self, init: i64, axes: i64) -> Self {
         let axes: Vec<usize> = process_axes([axes], self.ndim()).unwrap();
         let axis = axes[0];
         let _a = self.clone();
@@ -198,7 +193,6 @@ impl Tensor {
             .filter(|(i, _)| !axes.contains(i))
             .map(|(_, x)| x.clone())
             .collect::<Vec<_>>();
-        let init: PrimeExpr = init.clone().into();
         _compute_known_iter(
             Dtype::I64,
             res_shape,
@@ -215,7 +209,7 @@ impl Tensor {
                 indices.push(var.clone().into());
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var);
-                argmin([inputs[0].slice(indices)], [init.clone(), T::INF.into()], [reduce_iter_var])
+                argmin([inputs[0].slice(indices)], [init, i64::INF.into()], [reduce_iter_var])
             }
         )
     }
@@ -661,7 +655,7 @@ mod tests {
         for stmt in lowered {
             IRPrinter.print_stmt(stmt);
         }
-        let d = _a.argmax(0.0, 1);
+        let d = _a.argmax(0, 1);
         let schedule = Schedule::create(vec![d]);
         let lowered = schedule.lower();
         for stmt in lowered {
@@ -690,7 +684,7 @@ mod tests {
         for stmt in lowered {
             IRPrinter.print_stmt(stmt);
         }
-        let d = a.argmin(0.0, 1);
+        let d = a.argmin(0, 1);
         let schedule = Schedule::create(vec![d]);
         let lowered = schedule.lower();
         for stmt in lowered {
