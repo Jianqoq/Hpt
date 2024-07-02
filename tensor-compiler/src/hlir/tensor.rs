@@ -609,6 +609,16 @@ impl Schedule {
                     };
                     main_stmt.push(fors);
                 }
+
+                PrimeExpr::Add(add) => {
+                    let out_name = Variable::make(&format!("{}", name));
+                    let indices = &shape
+                        .iter()
+                        .map(|x| x.var().into())
+                        .reduce(|acc: PrimeExpr, x| acc + x)
+                        .unwrap();
+                    main_stmt.push(StoreStmt::make(&out_name, indices, &add).into());
+                }
                 _ => todo!(),
             }
             let loop_stmt = build_nested_for(&shape, Stmt::Seq(Seq::make(main_stmt)));
@@ -759,6 +769,21 @@ mod tests {
         }
         let d = a.sum(0.0, 1);
         let schedule = Schedule::create(vec![d]);
+        let lowered = schedule.lower();
+        for stmt in lowered {
+            IRPrinter.print_stmt(stmt);
+        }
+    }
+    #[test]
+    fn test_add() {
+        let n = Variable::make("n");
+        let m = Variable::make("m");
+        let a = Tensor::placeholder([&n, &m], Dtype::BF16, "a");
+        let b = Tensor::placeholder([&n, &m], Dtype::BF16, "b");
+        let c = compute(Dtype::BF16, [&n, &m], [&a, &b], "c", move |[a, b], [i, j]| {
+            a.slice([&i, &j]) + b.slice([i, j])
+        });
+        let schedule = Schedule::create(vec![c]);
         let lowered = schedule.lower();
         for stmt in lowered {
             IRPrinter.print_stmt(stmt);
