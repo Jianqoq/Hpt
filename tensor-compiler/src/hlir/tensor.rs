@@ -194,7 +194,7 @@ impl Tensor {
             }
         )
     }
-    pub fn prod<T: Into<PrimeExpr> + Clone>(&self, init: T, axes: i64) -> Self {
+    pub fn prod(&self, init: impl ToPrimeExpr + Clone, axes: i64) -> Self {
         let axes: Vec<usize> = process_axes([axes], self.ndim()).unwrap();
         let axis = axes[0];
         let _a = self.clone();
@@ -204,7 +204,7 @@ impl Tensor {
             .filter(|(i, _)| !axes.contains(i))
             .map(|(_, x)| x.clone())
             .collect::<Vec<_>>();
-        let init: PrimeExpr = init.clone().into();
+        let init: PrimeExpr = init.clone().to_prime_expr();
         _compute_known_iter(
             self.dtype,
             res_shape,
@@ -251,7 +251,7 @@ impl Tensor {
                 indices.push(var.clone().into());
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var);
-                argmax([inputs[0].slice(indices)], &[&init, &i64::NEG_INF], [reduce_iter_var])
+                argmax([inputs[0].slice(indices)], &[&init, &dtype_neg_inf(inputs[0].dtype)], [reduce_iter_var])
             }
         )
     }
@@ -281,7 +281,7 @@ impl Tensor {
                 indices.push(var.clone().into());
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var);
-                argmin([inputs[0].slice(indices)], &[&init, &i64::INF], [reduce_iter_var])
+                argmin([inputs[0].slice(indices)], &[&init, &dtype_inf(inputs[0].dtype)], [reduce_iter_var])
             }
         )
     }
