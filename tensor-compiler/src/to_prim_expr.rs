@@ -1,3 +1,4 @@
+use half::{bf16, f16};
 use tensor_types::dtype::Dtype;
 
 use crate::halide::{ exprs::{ Float, Int, UInt }, prime_expr::PrimeExpr, variable::Variable };
@@ -123,6 +124,30 @@ impl ToPrimeExpr for f64 {
 impl ToPrimeExpr for &f64 {
     fn to_prime_expr(&self) -> PrimeExpr {
         PrimeExpr::Float(Float::make(Dtype::F64, **self))
+    }
+}
+
+impl ToPrimeExpr for bf16 {
+    fn to_prime_expr(&self) -> PrimeExpr {
+        PrimeExpr::Float(Float::make(Dtype::BF16, f64::from(*self)))
+    }
+}
+
+impl ToPrimeExpr for &bf16 {
+    fn to_prime_expr(&self) -> PrimeExpr {
+        PrimeExpr::Float(Float::make(Dtype::BF16, f64::from(**self)))
+    }
+}
+
+impl ToPrimeExpr for f16 {
+    fn to_prime_expr(&self) -> PrimeExpr {
+        PrimeExpr::Float(Float::make(Dtype::F16, f64::from(*self)))
+    }
+}
+
+impl ToPrimeExpr for &f16 {
+    fn to_prime_expr(&self) -> PrimeExpr {
+        PrimeExpr::Float(Float::make(Dtype::F16, f64::from(**self)))
     }
 }
 

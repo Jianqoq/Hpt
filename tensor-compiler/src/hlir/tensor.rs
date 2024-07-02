@@ -190,7 +190,7 @@ impl Tensor {
                 indices.push(var.clone().into());
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var);
-                sum([inputs[0].slice(indices)], [init.clone()], [reduce_iter_var])
+                sum([inputs[0].slice(indices)], &[&init], [reduce_iter_var])
             }
         )
     }
@@ -221,7 +221,7 @@ impl Tensor {
                 indices.push(var.clone().into());
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var);
-                prod([inputs[0].slice(indices)], [init.clone()], [reduce_iter_var])
+                prod([inputs[0].slice(indices)], &[&init], [reduce_iter_var])
             }
         )
     }
@@ -251,7 +251,7 @@ impl Tensor {
                 indices.push(var.clone().into());
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var);
-                argmax([inputs[0].slice(indices)], [init, i64::NEG_INF.into()], [reduce_iter_var])
+                argmax([inputs[0].slice(indices)], &[&init, &i64::NEG_INF], [reduce_iter_var])
             }
         )
     }
@@ -281,7 +281,7 @@ impl Tensor {
                 indices.push(var.clone().into());
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var);
-                argmin([inputs[0].slice(indices)], [init, i64::INF.into()], [reduce_iter_var])
+                argmin([inputs[0].slice(indices)], &[&init, &i64::INF], [reduce_iter_var])
             }
         )
     }
@@ -311,7 +311,9 @@ impl Tensor {
                 indices.push(var.clone().into());
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var);
-                max([inputs[0].slice(indices)], [dtype_neg_inf(inputs[0].dtype)], [reduce_iter_var])
+                max([inputs[0].slice(indices)], &[&dtype_neg_inf(inputs[0].dtype)], [
+                    reduce_iter_var,
+                ])
             }
         )
     }
@@ -341,7 +343,7 @@ impl Tensor {
                 indices.push(var.clone().into());
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var);
-                min([inputs[0].slice(indices)], [dtype_inf(inputs[0].dtype)], [reduce_iter_var])
+                min([inputs[0].slice(indices)], &[&dtype_inf(inputs[0].dtype)], [reduce_iter_var])
             }
         )
     }
@@ -793,11 +795,8 @@ mod tests {
         let m_clone = m.clone();
         let c = compute(Dtype::I64, [&n], [&a], "c", move |[a], [i]| {
             argmax(
-                [a.slice([i, Variable::make("k").into()])],
-                [
-                    PrimeExpr::Int(Int::make(Dtype::BF16, 0)),
-                    PrimeExpr::Float(Float::make(Dtype::F64, f64::NEG_INFINITY)),
-                ],
+                [&a.slice([i, Variable::make("k").into()])],
+                &[&bf16::from_f32(0.0), &f64::NEG_INFINITY],
                 [(0, &m_clone, 1, "k")]
             )
         });
@@ -823,10 +822,7 @@ mod tests {
         let c = compute(Dtype::I64, [&n], [&a], "c", move |[a], [i]| {
             argmin(
                 [a.slice([i, Variable::make("k").into()])],
-                [
-                    PrimeExpr::Int(Int::make(Dtype::BF16, 0)),
-                    PrimeExpr::Float(Float::make(Dtype::F64, f64::INFINITY)),
-                ],
+                &[&bf16::from_f32(0.0), &f64::INFINITY],
                 [(0, &m_clone, 1, "k")]
             )
         });
@@ -848,11 +844,9 @@ mod tests {
         let m = Variable::make("m");
         let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
         let c = compute(Dtype::BF16, [&n], [&a], "c", move |[a], [i]| {
-            max(
-                [a.slice([i, Variable::make("k").into()])],
-                [dtype_neg_inf(Dtype::BF16)],
-                [(0, &m, 1, "k")]
-            )
+            max([a.slice([i, Variable::make("k").into()])], &[&dtype_neg_inf(Dtype::BF16)], [
+                (0, &m, 1, "k"),
+            ])
         });
         let schedule = Schedule::create(vec![c]);
         let lowered = schedule.lower();
@@ -873,11 +867,9 @@ mod tests {
         let m = Variable::make("m");
         let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
         let c = compute(Dtype::BF16, [&n], [&a], "c", move |[a], [i]| {
-            min(
-                [a.slice([i, Variable::make("k").into()])],
-                [dtype_inf(Dtype::BF16)],
-                [(0, &m, 1, "k")]
-            )
+            min([a.slice([i, Variable::make("k").into()])], &[&dtype_inf(Dtype::BF16)], [
+                (0, &m, 1, "k"),
+            ])
         });
         let schedule = Schedule::create(vec![c]);
         let lowered = schedule.lower();
@@ -897,11 +889,9 @@ mod tests {
         let m = Variable::make("m");
         let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
         let c = compute(Dtype::BF16, [&n], [&a], "c", move |[a], [i]| {
-            sum(
-                [a.slice([i, Variable::make("k").into()])],
-                [Int::make(Dtype::BF16, 0)],
-                [(0, &m, 1, "k")]
-            )
+            sum([a.slice([i, Variable::make("k").into()])], &[&bf16::from_f32(0.0)], [
+                (0, &m, 1, "k"),
+            ])
         });
         let schedule = Schedule::create(vec![c]);
         let lowered = schedule.lower();
