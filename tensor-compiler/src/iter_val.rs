@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::halide::{ prime_expr::PrimeExpr, variable::Variable };
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
@@ -49,5 +51,11 @@ impl<A, B, C, D> Into<IterVar>
 {
     fn into(self) -> IterVar {
         IterVar::new(self.0, self.1, self.2, self.3.into())
+    }
+}
+
+impl Display for IterVar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "for {} in ({}..{}).step_by({})", self.var, self.start, self.end, self.step)
     }
 }

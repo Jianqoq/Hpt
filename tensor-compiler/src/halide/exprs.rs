@@ -384,8 +384,8 @@ impl Accepter for Sub {
 }
 
 impl Sub {
-    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
-        Sub { e1, e2 }
+    pub fn new<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(e1: A, e2: B) -> Self {
+        Sub { e1: e1.into().into(), e2: e2.into().into() }
     }
 
     pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {

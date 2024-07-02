@@ -4,12 +4,12 @@ use std::{ fmt::Display, sync::Arc };
 use half::{ bf16, f16 };
 use hashbrown::HashMap;
 use tensor_common::{ axis::{ process_axes, Axis }, shape::Shape };
-use tensor_types::dtype::Dtype;
+use tensor_types::{ dtype::Dtype, type_promote::NormalOut };
 
 use crate::{
     halide::{
         assign_stmt::AssignStmt,
-        exprs::{ Add, Float, Gt, Int, Load, Lt, Max, Min, Mul, UInt },
+        exprs::{ Add, And, Div, Float, Gt, Int, Load, Lt, Max, Min, Mod, Mul, Or, Sub, UInt, Xor },
         if_stmt::IfThenElse,
         inplace_store_stmt::InplaceAdd,
         let_stmt::LetStmt,
@@ -22,6 +22,8 @@ use crate::{
     },
     iter_val::IterVar,
 };
+use tensor_types::type_promote::FloatOut;
+use tensor_types::type_promote::BitWiseOut;
 use tensor_types::dtype::TypeCommon;
 
 pub fn dtype_inf(dtype: Dtype) -> PrimeExpr {
@@ -85,6 +87,75 @@ impl std::fmt::Debug for Tensor {
             .field("inputs", &self.inputs)
             .finish()
     }
+}
+
+macro_rules! impl_binops {
+    ($op:ident, $fn_name:ident, $type_infer:ident, $var_name:expr) => {
+        pub fn $fn_name(&self, rhs: &Self) -> Self {
+            let _a = self.clone();
+            let lhs_shape = &self.shape;
+            let rhs_shape = &rhs.shape;
+            let mut res_shape = vec![];
+            let mut lhs_indices = vec![];
+            let mut rhs_indices = vec![];
+            let (lhs_start, rhs_start) = if lhs_shape.len() < rhs_shape.len() {
+                (0..rhs_shape.len() - lhs_shape.len()).for_each(|x| {
+                    res_shape.push(rhs_shape[x].clone());
+                    lhs_indices.push(x);
+                });
+                (0, lhs_shape.len())
+            } else if lhs_shape.len() > rhs_shape.len() {
+                (0..lhs_shape.len() - rhs_shape.len()).for_each(|x| {
+                    res_shape.push(lhs_shape[x].clone());
+                    rhs_indices.push(x);
+                });
+                (rhs_shape.len(), 0)
+            } else {
+                (0, 0)
+            };
+            let one = PrimeExpr::Int(Int::make(Dtype::I64, 1));
+            lhs_shape[lhs_start..]
+                .iter()
+                .zip(rhs_shape[rhs_start..].iter())
+                .enumerate()
+                .for_each(|(idx, (x, y))| {
+                    if x.end() == &one {
+                        res_shape.push(y.clone());
+                        rhs_indices.push(idx + rhs_start);
+                    } else if y.end() == &one {
+                        res_shape.push(x.clone());
+                        lhs_indices.push(idx + lhs_start);
+                    } else if x.end() - x.start() == y.end() - x.start() {
+                        res_shape.push(x.clone());
+                        lhs_indices.push(idx + lhs_start);
+                        rhs_indices.push(idx + rhs_start);
+                    } else {
+                        panic!("Incompatible shapes. {} and {}", x, y);
+                    }
+                });
+            let lhs_indices = Arc::new(lhs_indices);
+            let rhs_indices = Arc::new(rhs_indices);
+            _compute_known_iter(
+                self.dtype.$type_infer(rhs.dtype),
+                res_shape,
+                vec![self, &rhs],
+                &format!($var_name, self.name, rhs.name),
+                move |inputs, indices| {
+                    let lhs_indices = lhs_indices.clone();
+                    let rhs_indices = rhs_indices.clone();
+                    let lhs_indices = lhs_indices
+                        .iter()
+                        .map(|x| indices[*x].clone())
+                        .collect::<Vec<_>>();
+                    let rhs_indices = rhs_indices
+                        .iter()
+                        .map(|x| indices[*x].clone())
+                        .collect::<Vec<_>>();
+                    $op::make(inputs[0].slice(lhs_indices), inputs[1].slice(rhs_indices)).into()
+                }
+            )
+        }
+    };
 }
 
 impl Tensor {
@@ -273,6 +344,15 @@ impl Tensor {
             }
         )
     }
+
+    impl_binops!(Add, add, _add, "{}_add_{}");
+    impl_binops!(Mul, mul, _mul, "{}_mul_{}");
+    impl_binops!(Div, div, _div, "{}_div_{}");
+    impl_binops!(Sub, sub, _sub, "{}_sub_{}");
+    impl_binops!(Mod, rem, _rem, "{}_rem_{}");
+    impl_binops!(And, and, _and, "{}_and_{}");
+    impl_binops!(Or, or, _or, "{}_or_{}");
+    impl_binops!(Xor, xor, _xor, "{}_xor_{}");
 }
 
 impl Eq for Tensor {}
@@ -619,6 +699,42 @@ impl Schedule {
                         .unwrap();
                     main_stmt.push(StoreStmt::make(&out_name, indices, &add).into());
                 }
+                PrimeExpr::Mul(mul) => {
+                    let out_name = Variable::make(&format!("{}", name));
+                    let indices = &shape
+                        .iter()
+                        .map(|x| x.var().into())
+                        .reduce(|acc: PrimeExpr, x| acc + x)
+                        .unwrap();
+                    main_stmt.push(StoreStmt::make(&out_name, indices, &mul).into());
+                }
+                PrimeExpr::Div(div) => {
+                    let out_name = Variable::make(&format!("{}", name));
+                    let indices = &shape
+                        .iter()
+                        .map(|x| x.var().into())
+                        .reduce(|acc: PrimeExpr, x| acc + x)
+                        .unwrap();
+                    main_stmt.push(StoreStmt::make(&out_name, indices, &div).into());
+                }
+                PrimeExpr::Sub(sub) => {
+                    let out_name = Variable::make(&format!("{}", name));
+                    let indices = &shape
+                        .iter()
+                        .map(|x| x.var().into())
+                        .reduce(|acc: PrimeExpr, x| acc + x)
+                        .unwrap();
+                    main_stmt.push(StoreStmt::make(&out_name, indices, &sub).into());
+                }
+                PrimeExpr::Mod(rem) => {
+                    let out_name = Variable::make(&format!("{}", name));
+                    let indices = &shape
+                        .iter()
+                        .map(|x| x.var().into())
+                        .reduce(|acc: PrimeExpr, x| acc + x)
+                        .unwrap();
+                    main_stmt.push(StoreStmt::make(&out_name, indices, &rem).into());
+                }
                 _ => todo!(),
             }
             let loop_stmt = build_nested_for(&shape, Stmt::Seq(Seq::make(main_stmt)));
@@ -778,11 +894,101 @@ mod tests {
     fn test_add() {
         let n = Variable::make("n");
         let m = Variable::make("m");
-        let a = Tensor::placeholder([&n, &m], Dtype::BF16, "a");
-        let b = Tensor::placeholder([&n, &m], Dtype::BF16, "b");
-        let c = compute(Dtype::BF16, [&n, &m], [&a, &b], "c", move |[a, b], [i, j]| {
-            a.slice([&i, &j]) + b.slice([i, j])
-        });
+        let a = Tensor::placeholder(
+            [PrimeExpr::Variable(n.clone()), (1i64).into()],
+            Dtype::BF16,
+            "a"
+        );
+        let b = Tensor::placeholder(
+            [(1i64).into(), PrimeExpr::Variable(m.clone())],
+            Dtype::BF16,
+            "b"
+        );
+        let c = a.add(&b);
+        let schedule = Schedule::create(vec![c]);
+        let lowered = schedule.lower();
+        for stmt in lowered {
+            IRPrinter.print_stmt(stmt);
+        }
+    }
+    #[test]
+    fn test_mul() {
+        let n = Variable::make("n");
+        let m = Variable::make("m");
+        let a = Tensor::placeholder(
+            [PrimeExpr::Variable(n.clone()), (1i64).into()],
+            Dtype::BF16,
+            "a"
+        );
+        let b = Tensor::placeholder(
+            [(1i64).into(), PrimeExpr::Variable(m.clone())],
+            Dtype::BF16,
+            "b"
+        );
+        let c = a.mul(&b);
+        let schedule = Schedule::create(vec![c]);
+        let lowered = schedule.lower();
+        for stmt in lowered {
+            IRPrinter.print_stmt(stmt);
+        }
+    }
+    #[test]
+    fn test_div() {
+        let n = Variable::make("n");
+        let m = Variable::make("m");
+        let a = Tensor::placeholder(
+            [PrimeExpr::Variable(n.clone()), (1i64).into()],
+            Dtype::BF16,
+            "a"
+        );
+        let b = Tensor::placeholder(
+            [(1i64).into(), PrimeExpr::Variable(m.clone())],
+            Dtype::BF16,
+            "b"
+        );
+        let c = a.div(&b);
+        let schedule = Schedule::create(vec![c]);
+        let lowered = schedule.lower();
+        for stmt in lowered {
+            IRPrinter.print_stmt(stmt);
+        }
+    }
+    #[test]
+    fn test_sub() {
+        let n = Variable::make("n");
+        let m = Variable::make("m");
+        let a = Tensor::placeholder(
+            [PrimeExpr::Variable(n.clone()), (1i64).into()],
+            Dtype::BF16,
+            "a"
+        );
+        let b = Tensor::placeholder(
+            [(1i64).into(), PrimeExpr::Variable(m.clone())],
+            Dtype::BF16,
+            "b"
+        );
+        let c = a.sub(&b);
+        let schedule = Schedule::create(vec![c]);
+        let lowered = schedule.lower();
+        for stmt in lowered {
+            IRPrinter.print_stmt(stmt);
+        }
+    }
+    #[test]
+    fn test_mod() {
+        let n = Variable::make("n");
+        let m = Variable::make("m");
+        let a = Tensor::placeholder(
+            [PrimeExpr::Variable(n.clone()), (1i64).into()],
+            Dtype::BF16,
+            "a"
+        );
+        let b = Tensor::placeholder(
+            [(1i64).into(), PrimeExpr::Variable(m.clone())],
+            Dtype::BF16,
+            "b"
+        );
+        let c = a.rem(&b);
         let schedule = Schedule::create(vec![c]);
         let lowered = schedule.lower();
         for stmt in lowered {
