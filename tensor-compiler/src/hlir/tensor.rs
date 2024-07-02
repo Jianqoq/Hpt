@@ -791,21 +791,7 @@ mod tests {
         let n = Variable::make("n");
         let m = Variable::make("m");
         let a = Tensor::placeholder(&[&n, &m, &1i64], Dtype::BF16, "a");
-        let _a = a.clone();
-        let m_clone = m.clone();
-        let c = compute(Dtype::I64, [&n], [&a], "c", move |[a], [i]| {
-            argmax(
-                [&a.slice([i, Variable::make("k").into()])],
-                &[&bf16::from_f32(0.0), &f64::NEG_INFINITY],
-                [(0, &m_clone, 1, "k")]
-            )
-        });
-        let schedule = Schedule::create(vec![c]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
-        let d = _a.argmax(0, 1);
+        let d = a.argmax(0, 1);
         let schedule = Schedule::create(vec![d]);
         let lowered = schedule.lower();
         for stmt in lowered {
@@ -818,19 +804,6 @@ mod tests {
         let n = Variable::make("n");
         let m = Variable::make("m");
         let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
-        let m_clone = m.clone();
-        let c = compute(Dtype::I64, [&n], [&a], "c", move |[a], [i]| {
-            argmin(
-                [a.slice([i, Variable::make("k").into()])],
-                &[&bf16::from_f32(0.0), &f64::INFINITY],
-                [(0, &m_clone, 1, "k")]
-            )
-        });
-        let schedule = Schedule::create(vec![c]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
         let d = a.argmin(0, 1);
         let schedule = Schedule::create(vec![d]);
         let lowered = schedule.lower();
@@ -843,16 +816,6 @@ mod tests {
         let n = Variable::make("n");
         let m = Variable::make("m");
         let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
-        let c = compute(Dtype::BF16, [&n], [&a], "c", move |[a], [i]| {
-            max([a.slice([i, Variable::make("k").into()])], &[&dtype_neg_inf(Dtype::BF16)], [
-                (0, &m, 1, "k"),
-            ])
-        });
-        let schedule = Schedule::create(vec![c]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
         let d = a.max(1);
         let schedule = Schedule::create(vec![d]);
         let lowered = schedule.lower();
@@ -866,16 +829,6 @@ mod tests {
         let n = Variable::make("n");
         let m = Variable::make("m");
         let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
-        let c = compute(Dtype::BF16, [&n], [&a], "c", move |[a], [i]| {
-            min([a.slice([i, Variable::make("k").into()])], &[&dtype_inf(Dtype::BF16)], [
-                (0, &m, 1, "k"),
-            ])
-        });
-        let schedule = Schedule::create(vec![c]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
         let d = a.min(1);
         let schedule = Schedule::create(vec![d]);
         let lowered = schedule.lower();
@@ -888,16 +841,6 @@ mod tests {
         let n = Variable::make("n");
         let m = Variable::make("m");
         let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
-        let c = compute(Dtype::BF16, [&n], [&a], "c", move |[a], [i]| {
-            sum([a.slice([i, Variable::make("k").into()])], &[&bf16::from_f32(0.0)], [
-                (0, &m, 1, "k"),
-            ])
-        });
-        let schedule = Schedule::create(vec![c]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
         let d = a.sum(0.0, 1);
         let schedule = Schedule::create(vec![d]);
         let lowered = schedule.lower();
