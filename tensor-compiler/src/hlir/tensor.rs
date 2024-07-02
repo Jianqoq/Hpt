@@ -735,6 +735,33 @@ impl Schedule {
                         .unwrap();
                     main_stmt.push(StoreStmt::make(&out_name, indices, &rem).into());
                 }
+                PrimeExpr::And(and) => {
+                    let out_name = Variable::make(&format!("{}", name));
+                    let indices = &shape
+                        .iter()
+                        .map(|x| x.var().into())
+                        .reduce(|acc: PrimeExpr, x| acc + x)
+                        .unwrap();
+                    main_stmt.push(StoreStmt::make(&out_name, indices, &and).into());
+                }
+                PrimeExpr::Or(or) => {
+                    let out_name = Variable::make(&format!("{}", name));
+                    let indices = &shape
+                        .iter()
+                        .map(|x| x.var().into())
+                        .reduce(|acc: PrimeExpr, x| acc + x)
+                        .unwrap();
+                    main_stmt.push(StoreStmt::make(&out_name, indices, &or).into());
+                }
+                PrimeExpr::Xor(xor) => {
+                    let out_name = Variable::make(&format!("{}", name));
+                    let indices = &shape
+                        .iter()
+                        .map(|x| x.var().into())
+                        .reduce(|acc: PrimeExpr, x| acc + x)
+                        .unwrap();
+                    main_stmt.push(StoreStmt::make(&out_name, indices, &xor).into());
+                }
                 _ => todo!(),
             }
             let loop_stmt = build_nested_for(&shape, Stmt::Seq(Seq::make(main_stmt)));
@@ -989,6 +1016,69 @@ mod tests {
             "b"
         );
         let c = a.rem(&b);
+        let schedule = Schedule::create(vec![c]);
+        let lowered = schedule.lower();
+        for stmt in lowered {
+            IRPrinter.print_stmt(stmt);
+        }
+    }
+    #[test]
+    fn test_and() {
+        let n = Variable::make("n");
+        let m = Variable::make("m");
+        let a = Tensor::placeholder(
+            [PrimeExpr::Variable(n.clone()), (1i64).into()],
+            Dtype::BF16,
+            "a"
+        );
+        let b = Tensor::placeholder(
+            [(1i64).into(), PrimeExpr::Variable(m.clone())],
+            Dtype::BF16,
+            "b"
+        );
+        let c = a.and(&b);
+        let schedule = Schedule::create(vec![c]);
+        let lowered = schedule.lower();
+        for stmt in lowered {
+            IRPrinter.print_stmt(stmt);
+        }
+    }
+    #[test]
+    fn test_or() {
+        let n = Variable::make("n");
+        let m = Variable::make("m");
+        let a = Tensor::placeholder(
+            [PrimeExpr::Variable(n.clone()), (1i64).into()],
+            Dtype::BF16,
+            "a"
+        );
+        let b = Tensor::placeholder(
+            [(1i64).into(), PrimeExpr::Variable(m.clone())],
+            Dtype::BF16,
+            "b"
+        );
+        let c = a.or(&b);
+        let schedule = Schedule::create(vec![c]);
+        let lowered = schedule.lower();
+        for stmt in lowered {
+            IRPrinter.print_stmt(stmt);
+        }
+    }
+    #[test]
+    fn test_xor() {
+        let n = Variable::make("n");
+        let m = Variable::make("m");
+        let a = Tensor::placeholder(
+            [PrimeExpr::Variable(n.clone()), (1i64).into()],
+            Dtype::BF16,
+            "a"
+        );
+        let b = Tensor::placeholder(
+            [(1i64).into(), PrimeExpr::Variable(m.clone())],
+            Dtype::BF16,
+            "b"
+        );
+        let c = a.xor(&b);
         let schedule = Schedule::create(vec![c]);
         let lowered = schedule.lower();
         for stmt in lowered {
