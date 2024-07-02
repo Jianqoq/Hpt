@@ -21,6 +21,7 @@ use crate::{
         variable::Variable,
     },
     iter_val::IterVar,
+    to_prim_expr::ToPrimeExpr,
 };
 use tensor_types::type_promote::FloatOut;
 use tensor_types::type_promote::BitWiseOut;
@@ -373,15 +374,11 @@ impl PartialEq for Tensor {
 }
 
 impl Tensor {
-    pub fn placeholder<T: IntoIterator<Item: Into<PrimeExpr>>>(
-        shape: T,
-        dtype: Dtype,
-        name: &str
-    ) -> Self {
+    pub fn placeholder(shape: &[&dyn ToPrimeExpr], dtype: Dtype, name: &str) -> Self {
         let tensor_name = name.to_string();
         let iter_vars = shape
             .into_iter()
-            .map(|x| x.into())
+            .map(|x| x.to_prime_expr())
             .enumerate()
             .map(|(i, x)| {
                 IterVar::new(
@@ -785,12 +782,13 @@ mod tests {
         },
         hlir::traits::IntoVar,
     };
+    use crate::to_prim_expr::ToPrimeExpr;
 
     #[test]
     fn test_argmax() {
         let n = Variable::make("n");
         let m = Variable::make("m");
-        let a = Tensor::placeholder([&n, &m], Dtype::BF16, "a");
+        let a = Tensor::placeholder(&[&n, &m, &1i64], Dtype::BF16, "a");
         let _a = a.clone();
         let m_clone = m.clone();
         let c = compute(Dtype::I64, [&n], [&a], "c", move |[a], [i]| {
@@ -820,7 +818,7 @@ mod tests {
     fn test_argmin() {
         let n = Variable::make("n");
         let m = Variable::make("m");
-        let a = Tensor::placeholder([&n, &m], Dtype::BF16, "a");
+        let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
         let m_clone = m.clone();
         let c = compute(Dtype::I64, [&n], [&a], "c", move |[a], [i]| {
             argmin(
@@ -848,7 +846,7 @@ mod tests {
     fn test_max() {
         let n = Variable::make("n");
         let m = Variable::make("m");
-        let a = Tensor::placeholder([&n, &m], Dtype::BF16, "a");
+        let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
         let c = compute(Dtype::BF16, [&n], [&a], "c", move |[a], [i]| {
             max(
                 [a.slice([i, Variable::make("k").into()])],
@@ -873,7 +871,7 @@ mod tests {
     fn test_min() {
         let n = Variable::make("n");
         let m = Variable::make("m");
-        let a = Tensor::placeholder([&n, &m], Dtype::BF16, "a");
+        let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
         let c = compute(Dtype::BF16, [&n], [&a], "c", move |[a], [i]| {
             min(
                 [a.slice([i, Variable::make("k").into()])],
@@ -897,7 +895,7 @@ mod tests {
     fn test_sum() {
         let n = Variable::make("n");
         let m = Variable::make("m");
-        let a = Tensor::placeholder([&n, &m], Dtype::BF16, "a");
+        let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
         let c = compute(Dtype::BF16, [&n], [&a], "c", move |[a], [i]| {
             sum(
                 [a.slice([i, Variable::make("k").into()])],
@@ -921,16 +919,8 @@ mod tests {
     fn test_add() {
         let n = Variable::make("n");
         let m = Variable::make("m");
-        let a = Tensor::placeholder(
-            [PrimeExpr::Variable(n.clone()), (1i64).into()],
-            Dtype::BF16,
-            "a"
-        );
-        let b = Tensor::placeholder(
-            [(1i64).into(), PrimeExpr::Variable(m.clone())],
-            Dtype::BF16,
-            "b"
-        );
+        let a = Tensor::placeholder(&[&n, &1i64], Dtype::BF16, "a");
+        let b = Tensor::placeholder(&[&1i64, &m], Dtype::BF16, "b");
         let c = a.add(&b);
         let schedule = Schedule::create(vec![c]);
         let lowered = schedule.lower();
@@ -942,16 +932,8 @@ mod tests {
     fn test_mul() {
         let n = Variable::make("n");
         let m = Variable::make("m");
-        let a = Tensor::placeholder(
-            [PrimeExpr::Variable(n.clone()), (1i64).into()],
-            Dtype::BF16,
-            "a"
-        );
-        let b = Tensor::placeholder(
-            [(1i64).into(), PrimeExpr::Variable(m.clone())],
-            Dtype::BF16,
-            "b"
-        );
+        let a = Tensor::placeholder(&[&n, &1i64], Dtype::BF16, "a");
+        let b = Tensor::placeholder(&[&1i64, &m], Dtype::BF16, "b");
         let c = a.mul(&b);
         let schedule = Schedule::create(vec![c]);
         let lowered = schedule.lower();
@@ -963,16 +945,8 @@ mod tests {
     fn test_div() {
         let n = Variable::make("n");
         let m = Variable::make("m");
-        let a = Tensor::placeholder(
-            [PrimeExpr::Variable(n.clone()), (1i64).into()],
-            Dtype::BF16,
-            "a"
-        );
-        let b = Tensor::placeholder(
-            [(1i64).into(), PrimeExpr::Variable(m.clone())],
-            Dtype::BF16,
-            "b"
-        );
+        let a = Tensor::placeholder(&[&n, &1i64], Dtype::BF16, "a");
+        let b = Tensor::placeholder(&[&1i64, &m], Dtype::BF16, "b");
         let c = a.div(&b);
         let schedule = Schedule::create(vec![c]);
         let lowered = schedule.lower();
@@ -984,16 +958,8 @@ mod tests {
     fn test_sub() {
         let n = Variable::make("n");
         let m = Variable::make("m");
-        let a = Tensor::placeholder(
-            [PrimeExpr::Variable(n.clone()), (1i64).into()],
-            Dtype::BF16,
-            "a"
-        );
-        let b = Tensor::placeholder(
-            [(1i64).into(), PrimeExpr::Variable(m.clone())],
-            Dtype::BF16,
-            "b"
-        );
+        let a = Tensor::placeholder(&[&n, &1i64], Dtype::BF16, "a");
+        let b = Tensor::placeholder(&[&1i64, &m], Dtype::BF16, "b");
         let c = a.sub(&b);
         let schedule = Schedule::create(vec![c]);
         let lowered = schedule.lower();
@@ -1005,16 +971,8 @@ mod tests {
     fn test_mod() {
         let n = Variable::make("n");
         let m = Variable::make("m");
-        let a = Tensor::placeholder(
-            [PrimeExpr::Variable(n.clone()), (1i64).into()],
-            Dtype::BF16,
-            "a"
-        );
-        let b = Tensor::placeholder(
-            [(1i64).into(), PrimeExpr::Variable(m.clone())],
-            Dtype::BF16,
-            "b"
-        );
+        let a = Tensor::placeholder(&[&n, &1i64], Dtype::BF16, "a");
+        let b = Tensor::placeholder(&[&1i64, &m], Dtype::BF16, "b");
         let c = a.rem(&b);
         let schedule = Schedule::create(vec![c]);
         let lowered = schedule.lower();
@@ -1026,16 +984,8 @@ mod tests {
     fn test_and() {
         let n = Variable::make("n");
         let m = Variable::make("m");
-        let a = Tensor::placeholder(
-            [PrimeExpr::Variable(n.clone()), (1i64).into()],
-            Dtype::BF16,
-            "a"
-        );
-        let b = Tensor::placeholder(
-            [(1i64).into(), PrimeExpr::Variable(m.clone())],
-            Dtype::BF16,
-            "b"
-        );
+        let a = Tensor::placeholder(&[&n, &1i64], Dtype::BF16, "a");
+        let b = Tensor::placeholder(&[&1i64, &m], Dtype::BF16, "b");
         let c = a.and(&b);
         let schedule = Schedule::create(vec![c]);
         let lowered = schedule.lower();
@@ -1047,16 +997,8 @@ mod tests {
     fn test_or() {
         let n = Variable::make("n");
         let m = Variable::make("m");
-        let a = Tensor::placeholder(
-            [PrimeExpr::Variable(n.clone()), (1i64).into()],
-            Dtype::BF16,
-            "a"
-        );
-        let b = Tensor::placeholder(
-            [(1i64).into(), PrimeExpr::Variable(m.clone())],
-            Dtype::BF16,
-            "b"
-        );
+        let a = Tensor::placeholder(&[&n, &1i64], Dtype::BF16, "a");
+        let b = Tensor::placeholder(&[&1i64, &m], Dtype::BF16, "b");
         let c = a.or(&b);
         let schedule = Schedule::create(vec![c]);
         let lowered = schedule.lower();
@@ -1068,16 +1010,8 @@ mod tests {
     fn test_xor() {
         let n = Variable::make("n");
         let m = Variable::make("m");
-        let a = Tensor::placeholder(
-            [PrimeExpr::Variable(n.clone()), (1i64).into()],
-            Dtype::BF16,
-            "a"
-        );
-        let b = Tensor::placeholder(
-            [(1i64).into(), PrimeExpr::Variable(m.clone())],
-            Dtype::BF16,
-            "b"
-        );
+        let a = Tensor::placeholder(&[&n, &1i64], Dtype::BF16, "a");
+        let b = Tensor::placeholder(&[&1i64, &m], Dtype::BF16, "b");
         let c = a.xor(&b);
         let schedule = Schedule::create(vec![c]);
         let lowered = schedule.lower();

@@ -39,6 +39,7 @@ pub mod hlir {
     // pub mod lowering;
     // pub mod tests;
 }
+pub mod to_prim_expr;
 pub mod iter_val;
 pub mod edges;
 pub mod op;
