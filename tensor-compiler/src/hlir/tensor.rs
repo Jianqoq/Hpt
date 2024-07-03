@@ -254,7 +254,9 @@ impl Tensor {
                 indices.push(var.clone().into());
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var);
-                argmax([inputs[0].slice(indices)], &[&init, &dtype_neg_inf(inputs[0].dtype)], [reduce_iter_var])
+                argmax([inputs[0].slice(indices)], &[&init, &dtype_neg_inf(inputs[0].dtype)], [
+                    reduce_iter_var,
+                ])
             }
         )
     }
@@ -284,7 +286,9 @@ impl Tensor {
                 indices.push(var.clone().into());
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var);
-                argmin([inputs[0].slice(indices)], &[&init, &dtype_inf(inputs[0].dtype)], [reduce_iter_var])
+                argmin([inputs[0].slice(indices)], &[&init, &dtype_inf(inputs[0].dtype)], [
+                    reduce_iter_var,
+                ])
             }
         )
     }
