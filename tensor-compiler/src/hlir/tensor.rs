@@ -167,12 +167,15 @@ impl Tensor {
         let axes: Vec<usize> = process_axes([axes], self.ndim()).unwrap();
         let axis = axes[0];
         let _a = self.clone();
-        let res_shape = self.shape
+        let mut res_shape = self.shape
             .iter()
             .enumerate()
             .filter(|(i, _)| !axes.contains(i))
             .map(|(_, x)| x.clone())
             .collect::<Vec<_>>();
+        if res_shape.is_empty() {
+            res_shape.push((0, 1, 1, "red").into());
+        }
         let init: PrimeExpr = init.clone().into();
         _compute_known_iter(
             self.dtype,
@@ -530,9 +533,10 @@ pub struct Schedule {
 }
 
 impl Schedule {
-    pub fn create(tensors: Vec<Tensor>) -> Self {
+    pub fn create<T: Into<Tensor>>(tensors: Vec<T>) -> Self {
         let mut ops = HashMap::new();
         for tensor in tensors {
+            let tensor = tensor.into();
             let op = tensor.op.clone();
             ops.insert(tensor, op);
         }
@@ -842,7 +846,13 @@ mod tests {
         let m = Variable::make("m");
         let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
         let d = a.sum(0.0, 1);
-        let schedule = Schedule::create(vec![d]);
+        let schedule = Schedule::create(vec![&d]);
+        let lowered = schedule.lower();
+        for stmt in lowered {
+            IRPrinter.print_stmt(stmt);
+        }
+        let q = d.sum(0.0, 0);
+        let schedule = Schedule::create(vec![q]);
         let lowered = schedule.lower();
         for stmt in lowered {
             IRPrinter.print_stmt(stmt);
