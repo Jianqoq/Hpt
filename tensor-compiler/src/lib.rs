@@ -40,6 +40,7 @@ pub mod hlir {
         pub mod schedule;
         pub mod temp;
     }
+    pub mod tensor_slice;
 }
 pub mod to_prim_expr;
 pub mod iter_val;

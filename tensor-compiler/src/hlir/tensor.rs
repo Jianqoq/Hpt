@@ -27,6 +27,8 @@ use tensor_types::type_promote::FloatOut;
 use tensor_types::type_promote::BitWiseOut;
 use tensor_types::dtype::TypeCommon;
 
+use super::tensor_slice::TensorSlice;
+
 pub fn dtype_inf(dtype: Dtype) -> PrimeExpr {
     match dtype {
         Dtype::Bool => PrimeExpr::Int(Int::make(Dtype::Bool, 1)),
@@ -428,15 +430,15 @@ impl Tensor {
             dtype,
         }
     }
-    pub fn slice<T: IntoIterator<Item: Into<PrimeExpr>>>(&self, indices: T) -> PrimeExpr {
-        Load::make(
-            Variable::make(&self.name),
-            indices
+    pub fn slice<T: IntoIterator<Item: Into<PrimeExpr>>>(&self, indices: T) -> TensorSlice {
+        TensorSlice {
+            tensor: self.clone().into(),
+            indices: indices
                 .into_iter()
                 .map(|x| x.into())
-                .reduce(|acc, x| acc + x)
-                .unwrap()
-        ).into()
+                .collect::<Vec<PrimeExpr>>()
+                .into(),
+        }
     }
 }
 
@@ -457,9 +459,10 @@ pub fn compute<
     const N: usize,
     F,
     T: Into<PrimeExpr> + Clone,
-    A: Into<Tensor> + Clone
+    A: Into<Tensor> + Clone,
+    C: Into<PrimeExpr>
     >(dtype: Dtype, res_shape: [T; N], inputs: [A; M], name: &str, op: F) -> Tensor
-    where F: Fn([Tensor; M], [PrimeExpr; N]) -> PrimeExpr + 'static
+    where F: Fn([Tensor; M], [PrimeExpr; N]) -> C
 {
     let iter_vars = res_shape
         .iter()
@@ -487,7 +490,7 @@ pub fn compute<
     );
     Tensor {
         shape: Arc::new(iter_vars),
-        body,
+        body: body.into(),
         name: name.to_string().into(),
         inputs: inputs_vec.into(),
         dtype,
@@ -563,7 +566,7 @@ mod tests {
         let n = Variable::make("n");
         let m = Variable::make("m");
         let a = Tensor::placeholder(&[&n, &m, &1i64], Dtype::BF16, "a");
-        let g = compute(Dtype::BF16, [&n, &m], [&a], "a", |[a], [i, j]| { a.slice([i, j]) });
+        let g = compute(Dtype::BF16, [&n, &m], [&a], "a", |[a], [i, j]| { 2 + a.slice([i, j]) });
         let d = a.argmax(0, 1);
         println!("d body: {}", d.body());
     }
