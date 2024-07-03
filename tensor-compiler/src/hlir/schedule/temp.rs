@@ -7,7 +7,7 @@ use crate::{ halide::prime_expr::PrimeExpr, hlir::tensor::Tensor, iter_val::Iter
 #[derive(Clone)]
 pub struct Temp {
     shape: Vec<IterVar>,
-    op: Arc<dyn Fn(Arc<Vec<Tensor>>, Vec<PrimeExpr>) -> PrimeExpr>,
+    op: PrimeExpr,
     name: Arc<String>,
     inputs: Vec<Tensor>,
     dtype: Dtype,
@@ -18,7 +18,7 @@ impl From<Tensor> for Temp {
         let dtype = tensor.dtype();
         Self {
             shape: tensor.shape().clone(),
-            op: tensor.op().clone(),
+            op: tensor.body().clone(),
             name: Arc::new(tensor.name().to_string()),
             inputs: vec![tensor],
             dtype,
@@ -31,7 +31,7 @@ impl From<&Tensor> for Temp {
         let dtype = tensor.dtype();
         Self {
             shape: tensor.shape().clone(),
-            op: tensor.op().clone(),
+            op: tensor.body().clone(),
             name: Arc::new(tensor.name().to_string()),
             inputs: vec![tensor.clone()],
             dtype,

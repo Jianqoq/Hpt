@@ -1,5 +1,5 @@
 #![allow(unused_imports)]
-use std::{ fmt::Display, sync::Arc };
+use std::{ fmt::Display, mem::MaybeUninit, sync::Arc };
 
 use half::{ bf16, f16 };
 use hashbrown::HashMap;
@@ -74,7 +74,7 @@ pub fn dtype_neg_inf(dtype: Dtype) -> PrimeExpr {
 #[derive(Clone)]
 pub struct Tensor {
     shape: Arc<Vec<IterVar>>,
-    op: Arc<dyn Fn(Arc<Vec<Tensor>>, Vec<PrimeExpr>) -> PrimeExpr>,
+    body: PrimeExpr,
     name: Arc<String>,
     inputs: Arc<Vec<Tensor>>,
     dtype: Dtype,
@@ -136,10 +136,10 @@ macro_rules! impl_binops {
                 });
             let lhs_indices = Arc::new(lhs_indices);
             let rhs_indices = Arc::new(rhs_indices);
-            _compute_known_iter(
+            _compute(
                 self.dtype.$type_infer(rhs.dtype),
                 res_shape,
-                vec![self, &rhs],
+                vec![self.clone(), rhs.clone()],
                 &format!($var_name, self.name, rhs.name),
                 move |inputs, indices| {
                     let lhs_indices = lhs_indices.clone();
@@ -172,8 +172,8 @@ impl Tensor {
     pub fn dtype(&self) -> Dtype {
         self.dtype
     }
-    pub fn op(&self) -> &Arc<dyn Fn(Arc<Vec<Tensor>>, Vec<PrimeExpr>) -> PrimeExpr> {
-        &self.op
+    pub fn body(&self) -> &PrimeExpr {
+        &self.body
     }
     pub fn ndim(&self) -> usize {
         self.shape.len()
@@ -192,10 +192,10 @@ impl Tensor {
             res_shape.push((0, 1, 1, "red").into());
         }
         let init: PrimeExpr = init.clone().into();
-        _compute_known_iter(
+        _compute(
             self.dtype,
             res_shape,
-            vec![self],
+            vec![self.clone()],
             &format!("{}_red", self.name),
             move |inputs, indices| {
                 let mut indices = indices
@@ -223,10 +223,10 @@ impl Tensor {
             .map(|(_, x)| x.clone())
             .collect::<Vec<_>>();
         let init: PrimeExpr = init.clone().to_prime_expr();
-        _compute_known_iter(
+        _compute(
             self.dtype,
             res_shape,
-            vec![self],
+            vec![self.clone()],
             &format!("{}_red", self.name),
             move |inputs, indices| {
                 let mut indices = indices
@@ -253,10 +253,10 @@ impl Tensor {
             .filter(|(i, _)| !axes.contains(i))
             .map(|(_, x)| x.clone())
             .collect::<Vec<_>>();
-        _compute_known_iter(
+        _compute(
             Dtype::I64,
             res_shape,
-            vec![self],
+            vec![self.clone()],
             &format!("{}_red", self.name),
             move |inputs, indices| {
                 let mut indices = indices
@@ -285,10 +285,10 @@ impl Tensor {
             .filter(|(i, _)| !axes.contains(i))
             .map(|(_, x)| x.clone())
             .collect::<Vec<_>>();
-        _compute_known_iter(
+        _compute(
             Dtype::I64,
             res_shape,
-            vec![self],
+            vec![self.clone()],
             &format!("{}_red", self.name),
             move |inputs, indices| {
                 let mut indices = indices
@@ -317,10 +317,10 @@ impl Tensor {
             .filter(|(i, _)| !axes.contains(i))
             .map(|(_, x)| x.clone())
             .collect::<Vec<_>>();
-        _compute_known_iter(
+        _compute(
             self.dtype,
             res_shape,
-            vec![self],
+            vec![self.clone()],
             &format!("{}_red", self.name),
             move |inputs, indices| {
                 let mut indices = indices
@@ -349,10 +349,10 @@ impl Tensor {
             .filter(|(i, _)| !axes.contains(i))
             .map(|(_, x)| x.clone())
             .collect::<Vec<_>>();
-        _compute_known_iter(
+        _compute(
             self.dtype,
             res_shape,
-            vec![self],
+            vec![self.clone()],
             &format!("{}_red", self.name),
             move |inputs, indices| {
                 let mut indices = indices
@@ -385,15 +385,14 @@ impl Eq for Tensor {}
 impl std::hash::Hash for Tensor {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.shape.hash(state);
-        let ptr = Arc::as_ptr(&self.op);
-        ptr.hash(state);
+        self.body.hash(state);
         self.name.hash(state);
     }
 }
 
 impl PartialEq for Tensor {
     fn eq(&self, other: &Self) -> bool {
-        self.shape == other.shape && Arc::ptr_eq(&self.op, &other.op) && self.name == other.name
+        self.shape == other.shape && self.body == other.body && self.name == other.name
     }
 }
 
@@ -413,18 +412,17 @@ impl Tensor {
                 )
             })
             .collect::<Vec<_>>();
+        let body = Load::make(
+            Variable::new(tensor_name.clone()),
+            iter_vars
+                .iter()
+                .map(|x| x.var().to_prime_expr())
+                .reduce(|acc, x| acc + x)
+                .unwrap()
+        ).into();
         Self {
             shape: Arc::new(iter_vars),
-            op: Arc::new(move |_, vec| {
-                Load::make(
-                    Variable::new(tensor_name.to_string()),
-                    vec
-                        .iter()
-                        .map(|x| x.clone())
-                        .reduce(|acc, x| acc + x)
-                        .unwrap()
-                ).into()
-            }),
+            body,
             name: name.to_string().into(),
             inputs: vec![].into(),
             dtype,
@@ -463,9 +461,6 @@ pub fn compute<
     >(dtype: Dtype, res_shape: [T; N], inputs: [A; M], name: &str, op: F) -> Tensor
     where F: Fn([Tensor; M], [PrimeExpr; N]) -> PrimeExpr + 'static
 {
-    let new_fn = move |inputs: Arc<Vec<Tensor>>, vec: Vec<PrimeExpr>| -> PrimeExpr {
-        op(inputs.as_ref().clone().try_into().unwrap(), vec.try_into().unwrap())
-    };
     let iter_vars = res_shape
         .iter()
         .enumerate()
@@ -481,315 +476,69 @@ pub fn compute<
     let inputs = inputs
         .into_iter()
         .map(|x| x.into())
-        .collect::<Vec<Tensor>>();
+        .collect::<[Tensor; M]>();
+    let inputs_vec = inputs.to_vec();
+    let body = op(
+        inputs,
+        iter_vars
+            .iter()
+            .map(|x| x.var().clone().into())
+            .collect::<[PrimeExpr; N]>()
+    );
     Tensor {
         shape: Arc::new(iter_vars),
-        op: Arc::new(new_fn),
+        body,
         name: name.to_string().into(),
-        inputs: inputs.into(),
+        inputs: inputs_vec.into(),
         dtype,
     }
 }
 
-pub fn _compute<F, T: Into<PrimeExpr> + Clone, A: Into<Tensor> + Clone>(
+pub fn _compute<F>(
     dtype: Dtype,
-    res_shape: Vec<T>,
-    inputs: Vec<A>,
+    res_shape: Vec<IterVar>,
+    inputs: Vec<Tensor>,
     name: &str,
     op: F
 ) -> Tensor
-    where F: Fn(Arc<Vec<Tensor>>, Vec<PrimeExpr>) -> PrimeExpr + 'static
+    where F: Fn(Vec<Tensor>, Vec<PrimeExpr>) -> PrimeExpr + 'static
 {
-    let iter_vars = res_shape
-        .iter()
-        .enumerate()
-        .map(|(i, x)| {
-            IterVar::new(
-                Int::make(Dtype::I64, 0),
-                x.clone(),
-                Int::make(Dtype::I64, 1),
-                Variable::new(format!("ax{}", i))
-            )
-        })
-        .collect::<Vec<_>>();
-    let inputs = inputs
-        .into_iter()
-        .map(|x| x.into())
-        .collect::<Vec<Tensor>>();
+    let inputs_cloned = inputs.clone();
+    let body = op(
+        inputs_cloned,
+        res_shape
+            .iter()
+            .map(|x| x.var().clone().into())
+            .collect()
+    );
     Tensor {
-        shape: Arc::new(iter_vars),
-        op: Arc::new(op),
+        shape: Arc::new(res_shape),
+        body,
         name: name.to_string().into(),
         inputs: inputs.into(),
         dtype,
     }
 }
 
-pub fn _compute_known_iter<F, A: Into<Tensor> + Clone>(
-    dtype: Dtype,
-    iter_vars: Vec<IterVar>,
-    inputs: Vec<A>,
-    name: &str,
-    op: F
-) -> Tensor
-    where F: Fn(Arc<Vec<Tensor>>, Vec<PrimeExpr>) -> PrimeExpr + 'static
-{
-    let inputs = inputs
-        .into_iter()
-        .map(|x| x.into())
-        .collect::<Vec<Tensor>>();
-    Tensor {
-        shape: Arc::new(iter_vars),
-        op: Arc::new(op),
-        name: name.to_string().into(),
-        inputs: inputs.into(),
-        dtype,
+impl<const N: usize> FromIterator<Tensor> for [Tensor; N] {
+    fn from_iter<T: IntoIterator<Item = Tensor>>(iter: T) -> Self {
+        let mut arr: [MaybeUninit<Tensor>; N] = unsafe { MaybeUninit::uninit().assume_init() };
+        let mut iter = iter.into_iter();
+        for i in 0..N {
+            arr[i] = MaybeUninit::new(iter.next().unwrap());
+        }
+        unsafe { std::mem::transmute_copy(&arr) }
     }
 }
 
-pub struct Schedule {
-    ops: HashMap<Tensor, Arc<dyn Fn(Arc<Vec<Tensor>>, Vec<PrimeExpr>) -> PrimeExpr>>,
-}
-
-impl Schedule {
-    pub fn create<T: Into<Tensor>>(tensors: Vec<T>) -> Self {
-        let mut ops = HashMap::new();
-        for tensor in tensors {
-            let tensor = tensor.into();
-            let op = tensor.op.clone();
-            ops.insert(tensor, op);
+impl<const N: usize> FromIterator<PrimeExpr> for [PrimeExpr; N] {
+    fn from_iter<T: IntoIterator<Item = PrimeExpr>>(iter: T) -> Self {
+        let mut arr: [MaybeUninit<PrimeExpr>; N] = unsafe { MaybeUninit::uninit().assume_init() };
+        let mut iter = iter.into_iter();
+        for i in 0..N {
+            arr[i] = MaybeUninit::new(iter.next().unwrap());
         }
-        Self { ops }
-    }
-    pub fn lower(&self) -> Vec<Stmt> {
-        let mut stmts = Vec::new();
-        for (tensor, op) in &self.ops {
-            let shape = tensor.shape.clone();
-            let name = tensor.name.clone();
-            let expr = op(
-                tensor.inputs.clone(),
-                shape
-                    .iter()
-                    .map(|x| x.var().clone().into())
-                    .collect()
-            );
-            let mut main_stmt: Vec<Stmt> = vec![];
-            match expr {
-                PrimeExpr::Reduce(reduce) => {
-                    let indices = &shape
-                        .iter()
-                        .map(|x| x.var().into())
-                        .reduce(|acc: PrimeExpr, x| acc + x)
-                        .unwrap();
-                    let iter_vars = reduce.iter_vars();
-                    let fors = match reduce.op() {
-                        "sum" => {
-                            assert!(reduce.identity().len() == 1);
-                            assert!(reduce.expr().len() == 1);
-                            let out_name = Variable::make(&format!("{}", name));
-                            main_stmt.push(
-                                StoreStmt::make(
-                                    &out_name,
-                                    indices,
-                                    &reduce.identity()[0].clone()
-                                ).into()
-                            );
-                            build_nested_for(
-                                iter_vars,
-                                InplaceAdd::make(Load::make(&out_name, indices), &reduce.expr()[0])
-                            )
-                        }
-                        "min" => {
-                            assert!(reduce.identity().len() == 1);
-                            assert!(reduce.expr().len() == 1);
-                            main_stmt.push(
-                                StoreStmt::make(
-                                    &Variable::make(&format!("{}", name)),
-                                    indices,
-                                    &reduce.identity()[0].clone()
-                                ).into()
-                            );
-                            build_nested_for(
-                                iter_vars,
-                                StoreStmt::make(
-                                    &Variable::make(&format!("{}", name)),
-                                    indices,
-                                    &Min::make(
-                                        &Load::make(Variable::make(&format!("{}", name)), indices),
-                                        &reduce.expr()[0]
-                                    )
-                                )
-                            )
-                        }
-                        "max" => {
-                            assert!(reduce.identity().len() == 1);
-                            assert!(reduce.expr().len() == 1);
-                            main_stmt.push(
-                                StoreStmt::make(
-                                    &Variable::make(&format!("{}", name)),
-                                    indices,
-                                    &reduce.identity()[0].clone()
-                                ).into()
-                            );
-                            build_nested_for(
-                                iter_vars,
-                                StoreStmt::make(
-                                    &Variable::make(&format!("{}", name)),
-                                    indices,
-                                    &Max::make(
-                                        &Load::make(Variable::make(&format!("{}", name)), indices),
-                                        &reduce.expr()[0]
-                                    )
-                                )
-                            )
-                        }
-                        "prod" => {
-                            assert!(reduce.identity().len() == 1);
-                            assert!(reduce.expr().len() == 1);
-                            main_stmt.push(
-                                StoreStmt::make(
-                                    &Variable::make(&format!("{}", name)),
-                                    indices,
-                                    &reduce.identity()[0].clone()
-                                ).into()
-                            );
-                            build_nested_for(
-                                iter_vars,
-                                StoreStmt::make(
-                                    &Variable::make(&format!("{}", name)),
-                                    indices,
-                                    &Mul::make(
-                                        &Load::make(Variable::make(&format!("{}", name)), indices),
-                                        &reduce.expr()[0]
-                                    )
-                                )
-                            )
-                        }
-                        "argmin" => {
-                            assert!(reduce.identity().len() == 2);
-                            assert!(reduce.expr().len() == 1);
-                            let idx = Variable::make(&format!("idx_{}", name));
-                            main_stmt.push(LetStmt::make(&idx, Int::make(Dtype::I64, 0)).into());
-                            let min_val = Variable::make(&format!("min_val_{}", name));
-                            main_stmt.push(LetStmt::make(&min_val, &reduce.identity()[1]).into());
-                            let name = Variable::make(&format!("{}", name));
-                            main_stmt.push(
-                                StoreStmt::make(&name, &indices, Int::make(Dtype::I64, 0)).into()
-                            );
-                            let mut body: Vec<Stmt> = vec![];
-                            let cond = Lt::make(&reduce.expr()[0], &min_val);
-                            let then_case = Seq::make([
-                                Stmt::AssignStmt(AssignStmt::make(min_val, &reduce.expr()[0])),
-                                Stmt::StoreStmt(StoreStmt::make(&name, &indices, &idx)),
-                            ]);
-                            body.push(IfThenElse::make(cond, then_case, Stmt::None).into());
-                            body.push(InplaceAdd::make(&idx, Int::make(Dtype::I64, 1)).into());
-                            build_nested_for(iter_vars, Seq::make(body))
-                        }
-                        "argmax" => {
-                            assert!(reduce.identity().len() == 2);
-                            assert!(reduce.expr().len() == 1);
-                            let idx = Variable::make(&format!("idx_{}", name));
-                            main_stmt.push(LetStmt::make(&idx, Int::make(Dtype::I64, 0)).into());
-                            let max_val = Variable::make(&format!("max_val_{}", name));
-                            main_stmt.push(LetStmt::make(&max_val, &reduce.identity()[1]).into());
-                            let name = Variable::make(&format!("{}", name));
-                            main_stmt.push(
-                                StoreStmt::make(&name, &indices, Int::make(Dtype::I64, 0)).into()
-                            );
-                            let mut body: Vec<Stmt> = vec![];
-                            let cond = Gt::make(&reduce.expr()[0], &max_val);
-                            let then_case = Seq::make([
-                                Stmt::AssignStmt(AssignStmt::make(max_val, &reduce.expr()[0])),
-                                Stmt::StoreStmt(StoreStmt::make(&name, &indices, &idx)),
-                            ]);
-                            body.push(IfThenElse::make(cond, then_case, Stmt::None).into());
-                            body.push(InplaceAdd::make(&idx, Int::make(Dtype::I64, 1)).into());
-                            build_nested_for(iter_vars, Seq::make(body))
-                        }
-                        _ => todo!(),
-                    };
-                    main_stmt.push(fors);
-                }
-
-                PrimeExpr::Add(add) => {
-                    let out_name = Variable::make(&format!("{}", name));
-                    let indices = &shape
-                        .iter()
-                        .map(|x| x.var().into())
-                        .reduce(|acc: PrimeExpr, x| acc + x)
-                        .unwrap();
-                    main_stmt.push(StoreStmt::make(&out_name, indices, &add).into());
-                }
-                PrimeExpr::Mul(mul) => {
-                    let out_name = Variable::make(&format!("{}", name));
-                    let indices = &shape
-                        .iter()
-                        .map(|x| x.var().into())
-                        .reduce(|acc: PrimeExpr, x| acc + x)
-                        .unwrap();
-                    main_stmt.push(StoreStmt::make(&out_name, indices, &mul).into());
-                }
-                PrimeExpr::Div(div) => {
-                    let out_name = Variable::make(&format!("{}", name));
-                    let indices = &shape
-                        .iter()
-                        .map(|x| x.var().into())
-                        .reduce(|acc: PrimeExpr, x| acc + x)
-                        .unwrap();
-                    main_stmt.push(StoreStmt::make(&out_name, indices, &div).into());
-                }
-                PrimeExpr::Sub(sub) => {
-                    let out_name = Variable::make(&format!("{}", name));
-                    let indices = &shape
-                        .iter()
-                        .map(|x| x.var().into())
-                        .reduce(|acc: PrimeExpr, x| acc + x)
-                        .unwrap();
-                    main_stmt.push(StoreStmt::make(&out_name, indices, &sub).into());
-                }
-                PrimeExpr::Mod(rem) => {
-                    let out_name = Variable::make(&format!("{}", name));
-                    let indices = &shape
-                        .iter()
-                        .map(|x| x.var().into())
-                        .reduce(|acc: PrimeExpr, x| acc + x)
-                        .unwrap();
-                    main_stmt.push(StoreStmt::make(&out_name, indices, &rem).into());
-                }
-                PrimeExpr::And(and) => {
-                    let out_name = Variable::make(&format!("{}", name));
-                    let indices = &shape
-                        .iter()
-                        .map(|x| x.var().into())
-                        .reduce(|acc: PrimeExpr, x| acc + x)
-                        .unwrap();
-                    main_stmt.push(StoreStmt::make(&out_name, indices, &and).into());
-                }
-                PrimeExpr::Or(or) => {
-                    let out_name = Variable::make(&format!("{}", name));
-                    let indices = &shape
-                        .iter()
-                        .map(|x| x.var().into())
-                        .reduce(|acc: PrimeExpr, x| acc + x)
-                        .unwrap();
-                    main_stmt.push(StoreStmt::make(&out_name, indices, &or).into());
-                }
-                PrimeExpr::Xor(xor) => {
-                    let out_name = Variable::make(&format!("{}", name));
-                    let indices = &shape
-                        .iter()
-                        .map(|x| x.var().into())
-                        .reduce(|acc: PrimeExpr, x| acc + x)
-                        .unwrap();
-                    main_stmt.push(StoreStmt::make(&out_name, indices, &xor).into());
-                }
-                _ => todo!(),
-            }
-            let loop_stmt = build_nested_for(&shape, Stmt::Seq(Seq::make(main_stmt)));
-            stmts.push(loop_stmt);
-        }
-        stmts
+        unsafe { std::mem::transmute_copy(&arr) }
     }
 }
 
@@ -814,12 +563,9 @@ mod tests {
         let n = Variable::make("n");
         let m = Variable::make("m");
         let a = Tensor::placeholder(&[&n, &m, &1i64], Dtype::BF16, "a");
+        let g = compute(Dtype::BF16, [&n, &m], [&a], "a", |[a], [i, j]| { a.slice([i, j]) });
         let d = a.argmax(0, 1);
-        let schedule = Schedule::create(vec![d]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
+        println!("d body: {}", d.body());
     }
 
     #[test]
@@ -828,11 +574,6 @@ mod tests {
         let m = Variable::make("m");
         let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
         let d = a.argmin(0, 1);
-        let schedule = Schedule::create(vec![d]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
     }
     #[test]
     fn test_max() {
@@ -840,11 +581,6 @@ mod tests {
         let m = Variable::make("m");
         let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
         let d = a.max(1);
-        let schedule = Schedule::create(vec![d]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
     }
 
     #[test]
@@ -853,11 +589,6 @@ mod tests {
         let m = Variable::make("m");
         let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
         let d = a.min(1);
-        let schedule = Schedule::create(vec![d]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
     }
     #[test]
     fn test_sum() {
@@ -865,17 +596,7 @@ mod tests {
         let m = Variable::make("m");
         let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
         let d = a.sum(0.0, 1);
-        let schedule = Schedule::create(vec![&d]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
         let q = d.sum(0.0, 0);
-        let schedule = Schedule::create(vec![q]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
     }
     #[test]
     fn test_add() {
@@ -884,11 +605,6 @@ mod tests {
         let a = Tensor::placeholder(&[&n, &1i64], Dtype::BF16, "a");
         let b = Tensor::placeholder(&[&1i64, &m], Dtype::BF16, "b");
         let c = a.add(&b);
-        let schedule = Schedule::create(vec![c]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
     }
     #[test]
     fn test_mul() {
@@ -897,11 +613,6 @@ mod tests {
         let a = Tensor::placeholder(&[&n, &1i64], Dtype::BF16, "a");
         let b = Tensor::placeholder(&[&1i64, &m], Dtype::BF16, "b");
         let c = a.mul(&b);
-        let schedule = Schedule::create(vec![c]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
     }
     #[test]
     fn test_div() {
@@ -910,11 +621,6 @@ mod tests {
         let a = Tensor::placeholder(&[&n, &1i64], Dtype::BF16, "a");
         let b = Tensor::placeholder(&[&1i64, &m], Dtype::BF16, "b");
         let c = a.div(&b);
-        let schedule = Schedule::create(vec![c]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
     }
     #[test]
     fn test_sub() {
@@ -923,11 +629,6 @@ mod tests {
         let a = Tensor::placeholder(&[&n, &1i64], Dtype::BF16, "a");
         let b = Tensor::placeholder(&[&1i64, &m], Dtype::BF16, "b");
         let c = a.sub(&b);
-        let schedule = Schedule::create(vec![c]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
     }
     #[test]
     fn test_mod() {
@@ -936,11 +637,6 @@ mod tests {
         let a = Tensor::placeholder(&[&n, &1i64], Dtype::BF16, "a");
         let b = Tensor::placeholder(&[&1i64, &m], Dtype::BF16, "b");
         let c = a.rem(&b);
-        let schedule = Schedule::create(vec![c]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
     }
     #[test]
     fn test_and() {
@@ -949,11 +645,6 @@ mod tests {
         let a = Tensor::placeholder(&[&n, &1i64], Dtype::BF16, "a");
         let b = Tensor::placeholder(&[&1i64, &m], Dtype::BF16, "b");
         let c = a.and(&b);
-        let schedule = Schedule::create(vec![c]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
     }
     #[test]
     fn test_or() {
@@ -962,11 +653,6 @@ mod tests {
         let a = Tensor::placeholder(&[&n, &1i64], Dtype::BF16, "a");
         let b = Tensor::placeholder(&[&1i64, &m], Dtype::BF16, "b");
         let c = a.or(&b);
-        let schedule = Schedule::create(vec![c]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
     }
     #[test]
     fn test_xor() {
@@ -975,10 +661,5 @@ mod tests {
         let a = Tensor::placeholder(&[&n, &1i64], Dtype::BF16, "a");
         let b = Tensor::placeholder(&[&1i64, &m], Dtype::BF16, "b");
         let c = a.xor(&b);
-        let schedule = Schedule::create(vec![c]);
-        let lowered = schedule.lower();
-        for stmt in lowered {
-            IRPrinter.print_stmt(stmt);
-        }
     }
 }
