@@ -36,8 +36,10 @@ pub mod hlir {
     pub mod printer;
     pub mod func_type;
     pub mod input_visitor;
-    // pub mod lowering;
-    // pub mod tests;
+    pub mod schedule {
+        pub mod schedule;
+        pub mod temp;
+    }
 }
 pub mod to_prim_expr;
 pub mod iter_val;

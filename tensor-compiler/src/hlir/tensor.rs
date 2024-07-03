@@ -160,6 +160,21 @@ macro_rules! impl_binops {
 }
 
 impl Tensor {
+    pub fn shape(&self) -> &Vec<IterVar> {
+        &self.shape
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub fn inputs(&self) -> &Vec<Tensor> {
+        &self.inputs
+    }
+    pub fn dtype(&self) -> Dtype {
+        self.dtype
+    }
+    pub fn op(&self) -> &Arc<dyn Fn(Arc<Vec<Tensor>>, Vec<PrimeExpr>) -> PrimeExpr> {
+        &self.op
+    }
     pub fn ndim(&self) -> usize {
         self.shape.len()
     }
