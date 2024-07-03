@@ -1,4 +1,5 @@
 #![allow(unused_imports)]
+#![allow(unused_variables)]
 use std::{ fmt::Display, mem::MaybeUninit, sync::Arc };
 
 use half::{ bf16, f16 };
@@ -568,7 +569,7 @@ mod tests {
         let a = Tensor::placeholder(&[&n, &m, &1i64], Dtype::BF16, "a");
         let g = compute(Dtype::BF16, [&n, &m], [&a], "a", |[a], [i, j]| { 2 + a.slice([i, j]) });
         let d = a.argmax(0, 1);
-        println!("d body: {}", d.body());
+        println!("d body: {}", g.body());
     }
 
     #[test]
