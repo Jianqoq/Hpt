@@ -3,7 +3,6 @@ use half::{ f16, bf16 };
 use tensor_macros::impl_tensor_slice_std_ops;
 
 use crate::halide::{ exprs::{ Add, Div, Load, Mod, Mul, Sub }, prime_expr::PrimeExpr };
-use crate::to_prim_expr::ToPrimeExpr;
 use super::tensor::Tensor;
 
 pub struct TensorSlice {
