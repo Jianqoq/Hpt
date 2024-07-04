@@ -169,6 +169,9 @@ impl Tensor {
     pub fn name(&self) -> &str {
         &self.name
     }
+    pub fn name_(&self) -> &Arc<String> {
+        &self.name
+    }
     pub fn inputs(&self) -> &Vec<Tensor> {
         &self.inputs
     }

@@ -1,27 +1,34 @@
-use std::sync::Arc;
+use std::{collections::VecDeque, sync::Arc};
 
 use tensor_types::dtype::Dtype;
 
-use crate::{ halide::prime_expr::PrimeExpr, hlir::tensor::Tensor, iter_val::IterVar };
+use crate::{ halide::{prime_expr::PrimeExpr, substitute::subsititue_expr::SubstituteExpr}, hlir::tensor::Tensor, iter_val::IterVar };
+
+use super::transforms::Transforms;
 
 #[derive(Clone)]
 pub struct Temp {
-    shape: Vec<IterVar>,
-    body: PrimeExpr,
-    name: Arc<String>,
-    inputs: Vec<Tensor>,
-    dtype: Dtype,
+    pub(crate) shape: Vec<IterVar>,
+    pub(crate) body: PrimeExpr,
+    pub(crate) name: Arc<String>,
+    pub(crate) inputs: Vec<Tensor>,
+    pub(crate) original: Arc<Tensor>,
+    pub(crate) dtype: Dtype,
+    pub(crate) transforms: VecDeque<Transforms>,
 }
 
 impl From<Tensor> for Temp {
     fn from(tensor: Tensor) -> Self {
         let dtype = tensor.dtype();
+        let original = Arc::new(tensor.clone());
         Self {
-            shape: tensor.shape().clone(),
-            body: tensor.body().clone(),
+            shape: original.shape().clone(),
+            body: original.body().clone(),
             name: Arc::new(tensor.name().to_string()),
-            inputs: vec![tensor],
+            inputs: tensor.inputs().clone(),
             dtype,
+            original,
+            transforms: VecDeque::new(),
         }
     }
 }
@@ -29,12 +36,23 @@ impl From<Tensor> for Temp {
 impl From<&Tensor> for Temp {
     fn from(tensor: &Tensor) -> Self {
         let dtype = tensor.dtype();
+        let original = Arc::new(tensor.clone());
         Self {
-            shape: tensor.shape().clone(),
-            body: tensor.body().clone(),
+            shape: original.shape().clone(),
+            body: original.body().clone(),
             name: Arc::new(tensor.name().to_string()),
-            inputs: vec![tensor.clone()],
+            inputs: tensor.inputs().clone(),
             dtype,
+            original,
+            transforms: VecDeque::new(),
+        }
+    }
+}
+
+impl Temp {
+    pub fn inline(&self, target: &mut Temp) {
+        if !target.inputs.contains(&self.original) {
+            panic!("Temp::inline: target does not contain {}", self.original.name())
         }
     }
 }

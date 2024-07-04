@@ -39,6 +39,7 @@ pub mod hlir {
     pub mod schedule {
         pub mod schedule;
         pub mod temp;
+        pub mod transforms;
     }
     pub mod tensor_slice;
 }
