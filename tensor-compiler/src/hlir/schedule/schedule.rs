@@ -98,6 +98,7 @@ impl Schedule {
         self.records.push_back(tensor.name_().clone());
     }
     pub fn tile(&mut self, tensor: &Tensor, axes: &[&dyn ToPrimeExpr]) {
+        assert!(axes.len() == 2, "Schedule::tile: axes length must be 2");
         let axes = axes
             .iter()
             .map(|x| x.to_prime_expr())
