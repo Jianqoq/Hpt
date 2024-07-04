@@ -1,4 +1,4 @@
-use crate::iter_val::IterVar;
+use crate::{ hlir::tensor_slice::TensorSlice, iter_val::IterVar };
 
 use super::{
     assign_stmt::AssignStmt,
@@ -46,6 +46,7 @@ pub trait IRVisitor where Self: Sized {
             PrimeExpr::Load(load) => self.visit_load(&load),
             PrimeExpr::Let(let_) => self.visit_let(&let_),
             PrimeExpr::Reduce(reduce) => self.visit_reduce(&reduce),
+            PrimeExpr::TensorSlice(slice) => self.visit_tensor_slice(&slice),
             PrimeExpr::None => {}
         }
     }
@@ -69,6 +70,7 @@ pub trait IRVisitor where Self: Sized {
             Stmt::None => {}
         }
     }
+    fn visit_tensor_slice(&self, slice: &TensorSlice) {}
     fn visit_reduce(&self, reduce: &Reduce) {
         reduce
             .expr()
@@ -255,6 +257,7 @@ pub trait IRMutVisitor where Self: Sized {
             PrimeExpr::Load(load) => self.visit_load(&load),
             PrimeExpr::Let(let_) => self.visit_let(&let_),
             PrimeExpr::Reduce(reduce) => self.visit_reduce(&reduce),
+            PrimeExpr::TensorSlice(slice) => self.visit_tensor_slice(&slice),
             PrimeExpr::None => {}
         }
     }
@@ -278,6 +281,7 @@ pub trait IRMutVisitor where Self: Sized {
             Stmt::None => {}
         }
     }
+    fn visit_tensor_slice(&mut self, slice: &TensorSlice) {}
     fn visit_reduce(&mut self, reduce: &Reduce) {
         reduce
             .expr()
@@ -508,6 +512,7 @@ pub(crate) fn visit_expr<V>(visitor: &mut V, expr: &PrimeExpr)
         PrimeExpr::Load(load) => visitor.visit_load(&load),
         PrimeExpr::Let(let_) => visitor.visit_let(&let_),
         PrimeExpr::Reduce(reduce) => visitor.visit_reduce(&reduce),
+        PrimeExpr::TensorSlice(slice) => visitor.visit_tensor_slice(&slice),
         PrimeExpr::None => {}
     }
 }
@@ -939,22 +944,33 @@ pub(crate) fn visit_reduce<V>(visitor: &mut V, reduce: &Reduce)
                 is_diff = true;
             }
             IterVar::new(new_start, new_end, new_step, new_var.to_variable().unwrap().clone())
-        }).collect();
-    if
-        &expr == reduce.expr() &&
-        &identity == reduce.identity() &&
-        !is_diff
-    {
+        })
+        .collect();
+    if &expr == reduce.expr() && &identity == reduce.identity() && !is_diff {
         visitor.set_expr(reduce);
     } else {
-        visitor.set_expr(
-            Reduce::make(
-                expr,
-                identity,
-                new_iter_vars,
-                reduce.op()
-            )
-        );
+        visitor.set_expr(Reduce::make(expr, identity, new_iter_vars, reduce.op()));
+    }
+}
+
+pub(crate) fn visist_tensor_slice<V>(visitor: &mut V, slice: &TensorSlice)
+    where V: MutatorGetSet + Sized + IRMutateVisitor
+{
+    let var = visitor.mutate_expr(&slice.name().into());
+    let dims = slice
+        .dims()
+        .iter()
+        .map(|dim| visitor.mutate_expr(dim))
+        .collect::<Vec<PrimeExpr>>();
+    let strides = slice
+        .strides()
+        .iter()
+        .map(|stride| visitor.mutate_expr(stride))
+        .collect::<Vec<PrimeExpr>>();
+    if &var == &slice.name().into() && &dims == slice.dims() && &strides == slice.strides() {
+        visitor.set_expr(slice);
+    } else {
+        visitor.set_expr(TensorSlice::make(var.to_variable().unwrap(), dims, strides));
     }
 }
 
@@ -965,6 +981,9 @@ pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
 
     fn mutate_stmt(&mut self, stmt: &Stmt) -> Stmt {
         mutate_stmt(self, stmt)
+    }
+    fn visit_tensor_slice(&mut self, slice: &TensorSlice) {
+        visist_tensor_slice(self, slice);
     }
     fn visit_assign(&mut self, assign: &AssignStmt) {
         visit_assign(self, assign);

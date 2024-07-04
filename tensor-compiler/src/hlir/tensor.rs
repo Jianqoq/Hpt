@@ -77,6 +77,7 @@ pub fn dtype_neg_inf(dtype: Dtype) -> PrimeExpr {
 #[derive(Clone)]
 pub struct Tensor {
     shape: Arc<Vec<IterVar>>,
+    strides: Arc<Vec<usize>>,
     body: PrimeExpr,
     name: Arc<String>,
     inputs: Arc<Vec<Tensor>>,
@@ -211,9 +212,9 @@ impl Tensor {
                     .map(|(_, x)| x)
                     .collect::<Vec<_>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
-                indices.push(var.clone().into());
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var);
+                indices.push(reduce_iter_var.clone());
                 sum([inputs[0].slice(indices)], &[&init], [reduce_iter_var])
             }
         )
@@ -242,9 +243,9 @@ impl Tensor {
                     .map(|(_, x)| x)
                     .collect::<Vec<_>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
-                indices.push(var.clone().into());
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var);
+                indices.push(reduce_iter_var.clone());
                 prod([inputs[0].slice(indices)], &[&init], [reduce_iter_var])
             }
         )
@@ -272,9 +273,9 @@ impl Tensor {
                     .map(|(_, x)| x)
                     .collect::<Vec<_>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
-                indices.push(var.clone().into());
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var);
+                indices.push(reduce_iter_var.clone());
                 argmax([inputs[0].slice(indices)], &[&init, &dtype_neg_inf(inputs[0].dtype)], [
                     reduce_iter_var,
                 ])
@@ -304,9 +305,9 @@ impl Tensor {
                     .map(|(_, x)| x)
                     .collect::<Vec<_>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
-                indices.push(var.clone().into());
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var);
+                indices.push(reduce_iter_var.clone());
                 argmin([inputs[0].slice(indices)], &[&init, &dtype_inf(inputs[0].dtype)], [
                     reduce_iter_var,
                 ])
@@ -336,9 +337,9 @@ impl Tensor {
                     .map(|(_, x)| x)
                     .collect::<Vec<_>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
-                indices.push(var.clone().into());
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var);
+                indices.push(reduce_iter_var.clone());
                 max([inputs[0].slice(indices)], &[&dtype_neg_inf(inputs[0].dtype)], [
                     reduce_iter_var,
                 ])
@@ -368,9 +369,9 @@ impl Tensor {
                     .map(|(_, x)| x)
                     .collect::<Vec<_>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
-                indices.push(var.clone().into());
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var);
+                indices.push(reduce_iter_var.clone());
                 min([inputs[0].slice(indices)], &[&dtype_inf(inputs[0].dtype)], [reduce_iter_var])
             }
         )
@@ -428,21 +429,39 @@ impl Tensor {
         ).into();
         Self {
             shape: Arc::new(iter_vars),
+            strides: Arc::new((0..shape.len()).collect::<Vec<_>>()),
             body,
             name: name.to_string().into(),
             inputs: vec![].into(),
             dtype,
         }
     }
-    pub fn slice<T: IntoIterator<Item: Into<PrimeExpr>>>(&self, indices: T) -> TensorSlice {
-        TensorSlice {
-            tensor: self.clone().into(),
-            indices: indices
-                .into_iter()
-                .map(|x| x.into())
-                .collect::<Vec<PrimeExpr>>()
-                .into(),
+    pub fn slice<T: IntoIterator<Item: Into<IterVar>>>(&self, indices: T) -> TensorSlice {
+        let indices = indices
+            .into_iter()
+            .map(|x| x.into())
+            .collect::<Vec<IterVar>>();
+        assert!(indices.len() == self.ndim());
+        let mut strides = vec![];
+        let mut map = HashMap::new();
+        for (i, s) in self.shape.iter().zip(self.strides.iter()) {
+            map.insert((i.start(), i.end(), i.step()), s);
         }
+        for (idx, indice) in indices.iter().enumerate() {
+            let start = indice.start();
+            let end = indice.end();
+            let step = indice.step();
+            if let Some(stride) = map.get(&(start, end, step)) {
+                strides.push(Load::make("strides", *stride).into());
+            } else {
+                panic!("Invalid slice");
+            }
+        }
+        let indices = indices
+            .iter()
+            .map(|x| x.var().into())
+            .collect::<Vec<_>>();
+        TensorSlice::make(self.name.clone(), indices, strides)
     }
 }
 
@@ -466,7 +485,7 @@ pub fn compute<
     A: Into<Tensor> + Clone,
     C: Into<PrimeExpr>
     >(dtype: Dtype, res_shape: [T; N], inputs: [A; M], name: &str, op: F) -> Tensor
-    where F: Fn([Tensor; M], [PrimeExpr; N]) -> C
+    where F: Fn([Tensor; M], [IterVar; N]) -> C
 {
     let iter_vars = res_shape
         .iter()
@@ -489,11 +508,12 @@ pub fn compute<
         inputs,
         iter_vars
             .iter()
-            .map(|x| x.var().clone().into())
-            .collect::<[PrimeExpr; N]>()
+            .map(|x| x.clone())
+            .collect::<[IterVar; N]>()
     );
     Tensor {
         shape: Arc::new(iter_vars),
+        strides: Arc::new((0..res_shape.len()).collect::<Vec<_>>()),
         body: body.into(),
         name: name.to_string().into(),
         inputs: inputs_vec.into(),
@@ -508,18 +528,14 @@ pub fn _compute<F>(
     name: &str,
     op: F
 ) -> Tensor
-    where F: Fn(Vec<Tensor>, Vec<PrimeExpr>) -> PrimeExpr + 'static
+    where F: Fn(Vec<Tensor>, Vec<IterVar>) -> PrimeExpr + 'static
 {
     let inputs_cloned = inputs.clone();
-    let body = op(
-        inputs_cloned,
-        res_shape
-            .iter()
-            .map(|x| x.var().clone().into())
-            .collect()
-    );
+    let body = op(inputs_cloned, res_shape.clone());
+    let strides = (0..res_shape.len()).collect::<Vec<_>>();
     Tensor {
         shape: Arc::new(res_shape),
+        strides: Arc::new(strides),
         body,
         name: name.to_string().into(),
         inputs: inputs.into(),
@@ -549,6 +565,17 @@ impl<const N: usize> FromIterator<PrimeExpr> for [PrimeExpr; N] {
     }
 }
 
+impl<const N: usize> FromIterator<IterVar> for [IterVar; N] {
+    fn from_iter<T: IntoIterator<Item = IterVar>>(iter: T) -> Self {
+        let mut arr: [MaybeUninit<IterVar>; N] = unsafe { MaybeUninit::uninit().assume_init() };
+        let mut iter = iter.into_iter();
+        for i in 0..N {
+            arr[i] = MaybeUninit::new(iter.next().unwrap());
+        }
+        unsafe { std::mem::transmute_copy(&arr) }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use tensor_types::dtype::Dtype;
@@ -569,8 +596,8 @@ mod tests {
     fn test_argmax() {
         let n = Variable::make("n");
         let m = Variable::make("m");
-        let a = Tensor::placeholder(&[&n, &m, &1i64], Dtype::BF16, "a");
-        let g = compute(Dtype::BF16, [&n, &m], [&a], "a", |[a], [i, j]| { 2 + a.slice([i, j]) });
+        let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
+        let g = compute(Dtype::BF16, [&n, &m], [&a], "a", |[a], [i, j]| { 2 + a.slice([j, i]) });
         let d = a.argmax(0, 1);
         println!("d body: {}", g.body());
     }

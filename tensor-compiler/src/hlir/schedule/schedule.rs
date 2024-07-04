@@ -1,14 +1,18 @@
-use std::{ collections::VecDeque, sync::Arc };
+use std::collections::VecDeque;
 
 use hashbrown::HashMap;
 
-use crate::{ halide::prime_expr::PrimeExpr, hlir::tensor::Tensor, to_prim_expr::ToPrimeExpr };
+use crate::{
+    halide::{ prime_expr::PrimeExpr, variable::Variable },
+    hlir::tensor::Tensor,
+    to_prim_expr::ToPrimeExpr,
+};
 
-use super::{ temp::Temp, transforms::Transforms };
+use super::{ lowered::SubstituteLoad, temp::Temp, transforms::Transforms };
 
 pub struct Schedule {
     pub temps_map: HashMap<Tensor, Temp>,
-    pub records: VecDeque<Arc<String>>,
+    pub records: VecDeque<Tensor>,
 }
 
 impl Schedule {
@@ -30,10 +34,9 @@ impl Schedule {
 
     /// to_inline: C = A + B, target: D = C + E, inline C to D, then D = (A + B) + E
     pub fn inline(&mut self, to_inline: &Tensor, target: &Tensor) {
-        let target = self.temps_map.get_mut(target);
-        if let Some(temp) = target {
+        if let Some(temp) = self.temps_map.get_mut(target) {
             if temp.inputs.contains(to_inline) {
-                temp.transforms.push_back(Transforms::ComputeInline(to_inline.name_().clone()));
+                temp.transforms.push_back(Transforms::Inline(to_inline.name_().clone()));
                 temp.inputs.retain(|x| x != to_inline);
             } else {
                 panic!("Schedule::inline: target does not contain to_inline");
@@ -41,7 +44,7 @@ impl Schedule {
         } else {
             panic!("Schedule::inline: to_inline does not exist in temps_map");
         }
-        self.records.push_back(to_inline.name_().clone());
+        self.records.push_back(target.clone());
     }
 
     pub fn split(
@@ -57,7 +60,7 @@ impl Schedule {
         } else {
             panic!("Schedule::split: tensor does not exist in temps_map");
         }
-        self.records.push_back(tensor.name_().clone());
+        self.records.push_back(tensor.clone());
     }
 
     pub fn fuse(&mut self, tensor: &Tensor, axes: &[&dyn ToPrimeExpr]) {
@@ -71,7 +74,7 @@ impl Schedule {
         } else {
             panic!("Schedule::fuse: tensor does not exist in temps_map");
         }
-        self.records.push_back(tensor.name_().clone());
+        self.records.push_back(tensor.clone());
     }
 
     pub fn compute_at(&mut self, tensor: &Tensor, target: &Tensor, axis: impl Into<PrimeExpr>) {
@@ -81,7 +84,7 @@ impl Schedule {
         } else {
             panic!("Schedule::compute_at: tensor does not exist in temps_map");
         }
-        self.records.push_back(tensor.name_().clone());
+        self.records.push_back(tensor.clone());
     }
 
     pub fn reorder(&mut self, tensor: &Tensor, axes: &[&dyn ToPrimeExpr]) {
@@ -95,7 +98,7 @@ impl Schedule {
         } else {
             panic!("Schedule::reorder: tensor does not exist in temps_map");
         }
-        self.records.push_back(tensor.name_().clone());
+        self.records.push_back(tensor.clone());
     }
     pub fn tile(&mut self, tensor: &Tensor, axes: &[&dyn ToPrimeExpr]) {
         assert!(axes.len() == 2, "Schedule::tile: axes length must be 2");
@@ -109,7 +112,41 @@ impl Schedule {
         } else {
             panic!("Schedule::tile: tensor does not exist in temps_map");
         }
-        self.records.push_back(tensor.name_().clone());
+        self.records.push_back(tensor.clone());
+    }
+    pub fn lower(&mut self) {
+        let mut ret = HashMap::new();
+
+        for (t, tmp) in self.temps_map.iter() {
+            ret.insert(t.name_().clone(), tmp.clone());
+        }
+
+        while let Some(t) = self.records.pop_front() {
+            let temp = self.temps_map.get_mut(&t);
+            if let Some(temp) = temp {
+                let transform = temp.transforms
+                    .pop_front()
+                    .expect("Schedule::lower: transform is empty");
+                match transform {
+                    Transforms::Inline(name) => {
+                        let to_inline = ret
+                            .get(&name)
+                            .expect("Schedule::lower: target does not exist in ret");
+                        let target = ret
+                            .get(t.name_())
+                            .expect("Schedule::lower: to_inline does not exist in ret");
+                        let subs_load = SubstituteLoad::new(Variable::make(&name));
+                    }
+                    Transforms::Split(axis, inner_loop_size) => {}
+                    Transforms::Fuse(axes) => {}
+                    Transforms::ComputeAt(target, axis) => {}
+                    Transforms::Reorder(axes) => {}
+                    Transforms::Tile(axes) => {}
+                }
+            } else {
+                panic!("Schedule::lower: temp does not exist in temps_map");
+            }
+        }
     }
 }
 
@@ -117,12 +154,18 @@ impl Schedule {
 mod tests {
     use tensor_types::dtype::Dtype;
 
+    use crate::halide::variable::Variable;
+
     use super::*;
 
     #[test]
     fn test_schedule_inline() {
-        let a = Tensor::placeholder(&[&1i32, &2i32, &3i32], Dtype::I64, "a");
-        let b = Tensor::placeholder(&[&1i32, &2i32, &3i32], Dtype::I64, "b");
+        let m = Variable::make("m");
+        let n = Variable::make("n");
+        let p = Variable::make("p");
+
+        let a = Tensor::placeholder(&[&m, &n, &1i64], Dtype::I64, "a");
+        let b = Tensor::placeholder(&[&m, &1i64, &p], Dtype::I64, "b");
 
         let add = a.add(&b);
         let sub = add.sub(&b);

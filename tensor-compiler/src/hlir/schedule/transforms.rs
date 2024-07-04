@@ -7,7 +7,7 @@ pub enum Transforms {
     Split(PrimeExpr, PrimeExpr),
     Fuse(Vec<PrimeExpr>),
     Reorder(Vec<PrimeExpr>),
-    ComputeInline(Arc<String>),
+    Inline(Arc<String>),
     ComputeAt(Arc<String>, PrimeExpr),
     Tile(Vec<PrimeExpr>),
 }

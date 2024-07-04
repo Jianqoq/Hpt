@@ -1,7 +1,8 @@
 use std::fmt::Display;
 
 use tensor_types::dtype::Dtype;
-use tensor_types::type_promote::NormalOut;
+use crate::hlir::tensor_slice::TensorSlice;
+
 use super::{
     exprs::*,
     traits::{ Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor },
@@ -16,6 +17,7 @@ pub enum PrimeExpr {
     Str(Str),
     Variable(Variable),
     Reduce(Reduce),
+    TensorSlice(TensorSlice),
     Cast(Cast),
     Add(Add),
     Sub(Sub),
@@ -48,6 +50,7 @@ pub enum PrimeType {
     UInt,
     Str,
     Variable,
+    TensorSlice,
     Reduce,
     Cast,
     Add,
@@ -124,6 +127,7 @@ impl PrimeExpr {
             PrimeExpr::Let(_) => PrimeType::Let,
             PrimeExpr::Load(_) => PrimeType::Load,
             PrimeExpr::Reduce(_) => PrimeType::Reduce,
+            PrimeExpr::TensorSlice(_) => PrimeType::TensorSlice,
             PrimeExpr::None => PrimeType::None,
         }
     }
@@ -167,6 +171,7 @@ impl PrimeExpr {
             PrimeExpr::Let(a) => a.to_string(),
             PrimeExpr::Load(a) => a.to_string(),
             PrimeExpr::Reduce(a) => a.to_string(),
+            PrimeExpr::TensorSlice(a) => a.to_string(),
             PrimeExpr::None => "".to_string(),
         };
         if prec < parent_prec {
@@ -244,62 +249,7 @@ impl std::ops::Add for PrimeExpr {
     type Output = PrimeExpr;
 
     fn add(self, rhs: PrimeExpr) -> Self::Output {
-        match (&self, &rhs) {
-            (PrimeExpr::Int(i1), PrimeExpr::Int(i2)) => PrimeExpr::Int(i1 + i2),
-            (PrimeExpr::Float(f1), PrimeExpr::Float(f2)) =>
-                PrimeExpr::Float(
-                    Float::make(f1.dtype()._add(*f2.dtype()), f1.value() + f2.value())
-                ),
-            (PrimeExpr::Int(i), PrimeExpr::Float(f)) =>
-                PrimeExpr::Float(
-                    Float::make(i.dtype()._add(*f.dtype()), (i.value() as f64) + f.value())
-                ),
-            (PrimeExpr::Float(f), PrimeExpr::Int(i)) =>
-                PrimeExpr::Float(
-                    Float::make(f.dtype()._add(*i.dtype()), f.value() + (i.value() as f64))
-                ),
-            (PrimeExpr::UInt(u1), PrimeExpr::UInt(u2)) => PrimeExpr::UInt(u1 + u2),
-            (PrimeExpr::Mul(m1), PrimeExpr::Mul(m2)) =>
-                PrimeExpr::Add(Add::new(m1.into(), m2.into())),
-            (PrimeExpr::Add(a1), PrimeExpr::Add(a2)) =>
-                PrimeExpr::Add(Add::new(a1.into(), a2.into())),
-            (PrimeExpr::Sub(s1), PrimeExpr::Sub(s2)) =>
-                PrimeExpr::Add(Add::new(s1.into(), s2.into())),
-            (PrimeExpr::Div(d1), PrimeExpr::Div(d2)) =>
-                PrimeExpr::Add(Add::new(d1.into(), d2.into())),
-            (PrimeExpr::Mod(m1), PrimeExpr::Mod(m2)) =>
-                PrimeExpr::Add(Add::new(m1.into(), m2.into())),
-            (PrimeExpr::Add(a), PrimeExpr::Mul(m)) => PrimeExpr::Add(Add::new(a.into(), m.into())),
-            (PrimeExpr::Add(a), PrimeExpr::Sub(s)) => PrimeExpr::Add(Add::new(a.into(), s.into())),
-            (PrimeExpr::Add(a), PrimeExpr::Div(d)) => PrimeExpr::Add(Add::new(a.into(), d.into())),
-            (PrimeExpr::Add(a), PrimeExpr::Mod(m)) => PrimeExpr::Add(Add::new(a.into(), m.into())),
-            (PrimeExpr::Mul(m), PrimeExpr::Add(a)) => PrimeExpr::Add(Add::new(m.into(), a.into())),
-            (PrimeExpr::Sub(s), PrimeExpr::Add(a)) => PrimeExpr::Add(Add::new(s.into(), a.into())),
-            (PrimeExpr::Div(d), PrimeExpr::Add(a)) => PrimeExpr::Add(Add::new(d.into(), a.into())),
-            (PrimeExpr::Mod(m), PrimeExpr::Add(a)) => PrimeExpr::Add(Add::new(m.into(), a.into())),
-            (PrimeExpr::Add(a), PrimeExpr::Int(i)) => PrimeExpr::Add(Add::new(a.into(), i.into())),
-            (PrimeExpr::Sub(s), PrimeExpr::Int(i)) => PrimeExpr::Add(Add::new(s.into(), i.into())),
-            (PrimeExpr::Mul(m), PrimeExpr::Int(i)) => PrimeExpr::Add(Add::new(m.into(), i.into())),
-            (PrimeExpr::Div(d), PrimeExpr::Int(i)) => PrimeExpr::Add(Add::new(d.into(), i.into())),
-            (PrimeExpr::Mod(m), PrimeExpr::Int(i)) => PrimeExpr::Add(Add::new(m.into(), i.into())),
-            (PrimeExpr::Variable(v), PrimeExpr::Int(i)) =>
-                PrimeExpr::Add(Add::new(v.into(), i.into())),
-            (PrimeExpr::Int(i), PrimeExpr::Variable(v)) =>
-                PrimeExpr::Add(Add::new(i.into(), v.into())),
-            (PrimeExpr::Variable(v), PrimeExpr::Variable(v2)) =>
-                PrimeExpr::Add(Add::new(v.into(), v2.into())),
-            (PrimeExpr::Variable(v), PrimeExpr::Add(i)) =>
-                PrimeExpr::Add(Add::new(v.into(), i.into())),
-            (PrimeExpr::Add(i), PrimeExpr::Variable(v)) =>
-                PrimeExpr::Add(Add::new(i.into(), v.into())),
-            (PrimeExpr::Load(l), PrimeExpr::Int(i)) => PrimeExpr::Add(Add::new(l.into(), i.into())),
-            (PrimeExpr::Int(i), PrimeExpr::Load(l)) => PrimeExpr::Add(Add::new(i.into(), l.into())),
-            (PrimeExpr::Load(l), PrimeExpr::Load(l2)) =>
-                PrimeExpr::Add(Add::new(l.into(), l2.into())),
-            (PrimeExpr::Load(l), PrimeExpr::Add(i)) => PrimeExpr::Add(Add::new(l.into(), i.into())),
-            (PrimeExpr::Add(i), PrimeExpr::Load(l)) => PrimeExpr::Add(Add::new(i.into(), l.into())),
-            _ => panic!("{}", &format!("Failed to add {} and {}", self, rhs)),
-        }
+        PrimeExpr::Add(Add::make(self, rhs))
     }
 }
 
@@ -307,62 +257,7 @@ impl std::ops::Add<&PrimeExpr> for &PrimeExpr {
     type Output = PrimeExpr;
 
     fn add(self, rhs: &PrimeExpr) -> Self::Output {
-        match (&self, &rhs) {
-            (PrimeExpr::Int(i1), PrimeExpr::Int(i2)) => PrimeExpr::Int(i1 + i2),
-            (PrimeExpr::Float(f1), PrimeExpr::Float(f2)) =>
-                PrimeExpr::Float(
-                    Float::make(f1.dtype()._add(*f2.dtype()), f1.value() + f2.value())
-                ),
-            (PrimeExpr::Int(i), PrimeExpr::Float(f)) =>
-                PrimeExpr::Float(
-                    Float::make(i.dtype()._add(*f.dtype()), (i.value() as f64) + f.value())
-                ),
-            (PrimeExpr::Float(f), PrimeExpr::Int(i)) =>
-                PrimeExpr::Float(
-                    Float::make(f.dtype()._add(*i.dtype()), f.value() + (i.value() as f64))
-                ),
-            (PrimeExpr::UInt(u1), PrimeExpr::UInt(u2)) => PrimeExpr::UInt(u1 + u2),
-            (PrimeExpr::Mul(m1), PrimeExpr::Mul(m2)) =>
-                PrimeExpr::Add(Add::new(m1.into(), m2.into())),
-            (PrimeExpr::Add(a1), PrimeExpr::Add(a2)) =>
-                PrimeExpr::Add(Add::new(a1.into(), a2.into())),
-            (PrimeExpr::Sub(s1), PrimeExpr::Sub(s2)) =>
-                PrimeExpr::Add(Add::new(s1.into(), s2.into())),
-            (PrimeExpr::Div(d1), PrimeExpr::Div(d2)) =>
-                PrimeExpr::Add(Add::new(d1.into(), d2.into())),
-            (PrimeExpr::Mod(m1), PrimeExpr::Mod(m2)) =>
-                PrimeExpr::Add(Add::new(m1.into(), m2.into())),
-            (PrimeExpr::Add(a), PrimeExpr::Mul(m)) => PrimeExpr::Add(Add::new(a.into(), m.into())),
-            (PrimeExpr::Add(a), PrimeExpr::Sub(s)) => PrimeExpr::Add(Add::new(a.into(), s.into())),
-            (PrimeExpr::Add(a), PrimeExpr::Div(d)) => PrimeExpr::Add(Add::new(a.into(), d.into())),
-            (PrimeExpr::Add(a), PrimeExpr::Mod(m)) => PrimeExpr::Add(Add::new(a.into(), m.into())),
-            (PrimeExpr::Mul(m), PrimeExpr::Add(a)) => PrimeExpr::Add(Add::new(m.into(), a.into())),
-            (PrimeExpr::Sub(s), PrimeExpr::Add(a)) => PrimeExpr::Add(Add::new(s.into(), a.into())),
-            (PrimeExpr::Div(d), PrimeExpr::Add(a)) => PrimeExpr::Add(Add::new(d.into(), a.into())),
-            (PrimeExpr::Mod(m), PrimeExpr::Add(a)) => PrimeExpr::Add(Add::new(m.into(), a.into())),
-            (PrimeExpr::Add(a), PrimeExpr::Int(i)) => PrimeExpr::Add(Add::new(a.into(), i.into())),
-            (PrimeExpr::Sub(s), PrimeExpr::Int(i)) => PrimeExpr::Add(Add::new(s.into(), i.into())),
-            (PrimeExpr::Mul(m), PrimeExpr::Int(i)) => PrimeExpr::Add(Add::new(m.into(), i.into())),
-            (PrimeExpr::Div(d), PrimeExpr::Int(i)) => PrimeExpr::Add(Add::new(d.into(), i.into())),
-            (PrimeExpr::Mod(m), PrimeExpr::Int(i)) => PrimeExpr::Add(Add::new(m.into(), i.into())),
-            (PrimeExpr::Variable(v), PrimeExpr::Int(i)) =>
-                PrimeExpr::Add(Add::new(v.into(), i.into())),
-            (PrimeExpr::Int(i), PrimeExpr::Variable(v)) =>
-                PrimeExpr::Add(Add::new(i.into(), v.into())),
-            (PrimeExpr::Variable(v), PrimeExpr::Variable(v2)) =>
-                PrimeExpr::Add(Add::new(v.into(), v2.into())),
-            (PrimeExpr::Variable(v), PrimeExpr::Add(i)) =>
-                PrimeExpr::Add(Add::new(v.into(), i.into())),
-            (PrimeExpr::Add(i), PrimeExpr::Variable(v)) =>
-                PrimeExpr::Add(Add::new(i.into(), v.into())),
-            (PrimeExpr::Load(l), PrimeExpr::Int(i)) => PrimeExpr::Add(Add::new(l.into(), i.into())),
-            (PrimeExpr::Int(i), PrimeExpr::Load(l)) => PrimeExpr::Add(Add::new(i.into(), l.into())),
-            (PrimeExpr::Load(l), PrimeExpr::Load(l2)) =>
-                PrimeExpr::Add(Add::new(l.into(), l2.into())),
-            (PrimeExpr::Load(l), PrimeExpr::Add(i)) => PrimeExpr::Add(Add::new(l.into(), i.into())),
-            (PrimeExpr::Add(i), PrimeExpr::Load(l)) => PrimeExpr::Add(Add::new(i.into(), l.into())),
-            _ => panic!("{}", &format!("Failed to add {} and {}", self, rhs)),
-        }
+        PrimeExpr::Add(Add::make(self, rhs))
     }
 }
 
@@ -370,51 +265,7 @@ impl std::ops::Sub for PrimeExpr {
     type Output = PrimeExpr;
 
     fn sub(self, rhs: PrimeExpr) -> Self::Output {
-        match (&self, &rhs) {
-            (PrimeExpr::Int(i1), PrimeExpr::Int(i2)) => PrimeExpr::Int(i1 - i2),
-            (PrimeExpr::Float(f1), PrimeExpr::Float(f2)) =>
-                PrimeExpr::Float(
-                    Float::make(f1.dtype()._sub(*f2.dtype()), f1.value() - f2.value())
-                ),
-            (PrimeExpr::Int(i), PrimeExpr::Float(f)) =>
-                PrimeExpr::Float(
-                    Float::make(i.dtype()._sub(*f.dtype()), (i.value() as f64) - f.value())
-                ),
-            (PrimeExpr::Float(f), PrimeExpr::Int(i)) =>
-                PrimeExpr::Float(
-                    Float::make(f.dtype()._sub(*i.dtype()), f.value() - (i.value() as f64))
-                ),
-            (PrimeExpr::UInt(u1), PrimeExpr::UInt(u2)) => PrimeExpr::UInt(u1 - u2),
-            (PrimeExpr::Mul(m1), PrimeExpr::Mul(m2)) => PrimeExpr::Sub(Sub::new(m1, m2)),
-            (PrimeExpr::Add(a1), PrimeExpr::Add(a2)) => PrimeExpr::Sub(Sub::new(a1, a2)),
-            (PrimeExpr::Sub(s1), PrimeExpr::Sub(s2)) => PrimeExpr::Sub(Sub::new(s1, s2)),
-            (PrimeExpr::Div(d1), PrimeExpr::Div(d2)) => PrimeExpr::Sub(Sub::new(d1, d2)),
-            (PrimeExpr::Mod(m1), PrimeExpr::Mod(m2)) => PrimeExpr::Sub(Sub::new(m1, m2)),
-            (PrimeExpr::Add(a), PrimeExpr::Mul(m)) => PrimeExpr::Sub(Sub::new(a, m)),
-            (PrimeExpr::Add(a), PrimeExpr::Sub(s)) => PrimeExpr::Sub(Sub::new(a, s)),
-            (PrimeExpr::Add(a), PrimeExpr::Div(d)) => PrimeExpr::Sub(Sub::new(a, d)),
-            (PrimeExpr::Add(a), PrimeExpr::Mod(m)) => PrimeExpr::Sub(Sub::new(a, m)),
-            (PrimeExpr::Mul(m), PrimeExpr::Add(a)) => PrimeExpr::Sub(Sub::new(m, a)),
-            (PrimeExpr::Sub(s), PrimeExpr::Add(a)) => PrimeExpr::Sub(Sub::new(s, a)),
-            (PrimeExpr::Div(d), PrimeExpr::Add(a)) => PrimeExpr::Sub(Sub::new(d, a)),
-            (PrimeExpr::Mod(m), PrimeExpr::Add(a)) => PrimeExpr::Sub(Sub::new(m, a)),
-            (PrimeExpr::Add(a), PrimeExpr::Int(i)) => PrimeExpr::Sub(Sub::new(a, i)),
-            (PrimeExpr::Sub(s), PrimeExpr::Int(i)) => PrimeExpr::Sub(Sub::new(s, i)),
-            (PrimeExpr::Mul(m), PrimeExpr::Int(i)) => PrimeExpr::Sub(Sub::new(m, i)),
-            (PrimeExpr::Div(d), PrimeExpr::Int(i)) => PrimeExpr::Sub(Sub::new(d, i)),
-            (PrimeExpr::Mod(m), PrimeExpr::Int(i)) => PrimeExpr::Sub(Sub::new(m, i)),
-            (PrimeExpr::Variable(v), PrimeExpr::Int(i)) => PrimeExpr::Sub(Sub::new(v, i)),
-            (PrimeExpr::Int(i), PrimeExpr::Variable(v)) => PrimeExpr::Sub(Sub::new(i, v)),
-            (PrimeExpr::Variable(v), PrimeExpr::Variable(v2)) => PrimeExpr::Sub(Sub::new(v, v2)),
-            (PrimeExpr::Variable(v), PrimeExpr::Sub(i)) => PrimeExpr::Sub(Sub::new(v, i)),
-            (PrimeExpr::Sub(i), PrimeExpr::Variable(v)) => PrimeExpr::Sub(Sub::new(i, v)),
-            (PrimeExpr::Load(l), PrimeExpr::Int(i)) => PrimeExpr::Sub(Sub::new(l, i)),
-            (PrimeExpr::Int(i), PrimeExpr::Load(l)) => PrimeExpr::Sub(Sub::new(i, l)),
-            (PrimeExpr::Load(l), PrimeExpr::Load(l2)) => PrimeExpr::Sub(Sub::new(l, l2)),
-            (PrimeExpr::Load(l), PrimeExpr::Sub(l2)) => PrimeExpr::Sub(Sub::new(l, l2)),
-            (PrimeExpr::Sub(l), PrimeExpr::Load(l2)) => PrimeExpr::Sub(Sub::new(l, l2)),
-            _ => panic!("{}", &format!("Failed to subtract {} and {}", self, rhs)),
-        }
+        PrimeExpr::Sub(Sub::make(self, rhs))
     }
 }
 
@@ -422,51 +273,15 @@ impl std::ops::Sub<&PrimeExpr> for &PrimeExpr {
     type Output = PrimeExpr;
 
     fn sub(self, rhs: &PrimeExpr) -> Self::Output {
-        match (&self, &rhs) {
-            (PrimeExpr::Int(i1), PrimeExpr::Int(i2)) => PrimeExpr::Int(i1 - i2),
-            (PrimeExpr::Float(f1), PrimeExpr::Float(f2)) =>
-                PrimeExpr::Float(
-                    Float::make(f1.dtype()._sub(*f2.dtype()), f1.value() - f2.value())
-                ),
-            (PrimeExpr::Int(i), PrimeExpr::Float(f)) =>
-                PrimeExpr::Float(
-                    Float::make(i.dtype()._sub(*f.dtype()), (i.value() as f64) - f.value())
-                ),
-            (PrimeExpr::Float(f), PrimeExpr::Int(i)) =>
-                PrimeExpr::Float(
-                    Float::make(f.dtype()._sub(*i.dtype()), f.value() - (i.value() as f64))
-                ),
-            (PrimeExpr::UInt(u1), PrimeExpr::UInt(u2)) => PrimeExpr::UInt(u1 - u2),
-            (PrimeExpr::Mul(m1), PrimeExpr::Mul(m2)) => PrimeExpr::Sub(Sub::new(m1, m2)),
-            (PrimeExpr::Add(a1), PrimeExpr::Add(a2)) => PrimeExpr::Sub(Sub::new(a1, a2)),
-            (PrimeExpr::Sub(s1), PrimeExpr::Sub(s2)) => PrimeExpr::Sub(Sub::new(s1, s2)),
-            (PrimeExpr::Div(d1), PrimeExpr::Div(d2)) => PrimeExpr::Sub(Sub::new(d1, d2)),
-            (PrimeExpr::Mod(m1), PrimeExpr::Mod(m2)) => PrimeExpr::Sub(Sub::new(m1, m2)),
-            (PrimeExpr::Add(a), PrimeExpr::Mul(m)) => PrimeExpr::Sub(Sub::new(a, m)),
-            (PrimeExpr::Add(a), PrimeExpr::Sub(s)) => PrimeExpr::Sub(Sub::new(a, s)),
-            (PrimeExpr::Add(a), PrimeExpr::Div(d)) => PrimeExpr::Sub(Sub::new(a, d)),
-            (PrimeExpr::Add(a), PrimeExpr::Mod(m)) => PrimeExpr::Sub(Sub::new(a, m)),
-            (PrimeExpr::Mul(m), PrimeExpr::Add(a)) => PrimeExpr::Sub(Sub::new(m, a)),
-            (PrimeExpr::Sub(s), PrimeExpr::Add(a)) => PrimeExpr::Sub(Sub::new(s, a)),
-            (PrimeExpr::Div(d), PrimeExpr::Add(a)) => PrimeExpr::Sub(Sub::new(d, a)),
-            (PrimeExpr::Mod(m), PrimeExpr::Add(a)) => PrimeExpr::Sub(Sub::new(m, a)),
-            (PrimeExpr::Add(a), PrimeExpr::Int(i)) => PrimeExpr::Sub(Sub::new(a, i)),
-            (PrimeExpr::Sub(s), PrimeExpr::Int(i)) => PrimeExpr::Sub(Sub::new(s, i)),
-            (PrimeExpr::Mul(m), PrimeExpr::Int(i)) => PrimeExpr::Sub(Sub::new(m, i)),
-            (PrimeExpr::Div(d), PrimeExpr::Int(i)) => PrimeExpr::Sub(Sub::new(d, i)),
-            (PrimeExpr::Mod(m), PrimeExpr::Int(i)) => PrimeExpr::Sub(Sub::new(m, i)),
-            (PrimeExpr::Variable(v), PrimeExpr::Int(i)) => PrimeExpr::Sub(Sub::new(v, i)),
-            (PrimeExpr::Int(i), PrimeExpr::Variable(v)) => PrimeExpr::Sub(Sub::new(i, v)),
-            (PrimeExpr::Variable(v), PrimeExpr::Variable(v2)) => PrimeExpr::Sub(Sub::new(v, v2)),
-            (PrimeExpr::Variable(v), PrimeExpr::Sub(i)) => PrimeExpr::Sub(Sub::new(v, i)),
-            (PrimeExpr::Sub(i), PrimeExpr::Variable(v)) => PrimeExpr::Sub(Sub::new(i, v)),
-            (PrimeExpr::Load(l), PrimeExpr::Int(i)) => PrimeExpr::Sub(Sub::new(l, i)),
-            (PrimeExpr::Int(i), PrimeExpr::Load(l)) => PrimeExpr::Sub(Sub::new(i, l)),
-            (PrimeExpr::Load(l), PrimeExpr::Load(l2)) => PrimeExpr::Sub(Sub::new(l, l2)),
-            (PrimeExpr::Load(l), PrimeExpr::Sub(l2)) => PrimeExpr::Sub(Sub::new(l, l2)),
-            (PrimeExpr::Sub(l), PrimeExpr::Load(l2)) => PrimeExpr::Sub(Sub::new(l, l2)),
-            _ => panic!("{}", &format!("Failed to subtract {} and {}", self, rhs)),
-        }
+        PrimeExpr::Sub(Sub::make(self, rhs))
+    }
+}
+
+impl std::ops::Mul for PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn mul(self, rhs: PrimeExpr) -> Self::Output {
+        PrimeExpr::Mul(Mul::make(self, rhs))
     }
 }
 
