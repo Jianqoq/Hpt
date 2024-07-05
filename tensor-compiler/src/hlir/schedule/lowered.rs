@@ -80,19 +80,18 @@ impl IRMutateVisitor for SubstituteLoad {
     fn visit_tensor_slice(&mut self, slice: &TensorSlice) {
         if expr_equal(&slice.name().into(), &self.load_var) {
             let dims = slice.dims_();
-            if let Some(dims) = self.set.get(dims) {
+            if let Some(target_dims) = self.set.get(dims) {
+                assert!(target_dims.len() == self.to_inline_indices.len());
                 let mut subs_var = SubstituteVar::new();
-                // for i in dims.iter() {
-                //     assert!(self.to_inline_indices.contains(i));
-                // }
-                // for (a, b) in dims
-                //     .iter()
-                //     .zip(self.to_inline_indices.iter().filter(|x| dims.contains(x))) {
-                //     subs_var.add_replacement(
-                //         a.to_variable().unwrap().clone(),
-                //         b.to_variable().unwrap()
-                //     );
-                // }
+                assert!(target_dims.len() == self.to_inline_indices.len());
+                let mut map = HashMap::new();
+                for (inline_dim, target_dim) in self.to_inline_indices
+                    .iter()
+                    .zip(target_dims.iter()) {
+                    // indice could be splitted, fused, normal
+                    // however, the len of to_inline_indices is always equal to the len of target_dims
+                    map.insert(target_dim.clone(), inline_dim.clone());
+                }
                 // self.body.accept_mutate(&mut subs_var);
                 // self.set_expr(subs_var.expr().clone());
                 // return;
