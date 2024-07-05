@@ -151,17 +151,16 @@ impl Schedule {
                                 ),
                                 to_inline.body.clone()
                             );
-                            // if let Some(target) = ret.get_mut(t.name_()) {
-                            //     for target_input in target.inputs.iter() {
-                            //         if target_input.name().name == name {
-                            //             let target_indices = &target_input.dims; // [d0, d1]
-                            //             subs_load.insert(target_indices.clone()); // {c0: d0, c1: d1} or {c1: d0, c0: d1}
-                            //         }
-                            //     }
-                            //     target.body.accept_mutate(&mut subs_load);
-                            //     let new_body = subs_load.expr().clone();
-                            //     target.body = new_body;
-                            // }
+                            if let Some(target) = ret.get_mut(t.name_()) {
+                                for target_input in target.inputs.iter() {
+                                    if target_input.name().name == name {
+                                        subs_load.insert(target_input.dims.clone());
+                                    }
+                                }
+                                target.body.accept_mutate(&mut subs_load);
+                                let new_body = subs_load.expr().clone();
+                                target.body = new_body;
+                            }
                         }
                     }
                     Transforms::Split(axis, inner_loop_size) => {
