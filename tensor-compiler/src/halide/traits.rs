@@ -970,16 +970,10 @@ fn mutate_iter_var<V>(visitor: &mut V, var: &IterVar) -> IterVar
             let new_axis1 = mutate_iter_var(visitor, &fused.axis1);
             let new_axis2 = mutate_iter_var(visitor, &fused.axis2);
             let new_var = visitor.mutate_expr(&fused.var.clone().into());
-            if
-                &new_axis1 == fused.axis1.as_ref() &&
-                &new_axis2 == fused.axis2.as_ref() &&
-                &new_var == &fused.var.clone().into()
-            {
+            if &new_axis1 == fused.axis1.as_ref() && &new_axis2 == fused.axis2.as_ref() && &new_var == &fused.var.clone().into(){
                 IterVar::Fused(fused.clone())
             } else {
-                IterVar::Fused(
-                    Fused::new(new_axis1, new_axis2, new_var.to_variable().unwrap().clone())
-                )
+                IterVar::Fused(Fused::new(new_axis1, new_axis2, new_var.to_variable().unwrap().clone()))
             }
         }
     }

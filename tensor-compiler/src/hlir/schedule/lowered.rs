@@ -8,7 +8,7 @@ use crate::{
         ir_cmp::expr_equal,
         prime_expr::PrimeExpr,
         stmt::Stmt,
-        substitute::subsititue_var::SubstituteVar,
+        substitute::{ subsititue_expr::SubstituteExpr, subsititue_var::SubstituteVar },
         traits::{ mutate_expr, AccepterMutate, IRMutVisitor, IRMutateVisitor, MutatorGetSet },
     },
     hlir::tensor_slice::TensorSlice,
@@ -83,7 +83,6 @@ impl IRMutateVisitor for SubstituteLoad {
             let dims = slice.dims_();
             if let Some(target_dims) = self.set.get(dims) {
                 assert!(target_dims.len() == self.to_inline_indices.len());
-                let mut subs_var = SubstituteVar::new();
                 assert!(target_dims.len() == self.to_inline_indices.len());
                 let mut map = HashMap::new();
                 for (idx, (inline_dim, target_dim)) in self.to_inline_indices
@@ -131,9 +130,16 @@ impl IRMutateVisitor for SubstituteLoad {
                         }
                     }
                 }
-                // self.body.accept_mutate(&mut subs_var);
-                // self.set_expr(subs_var.expr().clone());
-                // return;
+                let mut body = self.body.clone();
+                for (key, value) in map.iter() {
+                    let mut subs_expr = SubstituteExpr::new();
+                    subs_expr.set_find(key);
+                    subs_expr.set_replace(value);
+                    body.accept_mutate(&mut subs_expr);
+                    body = subs_expr.expr().clone();
+                }
+                self.set_expr(body);
+                return;
             }
         }
         self.set_expr(slice.clone());
