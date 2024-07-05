@@ -28,6 +28,7 @@ pub trait IRVisitor where Self: Sized {
             PrimeExpr::Sub(sub) => self.visit_sub(&sub),
             PrimeExpr::Mul(mul) => self.visit_mul(&mul),
             PrimeExpr::Div(div) => self.visit_div(&div),
+            PrimeExpr::FloorDiv(floor_div) => self.visit_floor_div(&floor_div),
             PrimeExpr::Mod(r#mod) => self.visit_mod(&r#mod),
             PrimeExpr::Min(min) => self.visit_min(&min),
             PrimeExpr::Max(max) => self.visit_max(&max),
@@ -105,6 +106,10 @@ pub trait IRVisitor where Self: Sized {
     fn visit_div(&self, div: &Div) {
         div.e1().accept(self);
         div.e2().accept(self);
+    }
+    fn visit_floor_div(&self, floor_div: &FloorDiv) {
+        floor_div.e1().accept(self);
+        floor_div.e2().accept(self);
     }
     fn visit_mod(&self, mod_: &Mod) {
         mod_.e1().accept(self);
@@ -239,6 +244,7 @@ pub trait IRMutVisitor where Self: Sized {
             PrimeExpr::Sub(sub) => self.visit_sub(&sub),
             PrimeExpr::Mul(mul) => self.visit_mul(&mul),
             PrimeExpr::Div(div) => self.visit_div(&div),
+            PrimeExpr::FloorDiv(floor_div) => self.visit_floor_div(&floor_div),
             PrimeExpr::Mod(r#mod) => self.visit_mod(&r#mod),
             PrimeExpr::Min(min) => self.visit_min(&min),
             PrimeExpr::Max(max) => self.visit_max(&max),
@@ -316,6 +322,10 @@ pub trait IRMutVisitor where Self: Sized {
     fn visit_div(&mut self, div: &Div) {
         div.e1().accept_mut(self);
         div.e2().accept_mut(self);
+    }
+    fn visit_floor_div(&mut self, floor_div: &FloorDiv) {
+        floor_div.e1().accept_mut(self);
+        floor_div.e2().accept_mut(self);
     }
     fn visit_mod(&mut self, mod_: &Mod) {
         mod_.e1().accept_mut(self);
@@ -494,6 +504,7 @@ pub(crate) fn visit_expr<V>(visitor: &mut V, expr: &PrimeExpr)
         PrimeExpr::Sub(sub) => visitor.visit_sub(&sub),
         PrimeExpr::Mul(mul) => visitor.visit_mul(&mul),
         PrimeExpr::Div(div) => visitor.visit_div(&div),
+        PrimeExpr::FloorDiv(floor_div) => visitor.visit_floor_div(&floor_div),
         PrimeExpr::Mod(r#mod) => visitor.visit_mod(&r#mod),
         PrimeExpr::Min(min) => visitor.visit_min(&min),
         PrimeExpr::Max(max) => visitor.visit_max(&max),
@@ -583,6 +594,12 @@ pub(crate) fn visit_div<V>(visitor: &mut V, div: &Div)
     where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     mutate_binop!(visitor, div, Div);
+}
+
+pub(crate) fn visit_floor_div<V>(visitor: &mut V, floor_div: &FloorDiv)
+    where V: MutatorGetSet + Sized + IRMutateVisitor
+{
+    mutate_binop!(visitor, floor_div, FloorDiv);
 }
 
 pub(crate) fn visit_mod<V>(visitor: &mut V, mod_: &Mod)
@@ -1009,6 +1026,9 @@ pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     }
     fn visit_div(&mut self, div: &Div) {
         visit_div(self, div);
+    }
+    fn visit_floor_div(&mut self, floor_div: &FloorDiv) {
+        visit_floor_div(self, floor_div);
     }
     fn visit_mod(&mut self, mod_: &Mod) {
         visit_mod(self, mod_);

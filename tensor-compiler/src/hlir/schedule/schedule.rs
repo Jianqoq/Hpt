@@ -4,12 +4,14 @@ use hashbrown::HashMap;
 
 use crate::{
     halide::{
+        exprs::FloorDiv,
         prime_expr::PrimeExpr,
         printer::IRPrinter,
         traits::{ AccepterMut, AccepterMutate },
         variable::Variable,
     },
     hlir::tensor::Tensor,
+    iter_val::IterVar,
     to_prim_expr::ToPrimeExpr,
 };
 use crate::halide::traits::MutatorGetSet;
@@ -59,7 +61,7 @@ impl Schedule {
     pub fn split(
         &mut self,
         tensor: &Tensor,
-        axis: impl Into<PrimeExpr>,
+        axis: impl Into<IterVar>,
         inner_loop_size: impl Into<PrimeExpr>
     ) {
         let inner_loop_size = inner_loop_size.into();
@@ -162,7 +164,33 @@ impl Schedule {
                             }
                         }
                     }
-                    Transforms::Split(axis, inner_loop_size) => {}
+                    Transforms::Split(axis, inner_loop_size) => {
+                        if let Some(to_split) = ret.get_mut(&temp.name) {
+                            let mut new_shape = vec![];
+                            for dim in to_split.shape.iter_mut() {
+                                if dim == &axis {
+                                    let outer_var = Variable::make(&format!("{}_outer", dim.var()));
+                                    let outer = IterVar::new(
+                                        dim.start(),
+                                        FloorDiv::make(dim.end(), inner_loop_size.clone()),
+                                        dim.step(),
+                                        outer_var
+                                    );
+                                    let inner_var = Variable::make(&format!("{}_inner", dim.var()));
+                                    let inner = IterVar::new(
+                                        0,
+                                        inner_loop_size.clone(),
+                                        1,
+                                        inner_var
+                                    );
+                                    new_shape.push(outer);
+                                    new_shape.push(inner);
+                                } else {
+                                    new_shape.push(dim.clone());
+                                }
+                            }
+                        }
+                    }
                     Transforms::Fuse(axes) => {}
                     Transforms::ComputeAt(target, axis) => {}
                     Transforms::Reorder(axes) => {}

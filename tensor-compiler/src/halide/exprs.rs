@@ -549,6 +549,65 @@ impl Into<PrimeExpr> for &Div {
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
+pub struct FloorDiv {
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
+}
+
+impl Accepter for FloorDiv {
+    fn accept<V: IRVisitor>(&self, visitor: &V) {
+        visitor.visit_floor_div(self);
+    }
+}
+
+impl FloorDiv {
+    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
+        FloorDiv { e1, e2 }
+    }
+
+    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(e1: A, e2: B) -> Self {
+        FloorDiv {
+            e1: e1.into().into(),
+            e2: e2.into().into(),
+        }
+    }
+
+    pub fn e1(&self) -> &PrimeExpr {
+        &self.e1
+    }
+
+    pub fn e2(&self) -> &PrimeExpr {
+        &self.e2
+    }
+
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
+        &self.e1
+    }
+
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
+        &self.e2
+    }
+}
+
+impl Display for FloorDiv {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "({} // {})", self.e1, self.e2)
+    }
+}
+
+impl Into<PrimeExpr> for FloorDiv {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::FloorDiv(self)
+    }
+}
+
+impl Into<PrimeExpr> for &FloorDiv {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::FloorDiv(self.clone())
+    }
+}
+
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Gt {
     e1: Arc<PrimeExpr>,
     e2: Arc<PrimeExpr>,
