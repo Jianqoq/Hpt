@@ -960,15 +960,15 @@ fn mutate_iter_var<V>(visitor: &mut V, var: &IterVar) -> IterVar
         IterVar::Splitted(var) => {
             let outer = mutate_iter_var(visitor, &var.outer);
             let inner = mutate_iter_var(visitor, &var.inner);
-            let correspond = mutate_expr(visitor, &var.correspond);
+            let factor = mutate_expr(visitor, &var.factor);
             if
                 &outer == var.outer.as_ref() &&
                 &inner == var.inner.as_ref() &&
-                &correspond == &var.correspond
+                &factor == &var.factor
             {
                 IterVar::Splitted(var.clone())
             } else {
-                IterVar::Splitted(Splitted::new(outer, inner, correspond))
+                IterVar::Splitted(Splitted::new(outer, inner, factor))
             }
         }
         IterVar::Fused(fused) => {

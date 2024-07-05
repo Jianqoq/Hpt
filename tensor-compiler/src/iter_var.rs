@@ -58,19 +58,19 @@ impl IterVar {
 pub struct Splitted {
     pub(crate) outer: Arc<IterVar>,
     pub(crate) inner: Arc<IterVar>,
-    pub(crate) correspond: PrimeExpr,
+    pub(crate) factor: PrimeExpr,
 }
 
 impl Splitted {
     pub fn new<A: Into<IterVar>, B: Into<IterVar>, C: Into<PrimeExpr>>(
         outer: A,
         inner: B,
-        correspond: C
+        factor: C
     ) -> Self {
         Self {
             outer: Arc::new(outer.into()),
             inner: Arc::new(inner.into()),
-            correspond: correspond.into(),
+            factor: factor.into(),
         }
     }
 }
@@ -82,10 +82,7 @@ pub struct Fused {
 }
 
 impl Fused {
-    pub fn new<A: Into<IterVar>, B: Into<[PrimeExpr; 2]>>(
-        iter_var: A,
-        corresponds: B
-    ) -> Self {
+    pub fn new<A: Into<IterVar>, B: Into<[PrimeExpr; 2]>>(iter_var: A, corresponds: B) -> Self {
         Self {
             iter_var: Arc::new(iter_var.into()),
             corresponds: Arc::new(corresponds.into()),

@@ -186,6 +186,10 @@ impl PrimeExpr {
         }
     }
 
+    pub fn floor_div(&self, e2: &PrimeExpr) -> PrimeExpr {
+        PrimeExpr::FloorDiv(FloorDiv::make(self, e2))
+    }
+
     cast_expr!(to_variable, Variable);
     cast_expr!(to_add, Add);
     cast_expr!(to_sub, Sub);
@@ -266,10 +270,34 @@ impl std::ops::Add<&PrimeExpr> for &PrimeExpr {
     }
 }
 
+impl std::ops::Add<PrimeExpr> for &PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn add(self, rhs: PrimeExpr) -> Self::Output {
+        PrimeExpr::Add(Add::make(self, rhs))
+    }
+}
+
+impl std::ops::Add<&PrimeExpr> for PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn add(self, rhs: &PrimeExpr) -> Self::Output {
+        PrimeExpr::Add(Add::make(self, rhs))
+    }
+}
+
 impl std::ops::Sub for PrimeExpr {
     type Output = PrimeExpr;
 
     fn sub(self, rhs: PrimeExpr) -> Self::Output {
+        PrimeExpr::Sub(Sub::make(self, rhs))
+    }
+}
+
+impl std::ops::Sub<i32> for &PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn sub(self, rhs: i32) -> Self::Output {
         PrimeExpr::Sub(Sub::make(self, rhs))
     }
 }

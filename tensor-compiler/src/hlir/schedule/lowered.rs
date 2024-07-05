@@ -4,7 +4,7 @@ use hashbrown::{ HashMap, HashSet };
 
 use crate::{
     halide::{
-        exprs::Load,
+        exprs::{ Load, Mul },
         ir_cmp::expr_equal,
         prime_expr::PrimeExpr,
         stmt::Stmt,
@@ -13,6 +13,7 @@ use crate::{
     },
     hlir::tensor_slice::TensorSlice,
     iter_var::IterVar,
+    to_prim_expr::ToPrimeExpr,
 };
 
 pub struct SubstituteLoad {
@@ -90,7 +91,19 @@ impl IRMutateVisitor for SubstituteLoad {
                     .zip(target_dims.iter()) {
                     // indice could be splitted, fused, normal
                     // however, the len of to_inline_indices is always equal to the len of target_dims
-                    map.insert(target_dim.clone(), inline_dim.clone());
+                    match inline_dim {
+                        IterVar::IterVar(iter_var) => {
+                            map.insert(iter_var.var().to_prime_expr(), target_dim.clone());
+                        }
+                        IterVar::Splitted(splitted) => {
+                            let outter = &splitted.outer;
+                            let inner = &splitted.inner;
+                            let outer = (target_dim + (&splitted.factor - 1)).floor_div(
+                                &splitted.factor
+                            );
+                        }
+                        IterVar::Fused(_) => todo!(),
+                    }
                 }
                 // self.body.accept_mutate(&mut subs_var);
                 // self.set_expr(subs_var.expr().clone());
