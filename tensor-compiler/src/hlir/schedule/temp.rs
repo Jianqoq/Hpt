@@ -1,14 +1,14 @@
-use std::{ collections::VecDeque, sync::Arc };
+use std::{ cell::RefCell, collections::VecDeque, rc::Rc, sync::Arc };
 
 use tensor_types::dtype::Dtype;
 
-use crate::{ halide::prime_expr::PrimeExpr, hlir::{tensor::Tensor, tensor_slice::TensorSlice}, iter_var::IterVar };
+use crate::{ halide::prime_expr::PrimeExpr, hlir::{ tensor::Tensor, tensor_slice::TensorSlice } };
 
-use super::transforms::Transforms;
+use super::{ iter::{ Iter, IterVar }, transforms::Transforms };
 
 #[derive(Clone)]
 pub struct Temp {
-    pub(crate) shape: Vec<IterVar>,
+    pub(crate) shape: Vec<Rc<RefCell<Iter>>>,
     pub(crate) strides: Vec<usize>,
     pub(crate) body: PrimeExpr,
     pub(crate) name: Arc<String>,
@@ -23,7 +23,14 @@ impl From<Tensor> for Temp {
         let dtype = tensor.dtype();
         let original = Arc::new(tensor.clone());
         Self {
-            shape: original.shape().clone(),
+            shape: original
+                .shape()
+                .iter()
+                .map(|x| {
+                    let x = x.to_iter_var().unwrap();
+                    Rc::new(RefCell::new(Iter::IterVar(IterVar::make(x.var(), x.start(), x.end(), x.step()))))
+                })
+                .collect(),
             strides: original.strides().clone(),
             body: original.body().clone(),
             name: Arc::new(tensor.name().to_string()),
@@ -40,7 +47,14 @@ impl From<&Tensor> for Temp {
         let dtype = tensor.dtype();
         let original = Arc::new(tensor.clone());
         Self {
-            shape: original.shape().clone(),
+            shape: original
+                .shape()
+                .iter()
+                .map(|x| {
+                    let x = x.to_iter_var().unwrap();
+                    Rc::new(RefCell::new(Iter::IterVar(IterVar::make(x.var(), x.start(), x.end(), x.step()))))
+                })
+                .collect(),
             strides: original.strides().clone(),
             body: original.body().clone(),
             name: Arc::new(tensor.name().to_string()),

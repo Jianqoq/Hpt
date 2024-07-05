@@ -52,8 +52,9 @@ pub enum Iter {
 impl Display for Iter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Iter::IterVar(var) => write!(f, "iter({})", var.var.name()),
-            Iter::FuseVar(fuse_var) => write!(f, "fuse({})", fuse_var.var.name()),
+            Iter::IterVar(var) => write!(f, "for {} in {}..{}", var.var.name(), var.start, var.end),
+            Iter::FuseVar(fuse_var) =>
+                write!(f, "for {} in {}..{}", fuse_var.var.name(), fuse_var.start, fuse_var.end),
         }
     }
 }
@@ -61,8 +62,9 @@ impl Display for Iter {
 impl Debug for Iter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Iter::IterVar(var) => write!(f, "iter({})", var.var.name()),
-            Iter::FuseVar(fuse_var) => write!(f, "fuse({})", fuse_var.var.name()),
+            Iter::IterVar(var) => write!(f, "for {} in {}..{}", var.var.name(), var.start, var.end),
+            Iter::FuseVar(fuse_var) =>
+                write!(f, "for {} in {}..{}", fuse_var.var.name(), fuse_var.start, fuse_var.end),
         }
     }
 }
@@ -119,7 +121,7 @@ impl Iter {
     }
 }
 
-fn collect_available_axes(
+pub fn collect_available_axes(
     shape: &Vec<Rc<RefCell<Iter>>>,
     visited: &mut HashSet<*mut Iter>
 ) -> Vec<Rc<RefCell<Iter>>> {
@@ -143,13 +145,59 @@ fn collect_available_axes(
     available_axes
 }
 
-fn fuse(shape: &mut Vec<Rc<RefCell<Iter>>>, axis1: usize, axis2: usize) {
-    let mut available_axes = collect_available_axes(shape, &mut HashSet::new());
-    print!("available_axes: [");
-    for i in available_axes.iter() {
-        print!("{}, ", i.borrow());
+pub fn pack_groups(
+    shape: &Vec<Rc<RefCell<Iter>>>,
+    visited: &mut HashSet<*mut Iter>,
+    groups: &mut Vec<Vec<usize>>,
+    root: bool
+) {
+    for (idx, iter) in shape.iter().enumerate() {
+        if iter.borrow().childs().is_empty() {
+            let ptr = iter.as_ptr();
+            if visited.contains(&ptr) {
+                if root {
+                    if let Some(group) = groups.last_mut() {
+                        group.push(idx);
+                    }
+                }
+                continue;
+            } else {
+                if root {
+                    groups.push(vec![idx]);
+                }
+                visited.insert(ptr);
+            }
+        } else {
+            let childs = iter.borrow().childs_();
+            if childs.len() == 1 {
+                let child = childs.get(0).unwrap();
+                if visited.contains(&child.as_ptr()) {
+                    if root {
+                        if let Some(group) = groups.last_mut() {
+                            group.push(idx);
+                        }
+                    }
+                    continue;
+                } else {
+                    if root {
+                        groups.push(vec![idx]);
+                    }
+                    visited.insert(child.as_ptr());
+                }
+            } else {
+                assert!(childs.len() == 2, "only support fuse");
+                if root {
+                    groups.push(vec![idx]);
+                }
+            }
+            pack_groups(&iter.borrow().childs_(), visited, groups, false);
+        }
     }
-    println!("]");
+}
+
+pub fn fuse(shape: &mut Vec<Rc<RefCell<Iter>>>, axis1: usize, axis2: usize) {
+    let mut available_axes = collect_available_axes(shape, &mut HashSet::new());
+    print_available_axes(&available_axes);
     let fused = Iter::FuseVar(FuseVar {
         lhs: available_axes[axis1].clone(),
         rhs: available_axes[axis2].clone(),
@@ -170,13 +218,9 @@ fn fuse(shape: &mut Vec<Rc<RefCell<Iter>>>, axis1: usize, axis2: usize) {
     available_axes.get_mut(axis2).unwrap().borrow_mut().push_child(fused.clone());
 }
 
-fn split(shape: &mut Vec<Rc<RefCell<Iter>>>, axis: usize, factor: PrimeExpr) {
+pub fn split(shape: &mut Vec<Rc<RefCell<Iter>>>, axis: usize, factor: PrimeExpr) {
     let mut available_axes = collect_available_axes(shape, &mut HashSet::new());
-    print!("available_axes: [");
-    for i in available_axes.iter() {
-        print!("{}, ", i.borrow());
-    }
-    println!("]");
+    print_available_axes(&available_axes);
     let (outer, inner) = {
         let parent = available_axes[axis].borrow();
         match &*parent {
@@ -214,6 +258,14 @@ fn split(shape: &mut Vec<Rc<RefCell<Iter>>>, axis: usize, factor: PrimeExpr) {
         .push_child(Rc::new(RefCell::new(inner)));
 }
 
+pub fn print_available_axes(available_axes: &Vec<Rc<RefCell<Iter>>>) {
+    print!("available_axes: [");
+    for i in available_axes.iter() {
+        print!("{}, ", i.borrow());
+    }
+    println!("]");
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -243,5 +295,20 @@ mod tests {
         let mut shape = vec![i, j, k, l, m];
         split(&mut shape, 1, (2).into());
         split(&mut shape, 1, (2).into());
+        split(&mut shape, 1, (2).into());
+    }
+
+    #[test]
+    fn test_mix() {
+        let i = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("i", 0, 10, 1))));
+        let j = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("j", 0, 10, 1))));
+        let k = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("k", 0, 10, 1))));
+        let l = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("l", 0, 10, 1))));
+        let m = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("m", 0, 10, 1))));
+        let mut shape = vec![i, j, k, l, m];
+        fuse(&mut shape, 0, 1);
+        fuse(&mut shape, 0, 1);
+        split(&mut shape, 0, (32).into());
+        print_available_axes(&collect_available_axes(&shape, &mut HashSet::new()));
     }
 }

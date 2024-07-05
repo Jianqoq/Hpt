@@ -1,7 +1,7 @@
 use std::{ collections::VecDeque, sync::Arc };
-
-use hashbrown::HashMap;
-
+use crate::hlir::schedule::iter::collect_available_axes;
+use hashbrown::{ HashMap, HashSet };
+use crate::hlir::schedule::iter::print_available_axes;
 use crate::{
     halide::{
         exprs::FloorDiv,
@@ -16,7 +16,8 @@ use crate::{
 };
 use crate::halide::traits::MutatorGetSet;
 
-use super::{ lowered::SubstituteLoad, temp::Temp, transforms::Transforms };
+use super::iter::{fuse, pack_groups};
+use super::{ iter::split, lowered::SubstituteLoad, temp::Temp, transforms::Transforms };
 
 pub struct Schedule {
     pub temps_map: HashMap<Tensor, Temp>,
@@ -58,30 +59,21 @@ impl Schedule {
         self.records.push_back(target.clone());
     }
 
-    pub fn split(
-        &mut self,
-        tensor: &Tensor,
-        axis: impl Into<IterVar>,
-        inner_loop_size: impl Into<PrimeExpr>
-    ) {
+    pub fn split(&mut self, tensor: &Tensor, axis: usize, inner_loop_size: impl Into<PrimeExpr>) {
         let inner_loop_size = inner_loop_size.into();
         let temp = self.temps_map.get_mut(tensor);
         if let Some(temp) = temp {
-            temp.transforms.push_back(Transforms::Split(axis.into(), inner_loop_size));
+            temp.transforms.push_back(Transforms::Split(temp.name.clone(), axis, inner_loop_size));
         } else {
             panic!("Schedule::split: tensor does not exist in temps_map");
         }
         self.records.push_back(tensor.clone());
     }
 
-    pub fn fuse(&mut self, tensor: &Tensor, axes: &[&dyn ToPrimeExpr]) {
-        let axes = axes
-            .iter()
-            .map(|x| x.to_prime_expr())
-            .collect::<Vec<PrimeExpr>>();
+    pub fn fuse(&mut self, tensor: &Tensor, axis1: usize, axis2: usize) {
         let temp = self.temps_map.get_mut(tensor);
         if let Some(temp) = temp {
-            temp.transforms.push_back(Transforms::Fuse(axes));
+            temp.transforms.push_back(Transforms::Fuse(temp.name.clone(), axis1, axis2));
         } else {
             panic!("Schedule::fuse: tensor does not exist in temps_map");
         }
@@ -141,30 +133,27 @@ impl Schedule {
                 match transform {
                     Transforms::Inline(name) => {
                         if let Some(to_inline) = ret.get(&name) {
-                            let mut subs_load = SubstituteLoad::new(
-                                Variable::make(&name),
-                                Arc::new(
-                                    to_inline.shape
-                                        .iter()
-                                        .map(|x| x.clone())
-                                        .collect()
-                                ),
-                                to_inline.body.clone()
-                            );
-                            if let Some(target) = ret.get_mut(t.name_()) {
-                                for target_input in target.inputs.iter() {
-                                    if target_input.name().name == name {
-                                        subs_load.insert(target_input.dims.clone());
-                                    }
-                                }
-                                target.body.accept_mutate(&mut subs_load);
-                                let new_body = subs_load.expr().clone();
-                                target.body = new_body;
-                            }
                         }
                     }
-                    Transforms::Split(axis, inner_loop_size) => {}
-                    Transforms::Fuse(axes) => {}
+                    Transforms::Split(name, axis, inner_loop_size) => {
+                        if let Some(temp) = ret.get_mut(&name) {
+                            split(&mut temp.shape, axis, inner_loop_size);
+                            print_available_axes(
+                                &collect_available_axes(&temp.shape, &mut HashSet::new())
+                            );
+                        }
+                    }
+                    Transforms::Fuse(name, axis1, axis2) => {
+                        if let Some(temp) = ret.get_mut(&name) {
+                            fuse(&mut temp.shape, axis1, axis2);
+                            print_available_axes(
+                                &collect_available_axes(&temp.shape, &mut HashSet::new())
+                            );
+                            let mut groups = vec![];
+                            pack_groups(&temp.shape, &mut HashSet::new(), &mut groups, true);
+                            println!("{:?}", groups);
+                        }
+                    }
                     Transforms::ComputeAt(target, axis) => {}
                     Transforms::Reorder(axes) => {}
                     Transforms::Tile(axes) => {}
@@ -219,7 +208,8 @@ mod tests {
 
         let mut schedule = Schedule::create(&[&a, &c]);
         let axes = c.axes();
-        schedule.split(&c, &axes[1], 32);
+        schedule.split(&c, 1, 32);
+        schedule.fuse(&c, 1, 2);
         schedule.lower();
     }
 }
