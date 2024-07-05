@@ -19,7 +19,7 @@ pub struct SubstituteLoad {
     stmt: Stmt,
     expr: PrimeExpr,
     set: HashSet<Arc<Vec<PrimeExpr>>>,
-    to_inline_indices: Arc<Vec<PrimeExpr>>,
+    to_inline_indices: Arc<Vec<IterVar>>,
     body: PrimeExpr,
     load_var: PrimeExpr,
 }
@@ -27,7 +27,7 @@ pub struct SubstituteLoad {
 impl SubstituteLoad {
     pub fn new<T: Into<PrimeExpr>>(
         load_var: T,
-        to_inline_indices: Arc<Vec<PrimeExpr>>,
+        to_inline_indices: Arc<Vec<IterVar>>,
         body: PrimeExpr
     ) -> Self {
         SubstituteLoad {
@@ -82,20 +82,20 @@ impl IRMutateVisitor for SubstituteLoad {
             let dims = slice.dims_();
             if let Some(dims) = self.set.get(dims) {
                 let mut subs_var = SubstituteVar::new();
-                for i in dims.iter() {
-                    assert!(self.to_inline_indices.contains(i));
-                }
-                for (a, b) in dims
-                    .iter()
-                    .zip(self.to_inline_indices.iter().filter(|x| dims.contains(x))) {
-                    subs_var.add_replacement(
-                        a.to_variable().unwrap().clone(),
-                        b.to_variable().unwrap()
-                    );
-                }
-                self.body.accept_mutate(&mut subs_var);
-                self.set_expr(subs_var.expr().clone());
-                return;
+                // for i in dims.iter() {
+                //     assert!(self.to_inline_indices.contains(i));
+                // }
+                // for (a, b) in dims
+                //     .iter()
+                //     .zip(self.to_inline_indices.iter().filter(|x| dims.contains(x))) {
+                //     subs_var.add_replacement(
+                //         a.to_variable().unwrap().clone(),
+                //         b.to_variable().unwrap()
+                //     );
+                // }
+                // self.body.accept_mutate(&mut subs_var);
+                // self.set_expr(subs_var.expr().clone());
+                // return;
             }
         }
         self.set_expr(slice.clone());

@@ -141,16 +141,16 @@ impl Schedule {
                 match transform {
                     Transforms::Inline(name) => {
                         if let Some(to_inline) = ret.get(&name) {
-                            // let mut subs_load = SubstituteLoad::new(
-                            //     Variable::make(&name),
-                            //     Arc::new(
-                            //         to_inline.shape
-                            //             .iter()
-                            //             .map(|x| x.var().into())
-                            //             .collect()
-                            //     ),
-                            //     to_inline.body.clone()
-                            // );
+                            let mut subs_load = SubstituteLoad::new(
+                                Variable::make(&name),
+                                Arc::new(
+                                    to_inline.shape
+                                        .iter()
+                                        .map(|x| x.clone())
+                                        .collect()
+                                ),
+                                to_inline.body.clone()
+                            );
                             // if let Some(target) = ret.get_mut(t.name_()) {
                             //     for target_input in target.inputs.iter() {
                             //         if target_input.name().name == name {
