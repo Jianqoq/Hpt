@@ -60,19 +60,41 @@ impl IterVar {
             IterVar::Fused(fused) => fused.to_prime_expr(),
         }
     }
+
+    pub fn real_axes(&self) -> Vec<IterVar> {
+        match self {
+            IterVar::IterVar(_) => vec![self.clone()],
+            IterVar::Splitted(splitted) => {
+                let mut outer = splitted.outer.real_axes();
+                let factor = splitted.inner.real_axes();
+                outer.extend(factor);
+                outer
+            }
+            IterVar::Fused(_) => vec![self.clone()],
+        }
+    }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Splitted {
     pub(crate) outer: Arc<IterVar>,
+    pub(crate) inner: Arc<IterVar>,
     pub(crate) factor: PrimeExpr,
+    pub(crate) var: Variable,
 }
 
 impl Splitted {
-    pub fn new<A: Into<IterVar>, C: Into<PrimeExpr>>(outer: A, factor: C) -> Self {
+    pub fn new<A: Into<IterVar>, B: Into<IterVar>, C: Into<PrimeExpr>>(
+        outer: A,
+        inner: B,
+        factor: C,
+        var: Variable
+    ) -> Self {
         Self {
             outer: Arc::new(outer.into()),
+            inner: Arc::new(inner.into()),
             factor: factor.into(),
+            var,
         }
     }
     pub fn to_prime_expr(&self) -> PrimeExpr {
@@ -82,7 +104,7 @@ impl Splitted {
                 (var + (&self.factor - 1)).floor_div(&self.factor)
             }
             IterVar::Splitted(splitted) => {
-                let outer = splitted.to_prime_expr();
+                let outer = splitted.outer.to_prime_expr();
                 (outer + (&self.factor - 1)).floor_div(&self.factor)
             }
             IterVar::Fused(fused) => {
@@ -101,7 +123,11 @@ pub struct Fused {
 }
 
 impl Fused {
-    pub fn new<A: Into<IterVar>, B: Into<IterVar>, C: Into<Variable>>(axis1: A, axis2: B, var: C) -> Self {
+    pub fn new<A: Into<IterVar>, B: Into<IterVar>, C: Into<Variable>>(
+        axis1: A,
+        axis2: B,
+        var: C
+    ) -> Self {
         Self {
             axis1: Arc::new(axis1.into()),
             axis2: Arc::new(axis2.into()),
@@ -122,17 +148,17 @@ pub struct _IterVar {
 }
 
 impl _IterVar {
-    pub fn new<A: Into<PrimeExpr>, B: Into<PrimeExpr>, C: Into<PrimeExpr>>(
+    pub fn new<A: Into<PrimeExpr>, B: Into<PrimeExpr>, C: Into<PrimeExpr>, D: Into<Variable>>(
         start: A,
         end: B,
         step: C,
-        var: Variable
+        var: D
     ) -> Self {
         Self {
             start: start.into(),
             end: end.into(),
             step: step.into(),
-            var,
+            var: var.into(),
         }
     }
 

@@ -11,7 +11,7 @@ use crate::{
         variable::Variable,
     },
     hlir::tensor::Tensor,
-    iter_var::IterVar,
+    iter_var::{ IterVar, Splitted, _IterVar },
     to_prim_expr::ToPrimeExpr,
 };
 use crate::halide::traits::MutatorGetSet;
@@ -163,33 +163,7 @@ impl Schedule {
                             }
                         }
                     }
-                    Transforms::Split(axis, inner_loop_size) => {
-                        if let Some(to_split) = ret.get_mut(&temp.name) {
-                            let mut new_shape = vec![];
-                            for dim in to_split.shape.iter_mut() {
-                                if dim == &axis {
-                                    // let outer_var = Variable::make(&format!("{}_outer", dim.var()));
-                                    // let outer = IterVar::new(
-                                    //     dim.start(),
-                                    //     FloorDiv::make(dim.end(), inner_loop_size.clone()),
-                                    //     dim.step(),
-                                    //     outer_var
-                                    // );
-                                    // let inner_var = Variable::make(&format!("{}_inner", dim.var()));
-                                    // let inner = IterVar::new(
-                                    //     0,
-                                    //     inner_loop_size.clone(),
-                                    //     1,
-                                    //     inner_var
-                                    // );
-                                    // new_shape.push(outer);
-                                    // new_shape.push(inner);
-                                } else {
-                                    new_shape.push(dim.clone());
-                                }
-                            }
-                        }
-                    }
+                    Transforms::Split(axis, inner_loop_size) => {}
                     Transforms::Fuse(axes) => {}
                     Transforms::ComputeAt(target, axis) => {}
                     Transforms::Reorder(axes) => {}
@@ -230,6 +204,22 @@ mod tests {
 
         let mut schedule = Schedule::create(&[&a, &c, &d]);
         schedule.inline(&c, &d);
+        schedule.lower();
+    }
+
+    #[test]
+    fn test_schedule_split() {
+        let m = Variable::make("m");
+        let n = Variable::make("n");
+        let p = Variable::make("p");
+
+        let a = Tensor::placeholder(&[&m, &n], Dtype::I64, "A");
+
+        let c = compute(Dtype::BF16, [&n, &m], [&a], "C", |[a], [i, j]| { a.slice([&i, &j]) });
+
+        let mut schedule = Schedule::create(&[&a, &c]);
+        let axes = c.axes();
+        schedule.split(&c, &axes[1], 32);
         schedule.lower();
     }
 }

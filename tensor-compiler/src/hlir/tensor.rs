@@ -170,6 +170,9 @@ macro_rules! impl_binops {
 }
 
 impl Tensor {
+    pub fn axes(&self) ->&Vec<IterVar> {
+        &self.shape
+    }
     pub fn strides(&self) -> &Vec<usize> {
         &self.strides
     }

@@ -84,7 +84,7 @@ impl IRMutateVisitor for SubstituteLoad {
             if let Some(target_dims) = self.set.get(dims) {
                 assert!(target_dims.len() == self.to_inline_indices.len());
                 assert!(target_dims.len() == self.to_inline_indices.len());
-                let mut map = HashMap::new();
+                let mut subs_expr = SubstituteExpr::new();
                 for (idx, (inline_dim, target_dim)) in self.to_inline_indices
                     .iter()
                     .zip(target_dims.iter())
@@ -93,13 +93,13 @@ impl IRMutateVisitor for SubstituteLoad {
                     // however, the len of to_inline_indices is always equal to the len of target_dims
                     match inline_dim {
                         IterVar::IterVar(iter_var) => {
-                            map.insert(iter_var.var().to_prime_expr(), target_dim.clone());
+                            subs_expr.add_replacement(iter_var.var().to_prime_expr(), target_dim.clone());
                         }
                         IterVar::Splitted(splitted) => {
                             let outer = (target_dim + (&splitted.factor - 1)).floor_div(
                                 &splitted.factor
                             );
-                            map.insert(splitted.to_prime_expr(), outer);
+                            subs_expr.add_replacement(splitted.to_prime_expr(), outer);
                         }
                         IterVar::Fused(fused) => {
                             let iter_var2 = fused.axis2.to_prime_expr();
@@ -113,8 +113,8 @@ impl IRMutateVisitor for SubstituteLoad {
                                 let mul = prev_target_dim * target_dim;
                                 let new_i = PrimeExpr::FloorDiv(FloorDiv::make(&mul, &target_dim));
                                 let new_j = &mul % &target_dim;
-                                map.insert(i, new_i);
-                                map.insert(j, new_j);
+                                subs_expr.add_replacement(i, new_i);
+                                subs_expr.add_replacement(j, new_j);
                             } else {
                                 assert!(self.to_inline_indices.len() > idx + 1);
                                 assert_eq!(&self.to_inline_indices[idx + 1], inline_dim);
@@ -124,21 +124,14 @@ impl IRMutateVisitor for SubstituteLoad {
                                     FloorDiv::make(&mul, &next_target_dim)
                                 );
                                 let new_j = &mul % &next_target_dim;
-                                map.insert(i, new_i);
-                                map.insert(j, new_j);
+                                subs_expr.add_replacement(i, new_i);
+                                subs_expr.add_replacement(j, new_j);
                             }
                         }
                     }
                 }
-                let mut body = self.body.clone();
-                for (key, value) in map.iter() {
-                    let mut subs_expr = SubstituteExpr::new();
-                    subs_expr.set_find(key);
-                    subs_expr.set_replace(value);
-                    body.accept_mutate(&mut subs_expr);
-                    body = subs_expr.expr().clone();
-                }
-                self.set_expr(body);
+                self.body.accept_mutate(&mut subs_expr);
+                self.set_expr(subs_expr.expr().clone());
                 return;
             }
         }

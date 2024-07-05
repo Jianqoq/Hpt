@@ -302,6 +302,14 @@ impl std::ops::Sub<i32> for &PrimeExpr {
     }
 }
 
+impl std::ops::Sub<i32> for PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn sub(self, rhs: i32) -> Self::Output {
+        PrimeExpr::Sub(Sub::make(self, rhs))
+    }
+}
+
 impl std::ops::Sub<&PrimeExpr> for &PrimeExpr {
     type Output = PrimeExpr;
 

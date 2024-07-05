@@ -1,3 +1,5 @@
+use hashbrown::HashMap;
+
 use crate::halide::{
     prime_expr::PrimeExpr,
     ir_cmp::expr_equal,
@@ -8,8 +10,7 @@ use crate::halide::{
 
 #[derive(Clone, Debug)]
 pub struct SubstituteExpr {
-    find: PrimeExpr,
-    replace: PrimeExpr,
+    replace: HashMap<PrimeExpr, PrimeExpr>,
     stmt: Stmt,
     expr: PrimeExpr,
 }
@@ -17,27 +18,18 @@ pub struct SubstituteExpr {
 impl SubstituteExpr {
     pub fn new() -> Self {
         SubstituteExpr {
-            find: PrimeExpr::None,
-            replace: PrimeExpr::None,
+            replace: HashMap::new(),
             stmt: Stmt::None,
             expr: PrimeExpr::None,
         }
     }
 
-    pub fn find(&self) -> &PrimeExpr {
-        &self.find
+    fn find_replacement(&self, expr: &PrimeExpr) -> Option<&PrimeExpr> {
+        self.replace.get(expr)
     }
 
-    pub fn replace(&self) -> &PrimeExpr {
-        &self.replace
-    }
-
-    pub fn set_find<T: Into<PrimeExpr>>(&mut self, find: T) {
-        self.find = find.into();
-    }
-
-    pub fn set_replace<T: Into<PrimeExpr>>(&mut self, replace: T) {
-        self.replace = replace.into();
+    pub fn add_replacement<T: Into<PrimeExpr>>(&mut self, find: PrimeExpr, replace: T) {
+        self.replace.insert(find, replace.into());
     }
 }
 
@@ -61,8 +53,8 @@ impl MutatorGetSet for SubstituteExpr {
 
 impl IRMutateVisitor for SubstituteExpr {
     fn mutate_expr(&mut self, expr: &PrimeExpr) -> PrimeExpr {
-        if expr_equal(&self.find, expr) {
-            return self.replace.clone();
+        if let Some(replacement) = self.find_replacement(expr) {
+            return replacement.clone();
         } else {
             return mutate_expr(self, expr);
         }
@@ -70,7 +62,7 @@ impl IRMutateVisitor for SubstituteExpr {
 
     fn visit_let_stmt(&mut self, let_stmt: &LetStmt) {
         let body = self.mutate_expr(let_stmt.body());
-        if &body==let_stmt.body() {
+        if &body == let_stmt.body() {
             self.set_stmt(let_stmt);
         } else {
             self.set_stmt(LetStmt::make(let_stmt.var(), body));

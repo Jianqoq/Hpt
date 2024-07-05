@@ -55,6 +55,12 @@ impl Into<Variable> for &str {
     }
 }
 
+impl Into<Variable> for &String {
+    fn into(self) -> Variable {
+        Variable::new(self.to_string())
+    }
+}
+
 impl From<String> for Variable {
     fn from(s: String) -> Self {
         Variable::new(s)
