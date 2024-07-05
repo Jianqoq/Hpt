@@ -138,38 +138,29 @@ impl Schedule {
                     .expect("Schedule::lower: transform is empty");
                 match transform {
                     Transforms::Inline(name) => {
-                        let to_inline = ret
-                            .get(&name)
-                            .expect("Schedule::lower: target does not exist in ret");
-                        let inputs = ret
-                            .get(t.name_())
-                            .expect("Schedule::lower: to_inline does not exist in ret")
-                            .inputs.clone();
-                        let body = ret
-                            .get(t.name_())
-                            .expect("Schedule::lower: to_inline does not exist in ret")
-                            .body.clone();
-
-                        // assume C[c0, c1] = A[c0, c1] + A[c1, c0], target = D[d0, d1] = C[d0, d1] + C[d1, d0]
-                        let mut subs_load = SubstituteLoad::new(
-                            Variable::make(&name),
-                            Arc::new(
-                                to_inline.shape
-                                    .iter()
-                                    .map(|x| x.var().into())
-                                    .collect()
-                            ),
-                            to_inline.body.clone()
-                        );
-                        for target_input in inputs.iter() {
-                            if target_input.name().name == name {
-                                let target_indices = &target_input.dims; // [d0, d1]
-                                subs_load.insert(target_indices.clone()); // {c0: d0, c1: d1} or {c1: d0, c0: d1}
+                        if let Some(to_inline) = ret.get(&name) {
+                            let mut subs_load = SubstituteLoad::new(
+                                Variable::make(&name),
+                                Arc::new(
+                                    to_inline.shape
+                                        .iter()
+                                        .map(|x| x.var().into())
+                                        .collect()
+                                ),
+                                to_inline.body.clone()
+                            );
+                            if let Some(target) = ret.get_mut(t.name_()) {
+                                for target_input in target.inputs.iter() {
+                                    if target_input.name().name == name {
+                                        let target_indices = &target_input.dims; // [d0, d1]
+                                        subs_load.insert(target_indices.clone()); // {c0: d0, c1: d1} or {c1: d0, c0: d1}
+                                    }
+                                }
+                                target.body.accept_mutate(&mut subs_load);
+                                let new_body = subs_load.expr().clone();
+                                target.body = new_body;
                             }
                         }
-                        body.accept_mutate(&mut subs_load);
-                        let new_body = subs_load.expr().clone();
-                        ret.get_mut(t.name_()).unwrap().body = new_body;
                     }
                     Transforms::Split(axis, inner_loop_size) => {}
                     Transforms::Fuse(axes) => {}
