@@ -1,7 +1,7 @@
-use crate::{ halide::{ for_stmt::For, stmt::Stmt }, iter_val::IterVar };
+use crate::{ halide::{ for_stmt::For, stmt::Stmt }, iter_val::_IterVar };
 
-pub fn build_nested_for<T: Into<Stmt>>(iter_vars: &[IterVar], main_stmt: T) -> Stmt {
-    fn build_recursive<T: Into<Stmt>>(idx: usize, iter_vars: &[IterVar], main_stmt: T) -> Stmt {
+pub fn build_nested_for<T: Into<Stmt>>(iter_vars: &[_IterVar], main_stmt: T) -> Stmt {
+    fn build_recursive<T: Into<Stmt>>(idx: usize, iter_vars: &[_IterVar], main_stmt: T) -> Stmt {
         if idx == iter_vars.len() {
             main_stmt.into()
         } else {

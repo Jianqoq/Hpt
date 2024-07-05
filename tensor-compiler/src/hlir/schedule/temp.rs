@@ -2,13 +2,13 @@ use std::{ collections::VecDeque, sync::Arc };
 
 use tensor_types::dtype::Dtype;
 
-use crate::{ halide::prime_expr::PrimeExpr, hlir::{tensor::Tensor, tensor_slice::TensorSlice}, iter_val::IterVar };
+use crate::{ halide::prime_expr::PrimeExpr, hlir::{tensor::Tensor, tensor_slice::TensorSlice}, iter_val::_IterVar };
 
 use super::transforms::Transforms;
 
 #[derive(Clone)]
 pub struct Temp {
-    pub(crate) shape: Vec<IterVar>,
+    pub(crate) shape: Vec<_IterVar>,
     pub(crate) strides: Vec<usize>,
     pub(crate) body: PrimeExpr,
     pub(crate) name: Arc<String>,

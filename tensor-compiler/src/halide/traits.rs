@@ -1,4 +1,4 @@
-use crate::{ hlir::tensor_slice::TensorSlice, iter_val::IterVar };
+use crate::{ hlir::tensor_slice::TensorSlice, iter_val::_IterVar };
 
 use super::{
     assign_stmt::AssignStmt,
@@ -960,7 +960,7 @@ pub(crate) fn visit_reduce<V>(visitor: &mut V, reduce: &Reduce)
             if &new_start != vars.start() || &new_end != vars.end() || &new_step != vars.step() {
                 is_diff = true;
             }
-            IterVar::new(new_start, new_end, new_step, new_var.to_variable().unwrap().clone())
+            _IterVar::new(new_start, new_end, new_step, new_var.to_variable().unwrap().clone())
         })
         .collect();
     if &expr == reduce.expr() && &identity == reduce.identity() && !is_diff {

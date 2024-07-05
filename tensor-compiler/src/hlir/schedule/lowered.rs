@@ -12,7 +12,7 @@ use crate::{
         traits::{ mutate_expr, AccepterMutate, IRMutVisitor, IRMutateVisitor, MutatorGetSet },
     },
     hlir::tensor_slice::TensorSlice,
-    iter_val::IterVar,
+    iter_val::_IterVar,
 };
 
 pub struct SubstituteLoad {
@@ -82,8 +82,12 @@ impl IRMutateVisitor for SubstituteLoad {
             let dims = slice.dims_();
             if let Some(dims) = self.set.get(dims) {
                 let mut subs_var = SubstituteVar::new();
-                assert!(dims.len() == self.to_inline_indices.len());
-                for (a, b) in dims.iter().zip(self.to_inline_indices.iter()) {
+                for i in dims.iter() {
+                    assert!(self.to_inline_indices.contains(i));
+                }
+                for (a, b) in dims
+                    .iter()
+                    .zip(self.to_inline_indices.iter().filter(|x| dims.contains(x))) {
                     subs_var.add_replacement(
                         a.to_variable().unwrap().clone(),
                         b.to_variable().unwrap()

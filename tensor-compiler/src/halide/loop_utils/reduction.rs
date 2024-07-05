@@ -1,10 +1,10 @@
-use crate::{ halide::{ exprs::Reduce, prime_expr::PrimeExpr }, iter_val::IterVar };
+use crate::{ halide::{ exprs::Reduce, prime_expr::PrimeExpr }, iter_val::_IterVar };
 use crate::to_prim_expr::ToPrimeExpr;
 macro_rules! register_reduce {
     ($op: ident) => {
         pub fn $op<
     A: IntoIterator<Item: Into<PrimeExpr>>,
-    C: IntoIterator<Item: Into<IterVar>>
+    C: IntoIterator<Item: Into<_IterVar>>
 >(expr: A, init: &[&dyn ToPrimeExpr], iter_vars: C) -> PrimeExpr {
             Reduce::make(
                 expr

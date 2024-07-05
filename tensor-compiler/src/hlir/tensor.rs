@@ -22,7 +22,7 @@ use crate::{
         traits::{ Accepter, AccepterMut },
         variable::Variable,
     },
-    iter_val::IterVar,
+    iter_val::_IterVar,
     to_prim_expr::ToPrimeExpr,
 };
 use tensor_types::type_promote::FloatOut;
@@ -80,7 +80,7 @@ pub fn dtype_neg_inf(dtype: Dtype) -> PrimeExpr {
 
 #[derive(Clone)]
 pub struct Tensor {
-    shape: Arc<Vec<IterVar>>,
+    shape: Arc<Vec<_IterVar>>,
     strides: Arc<Vec<usize>>,
     body: PrimeExpr,
     name: Arc<String>,
@@ -171,7 +171,7 @@ impl Tensor {
     pub fn strides(&self) -> &Vec<usize> {
         &self.strides
     }
-    pub fn shape(&self) -> &Vec<IterVar> {
+    pub fn shape(&self) -> &Vec<_IterVar> {
         &self.shape
     }
     pub fn name(&self) -> &str {
@@ -418,7 +418,7 @@ impl Tensor {
             .map(|x| x.to_prime_expr())
             .enumerate()
             .map(|(i, x)| {
-                IterVar::new(
+                _IterVar::new(
                     Int::make(Dtype::I64, 0),
                     x,
                     Int::make(Dtype::I64, 1),
@@ -443,11 +443,11 @@ impl Tensor {
             dtype,
         }
     }
-    pub fn slice<T: IntoIterator<Item: Into<IterVar>>>(&self, indices: T) -> TensorSlice {
+    pub fn slice<T: IntoIterator<Item: Into<_IterVar>>>(&self, indices: T) -> TensorSlice {
         let indices = indices
             .into_iter()
             .map(|x| x.into())
-            .collect::<Vec<IterVar>>();
+            .collect::<Vec<_IterVar>>();
         assert!(indices.len() == self.ndim());
         let indices = indices
             .iter()
@@ -477,13 +477,13 @@ pub fn compute<
     A: Into<Tensor> + Clone,
     C: Into<PrimeExpr>
     >(dtype: Dtype, res_shape: [T; N], inputs: [A; M], name: &str, op: F) -> Tensor
-    where F: Fn([Tensor; M], [IterVar; N]) -> C
+    where F: Fn([Tensor; M], [_IterVar; N]) -> C
 {
     let iter_vars = res_shape
         .iter()
         .enumerate()
         .map(|(i, x)| {
-            IterVar::new(
+            _IterVar::new(
                 Int::make(Dtype::I64, 0),
                 x.clone(),
                 Int::make(Dtype::I64, 1),
@@ -500,7 +500,7 @@ pub fn compute<
         iter_vars
             .iter()
             .map(|x| x.clone())
-            .collect::<[IterVar; N]>()
+            .collect::<[_IterVar; N]>()
     );
     let mut input_visitor = FindInputs::new();
     let body: PrimeExpr = body.into();
@@ -517,12 +517,12 @@ pub fn compute<
 
 pub fn _compute<F>(
     dtype: Dtype,
-    res_shape: Vec<IterVar>,
+    res_shape: Vec<_IterVar>,
     inputs: Vec<Tensor>,
     name: &str,
     op: F
 ) -> Tensor
-    where F: Fn(Vec<Tensor>, Vec<IterVar>) -> PrimeExpr + 'static
+    where F: Fn(Vec<Tensor>, Vec<_IterVar>) -> PrimeExpr + 'static
 {
     let inputs_cloned = inputs.clone();
     let body = op(inputs_cloned, res_shape.clone());
@@ -562,9 +562,9 @@ impl<const N: usize> FromIterator<PrimeExpr> for [PrimeExpr; N] {
     }
 }
 
-impl<const N: usize> FromIterator<IterVar> for [IterVar; N] {
-    fn from_iter<T: IntoIterator<Item = IterVar>>(iter: T) -> Self {
-        let mut arr: [MaybeUninit<IterVar>; N] = unsafe { MaybeUninit::uninit().assume_init() };
+impl<const N: usize> FromIterator<_IterVar> for [_IterVar; N] {
+    fn from_iter<T: IntoIterator<Item = _IterVar>>(iter: T) -> Self {
+        let mut arr: [MaybeUninit<_IterVar>; N] = unsafe { MaybeUninit::uninit().assume_init() };
         let mut iter = iter.into_iter();
         for i in 0..N {
             arr[i] = MaybeUninit::new(iter.next().unwrap());
