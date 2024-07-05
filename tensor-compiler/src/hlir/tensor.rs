@@ -22,7 +22,7 @@ use crate::{
         traits::{ Accepter, AccepterMut },
         variable::Variable,
     },
-    iter_val::_IterVar,
+    iter_var::{IterVar, _IterVar},
     to_prim_expr::ToPrimeExpr,
 };
 use tensor_types::type_promote::FloatOut;
@@ -80,7 +80,7 @@ pub fn dtype_neg_inf(dtype: Dtype) -> PrimeExpr {
 
 #[derive(Clone)]
 pub struct Tensor {
-    shape: Arc<Vec<_IterVar>>,
+    shape: Arc<Vec<IterVar>>,
     strides: Arc<Vec<usize>>,
     body: PrimeExpr,
     name: Arc<String>,
@@ -128,14 +128,16 @@ macro_rules! impl_binops {
                 .zip(rhs_shape[rhs_start..].iter())
                 .enumerate()
                 .for_each(|(idx, (x, y))| {
+                    let x = x.to_iter_var().unwrap();
+                    let y = y.to_iter_var().unwrap();
                     if x.end() == &one {
-                        res_shape.push(y.clone());
+                        res_shape.push(y.into());
                         rhs_indices.push(idx + rhs_start);
                     } else if y.end() == &one {
-                        res_shape.push(x.clone());
+                        res_shape.push(x.into());
                         lhs_indices.push(idx + lhs_start);
                     } else if x.end() - x.start() == y.end() - x.start() {
-                        res_shape.push(x.clone());
+                        res_shape.push(x.into());
                         lhs_indices.push(idx + lhs_start);
                         rhs_indices.push(idx + rhs_start);
                     } else {
@@ -171,7 +173,7 @@ impl Tensor {
     pub fn strides(&self) -> &Vec<usize> {
         &self.strides
     }
-    pub fn shape(&self) -> &Vec<_IterVar> {
+    pub fn shape(&self) -> &Vec<IterVar> {
         &self.shape
     }
     pub fn name(&self) -> &str {
@@ -345,7 +347,7 @@ impl Tensor {
                     .collect::<Vec<_>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
-                reduce_iter_var.set_var(var);
+                reduce_iter_var.to_iter_var_mut().unwrap().set_var(var);
                 indices.push(reduce_iter_var.clone());
                 max([inputs[0].slice(indices)], &[&dtype_neg_inf(inputs[0].dtype)], [
                     reduce_iter_var,
@@ -418,19 +420,19 @@ impl Tensor {
             .map(|x| x.to_prime_expr())
             .enumerate()
             .map(|(i, x)| {
-                _IterVar::new(
+                IterVar::IterVar(_IterVar::new(
                     Int::make(Dtype::I64, 0),
                     x,
                     Int::make(Dtype::I64, 1),
                     Variable::new(format!("ax{}", i))
-                )
+                ))
             })
             .collect::<Vec<_>>();
         let body = Load::make(
             Variable::new(tensor_name.clone()),
             iter_vars
                 .iter()
-                .map(|x| x.var().to_prime_expr())
+                .map(|x| x.to_iter_var().unwrap().var().to_prime_expr())
                 .reduce(|acc, x| acc + x)
                 .unwrap()
         ).into();
@@ -443,15 +445,15 @@ impl Tensor {
             dtype,
         }
     }
-    pub fn slice<T: IntoIterator<Item: Into<_IterVar>>>(&self, indices: T) -> TensorSlice {
+    pub fn slice<T: IntoIterator<Item: Into<IterVar>>>(&self, indices: T) -> TensorSlice {
         let indices = indices
             .into_iter()
             .map(|x| x.into())
-            .collect::<Vec<_IterVar>>();
+            .collect::<Vec<IterVar>>();
         assert!(indices.len() == self.ndim());
         let indices = indices
             .iter()
-            .map(|x| x.var().into())
+            .map(|x| x.to_iter_var().unwrap().var().into())
             .collect::<Vec<_>>();
         TensorSlice::make(self.name.clone(), indices)
     }
@@ -477,18 +479,18 @@ pub fn compute<
     A: Into<Tensor> + Clone,
     C: Into<PrimeExpr>
     >(dtype: Dtype, res_shape: [T; N], inputs: [A; M], name: &str, op: F) -> Tensor
-    where F: Fn([Tensor; M], [_IterVar; N]) -> C
+    where F: Fn([Tensor; M], [IterVar; N]) -> C
 {
     let iter_vars = res_shape
         .iter()
         .enumerate()
         .map(|(i, x)| {
-            _IterVar::new(
+            IterVar::IterVar(_IterVar::new(
                 Int::make(Dtype::I64, 0),
                 x.clone(),
                 Int::make(Dtype::I64, 1),
                 Variable::new(format!("ax{}", i))
-            )
+            ))
         })
         .collect::<Vec<_>>();
     let inputs = inputs
@@ -500,7 +502,7 @@ pub fn compute<
         iter_vars
             .iter()
             .map(|x| x.clone())
-            .collect::<[_IterVar; N]>()
+            .collect::<[IterVar; N]>()
     );
     let mut input_visitor = FindInputs::new();
     let body: PrimeExpr = body.into();
@@ -517,12 +519,12 @@ pub fn compute<
 
 pub fn _compute<F>(
     dtype: Dtype,
-    res_shape: Vec<_IterVar>,
+    res_shape: Vec<IterVar>,
     inputs: Vec<Tensor>,
     name: &str,
     op: F
 ) -> Tensor
-    where F: Fn(Vec<Tensor>, Vec<_IterVar>) -> PrimeExpr + 'static
+    where F: Fn(Vec<Tensor>, Vec<IterVar>) -> PrimeExpr + 'static
 {
     let inputs_cloned = inputs.clone();
     let body = op(inputs_cloned, res_shape.clone());
@@ -562,9 +564,9 @@ impl<const N: usize> FromIterator<PrimeExpr> for [PrimeExpr; N] {
     }
 }
 
-impl<const N: usize> FromIterator<_IterVar> for [_IterVar; N] {
-    fn from_iter<T: IntoIterator<Item = _IterVar>>(iter: T) -> Self {
-        let mut arr: [MaybeUninit<_IterVar>; N] = unsafe { MaybeUninit::uninit().assume_init() };
+impl<const N: usize> FromIterator<IterVar> for [IterVar; N] {
+    fn from_iter<T: IntoIterator<Item = IterVar>>(iter: T) -> Self {
+        let mut arr: [MaybeUninit<IterVar>; N] = unsafe { MaybeUninit::uninit().assume_init() };
         let mut iter = iter.into_iter();
         for i in 0..N {
             arr[i] = MaybeUninit::new(iter.next().unwrap());

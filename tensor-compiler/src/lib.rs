@@ -44,7 +44,7 @@ pub mod hlir {
     pub mod tensor_slice;
 }
 pub mod to_prim_expr;
-pub mod iter_val;
+pub mod iter_var;
 pub mod edges;
 pub mod op;
 pub mod float;

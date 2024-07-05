@@ -1,4 +1,4 @@
-use crate::{ hlir::tensor_slice::TensorSlice, iter_val::_IterVar };
+use crate::{ hlir::tensor_slice::TensorSlice, iter_var::{ Fused, IterVar, Splitted, _IterVar } };
 
 use super::{
     assign_stmt::AssignStmt,
@@ -935,6 +935,61 @@ pub(crate) fn visit_assign<V>(visitor: &mut V, assign: &AssignStmt)
     }
 }
 
+fn mutate_iter_var<V>(visitor: &mut V, var: &IterVar) -> IterVar
+    where V: MutatorGetSet + Sized + IRMutateVisitor
+{
+    match var {
+        IterVar::IterVar(var) => {
+            let new_start = visitor.mutate_expr(var.start());
+            let new_end = visitor.mutate_expr(var.end());
+            let new_step = visitor.mutate_expr(var.step());
+            let new_var = visitor.mutate_expr(&var.var().into());
+            if &new_start == var.start() && &new_end == var.end() && &new_step == var.step() {
+                IterVar::IterVar(var.clone())
+            } else {
+                IterVar::IterVar(
+                    _IterVar::new(
+                        new_start,
+                        new_end,
+                        new_step,
+                        new_var.to_variable().unwrap().clone()
+                    )
+                )
+            }
+        }
+        IterVar::Splitted(var) => {
+            let outer = mutate_iter_var(visitor, &var.outer);
+            let inner = mutate_iter_var(visitor, &var.inner);
+            let correspond = mutate_expr(visitor, &var.correspond);
+            if
+                &outer == var.outer.as_ref() &&
+                &inner == var.inner.as_ref() &&
+                &correspond == &var.correspond
+            {
+                IterVar::Splitted(var.clone())
+            } else {
+                IterVar::Splitted(Splitted::new(outer, inner, correspond))
+            }
+        }
+        IterVar::Fused(fused) => {
+            let new_iter_var = mutate_iter_var(visitor, &fused.iter_var);
+            let corresponds = [
+                mutate_expr(visitor, &fused.corresponds[0]),
+                mutate_expr(visitor, &fused.corresponds[1]),
+            ];
+            if
+                &new_iter_var == fused.iter_var.as_ref() &&
+                &corresponds[0] == &fused.corresponds[0] &&
+                &corresponds[1] == &fused.corresponds[1]
+            {
+                IterVar::Fused(fused.clone())
+            } else {
+                IterVar::Fused(Fused::new(fused, corresponds))
+            }
+        }
+    }
+}
+
 pub(crate) fn visit_reduce<V>(visitor: &mut V, reduce: &Reduce)
     where V: MutatorGetSet + Sized + IRMutateVisitor
 {
@@ -953,14 +1008,11 @@ pub(crate) fn visit_reduce<V>(visitor: &mut V, reduce: &Reduce)
         .iter_vars()
         .iter()
         .map(|vars| {
-            let new_start = visitor.mutate_expr(vars.start());
-            let new_end = visitor.mutate_expr(vars.end());
-            let new_step = visitor.mutate_expr(vars.step());
-            let new_var = visitor.mutate_expr(&vars.var().into());
-            if &new_start != vars.start() || &new_end != vars.end() || &new_step != vars.step() {
+            let new = mutate_iter_var(visitor, vars);
+            if &new != vars {
                 is_diff = true;
             }
-            _IterVar::new(new_start, new_end, new_step, new_var.to_variable().unwrap().clone())
+            new
         })
         .collect();
     if &expr == reduce.expr() && &identity == reduce.identity() && !is_diff {

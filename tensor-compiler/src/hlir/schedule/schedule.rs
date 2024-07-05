@@ -11,7 +11,7 @@ use crate::{
         variable::Variable,
     },
     hlir::tensor::Tensor,
-    iter_val::_IterVar,
+    iter_var::IterVar,
     to_prim_expr::ToPrimeExpr,
 };
 use crate::halide::traits::MutatorGetSet;
@@ -61,7 +61,7 @@ impl Schedule {
     pub fn split(
         &mut self,
         tensor: &Tensor,
-        axis: impl Into<_IterVar>,
+        axis: impl Into<IterVar>,
         inner_loop_size: impl Into<PrimeExpr>
     ) {
         let inner_loop_size = inner_loop_size.into();
@@ -141,27 +141,27 @@ impl Schedule {
                 match transform {
                     Transforms::Inline(name) => {
                         if let Some(to_inline) = ret.get(&name) {
-                            let mut subs_load = SubstituteLoad::new(
-                                Variable::make(&name),
-                                Arc::new(
-                                    to_inline.shape
-                                        .iter()
-                                        .map(|x| x.var().into())
-                                        .collect()
-                                ),
-                                to_inline.body.clone()
-                            );
-                            if let Some(target) = ret.get_mut(t.name_()) {
-                                for target_input in target.inputs.iter() {
-                                    if target_input.name().name == name {
-                                        let target_indices = &target_input.dims; // [d0, d1]
-                                        subs_load.insert(target_indices.clone()); // {c0: d0, c1: d1} or {c1: d0, c0: d1}
-                                    }
-                                }
-                                target.body.accept_mutate(&mut subs_load);
-                                let new_body = subs_load.expr().clone();
-                                target.body = new_body;
-                            }
+                            // let mut subs_load = SubstituteLoad::new(
+                            //     Variable::make(&name),
+                            //     Arc::new(
+                            //         to_inline.shape
+                            //             .iter()
+                            //             .map(|x| x.var().into())
+                            //             .collect()
+                            //     ),
+                            //     to_inline.body.clone()
+                            // );
+                            // if let Some(target) = ret.get_mut(t.name_()) {
+                            //     for target_input in target.inputs.iter() {
+                            //         if target_input.name().name == name {
+                            //             let target_indices = &target_input.dims; // [d0, d1]
+                            //             subs_load.insert(target_indices.clone()); // {c0: d0, c1: d1} or {c1: d0, c0: d1}
+                            //         }
+                            //     }
+                            //     target.body.accept_mutate(&mut subs_load);
+                            //     let new_body = subs_load.expr().clone();
+                            //     target.body = new_body;
+                            // }
                         }
                     }
                     Transforms::Split(axis, inner_loop_size) => {
@@ -169,22 +169,22 @@ impl Schedule {
                             let mut new_shape = vec![];
                             for dim in to_split.shape.iter_mut() {
                                 if dim == &axis {
-                                    let outer_var = Variable::make(&format!("{}_outer", dim.var()));
-                                    let outer = _IterVar::new(
-                                        dim.start(),
-                                        FloorDiv::make(dim.end(), inner_loop_size.clone()),
-                                        dim.step(),
-                                        outer_var
-                                    );
-                                    let inner_var = Variable::make(&format!("{}_inner", dim.var()));
-                                    let inner = _IterVar::new(
-                                        0,
-                                        inner_loop_size.clone(),
-                                        1,
-                                        inner_var
-                                    );
-                                    new_shape.push(outer);
-                                    new_shape.push(inner);
+                                    // let outer_var = Variable::make(&format!("{}_outer", dim.var()));
+                                    // let outer = IterVar::new(
+                                    //     dim.start(),
+                                    //     FloorDiv::make(dim.end(), inner_loop_size.clone()),
+                                    //     dim.step(),
+                                    //     outer_var
+                                    // );
+                                    // let inner_var = Variable::make(&format!("{}_inner", dim.var()));
+                                    // let inner = IterVar::new(
+                                    //     0,
+                                    //     inner_loop_size.clone(),
+                                    //     1,
+                                    //     inner_var
+                                    // );
+                                    // new_shape.push(outer);
+                                    // new_shape.push(inner);
                                 } else {
                                     new_shape.push(dim.clone());
                                 }

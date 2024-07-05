@@ -2,7 +2,7 @@ use std::{ fmt::Display, sync::Arc };
 
 use tensor_types::dtype::Dtype;
 
-use crate::{ hlir::{ expr::Expr, exprs::Value }, iter_val::_IterVar };
+use crate::{ hlir::{ expr::Expr, exprs::Value }, iter_var::IterVar };
 
 use super::{ prime_expr::PrimeExpr, traits::{ Accepter, IRVisitor }, variable::Variable };
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
@@ -1624,7 +1624,7 @@ impl Into<PrimeExpr> for &Max {
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Reduce {
     identity: Arc<Vec<PrimeExpr>>,
-    iter_vars: Arc<Vec<_IterVar>>,
+    iter_vars: Arc<Vec<IterVar>>,
     expr: Arc<Vec<PrimeExpr>>,
     op: &'static str,
 }
@@ -1639,7 +1639,7 @@ impl Reduce {
     pub fn new(
         expr: Arc<Vec<PrimeExpr>>,
         identity: Arc<Vec<PrimeExpr>>,
-        iter_vars: Arc<Vec<_IterVar>>,
+        iter_vars: Arc<Vec<IterVar>>,
         op: &'static str
     ) -> Self {
         Reduce {
@@ -1650,7 +1650,7 @@ impl Reduce {
         }
     }
 
-    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>, C: Into<_IterVar>>(
+    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>, C: Into<IterVar>>(
         expr: Vec<A>,
         identity: Vec<B>,
         iter_vars: Vec<C>,
@@ -1670,7 +1670,7 @@ impl Reduce {
             iter_vars: iter_vars
                 .into_iter()
                 .map(|e| e.into())
-                .collect::<Vec<_IterVar>>()
+                .collect::<Vec<IterVar>>()
                 .into(),
             op,
         }
@@ -1681,7 +1681,7 @@ impl Reduce {
     pub fn identity(&self) -> &Vec<PrimeExpr> {
         &self.identity
     }
-    pub fn iter_vars(&self) -> &Vec<_IterVar> {
+    pub fn iter_vars(&self) -> &Vec<IterVar> {
         &self.iter_vars
     }
     pub fn identity_(&self) -> &Arc<Vec<PrimeExpr>> {

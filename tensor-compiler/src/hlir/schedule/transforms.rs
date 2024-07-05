@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use crate::{halide::prime_expr::PrimeExpr, iter_val::_IterVar};
+use crate::{halide::prime_expr::PrimeExpr, iter_var::IterVar};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Transforms {
-    Split(_IterVar, PrimeExpr),
+    Split(IterVar, PrimeExpr),
     Fuse(Vec<PrimeExpr>),
     Reorder(Vec<PrimeExpr>),
     Inline(Arc<String>),

@@ -12,7 +12,7 @@ use crate::{
         traits::{ mutate_expr, AccepterMutate, IRMutVisitor, IRMutateVisitor, MutatorGetSet },
     },
     hlir::tensor_slice::TensorSlice,
-    iter_val::_IterVar,
+    iter_var::IterVar,
 };
 
 pub struct SubstituteLoad {
