@@ -4,7 +4,7 @@ use hashbrown::{ HashMap, HashSet };
 
 use crate::{
     halide::{
-        exprs::{ Load, Mul },
+        exprs::{ FloorDiv, Load, Mul },
         ir_cmp::expr_equal,
         prime_expr::PrimeExpr,
         stmt::Stmt,
@@ -86,9 +86,10 @@ impl IRMutateVisitor for SubstituteLoad {
                 let mut subs_var = SubstituteVar::new();
                 assert!(target_dims.len() == self.to_inline_indices.len());
                 let mut map = HashMap::new();
-                for (inline_dim, target_dim) in self.to_inline_indices
+                for (idx, (inline_dim, target_dim)) in self.to_inline_indices
                     .iter()
-                    .zip(target_dims.iter()) {
+                    .zip(target_dims.iter())
+                    .enumerate() {
                     // indice could be splitted, fused, normal
                     // however, the len of to_inline_indices is always equal to the len of target_dims
                     match inline_dim {
@@ -96,13 +97,38 @@ impl IRMutateVisitor for SubstituteLoad {
                             map.insert(iter_var.var().to_prime_expr(), target_dim.clone());
                         }
                         IterVar::Splitted(splitted) => {
-                            let outter = &splitted.outer;
-                            let inner = &splitted.inner;
                             let outer = (target_dim + (&splitted.factor - 1)).floor_div(
                                 &splitted.factor
                             );
+                            map.insert(splitted.to_prime_expr(), outer);
                         }
-                        IterVar::Fused(_) => todo!(),
+                        IterVar::Fused(fused) => {
+                            let iter_var2 = fused.axis2.to_prime_expr();
+                            let var = fused.var.to_prime_expr();
+                            let i = PrimeExpr::FloorDiv(FloorDiv::make(&var, &iter_var2));
+                            let j = &var % &iter_var2;
+
+                            let prev_inline_indices = &self.to_inline_indices[idx - 1];
+                            if prev_inline_indices == inline_dim {
+                                let prev_target_dim = &target_dims[idx - 1];
+                                let mul = prev_target_dim * target_dim;
+                                let new_i = PrimeExpr::FloorDiv(FloorDiv::make(&mul, &target_dim));
+                                let new_j = &mul % &target_dim;
+                                map.insert(i, new_i);
+                                map.insert(j, new_j);
+                            } else {
+                                assert!(self.to_inline_indices.len() > idx + 1);
+                                assert_eq!(&self.to_inline_indices[idx + 1], inline_dim);
+                                let next_target_dim = &target_dims[idx + 1];
+                                let mul = target_dim * next_target_dim;
+                                let new_i = PrimeExpr::FloorDiv(
+                                    FloorDiv::make(&mul, &next_target_dim)
+                                );
+                                let new_j = &mul % &next_target_dim;
+                                map.insert(i, new_i);
+                                map.insert(j, new_j);
+                            }
+                        }
                     }
                 }
                 // self.body.accept_mutate(&mut subs_var);

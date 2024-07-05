@@ -318,6 +318,38 @@ impl std::ops::Mul for PrimeExpr {
     }
 }
 
+impl std::ops::Mul for &PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn mul(self, rhs: &PrimeExpr) -> Self::Output {
+        PrimeExpr::Mul(Mul::make(self, rhs))
+    }
+}
+
+impl std::ops::Div for PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn div(self, rhs: PrimeExpr) -> Self::Output {
+        PrimeExpr::Div(Div::make(self, rhs))
+    }
+}
+
+impl std::ops::Rem for PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn rem(self, rhs: PrimeExpr) -> Self::Output {
+        PrimeExpr::Mod(Mod::make(self, rhs))
+    }
+}
+
+impl std::ops::Rem<&PrimeExpr> for &PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn rem(self, rhs: &PrimeExpr) -> Self::Output {
+        PrimeExpr::Mod(Mod::make(self, rhs))
+    }
+}
+
 impl Into<PrimeExpr> for bool {
     fn into(self) -> PrimeExpr {
         PrimeExpr::Int(Int::make(Dtype::Bool, self as i64))

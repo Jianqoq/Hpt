@@ -52,41 +52,64 @@ impl IterVar {
             _ => None,
         }
     }
+
+    pub fn to_prime_expr(&self) -> PrimeExpr {
+        match self {
+            IterVar::IterVar(iter_var) => iter_var.var().clone().into(),
+            IterVar::Splitted(splitted) => splitted.to_prime_expr(),
+            IterVar::Fused(fused) => fused.to_prime_expr(),
+        }
+    }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Splitted {
     pub(crate) outer: Arc<IterVar>,
-    pub(crate) inner: Arc<IterVar>,
     pub(crate) factor: PrimeExpr,
 }
 
 impl Splitted {
-    pub fn new<A: Into<IterVar>, B: Into<IterVar>, C: Into<PrimeExpr>>(
-        outer: A,
-        inner: B,
-        factor: C
-    ) -> Self {
+    pub fn new<A: Into<IterVar>, C: Into<PrimeExpr>>(outer: A, factor: C) -> Self {
         Self {
             outer: Arc::new(outer.into()),
-            inner: Arc::new(inner.into()),
             factor: factor.into(),
+        }
+    }
+    pub fn to_prime_expr(&self) -> PrimeExpr {
+        match self.outer.as_ref() {
+            IterVar::IterVar(var) => {
+                let var: PrimeExpr = var.var.clone().into();
+                (var + (&self.factor - 1)).floor_div(&self.factor)
+            }
+            IterVar::Splitted(splitted) => {
+                let outer = splitted.to_prime_expr();
+                (outer + (&self.factor - 1)).floor_div(&self.factor)
+            }
+            IterVar::Fused(fused) => {
+                let outer = fused.to_prime_expr();
+                (outer + (&self.factor - 1)).floor_div(&self.factor)
+            }
         }
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Fused {
-    pub(crate) iter_var: Arc<IterVar>,
-    pub(crate) corresponds: Arc<[PrimeExpr; 2]>,
+    pub(crate) axis1: Arc<IterVar>,
+    pub(crate) axis2: Arc<IterVar>,
+    pub(crate) var: Variable,
 }
 
 impl Fused {
-    pub fn new<A: Into<IterVar>, B: Into<[PrimeExpr; 2]>>(iter_var: A, corresponds: B) -> Self {
+    pub fn new<A: Into<IterVar>, B: Into<IterVar>, C: Into<Variable>>(axis1: A, axis2: B, var: C) -> Self {
         Self {
-            iter_var: Arc::new(iter_var.into()),
-            corresponds: Arc::new(corresponds.into()),
+            axis1: Arc::new(axis1.into()),
+            axis2: Arc::new(axis2.into()),
+            var: var.into(),
         }
+    }
+    pub fn to_prime_expr(&self) -> PrimeExpr {
+        todo!()
     }
 }
 
