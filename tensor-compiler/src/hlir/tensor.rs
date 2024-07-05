@@ -19,6 +19,7 @@ use crate::{
         seq_stmt::Seq,
         stmt::Stmt,
         store_stmt::StoreStmt,
+        traits::{ Accepter, AccepterMut },
         variable::Variable,
     },
     iter_val::IterVar,
@@ -28,7 +29,10 @@ use tensor_types::type_promote::FloatOut;
 use tensor_types::type_promote::BitWiseOut;
 use tensor_types::dtype::TypeCommon;
 
-use super::tensor_slice::TensorSlice;
+use super::{
+    schedule::lowered::FindInputs,
+    tensor_slice::TensorSlice,
+};
 
 pub fn dtype_inf(dtype: Dtype) -> PrimeExpr {
     match dtype {
@@ -80,7 +84,7 @@ pub struct Tensor {
     strides: Arc<Vec<usize>>,
     body: PrimeExpr,
     name: Arc<String>,
-    inputs: Arc<Vec<Tensor>>,
+    inputs: Arc<Vec<TensorSlice>>,
     dtype: Dtype,
 }
 
@@ -164,6 +168,9 @@ macro_rules! impl_binops {
 }
 
 impl Tensor {
+    pub fn strides(&self) -> &Vec<usize> {
+        &self.strides
+    }
     pub fn shape(&self) -> &Vec<IterVar> {
         &self.shape
     }
@@ -173,7 +180,7 @@ impl Tensor {
     pub fn name_(&self) -> &Arc<String> {
         &self.name
     }
-    pub fn inputs(&self) -> &Vec<Tensor> {
+    pub fn inputs(&self) -> &Vec<TensorSlice> {
         &self.inputs
     }
     pub fn dtype(&self) -> Dtype {
@@ -442,26 +449,11 @@ impl Tensor {
             .map(|x| x.into())
             .collect::<Vec<IterVar>>();
         assert!(indices.len() == self.ndim());
-        let mut strides = vec![];
-        let mut map = HashMap::new();
-        for (i, s) in self.shape.iter().zip(self.strides.iter()) {
-            map.insert((i.start(), i.end(), i.step()), s);
-        }
-        for (idx, indice) in indices.iter().enumerate() {
-            let start = indice.start();
-            let end = indice.end();
-            let step = indice.step();
-            if let Some(stride) = map.get(&(start, end, step)) {
-                strides.push(Load::make("strides", *stride).into());
-            } else {
-                panic!("Invalid slice");
-            }
-        }
         let indices = indices
             .iter()
             .map(|x| x.var().into())
             .collect::<Vec<_>>();
-        TensorSlice::make(self.name.clone(), indices, strides)
+        TensorSlice::make(self.name.clone(), indices)
     }
 }
 
@@ -503,7 +495,6 @@ pub fn compute<
         .into_iter()
         .map(|x| x.into())
         .collect::<[Tensor; M]>();
-    let inputs_vec = inputs.to_vec();
     let body = op(
         inputs,
         iter_vars
@@ -511,12 +502,15 @@ pub fn compute<
             .map(|x| x.clone())
             .collect::<[IterVar; N]>()
     );
+    let mut input_visitor = FindInputs::new();
+    let body: PrimeExpr = body.into();
+    body.accept_mut(&mut input_visitor);
     Tensor {
         shape: Arc::new(iter_vars),
         strides: Arc::new((0..res_shape.len()).collect::<Vec<_>>()),
         body: body.into(),
         name: name.to_string().into(),
-        inputs: inputs_vec.into(),
+        inputs: input_visitor.to_vec().into(),
         dtype,
     }
 }
@@ -533,12 +527,15 @@ pub fn _compute<F>(
     let inputs_cloned = inputs.clone();
     let body = op(inputs_cloned, res_shape.clone());
     let strides = (0..res_shape.len()).collect::<Vec<_>>();
+    let mut input_visitor = FindInputs::new();
+    let body: PrimeExpr = body.into();
+    body.accept_mut(&mut input_visitor);
     Tensor {
         shape: Arc::new(res_shape),
         strides: Arc::new(strides),
         body,
         name: name.to_string().into(),
-        inputs: inputs.into(),
+        inputs: input_visitor.to_vec().into(),
         dtype,
     }
 }
@@ -597,7 +594,7 @@ mod tests {
         let n = Variable::make("n");
         let m = Variable::make("m");
         let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
-        let g = compute(Dtype::BF16, [&n, &m], [&a], "a", |[a], [i, j]| { 2 + a.slice([j, i]) });
+        let g = compute(Dtype::BF16, [&n, &m], [&a], "a", |[a], [i, j]| { 2 + a.slice([i, j]) });
         let d = a.argmax(0, 1);
         println!("d body: {}", g.body());
     }

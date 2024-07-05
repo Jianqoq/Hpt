@@ -962,15 +962,10 @@ pub(crate) fn visist_tensor_slice<V>(visitor: &mut V, slice: &TensorSlice)
         .iter()
         .map(|dim| visitor.mutate_expr(dim))
         .collect::<Vec<PrimeExpr>>();
-    let strides = slice
-        .strides()
-        .iter()
-        .map(|stride| visitor.mutate_expr(stride))
-        .collect::<Vec<PrimeExpr>>();
-    if &var == &slice.name().into() && &dims == slice.dims() && &strides == slice.strides() {
+    if &var == &slice.name().into() && &dims == slice.dims() {
         visitor.set_expr(slice);
     } else {
-        visitor.set_expr(TensorSlice::make(var.to_variable().unwrap(), dims, strides));
+        visitor.set_expr(TensorSlice::make(var.to_variable().unwrap(), dims));
     }
 }
 

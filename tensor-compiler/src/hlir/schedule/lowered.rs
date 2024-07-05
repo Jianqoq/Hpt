@@ -1,44 +1,60 @@
-use std::ops::{ Deref, DerefMut };
+use std::{ ops::{ Deref, DerefMut }, sync::Arc };
 
-use hashbrown::HashMap;
+use hashbrown::{ HashMap, HashSet };
 
-use crate::halide::{
-    exprs::Load,
-    ir_cmp::expr_equal,
-    prime_expr::PrimeExpr,
-    stmt::Stmt,
-    traits::{ mutate_expr, IRMutateVisitor, MutatorGetSet },
+use crate::{
+    halide::{
+        exprs::Load,
+        ir_cmp::expr_equal,
+        prime_expr::PrimeExpr,
+        stmt::Stmt,
+        substitute::subsititue_var::SubstituteVar,
+        traits::{ mutate_expr, AccepterMutate, IRMutVisitor, IRMutateVisitor, MutatorGetSet },
+    },
+    hlir::tensor_slice::TensorSlice,
+    iter_val::IterVar,
 };
 
 pub struct SubstituteLoad {
     stmt: Stmt,
     expr: PrimeExpr,
-    map: HashMap<PrimeExpr, PrimeExpr>,
+    set: HashSet<Arc<Vec<PrimeExpr>>>,
+    to_inline_indices: Arc<Vec<PrimeExpr>>,
+    body: PrimeExpr,
     load_var: PrimeExpr,
 }
 
 impl SubstituteLoad {
-    pub fn new<T: Into<PrimeExpr>>(load_var: T) -> Self {
+    pub fn new<T: Into<PrimeExpr>>(
+        load_var: T,
+        to_inline_indices: Arc<Vec<PrimeExpr>>,
+        body: PrimeExpr
+    ) -> Self {
         SubstituteLoad {
             stmt: Stmt::None,
             expr: PrimeExpr::None,
-            map: HashMap::new(),
+            set: HashSet::new(),
             load_var: load_var.into(),
+            to_inline_indices,
+            body,
         }
+    }
+    pub fn set(&self) -> &HashSet<Arc<Vec<PrimeExpr>>> {
+        &self.set
     }
 }
 
 impl Deref for SubstituteLoad {
-    type Target = HashMap<PrimeExpr, PrimeExpr>;
+    type Target = HashSet<Arc<Vec<PrimeExpr>>>;
 
     fn deref(&self) -> &Self::Target {
-        &self.map
+        &self.set
     }
 }
 
 impl DerefMut for SubstituteLoad {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.map
+        &mut self.set
     }
 }
 
@@ -61,20 +77,56 @@ impl MutatorGetSet for SubstituteLoad {
 }
 
 impl IRMutateVisitor for SubstituteLoad {
-    fn mutate_expr(&mut self, expr: &PrimeExpr) -> PrimeExpr {
-        if let Some(replace) = self.map.get(expr) {
-            return replace.clone();
-        } else {
-            return mutate_expr(self, expr);
+    fn visit_tensor_slice(&mut self, slice: &TensorSlice) {
+        if expr_equal(&slice.name().into(), &self.load_var) {
+            let dims = slice.dims_();
+            if let Some(dims) = self.set.get(dims) {
+                let mut subs_var = SubstituteVar::new();
+                assert!(dims.len() == self.to_inline_indices.len());
+                for (a, b) in dims.iter().zip(self.to_inline_indices.iter()) {
+                    subs_var.add_replacement(
+                        a.to_variable().unwrap().clone(),
+                        b.to_variable().unwrap()
+                    );
+                }
+                self.body.accept_mutate(&mut subs_var);
+                self.set_expr(subs_var.expr().clone());
+                return;
+            }
         }
+        self.set_expr(slice.clone());
     }
+}
 
-    fn visit_load(&mut self, load: &Load) {
-        if expr_equal(load.name(), &self.load_var) {
-            let indices = self.mutate_expr(load.indices());
-            self.set_expr(Load::make(load.name(), &indices));
-        } else {
-            self.set_expr(load);
-        }
+pub struct FindInputs {
+    vec: Vec<TensorSlice>,
+}
+
+impl FindInputs {
+    pub fn new() -> Self {
+        FindInputs { vec: Vec::new() }
+    }
+    pub fn to_vec(self) -> Vec<TensorSlice> {
+        self.vec
+    }
+}
+
+impl Deref for FindInputs {
+    type Target = Vec<TensorSlice>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.vec
+    }
+}
+
+impl DerefMut for FindInputs {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.vec
+    }
+}
+
+impl IRMutVisitor for FindInputs {
+    fn visit_tensor_slice(&mut self, slice: &TensorSlice) {
+        self.vec.push(slice.clone());
     }
 }

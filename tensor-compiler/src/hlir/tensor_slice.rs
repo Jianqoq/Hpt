@@ -12,7 +12,6 @@ use crate::halide::{
 pub struct TensorSlice {
     pub(crate) var: Arc<Variable>,
     pub(crate) dims: Arc<Vec<PrimeExpr>>,
-    pub(crate) strides: Arc<Vec<PrimeExpr>>,
 }
 
 impl Into<PrimeExpr> for TensorSlice {
@@ -33,8 +32,7 @@ impl Display for TensorSlice {
             self.var.as_ref(),
             self.dims
                 .iter()
-                .zip(self.strides.iter())
-                .map(|(x, y)| x.clone() * y.clone())
+                .map(|x| x.clone())
                 .reduce(|x, y| x + y)
                 .unwrap()
         );
@@ -49,19 +47,22 @@ impl TensorSlice {
     pub fn dims(&self) -> &[PrimeExpr] {
         &self.dims
     }
-    pub fn strides(&self) -> &[PrimeExpr] {
-        &self.strides
+    pub fn dims_(&self) -> &Arc<Vec<PrimeExpr>> {
+        &self.dims
     }
-    pub fn make<A: Into<Variable>, B: Into<Vec<PrimeExpr>>, C: Into<Vec<PrimeExpr>>>(
-        var: A,
-        dims: B,
-        strides: C
-    ) -> Self {
+    pub fn make<A: Into<Variable>, B: Into<Vec<PrimeExpr>>>(var: A, dims: B) -> Self {
         TensorSlice {
             var: Arc::new(var.into()),
             dims: Arc::new(dims.into()),
-            strides: Arc::new(strides.into()),
         }
+    }
+}
+
+impl std::ops::Add for TensorSlice {
+    type Output = PrimeExpr;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Add::make(self, rhs).into()
     }
 }
 

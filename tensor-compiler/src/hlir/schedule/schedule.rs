@@ -1,12 +1,18 @@
-use std::collections::VecDeque;
+use std::{ collections::VecDeque, sync::Arc };
 
 use hashbrown::HashMap;
 
 use crate::{
-    halide::{ prime_expr::PrimeExpr, variable::Variable },
+    halide::{
+        prime_expr::PrimeExpr,
+        printer::IRPrinter,
+        traits::{ AccepterMut, AccepterMutate },
+        variable::Variable,
+    },
     hlir::tensor::Tensor,
     to_prim_expr::ToPrimeExpr,
 };
+use crate::halide::traits::MutatorGetSet;
 
 use super::{ lowered::SubstituteLoad, temp::Temp, transforms::Transforms };
 
@@ -35,9 +41,12 @@ impl Schedule {
     /// to_inline: C = A + B, target: D = C + E, inline C to D, then D = (A + B) + E
     pub fn inline(&mut self, to_inline: &Tensor, target: &Tensor) {
         if let Some(temp) = self.temps_map.get_mut(target) {
-            if temp.inputs.contains(to_inline) {
+            let contain = temp.inputs
+                .iter()
+                .map(|x| &x.name().name == to_inline.name_())
+                .any(|x| x);
+            if contain {
                 temp.transforms.push_back(Transforms::Inline(to_inline.name_().clone()));
-                temp.inputs.retain(|x| x != to_inline);
             } else {
                 panic!("Schedule::inline: target does not contain to_inline");
             }
@@ -132,10 +141,35 @@ impl Schedule {
                         let to_inline = ret
                             .get(&name)
                             .expect("Schedule::lower: target does not exist in ret");
-                        let target = ret
+                        let inputs = ret
                             .get(t.name_())
-                            .expect("Schedule::lower: to_inline does not exist in ret");
-                        let subs_load = SubstituteLoad::new(Variable::make(&name));
+                            .expect("Schedule::lower: to_inline does not exist in ret")
+                            .inputs.clone();
+                        let body = ret
+                            .get(t.name_())
+                            .expect("Schedule::lower: to_inline does not exist in ret")
+                            .body.clone();
+
+                        // assume C[c0, c1] = A[c0, c1] + A[c1, c0], target = D[d0, d1] = C[d0, d1] + C[d1, d0]
+                        let mut subs_load = SubstituteLoad::new(
+                            Variable::make(&name),
+                            Arc::new(
+                                to_inline.shape
+                                    .iter()
+                                    .map(|x| x.var().into())
+                                    .collect()
+                            ),
+                            to_inline.body.clone()
+                        );
+                        for target_input in inputs.iter() {
+                            if target_input.name().name == name {
+                                let target_indices = &target_input.dims; // [d0, d1]
+                                subs_load.insert(target_indices.clone()); // {c0: d0, c1: d1} or {c1: d0, c0: d1}
+                            }
+                        }
+                        body.accept_mutate(&mut subs_load);
+                        let new_body = subs_load.expr().clone();
+                        ret.get_mut(t.name_()).unwrap().body = new_body;
                     }
                     Transforms::Split(axis, inner_loop_size) => {}
                     Transforms::Fuse(axes) => {}
@@ -147,6 +181,9 @@ impl Schedule {
                 panic!("Schedule::lower: temp does not exist in temps_map");
             }
         }
+        for (t, tmp) in ret.iter() {
+            println!("{}: {}", t, tmp.body);
+        }
     }
 }
 
@@ -154,7 +191,7 @@ impl Schedule {
 mod tests {
     use tensor_types::dtype::Dtype;
 
-    use crate::halide::variable::Variable;
+    use crate::{ halide::variable::Variable, hlir::tensor::compute };
 
     use super::*;
 
@@ -164,15 +201,17 @@ mod tests {
         let n = Variable::make("n");
         let p = Variable::make("p");
 
-        let a = Tensor::placeholder(&[&m, &n, &1i64], Dtype::I64, "a");
-        let b = Tensor::placeholder(&[&m, &1i64, &p], Dtype::I64, "b");
+        let a = Tensor::placeholder(&[&m, &n], Dtype::I64, "A");
 
-        let add = a.add(&b);
-        let sub = add.sub(&b);
-        let div = sub.div(&b);
+        let c = compute(Dtype::BF16, [&n, &m], [&a], "C", |[a], [i, j]| {
+            a.slice([&i, &j]) + a.slice([&j, &i])
+        });
+        let d = compute(Dtype::BF16, [&m, &p], [&c], "D", |[c], [i, j]| {
+            c.slice([&i, &j]) + c.slice([&j, &i])
+        });
 
-        let mut schedule = Schedule::create(&[&a, &b, &sub, &div]);
-        schedule.inline(&sub, &div);
-        schedule.fuse(&a, &[&1i32, &2i64]);
+        let mut schedule = Schedule::create(&[&a, &c, &d]);
+        schedule.inline(&c, &d);
+        schedule.lower();
     }
 }
