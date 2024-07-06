@@ -1,23 +1,13 @@
-use std::{ collections::VecDeque, sync::Arc };
+use std::cell::RefCell;
+use std::collections::VecDeque;
+use std::rc::Rc;
 use crate::hlir::schedule::iter::collect_available_axes;
 use hashbrown::{ HashMap, HashSet };
 use crate::hlir::schedule::iter::print_available_axes;
-use crate::{
-    halide::{
-        exprs::FloorDiv,
-        prime_expr::PrimeExpr,
-        printer::IRPrinter,
-        traits::{ AccepterMut, AccepterMutate },
-        variable::Variable,
-    },
-    hlir::tensor::Tensor,
-    iter_var::{ IterVar, Splitted, _IterVar },
-    to_prim_expr::ToPrimeExpr,
-};
-use crate::halide::traits::MutatorGetSet;
+use crate::{ halide::prime_expr::PrimeExpr, hlir::tensor::Tensor, to_prim_expr::ToPrimeExpr };
 
-use super::iter::{fuse, pack_groups};
-use super::{ iter::split, lowered::SubstituteLoad, temp::Temp, transforms::Transforms };
+use super::iter::{ fuse, pack_groups, Iter };
+use super::{ iter::split, temp::Temp, transforms::Transforms };
 
 pub struct Schedule {
     pub temps_map: HashMap<Tensor, Temp>,
@@ -141,6 +131,37 @@ impl Schedule {
                             print_available_axes(
                                 &collect_available_axes(&temp.shape, &mut HashSet::new())
                             );
+                            let mut groups = vec![];
+                            pack_groups(&temp.shape, &mut HashSet::new(), &mut groups, true);
+                            let mut vec = Vec::<HashMap<usize, Rc<RefCell<Iter>>>>::new();
+                            for group in groups {
+                                let mut m = HashMap::new();
+                                let mut cnt = 0;
+                                let mut visited = HashSet::new();
+                                for root in group {
+                                    let root = temp.shape[root].clone();
+                                    let mut stack = vec![root];
+                                    while let Some(node) = stack.pop() {
+                                        for child in node.borrow().childs() {
+                                            let ptr = child.as_ptr();
+                                            if visited.contains(&ptr) {
+                                                continue;
+                                            } else {
+                                                visited.insert(ptr);
+                                            }
+                                            m.insert(cnt, child.clone());
+                                            cnt += 1;
+                                            stack.push(child.clone());
+                                        }
+                                    }
+                                }
+                                vec.push(m);
+                            }
+                            for m in vec {
+                                for (k, v) in m.iter() {
+                                    println!("{}: {}", k, v.borrow().var());
+                                }
+                            }
                         }
                     }
                     Transforms::Fuse(name, axis1, axis2) => {
@@ -200,16 +221,63 @@ mod tests {
     fn test_schedule_split() {
         let m = Variable::make("m");
         let n = Variable::make("n");
+        let o = Variable::make("o");
         let p = Variable::make("p");
+
+        let a = Tensor::placeholder(&[&m, &n, &o, &p], Dtype::I64, "A");
+
+        let c = compute(Dtype::BF16, [&n, &m, &o, &p], [&a], "C", |[a], [i, j, k, l]| {
+            a.slice([&i, &j, &k, &l])
+        });
+
+        println!("===================== testing fuse [[m, n], [o, p]] =====================");
+        let mut schedule = Schedule::create(&[&a, &c]);
+        schedule.fuse(&c, 0, 1);
+        schedule.fuse(&c, 1, 2);
+        schedule.fuse(&c, 0, 1);
+        schedule.lower();
+        println!("===================== testing split [[m], [n], [o], [p]] =====================");
+        let mut schedule = Schedule::create(&[&a, &c]);
+        schedule.split(&c, 0, 32);
+        schedule.split(&c, 1, 32);
+        schedule.split(&c, 2, 32);
+        schedule.split(&c, 3, 32);
+        schedule.lower();
+    }
+
+    #[test]
+    fn test_fuse_split() {
+        let m = Variable::make("m");
+        let n = Variable::make("n");
+        let o = Variable::make("o");
+        let p = Variable::make("p");
+
+        let a = Tensor::placeholder(&[&m, &n, &o, &p], Dtype::I64, "A");
+
+        let c = compute(Dtype::BF16, [&n, &m, &o, &p], [&a], "C", |[a], [i, j, k, l]| {
+            a.slice([&i, &j, &k, &l])
+        });
+
+        let mut schedule = Schedule::create(&[&a, &c]);
+        schedule.fuse(&c, 0, 1);
+        schedule.fuse(&c, 0, 1);
+        schedule.split(&c, 0, 16);
+        schedule.split(&c, 0, 32);
+        schedule.lower();
+    }
+
+    #[test]
+    fn test_fuse_split2() {
+        let m = Variable::make("m");
+        let n = Variable::make("n");
 
         let a = Tensor::placeholder(&[&m, &n], Dtype::I64, "A");
 
         let c = compute(Dtype::BF16, [&n, &m], [&a], "C", |[a], [i, j]| { a.slice([&i, &j]) });
 
         let mut schedule = Schedule::create(&[&a, &c]);
-        let axes = c.axes();
-        schedule.split(&c, 1, 32);
-        schedule.fuse(&c, 1, 2);
+        schedule.fuse(&c, 0, 1);
+        schedule.split(&c, 0, 16);
         schedule.lower();
     }
 }

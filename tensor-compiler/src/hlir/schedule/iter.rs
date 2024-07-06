@@ -3,16 +3,21 @@
 
 use std::{ cell::RefCell, fmt::{ Debug, Display }, rc::Rc, sync::Arc };
 
-use hashbrown::HashSet;
+use hashbrown::{ HashMap, HashSet };
 use tensor_types::dtype::Dtype;
 
-use crate::halide::{ exprs::Int, prime_expr::PrimeExpr, variable::Variable };
+use crate::{
+    halide::{ exprs::Int, prime_expr::PrimeExpr, variable::Variable },
+    to_prim_expr::ToPrimeExpr,
+};
 #[derive(Clone)]
 pub struct IterVar {
     pub(crate) var: Variable,
     pub(crate) start: PrimeExpr,
     pub(crate) end: PrimeExpr,
     pub(crate) step: PrimeExpr,
+    pub(crate) stride: PrimeExpr,
+    pub(crate) parent: Option<Rc<RefCell<Iter>>>,
     pub(crate) childs: Arc<Vec<Rc<RefCell<Iter>>>>,
 }
 
@@ -28,7 +33,9 @@ impl IterVar {
             start: start.into(),
             end: end.into(),
             step: step.into(),
+            stride: (1).into(),
             childs: vec![].into(),
+            parent: None,
         }
     }
 }
@@ -257,6 +264,47 @@ pub fn split(shape: &mut Vec<Rc<RefCell<Iter>>>, axis: usize, factor: PrimeExpr)
         .borrow_mut()
         .push_child(Rc::new(RefCell::new(inner)));
 }
+
+pub fn generate_indices(
+    map: &HashMap<usize, Rc<RefCell<Iter>>>,
+    edges: &HashMap<usize, Vec<usize>>
+) -> Vec<PrimeExpr> {
+    for (id, iter) in map.iter() {
+        if iter.borrow().childs().len() == 0 {
+            match &*iter.borrow() {
+                Iter::IterVar(iter_var) => {
+                    let parent = iter_var.parent.as_ref().unwrap();
+                    match &*parent.borrow() {
+                        Iter::IterVar(parent) => {
+
+                        },
+                        Iter::FuseVar(parent) => {
+                            
+                        },
+                    }
+                }
+                Iter::FuseVar(fused) => {
+                    let rhs = fused.rhs.borrow().end().clone();
+                    let rhs_expr = &fused.var.to_prime_expr() % &rhs;
+                    let lhs_expr = fused.var.to_prime_expr().floor_div(&rhs);
+                    let edge = &edges[id];
+                    let lhs_id = edge[0];
+                    let rhs_id = edge[1];
+                    fused_forward_helper(rhs_expr, rhs_id, map, edges);
+                    fused_forward_helper(lhs_expr, lhs_id, map, edges);
+                }
+            }
+        }
+    }
+    todo!()
+}
+
+pub fn fused_forward_helper(
+    expr: PrimeExpr,
+    id: usize,
+    map: &HashMap<usize, Rc<RefCell<Iter>>>,
+    edges: &HashMap<usize, Vec<usize>>
+) {}
 
 pub fn print_available_axes(available_axes: &Vec<Rc<RefCell<Iter>>>) {
     print!("available_axes: [");
