@@ -228,17 +228,51 @@ pub fn gen_edges(shape: &Vec<Rc<RefCell<Iter>>>) {
                                         }
                                     } else {
                                         if is_rhs {
-                                            let add = Add::make(PrimeExpr::None, node.borrow().end().clone());
+                                            let add = Add::make(
+                                                PrimeExpr::None,
+                                                node.borrow().end().clone()
+                                            );
                                             expr_map.insert(key, add.into());
                                         } else {
                                             let rhs_end = parent_childs[1].borrow().end().clone();
-                                            let add = Add::make(Mul::make(node.borrow().var(), rhs_end), PrimeExpr::None);
+                                            let add = Add::make(
+                                                Mul::make(node.borrow().var(), rhs_end),
+                                                PrimeExpr::None
+                                            );
                                             expr_map.insert(key, add.into());
                                         }
                                     }
                                 }
                             }
-                            Iter::FuseVar(parent) => todo!(),
+                            Iter::FuseVar(_parent) => {
+                                // this is a splitting operation, parent must have 2 children
+                                assert!(_parent.childs.len() == 2);
+                                let parent_childs = &_parent.childs;
+                                // check node is lhs of parent children or rhs of parent children
+                                let is_rhs = parent_childs[1].as_ptr() == node.as_ptr();
+                                let key = m_inv[&parent.as_ptr()];
+                                if let Some(node_expr) = expr_map.get(&m_inv[&node.as_ptr()]) {
+                                    let node_expr = node_expr.clone();
+                                    if let Some(expr) = expr_map.get_mut(&key) {
+                                    } else {
+                                        if is_rhs {
+                                        } else {
+                                        }
+                                    }
+                                } else {
+                                    // current node doesn't have accumulated expr, based on the topo order, it must be a leaf node
+                                    assert!(node.borrow().childs().len() == 0);
+                                    if let Some(expr) = expr_map.get_mut(&key) {
+                                        if is_rhs {
+                                        } else {
+                                        }
+                                    } else {
+                                        if is_rhs {
+                                        } else {
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

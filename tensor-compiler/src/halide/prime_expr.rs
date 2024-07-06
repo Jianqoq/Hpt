@@ -99,6 +99,10 @@ impl PrimeExpr {
         matches!(self, PrimeExpr::Add(_))
     }
 
+    pub const fn is_mod(&self) -> bool {
+        matches!(self, PrimeExpr::Mod(_))
+    }
+
     pub const fn is_int(&self) -> bool {
         matches!(self, PrimeExpr::Int(_))
     }
