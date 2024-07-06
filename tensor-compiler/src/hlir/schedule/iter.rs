@@ -301,7 +301,7 @@ pub fn gen_edges(shape: &Vec<Rc<RefCell<Iter>>>) {
                                         if is_rhs {
                                             let add = Add::make(
                                                 PrimeExpr::None,
-                                                node.borrow().end().clone()
+                                                node.borrow().var()
                                             );
                                             expr_map.insert(key, add.into());
                                         } else {
