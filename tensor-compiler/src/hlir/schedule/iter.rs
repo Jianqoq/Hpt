@@ -8,7 +8,7 @@ use tensor_types::dtype::Dtype;
 
 use crate::{
     edges::Edges,
-    halide::{ exprs::Int, prime_expr::PrimeExpr, variable::Variable },
+    halide::{ exprs::{ Add, Int, Mul }, prime_expr::PrimeExpr, variable::Variable },
     to_prim_expr::ToPrimeExpr,
 };
 #[derive(Clone)]
@@ -200,6 +200,41 @@ pub fn gen_edges(shape: &Vec<Rc<RefCell<Iter>>>) {
                                             *expr = to_add.into();
                                         }
                                     } else {
+                                        if is_rhs {
+                                            let add = Add::make(PrimeExpr::None, node_expr);
+                                            expr_map.insert(key, add.into());
+                                        } else {
+                                            let add = Add::make(node_expr, PrimeExpr::None);
+                                            expr_map.insert(key, add.into());
+                                        }
+                                    }
+                                } else {
+                                    // current node doesn't have accumulated expr, based on the topo order, it must be a leaf node
+                                    assert!(node.borrow().childs().len() == 0);
+                                    if let Some(expr) = expr_map.get_mut(&key) {
+                                        assert!(expr.is_add());
+                                        if is_rhs {
+                                            assert!(expr.to_add().unwrap().e2().is_none());
+                                            let mut to_add = expr.to_add().unwrap().clone();
+                                            to_add.set_e2(node.borrow().end().clone());
+                                            *expr = to_add.into();
+                                        } else {
+                                            assert!(expr.to_add().unwrap().e1().is_none());
+                                            let mut to_add = expr.to_add().unwrap().clone();
+                                            // we need to get the rhs end
+                                            let rhs_end = parent_childs[1].borrow().end().clone();
+                                            to_add.set_e1(Mul::make(node.borrow().var(), rhs_end));
+                                            *expr = to_add.into();
+                                        }
+                                    } else {
+                                        if is_rhs {
+                                            let add = Add::make(PrimeExpr::None, node.borrow().end().clone());
+                                            expr_map.insert(key, add.into());
+                                        } else {
+                                            let rhs_end = parent_childs[1].borrow().end().clone();
+                                            let add = Add::make(Mul::make(node.borrow().var(), rhs_end), PrimeExpr::None);
+                                            expr_map.insert(key, add.into());
+                                        }
                                     }
                                 }
                             }
