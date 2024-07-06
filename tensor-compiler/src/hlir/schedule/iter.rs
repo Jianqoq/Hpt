@@ -130,9 +130,13 @@ impl Iter {
     }
 }
 
-pub fn gen_edges(shape: &Vec<Rc<RefCell<Iter>>>) {
+pub fn gen_indices(shape: &Vec<Rc<RefCell<Iter>>>) -> Vec<PrimeExpr> {
     let mut m = HashMap::new();
     let mut m_inv = HashMap::new();
+    let mut order = HashMap::new();
+    for (idx, iter) in shape.iter().enumerate() {
+        order.insert(iter.as_ptr(), idx);
+    }
     let mut cnt = 0usize;
     let mut visited = HashSet::new();
     let mut edges = Edges::new();
@@ -160,13 +164,7 @@ pub fn gen_edges(shape: &Vec<Rc<RefCell<Iter>>>) {
             .or_insert(HashSet::new())
             .extend(childs.iter().map(|x| m_inv.get(&x.as_ptr()).unwrap().clone()));
     }
-    println!("{:#?}", edges);
-    println!("{:#?}", edges.invert());
-    for (k, v) in m.iter() {
-        println!("{}: {}", k, v.borrow().var());
-    }
     let sorted = topo(&edges, &m);
-    println!("{:?}", sorted);
     let mut expr_map = HashMap::<usize, PrimeExpr>::new();
     if let Some(sorted) = sorted {
         for i in sorted {
@@ -316,6 +314,11 @@ pub fn gen_edges(shape: &Vec<Rc<RefCell<Iter>>>) {
                                 }
                             }
                         }
+                    } else {
+                        // this is a leaf node
+                        if node.borrow().childs().len() == 0 {
+                            expr_map.insert(i, node.borrow().var().into());
+                        }
                     }
                 }
                 Iter::FuseVar(fused) => {
@@ -350,9 +353,20 @@ pub fn gen_edges(shape: &Vec<Rc<RefCell<Iter>>>) {
     } else {
         panic!("cycle detected");
     }
+    let mut ret = Vec::with_capacity(shape.len());
     for (k, v) in expr_map.iter() {
-        println!("{}: {}", k, v);
+        let node = &m[k];
+        match &*node.borrow() {
+            Iter::IterVar(iter_var) => {
+                if iter_var.parent.is_none() {
+                    ret.push((node.clone(), v.clone()));
+                }
+            }
+            Iter::FuseVar(_) => {}
+        }
     }
+    ret.sort_by(|a, b| order[&a.0.as_ptr()].cmp(&order[&b.0.as_ptr()]));
+    ret.into_iter().map(|x| x.1).collect()
 }
 
 fn topo(

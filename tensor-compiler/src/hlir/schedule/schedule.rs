@@ -129,22 +129,11 @@ impl Schedule {
                     Transforms::Split(name, axis, inner_loop_size) => {
                         if let Some(temp) = ret.get_mut(&name) {
                             split(&mut temp.shape, axis, inner_loop_size);
-                            // print_available_axes(
-                            //     &collect_available_axes(&temp.shape, &mut HashSet::new())
-                            // );
-                            // let mut groups = vec![];
-                            // pack_groups(&temp.shape, &mut HashSet::new(), &mut groups, true);
                         }
                     }
                     Transforms::Fuse(name, axis1, axis2) => {
                         if let Some(temp) = ret.get_mut(&name) {
                             fuse(&mut temp.shape, axis1, axis2);
-                            // print_available_axes(
-                            //     &collect_available_axes(&temp.shape, &mut HashSet::new())
-                            // );
-                            // let mut groups = vec![];
-                            // pack_groups(&temp.shape, &mut HashSet::new(), &mut groups, true);
-                            // println!("{:?}", groups);
                         }
                     }
                     Transforms::ComputeAt(target, axis) => {}
@@ -163,7 +152,7 @@ impl Schedule {
 mod tests {
     use tensor_types::dtype::Dtype;
 
-    use crate::{ halide::variable::Variable, hlir::{schedule::iter::gen_edges, tensor::compute} };
+    use crate::{ halide::variable::Variable, hlir::{schedule::iter::gen_indices, tensor::compute} };
 
     use super::*;
 
@@ -238,7 +227,10 @@ mod tests {
         // schedule.split(&c, 5, 64);
         // schedule.fuse(&c, 2, 3);
         let map = schedule.lower();
-        gen_edges(&map.get(&Arc::new("C".to_string())).unwrap().shape);
+        let indices = gen_indices(&map.get(&Arc::new("C".to_string())).unwrap().shape);
+        for i in indices {
+            println!("{}", i);
+        }
     }
 
     #[test]
