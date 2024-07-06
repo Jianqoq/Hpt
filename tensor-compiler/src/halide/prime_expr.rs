@@ -95,6 +95,10 @@ impl PrimeExpr {
         matches!(self, PrimeExpr::None)
     }
 
+    pub const fn is_add(&self) -> bool {
+        matches!(self, PrimeExpr::Add(_))
+    }
+
     pub const fn is_int(&self) -> bool {
         matches!(self, PrimeExpr::Int(_))
     }

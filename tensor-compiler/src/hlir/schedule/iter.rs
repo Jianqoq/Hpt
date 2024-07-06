@@ -160,11 +160,59 @@ pub fn gen_edges(shape: &Vec<Rc<RefCell<Iter>>>) {
             .extend(childs.iter().map(|x| m_inv.get(&x.as_ptr()).unwrap().clone()));
     }
     println!("{:#?}", edges);
+    println!("{:#?}", edges.invert());
     for (k, v) in m.iter() {
         println!("{}: {}", k, v.borrow().var());
     }
     let sorted = topo(&edges, &m);
     println!("{:?}", sorted);
+    let mut expr_map = HashMap::<usize, PrimeExpr>::new();
+    if let Some(sorted) = sorted {
+        for i in sorted {
+            let node = &m[&i];
+            match &*node.borrow() {
+                Iter::IterVar(iter_var) => {
+                    if let Some(parent) = &iter_var.parent {
+                        match &mut *parent.borrow_mut() {
+                            Iter::IterVar(_parent) => {
+                                // this is a splitting operation, parent must have 2 children
+                                assert!(_parent.childs.len() == 2);
+                                let parent_childs = &_parent.childs;
+                                // check node is lhs of parent children or rhs of parent children
+                                let is_rhs = parent_childs[1].as_ptr() == node.as_ptr();
+                                let key = m_inv[&parent.as_ptr()];
+                                if let Some(node_expr) = expr_map.get(&m_inv[&node.as_ptr()]) {
+                                    let node_expr = node_expr.clone();
+                                    if let Some(expr) = expr_map.get_mut(&key) {
+                                        assert!(expr.is_add());
+                                        // it has been visited
+                                        if is_rhs {
+                                            // rhs_expr is ready, and since the expr is add, the rhs must be None
+                                            assert!(expr.to_add().unwrap().e2().is_none());
+                                            let mut to_add = expr.to_add().unwrap().clone();
+                                            to_add.set_e2(node_expr);
+                                            *expr = to_add.into();
+                                        } else {
+                                            // lhs_expr is ready, and since the expr is add, the lhs must be None
+                                            assert!(expr.to_add().unwrap().e1().is_none());
+                                            let mut to_add = expr.to_add().unwrap().clone();
+                                            to_add.set_e1(node_expr);
+                                            *expr = to_add.into();
+                                        }
+                                    } else {
+                                    }
+                                }
+                            }
+                            Iter::FuseVar(parent) => todo!(),
+                        }
+                    }
+                }
+                Iter::FuseVar(fused) => {}
+            }
+        }
+    } else {
+        panic!("cycle detected");
+    }
 }
 
 fn topo(
@@ -354,43 +402,6 @@ pub fn split(shape: &mut Vec<Rc<RefCell<Iter>>>, axis: usize, factor: PrimeExpr)
         .borrow_mut()
         .push_child(Rc::new(RefCell::new(inner)));
 }
-
-pub fn generate_indices(
-    map: &HashMap<usize, Rc<RefCell<Iter>>>,
-    edges: &HashMap<usize, Vec<usize>>
-) -> Vec<PrimeExpr> {
-    for (id, iter) in map.iter() {
-        if iter.borrow().childs().len() == 0 {
-            match &*iter.borrow() {
-                Iter::IterVar(iter_var) => {
-                    let parent = iter_var.parent.as_ref().unwrap();
-                    match &*parent.borrow() {
-                        Iter::IterVar(parent) => {}
-                        Iter::FuseVar(parent) => {}
-                    }
-                }
-                Iter::FuseVar(fused) => {
-                    let rhs = fused.rhs.borrow().end().clone();
-                    let rhs_expr = &fused.var.to_prime_expr() % &rhs;
-                    let lhs_expr = fused.var.to_prime_expr().floor_div(&rhs);
-                    let edge = &edges[id];
-                    let lhs_id = edge[0];
-                    let rhs_id = edge[1];
-                    fused_forward_helper(rhs_expr, rhs_id, map, edges);
-                    fused_forward_helper(lhs_expr, lhs_id, map, edges);
-                }
-            }
-        }
-    }
-    todo!()
-}
-
-pub fn fused_forward_helper(
-    expr: PrimeExpr,
-    id: usize,
-    map: &HashMap<usize, Rc<RefCell<Iter>>>,
-    edges: &HashMap<usize, Vec<usize>>
-) {}
 
 pub fn print_available_axes(available_axes: &Vec<Rc<RefCell<Iter>>>) {
     print!("available_axes: [");

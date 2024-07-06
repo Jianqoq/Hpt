@@ -345,6 +345,13 @@ impl Add {
     pub fn e2_(&self) -> &Arc<PrimeExpr> {
         &self.e2
     }
+    pub fn set_e1<A: Into<PrimeExpr>>(&mut self, e1: A) {
+        self.e1 = e1.into().into();
+    }
+
+    pub fn set_e2<A: Into<PrimeExpr>>(&mut self, e2: A) {
+        self.e2 = e2.into().into();
+    }
 }
 
 impl Accepter for Add {
