@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
+use std::sync::Arc;
 use crate::hlir::schedule::iter::collect_available_axes;
 use hashbrown::{ HashMap, HashSet };
 use crate::hlir::schedule::iter::print_available_axes;
@@ -107,7 +108,7 @@ impl Schedule {
         }
         self.records.push_back(tensor.clone());
     }
-    pub fn lower(&mut self) {
+    pub fn lower(&mut self) -> HashMap<Arc<String>, Temp> {
         let mut ret = HashMap::new();
 
         for (t, tmp) in self.temps_map.iter() {
@@ -128,51 +129,22 @@ impl Schedule {
                     Transforms::Split(name, axis, inner_loop_size) => {
                         if let Some(temp) = ret.get_mut(&name) {
                             split(&mut temp.shape, axis, inner_loop_size);
-                            print_available_axes(
-                                &collect_available_axes(&temp.shape, &mut HashSet::new())
-                            );
-                            let mut groups = vec![];
-                            pack_groups(&temp.shape, &mut HashSet::new(), &mut groups, true);
-                            let mut vec = Vec::<HashMap<usize, Rc<RefCell<Iter>>>>::new();
-                            for group in groups {
-                                let mut m = HashMap::new();
-                                let mut cnt = 0;
-                                let mut visited = HashSet::new();
-                                for root in group {
-                                    let root = temp.shape[root].clone();
-                                    let mut stack = vec![root];
-                                    while let Some(node) = stack.pop() {
-                                        for child in node.borrow().childs() {
-                                            let ptr = child.as_ptr();
-                                            if visited.contains(&ptr) {
-                                                continue;
-                                            } else {
-                                                visited.insert(ptr);
-                                            }
-                                            m.insert(cnt, child.clone());
-                                            cnt += 1;
-                                            stack.push(child.clone());
-                                        }
-                                    }
-                                }
-                                vec.push(m);
-                            }
-                            for m in vec {
-                                for (k, v) in m.iter() {
-                                    println!("{}: {}", k, v.borrow().var());
-                                }
-                            }
+                            // print_available_axes(
+                            //     &collect_available_axes(&temp.shape, &mut HashSet::new())
+                            // );
+                            // let mut groups = vec![];
+                            // pack_groups(&temp.shape, &mut HashSet::new(), &mut groups, true);
                         }
                     }
                     Transforms::Fuse(name, axis1, axis2) => {
                         if let Some(temp) = ret.get_mut(&name) {
                             fuse(&mut temp.shape, axis1, axis2);
-                            print_available_axes(
-                                &collect_available_axes(&temp.shape, &mut HashSet::new())
-                            );
-                            let mut groups = vec![];
-                            pack_groups(&temp.shape, &mut HashSet::new(), &mut groups, true);
-                            println!("{:?}", groups);
+                            // print_available_axes(
+                            //     &collect_available_axes(&temp.shape, &mut HashSet::new())
+                            // );
+                            // let mut groups = vec![];
+                            // pack_groups(&temp.shape, &mut HashSet::new(), &mut groups, true);
+                            // println!("{:?}", groups);
                         }
                     }
                     Transforms::ComputeAt(target, axis) => {}
@@ -183,9 +155,7 @@ impl Schedule {
                 panic!("Schedule::lower: temp does not exist in temps_map");
             }
         }
-        for (t, tmp) in ret.iter() {
-            println!("{}: {}", t, tmp.body);
-        }
+        ret
     }
 }
 
@@ -193,7 +163,7 @@ impl Schedule {
 mod tests {
     use tensor_types::dtype::Dtype;
 
-    use crate::{ halide::variable::Variable, hlir::tensor::compute };
+    use crate::{ halide::variable::Variable, hlir::{schedule::iter::gen_edges, tensor::compute} };
 
     use super::*;
 
@@ -260,10 +230,15 @@ mod tests {
 
         let mut schedule = Schedule::create(&[&a, &c]);
         schedule.fuse(&c, 0, 1);
+        schedule.split(&c, 1, 16);
         schedule.fuse(&c, 0, 1);
         schedule.split(&c, 0, 16);
-        schedule.split(&c, 0, 32);
-        schedule.lower();
+        // schedule.split(&c, 3, 32);
+        // schedule.split(&c, 3, 48);
+        // schedule.split(&c, 5, 64);
+        // schedule.fuse(&c, 2, 3);
+        let map = schedule.lower();
+        gen_edges(&map.get(&Arc::new("C".to_string())).unwrap().shape);
     }
 
     #[test]

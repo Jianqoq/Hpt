@@ -1,12 +1,13 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
-use std::{ cell::RefCell, fmt::{ Debug, Display }, rc::Rc, sync::Arc };
+use std::{ cell::RefCell, collections::VecDeque, fmt::{ Debug, Display }, rc::Rc, sync::Arc };
 
 use hashbrown::{ HashMap, HashSet };
 use tensor_types::dtype::Dtype;
 
 use crate::{
+    edges::Edges,
     halide::{ exprs::Int, prime_expr::PrimeExpr, variable::Variable },
     to_prim_expr::ToPrimeExpr,
 };
@@ -128,6 +129,95 @@ impl Iter {
     }
 }
 
+pub fn gen_edges(shape: &Vec<Rc<RefCell<Iter>>>) {
+    let mut m = HashMap::new();
+    let mut m_inv = HashMap::new();
+    let mut cnt = 0usize;
+    let mut visited = HashSet::new();
+    let mut edges = Edges::new();
+    for root in shape.iter() {
+        let mut stack = vec![root.clone()];
+        while let Some(node) = stack.pop() {
+            m.insert(cnt, node.clone());
+            m_inv.insert(node.as_ptr(), cnt);
+            cnt += 1;
+            for child in node.borrow().childs() {
+                let ptr = child.as_ptr();
+                if visited.contains(&ptr) {
+                    continue;
+                } else {
+                    visited.insert(ptr);
+                }
+                stack.push(child.clone());
+            }
+        }
+    }
+    for (k, v) in m.iter() {
+        let childs = v.borrow().childs_();
+        edges
+            .entry(*k)
+            .or_insert(HashSet::new())
+            .extend(childs.iter().map(|x| m_inv.get(&x.as_ptr()).unwrap().clone()));
+    }
+    println!("{:#?}", edges);
+    for (k, v) in m.iter() {
+        println!("{}: {}", k, v.borrow().var());
+    }
+    let sorted = topo(&edges, &m);
+    println!("{:?}", sorted);
+}
+
+fn topo(
+    edges: &Edges<usize>,
+    nodes: &HashMap<usize, Rc<RefCell<Iter>>>
+) -> Option<VecDeque<usize>> {
+    let mut in_degree = HashMap::new();
+    let mut queue = VecDeque::new();
+    let mut order = VecDeque::new();
+    let edges = edges.invert();
+    // calculate in degree
+    for (&node_id, _) in nodes.iter() {
+        in_degree.entry(node_id).or_insert(0);
+        let edges = edges.get(&node_id);
+        if let Some(edges) = edges {
+            for &target in edges {
+                *in_degree.entry(target).or_insert(0) += 1;
+            }
+        }
+    }
+
+    // push nodes with in degree 0 to queue
+    for (&node_id, &degree) in &in_degree {
+        if degree == 0 {
+            queue.push_back(node_id);
+        }
+    }
+
+    // topological sort
+    while let Some(node_id) = queue.pop_front() {
+        order.push_back(node_id);
+        if let Some(_) = nodes.get(&node_id) {
+            let edges = edges.get(&node_id);
+            if let Some(edges) = edges {
+                for &target in edges {
+                    let degree = in_degree.get_mut(&target).unwrap();
+                    *degree -= 1;
+                    if *degree == 0 {
+                        queue.push_back(target);
+                    }
+                }
+            }
+        }
+    }
+
+    // check if there is a cycle
+    if order.len() == nodes.len() {
+        Some(order)
+    } else {
+        None // cycle detected
+    }
+}
+
 pub fn collect_available_axes(
     shape: &Vec<Rc<RefCell<Iter>>>,
     visited: &mut HashSet<*mut Iter>
@@ -204,7 +294,7 @@ pub fn pack_groups(
 
 pub fn fuse(shape: &mut Vec<Rc<RefCell<Iter>>>, axis1: usize, axis2: usize) {
     let mut available_axes = collect_available_axes(shape, &mut HashSet::new());
-    print_available_axes(&available_axes);
+    // print_available_axes(&available_axes);
     let fused = Iter::FuseVar(FuseVar {
         lhs: available_axes[axis1].clone(),
         rhs: available_axes[axis2].clone(),
@@ -227,7 +317,7 @@ pub fn fuse(shape: &mut Vec<Rc<RefCell<Iter>>>, axis1: usize, axis2: usize) {
 
 pub fn split(shape: &mut Vec<Rc<RefCell<Iter>>>, axis: usize, factor: PrimeExpr) {
     let mut available_axes = collect_available_axes(shape, &mut HashSet::new());
-    print_available_axes(&available_axes);
+    // print_available_axes(&available_axes);
     let (outer, inner) = {
         let parent = available_axes[axis].borrow();
         match &*parent {
@@ -275,12 +365,8 @@ pub fn generate_indices(
                 Iter::IterVar(iter_var) => {
                     let parent = iter_var.parent.as_ref().unwrap();
                     match &*parent.borrow() {
-                        Iter::IterVar(parent) => {
-
-                        },
-                        Iter::FuseVar(parent) => {
-                            
-                        },
+                        Iter::IterVar(parent) => {}
+                        Iter::FuseVar(parent) => {}
                     }
                 }
                 Iter::FuseVar(fused) => {
