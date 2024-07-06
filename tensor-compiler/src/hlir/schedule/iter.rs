@@ -317,7 +317,11 @@ pub fn gen_edges(shape: &Vec<Rc<RefCell<Iter>>>) {
                         }
                     }
                 }
-                Iter::FuseVar(fused) => {}
+                Iter::FuseVar(fused) => {
+                    let lhs = m_inv[&fused.lhs.as_ptr()];
+                    let rhs = m_inv[&fused.rhs.as_ptr()];
+                    
+                }
             }
         }
     } else {
