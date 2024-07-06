@@ -8,7 +8,7 @@ use tensor_types::dtype::Dtype;
 
 use crate::{
     edges::Edges,
-    halide::{ exprs::{ Add, Int, Mul }, prime_expr::PrimeExpr, variable::Variable },
+    halide::{ exprs::{ Add, FloorDiv, Int, Mod, Mul }, prime_expr::PrimeExpr, variable::Variable },
     to_prim_expr::ToPrimeExpr,
 };
 #[derive(Clone)]
@@ -27,7 +27,8 @@ impl IterVar {
         name: A,
         start: B,
         end: C,
-        step: D
+        step: D,
+        parent: Option<Rc<RefCell<Iter>>>
     ) -> Self {
         IterVar {
             var: name.into(),
@@ -36,7 +37,7 @@ impl IterVar {
             step: step.into(),
             stride: (1).into(),
             childs: vec![].into(),
-            parent: None,
+            parent,
         }
     }
 }
@@ -181,23 +182,23 @@ pub fn gen_edges(shape: &Vec<Rc<RefCell<Iter>>>) {
                                 // check node is lhs of parent children or rhs of parent children
                                 let is_rhs = parent_childs[1].as_ptr() == node.as_ptr();
                                 let key = m_inv[&parent.as_ptr()];
-                                if let Some(node_expr) = expr_map.get(&m_inv[&node.as_ptr()]) {
+                                if let Some(node_expr) = expr_map.get(&i) {
                                     let node_expr = node_expr.clone();
-                                    if let Some(expr) = expr_map.get_mut(&key) {
-                                        assert!(expr.is_add());
+                                    if let Some(parent_expr) = expr_map.get_mut(&key) {
+                                        assert!(parent_expr.is_add());
                                         // it has been visited
                                         if is_rhs {
                                             // rhs_expr is ready, and since the expr is add, the rhs must be None
-                                            assert!(expr.to_add().unwrap().e2().is_none());
-                                            let mut to_add = expr.to_add().unwrap().clone();
+                                            assert!(parent_expr.to_add().unwrap().e2().is_none());
+                                            let mut to_add = parent_expr.to_add().unwrap().clone();
                                             to_add.set_e2(node_expr);
-                                            *expr = to_add.into();
+                                            *parent_expr = to_add.into();
                                         } else {
                                             // lhs_expr is ready, and since the expr is add, the lhs must be None
-                                            assert!(expr.to_add().unwrap().e1().is_none());
-                                            let mut to_add = expr.to_add().unwrap().clone();
+                                            assert!(parent_expr.to_add().unwrap().e1().is_none());
+                                            let mut to_add = parent_expr.to_add().unwrap().clone();
                                             to_add.set_e1(node_expr);
-                                            *expr = to_add.into();
+                                            *parent_expr = to_add.into();
                                         }
                                     } else {
                                         if is_rhs {
@@ -216,7 +217,7 @@ pub fn gen_edges(shape: &Vec<Rc<RefCell<Iter>>>) {
                                         if is_rhs {
                                             assert!(expr.to_add().unwrap().e2().is_none());
                                             let mut to_add = expr.to_add().unwrap().clone();
-                                            to_add.set_e2(node.borrow().end().clone());
+                                            to_add.set_e2(node.borrow().var().clone());
                                             *expr = to_add.into();
                                         } else {
                                             assert!(expr.to_add().unwrap().e1().is_none());
@@ -230,7 +231,7 @@ pub fn gen_edges(shape: &Vec<Rc<RefCell<Iter>>>) {
                                         if is_rhs {
                                             let add = Add::make(
                                                 PrimeExpr::None,
-                                                node.borrow().end().clone()
+                                                node.borrow().var().clone()
                                             );
                                             expr_map.insert(key, add.into());
                                         } else {
@@ -251,7 +252,7 @@ pub fn gen_edges(shape: &Vec<Rc<RefCell<Iter>>>) {
                                 // check node is lhs of parent children or rhs of parent children
                                 let is_rhs = parent_childs[1].as_ptr() == node.as_ptr();
                                 let key = m_inv[&parent.as_ptr()];
-                                if let Some(node_expr) = expr_map.get(&m_inv[&node.as_ptr()]) {
+                                if let Some(node_expr) = expr_map.get(&i) {
                                     let node_expr = node_expr.clone();
                                     if let Some(expr) = expr_map.get_mut(&key) {
                                         assert!(expr.is_add());
@@ -286,7 +287,7 @@ pub fn gen_edges(shape: &Vec<Rc<RefCell<Iter>>>) {
                                         if is_rhs {
                                             assert!(expr.to_add().unwrap().e2().is_none());
                                             let mut to_add = expr.to_add().unwrap().clone();
-                                            to_add.set_e2(node.borrow().end().clone());
+                                            to_add.set_e2(node.borrow().var());
                                             *expr = to_add.into();
                                         } else {
                                             assert!(expr.to_add().unwrap().e1().is_none());
@@ -320,12 +321,37 @@ pub fn gen_edges(shape: &Vec<Rc<RefCell<Iter>>>) {
                 Iter::FuseVar(fused) => {
                     let lhs = m_inv[&fused.lhs.as_ptr()];
                     let rhs = m_inv[&fused.rhs.as_ptr()];
-                    
+
+                    // because we are using topo order, lhs and rhs must not be visited
+                    assert!(expr_map.get_mut(&lhs).is_none());
+                    assert!(expr_map.get_mut(&rhs).is_none());
+                    let lhs_expr;
+                    let rhs_expr;
+                    if let Some(node_expr) = expr_map.get(&i) {
+                        lhs_expr = FloorDiv::make(
+                            &node_expr,
+                            m[&rhs].borrow().end().clone()
+                        ).into();
+                        rhs_expr = node_expr % m[&rhs].borrow().end();
+                    } else {
+                        // current node doesn't have accumulated expr, based on the topo order, it must be a leaf node
+                        assert!(node.borrow().childs().len() == 0);
+                        lhs_expr = FloorDiv::make(
+                            &fused.var,
+                            m[&rhs].borrow().end().clone()
+                        ).into();
+                        rhs_expr = Mod::make(&fused.var, m[&rhs].borrow().end()).into();
+                    }
+                    expr_map.insert(rhs, rhs_expr);
+                    expr_map.insert(lhs, lhs_expr);
                 }
             }
         }
     } else {
         panic!("cycle detected");
+    }
+    for (k, v) in expr_map.iter() {
+        println!("{}: {}", k, v);
     }
 }
 
@@ -486,20 +512,44 @@ pub fn split(shape: &mut Vec<Rc<RefCell<Iter>>>, axis: usize, factor: PrimeExpr)
             Iter::IterVar(var) => {
                 let end = (&var.end + (&factor - 1)).floor_div(&factor);
                 let outer = Iter::IterVar(
-                    IterVar::make(format!("{}_outer", var.var), &var.start, end, 1)
+                    IterVar::make(
+                        format!("{}_outer", var.var),
+                        &var.start,
+                        end,
+                        1,
+                        Some(available_axes[axis].clone())
+                    )
                 );
                 let inner = Iter::IterVar(
-                    IterVar::make(format!("{}_inner", var.var), 0, factor, 1)
+                    IterVar::make(
+                        format!("{}_inner", var.var),
+                        0,
+                        factor,
+                        1,
+                        Some(available_axes[axis].clone())
+                    )
                 );
                 (outer, inner)
             }
             Iter::FuseVar(var) => {
                 let end = (&var.end + (&factor - 1)).floor_div(&factor);
                 let outer = Iter::IterVar(
-                    IterVar::make(format!("{}_outer", var.var), &var.start, end, 1)
+                    IterVar::make(
+                        format!("{}_outer", var.var),
+                        &var.start,
+                        end,
+                        1,
+                        Some(available_axes[axis].clone())
+                    )
                 );
                 let inner = Iter::IterVar(
-                    IterVar::make(format!("{}_inner", var.var), 0, factor, 1)
+                    IterVar::make(
+                        format!("{}_inner", var.var),
+                        0,
+                        factor,
+                        1,
+                        Some(available_axes[axis].clone())
+                    )
                 );
                 (outer, inner)
             }
@@ -532,11 +582,11 @@ mod tests {
 
     #[test]
     fn test_iter_var() {
-        let i = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("i", 0, 10, 1))));
-        let j = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("j", 0, 10, 1))));
-        let k = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("k", 0, 10, 1))));
-        let l = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("l", 0, 10, 1))));
-        let m = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("m", 0, 10, 1))));
+        let i = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("i", 0, 10, 1, None))));
+        let j = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("j", 0, 10, 1, None))));
+        let k = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("k", 0, 10, 1, None))));
+        let l = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("l", 0, 10, 1, None))));
+        let m = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("m", 0, 10, 1, None))));
         let mut shape = vec![i, j, k, l, m];
         fuse(&mut shape, 1, 2);
         fuse(&mut shape, 1, 2);
@@ -546,11 +596,11 @@ mod tests {
 
     #[test]
     fn test_split() {
-        let i = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("i", 0, 10, 1))));
-        let j = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("j", 0, 10, 1))));
-        let k = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("k", 0, 10, 1))));
-        let l = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("l", 0, 10, 1))));
-        let m = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("m", 0, 10, 1))));
+        let i = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("i", 0, 10, 1, None))));
+        let j = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("j", 0, 10, 1, None))));
+        let k = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("k", 0, 10, 1, None))));
+        let l = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("l", 0, 10, 1, None))));
+        let m = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("m", 0, 10, 1, None))));
         let mut shape = vec![i, j, k, l, m];
         split(&mut shape, 1, (2).into());
         split(&mut shape, 1, (2).into());
@@ -559,11 +609,11 @@ mod tests {
 
     #[test]
     fn test_mix() {
-        let i = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("i", 0, 10, 1))));
-        let j = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("j", 0, 10, 1))));
-        let k = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("k", 0, 10, 1))));
-        let l = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("l", 0, 10, 1))));
-        let m = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("m", 0, 10, 1))));
+        let i = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("i", 0, 10, 1, None))));
+        let j = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("j", 0, 10, 1, None))));
+        let k = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("k", 0, 10, 1, None))));
+        let l = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("l", 0, 10, 1, None))));
+        let m = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("m", 0, 10, 1, None))));
         let mut shape = vec![i, j, k, l, m];
         fuse(&mut shape, 0, 1);
         fuse(&mut shape, 0, 1);

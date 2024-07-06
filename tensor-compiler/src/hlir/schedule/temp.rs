@@ -28,7 +28,7 @@ impl From<Tensor> for Temp {
                 .iter()
                 .map(|x| {
                     let x = x.to_iter_var().unwrap();
-                    Rc::new(RefCell::new(Iter::IterVar(IterVar::make(x.var(), x.start(), x.end(), x.step()))))
+                    Rc::new(RefCell::new(Iter::IterVar(IterVar::make(x.var(), x.start(), x.end(), x.step(), None))))
                 })
                 .collect(),
             strides: original.strides().clone(),
@@ -52,7 +52,7 @@ impl From<&Tensor> for Temp {
                 .iter()
                 .map(|x| {
                     let x = x.to_iter_var().unwrap();
-                    Rc::new(RefCell::new(Iter::IterVar(IterVar::make(x.var(), x.start(), x.end(), x.step()))))
+                    Rc::new(RefCell::new(Iter::IterVar(IterVar::make(x.var(), x.start(), x.end(), x.step(), None))))
                 })
                 .collect(),
             strides: original.strides().clone(),
