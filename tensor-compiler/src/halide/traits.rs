@@ -1,4 +1,4 @@
-use crate::{ hlir::tensor_slice::TensorSlice, iter_var::{ Fused, IterVar, Splitted, _IterVar } };
+use crate::{ hlir::tensor_slice::TensorSlice, iter_var::IterVar };
 
 use super::{
     assign_stmt::AssignStmt,
@@ -938,59 +938,14 @@ pub(crate) fn visit_assign<V>(visitor: &mut V, assign: &AssignStmt)
 fn mutate_iter_var<V>(visitor: &mut V, var: &IterVar) -> IterVar
     where V: MutatorGetSet + Sized + IRMutateVisitor
 {
-    match var {
-        IterVar::IterVar(var) => {
-            let new_start = visitor.mutate_expr(var.start());
-            let new_end = visitor.mutate_expr(var.end());
-            let new_step = visitor.mutate_expr(var.step());
-            let new_var = visitor.mutate_expr(&var.var().into());
-            if &new_start == var.start() && &new_end == var.end() && &new_step == var.step() {
-                IterVar::IterVar(var.clone())
-            } else {
-                IterVar::IterVar(
-                    _IterVar::new(
-                        new_start,
-                        new_end,
-                        new_step,
-                        new_var.to_variable().unwrap().clone()
-                    )
-                )
-            }
-        }
-        IterVar::Splitted(var) => {
-            let outer = mutate_iter_var(visitor, &var.outer);
-            let inner = mutate_iter_var(visitor, &var.inner);
-            let factor = mutate_expr(visitor, &var.factor);
-            let new_var = visitor.mutate_expr(&var.var.clone().into());
-            if
-                &outer == var.outer.as_ref() &&
-                &factor == &var.factor &&
-                &inner == var.inner.as_ref() &&
-                &new_var == &var.var.clone().into()
-            {
-                IterVar::Splitted(var.clone())
-            } else {
-                IterVar::Splitted(
-                    Splitted::new(outer, inner, factor, new_var.to_variable().unwrap().clone())
-                )
-            }
-        }
-        IterVar::Fused(fused) => {
-            let new_axis1 = mutate_iter_var(visitor, &fused.axis1);
-            let new_axis2 = mutate_iter_var(visitor, &fused.axis2);
-            let new_var = visitor.mutate_expr(&fused.var.clone().into());
-            if
-                &new_axis1 == fused.axis1.as_ref() &&
-                &new_axis2 == fused.axis2.as_ref() &&
-                &new_var == &fused.var.clone().into()
-            {
-                IterVar::Fused(fused.clone())
-            } else {
-                IterVar::Fused(
-                    Fused::new(new_axis1, new_axis2, new_var.to_variable().unwrap().clone())
-                )
-            }
-        }
+    let new_start = visitor.mutate_expr(var.start());
+    let new_end = visitor.mutate_expr(var.end());
+    let new_step = visitor.mutate_expr(var.step());
+    let new_var = visitor.mutate_expr(&var.var().into());
+    if &new_start == var.start() && &new_end == var.end() && &new_step == var.step() {
+        var.clone()
+    } else {
+        IterVar::new(new_start, new_end, new_step, new_var.to_variable().unwrap().clone())
     }
 }
 

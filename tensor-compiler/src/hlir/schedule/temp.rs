@@ -13,6 +13,7 @@ pub struct Temp {
     pub(crate) body: PrimeExpr,
     pub(crate) name: Arc<String>,
     pub(crate) inputs: Vec<TensorSlice>,
+    pub(crate) saved_shape_order: Vec<usize>,
     pub(crate) original: Arc<Tensor>,
     pub(crate) dtype: Dtype,
     pub(crate) transforms: VecDeque<Transforms>,
@@ -27,8 +28,13 @@ impl From<Tensor> for Temp {
                 .shape()
                 .iter()
                 .map(|x| {
-                    let x = x.to_iter_var().unwrap();
-                    Rc::new(RefCell::new(Iter::IterVar(IterVar::make(x.var(), x.start(), x.end(), x.step(), None))))
+                    Rc::new(
+                        RefCell::new(
+                            Iter::IterVar(
+                                IterVar::make(x.var(), x.start(), x.end(), x.step(), None)
+                            )
+                        )
+                    )
                 })
                 .collect(),
             strides: original.strides().clone(),
@@ -36,6 +42,7 @@ impl From<Tensor> for Temp {
             name: Arc::new(tensor.name().to_string()),
             inputs: tensor.inputs().clone(),
             dtype,
+            saved_shape_order: (0..original.ndim()).collect(),
             original,
             transforms: VecDeque::new(),
         }
@@ -51,8 +58,13 @@ impl From<&Tensor> for Temp {
                 .shape()
                 .iter()
                 .map(|x| {
-                    let x = x.to_iter_var().unwrap();
-                    Rc::new(RefCell::new(Iter::IterVar(IterVar::make(x.var(), x.start(), x.end(), x.step(), None))))
+                    Rc::new(
+                        RefCell::new(
+                            Iter::IterVar(
+                                IterVar::make(x.var(), x.start(), x.end(), x.step(), None)
+                            )
+                        )
+                    )
                 })
                 .collect(),
             strides: original.strides().clone(),
@@ -60,6 +72,7 @@ impl From<&Tensor> for Temp {
             name: Arc::new(tensor.name().to_string()),
             inputs: tensor.inputs().clone(),
             dtype,
+            saved_shape_order: (0..original.ndim()).collect(),
             original,
             transforms: VecDeque::new(),
         }

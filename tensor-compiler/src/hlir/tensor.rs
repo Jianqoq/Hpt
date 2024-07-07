@@ -22,17 +22,14 @@ use crate::{
         traits::{ Accepter, AccepterMut },
         variable::Variable,
     },
-    iter_var::{IterVar, _IterVar},
+    iter_var::IterVar,
     to_prim_expr::ToPrimeExpr,
 };
 use tensor_types::type_promote::FloatOut;
 use tensor_types::type_promote::BitWiseOut;
 use tensor_types::dtype::TypeCommon;
 
-use super::{
-    schedule::lowered::FindInputs,
-    tensor_slice::TensorSlice,
-};
+use super::{ schedule::lowered::FindInputs, tensor_slice::TensorSlice };
 
 pub fn dtype_inf(dtype: Dtype) -> PrimeExpr {
     match dtype {
@@ -128,16 +125,14 @@ macro_rules! impl_binops {
                 .zip(rhs_shape[rhs_start..].iter())
                 .enumerate()
                 .for_each(|(idx, (x, y))| {
-                    let x = x.to_iter_var().unwrap();
-                    let y = y.to_iter_var().unwrap();
                     if x.end() == &one {
-                        res_shape.push(y.into());
+                        res_shape.push(y.clone());
                         rhs_indices.push(idx + rhs_start);
                     } else if y.end() == &one {
-                        res_shape.push(x.into());
+                        res_shape.push(x.clone());
                         lhs_indices.push(idx + lhs_start);
                     } else if x.end() - x.start() == y.end() - x.start() {
-                        res_shape.push(x.into());
+                        res_shape.push(x.clone());
                         lhs_indices.push(idx + lhs_start);
                         rhs_indices.push(idx + rhs_start);
                     } else {
@@ -156,12 +151,12 @@ macro_rules! impl_binops {
                     let rhs_indices = rhs_indices.clone();
                     let lhs_indices = lhs_indices
                         .iter()
-                        .map(|x| indices[*x].clone())
-                        .collect::<Vec<_>>();
+                        .map(|x| indices[*x].var().clone().into())
+                        .collect::<Vec<PrimeExpr>>();
                     let rhs_indices = rhs_indices
                         .iter()
-                        .map(|x| indices[*x].clone())
-                        .collect::<Vec<_>>();
+                        .map(|x| indices[*x].var().clone().into())
+                        .collect::<Vec<PrimeExpr>>();
                     $op::make(inputs[0].slice(lhs_indices), inputs[1].slice(rhs_indices)).into()
                 }
             )
@@ -170,7 +165,7 @@ macro_rules! impl_binops {
 }
 
 impl Tensor {
-    pub fn axes(&self) ->&Vec<IterVar> {
+    pub fn axes(&self) -> &Vec<IterVar> {
         &self.shape
     }
     pub fn strides(&self) -> &Vec<usize> {
@@ -221,12 +216,12 @@ impl Tensor {
                     .into_iter()
                     .enumerate()
                     .filter(|(i, _)| !axes.contains(&i))
-                    .map(|(_, x)| x)
-                    .collect::<Vec<_>>();
+                    .map(|(_, x)| x.var().clone().into())
+                    .collect::<Vec<PrimeExpr>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
-                reduce_iter_var.set_var(var);
-                indices.push(reduce_iter_var.clone());
+                reduce_iter_var.set_var(var.clone());
+                indices.push(var.into());
                 sum([inputs[0].slice(indices)], &[&init], [reduce_iter_var])
             }
         )
@@ -252,12 +247,12 @@ impl Tensor {
                     .into_iter()
                     .enumerate()
                     .filter(|(i, _)| !axes.contains(&i))
-                    .map(|(_, x)| x)
-                    .collect::<Vec<_>>();
+                    .map(|(_, x)| x.var().clone().into())
+                    .collect::<Vec<PrimeExpr>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
-                reduce_iter_var.set_var(var);
-                indices.push(reduce_iter_var.clone());
+                reduce_iter_var.set_var(var.clone());
+                indices.push(var.into());
                 prod([inputs[0].slice(indices)], &[&init], [reduce_iter_var])
             }
         )
@@ -282,12 +277,12 @@ impl Tensor {
                     .into_iter()
                     .enumerate()
                     .filter(|(i, _)| !axes.contains(&i))
-                    .map(|(_, x)| x)
-                    .collect::<Vec<_>>();
+                    .map(|(_, x)| x.var().clone().into())
+                    .collect::<Vec<PrimeExpr>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
-                reduce_iter_var.set_var(var);
-                indices.push(reduce_iter_var.clone());
+                reduce_iter_var.set_var(var.clone());
+                indices.push(var.into());
                 argmax([inputs[0].slice(indices)], &[&init, &dtype_neg_inf(inputs[0].dtype)], [
                     reduce_iter_var,
                 ])
@@ -314,12 +309,12 @@ impl Tensor {
                     .into_iter()
                     .enumerate()
                     .filter(|(i, _)| !axes.contains(&i))
-                    .map(|(_, x)| x)
-                    .collect::<Vec<_>>();
+                    .map(|(_, x)| x.var().clone().into())
+                    .collect::<Vec<PrimeExpr>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
-                reduce_iter_var.set_var(var);
-                indices.push(reduce_iter_var.clone());
+                reduce_iter_var.set_var(var.clone());
+                indices.push(var.into());
                 argmin([inputs[0].slice(indices)], &[&init, &dtype_inf(inputs[0].dtype)], [
                     reduce_iter_var,
                 ])
@@ -346,12 +341,12 @@ impl Tensor {
                     .into_iter()
                     .enumerate()
                     .filter(|(i, _)| !axes.contains(&i))
-                    .map(|(_, x)| x)
-                    .collect::<Vec<_>>();
+                    .map(|(_, x)| x.var().clone().into())
+                    .collect::<Vec<PrimeExpr>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
-                reduce_iter_var.to_iter_var_mut().unwrap().set_var(var);
-                indices.push(reduce_iter_var.clone());
+                reduce_iter_var.set_var(var.clone());
+                indices.push(var.into());
                 max([inputs[0].slice(indices)], &[&dtype_neg_inf(inputs[0].dtype)], [
                     reduce_iter_var,
                 ])
@@ -378,12 +373,12 @@ impl Tensor {
                     .into_iter()
                     .enumerate()
                     .filter(|(i, _)| !axes.contains(&i))
-                    .map(|(_, x)| x)
-                    .collect::<Vec<_>>();
+                    .map(|(_, x)| x.var().clone().into())
+                    .collect::<Vec<PrimeExpr>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
-                reduce_iter_var.set_var(var);
-                indices.push(reduce_iter_var.clone());
+                reduce_iter_var.set_var(var.clone());
+                indices.push(var.into());
                 min([inputs[0].slice(indices)], &[&dtype_inf(inputs[0].dtype)], [reduce_iter_var])
             }
         )
@@ -423,19 +418,19 @@ impl Tensor {
             .map(|x| x.to_prime_expr())
             .enumerate()
             .map(|(i, x)| {
-                IterVar::IterVar(_IterVar::new(
+                IterVar::new(
                     Int::make(Dtype::I64, 0),
                     x,
                     Int::make(Dtype::I64, 1),
                     Variable::new(format!("ax{}", i))
-                ))
+                )
             })
             .collect::<Vec<_>>();
         let body = Load::make(
             Variable::new(tensor_name.clone()),
             iter_vars
                 .iter()
-                .map(|x| x.to_iter_var().unwrap().var().to_prime_expr())
+                .map(|x| x.var().to_prime_expr())
                 .reduce(|acc, x| acc + x)
                 .unwrap()
         ).into();
@@ -448,16 +443,12 @@ impl Tensor {
             dtype,
         }
     }
-    pub fn slice<T: IntoIterator<Item: Into<IterVar>>>(&self, indices: T) -> TensorSlice {
+    pub fn slice<T: IntoIterator<Item: Into<PrimeExpr>>>(&self, indices: T) -> TensorSlice {
         let indices = indices
             .into_iter()
             .map(|x| x.into())
-            .collect::<Vec<IterVar>>();
+            .collect::<Vec<PrimeExpr>>();
         assert!(indices.len() == self.ndim());
-        let indices = indices
-            .iter()
-            .map(|x| x.to_iter_var().unwrap().var().into())
-            .collect::<Vec<_>>();
         TensorSlice::make(self.name.clone(), indices)
     }
 }
@@ -482,18 +473,18 @@ pub fn compute<
     A: Into<Tensor> + Clone,
     C: Into<PrimeExpr>
     >(dtype: Dtype, res_shape: [T; N], inputs: [A; M], name: &str, op: F) -> Tensor
-    where F: Fn([Tensor; M], [IterVar; N]) -> C
+    where F: Fn([Tensor; M], [PrimeExpr; N]) -> C
 {
     let iter_vars = res_shape
         .iter()
         .enumerate()
         .map(|(i, x)| {
-            IterVar::IterVar(_IterVar::new(
+            IterVar::new(
                 Int::make(Dtype::I64, 0),
                 x.clone(),
                 Int::make(Dtype::I64, 1),
                 Variable::new(format!("ax{}", i))
-            ))
+            )
         })
         .collect::<Vec<_>>();
     let inputs = inputs
@@ -504,8 +495,8 @@ pub fn compute<
         inputs,
         iter_vars
             .iter()
-            .map(|x| x.clone())
-            .collect::<[IterVar; N]>()
+            .map(|x| x.var().clone().into())
+            .collect::<[PrimeExpr; N]>()
     );
     let mut input_visitor = FindInputs::new();
     let body: PrimeExpr = body.into();

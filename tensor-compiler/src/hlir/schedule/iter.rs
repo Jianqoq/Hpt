@@ -203,7 +203,11 @@ pub fn gen_indices(shape: &Vec<Rc<RefCell<Iter>>>) -> Vec<PrimeExpr> {
                                             let add = Add::make(PrimeExpr::None, node_expr);
                                             expr_map.insert(key, add.into());
                                         } else {
-                                            let add = Add::make(node_expr, PrimeExpr::None);
+                                            let rhs_end = parent_childs[1].borrow().end().clone();
+                                            let add = Add::make(
+                                                Mul::make(node_expr, rhs_end),
+                                                PrimeExpr::None
+                                            );
                                             expr_map.insert(key, add.into());
                                         }
                                     }
@@ -366,7 +370,9 @@ pub fn gen_indices(shape: &Vec<Rc<RefCell<Iter>>>) -> Vec<PrimeExpr> {
         }
     }
     ret.sort_by(|a, b| order[&a.0.as_ptr()].cmp(&order[&b.0.as_ptr()]));
-    ret.into_iter().map(|x| x.1).collect()
+    ret.into_iter()
+        .map(|x| x.1)
+        .collect()
 }
 
 fn topo(
@@ -444,58 +450,19 @@ pub fn collect_available_axes(
     available_axes
 }
 
-pub fn pack_groups(
-    shape: &Vec<Rc<RefCell<Iter>>>,
-    visited: &mut HashSet<*mut Iter>,
-    groups: &mut Vec<Vec<usize>>,
-    root: bool
+pub fn fuse(
+    shape: &mut Vec<Rc<RefCell<Iter>>>,
+    shape_order: &Vec<usize>,
+    axis1: usize,
+    axis2: usize
 ) {
-    for (idx, iter) in shape.iter().enumerate() {
-        if iter.borrow().childs().is_empty() {
-            let ptr = iter.as_ptr();
-            if visited.contains(&ptr) {
-                if root {
-                    if let Some(group) = groups.last_mut() {
-                        group.push(idx);
-                    }
-                }
-                continue;
-            } else {
-                if root {
-                    groups.push(vec![idx]);
-                }
-                visited.insert(ptr);
-            }
-        } else {
-            let childs = iter.borrow().childs_();
-            if childs.len() == 1 {
-                let child = childs.get(0).unwrap();
-                if visited.contains(&child.as_ptr()) {
-                    if root {
-                        if let Some(group) = groups.last_mut() {
-                            group.push(idx);
-                        }
-                    }
-                    continue;
-                } else {
-                    if root {
-                        groups.push(vec![idx]);
-                    }
-                    visited.insert(child.as_ptr());
-                }
-            } else {
-                assert!(childs.len() == 2, "only support fuse");
-                if root {
-                    groups.push(vec![idx]);
-                }
-            }
-            pack_groups(&iter.borrow().childs_(), visited, groups, false);
-        }
-    }
-}
-
-pub fn fuse(shape: &mut Vec<Rc<RefCell<Iter>>>, axis1: usize, axis2: usize) {
     let mut available_axes = collect_available_axes(shape, &mut HashSet::new());
+    let mut indices: Vec<_> = (0..available_axes.len()).collect();
+    indices.sort_by_key(|&i| shape_order[i]);
+    available_axes = indices
+        .iter()
+        .map(|&i| available_axes[i].clone())
+        .collect();
     // print_available_axes(&available_axes);
     let fused = Iter::FuseVar(FuseVar {
         lhs: available_axes[axis1].clone(),
@@ -517,8 +484,19 @@ pub fn fuse(shape: &mut Vec<Rc<RefCell<Iter>>>, axis1: usize, axis2: usize) {
     available_axes.get_mut(axis2).unwrap().borrow_mut().push_child(fused.clone());
 }
 
-pub fn split(shape: &mut Vec<Rc<RefCell<Iter>>>, axis: usize, factor: PrimeExpr) {
+pub fn split(
+    shape: &mut Vec<Rc<RefCell<Iter>>>,
+    shape_order: &Vec<usize>,
+    axis: usize,
+    factor: PrimeExpr
+) {
     let mut available_axes = collect_available_axes(shape, &mut HashSet::new());
+    let mut indices: Vec<_> = (0..available_axes.len()).collect();
+    indices.sort_by_key(|&i| shape_order[i]);
+    available_axes = indices
+        .iter()
+        .map(|&i| available_axes[i].clone())
+        .collect();
     // print_available_axes(&available_axes);
     let (outer, inner) = {
         let parent = available_axes[axis].borrow();
@@ -602,10 +580,10 @@ mod tests {
         let l = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("l", 0, 10, 1, None))));
         let m = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("m", 0, 10, 1, None))));
         let mut shape = vec![i, j, k, l, m];
-        fuse(&mut shape, 1, 2);
-        fuse(&mut shape, 1, 2);
-        fuse(&mut shape, 1, 2);
-        fuse(&mut shape, 0, 1);
+        fuse(&mut shape, &vec![], 1, 2);
+        fuse(&mut shape, &vec![], 1, 2);
+        fuse(&mut shape, &vec![], 1, 2);
+        fuse(&mut shape, &vec![], 0, 1);
     }
 
     #[test]
@@ -616,9 +594,9 @@ mod tests {
         let l = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("l", 0, 10, 1, None))));
         let m = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("m", 0, 10, 1, None))));
         let mut shape = vec![i, j, k, l, m];
-        split(&mut shape, 1, (2).into());
-        split(&mut shape, 1, (2).into());
-        split(&mut shape, 1, (2).into());
+        split(&mut shape, &vec![], 1, (2).into());
+        split(&mut shape, &vec![], 1, (2).into());
+        split(&mut shape, &vec![], 1, (2).into());
     }
 
     #[test]
@@ -629,9 +607,9 @@ mod tests {
         let l = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("l", 0, 10, 1, None))));
         let m = Rc::new(RefCell::new(Iter::IterVar(IterVar::make("m", 0, 10, 1, None))));
         let mut shape = vec![i, j, k, l, m];
-        fuse(&mut shape, 0, 1);
-        fuse(&mut shape, 0, 1);
-        split(&mut shape, 0, (32).into());
+        fuse(&mut shape, &vec![], 0, 1);
+        fuse(&mut shape, &vec![], 0, 1);
+        split(&mut shape, &vec![], 0, (32).into());
         print_available_axes(&collect_available_axes(&shape, &mut HashSet::new()));
     }
 }

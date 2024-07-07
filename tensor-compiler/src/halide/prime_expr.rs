@@ -294,6 +294,22 @@ impl std::ops::Add<&PrimeExpr> for PrimeExpr {
     }
 }
 
+impl std::ops::Add<i32> for &PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn add(self, rhs: i32) -> Self::Output {
+        PrimeExpr::Add(Add::make(self, rhs))
+    }
+}
+
+impl std::ops::Add<i32> for PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn add(self, rhs: i32) -> Self::Output {
+        PrimeExpr::Add(Add::make(self, rhs))
+    }
+}
+
 impl std::ops::Sub for PrimeExpr {
     type Output = PrimeExpr;
 

@@ -1,13 +1,11 @@
-use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::rc::Rc;
 use std::sync::Arc;
-use crate::hlir::schedule::iter::collect_available_axes;
-use hashbrown::{ HashMap, HashSet };
-use crate::hlir::schedule::iter::print_available_axes;
+use crate::halide::substitute::subsititue_expr::SubstituteExpr;
+use crate::halide::traits::{ AccepterMutate, MutatorGetSet };
+use hashbrown::HashMap;
 use crate::{ halide::prime_expr::PrimeExpr, hlir::tensor::Tensor, to_prim_expr::ToPrimeExpr };
-
-use super::iter::{ fuse, pack_groups, Iter };
+use crate::hlir::schedule::iter::gen_indices;
+use super::iter::fuse;
 use super::{ iter::split, temp::Temp, transforms::Transforms };
 
 pub struct Schedule {
@@ -81,14 +79,10 @@ impl Schedule {
         self.records.push_back(tensor.clone());
     }
 
-    pub fn reorder(&mut self, tensor: &Tensor, axes: &[&dyn ToPrimeExpr]) {
-        let axes = axes
-            .iter()
-            .map(|x| x.to_prime_expr())
-            .collect::<Vec<PrimeExpr>>();
+    pub fn reorder(&mut self, tensor: &Tensor, axes: &[usize]) {
         let temp = self.temps_map.get_mut(tensor);
         if let Some(temp) = temp {
-            temp.transforms.push_back(Transforms::Reorder(axes));
+            temp.transforms.push_back(Transforms::Reorder(temp.name.clone(), axes.to_vec()));
         } else {
             panic!("Schedule::reorder: tensor does not exist in temps_map");
         }
@@ -127,17 +121,76 @@ impl Schedule {
                         }
                     }
                     Transforms::Split(name, axis, inner_loop_size) => {
-                        if let Some(temp) = ret.get_mut(&name) {
-                            split(&mut temp.shape, axis, inner_loop_size);
+                        if let Some(_temp) = ret.get_mut(&name) {
+                            split(
+                                &mut _temp.shape,
+                                &_temp.saved_shape_order,
+                                axis,
+                                inner_loop_size
+                            );
+                            let indices = gen_indices(&_temp.shape);
+                            let mut subs_expr = SubstituteExpr::new();
+                            for (origin, new) in temp.shape.iter().zip(indices.iter()) {
+                                subs_expr.add_replacement(
+                                    origin.borrow().var().to_prime_expr(),
+                                    new.clone()
+                                );
+                            }
+                            temp.body.accept_mutate(&mut subs_expr);
+                            _temp.body = subs_expr.expr().clone();
+                            // update saved_shape_order
+                            let mut vec = vec![];
+                            for i in _temp.saved_shape_order.iter() {
+                                if *i < axis {
+                                    vec.push(*i);
+                                } else if *i == axis {
+                                    vec.push(*i);
+                                    vec.push(*i + 1);
+                                } else {
+                                    vec.push(*i + 1);
+                                }
+                            }
+                            _temp.saved_shape_order = vec;
                         }
                     }
                     Transforms::Fuse(name, axis1, axis2) => {
-                        if let Some(temp) = ret.get_mut(&name) {
-                            fuse(&mut temp.shape, axis1, axis2);
+                        if let Some(_temp) = ret.get_mut(&name) {
+                            fuse(&mut _temp.shape, &_temp.saved_shape_order, axis1, axis2);
+                            let indices = gen_indices(&_temp.shape);
+                            let mut subs_expr = SubstituteExpr::new();
+                            for (origin, new) in temp.shape.iter().zip(indices.iter()) {
+                                subs_expr.add_replacement(
+                                    origin.borrow().var().to_prime_expr(),
+                                    new.clone()
+                                );
+                            }
+                            temp.body.accept_mutate(&mut subs_expr);
+                            _temp.body = subs_expr.expr().clone();
+
+                            // update saved_shape_order
+                            let mut vec = vec![];
+                            for i in _temp.saved_shape_order.iter() {
+                                if *i < axis2 {
+                                    vec.push(*i);
+                                } else if *i == axis2 {
+                                    continue;
+                                } else {
+                                    vec.push(*i - 1);
+                                }
+                            }
+                            _temp.saved_shape_order = vec;
                         }
                     }
                     Transforms::ComputeAt(target, axis) => {}
-                    Transforms::Reorder(axes) => {}
+                    Transforms::Reorder(name, new_order) => {
+                        if let Some(_temp) = ret.get_mut(&name) {
+                            assert!(
+                                new_order.len() == _temp.saved_shape_order.len(),
+                                "Schedule::lower: new_order length must be equal to shape length"
+                            );
+                            _temp.saved_shape_order = new_order.clone();
+                        }
+                    }
                     Transforms::Tile(axes) => {}
                 }
             } else {
@@ -152,7 +205,10 @@ impl Schedule {
 mod tests {
     use tensor_types::dtype::Dtype;
 
-    use crate::{ halide::variable::Variable, hlir::{schedule::iter::gen_indices, tensor::compute} };
+    use crate::{
+        halide::variable::Variable,
+        hlir::{ schedule::iter::gen_indices, tensor::compute },
+    };
 
     use super::*;
 
@@ -214,7 +270,7 @@ mod tests {
         let a = Tensor::placeholder(&[&m, &n, &o, &p], Dtype::I64, "A");
 
         let c = compute(Dtype::BF16, [&n, &m, &o, &p], [&a], "C", |[a], [i, j, k, l]| {
-            a.slice([&i, &j, &k, &l])
+            a.slice([&i + 4, j, k, l])
         });
 
         let mut schedule = Schedule::create(&[&a, &c]);
@@ -227,10 +283,7 @@ mod tests {
         // schedule.split(&c, 5, 64);
         // schedule.fuse(&c, 2, 3);
         let map = schedule.lower();
-        let indices = gen_indices(&map.get(&Arc::new("C".to_string())).unwrap().shape);
-        for i in indices {
-            println!("{}", i);
-        }
+        println!("{}", map[c.name_()].body);
     }
 
     #[test]
@@ -246,5 +299,24 @@ mod tests {
         schedule.fuse(&c, 0, 1);
         schedule.split(&c, 0, 16);
         schedule.lower();
+    }
+
+    #[test]
+    fn test_reorder_split() {
+        let m = Variable::make("m");
+        let n = Variable::make("n");
+        let o = Variable::make("o");
+        let p = Variable::make("p");
+
+        let a = Tensor::placeholder(&[&m], Dtype::I64, "A");
+
+        let c = compute(Dtype::BF16, [&n], [&a], "C", |[a], [i]| { a.slice([i]) });
+
+        let mut schedule = Schedule::create(&[&a, &c]);
+        schedule.split(&c, 0, 16);
+        schedule.reorder(&c, &[1, 0]);
+        schedule.fuse(&c, 0, 1);
+        let map = schedule.lower();
+        println!("{}", map[c.name_()].body);
     }
 }

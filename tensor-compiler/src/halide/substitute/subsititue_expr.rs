@@ -2,7 +2,6 @@ use hashbrown::HashMap;
 
 use crate::halide::{
     prime_expr::PrimeExpr,
-    ir_cmp::expr_equal,
     let_stmt::LetStmt,
     stmt::Stmt,
     traits::{ mutate_expr, IRMutateVisitor, MutatorGetSet },
