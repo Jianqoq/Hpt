@@ -305,8 +305,6 @@ mod tests {
     fn test_reorder_split() {
         let m = Variable::make("m");
         let n = Variable::make("n");
-        let o = Variable::make("o");
-        let p = Variable::make("p");
 
         let a = Tensor::placeholder(&[&m], Dtype::I64, "A");
 
@@ -315,6 +313,7 @@ mod tests {
         let mut schedule = Schedule::create(&[&a, &c]);
         schedule.split(&c, 0, 16);
         schedule.reorder(&c, &[1, 0]);
+        schedule.split(&c, 0, 7);
         schedule.fuse(&c, 0, 1);
         let map = schedule.lower();
         println!("{}", map[c.name_()].body);
