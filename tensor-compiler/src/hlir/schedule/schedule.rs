@@ -308,11 +308,11 @@ mod tests {
 
         let a = Tensor::placeholder(&[&m], Dtype::I64, "A");
 
-        let c = compute(Dtype::BF16, [&n], [&a], "C", |[a], [i]| { a.slice([i]) });
+        let c = compute(Dtype::BF16, [&n, &m], [&a], "C", |[a], [i, _]| { a.slice([i]) });
 
         let mut schedule = Schedule::create(&[&a, &c]);
         schedule.split(&c, 0, 16);
-        schedule.reorder(&c, &[1, 0]);
+        schedule.reorder(&c, &[1, 0, 2]);
         schedule.split(&c, 0, 7);
         schedule.fuse(&c, 0, 1);
         let map = schedule.lower();

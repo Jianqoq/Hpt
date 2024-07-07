@@ -28,11 +28,15 @@ impl Into<PrimeExpr> for &TensorSlice {
 
 impl Display for TensorSlice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let load_strides = (0..self.dims.len()).map(|x| {
+            Load::make(format!("{}.strides", self.var.as_ref()), x)
+        });
         let load = Load::make(
             self.var.as_ref(),
             self.dims
                 .iter()
-                .map(|x| x.clone())
+                .zip(load_strides)
+                .map(|(x, strides)| x.clone() * strides.into())
                 .reduce(|x, y| x + y)
                 .unwrap()
         );
