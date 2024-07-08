@@ -117,6 +117,7 @@ impl FusedNode {
     }
 }
 
+#[derive(Clone)]
 pub struct Stage {
     pub(crate) freezed_root: RcMut<Vec<RcMut<Node>>>, // these are from the parent stage, we can't do split/fuse on them, they are only used to generate indices
     pub(crate) root: RcMut<Vec<RcMut<Node>>>,
@@ -284,14 +285,20 @@ impl Stage {
             .collect::<Vec<_>>();
     }
 
-    pub fn compute_inline(&self, stage: Stage, axes: &[RcMut<Node>]) -> Option<RcMut<Stage>> {
+    pub fn compute_inline(&self, stage: &Stage, axes: &[RcMut<Node>]) -> Option<RcMut<Stage>> {
         assert!(stage.freezed_root.borrow().len() == 0);
+        let stage = stage.clone();
         let mut freezed_root = vec![];
         for axis in axes {
             freezed_root.push(axis.clone());
         }
         *stage.freezed_root.borrow_mut() = freezed_root;
         let ret = Rc::new(RefCell::new(stage));
+        self.attached_stage
+            .borrow_mut()
+            .entry(axes.last().unwrap().as_ptr() as usize)
+            .or_insert(Vec::new())
+            .push(ret.clone());
         Some(ret)
     }
 
@@ -324,7 +331,7 @@ impl Stage {
             .iter()
             .map(|(node, _)| node.clone())
             .collect::<Vec<_>>();
-        for (attached_node, _) in self.attached_stage.borrow().iter() {
+        for (attached_node, stage) in self.attached_stage.borrow().iter() {
             let attached_node = self.address_map.borrow()[&*attached_node].clone();
             println!("attached_node: {}", attached_node.borrow().var());
         }
@@ -440,6 +447,19 @@ impl Schedule {
             panic!("Schedule::fuse: tensor does not exist in temps_map");
         }
     }
+    pub fn compute_inline(
+        &mut self,
+        tensor: &Tensor,
+        stage: &Stage,
+        axes: &[RcMut<Node>]
+    ) -> Option<RcMut<Stage>> {
+        let stages = self.stages.get_mut(tensor);
+        if let Some(stages) = stages {
+            stages.compute_inline(stage, axes)
+        } else {
+            panic!("Schedule::compute_inline: tensor does not exist in temps_map");
+        }
+    }
     pub fn reorder(&mut self, tensor: &Tensor, axes: &[&RcMut<Node>]) {
         let temp = self.stages.get_mut(tensor);
         if let Some(temp) = temp {
@@ -527,6 +547,8 @@ mod tests {
         s.reorder(&c, &[&inner, &outer, &s[&c].axis(2)]);
         let (outer, inner) = s.split(&c, &s[&c].axis(0), 7);
         s.fuse(&c, &outer, &inner);
+        let stage = s[&d].clone();
+        s.compute_inline(&c, &stage, &[s[&c].axis(1)]);
         s[&c].to_halide();
     }
 }
