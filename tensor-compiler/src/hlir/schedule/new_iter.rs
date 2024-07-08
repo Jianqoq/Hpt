@@ -1,13 +1,11 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
-use std::{ cell::RefCell, collections::VecDeque, rc::Rc, sync::Arc };
+use std::{ cell::RefCell, collections::VecDeque, ops::Index, rc::Rc, sync::Arc };
 
 use hashbrown::HashMap;
 
 use crate::{ halide::{ prime_expr::PrimeExpr, variable::Variable }, hlir::tensor::Tensor };
-
-use super::transforms::Transforms;
 
 pub type RcMut<T> = Rc<RefCell<T>>;
 
@@ -106,8 +104,9 @@ pub struct Stage {
     pub(crate) freezed_root: RcMut<Vec<RcMut<Node>>>, // these are from the parent stage, we can't do split/fuse on them, they are only used to generate indices
     pub(crate) root: RcMut<Vec<RcMut<Node>>>,
     pub(crate) seperator: RcMut<Vec<usize>>,
-    pub(crate) leaf_id: RcMut<HashMap<*mut Node, usize>>,
-    pub(crate) id_leaf: RcMut<HashMap<usize, *mut Node>>,
+    pub(crate) leaf_id: RcMut<HashMap<usize, usize>>,
+    pub(crate) id_leaf: RcMut<HashMap<usize, usize>>,
+    pub(crate) address_map: RcMut<HashMap<usize, RcMut<Node>>>,
     pub(crate) inserted_stage: RcMut<HashMap<*mut Node, Vec<RcMut<Stage>>>>,
     pub(crate) transforms: VecDeque<Transforms>,
     pub(crate) name: Arc<String>,
@@ -115,7 +114,12 @@ pub struct Stage {
 
 impl Stage {
     pub fn split(&self, axis: &RcMut<Node>, factor: PrimeExpr) -> (RcMut<Node>, RcMut<Node>) {
-        if self.leaf_id.borrow().get(&axis.as_ptr()).is_none() {
+        if
+            self.leaf_id
+                .borrow()
+                .get(&(axis.as_ptr() as usize))
+                .is_none()
+        {
             panic!("axis is not in this stage");
         }
         let (outer, inner) = {
@@ -172,14 +176,14 @@ impl Stage {
         axis.borrow_mut().push_child(outer.clone());
         axis.borrow_mut().push_child(inner.clone());
 
-        let axis_id = self.leaf_id.borrow()[&axis.as_ptr()];
+        let axis_id = self.leaf_id.borrow()[&(axis.as_ptr() as usize)];
         for i in self.leaf_id.borrow_mut().values_mut() {
             if *i > axis_id {
                 *i += 1;
             }
         }
-        self.leaf_id.borrow_mut().insert(outer.as_ptr(), axis_id);
-        self.leaf_id.borrow_mut().insert(inner.as_ptr(), axis_id + 1);
+        self.leaf_id.borrow_mut().insert(outer.as_ptr() as usize, axis_id);
+        self.leaf_id.borrow_mut().insert(inner.as_ptr() as usize, axis_id + 1);
         for (node_ptr, id) in self.leaf_id.borrow().iter() {
             self.id_leaf.borrow_mut().insert(*id, *node_ptr);
         }
@@ -187,8 +191,8 @@ impl Stage {
     }
 
     pub fn fuse(&self, axis1: &RcMut<Node>, axis2: &RcMut<Node>) -> RcMut<Node> {
-        let axis1_id = self.leaf_id.borrow()[&axis1.as_ptr()];
-        let axis2_id = self.leaf_id.borrow()[&axis2.as_ptr()];
+        let axis1_id = self.leaf_id.borrow()[&(axis1.as_ptr() as usize)];
+        let axis2_id = self.leaf_id.borrow()[&(axis2.as_ptr() as usize)];
         if axis1_id + 1 != axis2_id {
             panic!("axis1 and axis2 are not consecutive, axis1: {}, axis2: {}", axis1_id, axis2_id);
         }
@@ -208,9 +212,9 @@ impl Stage {
         let fused = Rc::new(RefCell::new(fused));
         axis1.borrow_mut().push_child(fused.clone());
         axis2.borrow_mut().push_child(fused.clone());
-        self.leaf_id.borrow_mut().remove(&axis1.as_ptr());
-        self.leaf_id.borrow_mut().remove(&axis2.as_ptr());
-        self.leaf_id.borrow_mut().insert(fused.as_ptr(), axis1_id);
+        self.leaf_id.borrow_mut().remove(&(axis1.as_ptr() as usize));
+        self.leaf_id.borrow_mut().remove(&(axis2.as_ptr() as usize));
+        self.leaf_id.borrow_mut().insert(fused.as_ptr() as usize, axis1_id);
         for id in self.leaf_id.borrow_mut().values_mut() {
             if *id > axis2_id {
                 *id -= 1;
@@ -226,7 +230,7 @@ impl Stage {
         // check if all axes are in the same zone
         let ids = axes
             .iter()
-            .map(|axis| self.leaf_id.borrow()[&axis.as_ptr()])
+            .map(|axis| self.leaf_id.borrow()[&(axis.as_ptr() as usize)])
             .collect::<Vec<_>>();
         if !all_elements_in_same_range(&ids, &self.seperator.borrow()) {
             panic!("axes are not in the same zone");
@@ -255,6 +259,17 @@ impl Stage {
 
     pub fn compute_root(&self) -> RcMut<Stage> {
         todo!()
+    }
+
+    pub fn axes(&self) -> Vec<RcMut<Node>> {
+        self.leaf_id
+            .borrow()
+            .iter()
+            .map(|(node_ptr, _)| { self.address_map.borrow()[&*node_ptr].clone() })
+            .collect()
+    }
+    pub fn axis(&self, id: usize) -> RcMut<Node> {
+        self.address_map.borrow()[&self.id_leaf.borrow()[&id].clone()].clone()
     }
 }
 
@@ -296,11 +311,15 @@ impl From<&Tensor> for Stage {
         let leaf_id = root
             .iter()
             .enumerate()
-            .map(|(idx, x)| { (x.as_ptr(), idx) })
+            .map(|(idx, x)| { (x.as_ptr() as usize, idx) })
             .collect::<HashMap<_, _>>();
         let id_leaf = leaf_id
             .iter()
             .map(|(x, y)| { (*y, *x) })
+            .collect::<HashMap<_, _>>();
+        let address_map = root
+            .iter()
+            .map(|x| { (x.as_ptr() as usize, x.clone()) })
             .collect::<HashMap<_, _>>();
         Stage {
             freezed_root: Rc::new(RefCell::new(vec![])),
@@ -311,6 +330,7 @@ impl From<&Tensor> for Stage {
             inserted_stage: Rc::new(RefCell::new(HashMap::new())),
             transforms: VecDeque::new(),
             name: Arc::new(value.name().to_string()),
+            address_map: Rc::new(RefCell::new(address_map)),
         }
     }
 }
@@ -335,26 +355,124 @@ impl Schedule {
         }
         schedule
     }
-    pub fn split(&mut self, tensor: &Tensor, axis: usize, inner_loop_size: impl Into<PrimeExpr>) {
+    pub fn split(
+        &mut self,
+        tensor: &Tensor,
+        axis: &RcMut<Node>,
+        inner_loop_size: impl Into<PrimeExpr>
+    ) -> (RcMut<Node>, RcMut<Node>) {
         let inner_loop_size = inner_loop_size.into();
         let stages = self.stages.get_mut(tensor);
         if let Some(stages) = stages {
-            stages.transforms.push_back(
-                Transforms::Split(stages.name.clone(), axis, inner_loop_size)
-            );
+            stages.split(axis, inner_loop_size)
         } else {
             panic!("Schedule::split: tensor does not exist in temps_map");
         }
-        self.records.push_back(tensor.clone());
     }
-
-    pub fn fuse(&mut self, tensor: &Tensor, axis1: usize, axis2: usize) {
+    pub fn fuse(
+        &mut self,
+        tensor: &Tensor,
+        axis1: &RcMut<Node>,
+        axis2: &RcMut<Node>
+    ) -> RcMut<Node> {
         let stages = self.stages.get_mut(tensor);
         if let Some(stages) = stages {
-            stages.transforms.push_back(Transforms::Fuse(stages.name.clone(), axis1, axis2));
+            stages.fuse(axis1, axis2)
         } else {
             panic!("Schedule::fuse: tensor does not exist in temps_map");
         }
-        self.records.push_back(tensor.clone());
+    }
+    pub fn reorder(&mut self, tensor: &Tensor, axes: &[&RcMut<Node>]) {
+        let temp = self.stages.get_mut(tensor);
+        if let Some(temp) = temp {
+            let axes = axes
+                .iter()
+                .map(|x| (*x).clone())
+                .collect::<Vec<_>>();
+            temp.reorder(&axes);
+        } else {
+            panic!("Schedule::reorder: tensor does not exist in temps_map");
+        }
+    }
+
+    pub fn execute_transforms(&mut self) {
+        while let Some(t) = self.records.pop_front() {
+            let stage = self.stages.get_mut(&t);
+            if let Some(stage) = stage {
+                let transform = stage.transforms
+                    .pop_front()
+                    .expect("Schedule::lower: transform is empty");
+                match transform {
+                    Transforms::Split(axis, inner_loop_size) => {
+                        stage.split(&axis, inner_loop_size);
+                    }
+                    Transforms::Fuse(axis1, axis2) => {
+                        stage.fuse(&axis1, &axis2);
+                    }
+                    Transforms::Reorder(axes) => {
+                        stage.reorder(&axes);
+                    }
+                    Transforms::Inline(_) => todo!(),
+                    Transforms::ComputeAt(_, _) => todo!(),
+                    Transforms::Tile(_) => todo!(),
+                }
+            } else {
+                panic!("Schedule::execute_transforms: tensor does not exist in temps_map");
+            }
+        }
+    }
+
+    pub fn to_hlide(&self) -> PrimeExpr {
+        todo!()
+    }
+}
+
+impl Index<&Tensor> for Schedule {
+    type Output = Stage;
+
+    fn index(&self, index: &Tensor) -> &Self::Output {
+        self.stages.get(index).expect("Schedule::index: tensor does not exist in temps_map")
+    }
+}
+
+#[derive(Clone)]
+pub enum Transforms {
+    Split(RcMut<Node>, PrimeExpr),
+    Fuse(RcMut<Node>, RcMut<Node>),
+    Reorder(Vec<RcMut<Node>>),
+    Inline(Arc<String>),
+    ComputeAt(Arc<String>, PrimeExpr),
+    Tile(Vec<PrimeExpr>),
+}
+
+#[cfg(test)]
+mod tests {
+    use tensor_types::dtype::Dtype;
+
+    use crate::hlir::tensor::compute;
+
+    use super::*;
+
+    #[test]
+    fn test_schedule_inline() {
+        let m = Variable::make("m");
+        let n = Variable::make("n");
+        let p = Variable::make("p");
+
+        let a = Tensor::placeholder(&[&m, &n], Dtype::I64, "A");
+
+        let c = compute(Dtype::BF16, [&n, &m], [&a], "C", |[a], [i, j]| {
+            a.slice([&i, &j]) + a.slice([&j, &i])
+        });
+        let d = compute(Dtype::BF16, [&m, &p], [&c], "D", |[c], [i, j]| {
+            c.slice([&i, &j]) + c.slice([&j, &i])
+        });
+
+        let mut schedule = Schedule::create(&[&a, &c, &d]);
+        let (outer, inner) = schedule.split(&c, &schedule[&c].axis(0), 16);
+        schedule.reorder(&c, &[&inner, &outer, &schedule[&c].axis(2)]);
+        let (outer, inner) = schedule.split(&c, &schedule[&c].axis(0), 7);
+        schedule.fuse(&c, &outer, &inner);
+        schedule.to_hlide();
     }
 }
