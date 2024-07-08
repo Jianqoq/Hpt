@@ -40,6 +40,7 @@ pub fn build_nested_for2<T: Into<Stmt>>(iter_vars: &[RcMut<Node>], main_stmt: T)
     build_recursive(0, iter_vars, main_stmt)
 }
 
+#[rustfmt::skip]
 pub fn build_nested_for3(stage: &Stage, mut main_stmt: Stmt) -> Stmt {
     let mut axes = stage.leaf_id
         .borrow()
@@ -54,12 +55,11 @@ pub fn build_nested_for3(stage: &Stage, mut main_stmt: Stmt) -> Stmt {
     let mut fors = None;
     for i in axes.iter() {
         if let Some(stages) = stage.attached_stage.borrow().get(&(i.as_ptr() as usize)) {
-            let mut stmt = Stmt::Seq(Seq::make::<Vec<Stmt>>(vec![]));
             for i in stages.iter() {
-                stmt = build_nested_for3(&*i.borrow(), stmt.into());
+                main_stmt = build_nested_for3(&*i.borrow(), main_stmt);
             }
             if fors.is_none() {
-                fors = Some(For::make(i.borrow().var(), i.borrow().start(), i.borrow().end(), stmt));
+                fors = Some(For::make(i.borrow().var(), i.borrow().start(), i.borrow().end(), Stmt::None));
             } else {
                 fors = Some(For::make(i.borrow().var(), i.borrow().start(), i.borrow().end(), Stmt::For(fors.unwrap())));
             }
@@ -71,5 +71,10 @@ pub fn build_nested_for3(stage: &Stage, mut main_stmt: Stmt) -> Stmt {
             }
         }
     }
-    todo!()
+    if let Some(fors) = fors {
+        main_stmt = Stmt::For(fors);
+    } else {
+        main_stmt = Stmt::None;
+    }
+    main_stmt
 }

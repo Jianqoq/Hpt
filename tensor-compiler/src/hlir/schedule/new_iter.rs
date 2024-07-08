@@ -7,7 +7,7 @@ use hashbrown::HashMap;
 
 use crate::{
     halide::{
-        loop_utils::build_nested::build_nested_for2,
+        loop_utils::build_nested::{build_nested_for2, build_nested_for3},
         prime_expr::PrimeExpr,
         printer::IRPrinter,
         stmt::Stmt,
@@ -321,21 +321,7 @@ impl Stage {
         self.address_map.borrow()[&self.id_leaf.borrow()[&id].clone()].clone()
     }
     pub fn to_halide(&self) -> Stmt {
-        let mut axes = self.leaf_id
-            .borrow()
-            .iter()
-            .map(|(node_ptr, id)| { (self.address_map.borrow()[&*node_ptr].clone(), *id) })
-            .collect::<Vec<_>>();
-        axes.sort_by(|a, b| a.1.cmp(&b.1));
-        let axes = axes
-            .iter()
-            .map(|(node, _)| node.clone())
-            .collect::<Vec<_>>();
-        for (attached_node, stage) in self.attached_stage.borrow().iter() {
-            let attached_node = self.address_map.borrow()[&*attached_node].clone();
-            println!("attached_node: {}", attached_node.borrow().var());
-        }
-        build_nested_for2(&axes, Stmt::None)
+        build_nested_for3(self, Stmt::None)
     }
 }
 
