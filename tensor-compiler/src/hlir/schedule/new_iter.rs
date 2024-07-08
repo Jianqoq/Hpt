@@ -120,11 +120,10 @@ impl FusedNode {
 pub struct Stage {
     pub(crate) freezed_root: RcMut<Vec<RcMut<Node>>>, // these are from the parent stage, we can't do split/fuse on them, they are only used to generate indices
     pub(crate) root: RcMut<Vec<RcMut<Node>>>,
-    pub(crate) seperator: RcMut<Vec<usize>>,
     pub(crate) leaf_id: RcMut<HashMap<usize, usize>>,
     pub(crate) id_leaf: RcMut<HashMap<usize, usize>>,
     pub(crate) address_map: RcMut<HashMap<usize, RcMut<Node>>>,
-    pub(crate) inserted_stage: RcMut<HashMap<*mut Node, Vec<RcMut<Stage>>>>,
+    pub(crate) attached_stage: RcMut<HashMap<usize, Vec<RcMut<Stage>>>>,
     pub(crate) transforms: VecDeque<Transforms>,
     pub(crate) name: Arc<String>,
 }
@@ -205,8 +204,21 @@ impl Stage {
         for (node_ptr, id) in self.leaf_id.borrow().iter() {
             self.id_leaf.borrow_mut().insert(*id, *node_ptr);
         }
+        if
+            self.attached_stage
+                .borrow()
+                .get(&(axis.as_ptr() as usize))
+                .is_some()
+        {
+            let removed = self.attached_stage
+                .borrow_mut()
+                .remove(&(axis.as_ptr() as usize))
+                .unwrap();
+            self.attached_stage.borrow_mut().insert(inner.as_ptr() as usize, removed);
+        }
         self.address_map.borrow_mut().insert(outer.as_ptr() as usize, outer.clone());
         self.address_map.borrow_mut().insert(inner.as_ptr() as usize, inner.clone());
+
         (outer, inner)
     }
 
@@ -217,8 +229,13 @@ impl Stage {
             panic!("axis1 and axis2 are not consecutive, axis1: {}, axis2: {}", axis1_id, axis2_id);
         }
         // check if two axis are in the same zone
-        if !all_elements_in_same_range(&[axis1_id, axis2_id], &self.seperator.borrow()) {
-            panic!("axis1 and axis2 are not in the same zone");
+        if
+            self.attached_stage
+                .borrow()
+                .get(&(axis1.as_ptr() as usize))
+                .is_some()
+        {
+            panic!("axis1 is attached to another stage");
         }
         let fused = Node::Fused(FusedNode {
             lhs: axis1.clone(),
@@ -244,6 +261,18 @@ impl Stage {
             self.id_leaf.borrow_mut().insert(*id, *node_ptr);
         }
         self.address_map.borrow_mut().insert(fused.as_ptr() as usize, fused.clone());
+        if
+            self.attached_stage
+                .borrow()
+                .get(&(axis2.as_ptr() as usize))
+                .is_some()
+        {
+            let removed = self.attached_stage
+                .borrow_mut()
+                .remove(&(axis2.as_ptr() as usize))
+                .unwrap();
+            self.attached_stage.borrow_mut().insert(fused.as_ptr() as usize, removed);
+        }
         fused
     }
 
@@ -253,9 +282,6 @@ impl Stage {
             .iter()
             .map(|axis| self.leaf_id.borrow()[&(axis.as_ptr() as usize)])
             .collect::<Vec<_>>();
-        if !all_elements_in_same_range(&ids, &self.seperator.borrow()) {
-            panic!("axes are not in the same zone");
-        }
     }
 
     pub fn compute_inline(&self, stage: Stage, axes: &[RcMut<Node>]) -> Option<RcMut<Stage>> {
@@ -266,11 +292,6 @@ impl Stage {
         }
         *stage.freezed_root.borrow_mut() = freezed_root;
         let ret = Rc::new(RefCell::new(stage));
-        self.inserted_stage
-            .borrow_mut()
-            .entry(axes.last().unwrap().as_ptr())
-            .or_insert(Vec::new())
-            .push(ret.clone());
         Some(ret)
     }
 
@@ -292,7 +313,7 @@ impl Stage {
     pub fn axis(&self, id: usize) -> RcMut<Node> {
         self.address_map.borrow()[&self.id_leaf.borrow()[&id].clone()].clone()
     }
-    pub fn to_halide(&self) {
+    pub fn to_halide(&self) -> Stmt {
         let mut axes = self.leaf_id
             .borrow()
             .iter()
@@ -303,8 +324,11 @@ impl Stage {
             .iter()
             .map(|(node, _)| node.clone())
             .collect::<Vec<_>>();
-        let stmt = build_nested_for2(&axes, Stmt::None);
-        IRPrinter.print_stmt(&stmt);
+        for (attached_node, _) in self.attached_stage.borrow().iter() {
+            let attached_node = self.address_map.borrow()[&*attached_node].clone();
+            println!("attached_node: {}", attached_node.borrow().var());
+        }
+        build_nested_for2(&axes, Stmt::None)
     }
 }
 
@@ -359,13 +383,12 @@ impl From<&Tensor> for Stage {
         Stage {
             freezed_root: Rc::new(RefCell::new(vec![])),
             root: Rc::new(RefCell::new(root)),
-            seperator: Rc::new(RefCell::new(vec![])),
             leaf_id: Rc::new(RefCell::new(leaf_id)),
             id_leaf: Rc::new(RefCell::new(id_leaf)),
-            inserted_stage: Rc::new(RefCell::new(HashMap::new())),
             transforms: VecDeque::new(),
             name: Arc::new(value.name().to_string()),
             address_map: Rc::new(RefCell::new(address_map)),
+            attached_stage: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 }
