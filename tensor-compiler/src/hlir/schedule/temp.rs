@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
 use std::{ cell::RefCell, collections::VecDeque, rc::Rc, sync::Arc };
 
 use tensor_types::dtype::Dtype;

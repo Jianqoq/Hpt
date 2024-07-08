@@ -36,6 +36,7 @@ pub mod hlir {
     pub mod printer;
     pub mod func_type;
     pub mod schedule {
+        pub mod new_iter;
         pub mod schedule;
         pub mod temp;
         pub mod transforms;

@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
 use std::collections::VecDeque;
 use std::sync::Arc;
 use crate::halide::substitute::subsititue_expr::SubstituteExpr;
