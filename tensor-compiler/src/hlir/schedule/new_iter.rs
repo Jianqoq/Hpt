@@ -5,7 +5,16 @@ use std::{ cell::RefCell, collections::VecDeque, ops::Index, rc::Rc, sync::Arc }
 
 use hashbrown::HashMap;
 
-use crate::{ halide::{ prime_expr::PrimeExpr, variable::Variable }, hlir::tensor::Tensor };
+use crate::{
+    halide::{
+        loop_utils::build_nested::build_nested_for2,
+        prime_expr::PrimeExpr,
+        printer::IRPrinter,
+        stmt::Stmt,
+        variable::Variable,
+    },
+    hlir::tensor::Tensor,
+};
 
 pub type RcMut<T> = Rc<RefCell<T>>;
 
@@ -36,6 +45,12 @@ impl Node {
         match self {
             Node::Base(base) => &base.end,
             Node::Fused(fused) => &fused.end,
+        }
+    }
+    pub fn start(&self) -> &PrimeExpr {
+        match self {
+            Node::Base(base) => &base.start,
+            Node::Fused(fused) => &fused.start,
         }
     }
 }
@@ -184,6 +199,7 @@ impl Stage {
                 *i += 1;
             }
         }
+        self.leaf_id.borrow_mut().remove(&(axis.as_ptr() as usize));
         self.leaf_id.borrow_mut().insert(outer.as_ptr() as usize, axis_id);
         self.leaf_id.borrow_mut().insert(inner.as_ptr() as usize, axis_id + 1);
         for (node_ptr, id) in self.leaf_id.borrow().iter() {
@@ -227,6 +243,7 @@ impl Stage {
         for (node_ptr, id) in self.leaf_id.borrow().iter() {
             self.id_leaf.borrow_mut().insert(*id, *node_ptr);
         }
+        self.address_map.borrow_mut().insert(fused.as_ptr() as usize, fused.clone());
         fused
     }
 
@@ -274,6 +291,20 @@ impl Stage {
     }
     pub fn axis(&self, id: usize) -> RcMut<Node> {
         self.address_map.borrow()[&self.id_leaf.borrow()[&id].clone()].clone()
+    }
+    pub fn to_halide(&self) {
+        let mut axes = self.leaf_id
+            .borrow()
+            .iter()
+            .map(|(node_ptr, id)| { (self.address_map.borrow()[&*node_ptr].clone(), *id) })
+            .collect::<Vec<_>>();
+        axes.sort_by(|a, b| a.1.cmp(&b.1));
+        let axes = axes
+            .iter()
+            .map(|(node, _)| node.clone())
+            .collect::<Vec<_>>();
+        let stmt = build_nested_for2(&axes, Stmt::None);
+        IRPrinter.print_stmt(&stmt);
     }
 }
 
@@ -425,10 +456,6 @@ impl Schedule {
             }
         }
     }
-
-    pub fn to_hlide(&self, stage: &Stage) -> PrimeExpr {
-        todo!()
-    }
 }
 
 impl Index<&Tensor> for Schedule {
@@ -477,6 +504,6 @@ mod tests {
         s.reorder(&c, &[&inner, &outer, &s[&c].axis(2)]);
         let (outer, inner) = s.split(&c, &s[&c].axis(0), 7);
         s.fuse(&c, &outer, &inner);
-        s.to_hlide(&s[&c]);
+        s[&c].to_halide();
     }
 }
