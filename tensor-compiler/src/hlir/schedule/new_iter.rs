@@ -9,6 +9,7 @@ use crate::{ halide::{ prime_expr::PrimeExpr, variable::Variable }, hlir::tensor
 
 pub type RcMut<T> = Rc<RefCell<T>>;
 
+#[derive(Clone, Debug)]
 pub enum Node {
     Base(BaseNode),
     Fused(FusedNode),
@@ -38,7 +39,7 @@ impl Node {
         }
     }
 }
-
+#[derive(Clone, Debug)]
 pub struct BaseNode {
     pub(crate) var: Variable,
     pub(crate) start: PrimeExpr,
@@ -69,6 +70,7 @@ impl BaseNode {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct FusedNode {
     pub(crate) lhs: RcMut<Node>,
     pub(crate) rhs: RcMut<Node>,
@@ -187,6 +189,8 @@ impl Stage {
         for (node_ptr, id) in self.leaf_id.borrow().iter() {
             self.id_leaf.borrow_mut().insert(*id, *node_ptr);
         }
+        self.address_map.borrow_mut().insert(outer.as_ptr() as usize, outer.clone());
+        self.address_map.borrow_mut().insert(inner.as_ptr() as usize, inner.clone());
         (outer, inner)
     }
 
@@ -422,7 +426,7 @@ impl Schedule {
         }
     }
 
-    pub fn to_hlide(&self) -> PrimeExpr {
+    pub fn to_hlide(&self, stage: &Stage) -> PrimeExpr {
         todo!()
     }
 }
@@ -468,11 +472,11 @@ mod tests {
             c.slice([&i, &j]) + c.slice([&j, &i])
         });
 
-        let mut schedule = Schedule::create(&[&a, &c, &d]);
-        let (outer, inner) = schedule.split(&c, &schedule[&c].axis(0), 16);
-        schedule.reorder(&c, &[&inner, &outer, &schedule[&c].axis(2)]);
-        let (outer, inner) = schedule.split(&c, &schedule[&c].axis(0), 7);
-        schedule.fuse(&c, &outer, &inner);
-        schedule.to_hlide();
+        let mut s = Schedule::create(&[&a, &c, &d]);
+        let (outer, inner) = s.split(&c, &s[&c].axis(0), 16);
+        s.reorder(&c, &[&inner, &outer, &s[&c].axis(2)]);
+        let (outer, inner) = s.split(&c, &s[&c].axis(0), 7);
+        s.fuse(&c, &outer, &inner);
+        s.to_hlide(&s[&c]);
     }
 }
