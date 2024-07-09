@@ -1,5 +1,5 @@
 use crate::{
-    halide::{ for_stmt::For, seq_stmt::Seq, stmt::Stmt },
+    halide::{ for_stmt::For, let_stmt::LetStmt, seq_stmt::Seq, stmt::Stmt, variable::Variable },
     hlir::schedule::new_iter::{ Node, RcMut, Stage },
     iter_var::IterVar,
 };
@@ -63,7 +63,9 @@ pub fn build_nested_for_helper<T: Into<Stmt>>(
             {
                 let mut vec = Vec::with_capacity(stages.len());
                 for i in stages {
-                    vec.push(build_nested_for3(i.clone(), Stmt::None));
+                    let body = i.borrow().body.clone();
+                    let let_stmt = LetStmt::make(&Variable::make(&i.borrow().name), body);
+                    vec.push(build_nested_for3(i.clone(), let_stmt.into()));
                 }
                 seq = Some(vec);
             }
