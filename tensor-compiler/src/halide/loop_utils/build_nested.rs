@@ -63,9 +63,7 @@ pub fn build_nested_for_helper<T: Into<Stmt>>(
             {
                 let mut vec = Vec::with_capacity(stages.len());
                 for i in stages {
-                    let body = i.borrow().body.clone();
-                    let let_stmt = LetStmt::make(&Variable::make(&i.borrow().name), body);
-                    vec.push(build_nested_for3(i.clone(), let_stmt.into()));
+                    vec.push(i.borrow().to_halid());
                 }
                 seq = Some(vec);
             }

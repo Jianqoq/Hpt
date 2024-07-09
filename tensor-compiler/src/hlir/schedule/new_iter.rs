@@ -376,6 +376,24 @@ impl Stage {
             .push(ret.clone());
         Some(ret)
     }
+    pub fn to_halid(&self) -> Stmt {
+        let mut freezed_dims = self.freezed_leaf.borrow().clone();
+        let mut free_dims = self.leaf_id
+            .borrow()
+            .iter()
+            .map(|(leaf, id)| (*leaf, *id))
+            .collect::<Vec<_>>();
+        free_dims.sort_by(|a, b| a.1.cmp(&b.1));
+        let free_dims = free_dims
+            .iter()
+            .map(|(leaf, _)| *leaf)
+            .collect::<Vec<_>>();
+        freezed_dims.extend(free_dims.iter().map(|x| { self.address_map.borrow()[&*x].clone() }));
+        gen_indices(&freezed_dims);
+        let body = self.body.clone();
+        let let_stmt = LetStmt::make(&Variable::make(&self.name), body);
+        build_nested_for3(Rc::new(RefCell::new(self.clone())), let_stmt.into())
+    }
 
     pub fn tile(&self) -> (RcMut<Node>, RcMut<Node>) {
         todo!()
@@ -561,22 +579,7 @@ impl Schedule {
 
     pub fn to_halide(&self, tensor: &Tensor) -> Stmt {
         let stage = &self[tensor];
-        let mut freezed_dims = stage.freezed_leaf.borrow().clone();
-        let mut free_dims = stage.leaf_id
-            .borrow()
-            .iter()
-            .map(|(leaf, id)| (*leaf, *id))
-            .collect::<Vec<_>>();
-        free_dims.sort_by(|a, b| a.1.cmp(&b.1));
-        let free_dims = free_dims
-            .iter()
-            .map(|(leaf, _)| *leaf)
-            .collect::<Vec<_>>();
-        freezed_dims.extend(free_dims.iter().map(|x| { stage.address_map.borrow()[&*x].clone() }));
-        gen_indices(&freezed_dims);
-        let body = stage.body.clone();
-        let let_stmt = LetStmt::make(&Variable::make(tensor.name()), body);
-        build_nested_for3(Rc::new(RefCell::new(stage.clone())), let_stmt.into())
+        stage.to_halid()
     }
 }
 
