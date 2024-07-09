@@ -55,6 +55,18 @@ impl Node {
             Node::Fused(fused) => &fused.start,
         }
     }
+    pub fn set_ref_node(&mut self, node: RcMut<Node>) {
+        match self {
+            Node::Base(base) => {
+                assert!(base.ref_node.is_none());
+                base.ref_node = Some(node);
+            }
+            Node::Fused(fused) => {
+                assert!(fused.ref_node.is_none());
+                fused.ref_node = Some(node);
+            }
+        }
+    }
 }
 #[derive(Clone, Debug)]
 pub struct BaseNode {
@@ -65,6 +77,8 @@ pub struct BaseNode {
     pub(crate) stride: PrimeExpr,
     pub(crate) parent: Option<RcMut<Node>>,
     pub(crate) childs: Arc<Vec<RcMut<Node>>>,
+    pub(crate) expr: PrimeExpr,
+    pub(crate) ref_node: Option<RcMut<Node>>,
 }
 
 impl BaseNode {
@@ -83,6 +97,8 @@ impl BaseNode {
             stride: (1).into(),
             childs: vec![].into(),
             parent,
+            expr: PrimeExpr::None,
+            ref_node: None,
         }
     }
 }
@@ -96,6 +112,8 @@ pub struct FusedNode {
     pub(crate) end: PrimeExpr,
     pub(crate) step: PrimeExpr,
     pub(crate) childs: Arc<Vec<RcMut<Node>>>,
+    pub(crate) expr: PrimeExpr,
+    pub(crate) ref_node: Option<RcMut<Node>>,
 }
 
 impl FusedNode {
@@ -115,14 +133,15 @@ impl FusedNode {
             end: end.into(),
             step: step.into(),
             childs: vec![].into(),
+            expr: PrimeExpr::None,
+            ref_node: None,
         }
     }
 }
 
 #[derive(Clone)]
 pub struct Stage {
-    pub(crate) freezed_root: RcMut<Vec<RcMut<Node>>>, // these are from the parent stage, we can't do split/fuse on them, they are only used to generate indices
-    pub(crate) root: RcMut<Vec<RcMut<Node>>>,
+    pub(crate) freezed_leaf: RcMut<Vec<RcMut<Node>>>, // these are from the parent stage, we can't do split/fuse on them, they are only used to generate indices
     pub(crate) leaf_id: RcMut<HashMap<usize, usize>>,
     pub(crate) id_leaf: RcMut<HashMap<usize, usize>>,
     pub(crate) address_map: RcMut<HashMap<usize, RcMut<Node>>>,
@@ -249,6 +268,8 @@ impl Stage {
             end: axis2.borrow().end() * axis1.borrow().end(),
             step: (1).into(),
             childs: vec![].into(),
+            expr: PrimeExpr::None,
+            ref_node: None,
         });
         let fused = Rc::new(RefCell::new(fused));
         axis1.borrow_mut().push_child(fused.clone());
@@ -288,14 +309,46 @@ impl Stage {
             .collect::<Vec<_>>();
     }
 
-    pub fn compute_inline(&self, stage: &Stage, axes: &[RcMut<Node>]) -> Option<RcMut<Stage>> {
-        assert!(stage.freezed_root.borrow().len() == 0);
+    /// to inline axes must come from the stage itself
+    pub fn compute_inline(
+        &self,
+        stage: &Stage,
+        axes: &[RcMut<Node>],
+        to_inline: &[RcMut<Node>]
+    ) -> Option<RcMut<Stage>> {
+        assert!(stage.freezed_leaf.borrow().len() == 0);
+
         let stage = stage.clone();
-        let mut freezed_root = vec![];
-        for axis in axes {
-            freezed_root.push(axis.clone());
-        }
-        *stage.freezed_root.borrow_mut() = freezed_root;
+
+        let new_leaf_id = stage.leaf_id
+            .borrow()
+            .iter()
+            .filter(|(node_ptr, _)| {
+                if let Some(node) = stage.address_map.borrow().get(*node_ptr) {
+                    !axes.iter().any(|x| x.as_ptr() == node.as_ptr())
+                } else {
+                    true
+                }
+            })
+            .enumerate()
+            .map(|(idx, (leaf, _))| (*leaf, idx))
+            .collect::<HashMap<_, _>>();
+
+        let new_id_leaf = new_leaf_id
+            .iter()
+            .map(|(node_ptr, id)| { (*id, *node_ptr) })
+            .collect::<HashMap<_, _>>();
+
+        *stage.leaf_id.borrow_mut() = new_leaf_id;
+        *stage.id_leaf.borrow_mut() = new_id_leaf;
+
+        to_inline
+            .iter()
+            .zip(axes.iter())
+            .for_each(|(x, y)| { x.borrow_mut().set_ref_node(y.clone()) });
+
+        stage.freezed_leaf.borrow_mut().extend(to_inline.iter().cloned());
+
         let ret = Rc::new(RefCell::new(stage));
         self.attached_stage
             .borrow_mut()
@@ -374,8 +427,7 @@ impl From<&Tensor> for Stage {
             .map(|x| { (x.as_ptr() as usize, x.clone()) })
             .collect::<HashMap<_, _>>();
         Stage {
-            freezed_root: Rc::new(RefCell::new(vec![])),
-            root: Rc::new(RefCell::new(root)),
+            freezed_leaf: Rc::new(RefCell::new(vec![])),
             leaf_id: Rc::new(RefCell::new(leaf_id)),
             id_leaf: Rc::new(RefCell::new(id_leaf)),
             transforms: VecDeque::new(),
@@ -438,11 +490,12 @@ impl Schedule {
         &mut self,
         tensor: &Tensor,
         stage: &Stage,
-        axes: &[RcMut<Node>]
+        axes: &[RcMut<Node>],
+        to_inline: &[RcMut<Node>]
     ) -> Option<RcMut<Stage>> {
         let stages = self.stages.get_mut(tensor);
         if let Some(stages) = stages {
-            stages.compute_inline(stage, axes)
+            stages.compute_inline(stage, axes, to_inline)
         } else {
             panic!("Schedule::compute_inline: tensor does not exist in temps_map");
         }
