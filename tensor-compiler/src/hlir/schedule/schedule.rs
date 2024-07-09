@@ -15,9 +15,12 @@ use crate::{
         printer::IRPrinter,
         seq_stmt::Seq,
         stmt::Stmt,
+        substitute::subsititue_expr::SubstituteExpr,
+        traits::{ AccepterMutate, MutatorGetSet },
         variable::Variable,
     },
     hlir::tensor::Tensor,
+    to_prim_expr::ToPrimeExpr,
 };
 
 pub type RcMut<T> = Rc<RefCell<T>>;
@@ -73,6 +76,12 @@ impl Node {
         match self {
             Node::Base(base) => &base.childs,
             Node::Fused(fused) => &fused.childs,
+        }
+    }
+    pub fn expr(&self) -> &PrimeExpr {
+        match self {
+            Node::Base(base) => &base.expr,
+            Node::Fused(fused) => &fused.expr,
         }
     }
 }
@@ -150,6 +159,7 @@ impl FusedNode {
 #[derive(Clone)]
 pub struct Stage {
     pub(crate) freezed_leaf: RcMut<Vec<RcMut<Node>>>, // these are from the parent stage, we can't do split/fuse on them, they are only used to generate indices
+    pub(crate) root: RcMut<Vec<RcMut<Node>>>,
     pub(crate) leaf_id: RcMut<HashMap<usize, usize>>,
     pub(crate) id_leaf: RcMut<HashMap<usize, usize>>,
     pub(crate) address_map: RcMut<HashMap<usize, RcMut<Node>>>,
@@ -374,21 +384,19 @@ impl Stage {
         Some(ret)
     }
     pub fn to_halid(&self) -> Stmt {
-        let mut freezed_dims = self.freezed_leaf.borrow().clone();
-        let mut free_dims = self.leaf_id
-            .borrow()
-            .iter()
-            .map(|(leaf, id)| (*leaf, *id))
-            .collect::<Vec<_>>();
-        free_dims.sort_by(|a, b| a.1.cmp(&b.1));
-        let free_dims = free_dims
-            .iter()
-            .map(|(leaf, _)| *leaf)
-            .collect::<Vec<_>>();
-        freezed_dims.extend(free_dims.iter().map(|x| { self.address_map.borrow()[&*x].clone() }));
-        gen_indices(&freezed_dims);
-        let body = self.body.clone();
-        let let_stmt = LetStmt::make(&Variable::make(&self.name), body);
+        gen_indices(&self.root.borrow());
+        let mut subs_expr = SubstituteExpr::new();
+        for origin in self.root.borrow().iter() {
+            IRPrinter.print_expr(&origin.borrow().var().to_prime_expr());
+            IRPrinter.print_expr(&origin.borrow().expr());
+
+            subs_expr.add_replacement(
+                origin.borrow().var().to_prime_expr(),
+                origin.borrow().expr().clone()
+            );
+        }
+        self.body.accept_mutate(&mut subs_expr);
+        let let_stmt = LetStmt::make(&Variable::make(&self.name), subs_expr.expr());
         build_nested_for3(Rc::new(RefCell::new(self.clone())), let_stmt.into())
     }
 
@@ -462,6 +470,7 @@ impl From<&Tensor> for Stage {
             .collect::<HashMap<_, _>>();
         Stage {
             freezed_leaf: Rc::new(RefCell::new(vec![])),
+            root: Rc::new(RefCell::new(root)),
             leaf_id: Rc::new(RefCell::new(leaf_id)),
             id_leaf: Rc::new(RefCell::new(id_leaf)),
             transforms: VecDeque::new(),
@@ -597,11 +606,13 @@ pub fn gen_indices(shape: &Vec<Rc<RefCell<Node>>>) {
     let mut cnt = 0usize;
     let mut visited = HashSet::new();
     let mut edges = Edges::new();
+    let mut m_inv_vec = vec![];
     for root in shape.iter() {
         let mut stack = vec![root.clone()];
         while let Some(node) = stack.pop() {
             m.insert(cnt, node.clone());
             m_inv.insert(node.as_ptr(), cnt);
+            m_inv_vec.push((node.as_ptr(), cnt));
             cnt += 1;
             for child in node.borrow().children() {
                 let ptr = child.as_ptr();
@@ -914,9 +925,9 @@ mod tests {
         });
 
         let mut s = Schedule::create(&[&a, &c, &d]);
-        let (outer, inner) = s.split(&c, &s[&c].axis(0), 16);
-        s.reorder(&c, &[&inner, &outer, &s[&c].axis(2)]);
-        let (outer, inner) = s.split(&c, &s[&c].axis(0), 7);
+        let c_stage = s.stages.get(&c).unwrap();
+        let axis = c_stage.axis(0);
+        let (outer, inner) = s.split(&c, &axis, 7);
         s.fuse(&c, &outer, &inner);
         IRPrinter.print_stmt(s.to_halide(&c));
     }
