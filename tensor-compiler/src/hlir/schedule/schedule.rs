@@ -106,8 +106,9 @@ impl BaseNode {
         step: D,
         parent: Option<Rc<RefCell<Node>>>
     ) -> Self {
+        let var: Variable = name.into();
         BaseNode {
-            var: name.into(),
+            var: var.clone(),
             start: start.into(),
             end: end.into(),
             step: step.into(),
@@ -387,9 +388,6 @@ impl Stage {
         gen_indices(&self.root.borrow());
         let mut subs_expr = SubstituteExpr::new();
         for origin in self.root.borrow().iter() {
-            IRPrinter.print_expr(&origin.borrow().var().to_prime_expr());
-            IRPrinter.print_expr(&origin.borrow().expr());
-
             subs_expr.add_replacement(
                 origin.borrow().var().to_prime_expr(),
                 origin.borrow().expr().clone()
@@ -645,7 +643,7 @@ pub fn gen_indices(shape: &Vec<Rc<RefCell<Node>>>) {
             match &*node.borrow() {
                 Node::Base(base) => {
                     if let Some(parent) = &base.parent {
-                        match &mut *parent.borrow_mut() {
+                        match &*parent.borrow() {
                             Node::Base(_parent) => {
                                 // this is a splitting operation, parent must have 2 children
                                 assert!(_parent.childs.len() == 2);
@@ -791,6 +789,10 @@ pub fn gen_indices(shape: &Vec<Rc<RefCell<Node>>>) {
                                 }
                             }
                         }
+                    } else {
+                        if let None = expr_map.get(&i) {
+                            expr_map.insert(i, node.borrow().var().clone().into());
+                        }
                     }
                 }
                 Node::Fused(fused) => {
@@ -829,7 +831,9 @@ pub fn gen_indices(shape: &Vec<Rc<RefCell<Node>>>) {
         let node = &m[k];
         match &mut *node.borrow_mut() {
             Node::Base(base) => {
-                assert!(base.expr.is_none());
+                if !base.parent.is_none() {
+                    assert!(base.expr.is_none());
+                }
                 base.expr = v.clone();
             }
             Node::Fused(fused) => {
