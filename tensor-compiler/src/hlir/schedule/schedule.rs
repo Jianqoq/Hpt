@@ -385,7 +385,13 @@ impl Stage {
         Some(ret)
     }
     pub fn to_halid(&self) -> Stmt {
-        gen_indices(&self.root.borrow());
+        let all_root = self.freezed_leaf
+            .borrow()
+            .iter()
+            .chain(self.root.borrow().iter())
+            .map(|x| x.clone())
+            .collect::<Vec<RcMut<Node>>>();
+        gen_indices(&all_root);
         let mut subs_expr = SubstituteExpr::new();
         for origin in self.root.borrow().iter() {
             subs_expr.add_replacement(
