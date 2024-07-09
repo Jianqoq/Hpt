@@ -328,19 +328,19 @@ impl Stage {
     /// to inline axes must come from the stage itself
     pub fn compute_inline(
         &self,
-        stage: &Stage,
-        axes: &[RcMut<Node>],
-        to_inline: &[RcMut<Node>]
+        to_inline_stage: &Stage,
+        to_inline: &[RcMut<Node>],
+        axes: &[RcMut<Node>]
     ) -> Option<RcMut<Stage>> {
-        assert!(stage.freezed_leaf.borrow().len() == 0);
+        assert!(to_inline_stage.freezed_leaf.borrow().len() == 0);
 
-        let stage = stage.clone();
+        let to_inline_stage = to_inline_stage.clone();
 
-        let mut new_leaf_id = stage.leaf_id
+        let mut new_leaf_id = to_inline_stage.leaf_id
             .borrow()
             .iter()
             .filter(|(node_ptr, _)| {
-                if let Some(node) = stage.address_map.borrow().get(*node_ptr) {
+                if let Some(node) = to_inline_stage.address_map.borrow().get(*node_ptr) {
                     !axes.iter().any(|x| x.as_ptr() == node.as_ptr())
                 } else {
                     true
@@ -366,17 +366,17 @@ impl Stage {
             .map(|(node_ptr, id)| { (*id, *node_ptr) })
             .collect::<HashMap<_, _>>();
 
-        *stage.leaf_id.borrow_mut() = new_leaf_id;
-        *stage.id_leaf.borrow_mut() = new_id_leaf;
+        *to_inline_stage.leaf_id.borrow_mut() = new_leaf_id;
+        *to_inline_stage.id_leaf.borrow_mut() = new_id_leaf;
 
         to_inline
             .iter()
             .zip(axes.iter())
             .for_each(|(x, y)| { x.borrow_mut().set_ref_node(y.clone()) });
 
-        stage.freezed_leaf.borrow_mut().extend(to_inline.iter().cloned());
+        to_inline_stage.freezed_leaf.borrow_mut().extend(to_inline.iter().cloned());
 
-        let ret = Rc::new(RefCell::new(stage));
+        let ret = Rc::new(RefCell::new(to_inline_stage));
         self.attached_stage
             .borrow_mut()
             .entry(axes.last().unwrap().as_ptr() as usize)
@@ -385,13 +385,7 @@ impl Stage {
         Some(ret)
     }
     pub fn to_halid(&self) -> Stmt {
-        let all_root = self.freezed_leaf
-            .borrow()
-            .iter()
-            .chain(self.root.borrow().iter())
-            .map(|x| x.clone())
-            .collect::<Vec<RcMut<Node>>>();
-        gen_indices(&all_root);
+        gen_indices(&self.root.borrow());
         let mut subs_expr = SubstituteExpr::new();
         for origin in self.root.borrow().iter() {
             subs_expr.add_replacement(
@@ -535,17 +529,12 @@ impl Schedule {
     }
     pub fn compute_inline(
         &mut self,
-        tensor: &Tensor,
         stage: &Stage,
-        axes: &[RcMut<Node>],
-        to_inline: &[RcMut<Node>]
+        to_inline_stage: &Stage,
+        to_inline: &[RcMut<Node>],
+        axes: &[RcMut<Node>]
     ) -> Option<RcMut<Stage>> {
-        let stages = self.stages.get_mut(tensor);
-        if let Some(stages) = stages {
-            stages.compute_inline(stage, axes, to_inline)
-        } else {
-            panic!("Schedule::compute_inline: tensor does not exist in temps_map");
-        }
+        stage.compute_inline(to_inline_stage, to_inline, axes)
     }
     pub fn reorder(&mut self, tensor: &Tensor, axes: &[&RcMut<Node>]) {
         let temp = self.stages.get_mut(tensor);
@@ -920,7 +909,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_schedule_inline() {
+    fn test_schedule_split() {
         let m = Variable::make("m");
         let n = Variable::make("n");
         let p = Variable::make("p");
@@ -937,8 +926,55 @@ mod tests {
         let mut s = Schedule::create(&[&a, &c, &d]);
         let c_stage = s.stages.get(&c).unwrap();
         let axis = c_stage.axis(0);
-        let (outer, inner) = s.split(&c, &axis, 7);
-        s.fuse(&c, &outer, &inner);
+        s.split(&c, &axis, 7);
+        IRPrinter.print_stmt(s.to_halide(&c));
+    }
+
+    #[test]
+    fn test_schedule_fuse() {
+        let m = Variable::make("m");
+        let n = Variable::make("n");
+        let p = Variable::make("p");
+
+        let a = Tensor::placeholder(&[&m, &n], Dtype::I64, "A");
+
+        let c = compute(Dtype::BF16, [&n, &m], [&a], "C", |[a], [i, j]| {
+            a.slice([&i, &j]) + a.slice([&j, &i])
+        });
+        let d = compute(Dtype::BF16, [&m, &p], [&c], "D", |[c], [i, j]| {
+            c.slice([&i, &j]) + c.slice([&j, &i])
+        });
+
+        let mut s = Schedule::create(&[&a, &c, &d]);
+        let c_stage = s.stages.get(&c).unwrap();
+        let axis = c_stage.axis(0);
+        let axis2 = c_stage.axis(1);
+        s.fuse(&c, &axis, &axis2);
+        IRPrinter.print_stmt(s.to_halide(&c));
+    }
+
+    #[test]
+    fn test_compute_inline_1() {
+        let m = Variable::make("m");
+        let n = Variable::make("n");
+        let p = Variable::make("p");
+
+        let a = Tensor::placeholder(&[&m, &n], Dtype::I64, "A");
+
+        let c = compute(Dtype::BF16, [&n, &m], [&a], "C", |[a], [i, j]| {
+            a.slice([&i, &j]) + a.slice([&j, &i])
+        });
+        let d = compute(Dtype::BF16, [&m, &p], [&c], "D", |[c], [i, j]| {
+            c.slice([&i, &j]) + c.slice([&j, &i])
+        });
+
+        let mut s = Schedule::create(&[&a, &c, &d]);
+        let c_stage = s.stages.get(&c).unwrap();
+        let axis = c_stage.axis(0);
+        let axis2 = c_stage.axis(1);
+        let d_stage = s.stages.get(&d).unwrap().clone();
+        let d_axis = d_stage.axis(0);
+        s.compute_inline(&s[&c].clone(), &d_stage, &[d_axis], &[axis, axis2]);
         IRPrinter.print_stmt(s.to_halide(&c));
     }
 }
