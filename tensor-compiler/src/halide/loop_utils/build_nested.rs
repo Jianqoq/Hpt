@@ -1,6 +1,6 @@
 use crate::{
-    halide::{ for_stmt::For, let_stmt::LetStmt, seq_stmt::Seq, stmt::Stmt, variable::Variable },
-    hlir::schedule::new_iter::{ Node, RcMut, Stage },
+    halide::{ for_stmt::For, seq_stmt::Seq, stmt::Stmt },
+    hlir::schedule::schedule::{ Node, RcMut, Stage },
     iter_var::IterVar,
 };
 
