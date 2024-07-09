@@ -7,9 +7,11 @@ use hashbrown::HashMap;
 
 use crate::{
     halide::{
-        loop_utils::build_nested::{build_nested_for2, build_nested_for3},
+        let_stmt::LetStmt,
+        loop_utils::build_nested::{ build_nested_for2, build_nested_for3 },
         prime_expr::PrimeExpr,
         printer::IRPrinter,
+        seq_stmt::Seq,
         stmt::Stmt,
         variable::Variable,
     },
@@ -126,6 +128,7 @@ pub struct Stage {
     pub(crate) address_map: RcMut<HashMap<usize, RcMut<Node>>>,
     pub(crate) attached_stage: RcMut<HashMap<usize, Vec<RcMut<Stage>>>>,
     pub(crate) transforms: VecDeque<Transforms>,
+    pub(crate) body: PrimeExpr,
     pub(crate) name: Arc<String>,
 }
 
@@ -320,9 +323,6 @@ impl Stage {
     pub fn axis(&self, id: usize) -> RcMut<Node> {
         self.address_map.borrow()[&self.id_leaf.borrow()[&id].clone()].clone()
     }
-    pub fn to_halide(&self) -> Stmt {
-        build_nested_for3(self, Stmt::None)
-    }
 }
 
 fn all_elements_in_same_range(arr: &[usize], separators: &[usize]) -> bool {
@@ -382,6 +382,7 @@ impl From<&Tensor> for Stage {
             name: Arc::new(value.name().to_string()),
             address_map: Rc::new(RefCell::new(address_map)),
             attached_stage: Rc::new(RefCell::new(HashMap::new())),
+            body: value.body().clone(),
         }
     }
 }
@@ -485,6 +486,12 @@ impl Schedule {
             }
         }
     }
+
+    pub fn to_halide(&self, tensor: &Tensor) -> Stmt {
+        let body = self[tensor].body.clone();
+        let let_stmt = LetStmt::make(&Variable::make(tensor.name()), body);
+        build_nested_for3(Rc::new(RefCell::new(self[tensor].clone())), let_stmt.into())
+    }
 }
 
 impl Index<&Tensor> for Schedule {
@@ -533,8 +540,6 @@ mod tests {
         s.reorder(&c, &[&inner, &outer, &s[&c].axis(2)]);
         let (outer, inner) = s.split(&c, &s[&c].axis(0), 7);
         s.fuse(&c, &outer, &inner);
-        let stage = s[&d].clone();
-        s.compute_inline(&c, &stage, &[s[&c].axis(1)]);
-        s[&c].to_halide();
+        IRPrinter.print_stmt(s.to_halide(&c));
     }
 }
