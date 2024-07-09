@@ -3,10 +3,12 @@
 
 use std::{ cell::RefCell, collections::VecDeque, ops::Index, rc::Rc, sync::Arc };
 
-use hashbrown::HashMap;
+use hashbrown::{ HashMap, HashSet };
 
 use crate::{
+    edges::Edges,
     halide::{
+        exprs::{ Add, FloorDiv, Mod, Mul },
         let_stmt::LetStmt,
         loop_utils::build_nested::{ build_nested_for2, build_nested_for3 },
         prime_expr::PrimeExpr,
@@ -65,6 +67,12 @@ impl Node {
                 assert!(fused.ref_node.is_none());
                 fused.ref_node = Some(node);
             }
+        }
+    }
+    pub fn children(&self) -> &Vec<RcMut<Node>> {
+        match self {
+            Node::Base(base) => &base.childs,
+            Node::Fused(fused) => &fused.childs,
         }
     }
 }
@@ -320,7 +328,7 @@ impl Stage {
 
         let stage = stage.clone();
 
-        let new_leaf_id = stage.leaf_id
+        let mut new_leaf_id = stage.leaf_id
             .borrow()
             .iter()
             .filter(|(node_ptr, _)| {
@@ -330,8 +338,19 @@ impl Stage {
                     true
                 }
             })
+            .map(|(leaf, idx)| (*leaf, *idx))
+            .collect::<Vec<_>>();
+        new_leaf_id.sort_by(|a, b| a.1.cmp(&b.1));
+        new_leaf_id
+            .iter_mut()
             .enumerate()
-            .map(|(idx, (leaf, _))| (*leaf, idx))
+            .for_each(|(idx, (_, id))| {
+                *id = idx;
+            });
+
+        let new_leaf_id = new_leaf_id
+            .iter()
+            .map(|(node_ptr, id)| { (*node_ptr, *id) })
             .collect::<HashMap<_, _>>();
 
         let new_id_leaf = new_leaf_id
@@ -541,9 +560,23 @@ impl Schedule {
     }
 
     pub fn to_halide(&self, tensor: &Tensor) -> Stmt {
-        let body = self[tensor].body.clone();
+        let stage = &self[tensor];
+        let mut freezed_dims = stage.freezed_leaf.borrow().clone();
+        let mut free_dims = stage.leaf_id
+            .borrow()
+            .iter()
+            .map(|(leaf, id)| (*leaf, *id))
+            .collect::<Vec<_>>();
+        free_dims.sort_by(|a, b| a.1.cmp(&b.1));
+        let free_dims = free_dims
+            .iter()
+            .map(|(leaf, _)| *leaf)
+            .collect::<Vec<_>>();
+        freezed_dims.extend(free_dims.iter().map(|x| { stage.address_map.borrow()[&*x].clone() }));
+        gen_indices(&freezed_dims);
+        let body = stage.body.clone();
         let let_stmt = LetStmt::make(&Variable::make(tensor.name()), body);
-        build_nested_for3(Rc::new(RefCell::new(self[tensor].clone())), let_stmt.into())
+        build_nested_for3(Rc::new(RefCell::new(stage.clone())), let_stmt.into())
     }
 }
 
@@ -552,6 +585,298 @@ impl Index<&Tensor> for Schedule {
 
     fn index(&self, index: &Tensor) -> &Self::Output {
         self.stages.get(index).expect("Schedule::index: tensor does not exist in temps_map")
+    }
+}
+pub fn gen_indices(shape: &Vec<Rc<RefCell<Node>>>) {
+    let mut m = HashMap::new();
+    let mut m_inv = HashMap::new();
+    let mut order = HashMap::new();
+    for (idx, iter) in shape.iter().enumerate() {
+        order.insert(iter.as_ptr(), idx);
+    }
+    let mut cnt = 0usize;
+    let mut visited = HashSet::new();
+    let mut edges = Edges::new();
+    for root in shape.iter() {
+        let mut stack = vec![root.clone()];
+        while let Some(node) = stack.pop() {
+            m.insert(cnt, node.clone());
+            m_inv.insert(node.as_ptr(), cnt);
+            cnt += 1;
+            for child in node.borrow().children() {
+                let ptr = child.as_ptr();
+                if visited.contains(&ptr) {
+                    continue;
+                } else {
+                    visited.insert(ptr);
+                }
+                stack.push(child.clone());
+            }
+        }
+    }
+    for (k, v) in m.iter() {
+        edges
+            .entry(*k)
+            .or_insert(HashSet::new())
+            .extend(
+                v
+                    .borrow()
+                    .children()
+                    .iter()
+                    .map(|x| m_inv.get(&x.as_ptr()).unwrap().clone())
+            );
+    }
+    let sorted = topo(&edges, &m);
+    let mut expr_map = HashMap::<usize, PrimeExpr>::new();
+    if let Some(sorted) = sorted {
+        for i in sorted {
+            let node = &m[&i];
+            match &*node.borrow() {
+                Node::Base(base) => {
+                    if let Some(parent) = &base.parent {
+                        match &mut *parent.borrow_mut() {
+                            Node::Base(_parent) => {
+                                // this is a splitting operation, parent must have 2 children
+                                assert!(_parent.childs.len() == 2);
+                                let parent_childs = &_parent.childs;
+                                // check node is lhs of parent children or rhs of parent children
+                                let is_rhs = parent_childs[1].as_ptr() == node.as_ptr();
+                                let key = m_inv[&parent.as_ptr()];
+                                if let Some(node_expr) = expr_map.get(&i) {
+                                    let node_expr = node_expr.clone();
+                                    if let Some(parent_expr) = expr_map.get_mut(&key) {
+                                        assert!(parent_expr.is_add());
+                                        // it has been visited
+                                        if is_rhs {
+                                            // rhs_expr is ready, and since the expr is add, the rhs must be None
+                                            assert!(parent_expr.to_add().unwrap().e2().is_none());
+                                            let mut to_add = parent_expr.to_add().unwrap().clone();
+                                            to_add.set_e2(node_expr);
+                                            *parent_expr = to_add.into();
+                                        } else {
+                                            // lhs_expr is ready, and since the expr is add, the lhs must be None
+                                            assert!(parent_expr.to_add().unwrap().e1().is_none());
+                                            let mut to_add = parent_expr.to_add().unwrap().clone();
+                                            to_add.set_e1(node_expr);
+                                            *parent_expr = to_add.into();
+                                        }
+                                    } else {
+                                        if is_rhs {
+                                            let add = Add::make(PrimeExpr::None, node_expr);
+                                            expr_map.insert(key, add.into());
+                                        } else {
+                                            let rhs_end = parent_childs[1].borrow().end().clone();
+                                            let add = Add::make(
+                                                Mul::make(node_expr, rhs_end),
+                                                PrimeExpr::None
+                                            );
+                                            expr_map.insert(key, add.into());
+                                        }
+                                    }
+                                } else {
+                                    // current node doesn't have accumulated expr, based on the topo order, it must be a leaf node
+                                    assert!(node.borrow().children().len() == 0);
+                                    if let Some(expr) = expr_map.get_mut(&key) {
+                                        assert!(expr.is_add());
+                                        if is_rhs {
+                                            assert!(expr.to_add().unwrap().e2().is_none());
+                                            let mut to_add = expr.to_add().unwrap().clone();
+                                            to_add.set_e2(node.borrow().var().clone());
+                                            *expr = to_add.into();
+                                        } else {
+                                            assert!(expr.to_add().unwrap().e1().is_none());
+                                            let mut to_add = expr.to_add().unwrap().clone();
+                                            // we need to get the rhs end
+                                            let rhs_end = parent_childs[1].borrow().end().clone();
+                                            to_add.set_e1(Mul::make(node.borrow().var(), rhs_end));
+                                            *expr = to_add.into();
+                                        }
+                                    } else {
+                                        if is_rhs {
+                                            let add = Add::make(
+                                                PrimeExpr::None,
+                                                node.borrow().var().clone()
+                                            );
+                                            expr_map.insert(key, add.into());
+                                        } else {
+                                            let rhs_end = parent_childs[1].borrow().end().clone();
+                                            let add = Add::make(
+                                                Mul::make(node.borrow().var(), rhs_end),
+                                                PrimeExpr::None
+                                            );
+                                            expr_map.insert(key, add.into());
+                                        }
+                                    }
+                                }
+                            }
+                            Node::Fused(_parent) => {
+                                // this is a splitting operation, parent must have 2 children
+                                assert!(_parent.childs.len() == 2);
+                                let parent_childs = &_parent.childs;
+                                // check node is lhs of parent children or rhs of parent children
+                                let is_rhs = parent_childs[1].as_ptr() == node.as_ptr();
+                                let key = m_inv[&parent.as_ptr()];
+                                if let Some(node_expr) = expr_map.get(&i) {
+                                    let node_expr = node_expr.clone();
+                                    if let Some(expr) = expr_map.get_mut(&key) {
+                                        assert!(expr.is_add());
+                                        // it has been visited
+                                        if is_rhs {
+                                            // rhs_expr is ready, and since the expr is add, the rhs must be None
+                                            assert!(expr.to_add().unwrap().e2().is_none());
+                                            let mut to_add = expr.to_add().unwrap().clone();
+                                            to_add.set_e2(node_expr);
+                                            *expr = to_add.into();
+                                        } else {
+                                            // lhs_expr is ready, and since the expr is add, the lhs must be None
+                                            assert!(expr.to_add().unwrap().e1().is_none());
+                                            let mut to_add = expr.to_add().unwrap().clone();
+                                            to_add.set_e1(node_expr);
+                                            *expr = to_add.into();
+                                        }
+                                    } else {
+                                        if is_rhs {
+                                            let add = Add::make(PrimeExpr::None, node_expr);
+                                            expr_map.insert(key, add.into());
+                                        } else {
+                                            let add = Add::make(node_expr, PrimeExpr::None);
+                                            expr_map.insert(key, add.into());
+                                        }
+                                    }
+                                } else {
+                                    // current node doesn't have accumulated expr, based on the topo order, it must be a leaf node
+                                    assert!(node.borrow().children().len() == 0);
+                                    if let Some(expr) = expr_map.get_mut(&key) {
+                                        assert!(expr.is_add());
+                                        if is_rhs {
+                                            assert!(expr.to_add().unwrap().e2().is_none());
+                                            let mut to_add = expr.to_add().unwrap().clone();
+                                            to_add.set_e2(node.borrow().var());
+                                            *expr = to_add.into();
+                                        } else {
+                                            assert!(expr.to_add().unwrap().e1().is_none());
+                                            let mut to_add = expr.to_add().unwrap().clone();
+                                            // we need to get the rhs end
+                                            let rhs_end = parent_childs[1].borrow().end().clone();
+                                            to_add.set_e1(Mul::make(node.borrow().var(), rhs_end));
+                                            *expr = to_add.into();
+                                        }
+                                    } else {
+                                        if is_rhs {
+                                            let add = Add::make(
+                                                PrimeExpr::None,
+                                                node.borrow().var()
+                                            );
+                                            expr_map.insert(key, add.into());
+                                        } else {
+                                            let rhs_end = parent_childs[1].borrow().end().clone();
+                                            let add = Add::make(
+                                                Mul::make(node.borrow().var(), rhs_end),
+                                                PrimeExpr::None
+                                            );
+                                            expr_map.insert(key, add.into());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Node::Fused(fused) => {
+                    let lhs = m_inv[&fused.lhs.as_ptr()];
+                    let rhs = m_inv[&fused.rhs.as_ptr()];
+
+                    // because we are using topo order, lhs and rhs must not be visited
+                    assert!(expr_map.get_mut(&lhs).is_none());
+                    assert!(expr_map.get_mut(&rhs).is_none());
+                    let lhs_expr;
+                    let rhs_expr;
+                    if let Some(node_expr) = expr_map.get(&i) {
+                        lhs_expr = FloorDiv::make(
+                            &node_expr,
+                            m[&rhs].borrow().end().clone()
+                        ).into();
+                        rhs_expr = node_expr % m[&rhs].borrow().end();
+                    } else {
+                        // current node doesn't have accumulated expr, based on the topo order, it must be a leaf node
+                        assert!(node.borrow().children().len() == 0);
+                        lhs_expr = FloorDiv::make(
+                            &fused.var,
+                            m[&rhs].borrow().end().clone()
+                        ).into();
+                        rhs_expr = Mod::make(&fused.var, m[&rhs].borrow().end()).into();
+                    }
+                    expr_map.insert(rhs, rhs_expr);
+                    expr_map.insert(lhs, lhs_expr);
+                }
+            }
+        }
+    } else {
+        panic!("cycle detected");
+    }
+    for (k, v) in expr_map.iter() {
+        let node = &m[k];
+        match &mut *node.borrow_mut() {
+            Node::Base(base) => {
+                assert!(base.expr.is_none());
+                base.expr = v.clone();
+            }
+            Node::Fused(fused) => {
+                assert!(fused.expr.is_none());
+                fused.expr = v.clone();
+            }
+        }
+    }
+}
+
+fn topo(
+    edges: &Edges<usize>,
+    nodes: &HashMap<usize, Rc<RefCell<Node>>>
+) -> Option<VecDeque<usize>> {
+    let mut in_degree = HashMap::new();
+    let mut queue = VecDeque::new();
+    let mut order = VecDeque::new();
+    let edges = edges.invert();
+    // calculate in degree
+    for (&node_id, _) in nodes.iter() {
+        in_degree.entry(node_id).or_insert(0);
+        let edges = edges.get(&node_id);
+        if let Some(edges) = edges {
+            for &target in edges {
+                *in_degree.entry(target).or_insert(0) += 1;
+            }
+        }
+    }
+
+    // push nodes with in degree 0 to queue
+    for (&node_id, &degree) in &in_degree {
+        if degree == 0 {
+            queue.push_back(node_id);
+        }
+    }
+
+    // topological sort
+    while let Some(node_id) = queue.pop_front() {
+        order.push_back(node_id);
+        if let Some(_) = nodes.get(&node_id) {
+            let edges = edges.get(&node_id);
+            if let Some(edges) = edges {
+                for &target in edges {
+                    let degree = in_degree.get_mut(&target).unwrap();
+                    *degree -= 1;
+                    if *degree == 0 {
+                        queue.push_back(target);
+                    }
+                }
+            }
+        }
+    }
+
+    // check if there is a cycle
+    if order.len() == nodes.len() {
+        Some(order)
+    } else {
+        None // cycle detected
     }
 }
 
