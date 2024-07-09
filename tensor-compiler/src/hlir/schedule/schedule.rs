@@ -341,7 +341,7 @@ impl Stage {
             .iter()
             .filter(|(node_ptr, _)| {
                 if let Some(node) = to_inline_stage.address_map.borrow().get(*node_ptr) {
-                    !axes.iter().any(|x| x.as_ptr() == node.as_ptr())
+                    !to_inline.iter().any(|x| x.as_ptr() == node.as_ptr())
                 } else {
                     true
                 }
@@ -355,7 +355,7 @@ impl Stage {
             .for_each(|(idx, (_, id))| {
                 *id = idx;
             });
-
+            println!("{:?}, {:?}", new_leaf_id, to_inline_stage.leaf_id.borrow());
         let new_leaf_id = new_leaf_id
             .iter()
             .map(|(node_ptr, id)| { (*node_ptr, *id) })
@@ -416,29 +416,6 @@ impl Stage {
     pub fn axis(&self, id: usize) -> RcMut<Node> {
         self.address_map.borrow()[&self.id_leaf.borrow()[&id].clone()].clone()
     }
-}
-
-fn all_elements_in_same_range(arr: &[usize], separators: &[usize]) -> bool {
-    if arr.is_empty() {
-        return true;
-    }
-
-    let range = find_range(arr[0], separators);
-    for &elem in arr.iter().skip(1) {
-        if find_range(elem, separators) != range {
-            return false;
-        }
-    }
-    true
-}
-
-fn find_range(value: usize, separators: &[usize]) -> Option<usize> {
-    separators
-        .iter()
-        .enumerate()
-        .rev()
-        .find(|&(_, &sep)| value >= sep)
-        .map(|(index, _)| index)
 }
 
 impl From<&Tensor> for Stage {
@@ -534,6 +511,7 @@ impl Schedule {
         to_inline: &[RcMut<Node>],
         axes: &[RcMut<Node>]
     ) -> Option<RcMut<Stage>> {
+        assert!(to_inline.len() == axes.len());
         stage.compute_inline(to_inline_stage, to_inline, axes)
     }
     pub fn reorder(&mut self, tensor: &Tensor, axes: &[&RcMut<Node>]) {
@@ -969,12 +947,13 @@ mod tests {
         });
 
         let mut s = Schedule::create(&[&a, &c, &d]);
-        let c_stage = s.stages.get(&c).unwrap();
+        let c_stage = s.stages.get(&c).unwrap().clone();
         let axis = c_stage.axis(0);
         let axis2 = c_stage.axis(1);
         let d_stage = s.stages.get(&d).unwrap().clone();
-        let d_axis = d_stage.axis(0);
-        s.compute_inline(&s[&c].clone(), &d_stage, &[d_axis], &[axis, axis2]);
-        IRPrinter.print_stmt(s.to_halide(&c));
+        let d_axis1 = d_stage.axis(0);
+        let d_axis2 = d_stage.axis(1);
+        s.compute_inline(&s[&d].clone(), &c_stage, &[axis, axis2], &[d_axis1, d_axis2]);
+        IRPrinter.print_stmt(s.to_halide(&d));
     }
 }
