@@ -160,6 +160,7 @@ impl FusedNode {
 #[derive(Clone)]
 pub struct Stage {
     pub(crate) freezed_leaf: RcMut<Vec<RcMut<Node>>>, // these are from the parent stage, we can't do split/fuse on them, they are only used to generate indices
+    pub(crate) freezed_target: RcMut<Vec<RcMut<Node>>>,
     pub(crate) root: RcMut<Vec<RcMut<Node>>>,
     pub(crate) leaf_id: RcMut<HashMap<usize, usize>>,
     pub(crate) id_leaf: RcMut<HashMap<usize, usize>>,
@@ -355,7 +356,6 @@ impl Stage {
             .for_each(|(idx, (_, id))| {
                 *id = idx;
             });
-            println!("{:?}, {:?}", new_leaf_id, to_inline_stage.leaf_id.borrow());
         let new_leaf_id = new_leaf_id
             .iter()
             .map(|(node_ptr, id)| { (*node_ptr, *id) })
@@ -375,6 +375,7 @@ impl Stage {
             .for_each(|(x, y)| { x.borrow_mut().set_ref_node(y.clone()) });
 
         to_inline_stage.freezed_leaf.borrow_mut().extend(to_inline.iter().cloned());
+        to_inline_stage.freezed_target.borrow_mut().extend(axes.iter().cloned());
 
         let ret = Rc::new(RefCell::new(to_inline_stage));
         self.attached_stage
@@ -387,10 +388,30 @@ impl Stage {
     pub fn to_halid(&self) -> Stmt {
         gen_indices(&self.root.borrow());
         let mut subs_expr = SubstituteExpr::new();
+        // println!("replacing {}", self.name);
         for origin in self.root.borrow().iter() {
+            if
+                self.freezed_leaf
+                    .borrow()
+                    .iter()
+                    .any(|x| x.as_ptr() == origin.as_ptr())
+            {
+                continue;
+            }
+            // println!("{} -> {}", origin.borrow().var(), origin.borrow().expr());
             subs_expr.add_replacement(
                 origin.borrow().var().to_prime_expr(),
                 origin.borrow().expr().clone()
+            );
+        }
+        for (origin, target) in self.freezed_leaf
+            .borrow()
+            .iter()
+            .zip(self.freezed_target.borrow().iter()) {
+            // println!("{} -> {}", origin.borrow().var().to_prime_expr(), target.borrow().expr());
+            subs_expr.add_replacement(
+                origin.borrow().var().to_prime_expr(),
+                target.borrow().expr()
             );
         }
         self.body.accept_mutate(&mut subs_expr);
@@ -445,6 +466,7 @@ impl From<&Tensor> for Stage {
             .collect::<HashMap<_, _>>();
         Stage {
             freezed_leaf: Rc::new(RefCell::new(vec![])),
+            freezed_target: Rc::new(RefCell::new(vec![])),
             root: Rc::new(RefCell::new(root)),
             leaf_id: Rc::new(RefCell::new(leaf_id)),
             id_leaf: Rc::new(RefCell::new(id_leaf)),
@@ -665,13 +687,20 @@ pub fn gen_indices(shape: &Vec<Rc<RefCell<Node>>>) {
                                             let mut to_add = expr.to_add().unwrap().clone();
                                             to_add.set_e2(node.borrow().var().clone());
                                             *expr = to_add.into();
+                                            expr_map.insert(i, node.borrow().var().clone().into());
                                         } else {
                                             assert!(expr.to_add().unwrap().e1().is_none());
                                             let mut to_add = expr.to_add().unwrap().clone();
                                             // we need to get the rhs end
                                             let rhs_end = parent_childs[1].borrow().end().clone();
-                                            to_add.set_e1(Mul::make(node.borrow().var(), rhs_end));
+                                            to_add.set_e1(
+                                                Mul::make(node.borrow().var(), rhs_end.clone())
+                                            );
                                             *expr = to_add.into();
+                                            expr_map.insert(
+                                                i,
+                                                Mul::make(node.borrow().var(), rhs_end).into()
+                                            );
                                         }
                                     } else {
                                         if is_rhs {
@@ -679,12 +708,17 @@ pub fn gen_indices(shape: &Vec<Rc<RefCell<Node>>>) {
                                                 PrimeExpr::None,
                                                 node.borrow().var().clone()
                                             );
+                                            expr_map.insert(i, node.borrow().var().clone().into());
                                             expr_map.insert(key, add.into());
                                         } else {
                                             let rhs_end = parent_childs[1].borrow().end().clone();
                                             let add = Add::make(
-                                                Mul::make(node.borrow().var(), rhs_end),
+                                                Mul::make(node.borrow().var(), rhs_end.clone()),
                                                 PrimeExpr::None
+                                            );
+                                            expr_map.insert(
+                                                i,
+                                                Mul::make(node.borrow().var(), rhs_end).into()
                                             );
                                             expr_map.insert(key, add.into());
                                         }
@@ -936,24 +970,25 @@ mod tests {
         let m = Variable::make("m");
         let n = Variable::make("n");
         let p = Variable::make("p");
+        let q = Variable::make("q");
 
         let a = Tensor::placeholder(&[&m, &n], Dtype::I64, "A");
+        let b = Tensor::placeholder(&[&m, &p, &q], Dtype::I64, "B");
 
         let c = compute(Dtype::BF16, [&n, &m], [&a], "C", |[a], [i, j]| {
-            a.slice([&i, &j]) + a.slice([&j, &i])
+            a.slice([&i, &j]) + a.slice([&i, &j])
         });
-        let d = compute(Dtype::BF16, [&m, &p], [&c], "D", |[c], [i, j]| {
-            c.slice([&i, &j]) + c.slice([&j, &i])
+        let d = compute(Dtype::BF16, [&m, &p, &q], [&b], "D", |[b], [i, j, k]| {
+            b.slice([&i, &j, &k]) + b.slice([&i, &j, &k])
         });
 
         let mut s = Schedule::create(&[&a, &c, &d]);
         let c_stage = s.stages.get(&c).unwrap().clone();
+        let d_stage = s.stages.get(&d).unwrap().clone();
+        let (outer, inner) = s.split(&d, &d_stage.axis(0), 7);
         let axis = c_stage.axis(0);
         let axis2 = c_stage.axis(1);
-        let d_stage = s.stages.get(&d).unwrap().clone();
-        let d_axis1 = d_stage.axis(0);
-        let d_axis2 = d_stage.axis(1);
-        s.compute_inline(&s[&d].clone(), &c_stage, &[axis, axis2], &[d_axis1, d_axis2]);
+        s.compute_inline(&s[&d].clone(), &c_stage, &[axis, axis2], &[outer.clone(), inner.clone()]);
         IRPrinter.print_stmt(s.to_halide(&d));
     }
 }
