@@ -680,6 +680,7 @@ pub fn gen_indices(shape: &Vec<Rc<RefCell<Node>>>) {
                                 } else {
                                     // current node doesn't have accumulated expr, based on the topo order, it must be a leaf node
                                     assert!(node.borrow().children().len() == 0);
+                                    expr_map.insert(i, node.borrow().var().clone().into());
                                     if let Some(expr) = expr_map.get_mut(&key) {
                                         assert!(expr.is_add());
                                         if is_rhs {
@@ -687,7 +688,6 @@ pub fn gen_indices(shape: &Vec<Rc<RefCell<Node>>>) {
                                             let mut to_add = expr.to_add().unwrap().clone();
                                             to_add.set_e2(node.borrow().var().clone());
                                             *expr = to_add.into();
-                                            expr_map.insert(i, node.borrow().var().clone().into());
                                         } else {
                                             assert!(expr.to_add().unwrap().e1().is_none());
                                             let mut to_add = expr.to_add().unwrap().clone();
@@ -697,10 +697,6 @@ pub fn gen_indices(shape: &Vec<Rc<RefCell<Node>>>) {
                                                 Mul::make(node.borrow().var(), rhs_end.clone())
                                             );
                                             *expr = to_add.into();
-                                            expr_map.insert(
-                                                i,
-                                                Mul::make(node.borrow().var(), rhs_end).into()
-                                            );
                                         }
                                     } else {
                                         if is_rhs {
@@ -708,17 +704,12 @@ pub fn gen_indices(shape: &Vec<Rc<RefCell<Node>>>) {
                                                 PrimeExpr::None,
                                                 node.borrow().var().clone()
                                             );
-                                            expr_map.insert(i, node.borrow().var().clone().into());
                                             expr_map.insert(key, add.into());
                                         } else {
                                             let rhs_end = parent_childs[1].borrow().end().clone();
                                             let add = Add::make(
                                                 Mul::make(node.borrow().var(), rhs_end.clone()),
                                                 PrimeExpr::None
-                                            );
-                                            expr_map.insert(
-                                                i,
-                                                Mul::make(node.borrow().var(), rhs_end).into()
                                             );
                                             expr_map.insert(key, add.into());
                                         }
