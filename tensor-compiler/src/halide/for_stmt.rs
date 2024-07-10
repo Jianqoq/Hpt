@@ -1,5 +1,9 @@
 use std::sync::Arc;
 
+use tensor_types::dtype::Dtype;
+
+use crate::halide::exprs::Int;
+
 use super::{
     prime_expr::PrimeExpr,
     stmt::Stmt,
@@ -40,13 +44,12 @@ impl For {
         self.stmt = stmt.into().into();
     }
 
-    pub fn make<T: Into<PrimeExpr> + Clone, S: Into<Stmt> + Clone, B: Into<PrimeExpr> + Clone, C: Into<PrimeExpr> + Clone>(
-        var: &Variable,
-        start: T,
-        end: B,
-        step: C,
-        stmt: S
-    ) -> Self {
+    pub fn make<
+        T: Into<PrimeExpr> + Clone,
+        S: Into<Stmt> + Clone,
+        B: Into<PrimeExpr> + Clone,
+        C: Into<PrimeExpr> + Clone
+    >(var: &Variable, start: T, end: B, step: C, stmt: S) -> Self {
         For {
             var: var.clone(),
             start: Arc::new(start.clone().into()),
@@ -71,7 +74,26 @@ impl For {
 
 impl std::fmt::Display for For {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "for {} in ({}, {}, {}) {{\n{}\n}}", self.var, self.start, self.end, self.step, self.stmt)
+        if self.step.as_ref() == &Int::make(Dtype::I64, 1).into() {
+            return write!(
+                f,
+                "for {} in ({}, {}) {{\n{}\n}}",
+                self.var,
+                self.start,
+                self.end,
+                self.stmt
+            );
+        } else {
+            write!(
+                f,
+                "for {} in ({}, {}, {}) {{\n{}\n}}",
+                self.var,
+                self.start,
+                self.end,
+                self.step,
+                self.stmt
+            )
+        }
     }
 }
 

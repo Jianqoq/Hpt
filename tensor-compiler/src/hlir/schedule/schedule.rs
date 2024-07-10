@@ -193,7 +193,7 @@ impl Stage {
                             format!("{}_outer", base.var),
                             &base.start,
                             end,
-                            1,
+                            1i64,
                             Some(axis.clone())
                         )
                     );
@@ -202,7 +202,7 @@ impl Stage {
                             format!("{}_inner", base.var),
                             0,
                             factor,
-                            1,
+                            1i64,
                             Some(axis.clone())
                         )
                     );
@@ -215,7 +215,7 @@ impl Stage {
                             format!("{}_outer", fused.var),
                             &fused.start,
                             end,
-                            1,
+                            1i64,
                             Some(axis.clone())
                         )
                     );
@@ -224,7 +224,7 @@ impl Stage {
                             format!("{}_inner", fused.var),
                             0,
                             factor,
-                            1,
+                            1i64,
                             Some(axis.clone())
                         )
                     );
@@ -287,9 +287,9 @@ impl Stage {
             lhs: axis1.clone(),
             rhs: axis2.clone(),
             var: Variable::new(format!("fused_{}_{}", axis1.borrow().var(), axis2.borrow().var())),
-            start: (0).into(),
+            start: (0i64).into(),
             end: axis2.borrow().end() * axis1.borrow().end(),
-            step: (1).into(),
+            step: (1i64).into(),
             childs: vec![].into(),
             expr: PrimeExpr::None,
             ref_node: None,

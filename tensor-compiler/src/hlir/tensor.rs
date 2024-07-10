@@ -419,9 +419,9 @@ impl Tensor {
             .enumerate()
             .map(|(i, x)| {
                 IterVar::new(
-                    Int::make(Dtype::I64, 0),
+                    Int::make(Dtype::I64, 0i64),
                     x,
-                    Int::make(Dtype::I64, 1),
+                    Int::make(Dtype::I64, 1i64),
                     Variable::new(format!("ax{}", i))
                 )
             })

@@ -1,3 +1,7 @@
+use tensor_types::dtype::Dtype;
+
+use crate::halide::exprs::Int;
+
 use super::{ prime_expr::PrimeExpr, stmt::Stmt };
 
 pub struct IRPrinter;
@@ -43,7 +47,17 @@ impl _IRPrinter {
             }
             Stmt::For(var) => {
                 self.do_indent();
-                println!("for {} in range({}, {}) {{", var.var(), var.start(), var.end());
+                if var.step() == &Int::make(Dtype::I64, 1).into() {
+                    println!("for {} in range({}, {}) {{", var.var(), var.start(), var.end());
+                } else {
+                    println!(
+                        "for {} in range({}, {}, {}) {{",
+                        var.var(),
+                        var.start(),
+                        var.end(),
+                        var.step()
+                    );
+                }
                 self.indent += 1;
                 self.print_stmt(var.stmt());
                 self.indent -= 1;
