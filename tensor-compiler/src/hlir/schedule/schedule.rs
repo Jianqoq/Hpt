@@ -171,6 +171,7 @@ pub struct Stage {
     pub(crate) attached_stage: RcMut<HashMap<usize, Vec<RcMut<Stage>>>>,
     pub(crate) transforms: VecDeque<Transforms>,
     pub(crate) body: PrimeExpr,
+    pub(crate) inputs: Vec<Arc<String>>,
     pub(crate) name: Arc<String>,
 }
 
@@ -502,6 +503,11 @@ impl From<&Tensor> for Stage {
             name: Arc::new(value.name().to_string()),
             address_map: Rc::new(RefCell::new(address_map)),
             attached_stage: Rc::new(RefCell::new(HashMap::new())),
+            inputs: value
+                .inputs()
+                .iter()
+                .map(|x| x.var.name.clone())
+                .collect(),
             body: value.body().clone(),
         }
     }
