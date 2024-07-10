@@ -753,6 +753,7 @@ pub fn gen_indices(shape: &Vec<Rc<RefCell<Node>>>) {
                                 } else {
                                     // current node doesn't have accumulated expr, based on the topo order, it must be a leaf node
                                     assert!(node.borrow().children().len() == 0);
+                                    expr_map.insert(i, node.borrow().var().clone().into());
                                     if let Some(expr) = expr_map.get_mut(&key) {
                                         assert!(expr.is_add());
                                         if is_rhs {
@@ -816,6 +817,7 @@ pub fn gen_indices(shape: &Vec<Rc<RefCell<Node>>>) {
                             m[&rhs].borrow().end().clone()
                         ).into();
                         rhs_expr = Mod::make(&fused.var, m[&rhs].borrow().end()).into();
+                        expr_map.insert(i, fused.var.clone().into());
                     }
                     expr_map.insert(rhs, rhs_expr);
                     expr_map.insert(lhs, lhs_expr);
