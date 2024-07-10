@@ -330,7 +330,7 @@ impl Stage {
     }
 
     /// to inline axes must come from the stage itself
-    pub fn compute_inline(
+    pub fn compute_at(
         &self,
         to_inline_stage: &Stage,
         to_inline: &[RcMut<Node>],
@@ -462,8 +462,8 @@ impl Stage {
             .map(|(node_ptr, _)| { self.address_map.borrow()[&*node_ptr].clone() })
             .collect()
     }
-    pub fn axis(&self, id: usize) -> RcMut<Node> {
-        self.address_map.borrow()[&self.id_leaf.borrow()[&id].clone()].clone()
+    pub fn axis(&self, idx: usize) -> RcMut<Node> {
+        self.address_map.borrow()[&self.id_leaf.borrow()[&idx].clone()].clone()
     }
 }
 
@@ -554,15 +554,15 @@ impl Schedule {
             panic!("Schedule::fuse: tensor does not exist in temps_map");
         }
     }
-    pub fn compute_inline(
+    pub fn compute_at(
         &mut self,
         stage: &Stage,
         to_inline_stage: &Stage,
-        to_inline: &[RcMut<Node>],
+        to_inline_axes: &[RcMut<Node>],
         target_axes: &[RcMut<Node>]
     ) -> Option<RcMut<Stage>> {
-        assert!(to_inline.len() == target_axes.len());
-        stage.compute_inline(to_inline_stage, to_inline, target_axes)
+        assert!(to_inline_axes.len() == target_axes.len());
+        stage.compute_at(to_inline_stage, to_inline_axes, target_axes)
     }
     pub fn reorder(&mut self, tensor: &Tensor, axes: &[&RcMut<Node>]) {
         let temp = self.stages.get_mut(tensor);
@@ -937,7 +937,7 @@ pub enum Transforms {
 mod tests {
     use tensor_types::dtype::Dtype;
 
-    use crate::{halide::printer::IRPrinter, hlir::tensor::compute};
+    use crate::{ halide::printer::IRPrinter, hlir::tensor::compute };
 
     use super::*;
 
@@ -1009,7 +1009,7 @@ mod tests {
         let (outer, inner) = s.split(&d, &d_stage.axis(0), 7);
         let axis = c_stage.axis(0);
         let axis2 = c_stage.axis(1);
-        s.compute_inline(&s[&d].clone(), &c_stage, &[axis, axis2], &[outer.clone(), inner.clone()]);
+        s.compute_at(&s[&d].clone(), &c_stage, &[axis, axis2], &[outer.clone(), inner.clone()]);
         IRPrinter.print_stmt(s.to_halide(&d));
     }
 }
