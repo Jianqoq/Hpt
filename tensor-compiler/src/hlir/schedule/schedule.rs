@@ -955,10 +955,10 @@ mod tests {
 
         let a = Tensor::placeholder(&[&m, &n], Dtype::I64, "A");
 
-        let c = compute(Dtype::BF16, [&n, &m], [&a], "C", |[a], [i, j]| {
+        let c = compute(Dtype::BF16, [&n, &m], "C", |[i, j]| {
             a.slice([&i, &j]) + a.slice([&j, &i])
         });
-        let d = compute(Dtype::BF16, [&m, &p], [&c], "D", |[c], [i, j]| {
+        let d = compute(Dtype::BF16, [&m, &p], "D", |[i, j]| {
             c.slice([&i, &j]) + c.slice([&j, &i])
         });
 
@@ -977,10 +977,10 @@ mod tests {
 
         let a = Tensor::placeholder(&[&m, &n], Dtype::I64, "A");
 
-        let c = compute(Dtype::BF16, [&n, &m], [&a], "C", |[a], [i, j]| {
+        let c = compute(Dtype::BF16, [&n, &m], "C", |[i, j]| {
             a.slice([&i, &j]) + a.slice([&j, &i])
         });
-        let d = compute(Dtype::BF16, [&m, &p], [&c], "D", |[c], [i, j]| {
+        let d = compute(Dtype::BF16, [&m, &p], "D", |[i, j]| {
             c.slice([&i, &j]) + c.slice([&j, &i])
         });
 
@@ -1002,11 +1002,11 @@ mod tests {
         let a = Tensor::placeholder(&[&m, &n], Dtype::I64, "A");
         let b = Tensor::placeholder(&[&m, &p, &q], Dtype::I64, "B");
 
-        let c = compute(Dtype::BF16, [&n, &m], [&a], "C", |[a], [i, j]| {
+        let c = compute(Dtype::BF16, [&n, &m], "C", |[i, j]| {
             a.slice([&i, &j]) + a.slice([&i, &j])
         });
-        let d = compute(Dtype::BF16, [&m, &p, &q], [&b], "D", |[b], [i, j, k]| {
-            b.slice([&i, &j, &k]) + b.slice([&i, &j, &k])
+        let d = compute(Dtype::BF16, [&m, &p, &q], "D", |[i, j, k]| {
+            b.slice([&i, &j, &k]) + b.slice([&(i + 4), &j, &k])
         });
 
         let mut s = Schedule::create(&[&a, &c, &d]);
@@ -1027,10 +1027,10 @@ mod tests {
 
         let a = Tensor::placeholder(&[&m, &n], Dtype::I64, "A");
 
-        let c = compute(Dtype::BF16, [&n, &m], [&a], "C", |[a], [i, j]| {
+        let c = compute(Dtype::BF16, [&n, &m], "C", |[i, j]| {
             a.slice([&i, &j]) + a.slice([&i, &j])
         });
-        let d = compute(Dtype::BF16, [&m, &p], [&c], "D", |[c], [i, j]| {
+        let d = compute(Dtype::BF16, [&m, &p], "D", |[i, j]| {
             c.slice([&i, &j]) + c.slice([&i, &j])
         });
 
@@ -1043,5 +1043,31 @@ mod tests {
         let d_axis2 = d_stage.axis(1);
         s.compute_at(&s[&d].clone(), &c_stage, &[axis, axis2], &[d_axis, d_axis2]);
         IRPrinter.print_stmt(s.to_halide(&d));
+    }
+
+    #[test]
+    fn test_compute_at_correct_order() {
+        let m = Variable::make("m");
+        let n = Variable::make("n");
+        let p = Variable::make("p");
+
+        let a = Tensor::placeholder(&[&m, &n], Dtype::I64, "A");
+
+        let c = compute(Dtype::BF16, [&n, &m], "C", |[i, j]| {
+            a.slice([&i, &j]) + a.slice([&i, &j])
+        });
+        let d = compute(Dtype::BF16, [&m, &p], "D", |[i, j]| {
+            c.slice([&i, &j]) + c.slice([&i, &j])
+        });
+
+        let mut s = Schedule::create(&[&a, &c, &d]);
+        let c_stage = s.stages.get(&c).unwrap().clone();
+        let d_stage = s.stages.get(&d).unwrap().clone();
+        let axis = c_stage.axis(0);
+        let axis2 = c_stage.axis(1);
+        let d_axis = d_stage.axis(0);
+        let d_axis2 = d_stage.axis(1);
+        s.compute_at(&s[&c].clone(), &d_stage, &[d_axis, d_axis2], &[axis, axis2]);
+        IRPrinter.print_stmt(s.to_halide(&c));
     }
 }

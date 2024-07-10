@@ -466,14 +466,12 @@ impl Into<Tensor> for &Tensor {
 }
 
 pub fn compute<
-    const M: usize,
     const N: usize,
     F,
     T: Into<PrimeExpr> + Clone,
-    A: Into<Tensor> + Clone,
     C: Into<PrimeExpr>
-    >(dtype: Dtype, res_shape: [T; N], inputs: [A; M], name: &str, op: F) -> Tensor
-    where F: Fn([Tensor; M], [PrimeExpr; N]) -> C
+    >(dtype: Dtype, res_shape: [T; N], name: &str, op: F) -> Tensor
+    where F: Fn([PrimeExpr; N]) -> C
 {
     let iter_vars = res_shape
         .iter()
@@ -487,12 +485,7 @@ pub fn compute<
             )
         })
         .collect::<Vec<_>>();
-    let inputs = inputs
-        .into_iter()
-        .map(|x| x.into())
-        .collect::<[Tensor; M]>();
     let body = op(
-        inputs,
         iter_vars
             .iter()
             .map(|x| x.var().clone().into())
@@ -590,7 +583,7 @@ mod tests {
         let n = Variable::make("n");
         let m = Variable::make("m");
         let a = Tensor::placeholder(&[&n, &m], Dtype::BF16, "a");
-        let g = compute(Dtype::BF16, [&n, &m], [&a], "a", |[a], [i, j]| { 2 + a.slice([i, j]) });
+        let g = compute(Dtype::BF16, [&n, &m],  "a", |[i, j]| { 2 + a.slice([i, j]) });
         let d = a.argmax(0, 1);
         println!("d body: {}", g.body());
     }
