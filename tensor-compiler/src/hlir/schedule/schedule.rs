@@ -7,17 +7,13 @@ use hashbrown::{ HashMap, HashSet };
 use crate::{
     edges::Edges,
     halide::{
-        exprs::{ Add, FloorDiv, Load, Mod, Mul },
+        exprs::{ Add, FloorDiv, Mod, Mul },
         loop_utils::build_nested::build_nested_for2,
         prime_expr::PrimeExpr,
         stmt::Stmt,
-        store_stmt::StoreStmt,
-        substitute::subsititue_expr::SubstituteExpr,
-        traits::{ AccepterMutate, MutatorGetSet },
         variable::Variable,
     },
     hlir::tensor::Tensor,
-    to_prim_expr::ToPrimeExpr,
 };
 
 pub type RcMut<T> = Rc<RefCell<T>>;
@@ -391,61 +387,7 @@ impl Stage {
     }
     pub fn to_halid(&self) -> Stmt {
         gen_indices(&self.root.borrow());
-        let mut subs_expr = SubstituteExpr::new();
-        let mut store_indices_root = vec![];
-        for origin in self.root.borrow().iter() {
-            if
-                self.freezed_leaf
-                    .borrow()
-                    .iter()
-                    .any(|x| x.as_ptr() == origin.as_ptr())
-            {
-                continue;
-            }
-            // println!("{} -> {}", origin.borrow().var(), origin.borrow().expr());
-            subs_expr.add_replacement(
-                origin.borrow().var().to_prime_expr(),
-                origin.borrow().expr().clone()
-            );
-            store_indices_root.push(origin.borrow().expr().clone());
-        }
-        let mut store_indices_freezed = vec![];
-        for (origin, target) in self.freezed_leaf
-            .borrow()
-            .iter()
-            .zip(self.freezed_target.borrow().iter()) {
-            // println!("{} -> {}", origin.borrow().var().to_prime_expr(), target.borrow().expr());
-            subs_expr.add_replacement(
-                origin.borrow().var().to_prime_expr(),
-                target.borrow().expr()
-            );
-            if
-                self.root
-                    .borrow()
-                    .iter()
-                    .any(|x| x.as_ptr() == origin.as_ptr())
-            {
-                store_indices_freezed.push(target.borrow().expr().clone());
-            }
-        }
-        self.body.accept_mutate(&mut subs_expr);
-
-        let load_strides = (0..self.root.borrow().len()).map(|x| {
-            Load::make(format!("{}.strides", self.name.as_ref()), x)
-        });
-        store_indices_freezed.extend(store_indices_root.iter().cloned());
-        let store = StoreStmt::make(
-            &Variable::make(&self.name),
-            store_indices_freezed
-                .iter()
-                .zip(load_strides)
-                .map(|(x, strides)| x.clone() * strides.into())
-                .reduce(|x, y| x + y)
-                .unwrap(),
-            subs_expr.expr()
-        );
-        store.accept_mutate(&mut subs_expr);
-        build_nested_for2(Rc::new(RefCell::new(self.clone())), store.into())
+        build_nested_for2(Rc::new(RefCell::new(self.clone())))
     }
 
     pub fn tile(&self) -> (RcMut<Node>, RcMut<Node>) {

@@ -4,9 +4,19 @@ use hashbrown::{ HashMap, HashSet };
 
 use crate::{
     edges::Edges,
-    halide::{ for_stmt::For, printer::IRPrinter, seq_stmt::Seq, stmt::Stmt },
+    halide::{
+        exprs::Load,
+        for_stmt::For,
+        seq_stmt::Seq,
+        stmt::Stmt,
+        store_stmt::StoreStmt,
+        substitute::subsititue_expr::SubstituteExpr,
+        traits::{ AccepterMutate, MutatorGetSet },
+        variable::Variable,
+    },
     hlir::schedule::schedule::{ Node, RcMut, Stage },
     iter_var::IterVar,
+    to_prim_expr::ToPrimeExpr,
 };
 
 pub fn build_nested_for<T: Into<Stmt>>(iter_vars: &[IterVar], main_stmt: T) -> Stmt {
@@ -76,21 +86,71 @@ fn topo(nodes: &HashMap<usize, Arc<String>>, edges: Edges<usize>) -> Option<VecD
     }
 }
 
-pub fn build_nested_for_helper<T: Into<Stmt>>(
-    stage: RcMut<Stage>,
-    iter_vars: &[RcMut<Node>],
-    main_stmt: T
-) -> Stmt {
-    fn build_recursive<T: Into<Stmt>>(
-        idx: usize,
-        stage: RcMut<Stage>,
-        iter_vars: &[RcMut<Node>],
-        main_stmt: T
-    ) -> Stmt {
-        if idx == iter_vars.len() {
-            main_stmt.into()
+pub fn build_nested_for_helper(stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -> Stmt {
+    fn build_recursive(idx: usize, stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -> Stmt {
+        let mut seq = None;
+        let store = if idx == iter_vars.len() - 1 || iter_vars.len() == 0 {
+            let mut subs_expr = SubstituteExpr::new();
+            let mut store_indices_root = vec![];
+            for origin in stage.borrow().root.borrow().iter() {
+                if
+                    stage
+                        .borrow()
+                        .freezed_leaf.borrow()
+                        .iter()
+                        .any(|x| x.as_ptr() == origin.as_ptr())
+                {
+                    continue;
+                }
+                // println!("{} -> {}", origin.borrow().var(), origin.borrow().expr());
+                subs_expr.add_replacement(
+                    origin.borrow().var().to_prime_expr(),
+                    origin.borrow().expr().clone()
+                );
+                store_indices_root.push(origin.borrow().expr().clone());
+            }
+            let mut store_indices_freezed = vec![];
+            for (origin, target) in stage
+                .borrow()
+                .freezed_leaf.borrow()
+                .iter()
+                .zip(stage.borrow().freezed_target.borrow().iter()) {
+                // println!("{} -> {}", origin.borrow().var().to_prime_expr(), target.borrow().expr());
+                subs_expr.add_replacement(
+                    origin.borrow().var().to_prime_expr(),
+                    target.borrow().expr()
+                );
+                if
+                    stage
+                        .borrow()
+                        .root.borrow()
+                        .iter()
+                        .any(|x| x.as_ptr() == origin.as_ptr())
+                {
+                    store_indices_freezed.push(target.borrow().expr().clone());
+                }
+            }
+            stage.borrow().body.accept_mutate(&mut subs_expr);
+
+            let load_strides = (0..stage.borrow().root.borrow().len()).map(|x| {
+                Load::make(format!("{}.strides", stage.borrow().name.as_ref()), x)
+            });
+            store_indices_freezed.extend(store_indices_root.iter().cloned());
+            let store = StoreStmt::make(
+                &Variable::make(&stage.borrow().name),
+                store_indices_freezed
+                    .iter()
+                    .zip(load_strides)
+                    .map(|(x, strides)| x.clone() * strides.into())
+                    .reduce(|x, y| x + y)
+                    .unwrap(),
+                subs_expr.expr()
+            );
+            Some(Stmt::StoreStmt(store))
         } else {
-            let mut seq = None;
+            None
+        };
+        if iter_vars.len() > 0 {
             if
                 let Some(stages) = stage
                     .borrow()
@@ -101,8 +161,14 @@ pub fn build_nested_for_helper<T: Into<Stmt>>(
                 let mut nodes_id = HashMap::new();
                 let mut id_nodes = HashMap::new();
 
-                let mut stages = stages.iter().map(|x| x.clone()).collect::<Vec<_>>();
-                stages.push(stage.clone());
+                let mut stages = stages
+                    .iter()
+                    .map(|x| x.clone())
+                    .collect::<Vec<_>>();
+
+                if idx == iter_vars.len() - 1 {
+                    stages.push(stage.clone());
+                }
 
                 for stage in stages.iter() {
                     if let None = nodes_id.get(&stage.borrow().name) {
@@ -131,45 +197,92 @@ pub fn build_nested_for_helper<T: Into<Stmt>>(
                 let sorted = topo(&id_nodes, edges).expect("Cycle detected");
                 let mut vec = Vec::with_capacity(stages.len());
 
-                for id in sorted.iter() {
-                    let name = &id_nodes[id];
-                    for i in stages.iter() {
-                        if i.borrow().name == *name {
-                            let halide = i.borrow().to_halid();
-                            vec.push(halide);
+                if idx == iter_vars.len() - 1 {
+                    for id in sorted.iter() {
+                        let name = &id_nodes[id];
+                        for i in stages.iter() {
+                            if i.borrow().name == *name {
+                                if i.borrow().name == stage.borrow().name {
+                                    vec.push(store.clone().unwrap());
+                                } else {
+                                    let halide = i.borrow().to_halid();
+                                    vec.push(halide);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    for id in sorted.iter() {
+                        let name = &id_nodes[id];
+                        for i in stages.iter() {
+                            if i.borrow().name == *name {
+                                let halide = i.borrow().to_halid();
+                                vec.push(halide);
+                            }
                         }
                     }
                 }
-
                 seq = Some(vec);
             }
-            let to_add = if let Some(mut seq) = seq {
-                seq.push(build_recursive(idx + 1, stage, iter_vars, main_stmt));
-                For::make(
-                    iter_vars[idx].borrow().var(),
-                    iter_vars[idx].borrow().start(),
-                    iter_vars[idx].borrow().end(),
-                    iter_vars[idx].borrow().step(),
-                    Seq::make(seq)
-                )
+        }
+
+        if let Some(mut seq) = seq {
+            if idx == iter_vars.len() - 1 {
+                return Stmt::For(
+                    For::make(
+                        iter_vars[idx].borrow().var(),
+                        iter_vars[idx].borrow().start(),
+                        iter_vars[idx].borrow().end(),
+                        iter_vars[idx].borrow().step(),
+                        Seq::make(seq)
+                    )
+                );
             } else {
-                For::make(
-                    iter_vars[idx].borrow().var(),
-                    iter_vars[idx].borrow().start(),
-                    iter_vars[idx].borrow().end(),
-                    iter_vars[idx].borrow().step(),
-                    build_recursive(idx + 1, stage, iter_vars, main_stmt)
-                )
-            };
-            Stmt::For(to_add)
+                seq.push(build_recursive(idx + 1, stage, iter_vars));
+                return Stmt::For(
+                    For::make(
+                        iter_vars[idx].borrow().var(),
+                        iter_vars[idx].borrow().start(),
+                        iter_vars[idx].borrow().end(),
+                        iter_vars[idx].borrow().step(),
+                        Seq::make(seq)
+                    )
+                );
+            }
+        } else {
+            if idx == iter_vars.len() - 1 {
+                return Stmt::For(
+                    For::make(
+                        iter_vars[idx].borrow().var(),
+                        iter_vars[idx].borrow().start(),
+                        iter_vars[idx].borrow().end(),
+                        iter_vars[idx].borrow().step(),
+                        store.unwrap()
+                    )
+                );
+            } else {
+                if iter_vars.len() == 0 {
+                    return store.unwrap();
+                } else {
+                    return Stmt::For(
+                        For::make(
+                            iter_vars[idx].borrow().var(),
+                            iter_vars[idx].borrow().start(),
+                            iter_vars[idx].borrow().end(),
+                            iter_vars[idx].borrow().step(),
+                            build_recursive(idx + 1, stage, iter_vars)
+                        )
+                    );
+                }
+            }
         }
     }
 
-    build_recursive(0, stage, iter_vars, main_stmt)
+    build_recursive(0, stage, iter_vars)
 }
 
 #[rustfmt::skip]
-pub fn build_nested_for2(stage: RcMut<Stage>, main_stmt: Stmt) -> Stmt {
+pub fn build_nested_for2(stage: RcMut<Stage>) -> Stmt {
     let mut axes = stage.borrow().leaf_id
         .borrow()
         .iter()
@@ -180,5 +293,5 @@ pub fn build_nested_for2(stage: RcMut<Stage>, main_stmt: Stmt) -> Stmt {
         .iter()
         .map(|(node, _)| node.clone())
         .collect::<Vec<_>>();
-    build_nested_for_helper(stage, &axes, main_stmt)
+    build_nested_for_helper(stage, &axes)
 }
