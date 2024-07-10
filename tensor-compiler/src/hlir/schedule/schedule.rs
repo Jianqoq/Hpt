@@ -987,7 +987,7 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_inline_1() {
+    fn test_compute_at() {
         let m = Variable::make("m");
         let n = Variable::make("n");
         let p = Variable::make("p");
@@ -1010,6 +1010,32 @@ mod tests {
         let axis = c_stage.axis(0);
         let axis2 = c_stage.axis(1);
         s.compute_at(&s[&d].clone(), &c_stage, &[axis, axis2], &[outer.clone(), inner.clone()]);
+        IRPrinter.print_stmt(s.to_halide(&d));
+    }
+
+    #[test]
+    fn test_compute_inline() {
+        let m = Variable::make("m");
+        let n = Variable::make("n");
+        let p = Variable::make("p");
+
+        let a = Tensor::placeholder(&[&m, &n], Dtype::I64, "A");
+
+        let c = compute(Dtype::BF16, [&n, &m], [&a], "C", |[a], [i, j]| {
+            a.slice([&i, &j]) + a.slice([&i, &j])
+        });
+        let d = compute(Dtype::BF16, [&m, &p], [&c], "D", |[c], [i, j]| {
+            c.slice([&i, &j]) + c.slice([&i, &j])
+        });
+
+        let mut s = Schedule::create(&[&a, &c, &d]);
+        let c_stage = s.stages.get(&c).unwrap().clone();
+        let d_stage = s.stages.get(&d).unwrap().clone();
+        let axis = c_stage.axis(0);
+        let axis2 = c_stage.axis(1);
+        let d_axis = d_stage.axis(0);
+        let d_axis2 = d_stage.axis(1);
+        s.compute_at(&s[&d].clone(), &c_stage, &[axis, axis2], &[d_axis, d_axis2]);
         IRPrinter.print_stmt(s.to_halide(&d));
     }
 }
