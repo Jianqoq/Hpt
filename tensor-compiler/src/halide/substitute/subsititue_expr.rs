@@ -30,6 +30,9 @@ impl SubstituteExpr {
     pub fn add_replacement<T: Into<PrimeExpr>>(&mut self, find: PrimeExpr, replace: T) {
         self.replace.insert(find, replace.into());
     }
+    pub fn replacements(&self) -> &HashMap<PrimeExpr, PrimeExpr> {
+        &self.replace
+    }
 }
 
 impl MutatorGetSet for SubstituteExpr {

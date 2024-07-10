@@ -8,13 +8,14 @@ use hashbrown::{ HashMap, HashSet };
 use crate::{
     edges::Edges,
     halide::{
-        exprs::{ Add, FloorDiv, Mod, Mul },
+        exprs::{ Add, FloorDiv, Load, Mod, Mul },
         let_stmt::LetStmt,
         loop_utils::build_nested::{ build_nested_for2, build_nested_for3 },
         prime_expr::PrimeExpr,
         printer::IRPrinter,
         seq_stmt::Seq,
         stmt::Stmt,
+        store_stmt::StoreStmt,
         substitute::subsititue_expr::SubstituteExpr,
         traits::{ AccepterMutate, MutatorGetSet },
         variable::Variable,
@@ -388,7 +389,7 @@ impl Stage {
     pub fn to_halid(&self) -> Stmt {
         gen_indices(&self.root.borrow());
         let mut subs_expr = SubstituteExpr::new();
-        // println!("replacing {}", self.name);
+        let mut store_indices_root = vec![];
         for origin in self.root.borrow().iter() {
             if
                 self.freezed_leaf
@@ -403,7 +404,9 @@ impl Stage {
                 origin.borrow().var().to_prime_expr(),
                 origin.borrow().expr().clone()
             );
+            store_indices_root.push(origin.borrow().expr().clone());
         }
+        let mut store_indices_freezed = vec![];
         for (origin, target) in self.freezed_leaf
             .borrow()
             .iter()
@@ -413,10 +416,33 @@ impl Stage {
                 origin.borrow().var().to_prime_expr(),
                 target.borrow().expr()
             );
+            if
+                self.root
+                    .borrow()
+                    .iter()
+                    .any(|x| x.as_ptr() == origin.as_ptr())
+            {
+                store_indices_freezed.push(target.borrow().expr().clone());
+            }
         }
         self.body.accept_mutate(&mut subs_expr);
-        let let_stmt = LetStmt::make(&Variable::make(&self.name), subs_expr.expr());
-        build_nested_for3(Rc::new(RefCell::new(self.clone())), let_stmt.into())
+
+        let load_strides = (0..self.root.borrow().len()).map(|x| {
+            Load::make(format!("{}.strides", self.name.as_ref()), x)
+        });
+        store_indices_freezed.extend(store_indices_root.iter().cloned());
+        let store = StoreStmt::make(
+            &Variable::make(&self.name),
+            store_indices_freezed
+                .iter()
+                .zip(load_strides)
+                .map(|(x, strides)| x.clone() * strides.into())
+                .reduce(|x, y| x + y)
+                .unwrap(),
+            subs_expr.expr()
+        );
+        store.accept_mutate(&mut subs_expr);
+        build_nested_for3(Rc::new(RefCell::new(self.clone())), store.into())
     }
 
     pub fn tile(&self) -> (RcMut<Node>, RcMut<Node>) {
@@ -531,10 +557,10 @@ impl Schedule {
         stage: &Stage,
         to_inline_stage: &Stage,
         to_inline: &[RcMut<Node>],
-        axes: &[RcMut<Node>]
+        target_axes: &[RcMut<Node>]
     ) -> Option<RcMut<Stage>> {
-        assert!(to_inline.len() == axes.len());
-        stage.compute_inline(to_inline_stage, to_inline, axes)
+        assert!(to_inline.len() == target_axes.len());
+        stage.compute_inline(to_inline_stage, to_inline, target_axes)
     }
     pub fn reorder(&mut self, tensor: &Tensor, axes: &[&RcMut<Node>]) {
         let temp = self.stages.get_mut(tensor);
