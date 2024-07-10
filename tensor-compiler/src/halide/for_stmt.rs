@@ -12,6 +12,7 @@ pub struct For {
     var: Variable,
     start: Arc<PrimeExpr>,
     end: Arc<PrimeExpr>,
+    step: Arc<PrimeExpr>,
     stmt: Arc<Stmt>,
 }
 
@@ -27,6 +28,9 @@ impl For {
     pub fn end(&self) -> &PrimeExpr {
         &self.end
     }
+    pub fn step(&self) -> &PrimeExpr {
+        &self.step
+    }
 
     pub fn stmt(&self) -> &Stmt {
         &self.stmt
@@ -36,10 +40,11 @@ impl For {
         self.stmt = stmt.into().into();
     }
 
-    pub fn make<T: Into<PrimeExpr> + Clone, S: Into<Stmt> + Clone, B: Into<PrimeExpr> + Clone>(
+    pub fn make<T: Into<PrimeExpr> + Clone, S: Into<Stmt> + Clone, B: Into<PrimeExpr> + Clone, C: Into<PrimeExpr> + Clone>(
         var: &Variable,
         start: T,
         end: B,
+        step: C,
         stmt: S
     ) -> Self {
         For {
@@ -47,6 +52,7 @@ impl For {
             start: Arc::new(start.clone().into()),
             end: Arc::new(end.clone().into()),
             stmt: Arc::new(stmt.into()),
+            step: Arc::new(step.clone().into()),
         }
     }
 
@@ -65,7 +71,7 @@ impl For {
 
 impl std::fmt::Display for For {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "for {} in {}..{} {{\n{}\n}}", self.var, self.start, self.end, self.stmt)
+        write!(f, "for {} in ({}, {}, {}) {{\n{}\n}}", self.var, self.start, self.end, self.step, self.stmt)
     }
 }
 

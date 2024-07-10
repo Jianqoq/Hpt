@@ -43,7 +43,7 @@ impl _IRPrinter {
             }
             Stmt::For(var) => {
                 self.do_indent();
-                println!("for {} in {}..{} {{", var.var(), var.start(), var.end());
+                println!("for {} in range({}, {}) {{", var.var(), var.start(), var.end());
                 self.indent += 1;
                 self.print_stmt(var.stmt());
                 self.indent -= 1;

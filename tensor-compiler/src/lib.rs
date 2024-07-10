@@ -5,7 +5,6 @@ pub mod halide {
     pub mod substitute {
         pub mod subsititue_var;
         pub mod subsititue_expr;
-        pub mod subsititue_for_range;
         pub mod substitue_load_partial_idx;
     }
     pub mod loop_utils {

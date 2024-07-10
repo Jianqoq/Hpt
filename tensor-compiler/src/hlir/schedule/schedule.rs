@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-#![allow(unused_imports)]
 
 use std::{ cell::RefCell, collections::VecDeque, ops::Index, rc::Rc, sync::Arc };
 
@@ -9,11 +8,8 @@ use crate::{
     edges::Edges,
     halide::{
         exprs::{ Add, FloorDiv, Load, Mod, Mul },
-        let_stmt::LetStmt,
-        loop_utils::build_nested::{ build_nested_for2, build_nested_for3 },
+        loop_utils::build_nested::build_nested_for2,
         prime_expr::PrimeExpr,
-        printer::IRPrinter,
-        seq_stmt::Seq,
         stmt::Stmt,
         store_stmt::StoreStmt,
         substitute::subsititue_expr::SubstituteExpr,
@@ -59,6 +55,12 @@ impl Node {
         match self {
             Node::Base(base) => &base.start,
             Node::Fused(fused) => &fused.start,
+        }
+    }
+    pub fn step(&self) -> &PrimeExpr {
+        match self {
+            Node::Base(base) => &base.step,
+            Node::Fused(fused) => &fused.step,
         }
     }
     pub fn set_ref_node(&mut self, node: RcMut<Node>) {
@@ -442,7 +444,7 @@ impl Stage {
             subs_expr.expr()
         );
         store.accept_mutate(&mut subs_expr);
-        build_nested_for3(Rc::new(RefCell::new(self.clone())), store.into())
+        build_nested_for2(Rc::new(RefCell::new(self.clone())), store.into())
     }
 
     pub fn tile(&self) -> (RcMut<Node>, RcMut<Node>) {
@@ -935,7 +937,7 @@ pub enum Transforms {
 mod tests {
     use tensor_types::dtype::Dtype;
 
-    use crate::hlir::tensor::compute;
+    use crate::{halide::printer::IRPrinter, hlir::tensor::compute};
 
     use super::*;
 

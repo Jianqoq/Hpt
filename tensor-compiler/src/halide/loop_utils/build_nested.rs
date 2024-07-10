@@ -13,24 +13,7 @@ pub fn build_nested_for<T: Into<Stmt>>(iter_vars: &[IterVar], main_stmt: T) -> S
                 iter_vars[idx].var(),
                 iter_vars[idx].start(),
                 iter_vars[idx].end(),
-                build_recursive(idx + 1, iter_vars, main_stmt)
-            );
-            Stmt::For(to_add)
-        }
-    }
-
-    build_recursive(0, iter_vars, main_stmt)
-}
-
-pub fn build_nested_for2<T: Into<Stmt>>(iter_vars: &[RcMut<Node>], main_stmt: T) -> Stmt {
-    fn build_recursive<T: Into<Stmt>>(idx: usize, iter_vars: &[RcMut<Node>], main_stmt: T) -> Stmt {
-        if idx == iter_vars.len() {
-            main_stmt.into()
-        } else {
-            let to_add = For::make(
-                iter_vars[idx].borrow().var(),
-                iter_vars[idx].borrow().start(),
-                iter_vars[idx].borrow().end(),
+                iter_vars[idx].step(),
                 build_recursive(idx + 1, iter_vars, main_stmt)
             );
             Stmt::For(to_add)
@@ -73,6 +56,7 @@ pub fn build_nested_for_helper<T: Into<Stmt>>(
                     iter_vars[idx].borrow().var(),
                     iter_vars[idx].borrow().start(),
                     iter_vars[idx].borrow().end(),
+                    iter_vars[idx].borrow().step(),
                     Seq::make(seq)
                 )
             } else {
@@ -80,6 +64,7 @@ pub fn build_nested_for_helper<T: Into<Stmt>>(
                     iter_vars[idx].borrow().var(),
                     iter_vars[idx].borrow().start(),
                     iter_vars[idx].borrow().end(),
+                    iter_vars[idx].borrow().step(),
                     build_recursive(idx + 1, stage, iter_vars, main_stmt)
                 )
             };
@@ -91,7 +76,7 @@ pub fn build_nested_for_helper<T: Into<Stmt>>(
 }
 
 #[rustfmt::skip]
-pub fn build_nested_for3(stage: RcMut<Stage>, main_stmt: Stmt) -> Stmt {
+pub fn build_nested_for2(stage: RcMut<Stage>, main_stmt: Stmt) -> Stmt {
     let mut axes = stage.borrow().leaf_id
         .borrow()
         .iter()

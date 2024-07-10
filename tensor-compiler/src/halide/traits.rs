@@ -717,16 +717,18 @@ pub(crate) fn visit_for<V>(visitor: &mut V, for_stmt: &For)
     let start = visitor.mutate_expr(for_stmt.start());
     let end = visitor.mutate_expr(for_stmt.end());
     let stmt = visitor.mutate_stmt(for_stmt.stmt());
+    let step = visitor.mutate_expr(for_stmt.step());
     if
         &new_var == &var &&
         &start == for_stmt.start() &&
         &end == for_stmt.end() &&
+        &step == for_stmt.step() &&
         &stmt == for_stmt.stmt()
     {
         visitor.set_stmt(for_stmt);
     } else {
         if let Some(new_var) = new_var.to_variable() {
-            visitor.set_stmt(For::make(new_var, start, end, stmt));
+            visitor.set_stmt(For::make(new_var, start, end, step, stmt));
         } else {
             eprintln!("Failed to convert variable, from: {} to: {}", var, new_var);
             visitor.set_stmt(Stmt::None);

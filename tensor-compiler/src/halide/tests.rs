@@ -33,8 +33,8 @@ fn test_halide_expr() {
         Stmt::LetStmt(let_stmt.clone().into()),
         StoreStmt::make_from_strides(&res, &[&i, &x], &[1, 1], &load).into(),
     ]);
-    let for_loop = For::make(&x, &start, &end, &seq);
-    let for_loop2 = For::make(&i, &start, &end, &for_loop);
+    let for_loop = For::make(&x, &start, &end, 1, &seq);
+    let for_loop2 = For::make(&i, &start, &end, 1, &for_loop);
     IRPrinter.print_stmt(&for_loop2);
 }
 
@@ -52,8 +52,8 @@ fn test_substitue() {
         Stmt::LetStmt(let_stmt.clone()),
         Stmt::StoreStmt(StoreStmt::make_from_strides(&res, &[&i, &x], &[1, 1], &load)),
     ]);
-    let for_loop = For::make(&x, &start, &end, &seq);
-    let for_loop2 = For::make(&i, &start, &end, &for_loop);
+    let for_loop = For::make(&x, &start, &end, 1, &seq);
+    let for_loop2 = For::make(&i, &start, &end, 1, &for_loop);
 
     let mut substitute = SubstituteVar::new();
     substitute.add_replacement(x, &Variable::make("g"));
@@ -79,9 +79,10 @@ fn test_fusion() {
         &x,
         &start2,
         &end2,
+        1,
         StoreStmt::make_from_strides(&res1, &[&x, &y], &[1, 1], &load)
     );
-    let for_loop2 = For::make(&y, &start, &end, &for_loop);
+    let for_loop2 = For::make(&y, &start, &end, 1, &for_loop);
     IRPrinter.print_stmt(&for_loop2);
 
     // loop2
@@ -97,8 +98,9 @@ fn test_fusion() {
         &z,
         &start,
         &end,
+        1,
         StoreStmt::make_from_strides(&res2, &[&z, &w], &[1, 1], &load)
     );
-    let for_loop2 = For::make(&w, &start2, &end2, &for_loop);
+    let for_loop2 = For::make(&w, &start2, &end2, 1, &for_loop);
     IRPrinter.print_stmt(&for_loop2);
 }
