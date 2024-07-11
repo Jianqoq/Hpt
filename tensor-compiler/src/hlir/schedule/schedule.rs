@@ -25,7 +25,7 @@ pub enum Node {
 }
 
 impl Node {
-    pub fn push_child(&mut self, child: Rc<RefCell<Node>>) {
+    pub fn push_child(&mut self, child: RcMut<Node>) {
         match self {
             Node::Base(var) => {
                 Arc::make_mut(&mut var.childs).push(child);
