@@ -958,7 +958,7 @@ impl Into<PrimeExpr> for &Not {
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Call {
-    name: Variable,
+    name: Arc<String>,
     args: Vec<Arc<PrimeExpr>>,
 }
 
@@ -971,14 +971,14 @@ impl Accepter for Call {
 impl Call {
     pub fn new(name: &str, args: Vec<Arc<PrimeExpr>>) -> Self {
         Call {
-            name: Variable::make(name),
+            name: name.to_string().into(),
             args,
         }
     }
 
     pub fn make(name: &str, args: &[PrimeExpr]) -> Self {
         Call {
-            name: Variable::make(name),
+            name: name.to_string().into(),
             args: args
                 .iter()
                 .map(|e| (*e).clone().into())
@@ -986,7 +986,7 @@ impl Call {
         }
     }
 
-    pub fn name(&self) -> &Variable {
+    pub fn name(&self) -> &String {
         &self.name
     }
 
@@ -1105,7 +1105,7 @@ impl Into<PrimeExpr> for &Select {
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Load {
-    name: Arc<PrimeExpr>,
+    name: Variable,
     indices: Arc<PrimeExpr>,
 }
 
@@ -1131,19 +1131,19 @@ impl Load {
             .reduce(|a, b| a + b)
             .unwrap();
         Load {
-            name: Arc::new(name.clone().into()),
+            name: name.into(),
             indices: indices.into(),
         }
     }
 
-    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(name: A, indices: B) -> Self {
+    pub fn make<A: Into<Variable>, B: Into<PrimeExpr>>(name: A, indices: B) -> Self {
         Load {
-            name: Arc::new(name.into().into()),
+            name: name.into(),
             indices: indices.into().into(),
         }
     }
 
-    pub fn name(&self) -> &PrimeExpr {
+    pub fn name(&self) -> &Variable {
         &self.name
     }
 
@@ -1151,7 +1151,7 @@ impl Load {
         &self.indices
     }
 
-    pub fn name_(&self) -> &Arc<PrimeExpr> {
+    pub fn name_(&self) -> &Variable {
         &self.name
     }
 

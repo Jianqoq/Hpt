@@ -794,7 +794,7 @@ pub(crate) fn visit_call<V>(visitor: &mut V, call: &Call)
     if !changed {
         visitor.set_expr(call);
     } else {
-        visitor.set_expr(Call::make(call.name().name(), &new_args));
+        visitor.set_expr(Call::make(call.name(), &new_args));
     }
 }
 
@@ -818,12 +818,12 @@ pub(crate) fn visit_select<V>(visitor: &mut V, select: &Select)
 pub(crate) fn visit_load<V>(visitor: &mut V, load: &Load)
     where V: MutatorGetSet + Sized + IRMutateVisitor
 {
-    let var = visitor.mutate_expr(load.name());
+    let var = visitor.mutate_expr(&load.name().into());
     let indices = visitor.mutate_expr(load.indices());
-    if &var == load.name() && &indices == load.indices() {
+    if &var == &load.name().into() && &indices == load.indices() {
         visitor.set_expr(load);
     } else {
-        visitor.set_expr(Load::make(var, indices));
+        visitor.set_expr(Load::make(var.to_variable().unwrap(), indices));
     }
 }
 

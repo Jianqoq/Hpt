@@ -1,17 +1,19 @@
+use std::sync::Arc;
+
 use hashbrown::{ HashMap, HashSet };
 use llvm_sys::{ LLVMIntPredicate, LLVMRealPredicate };
 use tensor_llvm::{
     builder::builder::Builder,
     context::context::Context,
     module::module::Module,
-    types::values::{ BasicValue, FunctionValue },
+    types::{ values::{ BasicValue, FunctionValue } },
 };
 use tensor_types::{ dtype::Dtype, type_promote::{ BitWiseOut, FloatOut, NormalOut } };
 
 use crate::{
     halide::{
         assign_stmt::AssignStmt,
-        exprs::{ Call, Str },
+        exprs::{ Load, Str },
         if_stmt::IfThenElse,
         inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub },
         prime_expr::PrimeExpr,
@@ -29,12 +31,29 @@ pub struct CodeGen {
     ptrs: HashMap<Variable, BasicValue>,
     casted_values: HashSet<BasicValue>,
     current_var: String,
-    functions: HashMap<Call, FunctionValue>,
+    functions: HashMap<Arc<String>, FunctionValue>,
     bindings: HashMap<Variable, BasicValue>,
     current_func: FunctionValue,
 }
 
 impl CodeGen {
+    pub fn new(ctx: Context, module: Module, builder: Builder, main_fn: FunctionValue) -> Self {
+        CodeGen {
+            ctx,
+            module,
+            builder,
+            values: HashMap::new(),
+            ptrs: HashMap::new(),
+            casted_values: HashSet::new(),
+            current_var: String::new(),
+            functions: HashMap::new(),
+            bindings: HashMap::new(),
+            current_func: main_fn,
+        }
+    }
+    pub fn code_gen(&mut self, stmt: &Stmt) {
+        self.visit_stmt(stmt);
+    }
     fn visit_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::LetStmt(let_stmt) => self.visit_let_stmt(&let_stmt),
@@ -95,10 +114,11 @@ impl CodeGen {
         self.builder.position_at_end(after_block);
     }
     fn visit_store(&mut self, store: &crate::halide::store_stmt::StoreStmt) {
-        let var = store.var().name();
         let val = self.visit_expr(store.val());
-        let indices = store.indices();
+        let indices = self.visit_expr(store.indices());
         let var_ptr = self.ptrs[store.var()].clone();
+        let addjusted = self.builder.build_int_add(var_ptr, indices, "addjusted");
+        self.builder.build_store(addjusted.to_ptr_value(), val);
     }
     fn visit_if_then_else(&mut self, if_then_else: &IfThenElse) {
         let cond = self.visit_expr(if_then_else.cond());
@@ -115,10 +135,119 @@ impl CodeGen {
         self.builder.build_unconditional_branch(after_block);
         self.builder.position_at_end(after_block);
     }
-    fn visit_inplace_add(&mut self, inplace_add: &InplaceAdd) {}
-    fn visit_inplace_div(&mut self, inplace_div: &InplaceDiv) {}
-    fn visit_inplace_mul(&mut self, inplace_mul: &InplaceMul) {}
-    fn visit_inplace_sub(&mut self, inplace_sub: &InplaceSub) {}
+    fn visit_inplace_add(&mut self, inplace_add: &InplaceAdd) {
+        let to_store = self.visit_expr(inplace_add.to_store());
+        let val = self.visit_expr(inplace_add.val());
+        let loaded = self.builder.build_load(
+            to_store.to_basic_type(),
+            to_store.to_ptr_value(),
+            "loaded"
+        );
+        let res_type = loaded.to_dtype()._add(val.to_dtype());
+        let casted_loaded = loaded.cast(res_type, "", &self.ctx, &self.builder);
+        let casted_val = val.cast(res_type, "", &self.ctx, &self.builder);
+        self.casted_values.insert(casted_loaded);
+        self.casted_values.insert(casted_val);
+        let add = match res_type {
+            | Dtype::Bool
+            | Dtype::I8
+            | Dtype::U8
+            | Dtype::I16
+            | Dtype::U16
+            | Dtype::I32
+            | Dtype::U32
+            | Dtype::U64
+            | Dtype::I64
+            | Dtype::Isize
+            | Dtype::Usize => self.builder.build_int_add(casted_loaded, casted_val, "add"),
+            Dtype::F16 | Dtype::F32 | Dtype::F64 =>
+                self.builder.build_float_add(casted_loaded, casted_val, "add"),
+            _ => unreachable!("unsupported dtype, {}", res_type),
+        };
+        self.builder.build_store(to_store.to_ptr_value(), add);
+    }
+    fn visit_inplace_div(&mut self, inplace_div: &InplaceDiv) {
+        let to_store = self.visit_expr(inplace_div.to_store());
+        let val = self.visit_expr(inplace_div.val());
+        let loaded = self.builder.build_load(
+            to_store.to_basic_type(),
+            to_store.to_ptr_value(),
+            "loaded"
+        );
+        let res_type = loaded.to_dtype()._div(val.to_dtype());
+        let casted_loaded = loaded.cast(res_type, "", &self.ctx, &self.builder);
+        let casted_val = val.cast(res_type, "", &self.ctx, &self.builder);
+        self.casted_values.insert(casted_loaded);
+        self.casted_values.insert(casted_val);
+        let div = match res_type {
+            Dtype::F16 | Dtype::F32 | Dtype::F64 =>
+                self.builder.build_float_div(casted_loaded, casted_val, "div"),
+            _ => unreachable!("unsupported dtype, {}", res_type),
+        };
+        self.builder.build_store(to_store.to_ptr_value(), div);
+    }
+    fn visit_inplace_mul(&mut self, inplace_mul: &InplaceMul) {
+        let to_store = self.visit_expr(inplace_mul.to_store());
+        let val = self.visit_expr(inplace_mul.val());
+        let loaded = self.builder.build_load(
+            to_store.to_basic_type(),
+            to_store.to_ptr_value(),
+            "loaded"
+        );
+        let res_type = loaded.to_dtype()._mul(val.to_dtype());
+        let casted_loaded = loaded.cast(res_type, "", &self.ctx, &self.builder);
+        let casted_val = val.cast(res_type, "", &self.ctx, &self.builder);
+        self.casted_values.insert(casted_loaded);
+        self.casted_values.insert(casted_val);
+        let mul = match res_type {
+            | Dtype::Bool
+            | Dtype::I8
+            | Dtype::U8
+            | Dtype::I16
+            | Dtype::U16
+            | Dtype::I32
+            | Dtype::U32
+            | Dtype::U64
+            | Dtype::I64
+            | Dtype::Isize
+            | Dtype::Usize => self.builder.build_int_mul(casted_loaded, casted_val, "mul"),
+            Dtype::F16 | Dtype::F32 | Dtype::F64 =>
+                self.builder.build_float_mul(casted_loaded, casted_val, "mul"),
+            _ => unreachable!("unsupported dtype, {}", res_type),
+        };
+        self.builder.build_store(to_store.to_ptr_value(), mul);
+    }
+    fn visit_inplace_sub(&mut self, inplace_sub: &InplaceSub) {
+        let to_store = self.visit_expr(inplace_sub.to_store());
+        let val = self.visit_expr(inplace_sub.val());
+        let loaded = self.builder.build_load(
+            to_store.to_basic_type(),
+            to_store.to_ptr_value(),
+            "loaded"
+        );
+        let res_type = loaded.to_dtype()._sub(val.to_dtype());
+        let casted_loaded = loaded.cast(res_type, "", &self.ctx, &self.builder);
+        let casted_val = val.cast(res_type, "", &self.ctx, &self.builder);
+        self.casted_values.insert(casted_loaded);
+        self.casted_values.insert(casted_val);
+        let sub = match res_type {
+            | Dtype::Bool
+            | Dtype::I8
+            | Dtype::U8
+            | Dtype::I16
+            | Dtype::U16
+            | Dtype::I32
+            | Dtype::U32
+            | Dtype::U64
+            | Dtype::I64
+            | Dtype::Isize
+            | Dtype::Usize => self.builder.build_int_sub(casted_loaded, casted_val, "sub"),
+            Dtype::F16 | Dtype::F32 | Dtype::F64 =>
+                self.builder.build_float_sub(casted_loaded, casted_val, "sub"),
+            _ => unreachable!("unsupported dtype, {}", res_type),
+        };
+        self.builder.build_store(to_store.to_ptr_value(), sub);
+    }
     fn visit_inplace_store(&mut self, inplace_store: &InplaceStore) {}
     fn visit_assign(&mut self, assign: &AssignStmt) {}
     fn visit_expr(&mut self, expr: &PrimeExpr) -> BasicValue {
@@ -687,15 +816,15 @@ impl CodeGen {
         }
     }
     fn visit_call(&mut self, call: &crate::halide::exprs::Call) -> BasicValue {
-        if let Some(fn_value) = self.functions.get(call).cloned() {
+        if let Some(fn_value) = self.functions.get(call.name()).cloned() {
             let args = call
                 .args()
                 .iter()
                 .map(|arg| self.visit_expr(arg))
                 .collect::<Vec<_>>();
-            self.builder.build_call(&fn_value, &args, &self.current_var)
+            self.builder.build_call(&fn_value, &args, "")
         } else {
-            todo!()
+            panic!("function not found, {}", call.name());
         }
     }
     fn visit_select(&mut self, select: &crate::halide::exprs::Select) -> BasicValue {
@@ -734,7 +863,19 @@ impl CodeGen {
         }
     }
     fn visit_load(&mut self, load: &crate::halide::exprs::Load) -> BasicValue {
-        todo!()
+        let var = load.name();
+        let indices = self.visit_expr(load.indices());
+        if let Some(ptr) = self.bindings.get(var) {
+            let new_ptr = self.builder.build_gep(
+                ptr.to_basic_type(),
+                ptr.to_ptr_value(),
+                &[indices],
+                ""
+            );
+            self.builder.build_load(ptr.to_basic_type(), new_ptr, "")
+        } else {
+            panic!("variable not found, {}", var);
+        }
     }
     fn visit_let(&mut self, let_: &crate::halide::exprs::Let) -> BasicValue {
         let var = let_.name();
@@ -747,7 +888,19 @@ impl CodeGen {
         todo!()
     }
     fn visit_tensor_slice(&mut self, slice: &TensorSlice) -> BasicValue {
-        todo!()
+        let load_strides = (0..slice.dims.len()).map(|x| {
+            Load::make(format!("{}.strides", slice.var.as_ref()), x)
+        });
+        let load = Load::make(
+            slice.var.as_ref(),
+            slice.dims
+                .iter()
+                .zip(load_strides)
+                .map(|(x, strides)| x.clone() * strides.into())
+                .reduce(|x, y| x + y)
+                .unwrap()
+        );
+        self.visit_load(&load)
     }
     fn visit_cast(&mut self, cast: &crate::halide::exprs::Cast) -> BasicValue {
         todo!()

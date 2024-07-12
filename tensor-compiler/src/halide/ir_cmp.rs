@@ -376,7 +376,6 @@ impl IRMutVisitor for IRComparator {
     fn visit_call(&mut self, call: &super::exprs::Call) {
         let expr = self.expr_.to_call().cloned();
         if let Some(expr) = expr {
-            self.compare_expr(expr.name(), call.name());
             let self_expr = expr
                 .args()
                 .iter()
