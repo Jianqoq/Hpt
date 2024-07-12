@@ -10,22 +10,26 @@ use super::{
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct LetStmt {
     var: Variable,
-    body: Arc<PrimeExpr>,
+    value: Arc<PrimeExpr>,
+    body: Arc<Stmt>,
 }
 
 impl LetStmt {
     pub fn var(&self) -> &Variable {
         &self.var
     }
-
-    pub fn body(&self) -> &PrimeExpr {
+    pub fn value(&self) -> &PrimeExpr {
+        &self.value
+    }
+    pub fn body(&self) -> &Stmt {
         &self.body
     }
 
-    pub fn make<T: Into<PrimeExpr>>(var: &Variable, body: T) -> Self {
+    pub fn make<A: Into<PrimeExpr>, T: Into<Stmt>>(var: &Variable, value: A, body: T) -> Self {
         LetStmt {
             var: var.clone(),
             body: body.into().into(),
+            value: value.into().into(),
         }
     }
 

@@ -63,11 +63,12 @@ impl IRMutateVisitor for SubstituteExpr {
     }
 
     fn visit_let_stmt(&mut self, let_stmt: &LetStmt) {
-        let body = self.mutate_expr(let_stmt.body());
-        if &body == let_stmt.body() {
+        let value = self.mutate_expr(let_stmt.value());
+        let body = self.mutate_stmt(let_stmt.body());
+        if &body == let_stmt.body() && &value == let_stmt.value(){
             self.set_stmt(let_stmt);
         } else {
-            self.set_stmt(LetStmt::make(let_stmt.var(), body));
+            self.set_stmt(LetStmt::make(let_stmt.var(), value, body));
         }
     }
 }

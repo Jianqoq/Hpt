@@ -403,17 +403,19 @@ impl IRMutVisitor for IRComparator {
         let expr = self.stmt_.to_let_stmt().cloned();
         if let Some(let_stmt) = expr {
             self.compare_expr(let_stmt.var(), let_stmt.var());
-            self.compare_expr(let_stmt.body(), let_stmt.body());
+            self.compare_stmt(let_stmt.body(), let_stmt.body());
+            self.compare_expr(let_stmt.value(), let_stmt.value());
         } else {
             self.result = CmpResult::LessThan;
         }
     }
 
-    fn visit_let(&mut self, let_stmt: &super::exprs::Let) {
+    fn visit_let(&mut self, let_: &super::exprs::Let) {
         let expr = self.expr_.to_let().cloned();
-        if let Some(let_stmt) = expr {
-            self.compare_expr(let_stmt.name(), let_stmt.name());
-            self.compare_expr(let_stmt.e1(), let_stmt.e1());
+        if let Some(let_) = expr {
+            self.compare_expr(let_.name(), let_.name());
+            self.compare_expr(let_.value(), let_.value());
+            self.compare_expr(let_.body(), let_.body());
         } else {
             self.result = CmpResult::LessThan;
         }

@@ -11,6 +11,9 @@ pub mod halide {
         pub mod build_nested;
         pub mod reduction;
     }
+    pub mod code_gen {
+        pub mod code_gen;
+    }
     pub mod if_stmt;
     pub mod inplace_store_stmt;
     pub mod r#type;

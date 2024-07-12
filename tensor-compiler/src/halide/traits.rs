@@ -166,9 +166,10 @@ pub trait IRVisitor where Self: Sized {
         let_stmt.var().accept(self);
         let_stmt.body().accept(self);
     }
-    fn visit_let(&self, let_stmt: &Let) {
-        let_stmt.name().accept(self);
-        let_stmt.e1().accept(self);
+    fn visit_let(&self, let_: &Let) {
+        let_.name().accept(self);
+        let_.value().accept(self);
+        let_.body().accept(self);
     }
     fn visit_for(&self, for_stmt: &For) {
         for_stmt.var().accept(self);
@@ -382,9 +383,10 @@ pub trait IRMutVisitor where Self: Sized {
         let_stmt.var().accept_mut(self);
         let_stmt.body().accept_mut(self);
     }
-    fn visit_let(&mut self, let_stmt: &Let) {
-        let_stmt.name().accept_mut(self);
-        let_stmt.e1().accept_mut(self);
+    fn visit_let(&mut self, let_: &Let) {
+        let_.name().accept_mut(self);
+        let_.value().accept_mut(self);
+        let_.body().accept_mut(self);
     }
     fn visit_for(&mut self, for_stmt: &For) {
         for_stmt.var().accept_mut(self);
@@ -677,12 +679,13 @@ pub(crate) fn visit_let_stmt<V>(visitor: &mut V, let_stmt: &LetStmt)
     let name = let_stmt.var().into();
     let body = let_stmt.body();
     let var = mutate_expr(visitor, &name);
-    let val = mutate_expr(visitor, body);
-    if &var == &name && &val == body {
+    let new_body = mutate_stmt(visitor, body);
+    let new_value = mutate_expr(visitor, let_stmt.value());
+    if &var == &name && &new_body == body && &new_value == let_stmt.value() {
         visitor.set_stmt(let_stmt);
     } else {
         if let Some(var) = var.to_variable() {
-            visitor.set_stmt(LetStmt::make(&var, val));
+            visitor.set_stmt(LetStmt::make(&var, new_value, new_body));
         } else {
             eprintln!("Failed to convert variable, from: {} to: {}", name, var);
             visitor.set_stmt(Stmt::None);
@@ -690,18 +693,19 @@ pub(crate) fn visit_let_stmt<V>(visitor: &mut V, let_stmt: &LetStmt)
     }
 }
 
-pub(crate) fn visit_let<V>(visitor: &mut V, let_stmt: &Let)
+pub(crate) fn visit_let<V>(visitor: &mut V, let_: &Let)
     where V: MutatorGetSet + Sized + IRMutateVisitor
 {
-    let name = let_stmt.name().into();
-    let e1 = let_stmt.e1();
+    let name = let_.name().into();
+    let value = let_.value();
     let var = mutate_expr(visitor, &name);
-    let val = mutate_expr(visitor, e1);
-    if &var == &name && &val == e1 {
-        visitor.set_expr(let_stmt);
+    let val = mutate_expr(visitor, value);
+    let body = mutate_expr(visitor, let_.body());
+    if &var == &name && &val == value && &body == let_.body() {
+        visitor.set_expr(let_);
     } else {
         if let Some(var) = var.to_variable() {
-            visitor.set_expr(Let::make(var, val));
+            visitor.set_expr(Let::make(var, val, body));
         } else {
             eprintln!("Failed to convert variable, from: {} to: {}", name, var);
             visitor.set_expr(PrimeExpr::None);

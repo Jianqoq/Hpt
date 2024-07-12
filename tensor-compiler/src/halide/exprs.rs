@@ -1181,7 +1181,8 @@ impl Into<PrimeExpr> for &Load {
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Let {
     name: Variable,
-    e1: Arc<PrimeExpr>,
+    value: Arc<PrimeExpr>,
+    body: Arc<PrimeExpr>,
 }
 
 impl Accepter for Let {
@@ -1191,14 +1192,15 @@ impl Accepter for Let {
 }
 
 impl Let {
-    pub fn new(name: Variable, e1: Arc<PrimeExpr>) -> Self {
-        Let { name, e1 }
+    pub fn new(name: Variable, value: Arc<PrimeExpr>, body: Arc<PrimeExpr>) -> Self {
+        Let { name, value, body }
     }
 
-    pub fn make<T: Into<PrimeExpr>>(name: &Variable, e1: T) -> Self {
+    pub fn make<T: Into<PrimeExpr>, B: Into<PrimeExpr>>(name: &Variable, value: T, body: B) -> Self {
         Let {
             name: name.clone(),
-            e1: e1.into().into(),
+            value: value.into().into(),
+            body: body.into().into(),
         }
     }
 
@@ -1206,18 +1208,26 @@ impl Let {
         &self.name
     }
 
-    pub fn e1(&self) -> &PrimeExpr {
-        &self.e1
+    pub fn value(&self) -> &PrimeExpr {
+        &self.value
     }
 
-    pub fn e1_(&self) -> &Arc<PrimeExpr> {
-        &self.e1
+    pub fn value_(&self) -> &Arc<PrimeExpr> {
+        &self.value
+    }
+
+    pub fn body(&self) -> &PrimeExpr {
+        &self.body
+    }
+
+    pub fn body_(&self) -> &Arc<PrimeExpr> {
+        &self.body
     }
 }
 
 impl Display for Let {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "let {} = {};", self.name, self.e1)
+        write!(f, "let {} = {};", self.name, self.value)
     }
 }
 
