@@ -501,7 +501,7 @@ impl BasicValue {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Hash, Eq)]
 pub struct FunctionValue {
     pub(crate) value: LLVMValueRef,
     pub(crate) ret_type: GeneralType,

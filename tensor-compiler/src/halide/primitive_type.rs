@@ -1,6 +1,10 @@
 use std::{ fmt::Display, sync::Arc };
 
-use tensor_llvm::{ context::context::Context, types::general_types::GeneralType, BoolType };
+use tensor_llvm::{
+    context::context::Context,
+    types::general_types::GeneralType,
+    StructType,
+};
 use tensor_types::{ dtype::Dtype, type_promote::{ FloatOut, NormalOut } };
 
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
@@ -16,6 +20,17 @@ pub enum PrimitiveType {
 pub struct Tuple {
     pub inner: Arc<Vec<PrimitiveType>>,
 }
+
+impl Tuple {
+    pub fn to_llvm_type(&self, ctx: &Context) -> StructType {
+        let mut inner = Vec::new();
+        for t in self.inner.iter() {
+            inner.push(t.to_llvm_type(ctx));
+        }
+        ctx.struct_type(&inner, false)
+    }
+}
+
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Array {
     pub inner: Arc<PrimitiveType>,
@@ -47,14 +62,7 @@ impl PrimitiveType {
                     _ => unimplemented!(),
                 }
             }
-            PrimitiveType::Tuple(tuple) => {
-                let mut inner = Vec::new();
-                for t in tuple.inner.iter() {
-                    inner.push(t.to_llvm_type(ctx));
-                }
-                let struct_type = ctx.struct_type(&inner, false);
-                GeneralType::Struct(struct_type)
-            }
+            PrimitiveType::Tuple(tuple) => { GeneralType::Struct(tuple.to_llvm_type(ctx)) }
             _ => unimplemented!(),
         }
     }

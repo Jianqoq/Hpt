@@ -5,6 +5,7 @@ use crate::types::general_types::GeneralType;
 use crate::types::ptr_type::*;
 use crate::types::values::*;
 use llvm_sys::prelude::LLVMTypeRef;
+use llvm_sys::prelude::LLVMValueRef;
 use paste::paste;
 
 use super::info_trait::TypeTrait;
@@ -15,7 +16,7 @@ macro_rules! register_types {
         $(
             paste! {
 
-            #[derive(Debug, PartialEq, Copy, Clone)]
+            #[derive(Debug, PartialEq, Copy, Clone, Hash, Eq)]
             pub struct [<$name Type>] {
                 pub(crate) value: LLVMTypeRef,
             }
@@ -90,7 +91,6 @@ macro_rules! impl_const_int_value {
         )*
     };
 }
-
 
 macro_rules! impl_const_uint_value {
     ($($name:ident),*) => {
@@ -176,7 +176,7 @@ impl_const_int_value!(I8, I16, I32, I64, Isize);
 impl_const_float_value!(F16, F32, F64);
 impl_const_uint_value!(Bool, U8, U16, U32, U64);
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Hash, Eq)]
 pub struct FunctionType {
     pub(crate) value: LLVMTypeRef,
     pub(crate) ret_type: Rc<GeneralType>,
@@ -222,6 +222,23 @@ impl FunctionType {
     pub fn ptr_type(&self, address_space: u32) -> FunctionPtrType {
         let ptr_type = unsafe { llvm_sys::core::LLVMPointerType(self.value, address_space) };
         FunctionPtrType::from(ptr_type)
+    }
+}
+
+impl StructType {
+    pub fn const_named_struct(&self, values: &[BasicValue]) -> StructValue {
+        let mut values: Vec<LLVMValueRef> = values
+            .iter()
+            .map(|v| v.inner())
+            .collect();
+        let value = unsafe {
+            llvm_sys::core::LLVMConstNamedStruct(
+                self.value,
+                values.as_mut_ptr(),
+                values.len() as u32
+            )
+        };
+        StructValue::from(value)
     }
 }
 

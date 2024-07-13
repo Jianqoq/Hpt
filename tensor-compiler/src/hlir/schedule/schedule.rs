@@ -659,6 +659,7 @@ impl Schedule {
             .collect::<Vec<PrimitiveType>>();
         assert!(inputs.len() == inputs_type.len());
         assert!(outputs.len() == outputs_type.len());
+        let mut args = vec![];
         let mut args1 = inputs
             .iter()
             .zip(inputs_type.iter())
@@ -671,7 +672,6 @@ impl Schedule {
             .map(|(k, v)| { (k.clone(), v.clone()) })
             .collect::<Vec<_>>();
         args2.sort();
-        args1.extend(args2);
         let mut args3 = nodes
             .iter()
             .filter(|x| !inputs.contains(x) && !outputs.contains(x))
@@ -689,7 +689,9 @@ impl Schedule {
             })
             .collect::<Vec<_>>();
         args3.sort();
-        args1.extend(args3);
+        args.push(args1);
+        args.push(args2);
+        args.push(args3);
         stmts.push(
             Stmt::Return(
                 ReturnStmt::make(
@@ -706,7 +708,7 @@ impl Schedule {
                 PrimitiveType::Tuple(Tuple {
                     inner: outputs_type.into(),
                 }),
-                args1
+                args
             ),
             body: seq,
             name: name.to_string().into(),

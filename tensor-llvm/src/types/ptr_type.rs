@@ -13,7 +13,7 @@ use super::values::*;
 
 macro_rules! register_ptr_type {
     ($name:ident) => {
-        #[derive(Debug, PartialEq, Copy, Clone)]
+        #[derive(Debug, PartialEq, Copy, Clone, Hash, Eq)]
         pub struct $name {
             pub(crate) ptr_type: LLVMTypeRef,
         }

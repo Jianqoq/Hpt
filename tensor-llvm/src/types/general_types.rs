@@ -3,7 +3,7 @@ use paste::paste;
 use crate::*;
 use super::ptr_type::*;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Hash, Eq)]
 pub enum GeneralType {
     Bool(BoolType),
     BoolPtr(BoolPtrType),

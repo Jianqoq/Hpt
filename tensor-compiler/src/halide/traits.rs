@@ -1,3 +1,5 @@
+use tensor_llvm::types::values::BasicValue;
+
 use crate::{ hlir::tensor_slice::TensorSlice, iter_var::IterVar };
 
 use super::{
@@ -1181,7 +1183,7 @@ pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
 }
 
 pub trait CodeGenVisitor where Self: Sized {
-    fn visit_expr(&mut self, expr: &PrimeExpr) {
+    fn visit_expr(&mut self, expr: &PrimeExpr) -> BasicValue {
         match expr {
             PrimeExpr::Int(int) => self.visit_int(&int),
             PrimeExpr::Float(float) => self.visit_float(&float),
@@ -1213,7 +1215,7 @@ pub trait CodeGenVisitor where Self: Sized {
             PrimeExpr::Let(let_) => self.visit_let(&let_),
             PrimeExpr::Reduce(reduce) => self.visit_reduce(&reduce),
             PrimeExpr::TensorSlice(slice) => self.visit_tensor_slice(&slice),
-            PrimeExpr::None => {}
+            PrimeExpr::None => { BasicValue::None }
         }
     }
     fn visit_stmt(&mut self, stmt: &Stmt) {
@@ -1237,40 +1239,45 @@ pub trait CodeGenVisitor where Self: Sized {
             Stmt::None => {}
         }
     }
+    fn visit_module(&mut self, module: &Module) {
+        for function in module.fns.values() {
+            self.visit_function(function);
+        }
+    }
     fn visit_return(&mut self, return_: &ReturnStmt);
-    fn visit_tensor_slice(&mut self, slice: &TensorSlice);
-    fn visit_reduce(&mut self, reduce: &Reduce);
-    fn visit_variable(&mut self, var: &Variable);
-    fn visit_str(&mut self, string: &Str);
+    fn visit_tensor_slice(&mut self, slice: &TensorSlice) -> BasicValue;
+    fn visit_reduce(&mut self, reduce: &Reduce) -> BasicValue;
+    fn visit_variable(&mut self, var: &Variable) -> BasicValue;
+    fn visit_str(&mut self, string: &Str) -> BasicValue;
     fn visit_assign(&mut self, assign: &AssignStmt);
-    fn visit_cast(&mut self, cast: &Cast);
-    fn visit_add(&mut self, add: &Add);
-    fn visit_sub(&mut self, sub: &Sub);
-    fn visit_mul(&mut self, mul: &Mul);
-    fn visit_div(&mut self, div: &Div);
-    fn visit_floor_div(&mut self, floor_div: &FloorDiv);
-    fn visit_mod(&mut self, mod_: &Mod);
-    fn visit_min(&mut self, min: &Min);
-    fn visit_max(&mut self, max: &Max);
-    fn visit_ge(&mut self, ge: &Ge);
-    fn visit_gt(&mut self, gt: &Gt);
-    fn visit_le(&mut self, le: &Le);
-    fn visit_lt(&mut self, lt: &Lt);
-    fn visit_eq(&mut self, eq: &Eq);
-    fn visit_ne(&mut self, ne: &Ne);
-    fn visit_and(&mut self, and: &And);
-    fn visit_xor(&mut self, xor: &Xor);
-    fn visit_or(&mut self, or: &Or);
-    fn visit_not(&mut self, not: &Not);
+    fn visit_cast(&mut self, cast: &Cast) -> BasicValue;
+    fn visit_add(&mut self, add: &Add) -> BasicValue;
+    fn visit_sub(&mut self, sub: &Sub) -> BasicValue;
+    fn visit_mul(&mut self, mul: &Mul) -> BasicValue;
+    fn visit_div(&mut self, div: &Div) -> BasicValue;
+    fn visit_floor_div(&mut self, floor_div: &FloorDiv) -> BasicValue;
+    fn visit_mod(&mut self, mod_: &Mod) -> BasicValue;
+    fn visit_min(&mut self, min: &Min) -> BasicValue;
+    fn visit_max(&mut self, max: &Max) -> BasicValue;
+    fn visit_ge(&mut self, ge: &Ge) -> BasicValue;
+    fn visit_gt(&mut self, gt: &Gt) -> BasicValue;
+    fn visit_le(&mut self, le: &Le) -> BasicValue;
+    fn visit_lt(&mut self, lt: &Lt) -> BasicValue;
+    fn visit_eq(&mut self, eq: &Eq) -> BasicValue;
+    fn visit_ne(&mut self, ne: &Ne) -> BasicValue;
+    fn visit_and(&mut self, and: &And) -> BasicValue;
+    fn visit_xor(&mut self, xor: &Xor) -> BasicValue;
+    fn visit_or(&mut self, or: &Or) -> BasicValue;
+    fn visit_not(&mut self, not: &Not) -> BasicValue;
     fn visit_let_stmt(&mut self, let_stmt: &LetStmt);
-    fn visit_let(&mut self, let_: &Let);
+    fn visit_let(&mut self, let_: &Let) -> BasicValue;
     fn visit_for(&mut self, for_stmt: &For);
-    fn visit_int(&mut self, int: &Int);
-    fn visit_uint(&mut self, uint: &UInt);
-    fn visit_float(&mut self, float: &Float);
-    fn visit_call(&mut self, call: &Call);
-    fn visit_select(&mut self, select: &Select);
-    fn visit_load(&mut self, load: &Load);
+    fn visit_int(&mut self, int: &Int) -> BasicValue;
+    fn visit_uint(&mut self, uint: &UInt) -> BasicValue;
+    fn visit_float(&mut self, float: &Float) -> BasicValue;
+    fn visit_call(&mut self, call: &Call) -> BasicValue;
+    fn visit_select(&mut self, select: &Select) -> BasicValue;
+    fn visit_load(&mut self, load: &Load) -> BasicValue;
     fn visit_store(&mut self, store: &StoreStmt);
     fn visit_if_then_else(&mut self, if_then_else: &IfThenElse);
     fn visit_inplace_store(&mut self, inplace_store: &InplaceStore);
@@ -1278,8 +1285,7 @@ pub trait CodeGenVisitor where Self: Sized {
     fn visit_inplace_sub(&mut self, inplace_sub: &InplaceSub);
     fn visit_inplace_mul(&mut self, inplace_mul: &InplaceMul);
     fn visit_inplace_div(&mut self, inplace_div: &InplaceDiv);
-    fn visit_module(&mut self, module: &Module);
-    fn visit_function(&mut self, function: &Function);
+    fn visit_function(&mut self, function: &Function) -> BasicValue;
 }
 
 pub trait Accepter {

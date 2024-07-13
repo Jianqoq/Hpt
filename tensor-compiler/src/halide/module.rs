@@ -24,7 +24,7 @@ impl std::hash::Hash for Function {
 impl Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "fn {}(", self.name)?;
-        for (i, (name, r#type)) in self.ty.args.iter().enumerate() {
+        for (i, (name, r#type)) in self.ty.args.iter().flatten().enumerate() {
             if i != 0 {
                 write!(f, ", ")?;
             }
@@ -40,11 +40,11 @@ impl Display for Function {
 #[derive(Clone, Hash, Eq, PartialEq)]
 pub struct FunctionType {
     pub(crate) ret_ty: PrimitiveType,
-    pub(crate) args: Arc<Vec<(String, PrimitiveType)>>,
+    pub(crate) args: Arc<Vec<Vec<(String, PrimitiveType)>>>,
 }
 
 impl FunctionType {
-    pub fn new<T: IntoIterator<Item: Into<(String, PrimitiveType)>>>(
+    pub fn new<T: IntoIterator<Item: Into<Vec<(String, PrimitiveType)>>>>(
         ret_ty: PrimitiveType,
         args: T
     ) -> Self {
@@ -59,7 +59,7 @@ impl FunctionType {
     }
     pub fn to_llvm_func_type(&self, ctx: &Context) -> tensor_llvm::types::types::FunctionType {
         let mut arg_types = Vec::new();
-        for (_, ty) in self.args.iter() {
+        for (_, ty) in self.args.iter().flatten() {
             arg_types.push(ty.to_llvm_type(ctx));
         }
         let ret_type = self.ret_ty.to_llvm_type(ctx);

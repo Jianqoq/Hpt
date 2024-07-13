@@ -52,7 +52,7 @@ impl _IRPrinter {
         }
         for func in module.fns.values() {
             print!("fn {}(", func.name);
-            for (i, (name, r#type)) in func.ty.args.iter().enumerate() {
+            for (i, (name, r#type)) in func.ty.args.iter().flatten().enumerate() {
                 if i != 0 {
                     print!(", ");
                 }
@@ -76,14 +76,16 @@ impl _IRPrinter {
         for func in module.fns.values() {
             res.push_str(&self.do_indent_str());
             res.push_str(&format!("fn {}(", func.name));
-            for (i, (name, r#type)) in func.ty.args.iter().enumerate() {
+            for (i, (name, r#type)) in func.ty.args.iter().flatten().enumerate() {
                 if i != 0 {
                     res.push_str(", ");
                 }
                 res.push_str(&format!("{}: {}", name, r#type));
             }
             res.push_str(&format!(") -> {} {{\n", func.ty.ret_ty));
-            res.push_str(&format!("{}", _IRPrinter::new(self.indent + 1).print_stmt_str(&func.body)));
+            res.push_str(
+                &format!("{}", _IRPrinter::new(self.indent + 1).print_stmt_str(&func.body))
+            );
             res.push_str(&self.do_indent_str());
             res.push_str("}\n");
         }
