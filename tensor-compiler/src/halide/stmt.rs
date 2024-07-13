@@ -1,7 +1,15 @@
 use std::fmt::Display;
 
 use super::{
-    assign_stmt::AssignStmt, for_stmt::For, if_stmt::IfThenElse, inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub }, let_stmt::LetStmt, seq_stmt::Seq, store_stmt::StoreStmt, traits::{ Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor }
+    assign_stmt::AssignStmt,
+    for_stmt::For,
+    if_stmt::IfThenElse,
+    inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub },
+    let_stmt::LetStmt,
+    return_stmt::ReturnStmt,
+    seq_stmt::Seq,
+    store_stmt::StoreStmt,
+    traits::{ Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor },
 };
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
@@ -17,6 +25,7 @@ pub enum Stmt {
     InplaceMul(InplaceMul),
     InplaceDiv(InplaceDiv),
     IfThenElse(IfThenElse),
+    Return(ReturnStmt),
     None,
 }
 
@@ -33,6 +42,7 @@ pub enum StmtType {
     InplaceSub,
     InplaceMul,
     InplaceDiv,
+    Return,
     None,
 }
 
@@ -65,9 +75,7 @@ impl Stmt {
 
     pub fn same_as(&self, other: &Stmt) -> bool {
         match (self, other) {
-            (Stmt::LetStmt(a), Stmt::LetStmt(b)) => {
-                a.var() == b.var() && a.body() == b.body()
-            }
+            (Stmt::LetStmt(a), Stmt::LetStmt(b)) => { a.var() == b.var() && a.body() == b.body() }
             (Stmt::StoreStmt(a), Stmt::StoreStmt(b)) => {
                 a.var() == b.var() && a.indices() == b.indices() && a.val() == b.val()
             }
@@ -109,6 +117,7 @@ impl Stmt {
             Stmt::InplaceMul(_) => StmtType::InplaceMul,
             Stmt::InplaceDiv(_) => StmtType::InplaceDiv,
             Stmt::AssignStmt(_) => StmtType::AssignStmt,
+            Stmt::Return(_) => StmtType::Return,
             Stmt::None => StmtType::None,
         }
     }
@@ -128,6 +137,7 @@ impl Display for Stmt {
             Stmt::InplaceMul(stmt) => write!(f, "{}", stmt),
             Stmt::InplaceDiv(stmt) => write!(f, "{}", stmt),
             Stmt::AssignStmt(stmt) => write!(f, "{}", stmt),
+            Stmt::Return(stmt) => write!(f, "{}", stmt),
             Stmt::None => Ok(()),
         }
     }
@@ -167,6 +177,9 @@ impl Accepter for Stmt {
                 stmt.accept(visitor);
             }
             Stmt::AssignStmt(stmt) => {
+                stmt.accept(visitor);
+            }
+            Stmt::Return(stmt) => {
                 stmt.accept(visitor);
             }
             Stmt::None => {}
@@ -210,6 +223,9 @@ impl AccepterMut for Stmt {
             Stmt::AssignStmt(stmt) => {
                 stmt.accept_mut(visitor);
             }
+            Stmt::Return(stmt) => {
+                stmt.accept_mut(visitor);
+            }
             Stmt::None => {}
         }
     }
@@ -249,6 +265,9 @@ impl AccepterMutate for Stmt {
                 stmt.accept_mutate(visitor);
             }
             Stmt::AssignStmt(stmt) => {
+                stmt.accept_mutate(visitor);
+            }
+            Stmt::Return(stmt) => {
                 stmt.accept_mutate(visitor);
             }
             Stmt::None => {}

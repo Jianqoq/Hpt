@@ -1,7 +1,19 @@
 use crate::{ hlir::tensor_slice::TensorSlice, iter_var::IterVar };
 
 use super::{
-    assign_stmt::AssignStmt, exprs::*, for_stmt::For, if_stmt::IfThenElse, inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub }, let_stmt::LetStmt, module::{Function, Module}, prime_expr::PrimeExpr, seq_stmt::Seq, stmt::Stmt, store_stmt::StoreStmt, variable::Variable
+    assign_stmt::AssignStmt,
+    exprs::*,
+    for_stmt::For,
+    if_stmt::IfThenElse,
+    inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub },
+    let_stmt::LetStmt,
+    module::{ Function, Module },
+    prime_expr::PrimeExpr,
+    return_stmt::ReturnStmt,
+    seq_stmt::Seq,
+    stmt::Stmt,
+    store_stmt::StoreStmt,
+    variable::Variable,
 };
 
 #[allow(unused_variables)]
@@ -58,7 +70,13 @@ pub trait IRVisitor where Self: Sized {
             Stmt::InplaceMul(inplace_mul) => self.visit_inplace_mul(&inplace_mul),
             Stmt::InplaceDiv(inplace_div) => self.visit_inplace_div(&inplace_div),
             Stmt::AssignStmt(assign) => self.visit_assign(&assign),
+            Stmt::Return(return_) => self.visit_return(&return_),
             Stmt::None => {}
+        }
+    }
+    fn visit_return(&self, return_: &ReturnStmt) {
+        for e in return_.exprs().iter() {
+            e.accept(self);
         }
     }
     fn visit_tensor_slice(&self, slice: &TensorSlice) {}
@@ -275,7 +293,13 @@ pub trait IRMutVisitor where Self: Sized {
             Stmt::InplaceMul(inplace_mul) => self.visit_inplace_mul(&inplace_mul),
             Stmt::InplaceDiv(inplace_div) => self.visit_inplace_div(&inplace_div),
             Stmt::AssignStmt(assign) => self.visit_assign(&assign),
+            Stmt::Return(return_) => self.visit_return(&return_),
             Stmt::None => {}
+        }
+    }
+    fn visit_return(&mut self, return_: &ReturnStmt) {
+        for e in return_.exprs().iter() {
+            e.accept_mut(self);
         }
     }
     fn visit_tensor_slice(&mut self, slice: &TensorSlice) {}
@@ -537,7 +561,28 @@ pub(crate) fn visit_stmt<V>(visitor: &mut V, stmt: &Stmt)
         Stmt::InplaceMul(inplace_mul) => visitor.visit_inplace_mul(&inplace_mul),
         Stmt::InplaceDiv(inplace_div) => visitor.visit_inplace_div(&inplace_div),
         Stmt::AssignStmt(assign) => visitor.visit_assign(&assign),
+        Stmt::Return(return_) => visitor.visit_return(&return_),
         Stmt::None => {}
+    }
+}
+
+pub(crate) fn visit_return<V>(visitor: &mut V, return_: &ReturnStmt)
+    where V: MutatorGetSet + Sized + IRMutateVisitor
+{
+    let news = return_
+        .exprs()
+        .iter()
+        .map(|x| mutate_expr(visitor, x))
+        .collect::<Vec<PrimeExpr>>();
+    if
+        news
+            .iter()
+            .zip(return_.exprs().iter())
+            .all(|(a, b)| a == b)
+    {
+        visitor.set_stmt(return_);
+    } else {
+        visitor.set_stmt(ReturnStmt::make(news));
     }
 }
 
@@ -1001,6 +1046,9 @@ pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     fn mutate_stmt(&mut self, stmt: &Stmt) -> Stmt {
         mutate_stmt(self, stmt)
     }
+    fn visit_return(&mut self, return_: &ReturnStmt) {
+        visit_return(self, return_);
+    }
     fn visit_tensor_slice(&mut self, slice: &TensorSlice) {
         visist_tensor_slice(self, slice);
     }
@@ -1185,9 +1233,11 @@ pub trait CodeGenVisitor where Self: Sized {
             Stmt::InplaceMul(inplace_mul) => self.visit_inplace_mul(&inplace_mul),
             Stmt::InplaceDiv(inplace_div) => self.visit_inplace_div(&inplace_div),
             Stmt::AssignStmt(assign) => self.visit_assign(&assign),
+            Stmt::Return(return_) => self.visit_return(&return_),
             Stmt::None => {}
         }
     }
+    fn visit_return(&mut self, return_: &ReturnStmt);
     fn visit_tensor_slice(&mut self, slice: &TensorSlice);
     fn visit_reduce(&mut self, reduce: &Reduce);
     fn visit_variable(&mut self, var: &Variable);

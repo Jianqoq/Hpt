@@ -3,6 +3,7 @@ pub mod halide {
     pub mod for_stmt;
     pub mod let_stmt;
     pub mod primitive_type;
+    pub mod return_stmt;
     pub mod substitute {
         pub mod subsititue_var;
         pub mod subsititue_expr;

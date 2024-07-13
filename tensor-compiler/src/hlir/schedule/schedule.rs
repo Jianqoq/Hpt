@@ -12,6 +12,7 @@ use crate::{
         module::{ Function, FunctionType },
         prime_expr::PrimeExpr,
         primitive_type::{ PrimitiveType, Ptr, Tuple },
+        return_stmt::ReturnStmt,
         seq_stmt::Seq,
         stmt::Stmt,
         traits::AccepterMut,
@@ -602,11 +603,11 @@ impl Schedule {
     }
 
     pub fn lower(&self, name: &str) -> Function {
-        let stmts = self.stages
+        let mut stmts = self.stages
             .values()
+            .filter(|x| x.inputs.len() > 0 && x.freezed_leaf.borrow().len() == 0)
             .map(|x| x.to_halid())
             .collect::<Vec<_>>();
-        let seq = Stmt::Seq(Seq::make(stmts));
         let edges = self.build_edges();
         let nodes = self.stages
             .iter()
@@ -689,6 +690,17 @@ impl Schedule {
             .collect::<Vec<_>>();
         args3.sort();
         args1.extend(args3);
+        stmts.push(
+            Stmt::Return(
+                ReturnStmt::make(
+                    outputs
+                        .iter()
+                        .map(|x| { Variable::make(&x).into() })
+                        .collect::<Vec<PrimeExpr>>()
+                )
+            )
+        );
+        let seq = Stmt::Seq(Seq::make(stmts));
         Function {
             ty: FunctionType::new(
                 PrimitiveType::Tuple(Tuple {

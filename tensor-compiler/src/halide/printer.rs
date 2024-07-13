@@ -116,6 +116,10 @@ impl _IRPrinter {
                 self.do_indent();
                 println!("{}", var);
             }
+            Stmt::Return(var) => {
+                self.do_indent();
+                println!("{}", var);
+            }
             Stmt::None => {}
         }
     }
@@ -201,6 +205,10 @@ impl _IRPrinter {
                 res.push_str(&format!("{}\n", var));
             }
             Stmt::InplaceDiv(var) => {
+                res.push_str(&self.do_indent_str());
+                res.push_str(&format!("{}\n", var));
+            }
+            Stmt::Return(var) => {
                 res.push_str(&self.do_indent_str());
                 res.push_str(&format!("{}\n", var));
             }
