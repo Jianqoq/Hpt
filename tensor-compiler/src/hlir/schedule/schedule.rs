@@ -17,7 +17,7 @@ use crate::{
         traits::AccepterMut,
         variable::Variable,
     },
-    hlir::{ tensor::Tensor, tensor_slice::TensorSlice },
+    hlir::tensor::Tensor,
 };
 
 use super::lowered::FindInputs;
@@ -656,13 +656,45 @@ impl Schedule {
                 })
             })
             .collect::<Vec<PrimitiveType>>();
+        assert!(inputs.len() == inputs_type.len());
+        assert!(outputs.len() == outputs_type.len());
+        let mut args1 = inputs
+            .iter()
+            .zip(inputs_type.iter())
+            .map(|(k, v)| { (k.clone(), v.clone()) })
+            .collect::<Vec<_>>();
+        args1.sort();
+        let mut args2 = outputs
+            .iter()
+            .zip(outputs_type.iter())
+            .map(|(k, v)| { (k.clone(), v.clone()) })
+            .collect::<Vec<_>>();
+        args2.sort();
+        args1.extend(args2);
+        let mut args3 = nodes
+            .iter()
+            .filter(|x| !inputs.contains(x) && !outputs.contains(x))
+            .map(|x| {
+                let dtype = self.stages
+                    .iter()
+                    .find(|(k, _)| k.name_() == x)
+                    .unwrap()
+                    .0.dtype()
+                    .clone();
+                (
+                    x.as_ref().clone(),
+                    PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(dtype).into() }),
+                )
+            })
+            .collect::<Vec<_>>();
+        args3.sort();
+        args1.extend(args3);
         Function {
             ty: FunctionType::new(
                 PrimitiveType::Tuple(Tuple {
                     inner: outputs_type.into(),
                 }),
-                inputs_type,
-                inputs
+                args1
             ),
             body: seq,
             name: name.to_string().into(),

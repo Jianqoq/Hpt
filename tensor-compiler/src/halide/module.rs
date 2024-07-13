@@ -2,7 +2,7 @@ use std::{ fmt::Display, sync::Arc };
 
 use hashbrown::HashSet;
 
-use crate::halide::printer::{IRPrinter, _IRPrinter};
+use crate::halide::printer::_IRPrinter;
 
 use super::{ primitive_type::PrimitiveType, stmt::Stmt };
 
@@ -23,11 +23,11 @@ impl std::hash::Hash for Function {
 impl Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "fn {}(", self.name)?;
-        for (i, (arg, name)) in self.ty.args.iter().zip(self.ty.arg_names.iter()).enumerate() {
+        for (i, (name, r#type)) in self.ty.args.iter().enumerate() {
             if i != 0 {
                 write!(f, ", ")?;
             }
-            write!(f, "{}: {}", name, arg)?;
+            write!(f, "{}: {}", name, r#type)?;
         }
         write!(f, ") -> {}", self.ty.ret_ty)?;
         write!(f, " {{\n")?;
@@ -39,24 +39,17 @@ impl Display for Function {
 #[derive(Clone, Hash, Eq, PartialEq)]
 pub struct FunctionType {
     ret_ty: PrimitiveType,
-    args: Arc<Vec<PrimitiveType>>,
-    arg_names: Arc<Vec<String>>,
+    args: Arc<Vec<(String, PrimitiveType)>>,
 }
 
 impl FunctionType {
-    pub fn new<T: IntoIterator<Item: Into<PrimitiveType>>, U: IntoIterator<Item: Into<String>>>(
+    pub fn new<T: IntoIterator<Item: Into<(String, PrimitiveType)>>>(
         ret_ty: PrimitiveType,
-        args: T,
-        arg_names: U
+        args: T
     ) -> Self {
         FunctionType {
             ret_ty,
             args: args
-                .into_iter()
-                .map(|x| x.into())
-                .collect::<Vec<_>>()
-                .into(),
-            arg_names: arg_names
                 .into_iter()
                 .map(|x| x.into())
                 .collect::<Vec<_>>()

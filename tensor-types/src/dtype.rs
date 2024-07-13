@@ -6,7 +6,7 @@ use serde::{ Deserialize, Serialize };
 
 use crate::type_promote::{ BitWiseOut, FloatOut, NormalOut };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub enum Dtype {
     Bool,
     I8,

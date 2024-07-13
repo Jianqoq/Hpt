@@ -2,7 +2,7 @@ use std::{ fmt::Display, sync::Arc };
 
 use tensor_types::{ dtype::Dtype, type_promote::{ FloatOut, NormalOut } };
 
-#[derive(Clone, Hash, Eq, PartialEq)]
+#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub enum PrimitiveType {
     Dtype(Dtype),
     Tuple(Tuple),
@@ -11,16 +11,16 @@ pub enum PrimitiveType {
     Str,
     Void,
 }
-#[derive(Clone, Hash, Eq, PartialEq)]
+#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Tuple {
     pub inner: Arc<Vec<PrimitiveType>>,
 }
-#[derive(Clone, Hash, Eq, PartialEq)]
+#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Array {
     pub inner: Arc<PrimitiveType>,
     pub size: i64,
 }
-#[derive(Clone, Hash, Eq, PartialEq)]
+#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Ptr {
     pub inner: Arc<PrimitiveType>,
 }
