@@ -89,7 +89,7 @@ fn topo(nodes: &HashMap<usize, Arc<String>>, edges: Edges<usize>) -> Option<VecD
 pub fn build_nested_for_helper(stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -> Stmt {
     fn build_recursive(idx: usize, stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -> Stmt {
         let mut seq = None;
-        let store = if idx == iter_vars.len() - 1 || iter_vars.len() == 0 {
+        let store = if iter_vars.len() == 0 || idx == iter_vars.len() - 1 {
             let mut subs_expr = SubstituteExpr::new();
             let mut store_indices_root = vec![];
             for origin in stage.borrow().root.borrow().iter() {
@@ -250,7 +250,7 @@ pub fn build_nested_for_helper(stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -
                 );
             }
         } else {
-            if idx == iter_vars.len() - 1 {
+            if iter_vars.len() > 0 && idx == iter_vars.len() - 1 {
                 return Stmt::For(
                     For::make(
                         iter_vars[idx].borrow().var(),

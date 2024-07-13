@@ -1041,7 +1041,7 @@ pub enum Transforms {
 mod tests {
     use tensor_types::dtype::Dtype;
 
-    use crate::{ halide::printer::IRPrinter, hlir::tensor::compute };
+    use crate::{ halide::{ module::Module, printer::IRPrinter }, hlir::tensor::compute };
 
     use super::*;
 
@@ -1149,7 +1149,7 @@ mod tests {
         let n = Variable::make("n");
         let p = Variable::make("p");
 
-        let a = Tensor::placeholder(&[&m, &n], Dtype::I64, "A");
+        let a = Tensor::placeholder(&[&m, &n], Dtype::BF16, "A");
 
         let c = compute(Dtype::BF16, [&n, &m], "C", |[i, j]| {
             a.slice([&i, &j]) + a.slice([&i, &j])
@@ -1167,6 +1167,11 @@ mod tests {
         let d_axis2 = d_stage.axis(1);
         s.compute_at(&s[&c].clone(), &d_stage, &[d_axis, d_axis2], &[axis, axis2]);
         // IRPrinter.print_stmt(s.to_halide(&c));
-        println!("{}", s.lower("name"))
+        let lowered = s.lower("name");
+        let mut module = Module::new("main");
+        module.add_function(lowered.ty, &lowered.name);
+        module.get_function_mut(&lowered.name).unwrap().body = lowered.body;
+        let string = IRPrinter.print_module_str(&module);
+        println!("{}", string);
     }
 }

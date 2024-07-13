@@ -2,7 +2,7 @@ use tensor_types::dtype::Dtype;
 
 use crate::halide::exprs::Int;
 
-use super::{ prime_expr::PrimeExpr, stmt::Stmt };
+use super::{ module::Module, prime_expr::PrimeExpr, stmt::Stmt };
 
 pub struct IRPrinter;
 
@@ -18,6 +18,14 @@ impl IRPrinter {
     pub fn print_expr<T: Into<PrimeExpr>>(&mut self, expr: T) {
         let expr = expr.into();
         println!("{}", expr);
+    }
+
+    pub fn print_module(&mut self, module: &Module) {
+        _IRPrinter::new(0).print_module(module);
+    }
+
+    pub fn print_module_str(&mut self, module: &Module) -> String {
+        _IRPrinter::new(0).print_module_str(module)
     }
 }
 
@@ -35,6 +43,52 @@ impl _IRPrinter {
     }
     fn do_indent_str(&self) -> String {
         "    ".repeat(self.indent)
+    }
+
+    pub fn print_module(&mut self, module: &Module) {
+        println!("module {} {{", module.name);
+        for import in &module.imports {
+            println!("    import {};", import);
+        }
+        for func in module.fns.values() {
+            print!("fn {}(", func.name);
+            for (i, (name, r#type)) in func.ty.args.iter().enumerate() {
+                if i != 0 {
+                    print!(", ");
+                }
+                print!("{}: {}", name, r#type);
+            }
+            print!(") -> {}", func.ty.ret_ty);
+            println!(" {{");
+            print!("{}", _IRPrinter::new(2).print_stmt_str(&func.body));
+            print!("}}");
+        }
+        println!("}}");
+    }
+
+    pub fn print_module_str(&mut self, module: &Module) -> String {
+        let mut res = String::new();
+        res.push_str(&format!("module {} {{\n", module.name));
+        self.indent += 1;
+        for import in &module.imports {
+            res.push_str(&format!("import {};\n", import));
+        }
+        for func in module.fns.values() {
+            res.push_str(&self.do_indent_str());
+            res.push_str(&format!("fn {}(", func.name));
+            for (i, (name, r#type)) in func.ty.args.iter().enumerate() {
+                if i != 0 {
+                    res.push_str(", ");
+                }
+                res.push_str(&format!("{}: {}", name, r#type));
+            }
+            res.push_str(&format!(") -> {} {{\n", func.ty.ret_ty));
+            res.push_str(&format!("{}", _IRPrinter::new(self.indent + 1).print_stmt_str(&func.body)));
+            res.push_str(&self.do_indent_str());
+            res.push_str("}\n");
+        }
+        res.push_str("}");
+        res
     }
 
     pub fn print_stmt<T: Into<Stmt>>(&mut self, stmt: T) {
