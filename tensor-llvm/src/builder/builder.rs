@@ -702,7 +702,7 @@ impl Builder {
                 c_string.as_ptr()
             )
         };
-        let mut ret = fn_value.ret_type();
+        let mut ret = fn_value.empty_value();
         unsafe {
             ret.set_inner(res);
         }

@@ -524,7 +524,11 @@ impl FunctionValue {
         }
     }
 
-    pub fn ret_type(&self) -> BasicValue {
+    pub fn ret_type(&self) -> &GeneralType {
+        &self.ret_type
+    }
+
+    pub fn empty_value(&self) -> BasicValue {
         match &self.ret_type {
             GeneralType::Bool(_) => BoolType::unitialize(),
             GeneralType::I8(_) => I8Type::unitialize(),

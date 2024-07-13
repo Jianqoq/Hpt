@@ -1,10 +1,12 @@
 use tensor_llvm::{
     builder::builder::Builder,
     context::context::Context,
-    types::values::BasicValue,
+    types::{ general_types::GeneralType, values::BasicValue },
     BasicType,
 };
 use tensor_types::dtype::Dtype;
+
+use crate::halide::primitive_type::{ Array, PrimitiveType, Ptr };
 
 pub fn dtype_to_llvm(dtype: Dtype, context: &Context) -> BasicType {
     match dtype {
@@ -104,5 +106,62 @@ pub fn build_cast(
                 _ => panic!("Unsupported cast"),
             }
         _ => panic!("{}", &format!("Unsupported cast {:?}", val)),
+    }
+}
+
+pub fn general_types_to_primitive_type(general_type: &GeneralType) -> PrimitiveType {
+    match general_type {
+        GeneralType::Bool(_) => PrimitiveType::Dtype(Dtype::Bool),
+        GeneralType::I8(_) => PrimitiveType::Dtype(Dtype::I8),
+        GeneralType::U8(_) => PrimitiveType::Dtype(Dtype::U8),
+        GeneralType::I16(_) => PrimitiveType::Dtype(Dtype::I16),
+        GeneralType::U16(_) => PrimitiveType::Dtype(Dtype::U16),
+        GeneralType::I32(_) => PrimitiveType::Dtype(Dtype::I32),
+        GeneralType::U32(_) => PrimitiveType::Dtype(Dtype::U32),
+        GeneralType::I64(_) => PrimitiveType::Dtype(Dtype::I64),
+        GeneralType::U64(_) => PrimitiveType::Dtype(Dtype::U64),
+        GeneralType::BF16(_) => PrimitiveType::Dtype(Dtype::BF16),
+        GeneralType::F16(_) => PrimitiveType::Dtype(Dtype::F16),
+        GeneralType::F32(_) => PrimitiveType::Dtype(Dtype::F32),
+        GeneralType::F64(_) => PrimitiveType::Dtype(Dtype::F64),
+        GeneralType::Void(_) => PrimitiveType::Void,
+        GeneralType::Isize(_) => PrimitiveType::Dtype(Dtype::Isize),
+        GeneralType::Array(_) => todo!(),
+        GeneralType::BoolPtr(_) =>
+            PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(Dtype::Bool).into() }),
+        GeneralType::I8Ptr(_) =>
+            PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(Dtype::I8).into() }),
+        GeneralType::U8Ptr(_) =>
+            PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(Dtype::U8).into() }),
+        GeneralType::I16Ptr(_) =>
+            PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(Dtype::I16).into() }),
+        GeneralType::I64Ptr(_) =>
+            PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(Dtype::I64).into() }),
+        GeneralType::U16Ptr(_) =>
+            PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(Dtype::U16).into() }),
+        GeneralType::I32Ptr(_) =>
+            PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(Dtype::I32).into() }),
+        GeneralType::U32Ptr(_) =>
+            PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(Dtype::U32).into() }),
+        GeneralType::U64Ptr(_) =>
+            PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(Dtype::U64).into() }),
+        GeneralType::BF16Ptr(_) =>
+            PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(Dtype::BF16).into() }),
+        GeneralType::F16Ptr(_) =>
+            PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(Dtype::F16).into() }),
+        GeneralType::F32Ptr(_) =>
+            PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(Dtype::F32).into() }),
+        GeneralType::F64Ptr(_) =>
+            PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(Dtype::F64).into() }),
+        GeneralType::VoidPtr(_) => PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Void.into() }),
+        GeneralType::IsizePtr(_) =>
+            PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(Dtype::Isize).into() }),
+        GeneralType::ArrayPtr(_) => todo!(),
+        GeneralType::FunctionPtr(_) => todo!(),
+        GeneralType::Function(_) => todo!(),
+        GeneralType::Str(_) => PrimitiveType::Str,
+        GeneralType::StrPtr(_) => PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Str.into() }),
+        GeneralType::Struct(_) => todo!(),
+        GeneralType::StructPtr(_) => todo!(),
     }
 }
