@@ -1,6 +1,7 @@
 use std::{ fmt::Display, sync::Arc };
 
 use hashbrown::{ HashMap, HashSet };
+use tensor_llvm::{ context::context::Context, types::general_types::GeneralType };
 
 use crate::halide::printer::_IRPrinter;
 
@@ -54,6 +55,53 @@ impl FunctionType {
                 .map(|x| x.into())
                 .collect::<Vec<_>>()
                 .into(),
+        }
+    }
+    pub fn to_llvm_func_type(&self, ctx: &Context) -> tensor_llvm::types::types::FunctionType {
+        let mut arg_types = Vec::new();
+        for (_, ty) in self.args.iter() {
+            arg_types.push(ty.to_llvm_type(ctx));
+        }
+        let ret_type = self.ret_ty.to_llvm_type(ctx);
+        match ret_type {
+            GeneralType::Bool(val) => val.fn_type(&arg_types, false),
+            GeneralType::BoolPtr(val) => val.fn_type(&arg_types, false),
+            GeneralType::I8(val) => val.fn_type(&arg_types, false),
+            GeneralType::I8Ptr(val) => val.fn_type(&arg_types, false),
+            GeneralType::U8(val) => val.fn_type(&arg_types, false),
+            GeneralType::U8Ptr(val) => val.fn_type(&arg_types, false),
+            GeneralType::I16(val) => val.fn_type(&arg_types, false),
+            GeneralType::I16Ptr(val) => val.fn_type(&arg_types, false),
+            GeneralType::U16(val) => val.fn_type(&arg_types, false),
+            GeneralType::U16Ptr(val) => val.fn_type(&arg_types, false),
+            GeneralType::I32(val) => val.fn_type(&arg_types, false),
+            GeneralType::I32Ptr(val) => val.fn_type(&arg_types, false),
+            GeneralType::U32(val) => val.fn_type(&arg_types, false),
+            GeneralType::U32Ptr(val) => val.fn_type(&arg_types, false),
+            GeneralType::I64(val) => val.fn_type(&arg_types, false),
+            GeneralType::I64Ptr(val) => val.fn_type(&arg_types, false),
+            GeneralType::U64(val) => val.fn_type(&arg_types, false),
+            GeneralType::U64Ptr(val) => val.fn_type(&arg_types, false),
+            GeneralType::BF16(val) => val.fn_type(&arg_types, false),
+            GeneralType::BF16Ptr(val) => val.fn_type(&arg_types, false),
+            GeneralType::F16(val) => val.fn_type(&arg_types, false),
+            GeneralType::F16Ptr(val) => val.fn_type(&arg_types, false),
+            GeneralType::F32(val) => val.fn_type(&arg_types, false),
+            GeneralType::F32Ptr(val) => val.fn_type(&arg_types, false),
+            GeneralType::F64(val) => val.fn_type(&arg_types, false),
+            GeneralType::F64Ptr(val) => val.fn_type(&arg_types, false),
+            GeneralType::Void(val) => val.fn_type(&arg_types, false),
+            GeneralType::VoidPtr(val) => val.fn_type(&arg_types, false),
+            GeneralType::Isize(val) => val.fn_type(&arg_types, false),
+            GeneralType::IsizePtr(val) => val.fn_type(&arg_types, false),
+            GeneralType::FunctionPtr(val) => val.fn_type(&arg_types, false),
+            GeneralType::Array(val) => val.fn_type(&arg_types, false),
+            GeneralType::ArrayPtr(val) => val.fn_type(&arg_types, false),
+            GeneralType::Str(val) => val.fn_type(&arg_types, false),
+            GeneralType::StrPtr(val) => val.fn_type(&arg_types, false),
+            GeneralType::Struct(val) => val.fn_type(&arg_types, false),
+            GeneralType::StructPtr(val) => val.fn_type(&arg_types, false),
+            _ => unimplemented!(),
         }
     }
 }

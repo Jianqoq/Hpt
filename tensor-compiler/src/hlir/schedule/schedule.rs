@@ -1167,7 +1167,7 @@ mod tests {
         let d_axis2 = d_stage.axis(1);
         s.compute_at(&s[&c].clone(), &d_stage, &[d_axis, d_axis2], &[axis, axis2]);
         // IRPrinter.print_stmt(s.to_halide(&c));
-        let lowered = s.lower("name");
+        let lowered = s.lower("main");
         let mut module = Module::new("main");
         module.add_function(lowered.ty, &lowered.name);
         module.get_function_mut(&lowered.name).unwrap().body = lowered.body;

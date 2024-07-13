@@ -20,6 +20,7 @@ pub enum GeneralType {
     U32(U32Type),
     U32Ptr(U32PtrType),
     I64(I64Type),
+    I64Ptr(I64PtrType),
     U64(U64Type),
     U64Ptr(U64PtrType),
     BF16(BF16Type),
@@ -40,6 +41,8 @@ pub enum GeneralType {
     ArrayPtr(ArrayPtrType),
     Str(StrType),
     StrPtr(StrPtrType),
+    Struct(StructType),
+    StructPtr(StructPtrType),
 }
 
 macro_rules! impl_from {
@@ -69,6 +72,7 @@ impl_from!(I32Ptr);
 impl_from!(U32);
 impl_from!(U32Ptr);
 impl_from!(I64);
+impl_from!(I64Ptr);
 impl_from!(U64);
 impl_from!(U64Ptr);
 impl_from!(BF16);
@@ -89,6 +93,8 @@ impl_from!(Array);
 impl_from!(ArrayPtr);
 impl_from!(Str);
 impl_from!(StrPtr);
+impl_from!(Struct);
+impl_from!(StructPtr);
 
 impl GeneralType {
     pub fn inner(&self) -> LLVMTypeRef {
@@ -108,6 +114,7 @@ impl GeneralType {
             GeneralType::U32(t) => t.inner(),
             GeneralType::U32Ptr(t) => t.inner(),
             GeneralType::I64(t) => t.inner(),
+            GeneralType::I64Ptr(t) => t.inner(),
             GeneralType::U64(t) => t.inner(),
             GeneralType::U64Ptr(t) => t.inner(),
             GeneralType::BF16(t) => t.inner(),
@@ -128,6 +135,8 @@ impl GeneralType {
             GeneralType::ArrayPtr(t) => t.inner(),
             GeneralType::Str(t) => t.inner(),
             GeneralType::StrPtr(t) => t.inner(),
+            GeneralType::Struct(t) => t.inner(),
+            GeneralType::StructPtr(t) => t.inner(),
         }
     }
 }

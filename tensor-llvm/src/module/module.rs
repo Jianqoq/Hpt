@@ -1,16 +1,21 @@
 use std::{mem::MaybeUninit, path::Path};
 
 use llvm_sys::{
-    core::{LLVMAddFunction, LLVMGetNamedFunction, LLVMPrintModuleToFile},
+    core::{LLVMAddFunction, LLVMGetNamedFunction, LLVMModuleCreateWithNameInContext, LLVMPrintModuleToFile},
     LLVMModule,
 };
-use crate::{types::values::FunctionValue, utils::to_c_str, FunctionType};
+use crate::{context::context::Context, types::values::FunctionValue, utils::to_c_str, FunctionType};
 
 pub struct Module {
     pub(crate) module: *mut LLVMModule,
 }
 
 impl Module {
+    pub fn new(module_name: &str, ctx: &Context) -> Self {
+        let module = unsafe { LLVMModuleCreateWithNameInContext(to_c_str(module_name).as_ptr(), ctx.inner()) };
+        Module { module }
+    }
+
     pub fn get_function(&self, fn_type: FunctionType, name: &str) -> Option<FunctionValue> {
         let c_string = to_c_str(name);
         let fn_value = unsafe { LLVMGetNamedFunction(self.module, c_string.as_ptr()) };

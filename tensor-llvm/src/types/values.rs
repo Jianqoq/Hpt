@@ -90,6 +90,8 @@ register_val_type!(FunctionPtr);
 register_val_type!(StrPtr);
 register_val_type!(Array);
 register_val_type!(Str);
+register_val_type!(Struct);
+register_val_type!(StructPtr);
 
 #[derive(Debug, PartialEq, Copy, Clone, Eq, Hash)]
 pub enum BasicValue {
@@ -129,6 +131,8 @@ pub enum BasicValue {
     IsizePtr(IsizePtrValue),
     ArrayPtr(ArrayPtrValue),
     FunctionPtr(FunctionPtrValue),
+    Struct(StructValue),
+    StructPtr(StructPtrValue),
     None,
 }
 
@@ -171,6 +175,8 @@ impl BasicValue {
             BasicValue::Str(_) => BasicValue::Str(StrValue::unitialized()),
             BasicValue::StrPtr(_) => BasicValue::StrPtr(StrPtrValue::unitialized()),
             BasicValue::Phi(_) => BasicValue::Phi(PhiValue::new(std::ptr::null_mut())),
+            BasicValue::Struct(_) => BasicValue::Struct(StructValue::unitialized()),
+            BasicValue::StructPtr(_) => BasicValue::StructPtr(StructPtrValue::unitialized()),
             BasicValue::None => BasicValue::None,
         }
     }
@@ -439,6 +445,8 @@ impl BasicValue {
             BasicValue::StrPtr(val) => val.inner(),
             BasicValue::Phi(val) => val.inner(),
             BasicValue::None => std::ptr::null_mut(),
+            BasicValue::Struct(val) => val.inner(),
+            BasicValue::StructPtr(val) => val.inner(),
         }
     }
 }
@@ -538,6 +546,7 @@ impl FunctionValue {
             GeneralType::I8Ptr(_) => I8PtrType::unitialize(),
             GeneralType::U8Ptr(_) => U8PtrType::unitialize(),
             GeneralType::I16Ptr(_) => I16PtrType::unitialize(),
+            GeneralType::I64Ptr(_) => I64PtrType::unitialize(),
             GeneralType::U16Ptr(_) => U16PtrType::unitialize(),
             GeneralType::I32Ptr(_) => I32PtrType::unitialize(),
             GeneralType::U32Ptr(_) => U32PtrType::unitialize(),
@@ -553,6 +562,8 @@ impl FunctionValue {
             GeneralType::Function(_) => panic!("Function type not supported"),
             GeneralType::Str(_) => StrType::unitialize(),
             GeneralType::StrPtr(_) => StrPtrType::unitialize(),
+            GeneralType::Struct(_) => StructType::unitialize(),
+            GeneralType::StructPtr(_) => StructPtrType::unitialize(),
         }
     }
 
@@ -636,6 +647,7 @@ impl FunctionValue {
             GeneralType::U16Ptr(_) => BasicValue::U16Ptr(U16PtrValue::from(param)),
             GeneralType::I32Ptr(_) => BasicValue::I32Ptr(I32PtrValue::from(param)),
             GeneralType::U32Ptr(_) => BasicValue::U32Ptr(U32PtrValue::from(param)),
+            GeneralType::I64Ptr(_) => BasicValue::I64Ptr(I64PtrValue::from(param)),
             GeneralType::U64Ptr(_) => BasicValue::U64Ptr(U64PtrValue::from(param)),
             GeneralType::BF16Ptr(_) => BasicValue::BF16Ptr(BF16PtrValue::from(param)),
             GeneralType::F16Ptr(_) => BasicValue::F16Ptr(F16PtrValue::from(param)),
@@ -648,6 +660,8 @@ impl FunctionValue {
             GeneralType::Function(_) => todo!(),
             GeneralType::Str(_) => BasicValue::Str(StrValue::from(param)),
             GeneralType::StrPtr(_) => BasicValue::StrPtr(StrPtrValue::from(param)),
+            GeneralType::Struct(_) => BasicValue::Struct(StructValue::from(param)),
+            GeneralType::StructPtr(_) => BasicValue::StructPtr(StructPtrValue::from(param)),
         }
     }
 }
@@ -763,6 +777,12 @@ impl BasicValue {
             BasicValue::Phi(val) => {
                 val.value = value;
             }
+            BasicValue::Struct(val) => {
+                val.value = value;
+            }
+            BasicValue::StructPtr(val) => {
+                val.value = value;
+            }
             BasicValue::None => {}
         }
     }
@@ -805,6 +825,8 @@ impl BasicValue {
             BasicValue::Str(_) => false,
             BasicValue::StrPtr(_) => false,
             BasicValue::Phi(_) => false,
+            BasicValue::Struct(_) => false,
+            BasicValue::StructPtr(_) => false,
             BasicValue::None => false,
         }
     }

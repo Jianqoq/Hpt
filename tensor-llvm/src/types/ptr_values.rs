@@ -22,6 +22,7 @@ pub enum PtrValue {
     Array(ArrayPtrValue),
     Function(FunctionPtrValue),
     Str(StrPtrValue),
+    Struct(StructPtrValue),
 }
 
 macro_rules! impl_from {
@@ -71,6 +72,7 @@ impl PtrValue {
             PtrValue::Array(ptr_value) => ptr_value.value,
             PtrValue::Function(ptr_value) => ptr_value.value,
             PtrValue::Str(ptr_value) => ptr_value.value,
+            PtrValue::Struct(ptr_value) => ptr_value.value,
         }
     }
 
@@ -128,6 +130,9 @@ impl PtrValue {
                 ptr_value.value = value;
             }
             PtrValue::Str(ptr_value) => {
+                ptr_value.value = value;
+            }
+            PtrValue::Struct(ptr_value) => {
                 ptr_value.value = value;
             }
         }

@@ -1,7 +1,12 @@
+use std::rc::Rc;
+
 use llvm_sys::core::LLVMPointerType;
 use llvm_sys::prelude::LLVMTypeRef;
 use paste::paste;
 
+use crate::FunctionType;
+
+use super::general_types::GeneralType;
 use super::info_trait::{ TypeTrait, UnitizlizeValue };
 use super::ptr_values::PtrValue;
 use super::values::*;
@@ -32,6 +37,14 @@ macro_rules! register_ptr_type {
                 let new_type = $name::from(new_ptr);
                 PtrType::from(new_type)
             }
+
+            pub fn fn_type(&self, param_types: &[GeneralType], is_var_args: bool) -> FunctionType {
+                let types = Rc::new(param_types.to_vec());
+                let mut param_types: Vec<LLVMTypeRef> = param_types.iter().map(|t| t.inner()).collect();
+                let fn_type = unsafe { llvm_sys::core::LLVMFunctionType(self.inner(), param_types.as_mut_ptr(), param_types.len() as u32, is_var_args as i32) };
+                let general_types = GeneralType::from(self.clone());
+                FunctionType::new(fn_type, general_types, types, param_types.len())
+            }
         }
     };
 }
@@ -54,6 +67,7 @@ register_ptr_type!(IsizePtrType);
 register_ptr_type!(ArrayPtrType);
 register_ptr_type!(FunctionPtrType);
 register_ptr_type!(StrPtrType);
+register_ptr_type!(StructPtrType);
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum PtrType {
@@ -75,6 +89,7 @@ pub enum PtrType {
     Array(ArrayPtrType),
     Function(FunctionPtrType),
     Str(StrPtrType),
+    Struct(StructPtrType),
 }
 
 impl PtrType {
@@ -98,6 +113,7 @@ impl PtrType {
             PtrType::Array(ptr_type) => ptr_type.ptr_type,
             PtrType::Function(ptr_type) => ptr_type.ptr_type,
             PtrType::Str(ptr_type) => ptr_type.ptr_type,
+            PtrType::Struct(ptr_type) => ptr_type.ptr_type,
         }
     }
 }
@@ -130,6 +146,7 @@ impl_from!(Isize);
 impl_from!(Array);
 impl_from!(Function);
 impl_from!(Str);
+impl_from!(Struct);
 
 impl TypeTrait for PtrType {
     fn get_type(&self) -> LLVMTypeRef {
@@ -158,6 +175,7 @@ impl UnitizlizeValue for PtrType {
             PtrType::Array(_) => BasicValue::ArrayPtr(ArrayPtrValue::unitialzed()),
             PtrType::Function(_) => BasicValue::FunctionPtr(FunctionPtrValue::unitialzed()),
             PtrType::Str(_) => BasicValue::StrPtr(StrPtrValue::unitialzed()),
+            PtrType::Struct(_) => BasicValue::StructPtr(StructPtrValue::unitialzed()),
         }
     }
 }
@@ -206,7 +224,8 @@ impl_type_trait!(
     Void,
     Array,
     Function,
-    Str
+    Str,
+    Struct
 );
 
 impl From<BasicValue> for PtrValue {
@@ -256,6 +275,7 @@ impl From<PtrValue> for BasicValue {
             PtrValue::Array(val) => BasicValue::ArrayPtr(val),
             PtrValue::Function(val) => BasicValue::FunctionPtr(val),
             PtrValue::Str(val) => BasicValue::StrPtr(val),
+            PtrValue::Struct(val) => BasicValue::StructPtr(val),
         }
     }
 }

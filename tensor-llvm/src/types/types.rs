@@ -149,7 +149,8 @@ register_types!(
     Isize,
     Void,
     Array,
-    Str
+    Str,
+    Struct
 );
 
 impl_into_basic_type!(
@@ -339,7 +340,8 @@ impl_type_trait!(
     Isize,
     Void,
     Array,
-    Str
+    Str,
+    Struct
 );
 
 impl UnitizlizeValue for BasicType {

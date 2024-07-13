@@ -1,30 +1,57 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{ cell::RefCell, rc::Rc };
 
 use llvm_sys::core::{
-    LLVMBuildAnd, LLVMBuildCast, LLVMBuildFCmp, LLVMBuildFNeg, LLVMBuildFPCast, LLVMBuildFPToSI,
-    LLVMBuildGEP2, LLVMBuildGlobalStringPtr, LLVMBuildNeg, LLVMBuildNot, LLVMBuildOr, LLVMBuildPhi,
-    LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSelect, LLVMBuildXor, LLVMConstReal,
+    LLVMBuildAnd,
+    LLVMBuildCast,
+    LLVMBuildFCmp,
+    LLVMBuildFNeg,
+    LLVMBuildFPCast,
+    LLVMBuildFPToSI,
+    LLVMBuildGEP2,
+    LLVMBuildGlobalStringPtr,
+    LLVMBuildNeg,
+    LLVMBuildNot,
+    LLVMBuildOr,
+    LLVMBuildPhi,
+    LLVMBuildRet,
+    LLVMBuildRetVoid,
+    LLVMBuildSelect,
+    LLVMBuildXor,
+    LLVMConstReal,
 };
 use llvm_sys::{
     core::{
-        LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildCall2, LLVMBuildFAdd, LLVMBuildFDiv, LLVMBuildFMul,
-        LLVMBuildFSub, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildSDiv, LLVMBuildStore,
-        LLVMBuildSub, LLVMConstInt,
+        LLVMBuildAdd,
+        LLVMBuildAlloca,
+        LLVMBuildCall2,
+        LLVMBuildFAdd,
+        LLVMBuildFDiv,
+        LLVMBuildFMul,
+        LLVMBuildFSub,
+        LLVMBuildICmp,
+        LLVMBuildLoad2,
+        LLVMBuildMul,
+        LLVMBuildSDiv,
+        LLVMBuildStore,
+        LLVMBuildSub,
+        LLVMConstInt,
     },
     prelude::LLVMValueRef,
-    LLVMBuilder, LLVMIntPredicate,
+    LLVMBuilder,
+    LLVMIntPredicate,
 };
-use llvm_sys::{LLVMOpcode, LLVMRealPredicate};
+use llvm_sys::{ LLVMOpcode, LLVMRealPredicate };
+use crate::context::context::Context;
 use crate::types::info_trait::UnitizlizeValue;
-use crate::types::ptr_type::{PtrType, StrPtrType};
-use crate::types::values::{BoolValue, PhiValue};
+use crate::types::ptr_type::{ PtrType, StrPtrType };
+use crate::types::values::{ BoolValue, PhiValue };
 use crate::utils::to_c_str;
 use crate::{
     types::{
         block::BasicBlock,
         info_trait::TypeTrait,
         ptr_values::PtrValue,
-        values::{BasicValue, BoolPtrValue, FunctionValue},
+        values::{ BasicValue, BoolPtrValue, FunctionValue },
     },
     BasicType,
 };
@@ -41,6 +68,13 @@ pub struct Builder {
 }
 
 impl Builder {
+    pub fn new(context: &Context) -> Self {
+        let builder = unsafe { llvm_sys::core::LLVMCreateBuilderInContext(context.inner()) };
+        Builder {
+            builder,
+            pos_state: Rc::new(RefCell::new(PositionState::NotSet)),
+        }
+    }
     pub fn get_insert_block(&self) -> BasicBlock {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
@@ -56,14 +90,18 @@ impl Builder {
         &self,
         value_type: BasicType,
         value: BasicValue,
-        name: &str,
+        name: &str
     ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
         }
         let zero = self.build_float(value_type, 0.0);
-        let is_negative =
-            self.build_float_cmp(LLVMRealPredicate::LLVMRealOLT, value, zero, "is_negative");
+        let is_negative = self.build_float_cmp(
+            LLVMRealPredicate::LLVMRealOLT,
+            value,
+            zero,
+            "is_negative"
+        );
         let negated = self.build_float_neg(value, "negated");
         self.build_select(is_negative, negated, value, name)
     }
@@ -72,14 +110,18 @@ impl Builder {
         &self,
         value_type: BasicType,
         value: BasicValue,
-        name: &str,
+        name: &str
     ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
         }
         let zero = self.build_int(value_type, 0, false);
-        let is_negative =
-            self.build_int_cmp(LLVMIntPredicate::LLVMIntSLT, value, zero, "is_negative");
+        let is_negative = self.build_int_cmp(
+            LLVMIntPredicate::LLVMIntSLT,
+            value,
+            zero,
+            "is_negative"
+        );
         let negated = self.build_int_neg(value, "negated");
         self.build_select(is_negative, negated, value, name)
     }
@@ -89,7 +131,7 @@ impl Builder {
         condition: BasicValue,
         then_value: BasicValue,
         else_value: BasicValue,
-        name: &str,
+        name: &str
     ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
@@ -101,11 +143,13 @@ impl Builder {
                 condition.inner(),
                 then_value.inner(),
                 else_value.inner(),
-                name.as_ptr(),
+                name.as_ptr()
             )
         };
         let mut ret = then_value.unitialized();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -115,10 +159,13 @@ impl Builder {
         }
         let c_string = to_c_str(value);
         let name = to_c_str(name);
-        let res =
-            unsafe { LLVMBuildGlobalStringPtr(self.builder, c_string.as_ptr(), name.as_ptr()) };
+        let res = unsafe {
+            LLVMBuildGlobalStringPtr(self.builder, c_string.as_ptr(), name.as_ptr())
+        };
         let mut ret = StrPtrType::unitialize();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -126,7 +173,7 @@ impl Builder {
         &self,
         cast_type: BasicType,
         value: BasicValue,
-        name: &str,
+        name: &str
     ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
@@ -138,11 +185,13 @@ impl Builder {
                 LLVMOpcode::LLVMZExt,
                 value.inner(),
                 cast_type.inner(),
-                c_string.as_ptr(),
+                c_string.as_ptr()
             )
         };
         let mut ret = cast_type.unitialize();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -150,7 +199,7 @@ impl Builder {
         &self,
         cast_type: BasicType,
         value: BasicValue,
-        name: &str,
+        name: &str
     ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
@@ -162,11 +211,13 @@ impl Builder {
                 LLVMOpcode::LLVMSExt,
                 value.inner(),
                 cast_type.inner(),
-                c_string.as_ptr(),
+                c_string.as_ptr()
             )
         };
         let mut ret = cast_type.unitialize();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -174,7 +225,7 @@ impl Builder {
         &self,
         cast_type: BasicType,
         value: BasicValue,
-        name: &str,
+        name: &str
     ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
@@ -186,11 +237,13 @@ impl Builder {
                 LLVMOpcode::LLVMSExt,
                 value.inner(),
                 cast_type.inner(),
-                c_string.as_ptr(),
+                c_string.as_ptr()
             )
         };
         let mut ret = cast_type.unitialize();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -198,7 +251,7 @@ impl Builder {
         &self,
         cast_type: BasicType,
         value: BasicValue,
-        name: &str,
+        name: &str
     ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
@@ -210,11 +263,13 @@ impl Builder {
                 LLVMOpcode::LLVMZExt,
                 value.inner(),
                 cast_type.inner(),
-                c_string.as_ptr(),
+                c_string.as_ptr()
             )
         };
         let mut ret = cast_type.unitialize();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -222,7 +277,7 @@ impl Builder {
         &self,
         cast_type: BasicType,
         value: BasicValue,
-        name: &str,
+        name: &str
     ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
@@ -234,18 +289,20 @@ impl Builder {
                 LLVMOpcode::LLVMFPExt,
                 value.inner(),
                 cast_type.inner(),
-                c_string.as_ptr(),
+                c_string.as_ptr()
             )
         };
         let mut ret = cast_type.unitialize();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
     pub fn build_float_trunc(
         &self,
         cast_type: BasicType,
         value: BasicValue,
-        name: &str,
+        name: &str
     ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
@@ -257,11 +314,13 @@ impl Builder {
                 LLVMOpcode::LLVMFPTrunc,
                 value.inner(),
                 cast_type.inner(),
-                c_string.as_ptr(),
+                c_string.as_ptr()
             )
         };
         let mut ret = cast_type.unitialize();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -269,22 +328,19 @@ impl Builder {
         &self,
         cast_type: BasicType,
         value: BasicValue,
-        name: &str,
+        name: &str
     ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
         let res = unsafe {
-            LLVMBuildFPCast(
-                self.builder,
-                value.inner(),
-                cast_type.inner(),
-                c_string.as_ptr(),
-            )
+            LLVMBuildFPCast(self.builder, value.inner(), cast_type.inner(), c_string.as_ptr())
         };
         let mut ret = cast_type.unitialize();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -292,7 +348,7 @@ impl Builder {
         &self,
         cast_type: BasicType,
         value: BasicValue,
-        name: &str,
+        name: &str
     ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
@@ -304,11 +360,13 @@ impl Builder {
                 LLVMOpcode::LLVMUIToFP,
                 value.inner(),
                 cast_type.inner(),
-                c_string.as_ptr(),
+                c_string.as_ptr()
             )
         };
         let mut ret = cast_type.unitialize();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -316,7 +374,7 @@ impl Builder {
         &self,
         cast_type: BasicType,
         value: BasicValue,
-        name: &str,
+        name: &str
     ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
@@ -328,11 +386,13 @@ impl Builder {
                 LLVMOpcode::LLVMSIToFP,
                 value.inner(),
                 cast_type.inner(),
-                c_string.as_ptr(),
+                c_string.as_ptr()
             )
         };
         let mut ret = cast_type.unitialize();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -340,7 +400,7 @@ impl Builder {
         &self,
         cast_type: BasicType,
         value: BasicValue,
-        name: &str,
+        name: &str
     ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
@@ -352,33 +412,32 @@ impl Builder {
                 LLVMOpcode::LLVMFPToUI,
                 value.inner(),
                 cast_type.inner(),
-                c_string.as_ptr(),
+                c_string.as_ptr()
             )
         };
         let mut ret = cast_type.unitialize();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
     pub fn build_float_to_signed_int(
         &self,
         cast_type: BasicType,
         value: BasicValue,
-        name: &str,
+        name: &str
     ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
         let res = unsafe {
-            LLVMBuildFPToSI(
-                self.builder,
-                value.inner(),
-                cast_type.inner(),
-                c_string.as_ptr(),
-            )
+            LLVMBuildFPToSI(self.builder, value.inner(), cast_type.inner(), c_string.as_ptr())
         };
         let mut ret = cast_type.unitialize();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -387,23 +446,19 @@ impl Builder {
         op: LLVMIntPredicate,
         lhs: BasicValue,
         rhs: BasicValue,
-        name: &str,
+        name: &str
     ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
         let res = unsafe {
-            LLVMBuildICmp(
-                self.builder,
-                op,
-                lhs.inner(),
-                rhs.inner(),
-                c_string.as_ptr(),
-            )
+            LLVMBuildICmp(self.builder, op, lhs.inner(), rhs.inner(), c_string.as_ptr())
         };
         let mut ret = lhs.unitialized();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -412,23 +467,19 @@ impl Builder {
         op: LLVMRealPredicate,
         lhs: BasicValue,
         rhs: BasicValue,
-        name: &str,
+        name: &str
     ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
         let res = unsafe {
-            LLVMBuildFCmp(
-                self.builder,
-                op,
-                lhs.inner(),
-                rhs.inner(),
-                c_string.as_ptr(),
-            )
+            LLVMBuildFCmp(self.builder, op, lhs.inner(), rhs.inner(), c_string.as_ptr())
         };
         let mut ret = lhs.unitialized();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -445,7 +496,7 @@ impl Builder {
         &self,
         condition: BasicValue,
         then_block: BasicBlock,
-        else_block: BasicBlock,
+        else_block: BasicBlock
     ) {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
@@ -455,7 +506,7 @@ impl Builder {
                 self.builder,
                 condition.inner(),
                 then_block.inner(),
-                else_block.inner(),
+                else_block.inner()
             );
         }
     }
@@ -466,7 +517,9 @@ impl Builder {
         }
         let res = unsafe { LLVMConstReal(float_type.inner(), value) };
         let mut ret = float_type.unitialize();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -476,7 +529,9 @@ impl Builder {
         }
         let res = unsafe { LLVMConstInt(int_type.inner(), value as u64, sign_extend.into()) };
         let mut ret = int_type.unitialize();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -485,8 +540,9 @@ impl Builder {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
-        let value =
-            unsafe { LLVMBuildAlloca(self.builder, alloc_type.get_type(), c_string.as_ptr()) };
+        let value = unsafe {
+            LLVMBuildAlloca(self.builder, alloc_type.get_type(), c_string.as_ptr())
+        };
         PtrValue::Bool(BoolPtrValue::from(value))
     }
 
@@ -495,14 +551,17 @@ impl Builder {
         pointing_type: T,
         ptr: PtrValue,
         indices: &[BasicValue],
-        name: &str,
+        name: &str
     ) -> PtrValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
 
-        let mut index_values: Vec<LLVMValueRef> = indices.iter().map(|val| val.inner()).collect();
+        let mut index_values: Vec<LLVMValueRef> = indices
+            .iter()
+            .map(|val| val.inner())
+            .collect();
 
         let value = unsafe {
             LLVMBuildGEP2(
@@ -511,11 +570,13 @@ impl Builder {
                 ptr.inner(),
                 index_values.as_mut_ptr(),
                 index_values.len() as u32,
-                c_string.as_ptr(),
+                c_string.as_ptr()
             )
         };
         let mut ret = ptr.clone();
-        unsafe { ret.set_inner(value) };
+        unsafe {
+            ret.set_inner(value);
+        }
         ret
     }
 
@@ -526,7 +587,9 @@ impl Builder {
         let c_string = to_c_str(name);
         let res = unsafe { LLVMBuildNeg(self.builder, value.inner(), c_string.as_ptr()) };
         let mut ret = value.unitialized();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -552,22 +615,19 @@ impl Builder {
         &self,
         pointing_type: T,
         ptr: PtrValue,
-        name: &str,
+        name: &str
     ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
         }
         let name = to_c_str(name);
         let res = unsafe {
-            LLVMBuildLoad2(
-                self.builder,
-                pointing_type.get_type(),
-                ptr.inner(),
-                name.as_ptr(),
-            )
+            LLVMBuildLoad2(self.builder, pointing_type.get_type(), ptr.inner(), name.as_ptr())
         };
         let mut ret = pointing_type.unitialize();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -582,11 +642,13 @@ impl Builder {
                 LLVMOpcode::LLVMBitCast,
                 value.inner(),
                 cast_type.inner(),
-                name.as_ptr(),
+                name.as_ptr()
             )
         };
         let mut ret = cast_type.unitialize();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret.to_ptr_value()
     }
 
@@ -594,7 +656,7 @@ impl Builder {
         &self,
         cast_type: BasicType,
         value: BasicValue,
-        name: &str,
+        name: &str
     ) -> PtrValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
@@ -606,11 +668,13 @@ impl Builder {
                 LLVMOpcode::LLVMBitCast,
                 value.inner(),
                 cast_type.inner(),
-                name.as_ptr(),
+                name.as_ptr()
             )
         };
         let mut ret = cast_type.unitialize();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret.to_ptr_value()
     }
 
@@ -618,13 +682,16 @@ impl Builder {
         &self,
         fn_value: &FunctionValue,
         args: &[BasicValue],
-        name: &str,
+        name: &str
     ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
-        let mut args: Vec<LLVMValueRef> = args.iter().map(|val| val.inner()).collect();
+        let mut args: Vec<LLVMValueRef> = args
+            .iter()
+            .map(|val| val.inner())
+            .collect();
         let res = unsafe {
             LLVMBuildCall2(
                 self.builder,
@@ -632,11 +699,13 @@ impl Builder {
                 fn_value.inner(),
                 args.as_mut_ptr(),
                 args.len() as u32,
-                c_string.as_ptr(),
+                c_string.as_ptr()
             )
         };
         let mut ret = fn_value.ret_type();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -654,10 +723,13 @@ impl Builder {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
-        let res =
-            unsafe { LLVMBuildFAdd(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr()) };
+        let res = unsafe {
+            LLVMBuildFAdd(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr())
+        };
         let mut ret = lhs.unitialized();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -666,10 +738,13 @@ impl Builder {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
-        let res =
-            unsafe { LLVMBuildAdd(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr()) };
+        let res = unsafe {
+            LLVMBuildAdd(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr())
+        };
         let mut ret = lhs.unitialized();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -680,7 +755,9 @@ impl Builder {
         let c_string = to_c_str(name);
         let res = unsafe { LLVMBuildFNeg(self.builder, value.inner(), c_string.as_ptr()) };
         let mut ret = value.unitialized();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -689,10 +766,13 @@ impl Builder {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
-        let res =
-            unsafe { LLVMBuildFSub(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr()) };
+        let res = unsafe {
+            LLVMBuildFSub(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr())
+        };
         let mut ret = lhs.unitialized();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -701,10 +781,13 @@ impl Builder {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
-        let res =
-            unsafe { LLVMBuildSub(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr()) };
+        let res = unsafe {
+            LLVMBuildSub(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr())
+        };
         let mut ret = lhs.unitialized();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -713,10 +796,13 @@ impl Builder {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
-        let res =
-            unsafe { LLVMBuildFMul(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr()) };
+        let res = unsafe {
+            LLVMBuildFMul(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr())
+        };
         let mut ret = lhs.unitialized();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -725,8 +811,9 @@ impl Builder {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
-        let res =
-            unsafe { LLVMBuildAnd(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr()) };
+        let res = unsafe {
+            LLVMBuildAnd(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr())
+        };
         return BoolValue::from(res).into();
     }
 
@@ -744,8 +831,9 @@ impl Builder {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
-        let res =
-            unsafe { LLVMBuildXor(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr()) };
+        let res = unsafe {
+            LLVMBuildXor(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr())
+        };
         return BoolValue::from(res).into();
     }
 
@@ -763,10 +851,13 @@ impl Builder {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
-        let res =
-            unsafe { LLVMBuildMul(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr()) };
+        let res = unsafe {
+            LLVMBuildMul(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr())
+        };
         let mut ret = lhs.unitialized();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -775,10 +866,13 @@ impl Builder {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
-        let res =
-            unsafe { LLVMBuildFDiv(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr()) };
+        let res = unsafe {
+            LLVMBuildFDiv(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr())
+        };
         let mut ret = lhs.unitialized();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
@@ -787,15 +881,20 @@ impl Builder {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
-        let res =
-            unsafe { LLVMBuildSDiv(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr()) };
+        let res = unsafe {
+            LLVMBuildSDiv(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr())
+        };
         let mut ret = lhs.unitialized();
-        unsafe { ret.set_inner(res) };
+        unsafe {
+            ret.set_inner(res);
+        }
         ret
     }
 
     pub fn position_at_end(&self, block: BasicBlock) {
-        unsafe { llvm_sys::core::LLVMPositionBuilderAtEnd(self.builder, block.inner()) };
+        unsafe {
+            llvm_sys::core::LLVMPositionBuilderAtEnd(self.builder, block.inner());
+        }
         *self.pos_state.borrow_mut() = PositionState::Set;
     }
 
@@ -806,7 +905,7 @@ impl Builder {
         let value = unsafe {
             value.map_or_else(
                 || LLVMBuildRetVoid(self.builder),
-                |value| LLVMBuildRet(self.builder, value.inner()),
+                |value| LLVMBuildRet(self.builder, value.inner())
             )
         };
         assert!(!value.is_null());

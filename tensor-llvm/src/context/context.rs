@@ -1,36 +1,11 @@
 use llvm_sys::{
     core::{
-        LLVMAppendBasicBlockInContext,
-        LLVMDoubleTypeInContext,
-        LLVMFloatTypeInContext,
-        LLVMHalfTypeInContext,
-        LLVMInt16TypeInContext,
-        LLVMInt1TypeInContext,
-        LLVMInt32TypeInContext,
-        LLVMInt64TypeInContext,
-        LLVMInt8TypeInContext,
-        LLVMPointerType,
-        LLVMVoidTypeInContext,
+        LLVMAppendBasicBlockInContext, LLVMDoubleTypeInContext, LLVMFloatTypeInContext, LLVMHalfTypeInContext, LLVMInt16TypeInContext, LLVMInt1TypeInContext, LLVMInt32TypeInContext, LLVMInt64TypeInContext, LLVMInt8TypeInContext, LLVMPointerType, LLVMStructTypeInContext, LLVMVoidTypeInContext
     },
     LLVMContext,
 };
 use crate::{
-    types::{ block::BasicBlock, ptr_type::StrPtrType, values::FunctionValue },
-    utils::to_c_str,
-    BoolType,
-    F16Type,
-    F32Type,
-    F64Type,
-    I16Type,
-    I32Type,
-    I64Type,
-    I8Type,
-    IsizeType,
-    U16Type,
-    U32Type,
-    U64Type,
-    U8Type,
-    VoidType,
+    types::{ block::BasicBlock, general_types::GeneralType, ptr_type::StrPtrType, values::FunctionValue }, utils::to_c_str, BoolType, F16Type, F32Type, F64Type, I16Type, I32Type, I64Type, I8Type, IsizeType, StructType, U16Type, U32Type, U64Type, U8Type, VoidType
 };
 
 pub struct Context {
@@ -38,6 +13,9 @@ pub struct Context {
 }
 
 impl Context {
+    pub(crate) fn inner(&self) -> *mut LLVMContext {
+        self.context
+    }
     pub fn append_basic_block(&self, function: &FunctionValue, name: &str) -> BasicBlock {
         let name = to_c_str(name);
         let block = unsafe {
@@ -108,5 +86,18 @@ impl Context {
 
     pub fn void_type(&self) -> VoidType {
         VoidType::from(unsafe { LLVMVoidTypeInContext(self.context) })
+    }
+
+    pub fn struct_type(&self, types: &[GeneralType], packed: bool) -> StructType {
+        let mut types = types.iter().map(|t| t.inner()).collect::<Vec<_>>();
+        let struct_type = unsafe {
+            LLVMStructTypeInContext(
+                self.context,
+                types.as_mut_ptr(),
+                types.len() as u32,
+                packed as i32,
+            )
+        };
+        StructType::from(struct_type)
     }
 }
