@@ -34,6 +34,9 @@ impl<T> Edges<T> where T: Hash + Eq + Clone {
         }
         Edges { inner: inverted }
     }
+    pub fn set_inner(&mut self, inner: HashMap<T, HashSet<T>>) {
+        self.inner = inner;
+    }
 }
 
 impl<T> From<HashMap<T, HashSet<T>>> for Edges<T> where T: Hash + Eq {

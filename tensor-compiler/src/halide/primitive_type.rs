@@ -12,7 +12,9 @@ pub enum PrimitiveType {
     Void,
 }
 #[derive(Clone, Hash, Eq, PartialEq)]
-pub struct Tuple;
+pub struct Tuple {
+    pub inner: Arc<Vec<PrimitiveType>>,
+}
 #[derive(Clone, Hash, Eq, PartialEq)]
 pub struct Array {
     pub inner: Arc<PrimitiveType>,
@@ -118,7 +120,19 @@ impl Display for PrimitiveType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PrimitiveType::Dtype(dtype) => write!(f, "{}", dtype),
-            PrimitiveType::Tuple(_) => write!(f, "Tuple"),
+            PrimitiveType::Tuple(tuple) => {
+                if tuple.inner.is_empty() {
+                    return write!(f, "()");
+                }
+                if tuple.inner.len() == 1 {
+                    return write!(f, "({}, )", tuple.inner[0]);
+                }
+                write!(f, "({}", tuple.inner[0])?;
+                for i in 1..tuple.inner.len() {
+                    write!(f, ", {}", tuple.inner[i])?;
+                }
+                write!(f, ")")
+            }
             PrimitiveType::Array(arr) => write!(f, "[{}; {}]", arr.inner, arr.size),
             PrimitiveType::Ptr(ptr) => write!(f, "*{}", ptr.inner),
             PrimitiveType::Str => write!(f, "str"),

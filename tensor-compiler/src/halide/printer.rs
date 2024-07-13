@@ -157,7 +157,7 @@ impl _IRPrinter {
                 res.push_str(&self.print_stmt_str(var.stmt()));
                 self.indent -= 1;
                 res.push_str(&self.do_indent_str());
-                res.push_str("}}\n");
+                res.push_str("}\n");
             }
             Stmt::Seq(stmts) => {
                 for stmt in stmts.stmts() {
@@ -173,15 +173,15 @@ impl _IRPrinter {
                 res.push_str(&self.do_indent_str());
                 let else_case = stmt.else_case();
                 if else_case.is_none() {
-                    res.push_str("}}\n");
+                    res.push_str("}\n");
                     return res;
                 } else {
-                    res.push_str("}} else {{\n");
+                    res.push_str("} else {\n");
                     self.indent += 1;
                     res.push_str(&self.print_stmt_str(stmt.else_case()));
                     self.indent -= 1;
                     res.push_str(&self.do_indent_str());
-                    res.push_str("}}\n");
+                    res.push_str("}\n");
                 }
             }
             Stmt::InplaceStore(var) => {

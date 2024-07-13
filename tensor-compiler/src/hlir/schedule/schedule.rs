@@ -3,7 +3,6 @@
 use std::{ cell::RefCell, collections::VecDeque, ops::Index, rc::Rc, sync::Arc };
 
 use hashbrown::{ HashMap, HashSet };
-use tensor_types::dtype::Dtype;
 
 use crate::{
     edges::Edges,
@@ -12,7 +11,7 @@ use crate::{
         loop_utils::build_nested::build_nested_for2,
         module::{ Function, FunctionType },
         prime_expr::PrimeExpr,
-        primitive_type::{ PrimitiveType, Ptr },
+        primitive_type::{ PrimitiveType, Ptr, Tuple },
         seq_stmt::Seq,
         stmt::Stmt,
         traits::AccepterMut,
@@ -415,11 +414,19 @@ impl Stage {
     pub fn axis(&self, idx: usize) -> RcMut<Node> {
         self.address_map.borrow()[&self.id_leaf.borrow()[&idx].clone()].clone()
     }
-    pub(crate) fn find_inputs(&self) -> HashMap<Arc<String>, HashSet<TensorSlice>> {
+    pub(crate) fn find_inputs(&self) -> HashMap<Arc<String>, HashSet<Arc<String>>> {
         let mut finder = FindInputs::new();
         let mut inputs = HashMap::new();
         self.body.accept_mut(&mut finder);
-        inputs.insert(self.name.clone(), HashSet::from_iter(finder.iter().cloned()));
+        inputs.insert(
+            self.name.clone(),
+            HashSet::from_iter(
+                finder
+                    .iter()
+                    .map(|x| &x.name().name)
+                    .cloned()
+            )
+        );
         for stage in self.attached_stage.borrow().values() {
             for s in stage {
                 inputs.extend(s.borrow().find_inputs());
@@ -576,7 +583,7 @@ impl Schedule {
         stage.to_halid()
     }
 
-    fn find_inputs(&self) -> HashMap<Arc<String>, HashSet<TensorSlice>> {
+    fn build_edges(&self) -> HashMap<Arc<String>, HashSet<Arc<String>>> {
         let mut inputs = HashMap::new();
         for stage in self.stages.values() {
             inputs.extend(stage.find_inputs());
@@ -600,38 +607,63 @@ impl Schedule {
             .map(|x| x.to_halid())
             .collect::<Vec<_>>();
         let seq = Stmt::Seq(Seq::make(stmts));
-        let inputs = self.find_inputs();
-        let inputs = inputs
+        let edges = self.build_edges();
+        let nodes = self.stages
             .iter()
-            .filter(|(_, v)| v.len() == 0)
-            .map(|(k, _)| k.clone())
-            .collect::<Vec<Arc<String>>>();
-        let inputs_dtype = inputs
+            .map(|(k, _)| k.name_().clone())
+            .collect::<HashSet<_>>();
+        let inputs = edges
+            .iter()
+            .filter(|(_, v)| { v.len() == 0 })
+            .map(|(k, _)| k.as_ref().clone())
+            .collect::<Vec<String>>();
+        let inputs_type = inputs
             .iter()
             .map(|x| {
-                self.stages
-                    .iter()
-                    .find(|(k, _)| k.name() == x.as_ref())
-                    .unwrap()
-                    .0.dtype()
-            })
-            .collect::<Vec<Dtype>>();
-        assert_eq!(inputs.len(), inputs_dtype.len());
-        let args = inputs
-            .iter()
-            .zip(inputs_dtype.iter())
-            .map(|(_, dtype)| {
                 PrimitiveType::Ptr(Ptr {
-                    inner: Arc::new(PrimitiveType::Dtype(*dtype)),
+                    inner: PrimitiveType::Dtype(
+                        self.stages
+                            .iter()
+                            .find(|(k, _)| k.name() == x)
+                            .unwrap()
+                            .0.dtype()
+                            .clone()
+                    ).into(),
                 })
             })
             .collect::<Vec<PrimitiveType>>();
-        let args_names = inputs
+        let all_dependent = edges
             .iter()
+            .map(|(_, v)| v.clone())
+            .flatten()
+            .collect::<HashSet<_>>();
+        let outputs = nodes
+            .difference(&all_dependent)
             .map(|x| x.as_ref().clone())
             .collect::<Vec<String>>();
+        let outputs_type = outputs
+            .iter()
+            .map(|x| {
+                PrimitiveType::Ptr(Ptr {
+                    inner: PrimitiveType::Dtype(
+                        self.stages
+                            .iter()
+                            .find(|(k, _)| k.name() == x)
+                            .unwrap()
+                            .0.dtype()
+                            .clone()
+                    ).into(),
+                })
+            })
+            .collect::<Vec<PrimitiveType>>();
         Function {
-            ty: FunctionType::new(PrimitiveType::Void, args, args_names),
+            ty: FunctionType::new(
+                PrimitiveType::Tuple(Tuple {
+                    inner: outputs_type.into(),
+                }),
+                inputs_type,
+                inputs
+            ),
             body: seq,
             name: name.to_string().into(),
         }
