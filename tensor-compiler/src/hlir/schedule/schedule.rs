@@ -3,18 +3,25 @@
 use std::{ cell::RefCell, collections::VecDeque, ops::Index, rc::Rc, sync::Arc };
 
 use hashbrown::{ HashMap, HashSet };
+use tensor_types::dtype::Dtype;
 
 use crate::{
     edges::Edges,
     halide::{
         exprs::{ Add, FloorDiv, Mod, Mul },
         loop_utils::build_nested::build_nested_for2,
+        module::{ Function, FunctionType },
         prime_expr::PrimeExpr,
+        primitive_type::{ PrimitiveType, Ptr },
+        seq_stmt::Seq,
         stmt::Stmt,
+        traits::AccepterMut,
         variable::Variable,
     },
-    hlir::tensor::Tensor,
+    hlir::{ tensor::Tensor, tensor_slice::TensorSlice },
 };
+
+use super::lowered::FindInputs;
 
 pub type RcMut<T> = Rc<RefCell<T>>;
 
@@ -408,6 +415,18 @@ impl Stage {
     pub fn axis(&self, idx: usize) -> RcMut<Node> {
         self.address_map.borrow()[&self.id_leaf.borrow()[&idx].clone()].clone()
     }
+    pub(crate) fn find_inputs(&self) -> HashMap<Arc<String>, HashSet<TensorSlice>> {
+        let mut finder = FindInputs::new();
+        let mut inputs = HashMap::new();
+        self.body.accept_mut(&mut finder);
+        inputs.insert(self.name.clone(), HashSet::from_iter(finder.iter().cloned()));
+        for stage in self.attached_stage.borrow().values() {
+            for s in stage {
+                inputs.extend(s.borrow().find_inputs());
+            }
+        }
+        inputs
+    }
 }
 
 impl From<&Tensor> for Stage {
@@ -555,6 +574,67 @@ impl Schedule {
     pub fn to_halide(&self, tensor: &Tensor) -> Stmt {
         let stage = &self[tensor];
         stage.to_halid()
+    }
+
+    fn find_inputs(&self) -> HashMap<Arc<String>, HashSet<TensorSlice>> {
+        let mut inputs = HashMap::new();
+        for stage in self.stages.values() {
+            inputs.extend(stage.find_inputs());
+        }
+        // for (k, v) in inputs {
+        //     println!(
+        //         "{}: {:?}",
+        //         k,
+        //         v
+        //             .iter()
+        //             .map(|x| x.var.name.clone())
+        //             .collect::<Vec<_>>()
+        //     );
+        // }
+        inputs
+    }
+
+    pub fn lower(&self, name: &str) -> Function {
+        let stmts = self.stages
+            .values()
+            .map(|x| x.to_halid())
+            .collect::<Vec<_>>();
+        let seq = Stmt::Seq(Seq::make(stmts));
+        let inputs = self.find_inputs();
+        let inputs = inputs
+            .iter()
+            .filter(|(_, v)| v.len() == 0)
+            .map(|(k, _)| k.clone())
+            .collect::<Vec<Arc<String>>>();
+        let inputs_dtype = inputs
+            .iter()
+            .map(|x| {
+                self.stages
+                    .iter()
+                    .find(|(k, _)| k.name() == x.as_ref())
+                    .unwrap()
+                    .0.dtype()
+            })
+            .collect::<Vec<Dtype>>();
+        assert_eq!(inputs.len(), inputs_dtype.len());
+        let args = inputs
+            .iter()
+            .zip(inputs_dtype.iter())
+            .map(|(_, dtype)| {
+                PrimitiveType::Ptr(Ptr {
+                    inner: Arc::new(PrimitiveType::Dtype(*dtype)),
+                })
+            })
+            .collect::<Vec<PrimitiveType>>();
+        let args_names = inputs
+            .iter()
+            .map(|x| x.as_ref().clone())
+            .collect::<Vec<String>>();
+        Function {
+            ty: FunctionType::new(PrimitiveType::Void, args, args_names),
+            body: seq,
+            name: name.to_string().into(),
+        }
     }
 }
 
@@ -1010,6 +1090,7 @@ mod tests {
         let d_axis = d_stage.axis(0);
         let d_axis2 = d_stage.axis(1);
         s.compute_at(&s[&c].clone(), &d_stage, &[d_axis, d_axis2], &[axis, axis2]);
-        IRPrinter.print_stmt(s.to_halide(&c));
+        // IRPrinter.print_stmt(s.to_halide(&c));
+        println!("{}", s.lower("name"))
     }
 }

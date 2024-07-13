@@ -2,6 +2,7 @@ pub mod halide {
     pub mod prime_expr;
     pub mod for_stmt;
     pub mod let_stmt;
+    pub mod primitive_type;
     pub mod substitute {
         pub mod subsititue_var;
         pub mod subsititue_expr;
@@ -13,7 +14,9 @@ pub mod halide {
     }
     pub mod code_gen {
         pub mod code_gen;
+        pub mod gen_builtin;
     }
+    pub mod module;
     pub mod if_stmt;
     pub mod inplace_store_stmt;
     pub mod r#type;

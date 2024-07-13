@@ -1,17 +1,7 @@
 use crate::{ hlir::tensor_slice::TensorSlice, iter_var::IterVar };
 
 use super::{
-    assign_stmt::AssignStmt,
-    exprs::*,
-    for_stmt::For,
-    if_stmt::IfThenElse,
-    inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub },
-    let_stmt::LetStmt,
-    prime_expr::PrimeExpr,
-    seq_stmt::Seq,
-    stmt::Stmt,
-    store_stmt::StoreStmt,
-    variable::Variable,
+    assign_stmt::AssignStmt, exprs::*, for_stmt::For, if_stmt::IfThenElse, inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub }, let_stmt::LetStmt, module::{Function, Module}, prime_expr::PrimeExpr, seq_stmt::Seq, stmt::Stmt, store_stmt::StoreStmt, variable::Variable
 };
 
 #[allow(unused_variables)]
@@ -1140,6 +1130,106 @@ pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     fn visit_reduce(&mut self, reduce: &Reduce) {
         visit_reduce(self, reduce);
     }
+}
+
+pub trait CodeGenVisitor where Self: Sized {
+    fn visit_expr(&mut self, expr: &PrimeExpr) {
+        match expr {
+            PrimeExpr::Int(int) => self.visit_int(&int),
+            PrimeExpr::Float(float) => self.visit_float(&float),
+            PrimeExpr::UInt(uint) => self.visit_uint(&uint),
+            PrimeExpr::Str(string) => self.visit_str(&string),
+            PrimeExpr::Variable(var) => self.visit_variable(&var),
+            PrimeExpr::Cast(cast) => self.visit_cast(&cast),
+            PrimeExpr::Add(add) => self.visit_add(&add),
+            PrimeExpr::Sub(sub) => self.visit_sub(&sub),
+            PrimeExpr::Mul(mul) => self.visit_mul(&mul),
+            PrimeExpr::Div(div) => self.visit_div(&div),
+            PrimeExpr::FloorDiv(floor_div) => self.visit_floor_div(&floor_div),
+            PrimeExpr::Mod(r#mod) => self.visit_mod(&r#mod),
+            PrimeExpr::Min(min) => self.visit_min(&min),
+            PrimeExpr::Max(max) => self.visit_max(&max),
+            PrimeExpr::Eq(eq) => self.visit_eq(&eq),
+            PrimeExpr::Ne(ne) => self.visit_ne(&ne),
+            PrimeExpr::Lt(lt) => self.visit_lt(&lt),
+            PrimeExpr::Le(le) => self.visit_le(&le),
+            PrimeExpr::Gt(gt) => self.visit_gt(&gt),
+            PrimeExpr::Ge(ge) => self.visit_ge(&ge),
+            PrimeExpr::And(and) => self.visit_and(&and),
+            PrimeExpr::Xor(or) => self.visit_xor(&or),
+            PrimeExpr::Or(or) => self.visit_or(&or),
+            PrimeExpr::Not(not) => self.visit_not(&not),
+            PrimeExpr::Call(call) => self.visit_call(&call),
+            PrimeExpr::Select(select) => self.visit_select(&select),
+            PrimeExpr::Load(load) => self.visit_load(&load),
+            PrimeExpr::Let(let_) => self.visit_let(&let_),
+            PrimeExpr::Reduce(reduce) => self.visit_reduce(&reduce),
+            PrimeExpr::TensorSlice(slice) => self.visit_tensor_slice(&slice),
+            PrimeExpr::None => {}
+        }
+    }
+    fn visit_stmt(&mut self, stmt: &Stmt) {
+        match stmt {
+            Stmt::LetStmt(let_stmt) => self.visit_let_stmt(&let_stmt),
+            Stmt::For(for_stmt) => self.visit_for(&for_stmt),
+            Stmt::StoreStmt(store) => self.visit_store(&store),
+            Stmt::Seq(stmts) => {
+                for stmt in stmts.stmts() {
+                    self.visit_stmt(stmt);
+                }
+            }
+            Stmt::IfThenElse(if_then_else) => self.visit_if_then_else(&if_then_else),
+            Stmt::InplaceStore(inplace_store) => self.visit_inplace_store(&inplace_store),
+            Stmt::InplaceAdd(inplace_add) => self.visit_inplace_add(&inplace_add),
+            Stmt::InplaceSub(inplace_sub) => self.visit_inplace_sub(&inplace_sub),
+            Stmt::InplaceMul(inplace_mul) => self.visit_inplace_mul(&inplace_mul),
+            Stmt::InplaceDiv(inplace_div) => self.visit_inplace_div(&inplace_div),
+            Stmt::AssignStmt(assign) => self.visit_assign(&assign),
+            Stmt::None => {}
+        }
+    }
+    fn visit_tensor_slice(&mut self, slice: &TensorSlice);
+    fn visit_reduce(&mut self, reduce: &Reduce);
+    fn visit_variable(&mut self, var: &Variable);
+    fn visit_str(&mut self, string: &Str);
+    fn visit_assign(&mut self, assign: &AssignStmt);
+    fn visit_cast(&mut self, cast: &Cast);
+    fn visit_add(&mut self, add: &Add);
+    fn visit_sub(&mut self, sub: &Sub);
+    fn visit_mul(&mut self, mul: &Mul);
+    fn visit_div(&mut self, div: &Div);
+    fn visit_floor_div(&mut self, floor_div: &FloorDiv);
+    fn visit_mod(&mut self, mod_: &Mod);
+    fn visit_min(&mut self, min: &Min);
+    fn visit_max(&mut self, max: &Max);
+    fn visit_ge(&mut self, ge: &Ge);
+    fn visit_gt(&mut self, gt: &Gt);
+    fn visit_le(&mut self, le: &Le);
+    fn visit_lt(&mut self, lt: &Lt);
+    fn visit_eq(&mut self, eq: &Eq);
+    fn visit_ne(&mut self, ne: &Ne);
+    fn visit_and(&mut self, and: &And);
+    fn visit_xor(&mut self, xor: &Xor);
+    fn visit_or(&mut self, or: &Or);
+    fn visit_not(&mut self, not: &Not);
+    fn visit_let_stmt(&mut self, let_stmt: &LetStmt);
+    fn visit_let(&mut self, let_: &Let);
+    fn visit_for(&mut self, for_stmt: &For);
+    fn visit_int(&mut self, int: &Int);
+    fn visit_uint(&mut self, uint: &UInt);
+    fn visit_float(&mut self, float: &Float);
+    fn visit_call(&mut self, call: &Call);
+    fn visit_select(&mut self, select: &Select);
+    fn visit_load(&mut self, load: &Load);
+    fn visit_store(&mut self, store: &StoreStmt);
+    fn visit_if_then_else(&mut self, if_then_else: &IfThenElse);
+    fn visit_inplace_store(&mut self, inplace_store: &InplaceStore);
+    fn visit_inplace_add(&mut self, inplace_add: &InplaceAdd);
+    fn visit_inplace_sub(&mut self, inplace_sub: &InplaceSub);
+    fn visit_inplace_mul(&mut self, inplace_mul: &InplaceMul);
+    fn visit_inplace_div(&mut self, inplace_div: &InplaceDiv);
+    fn visit_module(&mut self, module: &Module);
+    fn visit_function(&mut self, function: &Function);
 }
 
 pub trait Accepter {
