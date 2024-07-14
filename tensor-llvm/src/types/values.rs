@@ -235,7 +235,6 @@ impl BasicValue {
             BasicValue::Void(val) => GeneralType::Void(val.to_type()),
             BasicValue::Isize(val) => GeneralType::Isize(val.to_type()),
             BasicValue::Array(val) => GeneralType::Array(val.to_type()),
-            BasicValue::StructPtr(val) => GeneralType::StructPtr(val.to_type()),
             _ => panic!("Type not supported, {:?}", self),
         }
     }
@@ -512,6 +511,8 @@ impl BasicValue {
     impl_to!(to_void_ptr, VoidPtr);
     impl_to!(to_str_ptr, StrPtr);
     impl_to!(to_str, Str);
+    impl_to!(to_struct, Struct);
+    impl_to!(to_struct_ptr, StructPtr);
 
     pub fn to_ptr_value(&self) -> PtrValue {
         PtrValue::from(*self)

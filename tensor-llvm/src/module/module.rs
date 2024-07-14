@@ -1,10 +1,21 @@
-use std::{mem::MaybeUninit, path::Path};
+use std::{ mem::MaybeUninit, path::Path };
 
 use llvm_sys::{
-    core::{LLVMAddFunction, LLVMGetNamedFunction, LLVMModuleCreateWithNameInContext, LLVMPrintModuleToFile},
+    core::{
+        LLVMAddFunction,
+        LLVMAddGlobalInAddressSpace,
+        LLVMGetNamedFunction,
+        LLVMModuleCreateWithNameInContext,
+        LLVMPrintModuleToFile,
+    },
     LLVMModule,
 };
-use crate::{context::context::Context, types::values::FunctionValue, utils::to_c_str, FunctionType};
+use crate::{
+    context::context::Context,
+    types::{ general_types::GeneralType, values::{ FunctionValue, StructValue } },
+    utils::to_c_str,
+    FunctionType,
+};
 
 pub struct Module {
     pub(crate) module: *mut LLVMModule,
@@ -14,9 +25,11 @@ impl Module {
     pub fn inner(&self) -> *mut LLVMModule {
         self.module
     }
-    
+
     pub fn new(module_name: &str, ctx: &Context) -> Self {
-        let module = unsafe { LLVMModuleCreateWithNameInContext(to_c_str(module_name).as_ptr(), ctx.inner()) };
+        let module = unsafe {
+            LLVMModuleCreateWithNameInContext(to_c_str(module_name).as_ptr(), ctx.inner())
+        };
         Module { module }
     }
 
@@ -26,12 +39,14 @@ impl Module {
         if fn_value.is_null() {
             None
         } else {
-            Some(FunctionValue::new(
-                fn_value,
-                fn_type.ret_type().as_ref().clone(),
-                fn_type.param_types(),
-                fn_type.param_count(),
-            ))
+            Some(
+                FunctionValue::new(
+                    fn_value,
+                    fn_type.ret_type().as_ref().clone(),
+                    fn_type.param_types(),
+                    fn_type.param_count()
+                )
+            )
         }
     }
 
@@ -45,24 +60,35 @@ impl Module {
             fn_val,
             fn_type.ret_type().as_ref().clone(),
             fn_type.param_types(),
-            fn_type.param_count(),
+            fn_type.param_count()
         );
         fn_value
     }
 
+    pub fn add_global_struct(
+        &self,
+        ty: &GeneralType,
+        address_space: u32,
+        name: &str
+    ) -> StructValue {
+        let c_string = to_c_str(name);
+        let global = unsafe {
+            LLVMAddGlobalInAddressSpace(self.module, ty.inner(), c_string.as_ptr(), address_space)
+        };
+        if global.is_null() {
+            panic!("{}", &format!("global {} not added", name));
+        }
+        StructValue {
+            value: global,
+        }
+    }
+
     pub fn print_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), String> {
-        let path_str = path
-            .as_ref()
-            .to_str()
-            .expect("Did not find a valid Unicode path string");
+        let path_str = path.as_ref().to_str().expect("Did not find a valid Unicode path string");
         let path = to_c_str(path_str);
         let mut err_string = MaybeUninit::uninit();
         let return_code = unsafe {
-            LLVMPrintModuleToFile(
-                self.module,
-                path.as_ptr() as *const i8,
-                err_string.as_mut_ptr(),
-            )
+            LLVMPrintModuleToFile(self.module, path.as_ptr() as *const i8, err_string.as_mut_ptr())
         };
 
         if return_code == 1 {

@@ -1,7 +1,11 @@
 use std::{ fmt::Display, sync::Arc };
 
 use hashbrown::{ HashMap, HashSet };
-use tensor_llvm::{ context::context::Context, types::general_types::GeneralType };
+use tensor_llvm::{
+    context::context::Context,
+    types::{ general_types::GeneralType, values::StructValue },
+    StructType,
+};
 
 use crate::halide::printer::_IRPrinter;
 
@@ -57,12 +61,16 @@ impl FunctionType {
                 .into(),
         }
     }
-    pub fn to_llvm_func_type(&self, ctx: &Context) -> tensor_llvm::types::types::FunctionType {
+    pub fn to_llvm_func_type(
+        &self,
+        ctx: &Context,
+        tensor_type: StructValue
+    ) -> tensor_llvm::types::types::FunctionType {
         let mut arg_types = Vec::new();
         for (_, ty) in self.args.iter().flatten() {
-            arg_types.push(ty.to_llvm_type(ctx));
+            arg_types.push(ty.to_llvm_type(ctx, tensor_type));
         }
-        let ret_type = self.ret_ty.to_llvm_type(ctx);
+        let ret_type = self.ret_ty.to_llvm_type(ctx, tensor_type);
         match ret_type {
             GeneralType::Bool(val) => val.fn_type(&arg_types, false),
             GeneralType::BoolPtr(val) => val.fn_type(&arg_types, false),

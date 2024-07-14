@@ -263,6 +263,7 @@ pub enum BasicType {
     Array(ArrayType),
     Isize(IsizeType),
     Usize(UsizeType),
+    Struct(StructType),
 }
 
 impl Display for GeneralType {
@@ -313,6 +314,13 @@ impl BasicType {
             BasicType::Array(t) => t.inner(),
             BasicType::Isize(t) => t.inner(),
             BasicType::Usize(t) => t.inner(),
+            BasicType::Struct(t) => t.inner(),
+        }
+    }
+    pub fn is_struct(&self) -> bool {
+        match self {
+            BasicType::Struct(_) => true,
+            _ => false,
         }
     }
 }
@@ -391,6 +399,7 @@ impl UnitizlizeValue for BasicType {
             BasicType::Array(_) => BasicValue::Array(ArrayValue::unitialized()),
             BasicType::Isize(_) => BasicValue::Isize(IsizeValue::unitialized()),
             BasicType::Usize(_) => BasicValue::Usize(UsizeValue::unitialized()),
+            BasicType::Struct(_) => BasicValue::Struct(StructValue::unitialized()),
         }
     }
 }

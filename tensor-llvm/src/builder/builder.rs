@@ -16,6 +16,7 @@ use llvm_sys::core::{
     LLVMBuildRet,
     LLVMBuildRetVoid,
     LLVMBuildSelect,
+    LLVMBuildStructGEP2,
     LLVMBuildXor,
     LLVMConstReal,
 };
@@ -46,6 +47,7 @@ use crate::types::info_trait::UnitizlizeValue;
 use crate::types::ptr_type::{ PtrType, StrPtrType };
 use crate::types::values::{ BoolValue, PhiValue };
 use crate::utils::to_c_str;
+use crate::StructType;
 use crate::{
     types::{
         block::BasicBlock,
@@ -572,6 +574,28 @@ impl Builder {
                 index_values.len() as u32,
                 c_string.as_ptr()
             )
+        };
+        let mut ret = ptr.clone();
+        unsafe {
+            ret.set_inner(value);
+        }
+        ret
+    }
+
+    pub fn build_struct_gep(
+        &self,
+        value: StructType,
+        ptr: PtrValue,
+        index: u32,
+        name: &str
+    ) -> PtrValue {
+        if *self.pos_state.borrow() == PositionState::NotSet {
+            panic!("Position not set");
+        }
+        let c_string = to_c_str(name);
+
+        let value = unsafe {
+            LLVMBuildStructGEP2(self.builder, value.inner(), ptr.inner(), index, c_string.as_ptr())
         };
         let mut ret = ptr.clone();
         unsafe {

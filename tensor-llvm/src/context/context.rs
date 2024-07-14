@@ -14,13 +14,6 @@ use llvm_sys::{
         LLVMStructTypeInContext,
         LLVMVoidTypeInContext,
     },
-    execution_engine::LLVMLinkInMCJIT,
-    target::{
-        LLVM_InitializeNativeAsmParser,
-        LLVM_InitializeNativeAsmPrinter,
-        LLVM_InitializeNativeDisassembler,
-        LLVM_InitializeNativeTarget,
-    },
     LLVMContext,
 };
 use crate::{
@@ -70,6 +63,18 @@ impl Context {
 
     pub fn str_ptr_type(&self) -> StrPtrType {
         StrPtrType::from(unsafe { LLVMPointerType(LLVMInt8TypeInContext(self.context), 0) })
+    }
+
+    pub fn tensor_type(&self) -> StructType {
+        self.struct_type(
+            &[
+                GeneralType::I8Ptr(self.i8_type().ptr_type(0)),
+                GeneralType::I8(self.i8_type()),
+                GeneralType::I64Ptr(self.i64_type().ptr_type(0)),
+                GeneralType::I64Ptr(self.i64_type().ptr_type(0)),
+            ],
+            false
+        )
     }
 
     pub fn bool_type(&self) -> BoolType {

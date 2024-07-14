@@ -52,19 +52,24 @@ pub struct CodeGen {
     bindings: HashMap<usize, ScopeStack>,
     current_fn: usize,
     halide_module: Module,
+    tensor_type: StructValue,
     ee: ExecutionEngine,
 }
 
 impl CodeGen {
     pub fn new(ctx: Context, module: &Module, opt_lvl: u32) -> Self {
         let _module = tensor_llvm::module::module::Module::new(&module.name, &ctx);
+        let global_tensor = _module.add_global_struct(&ctx.tensor_type().into(), 0, "Tensor");
         let builder = Builder::new(&ctx);
         let mut fns = HashMap::new();
         let mut fns_id = HashMap::new();
         let mut id_fns = HashMap::new();
         let mut cnt = 0;
         for func in module.fns.values() {
-            let fn_val = _module.add_function(func.ty.to_llvm_func_type(&ctx), &func.name);
+            let fn_val = _module.add_function(
+                func.ty.to_llvm_func_type(&ctx, global_tensor),
+                &func.name
+            );
             fns.insert(func.name.clone(), fn_val.clone());
             fns_id.insert(fn_val.clone(), cnt);
             id_fns.insert(cnt, fn_val);
@@ -121,6 +126,7 @@ impl CodeGen {
                 current_fn: 0,
                 fns_id,
                 halide_module: module.clone(),
+                tensor_type: global_tensor,
                 ee: execution_engine,
             }
         }
@@ -778,7 +784,14 @@ impl CodeGenVisitor for CodeGen {
             .expect(&format!("type not found for variable {}", var.name))
             .clone();
         let indices = self.visit_expr(_load.indices());
-        let (loaded, loaded_type) = load(&var_type, basic_val, indices, &self.builder, &self.ctx);
+        let (loaded, loaded_type) = load(
+            &var_type,
+            basic_val,
+            indices,
+            &self.builder,
+            self.tensor_type,
+            &self.ctx
+        );
         self.bindings
             .get_mut(&self.current_fn)
             .expect("fn not find")
@@ -1006,10 +1019,10 @@ impl CodeGenVisitor for CodeGen {
                 PrimitiveType::Ptr(ptr) =>
                     match ptr.inner.as_ref() {
                         PrimitiveType::Tensor(tensor) => {
-                            let shape_ptr = self.builder.build_gep(
-                                self.ctx.i8_type().ptr_type(0),
+                            let shape_ptr = self.builder.build_struct_gep(
+                                self.tensor_type.to_type(),
                                 self.fns[&function.name].get_nth_param(idx).into(),
-                                &[self.ctx.i32_type().const_int(2, false).into()],
+                                2,
                                 name
                             );
                             scope_stack.insert_variable(
@@ -1027,10 +1040,10 @@ impl CodeGenVisitor for CodeGen {
                                     ),
                                 })
                             );
-                            let strides_ptr = self.builder.build_gep(
-                                self.ctx.i8_type().ptr_type(0),
+                            let strides_ptr = self.builder.build_struct_gep(
+                                self.tensor_type.to_type(),
                                 self.fns[&function.name].get_nth_param(idx).into(),
-                                &[self.ctx.i32_type().const_int(3, false).into()],
+                                3,
                                 name
                             );
                             scope_stack.insert_variable(
@@ -1048,10 +1061,10 @@ impl CodeGenVisitor for CodeGen {
                                     ),
                                 })
                             );
-                            let data_ptr = self.builder.build_gep(
-                                self.ctx.i8_type().ptr_type(0),
+                            let data_ptr = self.builder.build_struct_gep(
+                                self.tensor_type.to_type(),
                                 self.fns[&function.name].get_nth_param(idx).into(),
-                                &[self.ctx.i32_type().const_int(0, false).into()],
+                                0,
                                 name
                             );
                             scope_stack.insert_variable(
@@ -1083,6 +1096,7 @@ pub fn load(
     to_load: BasicValue,
     indices: BasicValue,
     builder: &Builder,
+    tensor_type: StructValue,
     ctx: &Context
 ) -> (BasicValue, PrimitiveType) {
     match primitive_type {
@@ -1491,7 +1505,7 @@ pub fn load(
                         PrimitiveType::Tuple(tuple) => {
                             let types = tuple.inner
                                 .iter()
-                                .map(|x| x.to_llvm_type(ctx))
+                                .map(|x| x.to_llvm_type(ctx, tensor_type))
                                 .collect::<Vec<_>>();
                             let gep = builder.build_gep(
                                 ctx.struct_type(&types, false),

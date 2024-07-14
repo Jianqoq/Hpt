@@ -1243,18 +1243,18 @@ mod tests {
         module.get_function_mut(&lowered.name).unwrap().body = lowered.body;
         let string = IRPrinter.print_module_str(&module);
         println!("{}", string);
-        let ctx = Context::new(); 
+        let ctx = Context::new();
         let mut code_gen = CodeGen::new(ctx, &module, 0);
         code_gen.compile();
         code_gen.print_to_file("test.ll");
 
-        // let tensor_a = tensor_dyn::tensor::Tensor::<f32>::empty(&[10, 10]).unwrap();
-        // let tensor_c = tensor_dyn::tensor::Tensor::<f32>::empty(&[10, 10]).unwrap();
-        // let exec_a = crate::tensor::Tensor::raw_new(tensor_a);
-        // let exec_c = crate::tensor::Tensor::raw_new(tensor_c);
-        // let func = code_gen.get_function::<
-        //     unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void
-        // >("main");
+        let tensor_a = tensor_dyn::tensor::Tensor::<f32>::empty(&[10, 10]).unwrap();
+        let tensor_c = tensor_dyn::tensor::Tensor::<f32>::empty(&[10, 10]).unwrap();
+        let exec_a = crate::tensor::Tensor::raw_new(tensor_a);
+        let exec_c = crate::tensor::Tensor::raw_new(tensor_c);
+        let func = code_gen.get_function::<
+            unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void
+        >("main");
         // unsafe {
         //     func(exec_a as *mut c_void, exec_c as *mut c_void);
         // }

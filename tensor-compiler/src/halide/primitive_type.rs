@@ -1,6 +1,10 @@
 use std::{ fmt::Display, sync::Arc };
 
-use tensor_llvm::{ context::context::Context, types::general_types::GeneralType, StructType };
+use tensor_llvm::{
+    context::context::Context,
+    types::{ general_types::GeneralType, values::StructValue },
+    StructType,
+};
 use tensor_types::{ dtype::Dtype, type_promote::{ FloatOut, NormalOut } };
 
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
@@ -19,10 +23,10 @@ pub struct Tuple {
 }
 
 impl Tuple {
-    pub fn to_llvm_type(&self, ctx: &Context) -> StructType {
+    pub fn to_llvm_type(&self, ctx: &Context, tensor_type: StructValue) -> StructType {
         let mut inner = Vec::new();
         for t in self.inner.iter() {
-            inner.push(t.to_llvm_type(ctx));
+            inner.push(t.to_llvm_type(ctx, tensor_type));
         }
         ctx.struct_type(&inner, false)
     }
@@ -47,7 +51,7 @@ pub struct Ptr {
 }
 
 impl PrimitiveType {
-    pub fn to_llvm_type(&self, ctx: &Context) -> GeneralType {
+    pub fn to_llvm_type(&self, ctx: &Context, tensor_type: StructValue) -> GeneralType {
         match self {
             PrimitiveType::Dtype(dtype) => {
                 match dtype {
@@ -67,7 +71,9 @@ impl PrimitiveType {
                     _ => unimplemented!(),
                 }
             }
-            PrimitiveType::Tuple(tuple) => { GeneralType::Struct(tuple.to_llvm_type(ctx)) }
+            PrimitiveType::Tuple(tuple) => {
+                GeneralType::Struct(tuple.to_llvm_type(ctx, tensor_type))
+            }
             PrimitiveType::Ptr(ptr) =>
                 match ptr.inner.as_ref() {
                     PrimitiveType::Dtype(dtype) => {
@@ -91,7 +97,7 @@ impl PrimitiveType {
                     PrimitiveType::Tuple(tuple) => {
                         let mut types = vec![];
                         for i in tuple.inner.iter() {
-                            types.push(i.to_llvm_type(ctx));
+                            types.push(i.to_llvm_type(ctx, tensor_type));
                         }
                         GeneralType::StructPtr(ctx.struct_type(&types, false).ptr_type(0))
                     }
@@ -99,35 +105,11 @@ impl PrimitiveType {
                     PrimitiveType::Ptr(_) => { GeneralType::I8Ptr(ctx.i8_type().ptr_type(0)) }
                     PrimitiveType::Str => todo!(),
                     PrimitiveType::Void => todo!(),
-                    PrimitiveType::Tensor(tensor) => {
-                        let struct_type = ctx
-                            .struct_type(
-                                &[
-                                    GeneralType::I8(ctx.i8_type()),
-                                    GeneralType::Array(
-                                        ctx.i64_type().array_type(tensor.shape.size as u64)
-                                    ),
-                                    GeneralType::Array(
-                                        ctx.i64_type().array_type(tensor.strides.size as u64)
-                                    ),
-                                ],
-                                false
-                            )
-                            .ptr_type(0);
-                        GeneralType::StructPtr(struct_type)
+                    PrimitiveType::Tensor(_) => {
+                        GeneralType::StructPtr(tensor_type.to_type().ptr_type(0))
                     }
                 }
-            PrimitiveType::Tensor(tensor) => {
-                let struct_type = ctx.struct_type(
-                    &[
-                        GeneralType::I8(ctx.i8_type()),
-                        GeneralType::Array(ctx.i64_type().array_type(tensor.shape.size as u64)),
-                        GeneralType::Array(ctx.i64_type().array_type(tensor.strides.size as u64)),
-                    ],
-                    false
-                );
-                GeneralType::Struct(struct_type)
-            }
+            PrimitiveType::Tensor(_) => { GeneralType::Struct(tensor_type.to_type()) }
             _ => unimplemented!("unimplemented to_llvm_type for {}", self),
         }
     }

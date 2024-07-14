@@ -145,4 +145,10 @@ impl GeneralType {
             GeneralType::StructPtr(t) => t.inner(),
         }
     }
+    pub fn is_struct(&self) -> bool {
+        match self {
+            GeneralType::Struct(_) => true,
+            _ => false,
+        }
+    }
 }
