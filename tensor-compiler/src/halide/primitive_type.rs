@@ -30,6 +30,7 @@ impl Tuple {
 
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Tensor {
+    pub ptr: Ptr,
     pub dtype: Dtype,
     pub shape: Array,
     pub strides: Array,

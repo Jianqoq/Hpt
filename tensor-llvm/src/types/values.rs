@@ -539,6 +539,9 @@ impl FunctionValue {
             num_params,
         }
     }
+    pub fn num_args(&self) -> usize {
+        self.num_params
+    }
 
     pub fn ret_type(&self) -> &GeneralType {
         &self.ret_type

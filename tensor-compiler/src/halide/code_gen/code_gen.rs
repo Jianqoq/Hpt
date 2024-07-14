@@ -2,12 +2,20 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
-use std::sync::Arc;
+use std::{ alloc::Layout, ffi::{ c_void, CStr }, mem::MaybeUninit, sync::Arc };
 
 use hashbrown::HashMap;
+use llvm_sys::execution_engine::{
+    LLVMCreateGenericValueOfInt,
+    LLVMCreateGenericValueOfPointer,
+    LLVMCreateJITCompilerForModule,
+    LLVMOpaqueGenericValue,
+    LLVMRunFunction,
+};
 use tensor_llvm::{
     builder::builder::Builder,
     context::context::Context,
+    engine::engine::ExecutionEngine,
     types::values::{ BasicValue, FunctionValue },
 };
 use tensor_types::{ convertion::Convertor, dtype::Dtype, type_promote::{ FloatOut, NormalOut } };
@@ -33,10 +41,11 @@ pub struct CodeGen {
     bindings: HashMap<usize, ScopeStack>,
     current_fn: usize,
     halide_module: Module,
+    ee: ExecutionEngine,
 }
 
 impl CodeGen {
-    pub fn new(ctx: Context, module: &Module) -> Self {
+    pub fn new(ctx: Context, module: &Module, opt_lvl: u32) -> Self {
         let _module = tensor_llvm::module::module::Module::new(&module.name, &ctx);
         let builder = Builder::new(&ctx);
         let mut fns = HashMap::new();
@@ -50,16 +59,34 @@ impl CodeGen {
             id_fns.insert(cnt, fn_val);
             cnt += 1;
         }
-        CodeGen {
-            ctx,
-            module: _module,
-            builder,
-            fns,
-            bindings: HashMap::new(),
-            id_fns,
-            current_fn: 0,
-            fns_id,
-            halide_module: module.clone(),
+        let mut execution_engine = MaybeUninit::uninit();
+        let mut err_string = MaybeUninit::uninit();
+        let code = unsafe {
+            LLVMCreateJITCompilerForModule(
+                execution_engine.as_mut_ptr(),
+                _module.inner(),
+                opt_lvl,
+                err_string.as_mut_ptr()
+            )
+        };
+        unsafe {
+            if code == 1 {
+                let msg = CStr::from_ptr(err_string.assume_init());
+                panic!("Failed to create JIT compiler: {:?}", msg.to_string_lossy().into_owned());
+            }
+            let execution_engine = ExecutionEngine::new(execution_engine.assume_init());
+            CodeGen {
+                ctx,
+                module: _module,
+                builder,
+                fns,
+                bindings: HashMap::new(),
+                id_fns,
+                current_fn: 0,
+                fns_id,
+                halide_module: module.clone(),
+                ee: execution_engine,
+            }
         }
     }
 
@@ -69,6 +96,27 @@ impl CodeGen {
     }
     pub fn print_to_file(&self, path: &str) {
         self.module.print_to_file(path).expect("failed to print to file");
+    }
+    pub fn run(&self, inputs: Vec<*mut c_void>) {
+        let main_fn = self.fns.get(&"main".to_string()).unwrap();
+        unsafe {
+            let layout = Layout::from_size_align(
+                std::mem::size_of::<*mut LLVMOpaqueGenericValue>() * main_fn.num_args(),
+                8
+            ).expect("failed to create layout");
+            let args = std::alloc::alloc(layout);
+            for i in 0..main_fn.num_args() {
+                let ptr = args.add(i * std::mem::size_of::<*mut c_void>());
+                let generic_ptr = LLVMCreateGenericValueOfPointer(inputs[i]);
+                std::ptr::write(ptr as *mut *mut LLVMOpaqueGenericValue, generic_ptr);
+            }
+            let value = LLVMRunFunction(
+                self.ee.inner(),
+                main_fn.inner(),
+                main_fn.num_args() as u32,
+                args as *mut *mut LLVMOpaqueGenericValue
+            ); // REVIEW: usize to u32 ok??
+        }
     }
 }
 
@@ -104,7 +152,7 @@ impl CodeGenVisitor for CodeGen {
             Load::make(format!("{}.strides", slice.var.as_ref()), x)
         });
         let load = Load::make(
-            slice.var.as_ref(),
+            format!("{}.data", slice.var.as_ref()),
             slice.dims
                 .iter()
                 .zip(load_strides)
@@ -909,7 +957,7 @@ impl CodeGenVisitor for CodeGen {
                             let shape_ptr = self.builder.build_gep(
                                 self.ctx.i8_type().ptr_type(0),
                                 self.fns[&function.name].get_nth_param(idx).into(),
-                                &[self.ctx.i32_type().const_int(1, false).into()],
+                                &[self.ctx.i32_type().const_int(2, false).into()],
                                 name
                             );
                             scope_stack.insert_variable(
@@ -930,7 +978,7 @@ impl CodeGenVisitor for CodeGen {
                             let strides_ptr = self.builder.build_gep(
                                 self.ctx.i8_type().ptr_type(0),
                                 self.fns[&function.name].get_nth_param(idx).into(),
-                                &[self.ctx.i32_type().const_int(2, false).into()],
+                                &[self.ctx.i32_type().const_int(3, false).into()],
                                 name
                             );
                             scope_stack.insert_variable(
@@ -946,6 +994,22 @@ impl CodeGenVisitor for CodeGen {
                                             size: tensor.strides.size,
                                         })
                                     ),
+                                })
+                            );
+                            let data_ptr = self.builder.build_gep(
+                                self.ctx.i8_type().ptr_type(0),
+                                self.fns[&function.name].get_nth_param(idx).into(),
+                                &[self.ctx.i32_type().const_int(0, false).into()],
+                                name
+                            );
+                            scope_stack.insert_variable(
+                                &Arc::new(format!("{}.data", name)),
+                                data_ptr.into()
+                            );
+                            scope_stack.insert_type(
+                                data_ptr.into(),
+                                PrimitiveType::Ptr(Ptr {
+                                    inner: Arc::new(PrimitiveType::Dtype(tensor.dtype)),
                                 })
                             );
                         }

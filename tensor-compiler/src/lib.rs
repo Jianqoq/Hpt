@@ -50,6 +50,7 @@ pub mod hlir {
     }
     pub mod tensor_slice;
 }
+pub mod tensor;
 pub mod to_prim_expr;
 pub mod iter_var;
 pub mod edges;

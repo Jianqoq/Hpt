@@ -8,6 +8,13 @@ pub struct ExecutionEngine {
 }
 
 impl ExecutionEngine {
+    pub fn inner(&self) -> *mut LLVMOpaqueExecutionEngine {
+        self.engine
+    }
+    pub fn new(engine: *mut LLVMOpaqueExecutionEngine) -> Self {
+        ExecutionEngine { engine }
+    }
+
     pub fn get_function(&self, name: &str) -> unsafe extern "C" fn(usize, *const isize, *mut *mut u8) {
         let c_str = to_c_str(name);
         let address = unsafe {

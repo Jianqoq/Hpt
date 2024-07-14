@@ -19,6 +19,7 @@ members = [
 ]
 
 [dependencies]
+inkwell = { version = "0.4.0", features = ["llvm17-0"] }
 tensor-allocator = { path = "tensor-allocator" }
 tensor-common = { path = "tensor-common" }
 tensor-dyn = { path = "tensor-dyn" }

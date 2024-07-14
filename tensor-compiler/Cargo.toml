@@ -9,6 +9,7 @@ tensor-types = { path = "../tensor-types" }
 tensor-traits = { path = "../tensor-traits" }
 tensor-common = { path = "../tensor-common" }
 tensor-llvm = { path = "../tensor-llvm" }
+tensor-dyn = { path = "../tensor-dyn" }
 hashbrown = { version = "0.14.3", features = ["serde"] }
 serde = { version = "1.0.203", features = ["derive"] }
 serde_json = "1.0.117"

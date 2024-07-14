@@ -11,6 +11,10 @@ pub struct Module {
 }
 
 impl Module {
+    pub fn inner(&self) -> *mut LLVMModule {
+        self.module
+    }
+    
     pub fn new(module_name: &str, ctx: &Context) -> Self {
         let module = unsafe { LLVMModuleCreateWithNameInContext(to_c_str(module_name).as_ptr(), ctx.inner()) };
         Module { module }

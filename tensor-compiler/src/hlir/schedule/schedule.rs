@@ -630,6 +630,7 @@ impl Schedule {
                 PrimitiveType::Ptr(Ptr {
                     inner: Arc::new(
                         PrimitiveType::Tensor(halide::primitive_type::Tensor {
+                            ptr: Ptr { inner: Arc::new(PrimitiveType::Dtype(tensor.dtype())) },
                             dtype: tensor.dtype(),
                             shape: Array {
                                 inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
@@ -663,6 +664,7 @@ impl Schedule {
                 PrimitiveType::Ptr(Ptr {
                     inner: Arc::new(
                         PrimitiveType::Tensor(halide::primitive_type::Tensor {
+                            ptr: Ptr { inner: Arc::new(PrimitiveType::Dtype(tensor.dtype())) },
                             dtype: tensor.dtype(),
                             shape: Array {
                                 inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
@@ -705,6 +707,7 @@ impl Schedule {
                     PrimitiveType::Ptr(Ptr {
                         inner: Arc::new(
                             PrimitiveType::Tensor(halide::primitive_type::Tensor {
+                                ptr: Ptr { inner: Arc::new(PrimitiveType::Dtype(tensor.dtype())) },
                                 dtype: tensor.dtype(),
                                 shape: Array {
                                     inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
@@ -1077,7 +1080,10 @@ pub enum Transforms {
 
 #[cfg(test)]
 mod tests {
+    use std::ffi::c_void;
+
     use tensor_llvm::context::context::Context;
+    use tensor_traits::tensor::TensorCreator;
     use tensor_types::dtype::Dtype;
 
     use crate::{
@@ -1216,8 +1222,38 @@ mod tests {
         let string = IRPrinter.print_module_str(&module);
         println!("{}", string);
         let ctx = Context::new();
-        let mut code_gen = CodeGen::new(ctx, &module);
+        let mut code_gen = CodeGen::new(ctx, &module, 0);
         code_gen.compile();
         code_gen.print_to_file("test.ll");
+    }
+
+    #[test]
+    fn test_codegen() {
+        let m = Variable::make("m");
+        let n = Variable::make("n");
+
+        let a = Tensor::placeholder(&[&m, &n], Dtype::F32, "A");
+
+        let c = compute(Dtype::F32, [&n, &m], "C", |[i, j]| { a.slice([&i, &j]) });
+
+        let s = Schedule::create(&[&a, &c]);
+        let lowered = s.lower("main");
+        let mut module = Module::new("main");
+        module.add_function(lowered.ty, &lowered.name);
+        module.get_function_mut(&lowered.name).unwrap().body = lowered.body;
+        let string = IRPrinter.print_module_str(&module);
+        println!("{}", string);
+        let ctx = Context::new();
+        let mut code_gen = CodeGen::new(ctx, &module, 0);
+        code_gen.compile();
+        code_gen.print_to_file("test.ll");
+
+        let tensor_a = tensor_dyn::tensor::Tensor::<f32>::empty(&[10, 10]).unwrap();
+        let tensor_c = tensor_dyn::tensor::Tensor::<f32>::empty(&[10, 10]).unwrap();
+        let exec_a = crate::tensor::Tensor::raw_new(tensor_a);
+        let exec_c = crate::tensor::Tensor::raw_new(tensor_c);
+        let a_read = unsafe { exec_a.read() };
+        let c_read = unsafe { exec_c.read() };
+        code_gen.run(vec![exec_a as *mut c_void, exec_c as *mut c_void]);
     }
 }
