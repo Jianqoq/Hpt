@@ -1285,7 +1285,7 @@ pub trait CodeGenVisitor where Self: Sized {
     fn visit_inplace_sub(&mut self, inplace_sub: &InplaceSub);
     fn visit_inplace_mul(&mut self, inplace_mul: &InplaceMul);
     fn visit_inplace_div(&mut self, inplace_div: &InplaceDiv);
-    fn visit_function(&mut self, function: &Function) -> BasicValue;
+    fn visit_function(&mut self, function: &Function);
 }
 
 pub trait Accepter {

@@ -1,10 +1,14 @@
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+#![allow(dead_code)]
+
 use std::sync::Arc;
 
 use hashbrown::HashMap;
 use tensor_llvm::{
     builder::builder::Builder,
     context::context::Context,
-    types::{ ptr_type::PtrType, values::{ BasicValue, FunctionValue } },
+    types::values::{ BasicValue, FunctionValue },
 };
 use tensor_types::{ convertion::Convertor, dtype::Dtype, type_promote::{ FloatOut, NormalOut } };
 
@@ -12,17 +16,19 @@ use crate::halide::{
     code_gen::type_utils::{ build_cast, general_types_to_primitive_type },
     module::Module,
     primitive_type::PrimitiveType,
-    traits::{ AccepterMut, CodeGenVisitor },
+    traits::CodeGenVisitor,
 };
+
+use super::scope::ScopeStack;
 
 pub struct CodeGen {
     ctx: Context,
     module: tensor_llvm::module::module::Module,
     builder: Builder,
     fns: HashMap<Arc<String>, FunctionValue>,
+    id_fns: HashMap<usize, FunctionValue>,
     fns_id: HashMap<FunctionValue, usize>,
-    bindings: HashMap<usize, HashMap<Arc<String>, BasicValue>>,
-    type_bindings: HashMap<usize, HashMap<BasicValue, PrimitiveType>>,
+    bindings: HashMap<usize, ScopeStack>,
     current_fn: usize,
 }
 
@@ -32,11 +38,13 @@ impl CodeGen {
         let builder = Builder::new(&ctx);
         let mut fns = HashMap::new();
         let mut fns_id = HashMap::new();
+        let mut id_fns = HashMap::new();
         let mut cnt = 0;
         for func in module.fns.values() {
             let fn_val = _module.add_function(func.ty.to_llvm_func_type(&ctx), &func.name);
             fns.insert(func.name.clone(), fn_val.clone());
-            fns_id.insert(fn_val, cnt);
+            fns_id.insert(fn_val.clone(), cnt);
+            id_fns.insert(cnt, fn_val);
             cnt += 1;
         }
         CodeGen {
@@ -45,7 +53,7 @@ impl CodeGen {
             builder,
             fns,
             bindings: HashMap::new(),
-            type_bindings: HashMap::new(),
+            id_fns,
             current_fn: 0,
             fns_id,
         }
@@ -54,7 +62,26 @@ impl CodeGen {
 
 impl CodeGenVisitor for CodeGen {
     fn visit_return(&mut self, return_: &crate::halide::return_stmt::ReturnStmt) {
-        todo!()
+        if return_.exprs().is_empty() {
+            self.builder.build_return(None);
+            return;
+        }
+        if return_.exprs().len() == 1 {
+            let val = self.visit_expr(return_.exprs().first().unwrap());
+            self.builder.build_return(Some(val));
+            return;
+        } else {
+            let mut ret = Vec::new();
+            let mut types = Vec::new();
+            for i in return_.exprs().iter() {
+                let val = self.visit_expr(i);
+                ret.push(val);
+                types.push(val.to_general_type());
+            }
+            let struct_type = self.ctx.struct_type(&types, false);
+            let struct_val = struct_type.const_named_struct(&ret);
+            self.builder.build_return(Some(BasicValue::Struct(struct_val)))
+        }
     }
 
     fn visit_tensor_slice(&mut self, slice: &crate::hlir::tensor_slice::TensorSlice) -> BasicValue {
@@ -66,7 +93,7 @@ impl CodeGenVisitor for CodeGen {
     }
 
     fn visit_variable(&mut self, var: &crate::halide::variable::Variable) -> BasicValue {
-        todo!()
+        self.bindings[&self.current_fn].find_variable(&var.name).unwrap()
     }
 
     fn visit_str(&mut self, string: &crate::halide::exprs::Str) -> BasicValue {
@@ -84,8 +111,8 @@ impl CodeGenVisitor for CodeGen {
     fn visit_add(&mut self, add: &crate::halide::exprs::Add) -> BasicValue {
         let lhs = self.visit_expr(add.e1());
         let rhs = self.visit_expr(add.e2());
-        let lhs_type = self.type_bindings[&self.current_fn][&lhs].dtype();
-        let rhs_type = self.type_bindings[&self.current_fn][&rhs].dtype();
+        let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
+        let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
         let casted_lhs = build_cast(
             lhs_type,
@@ -122,18 +149,18 @@ impl CodeGenVisitor for CodeGen {
             }
             _ => unimplemented!("unsupported dtype, {}", res_type),
         };
-        self.type_bindings
+        self.bindings
             .get_mut(&self.current_fn)
-            .unwrap()
-            .insert(res, PrimitiveType::Dtype(res_type));
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(res_type));
         res
     }
 
     fn visit_sub(&mut self, sub: &crate::halide::exprs::Sub) -> BasicValue {
         let lhs = self.visit_expr(sub.e1());
         let rhs = self.visit_expr(sub.e2());
-        let lhs_type = self.type_bindings[&self.current_fn][&lhs].dtype();
-        let rhs_type = self.type_bindings[&self.current_fn][&rhs].dtype();
+        let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
+        let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._sub(rhs_type);
         let casted_lhs = build_cast(
             lhs_type,
@@ -170,18 +197,18 @@ impl CodeGenVisitor for CodeGen {
             }
             _ => unimplemented!("unsupported dtype, {}", res_type),
         };
-        self.type_bindings
+        self.bindings
             .get_mut(&self.current_fn)
-            .unwrap()
-            .insert(res, PrimitiveType::Dtype(res_type));
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(res_type));
         res
     }
 
     fn visit_mul(&mut self, mul: &crate::halide::exprs::Mul) -> BasicValue {
         let lhs = self.visit_expr(mul.e1());
         let rhs = self.visit_expr(mul.e2());
-        let lhs_type = self.type_bindings[&self.current_fn][&lhs].dtype();
-        let rhs_type = self.type_bindings[&self.current_fn][&rhs].dtype();
+        let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
+        let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._mul(rhs_type);
         let casted_lhs = build_cast(
             lhs_type,
@@ -218,18 +245,18 @@ impl CodeGenVisitor for CodeGen {
             }
             _ => unimplemented!("unsupported dtype, {}", res_type),
         };
-        self.type_bindings
+        self.bindings
             .get_mut(&self.current_fn)
-            .unwrap()
-            .insert(res, PrimitiveType::Dtype(res_type));
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(res_type));
         res
     }
 
     fn visit_div(&mut self, div: &crate::halide::exprs::Div) -> BasicValue {
         let lhs = self.visit_expr(div.e1());
         let rhs = self.visit_expr(div.e2());
-        let lhs_type = self.type_bindings[&self.current_fn][&lhs].dtype();
-        let rhs_type = self.type_bindings[&self.current_fn][&rhs].dtype();
+        let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
+        let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._div(rhs_type);
         let casted_lhs = build_cast(
             lhs_type,
@@ -253,18 +280,18 @@ impl CodeGenVisitor for CodeGen {
             }
             _ => unimplemented!("unsupported dtype, {}", res_type),
         };
-        self.type_bindings
+        self.bindings
             .get_mut(&self.current_fn)
-            .unwrap()
-            .insert(res, PrimitiveType::Dtype(res_type));
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(res_type));
         res
     }
 
     fn visit_floor_div(&mut self, floor_div: &crate::halide::exprs::FloorDiv) -> BasicValue {
         let lhs = self.visit_expr(floor_div.e1());
         let rhs = self.visit_expr(floor_div.e2());
-        let lhs_type = self.type_bindings[&self.current_fn][&lhs].dtype();
-        let rhs_type = self.type_bindings[&self.current_fn][&rhs].dtype();
+        let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
+        let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._div(rhs_type);
         let casted_lhs = build_cast(
             lhs_type,
@@ -308,10 +335,10 @@ impl CodeGenVisitor for CodeGen {
             &self.ctx,
             &self.builder
         );
-        self.type_bindings
+        self.bindings
             .get_mut(&self.current_fn)
-            .unwrap()
-            .insert(res, PrimitiveType::Dtype(to_cast_dtype));
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(to_cast_dtype));
         res
     }
 
@@ -322,8 +349,8 @@ impl CodeGenVisitor for CodeGen {
     fn visit_min(&mut self, min: &crate::halide::exprs::Min) -> BasicValue {
         let lhs = self.visit_expr(min.e1());
         let rhs = self.visit_expr(min.e2());
-        let lhs_type = self.type_bindings[&self.current_fn][&lhs].dtype();
-        let rhs_type = self.type_bindings[&self.current_fn][&rhs].dtype();
+        let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
+        let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
         let casted_lhs = build_cast(
             lhs_type,
@@ -371,18 +398,18 @@ impl CodeGenVisitor for CodeGen {
             }
             _ => unimplemented!("unsupported dtype, {}", res_type),
         };
-        self.type_bindings
+        self.bindings
             .get_mut(&self.current_fn)
-            .unwrap()
-            .insert(res, PrimitiveType::Dtype(res_type));
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(res_type));
         res
     }
 
     fn visit_max(&mut self, max: &crate::halide::exprs::Max) -> BasicValue {
         let lhs = self.visit_expr(max.e1());
         let rhs = self.visit_expr(max.e2());
-        let lhs_type = self.type_bindings[&self.current_fn][&lhs].dtype();
-        let rhs_type = self.type_bindings[&self.current_fn][&rhs].dtype();
+        let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
+        let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
         let casted_lhs = build_cast(
             lhs_type,
@@ -430,10 +457,10 @@ impl CodeGenVisitor for CodeGen {
             }
             _ => unimplemented!("unsupported dtype, {}", res_type),
         };
-        self.type_bindings
+        self.bindings
             .get_mut(&self.current_fn)
-            .unwrap()
-            .insert(res, PrimitiveType::Dtype(res_type));
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(res_type));
         res
     }
 
@@ -480,23 +507,67 @@ impl CodeGenVisitor for CodeGen {
     fn visit_let_stmt(&mut self, let_stmt: &crate::halide::let_stmt::LetStmt) {
         let var = let_stmt.var();
         let val = self.visit_expr(&let_stmt.value());
-        self.bindings.get_mut(&self.current_fn).unwrap().insert(var.name.clone(), val);
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_variable(&var.name, val);
         self.visit_stmt(&let_stmt.body())
     }
 
     fn visit_let(&mut self, let_: &crate::halide::exprs::Let) -> BasicValue {
         let var = let_.name();
         let val = self.visit_expr(&let_.value_());
-        self.bindings.get_mut(&self.current_fn).unwrap().insert(var.name.clone(), val);
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_variable(&var.name, val);
         self.visit_expr(&let_.body_())
     }
 
     fn visit_for(&mut self, for_stmt: &crate::halide::for_stmt::For) {
         let index = for_stmt.var();
-        self.type_bindings.get_mut(&self.current_fn).unwrap().insert(
-            self.bindings[&self.current_fn][&index.name],
-            PrimitiveType::Dtype(Dtype::I64),
+        let entry_block = self.ctx.append_basic_block(&self.id_fns[&self.current_fn], "for_entry");
+        let cond_block = self.ctx.append_basic_block(&self.id_fns[&self.current_fn], "for_cond");
+        let body_block = self.ctx.append_basic_block(&self.id_fns[&self.current_fn], "for_body");
+        let end_block = self.ctx.append_basic_block(&self.id_fns[&self.current_fn], "for_exit");
+
+        self.builder.build_unconditional_branch(entry_block);
+        self.builder.position_at_end(entry_block);
+        let start = self.visit_expr(for_stmt.start());
+        let end = self.visit_expr(for_stmt.end());
+        let step = self.visit_expr(for_stmt.step());
+
+        self.builder.build_unconditional_branch(cond_block);
+        self.bindings.get_mut(&self.current_fn).expect("fn not find").push_scope();
+        let phi = self.builder.build_phi(self.ctx.i64_type().into(), "phi");
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_variable(&index.name, phi.into());
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(phi.into(), PrimitiveType::Dtype(Dtype::I64));
+        phi.add_incoming(&[(&start, entry_block)]);
+
+        let cond = self.builder.build_int_cmp(
+            llvm_sys::LLVMIntPredicate::LLVMIntSLT,
+            phi.into(),
+            end,
+            "cond"
         );
+        self.builder.build_conditional_branch(cond, body_block, end_block);
+
+        self.builder.position_at_end(body_block);
+        let new_phi = self.builder.build_int_add(phi.into(), step, "new_phi");
+
+        self.visit_stmt(for_stmt.stmt());
+
+        self.builder.build_unconditional_branch(cond_block);
+        phi.add_incoming(&[(&new_phi, body_block)]);
+
+        self.builder.position_at_end(end_block);
+        self.bindings.get_mut(&self.current_fn).expect("fn not find").pop_scope();
     }
 
     #[rustfmt::skip]
@@ -509,10 +580,10 @@ impl CodeGenVisitor for CodeGen {
             Dtype::Isize => self.ctx.isize_type().const_int(int.value() as u64, false).into(),
             _ => unimplemented!(),
         };
-        self.type_bindings
+        self.bindings
             .get_mut(&self.current_fn)
-            .unwrap()
-            .insert(res, PrimitiveType::Dtype(*int.dtype()));
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(*int.dtype()));
         res
     }
 
@@ -525,10 +596,10 @@ impl CodeGenVisitor for CodeGen {
             Dtype::U64 => self.ctx.u64_type().const_int(uint.value() as u64, false).into(),
             _ => unimplemented!(),
         };
-        self.type_bindings
+        self.bindings
             .get_mut(&self.current_fn)
-            .unwrap()
-            .insert(res, PrimitiveType::Dtype(*uint.dtype()));
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(*uint.dtype()));
         res
     }
 
@@ -539,10 +610,10 @@ impl CodeGenVisitor for CodeGen {
             Dtype::F64 => self.ctx.f64_type().const_float(float.value()).into(),
             _ => unimplemented!(),
         };
-        self.type_bindings
+        self.bindings
             .get_mut(&self.current_fn)
-            .unwrap()
-            .insert(res, PrimitiveType::Dtype(*float.dtype()));
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(*float.dtype()));
         res
     }
 
@@ -555,10 +626,10 @@ impl CodeGenVisitor for CodeGen {
             .map(|arg| self.visit_expr(arg))
             .collect::<Vec<_>>();
         let res = self.builder.build_call(&fn_val, &args, "call");
-        self.type_bindings
+        self.bindings
             .get_mut(&self.current_fn)
-            .unwrap()
-            .insert(res, general_types_to_primitive_type(fn_val.ret_type()));
+            .expect("fn not find")
+            .insert_type(res, general_types_to_primitive_type(fn_val.ret_type()));
         res
     }
 
@@ -568,17 +639,30 @@ impl CodeGenVisitor for CodeGen {
 
     fn visit_load(&mut self, _load: &crate::halide::exprs::Load) -> BasicValue {
         let var = _load.name();
-        let basic_val = self.bindings[&self.current_fn][&var.name];
-        let var_type = self.type_bindings[&self.current_fn][&basic_val].clone();
+        let basic_val = self.bindings[&self.current_fn]
+            .find_variable(&var.name)
+            .expect("var not find");
+        let var_type = self.bindings[&self.current_fn]
+            .find_type(&basic_val)
+            .expect("type not find")
+            .clone();
         let loaded = load(&var_type, basic_val, &self.builder, &self.ctx);
-        self.type_bindings.get_mut(&self.current_fn).unwrap().insert(loaded, var_type.clone());
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(loaded, var_type.clone());
         loaded
     }
 
     fn visit_store(&mut self, store: &crate::halide::store_stmt::StoreStmt) {
         let var = store.var();
-        let basic_val = self.bindings[&self.current_fn][&var.name];
-        let var_type = self.type_bindings[&self.current_fn][&basic_val].clone();
+        let basic_val = self.bindings[&self.current_fn]
+            .find_variable(&var.name)
+            .expect("var not find");
+        let var_type = self.bindings[&self.current_fn]
+            .find_type(&basic_val)
+            .expect("type not find")
+            .clone();
         let indices = self.visit_expr(store.indices());
         let new_ptr = match &var_type {
             PrimitiveType::Ptr(ptr) =>
@@ -711,7 +795,10 @@ impl CodeGenVisitor for CodeGen {
             _ => unimplemented!(),
         };
         let val = self.visit_expr(store.val());
-        let val_type = self.type_bindings[&self.current_fn][&val].clone();
+        let val_type = self.bindings[&self.current_fn]
+            .find_type(&val)
+            .expect("type not find")
+            .clone();
         assert!(val_type == var_type);
         self.builder.build_store(new_ptr, val);
     }
@@ -743,43 +830,23 @@ impl CodeGenVisitor for CodeGen {
         todo!()
     }
 
-    fn visit_function(&mut self, function: &crate::halide::module::Function) -> BasicValue {
+    fn visit_function(&mut self, function: &crate::halide::module::Function) {
         let id = self.fns_id[&self.fns[&function.name]];
         assert!(self.bindings.get(&id).is_none());
-        let mut type_bindings = HashMap::new();
-        let mut bindings = HashMap::new();
+        let mut scope_stack = ScopeStack::new();
         for (idx, (name, arg_ty)) in function.ty.args.iter().flatten().enumerate() {
-            type_bindings.insert(self.fns[&function.name].get_nth_param(idx), arg_ty.clone());
-            bindings.insert(Arc::new(name.clone()), self.fns[&function.name].get_nth_param(idx));
+            scope_stack.insert_variable(
+                &Arc::new(name.clone()),
+                self.fns[&function.name].get_nth_param(idx)
+            );
+            scope_stack.insert_type(self.fns[&function.name].get_nth_param(idx), arg_ty.clone());
         }
-        self.bindings.insert(id, bindings);
-        self.type_bindings.insert(id, type_bindings);
+        self.bindings.insert(id, scope_stack);
         self.current_fn = id;
         let block = self.ctx.append_basic_block(&self.fns[&function.name], "entry");
         self.builder.position_at_end(block);
         self.visit_stmt(&function.body);
         self.builder.position_at_end(block);
-
-        match &function.ty.ret_ty {
-            PrimitiveType::Dtype(_) | PrimitiveType::Array(_) | PrimitiveType::Ptr(_) => {
-                assert!(function.ty.args[2].len() == 1);
-                let arg = self.bindings[&id][&function.ty.args[2][0].0];
-                self.builder.build_return(Some(arg));
-                arg
-            }
-            PrimitiveType::Tuple(tuple) => {
-                let args = function.ty.args[2]
-                    .iter()
-                    .map(|(name, _)| self.bindings[&id][name])
-                    .collect::<Vec<_>>();
-                let struct_ty = tuple.to_llvm_type(&self.ctx);
-                let tuple = BasicValue::Struct(struct_ty.const_named_struct(&args));
-                self.builder.build_return(Some(tuple));
-                tuple
-            }
-            PrimitiveType::Str => todo!(),
-            PrimitiveType::Void => todo!(),
-        }
     }
 }
 

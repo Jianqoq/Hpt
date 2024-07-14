@@ -17,6 +17,7 @@ pub mod halide {
         pub mod code_gen;
         pub mod type_utils;
         pub mod gen_builtin;
+        pub mod scope;
     }
     pub mod module;
     pub mod if_stmt;
