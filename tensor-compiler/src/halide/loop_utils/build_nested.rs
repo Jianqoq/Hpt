@@ -5,8 +5,9 @@ use hashbrown::{ HashMap, HashSet };
 use crate::{
     edges::Edges,
     halide::{
-        exprs::Load,
+        exprs::{ Add, Load },
         for_stmt::For,
+        prime_expr::PrimeExpr,
         seq_stmt::Seq,
         stmt::Stmt,
         store_stmt::StoreStmt,
@@ -232,18 +233,22 @@ pub fn build_nested_for_helper(stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -
                     For::make(
                         iter_vars[idx].borrow().var(),
                         iter_vars[idx].borrow().start(),
-                        iter_vars[idx].borrow().end(),
+                        Load::make(Variable::make(&format!("{}.shape", stage.borrow().name)), idx),
                         iter_vars[idx].borrow().step(),
                         Seq::make(seq)
                     )
                 );
             } else {
+                let end = Load::make(
+                    Variable::make(&format!("{}.shape", stage.borrow().name)),
+                    idx
+                );
                 seq.push(build_recursive(idx + 1, stage, iter_vars));
                 return Stmt::For(
                     For::make(
                         iter_vars[idx].borrow().var(),
                         iter_vars[idx].borrow().start(),
-                        iter_vars[idx].borrow().end(),
+                        end,
                         iter_vars[idx].borrow().step(),
                         Seq::make(seq)
                     )
@@ -255,7 +260,7 @@ pub fn build_nested_for_helper(stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -
                     For::make(
                         iter_vars[idx].borrow().var(),
                         iter_vars[idx].borrow().start(),
-                        iter_vars[idx].borrow().end(),
+                        Load::make(Variable::make(&format!("{}.shape", stage.borrow().name)), idx),
                         iter_vars[idx].borrow().step(),
                         store.unwrap()
                     )
@@ -268,7 +273,10 @@ pub fn build_nested_for_helper(stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -
                         For::make(
                             iter_vars[idx].borrow().var(),
                             iter_vars[idx].borrow().start(),
-                            iter_vars[idx].borrow().end(),
+                            Load::make(
+                                Variable::make(&format!("{}.shape", stage.borrow().name)),
+                                idx
+                            ),
                             iter_vars[idx].borrow().step(),
                             build_recursive(idx + 1, stage, iter_vars)
                         )

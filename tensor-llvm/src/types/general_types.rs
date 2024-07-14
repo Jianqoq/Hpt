@@ -35,6 +35,8 @@ pub enum GeneralType {
     VoidPtr(VoidPtrType),
     Isize(IsizeType),
     IsizePtr(IsizePtrType),
+    Usize(UsizeType),
+    UsizePtr(UsizePtrType),
     Function(FunctionType),
     FunctionPtr(FunctionPtrType),
     Array(ArrayType),
@@ -87,6 +89,8 @@ impl_from!(Void);
 impl_from!(VoidPtr);
 impl_from!(Isize);
 impl_from!(IsizePtr);
+impl_from!(Usize);
+impl_from!(UsizePtr);
 impl_from!(Function);
 impl_from!(FunctionPtr);
 impl_from!(Array);
@@ -129,6 +133,8 @@ impl GeneralType {
             GeneralType::VoidPtr(t) => t.inner(),
             GeneralType::Isize(t) => t.inner(),
             GeneralType::IsizePtr(t) => t.inner(),
+            GeneralType::Usize(t) => t.inner(),
+            GeneralType::UsizePtr(t) => t.inner(),
             GeneralType::Function(t) => t.inner(),
             GeneralType::FunctionPtr(t) => t.inner(),
             GeneralType::Array(t) => t.inner(),

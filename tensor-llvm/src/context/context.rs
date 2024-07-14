@@ -126,6 +126,13 @@ impl Context {
     pub fn u64_type(&self) -> U64Type {
         U64Type::from(unsafe { LLVMInt64TypeInContext(self.context) })
     }
+    pub fn usize_type(&self) -> U64Type {
+        match std::mem::size_of::<usize>() {
+            4 => U64Type::from(unsafe { LLVMInt32TypeInContext(self.context) }),
+            8 => U64Type::from(unsafe { LLVMInt64TypeInContext(self.context) }),
+            _ => panic!("Unsupported usize size"),
+        }
+    }
 
     pub fn isize_type(&self) -> IsizeType {
         match std::mem::size_of::<isize>() {

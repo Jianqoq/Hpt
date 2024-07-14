@@ -70,6 +70,7 @@ register_val_type!(F32);
 register_val_type!(F64);
 register_val_type!(Void);
 register_val_type!(Isize);
+register_val_type!(Usize);
 register_val_type!(BoolPtr);
 register_val_type!(I8Ptr);
 register_val_type!(U8Ptr);
@@ -85,6 +86,7 @@ register_val_type!(F32Ptr);
 register_val_type!(F64Ptr);
 register_val_type!(VoidPtr);
 register_val_type!(IsizePtr);
+register_val_type!(UsizePtr);
 register_val_type!(ArrayPtr);
 register_val_type!(FunctionPtr);
 register_val_type!(StrPtr);
@@ -105,6 +107,7 @@ pub enum BasicValue {
     I64(I64Value),
     U64(U64Value),
     Isize(IsizeValue),
+    Usize(UsizeValue),
     BF16(BF16Value),
     F16(F16Value),
     F32(F32Value),
@@ -129,6 +132,7 @@ pub enum BasicValue {
     F64Ptr(F64PtrValue),
     VoidPtr(VoidPtrValue),
     IsizePtr(IsizePtrValue),
+    UsizePtr(UsizePtrValue),
     ArrayPtr(ArrayPtrValue),
     FunctionPtr(FunctionPtrValue),
     Struct(StructValue),
@@ -154,6 +158,7 @@ impl BasicValue {
             BasicValue::F64(_) => BasicValue::F64(F64Value::unitialized()),
             BasicValue::Void(_) => BasicValue::Void(VoidValue::unitialized()),
             BasicValue::Isize(_) => BasicValue::Isize(IsizeValue::unitialized()),
+            BasicValue::Usize(_) => BasicValue::Usize(UsizeValue::unitialized()),
             BasicValue::Array(_) => BasicValue::Array(ArrayValue::unitialized()),
             BasicValue::BoolPtr(_) => BasicValue::BoolPtr(BoolPtrValue::unitialized()),
             BasicValue::I8Ptr(_) => BasicValue::I8Ptr(I8PtrValue::unitialized()),
@@ -170,6 +175,7 @@ impl BasicValue {
             BasicValue::F64Ptr(_) => BasicValue::F64Ptr(F64PtrValue::unitialized()),
             BasicValue::VoidPtr(_) => BasicValue::VoidPtr(VoidPtrValue::unitialized()),
             BasicValue::IsizePtr(_) => BasicValue::IsizePtr(IsizePtrValue::unitialized()),
+            BasicValue::UsizePtr(_) => BasicValue::UsizePtr(UsizePtrValue::unitialized()),
             BasicValue::ArrayPtr(_) => BasicValue::ArrayPtr(ArrayPtrValue::unitialized()),
             BasicValue::FunctionPtr(_) => BasicValue::FunctionPtr(FunctionPtrValue::unitialized()),
             BasicValue::Str(_) => BasicValue::Str(StrValue::unitialized()),
@@ -438,6 +444,8 @@ impl BasicValue {
             BasicValue::VoidPtr(val) => val.inner(),
             BasicValue::Isize(val) => val.inner(),
             BasicValue::IsizePtr(val) => val.inner(),
+            BasicValue::Usize(val) => val.inner(),
+            BasicValue::UsizePtr(val) => val.inner(),
             BasicValue::ArrayPtr(val) => val.inner(),
             BasicValue::FunctionPtr(val) => val.inner(),
             BasicValue::Array(val) => val.inner(),
@@ -545,6 +553,7 @@ impl FunctionValue {
             GeneralType::F64(_) => F64Type::unitialize(),
             GeneralType::Void(_) => VoidType::unitialize(),
             GeneralType::Isize(_) => IsizeType::unitialize(),
+            GeneralType::Usize(_) => UsizeType::unitialize(),
             GeneralType::Array(_) => ArrayType::unitialize(),
             GeneralType::BoolPtr(_) => BoolPtrType::unitialize(),
             GeneralType::I8Ptr(_) => I8PtrType::unitialize(),
@@ -561,6 +570,7 @@ impl FunctionValue {
             GeneralType::F64Ptr(_) => F64PtrType::unitialize(),
             GeneralType::VoidPtr(_) => VoidPtrType::unitialize(),
             GeneralType::IsizePtr(_) => IsizePtrType::unitialize(),
+            GeneralType::UsizePtr(_) => UsizePtrType::unitialize(),
             GeneralType::ArrayPtr(_) => ArrayPtrType::unitialize(),
             GeneralType::FunctionPtr(_) => FunctionPtrType::unitialize(),
             GeneralType::Function(_) => panic!("Function type not supported"),
@@ -643,6 +653,7 @@ impl FunctionValue {
             GeneralType::F64(_) => BasicValue::F64(F64Value::from(param)),
             GeneralType::Void(_) => BasicValue::Void(VoidValue::from(param)),
             GeneralType::Isize(_) => BasicValue::Isize(IsizeValue::from(param)),
+            GeneralType::Usize(_) => BasicValue::Usize(UsizeValue::from(param)),
             GeneralType::Array(_) => BasicValue::Array(ArrayValue::from(param)),
             GeneralType::BoolPtr(_) => BasicValue::BoolPtr(BoolPtrValue::from(param)),
             GeneralType::I8Ptr(_) => BasicValue::I8Ptr(I8PtrValue::from(param)),
@@ -659,6 +670,7 @@ impl FunctionValue {
             GeneralType::F64Ptr(_) => BasicValue::F64Ptr(F64PtrValue::from(param)),
             GeneralType::VoidPtr(_) => BasicValue::VoidPtr(VoidPtrValue::from(param)),
             GeneralType::IsizePtr(_) => BasicValue::IsizePtr(IsizePtrValue::from(param)),
+            GeneralType::UsizePtr(_) => BasicValue::UsizePtr(UsizePtrValue::from(param)),
             GeneralType::ArrayPtr(_) => BasicValue::ArrayPtr(ArrayPtrValue::from(param)),
             GeneralType::FunctionPtr(_) => BasicValue::FunctionPtr(FunctionPtrValue::from(param)),
             GeneralType::Function(_) => todo!(),
@@ -763,6 +775,12 @@ impl BasicValue {
             BasicValue::IsizePtr(val) => {
                 val.value = value;
             }
+            BasicValue::Usize(val) => {
+                val.value = value;
+            }
+            BasicValue::UsizePtr(val) => {
+                val.value = value;
+            }
             BasicValue::ArrayPtr(val) => {
                 val.value = value;
             }
@@ -808,6 +826,7 @@ impl BasicValue {
             BasicValue::F64(_) => true,
             BasicValue::Void(_) => false,
             BasicValue::Isize(_) => true,
+            BasicValue::Usize(_) => false,
             BasicValue::Array(_) => false,
             BasicValue::BoolPtr(_) => false,
             BasicValue::I8Ptr(_) => false,
@@ -824,6 +843,7 @@ impl BasicValue {
             BasicValue::F64Ptr(_) => false,
             BasicValue::VoidPtr(_) => false,
             BasicValue::IsizePtr(_) => false,
+            BasicValue::UsizePtr(_) => false,
             BasicValue::ArrayPtr(_) => false,
             BasicValue::FunctionPtr(_) => false,
             BasicValue::Str(_) => false,

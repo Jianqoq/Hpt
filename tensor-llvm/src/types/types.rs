@@ -147,6 +147,7 @@ register_types!(
     F32,
     F64,
     Isize,
+    Usize,
     Void,
     Array,
     Str,
@@ -168,6 +169,7 @@ impl_into_basic_type!(
     F32,
     F64,
     Isize,
+    Usize,
     Void,
     Array
 );
@@ -260,6 +262,7 @@ pub enum BasicType {
     Void(VoidType),
     Array(ArrayType),
     Isize(IsizeType),
+    Usize(UsizeType),
 }
 
 impl Display for GeneralType {
@@ -304,6 +307,7 @@ impl BasicType {
             BasicType::Void(t) => t.inner(),
             BasicType::Array(t) => t.inner(),
             BasicType::Isize(t) => t.inner(),
+            BasicType::Usize(t) => t.inner(),
         }
     }
 }
@@ -355,6 +359,7 @@ impl_type_trait!(
     F32,
     F64,
     Isize,
+    Usize,
     Void,
     Array,
     Str,
@@ -380,6 +385,7 @@ impl UnitizlizeValue for BasicType {
             BasicType::Void(_) => BasicValue::Void(VoidValue::unitialized()),
             BasicType::Array(_) => BasicValue::Array(ArrayValue::unitialized()),
             BasicType::Isize(_) => BasicValue::Isize(IsizeValue::unitialized()),
+            BasicType::Usize(_) => BasicValue::Usize(UsizeValue::unitialized()),
         }
     }
 }

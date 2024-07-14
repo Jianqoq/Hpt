@@ -627,16 +627,20 @@ impl Schedule {
                     .iter()
                     .find(|(k, _)| k.name() == x)
                     .unwrap().0;
-                PrimitiveType::Tensor(halide::primitive_type::Tensor {
-                    dtype: tensor.dtype(),
-                    shape: Array {
-                        inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
-                        size: tensor.shape().len() as i64,
-                    },
-                    strides: Array {
-                        inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
-                        size: tensor.shape().len() as i64,
-                    },
+                PrimitiveType::Ptr(Ptr {
+                    inner: Arc::new(
+                        PrimitiveType::Tensor(halide::primitive_type::Tensor {
+                            dtype: tensor.dtype(),
+                            shape: Array {
+                                inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
+                                size: tensor.shape().len() as i64,
+                            },
+                            strides: Array {
+                                inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
+                                size: tensor.shape().len() as i64,
+                            },
+                        })
+                    ),
                 })
             })
             .collect::<Vec<PrimitiveType>>();
@@ -656,16 +660,20 @@ impl Schedule {
                     .iter()
                     .find(|(k, _)| k.name() == x)
                     .unwrap().0;
-                PrimitiveType::Tensor(halide::primitive_type::Tensor {
-                    dtype: tensor.dtype(),
-                    shape: Array {
-                        inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
-                        size: tensor.shape().len() as i64,
-                    },
-                    strides: Array {
-                        inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
-                        size: tensor.shape().len() as i64,
-                    },
+                PrimitiveType::Ptr(Ptr {
+                    inner: Arc::new(
+                        PrimitiveType::Tensor(halide::primitive_type::Tensor {
+                            dtype: tensor.dtype(),
+                            shape: Array {
+                                inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
+                                size: tensor.shape().len() as i64,
+                            },
+                            strides: Array {
+                                inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
+                                size: tensor.shape().len() as i64,
+                            },
+                        })
+                    ),
                 })
             })
             .collect::<Vec<PrimitiveType>>();
@@ -694,16 +702,20 @@ impl Schedule {
                     .unwrap().0;
                 (
                     x.as_ref().clone(),
-                    PrimitiveType::Tensor(halide::primitive_type::Tensor {
-                        dtype: tensor.dtype(),
-                        shape: Array {
-                            inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
-                            size: tensor.shape().len() as i64,
-                        },
-                        strides: Array {
-                            inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
-                            size: tensor.shape().len() as i64,
-                        },
+                    PrimitiveType::Ptr(Ptr {
+                        inner: Arc::new(
+                            PrimitiveType::Tensor(halide::primitive_type::Tensor {
+                                dtype: tensor.dtype(),
+                                shape: Array {
+                                    inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
+                                    size: tensor.shape().len() as i64,
+                                },
+                                strides: Array {
+                                    inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
+                                    size: tensor.shape().len() as i64,
+                                },
+                            })
+                        ),
                     }),
                 )
             })
@@ -725,9 +737,13 @@ impl Schedule {
         let seq = Stmt::Seq(Seq::make(stmts));
         Function {
             ty: FunctionType::new(
-                PrimitiveType::Tuple(Tuple {
-                    inner: outputs_type.into(),
-                }),
+                if outputs_type.len() == 1 {
+                    outputs_type[0].clone()
+                } else {
+                    PrimitiveType::Tuple(Tuple {
+                        inner: outputs_type.into(),
+                    })
+                },
                 args
             ),
             body: seq,
@@ -1199,8 +1215,8 @@ mod tests {
         module.get_function_mut(&lowered.name).unwrap().body = lowered.body;
         let string = IRPrinter.print_module_str(&module);
         println!("{}", string);
-        // let ctx = Context::new();
-        // let mut code_gen = CodeGen::new(ctx, &module);
-        // code_gen.compile();
+        let ctx = Context::new();
+        let mut code_gen = CodeGen::new(ctx, &module);
+        code_gen.compile();
     }
 }

@@ -19,6 +19,7 @@ pub enum PtrValue {
     F64(F64PtrValue),
     Void(VoidPtrValue),
     Isize(IsizePtrValue),
+    Usize(UsizePtrValue),
     Array(ArrayPtrValue),
     Function(FunctionPtrValue),
     Str(StrPtrValue),
@@ -49,6 +50,8 @@ impl_from!(BF16);
 impl_from!(F16);
 impl_from!(F32);
 impl_from!(F64);
+impl_from!(Isize);
+impl_from!(Usize);
 impl_from!(Void);
 
 impl PtrValue {
@@ -69,6 +72,7 @@ impl PtrValue {
             PtrValue::F64(ptr_value) => ptr_value.value,
             PtrValue::Void(ptr_value) => ptr_value.value,
             PtrValue::Isize(ptr_value) => ptr_value.value,
+            PtrValue::Usize(ptr_value) => ptr_value.value,
             PtrValue::Array(ptr_value) => ptr_value.value,
             PtrValue::Function(ptr_value) => ptr_value.value,
             PtrValue::Str(ptr_value) => ptr_value.value,
@@ -121,6 +125,9 @@ impl PtrValue {
                 ptr_value.value = value;
             }
             PtrValue::Isize(ptr_value) => {
+                ptr_value.value = value;
+            }
+            PtrValue::Usize(ptr_value) => {
                 ptr_value.value = value;
             }
             PtrValue::Array(ptr_value) => {

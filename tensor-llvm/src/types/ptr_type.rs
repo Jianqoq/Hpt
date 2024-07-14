@@ -64,6 +64,7 @@ register_ptr_type!(F32PtrType);
 register_ptr_type!(F64PtrType);
 register_ptr_type!(VoidPtrType);
 register_ptr_type!(IsizePtrType);
+register_ptr_type!(UsizePtrType);
 register_ptr_type!(ArrayPtrType);
 register_ptr_type!(FunctionPtrType);
 register_ptr_type!(StrPtrType);
@@ -86,6 +87,7 @@ pub enum PtrType {
     F64(F64PtrType),
     Void(VoidPtrType),
     Isize(IsizePtrType),
+    Usize(UsizePtrType),
     Array(ArrayPtrType),
     Function(FunctionPtrType),
     Str(StrPtrType),
@@ -114,6 +116,7 @@ impl PtrType {
             PtrType::Function(ptr_type) => ptr_type.ptr_type,
             PtrType::Str(ptr_type) => ptr_type.ptr_type,
             PtrType::Struct(ptr_type) => ptr_type.ptr_type,
+            PtrType::Usize(ptr_type) => ptr_type.ptr_type,
         }
     }
 }
@@ -143,6 +146,7 @@ impl_from!(F32);
 impl_from!(F64);
 impl_from!(Void);
 impl_from!(Isize);
+impl_from!(Usize);
 impl_from!(Array);
 impl_from!(Function);
 impl_from!(Str);
@@ -172,6 +176,7 @@ impl UnitizlizeValue for PtrType {
             PtrType::F64(_) => BasicValue::F64Ptr(F64PtrValue::unitialzed()),
             PtrType::Void(_) => BasicValue::VoidPtr(VoidPtrValue::unitialzed()),
             PtrType::Isize(_) => BasicValue::IsizePtr(IsizePtrValue::unitialzed()),
+            PtrType::Usize(_) => BasicValue::UsizePtr(UsizePtrValue::unitialzed()),
             PtrType::Array(_) => BasicValue::ArrayPtr(ArrayPtrValue::unitialzed()),
             PtrType::Function(_) => BasicValue::FunctionPtr(FunctionPtrValue::unitialzed()),
             PtrType::Str(_) => BasicValue::StrPtr(StrPtrValue::unitialzed()),
@@ -221,6 +226,7 @@ impl_type_trait!(
     F32,
     F64,
     Isize,
+    Usize,
     Void,
     Array,
     Function,
@@ -249,6 +255,7 @@ impl From<BasicValue> for PtrValue {
             BasicValue::ArrayPtr(val) => PtrValue::Array(val),
             BasicValue::FunctionPtr(val) => PtrValue::Function(val),
             BasicValue::StrPtr(val) => PtrValue::Str(val),
+            BasicValue::StructPtr(val) => PtrValue::Struct(val),
             _ => panic!("{}", &format!("{:?} is not a pointer type", value)),
         }
     }
@@ -272,6 +279,7 @@ impl From<PtrValue> for BasicValue {
             PtrValue::F64(val) => BasicValue::F64Ptr(val),
             PtrValue::Void(val) => BasicValue::VoidPtr(val),
             PtrValue::Isize(val) => BasicValue::IsizePtr(val),
+            PtrValue::Usize(val) => BasicValue::UsizePtr(val),
             PtrValue::Array(val) => BasicValue::ArrayPtr(val),
             PtrValue::Function(val) => BasicValue::FunctionPtr(val),
             PtrValue::Str(val) => BasicValue::StrPtr(val),

@@ -92,28 +92,41 @@ impl PrimitiveType {
                         for i in tuple.inner.iter() {
                             types.push(i.to_llvm_type(ctx));
                         }
-                        GeneralType::Struct(ctx.struct_type(&types, false))
+                        GeneralType::StructPtr(ctx.struct_type(&types, false).ptr_type(0))
                     }
                     PrimitiveType::Array(_) => todo!(),
                     PrimitiveType::Ptr(_) => { GeneralType::I8Ptr(ctx.i8_type().ptr_type(0)) }
                     PrimitiveType::Str => todo!(),
                     PrimitiveType::Void => todo!(),
                     PrimitiveType::Tensor(tensor) => {
-                        let struct_type = ctx.struct_type(
-                            &[
-                                GeneralType::I8(ctx.i8_type()),
-                                GeneralType::Array(
-                                    ctx.i64_type().array_type(tensor.shape.size as u64)
-                                ),
-                                GeneralType::Array(
-                                    ctx.i64_type().array_type(tensor.strides.size as u64)
-                                ),
-                            ],
-                            false
-                        );
-                        GeneralType::Struct(struct_type)
+                        let struct_type = ctx
+                            .struct_type(
+                                &[
+                                    GeneralType::I8(ctx.i8_type()),
+                                    GeneralType::Array(
+                                        ctx.i64_type().array_type(tensor.shape.size as u64)
+                                    ),
+                                    GeneralType::Array(
+                                        ctx.i64_type().array_type(tensor.strides.size as u64)
+                                    ),
+                                ],
+                                false
+                            )
+                            .ptr_type(0);
+                        GeneralType::StructPtr(struct_type)
                     }
                 }
+            PrimitiveType::Tensor(tensor) => {
+                let struct_type = ctx.struct_type(
+                    &[
+                        GeneralType::I8(ctx.i8_type()),
+                        GeneralType::Array(ctx.i64_type().array_type(tensor.shape.size as u64)),
+                        GeneralType::Array(ctx.i64_type().array_type(tensor.strides.size as u64)),
+                    ],
+                    false
+                );
+                GeneralType::Struct(struct_type)
+            }
             _ => unimplemented!("unimplemented to_llvm_type for {}", self),
         }
     }

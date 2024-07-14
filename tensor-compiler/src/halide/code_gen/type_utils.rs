@@ -126,6 +126,7 @@ pub fn general_types_to_primitive_type(general_type: &GeneralType) -> PrimitiveT
         GeneralType::F64(_) => PrimitiveType::Dtype(Dtype::F64),
         GeneralType::Void(_) => PrimitiveType::Void,
         GeneralType::Isize(_) => PrimitiveType::Dtype(Dtype::Isize),
+        GeneralType::Usize(_) => PrimitiveType::Dtype(Dtype::Usize),
         GeneralType::Array(_) => todo!(),
         GeneralType::BoolPtr(_) =>
             PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(Dtype::Bool).into() }),
@@ -156,6 +157,8 @@ pub fn general_types_to_primitive_type(general_type: &GeneralType) -> PrimitiveT
         GeneralType::VoidPtr(_) => PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Void.into() }),
         GeneralType::IsizePtr(_) =>
             PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(Dtype::Isize).into() }),
+        GeneralType::UsizePtr(_) =>
+            PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(Dtype::Usize).into() }),
         GeneralType::ArrayPtr(_) => todo!(),
         GeneralType::FunctionPtr(_) => todo!(),
         GeneralType::Function(_) => todo!(),
