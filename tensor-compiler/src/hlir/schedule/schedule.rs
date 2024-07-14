@@ -1041,9 +1041,10 @@ pub enum Transforms {
 
 #[cfg(test)]
 mod tests {
+    use tensor_llvm::context::context::Context;
     use tensor_types::dtype::Dtype;
 
-    use crate::{ halide::{ module::Module, printer::IRPrinter }, hlir::tensor::compute };
+    use crate::{ halide::{ code_gen::code_gen::CodeGen, module::Module, printer::IRPrinter }, hlir::tensor::compute };
 
     use super::*;
 
@@ -1175,5 +1176,8 @@ mod tests {
         module.get_function_mut(&lowered.name).unwrap().body = lowered.body;
         let string = IRPrinter.print_module_str(&module);
         println!("{}", string);
+        let ctx = Context::new();
+        let mut code_gen = CodeGen::new(ctx, &module);
+        code_gen.compile();
     }
 }

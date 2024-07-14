@@ -30,6 +30,7 @@ pub struct CodeGen {
     fns_id: HashMap<FunctionValue, usize>,
     bindings: HashMap<usize, ScopeStack>,
     current_fn: usize,
+    halide_module: Module,
 }
 
 impl CodeGen {
@@ -56,7 +57,13 @@ impl CodeGen {
             id_fns,
             current_fn: 0,
             fns_id,
+            halide_module: module.clone(),
         }
+    }
+
+    pub fn compile(&mut self) {
+        let module = self.halide_module.clone();
+        self.visit_module(&module);
     }
 }
 

@@ -1,11 +1,51 @@
 use llvm_sys::{
     core::{
-        LLVMAppendBasicBlockInContext, LLVMDoubleTypeInContext, LLVMFloatTypeInContext, LLVMHalfTypeInContext, LLVMInt16TypeInContext, LLVMInt1TypeInContext, LLVMInt32TypeInContext, LLVMInt64TypeInContext, LLVMInt8TypeInContext, LLVMPointerType, LLVMStructTypeInContext, LLVMVoidTypeInContext
+        LLVMAppendBasicBlockInContext,
+        LLVMContextCreate,
+        LLVMDoubleTypeInContext,
+        LLVMFloatTypeInContext,
+        LLVMHalfTypeInContext,
+        LLVMInt16TypeInContext,
+        LLVMInt1TypeInContext,
+        LLVMInt32TypeInContext,
+        LLVMInt64TypeInContext,
+        LLVMInt8TypeInContext,
+        LLVMPointerType,
+        LLVMStructTypeInContext,
+        LLVMVoidTypeInContext,
+    },
+    execution_engine::LLVMLinkInMCJIT,
+    target::{
+        LLVM_InitializeNativeAsmParser,
+        LLVM_InitializeNativeAsmPrinter,
+        LLVM_InitializeNativeDisassembler,
+        LLVM_InitializeNativeTarget,
     },
     LLVMContext,
 };
 use crate::{
-    types::{ block::BasicBlock, general_types::GeneralType, ptr_type::StrPtrType, values::FunctionValue }, utils::to_c_str, BoolType, F16Type, F32Type, F64Type, I16Type, I32Type, I64Type, I8Type, IsizeType, StructType, U16Type, U32Type, U64Type, U8Type, VoidType
+    types::{
+        block::BasicBlock,
+        general_types::GeneralType,
+        ptr_type::StrPtrType,
+        values::FunctionValue,
+    },
+    utils::to_c_str,
+    BoolType,
+    F16Type,
+    F32Type,
+    F64Type,
+    I16Type,
+    I32Type,
+    I64Type,
+    I8Type,
+    IsizeType,
+    StructType,
+    U16Type,
+    U32Type,
+    U64Type,
+    U8Type,
+    VoidType,
 };
 
 pub struct Context {
@@ -13,6 +53,29 @@ pub struct Context {
 }
 
 impl Context {
+    pub fn new() -> Self {
+        let context = unsafe { LLVMContextCreate() };
+        unsafe {
+            LLVMLinkInMCJIT();
+            let code = LLVM_InitializeNativeTarget();
+            if code == 1 {
+                panic!("Failed to initialize native target");
+            }
+            let code = LLVM_InitializeNativeAsmPrinter();
+            if code == 1 {
+                panic!("Failed to initialize native asm printer");
+            }
+            let code = LLVM_InitializeNativeAsmParser();
+            if code == 1 {
+                panic!("Failed to initialize native asm parser");
+            }
+            let node = LLVM_InitializeNativeDisassembler();
+            if node == 1 {
+                panic!("Failed to initialize native asm printer");
+            }
+        }
+        Context { context }
+    }
     pub(crate) fn inner(&self) -> *mut LLVMContext {
         self.context
     }
@@ -89,13 +152,16 @@ impl Context {
     }
 
     pub fn struct_type(&self, types: &[GeneralType], packed: bool) -> StructType {
-        let mut types = types.iter().map(|t| t.inner()).collect::<Vec<_>>();
+        let mut types = types
+            .iter()
+            .map(|t| t.inner())
+            .collect::<Vec<_>>();
         let struct_type = unsafe {
             LLVMStructTypeInContext(
                 self.context,
                 types.as_mut_ptr(),
                 types.len() as u32,
-                packed as i32,
+                packed as i32
             )
         };
         StructType::from(struct_type)

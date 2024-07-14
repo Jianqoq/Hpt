@@ -7,7 +7,7 @@ use crate::halide::printer::_IRPrinter;
 
 use super::{ primitive_type::PrimitiveType, stmt::Stmt };
 
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Clone)]
 pub struct Function {
     pub(crate) ty: FunctionType,
     pub(crate) name: Arc<String>,
@@ -106,6 +106,7 @@ impl FunctionType {
     }
 }
 
+#[derive(Clone)]
 pub struct Module {
     pub(crate) name: Arc<String>,
     pub(crate) imports: HashSet<Arc<String>>,

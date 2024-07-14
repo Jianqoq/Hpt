@@ -63,7 +63,7 @@ impl PrimitiveType {
                 }
             }
             PrimitiveType::Tuple(tuple) => { GeneralType::Struct(tuple.to_llvm_type(ctx)) }
-            _ => unimplemented!(),
+            _ => unimplemented!("unimplemented to_llvm_type for {}", self),
         }
     }
 
