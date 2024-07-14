@@ -134,7 +134,7 @@ impl PrimitiveType {
     pub fn dtype(&self) -> Dtype {
         match self {
             PrimitiveType::Dtype(dtype) => *dtype,
-            _ => unimplemented!(),
+            _ => unimplemented!("unimplemented dtype for {}", self),
         }
     }
     pub fn _add(&self, other: &Self) -> Self {

@@ -878,6 +878,27 @@ impl CodeGenVisitor for CodeGen {
                                     ),
                                 })
                             );
+                            let strides_ptr = self.builder.build_gep(
+                                self.ctx.i8_type().ptr_type(0),
+                                self.fns[&function.name].get_nth_param(idx).into(),
+                                &[self.ctx.i32_type().const_int(2, false).into()],
+                                name
+                            );
+                            scope_stack.insert_variable(
+                                &Arc::new(format!("{}.strides", name)),
+                                strides_ptr.into()
+                            );
+                            scope_stack.insert_type(
+                                strides_ptr.into(),
+                                PrimitiveType::Ptr(Ptr {
+                                    inner: Arc::new(
+                                        PrimitiveType::Array(Array {
+                                            inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
+                                            size: tensor.strides.size,
+                                        })
+                                    ),
+                                })
+                            );
                         }
                         _ => {}
                     }
