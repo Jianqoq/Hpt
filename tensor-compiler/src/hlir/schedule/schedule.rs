@@ -1252,8 +1252,11 @@ mod tests {
         let tensor_c = tensor_dyn::tensor::Tensor::<f32>::empty(&[10, 10]).unwrap();
         let exec_a = crate::tensor::Tensor::raw_new(tensor_a);
         let exec_c = crate::tensor::Tensor::raw_new(tensor_c);
-        let a_read = unsafe { exec_a.read() };
-        let c_read = unsafe { exec_c.read() };
-        code_gen.run(vec![exec_a as *mut c_void, exec_c as *mut c_void]);
+        let func = code_gen.get_function::<
+            unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void
+        >("main");
+        unsafe {
+            func(exec_a as *mut c_void, exec_c as *mut c_void);
+        }
     }
 }

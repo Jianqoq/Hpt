@@ -17,6 +17,7 @@ use tensor_llvm::{
     context::context::Context,
     engine::engine::ExecutionEngine,
     types::values::{ BasicValue, FunctionValue },
+    utils::to_c_str,
 };
 use tensor_types::{ convertion::Convertor, dtype::Dtype, type_promote::{ FloatOut, NormalOut } };
 
@@ -117,6 +118,16 @@ impl CodeGen {
                 args as *mut *mut LLVMOpaqueGenericValue
             ); // REVIEW: usize to u32 ok??
         }
+    }
+    pub fn get_function<F>(&self, name: &str) -> F {
+        let c_str = to_c_str(name);
+        let address = unsafe {
+            llvm_sys::execution_engine::LLVMGetFunctionAddress(self.ee.inner(), c_str.as_ptr())
+        };
+        if address == 0 {
+            panic!("{}", &format!("function {} not found", name));
+        }
+        unsafe { std::mem::transmute_copy::<u64, F>(&address) }
     }
 }
 
