@@ -14,8 +14,10 @@ use tensor_types::{ convertion::Convertor, dtype::Dtype, type_promote::{ FloatOu
 
 use crate::halide::{
     code_gen::type_utils::{ build_cast, general_types_to_primitive_type },
+    exprs::Load,
     module::Module,
     primitive_type::{ Array, PrimitiveType, Ptr },
+    printer::IRPrinter,
     traits::CodeGenVisitor,
 };
 
@@ -65,10 +67,16 @@ impl CodeGen {
         let module = self.halide_module.clone();
         self.visit_module(&module);
     }
+    pub fn print_to_file(&self, path: &str) {
+        self.module.print_to_file(path).expect("failed to print to file");
+    }
 }
 
 impl CodeGenVisitor for CodeGen {
     fn visit_return(&mut self, return_: &crate::halide::return_stmt::ReturnStmt) {
+        let return_block = self.ctx.append_basic_block(&self.id_fns[&self.current_fn], "return");
+        self.builder.build_unconditional_branch(return_block);
+        self.builder.position_at_end(return_block);
         if return_.exprs().is_empty() {
             self.builder.build_return(None);
             return;
@@ -92,7 +100,19 @@ impl CodeGenVisitor for CodeGen {
     }
 
     fn visit_tensor_slice(&mut self, slice: &crate::hlir::tensor_slice::TensorSlice) -> BasicValue {
-        todo!()
+        let load_strides = (0..slice.dims.len()).map(|x| {
+            Load::make(format!("{}.strides", slice.var.as_ref()), x)
+        });
+        let load = Load::make(
+            slice.var.as_ref(),
+            slice.dims
+                .iter()
+                .zip(load_strides)
+                .map(|(x, strides)| x.clone() * strides.into())
+                .reduce(|x, y| x + y)
+                .unwrap()
+        );
+        self.visit_load(&load)
     }
 
     fn visit_reduce(&mut self, reduce: &crate::halide::exprs::Reduce) -> BasicValue {
@@ -547,16 +567,17 @@ impl CodeGenVisitor for CodeGen {
         let step = self.visit_expr(for_stmt.step());
 
         self.builder.build_unconditional_branch(cond_block);
+        self.builder.position_at_end(cond_block);
         self.bindings.get_mut(&self.current_fn).expect("fn not find").push_scope();
         let phi = self.builder.build_phi(self.ctx.i64_type().into(), "phi");
         self.bindings
             .get_mut(&self.current_fn)
             .expect("fn not find")
-            .insert_variable(&index.name, phi.into());
+            .insert_variable(&index.name, phi.into_int_value().into());
         self.bindings
             .get_mut(&self.current_fn)
             .expect("fn not find")
-            .insert_type(phi.into(), PrimitiveType::Dtype(Dtype::I64));
+            .insert_type(phi.into_int_value().into(), PrimitiveType::Dtype(Dtype::I64));
         phi.add_incoming(&[(&start, entry_block)]);
 
         let cond = self.builder.build_int_cmp(
@@ -568,7 +589,7 @@ impl CodeGenVisitor for CodeGen {
         self.builder.build_conditional_branch(cond, body_block, end_block);
 
         self.builder.position_at_end(body_block);
-        let new_phi = self.builder.build_int_add(phi.into(), step, "new_phi");
+        let new_phi = self.builder.build_int_add(phi.into_int_value().into(), step, "new_phi");
 
         self.visit_stmt(for_stmt.stmt());
 
@@ -657,11 +678,11 @@ impl CodeGenVisitor for CodeGen {
             .expect(&format!("type not found for variable {}", var.name))
             .clone();
         let indices = self.visit_expr(_load.indices());
-        let loaded = load(&var_type, basic_val, indices, &self.builder, &self.ctx);
+        let (loaded, loaded_type) = load(&var_type, basic_val, indices, &self.builder, &self.ctx);
         self.bindings
             .get_mut(&self.current_fn)
             .expect("fn not find")
-            .insert_type(loaded, var_type.clone());
+            .insert_type(loaded, loaded_type);
         loaded
     }
 
@@ -674,12 +695,13 @@ impl CodeGenVisitor for CodeGen {
             .find_type(&basic_val)
             .expect("type not find")
             .clone();
+        IRPrinter.print_expr(store.indices());
         let indices = self.visit_expr(store.indices());
         let new_ptr = match &var_type {
             PrimitiveType::Ptr(ptr) =>
                 match ptr.inner.as_ref() {
-                    PrimitiveType::Dtype(drype) => {
-                        match drype {
+                    PrimitiveType::Dtype(dtype) => {
+                        match dtype {
                             Dtype::Bool => {
                                 self.builder.build_gep(
                                     self.ctx.bool_type(),
@@ -802,7 +824,14 @@ impl CodeGenVisitor for CodeGen {
                     PrimitiveType::Array(_) => todo!(),
                     PrimitiveType::Str => todo!(),
                     PrimitiveType::Void => todo!(),
-                    PrimitiveType::Tensor(_) => todo!(),
+                    PrimitiveType::Tensor(_) => {
+                        self.builder.build_gep(
+                            self.ctx.void_type().ptr_type(0),
+                            basic_val.to_ptr_value(),
+                            &[indices],
+                            "gep"
+                        )
+                    }
                 }
             _ => unimplemented!(),
         };
@@ -811,7 +840,27 @@ impl CodeGenVisitor for CodeGen {
             .find_type(&val)
             .expect("type not find")
             .clone();
-        assert!(val_type == var_type);
+        // match var_type {
+        //     | PrimitiveType::Dtype(_)
+        //     | PrimitiveType::Tuple(_)
+        //     | PrimitiveType::Array(_)
+        //     | PrimitiveType::Ptr(_) => {
+        //         assert!(
+        //             val_type == var_type,
+        //             "{}",
+        //             format!("type mismatch, {} != {}", val_type, var_type)
+        //         );
+        //     }
+        //     PrimitiveType::Tensor(tensor) => {
+        //         assert!(
+        //             val_type == PrimitiveType::Dtype(tensor.dtype),
+        //             "{}",
+        //             format!("type mismatch, {} != {}", val_type, tensor.dtype)
+        //         );
+        //     }
+        //     PrimitiveType::Str => todo!(),
+        //     PrimitiveType::Void => todo!(),
+        // }
         self.builder.build_store(new_ptr, val);
     }
 
@@ -919,7 +968,7 @@ pub fn load(
     indices: BasicValue,
     builder: &Builder,
     ctx: &Context
-) -> BasicValue {
+) -> (BasicValue, PrimitiveType) {
     match primitive_type {
         PrimitiveType::Ptr(ptr) => {
             let pointing_ty = &ptr.inner;
@@ -933,7 +982,10 @@ pub fn load(
                                 &[indices],
                                 "gep"
                             );
-                            builder.build_load(ctx.bool_type(), gep, "load")
+                            (
+                                builder.build_load(ctx.bool_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::Bool),
+                            )
                         }
                         Dtype::I8 => {
                             let gep = builder.build_gep(
@@ -942,7 +994,10 @@ pub fn load(
                                 &[indices],
                                 "gep"
                             );
-                            builder.build_load(ctx.i8_type(), gep, "load")
+                            (
+                                builder.build_load(ctx.i8_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::I8),
+                            )
                         }
                         Dtype::U8 => {
                             let gep = builder.build_gep(
@@ -951,7 +1006,10 @@ pub fn load(
                                 &[indices],
                                 "gep"
                             );
-                            builder.build_load(ctx.u8_type(), gep, "load")
+                            (
+                                builder.build_load(ctx.u8_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::U8),
+                            )
                         }
                         Dtype::I16 => {
                             let gep = builder.build_gep(
@@ -960,7 +1018,10 @@ pub fn load(
                                 &[indices],
                                 "gep"
                             );
-                            builder.build_load(ctx.i16_type(), gep, "load")
+                            (
+                                builder.build_load(ctx.i16_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::I16),
+                            )
                         }
                         Dtype::U16 => {
                             let gep = builder.build_gep(
@@ -969,7 +1030,10 @@ pub fn load(
                                 &[indices],
                                 "gep"
                             );
-                            builder.build_load(ctx.u16_type(), gep, "load")
+                            (
+                                builder.build_load(ctx.u16_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::U16),
+                            )
                         }
                         Dtype::I32 => {
                             let gep = builder.build_gep(
@@ -978,7 +1042,10 @@ pub fn load(
                                 &[indices],
                                 "gep"
                             );
-                            builder.build_load(ctx.i32_type(), gep, "load")
+                            (
+                                builder.build_load(ctx.i32_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::I32),
+                            )
                         }
                         Dtype::U32 => {
                             let gep = builder.build_gep(
@@ -987,7 +1054,10 @@ pub fn load(
                                 &[indices],
                                 "gep"
                             );
-                            builder.build_load(ctx.u32_type(), gep, "load")
+                            (
+                                builder.build_load(ctx.u32_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::U32),
+                            )
                         }
                         Dtype::I64 => {
                             let gep = builder.build_gep(
@@ -996,7 +1066,10 @@ pub fn load(
                                 &[indices],
                                 "gep"
                             );
-                            builder.build_load(ctx.i64_type(), gep, "load")
+                            (
+                                builder.build_load(ctx.i64_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::I64),
+                            )
                         }
                         Dtype::U64 => {
                             let gep = builder.build_gep(
@@ -1005,7 +1078,10 @@ pub fn load(
                                 &[indices],
                                 "gep"
                             );
-                            builder.build_load(ctx.u64_type(), gep, "load")
+                            (
+                                builder.build_load(ctx.u64_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::U64),
+                            )
                         }
                         Dtype::BF16 => {
                             let gep = builder.build_gep(
@@ -1014,7 +1090,10 @@ pub fn load(
                                 &[indices],
                                 "gep"
                             );
-                            builder.build_load(ctx.i16_type(), gep, "load")
+                            (
+                                builder.build_load(ctx.i16_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::BF16),
+                            )
                         }
                         Dtype::F16 => {
                             let gep = builder.build_gep(
@@ -1023,7 +1102,10 @@ pub fn load(
                                 &[indices],
                                 "gep"
                             );
-                            builder.build_load(ctx.f16_type(), gep, "load")
+                            (
+                                builder.build_load(ctx.f16_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::F16),
+                            )
                         }
                         Dtype::F32 => {
                             let gep = builder.build_gep(
@@ -1032,7 +1114,10 @@ pub fn load(
                                 &[indices],
                                 "gep"
                             );
-                            builder.build_load(ctx.f32_type(), gep, "load")
+                            (
+                                builder.build_load(ctx.f32_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::F32),
+                            )
                         }
                         Dtype::F64 => {
                             let gep = builder.build_gep(
@@ -1041,7 +1126,10 @@ pub fn load(
                                 &[indices],
                                 "gep"
                             );
-                            builder.build_load(ctx.f64_type(), gep, "load")
+                            (
+                                builder.build_load(ctx.f64_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::F64),
+                            )
                         }
                         Dtype::C32 => todo!(),
                         Dtype::C64 => todo!(),
@@ -1052,7 +1140,10 @@ pub fn load(
                                 &[indices],
                                 "gep"
                             );
-                            builder.build_load(ctx.isize_type(), gep, "load")
+                            (
+                                builder.build_load(ctx.isize_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::Isize),
+                            )
                         }
                         Dtype::Usize => todo!(),
                     }
@@ -1063,14 +1154,17 @@ pub fn load(
                         PrimitiveType::Dtype(dtype) => {
                             macro_rules! impl_array_load {
                                 ($dtype:ident) => {
-                                    builder.build_load(
+                                    (
+                                        builder.build_load(
                                         ctx.$dtype(), 
                                         builder.build_gep(
                                             ctx.$dtype().array_type(arr.size as u64),
                                             to_load.into(),
                                             &[indices],
                                             "load"),
-                                        "load")
+                                        "load"),
+                                    PrimitiveType::Dtype(*dtype)
+                                    )
                                 };
                             }
                             match dtype {
@@ -1101,14 +1195,388 @@ pub fn load(
                         PrimitiveType::Void => todo!(),
                     }
                 }
-                PrimitiveType::Ptr(_) => {
-                    builder.build_load(ctx.i8_type().ptr_type(0), to_load.to_ptr_value(), "load")
+                PrimitiveType::Ptr(ptr) => {
+                    match ptr.inner.as_ref() {
+                        PrimitiveType::Dtype(dtype) => {
+                            match dtype {
+                                Dtype::Bool => {
+                                    let gep = builder.build_gep(
+                                        ctx.bool_type().ptr_type(0),
+                                        to_load.to_ptr_value(),
+                                        &[indices],
+                                        "gep"
+                                    );
+                                    (
+                                        builder.build_load(ctx.bool_type(), gep, "load"),
+                                        PrimitiveType::Dtype(Dtype::Bool),
+                                    )
+                                }
+                                Dtype::I8 => {
+                                    let gep = builder.build_gep(
+                                        ctx.i8_type().ptr_type(0),
+                                        to_load.to_ptr_value(),
+                                        &[indices],
+                                        "gep"
+                                    );
+                                    (
+                                        builder.build_load(ctx.i8_type(), gep, "load"),
+                                        PrimitiveType::Dtype(Dtype::I8),
+                                    )
+                                }
+                                Dtype::U8 => {
+                                    let gep = builder.build_gep(
+                                        ctx.u8_type().ptr_type(0),
+                                        to_load.to_ptr_value(),
+                                        &[indices],
+                                        "gep"
+                                    );
+                                    (
+                                        builder.build_load(ctx.u8_type(), gep, "load"),
+                                        PrimitiveType::Dtype(Dtype::U8),
+                                    )
+                                }
+                                Dtype::I16 => {
+                                    let gep = builder.build_gep(
+                                        ctx.i16_type().ptr_type(0),
+                                        to_load.to_ptr_value(),
+                                        &[indices],
+                                        "gep"
+                                    );
+                                    (
+                                        builder.build_load(ctx.i16_type(), gep, "load"),
+                                        PrimitiveType::Dtype(Dtype::I16),
+                                    )
+                                }
+                                Dtype::U16 => {
+                                    let gep = builder.build_gep(
+                                        ctx.u16_type().ptr_type(0),
+                                        to_load.to_ptr_value(),
+                                        &[indices],
+                                        "gep"
+                                    );
+                                    (
+                                        builder.build_load(ctx.u16_type(), gep, "load"),
+                                        PrimitiveType::Dtype(Dtype::U16),
+                                    )
+                                }
+                                Dtype::I32 => {
+                                    let gep = builder.build_gep(
+                                        ctx.i32_type().ptr_type(0),
+                                        to_load.to_ptr_value(),
+                                        &[indices],
+                                        "gep"
+                                    );
+                                    (
+                                        builder.build_load(ctx.i32_type(), gep, "load"),
+                                        PrimitiveType::Dtype(Dtype::I32),
+                                    )
+                                }
+                                Dtype::U32 => {
+                                    let gep = builder.build_gep(
+                                        ctx.u32_type().ptr_type(0),
+                                        to_load.to_ptr_value(),
+                                        &[indices],
+                                        "gep"
+                                    );
+                                    (
+                                        builder.build_load(ctx.u32_type(), gep, "load"),
+                                        PrimitiveType::Dtype(Dtype::U32),
+                                    )
+                                }
+                                Dtype::I64 => {
+                                    let gep = builder.build_gep(
+                                        ctx.i64_type().ptr_type(0),
+                                        to_load.to_ptr_value(),
+                                        &[indices],
+                                        "gep"
+                                    );
+                                    (
+                                        builder.build_load(ctx.i64_type(), gep, "load"),
+                                        PrimitiveType::Dtype(Dtype::I64),
+                                    )
+                                }
+                                Dtype::U64 => {
+                                    let gep = builder.build_gep(
+                                        ctx.u64_type().ptr_type(0),
+                                        to_load.to_ptr_value(),
+                                        &[indices],
+                                        "gep"
+                                    );
+                                    (
+                                        builder.build_load(ctx.u64_type(), gep, "load"),
+                                        PrimitiveType::Dtype(Dtype::U64),
+                                    )
+                                }
+                                Dtype::BF16 => {
+                                    let gep = builder.build_gep(
+                                        ctx.i16_type().ptr_type(0),
+                                        to_load.to_ptr_value(),
+                                        &[indices],
+                                        "gep"
+                                    );
+                                    (
+                                        builder.build_load(ctx.i16_type(), gep, "load"),
+                                        PrimitiveType::Dtype(Dtype::BF16),
+                                    )
+                                }
+                                Dtype::F16 => {
+                                    let gep = builder.build_gep(
+                                        ctx.f16_type().ptr_type(0),
+                                        to_load.to_ptr_value(),
+                                        &[indices],
+                                        "gep"
+                                    );
+                                    (
+                                        builder.build_load(ctx.f16_type(), gep, "load"),
+                                        PrimitiveType::Dtype(Dtype::F16),
+                                    )
+                                }
+                                Dtype::F32 => {
+                                    let gep = builder.build_gep(
+                                        ctx.f32_type().ptr_type(0),
+                                        to_load.to_ptr_value(),
+                                        &[indices],
+                                        "gep"
+                                    );
+                                    (
+                                        builder.build_load(ctx.f32_type(), gep, "load"),
+                                        PrimitiveType::Dtype(Dtype::F32),
+                                    )
+                                }
+                                Dtype::F64 => {
+                                    let gep = builder.build_gep(
+                                        ctx.f64_type().ptr_type(0),
+                                        to_load.to_ptr_value(),
+                                        &[indices],
+                                        "gep"
+                                    );
+                                    (
+                                        builder.build_load(ctx.f64_type(), gep, "load"),
+                                        PrimitiveType::Dtype(Dtype::F64),
+                                    )
+                                }
+                                Dtype::C32 => todo!(),
+                                Dtype::C64 => todo!(),
+                                Dtype::Isize => {
+                                    let gep = builder.build_gep(
+                                        ctx.isize_type().ptr_type(0),
+                                        to_load.to_ptr_value(),
+                                        &[indices],
+                                        "gep"
+                                    );
+                                    (
+                                        builder.build_load(ctx.isize_type(), gep, "load"),
+                                        PrimitiveType::Dtype(Dtype::Isize),
+                                    )
+                                }
+                                Dtype::Usize => todo!(),
+                            }
+                        }
+                        PrimitiveType::Tuple(tuple) => {
+                            let types = tuple.inner
+                                .iter()
+                                .map(|x| x.to_llvm_type(ctx))
+                                .collect::<Vec<_>>();
+                            let gep = builder.build_gep(
+                                ctx.struct_type(&types, false),
+                                to_load.to_ptr_value(),
+                                &[indices],
+                                "gep"
+                            );
+                            (
+                                builder.build_load(ctx.struct_type(&types, false), gep, "load"),
+                                PrimitiveType::Tuple(tuple.clone()),
+                            )
+                        }
+                        PrimitiveType::Array(_) => todo!(),
+                        PrimitiveType::Ptr(_) => todo!(),
+                        PrimitiveType::Tensor(_) => todo!(),
+                        PrimitiveType::Str => todo!(),
+                        PrimitiveType::Void => todo!(),
+                    }
                 }
                 PrimitiveType::Str => {
-                    builder.build_load(ctx.str_ptr_type(), to_load.to_ptr_value(), "load")
+                    (
+                        builder.build_load(ctx.str_ptr_type(), to_load.to_ptr_value(), "load"),
+                        PrimitiveType::Str,
+                    )
                 }
                 PrimitiveType::Void => todo!(),
-                PrimitiveType::Tensor(_) => todo!(),
+                PrimitiveType::Tensor(tensor) => {
+                    match tensor.dtype {
+                        Dtype::Bool => {
+                            let gep = builder.build_gep(
+                                ctx.bool_type().ptr_type(0),
+                                to_load.to_ptr_value(),
+                                &[indices],
+                                "gep"
+                            );
+                            (
+                                builder.build_load(ctx.bool_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::Bool),
+                            )
+                        }
+                        Dtype::I8 => {
+                            let gep = builder.build_gep(
+                                ctx.i8_type().ptr_type(0),
+                                to_load.to_ptr_value(),
+                                &[indices],
+                                "gep"
+                            );
+                            (
+                                builder.build_load(ctx.i8_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::I8),
+                            )
+                        }
+                        Dtype::U8 => {
+                            let gep = builder.build_gep(
+                                ctx.u8_type().ptr_type(0),
+                                to_load.to_ptr_value(),
+                                &[indices],
+                                "gep"
+                            );
+                            (
+                                builder.build_load(ctx.u8_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::U8),
+                            )
+                        }
+                        Dtype::I16 => {
+                            let gep = builder.build_gep(
+                                ctx.i16_type().ptr_type(0),
+                                to_load.to_ptr_value(),
+                                &[indices],
+                                "gep"
+                            );
+                            (
+                                builder.build_load(ctx.i16_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::I16),
+                            )
+                        }
+                        Dtype::U16 => {
+                            let gep = builder.build_gep(
+                                ctx.u16_type().ptr_type(0),
+                                to_load.to_ptr_value(),
+                                &[indices],
+                                "gep"
+                            );
+                            (
+                                builder.build_load(ctx.u16_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::U16),
+                            )
+                        }
+                        Dtype::I32 => {
+                            let gep = builder.build_gep(
+                                ctx.i32_type().ptr_type(0),
+                                to_load.to_ptr_value(),
+                                &[indices],
+                                "gep"
+                            );
+                            (
+                                builder.build_load(ctx.i32_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::I32),
+                            )
+                        }
+                        Dtype::U32 => {
+                            let gep = builder.build_gep(
+                                ctx.u32_type().ptr_type(0),
+                                to_load.to_ptr_value(),
+                                &[indices],
+                                "gep"
+                            );
+                            (
+                                builder.build_load(ctx.u32_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::U32),
+                            )
+                        }
+                        Dtype::I64 => {
+                            let gep = builder.build_gep(
+                                ctx.i64_type().ptr_type(0),
+                                to_load.to_ptr_value(),
+                                &[indices],
+                                "gep"
+                            );
+                            (
+                                builder.build_load(ctx.i64_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::I64),
+                            )
+                        }
+                        Dtype::U64 => {
+                            let gep = builder.build_gep(
+                                ctx.u64_type().ptr_type(0),
+                                to_load.to_ptr_value(),
+                                &[indices],
+                                "gep"
+                            );
+                            (
+                                builder.build_load(ctx.u64_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::U64),
+                            )
+                        }
+                        Dtype::BF16 => {
+                            let gep = builder.build_gep(
+                                ctx.i16_type().ptr_type(0),
+                                to_load.to_ptr_value(),
+                                &[indices],
+                                "gep"
+                            );
+                            (
+                                builder.build_load(ctx.i16_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::BF16),
+                            )
+                        }
+                        Dtype::F16 => {
+                            let gep = builder.build_gep(
+                                ctx.f16_type().ptr_type(0),
+                                to_load.to_ptr_value(),
+                                &[indices],
+                                "gep"
+                            );
+                            (
+                                builder.build_load(ctx.f16_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::F16),
+                            )
+                        }
+                        Dtype::F32 => {
+                            let gep = builder.build_gep(
+                                ctx.f32_type().ptr_type(0),
+                                to_load.to_ptr_value(),
+                                &[indices],
+                                "gep"
+                            );
+                            (
+                                builder.build_load(ctx.f32_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::F32),
+                            )
+                        }
+                        Dtype::F64 => {
+                            let gep = builder.build_gep(
+                                ctx.f64_type().ptr_type(0),
+                                to_load.to_ptr_value(),
+                                &[indices],
+                                "gep"
+                            );
+                            (
+                                builder.build_load(ctx.f64_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::F64),
+                            )
+                        }
+                        Dtype::C32 => todo!(),
+                        Dtype::C64 => todo!(),
+                        Dtype::Isize => {
+                            let gep = builder.build_gep(
+                                ctx.isize_type().ptr_type(0),
+                                to_load.to_ptr_value(),
+                                &[indices],
+                                "gep"
+                            );
+                            (
+                                builder.build_load(ctx.isize_type(), gep, "load"),
+                                PrimitiveType::Dtype(Dtype::Isize),
+                            )
+                        }
+                        Dtype::Usize => todo!(),
+                    }
+                }
             }
         }
         _ => unimplemented!("unsupported type, {}", primitive_type),

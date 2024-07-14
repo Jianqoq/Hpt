@@ -244,7 +244,7 @@ impl StructType {
     }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone, Hash, Eq)]
 pub enum BasicType {
     Bool(BoolType),
     I8(I8Type),

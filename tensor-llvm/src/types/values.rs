@@ -180,7 +180,15 @@ impl BasicValue {
             BasicValue::FunctionPtr(_) => BasicValue::FunctionPtr(FunctionPtrValue::unitialized()),
             BasicValue::Str(_) => BasicValue::Str(StrValue::unitialized()),
             BasicValue::StrPtr(_) => BasicValue::StrPtr(StrPtrValue::unitialized()),
-            BasicValue::Phi(_) => BasicValue::Phi(PhiValue::new(std::ptr::null_mut())),
+            BasicValue::Phi(_) =>
+                BasicValue::Phi(
+                    PhiValue::new(
+                        std::ptr::null_mut(),
+                        BasicType::Void(VoidType {
+                            value: std::ptr::null_mut(),
+                        })
+                    )
+                ),
             BasicValue::Struct(_) => BasicValue::Struct(StructValue::unitialized()),
             BasicValue::StructPtr(_) => BasicValue::StructPtr(StructPtrValue::unitialized()),
             BasicValue::None => BasicValue::None,
@@ -598,12 +606,14 @@ impl FunctionValue {
 #[derive(Debug, PartialEq, Clone, Copy, Eq, Hash)]
 pub struct PhiValue {
     pub(crate) value: LLVMValueRef,
+    pub(crate) type_: BasicType,
 }
 
 impl PhiValue {
-    pub fn new(value: LLVMValueRef) -> Self {
+    pub fn new(value: LLVMValueRef, r#type: BasicType) -> Self {
         Self {
             value,
+            type_: r#type,
         }
     }
 
@@ -626,6 +636,34 @@ impl PhiValue {
                 basic_blocks.as_mut_ptr(),
                 incoming.len() as u32
             );
+        }
+    }
+    pub fn into_int_value(self) -> BasicValue {
+        match self.type_ {
+            BasicType::I8(_) => BasicValue::I8(I8Value::from(self.value)),
+            BasicType::I16(_) => BasicValue::I16(I16Value::from(self.value)),
+            BasicType::I32(_) => BasicValue::I32(I32Value::from(self.value)),
+            BasicType::I64(_) => BasicValue::I64(I64Value::from(self.value)),
+            BasicType::Isize(_) => BasicValue::Isize(IsizeValue::from(self.value)),
+            _ => panic!("Unsupported type, {:?}", self.type_),
+        }
+    }
+    pub fn into_uint_value(self) -> BasicValue {
+        match self.type_ {
+            BasicType::U8(_) => BasicValue::U8(U8Value::from(self.value)),
+            BasicType::U16(_) => BasicValue::U16(U16Value::from(self.value)),
+            BasicType::U32(_) => BasicValue::U32(U32Value::from(self.value)),
+            BasicType::U64(_) => BasicValue::U64(U64Value::from(self.value)),
+            BasicType::Usize(_) => BasicValue::Usize(UsizeValue::from(self.value)),
+            _ => panic!("Unsupported type, {:?}", self.type_),
+        }
+    }
+    pub fn into_float_value(self) -> BasicValue {
+        match self.type_ {
+            BasicType::F16(_) => BasicValue::F16(F16Value::from(self.value)),
+            BasicType::F32(_) => BasicValue::F32(F32Value::from(self.value)),
+            BasicType::F64(_) => BasicValue::F64(F64Value::from(self.value)),
+            _ => panic!("Unsupported type, {:?}", self.type_),
         }
     }
 }

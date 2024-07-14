@@ -715,7 +715,7 @@ impl Builder {
         }
         let name = to_c_str(name);
         let res = unsafe { LLVMBuildPhi(self.builder, ty.inner(), name.as_ptr()) };
-        PhiValue::new(res)
+        PhiValue::new(res, ty)
     }
 
     pub fn build_float_add(&self, lhs: BasicValue, rhs: BasicValue, name: &str) -> BasicValue {

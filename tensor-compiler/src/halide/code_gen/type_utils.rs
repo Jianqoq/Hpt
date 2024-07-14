@@ -102,7 +102,6 @@ pub fn build_cast(
                 Dtype::U32 => builder.build_float_to_unsigned_int(res_type, val, var_name),
                 Dtype::I64 => builder.build_float_to_signed_int(res_type, val, var_name),
                 Dtype::U64 => builder.build_float_to_unsigned_int(res_type, val, var_name),
-
                 _ => panic!("Unsupported cast"),
             }
         _ => panic!("{}", &format!("Unsupported cast {:?}", val)),
