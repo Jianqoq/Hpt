@@ -100,7 +100,9 @@ impl CodeGenVisitor for CodeGen {
     }
 
     fn visit_variable(&mut self, var: &crate::halide::variable::Variable) -> BasicValue {
-        self.bindings[&self.current_fn].find_variable(&var.name).unwrap()
+        self.bindings[&self.current_fn]
+            .find_variable(&var.name)
+            .expect(&format!("variable {} not found", var.name))
     }
 
     fn visit_str(&mut self, string: &crate::halide::exprs::Str) -> BasicValue {

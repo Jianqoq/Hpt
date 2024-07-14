@@ -1152,12 +1152,12 @@ mod tests {
         let n = Variable::make("n");
         let p = Variable::make("p");
 
-        let a = Tensor::placeholder(&[&m, &n], Dtype::BF16, "A");
+        let a = Tensor::placeholder(&[&m, &n], Dtype::F32, "A");
 
-        let c = compute(Dtype::BF16, [&n, &m], "C", |[i, j]| {
+        let c = compute(Dtype::F32, [&n, &m], "C", |[i, j]| {
             a.slice([&i, &j]) + a.slice([&i, &j])
         });
-        let d = compute(Dtype::BF16, [&m, &p], "D", |[i, j]| {
+        let d = compute(Dtype::F32, [&m, &p], "D", |[i, j]| {
             c.slice([&i, &j]) + c.slice([&i, &j])
         });
 

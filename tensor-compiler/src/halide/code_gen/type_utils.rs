@@ -6,7 +6,7 @@ use tensor_llvm::{
 };
 use tensor_types::dtype::Dtype;
 
-use crate::halide::primitive_type::{ Array, PrimitiveType, Ptr };
+use crate::halide::primitive_type::{ PrimitiveType, Ptr };
 
 pub fn dtype_to_llvm(dtype: Dtype, context: &Context) -> BasicType {
     match dtype {
