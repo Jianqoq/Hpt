@@ -16,7 +16,7 @@ macro_rules! register_val_type {
         paste! {
             #[derive(Debug, PartialEq, Copy, Clone, Eq, Hash)]
             pub struct  [<$base_name Value>]  {
-                pub(crate) value: LLVMValueRef,
+                pub value: LLVMValueRef,
             }
 
             impl From<LLVMValueRef> for [<$base_name Value>] {
@@ -235,6 +235,7 @@ impl BasicValue {
             BasicValue::Void(val) => GeneralType::Void(val.to_type()),
             BasicValue::Isize(val) => GeneralType::Isize(val.to_type()),
             BasicValue::Array(val) => GeneralType::Array(val.to_type()),
+            BasicValue::StructPtr(val) => GeneralType::StructPtr(val.to_type()),
             _ => panic!("Type not supported, {:?}", self),
         }
     }

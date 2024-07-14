@@ -283,6 +283,11 @@ impl Display for GeneralType {
             GeneralType::F64(_) => f.write_str("f64"),
             GeneralType::Void(_) => f.write_str("void"),
             GeneralType::Array(_) => f.write_str("array"),
+            GeneralType::Struct(_) => f.write_str("struct"),
+            GeneralType::StructPtr(_) => f.write_str("struct ptr"),
+            GeneralType::Str(_) => f.write_str("str"),
+            GeneralType::Isize(_) => f.write_str("isize"),
+            GeneralType::Usize(_) => f.write_str("usize"),
             _ => write!(f, "unknown"),
         }
     }

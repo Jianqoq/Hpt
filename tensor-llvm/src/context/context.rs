@@ -55,25 +55,6 @@ pub struct Context {
 impl Context {
     pub fn new() -> Self {
         let context = unsafe { LLVMContextCreate() };
-        unsafe {
-            LLVMLinkInMCJIT();
-            let code = LLVM_InitializeNativeTarget();
-            if code == 1 {
-                panic!("Failed to initialize native target");
-            }
-            let code = LLVM_InitializeNativeAsmPrinter();
-            if code == 1 {
-                panic!("Failed to initialize native asm printer");
-            }
-            let code = LLVM_InitializeNativeAsmParser();
-            if code == 1 {
-                panic!("Failed to initialize native asm parser");
-            }
-            let node = LLVM_InitializeNativeDisassembler();
-            if node == 1 {
-                panic!("Failed to initialize native asm printer");
-            }
-        }
         Context { context }
     }
     pub(crate) fn inner(&self) -> *mut LLVMContext {

@@ -5,18 +5,28 @@
 use std::{ alloc::Layout, ffi::{ c_void, CStr }, mem::MaybeUninit, sync::Arc };
 
 use hashbrown::HashMap;
-use llvm_sys::execution_engine::{
-    LLVMCreateGenericValueOfInt,
-    LLVMCreateGenericValueOfPointer,
-    LLVMCreateJITCompilerForModule,
-    LLVMOpaqueGenericValue,
-    LLVMRunFunction,
+use llvm_sys::{
+    execution_engine::{
+        LLVMCreateGenericValueOfInt,
+        LLVMCreateGenericValueOfPointer,
+        LLVMCreateJITCompilerForModule,
+        LLVMGetExecutionEngineTargetData,
+        LLVMLinkInMCJIT,
+        LLVMOpaqueGenericValue,
+        LLVMRunFunction,
+    },
+    target::{
+        LLVM_InitializeNativeAsmParser,
+        LLVM_InitializeNativeAsmPrinter,
+        LLVM_InitializeNativeDisassembler,
+        LLVM_InitializeNativeTarget,
+    },
 };
 use tensor_llvm::{
     builder::builder::Builder,
     context::context::Context,
     engine::engine::ExecutionEngine,
-    types::values::{ BasicValue, FunctionValue },
+    types::values::{ BasicValue, FunctionValue, StructValue },
     utils::to_c_str,
 };
 use tensor_types::{ convertion::Convertor, dtype::Dtype, type_promote::{ FloatOut, NormalOut } };
@@ -60,6 +70,25 @@ impl CodeGen {
             id_fns.insert(cnt, fn_val);
             cnt += 1;
         }
+        unsafe {
+            LLVMLinkInMCJIT();
+            let code = LLVM_InitializeNativeTarget();
+            if code == 1 {
+                panic!("Failed to initialize native target");
+            }
+            let code = LLVM_InitializeNativeAsmPrinter();
+            if code == 1 {
+                panic!("Failed to initialize native asm printer");
+            }
+            let code = LLVM_InitializeNativeAsmParser();
+            if code == 1 {
+                panic!("Failed to initialize native asm parser");
+            }
+            let node = LLVM_InitializeNativeDisassembler();
+            if node == 1 {
+                panic!("Failed to initialize native asm printer");
+            }
+        }
         let mut execution_engine = MaybeUninit::uninit();
         let mut err_string = MaybeUninit::uninit();
         let code = unsafe {
@@ -70,12 +99,18 @@ impl CodeGen {
                 err_string.as_mut_ptr()
             )
         };
+        let target_data = unsafe {
+            LLVMGetExecutionEngineTargetData(execution_engine.assume_init())
+        };
         unsafe {
             if code == 1 {
                 let msg = CStr::from_ptr(err_string.assume_init());
                 panic!("Failed to create JIT compiler: {:?}", msg.to_string_lossy().into_owned());
             }
-            let execution_engine = ExecutionEngine::new(execution_engine.assume_init());
+            let execution_engine = ExecutionEngine::new(
+                execution_engine.assume_init(),
+                target_data
+            );
             CodeGen {
                 ctx,
                 module: _module,
@@ -146,14 +181,20 @@ impl CodeGenVisitor for CodeGen {
             return;
         } else {
             let mut ret = Vec::new();
-            let mut types = Vec::new();
             for i in return_.exprs().iter() {
                 let val = self.visit_expr(i);
-                ret.push(val);
-                types.push(val.to_general_type());
+                ret.push(val.inner());
             }
-            let struct_type = self.ctx.struct_type(&types, false);
-            let struct_val = struct_type.const_named_struct(&ret);
+            let struct_type = self.id_fns[&self.current_fn].ret_type();
+            let value = unsafe {
+                llvm_sys::core::LLVMConstNamedStruct(
+                    struct_type.inner(),
+                    ret.as_mut_ptr(),
+                    ret.len() as u32
+                )
+            };
+            let mut struct_val = StructValue::unitialized();
+            struct_val.value = value;
             self.builder.build_return(Some(BasicValue::Struct(struct_val)))
         }
     }
