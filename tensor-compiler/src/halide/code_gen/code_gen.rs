@@ -800,6 +800,7 @@ impl CodeGenVisitor for CodeGen {
                     PrimitiveType::Array(_) => todo!(),
                     PrimitiveType::Str => todo!(),
                     PrimitiveType::Void => todo!(),
+                    PrimitiveType::Tensor(_) => todo!(),
                 }
             _ => unimplemented!(),
         };
@@ -913,6 +914,7 @@ pub fn load(
                     builder.build_load(ctx.str_ptr_type(), to_load.to_ptr_value(), "load")
                 }
                 PrimitiveType::Void => todo!(),
+                PrimitiveType::Tensor(_) => todo!(),
             }
         }
         _ => unreachable!(),

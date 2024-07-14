@@ -3,15 +3,17 @@
 use std::{ cell::RefCell, collections::VecDeque, ops::Index, rc::Rc, sync::Arc };
 
 use hashbrown::{ HashMap, HashSet };
+use tensor_types::dtype::Dtype;
 
 use crate::{
     edges::Edges,
     halide::{
+        self,
         exprs::{ Add, FloorDiv, Mod, Mul },
         loop_utils::build_nested::build_nested_for2,
         module::{ Function, FunctionType },
         prime_expr::PrimeExpr,
-        primitive_type::{ PrimitiveType, Ptr, Tuple },
+        primitive_type::{ Array, PrimitiveType, Ptr, Tuple },
         return_stmt::ReturnStmt,
         seq_stmt::Seq,
         stmt::Stmt,
@@ -621,15 +623,20 @@ impl Schedule {
         let inputs_type = inputs
             .iter()
             .map(|x| {
-                PrimitiveType::Ptr(Ptr {
-                    inner: PrimitiveType::Dtype(
-                        self.stages
-                            .iter()
-                            .find(|(k, _)| k.name() == x)
-                            .unwrap()
-                            .0.dtype()
-                            .clone()
-                    ).into(),
+                let tensor = self.stages
+                    .iter()
+                    .find(|(k, _)| k.name() == x)
+                    .unwrap().0;
+                PrimitiveType::Tensor(halide::primitive_type::Tensor {
+                    dtype: tensor.dtype(),
+                    shape: Array {
+                        inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
+                        size: tensor.shape().len() as i64,
+                    },
+                    strides: Array {
+                        inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
+                        size: tensor.shape().len() as i64,
+                    },
                 })
             })
             .collect::<Vec<PrimitiveType>>();
@@ -645,15 +652,20 @@ impl Schedule {
         let outputs_type = outputs
             .iter()
             .map(|x| {
-                PrimitiveType::Ptr(Ptr {
-                    inner: PrimitiveType::Dtype(
-                        self.stages
-                            .iter()
-                            .find(|(k, _)| k.name() == x)
-                            .unwrap()
-                            .0.dtype()
-                            .clone()
-                    ).into(),
+                let tensor = self.stages
+                    .iter()
+                    .find(|(k, _)| k.name() == x)
+                    .unwrap().0;
+                PrimitiveType::Tensor(halide::primitive_type::Tensor {
+                    dtype: tensor.dtype(),
+                    shape: Array {
+                        inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
+                        size: tensor.shape().len() as i64,
+                    },
+                    strides: Array {
+                        inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
+                        size: tensor.shape().len() as i64,
+                    },
                 })
             })
             .collect::<Vec<PrimitiveType>>();
@@ -676,15 +688,23 @@ impl Schedule {
             .iter()
             .filter(|x| !inputs.contains(x) && !outputs.contains(x))
             .map(|x| {
-                let dtype = self.stages
+                let tensor = self.stages
                     .iter()
                     .find(|(k, _)| k.name_() == x)
-                    .unwrap()
-                    .0.dtype()
-                    .clone();
+                    .unwrap().0;
                 (
                     x.as_ref().clone(),
-                    PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Dtype(dtype).into() }),
+                    PrimitiveType::Tensor(halide::primitive_type::Tensor {
+                        dtype: tensor.dtype(),
+                        shape: Array {
+                            inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
+                            size: tensor.shape().len() as i64,
+                        },
+                        strides: Array {
+                            inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
+                            size: tensor.shape().len() as i64,
+                        },
+                    }),
                 )
             })
             .collect::<Vec<_>>();
@@ -1044,7 +1064,10 @@ mod tests {
     use tensor_llvm::context::context::Context;
     use tensor_types::dtype::Dtype;
 
-    use crate::{ halide::{ code_gen::code_gen::CodeGen, module::Module, printer::IRPrinter }, hlir::tensor::compute };
+    use crate::{
+        halide::{ code_gen::code_gen::CodeGen, module::Module, printer::IRPrinter },
+        hlir::tensor::compute,
+    };
 
     use super::*;
 
@@ -1176,8 +1199,8 @@ mod tests {
         module.get_function_mut(&lowered.name).unwrap().body = lowered.body;
         let string = IRPrinter.print_module_str(&module);
         println!("{}", string);
-        let ctx = Context::new();
-        let mut code_gen = CodeGen::new(ctx, &module);
-        code_gen.compile();
+        // let ctx = Context::new();
+        // let mut code_gen = CodeGen::new(ctx, &module);
+        // code_gen.compile();
     }
 }

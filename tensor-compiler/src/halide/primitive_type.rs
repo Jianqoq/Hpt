@@ -9,6 +9,7 @@ pub enum PrimitiveType {
     Tuple(Tuple),
     Array(Array),
     Ptr(Ptr),
+    Tensor(Tensor),
     Str,
     Void,
 }
@@ -25,6 +26,13 @@ impl Tuple {
         }
         ctx.struct_type(&inner, false)
     }
+}
+
+#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
+pub struct Tensor {
+    pub dtype: Dtype,
+    pub shape: Array,
+    pub strides: Array,
 }
 
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
@@ -90,6 +98,21 @@ impl PrimitiveType {
                     PrimitiveType::Ptr(_) => { GeneralType::I8Ptr(ctx.i8_type().ptr_type(0)) }
                     PrimitiveType::Str => todo!(),
                     PrimitiveType::Void => todo!(),
+                    PrimitiveType::Tensor(tensor) => {
+                        let struct_type = ctx.struct_type(
+                            &[
+                                GeneralType::I8(ctx.i8_type()),
+                                GeneralType::Array(
+                                    ctx.i64_type().array_type(tensor.shape.size as u64)
+                                ),
+                                GeneralType::Array(
+                                    ctx.i64_type().array_type(tensor.strides.size as u64)
+                                ),
+                            ],
+                            false
+                        );
+                        GeneralType::Struct(struct_type)
+                    }
                 }
             _ => unimplemented!("unimplemented to_llvm_type for {}", self),
         }
@@ -206,6 +229,7 @@ impl Display for PrimitiveType {
             PrimitiveType::Ptr(ptr) => write!(f, "*{}", ptr.inner),
             PrimitiveType::Str => write!(f, "str"),
             PrimitiveType::Void => write!(f, "void"),
+            PrimitiveType::Tensor(tensor) => { write!(f, "Tensor<{}>", tensor.dtype) }
         }
     }
 }
