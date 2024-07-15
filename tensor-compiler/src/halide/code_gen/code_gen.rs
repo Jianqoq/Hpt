@@ -333,7 +333,6 @@ impl Executable {
                 let llvm_fn = self.get_function::<
                     unsafe extern "C" fn(*mut *mut c_void, *mut *mut c_void, *mut *mut c_void)
                 >(func.name.as_str());
-                let first = _inputs.read();
                 llvm_fn(
                     _inputs as *mut *mut c_void,
                     _intermediates as *mut *mut c_void,
@@ -881,7 +880,6 @@ impl CodeGenVisitor for CodeGen {
         let start = self.visit_expr(for_stmt.start());
         let end = self.visit_expr(for_stmt.end());
         let step = self.visit_expr(for_stmt.step());
-
         self.builder.build_unconditional_branch(cond_block);
         self.builder.position_at_end(cond_block);
         self.bindings.get_mut(&self.current_fn).expect("fn not find").push_scope();
@@ -910,7 +908,7 @@ impl CodeGenVisitor for CodeGen {
         self.visit_stmt(for_stmt.stmt());
 
         self.builder.build_unconditional_branch(cond_block);
-        phi.add_incoming(&[(&new_phi, body_block)]);
+        phi.add_incoming(&[(&new_phi, self.builder.get_insert_block())]);
 
         self.builder.position_at_end(end_block);
         self.bindings.get_mut(&self.current_fn).expect("fn not find").pop_scope();
@@ -1267,27 +1265,6 @@ impl CodeGenVisitor for CodeGen {
             .find_type(&val)
             .expect("type not find")
             .clone();
-        // match var_type {
-        //     | PrimitiveType::Dtype(_)
-        //     | PrimitiveType::Tuple(_)
-        //     | PrimitiveType::Array(_)
-        //     | PrimitiveType::Ptr(_) => {
-        //         assert!(
-        //             val_type == var_type,
-        //             "{}",
-        //             format!("type mismatch, {} != {}", val_type, var_type)
-        //         );
-        //     }
-        //     PrimitiveType::Tensor(tensor) => {
-        //         assert!(
-        //             val_type == PrimitiveType::Dtype(tensor.dtype),
-        //             "{}",
-        //             format!("type mismatch, {} != {}", val_type, tensor.dtype)
-        //         );
-        //     }
-        //     PrimitiveType::Str => todo!(),
-        //     PrimitiveType::Void => todo!(),
-        // }
         self.builder.build_store(new_ptr, val);
     }
 
@@ -1630,7 +1607,7 @@ pub fn load(
                                         builder.build_load(
                                         ctx.$dtype(), 
                                         builder.build_gep(
-                                            ctx.$dtype().array_type(arr.size as u64),
+                                            ctx.$dtype(),
                                             to_load.into(),
                                             &[indices],
                                             "load"),

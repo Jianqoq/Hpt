@@ -1199,4 +1199,35 @@ mod tests {
         executable.run(&[exec_a], &[], &[exec_c]);
         println!("{}", tensor_c);
     }
+
+    #[test]
+    fn test_code_gen_2d() {
+        let m = Variable::make("m");
+        let n = Variable::make("n");
+    
+        let a = Tensor::placeholder(&[&m, &n], Dtype::F32, "A");
+    
+        let c = compute(Dtype::F32, [&m, &n], "C", |[i, j]| { a.slice([&i, &j]) });
+    
+        let s = Schedule::create(&[&a, &c]);
+        let lowered = s.lower("main");
+        let mut module = Module::new("main");
+        module.add_function(lowered.ty, &lowered.name);
+        module.get_function_mut(&lowered.name).unwrap().body = lowered.body;
+        IRPrinter.print_module(&module);
+        let ctx = Context::new();
+        let code_gen = CodeGen::new(ctx, &module, 0);
+        let executable = code_gen.compile();
+        executable.print_to_file("test.ll");
+    
+        let tensor_a = tensor_dyn::tensor::Tensor::<f32>
+            ::arange(0f32, 10f32)
+            .unwrap()
+            .reshape(&[2, 5])
+            .unwrap();
+        let tensor_c = tensor_dyn::tensor::Tensor::<f32>::empty(&[2, 5]).unwrap();
+        let exec_a = crate::tensor::Tensor::new(tensor_a.clone().into(), "A");
+        let exec_c = crate::tensor::Tensor::new(tensor_c.clone().into(), "C");
+        executable.run(&[exec_a], &[], &[exec_c]);
+    }
 }

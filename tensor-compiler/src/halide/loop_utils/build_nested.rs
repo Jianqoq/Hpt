@@ -5,9 +5,8 @@ use hashbrown::{ HashMap, HashSet };
 use crate::{
     edges::Edges,
     halide::{
-        exprs::{ Add, Load },
+        exprs::Load,
         for_stmt::For,
-        prime_expr::PrimeExpr,
         seq_stmt::Seq,
         stmt::Stmt,
         store_stmt::StoreStmt,
