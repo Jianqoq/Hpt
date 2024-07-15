@@ -555,33 +555,6 @@ impl Schedule {
         }
     }
 
-    pub fn execute_transforms(&mut self) {
-        while let Some(t) = self.records.pop_front() {
-            let stage = self.stages.get_mut(&t);
-            if let Some(stage) = stage {
-                let transform = stage.transforms
-                    .pop_front()
-                    .expect("Schedule::lower: transform is empty");
-                match transform {
-                    Transforms::Split(axis, inner_loop_size) => {
-                        stage.split(&axis, inner_loop_size);
-                    }
-                    Transforms::Fuse(axis1, axis2) => {
-                        stage.fuse(&axis1, &axis2);
-                    }
-                    Transforms::Reorder(axes) => {
-                        stage.reorder(&axes);
-                    }
-                    Transforms::Inline(_) => todo!(),
-                    Transforms::ComputeAt(_, _) => todo!(),
-                    Transforms::Tile(_) => todo!(),
-                }
-            } else {
-                panic!("Schedule::execute_transforms: tensor does not exist in temps_map");
-            }
-        }
-    }
-
     pub fn to_halide(&self, tensor: &Tensor) -> Stmt {
         let stage = &self[tensor];
         stage.to_halid()
@@ -592,16 +565,6 @@ impl Schedule {
         for stage in self.stages.values() {
             inputs.extend(stage.find_inputs());
         }
-        // for (k, v) in inputs {
-        //     println!(
-        //         "{}: {:?}",
-        //         k,
-        //         v
-        //             .iter()
-        //             .map(|x| x.var.name.clone())
-        //             .collect::<Vec<_>>()
-        //     );
-        // }
         inputs
     }
 
@@ -1228,10 +1191,10 @@ mod tests {
         let mut code_gen = CodeGen::new(ctx, &module, 0);
         code_gen.compile();
 
-        let tensor_a = tensor_dyn::tensor::Tensor::<f32>::arange(0f32, 10f32).unwrap();
-        let tensor_c = tensor_dyn::tensor::Tensor::<f32>::empty(&[10]).unwrap();
-        let exec_a = crate::tensor::Tensor::raw_new(tensor_a.clone().into(), "A");
-        let exec_c = crate::tensor::Tensor::raw_new(tensor_c.clone().into(), "C");
+        // let tensor_a = tensor_dyn::tensor::Tensor::<f32>::arange(0f32, 10f32).unwrap();
+        // let tensor_c = tensor_dyn::tensor::Tensor::<f32>::empty(&[10]).unwrap();
+        // let exec_a = crate::tensor::Tensor::raw_new(tensor_a.clone().into(), "A");
+        // let exec_c = crate::tensor::Tensor::raw_new(tensor_c.clone().into(), "C");
         // code_gen.run(vec![exec_a as *mut c_void, exec_c as *mut c_void]);
         // let func = code_gen.get_function::<
         //     unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void
@@ -1239,6 +1202,6 @@ mod tests {
         // unsafe {
         //     func(exec_a as *mut c_void, exec_c as *mut c_void);
         // }
-        println!("{}", tensor_c);
+        // println!("{}", tensor_c);
     }
 }

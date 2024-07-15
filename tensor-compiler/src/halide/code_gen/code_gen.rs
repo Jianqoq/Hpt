@@ -2,9 +2,15 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
-use std::{ alloc::Layout, ffi::{ c_void, CStr }, mem::MaybeUninit, sync::Arc };
+use std::{
+    alloc::Layout,
+    collections::VecDeque,
+    ffi::{ c_void, CStr },
+    mem::MaybeUninit,
+    sync::Arc,
+};
 
-use hashbrown::HashMap;
+use hashbrown::{ HashMap, HashSet };
 use llvm_sys::{
     execution_engine::{
         LLVMCreateGenericValueOfInt,
@@ -32,10 +38,11 @@ use tensor_llvm::{
 use tensor_types::{ convertion::Convertor, dtype::Dtype, type_promote::{ FloatOut, NormalOut } };
 
 use crate::{
+    edges::Edges,
     halide::{
         code_gen::type_utils::{ build_cast, general_types_to_primitive_type },
         exprs::Load,
-        module::Module,
+        module::{ Function, Module },
         primitive_type::{ Array, PrimitiveType, Ptr },
         printer::IRPrinter,
         traits::CodeGenVisitor,
@@ -57,6 +64,10 @@ pub struct CodeGen {
     halide_module: Module,
     tensor_type: StructValue,
     ee: ExecutionEngine,
+    topo_order: Vec<Function>,
+    inputs: HashSet<Arc<String>>,
+    outputs: HashSet<Arc<String>>,
+    intermediates: HashSet<Arc<String>>,
     buffers: HashMap<usize, (Vec<Tensor>, Vec<Tensor>, Vec<Tensor>)>,
 }
 
@@ -68,7 +79,14 @@ impl CodeGen {
         let mut fns = HashMap::new();
         let mut fns_id = HashMap::new();
         let mut id_fns = HashMap::new();
+        let mut id_f = HashMap::new();
         let mut cnt = 0;
+
+        let mut dependencies = HashMap::new();
+        let mut fn_edges = HashMap::new();
+        let mut intermediates = HashSet::new();
+        let mut inputs = HashSet::new();
+        let mut outputs = HashSet::new();
         for func in module.fns.values() {
             let fn_val = _module.add_function(
                 func.ty.to_llvm_func_type(&ctx, global_tensor),
@@ -77,8 +95,38 @@ impl CodeGen {
             fns.insert(func.name.clone(), fn_val.clone());
             fns_id.insert(fn_val.clone(), cnt);
             id_fns.insert(cnt, fn_val);
+            id_f.insert(cnt, func);
             cnt += 1;
+            func.ty.args[2].iter().for_each(|(name, ty)| {
+                dependencies.insert(name, func);
+            });
+            func.ty.args[1].iter().for_each(|(name, ty)| {
+                intermediates.insert(Arc::new(name.clone()));
+            });
         }
+        for func in module.fns.values() {
+            fn_edges.entry(func).insert(HashSet::new());
+            func.ty.args[0].iter().for_each(|(name, ty)| {
+                if let Some(&dep) = dependencies.get(name) {
+                    fn_edges.entry(func).or_insert_with(HashSet::new).insert(dep);
+                } else {
+                    inputs.insert(Arc::new(name.clone()));
+                }
+            });
+        }
+        for &name in dependencies.keys() {
+            if !intermediates.contains(name) || !inputs.contains(name) {
+                outputs.insert(Arc::new(name.clone()));
+            }
+        }
+        let mut edges = Edges::new();
+        edges.set_inner(fn_edges);
+        let sorted = topo(&edges, &id_f)
+            .expect("cycle detected")
+            .iter()
+            .map(|&x| x.clone())
+            .collect::<Vec<_>>();
+
         unsafe {
             LLVMLinkInMCJIT();
             let code = LLVM_InitializeNativeTarget();
@@ -133,6 +181,10 @@ impl CodeGen {
                 halide_module: module.clone(),
                 tensor_type: global_tensor,
                 ee: execution_engine,
+                topo_order: sorted,
+                inputs,
+                outputs,
+                intermediates,
                 buffers: HashMap::new(),
             }
         }
@@ -145,8 +197,9 @@ impl CodeGen {
     pub fn print_to_file(&self, path: &str) {
         self.module.print_to_file(path).expect("failed to print to file");
     }
-    pub fn run(&self, inputs: Vec<*mut Tensor>, outputs: Vec<*mut Tensor>) {
-        let main_fn = self.fns.get(&"main".to_string()).unwrap();
+    pub fn run(&self, inputs: &[*mut Tensor], outputs: &[*mut Tensor]) {
+        for (name, funcs) in self.halide_module.fns.iter() {
+        }
     }
     pub fn get_function<F>(&self, name: &str) -> F {
         let c_str = to_c_str(name);
@@ -157,6 +210,54 @@ impl CodeGen {
             panic!("{}", &format!("function {} not found", name));
         }
         unsafe { std::mem::transmute_copy::<u64, F>(&address) }
+    }
+}
+
+fn topo<'a>(
+    edges: &'a Edges<&Function>,
+    nodes: &'a HashMap<usize, &Function>
+) -> Option<VecDeque<&'a Function>> {
+    let mut in_degree = HashMap::new();
+    let mut queue = VecDeque::new();
+    let mut order = VecDeque::new();
+    let edges = edges.invert();
+    // calculate in degree
+    for (_, &func) in nodes.iter() {
+        in_degree.entry(func).or_insert(0);
+        let edges = edges.get(func);
+        if let Some(edges) = edges {
+            for &target in edges {
+                *in_degree.entry(target).or_insert(0) += 1;
+            }
+        }
+    }
+
+    // push nodes with in degree 0 to queue
+    for (&node_id, &degree) in &in_degree {
+        if degree == 0 {
+            queue.push_back(node_id);
+        }
+    }
+
+    // topological sort
+    while let Some(node_id) = queue.pop_front() {
+        order.push_back(node_id);
+        if let Some(edges) = edges.get(node_id) {
+            for &target in edges {
+                let degree = in_degree.get_mut(&target).unwrap();
+                *degree -= 1;
+                if *degree == 0 {
+                    queue.push_back(target);
+                }
+            }
+        }
+    }
+
+    // check if there is a cycle
+    if order.len() == nodes.len() {
+        Some(order)
+    } else {
+        None // cycle detected
     }
 }
 
