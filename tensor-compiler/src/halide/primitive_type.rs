@@ -106,10 +106,11 @@ impl PrimitiveType {
                     PrimitiveType::Str => todo!(),
                     PrimitiveType::Void => todo!(),
                     PrimitiveType::Tensor(_) => {
-                        GeneralType::StructPtr(tensor_type.to_type().ptr_type(0))
+                        GeneralType::StructPtr(ctx.tensor_type().ptr_type(0))
                     }
                 }
             PrimitiveType::Tensor(_) => { GeneralType::Struct(tensor_type.to_type()) }
+            PrimitiveType::Void => { GeneralType::Void(ctx.void_type())}
             _ => unimplemented!("unimplemented to_llvm_type for {}", self),
         }
     }

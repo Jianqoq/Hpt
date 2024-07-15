@@ -4,7 +4,6 @@ use hashbrown::{ HashMap, HashSet };
 use tensor_llvm::{
     context::context::Context,
     types::{ general_types::GeneralType, values::StructValue },
-    StructType,
 };
 
 use crate::halide::printer::_IRPrinter;
@@ -13,9 +12,21 @@ use super::{ primitive_type::PrimitiveType, stmt::Stmt };
 
 #[derive(Eq, PartialEq, Clone)]
 pub struct Function {
-    pub(crate) ty: FunctionType,
-    pub(crate) name: Arc<String>,
-    pub(crate) body: Stmt,
+    pub ty: FunctionType,
+    pub name: Arc<String>,
+    pub body: Stmt,
+}
+
+impl Function {
+    pub fn ty(&self) -> &FunctionType {
+        &self.ty
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub fn body(&self) -> &Stmt {
+        &self.body
+    }
 }
 
 impl std::hash::Hash for Function {

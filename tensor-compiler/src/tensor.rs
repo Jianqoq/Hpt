@@ -26,6 +26,7 @@ impl Tensor {
                 strides,
                 tensor.strides().len()
             );
+            println!("shape {:p}", shape);
             let tensor = std::alloc::alloc(Layout::new::<Self>()) as *mut Self;
             std::ptr::write(tensor, Self {
                 ptr,

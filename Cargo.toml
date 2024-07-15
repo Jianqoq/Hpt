@@ -21,7 +21,9 @@ members = [
 [dependencies]
 inkwell = { version = "0.4.0", features = ["llvm17-0"] }
 tensor-allocator = { path = "tensor-allocator" }
+tensor-compiler = { path = "tensor-compiler" }
 tensor-common = { path = "tensor-common" }
+tensor-llvm = { path = "tensor-llvm" }
 tensor-dyn = { path = "tensor-dyn" }
 tensor-traits = { path = "tensor-traits" }
 tensor-types = { path = "tensor-types" }

@@ -27,7 +27,7 @@ use tensor_llvm::{
     context::context::Context,
     engine::engine::ExecutionEngine,
     types::values::{ BasicValue, FunctionValue, StructValue },
-    utils::to_c_str,
+    utils::{ declare_printf, insert_printf, to_c_str },
 };
 use tensor_types::{ convertion::Convertor, dtype::Dtype, type_promote::{ FloatOut, NormalOut } };
 
@@ -116,6 +116,7 @@ impl CodeGen {
                 execution_engine.assume_init(),
                 target_data
             );
+            declare_printf(&ctx, &_module);
             CodeGen {
                 ctx,
                 module: _module,
@@ -177,32 +178,7 @@ impl CodeGenVisitor for CodeGen {
         let return_block = self.ctx.append_basic_block(&self.id_fns[&self.current_fn], "return");
         self.builder.build_unconditional_branch(return_block);
         self.builder.position_at_end(return_block);
-        if return_.exprs().is_empty() {
-            self.builder.build_return(None);
-            return;
-        }
-        if return_.exprs().len() == 1 {
-            let val = self.visit_expr(return_.exprs().first().unwrap());
-            self.builder.build_return(Some(val));
-            return;
-        } else {
-            let mut ret = Vec::new();
-            for i in return_.exprs().iter() {
-                let val = self.visit_expr(i);
-                ret.push(val.inner());
-            }
-            let struct_type = self.id_fns[&self.current_fn].ret_type();
-            let value = unsafe {
-                llvm_sys::core::LLVMConstNamedStruct(
-                    struct_type.inner(),
-                    ret.as_mut_ptr(),
-                    ret.len() as u32
-                )
-            };
-            let mut struct_val = StructValue::unitialized();
-            struct_val.value = value;
-            self.builder.build_return(Some(BasicValue::Struct(struct_val)))
-        }
+        self.builder.build_return(None)
     }
 
     fn visit_tensor_slice(&mut self, slice: &crate::hlir::tensor_slice::TensorSlice) -> BasicValue {
@@ -789,6 +765,7 @@ impl CodeGenVisitor for CodeGen {
             basic_val,
             indices,
             &self.builder,
+            &self.module,
             self.tensor_type,
             &self.ctx
         );
@@ -1025,12 +1002,17 @@ impl CodeGenVisitor for CodeGen {
                                 2,
                                 name
                             );
+                            let loaded = self.builder.build_load(
+                                self.ctx.i64_type().ptr_type(0),
+                                shape_ptr,
+                                "loaded"
+                            );
                             scope_stack.insert_variable(
                                 &Arc::new(format!("{}.shape", name)),
-                                shape_ptr.into()
+                                loaded.into()
                             );
                             scope_stack.insert_type(
-                                shape_ptr.into(),
+                                loaded.into(),
                                 PrimitiveType::Ptr(Ptr {
                                     inner: Arc::new(
                                         PrimitiveType::Array(Array {
@@ -1046,12 +1028,17 @@ impl CodeGenVisitor for CodeGen {
                                 3,
                                 name
                             );
+                            let loaded = self.builder.build_load(
+                                self.ctx.i64_type().ptr_type(0),
+                                strides_ptr,
+                                "loaded"
+                            );
                             scope_stack.insert_variable(
                                 &Arc::new(format!("{}.strides", name)),
-                                strides_ptr.into()
+                                loaded.into()
                             );
                             scope_stack.insert_type(
-                                strides_ptr.into(),
+                                loaded.into(),
                                 PrimitiveType::Ptr(Ptr {
                                     inner: Arc::new(
                                         PrimitiveType::Array(Array {
@@ -1067,12 +1054,17 @@ impl CodeGenVisitor for CodeGen {
                                 0,
                                 name
                             );
+                            let loaded = self.builder.build_load(
+                                self.ctx.void_type().ptr_type(0),
+                                data_ptr,
+                                "loaded"
+                            );
                             scope_stack.insert_variable(
                                 &Arc::new(format!("{}.data", name)),
-                                data_ptr.into()
+                                loaded.into()
                             );
                             scope_stack.insert_type(
-                                data_ptr.into(),
+                                loaded.into(),
                                 PrimitiveType::Ptr(Ptr {
                                     inner: Arc::new(PrimitiveType::Dtype(tensor.dtype)),
                                 })
@@ -1096,6 +1088,7 @@ pub fn load(
     to_load: BasicValue,
     indices: BasicValue,
     builder: &Builder,
+    module: &tensor_llvm::module::module::Module,
     tensor_type: StructValue,
     ctx: &Context
 ) -> (BasicValue, PrimitiveType) {
@@ -1238,12 +1231,20 @@ pub fn load(
                             )
                         }
                         Dtype::F32 => {
+                            insert_printf(
+                                ctx,
+                                builder,
+                                module,
+                                "original: %p + %d\n",
+                                &[to_load.to_ptr_value().into(), indices.into()]
+                            );
                             let gep = builder.build_gep(
                                 ctx.f32_type().ptr_type(0),
                                 to_load.to_ptr_value(),
                                 &[indices],
                                 "gep"
                             );
+                            insert_printf(ctx, builder, module, "gep: %p\n", &[gep.into()]);
                             (
                                 builder.build_load(ctx.f32_type(), gep, "load"),
                                 PrimitiveType::Dtype(Dtype::F32),

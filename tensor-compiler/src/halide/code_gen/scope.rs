@@ -10,6 +10,15 @@ pub struct Scope {
     types: HashMap<BasicValue, PrimitiveType>,
 }
 
+impl Scope {
+    pub fn variables(&self) -> &HashMap<Arc<String>, BasicValue> {
+        &self.variables
+    }
+    pub fn types(&self) -> &HashMap<BasicValue, PrimitiveType> {
+        &self.types
+    }
+}
+
 pub struct ScopeStack {
     scopes: Vec<Scope>,
 }
@@ -63,5 +72,8 @@ impl ScopeStack {
     }
     pub fn pop_scope(&mut self) {
         self.scopes.pop();
+    }
+    pub fn inner(&self) -> &Vec<Scope> {
+        &self.scopes
     }
 }

@@ -727,28 +727,10 @@ impl Schedule {
         args.push(args1);
         args.push(args2);
         args.push(args3);
-        stmts.push(
-            Stmt::Return(
-                ReturnStmt::make(
-                    outputs
-                        .iter()
-                        .map(|x| { Variable::make(&x).into() })
-                        .collect::<Vec<PrimeExpr>>()
-                )
-            )
-        );
+        stmts.push(Stmt::Return(ReturnStmt::make(vec![])));
         let seq = Stmt::Seq(Seq::make(stmts));
         Function {
-            ty: FunctionType::new(
-                if outputs_type.len() == 1 {
-                    outputs_type[0].clone()
-                } else {
-                    PrimitiveType::Tuple(Tuple {
-                        inner: outputs_type.into(),
-                    })
-                },
-                args
-            ),
+            ty: FunctionType::new(PrimitiveType::Void, args),
             body: seq,
             name: name.to_string().into(),
         }
@@ -1230,11 +1212,10 @@ mod tests {
     #[test]
     fn test_codegen() {
         let m = Variable::make("m");
-        let n = Variable::make("n");
 
         let a = Tensor::placeholder(&[&m], Dtype::F32, "A");
 
-        let c = compute(Dtype::F32, [&m], "C", |[_]| { PrimeExpr::None });
+        let c = compute(Dtype::F32, [&m], "C", |[i]| { a.slice([&i]) + a.slice([&i]) });
 
         let s = Schedule::create(&[&a, &c]);
         let lowered = s.lower("main");
@@ -1255,8 +1236,8 @@ mod tests {
         let func = code_gen.get_function::<
             unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void
         >("main");
-        // unsafe {
-        //     func(exec_a as *mut c_void, exec_c as *mut c_void);
-        // }
+        unsafe {
+            func(exec_a as *mut c_void, exec_c as *mut c_void);
+        }
     }
 }

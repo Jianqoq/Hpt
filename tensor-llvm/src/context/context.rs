@@ -68,7 +68,7 @@ impl Context {
     pub fn tensor_type(&self) -> StructType {
         self.struct_type(
             &[
-                GeneralType::I8Ptr(self.i8_type().ptr_type(0)),
+                GeneralType::VoidPtr(self.void_type().ptr_type(0)),
                 GeneralType::I8(self.i8_type()),
                 GeneralType::I64Ptr(self.i64_type().ptr_type(0)),
                 GeneralType::I64Ptr(self.i64_type().ptr_type(0)),
