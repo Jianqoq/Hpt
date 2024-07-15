@@ -47,10 +47,12 @@ impl _IRPrinter {
 
     pub fn print_module(&mut self, module: &Module) {
         println!("module {} {{", module.name);
+        self.indent += 1;
         for import in &module.imports {
-            println!("    import {};", import);
+            println!("import {};", import);
         }
         for func in module.fns.values() {
+            self.do_indent();
             print!("fn {}(", func.name);
             for (i, (name, r#type)) in func.ty.args.iter().flatten().enumerate() {
                 if i != 0 {
@@ -58,10 +60,10 @@ impl _IRPrinter {
                 }
                 print!("{}: {}", name, r#type);
             }
-            print!(") -> {}", func.ty.ret_ty);
-            println!(" {{");
-            print!("{}", _IRPrinter::new(2).print_stmt_str(&func.body));
-            print!("}}");
+            println!(") -> {} {{", func.ty.ret_ty);
+            _IRPrinter::new(self.indent + 1).print_stmt(&func.body);
+            self.do_indent();
+            println!("}}");
         }
         println!("}}");
     }

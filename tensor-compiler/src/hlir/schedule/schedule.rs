@@ -1049,10 +1049,10 @@ mod tests {
         let a = Tensor::placeholder(&[&m, &n], Dtype::I64, "A");
 
         let c = compute(Dtype::BF16, [&n, &m], "C", |[i, j]| {
-            a.slice([&i, &j]) + a.slice([&j, &i])
+            a.slice(&[&i, &j]) + a.slice(&[&j, &i])
         });
         let d = compute(Dtype::BF16, [&m, &p], "D", |[i, j]| {
-            c.slice([&i, &j]) + c.slice([&j, &i])
+            c.slice(&[&i, &j]) + c.slice(&[&j, &i])
         });
 
         let mut s = Schedule::create(&[&a, &c, &d]);
@@ -1071,10 +1071,10 @@ mod tests {
         let a = Tensor::placeholder(&[&m, &n], Dtype::I64, "A");
 
         let c = compute(Dtype::BF16, [&n, &m], "C", |[i, j]| {
-            a.slice([&i, &j]) + a.slice([&j, &i])
+            a.slice(&[&i, &j]) + a.slice(&[&j, &i])
         });
         let d = compute(Dtype::BF16, [&m, &p], "D", |[i, j]| {
-            c.slice([&i, &j]) + c.slice([&j, &i])
+            c.slice(&[&i, &j]) + c.slice(&[&j, &i])
         });
 
         let mut s = Schedule::create(&[&a, &c, &d]);
@@ -1096,10 +1096,10 @@ mod tests {
         let b = Tensor::placeholder(&[&m, &p, &q], Dtype::I64, "B");
 
         let c = compute(Dtype::BF16, [&n, &m], "C", |[i, j]| {
-            a.slice([&i, &j]) + a.slice([&i, &j])
+            a.slice(&[&i, &j]) + a.slice(&[&i, &j])
         });
         let d = compute(Dtype::BF16, [&m, &p, &q], "D", |[i, j, k]| {
-            b.slice([&i, &j, &k]) + b.slice([&(i + 4), &j, &k])
+            b.slice(&[&i, &j, &k]) + b.slice(&[&(i + 4), &j, &k])
         });
 
         let mut s = Schedule::create(&[&a, &c, &d]);
@@ -1121,10 +1121,10 @@ mod tests {
         let a = Tensor::placeholder(&[&m, &n], Dtype::I64, "A");
 
         let c = compute(Dtype::BF16, [&n, &m], "C", |[i, j]| {
-            a.slice([&i, &j]) + a.slice([&i, &j])
+            a.slice(&[&i, &j]) + a.slice(&[&i, &j])
         });
         let d = compute(Dtype::BF16, [&m, &p], "D", |[i, j]| {
-            c.slice([&i, &j]) + c.slice([&i, &j])
+            c.slice(&[&i, &j]) + c.slice(&[&i, &j])
         });
 
         let mut s = Schedule::create(&[&a, &c, &d]);
@@ -1147,10 +1147,10 @@ mod tests {
         let a = Tensor::placeholder(&[&m, &n], Dtype::F32, "A");
 
         let c = compute(Dtype::F32, [&n, &m], "C", |[i, j]| {
-            a.slice([&i, &j]) + a.slice([&i, &j])
+            a.slice(&[&i, &j]) + a.slice(&[&i, &j])
         });
         let d = compute(Dtype::F32, [&m, &p], "D", |[i, j]| {
-            c.slice([&i, &j]) + c.slice([&i, &j])
+            c.slice(&[&i, &j]) + c.slice(&[&i, &j])
         });
 
         let mut s = Schedule::create(&[&a, &c, &d]);
@@ -1180,7 +1180,7 @@ mod tests {
 
         let a = Tensor::placeholder(&[&m], Dtype::F32, "A");
 
-        let c = compute(Dtype::F32, [&m], "C", |[i]| { a.slice([&i]) });
+        let c = compute(Dtype::F32, [&m], "C", |[i]| { a.slice(&[&i]) });
 
         let s = Schedule::create(&[&a, &c]);
         let lowered = s.lower("main");
@@ -1207,7 +1207,7 @@ mod tests {
     
         let a = Tensor::placeholder(&[&m, &n], Dtype::F32, "A");
     
-        let c = compute(Dtype::F32, [&m, &n], "C", |[i, j]| { a.slice([&i, &j]) });
+        let c = compute(Dtype::F32, [&m, &n], "C", |[i, j]| { a.slice(&[&i, &j]) });
     
         let s = Schedule::create(&[&a, &c]);
         let lowered = s.lower("main");
@@ -1229,5 +1229,6 @@ mod tests {
         let exec_a = crate::tensor::Tensor::new(tensor_a.clone().into(), "A");
         let exec_c = crate::tensor::Tensor::new(tensor_c.clone().into(), "C");
         executable.run(&[exec_a], &[], &[exec_c]);
+        println!("{}", tensor_c);
     }
 }
