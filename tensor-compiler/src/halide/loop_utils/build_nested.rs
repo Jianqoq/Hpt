@@ -227,27 +227,38 @@ pub fn build_nested_for_helper(stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -
         }
 
         if let Some(mut seq) = seq {
+            let end: crate::halide::prime_expr::PrimeExpr = iter_vars[idx].borrow().end().clone();
+            let shape = stage
+                .borrow()
+                .root.borrow()
+                .iter()
+                .map(|x| x.borrow().end().clone())
+                .collect::<Vec<_>>();
+            let mut subs_expr = SubstituteExpr::new();
+            for (idx, x) in shape.iter().enumerate() {
+                subs_expr.add_replacement(
+                    x.clone(),
+                    Load::make(Variable::make(&format!("{}.shape", stage.borrow().name)), idx)
+                );
+            }
+            end.accept_mutate(&mut subs_expr);
             if idx == iter_vars.len() - 1 {
                 return Stmt::For(
                     For::make(
                         iter_vars[idx].borrow().var(),
                         iter_vars[idx].borrow().start(),
-                        Load::make(Variable::make(&format!("{}.shape", stage.borrow().name)), idx),
+                        subs_expr.expr(),
                         iter_vars[idx].borrow().step(),
                         Seq::make(seq)
                     )
                 );
             } else {
-                let end = Load::make(
-                    Variable::make(&format!("{}.shape", stage.borrow().name)),
-                    idx
-                );
                 seq.push(build_recursive(idx + 1, stage, iter_vars));
                 return Stmt::For(
                     For::make(
                         iter_vars[idx].borrow().var(),
                         iter_vars[idx].borrow().start(),
-                        end,
+                        subs_expr.expr(),
                         iter_vars[idx].borrow().step(),
                         Seq::make(seq)
                     )
@@ -255,11 +266,29 @@ pub fn build_nested_for_helper(stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -
             }
         } else {
             if iter_vars.len() > 0 && idx == iter_vars.len() - 1 {
+                let end: crate::halide::prime_expr::PrimeExpr = iter_vars[idx]
+                    .borrow()
+                    .end()
+                    .clone();
+                let shape = stage
+                    .borrow()
+                    .root.borrow()
+                    .iter()
+                    .map(|x| x.borrow().end().clone())
+                    .collect::<Vec<_>>();
+                let mut subs_expr = SubstituteExpr::new();
+                for (idx, x) in shape.iter().enumerate() {
+                    subs_expr.add_replacement(
+                        x.clone(),
+                        Load::make(Variable::make(&format!("{}.shape", stage.borrow().name)), idx)
+                    );
+                }
+                end.accept_mutate(&mut subs_expr);
                 return Stmt::For(
                     For::make(
                         iter_vars[idx].borrow().var(),
                         iter_vars[idx].borrow().start(),
-                        Load::make(Variable::make(&format!("{}.shape", stage.borrow().name)), idx),
+                        subs_expr.expr(),
                         iter_vars[idx].borrow().step(),
                         store.unwrap()
                     )
@@ -268,14 +297,32 @@ pub fn build_nested_for_helper(stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -
                 if iter_vars.len() == 0 {
                     return store.unwrap();
                 } else {
+                    let end: crate::halide::prime_expr::PrimeExpr = iter_vars[idx]
+                        .borrow()
+                        .end()
+                        .clone();
+                    let shape = stage
+                        .borrow()
+                        .root.borrow()
+                        .iter()
+                        .map(|x| x.borrow().end().clone())
+                        .collect::<Vec<_>>();
+                    let mut subs_expr = SubstituteExpr::new();
+                    for (idx, x) in shape.iter().enumerate() {
+                        subs_expr.add_replacement(
+                            x.clone(),
+                            Load::make(
+                                Variable::make(&format!("{}.shape", stage.borrow().name)),
+                                idx
+                            )
+                        );
+                    }
+                    end.accept_mutate(&mut subs_expr);
                     return Stmt::For(
                         For::make(
                             iter_vars[idx].borrow().var(),
                             iter_vars[idx].borrow().start(),
-                            Load::make(
-                                Variable::make(&format!("{}.shape", stage.borrow().name)),
-                                idx
-                            ),
+                            subs_expr.expr(),
                             iter_vars[idx].borrow().step(),
                             build_recursive(idx + 1, stage, iter_vars)
                         )
