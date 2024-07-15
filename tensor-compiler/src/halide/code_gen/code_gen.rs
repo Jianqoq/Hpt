@@ -31,13 +31,16 @@ use tensor_llvm::{
 };
 use tensor_types::{ convertion::Convertor, dtype::Dtype, type_promote::{ FloatOut, NormalOut } };
 
-use crate::halide::{
-    code_gen::type_utils::{ build_cast, general_types_to_primitive_type },
-    exprs::Load,
-    module::Module,
-    primitive_type::{ Array, PrimitiveType, Ptr },
-    printer::IRPrinter,
-    traits::CodeGenVisitor,
+use crate::{
+    halide::{
+        code_gen::type_utils::{ build_cast, general_types_to_primitive_type },
+        exprs::Load,
+        module::Module,
+        primitive_type::{ Array, PrimitiveType, Ptr },
+        printer::IRPrinter,
+        traits::CodeGenVisitor,
+    },
+    tensor::Tensor,
 };
 
 use super::scope::ScopeStack;
@@ -54,6 +57,7 @@ pub struct CodeGen {
     halide_module: Module,
     tensor_type: StructValue,
     ee: ExecutionEngine,
+    buffers: HashMap<usize, (Vec<Tensor>, Vec<Tensor>, Vec<Tensor>)>,
 }
 
 impl CodeGen {
@@ -129,6 +133,7 @@ impl CodeGen {
                 halide_module: module.clone(),
                 tensor_type: global_tensor,
                 ee: execution_engine,
+                buffers: HashMap::new(),
             }
         }
     }
@@ -140,26 +145,8 @@ impl CodeGen {
     pub fn print_to_file(&self, path: &str) {
         self.module.print_to_file(path).expect("failed to print to file");
     }
-    pub fn run(&self, inputs: Vec<*mut c_void>) {
+    pub fn run(&self, inputs: Vec<*mut Tensor>, outputs: Vec<*mut Tensor>) {
         let main_fn = self.fns.get(&"main".to_string()).unwrap();
-        unsafe {
-            let layout = Layout::from_size_align(
-                std::mem::size_of::<*mut LLVMOpaqueGenericValue>() * main_fn.num_args(),
-                8
-            ).expect("failed to create layout");
-            let args = std::alloc::alloc(layout);
-            for i in 0..main_fn.num_args() {
-                let ptr = args.add(i * std::mem::size_of::<*mut c_void>());
-                let generic_ptr = LLVMCreateGenericValueOfPointer(inputs[i]);
-                std::ptr::write(ptr as *mut *mut LLVMOpaqueGenericValue, generic_ptr);
-            }
-            let value = LLVMRunFunction(
-                self.ee.inner(),
-                main_fn.inner(),
-                main_fn.num_args() as u32,
-                args as *mut *mut LLVMOpaqueGenericValue
-            ); // REVIEW: usize to u32 ok??
-        }
     }
     pub fn get_function<F>(&self, name: &str) -> F {
         let c_str = to_c_str(name);
@@ -785,7 +772,6 @@ impl CodeGenVisitor for CodeGen {
             .find_type(&basic_val)
             .expect("type not find")
             .clone();
-        IRPrinter.print_expr(store.indices());
         let indices = self.visit_expr(store.indices());
         let new_ptr = match &var_type {
             PrimitiveType::Ptr(ptr) =>
@@ -915,6 +901,9 @@ impl CodeGenVisitor for CodeGen {
                     PrimitiveType::Str => todo!(),
                     PrimitiveType::Void => todo!(),
                     PrimitiveType::Tensor(tensor) => {
+                        let basic_val = self.bindings[&self.current_fn]
+                            .find_variable(&format!("{}.data", var.name))
+                            .expect("var not find");
                         match tensor.dtype {
                             Dtype::Bool => {
                                 self.builder.build_gep(
@@ -1338,9 +1327,7 @@ pub fn load(
                                 &[indices],
                                 "gep"
                             );
-                            insert_printf(ctx, builder, module, "gep: %p\n", &[gep.into()]);
                             let loaded = builder.build_load(ctx.f32_type(), gep, "load");
-                            insert_printf(ctx, builder, module, "load: %f\n", &[loaded.into()]);
                             (loaded, PrimitiveType::Dtype(Dtype::F32))
                         }
                         Dtype::F64 => {

@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(unused_imports)]
 
 use std::{ cell::RefCell, collections::VecDeque, ops::Index, rc::Rc, sync::Arc };
 
@@ -1216,33 +1217,28 @@ mod tests {
 
         let a = Tensor::placeholder(&[&m], Dtype::F32, "A");
 
-        let c = compute(Dtype::F32, [&m], "C", |[i]| { a.slice([&i]) });
+        let c = compute(Dtype::F32, [&m], "C", |[i]| { a.slice([&i]) + a.slice([&i]) });
 
         let s = Schedule::create(&[&a, &c]);
         let lowered = s.lower("main");
         let mut module = Module::new("main");
         module.add_function(lowered.ty, &lowered.name);
         module.get_function_mut(&lowered.name).unwrap().body = lowered.body;
-        let string = IRPrinter.print_module_str(&module);
-        println!("{}", string);
         let ctx = Context::new();
         let mut code_gen = CodeGen::new(ctx, &module, 0);
         code_gen.compile();
-        code_gen.print_to_file("test.ll");
 
-        let tensor_a = tensor_dyn::tensor::Tensor::<f32>::arange(0f32, 2f32).unwrap();
-        let tensor_c = tensor_dyn::tensor::Tensor::<f32>::ones(&[2]).unwrap();
-        println!("{:p}", tensor_a.ptr().ptr);
-        println!("{}", tensor_a);
-        let exec_a = crate::tensor::Tensor::raw_new(tensor_a.clone().into());
-        let exec_c = crate::tensor::Tensor::raw_new(tensor_c.clone().into());
-        let func = code_gen.get_function::<
-            unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void
-        >("main");
-        unsafe {
-            func(exec_a as *mut c_void, exec_c as *mut c_void);
-        }
-        // println!("{}", tensor_a);
+        let tensor_a = tensor_dyn::tensor::Tensor::<f32>::arange(0f32, 10f32).unwrap();
+        let tensor_c = tensor_dyn::tensor::Tensor::<f32>::empty(&[10]).unwrap();
+        let exec_a = crate::tensor::Tensor::raw_new(tensor_a.clone().into(), "A");
+        let exec_c = crate::tensor::Tensor::raw_new(tensor_c.clone().into(), "C");
+        // code_gen.run(vec![exec_a as *mut c_void, exec_c as *mut c_void]);
+        // let func = code_gen.get_function::<
+        //     unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void
+        // >("main");
+        // unsafe {
+        //     func(exec_a as *mut c_void, exec_c as *mut c_void);
+        // }
         println!("{}", tensor_c);
     }
 }
