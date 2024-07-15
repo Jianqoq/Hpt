@@ -227,7 +227,7 @@ impl<T> Clone for Pointer<T> {
     }
 }
 
-impl<T> Index<i64> for Pointer<T> {
+impl<T: Display> Index<i64> for Pointer<T> {
     type Output = T;
     fn index(&self, index: i64) -> &Self::Output {
         unsafe { &*self.ptr.offset(index as isize) }

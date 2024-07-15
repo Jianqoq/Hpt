@@ -914,13 +914,114 @@ impl CodeGenVisitor for CodeGen {
                     PrimitiveType::Array(_) => todo!(),
                     PrimitiveType::Str => todo!(),
                     PrimitiveType::Void => todo!(),
-                    PrimitiveType::Tensor(_) => {
-                        self.builder.build_gep(
-                            self.ctx.void_type().ptr_type(0),
-                            basic_val.to_ptr_value(),
-                            &[indices],
-                            "gep"
-                        )
+                    PrimitiveType::Tensor(tensor) => {
+                        match tensor.dtype {
+                            Dtype::Bool => {
+                                self.builder.build_gep(
+                                    self.ctx.bool_type(),
+                                    basic_val.to_ptr_value(),
+                                    &[indices],
+                                    "gep"
+                                )
+                            }
+                            Dtype::I8 => {
+                                self.builder.build_gep(
+                                    self.ctx.i8_type(),
+                                    basic_val.to_ptr_value(),
+                                    &[indices],
+                                    "gep"
+                                )
+                            }
+                            Dtype::U8 => {
+                                self.builder.build_gep(
+                                    self.ctx.u8_type(),
+                                    basic_val.to_ptr_value(),
+                                    &[indices],
+                                    "gep"
+                                )
+                            }
+                            Dtype::I16 => {
+                                self.builder.build_gep(
+                                    self.ctx.i16_type(),
+                                    basic_val.to_ptr_value(),
+                                    &[indices],
+                                    "gep"
+                                )
+                            }
+                            Dtype::U16 => {
+                                self.builder.build_gep(
+                                    self.ctx.u16_type(),
+                                    basic_val.to_ptr_value(),
+                                    &[indices],
+                                    "gep"
+                                )
+                            }
+                            Dtype::I32 => {
+                                self.builder.build_gep(
+                                    self.ctx.i32_type(),
+                                    basic_val.to_ptr_value(),
+                                    &[indices],
+                                    "gep"
+                                )
+                            }
+                            Dtype::U32 => {
+                                self.builder.build_gep(
+                                    self.ctx.u32_type(),
+                                    basic_val.to_ptr_value(),
+                                    &[indices],
+                                    "gep"
+                                )
+                            }
+                            Dtype::I64 => {
+                                self.builder.build_gep(
+                                    self.ctx.i64_type(),
+                                    basic_val.to_ptr_value(),
+                                    &[indices],
+                                    "gep"
+                                )
+                            }
+                            Dtype::U64 => {
+                                self.builder.build_gep(
+                                    self.ctx.u64_type(),
+                                    basic_val.to_ptr_value(),
+                                    &[indices],
+                                    "gep"
+                                )
+                            }
+                            Dtype::F32 => {
+                                self.builder.build_gep(
+                                    self.ctx.f32_type(),
+                                    basic_val.to_ptr_value(),
+                                    &[indices],
+                                    "gep"
+                                )
+                            }
+                            Dtype::F64 => {
+                                self.builder.build_gep(
+                                    self.ctx.f64_type(),
+                                    basic_val.to_ptr_value(),
+                                    &[indices],
+                                    "gep"
+                                )
+                            }
+                            Dtype::Isize => {
+                                self.builder.build_gep(
+                                    self.ctx.isize_type(),
+                                    basic_val.to_ptr_value(),
+                                    &[indices],
+                                    "gep"
+                                )
+                            }
+                            Dtype::Usize => {
+                                self.builder.build_gep(
+                                    self.ctx.usize_type(),
+                                    basic_val.to_ptr_value(),
+                                    &[indices],
+                                    "gep"
+                                )
+                            }
+                            _ => unimplemented!(),
+                        }
                     }
                 }
             _ => unimplemented!(),
@@ -1100,7 +1201,7 @@ pub fn load(
                     match val {
                         Dtype::Bool => {
                             let gep = builder.build_gep(
-                                ctx.bool_type().ptr_type(0),
+                                ctx.bool_type(),
                                 to_load.to_ptr_value(),
                                 &[indices],
                                 "gep"
@@ -1112,7 +1213,7 @@ pub fn load(
                         }
                         Dtype::I8 => {
                             let gep = builder.build_gep(
-                                ctx.i8_type().ptr_type(0),
+                                ctx.i8_type(),
                                 to_load.to_ptr_value(),
                                 &[indices],
                                 "gep"
@@ -1124,7 +1225,7 @@ pub fn load(
                         }
                         Dtype::U8 => {
                             let gep = builder.build_gep(
-                                ctx.u8_type().ptr_type(0),
+                                ctx.u8_type(),
                                 to_load.to_ptr_value(),
                                 &[indices],
                                 "gep"
@@ -1136,7 +1237,7 @@ pub fn load(
                         }
                         Dtype::I16 => {
                             let gep = builder.build_gep(
-                                ctx.i16_type().ptr_type(0),
+                                ctx.i16_type(),
                                 to_load.to_ptr_value(),
                                 &[indices],
                                 "gep"
@@ -1148,7 +1249,7 @@ pub fn load(
                         }
                         Dtype::U16 => {
                             let gep = builder.build_gep(
-                                ctx.u16_type().ptr_type(0),
+                                ctx.u16_type(),
                                 to_load.to_ptr_value(),
                                 &[indices],
                                 "gep"
@@ -1160,7 +1261,7 @@ pub fn load(
                         }
                         Dtype::I32 => {
                             let gep = builder.build_gep(
-                                ctx.i32_type().ptr_type(0),
+                                ctx.i32_type(),
                                 to_load.to_ptr_value(),
                                 &[indices],
                                 "gep"
@@ -1172,7 +1273,7 @@ pub fn load(
                         }
                         Dtype::U32 => {
                             let gep = builder.build_gep(
-                                ctx.u32_type().ptr_type(0),
+                                ctx.u32_type(),
                                 to_load.to_ptr_value(),
                                 &[indices],
                                 "gep"
@@ -1184,7 +1285,7 @@ pub fn load(
                         }
                         Dtype::I64 => {
                             let gep = builder.build_gep(
-                                ctx.i64_type().ptr_type(0),
+                                ctx.i64_type(),
                                 to_load.to_ptr_value(),
                                 &[indices],
                                 "gep"
@@ -1196,7 +1297,7 @@ pub fn load(
                         }
                         Dtype::U64 => {
                             let gep = builder.build_gep(
-                                ctx.u64_type().ptr_type(0),
+                                ctx.u64_type(),
                                 to_load.to_ptr_value(),
                                 &[indices],
                                 "gep"
@@ -1208,7 +1309,7 @@ pub fn load(
                         }
                         Dtype::BF16 => {
                             let gep = builder.build_gep(
-                                ctx.i16_type().ptr_type(0),
+                                ctx.i16_type(),
                                 to_load.to_ptr_value(),
                                 &[indices],
                                 "gep"
@@ -1220,7 +1321,7 @@ pub fn load(
                         }
                         Dtype::F16 => {
                             let gep = builder.build_gep(
-                                ctx.f16_type().ptr_type(0),
+                                ctx.f16_type(),
                                 to_load.to_ptr_value(),
                                 &[indices],
                                 "gep"
@@ -1231,28 +1332,20 @@ pub fn load(
                             )
                         }
                         Dtype::F32 => {
-                            insert_printf(
-                                ctx,
-                                builder,
-                                module,
-                                "original: %p + %d\n",
-                                &[to_load.to_ptr_value().into(), indices.into()]
-                            );
                             let gep = builder.build_gep(
-                                ctx.f32_type().ptr_type(0),
+                                ctx.f32_type(),
                                 to_load.to_ptr_value(),
                                 &[indices],
                                 "gep"
                             );
                             insert_printf(ctx, builder, module, "gep: %p\n", &[gep.into()]);
-                            (
-                                builder.build_load(ctx.f32_type(), gep, "load"),
-                                PrimitiveType::Dtype(Dtype::F32),
-                            )
+                            let loaded = builder.build_load(ctx.f32_type(), gep, "load");
+                            insert_printf(ctx, builder, module, "load: %f\n", &[loaded.into()]);
+                            (loaded, PrimitiveType::Dtype(Dtype::F32))
                         }
                         Dtype::F64 => {
                             let gep = builder.build_gep(
-                                ctx.f64_type().ptr_type(0),
+                                ctx.f64_type(),
                                 to_load.to_ptr_value(),
                                 &[indices],
                                 "gep"
@@ -1266,7 +1359,7 @@ pub fn load(
                         Dtype::C64 => todo!(),
                         Dtype::Isize => {
                             let gep = builder.build_gep(
-                                ctx.isize_type().ptr_type(0),
+                                ctx.isize_type(),
                                 to_load.to_ptr_value(),
                                 &[indices],
                                 "gep"

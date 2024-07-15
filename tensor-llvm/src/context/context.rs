@@ -69,7 +69,7 @@ impl Context {
         self.struct_type(
             &[
                 GeneralType::VoidPtr(self.void_type().ptr_type(0)),
-                GeneralType::I8(self.i8_type()),
+                GeneralType::I64(self.i64_type()),
                 GeneralType::I64Ptr(self.i64_type().ptr_type(0)),
                 GeneralType::I64Ptr(self.i64_type().ptr_type(0)),
             ],

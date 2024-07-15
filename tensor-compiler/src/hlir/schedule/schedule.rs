@@ -1063,7 +1063,8 @@ pub enum Transforms {
 #[cfg(test)]
 mod tests {
     use std::ffi::c_void;
-
+    use tensor_traits::tensor::TensorInfo;
+    use tensor_traits::shape_manipulate::ShapeManipulate;
     use tensor_llvm::context::context::Context;
     use tensor_traits::tensor::TensorCreator;
     use tensor_types::dtype::Dtype;
@@ -1215,7 +1216,7 @@ mod tests {
 
         let a = Tensor::placeholder(&[&m], Dtype::F32, "A");
 
-        let c = compute(Dtype::F32, [&m], "C", |[i]| { a.slice([&i]) + a.slice([&i]) });
+        let c = compute(Dtype::F32, [&m], "C", |[i]| { a.slice([&i]) });
 
         let s = Schedule::create(&[&a, &c]);
         let lowered = s.lower("main");
@@ -1229,15 +1230,19 @@ mod tests {
         code_gen.compile();
         code_gen.print_to_file("test.ll");
 
-        let tensor_a = tensor_dyn::tensor::Tensor::<f32>::empty(&[10, 10]).unwrap();
-        let tensor_c = tensor_dyn::tensor::Tensor::<f32>::empty(&[10, 10]).unwrap();
-        let exec_a = crate::tensor::Tensor::raw_new(tensor_a);
-        let exec_c = crate::tensor::Tensor::raw_new(tensor_c);
+        let tensor_a = tensor_dyn::tensor::Tensor::<f32>::arange(0f32, 2f32).unwrap();
+        let tensor_c = tensor_dyn::tensor::Tensor::<f32>::ones(&[2]).unwrap();
+        println!("{:p}", tensor_a.ptr().ptr);
+        println!("{}", tensor_a);
+        let exec_a = crate::tensor::Tensor::raw_new(tensor_a.clone().into());
+        let exec_c = crate::tensor::Tensor::raw_new(tensor_c.clone().into());
         let func = code_gen.get_function::<
             unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void
         >("main");
         unsafe {
             func(exec_a as *mut c_void, exec_c as *mut c_void);
         }
+        // println!("{}", tensor_a);
+        println!("{}", tensor_c);
     }
 }
