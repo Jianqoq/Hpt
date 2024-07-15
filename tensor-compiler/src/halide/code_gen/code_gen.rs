@@ -86,11 +86,21 @@ impl CodeGen {
         let mut dependencies = HashMap::new();
         let mut fn_edges = HashMap::new();
         let mut intermediates = HashSet::new();
+        let mut all_nodes = HashSet::new();
         let mut inputs = HashSet::new();
         let mut outputs = HashSet::new();
         for func in module.fns.values() {
             let fn_val = _module.add_function(
-                func.ty.to_llvm_func_type(&ctx, global_tensor),
+                ctx
+                    .void_type()
+                    .fn_type(
+                        &[
+                            ctx.void_type().ptr_type(0).into(),
+                            ctx.void_type().ptr_type(0).into(),
+                            ctx.void_type().ptr_type(0).into(),
+                        ],
+                        false
+                    ),
                 &func.name
             );
             fns.insert(func.name.clone(), fn_val.clone());
@@ -100,9 +110,14 @@ impl CodeGen {
             cnt += 1;
             func.ty.args[2].iter().for_each(|(name, ty)| {
                 dependencies.insert(name, func);
+                all_nodes.insert(name);
             });
             func.ty.args[1].iter().for_each(|(name, ty)| {
                 intermediates.insert(Arc::new(name.clone()));
+                all_nodes.insert(name);
+            });
+            func.ty.args[0].iter().for_each(|(name, ty)| {
+                all_nodes.insert(name);
             });
         }
         for func in module.fns.values() {
@@ -115,7 +130,7 @@ impl CodeGen {
                 }
             });
         }
-        for &name in dependencies.keys() {
+        for &name in &all_nodes {
             if !intermediates.contains(name) || !inputs.contains(name) {
                 outputs.insert(Arc::new(name.clone()));
             }
@@ -1295,94 +1310,106 @@ impl CodeGenVisitor for CodeGen {
         let mut scope_stack = ScopeStack::new();
         let block = self.ctx.append_basic_block(&self.fns[&function.name], "entry");
         self.builder.position_at_end(block);
-        for (idx, (name, arg_ty)) in function.ty.args.iter().flatten().enumerate() {
-            scope_stack.insert_variable(
-                &Arc::new(name.clone()),
-                self.fns[&function.name].get_nth_param(idx)
-            );
-            match arg_ty {
-                PrimitiveType::Ptr(ptr) =>
-                    match ptr.inner.as_ref() {
-                        PrimitiveType::Tensor(tensor) => {
-                            let shape_ptr = self.builder.build_struct_gep(
-                                self.tensor_type.to_type(),
-                                self.fns[&function.name].get_nth_param(idx).into(),
-                                2,
-                                name
-                            );
-                            let loaded = self.builder.build_load(
-                                self.ctx.i64_type().ptr_type(0),
-                                shape_ptr,
-                                "loaded"
-                            );
-                            scope_stack.insert_variable(
-                                &Arc::new(format!("{}.shape", name)),
-                                loaded.into()
-                            );
-                            scope_stack.insert_type(
-                                loaded.into(),
-                                PrimitiveType::Ptr(Ptr {
-                                    inner: Arc::new(
-                                        PrimitiveType::Array(Array {
-                                            inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
-                                            size: tensor.shape.size,
-                                        })
-                                    ),
-                                })
-                            );
-                            let strides_ptr = self.builder.build_struct_gep(
-                                self.tensor_type.to_type(),
-                                self.fns[&function.name].get_nth_param(idx).into(),
-                                3,
-                                name
-                            );
-                            let loaded = self.builder.build_load(
-                                self.ctx.i64_type().ptr_type(0),
-                                strides_ptr,
-                                "loaded"
-                            );
-                            scope_stack.insert_variable(
-                                &Arc::new(format!("{}.strides", name)),
-                                loaded.into()
-                            );
-                            scope_stack.insert_type(
-                                loaded.into(),
-                                PrimitiveType::Ptr(Ptr {
-                                    inner: Arc::new(
-                                        PrimitiveType::Array(Array {
-                                            inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
-                                            size: tensor.strides.size,
-                                        })
-                                    ),
-                                })
-                            );
-                            let data_ptr = self.builder.build_struct_gep(
-                                self.tensor_type.to_type(),
-                                self.fns[&function.name].get_nth_param(idx).into(),
-                                0,
-                                name
-                            );
-                            let loaded = self.builder.build_load(
-                                self.ctx.void_type().ptr_type(0),
-                                data_ptr,
-                                "loaded"
-                            );
-                            scope_stack.insert_variable(
-                                &Arc::new(format!("{}.data", name)),
-                                loaded.into()
-                            );
-                            scope_stack.insert_type(
-                                loaded.into(),
-                                PrimitiveType::Ptr(Ptr {
-                                    inner: Arc::new(PrimitiveType::Dtype(tensor.dtype)),
-                                })
-                            );
+        for (args_idx, vec) in function.ty.args.iter().enumerate() {
+            let args = self.fns[&function.name].get_nth_param(args_idx).to_ptr_value();
+            for (idx, (name, arg_ty)) in vec.iter().enumerate() {
+                let gep = self.builder.build_gep(
+                    self.ctx.void_type().ptr_type(0),
+                    args,
+                    &[
+                        self.ctx
+                            .i32_type()
+                            .const_int(idx as u64, false)
+                            .into(),
+                    ],
+                    "gep"
+                );
+                let loaded = self.builder.build_load(self.ctx.tensor_type().ptr_type(0), gep, name);
+                scope_stack.insert_variable(&Arc::new(name.clone()), loaded);
+                match arg_ty {
+                    PrimitiveType::Ptr(ptr) =>
+                        match ptr.inner.as_ref() {
+                            PrimitiveType::Tensor(tensor) => {
+                                let shape_ptr = self.builder.build_struct_gep(
+                                    self.tensor_type.to_type(),
+                                    loaded.to_ptr_value(),
+                                    2,
+                                    name
+                                );
+                                let shape = self.builder.build_load(
+                                    self.ctx.i64_type().ptr_type(0),
+                                    shape_ptr,
+                                    "loaded"
+                                );
+                                scope_stack.insert_variable(
+                                    &Arc::new(format!("{}.shape", name)),
+                                    shape.into()
+                                );
+                                scope_stack.insert_type(
+                                    shape.into(),
+                                    PrimitiveType::Ptr(Ptr {
+                                        inner: Arc::new(
+                                            PrimitiveType::Array(Array {
+                                                inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
+                                                size: tensor.shape.size,
+                                            })
+                                        ),
+                                    })
+                                );
+                                let strides_ptr = self.builder.build_struct_gep(
+                                    self.tensor_type.to_type(),
+                                    loaded.to_ptr_value(),
+                                    3,
+                                    name
+                                );
+                                let strides = self.builder.build_load(
+                                    self.ctx.i64_type().ptr_type(0),
+                                    strides_ptr,
+                                    "loaded"
+                                );
+                                scope_stack.insert_variable(
+                                    &Arc::new(format!("{}.strides", name)),
+                                    strides.into()
+                                );
+                                scope_stack.insert_type(
+                                    strides.into(),
+                                    PrimitiveType::Ptr(Ptr {
+                                        inner: Arc::new(
+                                            PrimitiveType::Array(Array {
+                                                inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
+                                                size: tensor.strides.size,
+                                            })
+                                        ),
+                                    })
+                                );
+                                let data_ptr = self.builder.build_struct_gep(
+                                    self.tensor_type.to_type(),
+                                    loaded.to_ptr_value(),
+                                    0,
+                                    name
+                                );
+                                let data = self.builder.build_load(
+                                    self.ctx.void_type().ptr_type(0),
+                                    data_ptr,
+                                    "loaded"
+                                );
+                                scope_stack.insert_variable(
+                                    &Arc::new(format!("{}.data", name)),
+                                    data.into()
+                                );
+                                scope_stack.insert_type(
+                                    data.into(),
+                                    PrimitiveType::Ptr(Ptr {
+                                        inner: Arc::new(PrimitiveType::Dtype(tensor.dtype)),
+                                    })
+                                );
+                            }
+                            _ => {}
                         }
-                        _ => {}
-                    }
-                _ => {}
+                    _ => {}
+                }
+                scope_stack.insert_type(loaded, arg_ty.clone());
             }
-            scope_stack.insert_type(self.fns[&function.name].get_nth_param(idx), arg_ty.clone());
         }
         self.bindings.insert(id, scope_stack);
         self.current_fn = id;

@@ -689,8 +689,8 @@ impl Schedule {
             .collect::<Vec<_>>();
         args3.sort();
         args.push(args1);
-        args.push(args2);
         args.push(args3);
+        args.push(args2);
         stmts.push(Stmt::Return(ReturnStmt::make(vec![])));
         let seq = Stmt::Seq(Seq::make(stmts));
         Function {
@@ -1191,17 +1191,11 @@ mod tests {
         let code_gen = CodeGen::new(ctx, &module, 0);
         let executable = code_gen.compile();
 
-        // let tensor_a = tensor_dyn::tensor::Tensor::<f32>::arange(0f32, 10f32).unwrap();
-        // let tensor_c = tensor_dyn::tensor::Tensor::<f32>::empty(&[10]).unwrap();
-        // let exec_a = crate::tensor::Tensor::raw_new(tensor_a.clone().into(), "A");
-        // let exec_c = crate::tensor::Tensor::raw_new(tensor_c.clone().into(), "C");
-        // code_gen.run(vec![exec_a as *mut c_void, exec_c as *mut c_void]);
-        // let func = code_gen.get_function::<
-        //     unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void
-        // >("main");
-        // unsafe {
-        //     func(exec_a as *mut c_void, exec_c as *mut c_void);
-        // }
-        // println!("{}", tensor_c);
+        let tensor_a = tensor_dyn::tensor::Tensor::<f32>::arange(0f32, 10f32).unwrap();
+        let tensor_c = tensor_dyn::tensor::Tensor::<f32>::empty(&[10]).unwrap();
+        let exec_a = crate::tensor::Tensor::new(tensor_a.clone().into(), "A");
+        let exec_c = crate::tensor::Tensor::new(tensor_c.clone().into(), "C");
+        executable.run(&[exec_a], &[], &[exec_c]);
+        println!("{}", tensor_c);
     }
 }
