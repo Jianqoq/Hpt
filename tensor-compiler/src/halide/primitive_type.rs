@@ -17,6 +17,16 @@ pub enum PrimitiveType {
     Str,
     Void,
 }
+
+impl PrimitiveType {
+    pub fn to_tensor(&self) -> Tensor {
+        match self {
+            PrimitiveType::Tensor(tensor) => tensor.clone(),
+            _ => unimplemented!(),
+        }
+    }
+}
+
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Tuple {
     pub inner: Arc<Vec<PrimitiveType>>,

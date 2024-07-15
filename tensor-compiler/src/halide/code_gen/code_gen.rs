@@ -28,6 +28,7 @@ use llvm_sys::{
         LLVM_InitializeNativeTarget,
     },
 };
+use tensor_allocator::CACHE;
 use tensor_llvm::{
     builder::builder::Builder,
     context::context::Context,
@@ -240,6 +241,92 @@ impl Executable {
             panic!("{}", &format!("function {} not found", name));
         }
         unsafe { std::mem::transmute_copy::<u64, F>(&address) }
+    }
+    pub fn run(&self, inputs: &[Tensor], intermediates: &[Tensor], outputs: &[Tensor]) {
+        for input in inputs {
+            if !self.inputs.contains(&input.name) {
+                panic!("input {} not found", input.name);
+            }
+        }
+        for output in outputs {
+            if !self.outputs.contains(&output.name) {
+                panic!("output {} not found", output.name);
+            }
+        }
+        for intermediate in intermediates {
+            if !self.intermediates.contains(&intermediate.name) {
+                panic!("intermediate {} not found", intermediate.name);
+            }
+        }
+        for func in self.sorted.iter() {
+            unsafe {
+                let layout = Layout::from_size_align(
+                    std::mem::size_of::<*mut Tensor>() * func.ty.args[1].len(),
+                    8
+                ).expect("failed to create layout");
+                let _intermediates = std::alloc::alloc(layout) as *mut *mut Tensor;
+                for (idx, (name, ty)) in func.ty.args[1].iter().enumerate() {
+                    let tensor = std::alloc::alloc(Layout::new::<Tensor>()) as *mut Tensor;
+                    let t = intermediates
+                        .iter()
+                        .find(|x| &x.name == name)
+                        .unwrap();
+                    std::ptr::write(tensor, t.clone());
+                    std::ptr::write(_intermediates.add(idx), tensor);
+                }
+                let layout = Layout::from_size_align(
+                    std::mem::size_of::<*mut Tensor>() * func.ty.args[0].len(),
+                    8
+                ).expect("failed to create layout");
+                let _inputs = std::alloc::alloc(layout) as *mut *mut Tensor;
+                for (idx, (name, ty)) in func.ty.args[0].iter().enumerate() {
+                    let tensor = std::alloc::alloc(Layout::new::<Tensor>()) as *mut Tensor;
+                    let t = inputs
+                        .iter()
+                        .find(|x| &x.name == name)
+                        .unwrap();
+                    std::ptr::write(tensor, t.clone());
+                    std::ptr::write(_inputs.add(idx), tensor);
+                }
+                let layout = Layout::from_size_align(
+                    std::mem::size_of::<*mut Tensor>() * func.ty.args[2].len(),
+                    8
+                ).expect("failed to create layout");
+                let _outputs = std::alloc::alloc(layout) as *mut *mut Tensor;
+                for (idx, (name, ty)) in func.ty.args[2].iter().enumerate() {
+                    let tensor = std::alloc::alloc(Layout::new::<Tensor>()) as *mut Tensor;
+                    let t = outputs
+                        .iter()
+                        .find(|x| &x.name == name)
+                        .unwrap();
+                    std::ptr::write(tensor, t.clone());
+                    std::ptr::write(_outputs.add(idx), tensor);
+                }
+                let llvm_fn = self.get_function::<
+                    unsafe extern "C" fn(*mut *mut c_void, *mut *mut c_void, *mut *mut c_void)
+                >(func.name.as_str());
+                llvm_fn(
+                    _inputs as *mut *mut c_void,
+                    _intermediates as *mut *mut c_void,
+                    _outputs as *mut *mut c_void
+                );
+                for (idx, (name, ty)) in func.ty.args[1].iter().enumerate() {
+                    let tensor = std::ptr::read(_intermediates.add(idx));
+                    std::alloc::dealloc(tensor as *mut u8, Layout::new::<Tensor>());
+                }
+                std::alloc::dealloc(_intermediates as *mut u8, layout);
+                for (idx, (name, ty)) in func.ty.args[0].iter().enumerate() {
+                    let tensor = std::ptr::read(_inputs.add(idx));
+                    std::alloc::dealloc(tensor as *mut u8, Layout::new::<Tensor>());
+                }
+                std::alloc::dealloc(_inputs as *mut u8, layout);
+                for (idx, (name, ty)) in func.ty.args[2].iter().enumerate() {
+                    let tensor = std::ptr::read(_outputs.add(idx));
+                    std::alloc::dealloc(tensor as *mut u8, Layout::new::<Tensor>());
+                }
+                std::alloc::dealloc(_outputs as *mut u8, layout);
+            }
+        }
     }
 }
 

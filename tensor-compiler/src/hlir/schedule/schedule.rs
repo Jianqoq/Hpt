@@ -1188,8 +1188,8 @@ mod tests {
         module.add_function(lowered.ty, &lowered.name);
         module.get_function_mut(&lowered.name).unwrap().body = lowered.body;
         let ctx = Context::new();
-        let mut code_gen = CodeGen::new(ctx, &module, 0);
-        code_gen.compile();
+        let code_gen = CodeGen::new(ctx, &module, 0);
+        let executable = code_gen.compile();
 
         // let tensor_a = tensor_dyn::tensor::Tensor::<f32>::arange(0f32, 10f32).unwrap();
         // let tensor_c = tensor_dyn::tensor::Tensor::<f32>::empty(&[10]).unwrap();

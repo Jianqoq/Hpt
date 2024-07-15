@@ -2,6 +2,7 @@ use std::{ alloc::Layout, ffi::c_void };
 use tensor_traits::tensor::TensorInfo;
 use tensor_types::dtype::{ Dtype, TypeCommon };
 
+#[derive(Clone)]
 #[repr(C)]
 pub struct Tensor {
     pub(crate) name: String,
