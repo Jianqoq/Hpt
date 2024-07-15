@@ -1180,7 +1180,7 @@ mod tests {
 
         let a = Tensor::placeholder(&[&m], Dtype::F32, "A");
 
-        let c = compute(Dtype::F32, [&m], "C", |[i]| { a.slice([&i]) + a.slice([&i]) });
+        let c = compute(Dtype::F32, [&m], "C", |[i]| { a.slice([&i]) });
 
         let s = Schedule::create(&[&a, &c]);
         let lowered = s.lower("main");
@@ -1190,6 +1190,7 @@ mod tests {
         let ctx = Context::new();
         let code_gen = CodeGen::new(ctx, &module, 0);
         let executable = code_gen.compile();
+        executable.print_to_file("test.ll");
 
         let tensor_a = tensor_dyn::tensor::Tensor::<f32>::arange(0f32, 10f32).unwrap();
         let tensor_c = tensor_dyn::tensor::Tensor::<f32>::empty(&[10]).unwrap();

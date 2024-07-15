@@ -48,7 +48,7 @@ use crate::{
         printer::IRPrinter,
         traits::CodeGenVisitor,
     },
-    tensor::Tensor,
+    tensor::{ Tensor, _Tensor },
 };
 
 use super::scope::ScopeStack;
@@ -276,50 +276,64 @@ impl Executable {
         for func in self.sorted.iter() {
             unsafe {
                 let layout = Layout::from_size_align(
-                    std::mem::size_of::<*mut Tensor>() * func.ty.args[1].len(),
+                    std::mem::size_of::<*mut _Tensor>() * func.ty.args[1].len(),
                     8
                 ).expect("failed to create layout");
-                let _intermediates = std::alloc::alloc(layout) as *mut *mut Tensor;
+                let _intermediates = std::alloc::alloc(layout) as *mut *mut _Tensor;
                 for (idx, (name, ty)) in func.ty.args[1].iter().enumerate() {
-                    let tensor = std::alloc::alloc(Layout::new::<Tensor>()) as *mut Tensor;
+                    let tensor = std::alloc::alloc(Layout::new::<_Tensor>()) as *mut _Tensor;
                     let t = intermediates
                         .iter()
                         .find(|x| &x.name == name)
                         .unwrap();
-                    std::ptr::write(tensor, t.clone());
+                    (*tensor).ptr = t.ptr as *mut c_void;
+                    (*tensor).dtype = t.dtype;
+                    (*tensor).shape = t.shape;
+                    (*tensor).strides = t.strides;
                     std::ptr::write(_intermediates.add(idx), tensor);
                 }
                 let layout = Layout::from_size_align(
-                    std::mem::size_of::<*mut Tensor>() * func.ty.args[0].len(),
+                    std::mem::size_of::<*mut _Tensor>() * func.ty.args[0].len(),
                     8
                 ).expect("failed to create layout");
-                let _inputs = std::alloc::alloc(layout) as *mut *mut Tensor;
+                let _inputs = std::alloc::alloc(layout) as *mut *mut _Tensor;
                 for (idx, (name, ty)) in func.ty.args[0].iter().enumerate() {
-                    let tensor = std::alloc::alloc(Layout::new::<Tensor>()) as *mut Tensor;
+                    let tensor = std::alloc::alloc(
+                        Layout::from_size_align(std::mem::size_of::<_Tensor>(), 8).expect("")
+                    ) as *mut _Tensor;
                     let t = inputs
                         .iter()
                         .find(|x| &x.name == name)
                         .unwrap();
-                    std::ptr::write(tensor, t.clone());
+                    (*tensor).ptr = t.ptr;
+                    (*tensor).dtype = t.dtype;
+                    (*tensor).shape = t.shape;
+                    (*tensor).dtype = t.dtype;
+                    println!("ptr: {:?}", tensor);
+                    println!("shape ptr: {:?}, t shape: {:?}", (*tensor).shape, t.shape);
                     std::ptr::write(_inputs.add(idx), tensor);
                 }
                 let layout = Layout::from_size_align(
-                    std::mem::size_of::<*mut Tensor>() * func.ty.args[2].len(),
+                    std::mem::size_of::<*mut _Tensor>() * func.ty.args[2].len(),
                     8
                 ).expect("failed to create layout");
-                let _outputs = std::alloc::alloc(layout) as *mut *mut Tensor;
+                let _outputs = std::alloc::alloc(layout) as *mut *mut _Tensor;
                 for (idx, (name, ty)) in func.ty.args[2].iter().enumerate() {
-                    let tensor = std::alloc::alloc(Layout::new::<Tensor>()) as *mut Tensor;
+                    let tensor = std::alloc::alloc(Layout::new::<_Tensor>()) as *mut _Tensor;
                     let t = outputs
                         .iter()
                         .find(|x| &x.name == name)
                         .unwrap();
-                    std::ptr::write(tensor, t.clone());
+                    (*tensor).ptr = t.ptr;
+                    (*tensor).dtype = t.dtype;
+                    (*tensor).shape = t.shape;
+                    (*tensor).dtype = t.dtype;
                     std::ptr::write(_outputs.add(idx), tensor);
                 }
                 let llvm_fn = self.get_function::<
                     unsafe extern "C" fn(*mut *mut c_void, *mut *mut c_void, *mut *mut c_void)
                 >(func.name.as_str());
+                let first = _inputs.read();
                 llvm_fn(
                     _inputs as *mut *mut c_void,
                     _intermediates as *mut *mut c_void,
@@ -327,17 +341,17 @@ impl Executable {
                 );
                 for (idx, (name, ty)) in func.ty.args[1].iter().enumerate() {
                     let tensor = std::ptr::read(_intermediates.add(idx));
-                    std::alloc::dealloc(tensor as *mut u8, Layout::new::<Tensor>());
+                    std::alloc::dealloc(tensor as *mut u8, Layout::new::<_Tensor>());
                 }
                 std::alloc::dealloc(_intermediates as *mut u8, layout);
                 for (idx, (name, ty)) in func.ty.args[0].iter().enumerate() {
                     let tensor = std::ptr::read(_inputs.add(idx));
-                    std::alloc::dealloc(tensor as *mut u8, Layout::new::<Tensor>());
+                    std::alloc::dealloc(tensor as *mut u8, Layout::new::<_Tensor>());
                 }
                 std::alloc::dealloc(_inputs as *mut u8, layout);
                 for (idx, (name, ty)) in func.ty.args[2].iter().enumerate() {
                     let tensor = std::ptr::read(_outputs.add(idx));
-                    std::alloc::dealloc(tensor as *mut u8, Layout::new::<Tensor>());
+                    std::alloc::dealloc(tensor as *mut u8, Layout::new::<_Tensor>());
                 }
                 std::alloc::dealloc(_outputs as *mut u8, layout);
             }
@@ -1325,6 +1339,13 @@ impl CodeGenVisitor for CodeGen {
                     "gep"
                 );
                 let loaded = self.builder.build_load(self.ctx.tensor_type().ptr_type(0), gep, name);
+                insert_printf(
+                    &self.ctx,
+                    &self.builder,
+                    &self.module,
+                    "loaded tensor: %p\n",
+                    &[loaded]
+                );
                 scope_stack.insert_variable(&Arc::new(name.clone()), loaded);
                 match arg_ty {
                     PrimitiveType::Ptr(ptr) =>

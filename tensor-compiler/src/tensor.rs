@@ -12,6 +12,14 @@ pub struct Tensor {
     pub(crate) strides: *mut i64,
 }
 
+#[repr(C)]
+pub struct _Tensor {
+    pub(crate) ptr: *mut c_void,
+    pub(crate) dtype: Dtype,
+    pub(crate) shape: *mut i64,
+    pub(crate) strides: *mut i64,
+}
+
 impl Tensor {
     pub fn new<T: TypeCommon>(tensor: tensor_dyn::tensor::Tensor<T>, name: &str) -> Self {
         let ptr = tensor.ptr().ptr as *mut c_void;
