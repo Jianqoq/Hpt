@@ -1169,9 +1169,9 @@ mod tests {
         let string = IRPrinter.print_module_str(&module);
         println!("{}", string);
         let ctx = Context::new();
-        let mut code_gen = CodeGen::new(ctx, &module, 0);
-        code_gen.compile();
-        code_gen.print_to_file("test.ll");
+        let code_gen = CodeGen::new(ctx, &module, 0);
+        let executable = code_gen.compile();
+        executable.print_to_file("test.ll");
     }
 
     #[test]

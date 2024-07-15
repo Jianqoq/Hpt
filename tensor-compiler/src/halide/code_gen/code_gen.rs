@@ -190,17 +190,47 @@ impl CodeGen {
         }
     }
 
-    pub fn compile(&mut self) {
+    pub fn compile(mut self) -> Executable {
         let module = self.halide_module.clone();
         self.visit_module(&module);
-    }
-    pub fn print_to_file(&self, path: &str) {
-        self.module.print_to_file(path).expect("failed to print to file");
+        Executable {
+            ee: self.ee,
+            inputs: self.inputs,
+            outputs: self.outputs,
+            intermediates: self.intermediates,
+            fns: self.fns
+                .keys()
+                .map(|x| x.clone())
+                .collect(),
+            sorted: self.topo_order,
+            ctx: self.ctx,
+            module: self.module,
+            builder: self.builder,
+        }
     }
     pub fn run(&self, inputs: &[*mut Tensor], outputs: &[*mut Tensor]) {
         for (name, funcs) in self.halide_module.fns.iter() {
         }
     }
+}
+
+pub struct Executable {
+    pub ctx: Context,
+    pub module: tensor_llvm::module::module::Module,
+    pub builder: Builder,
+    pub ee: ExecutionEngine,
+    pub inputs: HashSet<Arc<String>>,
+    pub outputs: HashSet<Arc<String>>,
+    pub intermediates: HashSet<Arc<String>>,
+    pub fns: HashSet<Arc<String>>,
+    pub sorted: Vec<Function>,
+}
+
+impl Executable {
+    pub fn print_to_file(&self, path: &str) {
+        self.module.print_to_file(path).expect("failed to print to file");
+    }
+
     pub fn get_function<F>(&self, name: &str) -> F {
         let c_str = to_c_str(name);
         let address = unsafe {
