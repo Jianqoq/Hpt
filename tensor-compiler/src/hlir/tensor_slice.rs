@@ -3,7 +3,7 @@ use half::{ f16, bf16 };
 use tensor_macros::impl_tensor_slice_std_ops;
 
 use crate::halide::{
-    exprs::{ Add, Div, Load, Mod, Mul, Sub },
+    exprs::{ Add, Div, Load, Rem, Mul, Sub },
     prime_expr::PrimeExpr,
     variable::Variable,
 };

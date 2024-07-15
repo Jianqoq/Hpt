@@ -686,7 +686,7 @@ impl CodeGenVisitor for CodeGen {
         res
     }
 
-    fn visit_mod(&mut self, mod_: &crate::halide::exprs::Mod) -> BasicValue {
+    fn visit_mod(&mut self, mod_: &crate::halide::exprs::Rem) -> BasicValue {
         todo!()
     }
 

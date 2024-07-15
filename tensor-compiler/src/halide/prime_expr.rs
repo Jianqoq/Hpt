@@ -23,7 +23,7 @@ pub enum PrimeExpr {
     Sub(Sub),
     Mul(Mul),
     Div(Div),
-    Mod(Mod),
+    Rem(Rem),
     Min(Min),
     Max(Max),
     FloorDiv(FloorDiv),
@@ -100,7 +100,7 @@ impl PrimeExpr {
     }
 
     pub const fn is_mod(&self) -> bool {
-        matches!(self, PrimeExpr::Mod(_))
+        matches!(self, PrimeExpr::Rem(_))
     }
 
     pub const fn is_int(&self) -> bool {
@@ -120,7 +120,7 @@ impl PrimeExpr {
             PrimeExpr::Mul(_) => PrimeType::Mul,
             PrimeExpr::Div(_) => PrimeType::Div,
             PrimeExpr::FloorDiv(_) => PrimeType::FloorDiv,
-            PrimeExpr::Mod(_) => PrimeType::Mod,
+            PrimeExpr::Rem(_) => PrimeType::Mod,
             PrimeExpr::Min(_) => PrimeType::Min,
             PrimeExpr::Max(_) => PrimeType::Max,
             PrimeExpr::Eq(_) => PrimeType::Eq,
@@ -146,7 +146,7 @@ impl PrimeExpr {
     const fn precedence(&self) -> i32 {
         match self {
             PrimeExpr::Add(_) | PrimeExpr::Sub(_) => 1,
-            PrimeExpr::Mul(_) | PrimeExpr::Div(_) | PrimeExpr::Mod(_) => 2,
+            PrimeExpr::Mul(_) | PrimeExpr::Div(_) | PrimeExpr::Rem(_) => 2,
             _ => 3,
         }
     }
@@ -166,7 +166,7 @@ impl PrimeExpr {
             PrimeExpr::Div(a) => format!("{} / {}", a.e1().print(prec), a.e2().print(prec + 1)),
             PrimeExpr::FloorDiv(a) =>
                 format!("{} // {}", a.e1().print(prec), a.e2().print(prec + 1)),
-            PrimeExpr::Mod(a) => format!("{} % {}", a.e1().print(prec), a.e2().print(prec + 1)),
+            PrimeExpr::Rem(a) => format!("{} % {}", a.e1().print(prec), a.e2().print(prec + 1)),
             PrimeExpr::Min(a) => a.to_string(),
             PrimeExpr::Max(a) => a.to_string(),
             PrimeExpr::Eq(a) => a.to_string(),
@@ -203,7 +203,7 @@ impl PrimeExpr {
     cast_expr!(to_sub, Sub);
     cast_expr!(to_mul, Mul);
     cast_expr!(to_div, Div);
-    cast_expr!(to_mod, Mod);
+    cast_expr!(to_mod, Rem);
     cast_expr!(to_min, Min);
     cast_expr!(to_max, Max);
     cast_expr!(to_eq, Eq);
@@ -370,7 +370,7 @@ impl std::ops::Rem for PrimeExpr {
     type Output = PrimeExpr;
 
     fn rem(self, rhs: PrimeExpr) -> Self::Output {
-        PrimeExpr::Mod(Mod::make(self, rhs))
+        PrimeExpr::Rem(Rem::make(self, rhs))
     }
 }
 
@@ -378,7 +378,7 @@ impl std::ops::Rem<&PrimeExpr> for &PrimeExpr {
     type Output = PrimeExpr;
 
     fn rem(self, rhs: &PrimeExpr) -> Self::Output {
-        PrimeExpr::Mod(Mod::make(self, rhs))
+        PrimeExpr::Rem(Rem::make(self, rhs))
     }
 }
 

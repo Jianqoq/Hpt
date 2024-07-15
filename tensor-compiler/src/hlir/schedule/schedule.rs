@@ -10,7 +10,7 @@ use crate::{
     edges::Edges,
     halide::{
         self,
-        exprs::{ Add, FloorDiv, Mod, Mul },
+        exprs::{ Add, FloorDiv, Rem, Mul },
         loop_utils::build_nested::build_nested_for2,
         module::{ Function, FunctionType },
         prime_expr::PrimeExpr,
@@ -569,11 +569,29 @@ impl Schedule {
     }
 
     pub fn lower(&self, name: &str) -> Function {
-        let mut stmts = self.stages
-            .values()
+        let mut deps = HashMap::new();
+        let mut all_nodes = HashSet::new();
+        self.stages.values().for_each(|x| {
+            deps.entry(&x.name).or_insert(HashSet::new()).extend(x.inputs.iter());
+            all_nodes.extend(x.inputs.iter());
+            all_nodes.insert(&x.name);
+        });
+        let mut edges = Edges::new();
+        edges.set_inner(deps);
+        let sorted = topo2(&edges, &all_nodes).expect("cycle detected");
+        let mut stmts = sorted
+            .iter()
+            .map(
+                |&x|
+                    self.stages
+                        .iter()
+                        .find(|(k, _)| k.name() == x.as_ref())
+                        .unwrap().1
+            )
             .filter(|x| x.inputs.len() > 0 && x.freezed_leaf.borrow().len() == 0)
             .map(|x| x.to_halid())
             .collect::<Vec<_>>();
+
         let edges = self.build_edges();
         let nodes = self.stages
             .iter()
@@ -935,7 +953,7 @@ pub fn gen_indices(shape: &Vec<Rc<RefCell<Node>>>) {
                             &fused.var,
                             m[&rhs].borrow().end().clone()
                         ).into();
-                        rhs_expr = Mod::make(&fused.var, m[&rhs].borrow().end()).into();
+                        rhs_expr = Rem::make(&fused.var, m[&rhs].borrow().end()).into();
                         expr_map.insert(i, fused.var.clone().into());
                     }
                     expr_map.insert(rhs, rhs_expr);
@@ -1001,6 +1019,54 @@ fn topo(
                     if *degree == 0 {
                         queue.push_back(target);
                     }
+                }
+            }
+        }
+    }
+
+    // check if there is a cycle
+    if order.len() == nodes.len() {
+        Some(order)
+    } else {
+        None // cycle detected
+    }
+}
+
+fn topo2<'a>(
+    edges: &'a Edges<&Arc<String>>,
+    nodes: &'a HashSet<&Arc<String>>
+) -> Option<VecDeque<&'a Arc<String>>> {
+    let mut in_degree = HashMap::new();
+    let mut queue = VecDeque::new();
+    let mut order = VecDeque::new();
+    let edges = edges.invert();
+    // calculate in degree
+    for &node_id in nodes.iter() {
+        in_degree.entry(node_id).or_insert(0);
+        let edges = edges.get(&node_id);
+        if let Some(edges) = edges {
+            for &target in edges {
+                *in_degree.entry(target).or_insert(0) += 1;
+            }
+        }
+    }
+
+    // push nodes with in degree 0 to queue
+    for (&node_id, &degree) in &in_degree {
+        if degree == 0 {
+            queue.push_back(node_id);
+        }
+    }
+
+    // topological sort
+    while let Some(node_id) = queue.pop_front() {
+        order.push_back(node_id);
+        if let Some(edges) = edges.get(&node_id) {
+            for &target in edges {
+                let degree = in_degree.get_mut(&target).unwrap();
+                *degree -= 1;
+                if *degree == 0 {
+                    queue.push_back(target);
                 }
             }
         }
@@ -1204,11 +1270,11 @@ mod tests {
     fn test_code_gen_2d() {
         let m = Variable::make("m");
         let n = Variable::make("n");
-    
+
         let a = Tensor::placeholder(&[&m, &n], Dtype::F32, "A");
-    
+
         let c = compute(Dtype::F32, [&m, &n], "C", |[i, j]| { a.slice(&[&i, &j]) });
-    
+
         let s = Schedule::create(&[&a, &c]);
         let lowered = s.lower("main");
         let mut module = Module::new("main");
@@ -1219,7 +1285,7 @@ mod tests {
         let code_gen = CodeGen::new(ctx, &module, 0);
         let executable = code_gen.compile();
         executable.print_to_file("test.ll");
-    
+
         let tensor_a = tensor_dyn::tensor::Tensor::<f32>
             ::arange(0f32, 10f32)
             .unwrap()

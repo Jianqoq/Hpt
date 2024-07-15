@@ -10,7 +10,7 @@ use tensor_types::{ dtype::Dtype, type_promote::NormalOut };
 use crate::{
     halide::{
         assign_stmt::AssignStmt,
-        exprs::{ Add, And, Div, Float, Gt, Int, Load, Lt, Max, Min, Mod, Mul, Or, Sub, UInt, Xor },
+        exprs::{ Add, And, Div, Float, Gt, Int, Load, Lt, Max, Min, Rem, Mul, Or, Sub, UInt, Xor },
         if_stmt::IfThenElse,
         inplace_store_stmt::InplaceAdd,
         let_stmt::LetStmt,
@@ -77,12 +77,12 @@ pub fn dtype_neg_inf(dtype: Dtype) -> PrimeExpr {
 
 #[derive(Clone)]
 pub struct Tensor {
-    shape: Arc<Vec<IterVar>>,
-    strides: Arc<Vec<usize>>,
-    body: PrimeExpr,
-    name: Arc<String>,
-    inputs: Arc<Vec<TensorSlice>>,
-    dtype: Dtype,
+    pub(crate) shape: Arc<Vec<IterVar>>,
+    pub(crate) strides: Arc<Vec<usize>>,
+    pub(crate) body: PrimeExpr,
+    pub(crate) name: Arc<String>,
+    pub(crate) inputs: Arc<Vec<TensorSlice>>,
+    pub(crate) dtype: Dtype,
 }
 
 impl std::fmt::Debug for Tensor {
@@ -388,7 +388,7 @@ impl Tensor {
     impl_binops!(Mul, mul, _mul, "{}_mul_{}");
     impl_binops!(Div, div, _div, "{}_div_{}");
     impl_binops!(Sub, sub, _sub, "{}_sub_{}");
-    impl_binops!(Mod, rem, _rem, "{}_rem_{}");
+    impl_binops!(Rem, rem, _rem, "{}_rem_{}");
     impl_binops!(And, and, _and, "{}_and_{}");
     impl_binops!(Or, or, _or, "{}_or_{}");
     impl_binops!(Xor, xor, _xor, "{}_xor_{}");

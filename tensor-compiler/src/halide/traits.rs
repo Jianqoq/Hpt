@@ -33,7 +33,7 @@ pub trait IRVisitor where Self: Sized {
             PrimeExpr::Mul(mul) => self.visit_mul(&mul),
             PrimeExpr::Div(div) => self.visit_div(&div),
             PrimeExpr::FloorDiv(floor_div) => self.visit_floor_div(&floor_div),
-            PrimeExpr::Mod(r#mod) => self.visit_mod(&r#mod),
+            PrimeExpr::Rem(r#mod) => self.visit_mod(&r#mod),
             PrimeExpr::Min(min) => self.visit_min(&min),
             PrimeExpr::Max(max) => self.visit_max(&max),
             PrimeExpr::Eq(eq) => self.visit_eq(&eq),
@@ -121,7 +121,7 @@ pub trait IRVisitor where Self: Sized {
         floor_div.e1().accept(self);
         floor_div.e2().accept(self);
     }
-    fn visit_mod(&self, mod_: &Mod) {
+    fn visit_mod(&self, mod_: &Rem) {
         mod_.e1().accept(self);
         mod_.e2().accept(self);
     }
@@ -256,7 +256,7 @@ pub trait IRMutVisitor where Self: Sized {
             PrimeExpr::Mul(mul) => self.visit_mul(&mul),
             PrimeExpr::Div(div) => self.visit_div(&div),
             PrimeExpr::FloorDiv(floor_div) => self.visit_floor_div(&floor_div),
-            PrimeExpr::Mod(r#mod) => self.visit_mod(&r#mod),
+            PrimeExpr::Rem(r#mod) => self.visit_mod(&r#mod),
             PrimeExpr::Min(min) => self.visit_min(&min),
             PrimeExpr::Max(max) => self.visit_max(&max),
             PrimeExpr::Eq(eq) => self.visit_eq(&eq),
@@ -344,7 +344,7 @@ pub trait IRMutVisitor where Self: Sized {
         floor_div.e1().accept_mut(self);
         floor_div.e2().accept_mut(self);
     }
-    fn visit_mod(&mut self, mod_: &Mod) {
+    fn visit_mod(&mut self, mod_: &Rem) {
         mod_.e1().accept_mut(self);
         mod_.e2().accept_mut(self);
     }
@@ -523,7 +523,7 @@ pub(crate) fn visit_expr<V>(visitor: &mut V, expr: &PrimeExpr)
         PrimeExpr::Mul(mul) => visitor.visit_mul(&mul),
         PrimeExpr::Div(div) => visitor.visit_div(&div),
         PrimeExpr::FloorDiv(floor_div) => visitor.visit_floor_div(&floor_div),
-        PrimeExpr::Mod(r#mod) => visitor.visit_mod(&r#mod),
+        PrimeExpr::Rem(r#mod) => visitor.visit_mod(&r#mod),
         PrimeExpr::Min(min) => visitor.visit_min(&min),
         PrimeExpr::Max(max) => visitor.visit_max(&max),
         PrimeExpr::Eq(eq) => visitor.visit_eq(&eq),
@@ -641,10 +641,10 @@ pub(crate) fn visit_floor_div<V>(visitor: &mut V, floor_div: &FloorDiv)
     mutate_binop!(visitor, floor_div, FloorDiv);
 }
 
-pub(crate) fn visit_mod<V>(visitor: &mut V, mod_: &Mod)
+pub(crate) fn visit_mod<V>(visitor: &mut V, mod_: &Rem)
     where V: MutatorGetSet + Sized + IRMutateVisitor
 {
-    mutate_binop!(visitor, mod_, Mod);
+    mutate_binop!(visitor, mod_, Rem);
 }
 
 pub(crate) fn visit_min<V>(visitor: &mut V, min: &Min)
@@ -1087,7 +1087,7 @@ pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     fn visit_floor_div(&mut self, floor_div: &FloorDiv) {
         visit_floor_div(self, floor_div);
     }
-    fn visit_mod(&mut self, mod_: &Mod) {
+    fn visit_mod(&mut self, mod_: &Rem) {
         visit_mod(self, mod_);
     }
     fn visit_min(&mut self, min: &Min) {
@@ -1196,7 +1196,7 @@ pub trait CodeGenVisitor where Self: Sized {
             PrimeExpr::Mul(mul) => self.visit_mul(&mul),
             PrimeExpr::Div(div) => self.visit_div(&div),
             PrimeExpr::FloorDiv(floor_div) => self.visit_floor_div(&floor_div),
-            PrimeExpr::Mod(r#mod) => self.visit_mod(&r#mod),
+            PrimeExpr::Rem(r#mod) => self.visit_mod(&r#mod),
             PrimeExpr::Min(min) => self.visit_min(&min),
             PrimeExpr::Max(max) => self.visit_max(&max),
             PrimeExpr::Eq(eq) => self.visit_eq(&eq),
@@ -1256,7 +1256,7 @@ pub trait CodeGenVisitor where Self: Sized {
     fn visit_mul(&mut self, mul: &Mul) -> BasicValue;
     fn visit_div(&mut self, div: &Div) -> BasicValue;
     fn visit_floor_div(&mut self, floor_div: &FloorDiv) -> BasicValue;
-    fn visit_mod(&mut self, mod_: &Mod) -> BasicValue;
+    fn visit_mod(&mut self, mod_: &Rem) -> BasicValue;
     fn visit_min(&mut self, min: &Min) -> BasicValue;
     fn visit_max(&mut self, max: &Max) -> BasicValue;
     fn visit_ge(&mut self, ge: &Ge) -> BasicValue;

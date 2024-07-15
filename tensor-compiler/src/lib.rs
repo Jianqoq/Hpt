@@ -50,6 +50,12 @@ pub mod hlir {
     }
     pub mod tensor_slice;
 }
+
+pub mod hlop {
+    pub mod binop;
+    pub mod broadcast;
+}
+
 pub mod tensor;
 pub mod to_prim_expr;
 pub mod iter_var;

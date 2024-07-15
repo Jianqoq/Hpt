@@ -1046,7 +1046,7 @@ pub fn impl_tensor_slice_std_ops(_: TokenStream) -> TokenStream {
 
     let std_ops_method = [quote!(add), quote!(div), quote!(mul), quote!(sub), quote!(rem)];
 
-    let prim_expr_methods = [quote!(Add), quote!(Div), quote!(Mul), quote!(Sub), quote!(Mod)];
+    let prim_expr_methods = [quote!(Add), quote!(Div), quote!(Mul), quote!(Sub), quote!(Rem)];
 
     for lhs in types.iter() {
         for rhs in target.iter() {

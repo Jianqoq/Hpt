@@ -264,7 +264,7 @@ impl IRMutVisitor for IRComparator {
         }
     }
 
-    fn visit_mod(&mut self, mod_: &super::exprs::Mod) {
+    fn visit_mod(&mut self, mod_: &super::exprs::Rem) {
         let expr = self.expr_.to_mod().cloned();
         if let Some(mod_) = expr {
             self.compare_expr(mod_.e1(), mod_.e1());
