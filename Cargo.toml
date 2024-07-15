@@ -30,6 +30,7 @@ tensor-types = { path = "tensor-types" }
 tensor-macros = { path = "tensor-macros" }
 tensor-tests = { path = "tensor-tests" }
 cudarc = {version = "0.11.6", features = ["cuda-12050"]}
+anyhow = "1.0.40"
 
 [[bin]]
 name = "etensor"

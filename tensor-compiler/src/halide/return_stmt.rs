@@ -43,6 +43,9 @@ impl ReturnStmt {
 
 impl Display for ReturnStmt {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if self.exprs.is_empty() {
+            return write!(f, "return;");
+        }
         write!(f, "return ")?;
         for (i, e) in self.exprs.iter().enumerate() {
             write!(f, "{}", e)?;
