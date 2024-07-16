@@ -54,6 +54,7 @@ pub mod hlir {
 pub mod hlop {
     pub mod binop;
     pub mod broadcast;
+    pub mod shape_manipulate;
 }
 
 pub mod tensor;

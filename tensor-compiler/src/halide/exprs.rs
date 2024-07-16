@@ -733,24 +733,24 @@ impl Into<PrimeExpr> for &Ge {
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
-pub struct And {
+pub struct BitAnd {
     e1: Arc<PrimeExpr>,
     e2: Arc<PrimeExpr>,
 }
 
-impl Accepter for And {
+impl Accepter for BitAnd {
     fn accept<V: IRVisitor>(&self, visitor: &V) {
         visitor.visit_and(self);
     }
 }
 
-impl And {
+impl BitAnd {
     pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
-        And { e1, e2 }
+        BitAnd { e1, e2 }
     }
 
     pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
-        And {
+        BitAnd {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
@@ -773,43 +773,43 @@ impl And {
     }
 }
 
-impl Display for And {
+impl Display for BitAnd {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "({} && {})", self.e1, self.e2)
     }
 }
 
-impl Into<PrimeExpr> for And {
+impl Into<PrimeExpr> for BitAnd {
     fn into(self) -> PrimeExpr {
-        PrimeExpr::And(self)
+        PrimeExpr::BitAnd(self)
     }
 }
 
-impl Into<PrimeExpr> for &And {
+impl Into<PrimeExpr> for &BitAnd {
     fn into(self) -> PrimeExpr {
-        PrimeExpr::And(self.clone())
+        PrimeExpr::BitAnd(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
-pub struct Or {
+pub struct BitOr {
     e1: Arc<PrimeExpr>,
     e2: Arc<PrimeExpr>,
 }
 
-impl Accepter for Or {
+impl Accepter for BitOr {
     fn accept<V: IRVisitor>(&self, visitor: &V) {
         visitor.visit_or(self);
     }
 }
 
-impl Or {
+impl BitOr {
     pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
-        Or { e1, e2 }
+        BitOr { e1, e2 }
     }
 
     pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
-        Or {
+        BitOr {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
@@ -832,43 +832,43 @@ impl Or {
     }
 }
 
-impl Display for Or {
+impl Display for BitOr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "({} || {})", self.e1, self.e2)
     }
 }
 
-impl Into<PrimeExpr> for Or {
+impl Into<PrimeExpr> for BitOr {
     fn into(self) -> PrimeExpr {
-        PrimeExpr::Or(self)
+        PrimeExpr::BitOr(self)
     }
 }
 
-impl Into<PrimeExpr> for &Or {
+impl Into<PrimeExpr> for &BitOr {
     fn into(self) -> PrimeExpr {
-        PrimeExpr::Or(self.clone())
+        PrimeExpr::BitOr(self.clone())
     }
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
-pub struct Xor {
+pub struct BitXor {
     e1: Arc<PrimeExpr>,
     e2: Arc<PrimeExpr>,
 }
 
-impl Accepter for Xor {
+impl Accepter for BitXor {
     fn accept<V: IRVisitor>(&self, visitor: &V) {
         visitor.visit_xor(self);
     }
 }
 
-impl Xor {
+impl BitXor {
     pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
-        Xor { e1, e2 }
+        BitXor { e1, e2 }
     }
 
     pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
-        Xor {
+        BitXor {
             e1: e1.into().into(),
             e2: e2.into().into(),
         }
@@ -891,21 +891,21 @@ impl Xor {
     }
 }
 
-impl Display for Xor {
+impl Display for BitXor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "({} ^ {})", self.e1, self.e2)
     }
 }
 
-impl Into<PrimeExpr> for Xor {
+impl Into<PrimeExpr> for BitXor {
     fn into(self) -> PrimeExpr {
-        PrimeExpr::Xor(self)
+        PrimeExpr::BitXor(self)
     }
 }
 
-impl Into<PrimeExpr> for &Xor {
+impl Into<PrimeExpr> for &BitXor {
     fn into(self) -> PrimeExpr {
-        PrimeExpr::Xor(self.clone())
+        PrimeExpr::BitXor(self.clone())
     }
 }
 
@@ -953,6 +953,124 @@ impl Into<PrimeExpr> for Not {
 impl Into<PrimeExpr> for &Not {
     fn into(self) -> PrimeExpr {
         PrimeExpr::Not(self.clone())
+    }
+}
+
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
+pub struct Shl {
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
+}
+
+impl Accepter for Shl {
+    fn accept<V: IRVisitor>(&self, visitor: &V) {
+        visitor.visit_shl(self);
+    }
+}
+
+impl Shl {
+    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
+        Shl { e1, e2 }
+    }
+
+    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
+        Shl {
+            e1: e1.into().into(),
+            e2: e2.into().into(),
+        }
+    }
+
+    pub fn e1(&self) -> &PrimeExpr {
+        &self.e1
+    }
+
+    pub fn e2(&self) -> &PrimeExpr {
+        &self.e2
+    }
+
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
+        &self.e1
+    }
+
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
+        &self.e2
+    }
+}
+
+impl Display for Shl {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "({} << {})", self.e1, self.e2)
+    }
+}
+
+impl Into<PrimeExpr> for Shl {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Shl(self)
+    }
+}
+
+impl Into<PrimeExpr> for &Shl {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Shl(self.clone())
+    }
+}
+
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
+pub struct Shr {
+    e1: Arc<PrimeExpr>,
+    e2: Arc<PrimeExpr>,
+}
+
+impl Accepter for Shr {
+    fn accept<V: IRVisitor>(&self, visitor: &V) {
+        visitor.visit_shr(self);
+    }
+}
+
+impl Shr {
+    pub fn new(e1: Arc<PrimeExpr>, e2: Arc<PrimeExpr>) -> Self {
+        Shr { e1, e2 }
+    }
+
+    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
+        Shr {
+            e1: e1.into().into(),
+            e2: e2.into().into(),
+        }
+    }
+
+    pub fn e1(&self) -> &PrimeExpr {
+        &self.e1
+    }
+
+    pub fn e2(&self) -> &PrimeExpr {
+        &self.e2
+    }
+
+    pub fn e1_(&self) -> &Arc<PrimeExpr> {
+        &self.e1
+    }
+
+    pub fn e2_(&self) -> &Arc<PrimeExpr> {
+        &self.e2
+    }
+}
+
+impl Display for Shr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "({} >> {})", self.e1, self.e2)
+    }
+}
+
+impl Into<PrimeExpr> for Shr {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Shr(self)
+    }
+}
+
+impl Into<PrimeExpr> for &Shr {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Shr(self.clone())
     }
 }
 
@@ -1196,7 +1314,11 @@ impl Let {
         Let { name, value, body }
     }
 
-    pub fn make<T: Into<PrimeExpr>, B: Into<PrimeExpr>>(name: &Variable, value: T, body: B) -> Self {
+    pub fn make<T: Into<PrimeExpr>, B: Into<PrimeExpr>>(
+        name: &Variable,
+        value: T,
+        body: B
+    ) -> Self {
         Let {
             name: name.clone(),
             value: value.into().into(),

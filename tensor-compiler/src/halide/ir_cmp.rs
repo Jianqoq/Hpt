@@ -214,7 +214,7 @@ impl IRMutVisitor for IRComparator {
         }
     }
 
-    fn visit_and(&mut self, and: &super::exprs::And) {
+    fn visit_and(&mut self, and: &super::exprs::BitAnd) {
         let expr = self.expr_.to_and().cloned();
         if let Some(and) = expr {
             self.compare_expr(and.e1(), and.e1());
@@ -244,7 +244,7 @@ impl IRMutVisitor for IRComparator {
         }
     }
 
-    fn visit_or(&mut self, or: &super::exprs::Or) {
+    fn visit_or(&mut self, or: &super::exprs::BitOr) {
         let expr = self.expr_.to_or().cloned();
         if let Some(or) = expr {
             self.compare_expr(or.e1(), or.e1());

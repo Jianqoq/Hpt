@@ -206,15 +206,15 @@ impl NormalOut for Dtype {
 impl BitWiseOut for Dtype {
     type Output = Dtype;
 
-    fn _and(self, rhs: Self) -> Self::Output {
+    fn _bitand(self, rhs: Self) -> Self::Output {
         infer_enum_type!(self, rhs, normal)
     }
 
-    fn _or(self, rhs: Self) -> Self::Output {
+    fn _bitor(self, rhs: Self) -> Self::Output {
         infer_enum_type!(self, rhs, normal)
     }
 
-    fn _xor(self, rhs: Self) -> Self::Output {
+    fn _bitxor(self, rhs: Self) -> Self::Output {
         infer_enum_type!(self, rhs, normal)
     }
 

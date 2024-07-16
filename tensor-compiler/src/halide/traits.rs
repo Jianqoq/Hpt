@@ -42,9 +42,9 @@ pub trait IRVisitor where Self: Sized {
             PrimeExpr::Le(le) => self.visit_le(&le),
             PrimeExpr::Gt(gt) => self.visit_gt(&gt),
             PrimeExpr::Ge(ge) => self.visit_ge(&ge),
-            PrimeExpr::And(and) => self.visit_and(&and),
-            PrimeExpr::Xor(or) => self.visit_xor(&or),
-            PrimeExpr::Or(or) => self.visit_or(&or),
+            PrimeExpr::BitAnd(and) => self.visit_and(&and),
+            PrimeExpr::BitXor(or) => self.visit_xor(&or),
+            PrimeExpr::BitOr(or) => self.visit_or(&or),
             PrimeExpr::Not(not) => self.visit_not(&not),
             PrimeExpr::Call(call) => self.visit_call(&call),
             PrimeExpr::Select(select) => self.visit_select(&select),
@@ -52,6 +52,8 @@ pub trait IRVisitor where Self: Sized {
             PrimeExpr::Let(let_) => self.visit_let(&let_),
             PrimeExpr::Reduce(reduce) => self.visit_reduce(&reduce),
             PrimeExpr::TensorSlice(slice) => self.visit_tensor_slice(&slice),
+            PrimeExpr::Shl(shl) => self.visit_shl(&shl),
+            PrimeExpr::Shr(shr) => self.visit_shr(&shr),
             PrimeExpr::None => {}
         }
     }
@@ -75,6 +77,14 @@ pub trait IRVisitor where Self: Sized {
             Stmt::Return(return_) => self.visit_return(&return_),
             Stmt::None => {}
         }
+    }
+    fn visit_shl(&self, shl: &Shl) {
+        shl.e1().accept(self);
+        shl.e2().accept(self);
+    }
+    fn visit_shr(&self, shr: &Shr) {
+        shr.e1().accept(self);
+        shr.e2().accept(self);
     }
     fn visit_return(&self, return_: &ReturnStmt) {
         for e in return_.exprs().iter() {
@@ -137,7 +147,7 @@ pub trait IRVisitor where Self: Sized {
         ge.e1().accept(self);
         ge.e2().accept(self);
     }
-    fn visit_xor(&self, xor: &Xor) {
+    fn visit_xor(&self, xor: &BitXor) {
         xor.e1().accept(self);
         xor.e2().accept(self);
     }
@@ -161,11 +171,11 @@ pub trait IRVisitor where Self: Sized {
         ne.e1().accept(self);
         ne.e2().accept(self);
     }
-    fn visit_and(&self, and: &And) {
+    fn visit_and(&self, and: &BitAnd) {
         and.e1().accept(self);
         and.e2().accept(self);
     }
-    fn visit_or(&self, or: &Or) {
+    fn visit_or(&self, or: &BitOr) {
         or.e1().accept(self);
         or.e2().accept(self);
     }
@@ -265,9 +275,9 @@ pub trait IRMutVisitor where Self: Sized {
             PrimeExpr::Le(le) => self.visit_le(&le),
             PrimeExpr::Gt(gt) => self.visit_gt(&gt),
             PrimeExpr::Ge(ge) => self.visit_ge(&ge),
-            PrimeExpr::And(and) => self.visit_and(&and),
-            PrimeExpr::Xor(or) => self.visit_xor(&or),
-            PrimeExpr::Or(or) => self.visit_or(&or),
+            PrimeExpr::BitAnd(and) => self.visit_and(&and),
+            PrimeExpr::BitXor(or) => self.visit_xor(&or),
+            PrimeExpr::BitOr(or) => self.visit_or(&or),
             PrimeExpr::Not(not) => self.visit_not(&not),
             PrimeExpr::Call(call) => self.visit_call(&call),
             PrimeExpr::Select(select) => self.visit_select(&select),
@@ -275,6 +285,8 @@ pub trait IRMutVisitor where Self: Sized {
             PrimeExpr::Let(let_) => self.visit_let(&let_),
             PrimeExpr::Reduce(reduce) => self.visit_reduce(&reduce),
             PrimeExpr::TensorSlice(slice) => self.visit_tensor_slice(&slice),
+            PrimeExpr::Shl(shl) => self.visit_shl(&shl),
+            PrimeExpr::Shr(shr) => self.visit_shr(&shr),
             PrimeExpr::None => {}
         }
     }
@@ -298,6 +310,14 @@ pub trait IRMutVisitor where Self: Sized {
             Stmt::Return(return_) => self.visit_return(&return_),
             Stmt::None => {}
         }
+    }
+    fn visit_shl(&mut self, shl: &Shl) {
+        shl.e1().accept_mut(self);
+        shl.e2().accept_mut(self);
+    }
+    fn visit_shr(&mut self, shr: &Shr) {
+        shr.e1().accept_mut(self);
+        shr.e2().accept_mut(self);
     }
     fn visit_return(&mut self, return_: &ReturnStmt) {
         for e in return_.exprs().iter() {
@@ -380,15 +400,15 @@ pub trait IRMutVisitor where Self: Sized {
         ne.e1().accept_mut(self);
         ne.e2().accept_mut(self);
     }
-    fn visit_and(&mut self, and: &And) {
+    fn visit_and(&mut self, and: &BitAnd) {
         and.e1().accept_mut(self);
         and.e2().accept_mut(self);
     }
-    fn visit_xor(&mut self, xor: &Xor) {
+    fn visit_xor(&mut self, xor: &BitXor) {
         xor.e1().accept_mut(self);
         xor.e2().accept_mut(self);
     }
-    fn visit_or(&mut self, or: &Or) {
+    fn visit_or(&mut self, or: &BitOr) {
         or.e1().accept_mut(self);
         or.e2().accept_mut(self);
     }
@@ -532,9 +552,9 @@ pub(crate) fn visit_expr<V>(visitor: &mut V, expr: &PrimeExpr)
         PrimeExpr::Le(le) => visitor.visit_le(&le),
         PrimeExpr::Gt(gt) => visitor.visit_gt(&gt),
         PrimeExpr::Ge(ge) => visitor.visit_ge(&ge),
-        PrimeExpr::And(and) => visitor.visit_and(&and),
-        PrimeExpr::Xor(or) => visitor.visit_xor(&or),
-        PrimeExpr::Or(or) => visitor.visit_or(&or),
+        PrimeExpr::BitAnd(and) => visitor.visit_and(&and),
+        PrimeExpr::BitXor(or) => visitor.visit_xor(&or),
+        PrimeExpr::BitOr(or) => visitor.visit_or(&or),
         PrimeExpr::Not(not) => visitor.visit_not(&not),
         PrimeExpr::Call(call) => visitor.visit_call(&call),
         PrimeExpr::Select(select) => visitor.visit_select(&select),
@@ -542,6 +562,8 @@ pub(crate) fn visit_expr<V>(visitor: &mut V, expr: &PrimeExpr)
         PrimeExpr::Let(let_) => visitor.visit_let(&let_),
         PrimeExpr::Reduce(reduce) => visitor.visit_reduce(&reduce),
         PrimeExpr::TensorSlice(slice) => visitor.visit_tensor_slice(&slice),
+        PrimeExpr::Shl(shl) => visitor.visit_shl(&shl),
+        PrimeExpr::Shr(shr) => visitor.visit_shr(&shr),
         PrimeExpr::None => {}
     }
 }
@@ -565,6 +587,30 @@ pub(crate) fn visit_stmt<V>(visitor: &mut V, stmt: &Stmt)
         Stmt::AssignStmt(assign) => visitor.visit_assign(&assign),
         Stmt::Return(return_) => visitor.visit_return(&return_),
         Stmt::None => {}
+    }
+}
+
+pub(crate) fn visit_shl<V>(visitor: &mut V, shl: &Shl)
+    where V: MutatorGetSet + Sized + IRMutateVisitor
+{
+    let a = mutate_expr(visitor, shl.e1());
+    let b = mutate_expr(visitor, shl.e2());
+    if &a == shl.e1() && &b == shl.e2() {
+        visitor.set_expr(shl);
+    } else {
+        visitor.set_expr(Shl::make(a, b));
+    }
+}
+
+pub(crate) fn visit_shr<V>(visitor: &mut V, shr: &Shr)
+    where V: MutatorGetSet + Sized + IRMutateVisitor
+{
+    let a = mutate_expr(visitor, shr.e1());
+    let b = mutate_expr(visitor, shr.e2());
+    if &a == shr.e1() && &b == shr.e2() {
+        visitor.set_expr(shr);
+    } else {
+        visitor.set_expr(Shr::make(a, b));
     }
 }
 
@@ -683,20 +729,20 @@ pub(crate) fn visit_ne<V>(visitor: &mut V, ne: &Ne) where V: MutatorGetSet + Siz
     mutate_binop!(visitor, ne, Ne);
 }
 
-pub(crate) fn visit_and<V>(visitor: &mut V, and: &And)
+pub(crate) fn visit_and<V>(visitor: &mut V, and: &BitAnd)
     where V: MutatorGetSet + Sized + IRMutateVisitor
 {
-    mutate_binop!(visitor, and, And);
+    mutate_binop!(visitor, and, BitAnd);
 }
 
-pub(crate) fn visit_xor<V>(visitor: &mut V, xor: &Xor)
+pub(crate) fn visit_xor<V>(visitor: &mut V, xor: &BitXor)
     where V: MutatorGetSet + Sized + IRMutateVisitor
 {
-    mutate_binop!(visitor, xor, Xor);
+    mutate_binop!(visitor, xor, BitXor);
 }
 
-pub(crate) fn visit_or<V>(visitor: &mut V, or: &Or) where V: MutatorGetSet + Sized + IRMutateVisitor {
-    mutate_binop!(visitor, or, Or);
+pub(crate) fn visit_or<V>(visitor: &mut V, or: &BitOr) where V: MutatorGetSet + Sized + IRMutateVisitor {
+    mutate_binop!(visitor, or, BitOr);
 }
 
 pub(crate) fn visit_not<V>(visitor: &mut V, not: &Not)
@@ -1048,6 +1094,12 @@ pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     fn mutate_stmt(&mut self, stmt: &Stmt) -> Stmt {
         mutate_stmt(self, stmt)
     }
+    fn visit_shl(&mut self, shl: &Shl) {
+        visit_shl(self, shl);
+    }
+    fn visit_shr(&mut self, shr: &Shr) {
+        visit_shr(self, shr);
+    }
     fn visit_return(&mut self, return_: &ReturnStmt) {
         visit_return(self, return_);
     }
@@ -1114,13 +1166,13 @@ pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     fn visit_ne(&mut self, ne: &Ne) {
         visit_ne(self, ne);
     }
-    fn visit_and(&mut self, and: &And) {
+    fn visit_and(&mut self, and: &BitAnd) {
         visit_and(self, and);
     }
-    fn visit_xor(&mut self, xor: &Xor) {
+    fn visit_xor(&mut self, xor: &BitXor) {
         visit_xor(self, xor);
     }
-    fn visit_or(&mut self, or: &Or) {
+    fn visit_or(&mut self, or: &BitOr) {
         visit_or(self, or);
     }
     fn visit_not(&mut self, not: &Not) {
@@ -1205,9 +1257,9 @@ pub trait CodeGenVisitor where Self: Sized {
             PrimeExpr::Le(le) => self.visit_le(&le),
             PrimeExpr::Gt(gt) => self.visit_gt(&gt),
             PrimeExpr::Ge(ge) => self.visit_ge(&ge),
-            PrimeExpr::And(and) => self.visit_and(&and),
-            PrimeExpr::Xor(or) => self.visit_xor(&or),
-            PrimeExpr::Or(or) => self.visit_or(&or),
+            PrimeExpr::BitAnd(and) => self.visit_and(&and),
+            PrimeExpr::BitXor(or) => self.visit_xor(&or),
+            PrimeExpr::BitOr(or) => self.visit_or(&or),
             PrimeExpr::Not(not) => self.visit_not(&not),
             PrimeExpr::Call(call) => self.visit_call(&call),
             PrimeExpr::Select(select) => self.visit_select(&select),
@@ -1215,6 +1267,8 @@ pub trait CodeGenVisitor where Self: Sized {
             PrimeExpr::Let(let_) => self.visit_let(&let_),
             PrimeExpr::Reduce(reduce) => self.visit_reduce(&reduce),
             PrimeExpr::TensorSlice(slice) => self.visit_tensor_slice(&slice),
+            PrimeExpr::Shl(shl) => self.visit_shl(&shl),
+            PrimeExpr::Shr(shr) => self.visit_shr(&shr),
             PrimeExpr::None => { BasicValue::None }
         }
     }
@@ -1244,6 +1298,8 @@ pub trait CodeGenVisitor where Self: Sized {
             self.visit_function(function);
         }
     }
+    fn visit_shl(&mut self, shl: &Shl) -> BasicValue;
+    fn visit_shr(&mut self, shr: &Shr) -> BasicValue;
     fn visit_return(&mut self, return_: &ReturnStmt);
     fn visit_tensor_slice(&mut self, slice: &TensorSlice) -> BasicValue;
     fn visit_reduce(&mut self, reduce: &Reduce) -> BasicValue;
@@ -1265,9 +1321,9 @@ pub trait CodeGenVisitor where Self: Sized {
     fn visit_lt(&mut self, lt: &Lt) -> BasicValue;
     fn visit_eq(&mut self, eq: &Eq) -> BasicValue;
     fn visit_ne(&mut self, ne: &Ne) -> BasicValue;
-    fn visit_and(&mut self, and: &And) -> BasicValue;
-    fn visit_xor(&mut self, xor: &Xor) -> BasicValue;
-    fn visit_or(&mut self, or: &Or) -> BasicValue;
+    fn visit_and(&mut self, and: &BitAnd) -> BasicValue;
+    fn visit_xor(&mut self, xor: &BitXor) -> BasicValue;
+    fn visit_or(&mut self, or: &BitOr) -> BasicValue;
     fn visit_not(&mut self, not: &Not) -> BasicValue;
     fn visit_let_stmt(&mut self, let_stmt: &LetStmt);
     fn visit_let(&mut self, let_: &Let) -> BasicValue;

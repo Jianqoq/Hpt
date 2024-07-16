@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use paste::paste;
-use tensor_types::type_promote::{NormalOut, FloatOut};
+use tensor_types::type_promote::{ NormalOut, FloatOut, BitWiseOut };
 
 use crate::{ halide::{ exprs::*, prime_expr::PrimeExpr }, hlir::tensor::{ Tensor, _compute } };
 
@@ -72,3 +72,28 @@ impl_std_op!([Tensor], [Tensor], rem, Rem);
 impl_std_op!([&Tensor], [Tensor], rem, Rem);
 impl_std_op!([Tensor], [&Tensor], rem, Rem);
 impl_std_op!([&Tensor], [&Tensor], rem, Rem);
+
+impl_std_op!([Tensor], [Tensor], bitand, BitAnd);
+impl_std_op!([&Tensor], [Tensor], bitand, BitAnd);
+impl_std_op!([Tensor], [&Tensor], bitand, BitAnd);
+impl_std_op!([&Tensor], [&Tensor], bitand, BitAnd);
+
+impl_std_op!([Tensor], [Tensor], bitor, BitOr);
+impl_std_op!([&Tensor], [Tensor], bitor, BitOr);
+impl_std_op!([Tensor], [&Tensor], bitor, BitOr);
+impl_std_op!([&Tensor], [&Tensor], bitor, BitOr);
+
+impl_std_op!([Tensor], [Tensor], bitxor, BitXor);
+impl_std_op!([&Tensor], [Tensor], bitxor, BitXor);
+impl_std_op!([Tensor], [&Tensor], bitxor, BitXor);
+impl_std_op!([&Tensor], [&Tensor], bitxor, BitXor);
+
+impl_std_op!([Tensor], [Tensor], shl, Shl);
+impl_std_op!([&Tensor], [Tensor], shl, Shl);
+impl_std_op!([Tensor], [&Tensor], shl, Shl);
+impl_std_op!([&Tensor], [&Tensor], shl, Shl);
+
+impl_std_op!([Tensor], [Tensor], shr, Shr);
+impl_std_op!([&Tensor], [Tensor], shr, Shr);
+impl_std_op!([Tensor], [&Tensor], shr, Shr);
+impl_std_op!([&Tensor], [&Tensor], shr, Shr);

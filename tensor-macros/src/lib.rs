@@ -753,17 +753,17 @@ pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
                 quote! {
                 impl BitWiseOut<#rhs_dtype> for #lhs_dtype {
                     type Output = #res_type;
-                    fn _and(self, rhs: #rhs_dtype) -> Self::Output {
+                    fn _bitand(self, rhs: #rhs_dtype) -> Self::Output {
                         paste::paste! {
                             self.[<to_ #res_type>]() & rhs.[<to_ #res_type>]()
                         }
                     }
-                    fn _or(self, rhs: #rhs_dtype) -> Self::Output {
+                    fn _bitor(self, rhs: #rhs_dtype) -> Self::Output {
                         paste::paste! {
                             self.[<to_ #res_type>]() | rhs.[<to_ #res_type>]()
                         }
                     }
-                    fn _xor(self, rhs: #rhs_dtype) -> Self::Output {
+                    fn _bitxor(self, rhs: #rhs_dtype) -> Self::Output {
                         paste::paste! {
                             self.[<to_ #res_type>]() ^ rhs.[<to_ #res_type>]()
                         }

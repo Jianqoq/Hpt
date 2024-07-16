@@ -56,9 +56,9 @@ impl MutatorGetSet for SubstituteExpr {
 impl IRMutateVisitor for SubstituteExpr {
     fn mutate_expr(&mut self, expr: &PrimeExpr) -> PrimeExpr {
         if let Some(replacement) = self.find_replacement(expr) {
-            return replacement.clone();
+            replacement.clone()
         } else {
-            return mutate_expr(self, expr);
+            mutate_expr(self, expr)
         }
     }
 

@@ -832,15 +832,15 @@ impl CodeGenVisitor for CodeGen {
         todo!()
     }
 
-    fn visit_and(&mut self, and: &crate::halide::exprs::And) -> BasicValue {
+    fn visit_and(&mut self, and: &crate::halide::exprs::BitAnd) -> BasicValue {
         todo!()
     }
 
-    fn visit_xor(&mut self, xor: &crate::halide::exprs::Xor) -> BasicValue {
+    fn visit_xor(&mut self, xor: &crate::halide::exprs::BitXor) -> BasicValue {
         todo!()
     }
 
-    fn visit_or(&mut self, or: &crate::halide::exprs::Or) -> BasicValue {
+    fn visit_or(&mut self, or: &crate::halide::exprs::BitOr) -> BasicValue {
         todo!()
     }
 
@@ -1406,6 +1406,14 @@ impl CodeGenVisitor for CodeGen {
         self.current_fn = id;
         self.visit_stmt(&function.body);
         self.builder.position_at_end(block);
+    }
+    
+    fn visit_shl(&mut self, shl: &crate::halide::exprs::Shl) -> BasicValue {
+        todo!()
+    }
+    
+    fn visit_shr(&mut self, shr: &crate::halide::exprs::Shr) -> BasicValue {
+        todo!()
     }
 }
 

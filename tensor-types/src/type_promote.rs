@@ -47,9 +47,9 @@ impl_normal_out!();
 
 pub trait BitWiseOut<RHS = Self> {
     type Output;
-    fn _and(self, rhs: RHS) -> Self::Output;
-    fn _or(self, rhs: RHS) -> Self::Output;
-    fn _xor(self, rhs: RHS) -> Self::Output;
+    fn _bitand(self, rhs: RHS) -> Self::Output;
+    fn _bitor(self, rhs: RHS) -> Self::Output;
+    fn _bitxor(self, rhs: RHS) -> Self::Output;
     fn _not(self) -> Self::Output;
     fn _shl(self, rhs: RHS) -> Self::Output;
     fn _shr(self, rhs: RHS) -> Self::Output;

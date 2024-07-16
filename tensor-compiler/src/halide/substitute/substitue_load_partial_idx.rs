@@ -62,11 +62,7 @@ impl MutatorGetSet for SubstituteLoadPartialIdx {
 
 impl IRMutateVisitor for SubstituteLoadPartialIdx {
     fn mutate_expr(&mut self, expr: &PrimeExpr) -> PrimeExpr {
-        if expr_equal(&self.find, expr) {
-            return self.replace.clone();
-        } else {
-            return mutate_expr(self, expr);
-        }
+        if expr_equal(&self.find, expr) { self.replace.clone() } else { mutate_expr(self, expr) }
     }
 
     fn visit_load(&mut self, load: &Load) {

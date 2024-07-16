@@ -33,9 +33,11 @@ pub enum PrimeExpr {
     Le(Le),
     Gt(Gt),
     Ge(Ge),
-    And(And),
-    Or(Or),
-    Xor(Xor),
+    BitAnd(BitAnd),
+    BitOr(BitOr),
+    BitXor(BitXor),
+    Shl(Shl),
+    Shr(Shr),
     Not(Not),
     Call(Call),
     Select(Select),
@@ -59,6 +61,8 @@ pub enum PrimeType {
     Mul,
     Div,
     FloorDiv,
+    Shl,
+    Shr,
     Mod,
     Min,
     Max,
@@ -129,9 +133,11 @@ impl PrimeExpr {
             PrimeExpr::Le(_) => PrimeType::Le,
             PrimeExpr::Gt(_) => PrimeType::Gt,
             PrimeExpr::Ge(_) => PrimeType::Ge,
-            PrimeExpr::And(_) => PrimeType::And,
-            PrimeExpr::Xor(_) => PrimeType::Xor,
-            PrimeExpr::Or(_) => PrimeType::Or,
+            PrimeExpr::Shl(_) => PrimeType::Shl,
+            PrimeExpr::Shr(_) => PrimeType::Shr,
+            PrimeExpr::BitAnd(_) => PrimeType::And,
+            PrimeExpr::BitXor(_) => PrimeType::Xor,
+            PrimeExpr::BitOr(_) => PrimeType::Or,
             PrimeExpr::Not(_) => PrimeType::Not,
             PrimeExpr::Call(_) => PrimeType::Call,
             PrimeExpr::Select(_) => PrimeType::Select,
@@ -167,6 +173,8 @@ impl PrimeExpr {
             PrimeExpr::FloorDiv(a) =>
                 format!("{} // {}", a.e1().print(prec), a.e2().print(prec + 1)),
             PrimeExpr::Rem(a) => format!("{} % {}", a.e1().print(prec), a.e2().print(prec + 1)),
+            PrimeExpr::Shl(a) => format!("{} << {}", a.e1().print(prec), a.e2().print(prec + 1)),
+            PrimeExpr::Shr(a) => format!("{} >> {}", a.e1().print(prec), a.e2().print(prec + 1)),
             PrimeExpr::Min(a) => a.to_string(),
             PrimeExpr::Max(a) => a.to_string(),
             PrimeExpr::Eq(a) => a.to_string(),
@@ -175,9 +183,9 @@ impl PrimeExpr {
             PrimeExpr::Le(a) => a.to_string(),
             PrimeExpr::Gt(a) => a.to_string(),
             PrimeExpr::Ge(a) => a.to_string(),
-            PrimeExpr::And(a) => a.to_string(),
-            PrimeExpr::Xor(a) => a.to_string(),
-            PrimeExpr::Or(a) => a.to_string(),
+            PrimeExpr::BitAnd(a) => a.to_string(),
+            PrimeExpr::BitXor(a) => a.to_string(),
+            PrimeExpr::BitOr(a) => a.to_string(),
             PrimeExpr::Not(a) => a.to_string(),
             PrimeExpr::Call(a) => a.to_string(),
             PrimeExpr::Select(a) => a.to_string(),
@@ -212,8 +220,8 @@ impl PrimeExpr {
     cast_expr!(to_le, Le);
     cast_expr!(to_gt, Gt);
     cast_expr!(to_ge, Ge);
-    cast_expr!(to_and, And);
-    cast_expr!(to_or, Or);
+    cast_expr!(to_and, BitAnd);
+    cast_expr!(to_or, BitOr);
     cast_expr!(to_not, Not);
     cast_expr!(to_call, Call);
     cast_expr!(to_select, Select);

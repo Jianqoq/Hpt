@@ -415,13 +415,13 @@ macro_rules! bitwise_promote_ops_4 {
     };
 }
 
-bitwise_promote_ops_1!([BitAnd, bitand, _and], [BitOr, bitor, _or], [BitXor, bitxor, _xor]);
+bitwise_promote_ops_1!([BitAnd, bitand, _bitand], [BitOr, bitor, _bitor], [BitXor, bitxor, _bitxor]);
 
-bitwise_promote_ops_2!([BitAnd, bitand, _and], [BitOr, bitor, _or], [BitXor, bitxor, _xor]);
+bitwise_promote_ops_2!([BitAnd, bitand, _bitand], [BitOr, bitor, _bitor], [BitXor, bitxor, _bitxor]);
 
-bitwise_promote_ops_3!([BitAnd, bitand, _and], [BitOr, bitor, _or], [BitXor, bitxor, _xor]);
+bitwise_promote_ops_3!([BitAnd, bitand, _bitand], [BitOr, bitor, _bitor], [BitXor, bitxor, _bitxor]);
 
-bitwise_promote_ops_4!([BitAnd, bitand, _and], [BitOr, bitor, _or], [BitXor, bitxor, _xor]);
+bitwise_promote_ops_4!([BitAnd, bitand, _bitand], [BitOr, bitor, _bitor], [BitXor, bitxor, _bitxor]);
 
 macro_rules! shift_promote_ops_1 {
     ($([$op:ident, $op2:ident, $op3:ident]),*) => {

@@ -10,7 +10,24 @@ use tensor_types::{ dtype::Dtype, type_promote::NormalOut };
 use crate::{
     halide::{
         assign_stmt::AssignStmt,
-        exprs::{ Add, And, Div, Float, Gt, Int, Load, Lt, Max, Min, Rem, Mul, Or, Sub, UInt, Xor },
+        exprs::{
+            Add,
+            BitAnd,
+            Div,
+            Float,
+            Gt,
+            Int,
+            Load,
+            Lt,
+            Max,
+            Min,
+            Rem,
+            Mul,
+            BitOr,
+            Sub,
+            UInt,
+            BitXor,
+        },
         if_stmt::IfThenElse,
         inplace_store_stmt::InplaceAdd,
         let_stmt::LetStmt,
@@ -78,7 +95,6 @@ pub fn dtype_neg_inf(dtype: Dtype) -> PrimeExpr {
 #[derive(Clone)]
 pub struct Tensor {
     pub(crate) shape: Arc<Vec<IterVar>>,
-    pub(crate) strides: Arc<Vec<usize>>,
     pub(crate) body: PrimeExpr,
     pub(crate) name: Arc<String>,
     pub(crate) inputs: Arc<Vec<TensorSlice>>,
@@ -167,9 +183,6 @@ macro_rules! impl_binops {
 impl Tensor {
     pub fn axes(&self) -> &Vec<IterVar> {
         &self.shape
-    }
-    pub fn strides(&self) -> &Vec<usize> {
-        &self.strides
     }
     pub fn shape(&self) -> &Vec<IterVar> {
         &self.shape
@@ -389,9 +402,9 @@ impl Tensor {
     impl_binops!(Div, div, _div, "{}_div_{}");
     impl_binops!(Sub, sub, _sub, "{}_sub_{}");
     impl_binops!(Rem, rem, _rem, "{}_rem_{}");
-    impl_binops!(And, and, _and, "{}_and_{}");
-    impl_binops!(Or, or, _or, "{}_or_{}");
-    impl_binops!(Xor, xor, _xor, "{}_xor_{}");
+    impl_binops!(BitAnd, and, _bitand, "{}_and_{}");
+    impl_binops!(BitOr, or, _bitor, "{}_or_{}");
+    impl_binops!(BitXor, xor, _bitxor, "{}_xor_{}");
 }
 
 impl Eq for Tensor {}
@@ -426,17 +439,15 @@ impl Tensor {
                 )
             })
             .collect::<Vec<_>>();
-        let body = Load::make(
+        let body = TensorSlice::make(
             Variable::new(tensor_name.clone()),
             iter_vars
                 .iter()
                 .map(|x| x.var().to_prime_expr())
-                .reduce(|acc, x| acc + x)
-                .unwrap()
+                .collect::<Vec<PrimeExpr>>()
         ).into();
         Self {
             shape: Arc::new(iter_vars),
-            strides: Arc::new((0..shape.len()).collect::<Vec<_>>()),
             body,
             name: name.to_string().into(),
             inputs: vec![].into(),
@@ -504,7 +515,6 @@ pub fn compute<const N: usize, F, T: Into<PrimeExpr> + Clone, C: Into<PrimeExpr>
     body.accept_mut(&mut input_visitor);
     Tensor {
         shape: Arc::new(iter_vars),
-        strides: Arc::new((0..res_shape.len()).collect::<Vec<_>>()),
         body: body.into(),
         name: name.to_string().into(),
         inputs: input_visitor.to_vec().into(),
@@ -523,13 +533,11 @@ pub fn _compute<F>(
 {
     let inputs_cloned = inputs.clone();
     let body = op(inputs_cloned, res_shape.clone());
-    let strides = (0..res_shape.len()).collect::<Vec<_>>();
     let mut input_visitor = FindInputs::new();
     let body: PrimeExpr = body.into();
     body.accept_mut(&mut input_visitor);
     Tensor {
         shape: Arc::new(res_shape),
-        strides: Arc::new(strides),
         body,
         name: name.to_string().into(),
         inputs: input_visitor.to_vec().into(),
