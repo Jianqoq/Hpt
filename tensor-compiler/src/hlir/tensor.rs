@@ -3,7 +3,7 @@
 use std::{ fmt::Display, mem::MaybeUninit, sync::Arc };
 
 use half::{ bf16, f16 };
-use hashbrown::HashMap;
+use std::collections::HashMap;
 use tensor_common::{ axis::{ process_axes, Axis }, shape::Shape };
 use tensor_types::{ dtype::Dtype, type_promote::NormalOut };
 

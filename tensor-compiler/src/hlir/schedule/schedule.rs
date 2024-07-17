@@ -3,7 +3,7 @@
 
 use std::{ cell::RefCell, collections::VecDeque, ops::Index, rc::Rc, sync::Arc };
 
-use hashbrown::{ HashMap, HashSet };
+use std::collections::{ HashMap, HashSet };
 use tensor_types::dtype::Dtype;
 
 use crate::{

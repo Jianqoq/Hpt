@@ -2,8 +2,8 @@ use getset::CopyGetters;
 use getset::Getters;
 use getset::MutGetters;
 use getset::Setters;
-use hashbrown::HashMap;
-use hashbrown::HashSet;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use serde::Deserialize;
 use serde::Serialize;
 

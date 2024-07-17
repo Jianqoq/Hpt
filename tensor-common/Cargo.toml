@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 serde = { version = "1.0.203", features = ["derive"] }
-hashbrown = { version = "0.14.3", features = ["serde"] }
 tensor-types = { path = "../tensor-types" }
 anyhow = "1.0.75"
 getset = "0.1.2"

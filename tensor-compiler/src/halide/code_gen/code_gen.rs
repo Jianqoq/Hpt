@@ -10,7 +10,7 @@ use std::{
     sync::Arc,
 };
 
-use hashbrown::{ HashMap, HashSet };
+use std::collections::{ HashMap, HashSet };
 use llvm_sys::{
     execution_engine::{
         LLVMCreateGenericValueOfInt,
@@ -121,7 +121,7 @@ impl CodeGen {
             });
         }
         for func in module.fns.values() {
-            fn_edges.entry(func).insert(HashSet::new());
+            fn_edges.entry(func).or_insert(HashSet::new());
             func.ty.args[0].iter().for_each(|(name, ty)| {
                 if let Some(&dep) = dependencies.get(name) {
                     fn_edges.entry(func).or_insert_with(HashSet::new).insert(dep);

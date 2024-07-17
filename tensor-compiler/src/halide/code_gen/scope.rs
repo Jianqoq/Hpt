@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hashbrown::HashMap;
+use std::collections::HashMap;
 use tensor_llvm::types::values::BasicValue;
 
 use crate::halide::primitive_type::PrimitiveType;

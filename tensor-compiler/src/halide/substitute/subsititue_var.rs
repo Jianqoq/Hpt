@@ -1,4 +1,4 @@
-use hashbrown::HashMap;
+use std::collections::HashMap;
 
 use crate::halide::{
     prime_expr::PrimeExpr,

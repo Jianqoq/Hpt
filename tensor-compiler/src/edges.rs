@@ -1,6 +1,6 @@
 use std::{ hash::Hash, ops::{ Deref, DerefMut } };
 
-use hashbrown::{ HashMap, HashSet };
+use std::collections::{ HashMap, HashSet };
 use serde::Serialize;
 
 #[derive(Default, Debug, Clone, Serialize)]

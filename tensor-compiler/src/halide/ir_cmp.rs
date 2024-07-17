@@ -74,8 +74,8 @@ impl IRComparator {
             return CmpResult::GreaterThan;
         }
 
-        let mut a_hash = hashbrown::hash_map::DefaultHashBuilder::default().build_hasher();
-        let mut b_hash = hashbrown::hash_map::DefaultHashBuilder::default().build_hasher();
+        let mut a_hash = std::collections::hash_map::RandomState::default().build_hasher();
+        let mut b_hash = std::collections::hash_map::RandomState::default().build_hasher();
         a.hash(&mut a_hash);
         b.hash(&mut b_hash);
         let a_hash_value = a_hash.finish();

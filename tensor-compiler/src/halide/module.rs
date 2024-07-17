@@ -1,6 +1,6 @@
 use std::{ fmt::Display, sync::Arc };
 
-use hashbrown::{ HashMap, HashSet };
+use std::collections::{ HashMap, HashSet };
 use tensor_llvm::{
     context::context::Context,
     types::{ general_types::GeneralType, values::StructValue },

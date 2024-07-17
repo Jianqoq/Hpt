@@ -1,6 +1,6 @@
 use std::{ collections::VecDeque, sync::Arc };
 
-use hashbrown::{ HashMap, HashSet };
+use std::collections::{ HashMap, HashSet };
 
 use crate::{
     edges::Edges,
