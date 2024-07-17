@@ -161,7 +161,7 @@ macro_rules! impl_binops {
                 self.dtype.$type_infer(rhs.dtype),
                 res_shape,
                 vec![self.clone(), rhs.clone()],
-                &format!($var_name, self.name, rhs.name),
+                format!($var_name, self.name, rhs.name),
                 move |inputs, indices| {
                     let lhs_indices = lhs_indices.clone();
                     let rhs_indices = rhs_indices.clone();
@@ -223,7 +223,7 @@ impl Tensor {
             self.dtype,
             res_shape,
             vec![self.clone()],
-            &format!("{}_red", self.name),
+            format!("{}_red", self.name),
             move |inputs, indices| {
                 let mut indices = indices
                     .into_iter()
@@ -254,7 +254,7 @@ impl Tensor {
             self.dtype,
             res_shape,
             vec![self.clone()],
-            &format!("{}_red", self.name),
+            format!("{}_red", self.name),
             move |inputs, indices| {
                 let mut indices = indices
                     .into_iter()
@@ -284,7 +284,7 @@ impl Tensor {
             Dtype::I64,
             res_shape,
             vec![self.clone()],
-            &format!("{}_red", self.name),
+            format!("{}_red", self.name),
             move |inputs, indices| {
                 let mut indices = indices
                     .into_iter()
@@ -316,7 +316,7 @@ impl Tensor {
             Dtype::I64,
             res_shape,
             vec![self.clone()],
-            &format!("{}_red", self.name),
+            format!("{}_red", self.name),
             move |inputs, indices| {
                 let mut indices = indices
                     .into_iter()
@@ -348,7 +348,7 @@ impl Tensor {
             self.dtype,
             res_shape,
             vec![self.clone()],
-            &format!("{}_red", self.name),
+            format!("{}_red", self.name),
             move |inputs, indices| {
                 let mut indices = indices
                     .into_iter()
@@ -380,7 +380,7 @@ impl Tensor {
             self.dtype,
             res_shape,
             vec![self.clone()],
-            &format!("{}_red", self.name),
+            format!("{}_red", self.name),
             move |inputs, indices| {
                 let mut indices = indices
                     .into_iter()
@@ -526,7 +526,7 @@ pub fn _compute<F>(
     dtype: Dtype,
     res_shape: Vec<IterVar>,
     inputs: Vec<Tensor>,
-    name: &str,
+    name: String,
     op: F
 ) -> Tensor
     where F: Fn(Vec<Tensor>, Vec<IterVar>) -> PrimeExpr + 'static
@@ -539,7 +539,7 @@ pub fn _compute<F>(
     Tensor {
         shape: Arc::new(res_shape),
         body,
-        name: name.to_string().into(),
+        name: name.into(),
         inputs: input_visitor.to_vec().into(),
         dtype,
     }

@@ -27,7 +27,7 @@ macro_rules! impl_std_op {
                         self.dtype.[<_ $op_name>](rhs.dtype),
                         res_shape,
                         vec![self.clone(), rhs.clone()],
-                        &format!("{}_{}_{}", self.name, stringify!($op_name), rhs.name),
+                        format!("{}_{}_{}", self.name, stringify!($op_name), rhs.name),
                         move |inputs, indices| {
                             let lhs_indices = lhs_indices.clone();
                             let rhs_indices = rhs_indices.clone();

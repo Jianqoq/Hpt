@@ -1,3 +1,4 @@
+use hashbrown::HashSet;
 use tensor_types::dtype::Dtype;
 
 use crate::{
@@ -55,7 +56,7 @@ impl Tensor {
             self.dtype,
             res_shape,
             vec![self.clone()],
-            &format!("reshape_{}", self.name),
+            format!("reshape_{}", self.name),
             move |inputs, indices| {
                 let flat_idx = flatten_index(
                     &indices
@@ -66,6 +67,42 @@ impl Tensor {
                 );
                 let indices = unflatten_index(&old_shape, &flat_idx);
                 inputs[0]._slice(&indices).into()
+            }
+        )
+    }
+
+    pub fn permute(&self, axes: &[isize]) -> Self {
+        let mut new_shape = vec![];
+        let mut new_axes = vec![];
+        let mut set = HashSet::new();
+        for i in axes {
+            let mut i = *i;
+            if i < 0 {
+                i = i + (self.shape.len() as isize);
+            } else {
+            }
+            if let Some(_) = set.get(&i) {
+                panic!("Duplicate axes");
+            } else {
+                set.insert(i);
+            }
+            if i >= (self.shape.len() as isize) || i < 0 {
+                panic!("Invalid axes");
+            }
+            new_shape.push(self.shape[i as usize].clone());
+            new_axes.push(i);
+        }
+        _compute(
+            self.dtype,
+            new_shape,
+            vec![self.clone()],
+            format!("transpose_{}", self.name),
+            move |inputs, indices| {
+                let mut new_indices = vec![];
+                for i in new_axes.iter() {
+                    new_indices.push(indices[*i as usize].var().clone());
+                }
+                inputs[0]._slice(&new_indices).into()
             }
         )
     }
