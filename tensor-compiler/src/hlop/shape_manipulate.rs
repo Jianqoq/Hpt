@@ -187,4 +187,17 @@ impl Tensor {
             }
         )
     }
+
+    pub fn fliplr(&self) -> Self {
+        if self.shape.len() < 2 {
+            panic!("Input tensor must have at least 2 dimensions");
+        }
+        self.flip(1)
+    }
+    pub fn flipud(&self) -> Self {
+        if self.shape.len() < 1 {
+            panic!("Input tensor must have at least 1 dimensions");
+        }
+        self.flip(0)
+    }
 }
