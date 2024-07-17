@@ -154,4 +154,37 @@ impl Tensor {
             }
         )
     }
+
+    pub fn flip(&self, axis: isize) -> Self {
+        let new_shape = self.shape.clone();
+        let mut axis = axis;
+        if axis < 0 {
+            axis += self.shape.len() as isize;
+        } else {
+        }
+        if axis >= (self.shape.len() as isize) || axis < 0 {
+            panic!("Invalid axes");
+        }
+        _compute(
+            self.dtype,
+            new_shape.to_vec(),
+            vec![self.clone()],
+            format!("flip_{}", self.name),
+            move |inputs, indices| {
+                let mut new_indices = vec![];
+                for i in 0..indices.len() {
+                    new_indices.push(
+                        if i == (axis as usize) {
+                            new_shape[axis as usize].end().to_prime_expr() -
+                                indices[i].var().to_prime_expr() -
+                                1
+                        } else {
+                            indices[i].var().to_prime_expr()
+                        }
+                    );
+                }
+                inputs[0]._slice(&new_indices).into()
+            }
+        )
+    }
 }
