@@ -240,4 +240,70 @@ impl Tensor {
             }
         )
     }
+
+    pub fn split(&self, indices_or_selections: &[&dyn ToPrimeExpr], axis: isize) -> Vec<Self> {
+        let mut axis = axis;
+        if axis < 0 {
+            axis += self.shape.len() as isize;
+        } else {
+        }
+        if axis >= (self.shape.len() as isize) || axis < 0 {
+            panic!("Invalid axes");
+        }
+        let mut _indices_or_selections = vec![];
+        for i in indices_or_selections {
+            _indices_or_selections.push(i.to_prime_expr());
+        }
+        let mut end;
+        let mut ends = vec![];
+        for i in 0.._indices_or_selections.len() + 1 {
+            if i == 0 {
+                end = _indices_or_selections[i].clone();
+            } else if i == _indices_or_selections.len() {
+                end =
+                    self.shape[axis as usize].end().clone() -
+                    _indices_or_selections.last().unwrap().clone();
+            } else {
+                end = _indices_or_selections[i].clone() - _indices_or_selections[i - 1].clone();
+            }
+            ends.push(end.clone());
+        }
+        let mut res = vec![];
+        for idx in 0.._indices_or_selections.len() + 1 {
+            let mut shape = self.shape.as_ref().clone();
+            shape[axis as usize] = IterVar::new(
+                0,
+                ends[idx].clone(),
+                1i64,
+                Variable::new(format!("ax{}", axis))
+            );
+            let _indices_or_selections_cloned = _indices_or_selections.clone();
+            let splitted = _compute(
+                self.dtype,
+                shape,
+                vec![self.clone()],
+                format!("split_{}_{}", self.name, idx),
+                move |inputs, indices| {
+                    let mut new_indices = vec![];
+                    for i in 0..indices.len() {
+                        if i == (axis as usize) {
+                            if idx == 0 {
+                                new_indices.push(indices[i].var().to_prime_expr());
+                            } else {
+                                new_indices.push(
+                                    indices[i].var().to_prime_expr() +
+                                        _indices_or_selections_cloned[idx - 1].clone()
+                                );
+                            }
+                        } else {
+                            new_indices.push(indices[i].var().to_prime_expr());
+                        }
+                    }
+                    inputs[0]._slice(&new_indices).into()
+                }
+            );
+            res.push(splitted);
+        }
+        res
+    }
 }

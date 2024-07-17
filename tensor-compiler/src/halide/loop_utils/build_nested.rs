@@ -243,7 +243,7 @@ pub fn build_nested_for_helper(stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -
             }
             end.accept_mutate(&mut subs_expr);
             if idx == iter_vars.len() - 1 {
-                return Stmt::For(
+                Stmt::For(
                     For::make(
                         iter_vars[idx].borrow().var(),
                         iter_vars[idx].borrow().start(),
@@ -251,10 +251,10 @@ pub fn build_nested_for_helper(stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -
                         iter_vars[idx].borrow().step(),
                         Seq::make(seq)
                     )
-                );
+                )
             } else {
                 seq.push(build_recursive(idx + 1, stage, iter_vars));
-                return Stmt::For(
+                Stmt::For(
                     For::make(
                         iter_vars[idx].borrow().var(),
                         iter_vars[idx].borrow().start(),
@@ -262,7 +262,7 @@ pub fn build_nested_for_helper(stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -
                         iter_vars[idx].borrow().step(),
                         Seq::make(seq)
                     )
-                );
+                )
             }
         } else {
             if iter_vars.len() > 0 && idx == iter_vars.len() - 1 {
@@ -284,7 +284,7 @@ pub fn build_nested_for_helper(stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -
                     );
                 }
                 end.accept_mutate(&mut subs_expr);
-                return Stmt::For(
+                Stmt::For(
                     For::make(
                         iter_vars[idx].borrow().var(),
                         iter_vars[idx].borrow().start(),
@@ -292,10 +292,10 @@ pub fn build_nested_for_helper(stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -
                         iter_vars[idx].borrow().step(),
                         store.unwrap()
                     )
-                );
+                )
             } else {
                 if iter_vars.len() == 0 {
-                    return store.unwrap();
+                    store.unwrap()
                 } else {
                     let end: crate::halide::prime_expr::PrimeExpr = iter_vars[idx]
                         .borrow()
@@ -318,7 +318,7 @@ pub fn build_nested_for_helper(stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -
                         );
                     }
                     end.accept_mutate(&mut subs_expr);
-                    return Stmt::For(
+                    Stmt::For(
                         For::make(
                             iter_vars[idx].borrow().var(),
                             iter_vars[idx].borrow().start(),
@@ -326,7 +326,7 @@ pub fn build_nested_for_helper(stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -
                             iter_vars[idx].borrow().step(),
                             build_recursive(idx + 1, stage, iter_vars)
                         )
-                    );
+                    )
                 }
             }
         }

@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
 use crate::halide::{
-    prime_expr::PrimeExpr,
     let_stmt::LetStmt,
+    prime_expr::PrimeExpr,
     stmt::Stmt,
-    traits::{ mutate_expr, IRMutateVisitor, MutatorGetSet },
+    traits::{ mutate_expr, visit_add, visit_mul, visit_sub, IRMutateVisitor, MutatorGetSet },
 };
 
 #[derive(Clone, Debug)]
@@ -77,6 +77,27 @@ impl IRMutateVisitor for SubstituteExpr {
             self.set_expr(replacement.clone());
         } else {
             self.set_expr(var);
+        }
+    }
+    fn visit_mul(&mut self, mul: &crate::halide::exprs::Mul) {
+        if let Some(replacement) = self.find_replacement(&mul.into()) {
+            self.set_expr(replacement.clone());
+        } else {
+            visit_mul(self, mul);
+        }
+    }
+    fn visit_sub(&mut self, sub: &crate::halide::exprs::Sub) {
+        if let Some(replacement) = self.find_replacement(&sub.into()) {
+            self.set_expr(replacement.clone());
+        } else {
+            visit_sub(self, sub);
+        }
+    }
+    fn visit_add(&mut self, add: &crate::halide::exprs::Add) {
+        if let Some(replacement) = self.find_replacement(&add.into()) {
+            self.set_expr(replacement.clone());
+        } else {
+            visit_add(self, add);
         }
     }
 }
