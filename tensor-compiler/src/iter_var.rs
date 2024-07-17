@@ -43,6 +43,9 @@ impl IterVar {
     pub fn set_var(&mut self, var: Variable) {
         self.var = var;
     }
+    pub fn set_end(&mut self, end: PrimeExpr) {
+        self.end = end;
+    }
 }
 
 impl<A, B, C, D> Into<IterVar>

@@ -200,4 +200,44 @@ impl Tensor {
         }
         self.flip(0)
     }
+    pub fn repeat(&self, repeats: i64, axis: isize) -> Self {
+        let mut new_shape = vec![];
+        let mut axis = axis;
+        if axis < 0 {
+            axis += self.shape.len() as isize;
+        } else {
+        }
+        if axis >= (self.shape.len() as isize) || axis < 0 {
+            panic!("Invalid axes");
+        }
+        for i in 0..self.shape.len() {
+            if i == (axis as usize) {
+                let mut iter_var = self.shape[i].clone();
+                iter_var.set_var(Variable::new(format!("ax{}", i)));
+                iter_var.set_end(iter_var.end() * &repeats.into());
+                new_shape.push(iter_var);
+            } else {
+                new_shape.push(self.shape[i].clone());
+            }
+        }
+        _compute(
+            self.dtype,
+            new_shape.to_vec(),
+            vec![self.clone()],
+            format!("repeat_{}", self.name),
+            move |inputs, indices| {
+                let mut new_indices = vec![];
+                for i in 0..indices.len() {
+                    if i == (axis as usize) {
+                        new_indices.push(
+                            FloorDiv::make(indices[i].var().to_prime_expr(), repeats).into()
+                        );
+                    } else {
+                        new_indices.push(indices[i].var().to_prime_expr());
+                    }
+                }
+                inputs[0]._slice(&new_indices).into()
+            }
+        )
+    }
 }
