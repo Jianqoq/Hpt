@@ -12,6 +12,7 @@ use crate::halide::{
 pub struct TensorSlice {
     pub(crate) var: Arc<Variable>,
     pub(crate) dims: Arc<Vec<PrimeExpr>>,
+    pub(crate) strides: Option<Arc<Vec<usize>>>,
 }
 
 impl Into<PrimeExpr> for TensorSlice {
@@ -28,19 +29,35 @@ impl Into<PrimeExpr> for &TensorSlice {
 
 impl Display for TensorSlice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let load_strides = (0..self.dims.len()).map(|x| {
-            Load::make(format!("{}.strides", self.var.as_ref()), x)
-        });
-        let load = Load::make(
-            self.var.as_ref(),
-            self.dims
-                .iter()
-                .zip(load_strides)
-                .map(|(x, strides)| x.clone() * strides.into())
-                .reduce(|x, y| x + y)
-                .unwrap()
-        );
-        write!(f, "{}", load)
+        if let Some(strides) = &self.strides {
+            let load_strides = strides.iter().map(|x| {
+                Load::make(format!("{}.strides", self.var.as_ref()), x)
+            });
+            let load = Load::make(
+                self.var.as_ref(),
+                self.dims
+                    .iter()
+                    .zip(load_strides)
+                    .map(|(x, strides)| x.clone() * strides.into())
+                    .reduce(|x, y| x + y)
+                    .unwrap()
+            );
+            write!(f, "{}", load)
+        } else {
+            let load_strides = (0..self.dims.len()).map(|x| {
+                Load::make(format!("{}.strides", self.var.as_ref()), x)
+            });
+            let load = Load::make(
+                self.var.as_ref(),
+                self.dims
+                    .iter()
+                    .zip(load_strides)
+                    .map(|(x, strides)| x.clone() * strides.into())
+                    .reduce(|x, y| x + y)
+                    .unwrap()
+            );
+            write!(f, "{}", load)
+        }
     }
 }
 
@@ -58,6 +75,14 @@ impl TensorSlice {
         TensorSlice {
             var: Arc::new(var.into()),
             dims: Arc::new(dims.into()),
+            strides: None,
+        }
+    }
+    pub fn make_strides<A: Into<Variable>, B: Into<Vec<PrimeExpr>>>(var: A, dims: B, strides: &[usize]) -> Self {
+        TensorSlice {
+            var: Arc::new(var.into()),
+            dims: Arc::new(dims.into()),
+            strides: Some(Arc::new(strides.to_vec())),
         }
     }
 }

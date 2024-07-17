@@ -470,6 +470,18 @@ impl Tensor {
         assert!(indices.len() == self.ndim());
         TensorSlice::make(self.name.clone(), indices)
     }
+    pub fn _slice_strides<T: ToPrimeExpr>(
+        &self,
+        indices: &[T],
+        strides_idx: &[usize]
+    ) -> TensorSlice {
+        let indices = indices
+            .into_iter()
+            .map(|x| x.to_prime_expr())
+            .collect::<Vec<PrimeExpr>>();
+        assert!(indices.len() <= self.ndim());
+        TensorSlice::make_strides(self.name.clone(), indices, strides_idx)
+    }
 }
 
 impl Display for Tensor {

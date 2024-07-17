@@ -125,19 +125,33 @@ impl Tensor {
             if i >= (self.shape.len() as isize) || i < 0 {
                 panic!("Invalid axes");
             }
-            let itera_var = &self.shape[i as usize];
-            let range = itera_var.end() - itera_var.start();
-            if range != Int::make(Dtype::I64, 1).into() {
-                panic!("Cannot squeeze axis");
-            }
             new_axes.push(i);
         }
+        let mut cnt = 0;
+        let mut strides = vec![];
         for i in 0..self.shape.len() {
             if let Some(_) = set.get(&(i as isize)) {
                 continue;
             }
-            new_shape.push(self.shape[i].clone());
+            let mut iter_var = self.shape[i].clone();
+            iter_var.set_var(Variable::new(format!("ax{}", cnt)));
+            strides.push(i);
+            cnt += 1;
+            new_shape.push(iter_var);
         }
-        todo!()
+        _compute(
+            self.dtype,
+            new_shape,
+            vec![self.clone()],
+            format!("reshape_{}", self.name),
+            move |inputs, indices| {
+                assert!(strides.len() == indices.len());
+                let new_indices = indices
+                    .iter()
+                    .map(|x| x.var().clone())
+                    .collect::<Vec<_>>();
+                inputs[0]._slice_strides(&new_indices, &strides).into()
+            }
+        )
     }
 }
