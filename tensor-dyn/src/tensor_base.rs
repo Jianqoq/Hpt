@@ -829,7 +829,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                     });
             }
         }
-        return Ok(data);
+        Ok(data)
     }
 
     fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> anyhow::Result<Self>
@@ -866,7 +866,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                     }
                 });
         }
-        return Ok(res);
+        Ok(res)
     }
 
     fn tril(&self, k: i64) -> anyhow::Result<Self>
@@ -883,7 +883,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             true
         )?;
         let res: <_Tensor<T> as Mul<_Tensor<bool>>>::Output = self.clone() * mask;
-        return Ok(res);
+        Ok(res)
     }
 
     fn triu(&self, k: i64) -> anyhow::Result<Self>
@@ -902,7 +902,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             false
         )?;
         let res = self.clone() * mask;
-        return Ok(res);
+        Ok(res)
     }
 
     fn identity(n: usize) -> anyhow::Result<Self> where u8: IntoScalar<T> {
@@ -933,7 +933,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             .filter(|&(i, _)| !axes.contains(&i))
             .map(|(_, &x)| x)
             .collect();
-        return self.reshape(new_shape);
+        self.reshape(new_shape)
     }
 
     fn unsqueeze<A: Into<Axis>>(&self, axes: A) -> Result<_Tensor<T>> {
@@ -942,7 +942,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         axes.iter().for_each(|&x| {
             res_shape = yield_one_before(&res_shape, x);
         });
-        return self.reshape(res_shape);
+        self.reshape(res_shape)
     }
 
     fn reshape<S: Into<Shape>>(&self, shape: S) -> Result<_Tensor<T>> {
@@ -957,17 +957,17 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
                 _backend: Backend::new(),
             });
         } else {
-            return self.contiguous()?.reshape(shape);
+            self.contiguous()?.reshape(shape)
         }
     }
 
     fn transpose(&self, axis1: i64, axis2: i64) -> Result<_Tensor<T>> {
         if self.ndim() < 2 {
-            return Err(
+            Err(
                 anyhow::Error::msg(
                     "_Tensor with less than 2 dimensions for `transpose` method is not allowed"
                 )
-            );
+            )
         } else {
             self.permute(vec![axis1, axis2])
         }
@@ -975,26 +975,26 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
 
     fn permute<A: Into<Axis>>(&self, axes: A) -> Result<_Tensor<T>> {
         let permuted_layout = self.layout.permute(axes)?;
-        return Ok(_Tensor {
+        Ok(_Tensor {
             data: self.data.clone(),
             layout: permuted_layout,
             parent: self.parent,
             mem_layout: self.mem_layout.clone(),
             _backend: Backend::new(),
-        });
+        })
     }
 
     fn expand<S: Into<Shape>>(&self, shape: S) -> Result<_Tensor<T>> {
         let res_shape = Shape::from(shape.into());
         ErrHandler::check_expand_dims(self.shape(), &res_shape).unwrap();
         let res_strides = self.layout.expand_strides(&res_shape);
-        return Ok(Self {
+        Ok(Self {
             data: self.data.clone(),
             parent: self.parent.clone(),
             mem_layout: self.mem_layout.clone(),
             layout: Layout::new(res_shape, res_strides),
             _backend: Backend::new(),
-        });
+        })
     }
 
     fn t(&self) -> Result<Self> {
@@ -1009,11 +1009,11 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             axes.swap(self.ndim() - 1, self.ndim() - 2);
             return self.permute(axes);
         }
-        return self.transpose(1, 0);
+        self.transpose(1, 0)
     }
 
     fn mt(&self) -> Result<Self> {
-        return self.permute((0..self.ndim() as i64).rev().collect::<Vec<i64>>());
+        self.permute((0..self.ndim() as i64).rev().collect::<Vec<i64>>())
     }
 
     fn flip<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
@@ -1025,21 +1025,21 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             ptr.offset(self.strides()[i as usize]);
         }
         if self.parent.is_none() {
-            return Ok(Self {
+            Ok(Self {
                 data: ptr,
                 parent: Some(self.data),
                 mem_layout: self.mem_layout.clone(),
                 layout: Layout::new(self.shape().clone(), new_strides),
                 _backend: Backend::new(),
-            });
+            })
         } else {
-            return Ok(Self {
+            Ok(Self {
                 data: ptr,
                 parent: self.parent.clone(),
                 mem_layout: self.mem_layout.clone(),
                 layout: Layout::new(self.shape().clone(), new_strides),
                 _backend: Backend::new(),
-            });
+            })
         }
     }
 
@@ -1047,14 +1047,14 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         if self.ndim() < 2 {
             return Err(anyhow::Error::msg("_Tensor must have at least 2 dimensions for fliplr"));
         }
-        return self.flip(1);
+        self.flip(1)
     }
 
     fn flipud(&self) -> Result<Self> {
         if self.ndim() < 1 {
             return Err(anyhow::Error::msg("_Tensor must have at least 1 dimensions for flipud"));
         }
-        return self.flip(0);
+        self.flip(0)
     }
 
     fn tile<S: Into<Axis>>(&self, repeats: S) -> Result<Self> {
@@ -1085,7 +1085,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
                 cnt += 1;
             }
         }
-        return res.reshape(final_shape);
+        res.reshape(final_shape)
     }
 
     fn trim_zeros(&self, trim: &str) -> Result<Self> where Self::Meta: PartialEq {
@@ -1126,7 +1126,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
                 }
             }
         }
-        return slice!(self[left_len:right_len]);
+        slice!(self[left_len:right_len])
     }
 
     fn repeat(&self, repeats: usize, axes: i16) -> Result<_Tensor<T>> {
@@ -1140,7 +1140,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         new_tensor = new_tensor.expand(new_shape)?;
         new_shape = self.shape().to_vec();
         new_shape[val] *= repeats as i64;
-        return Ok(new_tensor.contiguous()?.reshape(new_shape)?);
+        Ok(new_tensor.contiguous()?.reshape(new_shape)?)
     }
 
     fn split(&self, indices_or_sections: &[i64], axis: i64) -> Result<Vec<Self>> {
@@ -1163,7 +1163,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         let last = *indices_or_sections.last().unwrap();
         let remain = self.slice([Slice::RangeFrom(last)])?;
         reses.push(remain);
-        return Ok(reses);
+        Ok(reses)
     }
 
     fn dsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
@@ -1172,7 +1172,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
                 anyhow::Error::msg("_Tensor must have at least 3 dimensions for dsplit method")
             );
         }
-        return self.split(indices, 2);
+        self.split(indices, 2)
     }
 
     fn hsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
@@ -1181,7 +1181,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
                 anyhow::Error::msg("_Tensor must have at least 2 dimensions for hsplit method")
             );
         }
-        return self.split(indices, 1);
+        self.split(indices, 1)
     }
 
     fn vsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
@@ -1190,7 +1190,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
                 anyhow::Error::msg("_Tensor must have at least 1 dimensions for vsplit method")
             );
         }
-        return self.split(indices, 0);
+        self.split(indices, 0)
     }
 
     fn swap_axes(&self, mut axis1: i64, mut axis2: i64) -> Result<Self> {
@@ -1211,13 +1211,13 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         new_shape.swap(axis1 as usize, axis2 as usize);
         new_strides.swap(axis1 as usize, axis2 as usize);
         let layout = Layout::new(new_shape, new_strides);
-        return Ok(Self {
+        Ok(Self {
             data: self.data.clone(),
             layout,
             parent: self.parent.clone(),
             mem_layout: self.mem_layout.clone(),
             _backend: Backend::new(),
-        });
+        })
     }
 }
 

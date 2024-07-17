@@ -106,4 +106,38 @@ impl Tensor {
             }
         )
     }
+
+    pub fn squeeze(&self, axes: &[isize]) -> Self {
+        let mut new_shape = vec![];
+        let mut new_axes = vec![];
+        let mut set = HashSet::new();
+        for i in axes {
+            let mut i = *i;
+            if i < 0 {
+                i = i + (self.shape.len() as isize);
+            } else {
+            }
+            if let Some(_) = set.get(&i) {
+                panic!("Duplicate axes");
+            } else {
+                set.insert(i);
+            }
+            if i >= (self.shape.len() as isize) || i < 0 {
+                panic!("Invalid axes");
+            }
+            let itera_var = &self.shape[i as usize];
+            let range = itera_var.end() - itera_var.start();
+            if range != Int::make(Dtype::I64, 1).into() {
+                panic!("Cannot squeeze axis");
+            }
+            new_axes.push(i);
+        }
+        for i in 0..self.shape.len() {
+            if let Some(_) = set.get(&(i as isize)) {
+                continue;
+            }
+            new_shape.push(self.shape[i].clone());
+        }
+        todo!()
+    }
 }
