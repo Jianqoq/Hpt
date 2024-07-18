@@ -347,6 +347,110 @@ pub fn build_nested_for_helper(stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -
                             );
                             Some(Stmt::LetStmt(init_inf))
                         }
+                        "max" => {
+                            let store_init = StoreStmt::make(
+                                &Variable::make(&stage.borrow().name),
+                                store_indices_freezed
+                                    .iter()
+                                    .zip(load_strides.clone())
+                                    .map(|(x, strides)| x.clone() * strides.into())
+                                    .reduce(|x, y| x + y)
+                                    .unwrap(),
+                                &reduce.identity()[0]
+                            );
+                            let iter_var = &reduce.iter_vars()[0];
+                            let cond = Gt::make(
+                                &reduce.expr()[0],
+                                Load::make(
+                                    Variable::make(&stage.borrow().name),
+                                    store_indices_freezed
+                                        .iter()
+                                        .zip(load_strides.clone())
+                                        .map(|(x, strides)| x.clone() * strides.into())
+                                        .reduce(|x, y| x + y)
+                                        .unwrap()
+                                )
+                            );
+                            let true_stmt = Stmt::StoreStmt(
+                                StoreStmt::make(
+                                    &Variable::make(&stage.borrow().name),
+                                    store_indices_freezed
+                                        .iter()
+                                        .zip(load_strides.clone())
+                                        .map(|(x, strides)| x.clone() * strides.into())
+                                        .reduce(|x, y| x + y)
+                                        .unwrap(),
+                                    &reduce.expr()[0]
+                                )
+                            );
+                            let if_stmt = IfThenElse::make(cond, true_stmt, Stmt::None);
+                            let for_stmt = For::make(
+                                iter_var.var(),
+                                iter_var.start(),
+                                iter_var.end(),
+                                iter_var.step(),
+                                Stmt::IfThenElse(if_stmt)
+                            );
+                            Some(
+                                Stmt::Seq(
+                                    Seq::make(
+                                        vec![Stmt::StoreStmt(store_init), Stmt::For(for_stmt)]
+                                    )
+                                )
+                            )
+                        }
+                        "min" => {
+                            let store_init = StoreStmt::make(
+                                &Variable::make(&stage.borrow().name),
+                                store_indices_freezed
+                                    .iter()
+                                    .zip(load_strides.clone())
+                                    .map(|(x, strides)| x.clone() * strides.into())
+                                    .reduce(|x, y| x + y)
+                                    .unwrap(),
+                                &reduce.identity()[0]
+                            );
+                            let iter_var = &reduce.iter_vars()[0];
+                            let cond = Gt::make(
+                                Load::make(
+                                    Variable::make(&stage.borrow().name),
+                                    store_indices_freezed
+                                        .iter()
+                                        .zip(load_strides.clone())
+                                        .map(|(x, strides)| x.clone() * strides.into())
+                                        .reduce(|x, y| x + y)
+                                        .unwrap()
+                                ),
+                                &reduce.expr()[0]
+                            );
+                            let true_stmt = Stmt::StoreStmt(
+                                StoreStmt::make(
+                                    &Variable::make(&stage.borrow().name),
+                                    store_indices_freezed
+                                        .iter()
+                                        .zip(load_strides.clone())
+                                        .map(|(x, strides)| x.clone() * strides.into())
+                                        .reduce(|x, y| x + y)
+                                        .unwrap(),
+                                    &reduce.expr()[0]
+                                )
+                            );
+                            let if_stmt = IfThenElse::make(cond, true_stmt, Stmt::None);
+                            let for_stmt = For::make(
+                                iter_var.var(),
+                                iter_var.start(),
+                                iter_var.end(),
+                                iter_var.step(),
+                                Stmt::IfThenElse(if_stmt)
+                            );
+                            Some(
+                                Stmt::Seq(
+                                    Seq::make(
+                                        vec![Stmt::StoreStmt(store_init), Stmt::For(for_stmt)]
+                                    )
+                                )
+                            )
+                        }
                         _ => { panic!("Not implemented") }
                     }
                 }
