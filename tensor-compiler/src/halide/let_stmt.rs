@@ -24,6 +24,9 @@ impl LetStmt {
     pub fn body(&self) -> &Stmt {
         &self.body
     }
+    pub fn set_body(&mut self, body: Stmt) {
+        self.body = body.into();
+    }
 
     pub fn make<A: Into<PrimeExpr>, T: Into<Stmt>>(var: &Variable, value: A, body: T) -> Self {
         LetStmt {
@@ -48,7 +51,7 @@ impl LetStmt {
 
 impl std::fmt::Display for LetStmt {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "let {} = {};", self.var, self.body)
+        write!(f, "let {} = {};\n{}", self.var, self.value, self.body)
     }
 }
 

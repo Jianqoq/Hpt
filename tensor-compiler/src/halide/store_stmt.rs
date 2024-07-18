@@ -82,7 +82,7 @@ impl StoreStmt {
 
 impl std::fmt::Display for StoreStmt {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}[{}] = {}", self.var, self.indices, self.val)
+        write!(f, "{}[{}] = {};", self.var, self.indices, self.val)
     }
 }
 

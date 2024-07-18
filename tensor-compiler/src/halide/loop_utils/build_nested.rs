@@ -2,6 +2,12 @@ use std::{ collections::VecDeque, sync::Arc };
 
 use std::collections::{ HashMap, HashSet };
 
+use crate::halide::assign_stmt::AssignStmt;
+use crate::halide::exprs::Gt;
+use crate::halide::if_stmt::IfThenElse;
+use crate::halide::inplace_store_stmt::{ InplaceAdd, InplaceMul };
+use crate::halide::let_stmt::LetStmt;
+use crate::halide::prime_expr::PrimeExpr;
 use crate::{
     edges::Edges,
     halide::{
@@ -136,17 +142,228 @@ pub fn build_nested_for_helper(stage: RcMut<Stage>, iter_vars: &[RcMut<Node>]) -
                 Load::make(format!("{}.strides", stage.borrow().name.as_ref()), x)
             });
             store_indices_freezed.extend(store_indices_root.iter().cloned());
-            let store = StoreStmt::make(
-                &Variable::make(&stage.borrow().name),
-                store_indices_freezed
-                    .iter()
-                    .zip(load_strides)
-                    .map(|(x, strides)| x.clone() * strides.into())
-                    .reduce(|x, y| x + y)
-                    .unwrap(),
-                subs_expr.expr()
-            );
-            Some(Stmt::StoreStmt(store))
+            match subs_expr.expr() {
+                PrimeExpr::Reduce(reduce) => {
+                    match reduce.op() {
+                        "sum" => {
+                            let store_init = StoreStmt::make(
+                                &Variable::make(&stage.borrow().name),
+                                store_indices_freezed
+                                    .iter()
+                                    .zip(load_strides.clone())
+                                    .map(|(x, strides)| x.clone() * strides.into())
+                                    .reduce(|x, y| x + y)
+                                    .unwrap(),
+                                &reduce.identity()[0]
+                            );
+                            let iter_var = &reduce.iter_vars()[0];
+                            let inplace_add = InplaceAdd::make(
+                                Load::make(
+                                    Variable::make(&stage.borrow().name),
+                                    store_indices_freezed
+                                        .iter()
+                                        .zip(load_strides.clone())
+                                        .map(|(x, strides)| x.clone() * strides.into())
+                                        .reduce(|x, y| x + y)
+                                        .unwrap()
+                                ),
+                                &reduce.expr()[0]
+                            );
+                            let for_stmt = For::make(
+                                iter_var.var(),
+                                iter_var.start(),
+                                iter_var.end(),
+                                iter_var.step(),
+                                Stmt::InplaceAdd(inplace_add)
+                            );
+                            Some(
+                                Stmt::Seq(
+                                    Seq::make(
+                                        vec![Stmt::StoreStmt(store_init), Stmt::For(for_stmt)]
+                                    )
+                                )
+                            )
+                        }
+                        "prod" => {
+                            let store_init = StoreStmt::make(
+                                &Variable::make(&stage.borrow().name),
+                                store_indices_freezed
+                                    .iter()
+                                    .zip(load_strides.clone())
+                                    .map(|(x, strides)| x.clone() * strides.into())
+                                    .reduce(|x, y| x + y)
+                                    .unwrap(),
+                                &reduce.identity()[0]
+                            );
+                            let iter_var = &reduce.iter_vars()[0];
+                            let inplace_mul = InplaceMul::make(
+                                Load::make(
+                                    Variable::make(&stage.borrow().name),
+                                    store_indices_freezed
+                                        .iter()
+                                        .zip(load_strides.clone())
+                                        .map(|(x, strides)| x.clone() * strides.into())
+                                        .reduce(|x, y| x + y)
+                                        .unwrap()
+                                ),
+                                &reduce.expr()[0]
+                            );
+                            let for_stmt = For::make(
+                                iter_var.var(),
+                                iter_var.start(),
+                                iter_var.end(),
+                                iter_var.step(),
+                                Stmt::InplaceMul(inplace_mul)
+                            );
+                            Some(
+                                Stmt::Seq(
+                                    Seq::make(
+                                        vec![Stmt::StoreStmt(store_init), Stmt::For(for_stmt)]
+                                    )
+                                )
+                            )
+                        }
+                        "argmax" => {
+                            let store_init = StoreStmt::make(
+                                &Variable::make(&stage.borrow().name),
+                                store_indices_freezed
+                                    .iter()
+                                    .zip(load_strides.clone())
+                                    .map(|(x, strides)| x.clone() * strides.into())
+                                    .reduce(|x, y| x + y)
+                                    .unwrap(),
+                                &reduce.identity()[0]
+                            );
+                            let mut init_neg_inf = LetStmt::make(
+                                &Variable::new(format!("{}_tmp", &stage.borrow().name)),
+                                &reduce.identity()[1],
+                                Stmt::None
+                            );
+                            let iter_var = &reduce.iter_vars()[0];
+                            let cond = Gt::make(
+                                &reduce.expr()[0],
+                                Variable::new(format!("{}_tmp", &stage.borrow().name))
+                            );
+                            let true_stmt = Stmt::Seq(
+                                Seq::make(
+                                    vec![
+                                        Stmt::AssignStmt(
+                                            AssignStmt::make(
+                                                &Variable::new(
+                                                    format!("{}_tmp", &stage.borrow().name)
+                                                ),
+                                                &reduce.expr()[0]
+                                            )
+                                        ),
+                                        Stmt::StoreStmt(
+                                            StoreStmt::make(
+                                                &Variable::make(&stage.borrow().name),
+                                                store_indices_freezed
+                                                    .iter()
+                                                    .zip(load_strides.clone())
+                                                    .map(|(x, strides)| x.clone() * strides.into())
+                                                    .reduce(|x, y| x + y)
+                                                    .unwrap(),
+                                                iter_var.var()
+                                            )
+                                        )
+                                    ]
+                                )
+                            );
+                            let if_stmt = IfThenElse::make(cond, true_stmt, Stmt::None);
+                            let for_stmt = For::make(
+                                iter_var.var(),
+                                iter_var.start(),
+                                iter_var.end(),
+                                iter_var.step(),
+                                Stmt::IfThenElse(if_stmt)
+                            );
+                            init_neg_inf.set_body(
+                                Stmt::Seq(
+                                    Seq::make(vec![Stmt::StoreStmt(store_init), for_stmt.into()])
+                                )
+                            );
+                            Some(Stmt::LetStmt(init_neg_inf))
+                        }
+                        "argmin" => {
+                            let store_init = StoreStmt::make(
+                                &Variable::make(&stage.borrow().name),
+                                store_indices_freezed
+                                    .iter()
+                                    .zip(load_strides.clone())
+                                    .map(|(x, strides)| x.clone() * strides.into())
+                                    .reduce(|x, y| x + y)
+                                    .unwrap(),
+                                &reduce.identity()[0]
+                            );
+                            let mut init_inf = LetStmt::make(
+                                &Variable::new(format!("{}_tmp", &stage.borrow().name)),
+                                &reduce.identity()[1],
+                                Stmt::None
+                            );
+                            let iter_var = &reduce.iter_vars()[0];
+                            let cond = Gt::make(
+                                &reduce.expr()[0],
+                                Variable::new(format!("{}_tmp", &stage.borrow().name))
+                            );
+                            let true_stmt = Stmt::Seq(
+                                Seq::make(
+                                    vec![
+                                        Stmt::AssignStmt(
+                                            AssignStmt::make(
+                                                &Variable::new(
+                                                    format!("{}_tmp", &stage.borrow().name)
+                                                ),
+                                                &reduce.expr()[0]
+                                            )
+                                        ),
+                                        Stmt::StoreStmt(
+                                            StoreStmt::make(
+                                                &Variable::make(&stage.borrow().name),
+                                                store_indices_freezed
+                                                    .iter()
+                                                    .zip(load_strides.clone())
+                                                    .map(|(x, strides)| x.clone() * strides.into())
+                                                    .reduce(|x, y| x + y)
+                                                    .unwrap(),
+                                                iter_var.var()
+                                            )
+                                        )
+                                    ]
+                                )
+                            );
+                            let if_stmt = IfThenElse::make(cond, true_stmt, Stmt::None);
+                            let for_stmt = For::make(
+                                iter_var.var(),
+                                iter_var.start(),
+                                iter_var.end(),
+                                iter_var.step(),
+                                Stmt::IfThenElse(if_stmt)
+                            );
+                            init_inf.set_body(
+                                Stmt::Seq(
+                                    Seq::make(vec![Stmt::StoreStmt(store_init), for_stmt.into()])
+                                )
+                            );
+                            Some(Stmt::LetStmt(init_inf))
+                        }
+                        _ => { panic!("Not implemented") }
+                    }
+                }
+                _ => {
+                    let store = StoreStmt::make(
+                        &Variable::make(&stage.borrow().name),
+                        store_indices_freezed
+                            .iter()
+                            .zip(load_strides)
+                            .map(|(x, strides)| x.clone() * strides.into())
+                            .reduce(|x, y| x + y)
+                            .unwrap(),
+                        subs_expr.expr()
+                    );
+                    Some(Stmt::StoreStmt(store))
+                }
+            }
         } else {
             None
         };

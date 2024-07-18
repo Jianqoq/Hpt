@@ -25,27 +25,7 @@ macro_rules! register_reduce {
     };
 }
 
-pub fn sum<A: IntoIterator<Item: Into<PrimeExpr>>, C: IntoIterator<Item: Into<IterVar>>>(
-    expr: A,
-    init: &[&dyn ToPrimeExpr],
-    iter_vars: C
-) -> PrimeExpr {
-    Reduce::make(
-        expr
-            .into_iter()
-            .map(|x| x.into())
-            .collect(),
-        init
-            .into_iter()
-            .map(|x| x.to_prime_expr())
-            .collect(),
-        iter_vars
-            .into_iter()
-            .map(|x| x.into())
-            .collect(),
-        stringify!(sum)
-    ).into()
-}
+register_reduce!(sum);
 register_reduce!(prod);
 register_reduce!(max);
 register_reduce!(min);

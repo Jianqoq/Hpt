@@ -100,7 +100,8 @@ impl _IRPrinter {
         match stmt {
             Stmt::LetStmt(var) => {
                 self.do_indent();
-                println!("let {} = {};", var.var(), var.body());
+                println!("let {} = {};", var.var(), var.value());
+                self.print_stmt(var.body());
             }
             Stmt::StoreStmt(var) => {
                 self.do_indent();
@@ -144,7 +145,6 @@ impl _IRPrinter {
                 let else_case = stmt.else_case();
                 if else_case.is_none() {
                     println!("}}");
-                    return;
                 } else {
                     println!("}} else {{");
                     self.indent += 1;

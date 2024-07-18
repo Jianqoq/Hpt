@@ -228,12 +228,14 @@ impl Tensor {
                 let mut indices = indices
                     .into_iter()
                     .enumerate()
-                    .filter(|(i, _)| !axes.contains(&i))
                     .map(|(_, x)| x.var().clone().into())
                     .collect::<Vec<PrimeExpr>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var.clone());
+                reduce_iter_var.set_end(
+                    Load::make(Variable::make(&format!("{}.shape", inputs[0].name)), axis).into()
+                );
                 indices.push(var.into());
                 sum([inputs[0]._slice(&indices)], &[&init], [reduce_iter_var])
             }
@@ -259,12 +261,14 @@ impl Tensor {
                 let mut indices = indices
                     .into_iter()
                     .enumerate()
-                    .filter(|(i, _)| !axes.contains(&i))
                     .map(|(_, x)| x.var().clone().into())
                     .collect::<Vec<PrimeExpr>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var.clone());
+                reduce_iter_var.set_end(
+                    Load::make(Variable::make(&format!("{}.shape", inputs[0].name)), axis).into()
+                );
                 indices.push(var.into());
                 prod([inputs[0]._slice(&indices)], &[&init], [reduce_iter_var])
             }
@@ -289,12 +293,14 @@ impl Tensor {
                 let mut indices = indices
                     .into_iter()
                     .enumerate()
-                    .filter(|(i, _)| !axes.contains(&i))
                     .map(|(_, x)| x.var().clone().into())
                     .collect::<Vec<PrimeExpr>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var.clone());
+                reduce_iter_var.set_end(
+                    Load::make(Variable::make(&format!("{}.shape", inputs[0].name)), axis).into()
+                );
                 indices.push(var.into());
                 argmax([inputs[0]._slice(&indices)], &[&init, &dtype_neg_inf(inputs[0].dtype)], [
                     reduce_iter_var,
@@ -321,12 +327,14 @@ impl Tensor {
                 let mut indices = indices
                     .into_iter()
                     .enumerate()
-                    .filter(|(i, _)| !axes.contains(&i))
                     .map(|(_, x)| x.var().clone().into())
                     .collect::<Vec<PrimeExpr>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var.clone());
+                reduce_iter_var.set_end(
+                    Load::make(Variable::make(&format!("{}.shape", inputs[0].name)), axis).into()
+                );
                 indices.push(var.into());
                 argmin([inputs[0]._slice(&indices)], &[&init, &dtype_inf(inputs[0].dtype)], [
                     reduce_iter_var,
@@ -353,12 +361,14 @@ impl Tensor {
                 let mut indices = indices
                     .into_iter()
                     .enumerate()
-                    .filter(|(i, _)| !axes.contains(&i))
                     .map(|(_, x)| x.var().into())
                     .collect::<Vec<PrimeExpr>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var.clone());
+                reduce_iter_var.set_end(
+                    Load::make(Variable::make(&format!("{}.shape", inputs[0].name)), axis).into()
+                );
                 indices.push(var.into());
                 max([inputs[0]._slice(&indices)], &[&dtype_neg_inf(inputs[0].dtype)], [
                     reduce_iter_var,
@@ -385,12 +395,14 @@ impl Tensor {
                 let mut indices = indices
                     .into_iter()
                     .enumerate()
-                    .filter(|(i, _)| !axes.contains(&i))
                     .map(|(_, x)| { x.var().into() })
                     .collect::<Vec<PrimeExpr>>();
                 let var = Variable::new(format!("red_{}", inputs[0].name));
                 let mut reduce_iter_var = inputs[0].shape[axis].clone();
                 reduce_iter_var.set_var(var.clone());
+                reduce_iter_var.set_end(
+                    Load::make(Variable::make(&format!("{}.shape", inputs[0].name)), axis).into()
+                );
                 indices.push(var.into());
                 min([inputs[0]._slice(&indices)], &[&dtype_inf(inputs[0].dtype)], [reduce_iter_var])
             }
