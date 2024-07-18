@@ -172,18 +172,12 @@ impl CodeGen {
                 err_string.as_mut_ptr()
             )
         };
-        let target_data = unsafe {
-            LLVMGetExecutionEngineTargetData(execution_engine.assume_init())
-        };
         unsafe {
             if code == 1 {
                 let msg = CStr::from_ptr(err_string.assume_init());
                 panic!("Failed to create JIT compiler: {:?}", msg.to_string_lossy().into_owned());
             }
-            let execution_engine = ExecutionEngine::new(
-                execution_engine.assume_init(),
-                target_data
-            );
+            let execution_engine = ExecutionEngine::new(execution_engine.assume_init());
             declare_printf(&ctx, &_module);
             CodeGen {
                 ctx,
@@ -1407,11 +1401,11 @@ impl CodeGenVisitor for CodeGen {
         self.visit_stmt(&function.body);
         self.builder.position_at_end(block);
     }
-    
+
     fn visit_shl(&mut self, shl: &crate::halide::exprs::Shl) -> BasicValue {
         todo!()
     }
-    
+
     fn visit_shr(&mut self, shr: &crate::halide::exprs::Shr) -> BasicValue {
         todo!()
     }

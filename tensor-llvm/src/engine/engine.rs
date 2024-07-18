@@ -1,18 +1,17 @@
-use llvm_sys::{ execution_engine::LLVMOpaqueExecutionEngine, target::LLVMTargetDataRef };
+use llvm_sys::execution_engine::LLVMOpaqueExecutionEngine;
 
 use crate::utils::to_c_str;
 
 pub struct ExecutionEngine {
     pub(crate) engine: *mut LLVMOpaqueExecutionEngine,
-    pub(crate) target_data: LLVMTargetDataRef,
 }
 
 impl ExecutionEngine {
     pub fn inner(&self) -> *mut LLVMOpaqueExecutionEngine {
         self.engine
     }
-    pub fn new(engine: *mut LLVMOpaqueExecutionEngine, target_data: LLVMTargetDataRef) -> Self {
-        ExecutionEngine { engine, target_data }
+    pub fn new(engine: *mut LLVMOpaqueExecutionEngine) -> Self {
+        ExecutionEngine { engine }
     }
 
     pub fn get_function(
