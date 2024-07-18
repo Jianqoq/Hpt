@@ -306,4 +306,25 @@ impl Tensor {
         }
         res
     }
+
+    pub fn dsplit(&self, indices_or_selections: &[&dyn ToPrimeExpr]) -> Vec<Self> {
+        if self.shape().len() < 3 {
+            panic!("Tensor must have at least 3 dimensions for dsplit method");
+        }
+        self.split(indices_or_selections, 2)
+    }
+
+    pub fn hsplit(&self, indices_or_selections: &[&dyn ToPrimeExpr]) -> Vec<Self> {
+        if self.shape().len() < 2 {
+            panic!("Tensor must have at least 2 dimensions for hsplit method");
+        }
+        self.split(indices_or_selections, 1)
+    }
+
+    pub fn vsplit(&self, indices_or_selections: &[&dyn ToPrimeExpr]) -> Vec<Self> {
+        if self.shape().len() < 1 {
+            panic!("Tensor must have at least 1 dimensions for vsplit method");
+        }
+        self.split(indices_or_selections, 0)
+    }
 }

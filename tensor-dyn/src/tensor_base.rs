@@ -277,9 +277,9 @@ impl<T: CommonBounds> _Tensor<T> {
     /// ```
     pub fn try_astype<U>(&self) -> Result<_Tensor<U>> where U: CommonBounds, T: IntoScalar<U> {
         if U::ID == T::ID {
-            return Ok(self.static_cast()?);
+            Ok(self.static_cast()?)
         } else {
-            return Ok(self.astype::<U>()?);
+            Ok(self.astype::<U>()?)
         }
     }
 
@@ -313,13 +313,13 @@ impl<T: CommonBounds> _Tensor<T> {
             }
             None => {
                 let new_parent = Pointer::new(self.data.ptr as *mut U);
-                return Ok(_Tensor {
+                Ok(_Tensor {
                     data: Pointer::new(self.data.ptr as *mut U),
                     parent: Some(new_parent),
                     mem_layout: self.mem_layout.clone(),
                     layout: self.layout.clone(),
                     _backend: self._backend,
-                });
+                })
             }
         }
     }
@@ -362,10 +362,10 @@ impl<T: CommonBounds> _Tensor<T> {
                     acc && abs_diff <= torlerance
                 }
             );
-        return folder.reduce(
+        folder.reduce(
             || true,
             |a, b| a && b
-        );
+        )
     }
 
     /// Create a contiguous copy of the tensor.
@@ -441,7 +441,7 @@ impl<T: CommonBounds> _Tensor<T> {
     /// assert!(vstacked_tensor.allclose(&_Tensor::<f64>::new([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])));
     /// ```
     pub fn vstack(tensors: Vec<&_Tensor<T>>) -> Result<_Tensor<T>> {
-        return stack(tensors, 0, false);
+        stack(tensors, 0, false)
     }
     /// Horizontally stacks a sequence of tensors.
     ///
@@ -483,7 +483,7 @@ impl<T: CommonBounds> _Tensor<T> {
                 }
             }
         }
-        return stack(tensors, 1, false);
+        stack(tensors, 1, false)
     }
 
     /// Depth-stacks a sequence of tensors.
@@ -529,7 +529,7 @@ impl<T: CommonBounds> _Tensor<T> {
         for tensor in new_tensors.iter() {
             tensors_ref.push(tensor);
         }
-        return stack(tensors_ref, 2, false);
+        stack(tensors_ref, 2, false)
     }
 }
 
@@ -554,13 +554,13 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             ::from_size_align((size as usize) * std::mem::size_of::<T>(), 8)
             .unwrap();
         let ptr = unsafe { CACHE.allocate(layout) };
-        return Ok(_Tensor {
+        Ok(_Tensor {
             data: Pointer::new(ptr as *mut T),
             parent: None,
             layout: Layout::new(res_shape, strides),
             mem_layout: Arc::new(layout),
             _backend: Backend::new(),
-        });
+        })
     }
 
     fn zeros<S: Into<Shape>>(shape: S) -> anyhow::Result<Self> {
@@ -580,13 +580,13 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         unsafe {
             std::ptr::write_bytes(ptr as *mut T, 0, size);
         }
-        return Ok(_Tensor {
+        Ok(_Tensor {
             data: Pointer::new(ptr as *mut T),
             parent: None,
             layout: Layout::new(res_shape, strides),
             mem_layout: Arc::new(layout),
             _backend: Backend::new(),
-        });
+        })
     }
 
     fn ones<S: Into<Shape>>(shape: S) -> anyhow::Result<Self> where u8: IntoScalar<T> {
@@ -606,25 +606,25 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         unsafe {
             std::ptr::write_bytes(ptr as *mut T, 1, size);
         }
-        return Ok(_Tensor {
+        Ok(_Tensor {
             data: Pointer::new(ptr as *mut T),
             parent: None,
             layout: Layout::new(res_shape, strides),
             mem_layout: Arc::new(layout),
             _backend: Backend::new(),
-        });
+        })
     }
 
     fn empty_like(&self) -> anyhow::Result<Self> {
-        return Self::empty(self.shape());
+        Self::empty(self.shape())
     }
 
     fn zeros_like(&self) -> anyhow::Result<Self> {
-        return Self::zeros(self.shape());
+        Self::zeros(self.shape())
     }
 
     fn ones_like(&self) -> anyhow::Result<Self> where u8: IntoScalar<T> {
-        return Self::ones(self.shape());
+        Self::ones(self.shape())
     }
 
     fn full<S: Into<Shape>>(val: T, shape: S) -> anyhow::Result<Self> {
@@ -636,7 +636,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             .for_each(|x| {
                 *x = val;
             });
-        return Ok(ret);
+        Ok(ret)
     }
 
     fn full_like(&self, val: T) -> anyhow::Result<Self> {
@@ -660,7 +660,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             .for_each(|(i, x)| {
                 *x = start._add(T::__from(i));
             });
-        return Ok(data);
+        Ok(data)
     }
 
     fn arange_step(start: T, end: T, step: T) -> anyhow::Result<Self>
@@ -677,7 +677,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             .for_each(|(i, x)| {
                 *x = start._add(T::__from(i)._mul(step));
             });
-        return Ok(data);
+        Ok(data)
     }
 
     fn eye(n: usize, m: usize, k: usize) -> anyhow::Result<Self> where u8: IntoScalar<T> {
@@ -697,7 +697,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                     *x = zero;
                 }
             });
-        return Ok(res);
+        Ok(res)
     }
 
     fn linspace(start: T, end: T, num: usize, include_end: bool) -> anyhow::Result<Self>
@@ -720,7 +720,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             .for_each(|(i, x)| {
                 *x = start._add(T::__from(i)._mul(step_t));
             });
-        return Ok(data);
+        Ok(data)
     }
 
     fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> anyhow::Result<Self>
