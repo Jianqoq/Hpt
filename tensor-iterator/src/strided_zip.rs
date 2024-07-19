@@ -60,6 +60,23 @@ impl<'a, A, B> IterGetSet for StridedZip<'a, A, B> where A: IterGetSet, B: IterG
         self.a.broadcast_set_strides(shape);
         self.b.broadcast_set_strides(shape);
     }
+
+    fn outer_loop_size(&self) -> usize {
+        self.a.outer_loop_size()
+    }
+
+    fn inner_loop_size(&self) -> usize {
+        self.a.inner_loop_size()
+    }
+
+    fn next(&mut self) {
+        self.a.next();
+        self.b.next();
+    }
+
+    fn inner_loop_next(&mut self, index: usize) -> Self::Item {
+        (self.a.inner_loop_next(index), self.b.inner_loop_next(index))
+    }
 }
 
 impl<'a, A, B> StridedZip<'a, A, B>
@@ -79,7 +96,11 @@ impl<'a, A, B> StridedZip<'a, A, B>
 
     pub fn zip<C>(mut self, mut other: C) -> StridedZip<'a, Self, C>
         where
-            C: UnindexedProducer + IterGetSet + ShapeManipulator + rayon::iter::ParallelIterator,
+            C: UnindexedProducer +
+                IterGetSet +
+                ShapeManipulator +
+                rayon::iter::ParallelIterator +
+                IterGetSet,
             Self: UnindexedProducer + IterGetSet + ShapeManipulator,
             <C as IterGetSet>::Item: Send,
             <Self as IterGetSet>::Item: Send
@@ -163,7 +184,15 @@ impl<'a, A, B> UnindexedProducer
         }
     }
 
-    fn fold_with<F>(self, folder: F) -> F where F: Folder<Self::Item> {
+    fn fold_with<F>(mut self, mut folder: F) -> F where F: Folder<Self::Item> {
+        let outer_loop_size = self.outer_loop_size();
+        let inner_loop_size = self.inner_loop_size();
+        for _ in 0..outer_loop_size {
+            for idx in 0..inner_loop_size {
+                folder = folder.consume(self.inner_loop_next(idx));
+            }
+            self.next();
+        }
         folder
     }
 }

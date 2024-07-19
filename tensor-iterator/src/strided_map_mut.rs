@@ -42,7 +42,9 @@ impl<'a, T> StridedMapMut<'a, T> where T: CommonBounds {
     }
 
     pub fn zip<C>(self, other: C) -> StridedZip<'a, Self, C>
-        where C: UnindexedProducer + 'a + IterGetSet + ParallelIterator, <C as IterGetSet>::Item: Send
+        where
+            C: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
+            <C as IterGetSet>::Item: Send
     {
         StridedZip::new(self, other)
     }
@@ -125,4 +127,20 @@ impl<'a, T: 'a> IterGetSet for StridedMapMut<'a, T> {
     }
 
     fn broadcast_set_strides(&mut self, _: &Shape) {}
+
+    fn outer_loop_size(&self) -> usize {
+        todo!()
+    }
+
+    fn inner_loop_size(&self) -> usize {
+        todo!()
+    }
+
+    fn next(&mut self) {
+        todo!()
+    }
+
+    fn inner_loop_next(&mut self, _: usize) -> Self::Item {
+        todo!()
+    }
 }

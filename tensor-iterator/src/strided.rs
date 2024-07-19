@@ -16,7 +16,11 @@ use tensor_common::{
 };
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use tensor_common::shape_utils::predict_broadcast_shape;
-use crate::{ iterator_traits::{ IterGetSet, ShapeManipulator }, strided_map::StridedMap, strided_zip::StridedZip };
+use crate::{
+    iterator_traits::{ IterGetSet, ShapeManipulator },
+    strided_map::StridedMap,
+    strided_zip::StridedZip,
+};
 
 #[derive(Clone)]
 pub struct Strided<T> {
@@ -61,7 +65,9 @@ impl<T: CommonBounds> Strided<T> {
     }
 
     pub fn zip<'a, C>(mut self, mut other: C) -> StridedZip<'a, Self, C>
-        where C: UnindexedProducer + 'a + IterGetSet + ParallelIterator, <C as IterGetSet>::Item: Send
+        where
+            C: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
+            <C as IterGetSet>::Item: Send
     {
         let new_shape = predict_broadcast_shape(&self.shape(), &other.shape()).expect(
             "Cannot broadcast shapes"
@@ -96,9 +102,7 @@ impl<T: CommonBounds> Strided<T> {
     }
 
     pub fn strided_map<'a, F, U>(self, f: F) -> StridedMap<'a, Strided<T>, T, F>
-    where
-        F: Fn(T) -> U + Sync + Send + 'a,
-        U: CommonBounds,
+        where F: Fn(T) -> U + Sync + Send + 'a, U: CommonBounds
     {
         StridedMap {
             iter: self,
@@ -108,7 +112,7 @@ impl<T: CommonBounds> Strided<T> {
     }
 }
 
-impl<T> IterGetSet for Strided<T> {
+impl<T: Copy> IterGetSet for Strided<T> {
     type Item = T;
 
     fn set_end_index(&mut self, end_index: usize) {
@@ -143,6 +147,32 @@ impl<T> IterGetSet for Strided<T> {
         let self_shape = try_pad_shape(&self.shape(), shape.len());
         self.set_strides(preprocess_strides(&self_shape, &self.strides()).into());
         self.last_stride = self.strides()[self.strides().len() - 1];
+    }
+
+    fn next(&mut self) {
+        for j in (0..=(self.shape().len() as i16) - 2).rev() {
+            let j = j as usize;
+            if self.prg[j] < self.shape()[j] {
+                self.prg[j] += 1;
+                self.ptr.offset(self.strides()[j]);
+                break;
+            } else {
+                self.prg[j] = 0;
+                self.ptr.offset(-self.strides()[j] * self.shape()[j]);
+            }
+        }
+    }
+
+    fn inner_loop_next(&mut self, index: usize) -> Self::Item {
+        unsafe { *self.ptr.get_ptr().add(index * (self.last_stride as usize)) }
+    }
+
+    fn outer_loop_size(&self) -> usize {
+        (self.shape().size() as usize) / (self.shape()[self.shape().len() - 1] as usize)
+    }
+
+    fn inner_loop_size(&self) -> usize {
+        self.shape()[self.shape().len() - 1] as usize
     }
 }
 
@@ -208,7 +238,7 @@ impl<T> UnindexedProducer for Strided<T> where T: CommonBounds {
     }
 }
 
-impl<T> ShapeManipulator for Strided<T> {
+impl<T: Copy> ShapeManipulator for Strided<T> {
     fn reshape<S: Into<Shape>>(mut self, shape: S) -> Self {
         let tmp = shape.into();
         let res_shape = Shape::from(tmp);
@@ -230,7 +260,7 @@ impl<T> ShapeManipulator for Strided<T> {
         self.set_end_index(len);
         let self_size = self.layout.size();
 
-        if size > self_size as usize {
+        if size > (self_size as usize) {
             let self_shape = try_pad_shape(&self.shape(), res_shape.len());
 
             let axes_to_broadcast = get_broadcast_axes_from(&self_shape, &res_shape).expect(

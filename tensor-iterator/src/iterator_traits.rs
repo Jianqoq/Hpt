@@ -12,6 +12,10 @@ pub trait IterGetSet {
     fn strides(&self) -> &Strides;
     fn shape(&self) -> &Shape;
     fn broadcast_set_strides(&mut self, shape: &Shape);
+    fn outer_loop_size(&self) -> usize;
+    fn inner_loop_size(&self) -> usize;
+    fn next(&mut self);
+    fn inner_loop_next(&mut self, index: usize) -> Self::Item;
 }
 
 pub trait ShapeManipulator {

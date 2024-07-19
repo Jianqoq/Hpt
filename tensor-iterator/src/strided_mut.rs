@@ -43,7 +43,9 @@ impl<'a, T: CommonBounds> StridedMut<'a, T> {
     }
 
     pub fn zip<C>(self, mut other: C) -> StridedZip<'a, Self, C>
-        where C: UnindexedProducer + 'a + IterGetSet + ParallelIterator, <C as IterGetSet>::Item: Send
+        where
+            C: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
+            <C as IterGetSet>::Item: Send
     {
         let other_padded_shape = try_pad_shape(&other.shape(), self.shape.len());
         let inp_strides = preprocess_strides(&other_padded_shape, &other.strides());
@@ -134,4 +136,22 @@ impl<'a, T: 'a> IterGetSet for StridedMut<'a, T> {
     }
 
     fn broadcast_set_strides(&mut self, _: &Shape) {}
+
+    fn next(&mut self) {
+        let index = self.intervals[self.start_index].0 * (*self.shape.last().unwrap() as usize);
+        self.ptr.add(index);
+        self.start_index += 1;
+    }
+
+    fn inner_loop_next(&mut self, index: usize) -> Self::Item {
+        unsafe { self.ptr.get_ptr().add(index).as_mut().unwrap() }
+    }
+
+    fn outer_loop_size(&self) -> usize {
+        (self.shape.size() as usize) / self.inner_loop_size()
+    }
+
+    fn inner_loop_size(&self) -> usize {
+        self.shape[self.shape.len() - 1] as usize
+    }
 }
