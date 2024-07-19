@@ -659,8 +659,16 @@ impl CodeGenVisitor for CodeGen {
                         self.builder.build_call(floor_fn, &[res], "floor")
                     }
                     Dtype::F64 => {
-                        let floor_fn = self.fns.get(&"floor".to_string()).unwrap();
-                        self.builder.build_call(floor_fn, &[res], "floor")
+                        if let Some(fllor) = self.fns.get(&"floor".to_string()) {
+                            self.builder.build_call(fllor, &[res], "floor")
+                        } else {
+                            let floor = self.module.add_function(
+                                self.ctx.f64_type().fn_type(&[self.ctx.f64_type().into()], false),
+                                "floor"
+                            );
+                            self.fns.insert("floor".to_string().into(), floor.clone());
+                            self.builder.build_call(&floor, &[res], "floor")
+                        }
                     }
                     _ => unimplemented!(),
                 }
@@ -684,7 +692,44 @@ impl CodeGenVisitor for CodeGen {
     }
 
     fn visit_mod(&mut self, mod_: &crate::halide::exprs::Rem) -> BasicValue {
-        todo!()
+        let lhs = self.visit_expr(mod_.e1());
+        let rhs = self.visit_expr(mod_.e2());
+        let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
+        let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
+        let res_type = lhs_type._rem(rhs_type);
+        let casted_lhs = build_cast(
+            lhs_type,
+            res_type,
+            lhs,
+            "lhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let casted_rhs = build_cast(
+            rhs_type,
+            res_type,
+            rhs,
+            "rhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let res = match res_type {
+            Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
+                self.builder.build_int_rem(casted_lhs, casted_rhs, "srem")
+            }
+            Dtype::U8 | Dtype::U16 | Dtype::U32 | Dtype::U64 | Dtype::Usize => {
+                self.builder.build_uint_rem(casted_lhs, casted_rhs, "urem")
+            }
+            Dtype::BF16 | Dtype::F16 | Dtype::F32 | Dtype::F64 => {
+                self.builder.build_float_rem(casted_lhs, casted_rhs, "frem")
+            }
+            _ => unimplemented!("unsupported dtype, {}", res_type),
+        };
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(res_type));
+        res
     }
 
     fn visit_min(&mut self, min: &crate::halide::exprs::Min) -> BasicValue {

@@ -1,24 +1,7 @@
 use std::{ cell::RefCell, rc::Rc };
 
 use llvm_sys::core::{
-    LLVMBuildAnd,
-    LLVMBuildCast,
-    LLVMBuildFCmp,
-    LLVMBuildFNeg,
-    LLVMBuildFPCast,
-    LLVMBuildFPToSI,
-    LLVMBuildGEP2,
-    LLVMBuildGlobalStringPtr,
-    LLVMBuildNeg,
-    LLVMBuildNot,
-    LLVMBuildOr,
-    LLVMBuildPhi,
-    LLVMBuildRet,
-    LLVMBuildRetVoid,
-    LLVMBuildSelect,
-    LLVMBuildStructGEP2,
-    LLVMBuildXor,
-    LLVMConstReal,
+    LLVMBuildAnd, LLVMBuildCast, LLVMBuildFCmp, LLVMBuildFNeg, LLVMBuildFPCast, LLVMBuildFPToSI, LLVMBuildFRem, LLVMBuildGEP2, LLVMBuildGlobalStringPtr, LLVMBuildNeg, LLVMBuildNot, LLVMBuildOr, LLVMBuildPhi, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSRem, LLVMBuildSelect, LLVMBuildStructGEP2, LLVMBuildURem, LLVMBuildXor, LLVMConstReal
 };
 use llvm_sys::{
     core::{
@@ -838,7 +821,7 @@ impl Builder {
         let res = unsafe {
             LLVMBuildAnd(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr())
         };
-        return BoolValue::from(res).into();
+        BoolValue::from(res).into()
     }
 
     pub fn build_int_or(&self, lhs: BasicValue, rhs: BasicValue, name: &str) -> BasicValue {
@@ -847,7 +830,7 @@ impl Builder {
         }
         let c_string = to_c_str(name);
         let res = unsafe { LLVMBuildOr(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr()) };
-        return BoolValue::from(res).into();
+        BoolValue::from(res).into()
     }
 
     pub fn build_int_xor(&self, lhs: BasicValue, rhs: BasicValue, name: &str) -> BasicValue {
@@ -858,7 +841,7 @@ impl Builder {
         let res = unsafe {
             LLVMBuildXor(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr())
         };
-        return BoolValue::from(res).into();
+        BoolValue::from(res).into()
     }
 
     pub fn build_int_not(&self, value: BasicValue, name: &str) -> BasicValue {
@@ -867,7 +850,7 @@ impl Builder {
         }
         let c_string = to_c_str(name);
         let res = unsafe { LLVMBuildNot(self.builder, value.inner(), c_string.as_ptr()) };
-        return BoolValue::from(res).into();
+        BoolValue::from(res).into()
     }
 
     pub fn build_int_mul(&self, lhs: BasicValue, rhs: BasicValue, name: &str) -> BasicValue {
@@ -885,6 +868,32 @@ impl Builder {
         ret
     }
 
+    pub fn build_uint_rem(&self, lhs: BasicValue, rhs: BasicValue, name: &str) -> BasicValue {
+        if *self.pos_state.borrow() == PositionState::NotSet {
+            panic!("Position not set");
+        }
+        let c_string = to_c_str(name);
+        let res = unsafe { LLVMBuildURem(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr()) };
+        let mut ret = lhs.unitialized();
+        unsafe {
+            ret.set_inner(res);
+        }
+        ret
+    }
+
+    pub fn build_int_rem(&self, lhs: BasicValue, rhs: BasicValue, name: &str) -> BasicValue {
+        if *self.pos_state.borrow() == PositionState::NotSet {
+            panic!("Position not set");
+        }
+        let c_string = to_c_str(name);
+        let res = unsafe { LLVMBuildSRem(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr()) };
+        let mut ret = lhs.unitialized();
+        unsafe {
+            ret.set_inner(res);
+        }
+        ret
+    }
+
     pub fn build_float_div(&self, lhs: BasicValue, rhs: BasicValue, name: &str) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
@@ -893,6 +902,19 @@ impl Builder {
         let res = unsafe {
             LLVMBuildFDiv(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr())
         };
+        let mut ret = lhs.unitialized();
+        unsafe {
+            ret.set_inner(res);
+        }
+        ret
+    }
+
+    pub fn build_float_rem(&self, lhs: BasicValue, rhs: BasicValue, name: &str) -> BasicValue {
+        if *self.pos_state.borrow() == PositionState::NotSet {
+            panic!("Position not set");
+        }
+        let c_string = to_c_str(name);
+        let res = unsafe { LLVMBuildFRem(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr()) };
         let mut ret = lhs.unitialized();
         unsafe {
             ret.set_inner(res);

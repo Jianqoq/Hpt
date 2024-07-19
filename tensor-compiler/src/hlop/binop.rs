@@ -31,15 +31,25 @@ macro_rules! impl_std_op {
                         move |inputs, indices| {
                             let lhs_indices = lhs_indices.clone();
                             let rhs_indices = rhs_indices.clone();
-                            let lhs_indices = lhs_indices
+                            let lhs_indices_expr = lhs_indices
                                 .iter()
                                 .map(|x| indices[*x].var().clone().into())
                                 .collect::<Vec<PrimeExpr>>();
-                            let rhs_indices = rhs_indices
+                            let rhs_indices_expr = rhs_indices
                                 .iter()
                                 .map(|x| indices[*x].var().clone().into())
                                 .collect::<Vec<PrimeExpr>>();
-                            $op::make(inputs[0]._slice(&lhs_indices), inputs[1]._slice(&rhs_indices)).into()
+                            let a_slice = if lhs_indices.len() < inputs[0].ndim() {
+                                inputs[0]._slice_strides(&lhs_indices_expr, &lhs_indices)
+                            } else {
+                                inputs[0]._slice(&lhs_indices_expr)
+                            };
+                            let b_slice = if rhs_indices.len() < inputs[1].ndim() {
+                                inputs[1]._slice_strides(&rhs_indices_expr, &rhs_indices)
+                            } else {
+                                inputs[1]._slice(&rhs_indices_expr)
+                            };
+                            $op::make(a_slice, b_slice).into()
                         }
                     )
                 }

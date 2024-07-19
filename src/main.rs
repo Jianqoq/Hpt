@@ -22,17 +22,17 @@ fn main() -> anyhow::Result<()> {
     let m = Variable::make("m");
     let n = Variable::make("n");
     let o = Variable::make("o");
-    let p = Variable::make("p");
 
-    let a = tensor_compiler::hlir::tensor::Tensor::placeholder(&[&n, &m], Dtype::F32, "A");
-    let b = tensor_compiler::hlir::tensor::Tensor::placeholder(&[&n, &m], Dtype::F32, "B");
-    let c = &a + &b;
+    let a = tensor_compiler::hlir::tensor::Tensor::placeholder(&[&n, &m, &o], Dtype::F32, "A");
+    let b = a.sum(0f32, 1);
 
-    let d = &a / &c;
+    let d = b.reshape(&[&n, &1i64, &o]);
+
+    // let c = &a - &d;
 
     // let e = d.sum(0f32, 1);
 
-    let s = Schedule::create(&[&a, &c, &d, &b]);
+    let s = Schedule::create(&[&a, &d, &b]);
 
     let lowered = s.lower("main");
     let mut module = Module::new("main");

@@ -2,18 +2,29 @@ use std::collections::HashSet;
 use tensor_types::dtype::Dtype;
 
 use crate::{
-    halide::{ exprs::{ FloorDiv, Int }, prime_expr::PrimeExpr, variable::Variable },
+    halide::{ exprs::{ FloorDiv, Int, Load }, prime_expr::PrimeExpr, variable::Variable },
     hlir::tensor::{ Tensor, _compute },
     iter_var::IterVar,
     to_prim_expr::ToPrimeExpr,
 };
 
-pub fn flatten_index(new_indices: &[Variable], new_shape: &[PrimeExpr]) -> PrimeExpr {
+pub fn flatten_index(
+    new_indices: &[Variable],
+    new_shape: &[PrimeExpr],
+    res_name: String
+) -> PrimeExpr {
     if new_indices.len() == 0 {
         return PrimeExpr::Int(Int::make(Dtype::I64, 0));
     }
     let mut idx = PrimeExpr::None;
-    let rev_shape = new_shape.iter().rev().collect::<Vec<_>>();
+    let rev_shape = new_shape
+        .iter()
+        .enumerate()
+        .rev()
+        .map(|(idx, _)| {
+            PrimeExpr::Load(Load::make(Variable::new(format!("{}.shape", res_name)), idx as i64))
+        })
+        .collect::<Vec<_>>();
     for i in 0..new_shape.len() {
         if i == 0 {
             idx = new_indices[i].clone().into();
@@ -24,9 +35,20 @@ pub fn flatten_index(new_indices: &[Variable], new_shape: &[PrimeExpr]) -> Prime
     }
     idx
 }
-fn unflatten_index(old_shape: &[PrimeExpr], flat_idx: &PrimeExpr) -> Vec<PrimeExpr> {
+fn unflatten_index(
+    old_shape: &[PrimeExpr],
+    flat_idx: &PrimeExpr,
+    old_name: String
+) -> Vec<PrimeExpr> {
     let mut indices = vec![];
     let mut flat_idx = flat_idx.clone();
+    let old_shape = old_shape
+        .iter()
+        .enumerate()
+        .map(|(idx, _)| {
+            PrimeExpr::Load(Load::make(Variable::new(format!("{}.shape", old_name)), idx as i64))
+        })
+        .collect::<Vec<_>>();
     for dim in old_shape.iter().rev() {
         indices.push(&flat_idx % dim);
         flat_idx = PrimeExpr::FloorDiv(FloorDiv::make(&flat_idx, dim));
@@ -52,20 +74,23 @@ impl Tensor {
             .iter()
             .map(|x| x.to_prime_expr())
             .collect::<Vec<_>>();
+        let res_name = format!("reshape_{}", self.name);
+        let old_name = self.name.as_ref().clone();
         _compute(
             self.dtype,
             res_shape,
             vec![self.clone()],
-            format!("reshape_{}", self.name),
+            res_name.clone(),
             move |inputs, indices| {
                 let flat_idx = flatten_index(
                     &indices
                         .iter()
                         .map(|x| x.var().clone())
                         .collect::<Vec<_>>(),
-                    &new_shape
+                    &new_shape,
+                    res_name.clone()
                 );
-                let indices = unflatten_index(&old_shape, &flat_idx);
+                let indices = unflatten_index(&old_shape, &flat_idx, old_name.clone());
                 inputs[0]._slice(&indices).into()
             }
         )
