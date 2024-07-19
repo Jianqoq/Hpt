@@ -1,4 +1,4 @@
-use std::{ hash::Hash, ops::{ Deref, DerefMut } };
+use std::{ fmt::Display, hash::Hash, ops::{ Deref, DerefMut } };
 
 use std::collections::{ HashMap, HashSet };
 use serde::Serialize;
@@ -56,5 +56,18 @@ impl<T> Deref for Edges<T> where T: Hash + Eq {
 impl<T> DerefMut for Edges<T> where T: Hash + Eq {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
+    }
+}
+
+impl<T: Display + Hash + Eq> Display for Edges<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (key, value) in self.inner.iter() {
+            write!(f, "{} -> ", key)?;
+            for i in value.iter() {
+                write!(f, "{}, ", i)?;
+            }
+            write!(f, "\n")?;
+        }
+        Ok(())
     }
 }

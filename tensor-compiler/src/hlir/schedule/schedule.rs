@@ -182,7 +182,8 @@ pub struct Stage {
 }
 
 impl Stage {
-    pub fn split(&self, axis: &RcMut<Node>, factor: PrimeExpr) -> (RcMut<Node>, RcMut<Node>) {
+    pub fn split<T: Into<PrimeExpr>>(&self, axis: &RcMut<Node>, factor: T) -> (RcMut<Node>, RcMut<Node>) {
+        let factor = factor.into();
         if
             self.leaf_id
                 .borrow()
@@ -427,6 +428,7 @@ impl Stage {
             HashSet::from_iter(
                 finder
                     .iter()
+                    .filter(|x| x.name().name != self.name)
                     .map(|x| &x.name().name)
                     .cloned()
             )
@@ -597,6 +599,7 @@ impl Schedule {
             .iter()
             .map(|(k, _)| k.name_().clone())
             .collect::<HashSet<_>>();
+
         let inputs = edges
             .iter()
             .filter(|(_, v)| { v.len() == 0 })
@@ -1194,13 +1197,13 @@ mod tests {
         });
 
         let mut s = Schedule::create(&[&a, &c, &d]);
-        let c_stage = s.stages.get(&c).unwrap().clone();
-        let d_stage = s.stages.get(&d).unwrap().clone();
-        let axis = c_stage.axis(0);
-        let axis2 = c_stage.axis(1);
-        let d_axis = d_stage.axis(0);
-        let d_axis2 = d_stage.axis(1);
-        s.compute_at(&s[&d].clone(), &c_stage, &[axis, axis2], &[d_axis, d_axis2]);
+        // let c_stage = s.stages.get(&c).unwrap().clone();
+        // let d_stage = s.stages.get(&d).unwrap().clone();
+        // let axis = c_stage.axis(0);
+        // let axis2 = c_stage.axis(1);
+        // let d_axis = d_stage.axis(0);
+        // let d_axis2 = d_stage.axis(1);
+        // s.compute_at(&s[&d].clone(), &c_stage, &[axis, axis2], &[d_axis, d_axis2]);
         IRPrinter.print_stmt(s.to_halide(&d));
     }
 
@@ -1273,7 +1276,7 @@ mod tests {
 
         let a = Tensor::placeholder(&[&m, &n], Dtype::F32, "A");
 
-        let c = compute(Dtype::F32, [&m, &n], "C", |[i, j]| { a.slice(&[&i, &j]) });
+        let c = compute(Dtype::F32, [&m, &n], "C", |[i, j]| { a.slice(&[&i, &j]) + a.slice(&[&i, &j]) });
 
         let s = Schedule::create(&[&a, &c]);
         let lowered = s.lower("main");

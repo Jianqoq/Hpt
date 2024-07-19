@@ -27,6 +27,8 @@ use llvm_sys::{
         LLVM_InitializeNativeDisassembler,
         LLVM_InitializeNativeTarget,
     },
+    LLVMIntPredicate,
+    LLVMRealPredicate,
 };
 use tensor_allocator::CACHE;
 use tensor_llvm::{
@@ -36,7 +38,11 @@ use tensor_llvm::{
     types::values::{ BasicValue, FunctionValue, StructValue },
     utils::{ declare_printf, insert_printf, to_c_str },
 };
-use tensor_types::{ convertion::Convertor, dtype::Dtype, type_promote::{ FloatOut, NormalOut } };
+use tensor_types::{
+    convertion::Convertor,
+    dtype::Dtype,
+    type_promote::{ BitWiseOut, FloatOut, NormalOut },
+};
 
 use crate::{
     edges::Edges,
@@ -216,10 +222,6 @@ impl CodeGen {
             ctx: self.ctx,
             module: self.module,
             builder: self.builder,
-        }
-    }
-    pub fn run(&self, inputs: &[*mut Tensor], outputs: &[*mut Tensor]) {
-        for (name, funcs) in self.halide_module.fns.iter() {
         }
     }
 }
@@ -803,43 +805,513 @@ impl CodeGenVisitor for CodeGen {
     }
 
     fn visit_ge(&mut self, ge: &crate::halide::exprs::Ge) -> BasicValue {
-        todo!()
+        let lhs = self.visit_expr(ge.e1());
+        let rhs = self.visit_expr(ge.e2());
+        let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
+        let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
+        let res_type = lhs_type._add(rhs_type);
+        let casted_lhs = build_cast(
+            lhs_type,
+            res_type,
+            lhs,
+            "lhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let casted_rhs = build_cast(
+            rhs_type,
+            res_type,
+            rhs,
+            "rhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let res = match res_type {
+            Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
+                self.builder.build_int_cmp(
+                    LLVMIntPredicate::LLVMIntSGE,
+                    casted_lhs,
+                    casted_rhs,
+                    "ge"
+                )
+            }
+            Dtype::Bool | Dtype::U8 | Dtype::U16 | Dtype::U32 | Dtype::U64 | Dtype::Usize => {
+                self.builder.build_int_cmp(
+                    LLVMIntPredicate::LLVMIntUGE,
+                    casted_lhs,
+                    casted_rhs,
+                    "ge"
+                )
+            }
+            Dtype::BF16 | Dtype::F16 | Dtype::F32 | Dtype::F64 => {
+                self.builder.build_float_cmp(
+                    LLVMRealPredicate::LLVMRealOGE,
+                    casted_lhs,
+                    casted_rhs,
+                    "ge"
+                )
+            }
+            _ => unimplemented!("unsupported dtype, {}", res_type),
+        };
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(res_type));
+        res
     }
 
     fn visit_gt(&mut self, gt: &crate::halide::exprs::Gt) -> BasicValue {
-        todo!()
+        let lhs = self.visit_expr(gt.e1());
+        let rhs = self.visit_expr(gt.e2());
+        let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
+        let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
+        let res_type = lhs_type._add(rhs_type);
+        let casted_lhs = build_cast(
+            lhs_type,
+            res_type,
+            lhs,
+            "lhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let casted_rhs = build_cast(
+            rhs_type,
+            res_type,
+            rhs,
+            "rhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let res = match res_type {
+            Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
+                self.builder.build_int_cmp(
+                    LLVMIntPredicate::LLVMIntSGT,
+                    casted_lhs,
+                    casted_rhs,
+                    "gt"
+                )
+            }
+            Dtype::Bool | Dtype::U8 | Dtype::U16 | Dtype::U32 | Dtype::U64 | Dtype::Usize => {
+                self.builder.build_int_cmp(
+                    LLVMIntPredicate::LLVMIntUGT,
+                    casted_lhs,
+                    casted_rhs,
+                    "gt"
+                )
+            }
+            Dtype::BF16 | Dtype::F16 | Dtype::F32 | Dtype::F64 => {
+                self.builder.build_float_cmp(
+                    LLVMRealPredicate::LLVMRealOGT,
+                    casted_lhs,
+                    casted_rhs,
+                    "gt"
+                )
+            }
+            _ => unimplemented!("unsupported dtype, {}", res_type),
+        };
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(res_type));
+        res
     }
 
     fn visit_le(&mut self, le: &crate::halide::exprs::Le) -> BasicValue {
-        todo!()
+        let lhs = self.visit_expr(le.e1());
+        let rhs = self.visit_expr(le.e2());
+        let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
+        let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
+        let res_type = lhs_type._add(rhs_type);
+        let casted_lhs = build_cast(
+            lhs_type,
+            res_type,
+            lhs,
+            "lhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let casted_rhs = build_cast(
+            rhs_type,
+            res_type,
+            rhs,
+            "rhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let res = match res_type {
+            Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
+                self.builder.build_int_cmp(
+                    LLVMIntPredicate::LLVMIntSLE,
+                    casted_lhs,
+                    casted_rhs,
+                    "le"
+                )
+            }
+            Dtype::Bool | Dtype::U8 | Dtype::U16 | Dtype::U32 | Dtype::U64 | Dtype::Usize => {
+                self.builder.build_int_cmp(
+                    LLVMIntPredicate::LLVMIntULE,
+                    casted_lhs,
+                    casted_rhs,
+                    "le"
+                )
+            }
+            Dtype::BF16 | Dtype::F16 | Dtype::F32 | Dtype::F64 => {
+                self.builder.build_float_cmp(
+                    LLVMRealPredicate::LLVMRealOLE,
+                    casted_lhs,
+                    casted_rhs,
+                    "le"
+                )
+            }
+            _ => unimplemented!("unsupported dtype, {}", res_type),
+        };
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(res_type));
+        res
     }
 
     fn visit_lt(&mut self, lt: &crate::halide::exprs::Lt) -> BasicValue {
-        todo!()
+        let lhs = self.visit_expr(lt.e1());
+        let rhs = self.visit_expr(lt.e2());
+        let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
+        let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
+        let res_type = lhs_type._add(rhs_type);
+        let casted_lhs = build_cast(
+            lhs_type,
+            res_type,
+            lhs,
+            "lhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let casted_rhs = build_cast(
+            rhs_type,
+            res_type,
+            rhs,
+            "rhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let res = match res_type {
+            Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
+                self.builder.build_int_cmp(
+                    LLVMIntPredicate::LLVMIntSLT,
+                    casted_lhs,
+                    casted_rhs,
+                    "lt"
+                )
+            }
+            Dtype::Bool | Dtype::U8 | Dtype::U16 | Dtype::U32 | Dtype::U64 | Dtype::Usize => {
+                self.builder.build_int_cmp(
+                    LLVMIntPredicate::LLVMIntULT,
+                    casted_lhs,
+                    casted_rhs,
+                    "lt"
+                )
+            }
+            Dtype::BF16 | Dtype::F16 | Dtype::F32 | Dtype::F64 => {
+                self.builder.build_float_cmp(
+                    LLVMRealPredicate::LLVMRealOLT,
+                    casted_lhs,
+                    casted_rhs,
+                    "lt"
+                )
+            }
+            _ => unimplemented!("unsupported dtype, {}", res_type),
+        };
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(res_type));
+        res
     }
 
     fn visit_eq(&mut self, eq: &crate::halide::exprs::Eq) -> BasicValue {
-        todo!()
+        let lhs = self.visit_expr(eq.e1());
+        let rhs = self.visit_expr(eq.e2());
+        let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
+        let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
+        let res_type = lhs_type._add(rhs_type);
+        let casted_lhs = build_cast(
+            lhs_type,
+            res_type,
+            lhs,
+            "lhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let casted_rhs = build_cast(
+            rhs_type,
+            res_type,
+            rhs,
+            "rhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let res = match res_type {
+            | Dtype::I8
+            | Dtype::I16
+            | Dtype::I32
+            | Dtype::I64
+            | Dtype::Isize
+            | Dtype::Bool
+            | Dtype::U8
+            | Dtype::U16
+            | Dtype::U32
+            | Dtype::U64
+            | Dtype::Usize => {
+                self.builder.build_int_cmp(
+                    LLVMIntPredicate::LLVMIntEQ,
+                    casted_lhs,
+                    casted_rhs,
+                    "eq"
+                )
+            }
+            Dtype::BF16 | Dtype::F16 | Dtype::F32 | Dtype::F64 => {
+                self.builder.build_float_cmp(
+                    LLVMRealPredicate::LLVMRealOEQ,
+                    casted_lhs,
+                    casted_rhs,
+                    "eq"
+                )
+            }
+            _ => unimplemented!("unsupported dtype, {}", res_type),
+        };
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(res_type));
+        res
     }
 
     fn visit_ne(&mut self, ne: &crate::halide::exprs::Ne) -> BasicValue {
-        todo!()
+        let lhs = self.visit_expr(ne.e1());
+        let rhs = self.visit_expr(ne.e2());
+        let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
+        let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
+        let res_type = lhs_type._add(rhs_type);
+        let casted_lhs = build_cast(
+            lhs_type,
+            res_type,
+            lhs,
+            "lhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let casted_rhs = build_cast(
+            rhs_type,
+            res_type,
+            rhs,
+            "rhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let res = match res_type {
+            | Dtype::I8
+            | Dtype::I16
+            | Dtype::I32
+            | Dtype::I64
+            | Dtype::Isize
+            | Dtype::Bool
+            | Dtype::U8
+            | Dtype::U16
+            | Dtype::U32
+            | Dtype::U64
+            | Dtype::Usize => {
+                self.builder.build_int_cmp(
+                    LLVMIntPredicate::LLVMIntNE,
+                    casted_lhs,
+                    casted_rhs,
+                    "ne"
+                )
+            }
+            Dtype::BF16 | Dtype::F16 | Dtype::F32 | Dtype::F64 => {
+                self.builder.build_float_cmp(
+                    LLVMRealPredicate::LLVMRealONE,
+                    casted_lhs,
+                    casted_rhs,
+                    "ne"
+                )
+            }
+            _ => unimplemented!("unsupported dtype, {}", res_type),
+        };
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(res_type));
+        res
     }
 
     fn visit_and(&mut self, and: &crate::halide::exprs::BitAnd) -> BasicValue {
-        todo!()
+        let lhs = self.visit_expr(and.e1());
+        let rhs = self.visit_expr(and.e2());
+        let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
+        let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
+        let res_type = lhs_type._bitand(rhs_type);
+        let casted_lhs = build_cast(
+            lhs_type,
+            res_type,
+            lhs,
+            "lhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let casted_rhs = build_cast(
+            rhs_type,
+            res_type,
+            rhs,
+            "rhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let res = match res_type {
+            | Dtype::I8
+            | Dtype::I16
+            | Dtype::I32
+            | Dtype::I64
+            | Dtype::Isize
+            | Dtype::Bool
+            | Dtype::U8
+            | Dtype::U16
+            | Dtype::U32
+            | Dtype::U64
+            | Dtype::Usize => {
+                self.builder.build_int_and(casted_lhs, casted_rhs, "bitand")
+            }
+            _ => unimplemented!("unsupported dtype, {}", res_type),
+        };
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(res_type));
+        res
     }
 
     fn visit_xor(&mut self, xor: &crate::halide::exprs::BitXor) -> BasicValue {
-        todo!()
+        let lhs = self.visit_expr(xor.e1());
+        let rhs = self.visit_expr(xor.e2());
+        let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
+        let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
+        let res_type = lhs_type._bitxor(rhs_type);
+        let casted_lhs = build_cast(
+            lhs_type,
+            res_type,
+            lhs,
+            "lhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let casted_rhs = build_cast(
+            rhs_type,
+            res_type,
+            rhs,
+            "rhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let res = match res_type {
+            | Dtype::I8
+            | Dtype::I16
+            | Dtype::I32
+            | Dtype::I64
+            | Dtype::Isize
+            | Dtype::Bool
+            | Dtype::U8
+            | Dtype::U16
+            | Dtype::U32
+            | Dtype::U64
+            | Dtype::Usize => {
+                self.builder.build_int_xor(casted_lhs, casted_rhs, "xor")
+            }
+            _ => unimplemented!("unsupported dtype, {}", res_type),
+        };
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(res_type));
+        res
     }
 
     fn visit_or(&mut self, or: &crate::halide::exprs::BitOr) -> BasicValue {
-        todo!()
+        let lhs = self.visit_expr(or.e1());
+        let rhs = self.visit_expr(or.e2());
+        let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
+        let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
+        let res_type = lhs_type._bitor(rhs_type);
+        let casted_lhs = build_cast(
+            lhs_type,
+            res_type,
+            lhs,
+            "lhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let casted_rhs = build_cast(
+            rhs_type,
+            res_type,
+            rhs,
+            "rhs_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let res = match res_type {
+            | Dtype::I8
+            | Dtype::I16
+            | Dtype::I32
+            | Dtype::I64
+            | Dtype::Isize
+            | Dtype::Bool
+            | Dtype::U8
+            | Dtype::U16
+            | Dtype::U32
+            | Dtype::U64
+            | Dtype::Usize => {
+                self.builder.build_int_or(casted_lhs, casted_rhs, "or")
+            }
+            _ => unimplemented!("unsupported dtype, {}", res_type),
+        };
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(res_type));
+        res
     }
 
     fn visit_not(&mut self, not: &crate::halide::exprs::Not) -> BasicValue {
-        todo!()
+        let val = self.visit_expr(not.e());
+        let val_type = self.bindings[&self.current_fn].find_type(&val).unwrap().dtype();
+        let res_type = val_type._not();
+        let casted_val = build_cast(
+            val_type,
+            res_type,
+            val,
+            "val_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let res = match res_type {
+            | Dtype::Bool
+            | Dtype::I8
+            | Dtype::U8
+            | Dtype::I16
+            | Dtype::U16
+            | Dtype::I32
+            | Dtype::U32
+            | Dtype::I64
+            | Dtype::U64
+            | Dtype::Isize
+            | Dtype::Usize => {
+                self.builder.build_int_not(casted_val, "not")
+            }
+            _ => unimplemented!("unsupported dtype, {}", res_type),
+        };
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(res_type));
+        res
     }
 
     fn visit_let_stmt(&mut self, let_stmt: &crate::halide::let_stmt::LetStmt) {
@@ -1263,7 +1735,25 @@ impl CodeGenVisitor for CodeGen {
     }
 
     fn visit_if_then_else(&mut self, if_then_else: &crate::halide::if_stmt::IfThenElse) {
-        todo!()
+        let cond_block = self.ctx.append_basic_block(&self.id_fns[&self.current_fn], "if_cond");
+        let then_block = self.ctx.append_basic_block(&self.id_fns[&self.current_fn], "if_then");
+        let else_block = self.ctx.append_basic_block(&self.id_fns[&self.current_fn], "if_else");
+        let end_block = self.ctx.append_basic_block(&self.id_fns[&self.current_fn], "if_end");
+        self.builder.build_unconditional_branch(cond_block);
+        self.builder.position_at_end(cond_block);
+        let cond = self.visit_expr(if_then_else.cond());
+        self.builder.build_conditional_branch(cond, then_block, else_block);
+        self.bindings.get_mut(&self.current_fn).expect("fn not find").push_scope();
+        self.builder.position_at_end(then_block);
+        self.visit_stmt(if_then_else.then_case());
+        self.builder.build_unconditional_branch(end_block);
+        self.bindings.get_mut(&self.current_fn).expect("fn not find").pop_scope();
+        self.builder.position_at_end(else_block);
+        self.bindings.get_mut(&self.current_fn).expect("fn not find").push_scope();
+        self.visit_stmt(if_then_else.else_case());
+        self.builder.build_unconditional_branch(end_block);
+        self.bindings.get_mut(&self.current_fn).expect("fn not find").pop_scope();
+        self.builder.position_at_end(end_block);
     }
 
     fn visit_inplace_store(

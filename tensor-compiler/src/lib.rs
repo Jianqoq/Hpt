@@ -45,7 +45,6 @@ pub mod hlir {
     pub mod func_type;
     pub mod schedule {
         pub mod schedule;
-        pub mod transforms;
         pub mod lowered;
     }
     pub mod tensor_slice;
@@ -55,6 +54,7 @@ pub mod hlop {
     pub mod binop;
     pub mod broadcast;
     pub mod shape_manipulate;
+    pub mod selection;
 }
 
 pub mod tensor;

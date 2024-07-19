@@ -213,7 +213,12 @@ impl Tensor {
             .iter()
             .enumerate()
             .filter(|(i, _)| !axes.contains(i))
-            .map(|(_, x)| x.clone())
+            .enumerate()
+            .map(|(idx, (_, x))| {
+                let mut iter_var = x.clone();
+                iter_var.set_var(Variable::new(format!("ax{}", idx)));
+                iter_var
+            })
             .collect::<Vec<_>>();
         if res_shape.is_empty() {
             res_shape.push((0, 1, 1, "red").into());
@@ -249,7 +254,12 @@ impl Tensor {
             .iter()
             .enumerate()
             .filter(|(i, _)| !axes.contains(i))
-            .map(|(_, x)| x.clone())
+            .enumerate()
+            .map(|(idx, (_, x))| {
+                let mut iter_var = x.clone();
+                iter_var.set_var(Variable::new(format!("ax{}", idx)));
+                iter_var
+            })
             .collect::<Vec<_>>();
         let init: PrimeExpr = init.clone().to_prime_expr();
         _compute(
@@ -282,7 +292,12 @@ impl Tensor {
             .iter()
             .enumerate()
             .filter(|(i, _)| !axes.contains(i))
-            .map(|(_, x)| x.clone())
+            .enumerate()
+            .map(|(idx, (_, x))| {
+                let mut iter_var = x.clone();
+                iter_var.set_var(Variable::new(format!("ax{}", idx)));
+                iter_var
+            })
             .collect::<Vec<_>>();
         _compute(
             Dtype::I64,
@@ -316,7 +331,12 @@ impl Tensor {
             .iter()
             .enumerate()
             .filter(|(i, _)| !axes.contains(i))
-            .map(|(_, x)| x.clone())
+            .enumerate()
+            .map(|(idx, (_, x))| {
+                let mut iter_var = x.clone();
+                iter_var.set_var(Variable::new(format!("ax{}", idx)));
+                iter_var
+            })
             .collect::<Vec<_>>();
         _compute(
             Dtype::I64,
@@ -350,7 +370,12 @@ impl Tensor {
             .iter()
             .enumerate()
             .filter(|(i, _)| !axes.contains(i))
-            .map(|(_, x)| x.clone())
+            .enumerate()
+            .map(|(idx, (_, x))| {
+                let mut iter_var = x.clone();
+                iter_var.set_var(Variable::new(format!("ax{}", idx)));
+                iter_var
+            })
             .collect::<Vec<_>>();
         _compute(
             self.dtype,
@@ -384,7 +409,12 @@ impl Tensor {
             .iter()
             .enumerate()
             .filter(|(i, _)| !axes.contains(i))
-            .map(|(_, x)| x.clone())
+            .enumerate()
+            .map(|(idx, (_, x))| {
+                let mut iter_var = x.clone();
+                iter_var.set_var(Variable::new(format!("ax{}", idx)));
+                iter_var
+            })
             .collect::<Vec<_>>();
         _compute(
             self.dtype,
