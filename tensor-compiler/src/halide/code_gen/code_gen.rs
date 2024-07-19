@@ -35,7 +35,7 @@ use tensor_llvm::{
     builder::builder::Builder,
     context::context::Context,
     engine::engine::ExecutionEngine,
-    types::values::{ BasicValue, FunctionValue, StructValue },
+    types::values::{ dtype_to_llvm, BasicValue, FunctionValue, StructValue },
     utils::{ declare_printf, insert_printf, to_c_str },
 };
 use tensor_types::{
@@ -55,6 +55,7 @@ use crate::{
         traits::CodeGenVisitor,
     },
     tensor::{ Tensor, _Tensor },
+    to_prim_expr::ToPrimeExpr,
 };
 
 use super::scope::ScopeStack;
@@ -1764,19 +1765,178 @@ impl CodeGenVisitor for CodeGen {
     }
 
     fn visit_inplace_add(&mut self, inplace_add: &crate::halide::inplace_store_stmt::InplaceAdd) {
-        todo!()
+        let to_store = self.visit_expr(&inplace_add.to_store());
+        let val = self.visit_expr(&inplace_add.val());
+        let to_store_type = self.bindings[&self.current_fn].find_type(&to_store).unwrap().dtype();
+        let casted_val = build_cast(
+            self.bindings[&self.current_fn].find_type(&val).unwrap().dtype(),
+            to_store_type,
+            val,
+            "val_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let res = match to_store_type {
+            | Dtype::Bool
+            | Dtype::I8
+            | Dtype::U8
+            | Dtype::I16
+            | Dtype::U16
+            | Dtype::I32
+            | Dtype::U32
+            | Dtype::I64
+            | Dtype::U64
+            | Dtype::Isize
+            | Dtype::Usize => {
+                self.builder.build_int_add(to_store, casted_val, "add")
+            }
+            Dtype::BF16 | Dtype::F16 | Dtype::F32 | Dtype::F64 => {
+                self.builder.build_float_add(to_store, casted_val, "add")
+            }
+            _ => unimplemented!("unsupported dtype, {}", to_store_type),
+        };
+        let indices = inplace_add.to_store().to_load().expect("expected load").indices();
+        let indices_val = self.visit_expr(&indices);
+        let ptr = inplace_add.to_store().to_load().expect("expected load").name();
+        let ptr_val = self.bindings[&self.current_fn]
+            .find_variable(&ptr.name)
+            .unwrap()
+            .to_ptr_value();
+        let gep = self.builder.build_gep(
+            dtype_to_llvm(to_store_type, &self.ctx),
+            ptr_val,
+            &[indices_val],
+            "gep"
+        );
+        self.builder.build_store(gep, res)
     }
 
     fn visit_inplace_sub(&mut self, inplace_sub: &crate::halide::inplace_store_stmt::InplaceSub) {
-        todo!()
+        let to_store = self.visit_expr(&inplace_sub.to_store());
+        let val = self.visit_expr(&inplace_sub.val());
+        let to_store_type = self.bindings[&self.current_fn].find_type(&to_store).unwrap().dtype();
+        let casted_val = build_cast(
+            self.bindings[&self.current_fn].find_type(&val).unwrap().dtype(),
+            to_store_type,
+            val,
+            "val_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let res = match to_store_type {
+            | Dtype::Bool
+            | Dtype::I8
+            | Dtype::U8
+            | Dtype::I16
+            | Dtype::U16
+            | Dtype::I32
+            | Dtype::U32
+            | Dtype::I64
+            | Dtype::U64
+            | Dtype::Isize
+            | Dtype::Usize => {
+                self.builder.build_int_sub(to_store, casted_val, "add")
+            }
+            Dtype::BF16 | Dtype::F16 | Dtype::F32 | Dtype::F64 => {
+                self.builder.build_float_sub(to_store, casted_val, "add")
+            }
+            _ => unimplemented!("unsupported dtype, {}", to_store_type),
+        };
+        let indices = inplace_sub.to_store().to_load().expect("expected load").indices();
+        let indices_val = self.visit_expr(&indices);
+        let ptr = inplace_sub.to_store().to_load().expect("expected load").name();
+        let ptr_val = self.bindings[&self.current_fn]
+            .find_variable(&ptr.name)
+            .unwrap()
+            .to_ptr_value();
+        let gep = self.builder.build_gep(
+            dtype_to_llvm(to_store_type, &self.ctx),
+            ptr_val,
+            &[indices_val],
+            "gep"
+        );
+        self.builder.build_store(gep, res)
     }
 
     fn visit_inplace_mul(&mut self, inplace_mul: &crate::halide::inplace_store_stmt::InplaceMul) {
-        todo!()
+        let to_store = self.visit_expr(&inplace_mul.to_store());
+        let val = self.visit_expr(&inplace_mul.val());
+        let to_store_type = self.bindings[&self.current_fn].find_type(&to_store).unwrap().dtype();
+        let casted_val = build_cast(
+            self.bindings[&self.current_fn].find_type(&val).unwrap().dtype(),
+            to_store_type,
+            val,
+            "val_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let res = match to_store_type {
+            | Dtype::Bool
+            | Dtype::I8
+            | Dtype::U8
+            | Dtype::I16
+            | Dtype::U16
+            | Dtype::I32
+            | Dtype::U32
+            | Dtype::I64
+            | Dtype::U64
+            | Dtype::Isize
+            | Dtype::Usize => {
+                self.builder.build_int_mul(to_store, casted_val, "add")
+            }
+            Dtype::BF16 | Dtype::F16 | Dtype::F32 | Dtype::F64 => {
+                self.builder.build_float_mul(to_store, casted_val, "add")
+            }
+            _ => unimplemented!("unsupported dtype, {}", to_store_type),
+        };
+        let indices = inplace_mul.to_store().to_load().expect("expected load").indices();
+        let indices_val = self.visit_expr(&indices);
+        let ptr = inplace_mul.to_store().to_load().expect("expected load").name();
+        let ptr_val = self.bindings[&self.current_fn]
+            .find_variable(&ptr.name)
+            .unwrap()
+            .to_ptr_value();
+        let gep = self.builder.build_gep(
+            dtype_to_llvm(to_store_type, &self.ctx),
+            ptr_val,
+            &[indices_val],
+            "gep"
+        );
+        self.builder.build_store(gep, res)
     }
 
     fn visit_inplace_div(&mut self, inplace_div: &crate::halide::inplace_store_stmt::InplaceDiv) {
-        todo!()
+        let to_store = self.visit_expr(&inplace_div.to_store());
+        let val = self.visit_expr(&inplace_div.val());
+        let to_store_type = self.bindings[&self.current_fn].find_type(&to_store).unwrap().dtype();
+        let casted_val = build_cast(
+            self.bindings[&self.current_fn].find_type(&val).unwrap().dtype(),
+            to_store_type,
+            val,
+            "val_casted",
+            &self.ctx,
+            &self.builder
+        );
+        let res = match to_store_type {
+            Dtype::BF16 | Dtype::F16 | Dtype::F32 | Dtype::F64 => {
+                self.builder.build_float_div(to_store, casted_val, "add")
+            }
+            _ => unimplemented!("unsupported dtype, {}", to_store_type),
+        };
+        let indices = inplace_div.to_store().to_load().expect("expected load").indices();
+        let indices_val = self.visit_expr(&indices);
+        let ptr = inplace_div.to_store().to_load().expect("expected load").name();
+        let ptr_val = self.bindings[&self.current_fn]
+            .find_variable(&ptr.name)
+            .unwrap()
+            .to_ptr_value();
+        let gep = self.builder.build_gep(
+            dtype_to_llvm(to_store_type, &self.ctx),
+            ptr_val,
+            &[indices_val],
+            "gep"
+        );
+        self.builder.build_store(gep, res)
     }
 
     fn visit_function(&mut self, function: &crate::halide::module::Function) {
