@@ -1,4 +1,7 @@
-use tensor_compiler::{halide::{code_gen::code_gen::CodeGen, module::Module, printer::IRPrinter, variable::Variable}, hlir::schedule::schedule::Schedule};
+use tensor_compiler::{
+    halide::{ code_gen::code_gen::CodeGen, module::Module, printer::IRPrinter, variable::Variable },
+    hlir::schedule::schedule::Schedule,
+};
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_llvm::context::context::Context;
 use tensor_traits::random::Random;
@@ -28,11 +31,11 @@ fn main() -> anyhow::Result<()> {
 
     let d = b.reshape(&[&n, &1i64, &o]);
 
-    // let c = &a - &d;
+    let c = &a - &d;
 
-    // let e = d.sum(0f32, 1);
+    let e = d.sum(0f32, 1);
 
-    let s = Schedule::create(&[&a, &d, &b]);
+    let s = Schedule::create(&[&a, &d, &c, &e, &b]);
 
     let lowered = s.lower("main");
     let mut module = Module::new("main");
