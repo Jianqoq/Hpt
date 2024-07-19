@@ -25,11 +25,13 @@ impl<
             <U as TensorAlloc>::Meta: CommonBounds
     {
         let res = U::_empty(self.iter.shape().clone()).unwrap();
+        println!("{:?}", res.shape());
         let strided_mut = StridedMapMut::new(res.clone());
         let zip = strided_mut.zip(self.iter);
         zip.for_each(|(x, y)| {
             *x = (self.f)(y);
         });
+        println!("{:?}", res.shape());
         res
     }
 }

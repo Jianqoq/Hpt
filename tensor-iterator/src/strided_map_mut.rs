@@ -129,18 +129,18 @@ impl<'a, T: 'a> IterGetSet for StridedMapMut<'a, T> {
     fn broadcast_set_strides(&mut self, _: &Shape) {}
 
     fn outer_loop_size(&self) -> usize {
-        todo!()
+        self.shape.size() as usize / self.inner_loop_size()
     }
 
     fn inner_loop_size(&self) -> usize {
-        todo!()
+        self.shape[self.shape.len() - 1] as usize
     }
 
     fn next(&mut self) {
-        todo!()
+        self.ptr.offset(self.inner_loop_size() as i64);
     }
 
-    fn inner_loop_next(&mut self, _: usize) -> Self::Item {
-        todo!()
+    fn inner_loop_next(&mut self, index: usize) -> Self::Item {
+        unsafe { self.ptr.get_ptr().add(index).as_mut().unwrap() }
     }
 }
