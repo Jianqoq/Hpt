@@ -655,8 +655,16 @@ impl CodeGenVisitor for CodeGen {
                 let res = self.builder.build_float_div(casted_lhs, casted_rhs, "div");
                 match res_type {
                     Dtype::F32 => {
-                        let floor_fn = self.fns.get(&"floorf".to_string()).unwrap();
-                        self.builder.build_call(floor_fn, &[res], "floor")
+                        if let Some(floor_div) = self.fns.get(&"floorf".to_string()) {
+                            self.builder.build_call(floor_div, &[res], "floor")
+                        } else {
+                            let floor_div = self.module.add_function(
+                                self.ctx.f32_type().fn_type(&[self.ctx.f32_type().into()], false),
+                                "floorf"
+                            );
+                            self.fns.insert("floorf".to_string().into(), floor_div.clone());
+                            self.builder.build_call(&floor_div, &[res], "floor")
+                        }
                     }
                     Dtype::F64 => {
                         if let Some(fllor) = self.fns.get(&"floor".to_string()) {
