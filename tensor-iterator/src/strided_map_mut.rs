@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt::Display, sync::Arc};
 
 use rayon::iter::{
     plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
@@ -97,7 +97,7 @@ impl<'a, T> UnindexedProducer for StridedMapMut<'a, T> where T: Clone + Sync + S
     }
 }
 
-impl<'a, T: 'a> IterGetSet for StridedMapMut<'a, T> {
+impl<'a, T: 'a + Display + Copy> IterGetSet for StridedMapMut<'a, T> {
     type Item = &'a mut T;
 
     fn set_end_index(&mut self, end_index: usize) {
@@ -129,7 +129,7 @@ impl<'a, T: 'a> IterGetSet for StridedMapMut<'a, T> {
     fn broadcast_set_strides(&mut self, _: &Shape) {}
 
     fn outer_loop_size(&self) -> usize {
-        self.shape.size() as usize / self.inner_loop_size()
+        self.intervals[self.start_index].1 - self.intervals[self.start_index].0
     }
 
     fn inner_loop_size(&self) -> usize {

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt::Display, sync::Arc};
 
 use rayon::iter::{
     plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
@@ -112,7 +112,7 @@ impl<T: CommonBounds> Strided<T> {
     }
 }
 
-impl<T: Copy> IterGetSet for Strided<T> {
+impl<T: Copy + Display> IterGetSet for Strided<T> {
     type Item = T;
 
     fn set_end_index(&mut self, end_index: usize) {
@@ -123,8 +123,8 @@ impl<T: Copy> IterGetSet for Strided<T> {
         self.intervals = intervals;
     }
 
-    fn set_strides(&mut self, last_stride: Strides) {
-        self.last_stride = last_stride[0];
+    fn set_strides(&mut self, strides: Strides) {
+        self.layout.set_strides(strides);
     }
 
     fn set_shape(&mut self, shape: Shape) {
@@ -168,7 +168,7 @@ impl<T: Copy> IterGetSet for Strided<T> {
     }
 
     fn outer_loop_size(&self) -> usize {
-        (self.shape().size() as usize) / (self.shape()[self.shape().len() - 1] as usize)
+        self.intervals[self.start_index].1 - self.intervals[self.start_index].0
     }
 
     fn inner_loop_size(&self) -> usize {
@@ -238,7 +238,7 @@ impl<T> UnindexedProducer for Strided<T> where T: CommonBounds {
     }
 }
 
-impl<T: Copy> ShapeManipulator for Strided<T> {
+impl<T: Copy + Display> ShapeManipulator for Strided<T> {
     fn reshape<S: Into<Shape>>(mut self, shape: S) -> Self {
         let tmp = shape.into();
         let res_shape = Shape::from(tmp);

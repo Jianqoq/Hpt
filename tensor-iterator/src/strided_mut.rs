@@ -115,8 +115,8 @@ impl<'a, T: 'a> IterGetSet for StridedMut<'a, T> {
         self.intervals = intervals;
     }
 
-    fn set_strides(&mut self, last_stride: tensor_common::strides::Strides) {
-        self.last_stride = last_stride[0];
+    fn set_strides(&mut self, _: tensor_common::strides::Strides) {
+        unreachable!()
     }
 
     fn set_shape(&mut self, shape: Shape) {
