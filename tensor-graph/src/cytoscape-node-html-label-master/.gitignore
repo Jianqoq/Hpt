@@ -1,7 +1,0 @@
-# Created by .ignore support plugin (hsz.mobi)
-.idea/
-bower_components/
-node_modules/
-**/*.map
-src/**/*.js
-src/**/*.map
