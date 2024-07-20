@@ -59,6 +59,13 @@ pub mod hlop {
 
 pub mod te {
     pub mod layout_cals;
+    pub mod tensor;
+    pub mod context;
+    pub mod rc_mut;
+    pub mod srg;
+    pub mod srg_node;
+    pub mod value;
+    pub mod executable;
 }
 
 pub mod tensor;

@@ -81,130 +81,131 @@ pub struct CodeGen {
 
 impl CodeGen {
     pub fn new(ctx: Context, module: &Module, opt_lvl: u32) -> Self {
-        let _module = tensor_llvm::module::module::Module::new(&module.name, &ctx);
-        let global_tensor = _module.add_global_struct(&ctx.tensor_type().into(), 0, "Tensor");
-        let builder = Builder::new(&ctx);
-        let mut fns = HashMap::new();
-        let mut fns_id = HashMap::new();
-        let mut id_fns = HashMap::new();
-        let mut id_f = HashMap::new();
-        let mut cnt = 0;
+        // let _module = tensor_llvm::module::module::Module::new(&module.name, &ctx);
+        // let global_tensor = _module.add_global_struct(&ctx.tensor_type().into(), 0, "Tensor");
+        // let builder = Builder::new(&ctx);
+        // let mut fns = HashMap::new();
+        // let mut fns_id = HashMap::new();
+        // let mut id_fns = HashMap::new();
+        // let mut id_f = HashMap::new();
+        // let mut cnt = 0;
 
-        let mut dependencies = HashMap::new();
-        let mut fn_edges = HashMap::new();
-        let mut intermediates = HashSet::new();
-        let mut all_nodes = HashSet::new();
-        let mut inputs = HashSet::new();
-        let mut outputs = HashSet::new();
-        for func in module.fns.values() {
-            let fn_val = _module.add_function(
-                ctx
-                    .void_type()
-                    .fn_type(
-                        &[
-                            ctx.void_type().ptr_type(0).into(),
-                            ctx.void_type().ptr_type(0).into(),
-                            ctx.void_type().ptr_type(0).into(),
-                        ],
-                        false
-                    ),
-                &func.name
-            );
-            fns.insert(func.name.clone(), fn_val.clone());
-            fns_id.insert(fn_val.clone(), cnt);
-            id_fns.insert(cnt, fn_val);
-            id_f.insert(cnt, func);
-            cnt += 1;
-            func.ty.args[2].iter().for_each(|(name, ty)| {
-                dependencies.insert(name, func);
-                all_nodes.insert(name);
-            });
-            func.ty.args[1].iter().for_each(|(name, ty)| {
-                intermediates.insert(Arc::new(name.clone()));
-                all_nodes.insert(name);
-            });
-            func.ty.args[0].iter().for_each(|(name, ty)| {
-                all_nodes.insert(name);
-            });
-        }
-        for func in module.fns.values() {
-            fn_edges.entry(func).or_insert(HashSet::new());
-            func.ty.args[0].iter().for_each(|(name, ty)| {
-                if let Some(&dep) = dependencies.get(name) {
-                    fn_edges.entry(func).or_insert_with(HashSet::new).insert(dep);
-                } else {
-                    inputs.insert(Arc::new(name.clone()));
-                }
-            });
-        }
-        for &name in &all_nodes {
-            if !intermediates.contains(name) || !inputs.contains(name) {
-                outputs.insert(Arc::new(name.clone()));
-            }
-        }
-        let mut edges = Edges::new();
-        edges.set_inner(fn_edges);
-        let sorted = topo(&edges, &id_f)
-            .expect("cycle detected")
-            .iter()
-            .map(|&x| x.clone())
-            .collect::<Vec<_>>();
+        // let mut dependencies = HashMap::new();
+        // let mut fn_edges = HashMap::new();
+        // let mut intermediates = HashSet::new();
+        // let mut all_nodes = HashSet::new();
+        // let mut inputs = HashSet::new();
+        // let mut outputs = HashSet::new();
+        // for func in module.fns.values() {
+        //     let fn_val = _module.add_function(
+        //         ctx
+        //             .void_type()
+        //             .fn_type(
+        //                 &[
+        //                     ctx.void_type().ptr_type(0).into(),
+        //                     ctx.void_type().ptr_type(0).into(),
+        //                     ctx.void_type().ptr_type(0).into(),
+        //                 ],
+        //                 false
+        //             ),
+        //         &func.name
+        //     );
+        //     fns.insert(func.name.clone(), fn_val.clone());
+        //     fns_id.insert(fn_val.clone(), cnt);
+        //     id_fns.insert(cnt, fn_val);
+        //     id_f.insert(cnt, func);
+        //     cnt += 1;
+        //     func.ty.args[2].iter().for_each(|(name, ty)| {
+        //         dependencies.insert(name, func);
+        //         all_nodes.insert(name);
+        //     });
+        //     func.ty.args[1].iter().for_each(|(name, ty)| {
+        //         intermediates.insert(Arc::new(name.clone()));
+        //         all_nodes.insert(name);
+        //     });
+        //     func.ty.args[0].iter().for_each(|(name, ty)| {
+        //         all_nodes.insert(name);
+        //     });
+        // }
+        // for func in module.fns.values() {
+        //     fn_edges.entry(func).or_insert(HashSet::new());
+        //     func.ty.args[0].iter().for_each(|(name, ty)| {
+        //         if let Some(&dep) = dependencies.get(name) {
+        //             fn_edges.entry(func).or_insert_with(HashSet::new).insert(dep);
+        //         } else {
+        //             inputs.insert(Arc::new(name.clone()));
+        //         }
+        //     });
+        // }
+        // for &name in &all_nodes {
+        //     if !intermediates.contains(name) || !inputs.contains(name) {
+        //         outputs.insert(Arc::new(name.clone()));
+        //     }
+        // }
+        // let mut edges = Edges::new();
+        // edges.set_inner(fn_edges);
+        // let sorted = topo(&edges, &id_f)
+        //     .expect("cycle detected")
+        //     .iter()
+        //     .map(|&x| x.clone())
+        //     .collect::<Vec<_>>();
 
-        unsafe {
-            LLVMLinkInMCJIT();
-            let code = LLVM_InitializeNativeTarget();
-            if code == 1 {
-                panic!("Failed to initialize native target");
-            }
-            let code = LLVM_InitializeNativeAsmPrinter();
-            if code == 1 {
-                panic!("Failed to initialize native asm printer");
-            }
-            let code = LLVM_InitializeNativeAsmParser();
-            if code == 1 {
-                panic!("Failed to initialize native asm parser");
-            }
-            let node = LLVM_InitializeNativeDisassembler();
-            if node == 1 {
-                panic!("Failed to initialize native asm printer");
-            }
-        }
-        let mut execution_engine = MaybeUninit::uninit();
-        let mut err_string = MaybeUninit::uninit();
-        let code = unsafe {
-            LLVMCreateJITCompilerForModule(
-                execution_engine.as_mut_ptr(),
-                _module.inner(),
-                opt_lvl,
-                err_string.as_mut_ptr()
-            )
-        };
-        unsafe {
-            if code == 1 {
-                let msg = CStr::from_ptr(err_string.assume_init());
-                panic!("Failed to create JIT compiler: {:?}", msg.to_string_lossy().into_owned());
-            }
-            let execution_engine = ExecutionEngine::new(execution_engine.assume_init());
-            declare_printf(&ctx, &_module);
-            CodeGen {
-                ctx,
-                module: _module,
-                builder,
-                fns,
-                bindings: HashMap::new(),
-                id_fns,
-                current_fn: 0,
-                fns_id,
-                halide_module: module.clone(),
-                tensor_type: global_tensor,
-                ee: execution_engine,
-                topo_order: sorted,
-                inputs,
-                outputs,
-                intermediates,
-                buffers: HashMap::new(),
-            }
-        }
+        // unsafe {
+        //     LLVMLinkInMCJIT();
+        //     let code = LLVM_InitializeNativeTarget();
+        //     if code == 1 {
+        //         panic!("Failed to initialize native target");
+        //     }
+        //     let code = LLVM_InitializeNativeAsmPrinter();
+        //     if code == 1 {
+        //         panic!("Failed to initialize native asm printer");
+        //     }
+        //     let code = LLVM_InitializeNativeAsmParser();
+        //     if code == 1 {
+        //         panic!("Failed to initialize native asm parser");
+        //     }
+        //     let node = LLVM_InitializeNativeDisassembler();
+        //     if node == 1 {
+        //         panic!("Failed to initialize native asm printer");
+        //     }
+        // }
+        // let mut execution_engine = MaybeUninit::uninit();
+        // let mut err_string = MaybeUninit::uninit();
+        // let code = unsafe {
+        //     LLVMCreateJITCompilerForModule(
+        //         execution_engine.as_mut_ptr(),
+        //         _module.inner(),
+        //         opt_lvl,
+        //         err_string.as_mut_ptr()
+        //     )
+        // };
+        // unsafe {
+        //     if code == 1 {
+        //         let msg = CStr::from_ptr(err_string.assume_init());
+        //         panic!("Failed to create JIT compiler: {:?}", msg.to_string_lossy().into_owned());
+        //     }
+        //     let execution_engine = ExecutionEngine::new(execution_engine.assume_init());
+        //     declare_printf(&ctx, &_module);
+        //     CodeGen {
+        //         ctx,
+        //         module: _module,
+        //         builder,
+        //         fns,
+        //         bindings: HashMap::new(),
+        //         id_fns,
+        //         current_fn: 0,
+        //         fns_id,
+        //         halide_module: module.clone(),
+        //         tensor_type: global_tensor,
+        //         ee: execution_engine,
+        //         topo_order: sorted,
+        //         inputs,
+        //         outputs,
+        //         intermediates,
+        //         buffers: HashMap::new(),
+        //     }
+        // }
+        todo!()
     }
 
     pub fn compile(mut self) -> Executable {
@@ -255,103 +256,103 @@ impl Executable {
         unsafe { std::mem::transmute_copy::<u64, F>(&address) }
     }
     pub fn run(&self, inputs: &[Tensor], intermediates: &[Tensor], outputs: &[Tensor]) {
-        for input in inputs {
-            if !self.inputs.contains(&input.name) {
-                panic!("input {} not found", input.name);
-            }
-        }
-        for output in outputs {
-            if !self.outputs.contains(&output.name) {
-                panic!("output {} not found", output.name);
-            }
-        }
-        for intermediate in intermediates {
-            if !self.intermediates.contains(&intermediate.name) {
-                panic!("intermediate {} not found", intermediate.name);
-            }
-        }
-        for func in self.sorted.iter() {
-            unsafe {
-                let tensor_layout = Layout::from_size_align(
-                    std::mem::size_of::<_Tensor>(),
-                    8
-                ).expect("");
-                let inter_layout = Layout::from_size_align(
-                    std::mem::size_of::<*mut _Tensor>() * func.ty.args[1].len(),
-                    8
-                ).expect("failed to create layout");
-                let _intermediates = std::alloc::alloc(inter_layout) as *mut *mut _Tensor;
-                for (idx, (name, ty)) in func.ty.args[1].iter().enumerate() {
-                    let tensor = std::alloc::alloc(tensor_layout) as *mut _Tensor;
-                    let t = intermediates
-                        .iter()
-                        .find(|x| &x.name == name)
-                        .unwrap();
-                    (*tensor).ptr = t.ptr as *mut c_void;
-                    (*tensor).dtype = t.dtype;
-                    (*tensor).shape = t.shape;
-                    (*tensor).strides = t.strides;
-                    std::ptr::write(_intermediates.add(idx), tensor);
-                }
-                let inputs_layout = Layout::from_size_align(
-                    std::mem::size_of::<*mut _Tensor>() * func.ty.args[0].len(),
-                    8
-                ).expect("failed to create layout");
-                let _inputs = std::alloc::alloc(inputs_layout) as *mut *mut _Tensor;
-                for (idx, (name, ty)) in func.ty.args[0].iter().enumerate() {
-                    let tensor = std::alloc::alloc(tensor_layout) as *mut _Tensor;
-                    let t = inputs
-                        .iter()
-                        .find(|x| &x.name == name)
-                        .unwrap();
-                    (*tensor).ptr = t.ptr;
-                    (*tensor).dtype = t.dtype;
-                    (*tensor).shape = t.shape;
-                    (*tensor).strides = t.strides;
-                    std::ptr::write(_inputs.add(idx), tensor);
-                }
-                let outputs_layout = Layout::from_size_align(
-                    std::mem::size_of::<*mut _Tensor>() * func.ty.args[2].len(),
-                    8
-                ).expect("failed to create layout");
-                let _outputs = std::alloc::alloc(outputs_layout) as *mut *mut _Tensor;
-                for (idx, (name, ty)) in func.ty.args[2].iter().enumerate() {
-                    let tensor = std::alloc::alloc(tensor_layout) as *mut _Tensor;
-                    let t = outputs
-                        .iter()
-                        .find(|x| &x.name == name)
-                        .unwrap();
-                    (*tensor).ptr = t.ptr;
-                    (*tensor).dtype = t.dtype;
-                    (*tensor).shape = t.shape;
-                    (*tensor).strides = t.strides;
-                    std::ptr::write(_outputs.add(idx), tensor);
-                }
-                let llvm_fn = self.get_function::<
-                    unsafe extern "C" fn(*mut *mut c_void, *mut *mut c_void, *mut *mut c_void)
-                >(func.name.as_str());
-                llvm_fn(
-                    _inputs as *mut *mut c_void,
-                    _intermediates as *mut *mut c_void,
-                    _outputs as *mut *mut c_void
-                );
-                for (idx, (name, ty)) in func.ty.args[1].iter().enumerate() {
-                    let tensor = std::ptr::read(_intermediates.add(idx));
-                    std::alloc::dealloc(tensor as *mut u8, tensor_layout);
-                }
-                std::alloc::dealloc(_intermediates as *mut u8, inter_layout);
-                for (idx, (name, ty)) in func.ty.args[0].iter().enumerate() {
-                    let tensor = std::ptr::read(_inputs.add(idx));
-                    std::alloc::dealloc(tensor as *mut u8, tensor_layout);
-                }
-                std::alloc::dealloc(_inputs as *mut u8, inputs_layout);
-                for (idx, (name, ty)) in func.ty.args[2].iter().enumerate() {
-                    let tensor = std::ptr::read(_outputs.add(idx));
-                    std::alloc::dealloc(tensor as *mut u8, tensor_layout);
-                }
-                std::alloc::dealloc(_outputs as *mut u8, outputs_layout);
-            }
-        }
+        // for input in inputs {
+        //     if !self.inputs.contains(&input.name) {
+        //         panic!("input {} not found", input.name);
+        //     }
+        // }
+        // for output in outputs {
+        //     if !self.outputs.contains(&output.name) {
+        //         panic!("output {} not found", output.name);
+        //     }
+        // }
+        // for intermediate in intermediates {
+        //     if !self.intermediates.contains(&intermediate.name) {
+        //         panic!("intermediate {} not found", intermediate.name);
+        //     }
+        // }
+        // for func in self.sorted.iter() {
+        //     unsafe {
+        //         let tensor_layout = Layout::from_size_align(
+        //             std::mem::size_of::<_Tensor>(),
+        //             8
+        //         ).expect("");
+        //         let inter_layout = Layout::from_size_align(
+        //             std::mem::size_of::<*mut _Tensor>() * func.ty.args[1].len(),
+        //             8
+        //         ).expect("failed to create layout");
+        //         let _intermediates = std::alloc::alloc(inter_layout) as *mut *mut _Tensor;
+        //         for (idx, (name, ty)) in func.ty.args[1].iter().enumerate() {
+        //             let tensor = std::alloc::alloc(tensor_layout) as *mut _Tensor;
+        //             let t = intermediates
+        //                 .iter()
+        //                 .find(|x| &x.name == name)
+        //                 .unwrap();
+        //             (*tensor).ptr = t.ptr as *mut c_void;
+        //             (*tensor).dtype = t.dtype;
+        //             (*tensor).shape = t.shape;
+        //             (*tensor).strides = t.strides;
+        //             std::ptr::write(_intermediates.add(idx), tensor);
+        //         }
+        //         let inputs_layout = Layout::from_size_align(
+        //             std::mem::size_of::<*mut _Tensor>() * func.ty.args[0].len(),
+        //             8
+        //         ).expect("failed to create layout");
+        //         let _inputs = std::alloc::alloc(inputs_layout) as *mut *mut _Tensor;
+        //         for (idx, (name, ty)) in func.ty.args[0].iter().enumerate() {
+        //             let tensor = std::alloc::alloc(tensor_layout) as *mut _Tensor;
+        //             let t = inputs
+        //                 .iter()
+        //                 .find(|x| &x.name == name)
+        //                 .unwrap();
+        //             (*tensor).ptr = t.ptr;
+        //             (*tensor).dtype = t.dtype;
+        //             (*tensor).shape = t.shape;
+        //             (*tensor).strides = t.strides;
+        //             std::ptr::write(_inputs.add(idx), tensor);
+        //         }
+        //         let outputs_layout = Layout::from_size_align(
+        //             std::mem::size_of::<*mut _Tensor>() * func.ty.args[2].len(),
+        //             8
+        //         ).expect("failed to create layout");
+        //         let _outputs = std::alloc::alloc(outputs_layout) as *mut *mut _Tensor;
+        //         for (idx, (name, ty)) in func.ty.args[2].iter().enumerate() {
+        //             let tensor = std::alloc::alloc(tensor_layout) as *mut _Tensor;
+        //             let t = outputs
+        //                 .iter()
+        //                 .find(|x| &x.name == name)
+        //                 .unwrap();
+        //             (*tensor).ptr = t.ptr;
+        //             (*tensor).dtype = t.dtype;
+        //             (*tensor).shape = t.shape;
+        //             (*tensor).strides = t.strides;
+        //             std::ptr::write(_outputs.add(idx), tensor);
+        //         }
+        //         let llvm_fn = self.get_function::<
+        //             unsafe extern "C" fn(*mut *mut c_void, *mut *mut c_void, *mut *mut c_void)
+        //         >(func.name.as_str());
+        //         llvm_fn(
+        //             _inputs as *mut *mut c_void,
+        //             _intermediates as *mut *mut c_void,
+        //             _outputs as *mut *mut c_void
+        //         );
+        //         for (idx, (name, ty)) in func.ty.args[1].iter().enumerate() {
+        //             let tensor = std::ptr::read(_intermediates.add(idx));
+        //             std::alloc::dealloc(tensor as *mut u8, tensor_layout);
+        //         }
+        //         std::alloc::dealloc(_intermediates as *mut u8, inter_layout);
+        //         for (idx, (name, ty)) in func.ty.args[0].iter().enumerate() {
+        //             let tensor = std::ptr::read(_inputs.add(idx));
+        //             std::alloc::dealloc(tensor as *mut u8, tensor_layout);
+        //         }
+        //         std::alloc::dealloc(_inputs as *mut u8, inputs_layout);
+        //         for (idx, (name, ty)) in func.ty.args[2].iter().enumerate() {
+        //             let tensor = std::ptr::read(_outputs.add(idx));
+        //             std::alloc::dealloc(tensor as *mut u8, tensor_layout);
+        //         }
+        //         std::alloc::dealloc(_outputs as *mut u8, outputs_layout);
+        //     }
+        // }
     }
 }
 
@@ -1999,105 +2000,6 @@ impl CodeGenVisitor for CodeGen {
         let block = self.ctx.append_basic_block(&self.fns[&function.name], "entry");
         self.builder.position_at_end(block);
         for (args_idx, vec) in function.ty.args.iter().enumerate() {
-            let args = self.fns[&function.name].get_nth_param(args_idx).to_ptr_value();
-            for (idx, (name, arg_ty)) in vec.iter().enumerate() {
-                let gep = self.builder.build_gep(
-                    self.ctx.void_type().ptr_type(0),
-                    args,
-                    &[
-                        self.ctx
-                            .i32_type()
-                            .const_int(idx as u64, false)
-                            .into(),
-                    ],
-                    "gep"
-                );
-                let loaded = self.builder.build_load(self.ctx.tensor_type().ptr_type(0), gep, name);
-                scope_stack.insert_variable(&Arc::new(name.clone()), loaded);
-                match arg_ty {
-                    PrimitiveType::Ptr(ptr) =>
-                        match ptr.inner.as_ref() {
-                            PrimitiveType::Tensor(tensor) => {
-                                let shape_ptr = self.builder.build_struct_gep(
-                                    self.tensor_type.to_type(),
-                                    loaded.to_ptr_value(),
-                                    2,
-                                    name
-                                );
-                                let shape = self.builder.build_load(
-                                    self.ctx.i64_type().ptr_type(0),
-                                    shape_ptr,
-                                    "loaded"
-                                );
-                                scope_stack.insert_variable(
-                                    &Arc::new(format!("{}.shape", name)),
-                                    shape.into()
-                                );
-                                scope_stack.insert_type(
-                                    shape.into(),
-                                    PrimitiveType::Ptr(Ptr {
-                                        inner: Arc::new(
-                                            PrimitiveType::Array(Array {
-                                                inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
-                                                size: tensor.shape.size,
-                                            })
-                                        ),
-                                    })
-                                );
-                                let strides_ptr = self.builder.build_struct_gep(
-                                    self.tensor_type.to_type(),
-                                    loaded.to_ptr_value(),
-                                    3,
-                                    name
-                                );
-                                let strides = self.builder.build_load(
-                                    self.ctx.i64_type().ptr_type(0),
-                                    strides_ptr,
-                                    "loaded"
-                                );
-                                scope_stack.insert_variable(
-                                    &Arc::new(format!("{}.strides", name)),
-                                    strides.into()
-                                );
-                                scope_stack.insert_type(
-                                    strides.into(),
-                                    PrimitiveType::Ptr(Ptr {
-                                        inner: Arc::new(
-                                            PrimitiveType::Array(Array {
-                                                inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
-                                                size: tensor.strides.size,
-                                            })
-                                        ),
-                                    })
-                                );
-                                let data_ptr = self.builder.build_struct_gep(
-                                    self.tensor_type.to_type(),
-                                    loaded.to_ptr_value(),
-                                    0,
-                                    name
-                                );
-                                let data = self.builder.build_load(
-                                    self.ctx.void_type().ptr_type(0),
-                                    data_ptr,
-                                    "loaded"
-                                );
-                                scope_stack.insert_variable(
-                                    &Arc::new(format!("{}.data", name)),
-                                    data.into()
-                                );
-                                scope_stack.insert_type(
-                                    data.into(),
-                                    PrimitiveType::Ptr(Ptr {
-                                        inner: Arc::new(PrimitiveType::Dtype(tensor.dtype)),
-                                    })
-                                );
-                            }
-                            _ => {}
-                        }
-                    _ => {}
-                }
-                scope_stack.insert_type(loaded, arg_ty.clone());
-            }
         }
         self.bindings.insert(id, scope_stack);
         self.current_fn = id;
@@ -2118,6 +2020,10 @@ impl CodeGenVisitor for CodeGen {
     }
     
     fn visit_malloc(&mut self, malloc: &crate::halide::exprs::Malloc) -> BasicValue {
+        todo!()
+    }
+    
+    fn visit_alloca(&mut self, alloca: &crate::halide::exprs::Alloca) -> BasicValue {
         todo!()
     }
 }

@@ -56,6 +56,7 @@ pub trait IRVisitor where Self: Sized {
             PrimeExpr::Shr(shr) => self.visit_shr(&shr),
             PrimeExpr::Malloc(malloc) => self.visit_malloc(&malloc),
             PrimeExpr::Layout(layout) => self.visit_layout(&layout),
+            PrimeExpr::Alloca(alloca) => self.visit_alloca(&alloca),
             PrimeExpr::None => {}
         }
     }
@@ -83,6 +84,9 @@ pub trait IRVisitor where Self: Sized {
     fn visit_layout(&self, layout: &Layout) {
         layout.shape().accept(self);
         layout.strides().accept(self);
+    }
+    fn visit_alloca(&self, alloca: &Alloca) {
+        alloca.size().accept(self);
     }
     fn visit_malloc(&self, malloc: &Malloc) {
         malloc.size().accept(self);
@@ -298,6 +302,7 @@ pub trait IRMutVisitor where Self: Sized {
             PrimeExpr::Shr(shr) => self.visit_shr(&shr),
             PrimeExpr::Malloc(malloc) => self.visit_malloc(&malloc),
             PrimeExpr::Layout(layout) => self.visit_layout(&layout),
+            PrimeExpr::Alloca(alloca) => self.visit_alloca(&alloca),
             PrimeExpr::None => {}
         }
     }
@@ -321,6 +326,9 @@ pub trait IRMutVisitor where Self: Sized {
             Stmt::Return(return_) => self.visit_return(&return_),
             Stmt::None => {}
         }
+    }
+    fn visit_alloca(&mut self, alloca: &Alloca) {
+        alloca.size().accept_mut(self);
     }
     fn visit_layout(&mut self, layout: &Layout) {
         layout.shape().accept_mut(self);
@@ -584,6 +592,7 @@ pub(crate) fn visit_expr<V>(visitor: &mut V, expr: &PrimeExpr)
         PrimeExpr::Shr(shr) => visitor.visit_shr(&shr),
         PrimeExpr::Malloc(malloc) => visitor.visit_malloc(&malloc),
         PrimeExpr::Layout(layout) => visitor.visit_layout(&layout),
+        PrimeExpr::Alloca(alloca) => visitor.visit_alloca(&alloca),
         PrimeExpr::None => {}
     }
 }
@@ -1132,6 +1141,17 @@ pub(crate) fn visit_layout<V>(visitor: &mut V, layout: &Layout)
     }
 }
 
+pub(crate) fn visit_alloca<V>(visitor: &mut V, alloca: &Alloca)
+    where V: MutatorGetSet + Sized + IRMutateVisitor
+{
+    let size = visitor.mutate_expr(alloca.size());
+    if &size == alloca.size() {
+        visitor.set_expr(alloca);
+    } else {
+        visitor.set_expr(Alloca::make(alloca.dtype(), size));
+    }
+}
+
 pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     fn mutate_expr(&mut self, expr: &PrimeExpr) -> PrimeExpr {
         mutate_expr(self, expr)
@@ -1139,6 +1159,9 @@ pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
 
     fn mutate_stmt(&mut self, stmt: &Stmt) -> Stmt {
         mutate_stmt(self, stmt)
+    }
+    fn visit_alloca(&mut self, alloca: &Alloca) {
+        visit_alloca(self, alloca);
     }
     fn visit_layout(&mut self, layout: &Layout) {
         visit_layout(self, layout);
@@ -1323,6 +1346,7 @@ pub trait CodeGenVisitor where Self: Sized {
             PrimeExpr::Shr(shr) => self.visit_shr(&shr),
             PrimeExpr::Malloc(malloc) => self.visit_malloc(&malloc),
             PrimeExpr::Layout(layout) => self.visit_layout(&layout),
+            PrimeExpr::Alloca(alloca) => self.visit_alloca(&alloca),
             PrimeExpr::None => { BasicValue::None }
         }
     }
@@ -1352,6 +1376,7 @@ pub trait CodeGenVisitor where Self: Sized {
             self.visit_function(function);
         }
     }
+    fn visit_alloca(&mut self, alloca: &Alloca) -> BasicValue;
     fn visit_layout(&mut self, layout: &Layout) -> BasicValue;
     fn visit_malloc(&mut self, malloc: &Malloc) -> BasicValue;
     fn visit_shl(&mut self, shl: &Shl) -> BasicValue;

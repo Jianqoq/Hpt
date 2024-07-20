@@ -54,7 +54,7 @@ impl _IRPrinter {
         for func in module.fns.values() {
             self.do_indent();
             print!("fn {}(", func.name);
-            for (i, (name, r#type)) in func.ty.args.iter().flatten().enumerate() {
+            for (i, (name, r#type)) in func.ty.args.iter().enumerate() {
                 if i != 0 {
                     print!(", ");
                 }
@@ -78,7 +78,7 @@ impl _IRPrinter {
         for func in module.fns.values() {
             res.push_str(&self.do_indent_str());
             res.push_str(&format!("fn {}(", func.name));
-            for (i, (name, r#type)) in func.ty.args.iter().flatten().enumerate() {
+            for (i, (name, r#type)) in func.ty.args.iter().enumerate() {
                 if i != 0 {
                     res.push_str(", ");
                 }
@@ -188,7 +188,8 @@ impl _IRPrinter {
         match stmt {
             Stmt::LetStmt(var) => {
                 res.push_str(&self.do_indent_str());
-                res.push_str(&format!("let {} = {};\n", var.var(), var.body()));
+                res.push_str(&format!("let {} = {};\n", var.var(), var.value()));
+                res.push_str(&self.print_stmt_str(var.body()));
             }
             Stmt::StoreStmt(var) => {
                 res.push_str(&self.do_indent_str());

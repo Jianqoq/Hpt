@@ -45,6 +45,7 @@ pub enum PrimeExpr {
     Load(Load),
     Malloc(Malloc),
     Layout(Layout),
+    Alloca(Alloca),
     None,
 }
 
@@ -84,6 +85,7 @@ pub enum PrimeType {
     Load,
     Malloc,
     Layout,
+    Alloca,
     None,
 }
 
@@ -151,6 +153,7 @@ impl PrimeExpr {
             PrimeExpr::TensorSlice(_) => PrimeType::TensorSlice,
             PrimeExpr::Malloc(_) => PrimeType::Malloc,
             PrimeExpr::Layout(_) => PrimeType::Layout,
+            PrimeExpr::Alloca(_) => PrimeType::Alloca,
             PrimeExpr::None => PrimeType::None,
         }
     }
@@ -201,6 +204,7 @@ impl PrimeExpr {
             PrimeExpr::TensorSlice(a) => a.to_string(),
             PrimeExpr::Malloc(a) => a.to_string(),
             PrimeExpr::Layout(a) => a.to_string(),
+            PrimeExpr::Alloca(a) => a.to_string(),
             PrimeExpr::None => "".to_string(),
         };
         if prec < parent_prec {
@@ -212,6 +216,15 @@ impl PrimeExpr {
 
     pub fn floor_div(&self, e2: &PrimeExpr) -> PrimeExpr {
         PrimeExpr::FloorDiv(FloorDiv::make(self, e2))
+    }
+
+    pub fn evaluate_i64(&self) -> i64 {
+        match self {
+            PrimeExpr::Int(a) => a.value(),
+            PrimeExpr::Float(a) => a.value() as i64,
+            PrimeExpr::UInt(a) => a.value() as i64,
+            _ => panic!("Cannot evaluate non-integer expression"),
+        }
     }
 
     cast_expr!(to_variable, Variable);

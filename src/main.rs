@@ -22,26 +22,26 @@ use tensor_types::dtype::Dtype;
 // }
 
 fn main() -> anyhow::Result<()> {
-    let m = Variable::make("m");
-    let n = Variable::make("n");
-    let o = Variable::make("o");
+    // let m = Variable::make("m");
+    // let n = Variable::make("n");
+    // let o = Variable::make("o");
 
-    let a = tensor_compiler::hlir::tensor::Tensor::placeholder(&[&n, &m, &o], Dtype::F32, "A");
-    let b = a.sum(0f32, 1);
+    // let a = tensor_compiler::hlir::tensor::Tensor::placeholder(&[&n, &m, &o], Dtype::F32, "A");
+    // let b = a.sum(0f32, 1);
 
-    let d = b.reshape(&[&n, &1i64, &o]);
+    // let d = b.reshape(&[&n, &1i64, &o]);
 
-    let c = &a - &d;
+    // let c = &a - &d;
 
-    let e = d.sum(0f32, 1);
+    // let e = d.sum(0f32, 1);
 
-    let s = Schedule::create(&[&a, &d, &c, &e, &b]);
+    // let s = Schedule::create(&[&a, &d, &c, &e, &b]);
 
-    let lowered = s.lower("main");
-    let mut module = Module::new("main");
-    module.add_function(lowered.ty, &lowered.name);
-    module.get_function_mut(&lowered.name).unwrap().body = lowered.body;
-    IRPrinter.print_module(&module);
+    // let lowered = s.lower("main");
+    // let mut module = Module::new("main");
+    // module.add_function(lowered.ty, &lowered.name);
+    // module.get_function_mut(&lowered.name).unwrap().body = lowered.body;
+    // IRPrinter.print_module(&module);
 
     // let tensor_a = tensor_dyn::tensor::Tensor::<f32>
     //     ::arange(0f32, 100f32)

@@ -714,11 +714,12 @@ impl Schedule {
         args.push(args2);
         stmts.push(Stmt::Return(ReturnStmt::make(vec![])));
         let seq = Stmt::Seq(Seq::make(stmts));
-        Function {
-            ty: FunctionType::new(PrimitiveType::Void, args),
-            body: seq,
-            name: name.to_string().into(),
-        }
+        todo!()
+        // Function {
+        //     ty: FunctionType::new(PrimitiveType::Void, args),
+        //     body: seq,
+        //     name: name.to_string().into(),
+        // }
     }
 }
 
