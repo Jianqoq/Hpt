@@ -57,6 +57,10 @@ pub mod hlop {
     pub mod selection;
 }
 
+pub mod te {
+    pub mod layout_cals;
+}
+
 pub mod tensor;
 pub mod to_prim_expr;
 pub mod iter_var;

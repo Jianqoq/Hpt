@@ -54,6 +54,8 @@ pub trait IRVisitor where Self: Sized {
             PrimeExpr::TensorSlice(slice) => self.visit_tensor_slice(&slice),
             PrimeExpr::Shl(shl) => self.visit_shl(&shl),
             PrimeExpr::Shr(shr) => self.visit_shr(&shr),
+            PrimeExpr::Malloc(malloc) => self.visit_malloc(&malloc),
+            PrimeExpr::Layout(layout) => self.visit_layout(&layout),
             PrimeExpr::None => {}
         }
     }
@@ -77,6 +79,13 @@ pub trait IRVisitor where Self: Sized {
             Stmt::Return(return_) => self.visit_return(&return_),
             Stmt::None => {}
         }
+    }
+    fn visit_layout(&self, layout: &Layout) {
+        layout.shape().accept(self);
+        layout.strides().accept(self);
+    }
+    fn visit_malloc(&self, malloc: &Malloc) {
+        malloc.size().accept(self);
     }
     fn visit_shl(&self, shl: &Shl) {
         shl.e1().accept(self);
@@ -287,6 +296,8 @@ pub trait IRMutVisitor where Self: Sized {
             PrimeExpr::TensorSlice(slice) => self.visit_tensor_slice(&slice),
             PrimeExpr::Shl(shl) => self.visit_shl(&shl),
             PrimeExpr::Shr(shr) => self.visit_shr(&shr),
+            PrimeExpr::Malloc(malloc) => self.visit_malloc(&malloc),
+            PrimeExpr::Layout(layout) => self.visit_layout(&layout),
             PrimeExpr::None => {}
         }
     }
@@ -310,6 +321,13 @@ pub trait IRMutVisitor where Self: Sized {
             Stmt::Return(return_) => self.visit_return(&return_),
             Stmt::None => {}
         }
+    }
+    fn visit_layout(&mut self, layout: &Layout) {
+        layout.shape().accept_mut(self);
+        layout.strides().accept_mut(self);
+    }
+    fn visit_malloc(&mut self, malloc: &Malloc) {
+        malloc.size().accept_mut(self);
     }
     fn visit_shl(&mut self, shl: &Shl) {
         shl.e1().accept_mut(self);
@@ -564,6 +582,8 @@ pub(crate) fn visit_expr<V>(visitor: &mut V, expr: &PrimeExpr)
         PrimeExpr::TensorSlice(slice) => visitor.visit_tensor_slice(&slice),
         PrimeExpr::Shl(shl) => visitor.visit_shl(&shl),
         PrimeExpr::Shr(shr) => visitor.visit_shr(&shr),
+        PrimeExpr::Malloc(malloc) => visitor.visit_malloc(&malloc),
+        PrimeExpr::Layout(layout) => visitor.visit_layout(&layout),
         PrimeExpr::None => {}
     }
 }
@@ -741,7 +761,9 @@ pub(crate) fn visit_xor<V>(visitor: &mut V, xor: &BitXor)
     mutate_binop!(visitor, xor, BitXor);
 }
 
-pub(crate) fn visit_or<V>(visitor: &mut V, or: &BitOr) where V: MutatorGetSet + Sized + IRMutateVisitor {
+pub(crate) fn visit_or<V>(visitor: &mut V, or: &BitOr)
+    where V: MutatorGetSet + Sized + IRMutateVisitor
+{
     mutate_binop!(visitor, or, BitOr);
 }
 
@@ -1086,6 +1108,30 @@ pub(crate) fn visist_tensor_slice<V>(visitor: &mut V, slice: &TensorSlice)
     }
 }
 
+pub(crate) fn visit_malloc<V>(visitor: &mut V, malloc: &Malloc)
+    where V: MutatorGetSet + Sized + IRMutateVisitor
+{
+    let size = visitor.mutate_expr(malloc.size());
+    if &size == malloc.size() {
+        visitor.set_expr(malloc);
+    } else {
+        visitor.set_expr(Malloc::make(malloc.dtype(), size));
+    }
+}
+
+pub(crate) fn visit_layout<V>(visitor: &mut V, layout: &Layout)
+    where V: MutatorGetSet + Sized + IRMutateVisitor
+{
+    let shape = visitor.mutate_expr(layout.shape());
+    let strides = visitor.mutate_expr(layout.strides());
+    let dim = visitor.mutate_expr(layout.dim());
+    if &shape == layout.shape() && &strides == layout.strides() && &dim == layout.dim() {
+        visitor.set_expr(layout);
+    } else {
+        visitor.set_expr(Layout::make(dim, shape, strides));
+    }
+}
+
 pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     fn mutate_expr(&mut self, expr: &PrimeExpr) -> PrimeExpr {
         mutate_expr(self, expr)
@@ -1093,6 +1139,12 @@ pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
 
     fn mutate_stmt(&mut self, stmt: &Stmt) -> Stmt {
         mutate_stmt(self, stmt)
+    }
+    fn visit_layout(&mut self, layout: &Layout) {
+        visit_layout(self, layout);
+    }
+    fn visit_malloc(&mut self, malloc: &Malloc) {
+        visit_malloc(self, malloc);
     }
     fn visit_shl(&mut self, shl: &Shl) {
         visit_shl(self, shl);
@@ -1269,6 +1321,8 @@ pub trait CodeGenVisitor where Self: Sized {
             PrimeExpr::TensorSlice(slice) => self.visit_tensor_slice(&slice),
             PrimeExpr::Shl(shl) => self.visit_shl(&shl),
             PrimeExpr::Shr(shr) => self.visit_shr(&shr),
+            PrimeExpr::Malloc(malloc) => self.visit_malloc(&malloc),
+            PrimeExpr::Layout(layout) => self.visit_layout(&layout),
             PrimeExpr::None => { BasicValue::None }
         }
     }
@@ -1298,6 +1352,8 @@ pub trait CodeGenVisitor where Self: Sized {
             self.visit_function(function);
         }
     }
+    fn visit_layout(&mut self, layout: &Layout) -> BasicValue;
+    fn visit_malloc(&mut self, malloc: &Malloc) -> BasicValue;
     fn visit_shl(&mut self, shl: &Shl) -> BasicValue;
     fn visit_shr(&mut self, shr: &Shr) -> BasicValue;
     fn visit_return(&mut self, return_: &ReturnStmt);

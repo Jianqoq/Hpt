@@ -1851,3 +1851,131 @@ impl Into<PrimeExpr> for &Reduce {
         PrimeExpr::Reduce(self.clone())
     }
 }
+
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
+pub struct Malloc {
+    dtype: Dtype,
+    size: Arc<PrimeExpr>,
+}
+
+impl Accepter for Malloc {
+    fn accept<V: IRVisitor>(&self, visitor: &V) {
+        visitor.visit_malloc(self);
+    }
+}
+
+impl Malloc {
+    pub fn new(dtype: Dtype, size: Arc<PrimeExpr>) -> Self {
+        Malloc { dtype, size }
+    }
+
+    pub fn make<T: Into<PrimeExpr>>(dtype: Dtype, size: T) -> Self {
+        Malloc {
+            dtype,
+            size: size.into().into(),
+        }
+    }
+
+    pub fn dtype(&self) -> Dtype {
+        self.dtype
+    }
+
+    pub fn size(&self) -> &PrimeExpr {
+        &self.size
+    }
+
+    pub fn size_(&self) -> &Arc<PrimeExpr> {
+        &self.size
+    }
+}
+
+impl Display for Malloc {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "malloc<{}>({})", self.dtype, self.size)
+    }
+}
+
+impl Into<PrimeExpr> for Malloc {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Malloc(self)
+    }
+}
+
+impl Into<PrimeExpr> for &Malloc {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Malloc(self.clone())
+    }
+}
+
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
+pub struct Layout {
+    dim: Arc<PrimeExpr>,
+    shape: Arc<PrimeExpr>,
+    strides: Arc<PrimeExpr>,
+}
+
+impl Accepter for Layout {
+    fn accept<V: IRVisitor>(&self, visitor: &V) {
+        visitor.visit_layout(self);
+    }
+}
+
+impl Layout {
+    pub fn new(dim: Arc<PrimeExpr>, shape: Arc<PrimeExpr>, strides: Arc<PrimeExpr>) -> Self {
+        Layout { dim, shape, strides }
+    }
+
+    pub fn make<T: Into<PrimeExpr>, U: Into<PrimeExpr>, V: Into<PrimeExpr>>(
+        dim: T,
+        shape: U,
+        strides: V
+    ) -> Self {
+        Layout {
+            dim: dim.into().into(),
+            shape: shape.into().into(),
+            strides: strides.into().into(),
+        }
+    }
+
+    pub fn dim(&self) -> &PrimeExpr {
+        &self.dim
+    }
+
+    pub fn shape(&self) -> &PrimeExpr {
+        &self.shape
+    }
+
+    pub fn strides(&self) -> &PrimeExpr {
+        &self.strides
+    }
+
+    pub fn dim_(&self) -> &Arc<PrimeExpr> {
+        &self.dim
+    }
+
+    pub fn shape_(&self) -> &Arc<PrimeExpr> {
+        &self.shape
+    }
+
+    pub fn strides_(&self) -> &Arc<PrimeExpr> {
+        &self.strides
+    }
+}
+
+impl Display for Layout {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Layout({}, {}, {})", self.dim, self.shape, self.strides)
+    }
+}
+
+impl Into<PrimeExpr> for Layout {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Layout(self)
+    }
+}
+
+impl Into<PrimeExpr> for &Layout {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Layout(self.clone())
+    }
+}

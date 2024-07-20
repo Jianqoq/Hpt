@@ -42,10 +42,6 @@ fn main() -> anyhow::Result<()> {
     module.add_function(lowered.ty, &lowered.name);
     module.get_function_mut(&lowered.name).unwrap().body = lowered.body;
     IRPrinter.print_module(&module);
-    let ctx = Context::new();
-    let code_gen = CodeGen::new(ctx, &module, 0);
-    let executable = code_gen.compile();
-    executable.print_to_file("test.ll");
 
     // let tensor_a = tensor_dyn::tensor::Tensor::<f32>
     //     ::arange(0f32, 100f32)

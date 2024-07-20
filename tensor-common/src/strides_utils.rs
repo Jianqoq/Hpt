@@ -40,7 +40,7 @@ pub fn preprocess_strides<
             strides[start + i] = stride[i].into_scalar();
         }
     }
-    return strides;
+    strides
 }
 
 /// # Internal Function
@@ -69,7 +69,7 @@ pub fn shape_to_strides(shape: &Vec<i64>) -> Strides {
         strides[i] = size as i64;
         size *= tmp;
     }
-    return strides.into();
+    strides.into()
 }
 
 pub fn calculate_new_strides(last_stride: i64, shape: &[i64]) -> Vec<i64> {

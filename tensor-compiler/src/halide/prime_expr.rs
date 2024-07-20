@@ -43,6 +43,8 @@ pub enum PrimeExpr {
     Select(Select),
     Let(Let),
     Load(Load),
+    Malloc(Malloc),
+    Layout(Layout),
     None,
 }
 
@@ -80,6 +82,8 @@ pub enum PrimeType {
     Select,
     Let,
     Load,
+    Malloc,
+    Layout,
     None,
 }
 
@@ -145,6 +149,8 @@ impl PrimeExpr {
             PrimeExpr::Load(_) => PrimeType::Load,
             PrimeExpr::Reduce(_) => PrimeType::Reduce,
             PrimeExpr::TensorSlice(_) => PrimeType::TensorSlice,
+            PrimeExpr::Malloc(_) => PrimeType::Malloc,
+            PrimeExpr::Layout(_) => PrimeType::Layout,
             PrimeExpr::None => PrimeType::None,
         }
     }
@@ -193,6 +199,8 @@ impl PrimeExpr {
             PrimeExpr::Load(a) => a.to_string(),
             PrimeExpr::Reduce(a) => a.to_string(),
             PrimeExpr::TensorSlice(a) => a.to_string(),
+            PrimeExpr::Malloc(a) => a.to_string(),
+            PrimeExpr::Layout(a) => a.to_string(),
             PrimeExpr::None => "".to_string(),
         };
         if prec < parent_prec {

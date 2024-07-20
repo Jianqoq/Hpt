@@ -2112,6 +2112,14 @@ impl CodeGenVisitor for CodeGen {
     fn visit_shr(&mut self, shr: &crate::halide::exprs::Shr) -> BasicValue {
         todo!()
     }
+    
+    fn visit_layout(&mut self, layout: &crate::halide::exprs::Layout) -> BasicValue {
+        todo!()
+    }
+    
+    fn visit_malloc(&mut self, malloc: &crate::halide::exprs::Malloc) -> BasicValue {
+        todo!()
+    }
 }
 
 pub fn load(
