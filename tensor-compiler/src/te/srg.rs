@@ -25,10 +25,12 @@ pub struct Srg {
 }
 
 impl Srg {
-    pub fn fuse(&mut self, sorted: VecDeque<usize>) {
+    pub fn create_strides_cal(&mut self, sorted: VecDeque<usize>) {
         for id in sorted {
-            let node = self.nodes.get_mut(&id).unwrap();
-            if node.inputs.len() == 0 {
+            let node_op = self.nodes[&id].op.clone();
+            let inputs = self.nodes[&id].inputs.clone();
+            if inputs.len() == 0 {
+                let node = self.nodes.get_mut(&id).unwrap();
                 let node_shape = node.shape.clone();
                 let func = Arc::new(move |map: &HashMap<String, i64>| {
                     let real_shape = node_shape
@@ -44,11 +46,16 @@ impl Srg {
                 });
                 node.strides_cal = func;
             } else {
-                match node.op.clone() {
+                match node_op {
                     Operation::Reshape(new_shape) => {
-                        let prev_func = node.inputs[0].strides_cal.clone();
-                        let prev_reduce_dim = node.inputs[0].reduced_dim;
-                        let prev_shape = node.inputs[0].shape.clone();
+                        let (prev_func, prev_reduce_dim, prev_shape) = {
+                            let node = &self.nodes[&id];
+                            (
+                                self.nodes[&node.inputs[0]].strides_cal.clone(),
+                                self.nodes[&node.inputs[0]].reduced_dim,
+                                self.nodes[&node.inputs[0]].shape.clone(),
+                            )
+                        };
                         let func = Arc::new(move |map: &HashMap<String, i64>| {
                             let prev_strides = prev_func(map);
                             let new_shape = new_shape
@@ -97,12 +104,18 @@ impl Srg {
                             }
                             ret
                         });
+                        let node = self.nodes.get_mut(&id).unwrap();
                         node.reduced_dim = prev_reduce_dim;
                         node.strides_cal = func;
                     }
                     Operation::Transpose(axes) => {
-                        let prev_func = node.inputs[0].strides_cal.clone();
-                        let prev_reduce_dim = node.inputs[0].reduced_dim;
+                        let (prev_func, prev_reduce_dim) = {
+                            let node = &self.nodes[&id];
+                            (
+                                self.nodes[&node.inputs[0]].strides_cal.clone(),
+                                self.nodes[&node.inputs[0]].reduced_dim,
+                            )
+                        };
                         let func = Arc::new(move |map: &HashMap<String, i64>| {
                             let prev_strides = prev_func(map);
                             let mut ret = vec![];
@@ -120,13 +133,19 @@ impl Srg {
                             }
                             ret
                         });
+                        let node = self.nodes.get_mut(&id).unwrap();
                         node.reduced_dim = prev_reduce_dim;
                         node.strides_cal = func;
                     }
                     Operation::Sum(axes) => {
-                        let prev_func = node.inputs[0].strides_cal.clone();
-                        let prev_reduce_dim = node.inputs[0].reduced_dim;
-                        node.reduced_dim = prev_reduce_dim + axes.len();
+                        let (prev_func, prev_reduce_dim) = {
+                            let node = &self.nodes[&id];
+                            (
+                                self.nodes[&node.inputs[0]].strides_cal.clone(),
+                                self.nodes[&node.inputs[0]].reduced_dim,
+                            )
+                        };
+                        let axes_len = axes.len();
                         let func = Arc::new(move |map: &HashMap<String, i64>| {
                             let prev_strides = prev_func(map);
                             let mut ret = vec![];
@@ -152,23 +171,49 @@ impl Srg {
                             }
                             ret
                         });
+                        let node = self.nodes.get_mut(&id).unwrap();
+                        node.reduced_dim = prev_reduce_dim + axes_len;
                         node.strides_cal = func;
                     }
                     Operation::Sin => {
-                        let prev_func = node.inputs[0].strides_cal.clone();
-                        let prev_reduce_dim = node.inputs[0].reduced_dim;
+                        let (prev_func, prev_reduce_dim) = {
+                            let node = &self.nodes[&id];
+                            (
+                                self.nodes[&node.inputs[0]].strides_cal.clone(),
+                                self.nodes[&node.inputs[0]].reduced_dim,
+                            )
+                        };
                         let func = Arc::new(move |map: &HashMap<String, i64>| { prev_func(map) });
+                        let node = self.nodes.get_mut(&id).unwrap();
                         node.reduced_dim = prev_reduce_dim;
                         node.strides_cal = func;
                     }
                     Operation::Add => {
-                        let lhs_prev_func = node.inputs[0].strides_cal.clone();
-                        let rhs_prev_func = node.inputs[1].strides_cal.clone();
-                        let lhs_reduce_dim = node.inputs[0].reduced_dim;
-                        let rhs_reduce_dim = node.inputs[1].reduced_dim;
-                        let lhs_shape = node.inputs[0].shape.clone();
-                        let rhs_shape = node.inputs[1].shape.clone();
-                        let res_shape = node.shape.clone();
+                        let (lhs_prev_func, lhs_reduce_dim) = {
+                            let node = &self.nodes[&id];
+                            (
+                                self.nodes[&node.inputs[0]].strides_cal.clone(),
+                                self.nodes[&node.inputs[0]].reduced_dim,
+                            )
+                        };
+                        let (rhs_prev_func, rhs_reduce_dim) = {
+                            let node = &self.nodes[&id];
+                            (
+                                self.nodes[&node.inputs[1]].strides_cal.clone(),
+                                self.nodes[&node.inputs[1]].reduced_dim,
+                            )
+                        };
+                        let (lhs_shape, rhs_shape) = {
+                            let node = &self.nodes[&id];
+                            (
+                                self.nodes[&node.inputs[0]].shape.clone(),
+                                self.nodes[&node.inputs[1]].shape.clone(),
+                            )
+                        };
+                        let res_shape = {
+                            let node = &self.nodes[&id];
+                            node.shape.clone()
+                        };
                         let func = Arc::new(move |map: &HashMap<String, i64>| {
                             let lhs_strides = lhs_prev_func(map);
                             let rhs_strides = rhs_prev_func(map);
@@ -237,13 +282,40 @@ impl Srg {
                             lhs_strides_vec.extend(rhs_strides_vec);
                             lhs_strides_vec
                         });
+                        let node = self.nodes.get_mut(&id).unwrap();
                         node.strides_cal = func;
                     }
                     Operation::Slice(selections) => {
-                        assert!(node.inputs.len() == 1);
-                        assert!(node.inputs[0].inputs.len() == 0);
-                    },
-                    Operation::None => todo!(),
+                        let strides_cal = {
+                            let node = &self.nodes[&id];
+                            assert!(node.inputs.len() == 1);
+                            assert!(self.nodes[&node.inputs[0]].inputs.len() == 0);
+                            self.nodes[&node.inputs[0]].strides_cal.clone()
+                        };
+                        let func = Arc::new(move |map: &HashMap<String, i64>| {
+                            let _ = selections
+                                .iter()
+                                .map(|(start, end, step)| (
+                                    match start {
+                                        PrimeExpr::Variable(var) => map[var.name()],
+                                        _ => start.evaluate_i64(),
+                                    },
+                                    match end {
+                                        PrimeExpr::Variable(var) => map[var.name()],
+                                        _ => end.evaluate_i64(),
+                                    },
+                                    match step {
+                                        PrimeExpr::Variable(var) => map[var.name()],
+                                        _ => step.evaluate_i64(),
+                                    },
+                                ))
+                                .collect::<Vec<(i64, i64, i64)>>();
+                            strides_cal(map)
+                        });
+                        let node = self.nodes.get_mut(&id).unwrap();
+                        node.strides_cal = func;
+                    }
+                    Operation::None => unreachable!(),
                 }
             }
         }

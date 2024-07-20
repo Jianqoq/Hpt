@@ -6,10 +6,11 @@ use crate::{
     halide::{ exprs::{ Add, Int, Load, Reduce }, prime_expr::PrimeExpr, variable::Variable },
     hlir::tensor_slice::{ TensorLoad, TensorSlice },
     iter_var::IterVar,
+    te::srg_node::SrgNode,
     to_prim_expr::ToPrimeExpr,
 };
 
-use super::{ operation::Operation, rc_mut::RcMut, tensor::Tensor };
+use super::{ operation::Operation, rc_mut::RcMut, srg::Srg, tensor::Tensor };
 
 #[derive(Clone)]
 pub struct Context {
@@ -258,6 +259,27 @@ impl Context {
                     .into()
             ),
             id,
+        }
+    }
+
+    pub fn to_srg(self) -> Srg {
+        let mut nodes = HashMap::<usize, SrgNode>::new();
+        for (id, tensor) in self.nodes.borrow().iter() {
+            nodes.insert(*id, SrgNode {
+                id: tensor.id,
+                shape: tensor.shape.clone(),
+                inputs: tensor.inputs
+                    .iter()
+                    .map(|x| x.id)
+                    .collect::<Vec<usize>>()
+                    .into(),
+                op: tensor.op.clone(),
+                reduced_dim: 0,
+                strides_cal: Arc::new(|_| vec![]),
+            });
+        }
+        Srg {
+            nodes,
         }
     }
 }
