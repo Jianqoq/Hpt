@@ -50,13 +50,6 @@ pub mod hlir {
     pub mod tensor_slice;
 }
 
-pub mod hlop {
-    pub mod binop;
-    pub mod broadcast;
-    pub mod shape_manipulate;
-    pub mod selection;
-}
-
 pub mod te {
     pub mod layout_cals;
     pub mod tensor;
@@ -66,6 +59,7 @@ pub mod te {
     pub mod srg_node;
     pub mod value;
     pub mod executable;
+    pub mod operation;
 }
 
 pub mod tensor;

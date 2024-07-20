@@ -1762,10 +1762,10 @@ impl Into<PrimeExpr> for &Max {
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Reduce {
-    identity: Arc<Vec<PrimeExpr>>,
-    iter_vars: Arc<Vec<IterVar>>,
-    expr: Arc<Vec<PrimeExpr>>,
-    op: &'static str,
+    pub(crate) identity: Arc<Vec<PrimeExpr>>,
+    pub(crate) iter_vars: Arc<Vec<IterVar>>,
+    pub(crate) expr: Arc<Vec<PrimeExpr>>,
+    pub(crate)  op: &'static str,
 }
 
 impl Accepter for Reduce {

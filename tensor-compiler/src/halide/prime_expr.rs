@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use tensor_types::dtype::Dtype;
-use crate::hlir::tensor_slice::TensorSlice;
+use crate::hlir::tensor_slice::{TensorLoad, TensorSlice};
 
 use super::{
     exprs::*,
@@ -46,6 +46,7 @@ pub enum PrimeExpr {
     Malloc(Malloc),
     Layout(Layout),
     Alloca(Alloca),
+    TensorLoad(TensorLoad),
     None,
 }
 
@@ -86,6 +87,7 @@ pub enum PrimeType {
     Malloc,
     Layout,
     Alloca,
+    TensorLoad,
     None,
 }
 
@@ -154,6 +156,7 @@ impl PrimeExpr {
             PrimeExpr::Malloc(_) => PrimeType::Malloc,
             PrimeExpr::Layout(_) => PrimeType::Layout,
             PrimeExpr::Alloca(_) => PrimeType::Alloca,
+            PrimeExpr::TensorLoad(_) => PrimeType::TensorLoad,
             PrimeExpr::None => PrimeType::None,
         }
     }
@@ -205,6 +208,7 @@ impl PrimeExpr {
             PrimeExpr::Malloc(a) => a.to_string(),
             PrimeExpr::Layout(a) => a.to_string(),
             PrimeExpr::Alloca(a) => a.to_string(),
+            PrimeExpr::TensorLoad(a) => a.to_string(),
             PrimeExpr::None => "".to_string(),
         };
         if prec < parent_prec {

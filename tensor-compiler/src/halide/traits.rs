@@ -1,6 +1,6 @@
 use tensor_llvm::types::values::BasicValue;
 
-use crate::{ hlir::tensor_slice::TensorSlice, iter_var::IterVar };
+use crate::{ hlir::tensor_slice::{ TensorLoad, TensorSlice }, iter_var::IterVar };
 
 use super::{
     assign_stmt::AssignStmt,
@@ -57,6 +57,7 @@ pub trait IRVisitor where Self: Sized {
             PrimeExpr::Malloc(malloc) => self.visit_malloc(&malloc),
             PrimeExpr::Layout(layout) => self.visit_layout(&layout),
             PrimeExpr::Alloca(alloca) => self.visit_alloca(&alloca),
+            PrimeExpr::TensorLoad(tensor_load) => self.visit_tensor_load(&tensor_load),
             PrimeExpr::None => {}
         }
     }
@@ -81,6 +82,7 @@ pub trait IRVisitor where Self: Sized {
             Stmt::None => {}
         }
     }
+    fn visit_tensor_load(&self, tensor_load: &TensorLoad) {}
     fn visit_layout(&self, layout: &Layout) {
         layout.shape().accept(self);
         layout.strides().accept(self);
@@ -303,6 +305,7 @@ pub trait IRMutVisitor where Self: Sized {
             PrimeExpr::Malloc(malloc) => self.visit_malloc(&malloc),
             PrimeExpr::Layout(layout) => self.visit_layout(&layout),
             PrimeExpr::Alloca(alloca) => self.visit_alloca(&alloca),
+            PrimeExpr::TensorLoad(tensor_load) => self.visit_tensor_load(&tensor_load),
             PrimeExpr::None => {}
         }
     }
@@ -327,6 +330,7 @@ pub trait IRMutVisitor where Self: Sized {
             Stmt::None => {}
         }
     }
+    fn visit_tensor_load(&mut self, tensor_load: &TensorLoad) {}
     fn visit_alloca(&mut self, alloca: &Alloca) {
         alloca.size().accept_mut(self);
     }
@@ -593,6 +597,7 @@ pub(crate) fn visit_expr<V>(visitor: &mut V, expr: &PrimeExpr)
         PrimeExpr::Malloc(malloc) => visitor.visit_malloc(&malloc),
         PrimeExpr::Layout(layout) => visitor.visit_layout(&layout),
         PrimeExpr::Alloca(alloca) => visitor.visit_alloca(&alloca),
+        PrimeExpr::TensorLoad(tensor_load) => visitor.visit_tensor_load(&tensor_load),
         PrimeExpr::None => {}
     }
 }
@@ -1152,6 +1157,41 @@ pub(crate) fn visit_alloca<V>(visitor: &mut V, alloca: &Alloca)
     }
 }
 
+pub(crate) fn visit_tensor_load<V>(visitor: &mut V, tensor_load: &TensorLoad)
+    where V: MutatorGetSet + Sized + IRMutateVisitor
+{
+    let name = visitor.mutate_expr(&tensor_load.var.as_ref().into());
+    let steps = tensor_load.steps
+        .iter()
+        .map(|step| visitor.mutate_expr(step))
+        .collect::<Vec<PrimeExpr>>();
+    let begins = tensor_load.begins
+        .iter()
+        .map(|begin| visitor.mutate_expr(begin))
+        .collect::<Vec<PrimeExpr>>();
+    let axes = tensor_load.axes
+        .iter()
+        .map(|axis| visitor.mutate_expr(axis))
+        .collect::<Vec<PrimeExpr>>();
+    let strides = tensor_load.strides
+        .iter()
+        .map(|stride| visitor.mutate_expr(stride))
+        .collect::<Vec<PrimeExpr>>();
+    if
+        name == tensor_load.var.as_ref().into() &&
+        &steps == tensor_load.steps.as_ref() &&
+        &begins == tensor_load.begins.as_ref() &&
+        &axes == tensor_load.axes.as_ref() &&
+        &strides == tensor_load.strides.as_ref()
+    {
+        visitor.set_expr(tensor_load);
+    } else {
+        visitor.set_expr(
+            TensorLoad::make(name.to_variable().unwrap(), begins, axes, steps, strides)
+        );
+    }
+}
+
 pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     fn mutate_expr(&mut self, expr: &PrimeExpr) -> PrimeExpr {
         mutate_expr(self, expr)
@@ -1159,6 +1199,9 @@ pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
 
     fn mutate_stmt(&mut self, stmt: &Stmt) -> Stmt {
         mutate_stmt(self, stmt)
+    }
+    fn visit_tensor_load(&mut self, tensor_load: &TensorLoad) {
+        visit_tensor_load(self, tensor_load);
     }
     fn visit_alloca(&mut self, alloca: &Alloca) {
         visit_alloca(self, alloca);
@@ -1347,6 +1390,7 @@ pub trait CodeGenVisitor where Self: Sized {
             PrimeExpr::Malloc(malloc) => self.visit_malloc(&malloc),
             PrimeExpr::Layout(layout) => self.visit_layout(&layout),
             PrimeExpr::Alloca(alloca) => self.visit_alloca(&alloca),
+            PrimeExpr::TensorLoad(tensor_load) => self.visit_tensor_load(&tensor_load),
             PrimeExpr::None => { BasicValue::None }
         }
     }
@@ -1376,6 +1420,7 @@ pub trait CodeGenVisitor where Self: Sized {
             self.visit_function(function);
         }
     }
+    fn visit_tensor_load(&mut self, tensor_load: &TensorLoad) -> BasicValue;
     fn visit_alloca(&mut self, alloca: &Alloca) -> BasicValue;
     fn visit_layout(&mut self, layout: &Layout) -> BasicValue;
     fn visit_malloc(&mut self, malloc: &Malloc) -> BasicValue;

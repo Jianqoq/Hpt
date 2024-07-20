@@ -1,8 +1,6 @@
-use tensor_types::{convertion::Convertor, dtype::TypeCommon, into_scalar::IntoScalar};
+use tensor_types::{ convertion::Convertor, dtype::TypeCommon, into_scalar::IntoScalar };
 
 use crate::strides::Strides;
-
-
 
 /// # Internal Function
 /// Preprocesses strides based on the given shape.
@@ -27,11 +25,8 @@ use crate::strides::Strides;
 pub fn preprocess_strides<
     A: Convertor + Copy,
     B: Convertor + IntoScalar<C> + Copy,
-    C: TypeCommon + Copy,
->(
-    shape: &[A],
-    stride: &Vec<B>,
-) -> Vec<C> {
+    C: TypeCommon + Copy
+>(shape: &[A], stride: &[B]) -> Vec<C> {
     let mut strides = vec![C::ZERO; shape.len()];
     let start = shape.len() - stride.len();
 

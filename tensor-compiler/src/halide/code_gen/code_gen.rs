@@ -2026,6 +2026,10 @@ impl CodeGenVisitor for CodeGen {
     fn visit_alloca(&mut self, alloca: &crate::halide::exprs::Alloca) -> BasicValue {
         todo!()
     }
+    
+    fn visit_tensor_load(&mut self, tensor_load: &crate::hlir::tensor_slice::TensorLoad) -> BasicValue {
+        todo!()
+    }
 }
 
 pub fn load(
