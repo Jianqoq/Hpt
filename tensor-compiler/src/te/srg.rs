@@ -6,7 +6,10 @@ use tensor_common::{
     strides_utils::{ preprocess_strides, shape_to_strides },
 };
 
-use crate::{ halide::prime_expr::PrimeExpr, te::hstrides::HStrides };
+use crate::{
+    halide::prime_expr::PrimeExpr,
+    te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator },
+};
 
 use super::{ operation::Operation, srg_node::SrgNode };
 
@@ -26,12 +29,7 @@ impl Srg {
                 let func = Arc::new(move |map: &HashMap<String, i64>| {
                     let real_shape = node_shape
                         .iter()
-                        .map(|x| {
-                            match x {
-                                PrimeExpr::Variable(var) => map[var.name()],
-                                _ => x.evaluate_i64(),
-                            }
-                        })
+                        .map(|x| { IdxEvaluator::new(map).eval(x) })
                         .collect::<Vec<i64>>();
                     let hstrides = HStrides {
                         strides: shape_to_strides(&real_shape).inner().clone(),
@@ -54,21 +52,11 @@ impl Srg {
                             let prev_strides = prev_func(map);
                             let new_shape = new_shape
                                 .iter()
-                                .map(|x| {
-                                    match x {
-                                        PrimeExpr::Variable(var) => map[var.name()],
-                                        _ => x.evaluate_i64(),
-                                    }
-                                })
+                                .map(|x| { IdxEvaluator::new(map).eval(x) })
                                 .collect::<Vec<i64>>();
                             let prev_shape = prev_shape
                                 .iter()
-                                .map(|x| {
-                                    match x {
-                                        PrimeExpr::Variable(var) => map[var.name()],
-                                        _ => x.evaluate_i64(),
-                                    }
-                                })
+                                .map(|x| { IdxEvaluator::new(map).eval(x) })
                                 .collect::<Vec<i64>>();
                             let new_shape = Shape::from(new_shape);
                             let prev_shape = Shape::from(prev_shape);
@@ -214,32 +202,17 @@ impl Srg {
 
                             let lhs_real_shape = lhs_shape
                                 .iter()
-                                .map(|x| {
-                                    match x {
-                                        PrimeExpr::Variable(var) => map[var.name()],
-                                        _ => x.evaluate_i64(),
-                                    }
-                                })
+                                .map(|x| { IdxEvaluator::new(map).eval(x) })
                                 .collect::<Vec<i64>>();
 
                             let rhs_real_shape = rhs_shape
                                 .iter()
-                                .map(|x| {
-                                    match x {
-                                        PrimeExpr::Variable(var) => map[var.name()],
-                                        _ => x.evaluate_i64(),
-                                    }
-                                })
+                                .map(|x| { IdxEvaluator::new(map).eval(x) })
                                 .collect::<Vec<i64>>();
 
                             let res_real_shape = res_shape
                                 .iter()
-                                .map(|x| {
-                                    match x {
-                                        PrimeExpr::Variable(var) => map[var.name()],
-                                        _ => x.evaluate_i64(),
-                                    }
-                                })
+                                .map(|x| { IdxEvaluator::new(map).eval(x) })
                                 .collect::<Vec<i64>>();
 
                             let mut lhs_strides_vec = vec![];
@@ -303,18 +276,9 @@ impl Srg {
                             let _ = selections
                                 .iter()
                                 .map(|(start, end, step)| (
-                                    match start {
-                                        PrimeExpr::Variable(var) => map[var.name()],
-                                        _ => start.evaluate_i64(),
-                                    },
-                                    match end {
-                                        PrimeExpr::Variable(var) => map[var.name()],
-                                        _ => end.evaluate_i64(),
-                                    },
-                                    match step {
-                                        PrimeExpr::Variable(var) => map[var.name()],
-                                        _ => step.evaluate_i64(),
-                                    },
+                                    IdxEvaluator::new(map).eval(start),
+                                    IdxEvaluator::new(map).eval(end),
+                                    IdxEvaluator::new(map).eval(step),
                                 ))
                                 .collect::<Vec<(i64, i64, i64)>>();
                             strides_cal(map)
@@ -331,7 +295,7 @@ impl Srg {
 
 #[cfg(test)]
 mod tests {
-    use std::{ collections::{ HashMap, VecDeque }, sync::Arc };
+    use std::{ collections::HashMap, sync::Arc };
 
     use tensor_types::dtype::Dtype;
 

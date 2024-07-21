@@ -50,6 +50,7 @@ pub mod hlir {
 }
 
 pub mod te {
+    pub mod idx_evaluator;
     pub mod layout_cals;
     pub mod tensor;
     pub mod context;
