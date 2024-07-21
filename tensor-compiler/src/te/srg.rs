@@ -6,7 +6,7 @@ use tensor_common::{
     strides_utils::{ preprocess_strides, shape_to_strides },
 };
 
-use crate::halide::prime_expr::PrimeExpr;
+use crate::{ halide::prime_expr::PrimeExpr, te::hstrides::HStrides };
 
 use super::{ operation::Operation, srg_node::SrgNode };
 
@@ -15,7 +15,7 @@ pub struct Srg {
 }
 
 impl Srg {
-    pub fn create_strides_cal(&mut self, sorted: &VecDeque<usize>) {
+    pub fn create_strides_cal(&mut self, sorted: &[usize]) {
         for id in sorted {
             let node_op = self.nodes[&id].op.clone();
             let inputs = self.nodes[&id].inputs.clone();
@@ -33,17 +33,20 @@ impl Srg {
                             }
                         })
                         .collect::<Vec<i64>>();
-                    vec![shape_to_strides(&real_shape).inner().clone()]
+                    let hstrides = HStrides {
+                        strides: shape_to_strides(&real_shape).inner().clone(),
+                        reduced_dim: 0,
+                    };
+                    vec![hstrides]
                 });
                 node.strides_cal = func;
             } else {
                 match node_op {
                     Operation::Reshape(new_shape) => {
-                        let (prev_func, prev_reduce_dim, prev_shape) = {
+                        let (prev_func, prev_shape) = {
                             let node = &self.nodes[&id];
                             (
                                 self.nodes[&node.inputs[0]].strides_cal.clone(),
-                                self.nodes[&node.inputs[0]].reduced_dim,
                                 self.nodes[&node.inputs[0]].shape.clone(),
                             )
                         };
@@ -71,7 +74,7 @@ impl Srg {
                             let prev_shape = Shape::from(prev_shape);
                             let mut ret = vec![];
                             for i in prev_strides.into_iter() {
-                                let masked_strides = &i[..i.len() - prev_reduce_dim];
+                                let masked_strides = &i[..i.strides.len() - i.reduced_dim];
                                 assert_eq!(masked_strides.len(), prev_shape.len());
                                 if
                                     let Some(new_strides) = is_reshape_possible(
@@ -84,10 +87,14 @@ impl Srg {
                                     for i in new_strides.inner().iter() {
                                         new.push(*i);
                                     }
-                                    for i in i[i.len() - prev_reduce_dim..].iter() {
+                                    for i in i[i.strides.len() - i.reduced_dim..].iter() {
                                         new.push(*i);
                                     }
-                                    assert!(new.len() == new_shape.len() + prev_reduce_dim);
+                                    assert!(new.len() == new_shape.len() + i.reduced_dim);
+                                    let new = HStrides {
+                                        strides: new,
+                                        reduced_dim: i.reduced_dim,
+                                    };
                                     ret.push(new);
                                 } else {
                                     panic!("Reshape not possible, {}", span_location);
@@ -96,52 +103,52 @@ impl Srg {
                             ret
                         });
                         let node = self.nodes.get_mut(&id).unwrap();
-                        node.reduced_dim = prev_reduce_dim;
                         node.strides_cal = func;
                     }
                     Operation::Transpose(axes) => {
-                        let (prev_func, prev_reduce_dim) = {
+                        let prev_func = {
                             let node = &self.nodes[&id];
-                            (
-                                self.nodes[&node.inputs[0]].strides_cal.clone(),
-                                self.nodes[&node.inputs[0]].reduced_dim,
-                            )
+                            self.nodes[&node.inputs[0]].strides_cal.clone()
                         };
                         let func = Arc::new(move |map: &HashMap<String, i64>| {
                             let prev_strides = prev_func(map);
                             let mut ret = vec![];
                             for strides in prev_strides.into_iter() {
-                                let masked = &strides[..strides.len() - prev_reduce_dim];
+                                let masked =
+                                    &strides[..strides.strides.len() - strides.reduced_dim];
                                 let mut new_strides = vec![];
                                 for i in axes.iter() {
                                     new_strides.push(masked[*i]);
                                 }
-                                for i in strides[strides.len() - prev_reduce_dim..].iter() {
+                                for i in strides[
+                                    strides.strides.len() - strides.reduced_dim..
+                                ].iter() {
                                     new_strides.push(*i);
                                 }
-                                assert!(new_strides.len() == strides.len());
-                                ret.push(new_strides);
+                                assert!(new_strides.len() == strides.strides.len());
+                                let new = HStrides {
+                                    strides: new_strides,
+                                    reduced_dim: strides.reduced_dim,
+                                };
+                                ret.push(new);
                             }
                             ret
                         });
                         let node = self.nodes.get_mut(&id).unwrap();
-                        node.reduced_dim = prev_reduce_dim;
                         node.strides_cal = func;
                     }
                     Operation::Sum(axes) => {
-                        let (prev_func, prev_reduce_dim) = {
+                        let prev_func = {
                             let node = &self.nodes[&id];
-                            (
-                                self.nodes[&node.inputs[0]].strides_cal.clone(),
-                                self.nodes[&node.inputs[0]].reduced_dim,
-                            )
+                            self.nodes[&node.inputs[0]].strides_cal.clone()
                         };
                         let axes_len = axes.len();
                         let func = Arc::new(move |map: &HashMap<String, i64>| {
                             let prev_strides = prev_func(map);
                             let mut ret = vec![];
                             for strides in prev_strides.into_iter() {
-                                let masked = &strides[..strides.len() - prev_reduce_dim];
+                                let masked =
+                                    &strides[..strides.strides.len() - strides.reduced_dim];
                                 let mut new_strides = vec![];
                                 for i in 0..masked.len() {
                                     if axes.contains(&i) {
@@ -154,45 +161,40 @@ impl Srg {
                                         new_strides.push(masked[i]);
                                     }
                                 }
-                                for i in strides[strides.len() - prev_reduce_dim..].iter() {
+                                for i in strides[
+                                    strides.strides.len() - strides.reduced_dim..
+                                ].iter() {
                                     new_strides.push(*i);
                                 }
-                                assert!(new_strides.len() == strides.len());
-                                ret.push(new_strides);
+                                assert!(new_strides.len() == strides.strides.len());
+                                let new = HStrides {
+                                    strides: new_strides,
+                                    reduced_dim: strides.reduced_dim + axes_len,
+                                };
+                                ret.push(new);
                             }
                             ret
                         });
                         let node = self.nodes.get_mut(&id).unwrap();
-                        node.reduced_dim = prev_reduce_dim + axes_len;
                         node.strides_cal = func;
                     }
                     Operation::Sin => {
-                        let (prev_func, prev_reduce_dim) = {
+                        let prev_func = {
                             let node = &self.nodes[&id];
-                            (
-                                self.nodes[&node.inputs[0]].strides_cal.clone(),
-                                self.nodes[&node.inputs[0]].reduced_dim,
-                            )
+                            self.nodes[&node.inputs[0]].strides_cal.clone()
                         };
                         let func = Arc::new(move |map: &HashMap<String, i64>| { prev_func(map) });
                         let node = self.nodes.get_mut(&id).unwrap();
-                        node.reduced_dim = prev_reduce_dim;
                         node.strides_cal = func;
                     }
                     Operation::Add => {
-                        let (lhs_prev_func, lhs_reduce_dim) = {
+                        let lhs_prev_func = {
                             let node = &self.nodes[&id];
-                            (
-                                self.nodes[&node.inputs[0]].strides_cal.clone(),
-                                self.nodes[&node.inputs[0]].reduced_dim,
-                            )
+                            self.nodes[&node.inputs[0]].strides_cal.clone()
                         };
-                        let (rhs_prev_func, rhs_reduce_dim) = {
+                        let rhs_prev_func = {
                             let node = &self.nodes[&id];
-                            (
-                                self.nodes[&node.inputs[1]].strides_cal.clone(),
-                                self.nodes[&node.inputs[1]].reduced_dim,
-                            )
+                            self.nodes[&node.inputs[1]].strides_cal.clone()
                         };
                         let (lhs_shape, rhs_shape) = {
                             let node = &self.nodes[&id];
@@ -242,7 +244,8 @@ impl Srg {
 
                             let mut lhs_strides_vec = vec![];
                             for strides in lhs_strides.into_iter() {
-                                let masked = &strides[..strides.len() - lhs_reduce_dim];
+                                let masked =
+                                    &strides[..strides.strides.len() - strides.reduced_dim];
                                 assert!(masked.len() == lhs_real_shape.len());
                                 let padded = try_pad_shape(&lhs_real_shape, res_real_shape.len());
                                 let new = preprocess_strides::<_, _, i64>(&padded, masked);
@@ -250,14 +253,21 @@ impl Srg {
                                 for i in new.iter() {
                                     new_strides.push(*i);
                                 }
-                                for i in strides[strides.len() - lhs_reduce_dim..].iter() {
+                                for i in strides[
+                                    strides.strides.len() - strides.reduced_dim..
+                                ].iter() {
                                     new_strides.push(*i);
                                 }
-                                lhs_strides_vec.push(new_strides);
+                                let new = HStrides {
+                                    strides: new_strides,
+                                    reduced_dim: strides.reduced_dim,
+                                };
+                                lhs_strides_vec.push(new);
                             }
                             let mut rhs_strides_vec = vec![];
                             for strides in rhs_strides.into_iter() {
-                                let masked = &strides[..strides.len() - rhs_reduce_dim];
+                                let masked =
+                                    &strides[..strides.strides.len() - strides.reduced_dim];
                                 assert!(masked.len() == rhs_real_shape.len());
                                 let padded = try_pad_shape(&rhs_real_shape, res_real_shape.len());
                                 let new = preprocess_strides::<_, _, i64>(&padded, masked);
@@ -265,10 +275,16 @@ impl Srg {
                                 for i in new.iter() {
                                     new_strides.push(*i);
                                 }
-                                for i in strides[strides.len() - rhs_reduce_dim..].iter() {
+                                for i in strides[
+                                    strides.strides.len() - strides.reduced_dim..
+                                ].iter() {
                                     new_strides.push(*i);
                                 }
-                                rhs_strides_vec.push(new_strides);
+                                let new = HStrides {
+                                    strides: new_strides,
+                                    reduced_dim: strides.reduced_dim,
+                                };
+                                rhs_strides_vec.push(new);
                             }
                             lhs_strides_vec.extend(rhs_strides_vec);
                             lhs_strides_vec
@@ -339,9 +355,7 @@ mod tests {
         let h = ctx.sum(&g, &0i64, &[2]);
         let i = ctx.reshape(&h, &[&m, &n, &1i64]);
         let j = ctx.add(&g, &i);
-        let order = VecDeque::from(
-            vec![a.id, b.id, c.id, d.id, e.id, f.id, g.id, h.id, i.id, j.id]
-        );
+        let order = [a.id, b.id, c.id, d.id, e.id, f.id, g.id, h.id, i.id, j.id];
 
         let mut nodes = HashMap::new();
         for (id, node) in ctx.nodes.borrow().iter() {
@@ -350,7 +364,6 @@ mod tests {
                 shape: node.shape.clone(),
                 inputs: node.inputs.clone(),
                 op: node.op.clone(),
-                reduced_dim: 0,
                 strides_cal: Arc::new(|_| vec![]),
                 span: node.span,
             };
@@ -366,13 +379,8 @@ mod tests {
         var_map.insert("n".to_string(), 8);
         var_map.insert("o".to_string(), 8);
 
-        for idx in order.iter() {
-            let node = &srg.nodes[idx];
-            if node.id == 8 {
-                println!();
-            }
-            let strides = (node.strides_cal)(&var_map);
-            // println!("======{:?}=======", strides);
-        }
+        let node = &srg.nodes[order.last().unwrap()];
+        let strides = (node.strides_cal)(&var_map);
+        println!("{:?}", strides);
     }
 }
