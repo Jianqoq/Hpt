@@ -1,4 +1,4 @@
-use std::{ collections::{ HashMap, VecDeque }, sync::Arc };
+use std::{ collections::HashMap, sync::Arc };
 
 use tensor_common::{
     shape::Shape,
@@ -6,10 +6,7 @@ use tensor_common::{
     strides_utils::{ preprocess_strides, shape_to_strides },
 };
 
-use crate::{
-    halide::prime_expr::PrimeExpr,
-    te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator },
-};
+use crate::te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator };
 
 use super::{ operation::Operation, srg_node::SrgNode };
 
