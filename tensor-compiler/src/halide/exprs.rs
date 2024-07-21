@@ -1094,12 +1094,12 @@ impl Call {
         }
     }
 
-    pub fn make(name: &str, args: &[PrimeExpr]) -> Self {
+    pub fn make<T: Into<PrimeExpr> + Clone>(name: &str, args: &[T]) -> Self {
         Call {
             name: name.to_string().into(),
             args: args
                 .iter()
-                .map(|e| (*e).clone().into())
+                .map(|e| e.clone().into().into())
                 .collect(),
         }
     }
@@ -1765,7 +1765,7 @@ pub struct Reduce {
     pub(crate) identity: Arc<Vec<PrimeExpr>>,
     pub(crate) iter_vars: Arc<Vec<IterVar>>,
     pub(crate) expr: Arc<Vec<PrimeExpr>>,
-    pub(crate)  op: &'static str,
+    pub(crate) op: &'static str,
 }
 
 impl Accepter for Reduce {

@@ -1,22 +1,12 @@
 use std::{ collections::{ HashMap, VecDeque }, sync::Arc };
 
 use tensor_common::{
-    layout::Layout,
     shape::Shape,
-    shape_utils::{ is_reshape_possible, predict_broadcast_shape, try_pad_shape },
-    strides::Strides,
+    shape_utils::{ is_reshape_possible, try_pad_shape },
     strides_utils::{ preprocess_strides, shape_to_strides },
 };
-use tensor_types::dtype::Dtype;
 
-use crate::halide::{
-    exprs::{ Alloca, Call, Int, Let },
-    let_stmt::LetStmt,
-    prime_expr::PrimeExpr,
-    seq_stmt::Seq,
-    stmt::Stmt,
-    variable::Variable,
-};
+use crate::halide::prime_expr::PrimeExpr;
 
 use super::{ operation::Operation, srg_node::SrgNode };
 
@@ -25,10 +15,11 @@ pub struct Srg {
 }
 
 impl Srg {
-    pub fn create_strides_cal(&mut self, sorted: VecDeque<usize>) {
+    pub fn create_strides_cal(&mut self, sorted: &VecDeque<usize>) {
         for id in sorted {
             let node_op = self.nodes[&id].op.clone();
             let inputs = self.nodes[&id].inputs.clone();
+            let span_location = self.nodes[&id].span.clone();
             if inputs.len() == 0 {
                 let node = self.nodes.get_mut(&id).unwrap();
                 let node_shape = node.shape.clone();
@@ -96,10 +87,10 @@ impl Srg {
                                     for i in i[i.len() - prev_reduce_dim..].iter() {
                                         new.push(*i);
                                     }
-                                    assert!(new.len() == new_shape.len());
+                                    assert!(new.len() == new_shape.len() + prev_reduce_dim);
                                     ret.push(new);
                                 } else {
-                                    panic!("Reshape not possible");
+                                    panic!("Reshape not possible, {}", span_location);
                                 }
                             }
                             ret
@@ -318,6 +309,70 @@ impl Srg {
                     Operation::None => unreachable!(),
                 }
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{ collections::{ HashMap, VecDeque }, sync::Arc };
+
+    use tensor_types::dtype::Dtype;
+
+    use crate::te::{ context::Context, srg_node::SrgNode };
+
+    use super::Srg;
+
+    #[test]
+    fn test_srg_create_strides_cal() {
+        let mut ctx = Context::new();
+        let m = ctx.var("m");
+        let n = ctx.var("n");
+        let o = ctx.var("o");
+        let a = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
+        let b = ctx.placeholder(&[&1i64], Dtype::F32);
+        let c = ctx.add(&a, &b);
+        let d = ctx.sum(&c, &0i64, &[2]);
+        let e = ctx.reshape(&d, &[&m, &n, &1i64]);
+        let f = ctx.add(&c, &e);
+        let g = ctx.sin(&f);
+        let h = ctx.sum(&g, &0i64, &[2]);
+        let i = ctx.reshape(&h, &[&m, &n, &1i64]);
+        let j = ctx.add(&g, &i);
+        let order = VecDeque::from(
+            vec![a.id, b.id, c.id, d.id, e.id, f.id, g.id, h.id, i.id, j.id]
+        );
+
+        let mut nodes = HashMap::new();
+        for (id, node) in ctx.nodes.borrow().iter() {
+            let srg_node = SrgNode {
+                id: *id,
+                shape: node.shape.clone(),
+                inputs: node.inputs.clone(),
+                op: node.op.clone(),
+                reduced_dim: 0,
+                strides_cal: Arc::new(|_| vec![]),
+                span: node.span,
+            };
+            nodes.insert(*id, srg_node);
+        }
+        let mut srg = Srg {
+            nodes,
+        };
+        srg.create_strides_cal(&order);
+
+        let mut var_map = HashMap::new();
+        var_map.insert("m".to_string(), 1);
+        var_map.insert("n".to_string(), 8);
+        var_map.insert("o".to_string(), 8);
+
+        for idx in order.iter() {
+            let node = &srg.nodes[idx];
+            if node.id == 8 {
+                println!();
+            }
+            let strides = (node.strides_cal)(&var_map);
+            // println!("======{:?}=======", strides);
         }
     }
 }

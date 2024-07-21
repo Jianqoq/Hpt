@@ -1,4 +1,4 @@
-use std::{ collections::HashMap, sync::Arc };
+use std::{ collections::HashMap, panic::Location, sync::Arc };
 
 use crate::halide::prime_expr::PrimeExpr;
 
@@ -12,4 +12,5 @@ pub struct SrgNode {
     pub(crate) op: Operation,
     pub(crate) reduced_dim: usize,
     pub(crate) strides_cal: Arc<dyn Fn(&HashMap<String, i64>) -> Vec<Vec<i64>>>,
+    pub(crate) span: &'static Location<'static>,
 }
