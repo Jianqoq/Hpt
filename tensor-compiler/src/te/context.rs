@@ -261,7 +261,8 @@ impl Context {
                         .into_iter()
                         .map(|x| x as usize)
                         .collect()
-                )
+                ),
+                init.to_prime_expr(),
             ),
             dtype: a.dtype.clone(),
         };

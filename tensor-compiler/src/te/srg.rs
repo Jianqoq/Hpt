@@ -1,4 +1,4 @@
-use std::{ collections::HashMap, sync::Arc };
+use std::{ collections::{ HashMap, HashSet }, sync::Arc };
 
 use tensor_common::{
     shape::Shape,
@@ -7,10 +7,16 @@ use tensor_common::{
 };
 
 use crate::{
-    halide::{ exprs::Load, prime_expr::PrimeExpr, variable::Variable },
+    halide::{
+        exprs::{ Let, Load },
+        let_stmt::LetStmt,
+        prime_expr::PrimeExpr,
+        stmt::Stmt,
+        variable::Variable,
+    },
     hlir::tensor_slice::TensorLoad,
     iter_var::IterVar,
-    te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator, stages::{ Body, Stage } },
+    te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator, shape_utils::detect_broadcast_axes_expr, stages::{ Body, Stage } },
 };
 
 use super::{ operation::Operation, schedule::Schedule, srg_node::SrgNode };
@@ -127,7 +133,7 @@ impl Srg {
                         let node = self.nodes.get_mut(&id).unwrap();
                         node.strides_cal = func;
                     }
-                    Operation::Sum(axes) => {
+                    Operation::Sum(axes, _) => {
                         let prev_func = {
                             let node = &self.nodes[&id];
                             self.nodes[&node.inputs[0]].strides_cal.clone()
@@ -295,58 +301,95 @@ impl Srg {
     }
 
     pub fn create_schedule(&self, sorted: &[usize]) -> Schedule {
-        let mut map = HashMap::new();
+        let mut declared_vars = HashSet::new();
+        let mut stages = HashMap::new();
         for id in sorted {
             let node = &self.nodes[id];
             if node.inputs.len() == 0 {
+                let body = Body::PrimeExpr(
+                    (TensorLoad {
+                        var: Variable::make(&format!("%{}", node.id)).into(),
+                        begins: (0..node.shape.len())
+                            .map(|_| (0i64).into())
+                            .collect::<Vec<PrimeExpr>>()
+                            .into(),
+                        axes: (0..node.shape.len())
+                            .map(|x| Variable::make(&format!("ax{}", x)).into())
+                            .collect::<Vec<PrimeExpr>>()
+                            .into(),
+                        steps: (0..node.shape.len())
+                            .map(|_| (1i64).into())
+                            .collect::<Vec<PrimeExpr>>()
+                            .into(),
+                        strides: (0..node.shape.len())
+                            .map(|idx|
+                                Load::make(Variable::make(&format!("%{}.s", id)), idx).into()
+                            )
+                            .collect::<Vec<PrimeExpr>>()
+                            .into(),
+                    }).into()
+                );
                 let stage = Stage {
-                    dims: node.shape
-                        .iter()
-                        .enumerate()
-                        .map(|(idx, x)| {
-                            IterVar::new(0i64, x, 1i64, Variable::make(&format!("ax{}", idx)))
-                        })
-                        .collect(),
-                    bodys: vec![
-                        Body::PrimeExpr(
-                            PrimeExpr::TensorLoad(TensorLoad {
-                                var: Variable::make(&format!("%{}", node.id)).into(),
-                                begins: (0..node.shape.len())
-                                    .map(|_| (0i64).into())
-                                    .collect::<Vec<PrimeExpr>>()
-                                    .into(),
-                                axes: (0..node.shape.len())
-                                    .map(|x| Variable::make(&format!("ax{}", x)).into())
-                                    .collect::<Vec<PrimeExpr>>()
-                                    .into(),
-                                steps: (0..node.shape.len())
-                                    .map(|_| (1i64).into())
-                                    .collect::<Vec<PrimeExpr>>()
-                                    .into(),
-                                strides: (0..node.shape.len())
-                                    .map(|idx|
-                                        Load::make(
-                                            Variable::make(&format!("%{}.s", id)),
-                                            idx
-                                        ).into()
-                                    )
-                                    .collect::<Vec<PrimeExpr>>()
-                                    .into(),
-                            })
+                    dims: (0..node.shape.len())
+                        .map(|x|
+                            IterVar::new(0i64, node.shape[x].clone(), 1i64, &format!("ax{}", x))
                         )
-                    ],
+                        .collect(),
+                    bodys: vec![body],
                     id: *id,
                 };
-                map.insert(*id, stage);
+                stages.insert(*id, stage);
+                declared_vars.insert(format!("%{}_val", node.id));
             } else {
                 match &node.op {
                     Operation::Reshape(reshape) => {}
                     Operation::Transpose(_) => {}
-                    Operation::Sum(_) => {}
+                    Operation::Sum(axes, init) => {
+                        let input = stages[&node.inputs[0]].bodys.clone();
+                        let stage = Stage {
+                            dims: axes
+                                .iter()
+                                .enumerate()
+                                .map(|(idx, x)| {
+                                    let mut iter_var = stages[&node.inputs[0]].dims[*x].clone();
+                                    iter_var.set_var(
+                                        Variable::new(format!("red{}_ax{}", node.id, idx))
+                                    );
+                                    iter_var
+                                })
+                                .collect(),
+                            bodys: input,
+                            id: *id,
+                        };
+                        let dims = stages[&node.inputs[0]].dims
+                            .iter()
+                            .enumerate()
+                            .filter(|(idx, _)| !axes.contains(idx))
+                            .map(|(_, x)| { x.clone() })
+                            .collect::<Vec<_>>();
+                        let new_body = vec![
+                            Body::Stmt(
+                                LetStmt::make(
+                                    &Variable::make(&format!("tmp{}", id)),
+                                    init,
+                                    Stmt::None
+                                ).into()
+                            ),
+                            Body::Stage(*id)
+                        ];
+                        let new_stage = Stage {
+                            dims,
+                            bodys: new_body,
+                            id: node.inputs[0],
+                        };
+                        stages.insert(*id, stage);
+                        stages.insert(node.inputs[0], new_stage);
+                    }
                     Operation::Sin => {}
                     Operation::Add => {
-                        let lhs = &self.nodes[&node.inputs[0]];
-                        let rhs = &self.nodes[&node.inputs[1]];
+                        let a_shape = &self.nodes[&node.inputs[0]].shape;
+                        let b_shape = &self.nodes[&node.inputs[1]].shape;
+                        let axes_to_broadcast = detect_broadcast_axes_expr(a_shape, b_shape);
                     }
                     Operation::Slice(_) => {}
                     Operation::None => {}

@@ -63,6 +63,7 @@ pub mod te {
     pub mod hstrides;
     pub mod stages;
     pub mod schedule;
+    pub mod shape_utils;
 }
 
 pub mod tensor;

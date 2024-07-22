@@ -1,7 +1,9 @@
-use crate::{ halide::prime_expr::PrimeExpr, iter_var::IterVar };
+use crate::{ halide::{prime_expr::PrimeExpr, stmt::Stmt}, iter_var::IterVar };
 
+#[derive(Clone)]
 pub enum Body {
     PrimeExpr(PrimeExpr),
+    Stmt(Stmt),
     Stage(usize),
 }
 

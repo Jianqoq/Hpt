@@ -8,7 +8,7 @@ pub enum Operation {
     Reshape(Arc<Vec<PrimeExpr>>),
     Transpose(Arc<Vec<usize>>),
     Slice(Arc<Vec<(PrimeExpr, PrimeExpr, PrimeExpr)>>),
-    Sum(Arc<Vec<usize>>),
+    Sum(Arc<Vec<usize>>, PrimeExpr),
     Sin,
     Add,
     None,
