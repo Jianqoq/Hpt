@@ -4,7 +4,7 @@ use tensor_types::{ dtype::Dtype, type_promote::NormalOut };
 
 use crate::{
     halide::{ exprs::{ Add, Call, Int, Load, Reduce }, prime_expr::PrimeExpr, variable::Variable },
-    hlir::tensor_slice::{ TensorLoad, TensorSlice },
+    hlir::tensor_slice::TensorLoad,
     iter_var::IterVar,
     to_prim_expr::ToPrimeExpr,
 };

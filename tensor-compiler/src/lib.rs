@@ -61,6 +61,8 @@ pub mod te {
     pub mod executable;
     pub mod operation;
     pub mod hstrides;
+    pub mod stages;
+    pub mod schedule;
 }
 
 pub mod tensor;

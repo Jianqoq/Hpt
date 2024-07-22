@@ -6,9 +6,14 @@ use tensor_common::{
     strides_utils::{ preprocess_strides, shape_to_strides },
 };
 
-use crate::te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator };
+use crate::{
+    halide::{ exprs::Load, prime_expr::PrimeExpr, variable::Variable },
+    hlir::tensor_slice::TensorLoad,
+    iter_var::IterVar,
+    te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator, stages::{ Body, Stage } },
+};
 
-use super::{ operation::Operation, srg_node::SrgNode };
+use super::{ operation::Operation, schedule::Schedule, srg_node::SrgNode };
 
 pub struct Srg {
     pub(crate) nodes: HashMap<usize, SrgNode>,
@@ -287,6 +292,68 @@ impl Srg {
                 }
             }
         }
+    }
+
+    pub fn create_schedule(&self, sorted: &[usize]) -> Schedule {
+        let mut map = HashMap::new();
+        for id in sorted {
+            let node = &self.nodes[id];
+            if node.inputs.len() == 0 {
+                let stage = Stage {
+                    dims: node.shape
+                        .iter()
+                        .enumerate()
+                        .map(|(idx, x)| {
+                            IterVar::new(0i64, x, 1i64, Variable::make(&format!("ax{}", idx)))
+                        })
+                        .collect(),
+                    bodys: vec![
+                        Body::PrimeExpr(
+                            PrimeExpr::TensorLoad(TensorLoad {
+                                var: Variable::make(&format!("%{}", node.id)).into(),
+                                begins: (0..node.shape.len())
+                                    .map(|_| (0i64).into())
+                                    .collect::<Vec<PrimeExpr>>()
+                                    .into(),
+                                axes: (0..node.shape.len())
+                                    .map(|x| Variable::make(&format!("ax{}", x)).into())
+                                    .collect::<Vec<PrimeExpr>>()
+                                    .into(),
+                                steps: (0..node.shape.len())
+                                    .map(|_| (1i64).into())
+                                    .collect::<Vec<PrimeExpr>>()
+                                    .into(),
+                                strides: (0..node.shape.len())
+                                    .map(|idx|
+                                        Load::make(
+                                            Variable::make(&format!("%{}.s", id)),
+                                            idx
+                                        ).into()
+                                    )
+                                    .collect::<Vec<PrimeExpr>>()
+                                    .into(),
+                            })
+                        )
+                    ],
+                    id: *id,
+                };
+                map.insert(*id, stage);
+            } else {
+                match &node.op {
+                    Operation::Reshape(reshape) => {}
+                    Operation::Transpose(_) => {}
+                    Operation::Sum(_) => {}
+                    Operation::Sin => {}
+                    Operation::Add => {
+                        let lhs = &self.nodes[&node.inputs[0]];
+                        let rhs = &self.nodes[&node.inputs[1]];
+                    }
+                    Operation::Slice(_) => {}
+                    Operation::None => {}
+                }
+            }
+        }
+        todo!()
     }
 }
 

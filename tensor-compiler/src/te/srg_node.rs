@@ -2,7 +2,7 @@ use std::{ collections::HashMap, panic::Location, sync::Arc };
 
 use crate::halide::prime_expr::PrimeExpr;
 
-use super::{hstrides::HStrides, operation::Operation};
+use super::{ hstrides::HStrides, operation::Operation };
 
 #[derive(Clone)]
 pub struct SrgNode {
