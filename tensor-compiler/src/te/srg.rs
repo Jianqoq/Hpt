@@ -21,8 +21,9 @@ use crate::{
         hstrides::HStrides,
         idx_evaluator::IdxEvaluator,
         shape_utils::detect_broadcast_axes_expr,
-        stages::{ Body, Stage },
+        stages::{ Body, ReduceStage, Stage },
     },
+    to_prim_expr::ToPrimeExpr,
 };
 
 use super::{ operation::Operation, schedule::Schedule, srg_node::SrgNode };
@@ -308,33 +309,42 @@ impl Srg {
 
     pub fn create_schedule(&self, sorted: &[usize]) -> Schedule {
         let mut declared_vars = HashSet::new();
-        let mut stages = HashMap::new();
+        let mut qa = HashMap::new();
         for id in sorted {
             let node = &self.nodes[id];
             if node.inputs.len() == 0 {
-                let body = Body::PrimeExpr(
-                    (TensorLoad {
-                        var: Variable::make(&format!("%{}", node.id)).into(),
-                        begins: (0..node.shape.len())
-                            .map(|_| (0i64).into())
-                            .collect::<Vec<PrimeExpr>>()
-                            .into(),
-                        axes: (0..node.shape.len())
-                            .map(|x| Variable::make(&format!("ax{}", x)).into())
-                            .collect::<Vec<PrimeExpr>>()
-                            .into(),
-                        steps: (0..node.shape.len())
-                            .map(|_| (1i64).into())
-                            .collect::<Vec<PrimeExpr>>()
-                            .into(),
-                        strides: (0..node.shape.len())
-                            .map(|idx|
-                                Load::make(Variable::make(&format!("%{}.s", id)), idx).into()
-                            )
-                            .collect::<Vec<PrimeExpr>>()
-                            .into(),
-                        hints: vec![].into(),
-                    }).into()
+                let body = Body::Stmt(
+                    Stmt::LetStmt(
+                        LetStmt::make(
+                            &Variable::make(&format!("%{}_val", node.id)),
+                            TensorLoad {
+                                var: Variable::make(&format!("%{}", node.id)).into(),
+                                begins: (0..node.shape.len())
+                                    .map(|_| (0i64).into())
+                                    .collect::<Vec<PrimeExpr>>()
+                                    .into(),
+                                axes: (0..node.shape.len())
+                                    .map(|x| Variable::make(&format!("ax{}", x)).into())
+                                    .collect::<Vec<PrimeExpr>>()
+                                    .into(),
+                                steps: (0..node.shape.len())
+                                    .map(|_| (1i64).into())
+                                    .collect::<Vec<PrimeExpr>>()
+                                    .into(),
+                                strides: (0..node.shape.len())
+                                    .map(|idx|
+                                        Load::make(
+                                            Variable::make(&format!("%{}.s", id)),
+                                            idx
+                                        ).into()
+                                    )
+                                    .collect::<Vec<PrimeExpr>>()
+                                    .into(),
+                                hints: vec![].into(),
+                            },
+                            Stmt::None
+                        )
+                    ).into()
                 );
                 let stage = Stage {
                     dims: (0..node.shape.len())
@@ -345,165 +355,314 @@ impl Srg {
                     bodys: vec![body],
                     id: *id,
                 };
-                stages.insert(*id, stage);
+                qa.insert(*id, (Body::Stage(stage), false));
                 declared_vars.insert(format!("%{}_val", node.id));
             } else {
                 match &node.op {
                     Operation::Reshape(reshape) => {
-                        let mut input = stages[&node.inputs[0]].bodys.clone();
+                        let (input, _) = &qa[&node.inputs[0]];
                         if node.is_output() {
-                            replace_store(&mut input, node, &node.shape);
-                        }
-                        let stage = Stage {
-                            dims: (0..reshape.len())
-                                .map(|x|
-                                    IterVar::new(
-                                        0i64,
-                                        reshape[x].clone(),
-                                        1i64,
-                                        &format!("ax{}", x)
+                            if let Body::Stage(stage) = input {
+                                let mut stage = stage.clone();
+                                let dims = (0..reshape.len())
+                                    .map(|x|
+                                        IterVar::new(
+                                            0i64,
+                                            reshape[x].clone(),
+                                            1i64,
+                                            &format!("ax{}", x)
+                                        )
                                     )
-                                )
-                                .collect(),
-                            bodys: input,
-                            id: *id,
-                        };
-                        stages.insert(*id, stage);
+                                    .collect::<Vec<IterVar>>();
+                                let body = Body::Stmt(
+                                    Stmt::StoreStmt(
+                                        StoreStmt::make(
+                                            &Variable::make(&format!("%{}", id)),
+                                            dims
+                                                .iter()
+                                                .enumerate()
+                                                .map(
+                                                    |(idx, x)|
+                                                        x.var().to_prime_expr() *
+                                                        Load::make(
+                                                            &format!("%{}.s", id),
+                                                            idx
+                                                        ).into()
+                                                )
+                                                .reduce(|acc, x| acc + x)
+                                                .unwrap(),
+                                            Variable::make(&format!("%{}_val", node.inputs[0]))
+                                        )
+                                    )
+                                );
+                                stage.bodys.push(body);
+                                let stage = Stage {
+                                    dims,
+                                    bodys: stage.bodys.clone(),
+                                    id: *id,
+                                };
+                                qa.insert(*id, (Body::Stage(stage), true));
+                            } else {
+                                panic!("input is not a stage");
+                            }
+                        } else {
+                            if let Body::Stage(stage) = input {
+                                let stage = Stage {
+                                    dims: (0..reshape.len())
+                                        .map(|x|
+                                            IterVar::new(
+                                                0i64,
+                                                reshape[x].clone(),
+                                                1i64,
+                                                &format!("ax{}", x)
+                                            )
+                                        )
+                                        .collect(),
+                                    bodys: stage.bodys.clone(),
+                                    id: *id,
+                                };
+                                qa.insert(*id, (Body::Stage(stage), false));
+                            } else {
+                                panic!("input is not a stage");
+                            }
+                        }
                     }
                     Operation::Transpose(_) => {}
                     Operation::Sum(axes, init) => {
-                        let input = stages[&node.inputs[0]].bodys.clone();
-                        let stage = Stage {
-                            dims: axes
-                                .iter()
-                                .enumerate()
-                                .map(|(idx, x)| {
-                                    let mut iter_var = stages[&node.inputs[0]].dims[*x].clone();
-                                    iter_var.set_var(
-                                        Variable::new(format!("red{}_ax{}", node.id, idx))
-                                    );
-                                    iter_var
-                                })
-                                .collect(),
-                            bodys: input,
-                            id: *id,
-                        };
-                        let dims = stages[&node.inputs[0]].dims
-                            .iter()
-                            .enumerate()
-                            .filter(|(idx, _)| !axes.contains(idx))
-                            .enumerate()
-                            .map(|(idx, (_, x))| {
-                                let mut iter_var = x.clone();
-                                iter_var.set_var(Variable::new(format!("ax{}", idx)));
-                                iter_var
-                            })
-                            .collect::<Vec<_>>();
-                        let new_body = vec![
-                            Body::Stmt(
-                                LetStmt::make(
-                                    &Variable::make(&format!("%{}_val", id)),
-                                    init,
-                                    Stmt::None
-                                ).into()
-                            ),
-                            Body::Stage(*id)
-                        ];
-                        let new_stage = Stage {
-                            dims,
-                            bodys: new_body,
-                            id: node.inputs[0],
-                        };
-                        stages.insert(*id, stage);
-                        stages.insert(node.inputs[0], new_stage);
-                        declared_vars.insert(format!("%{}_val", id));
+                        let (input, _) = qa.get(&node.inputs[0]).unwrap();
+                        if node.is_output() {
+                            if let Body::Stage(stage) = input {
+                                let mut stage = stage.clone();
+                                let body = Body::Stmt(
+                                    Stmt::StoreStmt(
+                                        StoreStmt::make(
+                                            &Variable::make(&format!("%{}", id)),
+                                            stage.dims
+                                                .iter()
+                                                .enumerate()
+                                                .map(
+                                                    |(idx, x)|
+                                                        x.var().to_prime_expr() *
+                                                        Load::make(
+                                                            &format!("%{}.s", id),
+                                                            idx
+                                                        ).into()
+                                                )
+                                                .reduce(|acc, x| acc + x)
+                                                .unwrap(),
+                                            Variable::make(&format!("%{}_val", node.inputs[0]))
+                                        )
+                                    )
+                                );
+                                stage.bodys.push(body);
+                                let stage = Stage {
+                                    dims: stage.dims.clone(),
+                                    bodys: stage.bodys.clone(),
+                                    id: *id,
+                                };
+                                qa.insert(*id, (Body::Stage(stage), true));
+                            } else {
+                                panic!("input is not a stage");
+                            }
+                        } else {
+                            match input {
+                                Body::Stage(stage) => {
+                                    let mut stage = stage.clone();
+                                    let reduce_stage = ReduceStage {
+                                        dims: axes
+                                            .iter()
+                                            .map(|x|
+                                                IterVar::new(
+                                                    0i64,
+                                                    node.shape[*x].clone(),
+                                                    1i64,
+                                                    &format!("red{}", x)
+                                                )
+                                            )
+                                            .collect(),
+                                        bodys: stage.bodys.clone(),
+                                        id: *id,
+                                        inits: vec![
+                                            Body::Stmt(
+                                                Stmt::LetStmt(
+                                                    LetStmt::make(
+                                                        &Variable::make(
+                                                            &format!("%{}_val", node.id)
+                                                        ),
+                                                        init.clone(),
+                                                        Stmt::None
+                                                    )
+                                                ).into()
+                                            )
+                                        ],
+                                    };
+                                    stage.bodys = vec![Body::ReduceStage(reduce_stage)];
+                                    stage.dims = (0..node.shape.len())
+                                        .filter(|x| !axes.contains(x))
+                                        .enumerate()
+                                        .map(|(idx, x)|
+                                            IterVar::new(
+                                                0i64,
+                                                node.shape[x].clone(),
+                                                1i64,
+                                                &format!("ax{}", idx)
+                                            )
+                                        )
+                                        .collect();
+                                    qa.insert(*id, (Body::Stage(stage), false));
+                                }
+                                _ => panic!("input is not a stage"),
+                            }
+                        }
                     }
                     Operation::Sin => {
-                        let mut input = stages[&node.inputs[0]].bodys.clone();
-                        input.push(
-                            Body::Stmt(
-                                LetStmt::make(
-                                    &Variable::make(&format!("%{}_val", id)),
-                                    Call::make(
-                                        "sin",
-                                        &[Variable::new(format!("%{}_val", node.inputs[0]))]
-                                    ),
-                                    Stmt::None
-                                ).into()
-                            )
-                        );
+                        let (input, _) = qa.get(&node.inputs[0]).unwrap();
                         if node.is_output() {
-                            replace_store(&mut input, node, &node.shape);
+                            if let Body::Stage(stage) = input {
+                                let mut stage = stage.clone();
+                                let body = Body::Stmt(
+                                    Stmt::StoreStmt(
+                                        StoreStmt::make(
+                                            &Variable::make(&format!("%{}", id)),
+                                            stage.dims
+                                                .iter()
+                                                .enumerate()
+                                                .map(
+                                                    |(idx, x)|
+                                                        x.var().to_prime_expr() *
+                                                        Load::make(
+                                                            &format!("%{}.s", id),
+                                                            idx
+                                                        ).into()
+                                                )
+                                                .reduce(|acc, x| acc + x)
+                                                .unwrap(),
+                                            Variable::make(&format!("%{}_val", node.inputs[0]))
+                                        )
+                                    )
+                                );
+                                stage.bodys.push(body);
+                                let stage = Stage {
+                                    dims: stage.dims.clone(),
+                                    bodys: stage.bodys.clone(),
+                                    id: *id,
+                                };
+                                qa.insert(*id, (Body::Stage(stage), true));
+                            } else {
+                                panic!("input is not a stage");
+                            }
+                        } else {
+                            if let Body::Stage(stage) = input {
+                                let body = Body::Stmt(
+                                    Stmt::LetStmt(
+                                        LetStmt::make(
+                                            &Variable::make(&format!("%{}_val", node.id)),
+                                            Call::make(
+                                                "sin",
+                                                &[
+                                                    Load::make(
+                                                        Variable::make(
+                                                            &format!("%{}_val", node.inputs[0])
+                                                        ),
+                                                        0
+                                                    ),
+                                                ]
+                                            ),
+                                            Stmt::None
+                                        )
+                                    ).into()
+                                );
+                                let mut stage_bodys = stage.bodys.clone();
+                                stage_bodys.push(body);
+                                let stage = Stage {
+                                    dims: stage.dims.clone(),
+                                    bodys: stage_bodys,
+                                    id: *id,
+                                };
+                                qa.insert(*id, (Body::Stage(stage), false));
+                            } else {
+                                panic!("input is not a stage");
+                            }
                         }
-                        let stage = Stage {
-                            dims: stages[&node.inputs[0]].dims.clone(),
-                            bodys: input,
-                            id: *id,
-                        };
-                        stages.insert(*id, stage);
                     }
                     Operation::Add => {
-                        let a_shape = &self.nodes[&node.inputs[0]].shape;
-                        let b_shape = &self.nodes[&node.inputs[1]].shape;
-                        let _ = detect_broadcast_axes_expr(a_shape, b_shape);
-                        let dims = (0..node.shape.len())
-                            .map(|x|
-                                IterVar::new(0i64, node.shape[x].clone(), 1i64, &format!("ax{}", x))
+                        let (lhs, _) = &qa[&node.inputs[0]];
+                        let (rhs, _) = &qa[&node.inputs[1]];
+                        let dims = self.nodes[id].shape
+                            .iter()
+                            .enumerate()
+                            .map(|(idx, x)|
+                                IterVar::new(0i64, x.clone(), 1i64, &format!("ax{}", idx))
                             )
-                            .collect::<Vec<_>>();
-                        let mut a_body = stages[&node.inputs[0]].bodys.clone();
-                        let b_body = stages[&node.inputs[1]].bodys.clone();
-                        a_body.extend(b_body);
-                        a_body.push(
-                            Body::Stmt(
-                                LetStmt::make(
-                                    &Variable::make(&format!("%{}_val", id)),
-                                    Variable::new(format!("%{}_val", node.inputs[0])) +
-                                        Variable::new(format!("%{}_val", node.inputs[1])),
-                                    Stmt::None
-                                ).into()
-                            )
-                        );
+                            .collect::<Vec<IterVar>>();
                         if node.is_output() {
-                            replace_store(&mut a_body, node, &node.shape);
+                            match (lhs, rhs) {
+                                (Body::Stage(lhs), Body::Stage(rhs)) => {
+                                    let mut lhs_bodys = lhs.bodys.clone();
+                                    let rhs_bodys = rhs.bodys.clone();
+                                    lhs_bodys.extend(rhs_bodys);
+                                    let sotre_add = Stmt::StoreStmt(
+                                        StoreStmt::make(
+                                            &Variable::make(&format!("%{}", id)),
+                                            dims
+                                                .iter()
+                                                .enumerate()
+                                                .map(
+                                                    |(idx, x)|
+                                                        x.var().to_prime_expr() *
+                                                        Load::make(
+                                                            &format!("%{}.s", id),
+                                                            idx
+                                                        ).into()
+                                                )
+                                                .reduce(|acc, x| acc + x)
+                                                .unwrap(),
+                                            Variable::make(&format!("%{}_val", node.inputs[0])) +
+                                                Variable::make(&format!("%{}_val", node.inputs[1]))
+                                        )
+                                    );
+                                    lhs_bodys.push(Body::Stmt(sotre_add));
+                                    let stage = Stage {
+                                        dims,
+                                        bodys: lhs_bodys,
+                                        id: *id,
+                                    };
+                                    qa.insert(*id, (Body::Stage(stage), true));
+                                }
+                                _ => panic!("input is not a stage"),
+                            }
+                        } else {
+                            match (lhs, rhs) {
+                                (Body::Stage(lhs), Body::Stage(rhs)) => {
+                                    let mut lhs_bodys = lhs.bodys.clone();
+                                    let rhs_bodys = rhs.bodys.clone();
+                                    lhs_bodys.extend(rhs_bodys);
+                                    let add = Stmt::LetStmt(
+                                        LetStmt::make(
+                                            &Variable::make(&format!("%{}_val", id)),
+                                            Variable::make(&format!("%{}_val", node.inputs[0])) +
+                                                Variable::make(&format!("%{}_val", node.inputs[1])),
+                                            Stmt::None
+                                        )
+                                    );
+                                    lhs_bodys.push(Body::Stmt(add));
+                                    let stage = Stage {
+                                        dims,
+                                        bodys: lhs_bodys,
+                                        id: *id,
+                                    };
+                                    qa.insert(*id, (Body::Stage(stage), false));
+                                }
+                                _ => panic!("input is not a stage"),
+                            }
                         }
-                        let stage = Stage {
-                            dims,
-                            bodys: a_body,
-                            id: *id,
-                        };
-                        stages.insert(*id, stage);
                     }
                     Operation::Slice(_) => {}
                     Operation::None => {}
                 }
             }
         }
-        Schedule {
-            map: stages,
-        }
-    }
-}
-
-pub fn replace_store<T>(input: &mut Vec<Body>, node: &SrgNode, shape: &[T]) {
-    if let Some(last) = input.last_mut() {
-        if let Body::PrimeExpr(expr) = last {
-            *last = Body::Stmt(
-                StoreStmt::make(
-                    &Variable::make(&format!("%{}", node.id)),
-                    (0..shape.len() as i64)
-                        .map(|x| {
-                            PrimeExpr::Variable(Variable::make(&format!("ax{}", x))) *
-                                PrimeExpr::Load(
-                                    Load::make(Variable::make(&format!("%{}.s", node.id)), x)
-                                )
-                        })
-                        .reduce(|acc, y| acc + y)
-                        .unwrap(),
-                    expr.clone()
-                ).into()
-            );
-        }
+        Schedule { qa }
     }
 }
 
