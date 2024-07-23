@@ -463,7 +463,9 @@ impl Srg {
                 }
             }
         }
-        todo!()
+        Schedule {
+            map: stages,
+        }
     }
 }
 
@@ -520,5 +522,34 @@ mod tests {
         let node = &srg.nodes[order.last().unwrap()];
         let strides = (node.strides_cal)(&var_map);
         println!("{:?}", strides);
+    }
+
+    #[test]
+    fn test_reshape_schedule() {
+        let mut ctx = Context::new();
+        let m = ctx.var("m");
+        let n = ctx.var("n");
+        let o = ctx.var("o");
+        let a = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
+        let b = ctx.reshape(&a, &[&m, &n, &o, &1i64]);
+        let order = [a.id, b.id];
+
+        let mut nodes = HashMap::new();
+        for (id, node) in ctx.nodes.borrow().iter() {
+            let srg_node = SrgNode {
+                id: *id,
+                shape: node.shape.clone(),
+                inputs: node.inputs.clone(),
+                op: node.op.clone(),
+                strides_cal: Arc::new(|_| vec![]),
+                span: node.span,
+            };
+            nodes.insert(*id, srg_node);
+        }
+        let srg = Srg {
+            nodes,
+        };
+        let schedule = srg.create_schedule(&order);
+        println!("{}", schedule);
     }
 }
