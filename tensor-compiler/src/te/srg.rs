@@ -8,7 +8,7 @@ use tensor_common::{
 
 use crate::{
     halide::{
-        exprs::{ Let, Load },
+        exprs::{ Call, Let, Load },
         let_stmt::LetStmt,
         prime_expr::PrimeExpr,
         stmt::Stmt,
@@ -16,7 +16,12 @@ use crate::{
     },
     hlir::tensor_slice::TensorLoad,
     iter_var::IterVar,
-    te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator, shape_utils::detect_broadcast_axes_expr, stages::{ Body, Stage } },
+    te::{
+        hstrides::HStrides,
+        idx_evaluator::IdxEvaluator,
+        shape_utils::detect_broadcast_axes_expr,
+        stages::{ Body, Stage },
+    },
 };
 
 use super::{ operation::Operation, schedule::Schedule, srg_node::SrgNode };
@@ -342,7 +347,19 @@ impl Srg {
                 declared_vars.insert(format!("%{}_val", node.id));
             } else {
                 match &node.op {
-                    Operation::Reshape(reshape) => {}
+                    Operation::Reshape(reshape) => {
+                        let input = stages[&node.inputs[0]].bodys.clone();
+                        let stage = Stage {
+                            dims: (0..reshape.len())
+                                .map(|x|
+                                    IterVar::new(0i64, reshape[x].clone(), 1i64, &format!("ax{}", x))
+                                )
+                                .collect(),
+                            bodys: input,
+                            id: *id,
+                        };
+                        stages.insert(*id, stage);
+                    }
                     Operation::Transpose(_) => {}
                     Operation::Sum(axes, init) => {
                         let input = stages[&node.inputs[0]].bodys.clone();
@@ -365,12 +382,17 @@ impl Srg {
                             .iter()
                             .enumerate()
                             .filter(|(idx, _)| !axes.contains(idx))
-                            .map(|(_, x)| { x.clone() })
+                            .enumerate()
+                            .map(|(idx, (_, x))| {
+                                let mut iter_var = x.clone();
+                                iter_var.set_var(Variable::new(format!("ax{}", idx)));
+                                iter_var
+                            })
                             .collect::<Vec<_>>();
                         let new_body = vec![
                             Body::Stmt(
                                 LetStmt::make(
-                                    &Variable::make(&format!("tmp{}", id)),
+                                    &Variable::make(&format!("%{}_val", id)),
                                     init,
                                     Stmt::None
                                 ).into()
@@ -384,12 +406,57 @@ impl Srg {
                         };
                         stages.insert(*id, stage);
                         stages.insert(node.inputs[0], new_stage);
+                        declared_vars.insert(format!("%{}_val", id));
                     }
-                    Operation::Sin => {}
+                    Operation::Sin => {
+                        let mut input = stages[&node.inputs[0]].bodys.clone();
+                        input.push(
+                            Body::Stmt(
+                                LetStmt::make(
+                                    &Variable::make(&format!("%{}_val", id)),
+                                    Call::make(
+                                        "sin",
+                                        &[Variable::new(format!("%{}_val", node.inputs[0]))]
+                                    ),
+                                    Stmt::None
+                                ).into()
+                            )
+                        );
+                        let stage = Stage {
+                            dims: stages[&node.inputs[0]].dims.clone(),
+                            bodys: input,
+                            id: *id,
+                        };
+                        stages.insert(*id, stage);
+                    }
                     Operation::Add => {
                         let a_shape = &self.nodes[&node.inputs[0]].shape;
                         let b_shape = &self.nodes[&node.inputs[1]].shape;
-                        let axes_to_broadcast = detect_broadcast_axes_expr(a_shape, b_shape);
+                        let _ = detect_broadcast_axes_expr(a_shape, b_shape);
+                        let dims = (0..node.shape.len())
+                            .map(|x|
+                                IterVar::new(0i64, node.shape[x].clone(), 1i64, &format!("ax{}", x))
+                            )
+                            .collect::<Vec<_>>();
+                        let mut a_body = stages[&node.inputs[0]].bodys.clone();
+                        let b_body = stages[&node.inputs[1]].bodys.clone();
+                        a_body.extend(b_body);
+                        a_body.push(
+                            Body::Stmt(
+                                LetStmt::make(
+                                    &Variable::make(&format!("%{}_val", id)),
+                                    Variable::new(format!("%{}_val", node.inputs[0])) +
+                                        Variable::new(format!("%{}_val", node.inputs[1])),
+                                    Stmt::None
+                                ).into()
+                            )
+                        );
+                        let stage = Stage {
+                            dims,
+                            bodys: a_body,
+                            id: *id,
+                        };
+                        stages.insert(*id, stage);
                     }
                     Operation::Slice(_) => {}
                     Operation::None => {}
