@@ -108,6 +108,7 @@ pub struct TensorLoad {
     pub(crate) axes: Arc<Vec<PrimeExpr>>,
     pub(crate) steps: Arc<Vec<PrimeExpr>>,
     pub(crate) strides: Arc<Vec<PrimeExpr>>,
+    pub(crate) hints: Arc<Vec<(usize, i64)>>
 }
 
 impl TensorLoad {
@@ -116,14 +117,16 @@ impl TensorLoad {
         B: Into<Vec<PrimeExpr>>,
         C: Into<Vec<PrimeExpr>>,
         D: Into<Vec<PrimeExpr>>,
-        E: Into<Vec<PrimeExpr>>
-    >(var: A, begins: B, axes: C, steps: D, strides: E) -> Self {
+        E: Into<Vec<PrimeExpr>>,
+        F: Into<Vec<(usize, i64)>>
+    >(var: A, begins: B, axes: C, steps: D, strides: E, hints: F) -> Self {
         TensorLoad {
             var: Arc::new(var.into()),
             begins: Arc::new(begins.into()),
             axes: Arc::new(axes.into()),
             steps: Arc::new(steps.into()),
             strides: Arc::new(strides.into()),
+            hints: Arc::new(hints.into())
         }
     }
 }

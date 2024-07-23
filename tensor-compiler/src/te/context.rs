@@ -62,6 +62,7 @@ impl Context {
                     .map(|x| Load::make(Variable::new(format!("%{}.strides", id)), x).into())
                     .collect::<Vec<_>>()
                     .into(),
+                hints: vec![].into(),
             }).into(),
             dtype,
             span: Location::caller(),
@@ -101,6 +102,7 @@ impl Context {
                     .map(|x| Load::make(Variable::new(format!("%{}.strides", a.id)), x).into())
                     .collect::<Vec<_>>()
                     .into(),
+                hints: vec![].into(),
             }).into(),
             dtype: a.dtype.clone(),
             span: Location::caller(),
@@ -163,6 +165,7 @@ impl Context {
                 .map(|x| Load::make(Variable::new(format!("%{}.strides", a.id)), x).into())
                 .collect::<Vec<_>>()
                 .into(),
+            hints: vec![].into(),
         };
         let b_load = TensorLoad {
             var: Variable::new(format!("%{}", b.id)).into(),
@@ -182,6 +185,7 @@ impl Context {
                 .map(|x| Load::make(Variable::new(format!("%{}.strides", b.id)), x).into())
                 .collect::<Vec<_>>()
                 .into(),
+            hints: vec![].into(),
         };
         let add = PrimeExpr::Add(Add::make(a_load, b_load));
         let id = self.id.borrow().clone();
@@ -234,6 +238,7 @@ impl Context {
                 .map(|x| Load::make(Variable::new(format!("%{}.strides", a.id)), x).into())
                 .collect::<Vec<_>>()
                 .into(),
+            hints: vec![].into(),
         };
         let reduce_iter_vars = axes
             .iter()
@@ -262,7 +267,7 @@ impl Context {
                         .map(|x| x as usize)
                         .collect()
                 ),
-                init.to_prime_expr(),
+                init.to_prime_expr()
             ),
             dtype: a.dtype.clone(),
         };
@@ -331,7 +336,8 @@ impl Context {
                 .collect::<Vec<PrimeExpr>>(),
             (0..new_shape.len())
                 .map(|x| Load::make(Variable::new(format!("%{}.strides", a.id)), x).into())
-                .collect::<Vec<PrimeExpr>>()
+                .collect::<Vec<PrimeExpr>>(),
+            vec![]
         );
         let ret = Tensor {
             shape: new_shape.into(),

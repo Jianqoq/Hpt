@@ -333,6 +333,7 @@ impl Srg {
                             )
                             .collect::<Vec<PrimeExpr>>()
                             .into(),
+                        hints: vec![].into(),
                     }).into()
                 );
                 let stage = Stage {

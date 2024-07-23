@@ -1187,7 +1187,14 @@ pub(crate) fn visit_tensor_load<V>(visitor: &mut V, tensor_load: &TensorLoad)
         visitor.set_expr(tensor_load);
     } else {
         visitor.set_expr(
-            TensorLoad::make(name.to_variable().unwrap(), begins, axes, steps, strides)
+            TensorLoad::make(
+                name.to_variable().unwrap(),
+                begins,
+                axes,
+                steps,
+                strides,
+                tensor_load.hints.as_ref().clone()
+            )
         );
     }
 }
