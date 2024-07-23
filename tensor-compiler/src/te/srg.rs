@@ -8,10 +8,11 @@ use tensor_common::{
 
 use crate::{
     halide::{
-        exprs::{ Call, Let, Load },
+        exprs::{ Call, Load },
         let_stmt::LetStmt,
         prime_expr::PrimeExpr,
         stmt::Stmt,
+        store_stmt::StoreStmt,
         variable::Variable,
     },
     hlir::tensor_slice::TensorLoad,
@@ -348,11 +349,19 @@ impl Srg {
             } else {
                 match &node.op {
                     Operation::Reshape(reshape) => {
-                        let input = stages[&node.inputs[0]].bodys.clone();
+                        let mut input = stages[&node.inputs[0]].bodys.clone();
+                        if node.is_output() {
+                            replace_store(&mut input, node, &node.shape);
+                        }
                         let stage = Stage {
                             dims: (0..reshape.len())
                                 .map(|x|
-                                    IterVar::new(0i64, reshape[x].clone(), 1i64, &format!("ax{}", x))
+                                    IterVar::new(
+                                        0i64,
+                                        reshape[x].clone(),
+                                        1i64,
+                                        &format!("ax{}", x)
+                                    )
                                 )
                                 .collect(),
                             bodys: input,
@@ -422,6 +431,9 @@ impl Srg {
                                 ).into()
                             )
                         );
+                        if node.is_output() {
+                            replace_store(&mut input, node, &node.shape);
+                        }
                         let stage = Stage {
                             dims: stages[&node.inputs[0]].dims.clone(),
                             bodys: input,
@@ -451,6 +463,9 @@ impl Srg {
                                 ).into()
                             )
                         );
+                        if node.is_output() {
+                            replace_store(&mut a_body, node, &node.shape);
+                        }
                         let stage = Stage {
                             dims,
                             bodys: a_body,
@@ -465,6 +480,28 @@ impl Srg {
         }
         Schedule {
             map: stages,
+        }
+    }
+}
+
+pub fn replace_store<T>(input: &mut Vec<Body>, node: &SrgNode, shape: &[T]) {
+    if let Some(last) = input.last_mut() {
+        if let Body::PrimeExpr(expr) = last {
+            *last = Body::Stmt(
+                StoreStmt::make(
+                    &Variable::make(&format!("%{}", node.id)),
+                    (0..shape.len() as i64)
+                        .map(|x| {
+                            PrimeExpr::Variable(Variable::make(&format!("ax{}", x))) *
+                                PrimeExpr::Load(
+                                    Load::make(Variable::make(&format!("%{}.s", node.id)), x)
+                                )
+                        })
+                        .reduce(|acc, y| acc + y)
+                        .unwrap(),
+                    expr.clone()
+                ).into()
+            );
         }
     }
 }
@@ -503,6 +540,15 @@ mod tests {
                 id: *id,
                 shape: node.shape.clone(),
                 inputs: node.inputs.clone(),
+                outputs: Arc::new(
+                    ctx.nodes
+                        .borrow()
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            if v.inputs.contains(id) { Some(*k) } else { None }
+                        })
+                        .collect()
+                ),
                 op: node.op.clone(),
                 strides_cal: Arc::new(|_| vec![]),
                 span: node.span,
@@ -540,6 +586,15 @@ mod tests {
                 id: *id,
                 shape: node.shape.clone(),
                 inputs: node.inputs.clone(),
+                outputs: Arc::new(
+                    ctx.nodes
+                        .borrow()
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            if v.inputs.contains(id) { Some(*k) } else { None }
+                        })
+                        .collect()
+                ),
                 op: node.op.clone(),
                 strides_cal: Arc::new(|_| vec![]),
                 span: node.span,
