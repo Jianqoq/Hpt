@@ -470,33 +470,45 @@ impl Srg {
                         if node.is_output() {
                             if let Body::Stage(stage) = input {
                                 let mut stage = stage.clone();
-                                let body = Body::Stmt(
-                                    Stmt::StoreStmt(
-                                        StoreStmt::make(
-                                            &Variable::make(&format!("%{}", id)),
-                                            stage.dims
-                                                .iter()
-                                                .enumerate()
-                                                .map(
-                                                    |(idx, x)|
-                                                        x.var().to_prime_expr() *
-                                                        Load::make(
-                                                            &format!("%{}.s", id),
-                                                            idx
-                                                        ).into()
-                                                )
-                                                .reduce(|acc, x| acc + x)
-                                                .unwrap(),
-                                            Variable::make(&format!("%{}_val", node.inputs[0]))
+                                let reduce_stage = ReduceStage {
+                                    dims: axes
+                                        .iter()
+                                        .map(|x|
+                                            IterVar::new(
+                                                0i64,
+                                                self.nodes[&node.inputs[0]].shape[*x].clone(),
+                                                1i64,
+                                                &format!("red{}", x)
+                                            )
                                         )
-                                    )
-                                );
-                                stage.bodys.push(body);
-                                let stage = Stage {
-                                    dims: stage.dims.clone(),
+                                        .collect(),
                                     bodys: stage.bodys.clone(),
                                     id: *id,
+                                    inits: vec![
+                                        Body::Stmt(
+                                            Stmt::LetStmt(
+                                                LetStmt::make(
+                                                    &Variable::make(&format!("%{}_val", node.id)),
+                                                    init.clone(),
+                                                    Stmt::None
+                                                )
+                                            ).into()
+                                        )
+                                    ],
                                 };
+                                stage.bodys = vec![Body::ReduceStage(reduce_stage)];
+                                stage.dims = (0..self.nodes[&node.inputs[0]].shape.len())
+                                    .filter(|x| !axes.contains(x))
+                                    .enumerate()
+                                    .map(|(idx, x)|
+                                        IterVar::new(
+                                            0i64,
+                                            self.nodes[&node.inputs[0]].shape[x].clone(),
+                                            1i64,
+                                            &format!("ax{}", idx)
+                                        )
+                                    )
+                                    .collect();
                                 qa.insert(*id, (Body::Stage(stage), true));
                             } else {
                                 panic!("input is not a stage");
@@ -511,7 +523,7 @@ impl Srg {
                                             .map(|x|
                                                 IterVar::new(
                                                     0i64,
-                                                    node.shape[*x].clone(),
+                                                    self.nodes[&node.inputs[0]].shape[*x].clone(),
                                                     1i64,
                                                     &format!("red{}", x)
                                                 )
@@ -534,13 +546,13 @@ impl Srg {
                                         ],
                                     };
                                     stage.bodys = vec![Body::ReduceStage(reduce_stage)];
-                                    stage.dims = (0..node.shape.len())
+                                    stage.dims = (0..self.nodes[&node.inputs[0]].shape.len())
                                         .filter(|x| !axes.contains(x))
                                         .enumerate()
                                         .map(|(idx, x)|
                                             IterVar::new(
                                                 0i64,
-                                                node.shape[x].clone(),
+                                                self.nodes[&node.inputs[0]].shape[x].clone(),
                                                 1i64,
                                                 &format!("ax{}", idx)
                                             )
@@ -854,6 +866,44 @@ mod tests {
         let b = ctx.placeholder(&[&m, &n, &1i64], Dtype::F32);
         let c = ctx.add(&a, &b);
         let order = [a.id, b.id, c.id];
+
+        let mut nodes = HashMap::new();
+        for (id, node) in ctx.nodes.borrow().iter() {
+            let srg_node = SrgNode {
+                id: *id,
+                shape: node.shape.clone(),
+                inputs: node.inputs.clone(),
+                outputs: Arc::new(
+                    ctx.nodes
+                        .borrow()
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            if v.inputs.contains(id) { Some(*k) } else { None }
+                        })
+                        .collect()
+                ),
+                op: node.op.clone(),
+                strides_cal: Arc::new(|_| vec![]),
+                span: node.span,
+            };
+            nodes.insert(*id, srg_node);
+        }
+        let srg = Srg {
+            nodes,
+        };
+        let schedule = srg.create_schedule(&order);
+        println!("{}", schedule);
+    }
+
+    #[test]
+    fn test_sum_broadcast_schedule() {
+        let mut ctx = Context::new();
+        let m = ctx.var("m");
+        let n = ctx.var("n");
+        let o = ctx.var("o");
+        let a = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
+        let b = ctx.sum(&a, &0f32, &[1]);
+        let order = [a.id, b.id];
 
         let mut nodes = HashMap::new();
         for (id, node) in ctx.nodes.borrow().iter() {

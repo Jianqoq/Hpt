@@ -54,7 +54,7 @@ impl ReduceStage {
                 }
             }
         }
-        todo!()
+        build_nested_for(&self.dims, Stmt::Seq(Seq::make(seq)))
     }
     pub fn broadcast_new_dims(
         &mut self,
