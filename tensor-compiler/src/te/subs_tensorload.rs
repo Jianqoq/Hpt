@@ -15,7 +15,7 @@ pub struct SubsTensorLoadDims<'a> {
 impl<'a> SubsTensorLoadDims<'a> {
     pub fn new(
         begins: &'a Vec<PrimeExpr>,
-        ends: &'a Vec<PrimeExpr>,
+        steps: &'a Vec<PrimeExpr>,
         strides: &'a Vec<PrimeExpr>,
         axes: &'a Vec<PrimeExpr>
     ) -> Self {
@@ -23,7 +23,7 @@ impl<'a> SubsTensorLoadDims<'a> {
             expr: PrimeExpr::None,
             stmt: Stmt::None,
             begins,
-            steps: ends,
+            steps,
             strides,
             axes,
         }

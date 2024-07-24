@@ -107,20 +107,20 @@ impl Stage {
     pub fn broadcast_new_dims(
         &mut self,
         begins: &Vec<PrimeExpr>,
-        ends: &Vec<PrimeExpr>,
+        steps: &Vec<PrimeExpr>,
         strides: &Vec<PrimeExpr>,
         axes: &Vec<PrimeExpr>
     ) {
-        let mut subs_tensorload = SubsTensorLoadDims::new(begins, ends, strides, axes);
+        let mut subs_tensorload = SubsTensorLoadDims::new(begins, steps, strides, axes);
         for body in &mut self.bodys {
             match body {
                 Body::Stmt(stmt) => {
                     stmt.accept_mutate(&mut subs_tensorload);
                     *body = Body::Stmt(subs_tensorload.stmt().clone());
                 }
-                Body::Stage(stage) => stage.broadcast_new_dims(begins, ends, strides, axes),
+                Body::Stage(stage) => stage.broadcast_new_dims(begins, steps, strides, axes),
                 Body::ReduceStage(red_stage) =>
-                    red_stage.broadcast_new_dims(begins, ends, strides, axes),
+                    red_stage.broadcast_new_dims(begins, steps, strides, axes),
             }
         }
     }

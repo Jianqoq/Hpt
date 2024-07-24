@@ -17,11 +17,7 @@ use crate::{
     },
     hlir::tensor_slice::TensorLoad,
     iter_var::IterVar,
-    te::{
-        hstrides::HStrides,
-        idx_evaluator::IdxEvaluator,
-        stages::{ Body, ReduceStage, Stage },
-    },
+    te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator, stages::{ Body, ReduceStage, Stage } },
     to_prim_expr::ToPrimeExpr,
 };
 
@@ -379,7 +375,7 @@ impl Srg {
                                         .collect::<Vec<PrimeExpr>>(),
                                     &reshape
                                         .iter()
-                                        .map(|x| x.clone())
+                                        .map(|_| (1i64).into())
                                         .collect(),
                                     &(0..reshape.len())
                                         .map(|x|
