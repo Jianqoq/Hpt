@@ -27,6 +27,20 @@ impl Body {
             Body::ReduceStage(reduce_stage) => reduce_stage.to_halide(map),
         }
     }
+    pub fn all_parents_dims(&self, map: &HashMap<usize, (Body, bool)>) -> Vec<IterVar> {
+        match self {
+            Body::Stmt(_) => Vec::new(),
+            Body::Stage(stage) => stage.dims.clone(),
+            Body::ReduceStage(reduce_stage) => {
+                let mut dims = reduce_stage.dims.clone();
+                let input = reduce_stage.input;
+                let (body, _) = map.get(&input).unwrap();
+                let mut parent_dims = body.all_parents_dims(map);
+                parent_dims.append(&mut dims);
+                dims
+            }
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -35,6 +49,8 @@ pub struct ReduceStage {
     pub(crate) bodys: Vec<Body>,
     pub(crate) id: usize,
     pub(crate) inits: Vec<Body>,
+    pub(crate) posts: Vec<Body>,
+    pub(crate) input: usize,
 }
 
 impl ReduceStage {
@@ -54,7 +70,18 @@ impl ReduceStage {
                 }
             }
         }
-        build_nested_for(&self.dims, Stmt::Seq(Seq::make(seq)))
+        let for_stmt = build_nested_for(&self.dims, Stmt::Seq(Seq::make(seq)));
+        let inits = self.inits
+            .iter()
+            .map(|init| init.to_halide(map))
+            .collect::<Vec<Stmt>>();
+        let posts = self.posts
+            .iter()
+            .map(|post| post.to_halide(map))
+            .collect::<Vec<Stmt>>();
+        Stmt::Seq(
+            Seq::make(vec![Stmt::Seq(Seq::make(inits)), for_stmt, Stmt::Seq(Seq::make(posts))])
+        )
     }
     pub fn broadcast_new_dims(
         &mut self,

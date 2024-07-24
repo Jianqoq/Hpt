@@ -9,6 +9,7 @@ use tensor_common::{
 use crate::{
     halide::{
         exprs::{ Call, Load },
+        inplace_store_stmt::InplaceAdd,
         let_stmt::LetStmt,
         prime_expr::PrimeExpr,
         stmt::Stmt,
@@ -470,6 +471,18 @@ impl Srg {
                         if node.is_output() {
                             if let Body::Stage(stage) = input {
                                 let mut stage = stage.clone();
+                                let mut bodys = stage.bodys.clone();
+                                bodys.push(
+                                    Body::Stmt(
+                                        Stmt::InplaceAdd(
+                                            InplaceAdd::make(
+                                                &Variable::make(&format!("%{}_val", node.id)),
+                                                Variable::make(&format!("%{}_val", node.inputs[0]))
+                                            )
+                                        )
+                                    )
+                                );
+                                let all_parent_dims = input.all_parents_dims(&qa);
                                 let reduce_stage = ReduceStage {
                                     dims: axes
                                         .iter()
@@ -482,7 +495,7 @@ impl Srg {
                                             )
                                         )
                                         .collect(),
-                                    bodys: stage.bodys.clone(),
+                                    bodys,
                                     id: *id,
                                     inits: vec![
                                         Body::Stmt(
@@ -495,6 +508,32 @@ impl Srg {
                                             ).into()
                                         )
                                     ],
+                                    posts: vec![
+                                        Body::Stmt(
+                                            Stmt::StoreStmt(
+                                                StoreStmt::make(
+                                                    &Variable::make(&format!("%{}", id)),
+                                                    all_parent_dims
+                                                        .iter()
+                                                        .enumerate()
+                                                        .map(
+                                                            |(idx, x)|
+                                                                x.var().to_prime_expr() *
+                                                                Load::make(
+                                                                    &format!("%{}.s", id),
+                                                                    idx
+                                                                ).into()
+                                                        )
+                                                        .reduce(|acc, x| acc + x)
+                                                        .unwrap(),
+                                                    Variable::make(
+                                                        &format!("%{}_val", id)
+                                                    )
+                                                )
+                                            )
+                                        )
+                                    ],
+                                    input: node.inputs[0],
                                 };
                                 stage.bodys = vec![Body::ReduceStage(reduce_stage)];
                                 stage.dims = (0..self.nodes[&node.inputs[0]].shape.len())
@@ -517,6 +556,19 @@ impl Srg {
                             match input {
                                 Body::Stage(stage) => {
                                     let mut stage = stage.clone();
+                                    let mut bodys = stage.bodys.clone();
+                                    bodys.push(
+                                        Body::Stmt(
+                                            Stmt::InplaceAdd(
+                                                InplaceAdd::make(
+                                                    &Variable::make(&format!("%{}_val", node.id)),
+                                                    Variable::make(
+                                                        &format!("%{}_val", node.inputs[0])
+                                                    )
+                                                )
+                                            )
+                                        )
+                                    );
                                     let reduce_stage = ReduceStage {
                                         dims: axes
                                             .iter()
@@ -529,7 +581,7 @@ impl Srg {
                                                 )
                                             )
                                             .collect(),
-                                        bodys: stage.bodys.clone(),
+                                        bodys,
                                         id: *id,
                                         inits: vec![
                                             Body::Stmt(
@@ -544,6 +596,8 @@ impl Srg {
                                                 ).into()
                                             )
                                         ],
+                                        posts: vec![],
+                                        input: node.inputs[0],
                                     };
                                     stage.bodys = vec![Body::ReduceStage(reduce_stage)];
                                     stage.dims = (0..self.nodes[&node.inputs[0]].shape.len())
