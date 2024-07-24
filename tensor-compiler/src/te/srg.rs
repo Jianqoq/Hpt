@@ -454,6 +454,16 @@ impl Srg {
                                         .map(|x| Variable::make(&format!("ax{}", x)).into())
                                         .collect::<Vec<PrimeExpr>>()
                                 );
+                                let body = Body::Stmt(
+                                    Stmt::LetStmt(
+                                        LetStmt::make(
+                                            &Variable::make(&format!("%{}_val", node.id)),
+                                            Variable::make(&format!("%{}_val", node.inputs[0])),
+                                            Stmt::None
+                                        )
+                                    ).into()
+                                );
+                                stage.bodys.push(body);
                                 let stage = Stage {
                                     dims,
                                     bodys: stage.bodys.clone(),
@@ -1063,6 +1073,48 @@ mod tests {
         let a = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
         let b = ctx.sum(&a, &0f32, &[0, 1, 2]);
         let order = [a.id, b.id];
+
+        let mut nodes = HashMap::new();
+        for (id, node) in ctx.nodes.borrow().iter() {
+            let srg_node = SrgNode {
+                id: *id,
+                shape: node.shape.clone(),
+                inputs: node.inputs.clone(),
+                outputs: Arc::new(
+                    ctx.nodes
+                        .borrow()
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            if v.inputs.contains(id) { Some(*k) } else { None }
+                        })
+                        .collect()
+                ),
+                op: node.op.clone(),
+                strides_cal: Arc::new(|_| vec![]),
+                span: node.span,
+            };
+            nodes.insert(*id, srg_node);
+        }
+        let srg = Srg {
+            nodes,
+        };
+        let schedule = srg.create_schedule(&order);
+        println!("{}", schedule);
+    }
+
+    #[test]
+    fn test_schedule3() {
+        let mut ctx = Context::new();
+        let m = ctx.var("m");
+        let n = ctx.var("n");
+        let o = ctx.var("o");
+        let a = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
+        let b = ctx.placeholder(&[&1i64, &1i64, &1i64], Dtype::F32);
+        let c = ctx.add(&a, &b);
+        let sum = ctx.sum(&c, &0f32, &[2]);
+        let reshaped = ctx.reshape(&sum, &[&m, &n, &1i64]);
+        let add = ctx.add(&c, &reshaped);
+        let order = [a.id, b.id, c.id, sum.id, reshaped.id, add.id];
 
         let mut nodes = HashMap::new();
         for (id, node) in ctx.nodes.borrow().iter() {
