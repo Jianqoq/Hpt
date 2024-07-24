@@ -170,6 +170,12 @@ impl Display for TensorLoad {
                 } else {
                     indices = indices + axes.clone() * stride.clone();
                 }
+            } else if begin == &zero && step != &one {
+                if indices.is_none() {
+                    indices = (axes.clone() * step.clone()) * stride.clone();
+                } else {
+                    indices = indices + (axes.clone() * step.clone()) * stride.clone();
+                }
             } else if step == &one {
                 if indices.is_none() {
                     indices = (axes.clone() + begin.clone()) * stride.clone();

@@ -10,7 +10,6 @@ use super::operation::Operation;
 pub struct Tensor {
     pub(crate) shape: Arc<Vec<PrimeExpr>>,
     pub(crate) dtype: Dtype,
-    pub(crate) body: PrimeExpr,
     pub(crate) inputs: Arc<Vec<usize>>,
     pub(crate) op: Operation,
     pub(crate) span: &'static Location<'static>,

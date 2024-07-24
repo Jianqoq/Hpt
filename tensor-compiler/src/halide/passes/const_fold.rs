@@ -1,7 +1,7 @@
 use tensor_types::type_promote::{ BitWiseOut, FloatOut, NormalOut };
 
 use crate::halide::{
-    exprs::{ Add, Float, Int },
+    exprs::{ Add, Float, Int, Sub },
     prime_expr::PrimeExpr,
     stmt::Stmt,
     traits::{ IRMutateVisitor, MutatorGetSet },
@@ -16,14 +16,14 @@ pub struct ConstFold {
 impl ConstFold {
     pub fn new() -> Self {
         Self {
-            folded: false,
+            folded: true,
             expr: PrimeExpr::None,
             stmt: Stmt::None,
         }
     }
 
     pub fn const_fold(&mut self, mut expr: PrimeExpr) -> PrimeExpr {
-        self.folded = false;
+        self.folded = true;
         while self.folded {
             self.expr = PrimeExpr::None;
             self.stmt = Stmt::None;
@@ -78,6 +78,52 @@ impl IRMutateVisitor for ConstFold {
                     )
                 );
                 self.folded = true;
+            }
+            (PrimeExpr::Add(add), PrimeExpr::Int(i2)) => {
+                match (add.e1(), add.e2()) {
+                    (PrimeExpr::Int(i1), _) => {
+                        self.set_expr(PrimeExpr::Add(Add::make(i1.value() + i2.value(), add.e2())));
+                    }
+                    (_, PrimeExpr::Int(i1)) => {
+                        self.set_expr(PrimeExpr::Add(Add::make(i1.value() + i2.value(), add.e1())));
+                    }
+                    (PrimeExpr::Float(f1), _) => {
+                        self.set_expr(
+                            PrimeExpr::Add(Add::make(f1.value() + (i2.value() as f64), add.e2()))
+                        );
+                    }
+                    (_, PrimeExpr::Float(f1)) => {
+                        self.set_expr(
+                            PrimeExpr::Add(Add::make(f1.value() + (i2.value() as f64), add.e1()))
+                        );
+                    }
+                    _ => {
+                        self.set_expr(PrimeExpr::Add(Add::make(e1, e2)));
+                    }
+                }
+            }
+            (PrimeExpr::Int(i1), PrimeExpr::Add(add)) => {
+                match (add.e1(), add.e2()) {
+                    (PrimeExpr::Int(i2), _) => {
+                        self.set_expr(PrimeExpr::Add(Add::make(i1.value() + i2.value(), add.e2())));
+                    }
+                    (_, PrimeExpr::Int(i2)) => {
+                        self.set_expr(PrimeExpr::Add(Add::make(i1.value() + i2.value(), add.e1())));
+                    }
+                    (PrimeExpr::Float(f2), _) => {
+                        self.set_expr(
+                            PrimeExpr::Add(Add::make((i1.value() as f64) + f2.value(), add.e2()))
+                        );
+                    }
+                    (_, PrimeExpr::Float(f2)) => {
+                        self.set_expr(
+                            PrimeExpr::Add(Add::make((i1.value() as f64) + f2.value(), add.e1()))
+                        );
+                    }
+                    _ => {
+                        self.set_expr(PrimeExpr::Add(Add::make(e1, e2)));
+                    }
+                }
             }
             (PrimeExpr::Int(i1), _) => {
                 if i1.value() == 0 {
@@ -141,6 +187,29 @@ impl IRMutateVisitor for ConstFold {
                     )
                 );
                 self.folded = true;
+            }
+            (PrimeExpr::Sub(sub), PrimeExpr::Int(i2)) => {
+                match (sub.e1(), sub.e2()) {
+                    (PrimeExpr::Int(i1), _) => {
+                        self.set_expr(PrimeExpr::Sub(Sub::make(i1.value() - i2.value(), sub.e2())));
+                        self.folded = true;
+                    }
+                    (_, PrimeExpr::Int(i1)) => {
+                        self.set_expr(PrimeExpr::Sub(Sub::make(sub.e1(), i1.value() + i2.value())));
+                        self.folded = true;
+                    }
+                    (PrimeExpr::Float(f1), _) => {
+                        self.set_expr(PrimeExpr::Sub(Sub::make(f1.value() - (i2.value() as f64), sub.e2())));
+                        self.folded = true;
+                    }
+                    (_, PrimeExpr::Float(f1)) => {
+                        self.set_expr(PrimeExpr::Sub(Sub::make(sub.e1(), f1.value() + (i2.value() as f64))));
+                        self.folded = true;
+                    }
+                    _ => {
+                        self.set_expr(PrimeExpr::Sub(crate::halide::exprs::Sub::make(e1, e2)));
+                    }
+                }
             }
             (PrimeExpr::Int(i1), _) => {
                 if i1.value() == 0 {

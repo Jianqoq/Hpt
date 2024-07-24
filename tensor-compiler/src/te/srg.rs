@@ -1339,7 +1339,7 @@ mod tests {
         let b = ctx.slice(&a, &[(&0i64, &(&m.clone().into() - &one), &2i64), (&0i64, &(&n.clone().into() - &one), &2i64)]);
         let c = ctx.slice(&a, &[(&1i64, &m, &2i64), (&1i64, &n, &2i64)]);
         let add = ctx.add(&b, &c);
-        let order = [b.id, c.id, add.id];
+        let order = [a.id, b.id, c.id, add.id];
 
         let mut nodes = HashMap::new();
         for (id, node) in ctx.nodes.borrow().iter() {

@@ -4,13 +4,11 @@ use tensor_types::{ dtype::Dtype, type_promote::NormalOut };
 
 use crate::{
     halide::{
-        exprs::{ Add, Call, Int, Load, Reduce },
+        exprs::Int,
         passes::const_fold::ConstFold,
         prime_expr::PrimeExpr,
         variable::Variable,
     },
-    hlir::tensor_slice::TensorLoad,
-    iter_var::IterVar,
     to_prim_expr::ToPrimeExpr,
 };
 
@@ -49,26 +47,6 @@ impl Context {
                 .map(|x| x.to_prime_expr())
                 .collect::<Vec<PrimeExpr>>()
                 .into(),
-            body: (TensorLoad {
-                var: Variable::new(format!("%{}", id)).into(),
-                begins: (0..shape.len())
-                    .map(|_| PrimeExpr::Int(Int::make(Dtype::I64, 0)))
-                    .collect::<Vec<_>>()
-                    .into(),
-                axes: (0..shape.len())
-                    .map(|x| Variable::new(format!("ax{}", x)).into())
-                    .collect::<Vec<_>>()
-                    .into(),
-                steps: (0..shape.len())
-                    .map(|_| PrimeExpr::Int(Int::make(Dtype::I64, 1)))
-                    .collect::<Vec<_>>()
-                    .into(),
-                strides: (0..shape.len())
-                    .map(|x| Load::make(Variable::new(format!("%{}.strides", id)), x).into())
-                    .collect::<Vec<_>>()
-                    .into(),
-                hints: vec![].into(),
-            }).into(),
             dtype,
             span: Location::caller(),
             op: Operation::None,
@@ -89,26 +67,6 @@ impl Context {
             .collect::<Vec<PrimeExpr>>();
         let tensor = Tensor {
             shape: new_shape.clone().into(),
-            body: (TensorLoad {
-                var: Variable::new(format!("%{}", a.id)).into(),
-                begins: (0..new_shape.len())
-                    .map(|_| PrimeExpr::Int(Int::make(Dtype::I64, 0)))
-                    .collect::<Vec<_>>()
-                    .into(),
-                axes: (0..new_shape.len())
-                    .map(|x| Variable::new(format!("ax{}", x)).into())
-                    .collect::<Vec<_>>()
-                    .into(),
-                steps: (0..new_shape.len())
-                    .map(|_| PrimeExpr::Int(Int::make(Dtype::I64, 1)))
-                    .collect::<Vec<_>>()
-                    .into(),
-                strides: (0..new_shape.len())
-                    .map(|x| Load::make(Variable::new(format!("%{}.strides", a.id)), x).into())
-                    .collect::<Vec<_>>()
-                    .into(),
-                hints: vec![].into(),
-            }).into(),
             dtype: a.dtype.clone(),
             span: Location::caller(),
             op: Operation::Reshape(new_shape.into()),
@@ -152,52 +110,10 @@ impl Context {
                     panic!("Incompatible shapes. {} and {}", x, y);
                 }
             });
-        let a_load = TensorLoad {
-            var: Variable::new(format!("%{}", a.id)).into(),
-            begins: (0..res_shape.len())
-                .map(|_| PrimeExpr::Int(Int::make(Dtype::I64, 0)))
-                .collect::<Vec<_>>()
-                .into(),
-            axes: (0..res_shape.len())
-                .map(|x| Variable::new(format!("ax{}", x)).into())
-                .collect::<Vec<_>>()
-                .into(),
-            steps: (0..res_shape.len())
-                .map(|_| PrimeExpr::Int(Int::make(Dtype::I64, 1)))
-                .collect::<Vec<_>>()
-                .into(),
-            strides: (0..res_shape.len())
-                .map(|x| Load::make(Variable::new(format!("%{}.strides", a.id)), x).into())
-                .collect::<Vec<_>>()
-                .into(),
-            hints: vec![].into(),
-        };
-        let b_load = TensorLoad {
-            var: Variable::new(format!("%{}", b.id)).into(),
-            begins: (0..res_shape.len())
-                .map(|_| PrimeExpr::Int(Int::make(Dtype::I64, 0)))
-                .collect::<Vec<_>>()
-                .into(),
-            axes: (0..res_shape.len())
-                .map(|x| Variable::new(format!("ax{}", x)).into())
-                .collect::<Vec<_>>()
-                .into(),
-            steps: (0..res_shape.len())
-                .map(|_| PrimeExpr::Int(Int::make(Dtype::I64, 1)))
-                .collect::<Vec<_>>()
-                .into(),
-            strides: (0..res_shape.len())
-                .map(|x| Load::make(Variable::new(format!("%{}.strides", b.id)), x).into())
-                .collect::<Vec<_>>()
-                .into(),
-            hints: vec![].into(),
-        };
-        let add = PrimeExpr::Add(Add::make(a_load, b_load));
         let id = self.id.borrow().clone();
         *self.id.borrow_mut() += 1;
         let ret = Tensor {
             shape: res_shape.into(),
-            body: add.into(),
             inputs: Arc::new(vec![a.id, b.id]),
             span: Location::caller(),
             id,
@@ -224,44 +140,10 @@ impl Context {
                 res_shape.push(a.shape[i as usize].clone());
             }
         }
-
-        let a_load = TensorLoad {
-            var: Variable::new(format!("%{}", a.id)).into(),
-            begins: (0..res_shape.len())
-                .map(|_| PrimeExpr::Int(Int::make(Dtype::I64, 0)))
-                .collect::<Vec<_>>()
-                .into(),
-            axes: (0..res_shape.len())
-                .map(|x| Variable::new(format!("ax{}", x)).into())
-                .collect::<Vec<_>>()
-                .into(),
-            steps: (0..res_shape.len())
-                .map(|_| PrimeExpr::Int(Int::make(Dtype::I64, 1)))
-                .collect::<Vec<_>>()
-                .into(),
-            strides: (0..res_shape.len())
-                .map(|x| Load::make(Variable::new(format!("%{}.strides", a.id)), x).into())
-                .collect::<Vec<_>>()
-                .into(),
-            hints: vec![].into(),
-        };
-        let reduce_iter_vars = axes
-            .iter()
-            .map(|x| {
-                IterVar::new(0i64, a.shape[*x as usize].clone(), 1i64, &format!("red_{}", x))
-            })
-            .collect::<Vec<IterVar>>();
-        let sum = PrimeExpr::Reduce(Reduce {
-            identity: Arc::new(vec![init.to_prime_expr()]),
-            iter_vars: Arc::new(reduce_iter_vars),
-            expr: Arc::new(vec![a_load.into()]),
-            op: "sum",
-        });
         let id = self.id.borrow().clone();
         *self.id.borrow_mut() += 1;
         let ret = Tensor {
             shape: res_shape.into(),
-            body: sum.into(),
             inputs: Arc::new(vec![a.id]),
             span: Location::caller(),
             id,
@@ -284,10 +166,8 @@ impl Context {
     pub fn sin(&mut self, a: &Tensor) -> Tensor {
         let id = self.id.borrow().clone();
         *self.id.borrow_mut() += 1;
-        let sin = PrimeExpr::Call(Call::make("sin", &[Variable::new(format!("%{}", a.id))]));
         let ret = Tensor {
             shape: a.shape.clone(),
-            body: sin.into(),
             inputs: Arc::new(vec![a.id]),
             span: Location::caller(),
             id,
@@ -332,29 +212,13 @@ impl Context {
                     (end.clone() - begin.clone()) / step.clone()
                 }
             })
+            .map(|x| {
+                let mut const_fold = ConstFold::new();
+                const_fold.const_fold(x)
+            })
             .collect::<Vec<_>>();
-        let axes = (0..new_shape.len())
-            .map(|i| Variable::new(format!("ax{}", i)).into())
-            .collect::<Vec<_>>();
-        let tensor_load = TensorLoad::make(
-            Variable::new(format!("%{}", a.id)),
-            selections
-                .iter()
-                .map(|(begin, _, _)| { begin.clone() })
-                .collect::<Vec<PrimeExpr>>(),
-            axes,
-            selections
-                .iter()
-                .map(|(_, _, step)| step.clone())
-                .collect::<Vec<PrimeExpr>>(),
-            (0..new_shape.len())
-                .map(|x| Load::make(Variable::new(format!("%{}.strides", a.id)), x).into())
-                .collect::<Vec<PrimeExpr>>(),
-            vec![]
-        );
         let ret = Tensor {
             shape: new_shape.into(),
-            body: tensor_load.into(),
             inputs: Arc::new(vec![a.id]),
             span: Location::caller(),
             op: Operation::Slice(selections.into()),
@@ -367,54 +231,5 @@ impl Context {
 
     pub fn to_srg(self) -> HashMap<usize, Srg> {
         todo!()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::halide::printer::IRPrinter;
-
-    use super::*;
-
-    #[test]
-    fn test_placeholder() {
-        let mut context = Context {
-            nodes: RcMut::new(HashMap::new()),
-            id: RcMut::new(0),
-            vars: RcMut::new(HashSet::new()),
-        };
-        let tensor = context.placeholder(&[&10i64], Dtype::F32);
-        IRPrinter.print_expr(tensor.body)
-    }
-
-    #[test]
-    fn test_slice() {
-        let mut context = Context {
-            nodes: RcMut::new(HashMap::new()),
-            id: RcMut::new(0),
-            vars: RcMut::new(HashSet::new()),
-        };
-        let tensor = context.placeholder(&[&10i64], Dtype::F32);
-        let tensor = context.slice(
-            &tensor,
-            &[
-                (&1i64, &5i64, &1i64),
-                (&2i64, &8i64, &1i64),
-            ]
-        );
-        IRPrinter.print_expr(tensor.body)
-    }
-
-    #[test]
-    fn test_add() {
-        let mut context = Context {
-            nodes: RcMut::new(HashMap::new()),
-            id: RcMut::new(0),
-            vars: RcMut::new(HashSet::new()),
-        };
-        let a = context.placeholder(&[&10i64], Dtype::F32);
-        let b = context.placeholder(&[&10i64], Dtype::F32);
-        let c = context.add(&a, &b);
-        IRPrinter.print_expr(c.body)
     }
 }
