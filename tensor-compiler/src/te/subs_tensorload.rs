@@ -74,20 +74,22 @@ impl<'a> IRMutateVisitor for SubsTensorLoadDims<'a> {
             self.begins
                 .iter()
                 .zip(begins.iter())
-                .any(|(x, y)| x != y) &&
+                .all(|(x, y)| x == y) &&
             self.steps
                 .iter()
                 .zip(steps.iter())
-                .any(|(x, y)| x != y) &&
+                .all(|(x, y)| x == y) &&
             self.strides
                 .iter()
                 .zip(strides.iter())
-                .any(|(x, y)| x != y) &&
+                .all(|(x, y)| x == y) &&
             self.axes
                 .iter()
                 .zip(axes.iter())
-                .any(|(x, y)| x != y)
+                .all(|(x, y)| x == y)
         {
+            self.set_expr(tensor_load.clone());
+        } else {
             self.set_expr(
                 TensorLoad::make(
                     tensor_load.var.as_ref(),
@@ -98,8 +100,6 @@ impl<'a> IRMutateVisitor for SubsTensorLoadDims<'a> {
                     tensor_load.hints.as_ref().clone()
                 )
             );
-        } else {
-            self.set_expr(tensor_load.clone());
         }
     }
 }

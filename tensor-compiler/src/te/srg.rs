@@ -471,6 +471,32 @@ impl Srg {
                         if node.is_output() {
                             if let Body::Stage(stage) = input {
                                 let mut stage = stage.clone();
+                                let mut dims = (0..node.shape.len())
+                                    .map(|x| Variable::make(&format!("ax{}", x)).into())
+                                    .collect::<Vec<PrimeExpr>>();
+                                let mut red_dims = vec![];
+                                for i in axes.iter() {
+                                    red_dims.push(Variable::make(&format!("red{}", i)).into());
+                                }
+                                dims.extend(red_dims);
+                                stage.broadcast_new_dims(
+                                    &(0..self.nodes[&node.inputs[0]].shape.len())
+                                        .map(|_| (0i64).into())
+                                        .collect::<Vec<PrimeExpr>>(),
+                                    &self.nodes[&node.inputs[0]].shape
+                                        .iter()
+                                        .map(|_| (1i64).into())
+                                        .collect(),
+                                    &(0..self.nodes[&node.inputs[0]].shape.len())
+                                        .map(|x|
+                                            Load::make(
+                                                Variable::make(&format!("%{}.s", id)),
+                                                x
+                                            ).into()
+                                        )
+                                        .collect::<Vec<PrimeExpr>>(),
+                                    &dims
+                                );
                                 let mut bodys = stage.bodys.clone();
                                 bodys.push(
                                     Body::Stmt(
@@ -483,18 +509,24 @@ impl Srg {
                                     )
                                 );
                                 let all_parent_dims = input.all_parents_dims(&qa);
-                                let reduce_stage = ReduceStage {
-                                    dims: axes
-                                        .iter()
-                                        .map(|x|
-                                            IterVar::new(
-                                                0i64,
-                                                self.nodes[&node.inputs[0]].shape[*x].clone(),
-                                                1i64,
-                                                &format!("red{}", x)
-                                            )
+                                let red_axes = axes
+                                    .iter()
+                                    .map(|x|
+                                        IterVar::new(
+                                            0i64,
+                                            self.nodes[&node.inputs[0]].shape[*x].clone(),
+                                            1i64,
+                                            &format!("red{}", x)
                                         )
-                                        .collect(),
+                                    )
+                                    .collect::<Vec<IterVar>>();
+                                let mut store_dims = vec![];
+                                store_dims.extend(
+                                    all_parent_dims.iter().map(|x| x.var().to_prime_expr())
+                                );
+                                store_dims.extend(red_axes.iter().map(|x| x.var().to_prime_expr()));
+                                let reduce_stage = ReduceStage {
+                                    dims: red_axes.clone(),
                                     bodys,
                                     id: *id,
                                     inits: vec![
@@ -513,22 +545,20 @@ impl Srg {
                                             Stmt::StoreStmt(
                                                 StoreStmt::make(
                                                     &Variable::make(&format!("%{}", id)),
-                                                    all_parent_dims
+                                                    store_dims
                                                         .iter()
                                                         .enumerate()
                                                         .map(
                                                             |(idx, x)|
-                                                                x.var().to_prime_expr() *
-                                                                Load::make(
+                                                                x *
+                                                                &Load::make(
                                                                     &format!("%{}.s", id),
                                                                     idx
                                                                 ).into()
                                                         )
                                                         .reduce(|acc, x| acc + x)
                                                         .unwrap(),
-                                                    Variable::make(
-                                                        &format!("%{}_val", id)
-                                                    )
+                                                    Variable::make(&format!("%{}_val", id))
                                                 )
                                             )
                                         )
