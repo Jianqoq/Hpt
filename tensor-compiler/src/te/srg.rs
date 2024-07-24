@@ -1057,7 +1057,14 @@ mod tests {
     use tensor_types::dtype::Dtype;
 
     use crate::{
-        halide::{ exprs::Int, prime_expr::PrimeExpr },
+        halide::{
+            exprs::Int,
+            module::{ Function, FunctionType },
+            prime_expr::PrimeExpr,
+            primitive_type::{ PrimitiveType, Ptr },
+            seq_stmt::Seq,
+            stmt::Stmt,
+        },
         te::{ context::Context, srg_node::SrgNode },
     };
 
@@ -1469,6 +1476,48 @@ mod tests {
         };
         let schedule = srg.create_schedule(&order);
 
-        println!("{}", schedule);
+        let func = Function {
+            ty: FunctionType {
+                ret_ty: PrimitiveType::Void,
+                args: Arc::new(
+                    vec![
+                        (
+                            format!("strides_vec"),
+                            PrimitiveType::Ptr(Ptr {
+                                inner: Arc::new(
+                                    PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Void.into() })
+                                ),
+                            }),
+                        ),
+                        (
+                            format!("data_vec"),
+                            PrimitiveType::Ptr(Ptr {
+                                inner: Arc::new(
+                                    PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Void.into() })
+                                ),
+                            }),
+                        ),
+                        (
+                            format!("offset_vec"),
+                            PrimitiveType::Ptr(Ptr {
+                                inner: Arc::new(
+                                    PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Void.into() })
+                                ),
+                            }),
+                        ),
+                        (
+                            format!("shape_vars"),
+                            PrimitiveType::Ptr(Ptr {
+                                inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
+                            }),
+                        ),
+                        (format!("thread_idx"), PrimitiveType::Dtype(Dtype::I64))
+                    ]
+                ),
+            },
+            name: Arc::new("kernel".to_string()),
+            body: Stmt::Seq(Seq::make(schedule.to_halide())),
+        };
+        println!("{}", func);
     }
 }
