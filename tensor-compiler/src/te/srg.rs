@@ -20,7 +20,6 @@ use crate::{
     te::{
         hstrides::HStrides,
         idx_evaluator::IdxEvaluator,
-        shape_utils::detect_broadcast_axes_expr,
         stages::{ Body, ReduceStage, Stage },
     },
     to_prim_expr::ToPrimeExpr,

@@ -1,7 +1,6 @@
 use crate::{
     halide::{ prime_expr::PrimeExpr, stmt::Stmt, traits::{ IRMutateVisitor, MutatorGetSet } },
     hlir::tensor_slice::TensorLoad,
-    iter_var::IterVar,
 };
 
 pub struct SubsTensorLoadDims<'a> {

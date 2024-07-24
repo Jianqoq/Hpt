@@ -2,13 +2,11 @@ use std::collections::HashMap;
 
 use crate::{
     halide::{
-        let_stmt::LetStmt,
         loop_utils::build_nested::build_nested_for,
         prime_expr::PrimeExpr,
         seq_stmt::Seq,
         stmt::Stmt,
         traits::{ AccepterMutate, MutatorGetSet },
-        variable::Variable,
     },
     iter_var::IterVar,
     te::subs_tensorload::SubsTensorLoadDims,
