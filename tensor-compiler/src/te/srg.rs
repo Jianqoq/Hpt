@@ -804,4 +804,82 @@ mod tests {
         let schedule = srg.create_schedule(&order);
         println!("{}", schedule);
     }
+
+    #[test]
+    fn test_add_schedule() {
+        let mut ctx = Context::new();
+        let m = ctx.var("m");
+        let n = ctx.var("n");
+        let o = ctx.var("o");
+        let a = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
+        let b = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
+        let c = ctx.add(&a, &b);
+        let order = [a.id, b.id, c.id];
+
+        let mut nodes = HashMap::new();
+        for (id, node) in ctx.nodes.borrow().iter() {
+            let srg_node = SrgNode {
+                id: *id,
+                shape: node.shape.clone(),
+                inputs: node.inputs.clone(),
+                outputs: Arc::new(
+                    ctx.nodes
+                        .borrow()
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            if v.inputs.contains(id) { Some(*k) } else { None }
+                        })
+                        .collect()
+                ),
+                op: node.op.clone(),
+                strides_cal: Arc::new(|_| vec![]),
+                span: node.span,
+            };
+            nodes.insert(*id, srg_node);
+        }
+        let srg = Srg {
+            nodes,
+        };
+        let schedule = srg.create_schedule(&order);
+        println!("{}", schedule);
+    }
+
+    #[test]
+    fn test_add_broadcast_schedule() {
+        let mut ctx = Context::new();
+        let m = ctx.var("m");
+        let n = ctx.var("n");
+        let o = ctx.var("o");
+        let a = ctx.placeholder(&[&m, &1i64, &o], Dtype::F32);
+        let b = ctx.placeholder(&[&m, &n, &1i64], Dtype::F32);
+        let c = ctx.add(&a, &b);
+        let order = [a.id, b.id, c.id];
+
+        let mut nodes = HashMap::new();
+        for (id, node) in ctx.nodes.borrow().iter() {
+            let srg_node = SrgNode {
+                id: *id,
+                shape: node.shape.clone(),
+                inputs: node.inputs.clone(),
+                outputs: Arc::new(
+                    ctx.nodes
+                        .borrow()
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            if v.inputs.contains(id) { Some(*k) } else { None }
+                        })
+                        .collect()
+                ),
+                op: node.op.clone(),
+                strides_cal: Arc::new(|_| vec![]),
+                span: node.span,
+            };
+            nodes.insert(*id, srg_node);
+        }
+        let srg = Srg {
+            nodes,
+        };
+        let schedule = srg.create_schedule(&order);
+        println!("{}", schedule);
+    }
 }
