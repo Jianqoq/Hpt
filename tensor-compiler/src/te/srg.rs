@@ -3,6 +3,7 @@ use std::{ collections::{ HashMap, HashSet }, sync::Arc };
 use tensor_common::{
     shape::Shape,
     shape_utils::{ is_reshape_possible, try_pad_shape },
+    slice::{ slice_process, Slice },
     strides_utils::{ preprocess_strides, shape_to_strides },
 };
 use tensor_types::dtype::Dtype;
@@ -46,6 +47,7 @@ impl Srg {
                     let hstrides = HStrides {
                         strides: shape_to_strides(&real_shape).inner().clone(),
                         reduced_dim: 0,
+                        offset: 0,
                     };
                     vec![hstrides]
                 });
@@ -94,6 +96,7 @@ impl Srg {
                                     let new = HStrides {
                                         strides: new,
                                         reduced_dim: i.reduced_dim,
+                                        offset: i.offset,
                                     };
                                     ret.push(new);
                                 } else {
@@ -129,6 +132,7 @@ impl Srg {
                                 let new = HStrides {
                                     strides: new_strides,
                                     reduced_dim: strides.reduced_dim,
+                                    offset: strides.offset,
                                 };
                                 ret.push(new);
                             }
@@ -170,6 +174,7 @@ impl Srg {
                                 let new = HStrides {
                                     strides: new_strides,
                                     reduced_dim: strides.reduced_dim + axes_len,
+                                    offset: strides.offset,
                                 };
                                 ret.push(new);
                             }
@@ -246,6 +251,7 @@ impl Srg {
                                 let new = HStrides {
                                     strides: new_strides,
                                     reduced_dim: strides.reduced_dim,
+                                    offset: strides.offset,
                                 };
                                 lhs_strides_vec.push(new);
                             }
@@ -268,6 +274,7 @@ impl Srg {
                                 let new = HStrides {
                                     strides: new_strides,
                                     reduced_dim: strides.reduced_dim,
+                                    offset: strides.offset,
                                 };
                                 rhs_strides_vec.push(new);
                             }
@@ -284,8 +291,12 @@ impl Srg {
                             assert!(self.nodes[&node.inputs[0]].inputs.len() == 0);
                             self.nodes[&node.inputs[0]].strides_cal.clone()
                         };
+                        let shape = {
+                            let node = &self.nodes[&id];
+                            node.shape.clone()
+                        };
                         let func = Arc::new(move |map: &HashMap<String, i64>| {
-                            let _ = selections
+                            let selections = selections
                                 .iter()
                                 .map(|(start, end, step)| (
                                     IdxEvaluator::new(map).eval(start),
@@ -293,7 +304,29 @@ impl Srg {
                                     IdxEvaluator::new(map).eval(step),
                                 ))
                                 .collect::<Vec<(i64, i64, i64)>>();
-                            strides_cal(map)
+                            let real_shape = shape
+                                .iter()
+                                .map(|x| { IdxEvaluator::new(map).eval(x) })
+                                .collect::<Vec<i64>>();
+                            let real_strides = shape_to_strides(&real_shape); // we always aloccate memory before we slice
+                            let (_, strides, offset) = slice_process(
+                                real_shape,
+                                real_strides.inner().clone(),
+                                &selections
+                                    .into_iter()
+                                    .map(|(x, y, z)| Slice::StepByRangeFromTo((x, y, z)))
+                                    .collect::<Vec<Slice>>(),
+                                1
+                            ).expect("slice process failed");
+                            let mut strideses = strides_cal(map);
+                            assert!(strideses.len() == 1);
+                            let hstrides = HStrides {
+                                strides,
+                                reduced_dim: 0,
+                                offset,
+                            };
+                            strideses.push(hstrides);
+                            strideses
                         });
                         let node = self.nodes.get_mut(&id).unwrap();
                         node.strides_cal = func;

@@ -5,6 +5,7 @@ use std::fmt::Debug;
 pub struct HStrides {
     pub(crate) strides: Vec<i64>,
     pub(crate) reduced_dim: usize,
+    pub(crate) offset: i64,
 }
 
 impl Index<usize> for HStrides {

@@ -1,4 +1,4 @@
-use std::{panic::Location, sync::Arc};
+use std::{ panic::Location, sync::Arc };
 
 use tensor_types::dtype::Dtype;
 
