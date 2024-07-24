@@ -438,9 +438,9 @@ impl Srg {
                                     &(0..reshape.len())
                                         .map(|_| (0i64).into())
                                         .collect::<Vec<PrimeExpr>>(),
-                                    &reshape
+                                        &reshape
                                         .iter()
-                                        .map(|x| x.clone())
+                                        .map(|_| (1i64).into())
                                         .collect(),
                                     &(0..reshape.len())
                                         .map(|x|
@@ -486,7 +486,7 @@ impl Srg {
                                     .collect::<Vec<PrimeExpr>>();
                                 let mut red_dims = vec![];
                                 for i in axes.iter() {
-                                    red_dims.push(Variable::make(&format!("red{}", i)).into());
+                                    red_dims.push(Variable::make(&format!("{}red{}", id, i)).into());
                                 }
                                 dims.extend(red_dims);
                                 stage.broadcast_new_dims(
@@ -538,7 +538,7 @@ impl Srg {
                                             0i64,
                                             self.nodes[&node.inputs[0]].shape[*x].clone(),
                                             1i64,
-                                            &format!("red{}", x)
+                                            &format!("{}red{}", id, x)
                                         )
                                     )
                                     .collect::<Vec<IterVar>>();
@@ -590,68 +590,90 @@ impl Srg {
                                 panic!("input is not a stage");
                             }
                         } else {
-                            match input {
-                                Body::Stage(stage) => {
-                                    let mut stage = stage.clone();
-                                    let mut bodys = stage.bodys.clone();
-                                    bodys.push(
-                                        Body::Stmt(
-                                            Stmt::InplaceAdd(
-                                                InplaceAdd::make(
-                                                    &Variable::make(&format!("%{}_val", node.id)),
-                                                    Variable::make(
-                                                        &format!("%{}_val", node.inputs[0])
-                                                    )
-                                                )
-                                            )
-                                        )
-                                    );
-                                    let reduce_stage = ReduceStage {
-                                        dims: axes
-                                            .iter()
-                                            .map(|x|
-                                                IterVar::new(
-                                                    0i64,
-                                                    self.nodes[&node.inputs[0]].shape[*x].clone(),
-                                                    1i64,
-                                                    &format!("red{}", x)
-                                                )
-                                            )
-                                            .collect(),
-                                        bodys,
-                                        id: *id,
-                                        inits: vec![
-                                            Body::Stmt(
-                                                Stmt::LetStmt(
-                                                    LetStmt::make(
-                                                        &Variable::make(
-                                                            &format!("%{}_val", node.id)
-                                                        ),
-                                                        init.clone(),
-                                                        Stmt::None
-                                                    )
-                                                ).into()
-                                            )
-                                        ],
-                                        posts: vec![],
-                                        input: node.inputs[0],
-                                    };
-                                    stage.bodys = vec![Body::ReduceStage(reduce_stage)];
-                                    stage.dims = (0..self.nodes[&node.inputs[0]].shape.len())
-                                        .filter(|x| !axes.contains(x))
-                                        .enumerate()
-                                        .map(|(idx, x)|
-                                            IterVar::new(
-                                                0i64,
-                                                self.nodes[&node.inputs[0]].shape[x].clone(),
-                                                1i64,
-                                                &format!("ax{}", idx)
-                                            )
-                                        )
-                                        .collect();
-                                    qa.insert(*id, (Body::Stage(stage), false));
+                            if let Body::Stage(stage) = input {
+                                let mut stage = stage.clone();
+                                let mut dims = (0..node.shape.len())
+                                    .map(|x| Variable::make(&format!("ax{}", x)).into())
+                                    .collect::<Vec<PrimeExpr>>();
+                                let mut red_dims = vec![];
+                                for i in axes.iter() {
+                                    red_dims.push(Variable::make(&format!("{}red{}", id, i)).into());
                                 }
-                                _ => panic!("input is not a stage"),
+                                dims.extend(red_dims);
+                                stage.broadcast_new_dims(
+                                    &(0..self.nodes[&node.inputs[0]].shape.len())
+                                        .map(|_| (0i64).into())
+                                        .collect::<Vec<PrimeExpr>>(),
+                                    &self.nodes[&node.inputs[0]].shape
+                                        .iter()
+                                        .map(|_| (1i64).into())
+                                        .collect(),
+                                    &(0..self.nodes[&node.inputs[0]].shape.len())
+                                        .map(|x|
+                                            Load::make(
+                                                Variable::make(&format!("%{}.s", id)),
+                                                x
+                                            ).into()
+                                        )
+                                        .collect::<Vec<PrimeExpr>>(),
+                                    &dims
+                                );
+                                let mut bodys = stage.bodys.clone();
+                                bodys.push(
+                                    Body::Stmt(
+                                        Stmt::InplaceAdd(
+                                            InplaceAdd::make(
+                                                &Variable::make(&format!("%{}_val", node.id)),
+                                                Variable::make(&format!("%{}_val", node.inputs[0]))
+                                            )
+                                        )
+                                    )
+                                );
+                                stage.dims = (0..self.nodes[&node.inputs[0]].shape.len())
+                                    .filter(|x| !axes.contains(x))
+                                    .enumerate()
+                                    .map(|(idx, x)|
+                                        IterVar::new(
+                                            0i64,
+                                            self.nodes[&node.inputs[0]].shape[x].clone(),
+                                            1i64,
+                                            &format!("ax{}", idx)
+                                        )
+                                    )
+                                    .collect();
+                                let red_axes = axes
+                                    .iter()
+                                    .map(|x|
+                                        IterVar::new(
+                                            0i64,
+                                            self.nodes[&node.inputs[0]].shape[*x].clone(),
+                                            1i64,
+                                            &format!("{}red{}", id, x)
+                                        )
+                                    )
+                                    .collect::<Vec<IterVar>>();
+                                let reduce_stage = ReduceStage {
+                                    dims: red_axes.clone(),
+                                    bodys,
+                                    id: *id,
+                                    inits: vec![
+                                        Body::Stmt(
+                                            Stmt::LetStmt(
+                                                LetStmt::make(
+                                                    &Variable::make(&format!("%{}_val", node.id)),
+                                                    init.clone(),
+                                                    Stmt::None
+                                                )
+                                            ).into()
+                                        )
+                                    ],
+                                    posts: vec![],
+                                    input: node.inputs[0],
+                                };
+                                stage.bodys = vec![Body::ReduceStage(reduce_stage)];
+                                qa.insert(*id, (Body::Stage(stage), false));
+                            } else {
+                                panic!("input is not a stage");
                             }
                         }
                     }
