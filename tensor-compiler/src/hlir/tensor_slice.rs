@@ -108,7 +108,14 @@ pub struct TensorLoad {
     pub(crate) axes: Arc<Vec<PrimeExpr>>,
     pub(crate) steps: Arc<Vec<PrimeExpr>>,
     pub(crate) strides: Arc<Vec<PrimeExpr>>,
-    pub(crate) hints: Arc<Vec<(usize, i64)>>
+    pub(crate) hints: Arc<Vec<Hint>>
+}
+
+#[derive(Clone, PartialEq, Hash, Eq, Debug)]
+pub enum Hint {
+    Zero,
+    One,
+    Unknown,
 }
 
 impl TensorLoad {
@@ -118,7 +125,7 @@ impl TensorLoad {
         C: Into<Vec<PrimeExpr>>,
         D: Into<Vec<PrimeExpr>>,
         E: Into<Vec<PrimeExpr>>,
-        F: Into<Vec<(usize, i64)>>
+        F: Into<Vec<Hint>>
     >(var: A, begins: B, axes: C, steps: D, strides: E, hints: F) -> Self {
         TensorLoad {
             var: Arc::new(var.into()),

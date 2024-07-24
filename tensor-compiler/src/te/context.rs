@@ -3,7 +3,12 @@ use std::{ collections::{ HashMap, HashSet }, panic::Location, sync::Arc };
 use tensor_types::{ dtype::Dtype, type_promote::NormalOut };
 
 use crate::{
-    halide::{ exprs::{ Add, Call, Int, Load, Reduce }, prime_expr::PrimeExpr, variable::Variable },
+    halide::{
+        exprs::{ Add, Call, Int, Load, Reduce },
+        passes::const_fold::ConstFold,
+        prime_expr::PrimeExpr,
+        variable::Variable,
+    },
     hlir::tensor_slice::TensorLoad,
     iter_var::IterVar,
     to_prim_expr::ToPrimeExpr,
@@ -305,15 +310,23 @@ impl Context {
         *self.id.borrow_mut() += 1;
         let one = PrimeExpr::Int(Int::make(Dtype::I64, 1i64));
         let zero = PrimeExpr::Int(Int::make(Dtype::I64, 0i64));
-        let new_shape = selections
-            .into_iter()
+        let selections = selections
+            .iter()
             .map(|(begin, end, step)| {
-                let begin = begin.to_prime_expr();
-                let end = end.to_prime_expr();
-                let step = step.to_prime_expr();
-                if &begin == &zero && &step == &one {
+                let mut const_fold = ConstFold::new();
+                (
+                    const_fold.const_fold(begin.to_prime_expr()),
+                    const_fold.const_fold(end.to_prime_expr()),
+                    const_fold.const_fold(step.to_prime_expr()),
+                )
+            })
+            .collect::<Vec<(PrimeExpr, PrimeExpr, PrimeExpr)>>();
+        let new_shape = selections
+            .iter()
+            .map(|(begin, end, step)| {
+                if begin == &zero && step == &one {
                     end.clone()
-                } else if &step == &one {
+                } else if step == &one {
                     end.clone() - begin.clone()
                 } else {
                     (end.clone() - begin.clone()) / step.clone()
@@ -326,13 +339,13 @@ impl Context {
         let tensor_load = TensorLoad::make(
             Variable::new(format!("%{}", a.id)),
             selections
-                .into_iter()
-                .map(|(begin, _, _)| begin.to_prime_expr())
+                .iter()
+                .map(|(begin, _, _)| { begin.clone() })
                 .collect::<Vec<PrimeExpr>>(),
             axes,
             selections
-                .into_iter()
-                .map(|(_, _, step)| step.to_prime_expr())
+                .iter()
+                .map(|(_, _, step)| step.clone())
                 .collect::<Vec<PrimeExpr>>(),
             (0..new_shape.len())
                 .map(|x| Load::make(Variable::new(format!("%{}.strides", a.id)), x).into())
@@ -344,13 +357,7 @@ impl Context {
             body: tensor_load.into(),
             inputs: Arc::new(vec![a.id]),
             span: Location::caller(),
-            op: Operation::Slice(
-                selections
-                    .into_iter()
-                    .map(|(x, y, z)| { (x.to_prime_expr(), y.to_prime_expr(), z.to_prime_expr()) })
-                    .collect::<Vec<_>>()
-                    .into()
-            ),
+            op: Operation::Slice(selections.into()),
             dtype: a.dtype.clone(),
             id,
         };

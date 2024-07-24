@@ -18,6 +18,9 @@ pub mod halide {
         pub mod type_utils;
         pub mod scope;
     }
+    pub mod passes {
+        pub mod const_fold;
+    }
     pub mod module;
     pub mod if_stmt;
     pub mod inplace_store_stmt;

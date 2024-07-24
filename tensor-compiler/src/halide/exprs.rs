@@ -309,10 +309,16 @@ impl Into<PrimeExpr> for &Cast {
     }
 }
 
-#[derive(Clone, Hash, PartialEq, Eq, Debug)]
+#[derive(Clone, Hash, Eq, Debug)]
 pub struct Add {
     e1: Arc<PrimeExpr>,
     e2: Arc<PrimeExpr>,
+}
+
+impl PartialEq for Add {
+    fn eq(&self, other: &Self) -> bool {
+        (self.e1 == other.e1 && self.e2 == other.e2) || (self.e1 == other.e2 && self.e2 == other.e1)
+    }
 }
 
 impl Add {
@@ -437,10 +443,16 @@ impl Into<PrimeExpr> for &Sub {
     }
 }
 
-#[derive(Clone, Hash, PartialEq, Eq, Debug)]
+#[derive(Clone, Hash, Eq, Debug)]
 pub struct Mul {
     e1: Arc<PrimeExpr>,
     e2: Arc<PrimeExpr>,
+}
+
+impl PartialEq for Mul {
+    fn eq(&self, other: &Self) -> bool {
+        (self.e1 == other.e1 && self.e2 == other.e2) || (self.e1 == other.e2 && self.e2 == other.e1)
+    }
 }
 
 impl Accepter for Mul {
@@ -552,6 +564,53 @@ impl Into<PrimeExpr> for Div {
 impl Into<PrimeExpr> for &Div {
     fn into(self) -> PrimeExpr {
         PrimeExpr::Div(self.clone())
+    }
+}
+
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
+pub struct Neg {
+    e: Arc<PrimeExpr>,
+}
+
+impl Accepter for Neg {
+    fn accept<V: IRVisitor>(&self, visitor: &V) {
+        visitor.visit_neg(self);
+    }
+}
+
+impl Neg {
+    pub fn new(e: Arc<PrimeExpr>) -> Self {
+        Neg { e }
+    }
+
+    pub fn make<T: Into<PrimeExpr>>(e: T) -> Self {
+        Neg { e: e.into().into() }
+    }
+
+    pub fn e(&self) -> &PrimeExpr {
+        &self.e
+    }
+
+    pub fn e_(&self) -> &Arc<PrimeExpr> {
+        &self.e
+    }
+}
+
+impl Display for Neg {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "-{}", self.e)
+    }
+}
+
+impl Into<PrimeExpr> for Neg {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Neg(self)
+    }
+}
+
+impl Into<PrimeExpr> for &Neg {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::Neg(self.clone())
     }
 }
 

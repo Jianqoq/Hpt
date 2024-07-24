@@ -5,10 +5,11 @@ use tensor_common::{
     shape_utils::{ is_reshape_possible, try_pad_shape },
     strides_utils::{ preprocess_strides, shape_to_strides },
 };
+use tensor_types::dtype::Dtype;
 
 use crate::{
     halide::{
-        exprs::{ Call, Load },
+        exprs::{ Call, Int, Load },
         inplace_store_stmt::InplaceAdd,
         let_stmt::LetStmt,
         prime_expr::PrimeExpr,
@@ -823,7 +824,138 @@ impl Srg {
                             }
                         }
                     }
-                    Operation::Slice(_) => {}
+                    Operation::Slice(slice) => {
+                        let (input, _) = qa.get(&node.inputs[0]).unwrap();
+                        if node.is_output() {
+                            if let Body::Stage(stage) = input {
+                                let mut stage = stage.clone();
+                                let dims = (0..stage.dims.len())
+                                    .zip(slice.iter())
+                                    .map(|(idx, (start, end, step))|
+                                        IterVar::new(
+                                            0i64,
+                                            (end -
+                                                start +
+                                                step -
+                                                PrimeExpr::Int(Int::make(Dtype::I64, 1))) /
+                                                step.clone(),
+                                            1i64,
+                                            &format!("ax{}", idx)
+                                        )
+                                    )
+                                    .collect::<Vec<IterVar>>();
+                                stage.broadcast_new_dims(
+                                    &slice
+                                        .iter()
+                                        .map(|(start, _, _)| start.clone())
+                                        .collect::<Vec<PrimeExpr>>(),
+                                    &slice
+                                        .iter()
+                                        .map(|(_, _, step)| step.clone())
+                                        .collect::<Vec<PrimeExpr>>(),
+                                    &(0..stage.dims.len())
+                                        .map(|x|
+                                            Load::make(
+                                                Variable::make(&format!("%{}.s", id)),
+                                                x
+                                            ).into()
+                                        )
+                                        .collect::<Vec<PrimeExpr>>(),
+                                    &(0..stage.dims.len())
+                                        .map(|x| Variable::make(&format!("ax{}", x)).into())
+                                        .collect::<Vec<PrimeExpr>>()
+                                );
+                                let body = Body::Stmt(
+                                    Stmt::StoreStmt(
+                                        StoreStmt::make(
+                                            &Variable::make(&format!("%{}", id)),
+                                            dims
+                                                .iter()
+                                                .enumerate()
+                                                .map(
+                                                    |(idx, x)|
+                                                        x.var().to_prime_expr() *
+                                                        Load::make(
+                                                            &format!("%{}.s", id),
+                                                            idx
+                                                        ).into()
+                                                )
+                                                .reduce(|acc, x| acc + x)
+                                                .unwrap(),
+                                            Variable::make(&format!("%{}_val", node.inputs[0]))
+                                        )
+                                    )
+                                );
+                                stage.bodys.push(body);
+                                let stage = Stage {
+                                    dims,
+                                    bodys: stage.bodys.clone(),
+                                    id: *id,
+                                };
+                                qa.insert(*id, (Body::Stage(stage), true));
+                            } else {
+                                panic!("input is not a stage");
+                            }
+                        } else {
+                            if let Body::Stage(stage) = input {
+                                let mut stage = stage.clone();
+                                let dims = (0..stage.dims.len())
+                                    .zip(slice.iter())
+                                    .map(|(idx, (start, end, step))|
+                                        IterVar::new(
+                                            0i64,
+                                            (end -
+                                                start +
+                                                step -
+                                                PrimeExpr::Int(Int::make(Dtype::I64, 1))) /
+                                                step.clone(),
+                                            1i64,
+                                            &format!("ax{}", idx)
+                                        )
+                                    )
+                                    .collect::<Vec<IterVar>>();
+                                stage.broadcast_new_dims(
+                                    &slice
+                                        .iter()
+                                        .map(|(start, _, _)| start.clone())
+                                        .collect::<Vec<PrimeExpr>>(),
+                                    &slice
+                                        .iter()
+                                        .map(|(_, _, step)| step.clone())
+                                        .collect::<Vec<PrimeExpr>>(),
+                                    &(0..stage.dims.len())
+                                        .map(|x|
+                                            Load::make(
+                                                Variable::make(&format!("%{}.s", id)),
+                                                x
+                                            ).into()
+                                        )
+                                        .collect::<Vec<PrimeExpr>>(),
+                                    &(0..stage.dims.len())
+                                        .map(|x| Variable::make(&format!("ax{}", x)).into())
+                                        .collect::<Vec<PrimeExpr>>()
+                                );
+                                let body = Body::Stmt(
+                                    Stmt::LetStmt(
+                                        LetStmt::make(
+                                            &Variable::make(&format!("%{}_val", node.id)),
+                                            Variable::make(&format!("%{}_val", node.inputs[0])),
+                                            Stmt::None
+                                        )
+                                    ).into()
+                                );
+                                stage.bodys.push(body);
+                                let stage = Stage {
+                                    dims,
+                                    bodys: stage.bodys.clone(),
+                                    id: *id,
+                                };
+                                qa.insert(*id, (Body::Stage(stage), false));
+                            } else {
+                                panic!("input is not a stage");
+                            }
+                        }
+                    }
                     Operation::None => {}
                 }
             }
@@ -838,7 +970,7 @@ mod tests {
 
     use tensor_types::dtype::Dtype;
 
-    use crate::te::{ context::Context, srg_node::SrgNode };
+    use crate::{halide::{exprs::Int, prime_expr::PrimeExpr}, te::{ context::Context, srg_node::SrgNode }};
 
     use super::Srg;
 
@@ -1125,7 +1257,12 @@ mod tests {
             nodes,
         };
         let schedule = srg.create_schedule(&order);
+        let var_map = vec![("m".to_string(), 1), ("n".to_string(), 8), ("o".to_string(), 8)]
+            .into_iter()
+            .collect();
+        let strides = (srg.nodes[&b.id].strides_cal)(&var_map);
         println!("{}", schedule);
+        println!("{:?}", strides);
     }
 
     #[test]
@@ -1183,6 +1320,53 @@ mod tests {
         };
         let schedule = srg.create_schedule(&order);
         
+        let var_map = vec![("m".to_string(), 1), ("n".to_string(), 8), ("o".to_string(), 8)]
+            .into_iter()
+            .collect();
+        srg.create_strides_cal(&order);
+        let strides = (srg.nodes[order.last().unwrap()].strides_cal)(&var_map);
+        println!("{}", schedule);
+        println!("{:?}", strides);
+    }
+
+    #[test]
+    fn test_slice() {
+        let mut ctx = Context::new();
+        let m = ctx.var("m");
+        let n = ctx.var("n");
+        let a = ctx.placeholder(&[&m, &n], Dtype::F32);
+        let one = PrimeExpr::Int(Int::make(Dtype::I64, 1));
+        let b = ctx.slice(&a, &[(&0i64, &(&m.clone().into() - &one), &2i64), (&0i64, &(&n.clone().into() - &one), &2i64)]);
+        let c = ctx.slice(&a, &[(&1i64, &m, &2i64), (&1i64, &n, &2i64)]);
+        let add = ctx.add(&b, &c);
+        let order = [b.id, c.id, add.id];
+
+        let mut nodes = HashMap::new();
+        for (id, node) in ctx.nodes.borrow().iter() {
+            let srg_node = SrgNode {
+                id: *id,
+                shape: node.shape.clone(),
+                inputs: node.inputs.clone(),
+                outputs: Arc::new(
+                    ctx.nodes
+                        .borrow()
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            if v.inputs.contains(id) { Some(*k) } else { None }
+                        })
+                        .collect()
+                ),
+                op: node.op.clone(),
+                strides_cal: Arc::new(|_| vec![]),
+                span: node.span,
+            };
+            nodes.insert(*id, srg_node);
+        }
+        let srg = Srg {
+            nodes,
+        };
+        let schedule = srg.create_schedule(&order);
+
         println!("{}", schedule);
     }
 }
