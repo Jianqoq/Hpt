@@ -438,7 +438,7 @@ impl Srg {
                                     &(0..reshape.len())
                                         .map(|_| (0i64).into())
                                         .collect::<Vec<PrimeExpr>>(),
-                                        &reshape
+                                    &reshape
                                         .iter()
                                         .map(|_| (1i64).into())
                                         .collect(),
@@ -486,7 +486,9 @@ impl Srg {
                                     .collect::<Vec<PrimeExpr>>();
                                 let mut red_dims = vec![];
                                 for i in axes.iter() {
-                                    red_dims.push(Variable::make(&format!("{}red{}", id, i)).into());
+                                    red_dims.push(
+                                        Variable::make(&format!("{}red{}", id, i)).into()
+                                    );
                                 }
                                 dims.extend(red_dims);
                                 stage.broadcast_new_dims(
@@ -597,7 +599,9 @@ impl Srg {
                                     .collect::<Vec<PrimeExpr>>();
                                 let mut red_dims = vec![];
                                 for i in axes.iter() {
-                                    red_dims.push(Variable::make(&format!("{}red{}", id, i)).into());
+                                    red_dims.push(
+                                        Variable::make(&format!("{}red{}", id, i)).into()
+                                    );
                                 }
                                 dims.extend(red_dims);
                                 stage.broadcast_new_dims(
@@ -1136,7 +1140,22 @@ mod tests {
         let sum = ctx.sum(&c, &0f32, &[2]);
         let reshaped = ctx.reshape(&sum, &[&m, &n, &1i64]);
         let add = ctx.add(&c, &reshaped);
-        let order = [a.id, b.id, c.id, sum.id, reshaped.id, add.id];
+        let sin = ctx.sin(&add);
+        let sum2 = ctx.sum(&sin, &0f32, &[2]);
+        let reshaped2 = ctx.reshape(&sum2, &[&m, &n, &1i64]);
+        let add2 = ctx.add(&sin, &reshaped2);
+        let order = [
+            a.id,
+            b.id,
+            c.id,
+            sum.id,
+            reshaped.id,
+            add.id,
+            sin.id,
+            sum2.id,
+            reshaped2.id,
+            add2.id,
+        ];
 
         let mut nodes = HashMap::new();
         for (id, node) in ctx.nodes.borrow().iter() {
@@ -1159,10 +1178,11 @@ mod tests {
             };
             nodes.insert(*id, srg_node);
         }
-        let srg = Srg {
+        let mut srg = Srg {
             nodes,
         };
         let schedule = srg.create_schedule(&order);
+        
         println!("{}", schedule);
     }
 }
