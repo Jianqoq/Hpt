@@ -566,7 +566,7 @@ impl Srg {
                                                                 ).into()
                                                         )
                                                         .reduce(|acc, x| acc + x)
-                                                        .unwrap_or(0i64.into()),
+                                                        .unwrap_or((0i64).into()),
                                                     Variable::make(&format!("%{}_val", id))
                                                 )
                                             )
@@ -1025,6 +1025,44 @@ mod tests {
         let c = ctx.sum(&b, &0f32, &[0]);
         let e = ctx.sum(&c, &0f32, &[0]);
         let order = [a.id, b.id, c.id, e.id];
+
+        let mut nodes = HashMap::new();
+        for (id, node) in ctx.nodes.borrow().iter() {
+            let srg_node = SrgNode {
+                id: *id,
+                shape: node.shape.clone(),
+                inputs: node.inputs.clone(),
+                outputs: Arc::new(
+                    ctx.nodes
+                        .borrow()
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            if v.inputs.contains(id) { Some(*k) } else { None }
+                        })
+                        .collect()
+                ),
+                op: node.op.clone(),
+                strides_cal: Arc::new(|_| vec![]),
+                span: node.span,
+            };
+            nodes.insert(*id, srg_node);
+        }
+        let srg = Srg {
+            nodes,
+        };
+        let schedule = srg.create_schedule(&order);
+        println!("{}", schedule);
+    }
+
+    #[test]
+    fn test_sum_all_broadcast_schedule2() {
+        let mut ctx = Context::new();
+        let m = ctx.var("m");
+        let n = ctx.var("n");
+        let o = ctx.var("o");
+        let a = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
+        let b = ctx.sum(&a, &0f32, &[0, 1, 2]);
+        let order = [a.id, b.id];
 
         let mut nodes = HashMap::new();
         for (id, node) in ctx.nodes.borrow().iter() {
