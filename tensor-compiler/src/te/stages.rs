@@ -4,11 +4,14 @@ use crate::{
     halide::{
         let_stmt::LetStmt,
         loop_utils::build_nested::build_nested_for,
+        prime_expr::PrimeExpr,
         seq_stmt::Seq,
         stmt::Stmt,
+        traits::{ AccepterMutate, MutatorGetSet },
         variable::Variable,
     },
     iter_var::IterVar,
+    te::subs_tensorload::SubsTensorLoadDims,
 };
 
 #[derive(Clone)]
@@ -55,6 +58,26 @@ impl ReduceStage {
         }
         todo!()
     }
+    pub fn broadcast_new_dims(
+        &mut self,
+        begins: &Vec<PrimeExpr>,
+        ends: &Vec<PrimeExpr>,
+        strides: &Vec<PrimeExpr>,
+        axes: &Vec<PrimeExpr>
+    ) {
+        let mut subs_tensorload = SubsTensorLoadDims::new(begins, ends, strides, axes);
+        for body in &mut self.bodys {
+            match body {
+                Body::Stmt(stmt) => {
+                    stmt.accept_mutate(&mut subs_tensorload);
+                    *body = Body::Stmt(subs_tensorload.stmt().clone());
+                }
+                Body::Stage(stage) => stage.broadcast_new_dims(begins, ends, strides, axes),
+                Body::ReduceStage(red_stage) =>
+                    red_stage.broadcast_new_dims(begins, ends, strides, axes),
+            }
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -82,5 +105,25 @@ impl Stage {
             }
         }
         build_nested_for(&self.dims, Stmt::Seq(Seq::make(seq)))
+    }
+    pub fn broadcast_new_dims(
+        &mut self,
+        begins: &Vec<PrimeExpr>,
+        ends: &Vec<PrimeExpr>,
+        strides: &Vec<PrimeExpr>,
+        axes: &Vec<PrimeExpr>
+    ) {
+        let mut subs_tensorload = SubsTensorLoadDims::new(begins, ends, strides, axes);
+        for body in &mut self.bodys {
+            match body {
+                Body::Stmt(stmt) => {
+                    stmt.accept_mutate(&mut subs_tensorload);
+                    *body = Body::Stmt(subs_tensorload.stmt().clone());
+                }
+                Body::Stage(stage) => stage.broadcast_new_dims(begins, ends, strides, axes),
+                Body::ReduceStage(red_stage) =>
+                    red_stage.broadcast_new_dims(begins, ends, strides, axes),
+            }
+        }
     }
 }

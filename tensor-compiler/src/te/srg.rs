@@ -374,6 +374,26 @@ impl Srg {
                                         )
                                     )
                                     .collect::<Vec<IterVar>>();
+                                stage.broadcast_new_dims(
+                                    &(0..reshape.len())
+                                        .map(|_| (0i64).into())
+                                        .collect::<Vec<PrimeExpr>>(),
+                                    &reshape
+                                        .iter()
+                                        .map(|x| x.clone())
+                                        .collect(),
+                                    &(0..reshape.len())
+                                        .map(|x|
+                                            Load::make(
+                                                Variable::make(&format!("%{}.s", id)),
+                                                x
+                                            ).into()
+                                        )
+                                        .collect::<Vec<PrimeExpr>>(),
+                                    &(0..reshape.len())
+                                        .map(|x| Variable::make(&format!("ax{}", x)).into())
+                                        .collect::<Vec<PrimeExpr>>()
+                                );
                                 let body = Body::Stmt(
                                     Stmt::StoreStmt(
                                         StoreStmt::make(
@@ -407,17 +427,39 @@ impl Srg {
                             }
                         } else {
                             if let Body::Stage(stage) = input {
-                                let stage = Stage {
-                                    dims: (0..reshape.len())
-                                        .map(|x|
-                                            IterVar::new(
-                                                0i64,
-                                                reshape[x].clone(),
-                                                1i64,
-                                                &format!("ax{}", x)
-                                            )
+                                let mut stage = stage.clone();
+                                let dims = (0..reshape.len())
+                                    .map(|x|
+                                        IterVar::new(
+                                            0i64,
+                                            reshape[x].clone(),
+                                            1i64,
+                                            &format!("ax{}", x)
                                         )
+                                    )
+                                    .collect::<Vec<IterVar>>();
+                                stage.broadcast_new_dims(
+                                    &(0..reshape.len())
+                                        .map(|_| (0i64).into())
+                                        .collect::<Vec<PrimeExpr>>(),
+                                    &reshape
+                                        .iter()
+                                        .map(|x| x.clone())
                                         .collect(),
+                                    &(0..reshape.len())
+                                        .map(|x|
+                                            Load::make(
+                                                Variable::make(&format!("%{}.s", id)),
+                                                x
+                                            ).into()
+                                        )
+                                        .collect::<Vec<PrimeExpr>>(),
+                                    &(0..reshape.len())
+                                        .map(|x| Variable::make(&format!("ax{}", x)).into())
+                                        .collect::<Vec<PrimeExpr>>()
+                                );
+                                let stage = Stage {
+                                    dims,
                                     bodys: stage.bodys.clone(),
                                     id: *id,
                                 };
