@@ -1270,8 +1270,8 @@ impl Into<PrimeExpr> for &Select {
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Load {
-    name: Variable,
-    indices: Arc<PrimeExpr>,
+    pub(crate) name: Variable,
+    pub(crate) indices: Arc<PrimeExpr>,
 }
 
 impl Accepter for Load {

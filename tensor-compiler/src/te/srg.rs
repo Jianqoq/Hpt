@@ -1006,14 +1006,17 @@ mod tests {
 
     use crate::{
         halide::{
-            exprs::Int,
+            exprs::{ Int, Load },
+            let_stmt::LetStmt,
             module::{ Function, FunctionType },
             prime_expr::PrimeExpr,
             primitive_type::{ PrimitiveType, Ptr },
             seq_stmt::Seq,
             stmt::Stmt,
+            traits::AccepterMutate,
+            variable::Variable,
         },
-        te::{ context::Context, srg_node::SrgNode },
+        te::{ context::Context, srg_node::SrgNode, strides_visitor::StridesVisitor },
     };
 
     use super::Srg;
@@ -1369,7 +1372,48 @@ mod tests {
             .collect();
         srg.create_strides_cal(&order);
         let strides = (srg.nodes[order.last().unwrap()].strides_cal)(&var_map);
-        let func = Function {
+        let mut fn_body = Stmt::Seq(Seq::make(schedule.to_halide()));
+        let mut strides_visitor = StridesVisitor::new();
+        fn_body.accept_mutate(&mut strides_visitor);
+        fn_body = strides_visitor.stmt.clone();
+
+        let mut vec = (0..strides_visitor.cnt)
+            .map(|idx| {
+                let let_stmt = LetStmt::make(
+                    &Variable::make(&format!("strides{}", idx)),
+                    Load::make("strides_vec", idx),
+                    Stmt::None
+                );
+                Stmt::LetStmt(let_stmt)
+            })
+            .collect::<Vec<Stmt>>();
+
+        let mut input_vec = vec![];
+        for node in ctx.nodes.borrow().values() {
+            if node.inputs.len() == 0 {
+                input_vec.push(node.id);
+            }
+        }
+        input_vec.sort();
+        let declare_data_ptrs = input_vec
+            .iter()
+            .enumerate()
+            .map(|(idx, x)| {
+                Stmt::LetStmt(
+                    LetStmt::make(
+                        &Variable::make(&format!("%{}", x)),
+                        Load::make("data_vec", idx),
+                        Stmt::None
+                    )
+                )
+            })
+            .collect::<Vec<Stmt>>();
+
+        vec.extend(declare_data_ptrs);
+        vec.push(fn_body);
+
+        let fn_body = Stmt::Seq(Seq::make(vec));
+        let func: Function = Function {
             ty: FunctionType {
                 ret_ty: PrimitiveType::Void,
                 args: Arc::new(
@@ -1378,7 +1422,9 @@ mod tests {
                             format!("strides_vec"),
                             PrimitiveType::Ptr(Ptr {
                                 inner: Arc::new(
-                                    PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Void.into() })
+                                    PrimitiveType::Ptr(Ptr {
+                                        inner: PrimitiveType::Dtype(Dtype::I64).into(),
+                                    })
                                 ),
                             }),
                         ),
@@ -1393,9 +1439,7 @@ mod tests {
                         (
                             format!("offset_vec"),
                             PrimitiveType::Ptr(Ptr {
-                                inner: Arc::new(
-                                    PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Void.into() })
-                                ),
+                                inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
                             }),
                         ),
                         (
@@ -1409,7 +1453,7 @@ mod tests {
                 ),
             },
             name: Arc::new("kernel".to_string()),
-            body: Stmt::Seq(Seq::make(schedule.to_halide())),
+            body: fn_body,
         };
         println!("{}", func);
         println!("{:?}", strides);
