@@ -55,6 +55,7 @@ pub mod te {
     pub mod schedule;
     pub mod shape_utils;
     pub mod subs_tensorload;
+    pub mod compile;
 }
 
 pub mod tensor;

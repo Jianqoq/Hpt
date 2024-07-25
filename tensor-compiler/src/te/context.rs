@@ -12,7 +12,7 @@ use crate::{
     to_prim_expr::ToPrimeExpr,
 };
 
-use super::{ operation::Operation, rc_mut::RcMut, srg::Srg, tensor::Tensor };
+use super::{ operation::Operation, rc_mut::RcMut, srg::Srg, srg_node::SrgNode, tensor::Tensor };
 
 #[derive(Clone)]
 pub struct Context {
@@ -27,6 +27,34 @@ impl Context {
             nodes: RcMut::new(HashMap::new()),
             id: RcMut::new(0),
             vars: RcMut::new(HashSet::new()),
+        }
+    }
+
+    pub fn to_srg(self) -> Srg {
+        let mut nodes = HashMap::new();
+        for (id, node) in self.nodes.borrow().iter() {
+            let srg_node = SrgNode {
+                id: *id,
+                shape: node.shape.clone(),
+                inputs: node.inputs.clone(),
+                outputs: Arc::new(
+                    self.nodes
+                        .borrow()
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            if v.inputs.contains(id) { Some(*k) } else { None }
+                        })
+                        .collect()
+                ),
+                op: node.op.clone(),
+                strides_cal: Arc::new(|_| vec![]),
+                span: node.span,
+            };
+            nodes.insert(*id, srg_node);
+        }
+        Srg {
+            nodes,
+            tensors: self.nodes.clone(),
         }
     }
 
@@ -227,9 +255,5 @@ impl Context {
         };
         self.nodes.borrow_mut().insert(id, ret.clone());
         ret
-    }
-
-    pub fn to_srg(self) -> HashMap<usize, Srg> {
-        todo!()
     }
 }

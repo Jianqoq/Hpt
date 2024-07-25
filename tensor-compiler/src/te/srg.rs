@@ -24,10 +24,17 @@ use crate::{
     to_prim_expr::ToPrimeExpr,
 };
 
-use super::{ operation::Operation, schedule::Schedule, srg_node::SrgNode };
+use super::{
+    operation::Operation,
+    rc_mut::RcMut,
+    schedule::Schedule,
+    srg_node::SrgNode,
+    tensor::Tensor,
+};
 
 pub struct Srg {
     pub(crate) nodes: HashMap<usize, SrgNode>,
+    pub(crate) tensors: RcMut<HashMap<usize, Tensor>>,
 }
 
 impl Srg {
@@ -994,29 +1001,19 @@ impl Srg {
                 }
             }
         }
-        Schedule { qa }
+        Schedule { qa, nodes: self.tensors.clone() }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{ collections::{ HashMap, HashSet }, sync::Arc };
+    use std::{ collections::HashMap, sync::Arc };
 
     use tensor_types::dtype::Dtype;
 
     use crate::{
-        halide::{
-            exprs::{ Int, Load },
-            let_stmt::LetStmt,
-            module::{ Function, FunctionType },
-            prime_expr::PrimeExpr,
-            primitive_type::{ PrimitiveType, Ptr },
-            seq_stmt::Seq,
-            stmt::Stmt,
-            traits::AccepterMutate,
-            variable::Variable,
-        },
-        te::{ context::Context, srg_node::SrgNode, strides_visitor::StridesVisitor },
+        halide::{ exprs::Int, prime_expr::PrimeExpr },
+        te::{ context::Context, srg_node::SrgNode },
     };
 
     use super::Srg;
@@ -1062,6 +1059,7 @@ mod tests {
         }
         let mut srg = Srg {
             nodes,
+            tensors: ctx.nodes.clone(),
         };
         srg.create_strides_cal(&order);
 
@@ -1108,6 +1106,7 @@ mod tests {
         }
         let srg = Srg {
             nodes,
+            tensors: ctx.nodes.clone(),
         };
         let schedule = srg.create_schedule(&order);
         println!("{}", schedule);
@@ -1147,6 +1146,7 @@ mod tests {
         }
         let srg = Srg {
             nodes,
+            tensors: ctx.nodes.clone(),
         };
         let schedule = srg.create_schedule(&order);
         println!("{}", schedule);
@@ -1186,6 +1186,7 @@ mod tests {
         }
         let srg = Srg {
             nodes,
+            tensors: ctx.nodes.clone(),
         };
         let schedule = srg.create_schedule(&order);
         println!("{}", schedule);
@@ -1200,31 +1201,7 @@ mod tests {
         let a = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
         let b = ctx.sum(&a, &0f32, &[1]);
         let order = [a.id, b.id];
-
-        let mut nodes = HashMap::new();
-        for (id, node) in ctx.nodes.borrow().iter() {
-            let srg_node = SrgNode {
-                id: *id,
-                shape: node.shape.clone(),
-                inputs: node.inputs.clone(),
-                outputs: Arc::new(
-                    ctx.nodes
-                        .borrow()
-                        .iter()
-                        .filter_map(|(k, v)| {
-                            if v.inputs.contains(id) { Some(*k) } else { None }
-                        })
-                        .collect()
-                ),
-                op: node.op.clone(),
-                strides_cal: Arc::new(|_| vec![]),
-                span: node.span,
-            };
-            nodes.insert(*id, srg_node);
-        }
-        let srg = Srg {
-            nodes,
-        };
+        let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
         println!("{}", schedule);
     }
@@ -1241,30 +1218,7 @@ mod tests {
         let e = ctx.sum(&c, &0f32, &[0]);
         let order = [a.id, b.id, c.id, e.id];
 
-        let mut nodes = HashMap::new();
-        for (id, node) in ctx.nodes.borrow().iter() {
-            let srg_node = SrgNode {
-                id: *id,
-                shape: node.shape.clone(),
-                inputs: node.inputs.clone(),
-                outputs: Arc::new(
-                    ctx.nodes
-                        .borrow()
-                        .iter()
-                        .filter_map(|(k, v)| {
-                            if v.inputs.contains(id) { Some(*k) } else { None }
-                        })
-                        .collect()
-                ),
-                op: node.op.clone(),
-                strides_cal: Arc::new(|_| vec![]),
-                span: node.span,
-            };
-            nodes.insert(*id, srg_node);
-        }
-        let srg = Srg {
-            nodes,
-        };
+        let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
         println!("{}", schedule);
     }
@@ -1279,37 +1233,9 @@ mod tests {
         let b = ctx.sum(&a, &0f32, &[0, 1, 2]);
         let order = [a.id, b.id];
 
-        let mut nodes = HashMap::new();
-        for (id, node) in ctx.nodes.borrow().iter() {
-            let srg_node = SrgNode {
-                id: *id,
-                shape: node.shape.clone(),
-                inputs: node.inputs.clone(),
-                outputs: Arc::new(
-                    ctx.nodes
-                        .borrow()
-                        .iter()
-                        .filter_map(|(k, v)| {
-                            if v.inputs.contains(id) { Some(*k) } else { None }
-                        })
-                        .collect()
-                ),
-                op: node.op.clone(),
-                strides_cal: Arc::new(|_| vec![]),
-                span: node.span,
-            };
-            nodes.insert(*id, srg_node);
-        }
-        let srg = Srg {
-            nodes,
-        };
+        let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
-        let var_map = vec![("m".to_string(), 1), ("n".to_string(), 8), ("o".to_string(), 8)]
-            .into_iter()
-            .collect();
-        let strides = (srg.nodes[&b.id].strides_cal)(&var_map);
         println!("{}", schedule);
-        println!("{:?}", strides);
     }
 
     #[test]
@@ -1341,148 +1267,11 @@ mod tests {
             add2.id,
         ];
 
-        let mut nodes = HashMap::new();
-        for (id, node) in ctx.nodes.borrow().iter() {
-            let srg_node = SrgNode {
-                id: *id,
-                shape: node.shape.clone(),
-                inputs: node.inputs.clone(),
-                outputs: Arc::new(
-                    ctx.nodes
-                        .borrow()
-                        .iter()
-                        .filter_map(|(k, v)| {
-                            if v.inputs.contains(id) { Some(*k) } else { None }
-                        })
-                        .collect()
-                ),
-                op: node.op.clone(),
-                strides_cal: Arc::new(|_| vec![]),
-                span: node.span,
-            };
-            nodes.insert(*id, srg_node);
-        }
-        let mut srg = Srg {
-            nodes,
-        };
+        let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
 
-        let var_map = vec![("m".to_string(), 1), ("n".to_string(), 8), ("o".to_string(), 8)]
-            .into_iter()
-            .collect();
-        srg.create_strides_cal(&order);
-        let strides = (srg.nodes[order.last().unwrap()].strides_cal)(&var_map);
-        let mut fn_body = Stmt::Seq(Seq::make(schedule.to_halide()));
-        let mut strides_visitor = StridesVisitor::new();
-        fn_body.accept_mutate(&mut strides_visitor);
-        fn_body = strides_visitor.stmt.clone();
-
-        let mut vec = (0..strides_visitor.cnt)
-            .map(|idx| {
-                let let_stmt = LetStmt::make(
-                    &Variable::make(&format!("strides{}", idx)),
-                    Load::make("strides_vec", idx),
-                    Stmt::None
-                );
-                Stmt::LetStmt(let_stmt)
-            })
-            .collect::<Vec<Stmt>>();
-
-        let mut input_vec = vec![];
-        for node in ctx.nodes.borrow().values() {
-            if node.inputs.len() == 0 {
-                input_vec.push(node.id);
-            }
-        }
-        input_vec.sort();
-        let declare_data_ptrs = input_vec
-            .iter()
-            .enumerate()
-            .map(|(idx, x)| {
-                Stmt::LetStmt(
-                    LetStmt::make(
-                        &Variable::make(&format!("%{}", x)),
-                        Load::make("data_vec", idx),
-                        Stmt::None
-                    )
-                )
-            })
-            .collect::<Vec<Stmt>>();
-
-        vec.extend(declare_data_ptrs);
-
-        let mut vars = vec![];
-        let mut visited = HashSet::new();
-        for node in ctx.nodes.borrow().values() {
-            for i in node.shape.iter() {
-                if let Some(var) = i.to_variable() {
-                    if visited.contains(var) {
-                        continue;
-                    } else {
-                        vars.push(var.clone());
-                        visited.insert(var);
-                    }
-                }
-            }
-        }
-        vars.sort();
-        let declare_shape_vars = vars
-            .iter()
-            .enumerate()
-            .map(|(idx, x)| {
-                Stmt::LetStmt(LetStmt::make(x, Load::make("shape_vars", idx), Stmt::None))
-            })
-            .collect::<Vec<Stmt>>();
-
-        vec.extend(declare_shape_vars);
-
-        vec.push(fn_body);
-
-        let fn_body = Stmt::Seq(Seq::make(vec));
-        let func: Function = Function {
-            ty: FunctionType {
-                ret_ty: PrimitiveType::Void,
-                args: Arc::new(
-                    vec![
-                        (
-                            format!("strides_vec"),
-                            PrimitiveType::Ptr(Ptr {
-                                inner: Arc::new(
-                                    PrimitiveType::Ptr(Ptr {
-                                        inner: PrimitiveType::Dtype(Dtype::I64).into(),
-                                    })
-                                ),
-                            }),
-                        ),
-                        (
-                            format!("data_vec"),
-                            PrimitiveType::Ptr(Ptr {
-                                inner: Arc::new(
-                                    PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Void.into() })
-                                ),
-                            }),
-                        ),
-                        (
-                            format!("offset_vec"),
-                            PrimitiveType::Ptr(Ptr {
-                                inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
-                            }),
-                        ),
-                        (
-                            format!("shape_vars"),
-                            PrimitiveType::Ptr(Ptr {
-                                inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
-                            }),
-                        ),
-                        (format!("thread_idx"), PrimitiveType::Dtype(Dtype::I64))
-                    ]
-                ),
-            },
-            name: Arc::new("kernel".to_string()),
-            body: fn_body,
-        };
+        let func = schedule.to_function();
         println!("{}", func);
-        println!("{:?}", strides);
     }
 
     #[test]
@@ -1510,74 +1299,9 @@ mod tests {
         let sum = ctx.sum(&add, &0f32, &[0]);
         let order = [a.id, b.id, c.id, add.id, sum.id];
 
-        let mut nodes = HashMap::new();
-        for (id, node) in ctx.nodes.borrow().iter() {
-            let srg_node = SrgNode {
-                id: *id,
-                shape: node.shape.clone(),
-                inputs: node.inputs.clone(),
-                outputs: Arc::new(
-                    ctx.nodes
-                        .borrow()
-                        .iter()
-                        .filter_map(|(k, v)| {
-                            if v.inputs.contains(id) { Some(*k) } else { None }
-                        })
-                        .collect()
-                ),
-                op: node.op.clone(),
-                strides_cal: Arc::new(|_| vec![]),
-                span: node.span,
-            };
-            nodes.insert(*id, srg_node);
-        }
-        let srg = Srg {
-            nodes,
-        };
+        let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
-
-        let func = Function {
-            ty: FunctionType {
-                ret_ty: PrimitiveType::Void,
-                args: Arc::new(
-                    vec![
-                        (
-                            format!("strides_vec"),
-                            PrimitiveType::Ptr(Ptr {
-                                inner: Arc::new(
-                                    PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Void.into() })
-                                ),
-                            }),
-                        ),
-                        (
-                            format!("data_vec"),
-                            PrimitiveType::Ptr(Ptr {
-                                inner: Arc::new(
-                                    PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Void.into() })
-                                ),
-                            }),
-                        ),
-                        (
-                            format!("offset_vec"),
-                            PrimitiveType::Ptr(Ptr {
-                                inner: Arc::new(
-                                    PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Void.into() })
-                                ),
-                            }),
-                        ),
-                        (
-                            format!("shape_vars"),
-                            PrimitiveType::Ptr(Ptr {
-                                inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
-                            }),
-                        ),
-                        (format!("thread_idx"), PrimitiveType::Dtype(Dtype::I64))
-                    ]
-                ),
-            },
-            name: Arc::new("kernel".to_string()),
-            body: Stmt::Seq(Seq::make(schedule.to_halide())),
-        };
+        let func = schedule.to_function();
         println!("{}", func);
     }
 }
