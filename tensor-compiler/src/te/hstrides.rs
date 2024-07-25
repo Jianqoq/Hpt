@@ -8,6 +8,22 @@ pub struct HStrides {
     pub(crate) offset: i64,
 }
 
+impl HStrides {
+    pub fn to_aligned_ptr(&self) -> *mut i64 {
+        unsafe {
+            let layout = std::alloc::Layout
+                ::from_size_align(self.strides.len() * std::mem::size_of::<i64>(), 8)
+                .unwrap();
+            let ptr = std::alloc::alloc(layout);
+            let ptr = ptr as *mut i64;
+            for i in 0..self.strides.len() {
+                *ptr.add(i) = self.strides[i];
+            }
+            ptr
+        }
+    }
+}
+
 impl Index<usize> for HStrides {
     type Output = i64;
 
