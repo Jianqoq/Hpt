@@ -1001,7 +1001,15 @@ impl Srg {
                 }
             }
         }
-        Schedule { qa, nodes: self.tensors.clone() }
+
+        let strides_cal = self.nodes
+            .values()
+            .filter_map(|node| {
+                if node.is_output() { Some(node.strides_cal.clone()) } else { None }
+            })
+            .last()
+            .unwrap();
+        Schedule { qa, nodes: self.tensors.clone(), strides_cal }
     }
 }
 

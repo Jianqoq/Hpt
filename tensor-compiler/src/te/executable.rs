@@ -1,6 +1,6 @@
-use std::{ collections::{ HashMap, HashSet }, sync::Arc };
+use std::collections::{ HashMap, HashSet };
 
-use super::{ hstrides::HStrides, tensor::Tensor };
+use super::{ schedule::Schedule, tensor::Tensor };
 
 pub struct Executable {
     strides_vec: (*mut (*mut i64, usize), usize),
@@ -11,9 +11,9 @@ impl Executable {
     pub fn new(
         var_map: HashMap<String, i64>,
         nodes: &HashMap<usize, Tensor>,
-        strides_cal: Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>>
+        schedule: &Schedule
     ) -> Self {
-        let strides = strides_cal(&var_map);
+        let strides = schedule.cal_strides(&var_map);
         let strides_vec = unsafe {
             let strides_vec = std::alloc::alloc(
                 std::alloc::Layout
@@ -57,7 +57,5 @@ impl Executable {
             var_map: shape_vars,
         }
     }
-    pub fn execute(&self) {
-        unsafe {}
-    }
+    pub fn execute(&self, _: &HashMap<String, Vec<i64>>) {}
 }

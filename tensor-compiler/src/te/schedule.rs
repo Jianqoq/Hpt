@@ -17,11 +17,12 @@ use crate::{
     te::strides_visitor::StridesVisitor,
 };
 
-use super::{ rc_mut::RcMut, stages::Body, tensor::Tensor };
+use super::{ hstrides::HStrides, rc_mut::RcMut, stages::Body, tensor::Tensor };
 
 pub struct Schedule {
     pub(crate) qa: HashMap<usize, (Body, bool)>,
     pub(crate) nodes: RcMut<HashMap<usize, Tensor>>,
+    pub(crate) strides_cal: Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>>,
 }
 
 impl Schedule {
@@ -58,6 +59,10 @@ impl Schedule {
         empty_fn.body = Stmt::Seq(Seq::make(body));
 
         empty_fn
+    }
+
+    pub fn cal_strides(&self, var_map: &HashMap<String, i64>) -> Vec<HStrides> {
+        (self.strides_cal)(var_map)
     }
 }
 
