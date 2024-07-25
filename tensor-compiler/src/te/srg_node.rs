@@ -1,8 +1,8 @@
-use std::{ collections::HashMap, panic::Location, sync::Arc };
+use std::{ panic::Location, sync::Arc };
 
 use crate::halide::prime_expr::PrimeExpr;
 
-use super::{ hstrides::HStrides, operation::Operation };
+use super::tensor::StridesCal;
 
 #[derive(Clone)]
 pub struct SrgNode {
@@ -10,8 +10,7 @@ pub struct SrgNode {
     pub(crate) shape: Arc<Vec<PrimeExpr>>,
     pub(crate) inputs: Arc<Vec<usize>>,
     pub(crate) outputs: Arc<Vec<usize>>,
-    pub(crate) op: Operation,
-    pub(crate) strides_cal: Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>>,
+    pub(crate) strides_cal: StridesCal,
     pub(crate) span: &'static Location<'static>,
 }
 
