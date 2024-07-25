@@ -1000,7 +1000,7 @@ impl Srg {
 
 #[cfg(test)]
 mod tests {
-    use std::{ collections::HashMap, sync::Arc };
+    use std::{ collections::{ HashMap, HashSet }, sync::Arc };
 
     use tensor_types::dtype::Dtype;
 
@@ -1410,6 +1410,32 @@ mod tests {
             .collect::<Vec<Stmt>>();
 
         vec.extend(declare_data_ptrs);
+
+        let mut vars = vec![];
+        let mut visited = HashSet::new();
+        for node in ctx.nodes.borrow().values() {
+            for i in node.shape.iter() {
+                if let Some(var) = i.to_variable() {
+                    if visited.contains(var) {
+                        continue;
+                    } else {
+                        vars.push(var.clone());
+                        visited.insert(var);
+                    }
+                }
+            }
+        }
+        vars.sort();
+        let declare_shape_vars = vars
+            .iter()
+            .enumerate()
+            .map(|(idx, x)| {
+                Stmt::LetStmt(LetStmt::make(x, Load::make("shape_vars", idx), Stmt::None))
+            })
+            .collect::<Vec<Stmt>>();
+
+        vec.extend(declare_shape_vars);
+
         vec.push(fn_body);
 
         let fn_body = Stmt::Seq(Seq::make(vec));

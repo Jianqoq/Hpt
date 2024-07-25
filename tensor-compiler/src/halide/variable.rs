@@ -6,7 +6,7 @@ use super::{
     traits::{ Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor },
 };
 
-#[derive(Clone, PartialEq, Hash, Eq, Debug)]
+#[derive(Clone, PartialEq, Hash, Eq, Debug, PartialOrd, Ord)]
 pub struct Variable {
     pub(crate) name: Arc<String>,
 }
