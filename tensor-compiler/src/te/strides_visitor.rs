@@ -1,4 +1,4 @@
-use crate::halide::{ prime_expr::PrimeExpr, stmt::Stmt, traits::MutatorGetSet };
+use crate::halide::{ prime_expr::PrimeExpr, stmt::Stmt, traits::{IRMutateVisitor, MutatorGetSet} };
 
 pub struct StridesVisitor {
     pub(crate) cnt: i64,
@@ -31,5 +31,11 @@ impl MutatorGetSet for StridesVisitor {
 
     fn stmt(&self) -> &Stmt {
         &self.stmt
+    }
+}
+
+impl IRMutateVisitor for StridesVisitor {
+    fn visit_tensor_load(&mut self, tensor_load: &crate::halide::tensor_load::TensorLoad) {
+        
     }
 }

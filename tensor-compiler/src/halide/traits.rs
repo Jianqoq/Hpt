@@ -1148,14 +1148,6 @@ pub(crate) fn visit_tensor_load<V>(visitor: &mut V, tensor_load: &TensorLoad)
     where V: MutatorGetSet + Sized + IRMutateVisitor
 {
     let name = visitor.mutate_expr(&tensor_load.var.as_ref().into());
-    let steps = tensor_load.steps
-        .iter()
-        .map(|step| visitor.mutate_expr(step))
-        .collect::<Vec<PrimeExpr>>();
-    let begins = tensor_load.begins
-        .iter()
-        .map(|begin| visitor.mutate_expr(begin))
-        .collect::<Vec<PrimeExpr>>();
     let axes = tensor_load.axes
         .iter()
         .map(|axis| visitor.mutate_expr(axis))
@@ -1166,8 +1158,6 @@ pub(crate) fn visit_tensor_load<V>(visitor: &mut V, tensor_load: &TensorLoad)
         .collect::<Vec<PrimeExpr>>();
     if
         name == tensor_load.var.as_ref().into() &&
-        &steps == tensor_load.steps.as_ref() &&
-        &begins == tensor_load.begins.as_ref() &&
         &axes == tensor_load.axes.as_ref() &&
         &strides == tensor_load.strides.as_ref()
     {
@@ -1176,9 +1166,7 @@ pub(crate) fn visit_tensor_load<V>(visitor: &mut V, tensor_load: &TensorLoad)
         visitor.set_expr(
             TensorLoad::make(
                 name.to_variable().unwrap(),
-                begins,
                 axes,
-                steps,
                 strides,
                 tensor_load.hints.as_ref().clone()
             )

@@ -87,40 +87,22 @@ impl ReduceStage {
     }
     pub fn broadcast_new_dims(
         &mut self,
-        begins: &Vec<PrimeExpr>,
-        steps: &Vec<PrimeExpr>,
         strides: &Vec<PrimeExpr>,
         axes: &Vec<PrimeExpr>
     ) {
-        let mut subs_tensorload = SubsTensorLoadDims::new(begins, steps, strides, axes);
+        let mut subs_tensorload = SubsTensorLoadDims::new(strides, axes);
         for body in &mut self.bodys {
             match body {
                 Body::Stmt(stmt) => {
                     stmt.accept_mutate(&mut subs_tensorload);
                     *body = Body::Stmt(subs_tensorload.stmt().clone());
                 }
-                Body::Stage(stage) => stage.broadcast_new_dims(begins, steps, strides, axes),
+                Body::Stage(stage) => stage.broadcast_new_dims(strides, axes),
                 Body::ReduceStage(red_stage) => {
-                    let red_beings = (0..red_stage.dims.len())
-                        .map(|_| (0i64).into())
-                        .collect::<Vec<PrimeExpr>>();
-                    let red_steps = (0..red_stage.dims.len())
-                        .map(|_| (1i64).into())
-                        .collect::<Vec<PrimeExpr>>();
                     let red_strides = (strides.len()..strides.len() + red_stage.dims.len())
                         .map(|x| {
                             Load::make(Variable::new(format!("%{}.s", red_stage.id)), x).into()
                         })
-                        .collect::<Vec<PrimeExpr>>();
-                    let new_begins = begins
-                        .iter()
-                        .chain(red_beings.iter())
-                        .cloned()
-                        .collect::<Vec<PrimeExpr>>();
-                    let new_steps = steps
-                        .iter()
-                        .chain(red_steps.iter())
-                        .cloned()
                         .collect::<Vec<PrimeExpr>>();
                     let new_strides = strides
                         .iter()
@@ -132,7 +114,7 @@ impl ReduceStage {
                         .cloned()
                         .chain(red_stage.dims.iter().map(|x| x.var().into()))
                         .collect::<Vec<PrimeExpr>>();
-                    red_stage.broadcast_new_dims(&new_begins, &new_steps, &new_strides, &new_axes);
+                    red_stage.broadcast_new_dims(&new_strides, &new_axes);
                 }
             }
         }
@@ -167,40 +149,22 @@ impl Stage {
     }
     pub fn broadcast_new_dims(
         &mut self,
-        begins: &Vec<PrimeExpr>,
-        steps: &Vec<PrimeExpr>,
         strides: &Vec<PrimeExpr>,
         axes: &Vec<PrimeExpr>
     ) {
-        let mut subs_tensorload = SubsTensorLoadDims::new(begins, steps, strides, axes);
+        let mut subs_tensorload = SubsTensorLoadDims::new(strides, axes);
         for body in &mut self.bodys {
             match body {
                 Body::Stmt(stmt) => {
                     stmt.accept_mutate(&mut subs_tensorload);
                     *body = Body::Stmt(subs_tensorload.stmt().clone());
                 }
-                Body::Stage(stage) => stage.broadcast_new_dims(begins, steps, strides, axes),
+                Body::Stage(stage) => stage.broadcast_new_dims(strides, axes),
                 Body::ReduceStage(red_stage) => {
-                    let red_beings = (0..red_stage.dims.len())
-                        .map(|_| (0i64).into())
-                        .collect::<Vec<PrimeExpr>>();
-                    let red_steps = (0..red_stage.dims.len())
-                        .map(|_| (1i64).into())
-                        .collect::<Vec<PrimeExpr>>();
                     let red_strides = (strides.len()..strides.len() + red_stage.dims.len())
                         .map(|x| {
                             Load::make(Variable::new(format!("%{}.s", red_stage.id)), x).into()
                         })
-                        .collect::<Vec<PrimeExpr>>();
-                    let new_begins = begins
-                        .iter()
-                        .chain(red_beings.iter())
-                        .cloned()
-                        .collect::<Vec<PrimeExpr>>();
-                    let new_steps = steps
-                        .iter()
-                        .chain(red_steps.iter())
-                        .cloned()
                         .collect::<Vec<PrimeExpr>>();
                     let new_strides = strides
                         .iter()
@@ -212,7 +176,7 @@ impl Stage {
                         .cloned()
                         .chain(red_stage.dims.iter().map(|x| x.var().into()))
                         .collect::<Vec<PrimeExpr>>();
-                    red_stage.broadcast_new_dims(&new_begins, &new_steps, &new_strides, &new_axes);
+                    red_stage.broadcast_new_dims(&new_strides, &new_axes);
                 }
             }
         }

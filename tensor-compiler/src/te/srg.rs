@@ -10,7 +10,14 @@ use tensor_types::dtype::Dtype;
 
 use crate::{
     halide::{
-        exprs::{ Call, Int, Load }, inplace_store_stmt::InplaceAdd, let_stmt::LetStmt, prime_expr::PrimeExpr, stmt::Stmt, store_stmt::StoreStmt, tensor_load::TensorLoad, variable::Variable
+        exprs::{ Call, Int, Load },
+        inplace_store_stmt::InplaceAdd,
+        let_stmt::LetStmt,
+        prime_expr::PrimeExpr,
+        stmt::Stmt,
+        store_stmt::StoreStmt,
+        tensor_load::TensorLoad,
+        variable::Variable,
     },
     iter_var::IterVar,
     te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator, stages::{ Body, ReduceStage, Stage } },
@@ -342,16 +349,8 @@ impl Srg {
                             &Variable::make(&format!("%{}_val", node.id)),
                             TensorLoad {
                                 var: Variable::make(&format!("%{}", node.id)).into(),
-                                begins: (0..node.shape.len())
-                                    .map(|_| (0i64).into())
-                                    .collect::<Vec<PrimeExpr>>()
-                                    .into(),
                                 axes: (0..node.shape.len())
                                     .map(|x| Variable::make(&format!("ax{}", x)).into())
-                                    .collect::<Vec<PrimeExpr>>()
-                                    .into(),
-                                steps: (0..node.shape.len())
-                                    .map(|_| (1i64).into())
                                     .collect::<Vec<PrimeExpr>>()
                                     .into(),
                                 strides: (0..node.shape.len())
@@ -398,13 +397,6 @@ impl Srg {
                                     )
                                     .collect::<Vec<IterVar>>();
                                 stage.broadcast_new_dims(
-                                    &(0..reshape.len())
-                                        .map(|_| (0i64).into())
-                                        .collect::<Vec<PrimeExpr>>(),
-                                    &reshape
-                                        .iter()
-                                        .map(|_| (1i64).into())
-                                        .collect(),
                                     &(0..reshape.len())
                                         .map(|x|
                                             Load::make(
@@ -463,13 +455,6 @@ impl Srg {
                                     .collect::<Vec<IterVar>>();
                                 stage.broadcast_new_dims(
                                     &(0..reshape.len())
-                                        .map(|_| (0i64).into())
-                                        .collect::<Vec<PrimeExpr>>(),
-                                    &reshape
-                                        .iter()
-                                        .map(|_| (1i64).into())
-                                        .collect(),
-                                    &(0..reshape.len())
                                         .map(|x|
                                             Load::make(
                                                 Variable::make(&format!("%{}.s", id)),
@@ -519,13 +504,6 @@ impl Srg {
                                 }
                                 dims.extend(red_dims);
                                 stage.broadcast_new_dims(
-                                    &(0..self.nodes[&node.inputs[0]].shape.len())
-                                        .map(|_| (0i64).into())
-                                        .collect::<Vec<PrimeExpr>>(),
-                                    &self.nodes[&node.inputs[0]].shape
-                                        .iter()
-                                        .map(|_| (1i64).into())
-                                        .collect(),
                                     &(0..self.nodes[&node.inputs[0]].shape.len())
                                         .map(|x|
                                             Load::make(
@@ -632,13 +610,6 @@ impl Srg {
                                 }
                                 dims.extend(red_dims);
                                 stage.broadcast_new_dims(
-                                    &(0..self.nodes[&node.inputs[0]].shape.len())
-                                        .map(|_| (0i64).into())
-                                        .collect::<Vec<PrimeExpr>>(),
-                                    &self.nodes[&node.inputs[0]].shape
-                                        .iter()
-                                        .map(|_| (1i64).into())
-                                        .collect(),
                                     &(0..self.nodes[&node.inputs[0]].shape.len())
                                         .map(|x|
                                             Load::make(
@@ -892,18 +863,10 @@ impl Srg {
                                                 var: Variable::make(
                                                     &format!("%{}_ptr", node.id)
                                                 ).into(),
-                                                begins: (0..node.shape.len())
-                                                    .map(|_| (0i64).into())
-                                                    .collect::<Vec<PrimeExpr>>()
-                                                    .into(),
                                                 axes: (0..node.shape.len())
                                                     .map(|x|
                                                         Variable::make(&format!("ax{}", x)).into()
                                                     )
-                                                    .collect::<Vec<PrimeExpr>>()
-                                                    .into(),
-                                                steps: (0..node.shape.len())
-                                                    .map(|_| (1i64).into())
                                                     .collect::<Vec<PrimeExpr>>()
                                                     .into(),
                                                 strides: (0..node.shape.len())
@@ -993,18 +956,10 @@ impl Srg {
                                                 var: Variable::make(
                                                     &format!("%{}_ptr", node.id)
                                                 ).into(),
-                                                begins: (0..node.shape.len())
-                                                    .map(|_| (0i64).into())
-                                                    .collect::<Vec<PrimeExpr>>()
-                                                    .into(),
                                                 axes: (0..node.shape.len())
                                                     .map(|x|
                                                         Variable::make(&format!("ax{}", x)).into()
                                                     )
-                                                    .collect::<Vec<PrimeExpr>>()
-                                                    .into(),
-                                                steps: (0..node.shape.len())
-                                                    .map(|_| (1i64).into())
                                                     .collect::<Vec<PrimeExpr>>()
                                                     .into(),
                                                 strides: (0..node.shape.len())
