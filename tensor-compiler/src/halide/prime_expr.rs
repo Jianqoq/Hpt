@@ -1,12 +1,9 @@
 use std::fmt::Display;
 
 use tensor_types::dtype::Dtype;
-use crate::hlir::tensor_slice::{TensorLoad, TensorSlice};
 
 use super::{
-    exprs::*,
-    traits::{ Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor },
-    variable::Variable,
+    exprs::*, tensor_load::TensorLoad, traits::{ Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor }, variable::Variable
 };
 
 #[derive(Clone, PartialEq, Hash, Eq, Debug)]
@@ -17,7 +14,6 @@ pub enum PrimeExpr {
     Str(Str),
     Variable(Variable),
     Reduce(Reduce),
-    TensorSlice(TensorSlice),
     Cast(Cast),
     Add(Add),
     Sub(Sub),
@@ -155,7 +151,6 @@ impl PrimeExpr {
             PrimeExpr::Let(_) => PrimeType::Let,
             PrimeExpr::Load(_) => PrimeType::Load,
             PrimeExpr::Reduce(_) => PrimeType::Reduce,
-            PrimeExpr::TensorSlice(_) => PrimeType::TensorSlice,
             PrimeExpr::Malloc(_) => PrimeType::Malloc,
             PrimeExpr::Layout(_) => PrimeType::Layout,
             PrimeExpr::Alloca(_) => PrimeType::Alloca,
@@ -208,7 +203,6 @@ impl PrimeExpr {
             PrimeExpr::Let(a) => a.to_string(),
             PrimeExpr::Load(a) => a.to_string(),
             PrimeExpr::Reduce(a) => a.to_string(),
-            PrimeExpr::TensorSlice(a) => a.to_string(),
             PrimeExpr::Malloc(a) => a.to_string(),
             PrimeExpr::Layout(a) => a.to_string(),
             PrimeExpr::Alloca(a) => a.to_string(),

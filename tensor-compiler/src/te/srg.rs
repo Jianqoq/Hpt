@@ -10,15 +10,8 @@ use tensor_types::dtype::Dtype;
 
 use crate::{
     halide::{
-        exprs::{ Call, Int, Load },
-        inplace_store_stmt::InplaceAdd,
-        let_stmt::LetStmt,
-        prime_expr::PrimeExpr,
-        stmt::Stmt,
-        store_stmt::StoreStmt,
-        variable::Variable,
+        exprs::{ Call, Int, Load }, inplace_store_stmt::InplaceAdd, let_stmt::LetStmt, prime_expr::PrimeExpr, stmt::Stmt, store_stmt::StoreStmt, tensor_load::TensorLoad, variable::Variable
     },
-    hlir::tensor_slice::TensorLoad,
     iter_var::IterVar,
     te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator, stages::{ Body, ReduceStage, Stage } },
     to_prim_expr::ToPrimeExpr,
@@ -1421,7 +1414,49 @@ mod tests {
             .collect();
         srg.create_strides_cal(&order);
         let strides = (srg.nodes[order.last().unwrap()].strides_cal)(&var_map);
-        println!("{}", schedule);
+        let func = Function {
+            ty: FunctionType {
+                ret_ty: PrimitiveType::Void,
+                args: Arc::new(
+                    vec![
+                        (
+                            format!("strides_vec"),
+                            PrimitiveType::Ptr(Ptr {
+                                inner: Arc::new(
+                                    PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Void.into() })
+                                ),
+                            }),
+                        ),
+                        (
+                            format!("data_vec"),
+                            PrimitiveType::Ptr(Ptr {
+                                inner: Arc::new(
+                                    PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Void.into() })
+                                ),
+                            }),
+                        ),
+                        (
+                            format!("offset_vec"),
+                            PrimitiveType::Ptr(Ptr {
+                                inner: Arc::new(
+                                    PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Void.into() })
+                                ),
+                            }),
+                        ),
+                        (
+                            format!("shape_vars"),
+                            PrimitiveType::Ptr(Ptr {
+                                inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
+                            }),
+                        ),
+                        (format!("thread_idx"), PrimitiveType::Dtype(Dtype::I64))
+                    ]
+                ),
+            },
+            name: Arc::new("kernel".to_string()),
+            body: Stmt::Seq(Seq::make(schedule.to_halide())),
+        };
+        println!("{}", func);
         println!("{:?}", strides);
     }
 

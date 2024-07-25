@@ -35,24 +35,11 @@ pub mod halide {
     pub mod traits;
     pub mod exprs;
     pub mod variable;
-}
-
-pub mod hlir {
-    pub mod tensor;
-    pub mod _value;
-    pub mod expr;
-    pub mod traits;
-    pub mod exprs;
-    pub mod printer;
-    pub mod func_type;
-    pub mod schedule {
-        pub mod schedule;
-        pub mod lowered;
-    }
-    pub mod tensor_slice;
+    pub mod tensor_load;
 }
 
 pub mod te {
+    pub mod strides_visitor;
     pub mod idx_evaluator;
     pub mod layout_cals;
     pub mod tensor;

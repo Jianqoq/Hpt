@@ -1,7 +1,4 @@
-use crate::{
-    halide::{ prime_expr::PrimeExpr, stmt::Stmt, traits::{ IRMutateVisitor, MutatorGetSet } },
-    hlir::tensor_slice::TensorLoad,
-};
+use crate::halide::{ prime_expr::PrimeExpr, stmt::Stmt, tensor_load::TensorLoad, traits::{ IRMutateVisitor, MutatorGetSet } };
 
 pub struct SubsTensorLoadDims<'a> {
     pub(crate) expr: PrimeExpr,
@@ -49,7 +46,7 @@ impl<'a> MutatorGetSet for SubsTensorLoadDims<'a> {
 }
 
 impl<'a> IRMutateVisitor for SubsTensorLoadDims<'a> {
-    fn visit_tensor_load(&mut self, tensor_load: &crate::hlir::tensor_slice::TensorLoad) {
+    fn visit_tensor_load(&mut self, tensor_load: &TensorLoad) {
         let begins = &tensor_load.begins;
         let steps = &tensor_load.steps;
         let strides = &tensor_load.strides;

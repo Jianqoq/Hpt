@@ -1,21 +1,9 @@
 use tensor_llvm::types::values::BasicValue;
 
-use crate::{ hlir::tensor_slice::{ TensorLoad, TensorSlice }, iter_var::IterVar };
+use crate::iter_var::IterVar;
 
 use super::{
-    assign_stmt::AssignStmt,
-    exprs::*,
-    for_stmt::For,
-    if_stmt::IfThenElse,
-    inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub },
-    let_stmt::LetStmt,
-    module::{ Function, Module },
-    prime_expr::PrimeExpr,
-    return_stmt::ReturnStmt,
-    seq_stmt::Seq,
-    stmt::Stmt,
-    store_stmt::StoreStmt,
-    variable::Variable,
+    assign_stmt::AssignStmt, exprs::*, for_stmt::For, if_stmt::IfThenElse, inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub }, let_stmt::LetStmt, module::{ Function, Module }, prime_expr::PrimeExpr, return_stmt::ReturnStmt, seq_stmt::Seq, stmt::Stmt, store_stmt::StoreStmt, tensor_load::TensorLoad, variable::Variable
 };
 
 #[allow(unused_variables)]
@@ -52,7 +40,6 @@ pub trait IRVisitor where Self: Sized {
             PrimeExpr::Load(load) => self.visit_load(&load),
             PrimeExpr::Let(let_) => self.visit_let(&let_),
             PrimeExpr::Reduce(reduce) => self.visit_reduce(&reduce),
-            PrimeExpr::TensorSlice(slice) => self.visit_tensor_slice(&slice),
             PrimeExpr::Shl(shl) => self.visit_shl(&shl),
             PrimeExpr::Shr(shr) => self.visit_shr(&shr),
             PrimeExpr::Malloc(malloc) => self.visit_malloc(&malloc),
@@ -107,7 +94,6 @@ pub trait IRVisitor where Self: Sized {
             e.accept(self);
         }
     }
-    fn visit_tensor_slice(&self, slice: &TensorSlice) {}
     fn visit_reduce(&self, reduce: &Reduce) {
         reduce
             .expr()
@@ -304,7 +290,6 @@ pub trait IRMutVisitor where Self: Sized {
             PrimeExpr::Load(load) => self.visit_load(&load),
             PrimeExpr::Let(let_) => self.visit_let(&let_),
             PrimeExpr::Reduce(reduce) => self.visit_reduce(&reduce),
-            PrimeExpr::TensorSlice(slice) => self.visit_tensor_slice(&slice),
             PrimeExpr::Shl(shl) => self.visit_shl(&shl),
             PrimeExpr::Shr(shr) => self.visit_shr(&shr),
             PrimeExpr::Malloc(malloc) => self.visit_malloc(&malloc),
@@ -359,7 +344,6 @@ pub trait IRMutVisitor where Self: Sized {
             e.accept_mut(self);
         }
     }
-    fn visit_tensor_slice(&mut self, slice: &TensorSlice) {}
     fn visit_reduce(&mut self, reduce: &Reduce) {
         reduce
             .expr()
@@ -600,7 +584,6 @@ pub(crate) fn visit_expr<V>(visitor: &mut V, expr: &PrimeExpr)
         PrimeExpr::Load(load) => visitor.visit_load(&load),
         PrimeExpr::Let(let_) => visitor.visit_let(&let_),
         PrimeExpr::Reduce(reduce) => visitor.visit_reduce(&reduce),
-        PrimeExpr::TensorSlice(slice) => visitor.visit_tensor_slice(&slice),
         PrimeExpr::Shl(shl) => visitor.visit_shl(&shl),
         PrimeExpr::Shr(shr) => visitor.visit_shr(&shr),
         PrimeExpr::Malloc(malloc) => visitor.visit_malloc(&malloc),
@@ -1126,22 +1109,6 @@ pub(crate) fn visit_reduce<V>(visitor: &mut V, reduce: &Reduce)
     }
 }
 
-pub(crate) fn visist_tensor_slice<V>(visitor: &mut V, slice: &TensorSlice)
-    where V: MutatorGetSet + Sized + IRMutateVisitor
-{
-    let var = visitor.mutate_expr(&slice.name().into());
-    let dims = slice
-        .dims()
-        .iter()
-        .map(|dim| visitor.mutate_expr(dim))
-        .collect::<Vec<PrimeExpr>>();
-    if &var == &slice.name().into() && &dims == slice.dims() {
-        visitor.set_expr(slice);
-    } else {
-        visitor.set_expr(TensorSlice::make(var.to_variable().unwrap(), dims));
-    }
-}
-
 pub(crate) fn visit_malloc<V>(visitor: &mut V, malloc: &Malloc)
     where V: MutatorGetSet + Sized + IRMutateVisitor
 {
@@ -1247,9 +1214,6 @@ pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     }
     fn visit_return(&mut self, return_: &ReturnStmt) {
         visit_return(self, return_);
-    }
-    fn visit_tensor_slice(&mut self, slice: &TensorSlice) {
-        visist_tensor_slice(self, slice);
     }
     fn visit_assign(&mut self, assign: &AssignStmt) {
         visit_assign(self, assign);
@@ -1415,7 +1379,6 @@ pub trait CodeGenVisitor where Self: Sized {
             PrimeExpr::Load(load) => self.visit_load(&load),
             PrimeExpr::Let(let_) => self.visit_let(&let_),
             PrimeExpr::Reduce(reduce) => self.visit_reduce(&reduce),
-            PrimeExpr::TensorSlice(slice) => self.visit_tensor_slice(&slice),
             PrimeExpr::Shl(shl) => self.visit_shl(&shl),
             PrimeExpr::Shr(shr) => self.visit_shr(&shr),
             PrimeExpr::Malloc(malloc) => self.visit_malloc(&malloc),
@@ -1458,7 +1421,6 @@ pub trait CodeGenVisitor where Self: Sized {
     fn visit_shl(&mut self, shl: &Shl) -> BasicValue;
     fn visit_shr(&mut self, shr: &Shr) -> BasicValue;
     fn visit_return(&mut self, return_: &ReturnStmt);
-    fn visit_tensor_slice(&mut self, slice: &TensorSlice) -> BasicValue;
     fn visit_reduce(&mut self, reduce: &Reduce) -> BasicValue;
     fn visit_variable(&mut self, var: &Variable) -> BasicValue;
     fn visit_str(&mut self, string: &Str) -> BasicValue;

@@ -47,12 +47,7 @@ use tensor_types::{
 use crate::{
     edges::Edges,
     halide::{
-        code_gen::type_utils::{ build_cast, general_types_to_primitive_type },
-        exprs::Load,
-        module::{ Function, Module },
-        primitive_type::{ Array, PrimitiveType, Ptr },
-        printer::IRPrinter,
-        traits::CodeGenVisitor,
+        code_gen::type_utils::{ build_cast, general_types_to_primitive_type }, exprs::Load, module::{ Function, Module }, primitive_type::{ Array, PrimitiveType, Ptr }, printer::IRPrinter, tensor_load::TensorLoad, traits::CodeGenVisitor
     },
     tensor::{ Tensor, _Tensor },
     to_prim_expr::ToPrimeExpr,
@@ -410,22 +405,6 @@ impl CodeGenVisitor for CodeGen {
         self.builder.build_unconditional_branch(return_block);
         self.builder.position_at_end(return_block);
         self.builder.build_return(None)
-    }
-
-    fn visit_tensor_slice(&mut self, slice: &crate::hlir::tensor_slice::TensorSlice) -> BasicValue {
-        let load_strides = (0..slice.dims.len()).map(|x| {
-            Load::make(format!("{}.strides", slice.var.as_ref()), x)
-        });
-        let load = Load::make(
-            format!("{}.data", slice.var.as_ref()),
-            slice.dims
-                .iter()
-                .zip(load_strides)
-                .map(|(x, strides)| x.clone() * strides.into())
-                .reduce(|x, y| x + y)
-                .unwrap()
-        );
-        self.visit_load(&load)
     }
 
     fn visit_reduce(&mut self, reduce: &crate::halide::exprs::Reduce) -> BasicValue {
@@ -1996,7 +1975,7 @@ impl CodeGenVisitor for CodeGen {
     fn visit_function(&mut self, function: &crate::halide::module::Function) {
         let id = self.fns_id[&self.fns[&function.name]];
         assert!(self.bindings.get(&id).is_none());
-        let mut scope_stack = ScopeStack::new();
+        let scope_stack = ScopeStack::new();
         let block = self.ctx.append_basic_block(&self.fns[&function.name], "entry");
         self.builder.position_at_end(block);
         for (args_idx, vec) in function.ty.args.iter().enumerate() {
@@ -2014,23 +1993,26 @@ impl CodeGenVisitor for CodeGen {
     fn visit_shr(&mut self, shr: &crate::halide::exprs::Shr) -> BasicValue {
         todo!()
     }
-    
+
     fn visit_layout(&mut self, layout: &crate::halide::exprs::Layout) -> BasicValue {
         todo!()
     }
-    
+
     fn visit_malloc(&mut self, malloc: &crate::halide::exprs::Malloc) -> BasicValue {
         todo!()
     }
-    
+
     fn visit_alloca(&mut self, alloca: &crate::halide::exprs::Alloca) -> BasicValue {
         todo!()
     }
-    
-    fn visit_tensor_load(&mut self, tensor_load: &crate::hlir::tensor_slice::TensorLoad) -> BasicValue {
+
+    fn visit_tensor_load(
+        &mut self,
+        tensor_load: &TensorLoad
+    ) -> BasicValue {
         todo!()
     }
-    
+
     fn visit_neg(&mut self, neg: &crate::halide::exprs::Neg) -> BasicValue {
         todo!()
     }
