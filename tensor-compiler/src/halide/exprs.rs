@@ -2,7 +2,7 @@ use std::{ fmt::Display, sync::Arc };
 
 use tensor_types::dtype::Dtype;
 
-use crate::iter_var::IterVar ;
+use crate::iter_var::IterVar;
 
 use super::{ prime_expr::PrimeExpr, traits::{ Accepter, IRVisitor }, variable::Variable };
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
@@ -737,7 +737,7 @@ impl Ge {
         Ge { e1, e2 }
     }
 
-    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
+    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(e1: A, e2: B) -> Self {
         Ge {
             e1: e1.into().into(),
             e2: e2.into().into(),
@@ -1217,7 +1217,11 @@ impl Select {
         }
     }
 
-    pub fn make<T: Into<PrimeExpr>>(cond: T, true_expr: T, false_expr: T) -> Self {
+    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>, C: Into<PrimeExpr>>(
+        cond: A,
+        true_expr: B,
+        false_expr: C
+    ) -> Self {
         Select {
             cond: cond.into().into(),
             true_expr: true_expr.into().into(),

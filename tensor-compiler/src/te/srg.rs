@@ -416,4 +416,26 @@ mod tests {
         let func = schedule.to_function();
         println!("{}", func);
     }
+
+    #[test]
+    fn test_pad() {
+        let mut ctx = Context::new();
+        let m = ctx.var("m");
+        let n = ctx.var("n");
+        let a = ctx.placeholder(&[&m, &n], Dtype::F32);
+        let b = ctx.pad(
+            &a,
+            &[
+                (&5i64, &5i64),
+                (&5i64, &5i64),
+            ],
+            &1f32
+        );
+        let order = [a.id, b.id];
+
+        let srg = ctx.to_srg();
+        let schedule = srg.create_schedule(&order);
+        let func = schedule.to_function();
+        println!("{}", func);
+    }
 }

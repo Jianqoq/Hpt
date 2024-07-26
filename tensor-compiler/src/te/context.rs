@@ -5,11 +5,12 @@ use tensor_common::{
     shape_utils::is_reshape_possible,
     strides_utils::shape_to_strides,
 };
-use tensor_types::{ dtype::Dtype, type_promote::NormalOut };
+use tensor_types::{ dtype::{ Dtype, TypeCommon }, type_promote::NormalOut };
 
 use crate::{
     halide::{
-        exprs::{ Call, Int, Load },
+        exprs::{ BitAnd, Call, Ge, Gt, Int, Load, Lt, Select },
+        if_stmt::IfThenElse,
         inplace_store_stmt::InplaceAdd,
         let_stmt::LetStmt,
         passes::const_fold::ConstFold,
@@ -20,7 +21,7 @@ use crate::{
         variable::Variable,
     },
     iter_var::IterVar,
-    te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator },
+    te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator, stages::If },
     to_prim_expr::ToPrimeExpr,
 };
 
@@ -950,5 +951,192 @@ impl Context {
         };
         self.nodes.borrow_mut().insert(id, ret.clone());
         ret
+    }
+
+    pub fn pad(
+        &mut self,
+        a: &Tensor,
+        padding: &[(&dyn ToPrimeExpr, &dyn ToPrimeExpr)],
+        pad_value: &dyn ToPrimeExpr
+    ) -> Tensor {
+        let id = self.id.borrow().clone();
+        *self.id.borrow_mut() += 1;
+        assert!(padding.len() == a.shape.len());
+        let mut new_shape = a.shape
+            .iter()
+            .zip(padding.iter())
+            .map(|(x, (begin, end))| x + begin.to_prime_expr() + end.to_prime_expr())
+            .collect::<Vec<PrimeExpr>>();
+        new_shape.iter_mut().for_each(|x| {
+            let mut const_fold = ConstFold::new();
+            *x = const_fold.const_fold(x.clone());
+        });
+        let new_shape = Arc::new(new_shape);
+
+        let shape = new_shape.clone();
+
+        let padding = padding
+            .iter()
+            .map(|(begin, end)| { (begin.to_prime_expr().clone(), end.to_prime_expr().clone()) })
+            .collect::<Vec<(PrimeExpr, PrimeExpr)>>();
+
+        let pad_val = Arc::new(pad_value.to_prime_expr());
+        let ret = Tensor {
+            shape,
+            dtype: a.dtype,
+            inputs: Arc::new(vec![a.id]),
+            span: Location::caller(),
+            strides_cal: Arc::new(move |prev_fn: Vec<StridesCal>| {
+                let prev_fn = prev_fn[0].clone();
+                Arc::new(move |map: &HashMap<String, i64>| { prev_fn(map) })
+            }),
+            body_gen: Arc::new(move |inputs: Vec<Body>, is_output: bool, id: usize| {
+                if is_output {
+                    if let Body::Stage(stage) = &inputs[0] {
+                        let mut conds = vec![];
+                        for i in 0..new_shape.len() {
+                            let (begin, end) = &padding[i];
+                            let gt = PrimeExpr::Ge(
+                                Ge::make(Variable::new(format!("ax{}", i)), begin)
+                            );
+                            let lt = PrimeExpr::Lt(
+                                Lt::make(Variable::new(format!("ax{}", i)), end)
+                            );
+                            let and = PrimeExpr::BitAnd(BitAnd::make(gt, lt));
+                            conds.push(and);
+                        }
+                        let cond = conds
+                            .into_iter()
+                            .reduce(|acc, x| PrimeExpr::BitAnd(BitAnd::make(acc, x)))
+                            .unwrap();
+                        let mut stage_bodys = stage.bodys.clone();
+                        stage_bodys.push(
+                            Body::Stmt(
+                                Stmt::StoreStmt(
+                                    StoreStmt::make(
+                                        &Variable::make(&format!("%{}", id)),
+                                        stage.dims
+                                            .iter()
+                                            .enumerate()
+                                            .map(
+                                                |(idx, x)|
+                                                    x.var().to_prime_expr() *
+                                                    Load::make(&format!("%{}.s", id), idx).into()
+                                            )
+                                            .reduce(|acc, x| acc + x)
+                                            .unwrap(),
+                                        Variable::make(&format!("%{}_val", stage.id))
+                                    )
+                                )
+                            )
+                        );
+                        let if_then_else = Body::If(If {
+                            cond,
+                            true_bodys: stage_bodys,
+                            false_bodys: vec![
+                                Body::Stmt(StoreStmt::make(
+                                    &Variable::make(&format!("%{}", id)),
+                                    stage.dims
+                                        .iter()
+                                        .enumerate()
+                                        .map(
+                                            |(idx, x)|
+                                                x.var().to_prime_expr() *
+                                                Load::make(&format!("%{}.s", id), idx).into()
+                                        )
+                                        .reduce(|acc, x| acc + x)
+                                        .unwrap(),
+                                    pad_val.as_ref()
+                                ).into()
+                                )
+                            ],
+                            id,
+                            input: stage.id,
+                        });
+                        let stage = Stage {
+                            dims: stage.dims.clone(),
+                            bodys: vec![if_then_else],
+                            id,
+                        };
+                        Body::Stage(stage)
+                    } else {
+                        panic!("input is not a stage");
+                    }
+                } else {
+                    if let Body::Stage(stage) = &inputs[0] {
+                        let mut conds = vec![];
+                        for i in 0..new_shape.len() {
+                            let (begin, end) = &padding[i];
+                            let gt = PrimeExpr::Ge(
+                                Ge::make(Variable::new(format!("ax{}", i)), begin)
+                            );
+                            let lt = PrimeExpr::Lt(
+                                Lt::make(Variable::new(format!("ax{}", i)), end)
+                            );
+                            let and = PrimeExpr::BitAnd(BitAnd::make(gt, lt));
+                            conds.push(and);
+                        }
+                        let cond = conds
+                            .into_iter()
+                            .reduce(|acc, x| PrimeExpr::BitAnd(BitAnd::make(acc, x)))
+                            .unwrap();
+                        let mut stage_bodys = stage.bodys.clone();
+                        stage_bodys.push(
+                            Body::Stmt(
+                                Stmt::LetStmt(
+                                    LetStmt::make(
+                                        &Variable::make(&format!("%{}_val", id)),
+                                        Variable::make(&format!("%{}_val", stage.id)),
+                                        Stmt::None
+                                    )
+                                ).into()
+                            )
+                        );
+                        let if_then_else = Body::If(If {
+                            cond,
+                            true_bodys: stage_bodys,
+                            false_bodys: vec![
+                                Body::Stmt(
+                                    Stmt::LetStmt(
+                                        LetStmt::make(
+                                            &Variable::make(&format!("%{}_val", id)),
+                                            pad_val.as_ref(),
+                                            Stmt::None
+                                        )
+                                    ).into()
+                                )
+                            ],
+                            id,
+                            input: stage.id,
+                        });
+                        let stage = Stage {
+                            dims: stage.dims.clone(),
+                            bodys: vec![if_then_else],
+                            id,
+                        };
+                        Body::Stage(stage)
+                    } else {
+                        panic!("input is not a stage");
+                    }
+                }
+            }),
+            id,
+        };
+        self.nodes.borrow_mut().insert(id, ret.clone());
+        ret
+    }
+
+    #[track_caller]
+    pub fn conv2d(
+        &mut self,
+        img: &Tensor,
+        kernel: &Tensor,
+        stride: &dyn ToPrimeExpr,
+        padding: &dyn ToPrimeExpr
+    ) -> Tensor {
+        let output_height =
+            (img.shape[0].clone() - kernel.shape[0].clone() + stride.to_prime_expr().clone()) /
+            stride.to_prime_expr().clone();
+        todo!()
     }
 }
