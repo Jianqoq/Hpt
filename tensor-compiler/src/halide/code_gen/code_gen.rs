@@ -47,7 +47,13 @@ use tensor_types::{
 use crate::{
     edges::Edges,
     halide::{
-        code_gen::type_utils::{ build_cast, general_types_to_primitive_type }, exprs::Load, module::{ Function, Module }, primitive_type::{ Array, PrimitiveType, Ptr }, printer::IRPrinter, tensor_load::TensorLoad, traits::CodeGenVisitor
+        code_gen::type_utils::{ build_cast, general_types_to_primitive_type },
+        exprs::Load,
+        module::{ Function, Module },
+        primitive_type::{ Array, PrimitiveType, Ptr },
+        printer::IRPrinter,
+        tensor_load::TensorLoad,
+        traits::CodeGenVisitor,
     },
     tensor::{ Tensor, _Tensor },
     to_prim_expr::ToPrimeExpr,
@@ -76,111 +82,47 @@ pub struct CodeGen {
 
 impl CodeGen {
     pub fn new(ctx: Context, module: &Module, opt_lvl: u32) -> Self {
-        // let _module = tensor_llvm::module::module::Module::new(&module.name, &ctx);
-        // let global_tensor = _module.add_global_struct(&ctx.tensor_type().into(), 0, "Tensor");
-        // let builder = Builder::new(&ctx);
-        // let mut fns = HashMap::new();
-        // let mut fns_id = HashMap::new();
-        // let mut id_fns = HashMap::new();
-        // let mut id_f = HashMap::new();
-        // let mut cnt = 0;
+        let _module = tensor_llvm::module::module::Module::new(&module.name, &ctx);
+        let global_tensor = _module.add_global_struct(&ctx.tensor_type().into(), 0, "Tensor");
+        let builder = Builder::new(&ctx);
 
-        // let mut dependencies = HashMap::new();
-        // let mut fn_edges = HashMap::new();
-        // let mut intermediates = HashSet::new();
-        // let mut all_nodes = HashSet::new();
-        // let mut inputs = HashSet::new();
-        // let mut outputs = HashSet::new();
-        // for func in module.fns.values() {
-        //     let fn_val = _module.add_function(
-        //         ctx
-        //             .void_type()
-        //             .fn_type(
-        //                 &[
-        //                     ctx.void_type().ptr_type(0).into(),
-        //                     ctx.void_type().ptr_type(0).into(),
-        //                     ctx.void_type().ptr_type(0).into(),
-        //                 ],
-        //                 false
-        //             ),
-        //         &func.name
-        //     );
-        //     fns.insert(func.name.clone(), fn_val.clone());
-        //     fns_id.insert(fn_val.clone(), cnt);
-        //     id_fns.insert(cnt, fn_val);
-        //     id_f.insert(cnt, func);
-        //     cnt += 1;
-        //     func.ty.args[2].iter().for_each(|(name, ty)| {
-        //         dependencies.insert(name, func);
-        //         all_nodes.insert(name);
-        //     });
-        //     func.ty.args[1].iter().for_each(|(name, ty)| {
-        //         intermediates.insert(Arc::new(name.clone()));
-        //         all_nodes.insert(name);
-        //     });
-        //     func.ty.args[0].iter().for_each(|(name, ty)| {
-        //         all_nodes.insert(name);
-        //     });
-        // }
-        // for func in module.fns.values() {
-        //     fn_edges.entry(func).or_insert(HashSet::new());
-        //     func.ty.args[0].iter().for_each(|(name, ty)| {
-        //         if let Some(&dep) = dependencies.get(name) {
-        //             fn_edges.entry(func).or_insert_with(HashSet::new).insert(dep);
-        //         } else {
-        //             inputs.insert(Arc::new(name.clone()));
-        //         }
-        //     });
-        // }
-        // for &name in &all_nodes {
-        //     if !intermediates.contains(name) || !inputs.contains(name) {
-        //         outputs.insert(Arc::new(name.clone()));
-        //     }
-        // }
-        // let mut edges = Edges::new();
-        // edges.set_inner(fn_edges);
-        // let sorted = topo(&edges, &id_f)
-        //     .expect("cycle detected")
-        //     .iter()
-        //     .map(|&x| x.clone())
-        //     .collect::<Vec<_>>();
-
-        // unsafe {
-        //     LLVMLinkInMCJIT();
-        //     let code = LLVM_InitializeNativeTarget();
-        //     if code == 1 {
-        //         panic!("Failed to initialize native target");
-        //     }
-        //     let code = LLVM_InitializeNativeAsmPrinter();
-        //     if code == 1 {
-        //         panic!("Failed to initialize native asm printer");
-        //     }
-        //     let code = LLVM_InitializeNativeAsmParser();
-        //     if code == 1 {
-        //         panic!("Failed to initialize native asm parser");
-        //     }
-        //     let node = LLVM_InitializeNativeDisassembler();
-        //     if node == 1 {
-        //         panic!("Failed to initialize native asm printer");
-        //     }
-        // }
-        // let mut execution_engine = MaybeUninit::uninit();
-        // let mut err_string = MaybeUninit::uninit();
-        // let code = unsafe {
-        //     LLVMCreateJITCompilerForModule(
-        //         execution_engine.as_mut_ptr(),
-        //         _module.inner(),
-        //         opt_lvl,
-        //         err_string.as_mut_ptr()
-        //     )
-        // };
-        // unsafe {
-        //     if code == 1 {
-        //         let msg = CStr::from_ptr(err_string.assume_init());
-        //         panic!("Failed to create JIT compiler: {:?}", msg.to_string_lossy().into_owned());
-        //     }
-        //     let execution_engine = ExecutionEngine::new(execution_engine.assume_init());
-        //     declare_printf(&ctx, &_module);
+        unsafe {
+            LLVMLinkInMCJIT();
+            let code = LLVM_InitializeNativeTarget();
+            if code == 1 {
+                panic!("Failed to initialize native target");
+            }
+            let code = LLVM_InitializeNativeAsmPrinter();
+            if code == 1 {
+                panic!("Failed to initialize native asm printer");
+            }
+            let code = LLVM_InitializeNativeAsmParser();
+            if code == 1 {
+                panic!("Failed to initialize native asm parser");
+            }
+            let node = LLVM_InitializeNativeDisassembler();
+            if node == 1 {
+                panic!("Failed to initialize native asm printer");
+            }
+        }
+        let mut execution_engine = MaybeUninit::uninit();
+        let mut err_string = MaybeUninit::uninit();
+        let code = unsafe {
+            LLVMCreateJITCompilerForModule(
+                execution_engine.as_mut_ptr(),
+                _module.inner(),
+                opt_lvl,
+                err_string.as_mut_ptr()
+            )
+        };
+        unsafe {
+            if code == 1 {
+                let msg = CStr::from_ptr(err_string.assume_init());
+                panic!("Failed to create JIT compiler: {:?}", msg.to_string_lossy().into_owned());
+            }
+            let execution_engine = ExecutionEngine::new(execution_engine.assume_init());
+            declare_printf(&ctx, &_module);
+        }
         //     CodeGen {
         //         ctx,
         //         module: _module,
@@ -2006,10 +1948,7 @@ impl CodeGenVisitor for CodeGen {
         todo!()
     }
 
-    fn visit_tensor_load(
-        &mut self,
-        tensor_load: &TensorLoad
-    ) -> BasicValue {
+    fn visit_tensor_load(&mut self, tensor_load: &TensorLoad) -> BasicValue {
         todo!()
     }
 

@@ -2,11 +2,21 @@ use std::collections::HashMap;
 
 use crate::{
     halide::{
-        exprs::Load, if_stmt::IfThenElse, loop_utils::build_nested::build_nested_for, prime_expr::PrimeExpr, seq_stmt::Seq, stmt::Stmt, traits::{ AccepterMutate, MutatorGetSet }, variable::Variable
+        exprs::Load,
+        if_stmt::IfThenElse,
+        loop_utils::build_nested::build_nested_for,
+        prime_expr::PrimeExpr,
+        seq_stmt::Seq,
+        stmt::Stmt,
+        substitute::subsititue_var::SubstituteVar,
+        traits::{ AccepterMutate, MutatorGetSet },
+        variable::Variable,
     },
     iter_var::IterVar,
     te::subs_tensorload::SubsTensorLoadDims,
 };
+
+use super::insert_axes::InsertAxes;
 
 #[derive(Clone)]
 pub enum Body {
@@ -40,6 +50,42 @@ impl Body {
             Body::If(if_) => {
                 let (body, _) = map.get(&if_.input).unwrap();
                 body.all_parents_dims(map)
+            }
+        }
+    }
+    pub fn replace_var(&mut self, subs_expr: &mut SubstituteVar) {
+        match self {
+            Body::Stmt(stmt) => {
+                stmt.accept_mutate(subs_expr);
+                *self = Body::Stmt(subs_expr.stmt().clone());
+                subs_expr.set_stmt(Stmt::None);
+                subs_expr.set_expr(PrimeExpr::None);
+            }
+            Body::Stage(stage) => stage.replace_var(subs_expr),
+            Body::ReduceStage(red_stage) => {
+                red_stage.replace_var(subs_expr);
+            }
+            Body::If(if_) => {
+                if_.replace_var(subs_expr);
+            }
+        }
+    }
+    pub fn insert_new_axes(&mut self, axes: &mut InsertAxes) {
+        match self {
+            Body::Stmt(stmt) => {
+                stmt.accept_mutate(axes);
+                *self = Body::Stmt(axes.stmt().clone());
+                axes.set_stmt(Stmt::None);
+                axes.set_expr(PrimeExpr::None);
+            }
+            Body::Stage(stage) => {
+                stage.insert_new_axes(axes);
+            }
+            Body::ReduceStage(red_stage) => {
+                red_stage.insert_new_axes(axes);
+            }
+            Body::If(if_) => {
+                if_.insert_new_axes(axes);
             }
         }
     }
@@ -121,6 +167,30 @@ impl ReduceStage {
             }
         }
     }
+
+    pub fn replace_var(&mut self, subs_expr: &mut SubstituteVar) {
+        for body in &mut self.bodys {
+            body.replace_var(subs_expr);
+        }
+        for body in &mut self.inits {
+            body.replace_var(subs_expr);
+        }
+        for body in &mut self.posts {
+            body.replace_var(subs_expr);
+        }
+    }
+
+    pub fn insert_new_axes(&mut self, axes: &mut InsertAxes) {
+        for body in &mut self.bodys {
+            body.insert_new_axes(axes);
+        }
+        for body in &mut self.inits {
+            body.insert_new_axes(axes);
+        }
+        for body in &mut self.posts {
+            body.insert_new_axes(axes);
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -183,6 +253,18 @@ impl Stage {
                     if_.broadcast_new_dims(strides, axes);
                 }
             }
+        }
+    }
+
+    pub fn replace_var(&mut self, subs_expr: &mut SubstituteVar) {
+        for body in &mut self.bodys {
+            body.replace_var(subs_expr);
+        }
+    }
+
+    pub fn insert_new_axes(&mut self, axes: &mut InsertAxes) {
+        for body in &mut self.bodys {
+            body.insert_new_axes(axes);
         }
     }
 }
@@ -337,6 +419,24 @@ impl If {
                     }
                 }
             }
+        }
+    }
+
+    pub fn replace_var(&mut self, subs_expr: &mut SubstituteVar) {
+        for body in &mut self.true_bodys {
+            body.replace_var(subs_expr);
+        }
+        for body in &mut self.false_bodys {
+            body.replace_var(subs_expr);
+        }
+    }
+
+    pub fn insert_new_axes(&mut self, axes: &mut InsertAxes) {
+        for body in &mut self.true_bodys {
+            body.insert_new_axes(axes);
+        }
+        for body in &mut self.false_bodys {
+            body.insert_new_axes(axes);
         }
     }
 }

@@ -39,6 +39,7 @@ pub mod halide {
 }
 
 pub mod te {
+    pub mod insert_axes;
     pub mod strides_visitor;
     pub mod idx_evaluator;
     pub mod layout_cals;

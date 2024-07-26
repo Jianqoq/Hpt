@@ -43,6 +43,8 @@ impl IRMutateVisitor for StridesVisitor {
     fn visit_tensor_load(&mut self, tensor_load: &crate::halide::tensor_load::TensorLoad) {
         self.set_expr(TensorLoad {
             var: tensor_load.var.clone(),
+            begins: tensor_load.begins.clone(),
+            steps: tensor_load.steps.clone(),
             axes: tensor_load.axes.clone(),
             strides: tensor_load.strides
                 .iter()

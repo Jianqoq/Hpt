@@ -1176,17 +1176,29 @@ pub(crate) fn visit_tensor_load<V>(visitor: &mut V, tensor_load: &TensorLoad)
         .iter()
         .map(|stride| visitor.mutate_expr(stride))
         .collect::<Vec<PrimeExpr>>();
+    let steps = tensor_load.steps
+        .iter()
+        .map(|step| visitor.mutate_expr(step))
+        .collect::<Vec<PrimeExpr>>();
+    let begins = tensor_load.begins
+        .iter()
+        .map(|begin| visitor.mutate_expr(begin))
+        .collect::<Vec<PrimeExpr>>();
     if
         name == tensor_load.var.as_ref().into() &&
         &axes == tensor_load.axes.as_ref() &&
-        &strides == tensor_load.strides.as_ref()
+        &strides == tensor_load.strides.as_ref()&&
+        &steps == tensor_load.steps.as_ref() &&
+        &begins == tensor_load.begins.as_ref()
     {
         visitor.set_expr(tensor_load);
     } else {
         visitor.set_expr(
             TensorLoad::make(
                 name.to_variable().unwrap(),
+                begins,
                 axes,
+                steps,
                 strides,
                 tensor_load.hints.as_ref().clone()
             )

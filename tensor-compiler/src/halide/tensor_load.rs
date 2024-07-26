@@ -6,6 +6,8 @@ use crate::halide::{ exprs::Load, prime_expr::PrimeExpr, variable::Variable };
 #[derive(Clone, PartialEq, Hash, Eq, Debug)]
 pub struct TensorLoad {
     pub(crate) var: Arc<Variable>,
+    pub(crate) begins: Arc<Vec<PrimeExpr>>,
+    pub(crate) steps: Arc<Vec<PrimeExpr>>,
     pub(crate) axes: Arc<Vec<PrimeExpr>>,
     pub(crate) strides: Arc<Vec<PrimeExpr>>,
     pub(crate) hints: Arc<Vec<Hint>>,
@@ -23,13 +25,17 @@ impl TensorLoad {
         A: Into<Variable>,
         B: Into<Vec<PrimeExpr>>,
         C: Into<Vec<PrimeExpr>>,
-        D: Into<Vec<Hint>>
-    >(var: A, axes: B, strides: C, hints: D) -> Self {
+        D: Into<Vec<PrimeExpr>>,
+        E: Into<Vec<PrimeExpr>>,
+        F: Into<Vec<Hint>>
+    >(var: A, begins: B, axes: C, steps: D, strides: E, hints: F) -> Self {
         TensorLoad {
             var: Arc::new(var.into()),
+            begins: Arc::new(begins.into()),
             axes: Arc::new(axes.into()),
+            steps: Arc::new(steps.into()),
             strides: Arc::new(strides.into()),
-            hints: Arc::new(hints.into()),
+            hints: Arc::new(hints.into())
         }
     }
 }

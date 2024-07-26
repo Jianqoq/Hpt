@@ -66,8 +66,16 @@ impl Srg {
                             &Variable::make(&format!("%{}_val", node.id)),
                             TensorLoad {
                                 var: Variable::make(&format!("%{}", node.id)).into(),
+                                begins: (0..node.shape.len())
+                                    .map(|_| (0i64).into())
+                                    .collect::<Vec<PrimeExpr>>()
+                                    .into(),
                                 axes: (0..node.shape.len())
                                     .map(|x| Variable::make(&format!("ax{}", x)).into())
+                                    .collect::<Vec<PrimeExpr>>()
+                                    .into(),
+                                steps: (0..node.shape.len())
+                                    .map(|_| (1i64).into())
                                     .collect::<Vec<PrimeExpr>>()
                                     .into(),
                                 strides: (0..node.shape.len())
@@ -129,7 +137,8 @@ mod tests {
 
     use crate::{
         halide::{ exprs::Int, prime_expr::PrimeExpr },
-        te::{ context::Context, srg_node::SrgNode }, to_prim_expr::ToPrimeExpr,
+        te::{ context::Context, srg_node::SrgNode },
+        to_prim_expr::ToPrimeExpr,
     };
 
     use super::Srg;
@@ -431,7 +440,10 @@ mod tests {
             ],
             &1f32
         );
-        let c = ctx.placeholder(&[&(&m.into() + &10i64.to_prime_expr()), &(&n.into() + &10i64.to_prime_expr())], Dtype::F32);
+        let c = ctx.placeholder(
+            &[&(&m.into() + &(10i64).to_prime_expr()), &(&n.into() + &(10i64).to_prime_expr())],
+            Dtype::F32
+        );
         let d = ctx.sin(&b);
         let e = ctx.add(&d, &c);
         let order = [a.id, b.id, c.id, d.id, e.id];

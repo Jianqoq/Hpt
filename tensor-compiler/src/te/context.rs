@@ -5,21 +5,21 @@ use tensor_common::{
     shape_utils::is_reshape_possible,
     strides_utils::shape_to_strides,
 };
-use tensor_types::{ dtype::{ Dtype, TypeCommon }, type_promote::NormalOut };
+use tensor_types::{ dtype::Dtype, type_promote::NormalOut };
 
 use crate::{
     halide::{
         assign_stmt::AssignStmt,
-        exprs::{ BitAnd, Call, Ge, Gt, Int, Load, Lt, Select },
-        if_stmt::IfThenElse,
+        exprs::{ BitAnd, Call, Ge, Int, Load, Lt },
         inplace_store_stmt::InplaceAdd,
         let_stmt::LetStmt,
         passes::const_fold::ConstFold,
         prime_expr::PrimeExpr,
-        printer::IRPrinter,
         stmt::Stmt,
         store_stmt::StoreStmt,
+        substitute::subsititue_var::SubstituteVar,
         tensor_load::TensorLoad,
+        traits::MutatorGetSet,
         variable::Variable,
     },
     iter_var::IterVar,
@@ -28,6 +28,7 @@ use crate::{
 };
 
 use super::{
+    insert_axes::InsertAxes,
     rc_mut::RcMut,
     srg::Srg,
     srg_node::SrgNode,
@@ -131,8 +132,16 @@ impl Context {
                             &Variable::make(&format!("%{}_val", id)),
                             TensorLoad {
                                 var: Variable::make(&format!("%{}", id)).into(),
+                                begins: (0..shape.len())
+                                    .map(|_| (0i64).into())
+                                    .collect::<Vec<PrimeExpr>>()
+                                    .into(),
                                 axes: (0..shape.len())
                                     .map(|x| Variable::make(&format!("ax{}", x)).into())
+                                    .collect::<Vec<PrimeExpr>>()
+                                    .into(),
+                                steps: (0..shape.len())
+                                    .map(|_| (1i64).into())
                                     .collect::<Vec<PrimeExpr>>()
                                     .into(),
                                 strides: (0..shape.len())
@@ -230,6 +239,7 @@ impl Context {
                     ret
                 })
             }),
+            /* reshape we will stop fusion as long as the tensorload is not pure ax * id.s[idx] */
             body_gen: Arc::new(move |inputs: Vec<Body>, is_output: bool, id: usize| {
                 let shape = new_shape.clone();
                 if is_output {
@@ -263,7 +273,7 @@ impl Context {
                                                 Load::make(&format!("%{}.s", id), idx).into()
                                         )
                                         .reduce(|acc, x| acc + x)
-                                        .unwrap(),
+                                        .unwrap_or((0i64).into()),
                                     Variable::make(&format!("%{}_val", stage.id))
                                 )
                             )
@@ -327,29 +337,42 @@ impl Context {
         let lhs_shape = a.shape.clone();
         let rhs_shape = b.shape.clone();
         let mut res_shape = vec![];
+        let mut lhs_replace = vec![];
+        let mut rhs_replace = vec![];
+        let mut lhs_new_axes = vec![];
+        let mut rhs_new_axes = vec![];
+
         let (lhs_start, rhs_start) = if lhs_shape.len() < rhs_shape.len() {
             (0..rhs_shape.len() - lhs_shape.len()).for_each(|x| {
+                rhs_replace.push((res_shape.len(), x));
+                lhs_new_axes.push(res_shape.len());
                 res_shape.push(rhs_shape[x].clone());
             });
             (0, rhs_shape.len() - lhs_shape.len())
         } else if lhs_shape.len() > rhs_shape.len() {
             (0..lhs_shape.len() - rhs_shape.len()).for_each(|x| {
+                lhs_replace.push((res_shape.len(), x));
+                rhs_new_axes.push(res_shape.len());
                 res_shape.push(lhs_shape[x].clone());
             });
             (lhs_shape.len() - rhs_shape.len(), 0)
         } else {
             (0, 0)
         };
+
         let one = PrimeExpr::Int(Int::make(Dtype::I64, 1));
         lhs_shape[lhs_start..]
             .iter()
-            .zip(rhs_shape[rhs_start..].iter())
-            .for_each(|(x, y)| {
-                if x == &one {
+            .enumerate()
+            .zip(rhs_shape[rhs_start..].iter().enumerate())
+            .for_each(|((lhs_idx, x), (rhs_idx, y))| {
+                lhs_replace.push((res_shape.len(), lhs_idx + lhs_start));
+                rhs_replace.push((res_shape.len(), rhs_idx + rhs_start));
+                if x == y {
+                    res_shape.push(x.clone());
+                } else if x == &one {
                     res_shape.push(y.clone());
                 } else if y == &one {
-                    res_shape.push(x.clone());
-                } else if x == y {
                     res_shape.push(x.clone());
                 } else {
                     panic!("Incompatible shapes. {} and {}", x, y);
@@ -359,6 +382,8 @@ impl Context {
         *self.id.borrow_mut() += 1;
         let res_shape = Arc::new(res_shape);
         let res_shape1 = res_shape.clone();
+        let lhs_replace = Arc::new(lhs_replace);
+        let rhs_replace = Arc::new(rhs_replace);
         let ret = Tensor {
             shape: res_shape.clone(),
             inputs: Arc::new(vec![a.id, b.id]),
@@ -422,7 +447,54 @@ impl Context {
                     match (lhs, rhs) {
                         (Body::Stage(lhs), Body::Stage(rhs)) => {
                             let mut lhs_bodys = lhs.bodys.clone();
-                            let rhs_bodys = rhs.bodys.clone();
+                            for (new_shape_idx, old_shape_idx) in lhs_replace.iter() {
+                                let mut subs_var = SubstituteVar::new();
+                                subs_var.add_replacement(
+                                    Variable::new(format!("ax{}", old_shape_idx)),
+                                    Variable::new(format!("ax{}", new_shape_idx))
+                                );
+                                for i in lhs_bodys.iter_mut() {
+                                    i.replace_var(&mut subs_var);
+                                }
+                            }
+                            let lhs_new_axes = Arc::new(
+                                lhs_new_axes
+                                    .iter()
+                                    .map(|x| { Variable::new(format!("ax{}", x)).into() })
+                                    .collect::<Vec<PrimeExpr>>()
+                            );
+                            let mut insert_axes = InsertAxes::new(lhs_new_axes.clone(), id);
+                            for i in lhs_bodys.iter_mut() {
+                                insert_axes.set_expr(PrimeExpr::None);
+                                insert_axes.set_stmt(Stmt::None);
+                                i.insert_new_axes(&mut insert_axes);
+                            }
+
+                            let mut rhs_bodys = rhs.bodys.clone();
+                            for (new_shape_idx, old_shape_idx) in rhs_replace.iter() {
+                                let mut subs_var = SubstituteVar::new();
+                                subs_var.add_replacement(
+                                    Variable::new(format!("ax{}", old_shape_idx)),
+                                    Variable::new(format!("ax{}", new_shape_idx))
+                                );
+                                for i in rhs_bodys.iter_mut() {
+                                    i.replace_var(&mut subs_var);
+                                }
+                            }
+
+                            let rhs_new_axes = Arc::new(
+                                rhs_new_axes
+                                    .iter()
+                                    .map(|x| { Variable::new(format!("ax{}", x)).into() })
+                                    .collect::<Vec<PrimeExpr>>()
+                            );
+                            let mut insert_axes = InsertAxes::new(rhs_new_axes.clone(), id);
+                            for i in rhs_bodys.iter_mut() {
+                                insert_axes.set_expr(PrimeExpr::None);
+                                insert_axes.set_stmt(Stmt::None);
+                                i.insert_new_axes(&mut insert_axes);
+                            }
+
                             lhs_bodys.extend(rhs_bodys);
                             let add = Stmt::LetStmt(
                                 LetStmt::make(
@@ -833,8 +905,16 @@ impl Context {
                                     &Variable::make(&format!("%{}_val", id)),
                                     TensorLoad {
                                         var: Variable::make(&format!("%{}_ptr", id)).into(),
+                                        begins: (0..shape.len())
+                                            .map(|_| (0i64).into())
+                                            .collect::<Vec<PrimeExpr>>()
+                                            .into(),
                                         axes: (0..shape.len())
                                             .map(|x| Variable::make(&format!("ax{}", x)).into())
+                                            .collect::<Vec<PrimeExpr>>()
+                                            .into(),
+                                        steps: (0..shape.len())
+                                            .map(|_| (1i64).into())
                                             .collect::<Vec<PrimeExpr>>()
                                             .into(),
                                         strides: (0..shape.len())
@@ -915,8 +995,16 @@ impl Context {
                                     &Variable::make(&format!("%{}_val", id)),
                                     TensorLoad {
                                         var: Variable::make(&format!("%{}_ptr", id)).into(),
+                                        begins: (0..shape.len())
+                                            .map(|_| (0i64).into())
+                                            .collect::<Vec<PrimeExpr>>()
+                                            .into(),
                                         axes: (0..shape.len())
                                             .map(|x| Variable::make(&format!("ax{}", x)).into())
+                                            .collect::<Vec<PrimeExpr>>()
+                                            .into(),
+                                        steps: (0..shape.len())
+                                            .map(|_| (1i64).into())
                                             .collect::<Vec<PrimeExpr>>()
                                             .into(),
                                         strides: (0..shape.len())
