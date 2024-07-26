@@ -90,6 +90,7 @@ pub fn common_reduce_helper<F>(
         posts: posts(&stage.dims),
         input: stage.id,
     };
+    stage.out_id = output_id;
     stage.bodys = vec![Body::ReduceStage(reduce_stage)];
     Body::Stage(stage)
 }

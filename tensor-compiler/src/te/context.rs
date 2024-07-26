@@ -165,6 +165,7 @@ impl Context {
                         .collect(),
                     bodys: vec![body],
                     id,
+                    out_id: id,
                 };
                 Body::Stage(stage)
             }),
@@ -274,7 +275,7 @@ impl Context {
                                         )
                                         .reduce(|acc, x| acc + x)
                                         .unwrap_or((0i64).into()),
-                                    Variable::make(&format!("%{}_val", stage.id))
+                                    Variable::make(&format!("%{}_val", stage.out_id))
                                 )
                             )
                         );
@@ -283,6 +284,7 @@ impl Context {
                             dims,
                             bodys: stage.bodys.clone(),
                             id,
+                            out_id: stage.out_id,
                         };
                         Body::Stage(stage)
                     } else {
@@ -310,7 +312,7 @@ impl Context {
                             Stmt::LetStmt(
                                 LetStmt::make(
                                     &Variable::make(&format!("%{}_val", id)),
-                                    Variable::make(&format!("%{}_val", stage.id)),
+                                    Variable::make(&format!("%{}_val", stage.out_id)),
                                     Stmt::None
                                 )
                             ).into()
@@ -320,6 +322,7 @@ impl Context {
                             dims,
                             bodys: stage.bodys.clone(),
                             id,
+                            out_id: stage.out_id,
                         };
                         Body::Stage(stage)
                     } else {
@@ -485,6 +488,7 @@ impl Context {
                                 dims,
                                 bodys: lhs_bodys,
                                 id,
+                                out_id: id,
                             };
                             Body::Stage(stage)
                         }
@@ -556,6 +560,7 @@ impl Context {
                                 dims,
                                 bodys: lhs_bodys,
                                 id,
+                                out_id: id,
                             };
                             Body::Stage(stage)
                         }
@@ -650,7 +655,7 @@ impl Context {
                                         )
                                         .reduce(|acc, x| acc + x)
                                         .unwrap(),
-                                    Variable::make(&format!("%{}_val", stage.id))
+                                    Variable::make(&format!("%{}_val", stage.out_id))
                                 )
                             )
                         );
@@ -659,6 +664,7 @@ impl Context {
                             dims: stage.dims.clone(),
                             bodys: stage.bodys.clone(),
                             id,
+                            out_id: id,
                         };
                         Body::Stage(stage)
                     } else {
@@ -672,7 +678,7 @@ impl Context {
                                     &Variable::make(&format!("%{}_val", id)),
                                     Call::make(
                                         "sin",
-                                        &[Variable::make(&format!("%{}_val", stage.id))]
+                                        &[Variable::make(&format!("%{}_val", stage.out_id))]
                                     ),
                                     Stmt::None
                                 )
@@ -684,6 +690,7 @@ impl Context {
                             dims: stage.dims.clone(),
                             bodys: stage_bodys,
                             id,
+                            out_id: id,
                         };
                         Body::Stage(stage)
                     } else {
@@ -828,7 +835,7 @@ impl Context {
                                         )
                                         .reduce(|acc, x| acc + x)
                                         .unwrap(),
-                                    Variable::make(&format!("%{}_val", stage.id))
+                                    Variable::make(&format!("%{}_val", stage.out_id))
                                 )
                             )
                         );
@@ -836,6 +843,7 @@ impl Context {
                             dims,
                             bodys: vec![offset_body, body, store_body],
                             id,
+                            out_id: id,
                         };
                         Body::Stage(stage)
                     } else {
@@ -908,6 +916,7 @@ impl Context {
                             dims,
                             bodys: vec![offset_body, body],
                             id,
+                            out_id: id,
                         };
                         Body::Stage(stage)
                     } else {
@@ -992,7 +1001,7 @@ impl Context {
                                             )
                                             .reduce(|acc, x| acc + x)
                                             .unwrap(),
-                                        Variable::make(&format!("%{}_val", stage.id))
+                                        Variable::make(&format!("%{}_val", stage.out_id))
                                     )
                                 )
                             )
@@ -1025,6 +1034,7 @@ impl Context {
                             dims: stage.dims.clone(),
                             bodys: vec![if_then_else],
                             id,
+                            out_id: id,
                         };
                         Body::Stage(stage)
                     } else {
@@ -1054,7 +1064,7 @@ impl Context {
                                 Stmt::AssignStmt(
                                     AssignStmt::make(
                                         &Variable::make(&format!("%{}_val", id)),
-                                        Variable::make(&format!("%{}_val", stage.id))
+                                        Variable::make(&format!("%{}_val", stage.out_id))
                                     )
                                 ).into()
                             )
@@ -1088,6 +1098,7 @@ impl Context {
                             dims: stage.dims.clone(),
                             bodys: vec![let_init, if_then_else],
                             id,
+                            out_id: id,
                         };
                         Body::Stage(stage)
                     } else {

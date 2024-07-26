@@ -101,6 +101,7 @@ impl Srg {
                         .collect(),
                     bodys: vec![body],
                     id: *id,
+                    out_id: *id,
                 };
                 qa.insert(*id, (Body::Stage(stage), false));
                 declared_vars.insert(format!("%{}_val", node.id));

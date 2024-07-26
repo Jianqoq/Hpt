@@ -198,6 +198,7 @@ pub struct Stage {
     pub(crate) dims: Vec<IterVar>,
     pub(crate) bodys: Vec<Body>,
     pub(crate) id: usize,
+    pub(crate) out_id: usize,
 }
 
 impl Stage {
