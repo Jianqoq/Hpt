@@ -414,7 +414,54 @@ impl Context {
                     match (lhs, rhs) {
                         (Body::Stage(lhs), Body::Stage(rhs)) => {
                             let mut lhs_bodys = lhs.bodys.clone();
-                            let rhs_bodys = rhs.bodys.clone();
+                            for (new_shape_idx, old_shape_idx) in lhs_replace.iter() {
+                                let mut subs_var = SubstituteVar::new();
+                                subs_var.add_replacement(
+                                    Variable::new(format!("ax{}", old_shape_idx)),
+                                    Variable::new(format!("ax{}", new_shape_idx))
+                                );
+                                for i in lhs_bodys.iter_mut() {
+                                    i.replace_var(&mut subs_var);
+                                }
+                            }
+                            let lhs_new_axes = Arc::new(
+                                lhs_new_axes
+                                    .iter()
+                                    .map(|x| { Variable::new(format!("ax{}", x)).into() })
+                                    .collect::<Vec<PrimeExpr>>()
+                            );
+                            let mut insert_axes = InsertAxes::new(lhs_new_axes.clone(), id);
+                            for i in lhs_bodys.iter_mut() {
+                                insert_axes.set_expr(PrimeExpr::None);
+                                insert_axes.set_stmt(Stmt::None);
+                                i.insert_new_axes(&mut insert_axes);
+                            }
+
+                            let mut rhs_bodys = rhs.bodys.clone();
+                            for (new_shape_idx, old_shape_idx) in rhs_replace.iter() {
+                                let mut subs_var = SubstituteVar::new();
+                                subs_var.add_replacement(
+                                    Variable::new(format!("ax{}", old_shape_idx)),
+                                    Variable::new(format!("ax{}", new_shape_idx))
+                                );
+                                for i in rhs_bodys.iter_mut() {
+                                    i.replace_var(&mut subs_var);
+                                }
+                            }
+
+                            let rhs_new_axes = Arc::new(
+                                rhs_new_axes
+                                    .iter()
+                                    .map(|x| { Variable::new(format!("ax{}", x)).into() })
+                                    .collect::<Vec<PrimeExpr>>()
+                            );
+                            let mut insert_axes = InsertAxes::new(rhs_new_axes.clone(), id);
+                            for i in rhs_bodys.iter_mut() {
+                                insert_axes.set_expr(PrimeExpr::None);
+                                insert_axes.set_stmt(Stmt::None);
+                                i.insert_new_axes(&mut insert_axes);
+                            }
+
                             lhs_bodys.extend(rhs_bodys);
                             let sotre_add = Stmt::StoreStmt(
                                 StoreStmt::make(

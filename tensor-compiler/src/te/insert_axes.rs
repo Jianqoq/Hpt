@@ -55,26 +55,26 @@ impl IRMutateVisitor for InsertAxes {
                 PrimeExpr::Load(Load::make(Variable::new(format!("%{}.s", self.id)), idx as i64))
             )
             .collect::<Vec<PrimeExpr>>();
+        let mut new_axes = self.axes.as_ref().clone();
         for (idx, stride) in tensor_load.strides.iter().enumerate() {
             let mut load = stride.to_load().unwrap().clone();
             load.indices = Arc::new(((idx as i64) + (self.axes.len() as i64)).into());
             new_strides.push(load.into());
         }
-        for (idx, begin) in tensor_load.begins.iter().enumerate() {
-            let mut load = begin.to_load().unwrap().clone();
-            load.indices = Arc::new(((idx as i64) + (self.axes.len() as i64)).into());
-            new_begins.push(load.into());
+        for begin in tensor_load.begins.iter() {
+            new_begins.push(begin.clone());
         }
-        for (idx, step) in tensor_load.steps.iter().enumerate() {
-            let mut load = step.to_load().unwrap().clone();
-            load.indices = Arc::new(((idx as i64) + (self.axes.len() as i64)).into());
-            new_steps.push(load.into());
+        for step in tensor_load.steps.iter() {
+            new_steps.push(step.clone());
+        }
+        for axis in tensor_load.axes.iter() {
+            new_axes.push(axis.clone());
         }
         self.set_expr(
             crate::halide::tensor_load::TensorLoad::make(
                 tensor_load.var.as_ref(),
                 new_begins,
-                self.axes.as_ref().clone(),
+                new_axes,
                 new_steps,
                 new_strides,
                 tensor_load.hints.as_ref().clone()
