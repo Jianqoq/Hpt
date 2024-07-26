@@ -314,6 +314,45 @@ mod tests {
     }
 
     #[test]
+    fn test_add_broadcast_diff_len_schedule() {
+        let mut ctx = Context::new();
+        let m = ctx.var("m");
+        let n = ctx.var("n");
+        let o = ctx.var("o");
+        let a = ctx.placeholder(&[&o, &m, &1i64], Dtype::F32);
+        let b = ctx.placeholder(&[&m, &n], Dtype::F32);
+        let c = ctx.add(&a, &b);
+        let order = [a.id, b.id, c.id];
+
+        let mut nodes = HashMap::new();
+        for (id, node) in ctx.nodes.borrow().iter() {
+            let srg_node = SrgNode {
+                id: *id,
+                shape: node.shape.clone(),
+                inputs: node.inputs.clone(),
+                outputs: Arc::new(
+                    ctx.nodes
+                        .borrow()
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            if v.inputs.contains(id) { Some(*k) } else { None }
+                        })
+                        .collect()
+                ),
+                strides_cal: Arc::new(|_| vec![]),
+                span: node.span,
+            };
+            nodes.insert(*id, srg_node);
+        }
+        let srg = Srg {
+            nodes,
+            tensors: ctx.nodes.clone(),
+        };
+        let schedule = srg.create_schedule(&order);
+        println!("{}", schedule);
+    }
+
+    #[test]
     fn test_sum_broadcast_schedule() {
         let mut ctx = Context::new();
         let m = ctx.var("m");
@@ -390,7 +429,6 @@ mod tests {
 
         let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
-
         let func = schedule.to_function();
         println!("{}", func);
     }

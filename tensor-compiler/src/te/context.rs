@@ -11,7 +11,6 @@ use crate::{
     halide::{
         assign_stmt::AssignStmt,
         exprs::{ BitAnd, Call, Ge, Int, Load, Lt },
-        inplace_store_stmt::InplaceAdd,
         let_stmt::LetStmt,
         passes::const_fold::ConstFold,
         prime_expr::PrimeExpr,
@@ -28,11 +27,12 @@ use crate::{
 };
 
 use super::{
+    bodygen_helper::common_reduce,
     insert_axes::InsertAxes,
     rc_mut::RcMut,
     srg::Srg,
     srg_node::SrgNode,
-    stages::{ Body, ReduceStage, Stage },
+    stages::{ Body, Stage },
     strides_cal_helper::{
         binary_strides_cal,
         elementwise_strides_cal,
@@ -414,15 +414,15 @@ impl Context {
                     match (lhs, rhs) {
                         (Body::Stage(lhs), Body::Stage(rhs)) => {
                             let mut lhs_bodys = lhs.bodys.clone();
+                            let mut subs_var = SubstituteVar::new();
                             for (new_shape_idx, old_shape_idx) in lhs_replace.iter() {
-                                let mut subs_var = SubstituteVar::new();
                                 subs_var.add_replacement(
                                     Variable::new(format!("ax{}", old_shape_idx)),
                                     Variable::new(format!("ax{}", new_shape_idx))
                                 );
-                                for i in lhs_bodys.iter_mut() {
-                                    i.replace_var(&mut subs_var);
-                                }
+                            }
+                            for i in lhs_bodys.iter_mut() {
+                                i.replace_var(&mut subs_var);
                             }
                             let lhs_new_axes = Arc::new(
                                 lhs_new_axes
@@ -438,15 +438,15 @@ impl Context {
                             }
 
                             let mut rhs_bodys = rhs.bodys.clone();
+                            let mut subs_var = SubstituteVar::new();
                             for (new_shape_idx, old_shape_idx) in rhs_replace.iter() {
-                                let mut subs_var = SubstituteVar::new();
                                 subs_var.add_replacement(
                                     Variable::new(format!("ax{}", old_shape_idx)),
                                     Variable::new(format!("ax{}", new_shape_idx))
                                 );
-                                for i in rhs_bodys.iter_mut() {
-                                    i.replace_var(&mut subs_var);
-                                }
+                            }
+                            for i in rhs_bodys.iter_mut() {
+                                i.replace_var(&mut subs_var);
                             }
 
                             let rhs_new_axes = Arc::new(
@@ -494,15 +494,15 @@ impl Context {
                     match (lhs, rhs) {
                         (Body::Stage(lhs), Body::Stage(rhs)) => {
                             let mut lhs_bodys = lhs.bodys.clone();
+                            let mut subs_var = SubstituteVar::new();
                             for (new_shape_idx, old_shape_idx) in lhs_replace.iter() {
-                                let mut subs_var = SubstituteVar::new();
                                 subs_var.add_replacement(
                                     Variable::new(format!("ax{}", old_shape_idx)),
                                     Variable::new(format!("ax{}", new_shape_idx))
                                 );
-                                for i in lhs_bodys.iter_mut() {
-                                    i.replace_var(&mut subs_var);
-                                }
+                            }
+                            for i in lhs_bodys.iter_mut() {
+                                i.replace_var(&mut subs_var);
                             }
                             let lhs_new_axes = Arc::new(
                                 lhs_new_axes
@@ -518,15 +518,15 @@ impl Context {
                             }
 
                             let mut rhs_bodys = rhs.bodys.clone();
+                            let mut subs_var = SubstituteVar::new();
                             for (new_shape_idx, old_shape_idx) in rhs_replace.iter() {
-                                let mut subs_var = SubstituteVar::new();
                                 subs_var.add_replacement(
                                     Variable::new(format!("ax{}", old_shape_idx)),
                                     Variable::new(format!("ax{}", new_shape_idx))
                                 );
-                                for i in rhs_bodys.iter_mut() {
-                                    i.replace_var(&mut subs_var);
-                                }
+                            }
+                            for i in rhs_bodys.iter_mut() {
+                                i.replace_var(&mut subs_var);
                             }
 
                             let rhs_new_axes = Arc::new(
@@ -612,172 +612,7 @@ impl Context {
                     .iter()
                     .map(|x| *x as usize)
                     .collect::<Vec<usize>>();
-                if is_output {
-                    if let Body::Stage(stage) = &inputs[0] {
-                        let mut stage = stage.clone();
-                        let mut dims = (0..res_shape.len())
-                            .map(|x| Variable::make(&format!("ax{}", x)).into())
-                            .collect::<Vec<PrimeExpr>>();
-                        let mut red_dims = vec![];
-                        for i in axes.iter() {
-                            red_dims.push(Variable::make(&format!("{}red{}", id, i)).into());
-                        }
-                        dims.extend(red_dims);
-                        stage.broadcast_new_dims(
-                            &(0..a_shape.len())
-                                .map(|x|
-                                    Load::make(Variable::make(&format!("%{}.s", id)), x).into()
-                                )
-                                .collect::<Vec<PrimeExpr>>(),
-                            &dims
-                        );
-                        let mut bodys = stage.bodys.clone();
-                        bodys.push(
-                            Body::Stmt(
-                                Stmt::InplaceAdd(
-                                    InplaceAdd::make(
-                                        &Variable::make(&format!("%{}_val", id)),
-                                        Variable::make(&format!("%{}_val", stage.id))
-                                    )
-                                )
-                            )
-                        );
-                        stage.dims = (0..a_shape.len())
-                            .filter(|x| !axes.contains(x))
-                            .enumerate()
-                            .map(|(idx, x)|
-                                IterVar::new(0i64, a_shape[x].clone(), 1i64, &format!("ax{}", idx))
-                            )
-                            .collect();
-                        let all_parent_dims = &stage.dims;
-                        let red_axes = axes
-                            .iter()
-                            .map(|x|
-                                IterVar::new(
-                                    0i64,
-                                    a_shape[*x].clone(),
-                                    1i64,
-                                    &format!("{}red{}", id, x)
-                                )
-                            )
-                            .collect::<Vec<IterVar>>();
-                        let reduce_stage = ReduceStage {
-                            dims: red_axes.clone(),
-                            bodys,
-                            id,
-                            inits: vec![
-                                Body::Stmt(
-                                    Stmt::LetStmt(
-                                        LetStmt::make(
-                                            &Variable::make(&format!("%{}_val", id)),
-                                            init.clone(),
-                                            Stmt::None
-                                        )
-                                    ).into()
-                                )
-                            ],
-                            posts: vec![
-                                Body::Stmt(
-                                    Stmt::StoreStmt(
-                                        StoreStmt::make(
-                                            &Variable::make(&format!("%{}", id)),
-                                            all_parent_dims
-                                                .iter()
-                                                .enumerate()
-                                                .map(
-                                                    |(idx, x)|
-                                                        PrimeExpr::Variable(x.var().clone()) *
-                                                        Load::make(
-                                                            &format!("%{}.s", id),
-                                                            idx
-                                                        ).into()
-                                                )
-                                                .reduce(|acc, x| acc + x)
-                                                .unwrap_or((0i64).into()),
-                                            Variable::make(&format!("%{}_val", id))
-                                        )
-                                    )
-                                )
-                            ],
-                            input: stage.id,
-                        };
-                        stage.bodys = vec![Body::ReduceStage(reduce_stage)];
-                        Body::Stage(stage)
-                    } else {
-                        panic!("input is not a stage");
-                    }
-                } else {
-                    if let Body::Stage(stage) = &inputs[0] {
-                        let mut stage = stage.clone();
-                        let mut dims = (0..res_shape.len())
-                            .map(|x| Variable::make(&format!("ax{}", x)).into())
-                            .collect::<Vec<PrimeExpr>>();
-                        let mut red_dims = vec![];
-                        for i in axes.iter() {
-                            red_dims.push(Variable::make(&format!("{}red{}", id, i)).into());
-                        }
-                        dims.extend(red_dims);
-                        stage.broadcast_new_dims(
-                            &(0..a_shape.len())
-                                .map(|x|
-                                    Load::make(Variable::make(&format!("%{}.s", id)), x).into()
-                                )
-                                .collect::<Vec<PrimeExpr>>(),
-                            &dims
-                        );
-                        let mut bodys = stage.bodys.clone();
-                        bodys.push(
-                            Body::Stmt(
-                                Stmt::InplaceAdd(
-                                    InplaceAdd::make(
-                                        &Variable::make(&format!("%{}_val", id)),
-                                        Variable::make(&format!("%{}_val", stage.id))
-                                    )
-                                )
-                            )
-                        );
-                        stage.dims = (0..a_shape.len())
-                            .filter(|x| !axes.contains(x))
-                            .enumerate()
-                            .map(|(idx, x)|
-                                IterVar::new(0i64, a_shape[x].clone(), 1i64, &format!("ax{}", idx))
-                            )
-                            .collect();
-                        let red_axes = axes
-                            .iter()
-                            .map(|x|
-                                IterVar::new(
-                                    0i64,
-                                    a_shape[*x].clone(),
-                                    1i64,
-                                    &format!("{}red{}", id, x)
-                                )
-                            )
-                            .collect::<Vec<IterVar>>();
-                        let reduce_stage = ReduceStage {
-                            dims: red_axes.clone(),
-                            bodys,
-                            id,
-                            inits: vec![
-                                Body::Stmt(
-                                    Stmt::LetStmt(
-                                        LetStmt::make(
-                                            &Variable::make(&format!("%{}_val", id)),
-                                            init.clone(),
-                                            Stmt::None
-                                        )
-                                    ).into()
-                                )
-                            ],
-                            posts: vec![],
-                            input: stage.id,
-                        };
-                        stage.bodys = vec![Body::ReduceStage(reduce_stage)];
-                        Body::Stage(stage)
-                    } else {
-                        panic!("input is not a stage");
-                    }
-                }
+                common_reduce(is_output, &inputs, &a_shape, &axes, init.clone(), id)
             }),
         };
         self.nodes.borrow_mut().insert(id, ret.clone());
