@@ -3,7 +3,20 @@ use tensor_llvm::types::values::BasicValue;
 use crate::iter_var::IterVar;
 
 use super::{
-    assign_stmt::AssignStmt, exprs::*, for_stmt::For, if_stmt::IfThenElse, inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub }, let_stmt::LetStmt, module::{ Function, Module }, prime_expr::PrimeExpr, return_stmt::ReturnStmt, seq_stmt::Seq, stmt::Stmt, store_stmt::StoreStmt, tensor_load::TensorLoad, variable::Variable
+    assign_stmt::AssignStmt,
+    exprs::*,
+    for_stmt::For,
+    if_stmt::IfThenElse,
+    inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub },
+    let_stmt::LetStmt,
+    module::{ Function, Module },
+    prime_expr::PrimeExpr,
+    return_stmt::ReturnStmt,
+    seq_stmt::Seq,
+    stmt::Stmt,
+    store_stmt::StoreStmt,
+    tensor_load::TensorLoad,
+    variable::Variable,
 };
 
 #[allow(unused_variables)]
@@ -46,6 +59,7 @@ pub trait IRVisitor where Self: Sized {
             PrimeExpr::Layout(layout) => self.visit_layout(&layout),
             PrimeExpr::Alloca(alloca) => self.visit_alloca(&alloca),
             PrimeExpr::TensorLoad(tensor_load) => self.visit_tensor_load(&tensor_load),
+            PrimeExpr::Null => { self.visit_null() }
             PrimeExpr::None => {}
         }
     }
@@ -254,6 +268,8 @@ pub trait IRVisitor where Self: Sized {
         inplace_div.to_store().accept(self);
         inplace_div.val().accept(self);
     }
+
+    fn visit_null(&self) {}
 }
 
 #[allow(unused_variables)]
@@ -296,6 +312,7 @@ pub trait IRMutVisitor where Self: Sized {
             PrimeExpr::Layout(layout) => self.visit_layout(&layout),
             PrimeExpr::Alloca(alloca) => self.visit_alloca(&alloca),
             PrimeExpr::TensorLoad(tensor_load) => self.visit_tensor_load(&tensor_load),
+            PrimeExpr::Null => { self.visit_null() }
             PrimeExpr::None => {}
         }
     }
@@ -505,6 +522,8 @@ pub trait IRMutVisitor where Self: Sized {
         inplace_div.to_store().accept_mut(self);
         inplace_div.val().accept_mut(self);
     }
+
+    fn visit_null(&mut self) {}
 }
 
 pub trait MutatorGetSet {
@@ -535,7 +554,7 @@ pub(crate) fn mutate_expr<V>(visitor: &mut V, expr: &PrimeExpr) -> PrimeExpr
         expr.accept_mutate(visitor);
     }
     visitor.set_stmt(Stmt::None);
-    return visitor.expr().clone();
+    visitor.expr().clone()
 }
 
 pub(crate) fn mutate_stmt<V>(visitor: &mut V, stmt: &Stmt) -> Stmt
@@ -547,7 +566,7 @@ pub(crate) fn mutate_stmt<V>(visitor: &mut V, stmt: &Stmt) -> Stmt
         stmt.accept_mutate(visitor);
     }
     visitor.set_expr(PrimeExpr::None);
-    return visitor.stmt().clone();
+    visitor.stmt().clone()
 }
 
 pub(crate) fn visit_expr<V>(visitor: &mut V, expr: &PrimeExpr)
@@ -590,6 +609,7 @@ pub(crate) fn visit_expr<V>(visitor: &mut V, expr: &PrimeExpr)
         PrimeExpr::Layout(layout) => visitor.visit_layout(&layout),
         PrimeExpr::Alloca(alloca) => visitor.visit_alloca(&alloca),
         PrimeExpr::TensorLoad(tensor_load) => visitor.visit_tensor_load(&tensor_load),
+        PrimeExpr::Null => { visitor.visit_null() }
         PrimeExpr::None => {}
     }
 }
@@ -1174,6 +1194,10 @@ pub(crate) fn visit_tensor_load<V>(visitor: &mut V, tensor_load: &TensorLoad)
     }
 }
 
+pub(crate) fn visit_null(visitor: &mut impl IRMutateVisitor) {
+    visitor.set_expr(PrimeExpr::Null);
+}
+
 pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     fn mutate_expr(&mut self, expr: &PrimeExpr) -> PrimeExpr {
         mutate_expr(self, expr)
@@ -1332,6 +1356,9 @@ pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     fn visit_reduce(&mut self, reduce: &Reduce) {
         visit_reduce(self, reduce);
     }
+    fn visit_null(&mut self) {
+        visit_null(self);
+    }
 }
 
 pub trait CodeGenVisitor where Self: Sized {
@@ -1373,6 +1400,7 @@ pub trait CodeGenVisitor where Self: Sized {
             PrimeExpr::Layout(layout) => self.visit_layout(&layout),
             PrimeExpr::Alloca(alloca) => self.visit_alloca(&alloca),
             PrimeExpr::TensorLoad(tensor_load) => self.visit_tensor_load(&tensor_load),
+            PrimeExpr::Null => { BasicValue::None }
             PrimeExpr::None => { BasicValue::None }
         }
     }

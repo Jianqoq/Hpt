@@ -43,6 +43,7 @@ impl Schedule {
 
     pub fn to_function(&self) -> Function {
         let fn_body = Stmt::Seq(Seq::make(self.to_halide()));
+   
         let mut strides_visitor = StridesVisitor::new();
         let new_fn_body = replace_strides(&fn_body, &mut strides_visitor);
         let strides_loads = gen_strides_loads(strides_visitor.cnt);

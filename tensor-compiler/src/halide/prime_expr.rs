@@ -44,6 +44,7 @@ pub enum PrimeExpr {
     Layout(Layout),
     Alloca(Alloca),
     TensorLoad(TensorLoad),
+    Null,
     None,
 }
 
@@ -86,6 +87,7 @@ pub enum PrimeType {
     Layout,
     Alloca,
     TensorLoad,
+    Null,
     None,
 }
 
@@ -155,6 +157,7 @@ impl PrimeExpr {
             PrimeExpr::Layout(_) => PrimeType::Layout,
             PrimeExpr::Alloca(_) => PrimeType::Alloca,
             PrimeExpr::TensorLoad(_) => PrimeType::TensorLoad,
+            PrimeExpr::Null => PrimeType::Null,
             PrimeExpr::None => PrimeType::None,
         }
     }
@@ -207,6 +210,7 @@ impl PrimeExpr {
             PrimeExpr::Layout(a) => a.to_string(),
             PrimeExpr::Alloca(a) => a.to_string(),
             PrimeExpr::TensorLoad(a) => a.to_string(),
+            PrimeExpr::Null => "null".to_string(),
             PrimeExpr::None => "".to_string(),
         };
         if prec < parent_prec {

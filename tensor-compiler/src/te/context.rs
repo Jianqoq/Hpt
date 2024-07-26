@@ -9,16 +9,7 @@ use tensor_types::{ dtype::{ Dtype, TypeCommon }, type_promote::NormalOut };
 
 use crate::{
     halide::{
-        exprs::{ BitAnd, Call, Ge, Gt, Int, Load, Lt, Select },
-        if_stmt::IfThenElse,
-        inplace_store_stmt::InplaceAdd,
-        let_stmt::LetStmt,
-        passes::const_fold::ConstFold,
-        prime_expr::PrimeExpr,
-        stmt::Stmt,
-        store_stmt::StoreStmt,
-        tensor_load::TensorLoad,
-        variable::Variable,
+        assign_stmt::AssignStmt, exprs::{ BitAnd, Call, Ge, Gt, Int, Load, Lt, Select }, if_stmt::IfThenElse, inplace_store_stmt::InplaceAdd, let_stmt::LetStmt, passes::const_fold::ConstFold, prime_expr::PrimeExpr, printer::IRPrinter, stmt::Stmt, store_stmt::StoreStmt, tensor_load::TensorLoad, variable::Variable
     },
     iter_var::IterVar,
     te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator, stages::If },
@@ -1034,20 +1025,21 @@ impl Context {
                             cond,
                             true_bodys: stage_bodys,
                             false_bodys: vec![
-                                Body::Stmt(StoreStmt::make(
-                                    &Variable::make(&format!("%{}", id)),
-                                    stage.dims
-                                        .iter()
-                                        .enumerate()
-                                        .map(
-                                            |(idx, x)|
-                                                x.var().to_prime_expr() *
-                                                Load::make(&format!("%{}.s", id), idx).into()
-                                        )
-                                        .reduce(|acc, x| acc + x)
-                                        .unwrap(),
-                                    pad_val.as_ref()
-                                ).into()
+                                Body::Stmt(
+                                    StoreStmt::make(
+                                        &Variable::make(&format!("%{}", id)),
+                                        stage.dims
+                                            .iter()
+                                            .enumerate()
+                                            .map(
+                                                |(idx, x)|
+                                                    x.var().to_prime_expr() *
+                                                    Load::make(&format!("%{}.s", id), idx).into()
+                                            )
+                                            .reduce(|acc, x| acc + x)
+                                            .unwrap(),
+                                        pad_val.as_ref()
+                                    ).into()
                                 )
                             ],
                             id,
@@ -1083,11 +1075,10 @@ impl Context {
                         let mut stage_bodys = stage.bodys.clone();
                         stage_bodys.push(
                             Body::Stmt(
-                                Stmt::LetStmt(
-                                    LetStmt::make(
+                                Stmt::AssignStmt(
+                                    AssignStmt::make(
                                         &Variable::make(&format!("%{}_val", id)),
-                                        Variable::make(&format!("%{}_val", stage.id)),
-                                        Stmt::None
+                                        Variable::make(&format!("%{}_val", stage.id))
                                     )
                                 ).into()
                             )
@@ -1097,11 +1088,10 @@ impl Context {
                             true_bodys: stage_bodys,
                             false_bodys: vec![
                                 Body::Stmt(
-                                    Stmt::LetStmt(
-                                        LetStmt::make(
+                                    Stmt::AssignStmt(
+                                        AssignStmt::make(
                                             &Variable::make(&format!("%{}_val", id)),
-                                            pad_val.as_ref(),
-                                            Stmt::None
+                                            pad_val.as_ref()
                                         )
                                     ).into()
                                 )
@@ -1109,9 +1099,18 @@ impl Context {
                             id,
                             input: stage.id,
                         });
+                        let let_init = Body::Stmt(
+                            Stmt::LetStmt(
+                                LetStmt::make(
+                                    &Variable::make(&format!("%{}_val", id)),
+                                    PrimeExpr::Null,
+                                    Stmt::None
+                                )
+                            ).into()
+                        );
                         let stage = Stage {
                             dims: stage.dims.clone(),
-                            bodys: vec![if_then_else],
+                            bodys: vec![let_init, if_then_else],
                             id,
                         };
                         Body::Stage(stage)

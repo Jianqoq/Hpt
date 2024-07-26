@@ -2,14 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     halide::{
-        exprs::Load,
-        if_stmt::IfThenElse,
-        loop_utils::build_nested::build_nested_for,
-        prime_expr::PrimeExpr,
-        seq_stmt::Seq,
-        stmt::Stmt,
-        traits::{ AccepterMutate, MutatorGetSet },
-        variable::Variable,
+        exprs::Load, if_stmt::IfThenElse, loop_utils::build_nested::build_nested_for, prime_expr::PrimeExpr, seq_stmt::Seq, stmt::Stmt, traits::{ AccepterMutate, MutatorGetSet }, variable::Variable
     },
     iter_var::IterVar,
     te::subs_tensorload::SubsTensorLoadDims,

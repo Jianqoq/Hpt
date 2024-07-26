@@ -129,7 +129,7 @@ mod tests {
 
     use crate::{
         halide::{ exprs::Int, prime_expr::PrimeExpr },
-        te::{ context::Context, srg_node::SrgNode },
+        te::{ context::Context, srg_node::SrgNode }, to_prim_expr::ToPrimeExpr,
     };
 
     use super::Srg;
@@ -431,7 +431,9 @@ mod tests {
             ],
             &1f32
         );
-        let order = [a.id, b.id];
+        let c = ctx.placeholder(&[&(&m.into() + &10i64.to_prime_expr()), &(&n.into() + &10i64.to_prime_expr())], Dtype::F32);
+        let d = ctx.add(&b, &c);
+        let order = [a.id, b.id, c.id, d.id];
 
         let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
