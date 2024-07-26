@@ -9,7 +9,18 @@ use tensor_types::{ dtype::{ Dtype, TypeCommon }, type_promote::NormalOut };
 
 use crate::{
     halide::{
-        assign_stmt::AssignStmt, exprs::{ BitAnd, Call, Ge, Gt, Int, Load, Lt, Select }, if_stmt::IfThenElse, inplace_store_stmt::InplaceAdd, let_stmt::LetStmt, passes::const_fold::ConstFold, prime_expr::PrimeExpr, printer::IRPrinter, stmt::Stmt, store_stmt::StoreStmt, tensor_load::TensorLoad, variable::Variable
+        assign_stmt::AssignStmt,
+        exprs::{ BitAnd, Call, Ge, Gt, Int, Load, Lt, Select },
+        if_stmt::IfThenElse,
+        inplace_store_stmt::InplaceAdd,
+        let_stmt::LetStmt,
+        passes::const_fold::ConstFold,
+        prime_expr::PrimeExpr,
+        printer::IRPrinter,
+        stmt::Stmt,
+        store_stmt::StoreStmt,
+        tensor_load::TensorLoad,
+        variable::Variable,
     },
     iter_var::IterVar,
     te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator, stages::If },
@@ -707,12 +718,7 @@ impl Context {
                                     &Variable::make(&format!("%{}_val", id)),
                                     Call::make(
                                         "sin",
-                                        &[
-                                            Load::make(
-                                                Variable::make(&format!("%{}_val", stage.id)),
-                                                0
-                                            ),
-                                        ]
+                                        &[Variable::make(&format!("%{}_val", stage.id))]
                                     ),
                                     Stmt::None
                                 )

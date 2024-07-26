@@ -432,8 +432,9 @@ mod tests {
             &1f32
         );
         let c = ctx.placeholder(&[&(&m.into() + &10i64.to_prime_expr()), &(&n.into() + &10i64.to_prime_expr())], Dtype::F32);
-        let d = ctx.add(&b, &c);
-        let order = [a.id, b.id, c.id, d.id];
+        let d = ctx.sin(&b);
+        let e = ctx.add(&d, &c);
+        let order = [a.id, b.id, c.id, d.id, e.id];
 
         let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
