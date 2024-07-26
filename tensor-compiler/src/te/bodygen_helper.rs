@@ -23,15 +23,15 @@ pub fn common_reduce(
 ) -> Body {
     if is_output {
         if let Body::Stage(stage) = &inputs[0] {
-            common_reduce_helper(original_shape, axes, init, output_id, stage, ||
-                common_reduce_out(&stage.dims, output_id)
+            common_reduce_helper(original_shape, axes, init, output_id, stage, |origin_dims|
+                common_reduce_out(origin_dims, output_id)
             )
         } else {
             panic!("input is not a stage");
         }
     } else {
         if let Body::Stage(stage) = &inputs[0] {
-            common_reduce_helper(original_shape, axes, init, output_id, stage, || vec![])
+            common_reduce_helper(original_shape, axes, init, output_id, stage, |_| vec![])
         } else {
             panic!("input is not a stage");
         }
@@ -46,7 +46,7 @@ pub fn common_reduce_helper<F>(
     stage: &Stage,
     posts: F
 ) -> Body
-    where F: Fn() -> Vec<Body>
+    where F: Fn(&Vec<IterVar>) -> Vec<Body>
 {
     let mut stage = stage.clone();
     let mut bodys = stage.bodys.clone();
@@ -87,10 +87,9 @@ pub fn common_reduce_helper<F>(
                 ).into()
             )
         ],
-        posts: posts(),
+        posts: posts(&stage.dims),
         input: stage.id,
     };
-    stage.id = output_id;
     stage.bodys = vec![Body::ReduceStage(reduce_stage)];
     Body::Stage(stage)
 }
