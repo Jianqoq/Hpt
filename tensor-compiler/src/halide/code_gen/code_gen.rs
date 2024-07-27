@@ -262,6 +262,9 @@ impl CodeGenVisitor for CodeGen {
     }
 
     fn visit_cast(&mut self, cast: &crate::halide::exprs::Cast) -> BasicValue {
+        let expr = self.visit_expr(cast.expr());
+        let from = self.bindings[&self.current_fn].find_type(&expr).unwrap();
+        let to = cast.dtype();
         todo!()
     }
 

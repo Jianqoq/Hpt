@@ -5,7 +5,7 @@ use tensor_types::dtype::Dtype;
 use crate::{
     edges::Edges,
     halide::{
-        exprs::Load,
+        exprs::{ Cast, Load },
         let_stmt::LetStmt,
         module::{ Function, FunctionType },
         primitive_type::{ PrimitiveType, Ptr },
@@ -118,18 +118,23 @@ fn gen_ptr_loads(schedule: &Schedule) -> Vec<Stmt> {
     let mut input_vec = vec![];
     for node in schedule.nodes.borrow().values() {
         if node.inputs.len() == 0 {
-            input_vec.push(node.id);
+            input_vec.push((node.id, node.dtype));
         }
     }
     input_vec.sort();
     input_vec
         .iter()
         .enumerate()
-        .map(|(idx, x)| {
+        .map(|(idx, (x, dtype))| {
             Stmt::LetStmt(
                 LetStmt::make(
                     &Variable::make(&format!("%{}", x)),
-                    Load::make("data_vec", idx),
+                    Cast::make(
+                        Load::make("data_vec", idx),
+                        PrimitiveType::Ptr(Ptr {
+                            inner: Arc::new(PrimitiveType::Dtype(*dtype)),
+                        })
+                    ),
                     Stmt::None
                 )
             )
@@ -138,12 +143,17 @@ fn gen_ptr_loads(schedule: &Schedule) -> Vec<Stmt> {
 }
 
 fn gen_ptr_stores(schedule: &Schedule) -> Vec<Stmt> {
-    let mut edges: HashMap<usize, HashSet<usize>> = HashMap::new();
+    let mut edges = HashMap::new();
     for node in schedule.nodes.borrow().values() {
-        if edges.contains_key(&node.id) {
+        if edges.contains_key(&(node.id, node.dtype)) {
             continue;
         } else {
-            edges.insert(node.id, HashSet::from_iter(node.inputs.iter().cloned()));
+            edges.insert(
+                (node.id, node.dtype),
+                HashSet::from_iter(
+                    node.inputs.iter().map(|x| (*x, schedule.nodes.borrow().get(x).unwrap().dtype))
+                )
+            );
         }
     }
     let mut edge = Edges::new();
@@ -156,16 +166,21 @@ fn gen_ptr_stores(schedule: &Schedule) -> Vec<Stmt> {
         .iter()
         .filter(|(_, outputs)| outputs.len() == 0)
         .map(|x| *x.0)
-        .collect::<Vec<usize>>();
+        .collect::<Vec<(usize, Dtype)>>();
     outputs.sort();
     outputs
         .iter()
         .enumerate()
-        .map(|(idx, x)| {
+        .map(|(idx, (x, dtype))| {
             Stmt::LetStmt(
                 LetStmt::make(
                     &Variable::make(&format!("%{}", x)),
-                    Load::make("output_vec", idx),
+                    Cast::make(
+                        Load::make("output_vec", idx),
+                        PrimitiveType::Ptr(Ptr {
+                            inner: Arc::new(PrimitiveType::Dtype(*dtype)),
+                        })
+                    ),
                     Stmt::None
                 )
             )
