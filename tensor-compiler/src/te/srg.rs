@@ -132,17 +132,15 @@ impl Srg {
 
 #[cfg(test)]
 mod tests {
-    use std::{ collections::HashMap, sync::Arc };
+    use std::collections::HashMap;
 
     use tensor_types::dtype::Dtype;
 
     use crate::{
         halide::{ code_gen::code_gen::CodeGen, exprs::Int, module::Module, prime_expr::PrimeExpr },
-        te::{ context::Context, srg_node::SrgNode },
+        te::context::Context,
         to_prim_expr::ToPrimeExpr,
     };
-
-    use super::Srg;
 
     #[test]
     fn test_srg_create_strides_cal() {
