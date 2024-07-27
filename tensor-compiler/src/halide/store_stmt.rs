@@ -13,9 +13,9 @@ use crate::halide::traits::{ Accepter, AccepterMut };
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct StoreStmt {
-    var: Variable,
-    indices: Arc<PrimeExpr>,
-    val: Arc<PrimeExpr>,
+    pub(crate) var: Variable,
+    pub(crate) indices: Arc<PrimeExpr>,
+    pub(crate) val: Arc<PrimeExpr>,
 }
 
 impl StoreStmt {

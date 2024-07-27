@@ -3,6 +3,7 @@ use std::{ collections::{ HashMap, HashSet }, fmt::{ self, Display, Formatter },
 use tensor_types::dtype::Dtype;
 
 use crate::{
+    edges::Edges,
     halide::{
         exprs::Load,
         let_stmt::LetStmt,
@@ -17,7 +18,13 @@ use crate::{
     te::strides_visitor::StridesVisitor,
 };
 
-use super::{ hstrides::HStrides, rc_mut::RcMut, stages::Body, tensor::Tensor };
+use super::{
+    hstrides::HStrides,
+    rc_mut::RcMut,
+    stages::Body,
+    strides_visitor::StridesStoreVisitor,
+    tensor::Tensor,
+};
 
 pub struct Schedule {
     pub(crate) qa: HashMap<usize, (Body, bool)>,
@@ -43,15 +50,19 @@ impl Schedule {
 
     pub fn to_function(&self) -> Function {
         let fn_body = Stmt::Seq(Seq::make(self.to_halide()));
-   
+
         let mut strides_visitor = StridesVisitor::new();
         let new_fn_body = replace_strides(&fn_body, &mut strides_visitor);
+        let mut strides_store_visitor = StridesStoreVisitor::new();
+        let new_fn_body = replace_strides_store(&new_fn_body, &mut strides_store_visitor);
         let strides_loads = gen_strides_loads(strides_visitor.cnt);
         let ptr_loads = gen_ptr_loads(self);
+        let ptr_stores = gen_ptr_stores(self);
+        let strides_outs = gen_strides_outs(ptr_stores.len() as i64);
         let shape_var_loads = gen_shape_var_loads(self);
         let mut empty_fn = empty_fn();
 
-        let mut body = [strides_loads, ptr_loads, shape_var_loads]
+        let mut body = [strides_loads, ptr_loads, ptr_stores, strides_outs, shape_var_loads]
             .into_iter()
             .flatten()
             .collect::<Vec<Stmt>>();
@@ -72,12 +83,30 @@ fn replace_strides(stmt: &Stmt, strides_visitor: &mut StridesVisitor) -> Stmt {
     strides_visitor.stmt.clone()
 }
 
+fn replace_strides_store(stmt: &Stmt, strides_store_visitor: &mut StridesStoreVisitor) -> Stmt {
+    stmt.accept_mutate(strides_store_visitor);
+    strides_store_visitor.stmt.clone()
+}
+
 fn gen_strides_loads(strides_num: i64) -> Vec<Stmt> {
     (0..strides_num)
         .map(|idx| {
             let let_stmt = LetStmt::make(
-                &Variable::make(&format!("strides{}", idx)),
-                Load::make("strides_vec", idx),
+                &Variable::make(&format!("istrides{}", idx)),
+                Load::make("istrides_vec", idx),
+                Stmt::None
+            );
+            Stmt::LetStmt(let_stmt)
+        })
+        .collect::<Vec<Stmt>>()
+}
+
+fn gen_strides_outs(strides_num: i64) -> Vec<Stmt> {
+    (0..strides_num)
+        .map(|idx| {
+            let let_stmt = LetStmt::make(
+                &Variable::make(&format!("ostrides{}", idx)),
+                Load::make("ostrides_vec", idx),
                 Stmt::None
             );
             Stmt::LetStmt(let_stmt)
@@ -101,6 +130,42 @@ fn gen_ptr_loads(schedule: &Schedule) -> Vec<Stmt> {
                 LetStmt::make(
                     &Variable::make(&format!("%{}", x)),
                     Load::make("data_vec", idx),
+                    Stmt::None
+                )
+            )
+        })
+        .collect::<Vec<Stmt>>()
+}
+
+fn gen_ptr_stores(schedule: &Schedule) -> Vec<Stmt> {
+    let mut edges: HashMap<usize, HashSet<usize>> = HashMap::new();
+    for node in schedule.nodes.borrow().values() {
+        if edges.contains_key(&node.id) {
+            continue;
+        } else {
+            edges.insert(node.id, HashSet::from_iter(node.inputs.iter().cloned()));
+        }
+    }
+    let mut edge = Edges::new();
+    edge.set_inner(edges);
+    let mut inverted = edge.invert();
+    for i in edge.keys() {
+        inverted.entry(*i).or_insert(HashSet::new());
+    }
+    let mut outputs = inverted
+        .iter()
+        .filter(|(_, outputs)| outputs.len() == 0)
+        .map(|x| *x.0)
+        .collect::<Vec<usize>>();
+    outputs.sort();
+    outputs
+        .iter()
+        .enumerate()
+        .map(|(idx, x)| {
+            Stmt::LetStmt(
+                LetStmt::make(
+                    &Variable::make(&format!("%{}", x)),
+                    Load::make("output_vec", idx),
                     Stmt::None
                 )
             )
@@ -139,7 +204,17 @@ fn empty_fn() -> Function {
             args: Arc::new(
                 vec![
                     (
-                        format!("strides_vec"),
+                        format!("istrides_vec"),
+                        PrimitiveType::Ptr(Ptr {
+                            inner: Arc::new(
+                                PrimitiveType::Ptr(Ptr {
+                                    inner: PrimitiveType::Dtype(Dtype::I64).into(),
+                                })
+                            ),
+                        }),
+                    ),
+                    (
+                        format!("ostrides_vec"),
                         PrimitiveType::Ptr(Ptr {
                             inner: Arc::new(
                                 PrimitiveType::Ptr(Ptr {
@@ -150,6 +225,14 @@ fn empty_fn() -> Function {
                     ),
                     (
                         format!("data_vec"),
+                        PrimitiveType::Ptr(Ptr {
+                            inner: Arc::new(
+                                PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Void.into() })
+                            ),
+                        }),
+                    ),
+                    (
+                        format!("output_vec"),
                         PrimitiveType::Ptr(Ptr {
                             inner: Arc::new(
                                 PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Void.into() })

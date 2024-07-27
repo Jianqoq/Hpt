@@ -56,7 +56,7 @@ pub fn common_reduce_helper<F>(
             Stmt::InplaceAdd(
                 InplaceAdd::make(
                     &Variable::make(&format!("%{}_val", output_id)),
-                    Variable::make(&format!("%{}_val", stage.id))
+                    Variable::make(&format!("%{}_val", stage.out_id))
                 )
             )
         )
