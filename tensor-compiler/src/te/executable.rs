@@ -1,19 +1,35 @@
-use std::collections::{ HashMap, HashSet };
+use std::{collections::{ HashMap, HashSet }, sync::Arc};
 
-use super::{ schedule::Schedule, tensor::Tensor };
+use tensor_llvm::{
+    builder::builder::Builder,
+    context::context::Context,
+    engine::engine::ExecutionEngine,
+    module::module::Module,
+};
+
+use super::{ hstrides::HStrides, schedule::Schedule, tensor::Tensor };
 
 pub struct Executable {
     strides_vec: (*mut (*mut i64, usize), usize),
     var_map: (*mut i64, usize),
+    strides_cal: Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>>,
+    ctx: Context,
+    module: Module,
+    builder: Builder,
+    ee: ExecutionEngine,
 }
 
 impl Executable {
     pub fn new(
         var_map: HashMap<String, i64>,
         nodes: &HashMap<usize, Tensor>,
-        schedule: &Schedule
+        strides_cal: Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>>,
+        ctx: Context,
+        module: Module,
+        builder: Builder,
+        ee: ExecutionEngine
     ) -> Self {
-        let strides = schedule.cal_strides(&var_map);
+        let strides = strides_cal(&var_map);
         let strides_vec = unsafe {
             let strides_vec = std::alloc::alloc(
                 std::alloc::Layout
@@ -55,6 +71,11 @@ impl Executable {
         Self {
             strides_vec,
             var_map: shape_vars,
+            strides_cal,
+            ctx,
+            module,
+            builder,
+            ee,
         }
     }
     pub fn execute(&self, _: &HashMap<String, Vec<i64>>) {}

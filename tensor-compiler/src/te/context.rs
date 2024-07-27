@@ -664,7 +664,7 @@ impl Context {
                                         )
                                         .reduce(|acc, x| acc + x)
                                         .unwrap(),
-                                    Variable::make(&format!("%{}_val", stage.out_id))
+                                        Call::make("sin", &[Variable::make(&format!("%{}_val", stage.out_id))])
                                 )
                             )
                         );

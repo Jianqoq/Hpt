@@ -160,6 +160,13 @@ impl CodeGen {
         }
         self.module.print_to_file("module.ll").expect("failed to print to file");
     }
+
+    pub fn to_executable(
+        &self,
+        vars_map: HashMap<String, i64>
+    ) -> crate::te::executable::Executable {
+        todo!()
+    }
 }
 
 pub struct Executable {
@@ -1330,18 +1337,83 @@ impl CodeGenVisitor for CodeGen {
 
     fn visit_call(&mut self, call: &crate::halide::exprs::Call) -> BasicValue {
         let fn_name = call.name();
-        let fn_val = self.fns.get(fn_name).unwrap().clone();
-        let args = call
-            .args()
-            .iter()
-            .map(|arg| self.visit_expr(arg))
-            .collect::<Vec<_>>();
-        let res = self.builder.build_call(&fn_val, &args, "call");
-        self.bindings
-            .get_mut(&self.current_fn)
-            .expect("fn not find")
-            .insert_type(res, general_types_to_primitive_type(fn_val.ret_type()));
-        res
+        if let Some(fn_val) = self.fns.get(fn_name).cloned() {
+            let args = call
+                .args()
+                .iter()
+                .map(|arg| self.visit_expr(arg))
+                .collect::<Vec<_>>();
+            let res = self.builder.build_call(&fn_val, &args, "call");
+            self.bindings
+                .get_mut(&self.current_fn)
+                .expect("fn not find")
+                .insert_type(res, general_types_to_primitive_type(fn_val.ret_type()));
+            res
+        } else {
+            match fn_name.as_str() {
+                "sin" => {
+                    let arg = self.visit_expr(call.args().first().unwrap());
+                    let arg_ty = self.bindings[&self.current_fn].find_type(&arg).unwrap().dtype();
+                    let casted_ty = arg_ty._sin();
+                    if casted_ty == arg_ty {
+                        let res = match casted_ty {
+                            Dtype::F32 => {
+                                let ret_ty = self.ctx.f32_type();
+                                let fn_ty = ret_ty.fn_type(&[ret_ty.into()], false);
+                                let sinf = self.module.add_function(fn_ty, "sinf");
+                                self.fns.insert("sinf".to_string().into(), sinf.clone());
+                                self.builder.build_call(&sinf, &[arg], "sinf")
+                            }
+                            Dtype::F64 => {
+                                let ret_ty = self.ctx.f64_type();
+                                let fn_ty = ret_ty.fn_type(&[ret_ty.into()], false);
+                                let sin = self.module.add_function(fn_ty, "sin");
+                                self.fns.insert("sin".to_string().into(), sin.clone());
+                                self.builder.build_call(&sin, &[arg], "sin")
+                            }
+                            _ => unimplemented!("unsupported dtype, {}", casted_ty),
+                        };
+                        self.bindings
+                            .get_mut(&self.current_fn)
+                            .expect("fn not find")
+                            .insert_type(res, PrimitiveType::Dtype(casted_ty));
+                        res
+                    } else {
+                        let casted_arg = build_cast(
+                            arg_ty,
+                            casted_ty,
+                            arg,
+                            "casted_arg",
+                            &self.ctx,
+                            &self.builder
+                        );
+                        let res = match casted_ty {
+                            Dtype::F32 => {
+                                let ret_ty = self.ctx.f32_type();
+                                let fn_ty = ret_ty.fn_type(&[ret_ty.into()], false);
+                                let sinf = self.module.add_function(fn_ty, "sinf");
+                                self.fns.insert("sinf".to_string().into(), sinf.clone());
+                                self.builder.build_call(&sinf, &[casted_arg], "sinf")
+                            }
+                            Dtype::F64 => {
+                                let ret_ty = self.ctx.f64_type();
+                                let fn_ty = ret_ty.fn_type(&[ret_ty.into()], false);
+                                let sin = self.module.add_function(fn_ty, "sin");
+                                self.fns.insert("sin".to_string().into(), sin.clone());
+                                self.builder.build_call(&sin, &[casted_arg], "sin")
+                            }
+                            _ => unimplemented!("unsupported dtype, {}", casted_ty),
+                        };
+                        self.bindings
+                            .get_mut(&self.current_fn)
+                            .expect("fn not find")
+                            .insert_type(res, PrimitiveType::Dtype(casted_ty));
+                        res
+                    }
+                }
+                _ => unimplemented!("function {} not found", fn_name),
+            }
+        }
     }
 
     fn visit_select(&mut self, select: &crate::halide::exprs::Select) -> BasicValue {
