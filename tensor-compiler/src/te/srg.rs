@@ -162,30 +162,7 @@ mod tests {
         let j = ctx.add(&g, &i);
         let order = [a.id, b.id, c.id, d.id, e.id, f.id, g.id, h.id, i.id, j.id];
 
-        let mut nodes = HashMap::new();
-        for (id, node) in ctx.nodes.borrow().iter() {
-            let srg_node = SrgNode {
-                id: *id,
-                shape: node.shape.clone(),
-                inputs: node.inputs.clone(),
-                outputs: Arc::new(
-                    ctx.nodes
-                        .borrow()
-                        .iter()
-                        .filter_map(|(k, v)| {
-                            if v.inputs.contains(id) { Some(*k) } else { None }
-                        })
-                        .collect()
-                ),
-                strides_cal: Arc::new(|_| vec![]),
-                span: node.span,
-            };
-            nodes.insert(*id, srg_node);
-        }
-        let mut srg = Srg {
-            nodes,
-            tensors: ctx.nodes.clone(),
-        };
+        let mut srg = ctx.to_srg();
         srg.create_strides_cal(&order);
 
         let mut var_map = HashMap::new();
@@ -205,30 +182,7 @@ mod tests {
         let n = ctx.var("n");
         let a = ctx.placeholder(&[&m, &n], Dtype::F32);
         let order = [a.id];
-        let mut nodes = HashMap::new();
-        for (id, node) in ctx.nodes.borrow().iter() {
-            let srg_node = SrgNode {
-                id: *id,
-                shape: node.shape.clone(),
-                inputs: node.inputs.clone(),
-                outputs: Arc::new(
-                    ctx.nodes
-                        .borrow()
-                        .iter()
-                        .filter_map(|(k, v)| {
-                            if v.inputs.contains(id) { Some(*k) } else { None }
-                        })
-                        .collect()
-                ),
-                strides_cal: Arc::new(|_| vec![]),
-                span: node.span,
-            };
-            nodes.insert(*id, srg_node);
-        }
-        let srg = Srg {
-            nodes,
-            tensors: ctx.nodes.clone(),
-        };
+        let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
         let func = schedule.to_function();
         println!("{}", func);
@@ -249,30 +203,7 @@ mod tests {
         let b = ctx.reshape(&a, &[&m, &n, &o, &1i64]);
         let order = [a.id, b.id];
 
-        let mut nodes = HashMap::new();
-        for (id, node) in ctx.nodes.borrow().iter() {
-            let srg_node = SrgNode {
-                id: *id,
-                shape: node.shape.clone(),
-                inputs: node.inputs.clone(),
-                outputs: Arc::new(
-                    ctx.nodes
-                        .borrow()
-                        .iter()
-                        .filter_map(|(k, v)| {
-                            if v.inputs.contains(id) { Some(*k) } else { None }
-                        })
-                        .collect()
-                ),
-                strides_cal: Arc::new(|_| vec![]),
-                span: node.span,
-            };
-            nodes.insert(*id, srg_node);
-        }
-        let srg = Srg {
-            nodes,
-            tensors: ctx.nodes.clone(),
-        };
+        let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
         let func = schedule.to_function();
         assert_eq!(
@@ -310,30 +241,7 @@ mod tests {
         let c = ctx.add(&a, &b);
         let order = [a.id, b.id, c.id];
 
-        let mut nodes = HashMap::new();
-        for (id, node) in ctx.nodes.borrow().iter() {
-            let srg_node = SrgNode {
-                id: *id,
-                shape: node.shape.clone(),
-                inputs: node.inputs.clone(),
-                outputs: Arc::new(
-                    ctx.nodes
-                        .borrow()
-                        .iter()
-                        .filter_map(|(k, v)| {
-                            if v.inputs.contains(id) { Some(*k) } else { None }
-                        })
-                        .collect()
-                ),
-                strides_cal: Arc::new(|_| vec![]),
-                span: node.span,
-            };
-            nodes.insert(*id, srg_node);
-        }
-        let srg = Srg {
-            nodes,
-            tensors: ctx.nodes.clone(),
-        };
+        let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
         let func = schedule.to_function();
         assert_eq!(
@@ -372,30 +280,7 @@ mod tests {
         let c = ctx.add(&a, &b);
         let order = [a.id, b.id, c.id];
 
-        let mut nodes = HashMap::new();
-        for (id, node) in ctx.nodes.borrow().iter() {
-            let srg_node = SrgNode {
-                id: *id,
-                shape: node.shape.clone(),
-                inputs: node.inputs.clone(),
-                outputs: Arc::new(
-                    ctx.nodes
-                        .borrow()
-                        .iter()
-                        .filter_map(|(k, v)| {
-                            if v.inputs.contains(id) { Some(*k) } else { None }
-                        })
-                        .collect()
-                ),
-                strides_cal: Arc::new(|_| vec![]),
-                span: node.span,
-            };
-            nodes.insert(*id, srg_node);
-        }
-        let srg = Srg {
-            nodes,
-            tensors: ctx.nodes.clone(),
-        };
+        let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
         let func = schedule.to_function();
         assert_eq!(
@@ -439,30 +324,7 @@ mod tests {
         let c = ctx.add(&a, &b);
         let order = [a.id, b.id, c.id];
 
-        let mut nodes = HashMap::new();
-        for (id, node) in ctx.nodes.borrow().iter() {
-            let srg_node = SrgNode {
-                id: *id,
-                shape: node.shape.clone(),
-                inputs: node.inputs.clone(),
-                outputs: Arc::new(
-                    ctx.nodes
-                        .borrow()
-                        .iter()
-                        .filter_map(|(k, v)| {
-                            if v.inputs.contains(id) { Some(*k) } else { None }
-                        })
-                        .collect()
-                ),
-                strides_cal: Arc::new(|_| vec![]),
-                span: node.span,
-            };
-            nodes.insert(*id, srg_node);
-        }
-        let srg = Srg {
-            nodes,
-            tensors: ctx.nodes.clone(),
-        };
+        let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
         let func = schedule.to_function();
         assert_eq!(

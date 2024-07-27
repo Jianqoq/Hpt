@@ -76,6 +76,7 @@ impl Context {
                 ),
                 strides_cal: Arc::new(|_| vec![]),
                 span: node.span,
+                dtype: node.dtype,
             };
             nodes.insert(*id, srg_node);
         }

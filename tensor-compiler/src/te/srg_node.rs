@@ -1,5 +1,7 @@
 use std::{ panic::Location, sync::Arc };
 
+use tensor_types::dtype::Dtype;
+
 use crate::halide::prime_expr::PrimeExpr;
 
 use super::tensor::StridesCal;
@@ -7,6 +9,7 @@ use super::tensor::StridesCal;
 #[derive(Clone)]
 pub struct SrgNode {
     pub(crate) id: usize,
+    pub(crate) dtype: Dtype,
     pub(crate) shape: Arc<Vec<PrimeExpr>>,
     pub(crate) inputs: Arc<Vec<usize>>,
     pub(crate) outputs: Arc<Vec<usize>>,
