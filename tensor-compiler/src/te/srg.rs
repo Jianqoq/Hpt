@@ -89,6 +89,7 @@ impl Srg {
                                     .into(),
                                 hints: vec![].into(),
                             },
+                            false,
                             Stmt::None
                         )
                     ).into()
@@ -500,7 +501,7 @@ mod tests {
         let func = schedule.to_function();
         assert_eq!(
             func.to_string(),
-            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {        
+            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
     let istrides1 = istrides_vec[1];
     let istrides2 = istrides_vec[2];
@@ -556,6 +557,11 @@ mod tests {
     }
 }"
         );
+        let mut module = Module::new("main");
+        module.add_function(func);
+        let context = tensor_llvm::context::context::Context::new();
+        let mut codegen = CodeGen::new(context, &module, 3);
+        codegen.compile();
     }
 
     #[test]

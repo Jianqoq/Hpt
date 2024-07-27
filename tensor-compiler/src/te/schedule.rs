@@ -94,6 +94,7 @@ fn gen_strides_loads(strides_num: i64) -> Vec<Stmt> {
             let let_stmt = LetStmt::make(
                 &Variable::make(&format!("istrides{}", idx)),
                 Load::make("istrides_vec", idx),
+                false,
                 Stmt::None
             );
             Stmt::LetStmt(let_stmt)
@@ -107,6 +108,7 @@ fn gen_strides_outs(strides_num: i64) -> Vec<Stmt> {
             let let_stmt = LetStmt::make(
                 &Variable::make(&format!("ostrides{}", idx)),
                 Load::make("ostrides_vec", idx),
+                false,
                 Stmt::None
             );
             Stmt::LetStmt(let_stmt)
@@ -135,6 +137,7 @@ fn gen_ptr_loads(schedule: &Schedule) -> Vec<Stmt> {
                             inner: Arc::new(PrimitiveType::Dtype(*dtype)),
                         })
                     ),
+                    false,
                     Stmt::None
                 )
             )
@@ -181,6 +184,7 @@ fn gen_ptr_stores(schedule: &Schedule) -> Vec<Stmt> {
                             inner: Arc::new(PrimitiveType::Dtype(*dtype)),
                         })
                     ),
+                    false,
                     Stmt::None
                 )
             )
@@ -207,7 +211,7 @@ fn gen_shape_var_loads(schedule: &Schedule) -> Vec<Stmt> {
     vars.iter()
         .enumerate()
         .map(|(idx, x)| {
-            Stmt::LetStmt(LetStmt::make(x, Load::make("shape_vars", idx), Stmt::None))
+            Stmt::LetStmt(LetStmt::make(x, Load::make("shape_vars", idx), false,Stmt::None))
         })
         .collect::<Vec<Stmt>>()
 }

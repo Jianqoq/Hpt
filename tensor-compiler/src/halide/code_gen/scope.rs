@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use std::collections::HashMap;
+use std::collections::{ HashMap, HashSet };
 use tensor_llvm::types::values::BasicValue;
 
 use crate::halide::primitive_type::PrimitiveType;
@@ -8,6 +8,7 @@ use crate::halide::primitive_type::PrimitiveType;
 pub struct Scope {
     variables: HashMap<Arc<String>, BasicValue>,
     types: HashMap<BasicValue, PrimitiveType>,
+    mutables: HashSet<Arc<String>>,
 }
 
 impl Scope {
@@ -16,6 +17,9 @@ impl Scope {
     }
     pub fn types(&self) -> &HashMap<BasicValue, PrimitiveType> {
         &self.types
+    }
+    pub fn mutables(&self) -> &HashSet<Arc<String>> {
+        &self.mutables
     }
 }
 
@@ -29,6 +33,7 @@ impl ScopeStack {
             scopes: vec![Scope {
                 variables: HashMap::new(),
                 types: HashMap::new(),
+                mutables: HashSet::new(),
             }],
         }
     }
@@ -48,6 +53,14 @@ impl ScopeStack {
         }
         None
     }
+    pub fn is_mutable(&self, name: &String) -> bool {
+        for scope in self.scopes.iter().rev() {
+            if scope.mutables.contains(name) {
+                return true;
+            }
+        }
+        false
+    }
     pub fn declare_variable(&mut self, name: &Arc<String>, val: BasicValue, dtype: PrimitiveType) {
         if let Some(scope) = self.scopes.last_mut() {
             scope.variables.insert(name.clone(), val);
@@ -64,10 +77,16 @@ impl ScopeStack {
             scope.variables.insert(name.clone(), val);
         }
     }
+    pub fn insert_mutable(&mut self, name: &Arc<String>) {
+        if let Some(scope) = self.scopes.last_mut() {
+            scope.mutables.insert(name.clone());
+        }
+    }
     pub fn push_scope(&mut self) {
         self.scopes.push(Scope {
             variables: HashMap::new(),
             types: HashMap::new(),
+            mutables: HashSet::new(),
         });
     }
     pub fn pop_scope(&mut self) {

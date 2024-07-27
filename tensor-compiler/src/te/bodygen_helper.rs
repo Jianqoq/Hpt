@@ -82,6 +82,7 @@ pub fn common_reduce_helper<F>(
                     LetStmt::make(
                         &Variable::make(&format!("%{}_val", output_id)),
                         init.clone(),
+                        true,
                         Stmt::None
                     )
                 ).into()

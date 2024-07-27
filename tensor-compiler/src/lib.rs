@@ -43,7 +43,6 @@ pub mod te {
     pub mod insert_axes;
     pub mod strides_visitor;
     pub mod idx_evaluator;
-    pub mod layout_cals;
     pub mod tensor;
     pub mod context;
     pub mod rc_mut;

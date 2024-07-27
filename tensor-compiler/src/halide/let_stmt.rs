@@ -12,6 +12,7 @@ pub struct LetStmt {
     var: Variable,
     value: Arc<PrimeExpr>,
     body: Arc<Stmt>,
+    mutable: bool,
 }
 
 impl LetStmt {
@@ -27,12 +28,16 @@ impl LetStmt {
     pub fn set_body(&mut self, body: Stmt) {
         self.body = body.into();
     }
+    pub fn mutable(&self) -> bool {
+        self.mutable
+    }
 
-    pub fn make<A: Into<PrimeExpr>, T: Into<Stmt>>(var: &Variable, value: A, body: T) -> Self {
+    pub fn make<A: Into<PrimeExpr>, T: Into<Stmt>>(var: &Variable, value: A, mutable: bool, body: T) -> Self {
         LetStmt {
             var: var.clone(),
             body: body.into().into(),
             value: value.into().into(),
+            mutable,
         }
     }
 
@@ -51,7 +56,11 @@ impl LetStmt {
 
 impl std::fmt::Display for LetStmt {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "let {} = {};\n{}", self.var, self.value, self.body)
+        if self.mutable {
+            write!(f, "let mut {} = {};\n{}", self.var, self.value, self.body)
+        } else {
+            write!(f, "let {} = {};\n{}", self.var, self.value, self.body)
+        }
     }
 }
 

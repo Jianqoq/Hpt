@@ -847,7 +847,7 @@ pub(crate) fn visit_let_stmt<V>(visitor: &mut V, let_stmt: &LetStmt)
         visitor.set_stmt(let_stmt);
     } else {
         if let Some(var) = var.to_variable() {
-            visitor.set_stmt(LetStmt::make(&var, new_value, new_body));
+            visitor.set_stmt(LetStmt::make(&var, new_value, let_stmt.mutable(), new_body));
         } else {
             eprintln!("Failed to convert variable, from: {} to: {}", name, var);
             visitor.set_stmt(Stmt::None);

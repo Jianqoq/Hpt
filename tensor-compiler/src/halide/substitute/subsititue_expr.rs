@@ -68,7 +68,7 @@ impl IRMutateVisitor for SubstituteExpr {
         if &body == let_stmt.body() && &value == let_stmt.value() {
             self.set_stmt(let_stmt);
         } else {
-            self.set_stmt(LetStmt::make(let_stmt.var(), value, body));
+            self.set_stmt(LetStmt::make(let_stmt.var(), value, let_stmt.mutable(), body));
         }
     }
 

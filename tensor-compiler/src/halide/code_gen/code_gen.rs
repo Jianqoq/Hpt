@@ -280,10 +280,7 @@ impl CodeGenVisitor for CodeGen {
             primitive_ty_to_llvm(&self.ctx, to, self.tensor_type),
             "bit_cast"
         );
-        self.bindings
-            .get_mut(&self.current_fn)
-            .expect("fn not find")
-            .insert_type(val, to.clone());
+        self.bindings.get_mut(&self.current_fn).expect("fn not find").insert_type(val, to.clone());
         val
     }
 
@@ -1209,10 +1206,20 @@ impl CodeGenVisitor for CodeGen {
     fn visit_let_stmt(&mut self, let_stmt: &crate::halide::let_stmt::LetStmt) {
         let var = let_stmt.var();
         let val = self.visit_expr(&let_stmt.value());
-        self.bindings
-            .get_mut(&self.current_fn)
-            .expect("fn not find")
-            .insert_variable(&var.name, val);
+        if let_stmt.mutable() {
+            self.bindings.get_mut(&self.current_fn).expect("fn not find").insert_mutable(&var.name);
+            let ptr = self.builder.build_alloca(val.to_basic_type(), &var.name);
+            self.builder.build_store(ptr, val);
+            self.bindings
+                .get_mut(&self.current_fn)
+                .expect("fn not find")
+                .insert_variable(&var.name, ptr.into());
+        } else {
+            self.bindings
+                .get_mut(&self.current_fn)
+                .expect("fn not find")
+                .insert_variable(&var.name, val);
+        }
         self.visit_stmt(&let_stmt.body())
     }
 
@@ -1686,20 +1693,30 @@ impl CodeGenVisitor for CodeGen {
             }
             _ => unimplemented!("unsupported dtype, {}", to_store_type),
         };
-        let indices = inplace_add.to_store().to_load().expect("expected load").indices();
-        let indices_val = self.visit_expr(&indices);
-        let ptr = inplace_add.to_store().to_load().expect("expected load").name();
-        let ptr_val = self.bindings[&self.current_fn]
-            .find_variable(&ptr.name)
-            .unwrap()
-            .to_ptr_value();
-        let gep = self.builder.build_gep(
-            dtype_to_llvm(to_store_type, &self.ctx),
-            ptr_val,
-            &[indices_val],
-            "gep"
-        );
-        self.builder.build_store(gep, res)
+
+        match inplace_add.to_store() {
+            PrimeExpr::Load(load) => {
+                let indices = load.indices();
+                let indices_val = self.visit_expr(&indices);
+                let ptr = inplace_add.to_store().to_load().expect("expected load").name();
+                let ptr_val = self.bindings[&self.current_fn]
+                    .find_variable(&ptr.name)
+                    .unwrap()
+                    .to_ptr_value();
+                let gep = self.builder.build_gep(
+                    dtype_to_llvm(to_store_type, &self.ctx),
+                    ptr_val,
+                    &[indices_val],
+                    "gep"
+                );
+                self.builder.build_store(gep, res)
+            }
+            _ => {
+                let val = self.visit_expr(&inplace_add.to_store());
+                let val_type = self.bindings[&self.current_fn].find_type(&val).unwrap().dtype();
+                self.builder.build_store(val.to_ptr_value(), res)
+            }
+        };
     }
 
     fn visit_inplace_sub(&mut self, inplace_sub: &crate::halide::inplace_store_stmt::InplaceSub) {

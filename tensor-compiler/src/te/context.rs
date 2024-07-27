@@ -156,6 +156,7 @@ impl Context {
                                     .into(),
                                 hints: vec![].into(),
                             },
+                            false,
                             Stmt::None
                         )
                     ).into()
@@ -314,6 +315,7 @@ impl Context {
                                 LetStmt::make(
                                     &Variable::make(&format!("%{}_val", id)),
                                     Variable::make(&format!("%{}_val", stage.out_id)),
+                                    false,
                                     Stmt::None
                                 )
                             ).into()
@@ -553,6 +555,7 @@ impl Context {
                                     &Variable::make(&format!("%{}_val", id)),
                                     Variable::make(&format!("%{}_val", lhs.id)) +
                                         Variable::make(&format!("%{}_val", rhs.id)),
+                                    false,
                                     Stmt::None
                                 )
                             );
@@ -681,6 +684,7 @@ impl Context {
                                         "sin",
                                         &[Variable::make(&format!("%{}_val", stage.out_id))]
                                     ),
+                                    false,
                                     Stmt::None
                                 )
                             ).into()
@@ -785,6 +789,7 @@ impl Context {
                                         PrimeExpr::Variable(
                                             Variable::make(&format!("%{}_offset", id))
                                         ),
+                                    false,
                                     Stmt::None
                                 )
                             )
@@ -818,6 +823,7 @@ impl Context {
                                             .into(),
                                         hints: vec![].into(),
                                     },
+                                    false,
                                     Stmt::None
                                 )
                             ).into()
@@ -876,6 +882,7 @@ impl Context {
                                         PrimeExpr::Variable(
                                             Variable::make(&format!("%{}_offset", id))
                                         ),
+                                    false,
                                     Stmt::None
                                 )
                             )
@@ -909,6 +916,7 @@ impl Context {
                                             .into(),
                                         hints: vec![].into(),
                                     },
+                                    false,
                                     Stmt::None
                                 )
                             ).into()
@@ -1091,6 +1099,7 @@ impl Context {
                                 LetStmt::make(
                                     &Variable::make(&format!("%{}_val", id)),
                                     PrimeExpr::Null,
+                                    false,
                                     Stmt::None
                                 )
                             ).into()
