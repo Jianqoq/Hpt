@@ -178,6 +178,11 @@ impl _IRPrinter {
                 self.do_indent();
                 println!("{}", var);
             }
+            Stmt::AllocaStmt(var) => {
+                self.do_indent();
+                println!("let {} = alloca<{}>({});", var.var(), var.dtype(), var.size());
+                self.print_stmt(var.body());
+            }
             Stmt::None => {}
         }
     }
@@ -270,6 +275,11 @@ impl _IRPrinter {
             Stmt::Return(var) => {
                 res.push_str(&self.do_indent_str());
                 res.push_str(&format!("{}\n", var));
+            }
+            Stmt::AllocaStmt(var) => {
+                res.push_str(&self.do_indent_str());
+                res.push_str(&format!("let {} = alloca<{}>({});\n", var.var(), var.dtype(), var.size()));
+                res.push_str(&self.print_stmt_str(var.body()));
             }
             Stmt::None => {}
         }

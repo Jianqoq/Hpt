@@ -1,6 +1,6 @@
 use llvm_sys::prelude::LLVMTypeRef;
 use paste::paste;
-use types::info_trait::UnitizlizeValue;
+use types::info_trait::{ TypeTrait, UnitizlizeValue };
 use crate::*;
 use super::ptr_type::*;
 
@@ -198,5 +198,11 @@ impl UnitizlizeValue for GeneralType {
             GeneralType::Struct(t) => t.unitialize(),
             GeneralType::StructPtr(t) => t.unitialize(),
         }
+    }
+}
+
+impl TypeTrait for GeneralType {
+    fn get_type(&self) -> LLVMTypeRef {
+        self.inner()
     }
 }

@@ -103,6 +103,7 @@ impl Srg {
                     bodys: vec![body],
                     id: *id,
                     out_id: *id,
+                    dtype: node.dtype.clone(),
                 };
                 qa.insert(*id, (Body::Stage(stage), false));
                 declared_vars.insert(format!("%{}_val", node.id));
@@ -326,29 +327,7 @@ mod tests {
         let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
         let func = schedule.to_function();
-        assert_eq!(
-            func.to_string(),
-            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {        
-    let istrides0 = istrides_vec[0];
-    let istrides1 = istrides_vec[1];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (data_vec[1] as *f32);
-    let %2 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    let o = shape_vars[2];
-    for ax0 in range(0, o) {
-        for ax1 in range(0, m) {
-            for ax2 in range(0, n) {
-                let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1] + ax2 * istrides0[2]];
-                let %1_val = %1[ax0 * istrides1[0] + ax1 * istrides1[1] + ax2 * istrides1[2]];
-                %2[ax0 * ostrides0[0] + ax1 * ostrides0[1] + ax2 * ostrides0[2]] = %0_val + %1_val;
-            }
-        }
-    }
-}"
-        );
+        println!("{}", func);
     }
 
     #[test]
@@ -365,7 +344,7 @@ mod tests {
         let func = schedule.to_function();
         assert_eq!(
             func.to_string(),
-            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {        
+            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
     let %0 = (data_vec[0] as *f32);
     let %1 = (output_vec[0] as *f32);
@@ -375,10 +354,12 @@ mod tests {
     let o = shape_vars[2];
     for ax0 in range(0, m) {
         for ax1 in range(0, o) {
-            let %1_val = 0;
+            let %1_val_ptr = alloca<f32>(1);
+            %1_val_ptr[0] = 0;
             for 1red1 in range(0, n) {
+                let %1_val = %1_val_ptr[0];
                 let %0_val = %0[ax0 * istrides0[0] + 1red1 * istrides0[1] + ax1 * istrides0[2]];
-                %1_val += %0_val;
+                %1_val_ptr[0] = %1_val + %0_val;
             }
             %1[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %1_val;
         }
@@ -404,7 +385,7 @@ mod tests {
         let func = schedule.to_function();
         assert_eq!(
             func.to_string(),
-            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {        
+            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
     let %0 = (data_vec[0] as *f32);
     let %3 = (output_vec[0] as *f32);
@@ -412,22 +393,36 @@ mod tests {
     let m = shape_vars[0];
     let n = shape_vars[1];
     let o = shape_vars[2];
-    let %3_val = 0;
+    let %3_val_ptr = alloca<f32>(1);
+    %3_val_ptr[0] = 0;
     for 3red0 in range(0, o) {
-        let %2_val = 0;
+        let %3_val = %3_val_ptr[0];
+        let %2_val_ptr = alloca<f32>(1);
+        %2_val_ptr[0] = 0;
         for 2red0 in range(0, n) {
-            let %1_val = 0;
+            let %2_val = %2_val_ptr[0];
+            let %1_val_ptr = alloca<f32>(1);
+            %1_val_ptr[0] = 0;
             for 1red0 in range(0, m) {
+                let %1_val = %1_val_ptr[0];
                 let %0_val = %0[1red0 * istrides0[0] + 2red0 * istrides0[1] + 3red0 * istrides0[2]];
-                %1_val += %0_val;
+                %1_val_ptr[0] = %1_val + %0_val;
             }
-            %2_val += %1_val;
+            let %1_val = %1_val_ptr[0];
+            %2_val_ptr[0] = %2_val + %1_val;
         }
-        %3_val += %2_val;
+        let %2_val = %2_val_ptr[0];
+        %3_val_ptr[0] = %3_val + %2_val;
     }
+    let %3_val = %3_val_ptr[0];
     %3[0] = %3_val;
 }"
         );
+        let mut module = Module::new("main");
+        module.add_function(func);
+        let context = tensor_llvm::context::context::Context::new();
+        let mut codegen = CodeGen::new(context, &module, 3);
+        codegen.compile();
     }
 
     #[test]

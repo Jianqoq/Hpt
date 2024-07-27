@@ -48,6 +48,7 @@ use tensor_types::{
 use crate::{
     edges::Edges,
     halide::{
+        alloca_stmt::AllocaStmt,
         code_gen::{
             pt_llvm::primitive_ty_to_llvm,
             type_utils::{ build_cast, general_types_to_primitive_type },
@@ -1881,8 +1882,23 @@ impl CodeGenVisitor for CodeGen {
         todo!()
     }
 
-    fn visit_alloca(&mut self, alloca: &crate::halide::exprs::Alloca) -> BasicValue {
-        todo!()
+    fn visit_alloca(&mut self, alloca: &AllocaStmt) {
+        let var = alloca.var();
+        self.bindings.get_mut(&self.current_fn).expect("fn not find").insert_mutable(&var.name);
+        let alloca_ty = PrimitiveType::Ptr(Ptr {
+            inner: Arc::new(alloca.dtype().clone()),
+        });
+        let llvm_ty = primitive_ty_to_llvm(&self.ctx, &alloca_ty, self.tensor_type);
+        let ptr = self.builder.build_alloca(llvm_ty, &var.name);
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_variable(&var.name, ptr.into());
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(ptr.into(), alloca_ty);
+        self.visit_stmt(&alloca.body())
     }
 
     fn visit_tensor_load(&mut self, tensor_load: &TensorLoad) -> BasicValue {

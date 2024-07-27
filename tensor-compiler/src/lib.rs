@@ -25,6 +25,7 @@ pub mod halide {
     pub mod module;
     pub mod if_stmt;
     pub mod inplace_store_stmt;
+    pub mod alloca_stmt;
     pub mod r#type;
     pub mod ir_cmp;
     pub mod printer;

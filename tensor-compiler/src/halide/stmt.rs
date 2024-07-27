@@ -1,15 +1,7 @@
 use std::fmt::Display;
 
 use super::{
-    assign_stmt::AssignStmt,
-    for_stmt::For,
-    if_stmt::IfThenElse,
-    inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub },
-    let_stmt::LetStmt,
-    return_stmt::ReturnStmt,
-    seq_stmt::Seq,
-    store_stmt::StoreStmt,
-    traits::{ Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor },
+    alloca_stmt::AllocaStmt, assign_stmt::AssignStmt, for_stmt::For, if_stmt::IfThenElse, inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub }, let_stmt::LetStmt, return_stmt::ReturnStmt, seq_stmt::Seq, store_stmt::StoreStmt, traits::{ Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor }
 };
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
@@ -17,6 +9,7 @@ pub enum Stmt {
     LetStmt(LetStmt),
     StoreStmt(StoreStmt),
     AssignStmt(AssignStmt),
+    AllocaStmt(AllocaStmt),
     For(For),
     Seq(Seq),
     InplaceStore(InplaceStore),
@@ -32,6 +25,7 @@ pub enum Stmt {
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum StmtType {
     LetStmt,
+    AllocaStmt,
     StoreStmt,
     AssignStmt,
     For,
@@ -118,6 +112,7 @@ impl Stmt {
             Stmt::InplaceDiv(_) => StmtType::InplaceDiv,
             Stmt::AssignStmt(_) => StmtType::AssignStmt,
             Stmt::Return(_) => StmtType::Return,
+            Stmt::AllocaStmt(_) => StmtType::AllocaStmt,
             Stmt::None => StmtType::None,
         }
     }
@@ -138,6 +133,7 @@ impl Display for Stmt {
             Stmt::InplaceDiv(stmt) => write!(f, "{}", stmt),
             Stmt::AssignStmt(stmt) => write!(f, "{}", stmt),
             Stmt::Return(stmt) => write!(f, "{}", stmt),
+            Stmt::AllocaStmt(stmt) => write!(f, "{}", stmt),
             Stmt::None => Ok(()),
         }
     }
@@ -180,6 +176,9 @@ impl Accepter for Stmt {
                 stmt.accept(visitor);
             }
             Stmt::Return(stmt) => {
+                stmt.accept(visitor);
+            }
+            Self::AllocaStmt(stmt) => {
                 stmt.accept(visitor);
             }
             Stmt::None => {}
@@ -226,6 +225,9 @@ impl AccepterMut for Stmt {
             Stmt::Return(stmt) => {
                 stmt.accept_mut(visitor);
             }
+            Stmt::AllocaStmt(stmt) => {
+                stmt.accept_mut(visitor);
+            }
             Stmt::None => {}
         }
     }
@@ -268,6 +270,9 @@ impl AccepterMutate for Stmt {
                 stmt.accept_mutate(visitor);
             }
             Stmt::Return(stmt) => {
+                stmt.accept_mutate(visitor);
+            }
+            Stmt::AllocaStmt(stmt) => {
                 stmt.accept_mutate(visitor);
             }
             Stmt::None => {}

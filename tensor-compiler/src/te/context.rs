@@ -5,7 +5,7 @@ use tensor_common::{
     shape_utils::is_reshape_possible,
     strides_utils::shape_to_strides,
 };
-use tensor_types::{ dtype::Dtype, type_promote::NormalOut };
+use tensor_types::{ dtype::Dtype, type_promote::{FloatOut, NormalOut} };
 
 use crate::{
     halide::{
@@ -168,6 +168,7 @@ impl Context {
                     bodys: vec![body],
                     id,
                     out_id: id,
+                    dtype
                 };
                 Body::Stage(stage)
             }),
@@ -287,6 +288,7 @@ impl Context {
                             bodys: stage.bodys.clone(),
                             id,
                             out_id: stage.out_id,
+                            dtype: stage.dtype,
                         };
                         Body::Stage(stage)
                     } else {
@@ -326,6 +328,7 @@ impl Context {
                             bodys: stage.bodys.clone(),
                             id,
                             out_id: stage.out_id,
+                            dtype: stage.dtype,
                         };
                         Body::Stage(stage)
                     } else {
@@ -492,6 +495,7 @@ impl Context {
                                 bodys: lhs_bodys,
                                 id,
                                 out_id: id,
+                                dtype: lhs.dtype._add(rhs.dtype),
                             };
                             Body::Stage(stage)
                         }
@@ -565,6 +569,7 @@ impl Context {
                                 bodys: lhs_bodys,
                                 id,
                                 out_id: id,
+                                dtype: lhs.dtype._add(rhs.dtype),
                             };
                             Body::Stage(stage)
                         }
@@ -669,6 +674,7 @@ impl Context {
                             bodys: stage.bodys.clone(),
                             id,
                             out_id: id,
+                            dtype: stage.dtype._sin(),
                         };
                         Body::Stage(stage)
                     } else {
@@ -696,6 +702,7 @@ impl Context {
                             bodys: stage_bodys,
                             id,
                             out_id: id,
+                            dtype: stage.dtype._sin(),
                         };
                         Body::Stage(stage)
                     } else {
@@ -851,6 +858,7 @@ impl Context {
                             bodys: vec![offset_body, body, store_body],
                             id,
                             out_id: id,
+                            dtype: stage.dtype,
                         };
                         Body::Stage(stage)
                     } else {
@@ -926,6 +934,7 @@ impl Context {
                             bodys: vec![offset_body, body],
                             id,
                             out_id: id,
+                            dtype: stage.dtype,
                         };
                         Body::Stage(stage)
                     } else {
@@ -1044,6 +1053,7 @@ impl Context {
                             bodys: vec![if_then_else],
                             id,
                             out_id: id,
+                            dtype: stage.dtype,
                         };
                         Body::Stage(stage)
                     } else {
@@ -1109,6 +1119,7 @@ impl Context {
                             bodys: vec![let_init, if_then_else],
                             id,
                             out_id: id,
+                            dtype: stage.dtype,
                         };
                         Body::Stage(stage)
                     } else {

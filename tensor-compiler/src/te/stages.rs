@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use tensor_types::dtype::Dtype;
+
 use crate::{
     halide::{
         exprs::Load,
@@ -197,6 +199,7 @@ impl ReduceStage {
 pub struct Stage {
     pub(crate) dims: Vec<IterVar>,
     pub(crate) bodys: Vec<Body>,
+    pub(crate) dtype: Dtype,
     pub(crate) id: usize,
     pub(crate) out_id: usize,
 }
