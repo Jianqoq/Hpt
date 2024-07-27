@@ -2,7 +2,6 @@ use crate::{
     halide::{
         alloca_stmt::AllocaStmt,
         exprs::{ Add, Load },
-        inplace_store_stmt::InplaceAdd,
         let_stmt::LetStmt,
         prime_expr::PrimeExpr,
         primitive_type::PrimitiveType,

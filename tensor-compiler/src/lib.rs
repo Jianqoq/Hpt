@@ -58,7 +58,6 @@ pub mod te {
     pub mod shape_utils;
     pub mod subs_tensorload;
     pub mod strides_cal_helper;
-    pub mod compile;
     pub mod index_replace;
     pub mod bodygen_helper;
 }
