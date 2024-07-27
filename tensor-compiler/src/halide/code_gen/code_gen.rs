@@ -11,6 +11,7 @@ use std::{
 };
 
 use std::collections::{ HashMap, HashSet };
+use itertools::izip;
 use llvm_sys::{
     execution_engine::{
         LLVMCreateGenericValueOfInt,
@@ -48,8 +49,9 @@ use crate::{
     edges::Edges,
     halide::{
         code_gen::type_utils::{ build_cast, general_types_to_primitive_type },
-        exprs::Load,
+        exprs::{ Int, Load },
         module::{ Function, Module },
+        prime_expr::PrimeExpr,
         primitive_type::{ Array, PrimitiveType, Ptr },
         printer::IRPrinter,
         tensor_load::TensorLoad,
@@ -73,11 +75,6 @@ pub struct CodeGen {
     halide_module: Module,
     tensor_type: StructValue,
     ee: ExecutionEngine,
-    topo_order: Vec<Function>,
-    inputs: HashSet<Arc<String>>,
-    outputs: HashSet<Arc<String>>,
-    intermediates: HashSet<Arc<String>>,
-    buffers: HashMap<usize, (Vec<Tensor>, Vec<Tensor>, Vec<Tensor>)>,
 }
 
 impl CodeGen {
@@ -115,53 +112,49 @@ impl CodeGen {
                 err_string.as_mut_ptr()
             )
         };
-        unsafe {
+        let ee = unsafe {
             if code == 1 {
                 let msg = CStr::from_ptr(err_string.assume_init());
                 panic!("Failed to create JIT compiler: {:?}", msg.to_string_lossy().into_owned());
             }
-            let execution_engine = ExecutionEngine::new(execution_engine.assume_init());
+            let engine = ExecutionEngine::new(execution_engine.assume_init());
             declare_printf(&ctx, &_module);
+            engine
+        };
+        let mut fns = HashMap::new();
+        let mut fns_id = HashMap::new();
+        let mut id_fns = HashMap::new();
+        let mut cnt = 0;
+        for func in module.fns.values() {
+            let fn_val = _module.add_function(
+                func.ty.to_llvm_func_type(&ctx, global_tensor),
+                &func.name
+            );
+            fns.insert(func.name.clone(), fn_val.clone());
+            fns_id.insert(fn_val.clone(), cnt);
+            id_fns.insert(cnt, fn_val);
+            cnt += 1;
         }
-        //     CodeGen {
-        //         ctx,
-        //         module: _module,
-        //         builder,
-        //         fns,
-        //         bindings: HashMap::new(),
-        //         id_fns,
-        //         current_fn: 0,
-        //         fns_id,
-        //         halide_module: module.clone(),
-        //         tensor_type: global_tensor,
-        //         ee: execution_engine,
-        //         topo_order: sorted,
-        //         inputs,
-        //         outputs,
-        //         intermediates,
-        //         buffers: HashMap::new(),
-        //     }
-        // }
-        todo!()
+        CodeGen {
+            ctx,
+            module: _module,
+            builder,
+            fns,
+            bindings: HashMap::new(),
+            id_fns,
+            current_fn: 0,
+            fns_id,
+            halide_module: module.clone(),
+            tensor_type: global_tensor,
+            ee,
+        }
     }
 
-    pub fn compile(mut self) -> Executable {
-        let module = self.halide_module.clone();
-        self.visit_module(&module);
-        Executable {
-            ee: self.ee,
-            inputs: self.inputs,
-            outputs: self.outputs,
-            intermediates: self.intermediates,
-            fns: self.fns
-                .keys()
-                .map(|x| x.clone())
-                .collect(),
-            sorted: self.topo_order,
-            ctx: self.ctx,
-            module: self.module,
-            builder: self.builder,
+    pub fn compile(&mut self) {
+        for i in self.halide_module.fns.clone().values() {
+            self.visit_function(i);
         }
+        // self.module.print_to_file("module.ll").expect("failed to print to file");
     }
 }
 
@@ -191,105 +184,6 @@ impl Executable {
             panic!("{}", &format!("function {} not found", name));
         }
         unsafe { std::mem::transmute_copy::<u64, F>(&address) }
-    }
-    pub fn run(&self, inputs: &[Tensor], intermediates: &[Tensor], outputs: &[Tensor]) {
-        // for input in inputs {
-        //     if !self.inputs.contains(&input.name) {
-        //         panic!("input {} not found", input.name);
-        //     }
-        // }
-        // for output in outputs {
-        //     if !self.outputs.contains(&output.name) {
-        //         panic!("output {} not found", output.name);
-        //     }
-        // }
-        // for intermediate in intermediates {
-        //     if !self.intermediates.contains(&intermediate.name) {
-        //         panic!("intermediate {} not found", intermediate.name);
-        //     }
-        // }
-        // for func in self.sorted.iter() {
-        //     unsafe {
-        //         let tensor_layout = Layout::from_size_align(
-        //             std::mem::size_of::<_Tensor>(),
-        //             8
-        //         ).expect("");
-        //         let inter_layout = Layout::from_size_align(
-        //             std::mem::size_of::<*mut _Tensor>() * func.ty.args[1].len(),
-        //             8
-        //         ).expect("failed to create layout");
-        //         let _intermediates = std::alloc::alloc(inter_layout) as *mut *mut _Tensor;
-        //         for (idx, (name, ty)) in func.ty.args[1].iter().enumerate() {
-        //             let tensor = std::alloc::alloc(tensor_layout) as *mut _Tensor;
-        //             let t = intermediates
-        //                 .iter()
-        //                 .find(|x| &x.name == name)
-        //                 .unwrap();
-        //             (*tensor).ptr = t.ptr as *mut c_void;
-        //             (*tensor).dtype = t.dtype;
-        //             (*tensor).shape = t.shape;
-        //             (*tensor).strides = t.strides;
-        //             std::ptr::write(_intermediates.add(idx), tensor);
-        //         }
-        //         let inputs_layout = Layout::from_size_align(
-        //             std::mem::size_of::<*mut _Tensor>() * func.ty.args[0].len(),
-        //             8
-        //         ).expect("failed to create layout");
-        //         let _inputs = std::alloc::alloc(inputs_layout) as *mut *mut _Tensor;
-        //         for (idx, (name, ty)) in func.ty.args[0].iter().enumerate() {
-        //             let tensor = std::alloc::alloc(tensor_layout) as *mut _Tensor;
-        //             let t = inputs
-        //                 .iter()
-        //                 .find(|x| &x.name == name)
-        //                 .unwrap();
-        //             (*tensor).ptr = t.ptr;
-        //             (*tensor).dtype = t.dtype;
-        //             (*tensor).shape = t.shape;
-        //             (*tensor).strides = t.strides;
-        //             std::ptr::write(_inputs.add(idx), tensor);
-        //         }
-        //         let outputs_layout = Layout::from_size_align(
-        //             std::mem::size_of::<*mut _Tensor>() * func.ty.args[2].len(),
-        //             8
-        //         ).expect("failed to create layout");
-        //         let _outputs = std::alloc::alloc(outputs_layout) as *mut *mut _Tensor;
-        //         for (idx, (name, ty)) in func.ty.args[2].iter().enumerate() {
-        //             let tensor = std::alloc::alloc(tensor_layout) as *mut _Tensor;
-        //             let t = outputs
-        //                 .iter()
-        //                 .find(|x| &x.name == name)
-        //                 .unwrap();
-        //             (*tensor).ptr = t.ptr;
-        //             (*tensor).dtype = t.dtype;
-        //             (*tensor).shape = t.shape;
-        //             (*tensor).strides = t.strides;
-        //             std::ptr::write(_outputs.add(idx), tensor);
-        //         }
-        //         let llvm_fn = self.get_function::<
-        //             unsafe extern "C" fn(*mut *mut c_void, *mut *mut c_void, *mut *mut c_void)
-        //         >(func.name.as_str());
-        //         llvm_fn(
-        //             _inputs as *mut *mut c_void,
-        //             _intermediates as *mut *mut c_void,
-        //             _outputs as *mut *mut c_void
-        //         );
-        //         for (idx, (name, ty)) in func.ty.args[1].iter().enumerate() {
-        //             let tensor = std::ptr::read(_intermediates.add(idx));
-        //             std::alloc::dealloc(tensor as *mut u8, tensor_layout);
-        //         }
-        //         std::alloc::dealloc(_intermediates as *mut u8, inter_layout);
-        //         for (idx, (name, ty)) in func.ty.args[0].iter().enumerate() {
-        //             let tensor = std::ptr::read(_inputs.add(idx));
-        //             std::alloc::dealloc(tensor as *mut u8, tensor_layout);
-        //         }
-        //         std::alloc::dealloc(_inputs as *mut u8, inputs_layout);
-        //         for (idx, (name, ty)) in func.ty.args[2].iter().enumerate() {
-        //             let tensor = std::ptr::read(_outputs.add(idx));
-        //             std::alloc::dealloc(tensor as *mut u8, tensor_layout);
-        //         }
-        //         std::alloc::dealloc(_outputs as *mut u8, outputs_layout);
-        //     }
-        // }
     }
 }
 
@@ -1917,10 +1811,14 @@ impl CodeGenVisitor for CodeGen {
     fn visit_function(&mut self, function: &crate::halide::module::Function) {
         let id = self.fns_id[&self.fns[&function.name]];
         assert!(self.bindings.get(&id).is_none());
-        let scope_stack = ScopeStack::new();
+        let mut scope_stack = ScopeStack::new();
         let block = self.ctx.append_basic_block(&self.fns[&function.name], "entry");
         self.builder.position_at_end(block);
-        for (args_idx, vec) in function.ty.args.iter().enumerate() {
+        for (args_idx, (arg_name, arg_ty)) in function.ty.args.iter().enumerate() {
+            let arg = self.fns[&function.name].get_nth_param(args_idx);
+            let val = arg.inner() as usize;
+            scope_stack.insert_variable(&Arc::new(arg_name.clone()), arg);
+            scope_stack.insert_type(arg, arg_ty.clone());
         }
         self.bindings.insert(id, scope_stack);
         self.current_fn = id;
@@ -1949,7 +1847,41 @@ impl CodeGenVisitor for CodeGen {
     }
 
     fn visit_tensor_load(&mut self, tensor_load: &TensorLoad) -> BasicValue {
-        todo!()
+        let one = PrimeExpr::Int(Int::make(Dtype::I64, 1i64));
+        let zero = PrimeExpr::Int(Int::make(Dtype::I64, 0i64));
+        assert!(tensor_load.begins.len() == tensor_load.axes.len());
+        assert!(tensor_load.begins.len() == tensor_load.steps.len());
+        assert!(tensor_load.begins.len() == tensor_load.strides.len());
+        let mut indices = PrimeExpr::None;
+        for (begin, axes, step, stride) in izip!(
+            tensor_load.begins.iter(),
+            tensor_load.axes.iter(),
+            tensor_load.steps.iter(),
+            tensor_load.strides.iter()
+        ) {
+            if begin == &zero && step == &one {
+                if indices.is_none() {
+                    indices = axes.clone() * stride.clone();
+                } else {
+                    indices = indices + axes.clone() * stride.clone();
+                }
+            } else if step == &one {
+                if indices.is_none() {
+                    indices = (axes.clone() + begin.clone()) * stride.clone();
+                } else {
+                    indices = indices + (axes.clone() + begin.clone()) * stride.clone();
+                }
+            } else {
+                if indices.is_none() {
+                    indices = (axes.clone() * step.clone() + begin.clone()) * stride.clone();
+                } else {
+                    indices =
+                        indices + (axes.clone() * step.clone() + begin.clone()) * stride.clone();
+                }
+            }
+        }
+        let load = Load::make(tensor_load.var.as_ref(), indices);
+        self.visit_load(&load)
     }
 
     fn visit_neg(&mut self, neg: &crate::halide::exprs::Neg) -> BasicValue {
@@ -2204,8 +2136,14 @@ pub fn load(
                                         "gep"
                                     );
                                     (
-                                        builder.build_load(ctx.bool_type(), gep, "load"),
-                                        PrimitiveType::Dtype(Dtype::Bool),
+                                        builder.build_load(
+                                            ctx.bool_type().ptr_type(0),
+                                            gep,
+                                            "load"
+                                        ),
+                                        PrimitiveType::Ptr(Ptr {
+                                            inner: Arc::new(PrimitiveType::Dtype(Dtype::Bool)),
+                                        }),
                                     )
                                 }
                                 Dtype::I8 => {
@@ -2216,8 +2154,10 @@ pub fn load(
                                         "gep"
                                     );
                                     (
-                                        builder.build_load(ctx.i8_type(), gep, "load"),
-                                        PrimitiveType::Dtype(Dtype::I8),
+                                        builder.build_load(ctx.i8_type().ptr_type(0), gep, "load"),
+                                        PrimitiveType::Ptr(Ptr {
+                                            inner: Arc::new(PrimitiveType::Dtype(Dtype::I8)),
+                                        }),
                                     )
                                 }
                                 Dtype::U8 => {
@@ -2228,8 +2168,10 @@ pub fn load(
                                         "gep"
                                     );
                                     (
-                                        builder.build_load(ctx.u8_type(), gep, "load"),
-                                        PrimitiveType::Dtype(Dtype::U8),
+                                        builder.build_load(ctx.u8_type().ptr_type(0), gep, "load"),
+                                        PrimitiveType::Ptr(Ptr {
+                                            inner: Arc::new(PrimitiveType::Dtype(Dtype::U8)),
+                                        }),
                                     )
                                 }
                                 Dtype::I16 => {
@@ -2240,8 +2182,10 @@ pub fn load(
                                         "gep"
                                     );
                                     (
-                                        builder.build_load(ctx.i16_type(), gep, "load"),
-                                        PrimitiveType::Dtype(Dtype::I16),
+                                        builder.build_load(ctx.i16_type().ptr_type(0), gep, "load"),
+                                        PrimitiveType::Ptr(Ptr {
+                                            inner: Arc::new(PrimitiveType::Dtype(Dtype::I16)),
+                                        }),
                                     )
                                 }
                                 Dtype::U16 => {
@@ -2252,8 +2196,10 @@ pub fn load(
                                         "gep"
                                     );
                                     (
-                                        builder.build_load(ctx.u16_type(), gep, "load"),
-                                        PrimitiveType::Dtype(Dtype::U16),
+                                        builder.build_load(ctx.u16_type().ptr_type(0), gep, "load"),
+                                        PrimitiveType::Ptr(Ptr {
+                                            inner: Arc::new(PrimitiveType::Dtype(Dtype::U16)),
+                                        }),
                                     )
                                 }
                                 Dtype::I32 => {
@@ -2264,8 +2210,10 @@ pub fn load(
                                         "gep"
                                     );
                                     (
-                                        builder.build_load(ctx.i32_type(), gep, "load"),
-                                        PrimitiveType::Dtype(Dtype::I32),
+                                        builder.build_load(ctx.i32_type().ptr_type(0), gep, "load"),
+                                        PrimitiveType::Ptr(Ptr {
+                                            inner: Arc::new(PrimitiveType::Dtype(Dtype::I32)),
+                                        }),
                                     )
                                 }
                                 Dtype::U32 => {
@@ -2276,8 +2224,10 @@ pub fn load(
                                         "gep"
                                     );
                                     (
-                                        builder.build_load(ctx.u32_type(), gep, "load"),
-                                        PrimitiveType::Dtype(Dtype::U32),
+                                        builder.build_load(ctx.u32_type().ptr_type(0), gep, "load"),
+                                        PrimitiveType::Ptr(Ptr {
+                                            inner: Arc::new(PrimitiveType::Dtype(Dtype::U32)),
+                                        }),
                                     )
                                 }
                                 Dtype::I64 => {
@@ -2288,8 +2238,10 @@ pub fn load(
                                         "gep"
                                     );
                                     (
-                                        builder.build_load(ctx.i64_type(), gep, "load"),
-                                        PrimitiveType::Dtype(Dtype::I64),
+                                        builder.build_load(ctx.i64_type().ptr_type(0), gep, "load"),
+                                        PrimitiveType::Ptr(Ptr {
+                                            inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
+                                        }),
                                     )
                                 }
                                 Dtype::U64 => {
@@ -2300,8 +2252,10 @@ pub fn load(
                                         "gep"
                                     );
                                     (
-                                        builder.build_load(ctx.u64_type(), gep, "load"),
-                                        PrimitiveType::Dtype(Dtype::U64),
+                                        builder.build_load(ctx.u64_type().ptr_type(0), gep, "load"),
+                                        PrimitiveType::Ptr(Ptr {
+                                            inner: Arc::new(PrimitiveType::Dtype(Dtype::U64)),
+                                        }),
                                     )
                                 }
                                 Dtype::BF16 => {
@@ -2312,8 +2266,10 @@ pub fn load(
                                         "gep"
                                     );
                                     (
-                                        builder.build_load(ctx.i16_type(), gep, "load"),
-                                        PrimitiveType::Dtype(Dtype::BF16),
+                                        builder.build_load(ctx.i16_type().ptr_type(0), gep, "load"),
+                                        PrimitiveType::Ptr(Ptr {
+                                            inner: Arc::new(PrimitiveType::Dtype(Dtype::BF16)),
+                                        }),
                                     )
                                 }
                                 Dtype::F16 => {
@@ -2324,8 +2280,10 @@ pub fn load(
                                         "gep"
                                     );
                                     (
-                                        builder.build_load(ctx.f16_type(), gep, "load"),
-                                        PrimitiveType::Dtype(Dtype::F16),
+                                        builder.build_load(ctx.f16_type().ptr_type(0), gep, "load"),
+                                        PrimitiveType::Ptr(Ptr {
+                                            inner: Arc::new(PrimitiveType::Dtype(Dtype::F32)),
+                                        }),
                                     )
                                 }
                                 Dtype::F32 => {
@@ -2336,8 +2294,10 @@ pub fn load(
                                         "gep"
                                     );
                                     (
-                                        builder.build_load(ctx.f32_type(), gep, "load"),
-                                        PrimitiveType::Dtype(Dtype::F32),
+                                        builder.build_load(ctx.f32_type().ptr_type(0), gep, "load"),
+                                        PrimitiveType::Ptr(Ptr {
+                                            inner: Arc::new(PrimitiveType::Dtype(Dtype::F32)),
+                                        }),
                                     )
                                 }
                                 Dtype::F64 => {
@@ -2348,8 +2308,10 @@ pub fn load(
                                         "gep"
                                     );
                                     (
-                                        builder.build_load(ctx.f64_type(), gep, "load"),
-                                        PrimitiveType::Dtype(Dtype::F64),
+                                        builder.build_load(ctx.f64_type().ptr_type(0), gep, "load"),
+                                        PrimitiveType::Ptr(Ptr {
+                                            inner: Arc::new(PrimitiveType::Dtype(Dtype::F64)),
+                                        }),
                                     )
                                 }
                                 Dtype::C32 => todo!(),
@@ -2362,8 +2324,14 @@ pub fn load(
                                         "gep"
                                     );
                                     (
-                                        builder.build_load(ctx.isize_type(), gep, "load"),
-                                        PrimitiveType::Dtype(Dtype::Isize),
+                                        builder.build_load(
+                                            ctx.isize_type().ptr_type(0),
+                                            gep,
+                                            "load"
+                                        ),
+                                        PrimitiveType::Ptr(Ptr {
+                                            inner: Arc::new(PrimitiveType::Dtype(Dtype::Isize)),
+                                        }),
                                     )
                                 }
                                 Dtype::Usize => todo!(),
@@ -2386,10 +2354,49 @@ pub fn load(
                             )
                         }
                         PrimitiveType::Array(_) => todo!(),
-                        PrimitiveType::Ptr(_) => todo!(),
+                        PrimitiveType::Ptr(ptr) => {
+                            let gep = builder.build_gep(
+                                ctx.void_type().ptr_type(0),
+                                to_load.to_ptr_value(),
+                                &[indices],
+                                "gep"
+                            );
+                            (
+                                builder.build_load(ctx.void_type().ptr_type(0), gep, "load"),
+                                PrimitiveType::Ptr(Ptr {
+                                    inner: Arc::new(PrimitiveType::Ptr(ptr.clone())),
+                                }),
+                            )
+                        }
                         PrimitiveType::Tensor(_) => todo!(),
-                        PrimitiveType::Str => todo!(),
-                        PrimitiveType::Void => todo!(),
+                        PrimitiveType::Str => {
+                            let gep = builder.build_gep(
+                                ctx.str_ptr_type(),
+                                to_load.to_ptr_value(),
+                                &[indices],
+                                "gep"
+                            );
+                            (
+                                builder.build_load(ctx.str_ptr_type(), gep, "load"),
+                                PrimitiveType::Ptr(Ptr {
+                                    inner: Arc::new(PrimitiveType::Str),
+                                }),
+                            )
+                        }
+                        PrimitiveType::Void => {
+                            let gep = builder.build_gep(
+                                ctx.void_type().ptr_type(0),
+                                to_load.to_ptr_value(),
+                                &[indices],
+                                "gep"
+                            );
+                            (
+                                builder.build_load(ctx.void_type().ptr_type(0), gep, "load"),
+                                PrimitiveType::Ptr(Ptr {
+                                    inner: Arc::new(PrimitiveType::Void),
+                                }),
+                            )
+                        }
                     }
                 }
                 PrimitiveType::Str => {
@@ -2398,7 +2405,16 @@ pub fn load(
                         PrimitiveType::Str,
                     )
                 }
-                PrimitiveType::Void => todo!(),
+                PrimitiveType::Void => {
+                    (
+                        builder.build_load(
+                            ctx.void_type().ptr_type(0),
+                            to_load.to_ptr_value(),
+                            "load"
+                        ),
+                        PrimitiveType::Void,
+                    )
+                }
                 PrimitiveType::Tensor(tensor) => {
                     match tensor.dtype {
                         Dtype::Bool => {

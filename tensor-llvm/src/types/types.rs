@@ -176,7 +176,7 @@ impl_into_basic_type!(
 
 impl_const_int_value!(I8, I16, I32, I64, Isize);
 impl_const_float_value!(F16, F32, F64);
-impl_const_uint_value!(Bool, U8, U16, U32, U64);
+impl_const_uint_value!(Bool, U8, U16, U32, U64, Usize);
 
 #[derive(Debug, PartialEq, Clone, Hash, Eq)]
 pub struct FunctionType {

@@ -7,7 +7,7 @@ use tensor_llvm::{
 };
 use tensor_types::{ dtype::Dtype, type_promote::{ FloatOut, NormalOut } };
 
-#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
 pub enum PrimitiveType {
     Dtype(Dtype),
     Tuple(Tuple),
@@ -27,7 +27,7 @@ impl PrimitiveType {
     }
 }
 
-#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
 pub struct Tuple {
     pub inner: Arc<Vec<PrimitiveType>>,
 }
@@ -42,7 +42,7 @@ impl Tuple {
     }
 }
 
-#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
 pub struct Tensor {
     pub ptr: Ptr,
     pub dtype: Dtype,
@@ -50,12 +50,12 @@ pub struct Tensor {
     pub strides: Array,
 }
 
-#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
 pub struct Array {
     pub inner: Arc<PrimitiveType>,
     pub size: i64,
 }
-#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
 pub struct Ptr {
     pub inner: Arc<PrimitiveType>,
 }
@@ -112,7 +112,61 @@ impl PrimitiveType {
                         GeneralType::StructPtr(ctx.struct_type(&types, false).ptr_type(0))
                     }
                     PrimitiveType::Array(_) => todo!(),
-                    PrimitiveType::Ptr(_) => { GeneralType::I8Ptr(ctx.i8_type().ptr_type(0)) }
+                    PrimitiveType::Ptr(ptr) => {
+                        match ptr.inner.as_ref() {
+                            PrimitiveType::Dtype(dtype) => {
+                                match dtype {
+                                    Dtype::Bool => {
+                                        GeneralType::BoolPtr(ctx.bool_type().ptr_type(0))
+                                    }
+                                    Dtype::I8 => { GeneralType::I8Ptr(ctx.i8_type().ptr_type(0)) }
+                                    Dtype::U8 => { GeneralType::U8Ptr(ctx.u8_type().ptr_type(0)) }
+                                    Dtype::I16 => {
+                                        GeneralType::I16Ptr(ctx.i16_type().ptr_type(0))
+                                    }
+                                    Dtype::U16 => {
+                                        GeneralType::U16Ptr(ctx.u16_type().ptr_type(0))
+                                    }
+                                    Dtype::I32 => {
+                                        GeneralType::I32Ptr(ctx.i32_type().ptr_type(0))
+                                    }
+                                    Dtype::U32 => {
+                                        GeneralType::U32Ptr(ctx.u32_type().ptr_type(0))
+                                    }
+                                    Dtype::I64 => {
+                                        GeneralType::I64Ptr(ctx.i64_type().ptr_type(0))
+                                    }
+                                    Dtype::U64 => {
+                                        GeneralType::U64Ptr(ctx.u64_type().ptr_type(0))
+                                    }
+                                    Dtype::BF16 => todo!(),
+                                    Dtype::F16 => todo!(),
+                                    Dtype::F32 => {
+                                        GeneralType::F32Ptr(ctx.f32_type().ptr_type(0))
+                                    }
+                                    Dtype::F64 => {
+                                        GeneralType::F64Ptr(ctx.f64_type().ptr_type(0))
+                                    }
+                                    Dtype::C32 => todo!(),
+                                    Dtype::C64 => todo!(),
+                                    Dtype::Isize => {
+                                        GeneralType::IsizePtr(ctx.isize_type().ptr_type(0))
+                                    }
+                                    Dtype::Usize => {
+                                        GeneralType::UsizePtr(ctx.usize_type().ptr_type(0))
+                                    }
+                                }
+                            }
+                            PrimitiveType::Tuple(_) => todo!(),
+                            PrimitiveType::Array(_) => todo!(),
+                            PrimitiveType::Ptr(_) => todo!(),
+                            PrimitiveType::Tensor(_) => todo!(),
+                            PrimitiveType::Str => todo!(),
+                            PrimitiveType::Void => {
+                                GeneralType::VoidPtr(ctx.void_type().ptr_type(0))
+                            }
+                        }
+                    }
                     PrimitiveType::Str => todo!(),
                     PrimitiveType::Void => todo!(),
                     PrimitiveType::Tensor(_) => {
@@ -120,7 +174,7 @@ impl PrimitiveType {
                     }
                 }
             PrimitiveType::Tensor(_) => { GeneralType::Struct(tensor_type.to_type()) }
-            PrimitiveType::Void => { GeneralType::Void(ctx.void_type())}
+            PrimitiveType::Void => { GeneralType::Void(ctx.void_type()) }
             _ => unimplemented!("unimplemented to_llvm_type for {}", self),
         }
     }

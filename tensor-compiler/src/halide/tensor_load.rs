@@ -1,7 +1,8 @@
 use std::{ fmt::Display, sync::Arc };
 use itertools::izip;
+use tensor_types::dtype::Dtype;
 
-use crate::halide::{ exprs::Load, prime_expr::PrimeExpr, variable::Variable };
+use crate::halide::{ exprs::{ Int, Load }, prime_expr::PrimeExpr, variable::Variable };
 
 #[derive(Clone, PartialEq, Hash, Eq, Debug)]
 pub struct TensorLoad {
@@ -35,7 +36,7 @@ impl TensorLoad {
             axes: Arc::new(axes.into()),
             steps: Arc::new(steps.into()),
             strides: Arc::new(strides.into()),
-            hints: Arc::new(hints.into())
+            hints: Arc::new(hints.into()),
         }
     }
 }
@@ -54,12 +55,37 @@ impl Into<PrimeExpr> for &TensorLoad {
 
 impl Display for TensorLoad {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let one = PrimeExpr::Int(Int::make(Dtype::I64, 1i64));
+        let zero = PrimeExpr::Int(Int::make(Dtype::I64, 0i64));
+        assert!(self.begins.len() == self.axes.len());
+        assert!(self.begins.len() == self.steps.len());
+        assert!(self.begins.len() == self.strides.len());
         let mut indices = PrimeExpr::None;
-        for (axes, stride) in izip!(self.axes.iter(), self.strides.iter()) {
-            if indices.is_none() {
-                indices = axes.clone() * stride.clone();
+        for (begin, axes, step, stride) in izip!(
+            self.begins.iter(),
+            self.axes.iter(),
+            self.steps.iter(),
+            self.strides.iter()
+        ) {
+            if begin == &zero && step == &one {
+                if indices.is_none() {
+                    indices = axes.clone() * stride.clone();
+                } else {
+                    indices = indices + axes.clone() * stride.clone();
+                }
+            } else if step == &one {
+                if indices.is_none() {
+                    indices = (axes.clone() + begin.clone()) * stride.clone();
+                } else {
+                    indices = indices + (axes.clone() + begin.clone()) * stride.clone();
+                }
             } else {
-                indices = indices + axes.clone() * stride.clone();
+                if indices.is_none() {
+                    indices = (axes.clone() * step.clone() + begin.clone()) * stride.clone();
+                } else {
+                    indices =
+                        indices + (axes.clone() * step.clone() + begin.clone()) * stride.clone();
+                }
             }
         }
         let load = Load::make(self.var.as_ref(), indices);

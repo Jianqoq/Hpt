@@ -399,6 +399,7 @@ impl_from!(F32);
 impl_from!(F64);
 impl_from!(Void);
 impl_from!(Isize);
+impl_from!(Usize);
 impl_from!(Array);
 impl_from!(BoolPtr);
 impl_from!(I8Ptr);

@@ -129,7 +129,8 @@ impl FunctionType {
 pub struct Module {
     pub(crate) name: Arc<String>,
     pub(crate) imports: HashSet<Arc<String>>,
-    pub(crate) fns: HashMap<String, Function>,
+    pub(crate) fns: HashMap<Arc<String>, Function>,
+    pub(crate) order: Vec<Arc<String>>,
 }
 
 impl Module {
@@ -138,20 +139,19 @@ impl Module {
             name: name.into().into(),
             fns: HashMap::new(),
             imports: HashSet::new(),
+            order: Vec::new(),
         }
     }
-
-    pub fn add_function(&mut self, ty: FunctionType, name: &str) {
-        self.fns.insert(name.to_string(), Function {
-            ty,
-            body: Stmt::None,
-            name: name.to_string().into(),
-        });
+    pub fn set_order(&mut self, order: Vec<Arc<String>>) {
+        self.order = order;
     }
-    pub fn get_function(&self, name: &str) -> Option<&Function> {
+    pub fn add_function(&mut self, function: Function) {
+        self.fns.insert(function.name.clone(), function);
+    }
+    pub fn get_function(&self, name: &Arc<String>) -> Option<&Function> {
         self.fns.get(name)
     }
-    pub fn get_function_mut(&mut self, name: &str) -> Option<&mut Function> {
+    pub fn get_function_mut(&mut self, name: &Arc<String>) -> Option<&mut Function> {
         self.fns.get_mut(name)
     }
 }

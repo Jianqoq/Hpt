@@ -699,7 +699,7 @@ pub(crate) fn visit_cast<V>(visitor: &mut V, cast: &Cast)
     if &a == cast.expr() {
         visitor.set_expr(cast);
     } else {
-        visitor.set_expr(Cast::make(a, *cast.dtype()));
+        visitor.set_expr(Cast::make(a, cast.dtype().clone()));
     }
 }
 
@@ -1187,7 +1187,7 @@ pub(crate) fn visit_tensor_load<V>(visitor: &mut V, tensor_load: &TensorLoad)
     if
         name == tensor_load.var.as_ref().into() &&
         &axes == tensor_load.axes.as_ref() &&
-        &strides == tensor_load.strides.as_ref()&&
+        &strides == tensor_load.strides.as_ref() &&
         &steps == tensor_load.steps.as_ref() &&
         &begins == tensor_load.begins.as_ref()
     {

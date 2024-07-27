@@ -38,6 +38,7 @@ use crate::{
     U32Type,
     U64Type,
     U8Type,
+    UsizeType,
     VoidType,
 };
 
@@ -112,10 +113,10 @@ impl Context {
     pub fn u64_type(&self) -> U64Type {
         U64Type::from(unsafe { LLVMInt64TypeInContext(self.context) })
     }
-    pub fn usize_type(&self) -> U64Type {
+    pub fn usize_type(&self) -> UsizeType {
         match std::mem::size_of::<usize>() {
-            4 => U64Type::from(unsafe { LLVMInt32TypeInContext(self.context) }),
-            8 => U64Type::from(unsafe { LLVMInt64TypeInContext(self.context) }),
+            4 => UsizeType::from(unsafe { LLVMInt32TypeInContext(self.context) }),
+            8 => UsizeType::from(unsafe { LLVMInt64TypeInContext(self.context) }),
             _ => panic!("Unsupported usize size"),
         }
     }

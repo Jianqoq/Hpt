@@ -4,7 +4,12 @@ use tensor_types::dtype::Dtype;
 
 use crate::iter_var::IterVar;
 
-use super::{ prime_expr::PrimeExpr, traits::{ Accepter, IRVisitor }, variable::Variable };
+use super::{
+    prime_expr::PrimeExpr,
+    primitive_type::PrimitiveType,
+    traits::{ Accepter, IRVisitor },
+    variable::Variable,
+};
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Int {
     value: i64,
@@ -245,15 +250,15 @@ impl Into<PrimeExpr> for &Str {
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Cast {
     expr: Arc<PrimeExpr>,
-    dtype: Dtype,
+    dtype: PrimitiveType,
 }
 
 impl Cast {
-    pub fn new(expr: Arc<PrimeExpr>, dtype: Dtype) -> Self {
+    pub fn new(expr: Arc<PrimeExpr>, dtype: PrimitiveType) -> Self {
         Cast { expr, dtype }
     }
 
-    pub fn make<T: Into<PrimeExpr>>(expr: T, dtype: Dtype) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(expr: T, dtype: PrimitiveType) -> Self {
         Cast {
             expr: expr.into().into(),
             dtype,
@@ -268,7 +273,7 @@ impl Cast {
         &self.expr
     }
 
-    pub fn dtype(&self) -> &Dtype {
+    pub fn dtype(&self) -> &PrimitiveType {
         &self.dtype
     }
 }

@@ -137,7 +137,7 @@ mod tests {
     use tensor_types::dtype::Dtype;
 
     use crate::{
-        halide::{ exprs::Int, prime_expr::PrimeExpr },
+        halide::{ code_gen::code_gen::CodeGen, exprs::Int, module::Module, prime_expr::PrimeExpr },
         te::{ context::Context, srg_node::SrgNode },
         to_prim_expr::ToPrimeExpr,
     };
@@ -196,6 +196,47 @@ mod tests {
         let node = &srg.nodes[order.last().unwrap()];
         let strides = (node.strides_cal)(&var_map);
         println!("{:?}", strides);
+    }
+
+    #[test]
+    fn test_placeholder() {
+        let mut ctx = Context::new();
+        let m = ctx.var("m");
+        let n = ctx.var("n");
+        let a = ctx.placeholder(&[&m, &n], Dtype::F32);
+        let order = [a.id];
+        let mut nodes = HashMap::new();
+        for (id, node) in ctx.nodes.borrow().iter() {
+            let srg_node = SrgNode {
+                id: *id,
+                shape: node.shape.clone(),
+                inputs: node.inputs.clone(),
+                outputs: Arc::new(
+                    ctx.nodes
+                        .borrow()
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            if v.inputs.contains(id) { Some(*k) } else { None }
+                        })
+                        .collect()
+                ),
+                strides_cal: Arc::new(|_| vec![]),
+                span: node.span,
+            };
+            nodes.insert(*id, srg_node);
+        }
+        let srg = Srg {
+            nodes,
+            tensors: ctx.nodes.clone(),
+        };
+        let schedule = srg.create_schedule(&order);
+        let func = schedule.to_function();
+        println!("{}", func);
+        let mut module = Module::new("main");
+        module.add_function(func);
+        let context = tensor_llvm::context::context::Context::new();
+        let mut codegen = CodeGen::new(context, &module, 3);
+        codegen.compile();
     }
 
     #[test]
@@ -380,6 +421,11 @@ mod tests {
     }
 }"
         );
+        let mut module = Module::new("main");
+        module.add_function(func);
+        let context = tensor_llvm::context::context::Context::new();
+        let mut codegen = CodeGen::new(context, &module, 3);
+        codegen.compile();
     }
 
     #[test]
