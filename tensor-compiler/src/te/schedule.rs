@@ -76,6 +76,37 @@ impl Schedule {
     pub fn cal_strides(&self, var_map: &HashMap<String, i64>) -> Vec<HStrides> {
         (self.strides_cal)(var_map)
     }
+
+    pub fn inputs(&self) -> HashSet<usize> {
+        self.nodes
+            .borrow()
+            .iter()
+            .filter(|(_, x)| x.inputs.len() == 0)
+            .map(|(x, _)| *x)
+            .collect()
+    }
+
+    pub fn outputs(&self) -> HashSet<usize> {
+        let mut edges = HashMap::new();
+        for node in self.nodes.borrow().values() {
+            if edges.contains_key(&node.id) {
+                continue;
+            } else {
+                edges.insert(node.id, HashSet::from_iter(node.inputs.iter().map(|x| *x)));
+            }
+        }
+        let mut edge = Edges::new();
+        edge.set_inner(edges);
+        let mut inverted = edge.invert();
+        for i in edge.keys() {
+            inverted.entry(*i).or_insert(HashSet::new());
+        }
+        inverted
+            .iter()
+            .filter(|(_, outputs)| outputs.len() == 0)
+            .map(|x| *x.0)
+            .collect::<HashSet<usize>>()
+    }
 }
 
 fn replace_strides(stmt: &Stmt, strides_visitor: &mut StridesVisitor) -> Stmt {

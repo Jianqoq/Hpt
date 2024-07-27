@@ -145,7 +145,7 @@ impl Module {
     pub fn set_order(&mut self, order: Vec<Arc<String>>) {
         self.order = order;
     }
-    pub fn add_function(&mut self, function: Function) {
+    pub fn add_function(&mut self, function: Function, inputs: HashSet<usize>, outputs: HashSet<usize>) {
         self.fns.insert(function.name.clone(), function);
     }
     pub fn get_function(&self, name: &Arc<String>) -> Option<&Function> {

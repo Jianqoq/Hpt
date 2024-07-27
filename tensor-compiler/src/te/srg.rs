@@ -186,7 +186,13 @@ mod tests {
         let schedule = srg.create_schedule(&order);
         let func = schedule.to_function();
         let mut module = Module::new("main");
-        module.add_function(func);
+        let inputs = schedule.inputs();
+        let outputs = schedule.outputs();
+        assert!(inputs.len() == 1);
+        assert!(outputs.len() == 1);
+        assert!(inputs.contains(&0));
+        assert!(outputs.contains(&0));
+        module.add_function(func, inputs, outputs);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -228,7 +234,13 @@ mod tests {
 }"
         );
         let mut module = Module::new("main");
-        module.add_function(func);
+        let inputs = schedule.inputs();
+        let outputs = schedule.outputs();
+        assert!(inputs.len() == 1);
+        assert!(outputs.len() == 1);
+        assert!(inputs.contains(&0));
+        assert!(outputs.contains(&1));
+        module.add_function(func, inputs, outputs);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -272,7 +284,14 @@ mod tests {
 }"
         );
         let mut module = Module::new("main");
-        module.add_function(func);
+        let inputs = schedule.inputs();
+        let outputs = schedule.outputs();
+        assert!(inputs.len() == 2);
+        assert!(outputs.len() == 1);
+        assert!(inputs.contains(&0));
+        assert!(inputs.contains(&1));
+        assert!(outputs.contains(&2));
+        module.add_function(func, inputs, outputs);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -316,7 +335,14 @@ mod tests {
 }"
         );
         let mut module = Module::new("main");
-        module.add_function(func);
+        let inputs = schedule.inputs();
+        let outputs = schedule.outputs();
+        assert!(inputs.len() == 2);
+        assert!(outputs.len() == 1);
+        assert!(inputs.contains(&0));
+        assert!(inputs.contains(&1));
+        assert!(outputs.contains(&2));
+        module.add_function(func, inputs, outputs);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -360,7 +386,14 @@ mod tests {
 }"
         );
         let mut module = Module::new("main");
-        module.add_function(func);
+        let inputs = schedule.inputs();
+        let outputs = schedule.outputs();
+        assert!(inputs.len() == 2);
+        assert!(outputs.len() == 1);
+        assert!(inputs.contains(&0));
+        assert!(inputs.contains(&1));
+        assert!(outputs.contains(&2));
+        module.add_function(func, inputs, outputs);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -402,7 +435,14 @@ mod tests {
 }"
         );
         let mut module = Module::new("main");
-        module.add_function(func);
+        let inputs = schedule.inputs();
+        let outputs = schedule.outputs();
+        assert!(inputs.len() == 2);
+        assert!(outputs.len() == 1);
+        assert!(inputs.contains(&0));
+        assert!(inputs.contains(&1));
+        assert!(outputs.contains(&3));
+        module.add_function(func, inputs, outputs);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 0);
         codegen.compile();
@@ -446,7 +486,13 @@ mod tests {
 }"
         );
         let mut module = Module::new("main");
-        module.add_function(func);
+        let inputs = schedule.inputs();
+        let outputs = schedule.outputs();
+        assert!(inputs.len() == 1);
+        assert!(outputs.len() == 1);
+        assert!(inputs.contains(&0));
+        assert!(outputs.contains(&1));
+        module.add_function(func, inputs, outputs);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -503,7 +549,13 @@ mod tests {
 }"
         );
         let mut module = Module::new("main");
-        module.add_function(func);
+        let inputs = schedule.inputs();
+        let outputs = schedule.outputs();
+        assert!(inputs.len() == 1);
+        assert!(outputs.len() == 1);
+        assert!(inputs.contains(&0));
+        assert!(outputs.contains(&3));
+        module.add_function(func, inputs, outputs);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -548,7 +600,13 @@ mod tests {
 }"
         );
         let mut module = Module::new("main");
-        module.add_function(func);
+        let inputs = schedule.inputs();
+        let outputs = schedule.outputs();
+        assert!(inputs.len() == 1);
+        assert!(outputs.len() == 1);
+        assert!(inputs.contains(&0));
+        assert!(outputs.contains(&1));
+        module.add_function(func, inputs, outputs);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -561,7 +619,7 @@ mod tests {
         let n = ctx.var("n");
         let o = ctx.var("o");
         let a = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
-        let b = ctx.placeholder(&[&1i64, &1i64, &1i64], Dtype::F64);
+        let b = ctx.placeholder(&[&1i64], Dtype::F64);
         let c = ctx.add(&a, &b);
         let sum = ctx.sum(&c, &0f32, &[2]);
         let reshaped = ctx.reshape(&sum, &[&m, &n, &1i64]);
@@ -654,7 +712,13 @@ mod tests {
 }"
         );
         let mut module = Module::new("main");
-        module.add_function(func);
+        let inputs = schedule.inputs();
+        let outputs = schedule.outputs();
+        assert!(inputs.len() == 2);
+        assert!(outputs.len() == 1);
+        assert!(inputs.contains(&0));
+        assert!(inputs.contains(&1));
+        assert!(outputs.contains(&9));
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 0);
         codegen.compile();
@@ -745,7 +809,14 @@ mod tests {
 }"
         );
         let mut module = Module::new("main");
-        module.add_function(func);
+        let inputs = schedule.inputs();
+        let outputs = schedule.outputs();
+        assert!(inputs.len() == 2);
+        assert!(outputs.len() == 1);
+        assert!(inputs.contains(&0));
+        assert!(inputs.contains(&2));
+        assert!(outputs.contains(&4));
+        module.add_function(func, inputs, outputs);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
