@@ -5,7 +5,7 @@ use tensor_types::dtype::Dtype;
 use crate::{
     edges::Edges,
     halide::{
-        exprs::{ BitCast, Cast, Load },
+        exprs::{ BitCast, Load },
         let_stmt::LetStmt,
         module::{ Function, FunctionType },
         primitive_type::{ PrimitiveType, Ptr },
@@ -211,7 +211,7 @@ fn gen_shape_var_loads(schedule: &Schedule) -> Vec<Stmt> {
     vars.iter()
         .enumerate()
         .map(|(idx, x)| {
-            Stmt::LetStmt(LetStmt::make(x, Load::make("shape_vars", idx), false,Stmt::None))
+            Stmt::LetStmt(LetStmt::make(x, Load::make("shape_vars", idx), false, Stmt::None))
         })
         .collect::<Vec<Stmt>>()
 }
