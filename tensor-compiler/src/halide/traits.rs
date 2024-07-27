@@ -29,6 +29,7 @@ pub trait IRVisitor where Self: Sized {
             PrimeExpr::Str(string) => self.visit_str(&string),
             PrimeExpr::Variable(var) => self.visit_variable(&var),
             PrimeExpr::Cast(cast) => self.visit_cast(&cast),
+            PrimeExpr::BitCast(bit_cast) => self.visit_bitcast(&bit_cast),
             PrimeExpr::Add(add) => self.visit_add(&add),
             PrimeExpr::Sub(sub) => self.visit_sub(&sub),
             PrimeExpr::Mul(mul) => self.visit_mul(&mul),
@@ -126,6 +127,9 @@ pub trait IRVisitor where Self: Sized {
     fn visit_str(&self, string: &Str) {}
     fn visit_cast(&self, cast: &Cast) {
         cast.expr().accept(self);
+    }
+    fn visit_bitcast(&self, bit_cast: &BitCast) {
+        bit_cast.expr().accept(self);
     }
     fn visit_add(&self, add: &Add) {
         add.e1().accept(self);
@@ -282,6 +286,7 @@ pub trait IRMutVisitor where Self: Sized {
             PrimeExpr::Str(string) => self.visit_str(&string),
             PrimeExpr::Variable(var) => self.visit_variable(&var),
             PrimeExpr::Cast(cast) => self.visit_cast(&cast),
+            PrimeExpr::BitCast(bit_cast) => self.visit_bitcast(&bit_cast),
             PrimeExpr::Add(add) => self.visit_add(&add),
             PrimeExpr::Sub(sub) => self.visit_sub(&sub),
             PrimeExpr::Mul(mul) => self.visit_mul(&mul),
@@ -379,6 +384,9 @@ pub trait IRMutVisitor where Self: Sized {
     }
     fn visit_cast(&mut self, cast: &Cast) {
         cast.expr().accept_mut(self);
+    }
+    fn visit_bitcast(&mut self, bit_cast: &BitCast) {
+        bit_cast.expr().accept_mut(self);
     }
     fn visit_add(&mut self, add: &Add) {
         add.e1().accept_mut(self);
@@ -579,6 +587,7 @@ pub(crate) fn visit_expr<V>(visitor: &mut V, expr: &PrimeExpr)
         PrimeExpr::Str(string) => visitor.visit_str(&string),
         PrimeExpr::Variable(var) => visitor.visit_variable(&var),
         PrimeExpr::Cast(cast) => visitor.visit_cast(&cast),
+        PrimeExpr::BitCast(bit_cast) => visitor.visit_bitcast(&bit_cast),
         PrimeExpr::Add(add) => visitor.visit_add(&add),
         PrimeExpr::Sub(sub) => visitor.visit_sub(&sub),
         PrimeExpr::Mul(mul) => visitor.visit_mul(&mul),
@@ -700,6 +709,17 @@ pub(crate) fn visit_cast<V>(visitor: &mut V, cast: &Cast)
         visitor.set_expr(cast);
     } else {
         visitor.set_expr(Cast::make(a, cast.dtype().clone()));
+    }
+}
+
+pub(crate) fn visit_bitcast<V>(visitor: &mut V, bit_cast: &BitCast)
+    where V: MutatorGetSet + Sized + IRMutateVisitor
+{
+    let a = mutate_expr(visitor, bit_cast.expr());
+    if &a == bit_cast.expr() {
+        visitor.set_expr(bit_cast);
+    } else {
+        visitor.set_expr(BitCast::make(a, bit_cast.dtype().clone()));
     }
 }
 
@@ -1257,6 +1277,9 @@ pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     fn visit_cast(&mut self, cast: &Cast) {
         visit_cast(self, cast);
     }
+    fn visit_bitcast(&mut self, bit_cast: &BitCast) {
+        visit_bitcast(self, bit_cast);
+    }
     fn visit_add(&mut self, add: &Add) {
         visit_add(self, add);
     }
@@ -1382,6 +1405,7 @@ pub trait CodeGenVisitor where Self: Sized {
             PrimeExpr::Str(string) => self.visit_str(&string),
             PrimeExpr::Variable(var) => self.visit_variable(&var),
             PrimeExpr::Cast(cast) => self.visit_cast(&cast),
+            PrimeExpr::BitCast(bit_cast) => self.visit_bitcast(&bit_cast),
             PrimeExpr::Add(add) => self.visit_add(&add),
             PrimeExpr::Sub(sub) => self.visit_sub(&sub),
             PrimeExpr::Mul(mul) => self.visit_mul(&mul),
@@ -1454,6 +1478,7 @@ pub trait CodeGenVisitor where Self: Sized {
     fn visit_str(&mut self, string: &Str) -> BasicValue;
     fn visit_assign(&mut self, assign: &AssignStmt);
     fn visit_cast(&mut self, cast: &Cast) -> BasicValue;
+    fn visit_bitcast(&mut self, bit_cast: &BitCast) -> BasicValue;
     fn visit_add(&mut self, add: &Add) -> BasicValue;
     fn visit_sub(&mut self, sub: &Sub) -> BasicValue;
     fn visit_mul(&mut self, mul: &Mul) -> BasicValue;

@@ -1,7 +1,27 @@
 use std::{ cell::RefCell, rc::Rc };
 
 use llvm_sys::core::{
-    LLVMBuildAnd, LLVMBuildCast, LLVMBuildFCmp, LLVMBuildFNeg, LLVMBuildFPCast, LLVMBuildFPToSI, LLVMBuildFRem, LLVMBuildGEP2, LLVMBuildGlobalStringPtr, LLVMBuildNeg, LLVMBuildNot, LLVMBuildOr, LLVMBuildPhi, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSRem, LLVMBuildSelect, LLVMBuildStructGEP2, LLVMBuildURem, LLVMBuildXor, LLVMConstReal
+    LLVMBuildAnd,
+    LLVMBuildCast,
+    LLVMBuildFCmp,
+    LLVMBuildFNeg,
+    LLVMBuildFPCast,
+    LLVMBuildFPToSI,
+    LLVMBuildFRem,
+    LLVMBuildGEP2,
+    LLVMBuildGlobalStringPtr,
+    LLVMBuildNeg,
+    LLVMBuildNot,
+    LLVMBuildOr,
+    LLVMBuildPhi,
+    LLVMBuildRet,
+    LLVMBuildRetVoid,
+    LLVMBuildSRem,
+    LLVMBuildSelect,
+    LLVMBuildStructGEP2,
+    LLVMBuildURem,
+    LLVMBuildXor,
+    LLVMConstReal,
 };
 use llvm_sys::{
     core::{
@@ -26,6 +46,7 @@ use llvm_sys::{
 };
 use llvm_sys::{ LLVMOpcode, LLVMRealPredicate };
 use crate::context::context::Context;
+use crate::types::general_types::GeneralType;
 use crate::types::info_trait::UnitizlizeValue;
 use crate::types::ptr_type::{ PtrType, StrPtrType };
 use crate::types::values::{ BoolValue, PhiValue };
@@ -69,6 +90,27 @@ impl Builder {
             panic!("Block is null");
         }
         BasicBlock::from(block)
+    }
+
+    pub fn build_bitcast(&self, value: BasicValue, cast_type: GeneralType, name: &str) -> BasicValue {
+        if *self.pos_state.borrow() == PositionState::NotSet {
+            panic!("Position not set");
+        }
+        let name = to_c_str(name);
+        let res = unsafe {
+            LLVMBuildCast(
+                self.builder,
+                LLVMOpcode::LLVMBitCast,
+                value.inner(),
+                cast_type.inner(),
+                name.as_ptr()
+            )
+        };
+        let mut ret = cast_type.unitialize();
+        unsafe {
+            ret.set_inner(res);
+        }
+        ret
     }
 
     pub fn build_float_abs(
@@ -873,7 +915,9 @@ impl Builder {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
-        let res = unsafe { LLVMBuildURem(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr()) };
+        let res = unsafe {
+            LLVMBuildURem(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr())
+        };
         let mut ret = lhs.unitialized();
         unsafe {
             ret.set_inner(res);
@@ -886,7 +930,9 @@ impl Builder {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
-        let res = unsafe { LLVMBuildSRem(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr()) };
+        let res = unsafe {
+            LLVMBuildSRem(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr())
+        };
         let mut ret = lhs.unitialized();
         unsafe {
             ret.set_inner(res);
@@ -914,7 +960,9 @@ impl Builder {
             panic!("Position not set");
         }
         let c_string = to_c_str(name);
-        let res = unsafe { LLVMBuildFRem(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr()) };
+        let res = unsafe {
+            LLVMBuildFRem(self.builder, lhs.inner(), rhs.inner(), c_string.as_ptr())
+        };
         let mut ret = lhs.unitialized();
         unsafe {
             ret.set_inner(res);

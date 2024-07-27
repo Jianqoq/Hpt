@@ -4,12 +4,7 @@ use tensor_types::dtype::Dtype;
 
 use crate::iter_var::IterVar;
 
-use super::{
-    prime_expr::PrimeExpr,
-    primitive_type::PrimitiveType,
-    traits::{ Accepter, IRVisitor },
-    variable::Variable,
-};
+use super::{ prime_expr::PrimeExpr, primitive_type::PrimitiveType, traits::{ Accepter, IRVisitor }, variable::Variable };
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Int {
     value: i64,
@@ -250,15 +245,15 @@ impl Into<PrimeExpr> for &Str {
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Cast {
     expr: Arc<PrimeExpr>,
-    dtype: PrimitiveType,
+    dtype: Dtype,
 }
 
 impl Cast {
-    pub fn new(expr: Arc<PrimeExpr>, dtype: PrimitiveType) -> Self {
+    pub fn new(expr: Arc<PrimeExpr>, dtype: Dtype) -> Self {
         Cast { expr, dtype }
     }
 
-    pub fn make<T: Into<PrimeExpr>>(expr: T, dtype: PrimitiveType) -> Self {
+    pub fn make<T: Into<PrimeExpr>>(expr: T, dtype: Dtype) -> Self {
         Cast {
             expr: expr.into().into(),
             dtype,
@@ -273,7 +268,7 @@ impl Cast {
         &self.expr
     }
 
-    pub fn dtype(&self) -> &PrimitiveType {
+    pub fn dtype(&self) -> &Dtype {
         &self.dtype
     }
 }
@@ -299,6 +294,61 @@ impl Into<PrimeExpr> for Cast {
 impl Into<PrimeExpr> for &Cast {
     fn into(self) -> PrimeExpr {
         PrimeExpr::Cast(self.clone())
+    }
+}
+
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
+pub struct BitCast {
+    expr: Arc<PrimeExpr>,
+    dtype: PrimitiveType,
+}
+
+impl BitCast {
+    pub fn new(expr: Arc<PrimeExpr>, dtype: PrimitiveType) -> Self {
+        BitCast { expr, dtype }
+    }
+
+    pub fn make<T: Into<PrimeExpr>>(expr: T, dtype: PrimitiveType) -> Self {
+        BitCast {
+            expr: expr.into().into(),
+            dtype,
+        }
+    }
+
+    pub fn expr(&self) -> &PrimeExpr {
+        &self.expr
+    }
+
+    pub fn expr_(&self) -> &Arc<PrimeExpr> {
+        &self.expr
+    }
+
+    pub fn dtype(&self) -> &PrimitiveType {
+        &self.dtype
+    }
+}
+
+impl Accepter for BitCast {
+    fn accept<V: IRVisitor>(&self, visitor: &V) {
+        visitor.visit_bitcast(self);
+    }
+}
+
+impl Display for BitCast {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "({} as {})", self.expr, self.dtype)
+    }
+}
+
+impl Into<PrimeExpr> for BitCast {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::BitCast(self)
+    }
+}
+
+impl Into<PrimeExpr> for &BitCast {
+    fn into(self) -> PrimeExpr {
+        PrimeExpr::BitCast(self.clone())
     }
 }
 

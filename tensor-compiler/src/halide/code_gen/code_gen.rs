@@ -48,7 +48,10 @@ use tensor_types::{
 use crate::{
     edges::Edges,
     halide::{
-        code_gen::type_utils::{ build_cast, general_types_to_primitive_type },
+        code_gen::{
+            pt_llvm::primitive_ty_to_llvm,
+            type_utils::{ build_cast, general_types_to_primitive_type },
+        },
         exprs::{ Int, Load },
         module::{ Function, Module },
         prime_expr::PrimeExpr,
@@ -154,7 +157,7 @@ impl CodeGen {
         for i in self.halide_module.fns.clone().values() {
             self.visit_function(i);
         }
-        // self.module.print_to_file("module.ll").expect("failed to print to file");
+        self.module.print_to_file("module.ll").expect("failed to print to file");
     }
 }
 
@@ -266,6 +269,22 @@ impl CodeGenVisitor for CodeGen {
         let from = self.bindings[&self.current_fn].find_type(&expr).unwrap();
         let to = cast.dtype();
         todo!()
+    }
+
+    fn visit_bitcast(&mut self, bit_cast: &crate::halide::exprs::BitCast) -> BasicValue {
+        let expr = self.visit_expr(bit_cast.expr());
+        let from = self.bindings[&self.current_fn].find_type(&expr).unwrap();
+        let to = bit_cast.dtype();
+        let val = self.builder.build_bitcast(
+            expr,
+            primitive_ty_to_llvm(&self.ctx, to, self.tensor_type),
+            "bit_cast"
+        );
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(val, to.clone());
+        val
     }
 
     fn visit_add(&mut self, add: &crate::halide::exprs::Add) -> BasicValue {

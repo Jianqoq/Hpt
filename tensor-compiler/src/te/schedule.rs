@@ -5,7 +5,7 @@ use tensor_types::dtype::Dtype;
 use crate::{
     edges::Edges,
     halide::{
-        exprs::{ Cast, Load },
+        exprs::{ BitCast, Cast, Load },
         let_stmt::LetStmt,
         module::{ Function, FunctionType },
         primitive_type::{ PrimitiveType, Ptr },
@@ -129,7 +129,7 @@ fn gen_ptr_loads(schedule: &Schedule) -> Vec<Stmt> {
             Stmt::LetStmt(
                 LetStmt::make(
                     &Variable::make(&format!("%{}", x)),
-                    Cast::make(
+                    BitCast::make(
                         Load::make("data_vec", idx),
                         PrimitiveType::Ptr(Ptr {
                             inner: Arc::new(PrimitiveType::Dtype(*dtype)),
@@ -175,7 +175,7 @@ fn gen_ptr_stores(schedule: &Schedule) -> Vec<Stmt> {
             Stmt::LetStmt(
                 LetStmt::make(
                     &Variable::make(&format!("%{}", x)),
-                    Cast::make(
+                    BitCast::make(
                         Load::make("output_vec", idx),
                         PrimitiveType::Ptr(Ptr {
                             inner: Arc::new(PrimitiveType::Dtype(*dtype)),

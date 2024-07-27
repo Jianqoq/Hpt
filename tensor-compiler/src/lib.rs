@@ -14,6 +14,7 @@ pub mod halide {
         pub mod reduction;
     }
     pub mod code_gen {
+        pub mod pt_llvm;
         pub mod code_gen;
         pub mod type_utils;
         pub mod scope;

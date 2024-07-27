@@ -185,7 +185,6 @@ mod tests {
         let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
         let func = schedule.to_function();
-        println!("{}", func);
         let mut module = Module::new("main");
         module.add_function(func);
         let context = tensor_llvm::context::context::Context::new();
@@ -206,12 +205,13 @@ mod tests {
         let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
         let func = schedule.to_function();
+        println!("{}", func);
         assert_eq!(
             func.to_string(),
             "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
-    let %0 = data_vec[0];
-    let %1 = output_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (output_vec[0] as *f32);
     let ostrides0 = ostrides_vec[0];
     let m = shape_vars[0];
     let n = shape_vars[1];
@@ -249,9 +249,9 @@ mod tests {
             "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
     let istrides1 = istrides_vec[1];
-    let %0 = data_vec[0];
-    let %1 = data_vec[1];
-    let %2 = output_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (data_vec[1] as *f32);
+    let %2 = (output_vec[0] as *f32);
     let ostrides0 = ostrides_vec[0];
     let m = shape_vars[0];
     let n = shape_vars[1];
@@ -288,9 +288,9 @@ mod tests {
             "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
     let istrides1 = istrides_vec[1];
-    let %0 = data_vec[0];
-    let %1 = data_vec[1];
-    let %2 = output_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (data_vec[1] as *f32);
+    let %2 = (output_vec[0] as *f32);
     let ostrides0 = ostrides_vec[0];
     let m = shape_vars[0];
     let n = shape_vars[1];
@@ -329,12 +329,12 @@ mod tests {
         let func = schedule.to_function();
         assert_eq!(
             func.to_string(),
-            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {        
     let istrides0 = istrides_vec[0];
     let istrides1 = istrides_vec[1];
-    let %0 = data_vec[0];
-    let %1 = data_vec[1];
-    let %2 = output_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (data_vec[1] as *f32);
+    let %2 = (output_vec[0] as *f32);
     let ostrides0 = ostrides_vec[0];
     let m = shape_vars[0];
     let n = shape_vars[1];
@@ -366,10 +366,10 @@ mod tests {
         let func = schedule.to_function();
         assert_eq!(
             func.to_string(),
-            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {        
     let istrides0 = istrides_vec[0];
-    let %0 = data_vec[0];
-    let %1 = output_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (output_vec[0] as *f32);
     let ostrides0 = ostrides_vec[0];
     let m = shape_vars[0];
     let n = shape_vars[1];
@@ -405,10 +405,10 @@ mod tests {
         let func = schedule.to_function();
         assert_eq!(
             func.to_string(),
-            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {        
     let istrides0 = istrides_vec[0];
-    let %0 = data_vec[0];
-    let %3 = output_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %3 = (output_vec[0] as *f32);
     let ostrides0 = ostrides_vec[0];
     let m = shape_vars[0];
     let n = shape_vars[1];
@@ -446,10 +446,10 @@ mod tests {
         let func = schedule.to_function();
         assert_eq!(
             func.to_string(),
-            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {        
     let istrides0 = istrides_vec[0];
-    let %0 = data_vec[0];
-    let %1 = output_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (output_vec[0] as *f32);
     let ostrides0 = ostrides_vec[0];
     let m = shape_vars[0];
     let n = shape_vars[1];
@@ -502,7 +502,7 @@ mod tests {
         let func = schedule.to_function();
         assert_eq!(
             func.to_string(),
-            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {        
     let istrides0 = istrides_vec[0];
     let istrides1 = istrides_vec[1];
     let istrides2 = istrides_vec[2];
@@ -511,9 +511,9 @@ mod tests {
     let istrides5 = istrides_vec[5];
     let istrides6 = istrides_vec[6];
     let istrides7 = istrides_vec[7];
-    let %0 = data_vec[0];
-    let %1 = data_vec[1];
-    let %9 = output_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (data_vec[1] as *f32);
+    let %9 = (output_vec[0] as *f32);
     let ostrides0 = ostrides_vec[0];
     let m = shape_vars[0];
     let n = shape_vars[1];
@@ -616,14 +616,15 @@ mod tests {
         let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
         let func = schedule.to_function();
+
         assert_eq!(
             func.to_string(),
             "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
     let istrides1 = istrides_vec[1];
-    let %0 = data_vec[0];
-    let %2 = data_vec[1];
-    let %4 = output_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %2 = (data_vec[1] as *f32);
+    let %4 = (output_vec[0] as *f32);
     let ostrides0 = ostrides_vec[0];
     let m = shape_vars[0];
     let n = shape_vars[1];

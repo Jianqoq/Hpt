@@ -1,5 +1,6 @@
 use llvm_sys::prelude::LLVMTypeRef;
 use paste::paste;
+use types::info_trait::UnitizlizeValue;
 use crate::*;
 use super::ptr_type::*;
 
@@ -149,6 +150,53 @@ impl GeneralType {
         match self {
             GeneralType::Struct(_) => true,
             _ => false,
+        }
+    }
+}
+
+impl UnitizlizeValue for GeneralType {
+    fn unitialize(&self) -> types::values::BasicValue {
+        match self {
+            GeneralType::Bool(t) => t.unitialize(),
+            GeneralType::BoolPtr(t) => t.unitialize(),
+            GeneralType::I8(t) => t.unitialize(),
+            GeneralType::I8Ptr(t) => t.unitialize(),
+            GeneralType::U8(t) => t.unitialize(),
+            GeneralType::U8Ptr(t) => t.unitialize(),
+            GeneralType::I16(t) => t.unitialize(),
+            GeneralType::I16Ptr(t) => t.unitialize(),
+            GeneralType::U16(t) => t.unitialize(),
+            GeneralType::U16Ptr(t) => t.unitialize(),
+            GeneralType::I32(t) => t.unitialize(),
+            GeneralType::I32Ptr(t) => t.unitialize(),
+            GeneralType::U32(t) => t.unitialize(),
+            GeneralType::U32Ptr(t) => t.unitialize(),
+            GeneralType::I64(t) => t.unitialize(),
+            GeneralType::I64Ptr(t) => t.unitialize(),
+            GeneralType::U64(t) => t.unitialize(),
+            GeneralType::U64Ptr(t) => t.unitialize(),
+            GeneralType::BF16(t) => t.unitialize(),
+            GeneralType::BF16Ptr(t) => t.unitialize(),
+            GeneralType::F16(t) => t.unitialize(),
+            GeneralType::F16Ptr(t) => t.unitialize(),
+            GeneralType::F32(t) => t.unitialize(),
+            GeneralType::F32Ptr(t) => t.unitialize(),
+            GeneralType::F64(t) => t.unitialize(),
+            GeneralType::F64Ptr(t) => t.unitialize(),
+            GeneralType::Void(t) => t.unitialize(),
+            GeneralType::VoidPtr(t) => t.unitialize(),
+            GeneralType::Isize(t) => t.unitialize(),
+            GeneralType::IsizePtr(t) => t.unitialize(),
+            GeneralType::Usize(t) => t.unitialize(),
+            GeneralType::UsizePtr(t) => t.unitialize(),
+            GeneralType::Function(_) => unreachable!(),
+            GeneralType::FunctionPtr(t) => t.unitialize(),
+            GeneralType::Array(t) => t.unitialize(),
+            GeneralType::ArrayPtr(t) => t.unitialize(),
+            GeneralType::Str(t) => t.unitialize(),
+            GeneralType::StrPtr(t) => t.unitialize(),
+            GeneralType::Struct(t) => t.unitialize(),
+            GeneralType::StructPtr(t) => t.unitialize(),
         }
     }
 }

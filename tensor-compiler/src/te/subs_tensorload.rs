@@ -43,20 +43,15 @@ impl<'a> MutatorGetSet for SubsTensorLoadDims<'a> {
 
 impl<'a> IRMutateVisitor for SubsTensorLoadDims<'a> {
     fn visit_tensor_load(&mut self, tensor_load: &TensorLoad) {
-        let begins = &tensor_load.begins;
-        let steps = &tensor_load.steps;
         let strides = &tensor_load.strides;
         let axes = &tensor_load.axes;
-        if
-            self.strides.len() != strides.len() ||
-            self.axes.len() != axes.len()
-        {
+        if self.strides.len() != strides.len() || self.axes.len() != axes.len() {
             self.set_expr(
                 TensorLoad::make(
                     tensor_load.var.as_ref(),
-                    tensor_load.begins.as_ref().clone(),
+                    (0..self.axes.len()).map(|_| (0i64).into()).collect::<Vec<PrimeExpr>>(),
                     self.axes.clone(),
-                    tensor_load.steps.as_ref().clone(),
+                    (0..self.axes.len()).map(|_| (1i64).into()).collect::<Vec<PrimeExpr>>(),
                     self.strides.clone(),
                     tensor_load.hints.as_ref().clone()
                 )
@@ -76,9 +71,9 @@ impl<'a> IRMutateVisitor for SubsTensorLoadDims<'a> {
             self.set_expr(
                 TensorLoad::make(
                     tensor_load.var.as_ref(),
-                    tensor_load.begins.as_ref().clone(),
+                    (0..self.axes.len()).map(|_| (0i64).into()).collect::<Vec<PrimeExpr>>(),
                     self.axes.clone(),
-                    tensor_load.steps.as_ref().clone(),
+                    (0..self.axes.len()).map(|_| (1i64).into()).collect::<Vec<PrimeExpr>>(),
                     self.strides.clone(),
                     tensor_load.hints.as_ref().clone()
                 )
