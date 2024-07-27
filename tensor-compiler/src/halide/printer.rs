@@ -53,15 +53,15 @@ impl _IRPrinter {
         }
         for func in module.fns.values() {
             self.do_indent();
-            print!("fn {}(", func.name);
-            for (i, (name, r#type)) in func.ty.args.iter().enumerate() {
+            print!("fn {}(", func.0.name);
+            for (i, (name, r#type)) in func.0.ty.args.iter().enumerate() {
                 if i != 0 {
                     print!(", ");
                 }
                 print!("{}: {}", name, r#type);
             }
-            println!(") -> {} {{", func.ty.ret_ty);
-            _IRPrinter::new(self.indent + 1).print_stmt(&func.body);
+            println!(") -> {} {{", func.0.ty.ret_ty);
+            _IRPrinter::new(self.indent + 1).print_stmt(&func.0.body);
             self.do_indent();
             println!("}}");
         }
@@ -77,16 +77,16 @@ impl _IRPrinter {
         }
         for func in module.fns.values() {
             res.push_str(&self.do_indent_str());
-            res.push_str(&format!("fn {}(", func.name));
-            for (i, (name, r#type)) in func.ty.args.iter().enumerate() {
+            res.push_str(&format!("fn {}(", func.0.name));
+            for (i, (name, r#type)) in func.0.ty.args.iter().enumerate() {
                 if i != 0 {
                     res.push_str(", ");
                 }
                 res.push_str(&format!("{}: {}", name, r#type));
             }
-            res.push_str(&format!(") -> {} {{\n", func.ty.ret_ty));
+            res.push_str(&format!(") -> {} {{\n", func.0.ty.ret_ty));
             res.push_str(
-                &format!("{}", _IRPrinter::new(self.indent + 1).print_stmt_str(&func.body))
+                &format!("{}", _IRPrinter::new(self.indent + 1).print_stmt_str(&func.0.body))
             );
             res.push_str(&self.do_indent_str());
             res.push_str("}\n");

@@ -22,6 +22,9 @@ pub mod halide {
     pub mod passes {
         pub mod const_fold;
     }
+    pub mod executable {
+        pub mod executable;
+    }
     pub mod module;
     pub mod if_stmt;
     pub mod inplace_store_stmt;
@@ -50,7 +53,6 @@ pub mod te {
     pub mod srg;
     pub mod srg_node;
     pub mod value;
-    pub mod executable;
     pub mod operation;
     pub mod hstrides;
     pub mod stages;

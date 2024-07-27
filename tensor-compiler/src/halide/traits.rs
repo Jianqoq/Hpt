@@ -1453,7 +1453,7 @@ pub trait CodeGenVisitor where Self: Sized {
     }
     fn visit_module(&mut self, module: &Module) {
         for function in module.fns.values() {
-            self.visit_function(function);
+            self.visit_function(&function.0);
         }
     }
     fn visit_tensor_load(&mut self, tensor_load: &TensorLoad) -> BasicValue;

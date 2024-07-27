@@ -53,6 +53,7 @@ use crate::{
             pt_llvm::primitive_ty_to_llvm,
             type_utils::{ build_cast, general_types_to_primitive_type },
         },
+        executable::executable::Executable,
         exprs::{ Int, Load },
         module::{ Function, Module },
         prime_expr::PrimeExpr,
@@ -61,6 +62,7 @@ use crate::{
         tensor_load::TensorLoad,
         traits::CodeGenVisitor,
     },
+    te::hstrides::HStrides,
     tensor::{ Tensor, _Tensor },
     to_prim_expr::ToPrimeExpr,
 };
@@ -129,7 +131,7 @@ impl CodeGen {
         let mut fns_id = HashMap::new();
         let mut id_fns = HashMap::new();
         let mut cnt = 0;
-        for func in module.fns.values() {
+        for (func, inputs, outputs, _) in module.fns.values() {
             let fn_val = _module.add_function(
                 func.ty.to_llvm_func_type(&ctx, global_tensor),
                 &func.name
@@ -156,58 +158,52 @@ impl CodeGen {
 
     pub fn compile(&mut self) {
         for i in self.halide_module.fns.clone().values() {
-            self.visit_function(i);
+            self.visit_function(&i.0);
         }
         self.module.print_to_file("module.ll").expect("failed to print to file");
     }
 
-    pub fn to_executable(
-        &self,
-        vars_map: HashMap<String, i64>
-    ) -> crate::te::executable::Executable {
-        todo!()
-    }
-}
-
-pub struct Executable {
-    pub ctx: Context,
-    pub module: tensor_llvm::module::module::Module,
-    pub builder: Builder,
-    pub ee: ExecutionEngine,
-    pub inputs: HashSet<Arc<String>>,
-    pub outputs: HashSet<Arc<String>>,
-    pub intermediates: HashSet<Arc<String>>,
-    pub fns: HashSet<Arc<String>>,
-    pub sorted: Vec<Function>,
-}
-
-impl Executable {
-    pub fn print_to_file(&self, path: &str) {
-        self.module.print_to_file(path).expect("failed to print to file");
-    }
-
-    pub fn get_function<F>(&self, name: &str) -> F {
-        let c_str = to_c_str(name);
-        let address = unsafe {
-            llvm_sys::execution_engine::LLVMGetFunctionAddress(self.ee.inner(), c_str.as_ptr())
-        };
-        if address == 0 {
-            panic!("{}", &format!("function {} not found", name));
+    pub fn to_executable(&self, vars_map: HashMap<String, i64>) -> Executable {
+        let mut edges = Edges::new();
+        let mut funcs = HashSet::new();
+        for (func, inputs, outputs, _) in self.halide_module.fns.values() {
+            let input_funcs = inputs
+                .iter()
+                .map(|x|
+                    self.halide_module.fns
+                        .iter()
+                        .filter(|(_, (_, _, outputs, _))| { outputs.contains(x) })
+                        .map(|(_, (inp_fn, _, _, _))| inp_fn)
+                        .collect::<Vec<&Function>>()
+                )
+                .flatten()
+                .collect::<HashSet<&Function>>();
+            edges.insert(func, input_funcs);
+            funcs.insert(func);
         }
-        unsafe { std::mem::transmute_copy::<u64, F>(&address) }
+        let order = topo(&edges, &funcs)
+            .expect("cycle detected")
+            .iter()
+            .map(|&x| x.name.clone())
+            .collect::<Vec<Arc<String>>>();
+        let strides_cal_order = order
+            .iter()
+            .map(|x| self.halide_module.fns.get(x).unwrap().3.clone())
+            .collect::<Vec<Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>>>>();
+        todo!()
     }
 }
 
 fn topo<'a>(
     edges: &'a Edges<&Function>,
-    nodes: &'a HashMap<usize, &Function>
+    nodes: &'a HashSet<&Function>
 ) -> Option<VecDeque<&'a Function>> {
     let mut in_degree = HashMap::new();
     let mut queue = VecDeque::new();
     let mut order = VecDeque::new();
     let edges = edges.invert();
     // calculate in degree
-    for (_, &func) in nodes.iter() {
+    for &func in nodes.iter() {
         in_degree.entry(func).or_insert(0);
         let edges = edges.get(func);
         if let Some(edges) = edges {

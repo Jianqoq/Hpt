@@ -192,7 +192,7 @@ mod tests {
         assert!(outputs.len() == 1);
         assert!(inputs.contains(&0));
         assert!(outputs.contains(&0));
-        module.add_function(func, inputs, outputs);
+        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -240,7 +240,7 @@ mod tests {
         assert!(outputs.len() == 1);
         assert!(inputs.contains(&0));
         assert!(outputs.contains(&1));
-        module.add_function(func, inputs, outputs);
+        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -291,7 +291,7 @@ mod tests {
         assert!(inputs.contains(&0));
         assert!(inputs.contains(&1));
         assert!(outputs.contains(&2));
-        module.add_function(func, inputs, outputs);
+        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -342,7 +342,7 @@ mod tests {
         assert!(inputs.contains(&0));
         assert!(inputs.contains(&1));
         assert!(outputs.contains(&2));
-        module.add_function(func, inputs, outputs);
+        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -393,7 +393,7 @@ mod tests {
         assert!(inputs.contains(&0));
         assert!(inputs.contains(&1));
         assert!(outputs.contains(&2));
-        module.add_function(func, inputs, outputs);
+        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -442,7 +442,7 @@ mod tests {
         assert!(inputs.contains(&0));
         assert!(inputs.contains(&1));
         assert!(outputs.contains(&3));
-        module.add_function(func, inputs, outputs);
+        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 0);
         codegen.compile();
@@ -492,7 +492,7 @@ mod tests {
         assert!(outputs.len() == 1);
         assert!(inputs.contains(&0));
         assert!(outputs.contains(&1));
-        module.add_function(func, inputs, outputs);
+        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -555,7 +555,7 @@ mod tests {
         assert!(outputs.len() == 1);
         assert!(inputs.contains(&0));
         assert!(outputs.contains(&3));
-        module.add_function(func, inputs, outputs);
+        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -606,7 +606,7 @@ mod tests {
         assert!(outputs.len() == 1);
         assert!(inputs.contains(&0));
         assert!(outputs.contains(&1));
-        module.add_function(func, inputs, outputs);
+        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -816,7 +816,7 @@ mod tests {
         assert!(inputs.contains(&0));
         assert!(inputs.contains(&2));
         assert!(outputs.contains(&4));
-        module.add_function(func, inputs, outputs);
+        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();

@@ -7,6 +7,7 @@ use tensor_llvm::{
 };
 
 use crate::halide::printer::_IRPrinter;
+use crate::te::hstrides::HStrides;
 
 use super::{ primitive_type::PrimitiveType, stmt::Stmt };
 
@@ -129,7 +130,7 @@ impl FunctionType {
 pub struct Module {
     pub(crate) name: Arc<String>,
     pub(crate) imports: HashSet<Arc<String>>,
-    pub(crate) fns: HashMap<Arc<String>, Function>,
+    pub(crate) fns: HashMap<Arc<String>, (Function, HashSet<usize>, HashSet<usize>, Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>>)>,
     pub(crate) order: Vec<Arc<String>>,
 }
 
@@ -145,14 +146,14 @@ impl Module {
     pub fn set_order(&mut self, order: Vec<Arc<String>>) {
         self.order = order;
     }
-    pub fn add_function(&mut self, function: Function, inputs: HashSet<usize>, outputs: HashSet<usize>) {
-        self.fns.insert(function.name.clone(), function);
+    pub fn add_function(&mut self, function: Function, inputs: HashSet<usize>, outputs: HashSet<usize>, strides_cal: Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>>) {
+        self.fns.insert(function.name.clone(), (function, inputs, outputs, strides_cal));
     }
     pub fn get_function(&self, name: &Arc<String>) -> Option<&Function> {
-        self.fns.get(name)
+        self.fns.get(name).map(|x| &x.0)
     }
     pub fn get_function_mut(&mut self, name: &Arc<String>) -> Option<&mut Function> {
-        self.fns.get_mut(name)
+        self.fns.get_mut(name).map(|x| &mut x.0)
     }
 }
 
@@ -163,7 +164,7 @@ impl Display for Module {
             write!(f, "import \"{}\"\n", import)?;
         }
         for func in self.fns.values() {
-            write!(f, "{}\n", func)?;
+            write!(f, "{}\n", func.0)?;
         }
         write!(f, "}}")
     }
