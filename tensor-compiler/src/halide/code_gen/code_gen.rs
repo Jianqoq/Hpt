@@ -1345,7 +1345,16 @@ impl CodeGenVisitor for CodeGen {
     }
 
     fn visit_select(&mut self, select: &crate::halide::exprs::Select) -> BasicValue {
-        todo!()
+        let cond = self.visit_expr(select.cond());
+        let true_val = self.visit_expr(select.true_expr());
+        let false_val = self.visit_expr(select.false_expr());
+        let true_ty = self.bindings[&self.current_fn].find_type(&true_val).unwrap().clone();
+        let false_ty = self.bindings[&self.current_fn].find_type(&false_val).unwrap().clone();
+        assert!(true_ty == false_ty);
+
+        let res = self.builder.build_select(cond, true_val, false_val, "select");
+        self.bindings.get_mut(&self.current_fn).expect("fn not find").insert_type(res, true_ty);
+        res
     }
 
     fn visit_load(&mut self, _load: &crate::halide::exprs::Load) -> BasicValue {
