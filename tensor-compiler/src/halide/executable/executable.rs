@@ -222,19 +222,19 @@ impl Executable {
             self.sorted_inputs[idx]
                 .iter()
                 .enumerate()
-                .for_each(|(idx, x)| {
+                .for_each(|(i, x)| {
                     let data = inputs[x].ptr();
                     unsafe {
-                        self.sorted_inputs_container[idx].add(*x).write(data);
+                        self.sorted_inputs_container[idx].add(i).write(data);
                     }
                 });
             self.sorted_outputs[idx]
                 .iter()
                 .enumerate()
-                .for_each(|(idx, x)| {
+                .for_each(|(i, x)| {
                     let data = outputs[x].ptr();
                     unsafe {
-                        self.sorted_outputs_container[idx].add(*x).write(data);
+                        self.sorted_outputs_container[idx].add(i).write(data);
                     }
                 });
             let input_container = self.sorted_inputs_container[idx];
