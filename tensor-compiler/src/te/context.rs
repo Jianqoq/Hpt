@@ -5,7 +5,7 @@ use tensor_common::{
     shape_utils::is_reshape_possible,
     strides_utils::shape_to_strides,
 };
-use tensor_types::{ dtype::Dtype, type_promote::{FloatOut, NormalOut} };
+use tensor_types::{ dtype::Dtype, type_promote::{ FloatOut, NormalOut } };
 
 use crate::{
     halide::{
@@ -27,12 +27,20 @@ use crate::{
 };
 
 use super::{
-    bodygen_helper::common_reduce, insert_axes::InsertAxes, rc_mut::RcMut, schedule::Schedule, srg::Srg, srg_node::SrgNode, stages::{ Body, Stage }, strides_cal_helper::{
+    bodygen_helper::common_reduce,
+    insert_axes::InsertAxes,
+    rc_mut::RcMut,
+    schedule::Schedule,
+    srg::Srg,
+    srg_node::SrgNode,
+    stages::{ Body, Stage },
+    strides_cal_helper::{
         binary_strides_cal,
         elementwise_strides_cal,
         reduce_strides_cal,
         slice_strides_cal,
-    }, tensor::{ StridesCal, Tensor }
+    },
+    tensor::{ StridesCal, Tensor },
 };
 
 #[derive(Clone)]
@@ -163,7 +171,7 @@ impl Context {
                     bodys: vec![body],
                     id,
                     out_id: id,
-                    dtype
+                    dtype,
                 };
                 Body::Stage(stage)
             }),
@@ -659,7 +667,10 @@ impl Context {
                                         )
                                         .reduce(|acc, x| acc + x)
                                         .unwrap(),
-                                        Call::make("sin", &[Variable::make(&format!("%{}_val", stage.out_id))])
+                                    Call::make(
+                                        "sin",
+                                        &[Variable::make(&format!("%{}_val", stage.out_id))]
+                                    )
                                 )
                             )
                         );

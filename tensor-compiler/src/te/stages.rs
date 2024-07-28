@@ -10,7 +10,6 @@ use crate::{
         prime_expr::PrimeExpr,
         seq_stmt::Seq,
         stmt::Stmt,
-        substitute::subsititue_var::SubstituteVar,
         traits::{ AccepterMutate, IRMutateVisitor, MutatorGetSet },
         variable::Variable,
     },
