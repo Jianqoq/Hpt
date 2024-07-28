@@ -63,6 +63,7 @@ pub mod te {
     pub mod strides_cal_helper;
     pub mod index_replace;
     pub mod bodygen_helper;
+    pub mod transpose_axes;
 }
 pub mod arcstring;
 pub mod tensor;

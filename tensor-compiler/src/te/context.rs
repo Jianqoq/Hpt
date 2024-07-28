@@ -426,7 +426,7 @@ impl Context {
                                 );
                             }
                             for i in lhs_bodys.iter_mut() {
-                                i.replace_var(&mut subs_var);
+                                i.accept_mutate(&mut subs_var);
                             }
                             let lhs_new_axes = Arc::new(
                                 lhs_new_axes
@@ -450,7 +450,7 @@ impl Context {
                                 );
                             }
                             for i in rhs_bodys.iter_mut() {
-                                i.replace_var(&mut subs_var);
+                                i.accept_mutate(&mut subs_var);
                             }
 
                             let rhs_new_axes = Arc::new(
@@ -508,7 +508,7 @@ impl Context {
                                 );
                             }
                             for i in lhs_bodys.iter_mut() {
-                                i.replace_var(&mut subs_var);
+                                i.accept_mutate(&mut subs_var);
                             }
                             let lhs_new_axes = Arc::new(
                                 lhs_new_axes
@@ -532,7 +532,7 @@ impl Context {
                                 );
                             }
                             for i in rhs_bodys.iter_mut() {
-                                i.replace_var(&mut subs_var);
+                                i.accept_mutate(&mut subs_var);
                             }
 
                             let rhs_new_axes = Arc::new(

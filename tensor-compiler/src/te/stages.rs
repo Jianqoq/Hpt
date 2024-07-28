@@ -11,7 +11,7 @@ use crate::{
         seq_stmt::Seq,
         stmt::Stmt,
         substitute::subsititue_var::SubstituteVar,
-        traits::{ AccepterMutate, MutatorGetSet },
+        traits::{ AccepterMutate, IRMutateVisitor, MutatorGetSet },
         variable::Variable,
     },
     iter_var::IterVar,
@@ -55,7 +55,7 @@ impl Body {
             }
         }
     }
-    pub fn replace_var(&mut self, subs_expr: &mut SubstituteVar) {
+    pub fn accept_mutate<V: IRMutateVisitor>(&mut self, subs_expr: &mut V) {
         match self {
             Body::Stmt(stmt) => {
                 stmt.accept_mutate(subs_expr);
@@ -63,12 +63,12 @@ impl Body {
                 subs_expr.set_stmt(Stmt::None);
                 subs_expr.set_expr(PrimeExpr::None);
             }
-            Body::Stage(stage) => stage.replace_var(subs_expr),
+            Body::Stage(stage) => stage.accept_mutate(subs_expr),
             Body::ReduceStage(red_stage) => {
-                red_stage.replace_var(subs_expr);
+                red_stage.accept_mutate(subs_expr);
             }
             Body::If(if_) => {
-                if_.replace_var(subs_expr);
+                if_.accept_mutate(subs_expr);
             }
         }
     }
@@ -170,15 +170,15 @@ impl ReduceStage {
         }
     }
 
-    pub fn replace_var(&mut self, subs_expr: &mut SubstituteVar) {
+    pub fn accept_mutate<V: IRMutateVisitor>(&mut self, subs_expr: &mut V) {
         for body in &mut self.bodys {
-            body.replace_var(subs_expr);
+            body.accept_mutate(subs_expr);
         }
         for body in &mut self.inits {
-            body.replace_var(subs_expr);
+            body.accept_mutate(subs_expr);
         }
         for body in &mut self.posts {
-            body.replace_var(subs_expr);
+            body.accept_mutate(subs_expr);
         }
     }
 
@@ -260,9 +260,9 @@ impl Stage {
         }
     }
 
-    pub fn replace_var(&mut self, subs_expr: &mut SubstituteVar) {
+    pub fn accept_mutate<V: IRMutateVisitor>(&mut self, subs_expr: &mut V) {
         for body in &mut self.bodys {
-            body.replace_var(subs_expr);
+            body.accept_mutate(subs_expr);
         }
     }
 
@@ -426,12 +426,12 @@ impl If {
         }
     }
 
-    pub fn replace_var(&mut self, subs_expr: &mut SubstituteVar) {
+    pub fn accept_mutate<V: IRMutateVisitor>(&mut self, subs_expr: &mut V) {
         for body in &mut self.true_bodys {
-            body.replace_var(subs_expr);
+            body.accept_mutate(subs_expr);
         }
         for body in &mut self.false_bodys {
-            body.replace_var(subs_expr);
+            body.accept_mutate(subs_expr);
         }
     }
 

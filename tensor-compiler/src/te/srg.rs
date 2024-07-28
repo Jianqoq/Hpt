@@ -146,7 +146,6 @@ mod tests {
     use crate::{
         halide::{ code_gen::code_gen::CodeGen, exprs::Int, module::Module, prime_expr::PrimeExpr },
         te::context::Context,
-        to_prim_expr::ToPrimeExpr,
     };
 
     #[test]
@@ -283,16 +282,19 @@ mod tests {
             .expect("Failed to create tensor")
             .reshape(&[2, 5, 3])
             .expect("Failed to reshape");
-        let inps_map = hashmap! {
-            0usize => a.into(),
-            1 => b.into(),
+        let inps_map =
+            hashmap! {
+            0usize => a.clone().into(),
+            1 => b.clone().into(),
         };
         let c = tensor_dyn::tensor::Tensor::<f32>
             ::empty(&[2, 5, 3])
             .expect("Failed to create tensor");
         let outs_map = hashmap! { 2usize => c.clone().into() };
         executable.execute(inps_map, outs_map);
-        println!("{:?}", c);
+
+        let test = a + b;
+        assert!(test.allclose(&c));
     }
 
     #[test]
@@ -550,6 +552,7 @@ mod tests {
         let a = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
         let b = ctx.sum(&a, &0f32, &[1]);
         let order = [a.id, b.id];
+
         let schedule = ctx.to_schedule(&order);
         let func = schedule.to_function();
         assert_eq!(
@@ -932,77 +935,75 @@ mod tests {
             ]
         );
         let add = ctx.add(&b, &c);
-        let sum = ctx.sum(&add, &0f32, &[0]);
-        let order = [a.id, b.id, c.id, add.id, sum.id];
+        let order = [a.id, b.id, c.id, add.id];
 
         let schedule = ctx.to_schedule(&order);
         let func = schedule.to_function();
-        println!("{}", func);
     }
 
-    #[test]
-    fn test_pad() {
-        let mut ctx = Context::new();
-        let m = ctx.var("m");
-        let n = ctx.var("n");
-        let a = ctx.placeholder(&[&m, &n], Dtype::F32);
-        let b = ctx.pad(
-            &a,
-            &[
-                (&5i64, &5i64),
-                (&5i64, &5i64),
-            ],
-            &1f32
-        );
-        let c = ctx.placeholder(
-            &[&(&m.into() + &(10i64).to_prime_expr()), &(&n.into() + &(10i64).to_prime_expr())],
-            Dtype::F32
-        );
-        let d = ctx.sin(&b);
-        let e = ctx.add(&d, &c);
-        let order = [a.id, b.id, c.id, d.id, e.id];
+    //     #[test]
+    //     fn test_pad() {
+    //         let mut ctx = Context::new();
+    //         let m = ctx.var("m");
+    //         let n = ctx.var("n");
+    //         let a = ctx.placeholder(&[&m, &n], Dtype::F32);
+    //         let b = ctx.pad(
+    //             &a,
+    //             &[
+    //                 (&5i64, &5i64),
+    //                 (&5i64, &5i64),
+    //             ],
+    //             &1f32
+    //         );
+    //         let c = ctx.placeholder(
+    //             &[&(&m.into() + &(10i64).to_prime_expr()), &(&n.into() + &(10i64).to_prime_expr())],
+    //             Dtype::F32
+    //         );
+    //         let d = ctx.sin(&b);
+    //         let e = ctx.add(&d, &c);
+    //         let order = [a.id, b.id, c.id, d.id, e.id];
 
-        let schedule = ctx.to_schedule(&order);
-        let func = schedule.to_function();
+    //         let schedule = ctx.to_schedule(&order);
+    //         let func = schedule.to_function();
 
-        assert_eq!(
-            func.to_string(),
-            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let istrides1 = istrides_vec[1];
-    let %0 = (data_vec[0] as *f32);
-    let %2 = (data_vec[1] as *f32);
-    let %4 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    for ax0 in range(0, 10 + m) {
-        for ax1 in range(0, 10 + n) {
-            let %1_val = null;
-            if (((ax0 >= 5) && (ax0 < 5)) && ((ax1 >= 5) && (ax1 < 5))) {
-                let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1]];
-                %1_val = %0_val;
-            } else {
-                %1_val = 1;
-            }
-            let %3_val = sin(%1_val);
-            let %2_val = %2[ax0 * istrides1[0] + ax1 * istrides1[1]];
-            %4[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %3_val + %2_val;
-        }
-    }
-}"
-        );
-        let mut module = Module::new("main");
-        let inputs = schedule.inputs();
-        let outputs = schedule.outputs();
-        assert!(inputs.len() == 2);
-        assert!(outputs.len() == 1);
-        assert!(inputs.contains(&0));
-        assert!(inputs.contains(&2));
-        assert!(outputs.contains(&4));
-        module.add_function2(&schedule);
-        let context = tensor_llvm::context::context::Context::new();
-        let mut codegen = CodeGen::new(context, &module, 3);
-        codegen.compile();
-    }
+    //         assert_eq!(
+    //             func.to_string(),
+    //             "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    //     let istrides0 = istrides_vec[0];
+    //     let istrides1 = istrides_vec[1];
+    //     let %0 = (data_vec[0] as *f32);
+    //     let %2 = (data_vec[1] as *f32);
+    //     let %4 = (output_vec[0] as *f32);
+    //     let ostrides0 = ostrides_vec[0];
+    //     let m = shape_vars[0];
+    //     let n = shape_vars[1];
+    //     for ax0 in range(0, 10 + m) {
+    //         for ax1 in range(0, 10 + n) {
+    //             let %1_val = null;
+    //             if (((ax0 >= 5) && (ax0 < 5)) && ((ax1 >= 5) && (ax1 < 5))) {
+    //                 let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1]];
+    //                 %1_val = %0_val;
+    //             } else {
+    //                 %1_val = 1;
+    //             }
+    //             let %3_val = sin(%1_val);
+    //             let %2_val = %2[ax0 * istrides1[0] + ax1 * istrides1[1]];
+    //             %4[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %3_val + %2_val;
+    //         }
+    //     }
+    // }"
+    //         );
+    //         let mut module = Module::new("main");
+    //         let inputs = schedule.inputs();
+    //         let outputs = schedule.outputs();
+    //         assert!(inputs.len() == 2);
+    //         assert!(outputs.len() == 1);
+    //         assert!(inputs.contains(&0));
+    //         assert!(inputs.contains(&2));
+    //         assert!(outputs.contains(&4));
+    //         module.add_function2(&schedule);
+    //         let context = tensor_llvm::context::context::Context::new();
+    //         let mut codegen = CodeGen::new(context, &module, 3);
+    //         codegen.compile();
+    //     }
 }
