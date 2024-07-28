@@ -137,7 +137,6 @@ impl Srg {
 
 #[cfg(test)]
 mod tests {
-
     use maplit::hashmap;
     use tensor_traits::shape_manipulate::ShapeManipulate;
     use tensor_traits::tensor::TensorCreator;
@@ -148,42 +147,6 @@ mod tests {
         te::context::Context,
         to_prim_expr::ToPrimeExpr,
     };
-
-    #[test]
-    fn test_placeholder() {
-        let mut ctx = Context::new();
-        let m = ctx.var("m");
-        let n = ctx.var("n");
-        let a = ctx.placeholder(&[&m, &n], Dtype::F32);
-        let order = [a.id];
-        let schedule = ctx.to_schedule(&order);
-        let mut module = Module::new("main");
-        let inputs = schedule.inputs();
-        let outputs = schedule.outputs();
-        assert!(inputs.len() == 1);
-        assert!(outputs.len() == 1);
-        assert!(inputs.contains(&0));
-        assert!(outputs.contains(&0));
-        module.add_function2(&schedule);
-        let context = tensor_llvm::context::context::Context::new();
-        let mut codegen = CodeGen::new(context, &module, 3);
-        codegen.compile();
-        let vars_map =
-            hashmap! {
-            "m".to_string().into() => 5,
-            "n".to_string().into() => 4,
-        };
-        let executable = codegen.into_executable(vars_map);
-        let a = tensor_dyn::tensor::Tensor::<f32>
-            ::arange(0.0, 100.0)
-            .expect("Failed to create tensor")
-            .reshape(&[5, 4])
-            .expect("Failed to reshape");
-        let b = tensor_dyn::tensor::Tensor::<f32>::zeros(&[5, 4]).expect("Failed to create tensor");
-        let inps_map = hashmap! { 0usize => a.into() };
-        let outs_map = hashmap! { 0usize => b.into() };
-        executable.execute(inps_map, outs_map);
-    }
 
     #[test]
     fn test_reshape_schedule() {
@@ -217,6 +180,7 @@ mod tests {
             }
         }
     }
+    return;
 }"
         );
         let mut module = Module::new("main");
@@ -230,6 +194,25 @@ mod tests {
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
+        let vars_map =
+            hashmap! {
+            "m".to_string().into() => 2,
+            "n".to_string().into() => 5,
+            "o".to_string().into() => 3,
+        };
+        let executable = codegen.into_executable(vars_map);
+        let a = tensor_dyn::tensor::Tensor::<f32>
+            ::arange(0.0, 30.0)
+            .expect("Failed to create tensor")
+            .reshape(&[2, 5, 3])
+            .expect("Failed to reshape");
+        let b = tensor_dyn::tensor::Tensor::<f32>
+            ::zeros(&[2, 5, 3, 1])
+            .expect("Failed to create tensor");
+        let inps_map = hashmap! { 0usize => a.clone().into() };
+        let outs_map = hashmap! { 1usize => b.clone().into() };
+        executable.execute(inps_map, outs_map);
+        assert!(a.reshape(&[2, 5, 3, 1]).unwrap().allclose(&b));
     }
 
     #[test]
@@ -283,31 +266,32 @@ mod tests {
         codegen.compile();
         let vars_map =
             hashmap! {
-            "m".to_string().into() => 5,
-            "n".to_string().into() => 4,
-            "o".to_string().into() => 5,
+            "m".to_string().into() => 2,
+            "n".to_string().into() => 5,
+            "o".to_string().into() => 3,
         };
         let executable = codegen.into_executable(vars_map);
 
         let a = tensor_dyn::tensor::Tensor::<f32>
-            ::arange(0.0, 100.0)
+            ::arange(0.0, 30.0)
             .expect("Failed to create tensor")
-            .reshape(&[5, 4, 5])
+            .reshape(&[2, 5, 3])
             .expect("Failed to reshape");
         let b = tensor_dyn::tensor::Tensor::<f32>
-            ::arange(0.0, 100.0)
+            ::arange(0.0, 30.0)
             .expect("Failed to create tensor")
-            .reshape(&[5, 4, 5])
+            .reshape(&[2, 5, 3])
             .expect("Failed to reshape");
         let inps_map = hashmap! {
             0usize => a.into(),
             1 => b.into(),
         };
         let c = tensor_dyn::tensor::Tensor::<f32>
-            ::zeros(&[5, 4, 5])
+            ::empty(&[2, 5, 3])
             .expect("Failed to create tensor");
-        let outs_map = hashmap! { 2usize => c.into() };
+        let outs_map = hashmap! { 2usize => c.clone().into() };
         executable.execute(inps_map, outs_map);
+        println!("{:?}", c);
     }
 
     #[test]
@@ -344,6 +328,7 @@ mod tests {
             }
         }
     }
+    return;
 }"
         );
         let mut module = Module::new("main");
@@ -358,6 +343,38 @@ mod tests {
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
+
+        let vars_map =
+            hashmap! {
+            "m".to_string().into() => 2,
+            "n".to_string().into() => 5,
+            "o".to_string().into() => 3,
+        };
+
+        let executable = codegen.into_executable(vars_map);
+        let a = tensor_dyn::tensor::Tensor::<f32>
+            ::arange(0.0, 6.0)
+            .expect("Failed to create tensor")
+            .reshape(&[2, 1, 3])
+            .expect("Failed to reshape");
+        let b = tensor_dyn::tensor::Tensor::<f32>
+            ::arange(0.0, 10.0)
+            .expect("Failed to create tensor")
+            .reshape(&[2, 5, 1])
+            .expect("Failed to reshape");
+        let inps_map =
+            hashmap! {
+            0usize => a.clone().into(),
+            1 => b.clone().into(),
+        };
+        let c = tensor_dyn::tensor::Tensor::<f32>
+            ::empty(&[2, 5, 3])
+            .expect("Failed to create tensor");
+        let outs_map = hashmap! { 2usize => c.clone().into() };
+        executable.execute(inps_map, outs_map);
+
+        let test = a + b;
+        assert!(test.allclose(&c));
     }
 
     #[test]
@@ -394,6 +411,7 @@ mod tests {
             }
         }
     }
+    return;
 }"
         );
         let mut module = Module::new("main");
@@ -408,6 +426,38 @@ mod tests {
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
+
+        let vars_map =
+            hashmap! {
+            "m".to_string().into() => 2,
+            "n".to_string().into() => 5,
+            "o".to_string().into() => 3,
+        };
+
+        let executable = codegen.into_executable(vars_map);
+        let a = tensor_dyn::tensor::Tensor::<f32>
+            ::arange(0.0, 6.0)
+            .expect("Failed to create tensor")
+            .reshape(&[3, 2, 1])
+            .expect("Failed to reshape");
+        let b = tensor_dyn::tensor::Tensor::<f32>
+            ::arange(0.0, 10.0)
+            .expect("Failed to create tensor")
+            .reshape(&[2, 5])
+            .expect("Failed to reshape");
+        let inps_map =
+            hashmap! {
+            0usize => a.clone().into(),
+            1 => b.clone().into(),
+        };
+        let c = tensor_dyn::tensor::Tensor::<f32>
+            ::empty(&[3, 2, 5])
+            .expect("Failed to create tensor");
+        let outs_map = hashmap! { 2usize => c.clone().into() };
+        executable.execute(inps_map, outs_map);
+
+        let test = a + b;
+        assert!(test.allclose(&c));
     }
 
     #[test]

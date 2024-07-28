@@ -1,4 +1,4 @@
-use std::{ fmt::{ Debug, Display }, ops::{ Deref, Div, Sub }, sync::Arc };
+use std::{ fmt::{ Debug, Display }, ops::{ Add, Deref, Div, Mul, Rem, Sub }, sync::Arc };
 
 use tensor_common::{ axis::Axis, layout::Layout, pointer::Pointer, shape::Shape };
 use tensor_display::display;
@@ -20,7 +20,8 @@ use crate::{ backend::Cpu, ops::cpu::reduce::stack, tensor_base::_Tensor };
 ///
 /// # Properties
 /// - `basic`: The pointer of `Tensor`.
-pub struct Tensor<T, B=Cpu> {
+#[derive(Clone)]
+pub struct Tensor<T, B = Cpu> {
     pub(crate) inner: Arc<_Tensor<T, B>>,
 }
 
@@ -677,3 +678,99 @@ impl<T> Debug for Tensor<T> where T: CommonBounds {
         display(self, f, 1000, 20, 6, 12, 4, false)
     }
 }
+
+macro_rules! normal_ops_1 {
+    ($op:ident, $op2:ident) => {
+        impl<T, U> $op<Tensor<U>>
+        for Tensor<T>
+        where
+            T: CommonBounds + NormalOut<U>,
+            U: CommonBounds,
+            <T as NormalOut<U>>::Output: CommonBounds,
+            <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>
+        {
+            type Output = Tensor<<T as NormalOut<U>>::Output>;
+
+            fn $op2(self, rhs: Tensor<U>) -> Self::Output {
+                (self.inner.as_ref().$op2(rhs.inner.as_ref())).into()
+            }
+        }
+    };
+}
+
+macro_rules! normal_ops_2 {
+    ($op:ident, $op2:ident) => {
+        impl<'a, T, U> std::ops::$op<&'a Tensor<U>>
+        for Tensor<T>
+        where
+            T: CommonBounds + NormalOut<U>,
+            U: CommonBounds,
+            <T as NormalOut<U>>::Output: CommonBounds,
+            <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>
+        {
+            type Output = Tensor<<T as NormalOut<U>>::Output>;
+
+            fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
+                (self.inner.as_ref() + rhs.inner.as_ref()).into()
+            }
+        }
+    };
+}
+
+macro_rules! normal_ops_3 {
+    ($op:ident, $op2:ident) => {
+        impl<'a, T, U> std::ops::$op<&'a Tensor<U>>
+        for &'a Tensor<T>
+        where
+            T: CommonBounds + NormalOut<U>,
+            U: CommonBounds,
+            <T as NormalOut<U>>::Output: CommonBounds,
+            <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>
+        {
+            type Output = Tensor<<T as NormalOut<U>>::Output>;
+
+            fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
+                (self.inner.as_ref() + rhs.inner.as_ref()).into()
+            }
+        }
+    };
+}
+
+macro_rules! normal_ops_4 {
+    ($op:ident, $op2:ident) => {
+        impl<'a, T, U> std::ops::$op<Tensor<U>>
+        for &'a Tensor<T>
+        where
+            T: CommonBounds + NormalOut<U>,
+            U: CommonBounds,
+            <T as NormalOut<U>>::Output: CommonBounds,
+            <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>
+        {
+            type Output = Tensor<<T as NormalOut<U>>::Output>;
+
+            fn $op2(self, rhs: Tensor<U>) -> Self::Output {
+                (self.inner.as_ref() + rhs.inner.as_ref()).into()
+            }
+        }
+    };
+}
+
+normal_ops_1!(Add, add);
+normal_ops_1!(Sub, sub);
+normal_ops_1!(Mul, mul);
+normal_ops_1!(Rem, rem);
+
+normal_ops_2!(Add, add);
+normal_ops_2!(Sub, sub);
+normal_ops_2!(Mul, mul);
+normal_ops_2!(Rem, rem);
+
+normal_ops_3!(Add, add);
+normal_ops_3!(Sub, sub);
+normal_ops_3!(Mul, mul);
+normal_ops_3!(Rem, rem);
+
+normal_ops_4!(Add, add);
+normal_ops_4!(Sub, sub);
+normal_ops_4!(Mul, mul);
+normal_ops_4!(Rem, rem);

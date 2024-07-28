@@ -1,5 +1,6 @@
 use std::{ alloc::Layout, collections::HashMap, ffi::c_void, sync::Arc };
 
+use tensor_common::strides_utils::shape_to_strides;
 use tensor_llvm::{
     builder::builder::Builder,
     context::context::Context,
@@ -114,8 +115,9 @@ impl Executable {
                             ::from_size_align(s.len() * std::mem::size_of::<i64>(), 8)
                             .unwrap();
                         let ptr = std::alloc::alloc(layout) as *mut i64;
-                        for (idx, s) in s.iter().enumerate() {
-                            ptr.add(idx).write(*s);
+                        let strides = shape_to_strides(s);
+                        for (idx, stride) in strides.iter().enumerate() {
+                            ptr.add(idx).write(*stride);
                         }
                         ptrs.add(idx).write(ptr);
                         _layouts.push(layout);
