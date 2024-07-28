@@ -27,19 +27,12 @@ use crate::{
 };
 
 use super::{
-    bodygen_helper::common_reduce,
-    insert_axes::InsertAxes,
-    rc_mut::RcMut,
-    srg::Srg,
-    srg_node::SrgNode,
-    stages::{ Body, Stage },
-    strides_cal_helper::{
+    bodygen_helper::common_reduce, insert_axes::InsertAxes, rc_mut::RcMut, schedule::Schedule, srg::Srg, srg_node::SrgNode, stages::{ Body, Stage }, strides_cal_helper::{
         binary_strides_cal,
         elementwise_strides_cal,
         reduce_strides_cal,
         slice_strides_cal,
-    },
-    tensor::{ StridesCal, Tensor },
+    }, tensor::{ StridesCal, Tensor }
 };
 
 #[derive(Clone)]
@@ -58,7 +51,7 @@ impl Context {
         }
     }
 
-    pub fn to_srg(self) -> Srg {
+    pub fn to_schedule(self, order: &[usize]) -> Schedule {
         let mut nodes = HashMap::new();
         for (id, node) in self.nodes.borrow().iter() {
             let srg_node = SrgNode {
@@ -80,10 +73,11 @@ impl Context {
             };
             nodes.insert(*id, srg_node);
         }
-        Srg {
+        let mut srg = Srg {
             nodes,
             tensors: self.nodes.clone(),
-        }
+        };
+        srg.create_schedule(order)
     }
 
     #[track_caller]

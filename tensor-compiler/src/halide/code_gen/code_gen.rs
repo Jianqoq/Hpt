@@ -247,6 +247,10 @@ impl CodeGen {
         };
         e.prepare()
     }
+
+    pub fn printf(&self, fmt: &str, args: &[BasicValue]) {
+        insert_printf(&self.ctx, &self.builder, &self.module, fmt, args)
+    }
 }
 
 fn topo<'a>(
@@ -1499,6 +1503,7 @@ impl CodeGenVisitor for CodeGen {
             self.tensor_type,
             &self.ctx
         );
+        self.printf(&format!("loaded {}: %p\n", var), &[loaded]);
         self.bindings
             .get_mut(&self.current_fn)
             .expect("fn not find")

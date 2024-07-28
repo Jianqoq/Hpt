@@ -23,7 +23,7 @@ pub struct Srg {
 }
 
 impl Srg {
-    pub fn create_strides_cal(&mut self, sorted: &[usize]) {
+    fn create_strides_cal(&mut self, sorted: &[usize]) {
         for id in sorted {
             let inputs = self.nodes[&id].inputs.clone();
             if inputs.len() == 0 {
@@ -54,7 +54,8 @@ impl Srg {
         }
     }
 
-    pub fn create_schedule(&self, sorted: &[usize]) -> Schedule {
+    pub fn create_schedule(&mut self, sorted: &[usize]) -> Schedule {
+        self.create_strides_cal(sorted);
         let mut declared_vars = HashSet::new();
         let mut qa = HashMap::new();
         for id in sorted {
@@ -148,45 +149,13 @@ mod tests {
     };
 
     #[test]
-    fn test_srg_create_strides_cal() {
-        let mut ctx = Context::new();
-        let m = ctx.var("m");
-        let n = ctx.var("n");
-        let o = ctx.var("o");
-        let a = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
-        let b = ctx.placeholder(&[&1i64], Dtype::F32);
-        let c = ctx.add(&a, &b);
-        let d = ctx.sum(&c, &0i64, &[2]);
-        let e = ctx.reshape(&d, &[&m, &n, &1i64]);
-        let f = ctx.add(&c, &e);
-        let g = ctx.sin(&f);
-        let h = ctx.sum(&g, &0i64, &[2]);
-        let i = ctx.reshape(&h, &[&m, &n, &1i64]);
-        let j = ctx.add(&g, &i);
-        let order = [a.id, b.id, c.id, d.id, e.id, f.id, g.id, h.id, i.id, j.id];
-
-        let mut srg = ctx.to_srg();
-        srg.create_strides_cal(&order);
-
-        let mut var_map = HashMap::new();
-        var_map.insert("m".to_string().into(), 1);
-        var_map.insert("n".to_string().into(), 8);
-        var_map.insert("o".to_string().into(), 8);
-
-        let node = &srg.nodes[order.last().unwrap()];
-        let strides = (node.strides_cal)(&var_map);
-        println!("{:?}", strides);
-    }
-
-    #[test]
     fn test_placeholder() {
         let mut ctx = Context::new();
         let m = ctx.var("m");
         let n = ctx.var("n");
         let a = ctx.placeholder(&[&m, &n], Dtype::F32);
         let order = [a.id];
-        let srg = ctx.to_srg();
-        let schedule = srg.create_schedule(&order);
+        let schedule = ctx.to_schedule(&order);
         let mut module = Module::new("main");
         let inputs = schedule.inputs();
         let outputs = schedule.outputs();
@@ -198,6 +167,21 @@ mod tests {
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
+        let vars_map =
+            hashmap! {
+            "m".to_string().into() => 5,
+            "n".to_string().into() => 4,
+        };
+        let executable = codegen.into_executable(vars_map);
+        let a = tensor_dyn::tensor::Tensor::<f32>
+            ::arange(0.0, 100.0)
+            .expect("Failed to create tensor")
+            .reshape(&[5, 4])
+            .expect("Failed to reshape");
+        let b = tensor_dyn::tensor::Tensor::<f32>::zeros(&[5, 4]).expect("Failed to create tensor");
+        let inps_map = hashmap! { 0usize => a.into() };
+        let outs_map = hashmap! { 0usize => b.into() };
+        executable.execute(inps_map, outs_map);
     }
 
     #[test]
@@ -210,8 +194,7 @@ mod tests {
         let b = ctx.reshape(&a, &[&m, &n, &o, &1i64]);
         let order = [a.id, b.id];
 
-        let srg = ctx.to_srg();
-        let schedule = srg.create_schedule(&order);
+        let schedule = ctx.to_schedule(&order);
         let func = schedule.to_function();
         assert_eq!(
             func.to_string(),
@@ -259,8 +242,7 @@ mod tests {
         let c = ctx.add(&a, &b);
         let order = [a.id, b.id, c.id];
 
-        let srg = ctx.to_srg();
-        let schedule = srg.create_schedule(&order);
+        let schedule = ctx.to_schedule(&order);
         let func = schedule.to_function();
         assert_eq!(
             func.to_string(),
@@ -338,8 +320,7 @@ mod tests {
         let c = ctx.add(&a, &b);
         let order = [a.id, b.id, c.id];
 
-        let srg = ctx.to_srg();
-        let schedule = srg.create_schedule(&order);
+        let schedule = ctx.to_schedule(&order);
         let func = schedule.to_function();
         assert_eq!(
             func.to_string(),
@@ -389,8 +370,7 @@ mod tests {
         let c = ctx.add(&a, &b);
         let order = [a.id, b.id, c.id];
 
-        let srg = ctx.to_srg();
-        let schedule = srg.create_schedule(&order);
+        let schedule = ctx.to_schedule(&order);
         let func = schedule.to_function();
         assert_eq!(
             func.to_string(),
@@ -440,8 +420,7 @@ mod tests {
         let d = ctx.sin(&c);
         let order = [a.id, b.id, c.id, d.id];
 
-        let srg = ctx.to_srg();
-        let schedule = srg.create_schedule(&order);
+        let schedule = ctx.to_schedule(&order);
         let func = schedule.to_function();
         assert_eq!(
             func.to_string(),
@@ -487,8 +466,7 @@ mod tests {
         let a = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
         let b = ctx.sum(&a, &0f32, &[1]);
         let order = [a.id, b.id];
-        let srg = ctx.to_srg();
-        let schedule = srg.create_schedule(&order);
+        let schedule = ctx.to_schedule(&order);
         let func = schedule.to_function();
         assert_eq!(
             func.to_string(),
@@ -540,8 +518,7 @@ mod tests {
         let e = ctx.sum(&c, &0f32, &[0]);
         let order = [a.id, b.id, c.id, e.id];
 
-        let srg = ctx.to_srg();
-        let schedule = srg.create_schedule(&order);
+        let schedule = ctx.to_schedule(&order);
         let func = schedule.to_function();
         assert_eq!(
             func.to_string(),
@@ -601,8 +578,7 @@ mod tests {
         let b = ctx.sum(&a, &0f32, &[0, 1, 2]);
         let order = [a.id, b.id];
 
-        let srg = ctx.to_srg();
-        let schedule = srg.create_schedule(&order);
+        let schedule = ctx.to_schedule(&order);
         let func = schedule.to_function();
         assert_eq!(
             func.to_string(),
@@ -671,8 +647,7 @@ mod tests {
             add2.id,
         ];
 
-        let srg = ctx.to_srg();
-        let schedule = srg.create_schedule(&order);
+        let schedule = ctx.to_schedule(&order);
         let func = schedule.to_function();
         assert_eq!(
             func.to_string(),
@@ -741,7 +716,7 @@ mod tests {
     }
 }"
         );
-        let mut module = Module::new("main");
+        let module = Module::new("main");
         let inputs = schedule.inputs();
         let outputs = schedule.outputs();
         assert!(inputs.len() == 2);
@@ -779,8 +754,7 @@ mod tests {
         let sum = ctx.sum(&add, &0f32, &[0]);
         let order = [a.id, b.id, c.id, add.id, sum.id];
 
-        let srg = ctx.to_srg();
-        let schedule = srg.create_schedule(&order);
+        let schedule = ctx.to_schedule(&order);
         let func = schedule.to_function();
         println!("{}", func);
     }
@@ -807,8 +781,7 @@ mod tests {
         let e = ctx.add(&d, &c);
         let order = [a.id, b.id, c.id, d.id, e.id];
 
-        let srg = ctx.to_srg();
-        let schedule = srg.create_schedule(&order);
+        let schedule = ctx.to_schedule(&order);
         let func = schedule.to_function();
 
         assert_eq!(
