@@ -31,7 +31,6 @@ pub fn dtype_to_llvm(dtype: Dtype, context: &Context) -> BasicType {
 }
 
 pub fn build_cast(
-    origin_dtype: Dtype,
     target_dtype: Dtype,
     val: BasicValue,
     var_name: &str,

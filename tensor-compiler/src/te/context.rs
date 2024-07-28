@@ -754,13 +754,26 @@ impl Context {
                     } else if step == &one {
                         end.clone() - begin.clone()
                     } else {
-                        (end.clone() - begin.clone()) / step.clone()
+                        if end.is_int() && begin.is_int() && step.is_int() {
+                            let end = end.to_int().unwrap();
+                            let begin = begin.to_int().unwrap();
+                            let step = step.to_int().unwrap();
+                            let sub = end.value() - begin.value();
+                            ((sub + step.value() - 1) / step.value()).into()
+                        } else {
+                            let mut const_fold = ConstFold::new();
+                            Call::make(
+                                "ceil",
+                                &[
+                                    const_fold.const_fold(
+                                        (end.clone() - begin.clone()) / step.clone()
+                                    ),
+                                ]
+                            ).into()
+                        }
                     }
                 })
-                .map(|x| {
-                    let mut const_fold = ConstFold::new();
-                    Call::make("ceil", &[const_fold.const_fold(x)]).into()
-                })
+                .map(|x| { x })
                 .collect::<Vec<_>>()
         );
         let slice = Arc::new(selections.clone());
@@ -772,9 +785,7 @@ impl Context {
             dtype: a.dtype.clone(),
             id,
             strides_cal: Arc::new(move |prev_fn: Vec<StridesCal>| {
-                let new_shape = new_shape.clone();
-                let selections = selections.clone();
-                slice_strides_cal(new_shape, selections, prev_fn[0].clone())
+                slice_strides_cal(prev_fn[0].clone())
             }),
             body_gen: Arc::new(move |inputs: Vec<Body>, is_output: bool, id: usize| {
                 if is_output {

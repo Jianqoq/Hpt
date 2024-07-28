@@ -29,7 +29,7 @@ fn test_reshape_schedule() {
     let func = schedule.to_function();
     assert_eq!(
         func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
     let %0 = (data_vec[0] as *f32);
     let %1 = (output_vec[0] as *f32);
@@ -49,7 +49,7 @@ fn test_reshape_schedule() {
     }
     return;
 }"
-    );
+    ); // prettier-ignore
     let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
@@ -97,7 +97,7 @@ fn test_add_schedule() {
     let func = schedule.to_function();
     assert_eq!(
         func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
     let istrides1 = istrides_vec[1];
     let %0 = (data_vec[0] as *f32);
@@ -118,7 +118,7 @@ fn test_add_schedule() {
     }
     return;
 }"
-    );
+    ); // prettier-ignore
     let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
@@ -177,7 +177,7 @@ fn test_add_broadcast_schedule() {
     let func = schedule.to_function();
     assert_eq!(
         func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
     let istrides1 = istrides_vec[1];
     let %0 = (data_vec[0] as *f32);
@@ -198,7 +198,7 @@ fn test_add_broadcast_schedule() {
     }
     return;
 }"
-    );
+    ); // prettier-ignore
     let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
@@ -258,7 +258,7 @@ fn test_add_broadcast_diff_len_schedule() {
     let func = schedule.to_function();
     assert_eq!(
         func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
     let istrides1 = istrides_vec[1];
     let %0 = (data_vec[0] as *f32);
@@ -279,7 +279,7 @@ fn test_add_broadcast_diff_len_schedule() {
     }
     return;
 }"
-    );
+    ); // prettier-ignore
     let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
@@ -339,7 +339,7 @@ fn test_add_broadcast_diff_len_schedule2() {
     let func = schedule.to_function();
     assert_eq!(
         func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
     let istrides1 = istrides_vec[1];
     let %0 = (data_vec[0] as *f32);
@@ -358,7 +358,7 @@ fn test_add_broadcast_diff_len_schedule2() {
     }
     return;
 }"
-    );
+    ); // prettier-ignore
     let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
@@ -418,7 +418,7 @@ fn test_sum_broadcast_schedule() {
     let func = schedule.to_function();
     assert_eq!(
         func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+ "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
     let %0 = (data_vec[0] as *f32);
     let %1 = (output_vec[0] as *f32);
@@ -441,7 +441,7 @@ fn test_sum_broadcast_schedule() {
     }
     return;
 }"
-    );
+    ); // prettier-ignore
     let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
@@ -492,7 +492,7 @@ fn test_sum_all_broadcast_schedule() {
     let func = schedule.to_function();
     assert_eq!(
         func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
     let %0 = (data_vec[0] as *f32);
     let %3 = (output_vec[0] as *f32);
@@ -525,7 +525,7 @@ fn test_sum_all_broadcast_schedule() {
     %3[0] = %3_val;
     return;
 }"
-    );
+    ); // prettier-ignore
     let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
@@ -574,7 +574,7 @@ fn test_sum_all_broadcast_schedule2() {
     let func = schedule.to_function();
     assert_eq!(
         func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
     let %0 = (data_vec[0] as *f32);
     let %1 = (output_vec[0] as *f32);
@@ -597,7 +597,7 @@ fn test_sum_all_broadcast_schedule2() {
     %1[0] = %1_val;
     return;
 }"
-    );
+    ); // prettier-ignore
     let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
@@ -665,7 +665,7 @@ fn test_schedule3() {
     let func = schedule.to_function();
     assert_eq!(
         func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
     let istrides1 = istrides_vec[1];
     let istrides2 = istrides_vec[2];
@@ -730,7 +730,7 @@ fn test_schedule3() {
     }
     return;
 }"
-    );
+    ); // prettier-ignore
     let mut module = Module::new("main");
     module.add_function2(&schedule);
     let context = tensor_llvm::context::context::Context::new();
@@ -792,22 +792,22 @@ fn test_slice() {
     let func = schedule.to_function();
     assert_eq!(
         func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
     let %0 = (data_vec[0] as *f32);
     let %1 = (output_vec[0] as *f32);
     let ostrides0 = ostrides_vec[0];
     let m = shape_vars[0];
     let n = shape_vars[1];
-    for ax0 in range(0, (m - 1) / 2) {
-        for ax1 in range(0, (n - 1) / 2) {
+    for ax0 in range(0, ceil((m - 1) / 2)) {
+        for ax1 in range(0, ceil((n - 1) / 2)) {
             let %0_val = %0[(ax0 * (2 * 1) + (0 + 0)) * istrides0[0] + (ax1 * (2 * 1) + (0 + 0)) * istrides0[1]];
             %1[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %0_val;
         }
     }
     return;
 }"
-    );
+    ); // prettier-ignore
     let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
@@ -856,11 +856,37 @@ fn test_slice_nested() {
             (&0i64, &(&n.clone().into() - &one), &2i64),
         ]
     );
-    let order = [a.id, b.id];
+    let c = ctx.slice(
+        &b,
+        &[
+            (&0i64, &(&(4i64).into() - &one), &2i64),
+            (&0i64, &(&(4i64).into() - &one), &2i64),
+        ]
+    );
+    let order = [a.id, b.id, c.id];
 
     let schedule = ctx.to_schedule(&order);
     let func = schedule.to_function();
-    println!("{}", func.to_string());
+
+    assert_eq!(
+        func.to_string(),
+"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    let istrides0 = istrides_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %2 = (output_vec[0] as *f32);
+    let ostrides0 = ostrides_vec[0];
+    let m = shape_vars[0];
+    let n = shape_vars[1];
+    for ax0 in range(0, 2) {
+        for ax1 in range(0, 2) {
+            let %0_val = %0[(ax0 * (2 * (2 * 1)) + (0 + (0 + 0))) * istrides0[0] + (ax1 * (2 * (2 * 1)) + (0 + (0 + 0))) * istrides0[1]];
+            let %1_val = %0_val;
+            %2[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %1_val;
+        }
+    }
+    return;
+}"
+    ); // prettier-ignore
     let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
@@ -885,13 +911,14 @@ fn test_slice_nested() {
         .reshape(&[10, 10])
         .expect("Failed to reshape");
     let inps_map = hashmap! { 0usize => a.clone().into() };
-    let d = tensor_dyn::tensor::Tensor::<f32>::zeros(&[5, 5]).expect("Failed to create tensor");
+    let d = tensor_dyn::tensor::Tensor::<f32>::zeros(&[2, 2]).expect("Failed to create tensor");
     let outs_map = hashmap! {
-            1 => d.clone().into(),
+            2 => d.clone().into(),
         };
 
     executable.execute(inps_map, outs_map);
     let test = slice!(a[0:9:2, 0:9:2]).unwrap();
+    let test = slice!(test[0:4:2, 0:4:2]).unwrap();
     println!("{:?}", test);
     println!("{:?}", d);
 }

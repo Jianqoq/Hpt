@@ -354,7 +354,6 @@ impl CodeGenVisitor for CodeGen {
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
         let casted_lhs = build_cast(
-            lhs_type,
             res_type,
             lhs,
             "lhs_casted",
@@ -362,7 +361,6 @@ impl CodeGenVisitor for CodeGen {
             &self.builder
         );
         let casted_rhs = build_cast(
-            rhs_type,
             res_type,
             rhs,
             "rhs_casted",
@@ -402,7 +400,6 @@ impl CodeGenVisitor for CodeGen {
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._sub(rhs_type);
         let casted_lhs = build_cast(
-            lhs_type,
             res_type,
             lhs,
             "lhs_casted",
@@ -410,7 +407,6 @@ impl CodeGenVisitor for CodeGen {
             &self.builder
         );
         let casted_rhs = build_cast(
-            rhs_type,
             res_type,
             rhs,
             "rhs_casted",
@@ -450,7 +446,6 @@ impl CodeGenVisitor for CodeGen {
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._mul(rhs_type);
         let casted_lhs = build_cast(
-            lhs_type,
             res_type,
             lhs,
             "lhs_casted",
@@ -458,7 +453,6 @@ impl CodeGenVisitor for CodeGen {
             &self.builder
         );
         let casted_rhs = build_cast(
-            rhs_type,
             res_type,
             rhs,
             "rhs_casted",
@@ -501,7 +495,6 @@ impl CodeGenVisitor for CodeGen {
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._div(rhs_type);
         let casted_lhs = build_cast(
-            lhs_type,
             res_type,
             lhs,
             "lhs_casted",
@@ -509,7 +502,6 @@ impl CodeGenVisitor for CodeGen {
             &self.builder
         );
         let casted_rhs = build_cast(
-            rhs_type,
             res_type,
             rhs,
             "rhs_casted",
@@ -536,7 +528,6 @@ impl CodeGenVisitor for CodeGen {
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._div(rhs_type);
         let casted_lhs = build_cast(
-            lhs_type,
             res_type,
             lhs,
             "lhs_casted",
@@ -544,7 +535,6 @@ impl CodeGenVisitor for CodeGen {
             &self.builder
         );
         let casted_rhs = build_cast(
-            rhs_type,
             res_type,
             rhs,
             "rhs_casted",
@@ -586,7 +576,6 @@ impl CodeGenVisitor for CodeGen {
         };
         let to_cast_dtype = lhs_type._add(rhs_type);
         let res = build_cast(
-            res_type,
             to_cast_dtype,
             res,
             "floor_casted",
@@ -607,7 +596,6 @@ impl CodeGenVisitor for CodeGen {
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._rem(rhs_type);
         let casted_lhs = build_cast(
-            lhs_type,
             res_type,
             lhs,
             "lhs_casted",
@@ -615,7 +603,6 @@ impl CodeGenVisitor for CodeGen {
             &self.builder
         );
         let casted_rhs = build_cast(
-            rhs_type,
             res_type,
             rhs,
             "rhs_casted",
@@ -648,7 +635,6 @@ impl CodeGenVisitor for CodeGen {
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
         let casted_lhs = build_cast(
-            lhs_type,
             res_type,
             lhs,
             "lhs_casted",
@@ -656,7 +642,6 @@ impl CodeGenVisitor for CodeGen {
             &self.builder
         );
         let casted_rhs = build_cast(
-            rhs_type,
             res_type,
             rhs,
             "rhs_casted",
@@ -707,7 +692,6 @@ impl CodeGenVisitor for CodeGen {
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
         let casted_lhs = build_cast(
-            lhs_type,
             res_type,
             lhs,
             "lhs_casted",
@@ -715,7 +699,6 @@ impl CodeGenVisitor for CodeGen {
             &self.builder
         );
         let casted_rhs = build_cast(
-            rhs_type,
             res_type,
             rhs,
             "rhs_casted",
@@ -766,7 +749,6 @@ impl CodeGenVisitor for CodeGen {
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
         let casted_lhs = build_cast(
-            lhs_type,
             res_type,
             lhs,
             "lhs_casted",
@@ -774,7 +756,6 @@ impl CodeGenVisitor for CodeGen {
             &self.builder
         );
         let casted_rhs = build_cast(
-            rhs_type,
             res_type,
             rhs,
             "rhs_casted",
@@ -822,7 +803,6 @@ impl CodeGenVisitor for CodeGen {
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
         let casted_lhs = build_cast(
-            lhs_type,
             res_type,
             lhs,
             "lhs_casted",
@@ -830,7 +810,6 @@ impl CodeGenVisitor for CodeGen {
             &self.builder
         );
         let casted_rhs = build_cast(
-            rhs_type,
             res_type,
             rhs,
             "rhs_casted",
@@ -878,7 +857,6 @@ impl CodeGenVisitor for CodeGen {
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
         let casted_lhs = build_cast(
-            lhs_type,
             res_type,
             lhs,
             "lhs_casted",
@@ -886,7 +864,6 @@ impl CodeGenVisitor for CodeGen {
             &self.builder
         );
         let casted_rhs = build_cast(
-            rhs_type,
             res_type,
             rhs,
             "rhs_casted",
@@ -934,7 +911,6 @@ impl CodeGenVisitor for CodeGen {
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
         let casted_lhs = build_cast(
-            lhs_type,
             res_type,
             lhs,
             "lhs_casted",
@@ -942,7 +918,6 @@ impl CodeGenVisitor for CodeGen {
             &self.builder
         );
         let casted_rhs = build_cast(
-            rhs_type,
             res_type,
             rhs,
             "rhs_casted",
@@ -990,7 +965,6 @@ impl CodeGenVisitor for CodeGen {
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
         let casted_lhs = build_cast(
-            lhs_type,
             res_type,
             lhs,
             "lhs_casted",
@@ -998,7 +972,6 @@ impl CodeGenVisitor for CodeGen {
             &self.builder
         );
         let casted_rhs = build_cast(
-            rhs_type,
             res_type,
             rhs,
             "rhs_casted",
@@ -1048,7 +1021,6 @@ impl CodeGenVisitor for CodeGen {
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
         let casted_lhs = build_cast(
-            lhs_type,
             res_type,
             lhs,
             "lhs_casted",
@@ -1056,7 +1028,6 @@ impl CodeGenVisitor for CodeGen {
             &self.builder
         );
         let casted_rhs = build_cast(
-            rhs_type,
             res_type,
             rhs,
             "rhs_casted",
@@ -1106,7 +1077,6 @@ impl CodeGenVisitor for CodeGen {
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._bitand(rhs_type);
         let casted_lhs = build_cast(
-            lhs_type,
             res_type,
             lhs,
             "lhs_casted",
@@ -1114,7 +1084,6 @@ impl CodeGenVisitor for CodeGen {
             &self.builder
         );
         let casted_rhs = build_cast(
-            rhs_type,
             res_type,
             rhs,
             "rhs_casted",
@@ -1151,7 +1120,6 @@ impl CodeGenVisitor for CodeGen {
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._bitxor(rhs_type);
         let casted_lhs = build_cast(
-            lhs_type,
             res_type,
             lhs,
             "lhs_casted",
@@ -1159,7 +1127,6 @@ impl CodeGenVisitor for CodeGen {
             &self.builder
         );
         let casted_rhs = build_cast(
-            rhs_type,
             res_type,
             rhs,
             "rhs_casted",
@@ -1196,7 +1163,6 @@ impl CodeGenVisitor for CodeGen {
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._bitor(rhs_type);
         let casted_lhs = build_cast(
-            lhs_type,
             res_type,
             lhs,
             "lhs_casted",
@@ -1204,7 +1170,6 @@ impl CodeGenVisitor for CodeGen {
             &self.builder
         );
         let casted_rhs = build_cast(
-            rhs_type,
             res_type,
             rhs,
             "rhs_casted",
@@ -1239,7 +1204,6 @@ impl CodeGenVisitor for CodeGen {
         let val_type = self.bindings[&self.current_fn].find_type(&val).unwrap().dtype();
         let res_type = val_type._not();
         let casted_val = build_cast(
-            val_type,
             res_type,
             val,
             "val_casted",
@@ -1444,7 +1408,6 @@ impl CodeGenVisitor for CodeGen {
                         res
                     } else {
                         let casted_arg = build_cast(
-                            arg_ty,
                             casted_ty,
                             arg,
                             "casted_arg",
@@ -1855,7 +1818,6 @@ impl CodeGenVisitor for CodeGen {
         let val = self.visit_expr(&inplace_add.val());
         let to_store_type = self.bindings[&self.current_fn].find_type(&to_store).unwrap().dtype();
         let casted_val = build_cast(
-            self.bindings[&self.current_fn].find_type(&val).unwrap().dtype(),
             to_store_type,
             val,
             "val_casted",
@@ -1912,7 +1874,6 @@ impl CodeGenVisitor for CodeGen {
         let val = self.visit_expr(&inplace_sub.val());
         let to_store_type = self.bindings[&self.current_fn].find_type(&to_store).unwrap().dtype();
         let casted_val = build_cast(
-            self.bindings[&self.current_fn].find_type(&val).unwrap().dtype(),
             to_store_type,
             val,
             "val_casted",
@@ -1959,7 +1920,6 @@ impl CodeGenVisitor for CodeGen {
         let val = self.visit_expr(&inplace_mul.val());
         let to_store_type = self.bindings[&self.current_fn].find_type(&to_store).unwrap().dtype();
         let casted_val = build_cast(
-            self.bindings[&self.current_fn].find_type(&val).unwrap().dtype(),
             to_store_type,
             val,
             "val_casted",
@@ -2006,7 +1966,6 @@ impl CodeGenVisitor for CodeGen {
         let val = self.visit_expr(&inplace_div.val());
         let to_store_type = self.bindings[&self.current_fn].find_type(&to_store).unwrap().dtype();
         let casted_val = build_cast(
-            self.bindings[&self.current_fn].find_type(&val).unwrap().dtype(),
             to_store_type,
             val,
             "val_casted",

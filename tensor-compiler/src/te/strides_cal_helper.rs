@@ -1,10 +1,6 @@
 use std::{ collections::HashMap, sync::Arc };
 
-use tensor_common::{
-    shape_utils::try_pad_shape,
-    slice::{ slice_process, Slice },
-    strides_utils::{ preprocess_strides, shape_to_strides },
-};
+use tensor_common::{ shape_utils::try_pad_shape, strides_utils::preprocess_strides };
 
 use crate::{ halide::prime_expr::PrimeExpr, te::idx_evaluator::IdxEvaluator };
 
@@ -125,41 +121,7 @@ pub fn elementwise_strides_cal(
 }
 
 pub fn slice_strides_cal(
-    shape: Arc<Vec<PrimeExpr>>,
-    selections: Vec<(PrimeExpr, PrimeExpr, PrimeExpr)>,
     prev_func: Arc<dyn Fn(&HashMap<Arc<String>, i64>) -> Vec<HStrides>>
 ) -> Arc<dyn Fn(&HashMap<Arc<String>, i64>) -> Vec<HStrides>> {
-    Arc::new(move |map: &HashMap<Arc<String>, i64>| {
-        let selections = selections
-            .iter()
-            .map(|(start, end, step)| (
-                IdxEvaluator::new(map).eval(start),
-                IdxEvaluator::new(map).eval(end),
-                IdxEvaluator::new(map).eval(step),
-            ))
-            .collect::<Vec<(i64, i64, i64)>>();
-        let real_shape = shape
-            .iter()
-            .map(|x| { IdxEvaluator::new(map).eval(x) })
-            .collect::<Vec<i64>>();
-        let real_strides = shape_to_strides(&real_shape); // we always aloccate memory before we slice
-        let (_, strides, offset) = slice_process(
-            real_shape,
-            real_strides.inner().clone(),
-            &selections
-                .into_iter()
-                .map(|(x, y, z)| Slice::StepByRangeFromTo((x, y, z)))
-                .collect::<Vec<Slice>>(),
-            1
-        ).expect("slice process failed");
-        let mut strideses = prev_func(map);
-        assert!(strideses.len() == 1);
-        let hstrides = HStrides {
-            strides,
-            reduced_dim: 0,
-            offset,
-        };
-        strideses.push(hstrides);
-        strideses
-    })
+    Arc::new(move |map: &HashMap<Arc<String>, i64>| { prev_func(map) })
 }
