@@ -5,7 +5,17 @@ use tensor_types::dtype::Dtype;
 use crate::{
     edges::Edges,
     halide::{
-        exprs::{ BitCast, Load }, let_stmt::LetStmt, module::{ Function, FunctionType }, prime_expr::PrimeExpr, primitive_type::{ PrimitiveType, Ptr }, printer::IRPrinter, seq_stmt::Seq, stmt::Stmt, traits::AccepterMutate, variable::Variable
+        exprs::{ BitCast, Load },
+        let_stmt::LetStmt,
+        module::{ Function, FunctionType },
+        prime_expr::PrimeExpr,
+        primitive_type::{ PrimitiveType, Ptr },
+        printer::IRPrinter,
+        return_stmt::ReturnStmt,
+        seq_stmt::Seq,
+        stmt::Stmt,
+        traits::AccepterMutate,
+        variable::Variable,
     },
     te::strides_visitor::StridesVisitor,
 };
@@ -59,6 +69,7 @@ impl Schedule {
             .flatten()
             .collect::<Vec<Stmt>>();
         body.push(new_fn_body);
+        body.push(Stmt::Return(ReturnStmt::make(vec![])));
 
         empty_fn.body = Stmt::Seq(Seq::make(body));
 
