@@ -919,8 +919,7 @@ fn test_slice_nested() {
     executable.execute(inps_map, outs_map);
     let test = slice!(a[0:9:2, 0:9:2]).unwrap();
     let test = slice!(test[0:4:2, 0:4:2]).unwrap();
-    println!("{:?}", test);
-    println!("{:?}", d);
+    assert!(test.allclose(&d));
 }
 
 //     #[test]
