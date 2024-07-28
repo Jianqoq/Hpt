@@ -74,7 +74,7 @@ pub fn uary_fn_with_out<A, O, K, Q, F>(inp: &_Tensor<A>, f: F, out: O) -> anyhow
     Ok(ret)
 }
 
-type FloatType<T> = <T as FloatOut>::Output;
+pub(crate) type FloatType<T> = <T as FloatOut>::Output;
 
 impl<T> FloatUaryOps for _Tensor<T> where T: FloatOut + CommonBounds, FloatType<T>: CommonBounds {
     type Output = _Tensor<FloatType<T>>;

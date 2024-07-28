@@ -139,9 +139,10 @@ impl Srg {
 mod tests {
     use maplit::hashmap;
     use tensor_traits::shape_manipulate::ShapeManipulate;
+    use tensor_traits::tensor::NormalReduce;
     use tensor_traits::tensor::TensorCreator;
     use tensor_types::dtype::Dtype;
-
+    use tensor_traits::ops::uary::FloatUaryOps;
     use crate::{
         halide::{ code_gen::code_gen::CodeGen, exprs::Int, module::Module, prime_expr::PrimeExpr },
         te::context::Context,
@@ -492,6 +493,7 @@ mod tests {
             %3[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = sin(%2_val);
         }
     }
+    return;
 }"
         );
         let mut module = Module::new("main");
@@ -506,6 +508,37 @@ mod tests {
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 0);
         codegen.compile();
+
+        let vars_map =
+            hashmap! {
+            "m".to_string().into() => 2,
+            "o".to_string().into() => 3,
+        };
+
+        let executable = codegen.into_executable(vars_map);
+        let a = tensor_dyn::tensor::Tensor::<f32>
+            ::arange(0.0, 6.0)
+            .expect("Failed to create tensor")
+            .reshape(&[3, 2])
+            .expect("Failed to reshape");
+        let b = tensor_dyn::tensor::Tensor::<f32>
+            ::arange(0.0, 6.0)
+            .expect("Failed to create tensor")
+            .reshape(&[3, 2])
+            .expect("Failed to reshape");
+        let inps_map =
+            hashmap! {
+            0usize => a.clone().into(),
+            1 => b.clone().into(),
+        };
+        let d = tensor_dyn::tensor::Tensor::<f32>::empty(&[3, 2]).expect("Failed to create tensor");
+        let outs_map = hashmap! {
+            3usize => d.clone().into(),
+        };
+        executable.execute(inps_map, outs_map);
+
+        let test = (a + b).sin().unwrap();
+        assert!(test.allclose(&d));
     }
 
     #[test]
@@ -535,13 +568,14 @@ mod tests {
             %1_val_ptr[0] = 0;
             for 1red1 in range(0, n) {
                 let %1_val = %1_val_ptr[0];
-                let %0_val = %0[ax0 * istrides0[0] + 1red1 * istrides0[1] + ax1 * istrides0[2]];
+                let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1] + 1red1 * istrides0[2]];
                 %1_val_ptr[0] = %1_val + %0_val;
             }
             let %1_val = %1_val_ptr[0];
             %1[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %1_val;
         }
     }
+    return;
 }"
         );
         let mut module = Module::new("main");
@@ -555,6 +589,27 @@ mod tests {
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
+
+        let vars_map =
+            hashmap! {
+            "m".to_string().into() => 2,
+            "n".to_string().into() => 5,
+            "o".to_string().into() => 3,
+        };
+
+        let executable = codegen.into_executable(vars_map);
+        let a = tensor_dyn::tensor::Tensor::<f32>
+            ::arange(0.0, 30.0)
+            .expect("Failed to create tensor")
+            .reshape(&[2, 5, 3])
+            .expect("Failed to reshape");
+        let b = tensor_dyn::tensor::Tensor::<f32>::zeros(&[2, 3]).expect("Failed to create tensor");
+        let inps_map = hashmap! { 0usize => a.clone().into() };
+        let outs_map = hashmap! { 1usize => b.clone().into() };
+        executable.execute(inps_map, outs_map);
+
+        let test = a.sum([1], false).unwrap();
+        assert!(test.allclose(&b));
     }
 
     #[test]
@@ -593,7 +648,7 @@ mod tests {
             %1_val_ptr[0] = 0;
             for 1red0 in range(0, m) {
                 let %1_val = %1_val_ptr[0];
-                let %0_val = %0[1red0 * istrides0[0] + 2red0 * istrides0[1] + 3red0 * istrides0[2]];
+                let %0_val = %0[3red0 * istrides0[0] + 2red0 * istrides0[1] + 1red0 * istrides0[2]];
                 %1_val_ptr[0] = %1_val + %0_val;
             }
             let %1_val = %1_val_ptr[0];
@@ -604,6 +659,7 @@ mod tests {
     }
     let %3_val = %3_val_ptr[0];
     %3[0] = %3_val;
+    return;
 }"
         );
         let mut module = Module::new("main");
@@ -617,6 +673,27 @@ mod tests {
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
+
+        let vars_map =
+            hashmap! {
+            "m".to_string().into() => 2,
+            "n".to_string().into() => 5,
+            "o".to_string().into() => 3,
+        };
+
+        let executable = codegen.into_executable(vars_map);
+        let a = tensor_dyn::tensor::Tensor::<f32>
+            ::arange(0.0, 30.0)
+            .expect("Failed to create tensor")
+            .reshape(&[2, 5, 3])
+            .expect("Failed to reshape");
+        let b = tensor_dyn::tensor::Tensor::<f32>::zeros(&[1]).expect("Failed to create tensor");
+        let inps_map = hashmap! { 0usize => a.clone().into() };
+        let outs_map = hashmap! { 3usize => b.clone().into() };
+        executable.execute(inps_map, outs_map);
+
+        let test = a.sum([0, 1, 2], false).unwrap();
+        assert!(test.allclose(&b));
     }
 
     #[test]
@@ -654,6 +731,7 @@ mod tests {
     }
     let %1_val = %1_val_ptr[0];
     %1[0] = %1_val;
+    return;
 }"
         );
         let mut module = Module::new("main");
@@ -667,6 +745,27 @@ mod tests {
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
+
+        let vars_map =
+            hashmap! {
+            "m".to_string().into() => 2,
+            "n".to_string().into() => 5,
+            "o".to_string().into() => 3,
+        };
+
+        let executable = codegen.into_executable(vars_map);
+        let a = tensor_dyn::tensor::Tensor::<f32>
+            ::arange(0.0, 30.0)
+            .expect("Failed to create tensor")
+            .reshape(&[2, 5, 3])
+            .expect("Failed to reshape");
+        let b = tensor_dyn::tensor::Tensor::<f32>::zeros(&[1]).expect("Failed to create tensor");
+        let inps_map = hashmap! { 0usize => a.clone().into() };
+        let outs_map = hashmap! { 1usize => b.clone().into() };
+        executable.execute(inps_map, outs_map);
+
+        let test = a.sum([0, 1, 2], false).unwrap();
+        assert!(test.allclose(&b));
     }
 
     #[test]
@@ -765,19 +864,50 @@ mod tests {
             }
         }
     }
+    return;
 }"
         );
-        let module = Module::new("main");
-        let inputs = schedule.inputs();
-        let outputs = schedule.outputs();
-        assert!(inputs.len() == 2);
-        assert!(outputs.len() == 1);
-        assert!(inputs.contains(&0));
-        assert!(inputs.contains(&1));
-        assert!(outputs.contains(&9));
+        let mut module = Module::new("main");
+        module.add_function2(&schedule);
         let context = tensor_llvm::context::context::Context::new();
-        let mut codegen = CodeGen::new(context, &module, 0);
+        let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
+
+        let vars_map =
+            hashmap! {
+            "m".to_string().into() => 2,
+            "n".to_string().into() => 5,
+            "o".to_string().into() => 3,
+        };
+
+        let executable = codegen.into_executable(vars_map);
+        let a = tensor_dyn::tensor::Tensor::<f32>
+            ::arange(0.0, 30.0)
+            .expect("Failed to create tensor")
+            .reshape(&[2, 5, 3])
+            .expect("Failed to reshape");
+        let b = tensor_dyn::tensor::Tensor::<f64>
+            ::arange(3.0, 4.0)
+            .expect("Failed to create tensor")
+            .reshape(&[1])
+            .expect("Failed to reshape");
+        let inps_map =
+            hashmap! {
+            0usize => a.clone().into(),
+            1 => b.clone().into(),
+        };
+        let c = tensor_dyn::tensor::Tensor::<f64>
+            ::zeros(&[2, 5, 3])
+            .expect("Failed to create tensor");
+        let outs_map = hashmap! { 9usize => c.clone().into() };
+        executable.execute(inps_map, outs_map);
+        let test = &a + &b;
+        let sum = test.sum([2], true).unwrap();
+        let add = test + &sum;
+        let sin = add.sin().unwrap();
+        let sum2 = sin.sum([2], true).unwrap();
+        let add2 = sin + sum2;
+        assert!(add2.allclose(&c));
     }
 
     #[test]

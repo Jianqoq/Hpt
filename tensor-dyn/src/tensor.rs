@@ -4,16 +4,17 @@ use tensor_common::{ axis::Axis, layout::Layout, pointer::Pointer, shape::Shape 
 use tensor_display::display;
 use tensor_iterator::{ strided::Strided, strided_mut::StridedMut };
 use tensor_traits::{
+    ops::uary::FloatUaryOps,
     shape_manipulate::ShapeManipulate,
-    tensor::{ CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike },
+    tensor::{ CommonBounds, NormalReduce, TensorAlloc, TensorCreator, TensorInfo, TensorLike },
 };
 use tensor_types::{
     convertion::{ Convertor, FromScalar },
     into_scalar::IntoScalar,
-    type_promote::{ FloatOut, NormalOut },
+    type_promote::{ Cmp, Eval, FloatOut, NormalOut },
 };
 use anyhow::Result;
-use crate::{ backend::Cpu, ops::cpu::reduce::stack, tensor_base::_Tensor };
+use crate::{ backend::Cpu, ops::cpu::{ reduce::stack, uary::FloatType }, tensor_base::_Tensor };
 
 /// A wrapper of `Tensor` for user.
 /// This is the main tensor for user.
@@ -664,6 +665,344 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
 
     fn swap_axes(&self, axis1: i64, axis2: i64) -> Result<Self> {
         Ok(_Tensor::swap_axes(self, axis1, axis2)?.into())
+    }
+}
+
+impl<T: CommonBounds + NormalOut<Output = T> + Eval + Cmp> NormalReduce<T> for Tensor<T> {
+    type Output = Tensor<T>;
+
+    type BoolOutput = Tensor<bool>;
+
+    fn sum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::sum(self, axis, keep_dims)?.into())
+    }
+
+    fn sum_<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+        init_out: bool,
+        out: Self::Output
+    ) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::sum_(self, axis, keep_dims, init_out, out.inner.as_ref().clone())?.into())
+    }
+
+    fn sum_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool
+    ) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::sum_with_init(self, init_val, axes, keep_dims)?.into())
+    }
+
+    fn nansum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::nansum(self, axis, keep_dims)?.into())
+    }
+
+    fn nansum_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool
+    ) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::nansum_with_init(self, init_val, axes, keep_dims)?.into())
+    }
+
+    fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::prod(self, axis, keep_dims)?.into())
+    }
+
+    fn prod_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool
+    ) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::prod_with_init(self, init_val, axes, keep_dims)?.into())
+    }
+
+    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::nanprod(self, axis, keep_dims)?.into())
+    }
+
+    fn nanprod_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool
+    ) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::nanprod_with_init(self, init_val, axes, keep_dims)?.into())
+    }
+
+    fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
+        Ok(_Tensor::min(self, axis, keep_dims)?.into())
+    }
+
+    fn min_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool
+    ) -> anyhow::Result<Self> {
+        Ok(_Tensor::min_with_init(self, init_val, axes, keep_dims)?.into())
+    }
+
+    fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
+        Ok(_Tensor::max(self, axis, keep_dims)?.into())
+    }
+
+    fn max_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool
+    ) -> anyhow::Result<Self> {
+        Ok(_Tensor::max_with_init(self, init_val, axes, keep_dims)?.into())
+    }
+
+    fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
+        Ok(_Tensor::all(self, axis, keep_dims)?.into())
+    }
+
+    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
+        Ok(_Tensor::any(self, axis, keep_dims)?.into())
+    }
+}
+
+impl<T> FloatUaryOps for Tensor<T> where T: FloatOut + CommonBounds, FloatType<T>: CommonBounds {
+    type Output = Tensor<FloatType<T>>;
+
+    type InplaceOutput = Tensor<FloatType<T>>;
+
+    type OutputMeta = FloatType<T>;
+
+    fn sin(&self) -> Result<Self::Output> {
+        Ok(_Tensor::sin(self)?.into())
+    }
+
+    fn cos(&self) -> Result<Self::Output> {
+        Ok(_Tensor::cos(self)?.into())
+    }
+
+    fn tan(&self) -> Result<Self::Output> {
+        Ok(_Tensor::tan(self)?.into())
+    }
+
+    fn asin(&self) -> Result<Self::Output> {
+        Ok(_Tensor::asin(self)?.into())
+    }
+
+    fn acos(&self) -> Result<Self::Output> {
+        Ok(_Tensor::acos(self)?.into())
+    }
+
+    fn atan(&self) -> Result<Self::Output> {
+        Ok(_Tensor::atan(self)?.into())
+    }
+
+    fn sinh(&self) -> Result<Self::Output> {
+        Ok(_Tensor::sinh(self)?.into())
+    }
+
+    fn cosh(&self) -> Result<Self::Output> {
+        Ok(_Tensor::cosh(self)?.into())
+    }
+
+    fn tanh(&self) -> Result<Self::Output> {
+        Ok(_Tensor::tanh(self)?.into())
+    }
+
+    fn asinh(&self) -> Result<Self::Output> {
+        Ok(_Tensor::asinh(self)?.into())
+    }
+
+    fn acosh(&self) -> Result<Self::Output> {
+        Ok(_Tensor::acosh(self)?.into())
+    }
+
+    fn atanh(&self) -> Result<Self::Output> {
+        Ok(_Tensor::atanh(self)?.into())
+    }
+
+    fn sin_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn cos_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn tan_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn asin_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn acos_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn atan_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn sinh_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn cosh_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn tanh_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn asinh_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn acosh_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn atanh_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn exp(&self) -> Result<Self::Output> {
+        Ok(_Tensor::exp(self)?.into())
+    }
+
+    fn exp_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn exp2(&self) -> Result<Self::Output> {
+        Ok(_Tensor::exp2(self)?.into())
+    }
+
+    fn exp2_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn sqrt(&self) -> Result<Self::Output> {
+        Ok(_Tensor::sqrt(self)?.into())
+    }
+
+    fn sqrt_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn recip(&self) -> Result<Self::Output> {
+        Ok(_Tensor::recip(self)?.into())
+    }
+
+    fn recip_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn ln(&self) -> Result<Self::Output> {
+        Ok(_Tensor::ln(self)?.into())
+    }
+
+    fn ln_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn log2(&self) -> Result<Self::Output> {
+        Ok(_Tensor::log2(self)?.into())
+    }
+
+    fn log2_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn log10(&self) -> Result<Self::Output> {
+        Ok(_Tensor::log10(self)?.into())
+    }
+
+    fn log10_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
     }
 }
 
