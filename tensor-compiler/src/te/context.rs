@@ -27,20 +27,12 @@ use crate::{
 };
 
 use super::{
-    bodygen_helper::common_reduce,
-    insert_axes::InsertAxes,
-    rc_mut::RcMut,
-    schedule::Schedule,
-    srg::Srg,
-    srg_node::SrgNode,
-    stages::{ Body, Stage },
-    strides_cal_helper::{
+    bodygen_helper::common_reduce, insert_axes::InsertAxes, rc_mut::RcMut, schedule::Schedule, slice_helper::SliceVisitor, srg::Srg, srg_node::SrgNode, stages::{ Body, Stage }, strides_cal_helper::{
         binary_strides_cal,
         elementwise_strides_cal,
         reduce_strides_cal,
         slice_strides_cal,
-    },
-    tensor::{ StridesCal, Tensor },
+    }, tensor::{ StridesCal, Tensor }
 };
 
 #[derive(Clone)]
@@ -794,53 +786,17 @@ impl Context {
                                 )
                             )
                             .collect::<Vec<IterVar>>();
-                        let offset_body = Body::Stmt(
-                            Stmt::LetStmt(
-                                LetStmt::make(
-                                    &Variable::make(&format!("%{}_ptr", id)),
-                                    PrimeExpr::Variable(Variable::make(&format!("%{}", stage.id))) +
-                                        PrimeExpr::Variable(
-                                            Variable::make(&format!("%{}_offset", id))
-                                        ),
-                                    false,
-                                    Stmt::None
-                                )
-                            )
-                        );
-                        let body = Body::Stmt(
-                            Stmt::LetStmt(
-                                LetStmt::make(
-                                    &Variable::make(&format!("%{}_val", id)),
-                                    TensorLoad {
-                                        var: Variable::make(&format!("%{}_ptr", id)).into(),
-                                        begins: (0..shape.len())
-                                            .map(|_| (0i64).into())
-                                            .collect::<Vec<PrimeExpr>>()
-                                            .into(),
-                                        axes: (0..shape.len())
-                                            .map(|x| Variable::make(&format!("ax{}", x)).into())
-                                            .collect::<Vec<PrimeExpr>>()
-                                            .into(),
-                                        steps: (0..shape.len())
-                                            .map(|_| (1i64).into())
-                                            .collect::<Vec<PrimeExpr>>()
-                                            .into(),
-                                        strides: (0..shape.len())
-                                            .map(|idx|
-                                                Load::make(
-                                                    Variable::make(&format!("%{}.s", stage.id)),
-                                                    idx
-                                                ).into()
-                                            )
-                                            .collect::<Vec<PrimeExpr>>()
-                                            .into(),
-                                        hints: vec![].into(),
-                                    },
-                                    false,
-                                    Stmt::None
-                                )
-                            ).into()
-                        );
+                        let begins = slice.iter().map(|(begin, _, _)| begin.clone()).collect();
+                        let steps = slice.iter().map(|(_, _, step)| step.clone()).collect();
+                        let mut slice_visitor = SliceVisitor::new(begins, steps);
+                        
+                        let mut bodys = stage.bodys.iter().map(|x| {
+                            let mut x = x.clone();
+                            slice_visitor.set_expr(PrimeExpr::None);
+                            slice_visitor.set_stmt(Stmt::None);
+                            x.accept_mutate(&mut slice_visitor);
+                            x
+                        }).collect::<Vec<Body>>();
                         let store_body = Body::Stmt(
                             Stmt::StoreStmt(
                                 StoreStmt::make(
@@ -859,9 +815,10 @@ impl Context {
                                 )
                             )
                         );
+                        bodys.push(store_body);
                         let stage = Stage {
                             dims,
-                            bodys: vec![offset_body, body, store_body],
+                            bodys,
                             id,
                             out_id: id,
                             dtype: stage.dtype,
@@ -888,56 +845,30 @@ impl Context {
                                 )
                             )
                             .collect::<Vec<IterVar>>();
-                        let offset_body = Body::Stmt(
-                            Stmt::LetStmt(
-                                LetStmt::make(
-                                    &Variable::make(&format!("%{}_ptr", id)),
-                                    PrimeExpr::Variable(Variable::make(&format!("%{}", stage.id))) +
-                                        PrimeExpr::Variable(
-                                            Variable::make(&format!("%{}_offset", id))
-                                        ),
-                                    false,
-                                    Stmt::None
-                                )
-                            )
-                        );
-                        let body = Body::Stmt(
+                        let begins = slice.iter().map(|(begin, _, _)| begin.clone()).collect();
+                        let steps = slice.iter().map(|(_, _, step)| step.clone()).collect();
+                        let mut slice_visitor = SliceVisitor::new(begins, steps);
+                        let mut bodys = stage.bodys.iter().map(|x| {
+                            let mut x = x.clone();
+                            slice_visitor.set_expr(PrimeExpr::None);
+                            slice_visitor.set_stmt(Stmt::None);
+                            x.accept_mutate(&mut slice_visitor);
+                            x
+                        }).collect::<Vec<Body>>();
+                        let let_body = Body::Stmt(
                             Stmt::LetStmt(
                                 LetStmt::make(
                                     &Variable::make(&format!("%{}_val", id)),
-                                    TensorLoad {
-                                        var: Variable::make(&format!("%{}_ptr", id)).into(),
-                                        begins: (0..shape.len())
-                                            .map(|_| (0i64).into())
-                                            .collect::<Vec<PrimeExpr>>()
-                                            .into(),
-                                        axes: (0..shape.len())
-                                            .map(|x| Variable::make(&format!("ax{}", x)).into())
-                                            .collect::<Vec<PrimeExpr>>()
-                                            .into(),
-                                        steps: (0..shape.len())
-                                            .map(|_| (1i64).into())
-                                            .collect::<Vec<PrimeExpr>>()
-                                            .into(),
-                                        strides: (0..shape.len())
-                                            .map(|idx|
-                                                Load::make(
-                                                    Variable::make(&format!("%{}.s", stage.id)),
-                                                    idx
-                                                ).into()
-                                            )
-                                            .collect::<Vec<PrimeExpr>>()
-                                            .into(),
-                                        hints: vec![].into(),
-                                    },
+                                    Variable::make(&format!("%{}_val", stage.out_id)),
                                     false,
                                     Stmt::None
                                 )
                             ).into()
                         );
+                        bodys.push(let_body);
                         let stage = Stage {
                             dims,
-                            bodys: vec![offset_body, body],
+                            bodys,
                             id,
                             out_id: id,
                             dtype: stage.dtype,

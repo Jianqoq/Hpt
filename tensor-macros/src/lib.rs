@@ -8,9 +8,9 @@ use proc_macro2::{ TokenStream as TokenStream2, TokenTree };
 
 #[derive(Debug)]
 struct SelectionParser {
-    start: Option<isize>,
-    end: Option<isize>,
-    step: Option<isize>,
+    start: Option<i64>,
+    end: Option<i64>,
+    step: Option<i64>,
     start_neg: bool,
     start_ident: Option<Ident>,
     end_neg: bool,
@@ -26,9 +26,9 @@ struct Selections {
 
 impl syn::parse::Parse for SelectionParser {
     fn parse(input: parse::ParseStream) -> syn::Result<Self> {
-        let mut start: Option<isize> = None;
-        let mut end: Option<isize> = None;
-        let mut step: Option<isize> = None;
+        let mut start: Option<i64> = None;
+        let mut end: Option<i64> = None;
+        let mut step: Option<i64> = None;
         let mut start_ident: Option<Ident> = None;
         let mut end_ident: Option<Ident> = None;
         let mut step_ident: Option<Ident> = None;
@@ -36,7 +36,7 @@ impl syn::parse::Parse for SelectionParser {
         let mut end_neg = false;
         let mut step_neg = false;
         if input.peek(syn::LitInt) {
-            start = Some(input.parse::<syn::LitInt>()?.base10_parse::<isize>()?);
+            start = Some(input.parse::<syn::LitInt>()?.base10_parse::<i64>()?);
         } else if input.peek(Ident) {
             start_ident = Some(input.parse::<Ident>()?);
         } else if input.peek(Token![-]) && input.peek2(syn::Ident) {
@@ -65,7 +65,7 @@ impl syn::parse::Parse for SelectionParser {
             );
         }
         if input.peek(syn::LitInt) {
-            end = Some(input.parse::<syn::LitInt>()?.base10_parse::<isize>()?);
+            end = Some(input.parse::<syn::LitInt>()?.base10_parse::<i64>()?);
         } else if input.peek(Ident) {
             end_ident = Some(input.parse::<Ident>()?);
         } else if input.peek(Token![-]) && input.peek2(syn::Ident) {
@@ -77,7 +77,7 @@ impl syn::parse::Parse for SelectionParser {
             input.parse::<Token![:]>()?;
         }
         if input.peek(syn::LitInt) {
-            step = Some(input.parse::<syn::LitInt>()?.base10_parse::<isize>()?);
+            step = Some(input.parse::<syn::LitInt>()?.base10_parse::<i64>()?);
         } else if input.peek(Ident) {
             step_ident = Some(input.parse::<Ident>()?);
         } else if input.peek(Token![-]) && input.peek2(syn::Ident) {

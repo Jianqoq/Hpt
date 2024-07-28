@@ -138,7 +138,11 @@ impl Srg {
 #[cfg(test)]
 mod tests {
     use maplit::hashmap;
+    use tensor_common::slice;
+    use tensor_common::slice::Slice;
+    use tensor_macros::match_selection;
     use tensor_traits::shape_manipulate::ShapeManipulate;
+    use tensor_dyn::slice::SliceOps;
     use tensor_traits::tensor::NormalReduce;
     use tensor_traits::tensor::TensorCreator;
     use tensor_types::dtype::Dtype;
@@ -939,6 +943,67 @@ mod tests {
 
         let schedule = ctx.to_schedule(&order);
         let func = schedule.to_function();
+        assert_eq!(
+            func.to_string(),
+            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    let istrides0 = istrides_vec[0];
+    let istrides1 = istrides_vec[1];
+    let %0 = (data_vec[0] as *f32);
+    let %3 = (output_vec[0] as *f32);
+    let ostrides0 = ostrides_vec[0];
+    let m = shape_vars[0];
+    let n = shape_vars[1];
+    for ax0 in range(0, (m - 1) / 2) {
+        for ax1 in range(0, (n - 1) / 2) {
+            let %0_val = %0[(ax0 * (2 + 1) + (0 + 0)) * istrides0[0] + (ax1 * (2 + 1) + (0 + 0)) * istrides0[1]];
+            let %1_val = %0_val;
+            let %0_val = %0[(ax0 * (2 + 1) + (1 + 0)) * istrides1[0] + (ax1 * (2 + 1) + (1 + 0)) * istrides1[1]];
+            let %2_val = %0_val;
+            %3[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %1_val + %2_val;
+        }
+    }
+    return;
+}"
+        );
+        let mut module = Module::new("main");
+        let inputs = schedule.inputs();
+        let outputs = schedule.outputs();
+        assert!(inputs.len() == 1);
+        assert!(outputs.len() == 1);
+        assert!(inputs.contains(&0));
+        assert!(outputs.contains(&3));
+        module.add_function2(&schedule);
+        let context = tensor_llvm::context::context::Context::new();
+        let mut codegen = CodeGen::new(context, &module, 3);
+        codegen.compile();
+
+        let vars_map =
+            hashmap! {
+            "m".to_string().into() => 5,
+            "n".to_string().into() => 5,
+        };
+
+        let executable = codegen.into_executable(vars_map);
+        let a = tensor_dyn::tensor::Tensor::<f32>
+            ::arange(0.0, 25.0)
+            .expect("Failed to create tensor")
+            .reshape(&[5, 5])
+            .expect("Failed to reshape");
+        let inps_map = hashmap! { 0usize => a.clone().into() };
+        let d = tensor_dyn::tensor::Tensor::<f32>
+            ::zeros(&[2, 2])
+            .expect("Failed to create tensor");
+        let outs_map = hashmap! {
+            3 => d.clone().into(),
+        };
+
+        executable.execute(inps_map, outs_map);
+
+        let test = slice!(a[0:4:2, 0:4:2]).unwrap();
+        let test2 = slice!(a[1:5:2, 1:5:2]).unwrap();
+        let test3 = test + test2;
+        println!("{:?}", test3);
+        println!("{:?}", d);
     }
 
     //     #[test]
