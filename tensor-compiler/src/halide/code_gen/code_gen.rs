@@ -1475,6 +1475,48 @@ impl CodeGenVisitor for CodeGen {
                         res
                     }
                 }
+                "ceil" => {
+                    let arg = self.visit_expr(call.args().first().unwrap());
+                    let arg_ty = self.bindings[&self.current_fn].find_type(&arg).unwrap().dtype();
+                    let ret = match arg_ty {
+                        Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
+                            arg
+                        }
+                        Dtype::U8 | Dtype::U16 | Dtype::U32 | Dtype::U64 | Dtype::Usize => {
+                            arg
+                        }
+                        Dtype::F32 => {
+                            let ret_ty = self.ctx.f32_type();
+                            let fn_ty = ret_ty.fn_type(&[ret_ty.into()], false);
+                            let ceilf = self.module.add_function(fn_ty, "ceilf");
+                            self.fns.insert("ceilf".to_string().into(), ceilf.clone());
+                            let res = self.builder.build_call(&ceilf, &[arg], "ceilf");
+                            self.bindings
+                                .get_mut(&self.current_fn)
+                                .expect("fn not find")
+                                .insert_type(res, PrimitiveType::Dtype(Dtype::F32));
+                            res
+                        }
+                        Dtype::F64 => {
+                            let ret_ty = self.ctx.f64_type();
+                            let fn_ty = ret_ty.fn_type(&[ret_ty.into()], false);
+                            let ceil = self.module.add_function(fn_ty, "ceil");
+                            self.fns.insert("ceil".to_string().into(), ceil.clone());
+                            let res = self.builder.build_call(&ceil, &[arg], "ceil");
+                            self.bindings
+                                .get_mut(&self.current_fn)
+                                .expect("fn not find")
+                                .insert_type(res, PrimitiveType::Dtype(Dtype::F64));
+                            res
+                        }
+                        _ => unimplemented!("unsupported dtype, {}", arg_ty),
+                    };
+                    self.bindings
+                        .get_mut(&self.current_fn)
+                        .expect("fn not find")
+                        .insert_type(ret, PrimitiveType::Dtype(arg_ty));
+                    ret
+                }
                 _ => unimplemented!("function {} not found", fn_name),
             }
         }

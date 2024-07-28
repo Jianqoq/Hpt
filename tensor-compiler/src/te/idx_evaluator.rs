@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{ collections::HashMap, sync::Arc };
 
 use crate::halide::{ prime_expr::PrimeExpr, traits::IRMutVisitor };
 
@@ -112,6 +112,30 @@ impl<'a> IRMutVisitor for IdxEvaluator<'a> {
                 self.visit_expr(shr.e2());
                 let e2 = self.value;
                 self.value = e1 >> e2;
+            }
+            PrimeExpr::Call(call) => {
+                match call.name().as_str() {
+                    "ceil" => {
+                        let arg = call.args().get(0).unwrap();
+                        let val = match arg.as_ref() {
+                            PrimeExpr::Div(div) => {
+                                self.visit_expr(div.e1());
+                                let e1 = self.value;
+                                self.visit_expr(div.e2());
+                                let e2 = self.value;
+                                (e1 + e2 - 1) / e2
+                            }
+                            _ => {
+                                self.visit_expr(arg);
+                                self.value
+                            }
+                        };
+                        self.value = val;
+                    }
+                    _ => {
+                        unimplemented!("Call {} not implemented", call.name());
+                    }
+                }
             }
             _ => unreachable!(),
         }

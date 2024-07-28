@@ -27,12 +27,21 @@ use crate::{
 };
 
 use super::{
-    bodygen_helper::common_reduce, insert_axes::InsertAxes, rc_mut::RcMut, schedule::Schedule, slice_helper::SliceVisitor, srg::Srg, srg_node::SrgNode, stages::{ Body, Stage }, strides_cal_helper::{
+    bodygen_helper::common_reduce,
+    insert_axes::InsertAxes,
+    rc_mut::RcMut,
+    schedule::Schedule,
+    slice_helper::SliceVisitor,
+    srg::Srg,
+    srg_node::SrgNode,
+    stages::{ Body, Stage },
+    strides_cal_helper::{
         binary_strides_cal,
         elementwise_strides_cal,
         reduce_strides_cal,
         slice_strides_cal,
-    }, tensor::{ StridesCal, Tensor }
+    },
+    tensor::{ StridesCal, Tensor },
 };
 
 #[derive(Clone)]
@@ -750,11 +759,12 @@ impl Context {
                 })
                 .map(|x| {
                     let mut const_fold = ConstFold::new();
-                    const_fold.const_fold(x)
+                    Call::make("ceil", &[const_fold.const_fold(x)]).into()
                 })
                 .collect::<Vec<_>>()
         );
         let slice = Arc::new(selections.clone());
+        let shape = new_shape.clone();
         let ret = Tensor {
             shape: new_shape.clone(),
             inputs: Arc::new(vec![a.id]),
@@ -771,31 +781,30 @@ impl Context {
                     if let Body::Stage(stage) = &inputs[0] {
                         let stage = stage.clone();
                         let dims = (0..stage.dims.len())
-                            .zip(slice.iter())
-                            .map(|(idx, (start, end, step))|
-                                IterVar::new(
-                                    0i64,
-                                    (end -
-                                        start +
-                                        step -
-                                        PrimeExpr::Int(Int::make(Dtype::I64, 1))) /
-                                        step.clone(),
-                                    1i64,
-                                    &format!("ax{}", idx)
-                                )
+                            .map(|idx|
+                                IterVar::new(0i64, shape[idx].clone(), 1i64, &format!("ax{}", idx))
                             )
                             .collect::<Vec<IterVar>>();
-                        let begins = slice.iter().map(|(begin, _, _)| begin.clone()).collect();
-                        let steps = slice.iter().map(|(_, _, step)| step.clone()).collect();
+                        let begins = slice
+                            .iter()
+                            .map(|(begin, _, _)| begin.clone())
+                            .collect();
+                        let steps = slice
+                            .iter()
+                            .map(|(_, _, step)| step.clone())
+                            .collect();
                         let mut slice_visitor = SliceVisitor::new(begins, steps);
-                        
-                        let mut bodys = stage.bodys.iter().map(|x| {
-                            let mut x = x.clone();
-                            slice_visitor.set_expr(PrimeExpr::None);
-                            slice_visitor.set_stmt(Stmt::None);
-                            x.accept_mutate(&mut slice_visitor);
-                            x
-                        }).collect::<Vec<Body>>();
+
+                        let mut bodys = stage.bodys
+                            .iter()
+                            .map(|x| {
+                                let mut x = x.clone();
+                                slice_visitor.set_expr(PrimeExpr::None);
+                                slice_visitor.set_stmt(Stmt::None);
+                                x.accept_mutate(&mut slice_visitor);
+                                x
+                            })
+                            .collect::<Vec<Body>>();
                         let store_body = Body::Stmt(
                             Stmt::StoreStmt(
                                 StoreStmt::make(
@@ -830,30 +839,29 @@ impl Context {
                     if let Body::Stage(stage) = &inputs[0] {
                         let stage = stage.clone();
                         let dims = (0..stage.dims.len())
-                            .zip(slice.iter())
-                            .map(|(idx, (start, end, step))|
-                                IterVar::new(
-                                    0i64,
-                                    (end -
-                                        start +
-                                        step -
-                                        PrimeExpr::Int(Int::make(Dtype::I64, 1))) /
-                                        step.clone(),
-                                    1i64,
-                                    &format!("ax{}", idx)
-                                )
+                            .map(|idx|
+                                IterVar::new(0i64, shape[idx].clone(), 1i64, &format!("ax{}", idx))
                             )
                             .collect::<Vec<IterVar>>();
-                        let begins = slice.iter().map(|(begin, _, _)| begin.clone()).collect();
-                        let steps = slice.iter().map(|(_, _, step)| step.clone()).collect();
+                        let begins = slice
+                            .iter()
+                            .map(|(begin, _, _)| begin.clone())
+                            .collect();
+                        let steps = slice
+                            .iter()
+                            .map(|(_, _, step)| step.clone())
+                            .collect();
                         let mut slice_visitor = SliceVisitor::new(begins, steps);
-                        let mut bodys = stage.bodys.iter().map(|x| {
-                            let mut x = x.clone();
-                            slice_visitor.set_expr(PrimeExpr::None);
-                            slice_visitor.set_stmt(Stmt::None);
-                            x.accept_mutate(&mut slice_visitor);
-                            x
-                        }).collect::<Vec<Body>>();
+                        let mut bodys = stage.bodys
+                            .iter()
+                            .map(|x| {
+                                let mut x = x.clone();
+                                slice_visitor.set_expr(PrimeExpr::None);
+                                slice_visitor.set_stmt(Stmt::None);
+                                x.accept_mutate(&mut slice_visitor);
+                                x
+                            })
+                            .collect::<Vec<Body>>();
                         let let_body = Body::Stmt(
                             Stmt::LetStmt(
                                 LetStmt::make(

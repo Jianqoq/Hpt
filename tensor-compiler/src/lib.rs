@@ -65,6 +65,7 @@ pub mod te {
     pub mod bodygen_helper;
     pub mod transpose_axes;
     pub mod slice_helper;
+    pub mod tests;
 }
 pub mod arcstring;
 pub mod tensor;
