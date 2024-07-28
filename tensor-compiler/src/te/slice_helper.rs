@@ -46,7 +46,7 @@ impl IRMutateVisitor for SliceVisitor {
         let mut new_steps = vec![];
         for i in 0..self.begins.len() {
             new_begins.push(self.begins[i].clone() + tensor_load.begins[i].clone());
-            new_steps.push(self.steps[i].clone() + tensor_load.steps[i].clone());
+            new_steps.push(self.steps[i].clone() * tensor_load.steps[i].clone());
         }
         new_begins.extend_from_slice(&tensor_load.begins[self.begins.len()..]);
         new_steps.extend_from_slice(&tensor_load.steps[self.begins.len()..]);

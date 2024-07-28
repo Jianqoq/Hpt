@@ -755,7 +755,6 @@ impl Context {
                 .collect::<Vec<_>>()
         );
         let slice = Arc::new(selections.clone());
-        let shape = new_shape.clone();
         let ret = Tensor {
             shape: new_shape.clone(),
             inputs: Arc::new(vec![a.id]),

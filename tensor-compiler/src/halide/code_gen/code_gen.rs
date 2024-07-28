@@ -494,6 +494,9 @@ impl CodeGenVisitor for CodeGen {
     fn visit_div(&mut self, div: &crate::halide::exprs::Div) -> BasicValue {
         let lhs = self.visit_expr(div.e1());
         let rhs = self.visit_expr(div.e2());
+        if div.e2() == &PrimeExpr::Int(Int::make(Dtype::I64, 0)) {
+            panic!("division by zero")
+        }
         let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._div(rhs_type);
@@ -1307,6 +1310,12 @@ impl CodeGenVisitor for CodeGen {
         self.builder.position_at_end(entry_block);
         let start = self.visit_expr(for_stmt.start());
         let end = self.visit_expr(for_stmt.end());
+        let end_ty = self.bindings[&self.current_fn].find_type(&end).unwrap().dtype();
+        let end = if end_ty == Dtype::F64 {
+            self.builder.build_float_to_signed_int(self.ctx.i64_type().into(), end, "casted_end")
+        } else {
+            end
+        };
         let step = self.visit_expr(for_stmt.step());
         self.builder.build_unconditional_branch(cond_block);
         self.builder.position_at_end(cond_block);
