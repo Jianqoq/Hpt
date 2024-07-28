@@ -135,7 +135,6 @@ impl Srg {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
 
     use maplit::hashmap;
     use tensor_traits::shape_manipulate::ShapeManipulate;
