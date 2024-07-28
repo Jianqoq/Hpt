@@ -51,17 +51,17 @@ impl _IRPrinter {
         for import in &module.imports {
             println!("import {};", import);
         }
-        for func in module.fns.values() {
+        for fn_meta in module.fns.values() {
             self.do_indent();
-            print!("fn {}(", func.0.name);
-            for (i, (name, r#type)) in func.0.ty.args.iter().enumerate() {
+            print!("fn {}(", fn_meta.function.name);
+            for (i, (name, r#type)) in fn_meta.function.ty.args.iter().enumerate() {
                 if i != 0 {
                     print!(", ");
                 }
                 print!("{}: {}", name, r#type);
             }
-            println!(") -> {} {{", func.0.ty.ret_ty);
-            _IRPrinter::new(self.indent + 1).print_stmt(&func.0.body);
+            println!(") -> {} {{", fn_meta.function.ty.ret_ty);
+            _IRPrinter::new(self.indent + 1).print_stmt(&fn_meta.function.body);
             self.do_indent();
             println!("}}");
         }
@@ -75,18 +75,18 @@ impl _IRPrinter {
         for import in &module.imports {
             res.push_str(&format!("import {};\n", import));
         }
-        for func in module.fns.values() {
+        for fn_meta in module.fns.values() {
             res.push_str(&self.do_indent_str());
-            res.push_str(&format!("fn {}(", func.0.name));
-            for (i, (name, r#type)) in func.0.ty.args.iter().enumerate() {
+            res.push_str(&format!("fn {}(", fn_meta.function.name));
+            for (i, (name, r#type)) in fn_meta.function.ty.args.iter().enumerate() {
                 if i != 0 {
                     res.push_str(", ");
                 }
                 res.push_str(&format!("{}: {}", name, r#type));
             }
-            res.push_str(&format!(") -> {} {{\n", func.0.ty.ret_ty));
+            res.push_str(&format!(") -> {} {{\n", fn_meta.function.ty.ret_ty));
             res.push_str(
-                &format!("{}", _IRPrinter::new(self.indent + 1).print_stmt_str(&func.0.body))
+                &format!("{}", _IRPrinter::new(self.indent + 1).print_stmt_str(&fn_meta.function.body))
             );
             res.push_str(&self.do_indent_str());
             res.push_str("}\n");

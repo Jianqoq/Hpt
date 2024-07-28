@@ -8,7 +8,9 @@ use tensor_llvm::{
 
 use crate::halide::printer::_IRPrinter;
 use crate::te::hstrides::HStrides;
+use crate::te::schedule::Schedule;
 
+use super::prime_expr::PrimeExpr;
 use super::{ primitive_type::PrimitiveType, stmt::Stmt };
 
 #[derive(Eq, PartialEq, Clone)]
@@ -127,10 +129,20 @@ impl FunctionType {
 }
 
 #[derive(Clone)]
+pub struct FunctionMeta {
+    pub(crate) function: Function,
+    pub(crate) inputs_order: Vec<usize>,
+    pub(crate) outputs_order: Vec<usize>,
+    pub(crate) outs_shape: Vec<Arc<Vec<PrimeExpr>>>,
+    pub(crate) strides_cal: Arc<dyn Fn(&HashMap<Arc<String>, i64>) -> Vec<HStrides>>,
+    pub(crate) vars_order: Vec<Arc<String>>,
+}
+
+#[derive(Clone)]
 pub struct Module {
     pub(crate) name: Arc<String>,
     pub(crate) imports: HashSet<Arc<String>>,
-    pub(crate) fns: HashMap<Arc<String>, (Function, HashSet<usize>, HashSet<usize>, Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>>)>,
+    pub(crate) fns: HashMap<Arc<String>, FunctionMeta>,
     pub(crate) order: Vec<Arc<String>>,
 }
 
@@ -146,14 +158,27 @@ impl Module {
     pub fn set_order(&mut self, order: Vec<Arc<String>>) {
         self.order = order;
     }
-    pub fn add_function(&mut self, function: Function, inputs: HashSet<usize>, outputs: HashSet<usize>, strides_cal: Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>>) {
-        self.fns.insert(function.name.clone(), (function, inputs, outputs, strides_cal));
+    pub fn add_function2(&mut self, schedule: &Schedule) {
+        let strides_cal = schedule.strides_cal.clone();
+        let function = schedule.to_function();
+        let inputs = schedule.inputs_order().clone();
+        let outputs = schedule.outputs_order().clone();
+        let outs_shape = schedule.outs_shape().clone();
+        let vars_order = schedule.vars_order().clone();
+        self.fns.insert(function.name.clone(), FunctionMeta {
+            function,
+            inputs_order: inputs,
+            outputs_order: outputs,
+            outs_shape,
+            strides_cal,
+            vars_order,
+        });
     }
     pub fn get_function(&self, name: &Arc<String>) -> Option<&Function> {
-        self.fns.get(name).map(|x| &x.0)
+        self.fns.get(name).map(|x| &x.function)
     }
     pub fn get_function_mut(&mut self, name: &Arc<String>) -> Option<&mut Function> {
-        self.fns.get_mut(name).map(|x| &mut x.0)
+        self.fns.get_mut(name).map(|x| &mut x.function)
     }
 }
 
@@ -164,7 +189,7 @@ impl Display for Module {
             write!(f, "import \"{}\"\n", import)?;
         }
         for func in self.fns.values() {
-            write!(f, "{}\n", func.0)?;
+            write!(f, "{}\n", func.function)?;
         }
         write!(f, "}}")
     }

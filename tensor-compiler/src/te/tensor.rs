@@ -6,7 +6,7 @@ use crate::halide::prime_expr::PrimeExpr;
 
 use super::{hstrides::HStrides, stages::Body};
 
-pub type StridesCal = Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>>;
+pub type StridesCal = Arc<dyn Fn(&HashMap<Arc<String>, i64>) -> Vec<HStrides>>;
 pub type StridesCalHelper = Arc<dyn Fn(Vec<StridesCal>) -> StridesCal>;
 
 #[derive(Clone)]

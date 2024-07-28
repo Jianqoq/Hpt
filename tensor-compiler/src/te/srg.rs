@@ -30,7 +30,7 @@ impl Srg {
                 let node = self.nodes.get_mut(&id).unwrap();
                 let node_shape = node.shape.clone();
                 let tensor_sc = self.tensors.borrow().get(&id).unwrap().strides_cal.clone();
-                let input_func = Arc::new(move |map: &HashMap<String, i64>| {
+                let input_func = Arc::new(move |map: &HashMap<Arc<String>, i64>| {
                     let real_shape = node_shape
                         .iter()
                         .map(|x| { IdxEvaluator::new(map).eval(x) })
@@ -136,6 +136,8 @@ impl Srg {
 mod tests {
     use std::collections::HashMap;
 
+    use maplit::hashmap;
+    use serde_json::json;
     use tensor_types::dtype::Dtype;
 
     use crate::{
@@ -166,9 +168,9 @@ mod tests {
         srg.create_strides_cal(&order);
 
         let mut var_map = HashMap::new();
-        var_map.insert("m".to_string(), 1);
-        var_map.insert("n".to_string(), 8);
-        var_map.insert("o".to_string(), 8);
+        var_map.insert("m".to_string().into(), 1);
+        var_map.insert("n".to_string().into(), 8);
+        var_map.insert("o".to_string().into(), 8);
 
         let node = &srg.nodes[order.last().unwrap()];
         let strides = (node.strides_cal)(&var_map);
@@ -184,7 +186,6 @@ mod tests {
         let order = [a.id];
         let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
-        let func = schedule.to_function();
         let mut module = Module::new("main");
         let inputs = schedule.inputs();
         let outputs = schedule.outputs();
@@ -192,7 +193,7 @@ mod tests {
         assert!(outputs.len() == 1);
         assert!(inputs.contains(&0));
         assert!(outputs.contains(&0));
-        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
+        module.add_function2(&schedule);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -240,7 +241,7 @@ mod tests {
         assert!(outputs.len() == 1);
         assert!(inputs.contains(&0));
         assert!(outputs.contains(&1));
-        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
+        module.add_function2(&schedule);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -291,10 +292,17 @@ mod tests {
         assert!(inputs.contains(&0));
         assert!(inputs.contains(&1));
         assert!(outputs.contains(&2));
-        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
+        module.add_function2(&schedule);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
+        let vars_map =
+            hashmap! {
+            "m".to_string().into() => 1,
+            "n".to_string().into() => 8,
+            "o".to_string().into() => 8,
+        };
+        let executable = codegen.into_executable(vars_map);
     }
 
     #[test]
@@ -342,7 +350,7 @@ mod tests {
         assert!(inputs.contains(&0));
         assert!(inputs.contains(&1));
         assert!(outputs.contains(&2));
-        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
+        module.add_function2(&schedule);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -393,7 +401,7 @@ mod tests {
         assert!(inputs.contains(&0));
         assert!(inputs.contains(&1));
         assert!(outputs.contains(&2));
-        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
+        module.add_function2(&schedule);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -442,7 +450,7 @@ mod tests {
         assert!(inputs.contains(&0));
         assert!(inputs.contains(&1));
         assert!(outputs.contains(&3));
-        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
+        module.add_function2(&schedule);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 0);
         codegen.compile();
@@ -492,7 +500,7 @@ mod tests {
         assert!(outputs.len() == 1);
         assert!(inputs.contains(&0));
         assert!(outputs.contains(&1));
-        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
+        module.add_function2(&schedule);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -555,7 +563,7 @@ mod tests {
         assert!(outputs.len() == 1);
         assert!(inputs.contains(&0));
         assert!(outputs.contains(&3));
-        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
+        module.add_function2(&schedule);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -606,7 +614,7 @@ mod tests {
         assert!(outputs.len() == 1);
         assert!(inputs.contains(&0));
         assert!(outputs.contains(&1));
-        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
+        module.add_function2(&schedule);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();
@@ -816,7 +824,7 @@ mod tests {
         assert!(inputs.contains(&0));
         assert!(inputs.contains(&2));
         assert!(outputs.contains(&4));
-        module.add_function(func, inputs, outputs, schedule.strides_cal.clone());
+        module.add_function2(&schedule);
         let context = tensor_llvm::context::context::Context::new();
         let mut codegen = CodeGen::new(context, &module, 3);
         codegen.compile();

@@ -1,14 +1,14 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::halide::{ prime_expr::PrimeExpr, traits::IRMutVisitor };
 
 pub struct IdxEvaluator<'a> {
     value: i64,
-    map: &'a HashMap<String, i64>,
+    map: &'a HashMap<Arc<String>, i64>,
 }
 
 impl<'a> IdxEvaluator<'a> {
-    pub fn new(map: &'a HashMap<String, i64>) -> Self {
+    pub fn new(map: &'a HashMap<Arc<String>, i64>) -> Self {
         Self {
             value: 0,
             map,
@@ -33,7 +33,7 @@ impl<'a> IRMutVisitor for IdxEvaluator<'a> {
                 self.value = uint.value() as i64;
             }
             PrimeExpr::Variable(var) => {
-                if let Some(value) = self.map.get(var.name()) {
+                if let Some(value) = self.map.get(&var.name) {
                     self.value = *value;
                 } else {
                     panic!("Variable {} not found in the map", var.name());

@@ -5,15 +5,7 @@ use tensor_types::dtype::Dtype;
 use crate::{
     edges::Edges,
     halide::{
-        exprs::{ BitCast, Load },
-        let_stmt::LetStmt,
-        module::{ Function, FunctionType },
-        primitive_type::{ PrimitiveType, Ptr },
-        printer::IRPrinter,
-        seq_stmt::Seq,
-        stmt::Stmt,
-        traits::AccepterMutate,
-        variable::Variable,
+        exprs::{ BitCast, Load }, let_stmt::LetStmt, module::{ Function, FunctionType }, prime_expr::PrimeExpr, primitive_type::{ PrimitiveType, Ptr }, printer::IRPrinter, seq_stmt::Seq, stmt::Stmt, traits::AccepterMutate, variable::Variable
     },
     te::strides_visitor::StridesVisitor,
 };
@@ -29,7 +21,7 @@ use super::{
 pub struct Schedule {
     pub(crate) qa: HashMap<usize, (Body, bool)>,
     pub(crate) nodes: RcMut<HashMap<usize, Tensor>>,
-    pub(crate) strides_cal: Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>>,
+    pub(crate) strides_cal: Arc<dyn Fn(&HashMap<Arc<String>, i64>) -> Vec<HStrides>>,
 }
 
 impl Schedule {
@@ -73,10 +65,24 @@ impl Schedule {
         empty_fn
     }
 
-    pub fn cal_strides(&self, var_map: &HashMap<String, i64>) -> Vec<HStrides> {
+    pub fn cal_strides(&self, var_map: &HashMap<Arc<String>, i64>) -> Vec<HStrides> {
         (self.strides_cal)(var_map)
     }
-
+    pub fn inputs_order(&self) -> Vec<usize> {
+        inps_order(self)
+    }
+    pub fn outputs_order(&self) -> Vec<usize> {
+        outs_order(self)
+    }
+    pub fn outs_shape(&self) -> Vec<Arc<Vec<PrimeExpr>>> {
+        self.outputs_order()
+            .iter()
+            .map(|x| self.nodes.borrow().get(x).unwrap().shape.clone())
+            .collect()
+    }
+    pub fn vars_order(&self) -> Vec<Arc<String>> {
+        vars_order(self)
+    }
     pub fn inputs(&self) -> HashSet<usize> {
         self.nodes
             .borrow()
@@ -176,6 +182,17 @@ fn gen_ptr_loads(schedule: &Schedule) -> Vec<Stmt> {
         .collect::<Vec<Stmt>>()
 }
 
+fn inps_order(schedule: &Schedule) -> Vec<usize> {
+    let mut input_vec = vec![];
+    for node in schedule.nodes.borrow().values() {
+        if node.inputs.len() == 0 {
+            input_vec.push(node.id);
+        }
+    }
+    input_vec.sort();
+    input_vec
+}
+
 fn gen_ptr_stores(schedule: &Schedule) -> Vec<Stmt> {
     let mut edges = HashMap::new();
     for node in schedule.nodes.borrow().values() {
@@ -223,6 +240,30 @@ fn gen_ptr_stores(schedule: &Schedule) -> Vec<Stmt> {
         .collect::<Vec<Stmt>>()
 }
 
+fn outs_order(schedule: &Schedule) -> Vec<usize> {
+    let mut edges = HashMap::new();
+    for node in schedule.nodes.borrow().values() {
+        if edges.contains_key(&node.id) {
+            continue;
+        } else {
+            edges.insert(node.id, HashSet::from_iter(node.inputs.iter().map(|x| *x)));
+        }
+    }
+    let mut edge = Edges::new();
+    edge.set_inner(edges);
+    let mut inverted = edge.invert();
+    for i in edge.keys() {
+        inverted.entry(*i).or_insert(HashSet::new());
+    }
+    let mut outputs = inverted
+        .iter()
+        .filter(|(_, outputs)| outputs.len() == 0)
+        .map(|x| *x.0)
+        .collect::<Vec<usize>>();
+    outputs.sort();
+    outputs
+}
+
 fn gen_shape_var_loads(schedule: &Schedule) -> Vec<Stmt> {
     let mut vars = vec![];
     let mut visited = HashSet::new();
@@ -245,6 +286,25 @@ fn gen_shape_var_loads(schedule: &Schedule) -> Vec<Stmt> {
             Stmt::LetStmt(LetStmt::make(x, Load::make("shape_vars", idx), false, Stmt::None))
         })
         .collect::<Vec<Stmt>>()
+}
+
+fn vars_order(schedule: &Schedule) -> Vec<Arc<String>> {
+    let mut vars = vec![];
+    let mut visited = HashSet::new();
+    for node in schedule.nodes.borrow().values() {
+        for i in node.shape.iter() {
+            if let Some(var) = i.to_variable() {
+                if visited.contains(var) {
+                    continue;
+                } else {
+                    vars.push(var.name.clone());
+                    visited.insert(var);
+                }
+            }
+        }
+    }
+    vars.sort();
+    vars
 }
 
 fn empty_fn() -> Function {

@@ -112,7 +112,7 @@ impl Context {
             id,
             strides_cal: Arc::new(move |_: Vec<StridesCal>| {
                 let shape = shape1.clone();
-                Arc::new(move |map: &HashMap<String, i64>| {
+                Arc::new(move |map: &HashMap<Arc<String>, i64>| {
                     let real_shape = shape
                         .iter()
                         .map(|x| { IdxEvaluator::new(map).eval(x) })
@@ -199,7 +199,7 @@ impl Context {
                 let prev_fn = prev_fn[0].clone();
                 let new_shape = shape1.clone();
                 let prev_shape = prev_shape.clone();
-                Arc::new(move |map: &HashMap<String, i64>| {
+                Arc::new(move |map: &HashMap<Arc<String>, i64>| {
                     let prev_strides = prev_fn.clone()(map);
                     let new_shape = new_shape
                         .iter()
@@ -982,7 +982,7 @@ impl Context {
             span: Location::caller(),
             strides_cal: Arc::new(move |prev_fn: Vec<StridesCal>| {
                 let prev_fn = prev_fn[0].clone();
-                Arc::new(move |map: &HashMap<String, i64>| { prev_fn(map) })
+                Arc::new(move |map: &HashMap<Arc<String>, i64>| { prev_fn(map) })
             }),
             body_gen: Arc::new(move |inputs: Vec<Body>, is_output: bool, id: usize| {
                 if is_output {

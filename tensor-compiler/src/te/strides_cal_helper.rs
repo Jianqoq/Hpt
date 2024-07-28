@@ -14,10 +14,10 @@ pub fn binary_strides_cal(
     lhs_shape: Arc<Vec<PrimeExpr>>,
     rhs_shape: Arc<Vec<PrimeExpr>>,
     res_shape: Arc<Vec<PrimeExpr>>,
-    lhs_strides_cal: Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>>,
-    rhs_strides_cal: Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>>
-) -> Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>> {
-    Arc::new(move |map: &HashMap<String, i64>| {
+    lhs_strides_cal: Arc<dyn Fn(&HashMap<Arc<String>, i64>) -> Vec<HStrides>>,
+    rhs_strides_cal: Arc<dyn Fn(&HashMap<Arc<String>, i64>) -> Vec<HStrides>>
+) -> Arc<dyn Fn(&HashMap<Arc<String>, i64>) -> Vec<HStrides>> {
+    Arc::new(move |map: &HashMap<Arc<String>, i64>| {
         let lhs_strides = lhs_strides_cal(map);
         let rhs_strides = rhs_strides_cal(map);
         assert_eq!(lhs_strides.len(), rhs_strides.len());
@@ -83,10 +83,10 @@ pub fn binary_strides_cal(
 }
 
 pub fn reduce_strides_cal(
-    prev_func: Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>>,
+    prev_func: Arc<dyn Fn(&HashMap<Arc<String>, i64>) -> Vec<HStrides>>,
     axes: Vec<usize>
-) -> Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>> {
-    Arc::new(move |map: &HashMap<String, i64>| {
+) -> Arc<dyn Fn(&HashMap<Arc<String>, i64>) -> Vec<HStrides>> {
+    Arc::new(move |map: &HashMap<Arc<String>, i64>| {
         let prev_strides = prev_func(map);
         let mut ret = vec![];
         for strides in prev_strides.into_iter() {
@@ -119,17 +119,17 @@ pub fn reduce_strides_cal(
 }
 
 pub fn elementwise_strides_cal(
-    prev_func: Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>>
-) -> Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>> {
-    Arc::new(move |map: &HashMap<String, i64>| { prev_func(map) })
+    prev_func: Arc<dyn Fn(&HashMap<Arc<String>, i64>) -> Vec<HStrides>>
+) -> Arc<dyn Fn(&HashMap<Arc<String>, i64>) -> Vec<HStrides>> {
+    Arc::new(move |map: &HashMap<Arc<String>, i64>| { prev_func(map) })
 }
 
 pub fn slice_strides_cal(
     shape: Arc<Vec<PrimeExpr>>,
     selections: Vec<(PrimeExpr, PrimeExpr, PrimeExpr)>,
-    prev_func: Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>>
-) -> Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>> {
-    Arc::new(move |map: &HashMap<String, i64>| {
+    prev_func: Arc<dyn Fn(&HashMap<Arc<String>, i64>) -> Vec<HStrides>>
+) -> Arc<dyn Fn(&HashMap<Arc<String>, i64>) -> Vec<HStrides>> {
+    Arc::new(move |map: &HashMap<Arc<String>, i64>| {
         let selections = selections
             .iter()
             .map(|(start, end, step)| (

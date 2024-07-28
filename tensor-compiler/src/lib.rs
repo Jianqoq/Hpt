@@ -24,6 +24,7 @@ pub mod halide {
     }
     pub mod executable {
         pub mod executable;
+        pub mod arr;
     }
     pub mod module;
     pub mod if_stmt;

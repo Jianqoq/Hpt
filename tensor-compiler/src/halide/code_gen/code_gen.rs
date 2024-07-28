@@ -131,7 +131,8 @@ impl CodeGen {
         let mut fns_id = HashMap::new();
         let mut id_fns = HashMap::new();
         let mut cnt = 0;
-        for (func, inputs, outputs, _) in module.fns.values() {
+        for fn_meta in module.fns.values() {
+            let func = &fn_meta.function;
             let fn_val = _module.add_function(
                 func.ty.to_llvm_func_type(&ctx, global_tensor),
                 &func.name
@@ -158,26 +159,39 @@ impl CodeGen {
 
     pub fn compile(&mut self) {
         for i in self.halide_module.fns.clone().values() {
-            self.visit_function(&i.0);
+            self.visit_function(&i.function);
         }
         self.module.print_to_file("module.ll").expect("failed to print to file");
     }
 
-    pub fn to_executable(&self, vars_map: HashMap<String, i64>) -> Executable {
+    pub fn into_executable(self, vars_map: HashMap<Arc<String>, i64>) -> Executable {
         let mut edges = Edges::new();
         let mut funcs = HashSet::new();
-        for (func, inputs, outputs, _) in self.halide_module.fns.values() {
+        let fns = self.halide_module.fns
+            .values()
+            .map(|fn_meta| {
+                (
+                    &fn_meta.function,
+                    HashSet::from_iter(fn_meta.inputs_order.iter()),
+                    HashSet::from_iter(fn_meta.outputs_order.iter()),
+                    &fn_meta.outs_shape,
+                )
+            })
+            .collect::<
+                Vec<(&Function, HashSet<&usize>, HashSet<&usize>, &Vec<Arc<Vec<PrimeExpr>>>)>
+            >();
+        for (func, inputs, outputs, _) in fns.iter() {
             let input_funcs = inputs
                 .iter()
                 .map(|x|
-                    self.halide_module.fns
+                    fns
                         .iter()
-                        .filter(|(_, (_, _, outputs, _))| { outputs.contains(x) })
-                        .map(|(_, (inp_fn, _, _, _))| inp_fn)
-                        .collect::<Vec<&Function>>()
+                        .filter(|(_, _, outputs, _)| { outputs.contains(x) })
+                        .map(|(inp_fn, _, _, _)| inp_fn)
+                        .collect::<Vec<&&Function>>()
                 )
                 .flatten()
-                .collect::<HashSet<&Function>>();
+                .collect::<HashSet<&&Function>>();
             edges.insert(func, input_funcs);
             funcs.insert(func);
         }
@@ -188,16 +202,41 @@ impl CodeGen {
             .collect::<Vec<Arc<String>>>();
         let strides_cal_order = order
             .iter()
-            .map(|x| self.halide_module.fns.get(x).unwrap().3.clone())
-            .collect::<Vec<Arc<dyn Fn(&HashMap<String, i64>) -> Vec<HStrides>>>>();
-        todo!()
+            .map(|x| self.halide_module.fns.get(x).unwrap().strides_cal.clone())
+            .collect::<Vec<Arc<dyn Fn(&HashMap<Arc<String>, i64>) -> Vec<HStrides>>>>();
+        let sorted_outs_shape = order
+            .iter()
+            .map(|x| self.halide_module.fns.get(x).unwrap().outs_shape.clone())
+            .collect::<Vec<Vec<Arc<Vec<PrimeExpr>>>>>();
+        let sorted_vars = order
+            .iter()
+            .map(|x| self.halide_module.fns.get(x).unwrap().vars_order.clone())
+            .collect::<Vec<Vec<Arc<String>>>>();
+        Executable {
+            ctx: self.ctx,
+            module: self.module,
+            builder: self.builder,
+            ee: self.ee,
+            sorted_fns: order,
+            sorted_strides_cal: strides_cal_order,
+            sorted_touse_vars: sorted_vars,
+            sorted_out_shapes: sorted_outs_shape,
+            touse_vars_layout: vec![],
+            istrides_vec_layout: vec![],
+            ostrides_vec_layout: vec![],
+            strides_layout: vec![],
+            ostrides_layouts: vec![],
+            istrides: vec![],
+            ostrides: vec![],
+            vars: vec![],
+        }
     }
 }
 
 fn topo<'a>(
-    edges: &'a Edges<&Function>,
-    nodes: &'a HashSet<&Function>
-) -> Option<VecDeque<&'a Function>> {
+    edges: &'a Edges<&&Function>,
+    nodes: &'a HashSet<&&Function>
+) -> Option<VecDeque<&'a &'a Function>> {
     let mut in_degree = HashMap::new();
     let mut queue = VecDeque::new();
     let mut order = VecDeque::new();
