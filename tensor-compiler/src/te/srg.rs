@@ -322,7 +322,8 @@ mod tests {
         let c = tensor_dyn::tensor::Tensor::<f32>
             ::zeros(&[5, 4, 5])
             .expect("Failed to create tensor");
-        executable.execute(inps_map, hashmap! { 2usize => c.into() });
+        let outs_map = hashmap! { 2usize => c.into() };
+        executable.execute(inps_map, outs_map);
     }
 
     #[test]
