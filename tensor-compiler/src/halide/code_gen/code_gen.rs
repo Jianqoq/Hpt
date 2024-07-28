@@ -1503,7 +1503,6 @@ impl CodeGenVisitor for CodeGen {
             self.tensor_type,
             &self.ctx
         );
-        self.printf(&format!("loaded {}: %p\n", var), &[loaded]);
         self.bindings
             .get_mut(&self.current_fn)
             .expect("fn not find")

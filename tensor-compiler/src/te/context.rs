@@ -77,6 +77,7 @@ impl Context {
             nodes,
             tensors: self.nodes.clone(),
         };
+        srg.create_strides_cal(&order);
         srg.create_schedule(order)
     }
 

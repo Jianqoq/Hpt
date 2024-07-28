@@ -239,10 +239,6 @@ impl Executable {
                 });
             let input_container = self.sorted_inputs_container[idx];
             let output_container = self.sorted_outputs_container[idx];
-            println!("istrides: {:?}", istrides);
-            println!("ostrides: {:?}", ostrides);
-            println!("input_container: {:?}", input_container);
-            println!("output_container: {:?}", output_container);
             unsafe {
                 llvm_fn(
                     istrides,

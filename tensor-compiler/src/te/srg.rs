@@ -23,7 +23,7 @@ pub struct Srg {
 }
 
 impl Srg {
-    fn create_strides_cal(&mut self, sorted: &[usize]) {
+    pub(crate) fn create_strides_cal(&mut self, sorted: &[usize]) {
         for id in sorted {
             let inputs = self.nodes[&id].inputs.clone();
             if inputs.len() == 0 {
@@ -50,12 +50,14 @@ impl Srg {
                 for i in inputs.iter() {
                     input_funcs.push(self.nodes[&i].strides_cal.clone());
                 }
+                let node = self.nodes.get_mut(&id).unwrap();
+                let func = self.tensors.borrow().get(&id).unwrap().strides_cal.clone()(input_funcs);
+                node.strides_cal = func;
             }
         }
     }
 
     pub fn create_schedule(&mut self, sorted: &[usize]) -> Schedule {
-        self.create_strides_cal(sorted);
         let mut declared_vars = HashSet::new();
         let mut qa = HashMap::new();
         for id in sorted {
