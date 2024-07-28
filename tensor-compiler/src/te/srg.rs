@@ -254,13 +254,38 @@ mod tests {
         let m = ctx.var("m");
         let n = ctx.var("n");
         let o = ctx.var("o");
-        let a = ctx.placeholder(&[&m], Dtype::F32);
-        let b = ctx.placeholder(&[&m], Dtype::F32);
+        let a = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
+        let b = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
         let c = ctx.add(&a, &b);
         let order = [a.id, b.id, c.id];
 
         let srg = ctx.to_srg();
         let schedule = srg.create_schedule(&order);
+        let func = schedule.to_function();
+        assert_eq!(
+            func.to_string(),
+            "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    let istrides0 = istrides_vec[0];
+    let istrides1 = istrides_vec[1];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (data_vec[1] as *f32);
+    let %2 = (output_vec[0] as *f32);
+    let ostrides0 = ostrides_vec[0];
+    let m = shape_vars[0];
+    let n = shape_vars[1];
+    let o = shape_vars[2];
+    for ax0 in range(0, m) {
+        for ax1 in range(0, n) {
+            for ax2 in range(0, o) {
+                let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1] + ax2 * istrides0[2]];
+                let %1_val = %1[ax0 * istrides1[0] + ax1 * istrides1[1] + ax2 * istrides1[2]];
+                %2[ax0 * ostrides0[0] + ax1 * ostrides0[1] + ax2 * ostrides0[2]] = %0_val + %1_val;
+            }
+        }
+    }
+    return;
+}"
+        );
         let mut module = Module::new("main");
         let inputs = schedule.inputs();
         let outputs = schedule.outputs();
@@ -276,21 +301,27 @@ mod tests {
         let vars_map =
             hashmap! {
             "m".to_string().into() => 5,
+            "n".to_string().into() => 4,
+            "o".to_string().into() => 5,
         };
         let executable = codegen.into_executable(vars_map);
 
         let a = tensor_dyn::tensor::Tensor::<f32>
             ::arange(0.0, 100.0)
-            .expect("Failed to create tensor");
+            .expect("Failed to create tensor")
+            .reshape(&[5, 4, 5])
+            .expect("Failed to reshape");
         let b = tensor_dyn::tensor::Tensor::<f32>
             ::arange(0.0, 100.0)
-            .expect("Failed to create tensor");
+            .expect("Failed to create tensor")
+            .reshape(&[5, 4, 5])
+            .expect("Failed to reshape");
         let inps_map = hashmap! {
             0usize => a.into(),
             1 => b.into(),
         };
         let c = tensor_dyn::tensor::Tensor::<f32>
-            ::zeros(&[100])
+            ::zeros(&[5, 4, 5])
             .expect("Failed to create tensor");
         let outs_map = hashmap! { 2usize => c.into() };
         executable.execute(inps_map, outs_map);
