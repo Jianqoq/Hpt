@@ -1,6 +1,5 @@
 use std::{ alloc::Layout, collections::HashMap, ffi::c_void, sync::Arc };
 
-use tensor_common::strides_utils::shape_to_strides;
 use tensor_llvm::{
     builder::builder::Builder,
     context::context::Context,
@@ -13,6 +12,8 @@ use crate::{
     te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator },
 };
 
+use super::arr::Array;
+
 pub struct Executable {
     pub ctx: Context,
     pub module: tensor_llvm::module::module::Module,
@@ -20,6 +21,12 @@ pub struct Executable {
     pub ee: ExecutionEngine,
     pub sorted_fns: Vec<Arc<String>>,
     pub sorted_strides_cal: Vec<Arc<dyn Fn(&HashMap<Arc<String>, i64>) -> Vec<HStrides>>>,
+    pub sorted_inputs: Vec<Vec<usize>>,
+    pub sorted_outputs: Vec<Vec<usize>>,
+    pub sorted_inputs_container: Vec<*mut *mut c_void>,
+    pub sorted_outputs_container: Vec<*mut *mut c_void>,
+    pub sorted_ic_layouts: Vec<Vec<Layout>>,
+    pub sorted_oc_layouts: Vec<Vec<Layout>>,
     pub sorted_touse_vars: Vec<Vec<Arc<String>>>,
     pub sorted_out_shapes: Vec<Vec<Arc<Vec<PrimeExpr>>>>,
     pub touse_vars_layout: Vec<Layout>,
@@ -27,6 +34,7 @@ pub struct Executable {
     pub ostrides_vec_layout: Vec<Layout>,
     pub strides_layout: Vec<Vec<Layout>>,
     pub ostrides_layouts: Vec<Vec<Layout>>,
+    pub vars_map: HashMap<Arc<String>, i64>,
     pub istrides: Vec<*mut *mut i64>,
     pub ostrides: Vec<*mut *mut i64>,
     pub vars: Vec<*mut i64>,
@@ -48,7 +56,7 @@ impl Executable {
         unsafe { std::mem::transmute_copy::<u64, F>(&address) }
     }
 
-    pub fn prepare(mut self, var_map: HashMap<Arc<String>, i64>) -> Self {
+    pub fn prepare(mut self) -> Self {
         let mut touse_vars_layout = vec![];
         let mut istrides_vec_layout = vec![];
         let mut ostrides_vec_layout = vec![];
@@ -57,9 +65,15 @@ impl Executable {
         let mut istrides = vec![];
         let mut ostrides = vec![];
         let mut vars = vec![];
+        let mut sorted_inputs_container = vec![];
+        let mut sorted_outputs_container = vec![];
+        let mut sorted_ic_layouts = vec![];
+        let mut sorted_oc_layouts = vec![];
+        let mut sorted_ic_layout = vec![];
+        let mut sorted_oc_layout = vec![];
         for (idx, strides_cal) in self.sorted_strides_cal.iter().enumerate() {
             let _istrides = {
-                let strides = strides_cal(&var_map);
+                let strides = strides_cal(&self.vars_map);
                 let mut cached_layout = vec![];
                 let layout = std::alloc::Layout
                     ::from_size_align(strides.len() * std::mem::size_of::<*mut i64>(), 8)
@@ -86,7 +100,7 @@ impl Executable {
                     .iter()
                     .map(|x| {
                         x.iter()
-                            .map(|x| IdxEvaluator::new(&var_map).eval(x))
+                            .map(|x| IdxEvaluator::new(&self.vars_map).eval(x))
                             .collect::<Vec<i64>>()
                     })
                     .collect::<Vec<_>>();
@@ -121,17 +135,53 @@ impl Executable {
                 let shape_vars = unsafe {
                     let shape_vars = std::alloc::alloc(layout.clone()) as *mut i64;
                     for (idx, var) in vars.iter().enumerate() {
-                        shape_vars.add(idx).write(var_map[var]);
+                        shape_vars.add(idx).write(self.vars_map[var]);
                     }
                     shape_vars
                 };
                 touse_vars_layout.push(layout);
                 shape_vars
             };
+
+            let _inputs = {
+                let layout = std::alloc::Layout
+                    ::from_size_align(
+                        self.sorted_inputs[idx].len() * std::mem::size_of::<*mut c_void>(),
+                        8
+                    )
+                    .unwrap();
+                let input_container = unsafe {
+                    std::alloc::alloc(layout.clone()) as *mut *mut c_void
+                };
+                sorted_ic_layout.push(layout);
+                input_container
+            };
+
+            let _outputs = {
+                let layout = std::alloc::Layout
+                    ::from_size_align(
+                        self.sorted_outputs[idx].len() * std::mem::size_of::<*mut c_void>(),
+                        8
+                    )
+                    .unwrap();
+                let output_container = unsafe {
+                    std::alloc::alloc(layout.clone()) as *mut *mut c_void
+                };
+                sorted_oc_layout.push(layout);
+                output_container
+            };
+            sorted_inputs_container.push(_inputs);
+            sorted_outputs_container.push(_outputs);
+            sorted_ic_layouts.push(sorted_ic_layout.clone());
+            sorted_oc_layouts.push(sorted_oc_layout.clone());
             istrides.push(_istrides);
             ostrides.push(_ostrides);
             vars.push(_vars);
         }
+        self.sorted_inputs_container = sorted_inputs_container;
+        self.sorted_outputs_container = sorted_outputs_container;
+        self.sorted_ic_layouts = sorted_ic_layouts;
+        self.sorted_oc_layouts = sorted_oc_layouts;
         self.touse_vars_layout = touse_vars_layout;
         self.istrides_vec_layout = istrides_vec_layout;
         self.ostrides_vec_layout = ostrides_vec_layout;
@@ -143,7 +193,7 @@ impl Executable {
         self
     }
 
-    pub fn execute(&self) {
+    pub fn execute(&self, inputs: HashMap<usize, Array>, outputs: HashMap<usize, Array>) {
         for (idx, fn_name) in self.sorted_fns.iter().enumerate() {
             let c_str = to_c_str(fn_name);
             let address = unsafe {
@@ -169,6 +219,38 @@ impl Executable {
             let istrides = self.istrides[idx];
             let ostrides = self.ostrides[idx];
             let vars = self.vars[idx];
+            self.sorted_inputs[idx]
+                .iter()
+                .enumerate()
+                .for_each(|(idx, x)| {
+                    let data = inputs[x].ptr();
+                    unsafe {
+                        self.sorted_inputs_container[idx].add(*x).write(data);
+                    }
+                });
+            self.sorted_outputs[idx]
+                .iter()
+                .enumerate()
+                .for_each(|(idx, x)| {
+                    let data = outputs[x].ptr();
+                    unsafe {
+                        self.sorted_outputs_container[idx].add(*x).write(data);
+                    }
+                });
+            let input_container = self.sorted_inputs_container[idx];
+            let output_container = self.sorted_outputs_container[idx];
+
+            unsafe {
+                llvm_fn(
+                    istrides,
+                    ostrides,
+                    input_container,
+                    output_container,
+                    std::ptr::null_mut(),
+                    vars,
+                    0
+                );
+            }
         }
     }
 }

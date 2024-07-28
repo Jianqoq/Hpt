@@ -64,7 +64,7 @@ pub mod te {
     pub mod index_replace;
     pub mod bodygen_helper;
 }
-
+pub mod arcstring;
 pub mod tensor;
 pub mod to_prim_expr;
 pub mod iter_var;

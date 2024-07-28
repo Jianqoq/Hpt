@@ -212,7 +212,15 @@ impl CodeGen {
             .iter()
             .map(|x| self.halide_module.fns.get(x).unwrap().vars_order.clone())
             .collect::<Vec<Vec<Arc<String>>>>();
-        Executable {
+        let sorted_inputs = order
+            .iter()
+            .map(|x| self.halide_module.fns.get(x).unwrap().inputs_order.clone())
+            .collect::<Vec<Vec<usize>>>();
+        let sorted_outputs = order
+            .iter()
+            .map(|x| self.halide_module.fns.get(x).unwrap().outputs_order.clone())
+            .collect::<Vec<Vec<usize>>>();
+        let e = Executable {
             ctx: self.ctx,
             module: self.module,
             builder: self.builder,
@@ -229,7 +237,15 @@ impl CodeGen {
             istrides: vec![],
             ostrides: vec![],
             vars: vec![],
-        }
+            vars_map,
+            sorted_inputs,
+            sorted_outputs,
+            sorted_ic_layouts: vec![],
+            sorted_oc_layouts: vec![],
+            sorted_inputs_container: vec![],
+            sorted_outputs_container: vec![],
+        };
+        e.prepare()
     }
 }
 

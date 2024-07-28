@@ -137,7 +137,8 @@ mod tests {
     use std::collections::HashMap;
 
     use maplit::hashmap;
-    use serde_json::json;
+    use tensor_traits::shape_manipulate::ShapeManipulate;
+    use tensor_traits::tensor::TensorCreator;
     use tensor_types::dtype::Dtype;
 
     use crate::{
@@ -298,11 +299,30 @@ mod tests {
         codegen.compile();
         let vars_map =
             hashmap! {
-            "m".to_string().into() => 1,
-            "n".to_string().into() => 8,
-            "o".to_string().into() => 8,
+            "m".to_string().into() => 5,
+            "n".to_string().into() => 4,
+            "o".to_string().into() => 5,
         };
         let executable = codegen.into_executable(vars_map);
+
+        let a = tensor_dyn::tensor::Tensor::<f32>
+            ::arange(0.0, 100.0)
+            .expect("Failed to create tensor")
+            .reshape(&[5, 4, 5])
+            .expect("Failed to reshape");
+        let b = tensor_dyn::tensor::Tensor::<f32>
+            ::arange(0.0, 100.0)
+            .expect("Failed to create tensor")
+            .reshape(&[5, 4, 5])
+            .expect("Failed to reshape");
+        let inps_map = hashmap! {
+            0usize => a.into(),
+            1 => b.into(),
+        };
+        let c = tensor_dyn::tensor::Tensor::<f32>
+            ::zeros(&[5, 4, 5])
+            .expect("Failed to create tensor");
+        executable.execute(inps_map, hashmap! { 2usize => c.into() });
     }
 
     #[test]
