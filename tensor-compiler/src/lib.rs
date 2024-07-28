@@ -45,6 +45,9 @@ pub mod halide {
 }
 
 pub mod te {
+    pub mod onnx {
+        pub mod normal_binop;
+    }
     pub mod insert_axes;
     pub mod strides_visitor;
     pub mod idx_evaluator;

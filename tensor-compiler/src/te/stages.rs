@@ -28,6 +28,15 @@ pub enum Body {
 }
 
 impl Body {
+    pub fn id(&self) -> usize {
+        match self {
+            Body::Stmt(_) => panic!("stmt has no id"),
+            Body::Stage(stage) => stage.id,
+            Body::ReduceStage(reduce_stage) => reduce_stage.id,
+            Body::If(if_) => if_.id,
+        }
+    }
+
     pub fn to_halide(&self, map: &HashMap<usize, (Body, bool)>) -> Stmt {
         match self {
             Body::Stmt(stmt) => stmt.clone(),

@@ -1,3 +1,7 @@
+use std::sync::Arc;
+
+use tensor_types::{ dtype::Dtype, type_promote::NormalOut };
+
 use crate::{
     halide::{
         alloca_stmt::AllocaStmt,
@@ -7,9 +11,13 @@ use crate::{
         primitive_type::PrimitiveType,
         stmt::Stmt,
         store_stmt::StoreStmt,
+        substitute::subsititue_var::SubstituteVar,
+        traits::MutatorGetSet,
         variable::Variable,
     },
     iter_var::IterVar,
+    te::insert_axes::InsertAxes,
+    to_prim_expr::ToPrimeExpr,
 };
 
 use super::{ index_replace::reduce_replace, stages::{ Body, ReduceStage, Stage } };
@@ -32,18 +40,20 @@ pub fn common_reduce(
         }
     } else {
         if let Body::Stage(stage) = &inputs[0] {
-            common_reduce_helper(original_shape, axes, init, output_id, stage, |_| vec![
-                Body::Stmt(
-                    Stmt::LetStmt(
-                        LetStmt::make(
-                            &Variable::make(&format!("%{}_val", output_id)),
-                            Load::make(&format!("%{}_val_ptr", output_id), 0),
-                            false,
-                            Stmt::None
+            common_reduce_helper(original_shape, axes, init, output_id, stage, |_|
+                vec![
+                    Body::Stmt(
+                        Stmt::LetStmt(
+                            LetStmt::make(
+                                &Variable::make(&format!("%{}_val", output_id)),
+                                Load::make(&format!("%{}_val_ptr", output_id), 0),
+                                false,
+                                Stmt::None
+                            )
                         )
                     )
-                ),
-            ])
+                ]
+            )
         } else {
             panic!("input is not a stage");
         }
@@ -162,4 +172,158 @@ pub fn common_reduce_out(all_parent_dims: &Vec<IterVar>, output_id: usize) -> Ve
             )
         )
     ]
+}
+
+pub fn common_binop(
+    is_output: bool,
+    inputs: &Vec<Body>,
+    lhs_new_axes: &[usize],
+    lhs_replace: &[(usize, usize)],
+    rhs_new_axes: &[usize],
+    rhs_replace: &[(usize, usize)],
+    dims: &Vec<IterVar>,
+    output_id: usize
+) -> Body {
+    if is_output {
+        common_binop_helper(
+            inputs,
+            lhs_new_axes,
+            lhs_replace,
+            rhs_new_axes,
+            rhs_replace,
+            dims,
+            output_id,
+            |lhs, rhs| lhs._add(rhs),
+            || common_binop_out(dims, inputs[0].id(), inputs[1].id(), output_id)
+        )
+    } else {
+        common_binop_helper(
+            inputs,
+            lhs_new_axes,
+            lhs_replace,
+            rhs_new_axes,
+            rhs_replace,
+            dims,
+            output_id,
+            |lhs, rhs| lhs._add(rhs),
+            || common_binop_in(inputs[0].id(), inputs[1].id(), output_id)
+        )
+    }
+}
+
+pub fn common_binop_helper<F>(
+    inputs: &Vec<Body>,
+    lhs_new_axes: &[usize],
+    lhs_replace: &[(usize, usize)],
+    rhs_new_axes: &[usize],
+    rhs_replace: &[(usize, usize)],
+    dims: &Vec<IterVar>,
+    output_id: usize,
+    ty_infer: fn(Dtype, Dtype) -> Dtype,
+    post: F
+) -> Body
+    where F: Fn() -> Body
+{
+    match (&inputs[0], &inputs[1]) {
+        (Body::Stage(lhs), Body::Stage(rhs)) => {
+            let mut lhs_bodys = lhs.bodys.clone();
+            let mut subs_var = SubstituteVar::new();
+            for (new_shape_idx, old_shape_idx) in lhs_replace.iter() {
+                subs_var.add_replacement(
+                    Variable::new(format!("ax{}", old_shape_idx)),
+                    Variable::new(format!("ax{}", new_shape_idx))
+                );
+            }
+            for i in lhs_bodys.iter_mut() {
+                i.accept_mutate(&mut subs_var);
+            }
+            let lhs_new_axes = Arc::new(
+                lhs_new_axes
+                    .iter()
+                    .map(|x| { Variable::new(format!("ax{}", x)).into() })
+                    .collect::<Vec<PrimeExpr>>()
+            );
+            let mut insert_axes = InsertAxes::new(lhs_new_axes.clone(), output_id);
+            for i in lhs_bodys.iter_mut() {
+                insert_axes.set_expr(PrimeExpr::None);
+                insert_axes.set_stmt(Stmt::None);
+                i.insert_new_axes(&mut insert_axes);
+            }
+
+            let mut rhs_bodys = rhs.bodys.clone();
+            let mut subs_var = SubstituteVar::new();
+            for (new_shape_idx, old_shape_idx) in rhs_replace.iter() {
+                subs_var.add_replacement(
+                    Variable::new(format!("ax{}", old_shape_idx)),
+                    Variable::new(format!("ax{}", new_shape_idx))
+                );
+            }
+            for i in rhs_bodys.iter_mut() {
+                i.accept_mutate(&mut subs_var);
+            }
+            let rhs_new_axes = Arc::new(
+                rhs_new_axes
+                    .iter()
+                    .map(|x| { Variable::new(format!("ax{}", x)).into() })
+                    .collect::<Vec<PrimeExpr>>()
+            );
+            let mut insert_axes = InsertAxes::new(rhs_new_axes.clone(), output_id);
+            for i in rhs_bodys.iter_mut() {
+                insert_axes.set_expr(PrimeExpr::None);
+                insert_axes.set_stmt(Stmt::None);
+                i.insert_new_axes(&mut insert_axes);
+            }
+
+            lhs_bodys.extend(rhs_bodys);
+            lhs_bodys.push(post());
+            let stage = Stage {
+                dims: dims.clone(),
+                bodys: lhs_bodys,
+                id: output_id,
+                out_id: output_id,
+                dtype: ty_infer(lhs.dtype, rhs.dtype),
+            };
+            Body::Stage(stage)
+        }
+        _ => panic!("input is not a stage"),
+    }
+}
+
+pub fn common_binop_out(
+    dims: &Vec<IterVar>,
+    lhs_id: usize,
+    rhs_id: usize,
+    output_id: usize
+) -> Body {
+    Body::Stmt(
+        StoreStmt::make(
+            &Variable::make(&format!("%{}", output_id)),
+            dims
+                .iter()
+                .enumerate()
+                .map(
+                    |(idx, x)|
+                        x.var().to_prime_expr() *
+                        Load::make(&format!("%{}.s", output_id), idx).into()
+                )
+                .reduce(|acc, x| acc + x)
+                .unwrap(),
+            Variable::make(&format!("%{}_val", lhs_id)) +
+                Variable::make(&format!("%{}_val", rhs_id))
+        ).into()
+    )
+}
+
+pub fn common_binop_in(lhs_id: usize, rhs_id: usize, output_id: usize) -> Body {
+    Body::Stmt(
+        Stmt::LetStmt(
+            LetStmt::make(
+                &Variable::make(&format!("%{}_val", output_id)),
+                Variable::make(&format!("%{}_val", lhs_id)) +
+                    Variable::make(&format!("%{}_val", rhs_id)),
+                false,
+                Stmt::None
+            )
+        ).into()
+    )
 }
