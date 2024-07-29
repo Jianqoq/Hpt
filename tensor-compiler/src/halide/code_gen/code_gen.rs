@@ -329,9 +329,13 @@ impl CodeGenVisitor for CodeGen {
 
     fn visit_cast(&mut self, cast: &crate::halide::exprs::Cast) -> BasicValue {
         let expr = self.visit_expr(cast.expr());
-        let from = self.bindings[&self.current_fn].find_type(&expr).unwrap();
         let to = cast.dtype();
-        todo!()
+        let casted = build_cast(*to, expr, "casted", &self.ctx, &self.builder);
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(casted, PrimitiveType::Dtype(*to));
+        casted
     }
 
     fn visit_bitcast(&mut self, bit_cast: &crate::halide::exprs::BitCast) -> BasicValue {
@@ -713,7 +717,7 @@ impl CodeGenVisitor for CodeGen {
                     casted_rhs,
                     "max_cond"
                 );
-                self.builder.build_select(cond, casted_lhs, casted_rhs, "max")
+                self.builder.build_select(cond, casted_rhs, casted_lhs, "max")
             }
             Dtype::Bool | Dtype::U8 | Dtype::U16 | Dtype::U32 | Dtype::U64 | Dtype::Usize => {
                 let cond = self.builder.build_int_cmp(
@@ -722,7 +726,7 @@ impl CodeGenVisitor for CodeGen {
                     casted_rhs,
                     "max_cond"
                 );
-                self.builder.build_select(cond, casted_lhs, casted_rhs, "max")
+                self.builder.build_select(cond, casted_rhs, casted_lhs, "max")
             }
             Dtype::BF16 | Dtype::F16 | Dtype::F32 | Dtype::F64 => {
                 let cond = self.builder.build_float_cmp(
@@ -731,7 +735,7 @@ impl CodeGenVisitor for CodeGen {
                     casted_rhs,
                     "max_cond"
                 );
-                self.builder.build_select(cond, casted_lhs, casted_rhs, "max")
+                self.builder.build_select(cond, casted_rhs, casted_lhs, "max")
             }
             _ => unimplemented!("unsupported dtype, {}", res_type),
         };

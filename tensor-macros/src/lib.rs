@@ -847,12 +847,12 @@ pub fn impl_cmp(_: TokenStream) -> TokenStream {
                     }
                     fn _gt(self, rhs: #rhs_dtype) -> bool {
                         paste::paste! {
-                            self.[<to_ #res_type>]() > self.[<to_ #res_type>]()
+                            self.[<to_ #res_type>]() > rhs.[<to_ #res_type>]()
                         }
                     }
                     fn _ge(self, rhs: #rhs_dtype) -> bool {
                         paste::paste! {
-                            self.[<to_ #res_type>]() >= self.[<to_ #res_type>]()
+                            self.[<to_ #res_type>]() >= rhs.[<to_ #res_type>]()
                         }
                     }
                 }

@@ -5,7 +5,7 @@ use tensor_types::dtype::Dtype;
 use crate::{
     halide::{
         alloca_stmt::AllocaStmt,
-        exprs::{ Add, Call, Load },
+        exprs::{ Call, Load },
         let_stmt::LetStmt,
         prime_expr::PrimeExpr,
         primitive_type::PrimitiveType,
@@ -22,25 +22,64 @@ use crate::{
 
 use super::{ index_replace::reduce_replace, stages::{ Body, ReduceStage, Stage } };
 
-pub fn common_reduce(
+pub fn common_reduce<F>(
     is_output: bool,
     inputs: &Vec<Body>,
     original_shape: &Vec<PrimeExpr>,
     axes: &Vec<usize>,
     init: PrimeExpr,
+    reduce_op: F,
     output_id: usize
-) -> Body {
+) -> Body
+    where F: Fn(PrimeExpr, PrimeExpr) -> PrimeExpr
+{
     if is_output {
         if let Body::Stage(stage) = &inputs[0] {
-            common_reduce_helper(original_shape, axes, init, output_id, stage, |origin_dims|
-                common_reduce_out(origin_dims, output_id)
+            common_reduce_helper(
+                original_shape,
+                axes,
+                init,
+                output_id,
+                stage,
+                reduce_op,
+                |origin_dims|
+                    vec![
+                        Body::Stmt(
+                            Stmt::LetStmt(
+                                LetStmt::make(
+                                    &Variable::make(&format!("%{}_val", output_id)),
+                                    Load::make(&format!("%{}_val_ptr", output_id), 0),
+                                    false,
+                                    Stmt::None
+                                )
+                            )
+                        ),
+                        Body::Stmt(
+                            Stmt::StoreStmt(
+                                StoreStmt::make(
+                                    &Variable::make(&format!("%{}", output_id)),
+                                    origin_dims
+                                        .iter()
+                                        .enumerate()
+                                        .map(
+                                            |(idx, x)|
+                                                PrimeExpr::Variable(x.var().clone()) *
+                                                Load::make(&format!("%{}.s", output_id), idx).into()
+                                        )
+                                        .reduce(|acc, x| acc + x)
+                                        .unwrap_or((0i64).into()),
+                                    Variable::make(&format!("%{}_val", output_id))
+                                )
+                            )
+                        )
+                    ]
             )
         } else {
             panic!("input is not a stage");
         }
     } else {
         if let Body::Stage(stage) = &inputs[0] {
-            common_reduce_helper(original_shape, axes, init, output_id, stage, |_|
+            common_reduce_helper(original_shape, axes, init, output_id, stage, reduce_op, |_|
                 vec![
                     Body::Stmt(
                         Stmt::LetStmt(
@@ -60,15 +99,17 @@ pub fn common_reduce(
     }
 }
 
-pub fn common_reduce_helper<F>(
+pub fn common_reduce_helper<F, C>(
     original_shape: &Vec<PrimeExpr>,
     axes: &Vec<usize>,
     init: PrimeExpr,
     output_id: usize,
     stage: &Stage,
+    reduce_op: C,
     posts: F
-) -> Body
-    where F: Fn(&Vec<IterVar>) -> Vec<Body>
+)
+    -> Body
+    where F: Fn(&Vec<IterVar>) -> Vec<Body>, C: Fn(PrimeExpr, PrimeExpr) -> PrimeExpr
 {
     let mut stage = stage.clone();
     let mut bodys = stage.bodys.clone();
@@ -79,9 +120,9 @@ pub fn common_reduce_helper<F>(
                 StoreStmt::make(
                     &Variable::make(&format!("%{}_val_ptr", output_id)),
                     0,
-                    Add::make(
-                        &Variable::make(&format!("%{}_val", output_id)),
-                        Variable::make(&format!("%{}_val", stage.out_id))
+                    reduce_op(
+                        Variable::make(&format!("%{}_val", output_id)).into(),
+                        Variable::make(&format!("%{}_val", stage.out_id)).into()
                     )
                 )
             )
@@ -139,39 +180,6 @@ pub fn common_reduce_helper<F>(
     stage.out_id = output_id;
     stage.bodys = vec![Body::ReduceStage(reduce_stage)];
     Body::Stage(stage)
-}
-
-pub fn common_reduce_out(all_parent_dims: &Vec<IterVar>, output_id: usize) -> Vec<Body> {
-    vec![
-        Body::Stmt(
-            Stmt::LetStmt(
-                LetStmt::make(
-                    &Variable::make(&format!("%{}_val", output_id)),
-                    Load::make(&format!("%{}_val_ptr", output_id), 0),
-                    false,
-                    Stmt::None
-                )
-            )
-        ),
-        Body::Stmt(
-            Stmt::StoreStmt(
-                StoreStmt::make(
-                    &Variable::make(&format!("%{}", output_id)),
-                    all_parent_dims
-                        .iter()
-                        .enumerate()
-                        .map(
-                            |(idx, x)|
-                                PrimeExpr::Variable(x.var().clone()) *
-                                Load::make(&format!("%{}.s", output_id), idx).into()
-                        )
-                        .reduce(|acc, x| acc + x)
-                        .unwrap_or((0i64).into()),
-                    Variable::make(&format!("%{}_val", output_id))
-                )
-            )
-        )
-    ]
 }
 
 pub fn common_binop<F>(
@@ -412,15 +420,15 @@ pub fn common_unaryop_helper<F>(
             let dims = (0..shape.len())
                 .map(|x| IterVar::new(0i64, shape[x].clone(), 1i64, &format!("ax{}", x)))
                 .collect::<Vec<IterVar>>();
-            stage.broadcast_new_dims(
-                &(0..shape.len())
-                    .map(|x| Load::make(Variable::make(&format!("%{}.s", output_id)), x).into())
-                    .collect::<Vec<PrimeExpr>>(),
-                &(0..shape.len())
-                    .map(|x| Variable::make(&format!("ax{}", x)).into())
-                    .collect::<Vec<PrimeExpr>>()
+            let mut subs_var = SubstituteVar::new();
+            subs_var.add_replacement(
+                Variable::new(format!("%{}.s", stage.out_id)),
+                Variable::new(format!("%{}.s", output_id))
             );
             stage.bodys.push(post(&dims, stage.out_id));
+            for i in stage.bodys.iter_mut() {
+                i.accept_mutate(&mut subs_var);
+            }
             let stage = Stage {
                 dims,
                 bodys: stage.bodys.clone(),

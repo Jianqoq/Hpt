@@ -1079,3 +1079,259 @@ fn test_pad_slice() {
     executable.execute(inps_map, outs_map);
     println!("{:?}", d);
 }
+
+#[test]
+fn test_cast() {
+    let mut ctx = Context::new();
+    let m = ctx.var("m");
+    let n = ctx.var("n");
+    let a = ctx.placeholder(&[&m, &n], Dtype::F32);
+    let b = ctx.cast(&a, Dtype::F64);
+    let order = [a.id, b.id];
+
+    let schedule = ctx.to_schedule(&order);
+    let func = schedule.to_function();
+    assert_eq!(
+        func.to_string(),
+"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    let istrides0 = istrides_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (output_vec[0] as *f64);
+    let ostrides0 = ostrides_vec[0];
+    let m = shape_vars[0];
+    let n = shape_vars[1];
+    for ax0 in range(0, m) {
+        for ax1 in range(0, n) {
+            let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1]];
+            %1[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = (%0_val as f64);
+        }
+    }
+    return;
+}"
+    ); // prettier-ignore
+    let mut module = Module::new("main");
+    module.add_function2(&schedule);
+    let context = tensor_llvm::context::context::Context::new();
+    let mut codegen = CodeGen::new(context, &module, 3);
+    codegen.compile();
+
+    let vars_map =
+        hashmap! {
+            "m".to_string().into() => 4,
+            "n".to_string().into() => 4,
+        };
+
+    let executable = codegen.into_executable(vars_map);
+    let a = tensor_dyn::tensor::Tensor::<f32>
+        ::arange(0.0, 16.0)
+        .expect("Failed to create tensor")
+        .reshape(&[4, 4])
+        .expect("Failed to reshape");
+    let inps_map = hashmap! { 0usize => a.clone().into() };
+    let d = tensor_dyn::tensor::Tensor::<f64>::zeros(&[4, 4]).expect("Failed to create tensor");
+    let outs_map = hashmap! {
+            1 => d.clone().into(),
+        };
+
+    executable.execute(inps_map, outs_map);
+
+    let test = a.astype::<f64>().unwrap();
+    assert!(test.allclose(&d));
+}
+
+#[test]
+fn test_prod() {
+    let mut ctx = Context::new();
+    let m = ctx.var("m");
+    let n = ctx.var("n");
+    let a = ctx.placeholder(&[&m, &n], Dtype::F32);
+    let b = ctx.prod(&a, &1f32, &[1]);
+    let order = [a.id, b.id];
+
+    let schedule = ctx.to_schedule(&order);
+    let func = schedule.to_function();
+    assert_eq!(
+        func.to_string(),
+"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    let istrides0 = istrides_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (output_vec[0] as *f32);
+    let ostrides0 = ostrides_vec[0];
+    let m = shape_vars[0];
+    let n = shape_vars[1];
+    for ax0 in range(0, m) {
+        let %1_val_ptr = alloca<f32>(1);
+        %1_val_ptr[0] = 1;
+        for 1red1 in range(0, n) {
+            let %1_val = %1_val_ptr[0];
+            let %0_val = %0[ax0 * istrides0[0] + 1red1 * istrides0[1]];
+            %1_val_ptr[0] = %1_val * %0_val;
+        }
+        let %1_val = %1_val_ptr[0];
+        %1[ax0 * ostrides0[0]] = %1_val;
+    }
+    return;
+}"
+    ); // prettier-ignore
+
+    let mut module = Module::new("main");
+    module.add_function2(&schedule);
+    let context = tensor_llvm::context::context::Context::new();
+    let mut codegen = CodeGen::new(context, &module, 3);
+    codegen.compile();
+
+    let vars_map =
+        hashmap! {
+            "m".to_string().into() => 4,
+            "n".to_string().into() => 4,
+        };
+
+    let executable = codegen.into_executable(vars_map);
+    let a = tensor_dyn::tensor::Tensor::<f32>
+        ::arange(0.0, 16.0)
+        .expect("Failed to create tensor")
+        .reshape(&[4, 4])
+        .expect("Failed to reshape");
+    let inps_map = hashmap! { 0usize => a.clone().into() };
+    let d = tensor_dyn::tensor::Tensor::<f32>::zeros(&[4]).expect("Failed to create tensor");
+    let outs_map = hashmap! {
+            1 => d.clone().into(),
+        };
+
+    executable.execute(inps_map, outs_map);
+
+    let test = a.prod([1], false).unwrap();
+    assert!(test.allclose(&d));
+}
+
+#[test]
+fn test_min() {
+    let mut ctx = Context::new();
+    let m = ctx.var("m");
+    let n = ctx.var("n");
+    let a = ctx.placeholder(&[&m, &n], Dtype::F32);
+    let b = ctx.min(&a, &f32::INFINITY, &[1]);
+    let order = [a.id, b.id];
+
+    let schedule = ctx.to_schedule(&order);
+    let func = schedule.to_function();
+    assert_eq!(
+        func.to_string(),
+        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    let istrides0 = istrides_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (output_vec[0] as *f32);
+    let ostrides0 = ostrides_vec[0];
+    let m = shape_vars[0];
+    let n = shape_vars[1];
+    for ax0 in range(0, m) {
+        let %1_val_ptr = alloca<f32>(1);
+        %1_val_ptr[0] = inf;
+        for 1red1 in range(0, n) {
+            let %1_val = %1_val_ptr[0];
+            let %0_val = %0[ax0 * istrides0[0] + 1red1 * istrides0[1]];
+            %1_val_ptr[0] = min(%1_val, %0_val);
+        }
+        let %1_val = %1_val_ptr[0];
+        %1[ax0 * ostrides0[0]] = %1_val;
+    }
+    return;
+}"
+    ); // prettier-ignore
+
+    let mut module = Module::new("main");
+    module.add_function2(&schedule);
+    let context = tensor_llvm::context::context::Context::new();
+    let mut codegen = CodeGen::new(context, &module, 3);
+    codegen.compile();
+
+    let vars_map =
+        hashmap! {
+            "m".to_string().into() => 4,
+            "n".to_string().into() => 4,
+        };
+
+    let executable = codegen.into_executable(vars_map);
+    let a = tensor_dyn::tensor::Tensor::<f32>
+        ::arange(0.0, 16.0)
+        .expect("Failed to create tensor")
+        .reshape(&[4, 4])
+        .expect("Failed to reshape");
+
+    let inps_map = hashmap! { 0usize => a.clone().into() };
+    let d = tensor_dyn::tensor::Tensor::<f32>::zeros(&[4]).expect("Failed to create tensor");
+    let outs_map = hashmap! {
+            1 => d.clone().into(),
+        };
+
+    executable.execute(inps_map, outs_map);
+
+    let test = a.min([1], false).unwrap();
+    assert!(test.allclose(&d));
+}
+
+#[test]
+fn test_max() {
+    let mut ctx = Context::new();
+    let m = ctx.var("m");
+    let n = ctx.var("n");
+    let a = ctx.placeholder(&[&m, &n], Dtype::F32);
+    let b = ctx.max(&a, &f32::NEG_INFINITY, &[1]);
+    let order = [a.id, b.id];
+
+    let schedule = ctx.to_schedule(&order);
+    let func = schedule.to_function();
+    assert_eq!(
+        func.to_string(),
+        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    let istrides0 = istrides_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (output_vec[0] as *f32);
+    let ostrides0 = ostrides_vec[0];
+    let m = shape_vars[0];
+    let n = shape_vars[1];
+    for ax0 in range(0, m) {
+        let %1_val_ptr = alloca<f32>(1);
+        %1_val_ptr[0] = -inf;
+        for 1red1 in range(0, n) {
+            let %1_val = %1_val_ptr[0];
+            let %0_val = %0[ax0 * istrides0[0] + 1red1 * istrides0[1]];
+            %1_val_ptr[0] = max(%1_val, %0_val);
+        }
+        let %1_val = %1_val_ptr[0];
+        %1[ax0 * ostrides0[0]] = %1_val;
+    }
+    return;
+}"
+    ); // prettier-ignore
+
+    let mut module = Module::new("main");
+    module.add_function2(&schedule);
+    let context = tensor_llvm::context::context::Context::new();
+    let mut codegen = CodeGen::new(context, &module, 3);
+    codegen.compile();
+
+    let vars_map =
+        hashmap! {
+            "m".to_string().into() => 4,
+            "n".to_string().into() => 4,
+        };
+
+    let executable = codegen.into_executable(vars_map);
+    let a = tensor_dyn::tensor::Tensor::<f32>
+        ::arange(0.0, 16.0)
+        .expect("Failed to create tensor")
+        .reshape(&[4, 4])
+        .expect("Failed to reshape");
+
+    let inps_map = hashmap! { 0usize => a.clone().into() };
+    let d = tensor_dyn::tensor::Tensor::<f32>::zeros(&[4]).expect("Failed to create tensor");
+    let outs_map = hashmap! {
+            1 => d.clone().into(),
+        };
+
+    executable.execute(inps_map, outs_map);
+
+    let test = a.max([1], false).unwrap();
+    assert!(test.allclose(&d));
+}
