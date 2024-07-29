@@ -5,32 +5,33 @@ use tensor_common::{
     shape_utils::is_reshape_possible,
     strides_utils::shape_to_strides,
 };
-use tensor_types::{ dtype::Dtype, type_promote::{ FloatOut, NormalOut } };
+use tensor_types::{ dtype::Dtype, type_promote::FloatOut };
 
 use crate::{
     halide::{
-        assign_stmt::AssignStmt, exprs::{ BitAnd, Call, Ge, Int, Load, Lt }, let_stmt::LetStmt, passes::const_fold::ConstFold, prime_expr::PrimeExpr, stmt::Stmt, store_stmt::StoreStmt, substitute::subsititue_var::SubstituteVar, tensor_load::TensorLoad, traits::MutatorGetSet, utils::all, variable::Variable
+        exprs::{ Call, Int, Load },
+        let_stmt::LetStmt,
+        passes::const_fold::ConstFold,
+        prime_expr::PrimeExpr,
+        stmt::Stmt,
+        store_stmt::StoreStmt,
+        tensor_load::TensorLoad,
+        traits::MutatorGetSet,
+        variable::Variable,
     },
     iter_var::IterVar,
-    te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator, stages::If },
+    te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator },
     to_prim_expr::ToPrimeExpr,
 };
 
 use super::{
-    bodygen_helper::common_reduce,
-    insert_axes::InsertAxes,
     rc_mut::RcMut,
     schedule::Schedule,
     slice_helper::SliceVisitor,
     srg::Srg,
     srg_node::SrgNode,
     stages::{ Body, Stage },
-    strides_cal_helper::{
-        binary_strides_cal,
-        elementwise_strides_cal,
-        reduce_strides_cal,
-        slice_strides_cal,
-    },
+    strides_cal_helper::{ elementwise_strides_cal, slice_strides_cal },
     tensor::{ StridesCal, Tensor },
 };
 

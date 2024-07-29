@@ -2,10 +2,13 @@ use std::{ collections::HashMap, panic::Location, sync::Arc };
 
 use crate::{
     halide::{
+        alloca_stmt::AllocaStmt,
         assign_stmt::AssignStmt,
         exprs::{ BitAnd, Ge, Load, Lt },
+        let_stmt::LetStmt,
         passes::const_fold::ConstFold,
         prime_expr::PrimeExpr,
+        primitive_type::PrimitiveType,
         stmt::Stmt,
         store_stmt::StoreStmt,
         utils::all,
@@ -24,42 +27,33 @@ pub fn pad_common(
 ) -> Body {
     if is_output {
         if let Body::Stage(stage) = &inputs[0] {
+            let store_indices = stage.dims
+                .iter()
+                .enumerate()
+                .map(|(idx, x)| {
+                    x.var().to_prime_expr() * Load::make(&format!("%{}.s", id), idx).into()
+                })
+                .reduce(|acc, x| acc + x)
+                .unwrap_or((0i64).into());
+            let store_var = Variable::new(format!("%{}", id));
+
             pad_common_helper(
+                is_output,
                 stage,
                 paddings,
                 id,
-                Body::Stmt(
-                    StoreStmt::make(
-                        &Variable::make(&format!("%{}", id)),
-                        stage.dims
-                            .iter()
-                            .enumerate()
-                            .map(
-                                |(idx, x)|
-                                    x.var().to_prime_expr() *
-                                    Load::make(&format!("%{}.s", id), idx).into()
-                            )
-                            .reduce(|acc, x| acc + x)
-                            .unwrap(),
-                        Variable::make(&format!("%{}_val", stage.out_id))
-                    ).into()
-                ),
-                Body::Stmt(
-                    StoreStmt::make(
-                        &Variable::make(&format!("%{}", id)),
-                        stage.dims
-                            .iter()
-                            .enumerate()
-                            .map(
-                                |(idx, x)|
-                                    x.var().to_prime_expr() *
-                                    Load::make(&format!("%{}.s", id), idx).into()
-                            )
-                            .reduce(|acc, x| acc + x)
-                            .unwrap(),
-                        pad_val.clone()
-                    ).into()
-                )
+                vec![
+                    Body::Stmt(
+                        StoreStmt::make(
+                            &store_var,
+                            &store_indices,
+                            Variable::make(&format!("%{}_val", stage.out_id))
+                        ).into()
+                    )
+                ],
+                vec![
+                    Body::Stmt(StoreStmt::make(&store_var, &store_indices, pad_val.clone()).into())
+                ]
             )
         } else {
             panic!("pad_common: input is not a stage");
@@ -67,22 +61,32 @@ pub fn pad_common(
     } else {
         if let Body::Stage(stage) = &inputs[0] {
             pad_common_helper(
+                is_output,
                 stage,
                 paddings,
                 id,
-                Body::Stmt(
-                    Stmt::AssignStmt(
-                        AssignStmt::make(
-                            &Variable::make(&format!("%{}_val", id)),
-                            Variable::make(&format!("%{}_val", stage.out_id))
-                        )
-                    ).into()
-                ),
-                Body::Stmt(
-                    Stmt::AssignStmt(
-                        AssignStmt::make(&Variable::make(&format!("%{}_val", id)), pad_val.clone())
-                    ).into()
-                )
+                vec![
+                    Body::Stmt(
+                        Stmt::StoreStmt(
+                            StoreStmt::make(
+                                &Variable::make(&format!("%{}_val_ptr", id)),
+                                0i64,
+                                Variable::make(&format!("%{}_val", stage.out_id))
+                            )
+                        ).into()
+                    )
+                ],
+                vec![
+                    Body::Stmt(
+                        Stmt::StoreStmt(
+                            StoreStmt::make(
+                                &Variable::make(&format!("%{}_val_ptr", id)),
+                                0i64,
+                                pad_val.clone()
+                            )
+                        ).into()
+                    )
+                ]
             )
         } else {
             panic!("pad_common: input is not a stage");
@@ -91,11 +95,12 @@ pub fn pad_common(
 }
 
 pub fn pad_common_helper(
+    is_output: bool,
     input: &Stage,
     padding: &[(PrimeExpr, PrimeExpr)],
     out_id: usize,
-    true_body: Body,
-    false_body: Body
+    true_bodys: Vec<Body>,
+    false_bodys: Vec<Body>
 ) -> Body {
     let mut conds = vec![];
     for (i, (begin, end)) in padding.iter().enumerate() {
@@ -105,20 +110,43 @@ pub fn pad_common_helper(
         conds.push(and);
     }
     let cond = all(&conds);
-    let mut true_bodys = input.bodys.clone();
-    true_bodys.push(true_body);
+
+    let mut _true_bodys = input.bodys.clone();
+    _true_bodys.extend(true_bodys);
 
     let if_then_else = Body::If(If {
         cond,
-        true_bodys,
-        false_bodys: vec![false_body],
+        true_bodys: _true_bodys,
+        false_bodys,
         id: out_id,
         input: input.id,
     });
 
+    let bodys = if is_output {
+        vec![if_then_else]
+    } else {
+        let init = Body::Stmt(
+            AllocaStmt::make(
+                &Variable::new(format!("%{}_val_ptr", out_id)),
+                PrimitiveType::Dtype(input.dtype),
+                1,
+                Stmt::None
+            ).into()
+        );
+        let let_ = Body::Stmt(
+            LetStmt::make(
+                &Variable::new(format!("%{}_val", out_id)),
+                Load::make(&Variable::new(format!("%{}_val_ptr", out_id)), 0),
+                false,
+                Stmt::None
+            ).into()
+        );
+        vec![init, if_then_else, let_]
+    };
+
     let stage = Stage {
         dims: input.dims.clone(),
-        bodys: vec![if_then_else],
+        bodys,
         id: out_id,
         out_id,
         dtype: input.dtype,
