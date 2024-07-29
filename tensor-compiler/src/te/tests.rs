@@ -1024,7 +1024,7 @@ fn test_pad_out() {
     println!("{:?}", d);
 }
 
-// we need to implement pad slice fusion
+// we need to implement pad slice fusion, need to implemenet a visitor that can rewrite the range of axes
 #[test]
 fn test_pad_slice() {
     let mut ctx = Context::new();
