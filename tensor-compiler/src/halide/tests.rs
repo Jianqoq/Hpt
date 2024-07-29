@@ -104,3 +104,19 @@ fn test_fusion() {
     let for_loop2 = For::make(&w, &start2, &end2, 1, &for_loop);
     IRPrinter.print_stmt(&for_loop2);
 }
+
+#[test]
+fn test_eqal() {
+    let x: PrimeExpr = Variable::make("x").into();
+    let y: PrimeExpr = Variable::make("y").into();
+    let one: PrimeExpr = Int::make(Dtype::I64, 1).into();
+
+    let a = x.clone() + one.clone() + y.clone();
+    let b = x.clone() + one.clone() + y.clone();
+    assert_eq!(a, b);
+
+    let a = x.clone() + one.clone() + y.clone();
+    let b = x.clone() + y.clone() + one.clone();
+    let eq = a == b;
+    assert_eq!(a, b);
+}

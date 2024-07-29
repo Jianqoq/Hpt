@@ -1764,7 +1764,68 @@ fn test_gelu() {
 
     let schedule = ctx.to_schedule(&order);
     let func = schedule.to_function();
-    println!("{}", func.to_string());
+    assert_eq!(
+        func.to_string(),
+        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    let istrides0 = istrides_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (output_vec[0] as *f32);
+    let ostrides0 = ostrides_vec[0];
+    let m = shape_vars[0];
+    for ax0 in range(0, m) {
+        let %0_val = %0[ax0 * istrides0[0]];
+        %1[ax0 * ostrides0[0]] = %0_val * 0.5 * (1 + erf(%0_val / 1.4142135381698608));
+    }
+    return;
+}"
+    ); // prettier-ignore
+
+    let vars_map = hashmap! {
+            "m" => 4,
+        };
+
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
+
+    let a = tensor_dyn::tensor::Tensor::<f32>::randn([4]).expect("Failed to reshape");
+
+    let inps_map = hashmap! { 0usize => a.clone().into() };
+    let d = tensor_dyn::tensor::Tensor::<f32>::zeros(&[4]).expect("Failed to create tensor");
+    let outs_map = hashmap! {
+            1 => d.clone().into(),
+        };
+
+    executable.execute(inps_map, outs_map);
+
+    println!("{:?}", d);
+}
+
+#[test]
+fn test_neg() {
+    let mut ctx = Context::new();
+    let m = ctx.var("m");
+    let a = ctx.placeholder(&[&m], Dtype::F32);
+    let b = ctx.neg(&a);
+    let order = [a.id, b.id];
+
+    let schedule = ctx.to_schedule(&order);
+    let func = schedule.to_function();
+    assert_eq!(
+        func.to_string(),
+        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    let istrides0 = istrides_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (output_vec[0] as *f32);
+    let ostrides0 = ostrides_vec[0];
+    let m = shape_vars[0];
+    for ax0 in range(0, m) {
+        let %0_val = %0[ax0 * istrides0[0]];
+        %1[ax0 * ostrides0[0]] = -(%0_val);
+    }
+    return;
+}"
+    ); // prettier-ignore
 
     let vars_map = hashmap! {
             "m" => 4,

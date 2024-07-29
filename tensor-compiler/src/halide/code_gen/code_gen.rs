@@ -1963,7 +1963,20 @@ impl CodeGenVisitor for CodeGen {
     }
 
     fn visit_neg(&mut self, neg: &crate::halide::exprs::Neg) -> BasicValue {
-        todo!()
+        let val = self.visit_expr(neg.e());
+        let val_ty = self.bindings[&self.current_fn].find_type(&val).unwrap().dtype();
+        let res = match val_ty {
+            Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
+                self.builder.build_int_neg(val, "neg")
+            }
+            Dtype::F32 | Dtype::F64 => { self.builder.build_float_neg(val, "neg") }
+            _ => unimplemented!("unsupported dtype, {}", val_ty),
+        };
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(val_ty));
+        res
     }
 }
 

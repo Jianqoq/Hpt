@@ -60,6 +60,7 @@ pub mod te {
         pub mod selu;
         pub mod celu;
         pub mod gelu;
+        pub mod neg;
     }
     pub mod insert_axes;
     pub mod strides_visitor;
