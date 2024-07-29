@@ -94,6 +94,7 @@ impl Dtype {
             Dtype::Usize => 64,
         }
     }
+
 }
 
 pub trait TypeCommon {

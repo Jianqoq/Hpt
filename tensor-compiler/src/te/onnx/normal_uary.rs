@@ -22,7 +22,7 @@ macro_rules! impl_normal_uary {
                 inputs: Arc::new(vec![a.id]),
                 span: Location::caller(),
                 id,
-                dtype: a.dtype.clone(),
+                dtype: a.dtype.$infer_name(),
                 strides_cal: Arc::new(move |prev_fn: Vec<StridesCal>| {
                     elementwise_strides_cal(prev_fn[0].clone())
                 }),

@@ -322,7 +322,7 @@ pub fn common_binop_out<F>(
                         Load::make(&format!("%{}.s", output_id), idx).into()
                 )
                 .reduce(|acc, x| acc + x)
-                .unwrap(),
+                .unwrap_or(0i64.into()),
             binop(
                 Variable::make(&format!("%{}_val", lhs_id)).into(),
                 Variable::make(&format!("%{}_val", rhs_id)).into()
@@ -377,7 +377,7 @@ pub fn common_uaryop(
                                         Load::make(&format!("%{}.s", output_id), idx).into()
                                 )
                                 .reduce(|acc, x| acc + x)
-                                .unwrap(),
+                                .unwrap_or(0i64.into()),
                             Call::make(
                                 method_name,
                                 &[Variable::make(&format!("%{}_val", stage_out_id))]

@@ -48,7 +48,7 @@ pub fn common_cast(
                                     Load::make(&format!("%{}.s", output_id), idx).into()
                             )
                             .reduce(|acc, x| acc + x)
-                            .unwrap(),
+                            .unwrap_or(0i64.into()),
                         Cast::make(Variable::make(&format!("%{}_val", stage_out_id)), res_dtype)
                     ).into()
                 )
