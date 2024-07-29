@@ -1753,3 +1753,36 @@ fn test_celu() {
 
     println!("{:?}", d);
 }
+
+#[test]
+fn test_gelu() {
+    let mut ctx = Context::new();
+    let m = ctx.var("m");
+    let a = ctx.placeholder(&[&m], Dtype::F32);
+    let b = ctx.gelu(&a);
+    let order = [a.id, b.id];
+
+    let schedule = ctx.to_schedule(&order);
+    let func = schedule.to_function();
+    println!("{}", func.to_string());
+
+    let vars_map = hashmap! {
+            "m" => 4,
+        };
+
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
+
+    let a = tensor_dyn::tensor::Tensor::<f32>::randn([4]).expect("Failed to reshape");
+
+    let inps_map = hashmap! { 0usize => a.clone().into() };
+    let d = tensor_dyn::tensor::Tensor::<f32>::zeros(&[4]).expect("Failed to create tensor");
+    let outs_map = hashmap! {
+            1 => d.clone().into(),
+        };
+
+    executable.execute(inps_map, outs_map);
+
+    println!("{:?}", d);
+}

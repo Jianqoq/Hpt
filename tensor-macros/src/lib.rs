@@ -620,6 +620,11 @@ pub fn impl_float_out(_: TokenStream) -> TokenStream {
                             self.[<to_ #res_type>]().recip()
                         }
                     }
+                    fn _erf(self) -> Self::Output {
+                        paste::paste! {
+                            erf(self.to_f64()).[<to_ #res_type>]()
+                        }
+                    }
                 }
             };
             ret.extend(res);

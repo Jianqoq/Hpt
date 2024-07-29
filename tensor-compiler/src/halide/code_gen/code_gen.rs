@@ -1284,6 +1284,65 @@ impl CodeGenVisitor for CodeGen {
                         res
                     }
                 }
+                "erf" => {
+                    let arg = self.visit_expr(call.args().first().unwrap());
+                    let arg_ty = self.bindings[&self.current_fn].find_type(&arg).unwrap().dtype();
+                    let casted_ty = arg_ty._sin();
+                    if casted_ty == arg_ty {
+                        let res = match casted_ty {
+                            Dtype::F32 => {
+                                let ret_ty = self.ctx.f32_type();
+                                let fn_ty = ret_ty.fn_type(&[ret_ty.into()], false);
+                                let erff = self.module.add_function(fn_ty, "erff");
+                                self.fns.insert("erff".to_string().into(), erff.clone());
+                                self.builder.build_call(&erff, &[arg], "erff")
+                            }
+                            Dtype::F64 => {
+                                let ret_ty = self.ctx.f64_type();
+                                let fn_ty = ret_ty.fn_type(&[ret_ty.into()], false);
+                                let erf = self.module.add_function(fn_ty, "erf");
+                                self.fns.insert("erf".to_string().into(), erf.clone());
+                                self.builder.build_call(&erf, &[arg], "erf")
+                            }
+                            _ => unimplemented!("unsupported dtype, {}", casted_ty),
+                        };
+                        self.bindings
+                            .get_mut(&self.current_fn)
+                            .expect("fn not find")
+                            .insert_type(res, PrimitiveType::Dtype(casted_ty));
+                        res
+                    } else {
+                        let casted_arg = build_cast(
+                            casted_ty,
+                            arg,
+                            "casted_arg",
+                            &self.ctx,
+                            &self.builder
+                        );
+                        let res = match casted_ty {
+                            Dtype::F32 => {
+                                let ret_ty = self.ctx.f32_type();
+                                let fn_ty = ret_ty.fn_type(&[ret_ty.into()], false);
+                                let erff = self.module.add_function(fn_ty, "erff");
+                                self.fns.insert("erff".to_string().into(), erff.clone());
+                                self.builder.build_call(&erff, &[casted_arg], "erff")
+                            }
+                            Dtype::F64 => {
+                                let ret_ty = self.ctx.f64_type();
+                                let fn_ty = ret_ty.fn_type(&[ret_ty.into()], false);
+                                let erf = self.module.add_function(fn_ty, "erf");
+                                self.fns.insert("erf".to_string().into(), erf.clone());
+                                self.builder.build_call(&erf, &[casted_arg], "erf")
+                            }
+                            _ => unimplemented!("unsupported dtype, {}", casted_ty),
+                        };
+                        self.bindings
+                            .get_mut(&self.current_fn)
+                            .expect("fn not find")
+                            .insert_type(res, PrimitiveType::Dtype(casted_ty));
+                        res
+                    }
+                }
                 "ceil" => {
                     let arg = self.visit_expr(call.args().first().unwrap());
                     let arg_ty = self.bindings[&self.current_fn].find_type(&arg).unwrap().dtype();

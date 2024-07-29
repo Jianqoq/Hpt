@@ -50,4 +50,5 @@ impl Context {
     impl_normal_uary!(isinf, _is_inf);
     impl_normal_uary!(ceil, _ceil);
     impl_normal_uary!(floor, _floor);
+    impl_normal_uary!(erf, _erf);
 }

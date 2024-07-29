@@ -94,7 +94,6 @@ impl Dtype {
             Dtype::Usize => 64,
         }
     }
-
 }
 
 pub trait TypeCommon {
@@ -322,6 +321,10 @@ impl FloatOut for Dtype {
     }
 
     fn _recip(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _erf(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
 }

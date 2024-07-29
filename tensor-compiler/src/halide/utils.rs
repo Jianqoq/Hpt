@@ -1,3 +1,4 @@
+
 use tensor_types::dtype::Dtype;
 
 use super::{ exprs::{ BitAnd, Call, Float, Int }, prime_expr::PrimeExpr };
@@ -14,6 +15,10 @@ pub fn exp(x: PrimeExpr) -> PrimeExpr {
     Call::make("exp", &[&x]).into()
 }
 
+pub fn erf(x: PrimeExpr) -> PrimeExpr {
+    Call::make("erf", &[&x]).into()
+}
+
 pub fn dtype_zero(dtype: Dtype) -> PrimeExpr {
     match dtype {
         Dtype::Bool => PrimeExpr::Int(Int::make(Dtype::Bool, 0)),
@@ -26,7 +31,7 @@ pub fn dtype_zero(dtype: Dtype) -> PrimeExpr {
         Dtype::I64 => (0i64).into(),
         Dtype::U64 => (0u64).into(),
         Dtype::BF16 => PrimeExpr::Float(Float::make(Dtype::BF16, 0.0)),
-        Dtype::F16 => PrimeExpr::Float(Float::make(Dtype::BF16, 0.0)),
+        Dtype::F16 => PrimeExpr::Float(Float::make(Dtype::F16, 0.0)),
         Dtype::F32 => (0f32).into(),
         Dtype::F64 => (0f64).into(),
         Dtype::C32 => todo!(),
@@ -48,12 +53,38 @@ pub fn dtype_one(dtype: Dtype) -> PrimeExpr {
         Dtype::I64 => (1i64).into(),
         Dtype::U64 => (1u64).into(),
         Dtype::BF16 => PrimeExpr::Float(Float::make(Dtype::BF16, 1.0)),
-        Dtype::F16 => PrimeExpr::Float(Float::make(Dtype::BF16, 1.0)),
+        Dtype::F16 => PrimeExpr::Float(Float::make(Dtype::F16, 1.0)),
         Dtype::F32 => (1f32).into(),
         Dtype::F64 => (1f64).into(),
         Dtype::C32 => todo!(),
         Dtype::C64 => todo!(),
         Dtype::Isize => (1isize).into(),
         Dtype::Usize => (1usize).into(),
+    }
+}
+
+pub fn dtype_point5(dtype: Dtype) -> PrimeExpr {
+    match dtype {
+        Dtype::Bool => PrimeExpr::Int(Int::make(Dtype::Bool, 0)),
+        Dtype::BF16 => PrimeExpr::Float(Float::make(Dtype::BF16, 0.5)),
+        Dtype::F16 => PrimeExpr::Float(Float::make(Dtype::F16, 0.5)),
+        Dtype::F32 => (0.5f32).into(),
+        Dtype::F64 => (0.5f64).into(),
+        Dtype::C32 => todo!(),
+        Dtype::C64 => todo!(),
+        _ => unreachable!(),
+    }
+}
+
+pub fn dtype_sqrt2(dtype: Dtype) -> PrimeExpr {
+    match dtype {
+        Dtype::Bool => PrimeExpr::Int(Int::make(Dtype::Bool, 0)),
+        Dtype::BF16 => PrimeExpr::Float(Float::make(Dtype::BF16, 1.4142135623730951f64)),
+        Dtype::F16 => PrimeExpr::Float(Float::make(Dtype::F16, 1.4142135623730951f64)),
+        Dtype::F32 => (1.4142135f32).into(),
+        Dtype::F64 => (1.4142135623730951f64).into(),
+        Dtype::C32 => todo!(),
+        Dtype::C64 => todo!(),
+        _ => unreachable!(),
     }
 }

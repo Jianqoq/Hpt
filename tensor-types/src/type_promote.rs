@@ -3,6 +3,7 @@ use half::f16;
 use crate::convertion::Convertor;
 use num_traits::float::Float;
 use crate::dtype::TypeCommon;
+use statrs::function::erf::erf;
 
 /// this trait is used to perform type promotion in dynamic graph
 pub trait FloatOut<RHS = Self> {
@@ -28,6 +29,7 @@ pub trait FloatOut<RHS = Self> {
     fn _acosh(self) -> Self::Output;
     fn _atanh(self) -> Self::Output;
     fn _recip(self) -> Self::Output;
+    fn _erf(self) -> Self::Output;
 }
 
 impl_float_out!();
