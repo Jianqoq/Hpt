@@ -792,7 +792,7 @@ impl CodeGenVisitor for CodeGen {
         self.bindings
             .get_mut(&self.current_fn)
             .expect("fn not find")
-            .insert_type(res, PrimitiveType::Dtype(res_type));
+            .insert_type(res, PrimitiveType::Dtype(Dtype::Bool));
         res
     }
 
@@ -846,7 +846,7 @@ impl CodeGenVisitor for CodeGen {
         self.bindings
             .get_mut(&self.current_fn)
             .expect("fn not find")
-            .insert_type(res, PrimitiveType::Dtype(res_type));
+            .insert_type(res, PrimitiveType::Dtype(Dtype::Bool));
         res
     }
 
@@ -900,7 +900,7 @@ impl CodeGenVisitor for CodeGen {
         self.bindings
             .get_mut(&self.current_fn)
             .expect("fn not find")
-            .insert_type(res, PrimitiveType::Dtype(res_type));
+            .insert_type(res, PrimitiveType::Dtype(Dtype::Bool));
         res
     }
 
@@ -954,7 +954,7 @@ impl CodeGenVisitor for CodeGen {
         self.bindings
             .get_mut(&self.current_fn)
             .expect("fn not find")
-            .insert_type(res, PrimitiveType::Dtype(res_type));
+            .insert_type(res, PrimitiveType::Dtype(Dtype::Bool));
         res
     }
 
@@ -1010,7 +1010,7 @@ impl CodeGenVisitor for CodeGen {
         self.bindings
             .get_mut(&self.current_fn)
             .expect("fn not find")
-            .insert_type(res, PrimitiveType::Dtype(res_type));
+            .insert_type(res, PrimitiveType::Dtype(Dtype::Bool));
         res
     }
 
@@ -1066,7 +1066,7 @@ impl CodeGenVisitor for CodeGen {
         self.bindings
             .get_mut(&self.current_fn)
             .expect("fn not find")
-            .insert_type(res, PrimitiveType::Dtype(res_type));
+            .insert_type(res, PrimitiveType::Dtype(Dtype::Bool));
         res
     }
 

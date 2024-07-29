@@ -103,6 +103,22 @@ pub fn build_cast(
                 Dtype::U64 => builder.build_float_to_unsigned_int(res_type, val, var_name),
                 _ => panic!("Unsupported cast"),
             }
+        BasicValue::Bool(_) =>
+            match target_dtype {
+                Dtype::Bool => val,
+                Dtype::I8 => builder.build_unsigned_int_to_signed_int(res_type, val, var_name),
+                Dtype::U8 => builder.build_unsigned_int_to_unsigned_int(res_type, val, var_name),
+                Dtype::I16 => builder.build_unsigned_int_to_signed_int(res_type, val, var_name),
+                Dtype::U16 => builder.build_unsigned_int_to_unsigned_int(res_type, val, var_name),
+                Dtype::I32 => builder.build_unsigned_int_to_signed_int(res_type, val, var_name),
+                Dtype::U32 => builder.build_unsigned_int_to_unsigned_int(res_type, val, var_name),
+                Dtype::I64 => builder.build_unsigned_int_to_signed_int(res_type, val, var_name),
+                Dtype::U64 => builder.build_unsigned_int_to_unsigned_int(res_type, val, var_name),
+                Dtype::F64 => builder.build_unsigned_int_to_float(res_type, val, var_name),
+                Dtype::F32 => builder.build_unsigned_int_to_float(res_type, val, var_name),
+                Dtype::F16 => builder.build_unsigned_int_to_float(res_type, val, var_name),
+                _ => panic!("{}", &format!("Unsupported cast {:?}", val)),
+            }
         _ => panic!("{}", &format!("Unsupported cast {:?}", val)),
     }
 }

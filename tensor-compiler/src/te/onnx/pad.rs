@@ -11,20 +11,30 @@ use crate::{
         primitive_type::PrimitiveType,
         stmt::Stmt,
         store_stmt::StoreStmt,
+        traits::{ IRMutateVisitor, MutatorGetSet },
         utils::all,
         variable::Variable,
     },
+    iter_var::IterVar,
     te::{ context::Context, stages::{ Body, If, Stage }, tensor::{ StridesCal, Tensor } },
     to_prim_expr::ToPrimeExpr,
 };
 
 pub fn pad_common(
     inputs: Vec<Body>,
+    shape: Arc<Vec<PrimeExpr>>,
     pad_val: PrimeExpr,
     paddings: &[(PrimeExpr, PrimeExpr)],
     is_output: bool,
     id: usize
 ) -> Body {
+    let dims = shape
+        .iter()
+        .enumerate()
+        .map(|(idx, x)| {
+            IterVar::new(0i64, x.clone(), 1i64, &Variable::new(format!("ax{}", idx)))
+        })
+        .collect::<Vec<IterVar>>();
     if is_output {
         if let Body::Stage(stage) = &inputs[0] {
             let store_indices = stage.dims
@@ -36,9 +46,9 @@ pub fn pad_common(
                 .reduce(|acc, x| acc + x)
                 .unwrap_or((0i64).into());
             let store_var = Variable::new(format!("%{}", id));
-
             pad_common_helper(
                 is_output,
+                dims,
                 stage,
                 paddings,
                 id,
@@ -62,6 +72,7 @@ pub fn pad_common(
         if let Body::Stage(stage) = &inputs[0] {
             pad_common_helper(
                 is_output,
+                dims,
                 stage,
                 paddings,
                 id,
@@ -96,6 +107,7 @@ pub fn pad_common(
 
 pub fn pad_common_helper(
     is_output: bool,
+    dims: Vec<IterVar>,
     input: &Stage,
     padding: &[(PrimeExpr, PrimeExpr)],
     out_id: usize,
@@ -105,7 +117,7 @@ pub fn pad_common_helper(
     let mut conds = vec![];
     for (i, (begin, end)) in padding.iter().enumerate() {
         let gt: PrimeExpr = Ge::make(Variable::new(format!("ax{}", i)), begin).into();
-        let lt: PrimeExpr = Lt::make(Variable::new(format!("ax{}", i)), end).into();
+        let lt: PrimeExpr = Lt::make(Variable::new(format!("ax{}", i)), dims[i].end() - end).into();
         let and: PrimeExpr = BitAnd::make(gt, lt).into();
         conds.push(and);
     }
@@ -122,7 +134,7 @@ pub fn pad_common_helper(
         input: input.id,
     });
 
-    let bodys = if is_output {
+    let mut bodys = if is_output {
         vec![if_then_else]
     } else {
         let init = Body::Stmt(
@@ -144,14 +156,72 @@ pub fn pad_common_helper(
         vec![init, if_then_else, let_]
     };
 
+    let mut pad_visitor = PadVisitor::new(
+        padding
+            .iter()
+            .map(|(x, _)| x.clone())
+            .collect()
+    );
+    for body in bodys.iter_mut() {
+        body.accept_mutate(&mut pad_visitor);
+    }
     let stage = Stage {
-        dims: input.dims.clone(),
+        dims,
         bodys,
         id: out_id,
         out_id,
         dtype: input.dtype,
     };
     Body::Stage(stage)
+}
+
+pub struct PadVisitor {
+    pub(crate) stmt: Stmt,
+    pub(crate) expr: PrimeExpr,
+    pub(crate) offsets: Vec<PrimeExpr>,
+}
+
+impl PadVisitor {
+    pub fn new(offsets: Vec<PrimeExpr>) -> Self {
+        Self { stmt: Stmt::None, expr: PrimeExpr::None, offsets }
+    }
+}
+
+impl MutatorGetSet for PadVisitor {
+    fn set_expr<T: Into<PrimeExpr>>(&mut self, expr: T) {
+        self.expr = expr.into();
+    }
+
+    fn set_stmt<T: Into<Stmt>>(&mut self, stmt: T) {
+        self.stmt = stmt.into();
+    }
+
+    fn expr(&self) -> &PrimeExpr {
+        &self.expr
+    }
+
+    fn stmt(&self) -> &Stmt {
+        &self.stmt
+    }
+}
+
+impl IRMutateVisitor for PadVisitor {
+    fn visit_tensor_load(&mut self, tensor_load: &crate::halide::tensor_load::TensorLoad) {
+        let mut new_begins = vec![];
+        let kept_begins = tensor_load.begins[self.offsets.len()..].to_vec();
+        for (offset, old_begin) in self.offsets.iter().zip(tensor_load.begins.iter()) {
+            new_begins.push(old_begin.clone() - offset.clone());
+        }
+        new_begins.extend(kept_begins);
+        self.set_expr(crate::halide::tensor_load::TensorLoad {
+            var: tensor_load.var.clone(),
+            begins: new_begins.into(),
+            axes: tensor_load.axes.clone(),
+            steps: tensor_load.steps.clone(),
+            strides: tensor_load.strides.clone(),
+            hints: tensor_load.hints.clone(),
+        });
+    }
 }
 
 impl Context {
@@ -184,7 +254,7 @@ impl Context {
 
         let pad_val = Arc::new(pad_value.to_prime_expr());
         let ret = Tensor {
-            shape,
+            shape: shape.clone(),
             dtype: a.dtype,
             inputs: Arc::new(vec![a.id]),
             span: Location::caller(),
@@ -193,7 +263,7 @@ impl Context {
                 Arc::new(move |map: &HashMap<Arc<String>, i64>| { prev_fn(map) })
             }),
             body_gen: Arc::new(move |inputs: Vec<Body>, is_output: bool, id: usize| {
-                pad_common(inputs, pad_val.as_ref().clone(), &padding, is_output, id)
+                pad_common(inputs, shape.clone(), pad_val.as_ref().clone(), &padding, is_output, id)
             }),
             id,
         };

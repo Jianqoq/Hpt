@@ -959,8 +959,8 @@ fn test_pad_out() {
     let b = ctx.pad(
         &a,
         &[
-            (&5i64, &5i64),
-            (&5i64, &5i64),
+            (&2i64, &2i64),
+            (&2i64, &2i64),
         ],
         &1f32
     );
@@ -968,5 +968,114 @@ fn test_pad_out() {
 
     let schedule = ctx.to_schedule(&order);
     let func = schedule.to_function();
+    assert_eq!(
+        func.to_string(),
+        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    let istrides0 = istrides_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (output_vec[0] as *f32);
+    let ostrides0 = ostrides_vec[0];
+    let m = shape_vars[0];
+    let n = shape_vars[1];
+    for ax0 in range(0, 4 + m) {
+        for ax1 in range(0, 4 + n) {
+            if (((ax0 >= 2) && (ax0 < 4 + m - 2)) && ((ax1 >= 2) && (ax1 < 4 + n - 2))) {
+                let %0_val = %0[(ax0 + (0 - 2)) * istrides0[0] + (ax1 + (0 - 2)) * istrides0[1]];
+                %1[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %0_val;
+            } else {
+                %1[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = 1;
+            }
+        }
+    }
+    return;
+}"
+    ); // prettier-ignore
+
+    let mut module = Module::new("main");
+    let inputs = schedule.inputs();
+    let outputs = schedule.outputs();
+    assert!(inputs.len() == 1);
+    assert!(outputs.len() == 1);
+    assert!(inputs.contains(&0));
+    module.add_function2(&schedule);
+    let context = tensor_llvm::context::context::Context::new();
+    let mut codegen = CodeGen::new(context, &module, 3);
+    codegen.compile();
+
+    let vars_map =
+        hashmap! {
+            "m".to_string().into() => 4,
+            "n".to_string().into() => 4,
+        };
+
+    let executable = codegen.into_executable(vars_map);
+    let a = tensor_dyn::tensor::Tensor::<f32>
+        ::arange(0.0, 16.0)
+        .expect("Failed to create tensor")
+        .reshape(&[4, 4])
+        .expect("Failed to reshape");
+    let inps_map = hashmap! { 0usize => a.clone().into() };
+    let d = tensor_dyn::tensor::Tensor::<f32>::zeros(&[8, 8]).expect("Failed to create tensor");
+    let outs_map = hashmap! {
+            1 => d.clone().into(),
+        };
+
+    executable.execute(inps_map, outs_map);
+    println!("{:?}", d);
+}
+
+// we need to implement pad slice fusion
+#[test]
+fn test_pad_slice() {
+    let mut ctx = Context::new();
+    let m = ctx.var("m");
+    let n = ctx.var("n");
+    let a = ctx.placeholder(&[&m, &n], Dtype::F32);
+    let b = ctx.pad(
+        &a,
+        &[
+            (&2i64, &2i64),
+            (&2i64, &2i64),
+        ],
+        &1f32
+    );
+    let c = ctx.slice(
+        &b,
+        &[
+            (&2i64, &6i64, &1i64),
+            (&2i64, &6i64, &1i64),
+        ]
+    );
+    let order = [a.id, b.id, c.id];
+
+    let schedule = ctx.to_schedule(&order);
+    let func = schedule.to_function();
     println!("{}", func.to_string());
+
+    let mut module = Module::new("main");
+    module.add_function2(&schedule);
+    let context = tensor_llvm::context::context::Context::new();
+    let mut codegen = CodeGen::new(context, &module, 3);
+    codegen.compile();
+
+    let vars_map =
+        hashmap! {
+            "m".to_string().into() => 4,
+            "n".to_string().into() => 4,
+        };
+
+    let executable = codegen.into_executable(vars_map);
+    let a = tensor_dyn::tensor::Tensor::<f32>
+        ::arange(0.0, 16.0)
+        .expect("Failed to create tensor")
+        .reshape(&[4, 4])
+        .expect("Failed to reshape");
+    let inps_map = hashmap! { 0usize => a.clone().into() };
+    let d = tensor_dyn::tensor::Tensor::<f32>::zeros(&[4, 4]).expect("Failed to create tensor");
+    let outs_map = hashmap! {
+            2 => d.clone().into(),
+        };
+
+    executable.execute(inps_map, outs_map);
+    println!("{:?}", d);
 }
