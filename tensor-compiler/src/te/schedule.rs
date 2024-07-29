@@ -100,13 +100,27 @@ impl Schedule {
     pub fn outs_shape(&self) -> Vec<Arc<Vec<PrimeExpr>>> {
         self.outputs_order()
             .iter()
-            .map(|x| self.nodes.borrow().get(x).unwrap().shape.clone())
+            .map(|x| {
+                let shape = self.nodes.borrow().get(x).unwrap().shape.clone();
+                if shape.len() == 0 {
+                    vec![(1i64).into()].into()
+                } else {
+                    shape
+                }
+            })
             .collect()
     }
     pub fn inps_shape(&self) -> Vec<Arc<Vec<PrimeExpr>>> {
         self.inputs_order()
             .iter()
-            .map(|x| self.nodes.borrow().get(x).unwrap().shape.clone())
+            .map(|x| {
+                let shape = self.nodes.borrow().get(x).unwrap().shape.clone();
+                if shape.len() == 0 {
+                    vec![(1i64).into()].into()
+                } else {
+                    shape
+                }
+            })
             .collect()
     }
     pub fn vars_order(&self) -> Vec<Arc<String>> {
