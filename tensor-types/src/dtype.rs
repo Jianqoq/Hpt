@@ -207,6 +207,10 @@ impl NormalOut for Dtype {
     fn _floor(self) -> Self::Output {
         self
     }
+
+    fn _sign(self) -> Self::Output {
+        self
+    }
 }
 
 impl BitWiseOut for Dtype {

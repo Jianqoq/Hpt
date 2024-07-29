@@ -735,6 +735,32 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                 }
             };
 
+            let sign_method = if res_type.is_float() {
+                quote! {
+                    fn _sign(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().signum()
+                        }
+                    }
+                }
+            } else if res_type.is_unsigned() {
+                quote! {
+                    fn _sign(self) -> Self::Output {
+                        paste::paste! {
+                            #res_type::ZERO
+                        }
+                    }
+                }
+            } else {
+                quote! {
+                    fn _sign(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().signum()
+                        }
+                    }
+                }
+            };
+
             let res =
                 quote! {
                 impl NormalOut<#rhs_dtype> for #lhs_dtype {
@@ -769,6 +795,7 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                     #abs_method
                     #ceil_method
                     #floor_method
+                    #sign_method
                 }
             };
             ret.extend(res);

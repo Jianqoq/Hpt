@@ -1,9 +1,12 @@
 use std::fmt::Display;
 
-use tensor_types::dtype::Dtype;
+use tensor_types::{ dtype::Dtype, type_promote::{ BitWiseOut, Eval, FloatOut, NormalOut } };
 
 use super::{
-    exprs::*, tensor_load::TensorLoad, traits::{ Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor }, variable::Variable
+    exprs::*,
+    tensor_load::TensorLoad,
+    traits::{ Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor },
+    variable::Variable,
 };
 
 #[derive(Clone, PartialEq, Hash, Eq, Debug)]
@@ -647,5 +650,185 @@ impl Into<PrimeExpr> for &str {
 impl Into<PrimeExpr> for String {
     fn into(self) -> PrimeExpr {
         PrimeExpr::Str(Str::make(&self))
+    }
+}
+
+impl NormalOut for PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn _add(self, rhs: Self) -> Self::Output {
+        PrimeExpr::Add(Add::make(self, rhs))
+    }
+
+    fn _sub(self, rhs: Self) -> Self::Output {
+        PrimeExpr::Sub(Sub::make(self, rhs))
+    }
+
+    fn _mul(self, rhs: Self) -> Self::Output {
+        PrimeExpr::Mul(Mul::make(self, rhs))
+    }
+
+    fn _pow(self, rhs: Self) -> Self::Output {
+        Call::make("pow", &[self, rhs]).into()
+    }
+
+    fn _rem(self, rhs: Self) -> Self::Output {
+        PrimeExpr::Rem(Rem::make(self, rhs))
+    }
+
+    fn _square(self) -> Self::Output {
+        Call::make("square", &[self]).into()
+    }
+
+    fn _abs(self) -> Self::Output {
+        Call::make("abs", &[self]).into()
+    }
+
+    fn _ceil(self) -> Self::Output {
+        Call::make("ceil", &[self]).into()
+    }
+
+    fn _floor(self) -> Self::Output {
+        Call::make("floor", &[self]).into()
+    }
+
+    fn _sign(self) -> Self::Output {
+        Call::make("sign", &[self]).into()
+    }
+}
+
+impl FloatOut for PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn _div(self, rhs: Self) -> Self::Output {
+        PrimeExpr::Div(Div::make(self, rhs))
+    }
+
+    fn _exp(self) -> Self::Output {
+        Call::make("exp", &[self]).into()
+    }
+
+    fn _exp2(self) -> Self::Output {
+        Call::make("exp2", &[self]).into()
+    }
+
+    fn _ln(self) -> Self::Output {
+        Call::make("ln", &[self]).into()
+    }
+
+    fn _log(self, base: Self) -> Self::Output {
+        Call::make("log", &[self, base]).into()
+    }
+
+    fn _log2(self) -> Self::Output {
+        Call::make("log2", &[self]).into()
+    }
+
+    fn _log10(self) -> Self::Output {
+        Call::make("log10", &[self]).into()
+    }
+
+    fn _sqrt(self) -> Self::Output {
+        Call::make("sqrt", &[self]).into()
+    }
+
+    fn _sin(self) -> Self::Output {
+        Call::make("sin", &[self]).into()
+    }
+
+    fn _cos(self) -> Self::Output {
+        Call::make("cos", &[self]).into()
+    }
+
+    fn _tan(self) -> Self::Output {
+        Call::make("tan", &[self]).into()
+    }
+
+    fn _asin(self) -> Self::Output {
+        Call::make("asin", &[self]).into()
+    }
+
+    fn _acos(self) -> Self::Output {
+        Call::make("acos", &[self]).into()
+    }
+
+    fn _atan(self) -> Self::Output {
+        Call::make("atan", &[self]).into()
+    }
+
+    fn _sinh(self) -> Self::Output {
+        Call::make("sinh", &[self]).into()
+    }
+
+    fn _cosh(self) -> Self::Output {
+        Call::make("cosh", &[self]).into()
+    }
+
+    fn _tanh(self) -> Self::Output {
+        Call::make("tanh", &[self]).into()
+    }
+
+    fn _asinh(self) -> Self::Output {
+        Call::make("asinh", &[self]).into()
+    }
+
+    fn _acosh(self) -> Self::Output {
+        Call::make("acosh", &[self]).into()
+    }
+
+    fn _atanh(self) -> Self::Output {
+        Call::make("atanh", &[self]).into()
+    }
+
+    fn _recip(self) -> Self::Output {
+        Call::make("recip", &[self]).into()
+    }
+
+    fn _erf(self) -> Self::Output {
+        Call::make("erf", &[self]).into()
+    }
+}
+
+impl BitWiseOut for PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn _bitand(self, rhs: Self) -> Self::Output {
+        PrimeExpr::BitAnd(BitAnd::make(self, rhs))
+    }
+
+    fn _bitor(self, rhs: Self) -> Self::Output {
+        PrimeExpr::BitOr(BitOr::make(self, rhs))
+    }
+
+    fn _bitxor(self, rhs: Self) -> Self::Output {
+        PrimeExpr::BitXor(BitXor::make(self, rhs))
+    }
+
+    fn _not(self) -> Self::Output {
+        PrimeExpr::Not(Not::make(self))
+    }
+
+    fn _shl(self, rhs: Self) -> Self::Output {
+        PrimeExpr::Shl(Shl::make(self, rhs))
+    }
+
+    fn _shr(self, rhs: Self) -> Self::Output {
+        PrimeExpr::Shr(Shr::make(self, rhs))
+    }
+}
+
+impl Eval for PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn _is_nan(&self) -> Self::Output {
+        Call::make("isnan", &[self.clone()]).into()
+    }
+
+    fn _is_true(&self) -> Self::Output {
+        Call::make("is_true", &[self.clone()]).into()
+    }
+
+    fn _is_inf(&self) -> Self::Output {
+        Call::make("isinf", &[self.clone()]).into()
     }
 }

@@ -1,7 +1,7 @@
 
 use tensor_types::dtype::Dtype;
 
-use super::{ exprs::{ BitAnd, Call, Float, Int }, prime_expr::PrimeExpr };
+use super::{ exprs::{ BitAnd, Call, Float, Int, Neg }, prime_expr::PrimeExpr };
 
 pub fn all(conds: &[PrimeExpr]) -> PrimeExpr {
     conds
@@ -17,6 +17,10 @@ pub fn exp(x: PrimeExpr) -> PrimeExpr {
 
 pub fn erf(x: PrimeExpr) -> PrimeExpr {
     Call::make("erf", &[&x]).into()
+}
+
+pub fn neg(x: PrimeExpr) -> PrimeExpr {
+    Neg::make(x).into()
 }
 
 pub fn dtype_zero(dtype: Dtype) -> PrimeExpr {

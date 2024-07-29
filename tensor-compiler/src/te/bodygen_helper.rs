@@ -5,7 +5,7 @@ use tensor_types::dtype::Dtype;
 use crate::{
     halide::{
         alloca_stmt::AllocaStmt,
-        exprs::{ Call, Load },
+        exprs::Load,
         let_stmt::LetStmt,
         prime_expr::PrimeExpr,
         primitive_type::PrimitiveType,
@@ -322,7 +322,7 @@ pub fn common_binop_out<F>(
                         Load::make(&format!("%{}.s", output_id), idx).into()
                 )
                 .reduce(|acc, x| acc + x)
-                .unwrap_or(0i64.into()),
+                .unwrap_or((0i64).into()),
             binop(
                 Variable::make(&format!("%{}_val", lhs_id)).into(),
                 Variable::make(&format!("%{}_val", rhs_id)).into()
@@ -354,7 +354,7 @@ pub fn common_uaryop(
     inputs: &Vec<Body>,
     shape: &Vec<PrimeExpr>,
     ty_infer: fn(Dtype) -> Dtype,
-    method_name: &str,
+    unaryop: fn(PrimeExpr) -> PrimeExpr,
     output_id: usize
 ) -> Body {
     if is_output {
@@ -365,25 +365,20 @@ pub fn common_uaryop(
             ty_infer,
             |dims: &Vec<IterVar>, stage_out_id: usize|
                 Body::Stmt(
-                    Stmt::StoreStmt(
-                        StoreStmt::make(
-                            &Variable::make(&format!("%{}", output_id)),
-                            dims
-                                .iter()
-                                .enumerate()
-                                .map(
-                                    |(idx, x)|
-                                        x.var().to_prime_expr() *
-                                        Load::make(&format!("%{}.s", output_id), idx).into()
-                                )
-                                .reduce(|acc, x| acc + x)
-                                .unwrap_or(0i64.into()),
-                            Call::make(
-                                method_name,
-                                &[Variable::make(&format!("%{}_val", stage_out_id))]
+                    StoreStmt::make(
+                        &Variable::make(&format!("%{}", output_id)),
+                        dims
+                            .iter()
+                            .enumerate()
+                            .map(
+                                |(idx, x)|
+                                    x.var().to_prime_expr() *
+                                    Load::make(&format!("%{}.s", output_id), idx).into()
                             )
-                        )
-                    )
+                            .reduce(|acc, x| acc + x)
+                            .unwrap_or((0i64).into()),
+                        unaryop(Variable::make(&format!("%{}_val", stage_out_id)).into())
+                    ).into()
                 )
         )
     } else {
@@ -392,10 +387,7 @@ pub fn common_uaryop(
                 Stmt::LetStmt(
                     LetStmt::make(
                         &Variable::make(&format!("%{}_val", output_id)),
-                        Call::make(
-                            method_name,
-                            &[Variable::make(&format!("%{}_val", stage_out_id))]
-                        ),
+                        unaryop(Variable::make(&format!("%{}_val", stage_out_id)).into()),
                         false,
                         Stmt::None
                     )

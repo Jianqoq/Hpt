@@ -27,7 +27,7 @@ macro_rules! impl_trig {
                     elementwise_strides_cal(prev_fn[0].clone())
                 }),
                 body_gen: Arc::new(move |inputs: Vec<Body>, is_output: bool, id: usize| {
-                    common_uaryop(is_output, &inputs, &shape, |x| x.$infer_name(), stringify!($op_name), id)
+                    common_uaryop(is_output, &inputs, &shape, |x| x.$infer_name(), |x| x.$infer_name(), id)
                 }),
             };
             self.nodes.borrow_mut().insert(id, ret.clone());

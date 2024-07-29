@@ -15,7 +15,7 @@ use crate::{
 };
 
 macro_rules! impl_std_binop {
-    ($op_name:ident, $ty_infer:ident, $op:tt) => {
+    ($op_name:ident, $ty_infer:ident) => {
         #[track_caller]
         pub fn $op_name(&mut self, a: &Tensor, b: &Tensor) -> Tensor {
             let lhs_shape = a.shape.clone();
@@ -100,7 +100,7 @@ macro_rules! impl_std_binop {
                         &rhs_new_axes,
                         &rhs_replace,
                         |x, y| x.$ty_infer(y),
-                        |x, y| x $op y,
+                        |x, y| x.$ty_infer(y),
                         &dims,
                         id
                     )
@@ -113,14 +113,14 @@ macro_rules! impl_std_binop {
 }
 
 impl Context {
-    impl_std_binop!(add, _add, +);
-    impl_std_binop!(sub, _sub, -);
-    impl_std_binop!(mul, _mul, *);
-    impl_std_binop!(div, _div, /);
-    impl_std_binop!(rem, _rem, %);
-    impl_std_binop!(bitand, _bitand, &);
-    impl_std_binop!(bitor, _bitor, |);
-    impl_std_binop!(bitxor, _bitxor, ^);
-    impl_std_binop!(shl, _shl, <<);
-    impl_std_binop!(shr, _shr, >>);
+    impl_std_binop!(add, _add);
+    impl_std_binop!(sub, _sub);
+    impl_std_binop!(mul, _mul);
+    impl_std_binop!(div, _div);
+    impl_std_binop!(rem, _rem);
+    impl_std_binop!(bitand, _bitand);
+    impl_std_binop!(bitor, _bitor);
+    impl_std_binop!(bitxor, _bitxor);
+    impl_std_binop!(shl, _shl);
+    impl_std_binop!(shr, _shr);
 }

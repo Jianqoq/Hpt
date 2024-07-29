@@ -61,6 +61,8 @@ pub mod te {
         pub mod celu;
         pub mod gelu;
         pub mod neg;
+        pub mod sigmoid;
+        pub mod not;
     }
     pub mod insert_axes;
     pub mod strides_visitor;
