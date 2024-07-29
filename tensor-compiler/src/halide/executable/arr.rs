@@ -17,8 +17,8 @@ impl Array {
     pub fn shape(&self) -> &Shape {
         &self.shape
     }
-    pub fn dtype(&self) -> &Dtype {
-        &self.dtype
+    pub fn dtype(&self) -> Dtype {
+        self.dtype
     }
 }
 

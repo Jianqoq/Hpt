@@ -475,7 +475,7 @@ fn test_argmin_broadcast_schedule() {
     let func = schedule.to_function();
     assert_eq!(
         func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
     let %0 = (data_vec[0] as *f32);
     let %1 = (output_vec[0] as *i64);
@@ -518,7 +518,7 @@ fn test_argmin_broadcast_schedule() {
             "n" => 5,
             "o" => 3,
         };
-    
+
     let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
         vars_map
     );

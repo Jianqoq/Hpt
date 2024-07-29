@@ -5,6 +5,7 @@ use tensor_llvm::{
     context::context::Context,
     types::{ general_types::GeneralType, values::StructValue },
 };
+use tensor_types::dtype::Dtype;
 
 use crate::halide::printer::_IRPrinter;
 use crate::te::hstrides::HStrides;
@@ -132,8 +133,11 @@ impl FunctionType {
 pub struct FunctionMeta {
     pub(crate) function: Function,
     pub(crate) inputs_order: Vec<usize>,
+    pub(crate) inputs_dtype: Vec<Dtype>,
     pub(crate) outputs_order: Vec<usize>,
+    pub(crate) outputs_dtype: Vec<Dtype>,
     pub(crate) outs_shape: Vec<Arc<Vec<PrimeExpr>>>,
+    pub(crate) inps_shape: Vec<Arc<Vec<PrimeExpr>>>,
     pub(crate) strides_cal: Arc<dyn Fn(&HashMap<Arc<String>, i64>) -> Vec<HStrides>>,
     pub(crate) vars_order: Vec<Arc<String>>,
 }
@@ -161,15 +165,21 @@ impl Module {
     pub fn add_function2(&mut self, schedule: &Schedule) {
         let strides_cal = schedule.strides_cal.clone();
         let function = schedule.to_function();
-        let inputs = schedule.inputs_order().clone();
-        let outputs = schedule.outputs_order().clone();
-        let outs_shape = schedule.outs_shape().clone();
-        let vars_order = schedule.vars_order().clone();
+        let inputs = schedule.inputs_order();
+        let inputs_dtype = schedule.inputs_dtype();
+        let outputs = schedule.outputs_order();
+        let outputs_dtype = schedule.outputs_dtype();
+        let outs_shape = schedule.outs_shape();
+        let inps_shape = schedule.inps_shape();
+        let vars_order = schedule.vars_order();
         self.fns.insert(function.name.clone(), FunctionMeta {
             function,
             inputs_order: inputs,
+            inputs_dtype,
             outputs_order: outputs,
+            outputs_dtype,
             outs_shape,
+            inps_shape,
             strides_cal,
             vars_order,
         });

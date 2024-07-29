@@ -85,8 +85,26 @@ impl Schedule {
     pub fn outputs_order(&self) -> Vec<usize> {
         outs_order(self)
     }
+    pub fn inputs_dtype(&self) -> Vec<Dtype> {
+        self.inputs_order()
+            .iter()
+            .map(|x| self.nodes.borrow().get(x).unwrap().dtype)
+            .collect()
+    }
+    pub fn outputs_dtype(&self) -> Vec<Dtype> {
+        self.outputs_order()
+            .iter()
+            .map(|x| self.nodes.borrow().get(x).unwrap().dtype)
+            .collect()
+    }
     pub fn outs_shape(&self) -> Vec<Arc<Vec<PrimeExpr>>> {
         self.outputs_order()
+            .iter()
+            .map(|x| self.nodes.borrow().get(x).unwrap().shape.clone())
+            .collect()
+    }
+    pub fn inps_shape(&self) -> Vec<Arc<Vec<PrimeExpr>>> {
+        self.inputs_order()
             .iter()
             .map(|x| self.nodes.borrow().get(x).unwrap().shape.clone())
             .collect()

@@ -1,17 +1,14 @@
 use std::{ alloc::Layout, collections::HashMap, ffi::c_void, sync::Arc };
 
-use tensor_common::strides_utils::shape_to_strides;
 use tensor_llvm::{
     builder::builder::Builder,
     context::context::Context,
     engine::engine::ExecutionEngine,
     utils::to_c_str,
 };
+use tensor_types::dtype::Dtype;
 
-use crate::{
-    halide::prime_expr::PrimeExpr,
-    te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator },
-};
+use crate::{ halide::prime_expr::PrimeExpr, te::hstrides::HStrides };
 
 use super::arr::Array;
 
@@ -24,6 +21,10 @@ pub struct Executable {
     pub sorted_strides_cal: Vec<Arc<dyn Fn(&HashMap<Arc<String>, i64>) -> Vec<HStrides>>>,
     pub sorted_inputs: Vec<Vec<usize>>,
     pub sorted_outputs: Vec<Vec<usize>>,
+    pub inps_shapes: Vec<Vec<Arc<Vec<i64>>>>,
+    pub inps_dtypes: Vec<Vec<Dtype>>,
+    pub outs_shapes: Vec<Vec<Arc<Vec<i64>>>>,
+    pub outs_dtypes: Vec<Vec<Dtype>>,
     pub sorted_inputs_container: Vec<*mut *mut c_void>,
     pub sorted_outputs_container: Vec<*mut *mut c_void>,
     pub sorted_ic_layouts: Vec<Vec<Layout>>,
@@ -57,143 +58,6 @@ impl Executable {
         unsafe { std::mem::transmute_copy::<u64, F>(&address) }
     }
 
-    pub fn prepare(mut self) -> Self {
-        let mut touse_vars_layout = vec![];
-        let mut istrides_vec_layout = vec![];
-        let mut ostrides_vec_layout = vec![];
-        let mut strides_layout = vec![];
-        let mut ostrides_layouts = vec![];
-        let mut istrides = vec![];
-        let mut ostrides = vec![];
-        let mut vars = vec![];
-        let mut sorted_inputs_container = vec![];
-        let mut sorted_outputs_container = vec![];
-        let mut sorted_ic_layouts = vec![];
-        let mut sorted_oc_layouts = vec![];
-        let mut sorted_ic_layout = vec![];
-        let mut sorted_oc_layout = vec![];
-        for (idx, strides_cal) in self.sorted_strides_cal.iter().enumerate() {
-            let _istrides = {
-                let strides = strides_cal(&self.vars_map);
-                let mut cached_layout = vec![];
-                let layout = std::alloc::Layout
-                    ::from_size_align(strides.len() * std::mem::size_of::<*mut i64>(), 8)
-                    .unwrap();
-                let strides_vec = unsafe {
-                    let strides_vec = std::alloc::alloc(layout.clone()) as *mut *mut i64;
-                    for (idx, s) in strides.iter().enumerate() {
-                        let s_layout = std::alloc::Layout
-                            ::from_size_align(s.strides.len() * std::mem::size_of::<i64>(), 8)
-                            .unwrap();
-                        cached_layout.push(s_layout);
-                        strides_vec.add(idx).write(s.to_aligned_ptr());
-                    }
-                    strides_vec
-                };
-                strides_layout.push(cached_layout);
-                istrides_vec_layout.push(layout);
-                strides_vec
-            };
-            let mut _layouts = vec![];
-            let _ostrides = {
-                let real_shapes = self.sorted_out_shapes[idx]
-                    .iter()
-                    .map(|x| {
-                        x.iter()
-                            .map(|x| IdxEvaluator::new(&self.vars_map).eval(x))
-                            .collect::<Vec<i64>>()
-                    })
-                    .collect::<Vec<_>>();
-                let ptrs_layout = std::alloc::Layout
-                    ::from_size_align(real_shapes.len() * std::mem::size_of::<*mut i64>(), 8)
-                    .unwrap();
-                let ptrs = unsafe {
-                    let ptrs = std::alloc::alloc(ptrs_layout.clone()) as *mut *mut i64;
-                    for (idx, s) in real_shapes.iter().enumerate() {
-                        let layout = std::alloc::Layout
-                            ::from_size_align(s.len() * std::mem::size_of::<i64>(), 8)
-                            .unwrap();
-                        let ptr = std::alloc::alloc(layout) as *mut i64;
-                        let strides = shape_to_strides(s);
-                        for (idx, stride) in strides.iter().enumerate() {
-                            ptr.add(idx).write(*stride);
-                        }
-                        ptrs.add(idx).write(ptr);
-                        _layouts.push(layout);
-                    }
-                    ptrs
-                };
-                ostrides_vec_layout.push(ptrs_layout);
-                ptrs
-            };
-            ostrides_layouts.push(_layouts);
-
-            let _vars = {
-                let vars = &self.sorted_touse_vars[idx];
-                let layout = std::alloc::Layout
-                    ::from_size_align(vars.len() * std::mem::size_of::<i64>(), 8)
-                    .unwrap();
-                let shape_vars = unsafe {
-                    let shape_vars = std::alloc::alloc(layout.clone()) as *mut i64;
-                    for (idx, var) in vars.iter().enumerate() {
-                        shape_vars.add(idx).write(self.vars_map[var]);
-                    }
-                    shape_vars
-                };
-                touse_vars_layout.push(layout);
-                shape_vars
-            };
-
-            let _inputs = {
-                let layout = std::alloc::Layout
-                    ::from_size_align(
-                        self.sorted_inputs[idx].len() * std::mem::size_of::<*mut c_void>(),
-                        8
-                    )
-                    .unwrap();
-                let input_container = unsafe {
-                    std::alloc::alloc(layout.clone()) as *mut *mut c_void
-                };
-                sorted_ic_layout.push(layout);
-                input_container
-            };
-
-            let _outputs = {
-                let layout = std::alloc::Layout
-                    ::from_size_align(
-                        self.sorted_outputs[idx].len() * std::mem::size_of::<*mut c_void>(),
-                        8
-                    )
-                    .unwrap();
-                let output_container = unsafe {
-                    std::alloc::alloc(layout.clone()) as *mut *mut c_void
-                };
-                sorted_oc_layout.push(layout);
-                output_container
-            };
-            sorted_inputs_container.push(_inputs);
-            sorted_outputs_container.push(_outputs);
-            sorted_ic_layouts.push(sorted_ic_layout.clone());
-            sorted_oc_layouts.push(sorted_oc_layout.clone());
-            istrides.push(_istrides);
-            ostrides.push(_ostrides);
-            vars.push(_vars);
-        }
-        self.sorted_inputs_container = sorted_inputs_container;
-        self.sorted_outputs_container = sorted_outputs_container;
-        self.sorted_ic_layouts = sorted_ic_layouts;
-        self.sorted_oc_layouts = sorted_oc_layouts;
-        self.touse_vars_layout = touse_vars_layout;
-        self.istrides_vec_layout = istrides_vec_layout;
-        self.ostrides_vec_layout = ostrides_vec_layout;
-        self.strides_layout = strides_layout;
-        self.ostrides_layouts = ostrides_layouts;
-        self.istrides = istrides;
-        self.ostrides = ostrides;
-        self.vars = vars;
-        self
-    }
-
     pub fn execute(&self, inputs: HashMap<usize, Array>, outputs: HashMap<usize, Array>) {
         for (idx, fn_name) in self.sorted_fns.iter().enumerate() {
             let c_str = to_c_str(fn_name);
@@ -224,6 +88,26 @@ impl Executable {
                 .iter()
                 .enumerate()
                 .for_each(|(i, x)| {
+                    let inp_shape = inputs[x].shape().inner();
+                    let expect_shape = self.inps_shapes[idx][i].as_ref();
+                    if inp_shape != expect_shape {
+                        panic!(
+                            "input shape mismatch: expect {:?}, got {:?}, input index: {}",
+                            expect_shape,
+                            inp_shape,
+                            x
+                        );
+                    }
+                    let inp_dtype = inputs[x].dtype();
+                    let expect_dtype = self.inps_dtypes[idx][i];
+                    if inp_dtype != expect_dtype {
+                        panic!(
+                            "input dtype mismatch: expect {:?}, got {:?}, input index: {}",
+                            expect_dtype,
+                            inp_dtype,
+                            x
+                        );
+                    }
                     let data = inputs[x].ptr();
                     unsafe {
                         self.sorted_inputs_container[idx].add(i).write(data);
@@ -233,6 +117,26 @@ impl Executable {
                 .iter()
                 .enumerate()
                 .for_each(|(i, x)| {
+                    let out_shape = outputs[x].shape().inner();
+                    let expect_shape = self.outs_shapes[idx][i].as_ref();
+                    if out_shape != expect_shape {
+                        panic!(
+                            "output shape mismatch: expect {:?}, got {:?}, output index: {}",
+                            expect_shape,
+                            out_shape,
+                            x
+                        );
+                    }
+                    let out_dtype = outputs[x].dtype();
+                    let expect_dtype = self.outs_dtypes[idx][i];
+                    if out_dtype != expect_dtype {
+                        panic!(
+                            "output dtype mismatch: expect {:?}, got {:?}, output index: {}",
+                            expect_dtype,
+                            out_dtype,
+                            x
+                        );
+                    }
                     let data = outputs[x].ptr();
                     unsafe {
                         self.sorted_outputs_container[idx].add(i).write(data);
