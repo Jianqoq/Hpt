@@ -356,20 +356,8 @@ impl CodeGenVisitor for CodeGen {
         let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
-        let casted_lhs = build_cast(
-            res_type,
-            lhs,
-            "lhs_casted",
-            &self.ctx,
-            &self.builder
-        );
-        let casted_rhs = build_cast(
-            res_type,
-            rhs,
-            "rhs_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_lhs = build_cast(res_type, lhs, "lhs_casted", &self.ctx, &self.builder);
+        let casted_rhs = build_cast(res_type, rhs, "rhs_casted", &self.ctx, &self.builder);
         let res = match res_type {
             | Dtype::Bool
             | Dtype::I8
@@ -402,20 +390,8 @@ impl CodeGenVisitor for CodeGen {
         let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._sub(rhs_type);
-        let casted_lhs = build_cast(
-            res_type,
-            lhs,
-            "lhs_casted",
-            &self.ctx,
-            &self.builder
-        );
-        let casted_rhs = build_cast(
-            res_type,
-            rhs,
-            "rhs_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_lhs = build_cast(res_type, lhs, "lhs_casted", &self.ctx, &self.builder);
+        let casted_rhs = build_cast(res_type, rhs, "rhs_casted", &self.ctx, &self.builder);
         let res = match res_type {
             | Dtype::Bool
             | Dtype::I8
@@ -448,20 +424,8 @@ impl CodeGenVisitor for CodeGen {
         let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._mul(rhs_type);
-        let casted_lhs = build_cast(
-            res_type,
-            lhs,
-            "lhs_casted",
-            &self.ctx,
-            &self.builder
-        );
-        let casted_rhs = build_cast(
-            res_type,
-            rhs,
-            "rhs_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_lhs = build_cast(res_type, lhs, "lhs_casted", &self.ctx, &self.builder);
+        let casted_rhs = build_cast(res_type, rhs, "rhs_casted", &self.ctx, &self.builder);
         let res = match res_type {
             | Dtype::Bool
             | Dtype::I8
@@ -492,25 +456,13 @@ impl CodeGenVisitor for CodeGen {
         let lhs = self.visit_expr(div.e1());
         let rhs = self.visit_expr(div.e2());
         if div.e2() == &PrimeExpr::Int(Int::make(Dtype::I64, 0)) {
-            panic!("division by zero")
+            panic!("division by zero");
         }
         let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._div(rhs_type);
-        let casted_lhs = build_cast(
-            res_type,
-            lhs,
-            "lhs_casted",
-            &self.ctx,
-            &self.builder
-        );
-        let casted_rhs = build_cast(
-            res_type,
-            rhs,
-            "rhs_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_lhs = build_cast(res_type, lhs, "lhs_casted", &self.ctx, &self.builder);
+        let casted_rhs = build_cast(res_type, rhs, "rhs_casted", &self.ctx, &self.builder);
         let res = match res_type {
             Dtype::BF16 | Dtype::F16 | Dtype::F32 | Dtype::F64 => {
                 self.builder.build_float_div(casted_lhs, casted_rhs, "div")
@@ -530,20 +482,8 @@ impl CodeGenVisitor for CodeGen {
         let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._div(rhs_type);
-        let casted_lhs = build_cast(
-            res_type,
-            lhs,
-            "lhs_casted",
-            &self.ctx,
-            &self.builder
-        );
-        let casted_rhs = build_cast(
-            res_type,
-            rhs,
-            "rhs_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_lhs = build_cast(res_type, lhs, "lhs_casted", &self.ctx, &self.builder);
+        let casted_rhs = build_cast(res_type, rhs, "rhs_casted", &self.ctx, &self.builder);
         let res = match res_type {
             Dtype::F32 | Dtype::F64 => {
                 let res = self.builder.build_float_div(casted_lhs, casted_rhs, "div");
@@ -578,13 +518,7 @@ impl CodeGenVisitor for CodeGen {
             _ => unimplemented!("unsupported dtype, {}", res_type),
         };
         let to_cast_dtype = lhs_type._add(rhs_type);
-        let res = build_cast(
-            to_cast_dtype,
-            res,
-            "floor_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let res = build_cast(to_cast_dtype, res, "floor_casted", &self.ctx, &self.builder);
         self.bindings
             .get_mut(&self.current_fn)
             .expect("fn not find")
@@ -598,20 +532,8 @@ impl CodeGenVisitor for CodeGen {
         let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._rem(rhs_type);
-        let casted_lhs = build_cast(
-            res_type,
-            lhs,
-            "lhs_casted",
-            &self.ctx,
-            &self.builder
-        );
-        let casted_rhs = build_cast(
-            res_type,
-            rhs,
-            "rhs_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_lhs = build_cast(res_type, lhs, "lhs_casted", &self.ctx, &self.builder);
+        let casted_rhs = build_cast(res_type, rhs, "rhs_casted", &self.ctx, &self.builder);
         let res = match res_type {
             Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
                 self.builder.build_int_rem(casted_lhs, casted_rhs, "srem")
@@ -637,20 +559,8 @@ impl CodeGenVisitor for CodeGen {
         let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
-        let casted_lhs = build_cast(
-            res_type,
-            lhs,
-            "lhs_casted",
-            &self.ctx,
-            &self.builder
-        );
-        let casted_rhs = build_cast(
-            res_type,
-            rhs,
-            "rhs_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_lhs = build_cast(res_type, lhs, "lhs_casted", &self.ctx, &self.builder);
+        let casted_rhs = build_cast(res_type, rhs, "rhs_casted", &self.ctx, &self.builder);
         let res = match res_type {
             Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
                 let cond = self.builder.build_int_cmp(
@@ -694,20 +604,8 @@ impl CodeGenVisitor for CodeGen {
         let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
-        let casted_lhs = build_cast(
-            res_type,
-            lhs,
-            "lhs_casted",
-            &self.ctx,
-            &self.builder
-        );
-        let casted_rhs = build_cast(
-            res_type,
-            rhs,
-            "rhs_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_lhs = build_cast(res_type, lhs, "lhs_casted", &self.ctx, &self.builder);
+        let casted_rhs = build_cast(res_type, rhs, "rhs_casted", &self.ctx, &self.builder);
         let res = match res_type {
             Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
                 let cond = self.builder.build_int_cmp(
@@ -751,20 +649,8 @@ impl CodeGenVisitor for CodeGen {
         let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
-        let casted_lhs = build_cast(
-            res_type,
-            lhs,
-            "lhs_casted",
-            &self.ctx,
-            &self.builder
-        );
-        let casted_rhs = build_cast(
-            res_type,
-            rhs,
-            "rhs_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_lhs = build_cast(res_type, lhs, "lhs_casted", &self.ctx, &self.builder);
+        let casted_rhs = build_cast(res_type, rhs, "rhs_casted", &self.ctx, &self.builder);
         let res = match res_type {
             Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
                 self.builder.build_int_cmp(
@@ -805,20 +691,8 @@ impl CodeGenVisitor for CodeGen {
         let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
-        let casted_lhs = build_cast(
-            res_type,
-            lhs,
-            "lhs_casted",
-            &self.ctx,
-            &self.builder
-        );
-        let casted_rhs = build_cast(
-            res_type,
-            rhs,
-            "rhs_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_lhs = build_cast(res_type, lhs, "lhs_casted", &self.ctx, &self.builder);
+        let casted_rhs = build_cast(res_type, rhs, "rhs_casted", &self.ctx, &self.builder);
         let res = match res_type {
             Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
                 self.builder.build_int_cmp(
@@ -859,20 +733,8 @@ impl CodeGenVisitor for CodeGen {
         let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
-        let casted_lhs = build_cast(
-            res_type,
-            lhs,
-            "lhs_casted",
-            &self.ctx,
-            &self.builder
-        );
-        let casted_rhs = build_cast(
-            res_type,
-            rhs,
-            "rhs_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_lhs = build_cast(res_type, lhs, "lhs_casted", &self.ctx, &self.builder);
+        let casted_rhs = build_cast(res_type, rhs, "rhs_casted", &self.ctx, &self.builder);
         let res = match res_type {
             Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
                 self.builder.build_int_cmp(
@@ -913,20 +775,8 @@ impl CodeGenVisitor for CodeGen {
         let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
-        let casted_lhs = build_cast(
-            res_type,
-            lhs,
-            "lhs_casted",
-            &self.ctx,
-            &self.builder
-        );
-        let casted_rhs = build_cast(
-            res_type,
-            rhs,
-            "rhs_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_lhs = build_cast(res_type, lhs, "lhs_casted", &self.ctx, &self.builder);
+        let casted_rhs = build_cast(res_type, rhs, "rhs_casted", &self.ctx, &self.builder);
         let res = match res_type {
             Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
                 self.builder.build_int_cmp(
@@ -967,20 +817,8 @@ impl CodeGenVisitor for CodeGen {
         let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
-        let casted_lhs = build_cast(
-            res_type,
-            lhs,
-            "lhs_casted",
-            &self.ctx,
-            &self.builder
-        );
-        let casted_rhs = build_cast(
-            res_type,
-            rhs,
-            "rhs_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_lhs = build_cast(res_type, lhs, "lhs_casted", &self.ctx, &self.builder);
+        let casted_rhs = build_cast(res_type, rhs, "rhs_casted", &self.ctx, &self.builder);
         let res = match res_type {
             | Dtype::I8
             | Dtype::I16
@@ -1023,20 +861,8 @@ impl CodeGenVisitor for CodeGen {
         let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._add(rhs_type);
-        let casted_lhs = build_cast(
-            res_type,
-            lhs,
-            "lhs_casted",
-            &self.ctx,
-            &self.builder
-        );
-        let casted_rhs = build_cast(
-            res_type,
-            rhs,
-            "rhs_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_lhs = build_cast(res_type, lhs, "lhs_casted", &self.ctx, &self.builder);
+        let casted_rhs = build_cast(res_type, rhs, "rhs_casted", &self.ctx, &self.builder);
         let res = match res_type {
             | Dtype::I8
             | Dtype::I16
@@ -1079,20 +905,8 @@ impl CodeGenVisitor for CodeGen {
         let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._bitand(rhs_type);
-        let casted_lhs = build_cast(
-            res_type,
-            lhs,
-            "lhs_casted",
-            &self.ctx,
-            &self.builder
-        );
-        let casted_rhs = build_cast(
-            res_type,
-            rhs,
-            "rhs_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_lhs = build_cast(res_type, lhs, "lhs_casted", &self.ctx, &self.builder);
+        let casted_rhs = build_cast(res_type, rhs, "rhs_casted", &self.ctx, &self.builder);
         let res = match res_type {
             | Dtype::I8
             | Dtype::I16
@@ -1122,20 +936,8 @@ impl CodeGenVisitor for CodeGen {
         let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._bitxor(rhs_type);
-        let casted_lhs = build_cast(
-            res_type,
-            lhs,
-            "lhs_casted",
-            &self.ctx,
-            &self.builder
-        );
-        let casted_rhs = build_cast(
-            res_type,
-            rhs,
-            "rhs_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_lhs = build_cast(res_type, lhs, "lhs_casted", &self.ctx, &self.builder);
+        let casted_rhs = build_cast(res_type, rhs, "rhs_casted", &self.ctx, &self.builder);
         let res = match res_type {
             | Dtype::I8
             | Dtype::I16
@@ -1165,20 +967,8 @@ impl CodeGenVisitor for CodeGen {
         let lhs_type = self.bindings[&self.current_fn].find_type(&lhs).unwrap().dtype();
         let rhs_type = self.bindings[&self.current_fn].find_type(&rhs).unwrap().dtype();
         let res_type = lhs_type._bitor(rhs_type);
-        let casted_lhs = build_cast(
-            res_type,
-            lhs,
-            "lhs_casted",
-            &self.ctx,
-            &self.builder
-        );
-        let casted_rhs = build_cast(
-            res_type,
-            rhs,
-            "rhs_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_lhs = build_cast(res_type, lhs, "lhs_casted", &self.ctx, &self.builder);
+        let casted_rhs = build_cast(res_type, rhs, "rhs_casted", &self.ctx, &self.builder);
         let res = match res_type {
             | Dtype::I8
             | Dtype::I16
@@ -1206,13 +996,7 @@ impl CodeGenVisitor for CodeGen {
         let val = self.visit_expr(not.e());
         let val_type = self.bindings[&self.current_fn].find_type(&val).unwrap().dtype();
         let res_type = val_type._not();
-        let casted_val = build_cast(
-            res_type,
-            val,
-            "val_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_val = build_cast(res_type, val, "val_casted", &self.ctx, &self.builder);
         let res = match res_type {
             | Dtype::Bool
             | Dtype::I8
@@ -1441,16 +1225,71 @@ impl CodeGenVisitor for CodeGen {
                         res
                     }
                 }
+                "exp" => {
+                    let arg = self.visit_expr(call.args().first().unwrap());
+                    let arg_ty = self.bindings[&self.current_fn].find_type(&arg).unwrap().dtype();
+                    let casted_ty = arg_ty._sin();
+                    if casted_ty == arg_ty {
+                        let res = match casted_ty {
+                            Dtype::F32 => {
+                                let ret_ty = self.ctx.f32_type();
+                                let fn_ty = ret_ty.fn_type(&[ret_ty.into()], false);
+                                let expf = self.module.add_function(fn_ty, "expf");
+                                self.fns.insert("expf".to_string().into(), expf.clone());
+                                self.builder.build_call(&expf, &[arg], "expf")
+                            }
+                            Dtype::F64 => {
+                                let ret_ty = self.ctx.f64_type();
+                                let fn_ty = ret_ty.fn_type(&[ret_ty.into()], false);
+                                let exp = self.module.add_function(fn_ty, "exp");
+                                self.fns.insert("exp".to_string().into(), exp.clone());
+                                self.builder.build_call(&exp, &[arg], "exp")
+                            }
+                            _ => unimplemented!("unsupported dtype, {}", casted_ty),
+                        };
+                        self.bindings
+                            .get_mut(&self.current_fn)
+                            .expect("fn not find")
+                            .insert_type(res, PrimitiveType::Dtype(casted_ty));
+                        res
+                    } else {
+                        let casted_arg = build_cast(
+                            casted_ty,
+                            arg,
+                            "casted_arg",
+                            &self.ctx,
+                            &self.builder
+                        );
+                        let res = match casted_ty {
+                            Dtype::F32 => {
+                                let ret_ty = self.ctx.f32_type();
+                                let fn_ty = ret_ty.fn_type(&[ret_ty.into()], false);
+                                let expf = self.module.add_function(fn_ty, "expf");
+                                self.fns.insert("expf".to_string().into(), expf.clone());
+                                self.builder.build_call(&expf, &[casted_arg], "expf")
+                            }
+                            Dtype::F64 => {
+                                let ret_ty = self.ctx.f64_type();
+                                let fn_ty = ret_ty.fn_type(&[ret_ty.into()], false);
+                                let exp = self.module.add_function(fn_ty, "exp");
+                                self.fns.insert("exp".to_string().into(), exp.clone());
+                                self.builder.build_call(&exp, &[casted_arg], "exp")
+                            }
+                            _ => unimplemented!("unsupported dtype, {}", casted_ty),
+                        };
+                        self.bindings
+                            .get_mut(&self.current_fn)
+                            .expect("fn not find")
+                            .insert_type(res, PrimitiveType::Dtype(casted_ty));
+                        res
+                    }
+                }
                 "ceil" => {
                     let arg = self.visit_expr(call.args().first().unwrap());
                     let arg_ty = self.bindings[&self.current_fn].find_type(&arg).unwrap().dtype();
                     let ret = match arg_ty {
-                        Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
-                            arg
-                        }
-                        Dtype::U8 | Dtype::U16 | Dtype::U32 | Dtype::U64 | Dtype::Usize => {
-                            arg
-                        }
+                        Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => { arg }
+                        Dtype::U8 | Dtype::U16 | Dtype::U32 | Dtype::U64 | Dtype::Usize => { arg }
                         Dtype::F32 => {
                             let ret_ty = self.ctx.f32_type();
                             let fn_ty = ret_ty.fn_type(&[ret_ty.into()], false);
@@ -1820,13 +1659,7 @@ impl CodeGenVisitor for CodeGen {
         let to_store = self.visit_expr(&inplace_add.to_store());
         let val = self.visit_expr(&inplace_add.val());
         let to_store_type = self.bindings[&self.current_fn].find_type(&to_store).unwrap().dtype();
-        let casted_val = build_cast(
-            to_store_type,
-            val,
-            "val_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_val = build_cast(to_store_type, val, "val_casted", &self.ctx, &self.builder);
         let res = match to_store_type {
             | Dtype::Bool
             | Dtype::I8
@@ -1876,13 +1709,7 @@ impl CodeGenVisitor for CodeGen {
         let to_store = self.visit_expr(&inplace_sub.to_store());
         let val = self.visit_expr(&inplace_sub.val());
         let to_store_type = self.bindings[&self.current_fn].find_type(&to_store).unwrap().dtype();
-        let casted_val = build_cast(
-            to_store_type,
-            val,
-            "val_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_val = build_cast(to_store_type, val, "val_casted", &self.ctx, &self.builder);
         let res = match to_store_type {
             | Dtype::Bool
             | Dtype::I8
@@ -1922,13 +1749,7 @@ impl CodeGenVisitor for CodeGen {
         let to_store = self.visit_expr(&inplace_mul.to_store());
         let val = self.visit_expr(&inplace_mul.val());
         let to_store_type = self.bindings[&self.current_fn].find_type(&to_store).unwrap().dtype();
-        let casted_val = build_cast(
-            to_store_type,
-            val,
-            "val_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_val = build_cast(to_store_type, val, "val_casted", &self.ctx, &self.builder);
         let res = match to_store_type {
             | Dtype::Bool
             | Dtype::I8
@@ -1968,13 +1789,7 @@ impl CodeGenVisitor for CodeGen {
         let to_store = self.visit_expr(&inplace_div.to_store());
         let val = self.visit_expr(&inplace_div.val());
         let to_store_type = self.bindings[&self.current_fn].find_type(&to_store).unwrap().dtype();
-        let casted_val = build_cast(
-            to_store_type,
-            val,
-            "val_casted",
-            &self.ctx,
-            &self.builder
-        );
+        let casted_val = build_cast(to_store_type, val, "val_casted", &self.ctx, &self.builder);
         let res = match to_store_type {
             Dtype::BF16 | Dtype::F16 | Dtype::F32 | Dtype::F64 => {
                 self.builder.build_float_div(to_store, casted_val, "add")
