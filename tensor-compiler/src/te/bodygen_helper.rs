@@ -33,6 +33,29 @@ pub fn common_reduce<F>(
 ) -> Body
     where F: Fn(PrimeExpr, PrimeExpr) -> PrimeExpr
 {
+    let init = |stage: &Stage| {
+        vec![
+            Body::Stmt(
+                Stmt::AllocaStmt(
+                    AllocaStmt::make(
+                        &Variable::make(&format!("%{}_val_ptr", output_id)),
+                        PrimitiveType::Dtype(stage.dtype),
+                        1i64,
+                        Stmt::None
+                    )
+                ).into()
+            ),
+            Body::Stmt(
+                Stmt::StoreStmt(
+                    StoreStmt::make(
+                        &Variable::make(&format!("%{}_val_ptr", output_id)),
+                        0i64,
+                        init.clone()
+                    )
+                ).into()
+            )
+        ]
+    };
     if is_output {
         if let Body::Stage(stage) = &inputs[0] {
             common_reduce_helper(
@@ -45,32 +68,28 @@ pub fn common_reduce<F>(
                 |origin_dims|
                     vec![
                         Body::Stmt(
-                            Stmt::LetStmt(
-                                LetStmt::make(
-                                    &Variable::make(&format!("%{}_val", output_id)),
-                                    Load::make(&format!("%{}_val_ptr", output_id), 0),
-                                    false,
-                                    Stmt::None
-                                )
-                            )
+                            LetStmt::make(
+                                &Variable::make(&format!("%{}_val", output_id)),
+                                Load::make(&format!("%{}_val_ptr", output_id), 0),
+                                false,
+                                Stmt::None
+                            ).into()
                         ),
                         Body::Stmt(
-                            Stmt::StoreStmt(
-                                StoreStmt::make(
-                                    &Variable::make(&format!("%{}", output_id)),
-                                    origin_dims
-                                        .iter()
-                                        .enumerate()
-                                        .map(
-                                            |(idx, x)|
-                                                PrimeExpr::Variable(x.var().clone()) *
-                                                Load::make(&format!("%{}.s", output_id), idx).into()
-                                        )
-                                        .reduce(|acc, x| acc + x)
-                                        .unwrap_or((0i64).into()),
-                                    Variable::make(&format!("%{}_val", output_id))
-                                )
-                            )
+                            StoreStmt::make(
+                                &Variable::make(&format!("%{}", output_id)),
+                                origin_dims
+                                    .iter()
+                                    .enumerate()
+                                    .map(
+                                        |(idx, x)|
+                                            PrimeExpr::Variable(x.var().clone()) *
+                                            Load::make(&format!("%{}.s", output_id), idx).into()
+                                    )
+                                    .reduce(|acc, x| acc + x)
+                                    .unwrap_or((0i64).into()),
+                                Variable::make(&format!("%{}_val", output_id))
+                            ).into()
                         )
                     ]
             )
@@ -82,14 +101,12 @@ pub fn common_reduce<F>(
             common_reduce_helper(original_shape, axes, init, output_id, stage, reduce_op, |_|
                 vec![
                     Body::Stmt(
-                        Stmt::LetStmt(
-                            LetStmt::make(
-                                &Variable::make(&format!("%{}_val", output_id)),
-                                Load::make(&format!("%{}_val_ptr", output_id), 0),
-                                false,
-                                Stmt::None
-                            )
-                        )
+                        LetStmt::make(
+                            &Variable::make(&format!("%{}_val", output_id)),
+                            Load::make(&format!("%{}_val_ptr", output_id), 0),
+                            false,
+                            Stmt::None
+                        ).into()
                     )
                 ]
             )
@@ -99,33 +116,34 @@ pub fn common_reduce<F>(
     }
 }
 
-pub fn common_reduce_helper<F, C>(
+pub fn common_reduce_helper<F, C, D>(
     original_shape: &Vec<PrimeExpr>,
     axes: &Vec<usize>,
-    init: PrimeExpr,
+    init: D,
     output_id: usize,
     stage: &Stage,
     reduce_op: C,
     posts: F
 )
     -> Body
-    where F: Fn(&Vec<IterVar>) -> Vec<Body>, C: Fn(PrimeExpr, PrimeExpr) -> PrimeExpr
+    where
+        F: Fn(&Vec<IterVar>) -> Vec<Body>,
+        C: Fn(PrimeExpr, PrimeExpr) -> PrimeExpr,
+        D: Fn(&Stage) -> Vec<Body>
 {
     let mut stage = stage.clone();
     let mut bodys = stage.bodys.clone();
     reduce_replace(original_shape.len(), &axes, &mut bodys, stage.id, output_id);
     bodys.push(
         Body::Stmt(
-            Stmt::StoreStmt(
-                StoreStmt::make(
-                    &Variable::make(&format!("%{}_val_ptr", output_id)),
-                    0,
-                    reduce_op(
-                        Variable::make(&format!("%{}_val", output_id)).into(),
-                        Variable::make(&format!("%{}_val", stage.out_id)).into()
-                    )
+            StoreStmt::make(
+                &Variable::make(&format!("%{}_val_ptr", output_id)),
+                0,
+                reduce_op(
+                    Variable::make(&format!("%{}_val", output_id)).into(),
+                    Variable::make(&format!("%{}_val", stage.out_id)).into()
                 )
-            )
+            ).into()
         )
     );
     stage.dims = (0..stage.dims.len())
@@ -142,14 +160,12 @@ pub fn common_reduce_helper<F, C>(
 
     let mut res_bodys = vec![
         Body::Stmt(
-            Stmt::LetStmt(
-                LetStmt::make(
-                    &Variable::make(&format!("%{}_val", output_id)),
-                    Load::make(&format!("%{}_val_ptr", output_id), 0),
-                    false,
-                    Stmt::None
-                )
-            )
+            LetStmt::make(
+                &Variable::make(&format!("%{}_val", output_id)),
+                Load::make(&format!("%{}_val_ptr", output_id), 0),
+                false,
+                Stmt::None
+            ).into()
         )
     ];
     res_bodys.extend(bodys);
@@ -157,23 +173,7 @@ pub fn common_reduce_helper<F, C>(
         dims: red_axes.clone(),
         bodys: res_bodys,
         id: output_id,
-        inits: vec![
-            Body::Stmt(
-                Stmt::AllocaStmt(
-                    AllocaStmt::make(
-                        &Variable::make(&format!("%{}_val_ptr", output_id)),
-                        PrimitiveType::Dtype(stage.dtype),
-                        1i64,
-                        Stmt::None
-                    )
-                ).into()
-            ),
-            Body::Stmt(
-                Stmt::StoreStmt(
-                    StoreStmt::make(&Variable::make(&format!("%{}_val_ptr", output_id)), 0i64, init)
-                ).into()
-            )
-        ],
+        inits: init(&stage),
         posts: posts(&stage.dims),
         input: stage.id,
     };
