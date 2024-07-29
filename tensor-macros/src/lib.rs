@@ -694,6 +694,42 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                 }
             };
 
+            let ceil_method = if res_type.is_float() {
+                quote! {
+                    fn _ceil(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().ceil()
+                        }
+                    }
+                }
+            } else {
+                quote! {
+                    fn _ceil(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]()
+                        }
+                    }
+                }
+            };
+
+            let floor_method = if res_type.is_float() {
+                quote! {
+                    fn _floor(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().floor()
+                        }
+                    }
+                }
+            } else {
+                quote! {
+                    fn _floor(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]()
+                        }
+                    }
+                }
+            };
+
             let res =
                 quote! {
                 impl NormalOut<#rhs_dtype> for #lhs_dtype {
@@ -726,6 +762,8 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                         }
                     }
                     #abs_method
+                    #ceil_method
+                    #floor_method
                 }
             };
             ret.extend(res);

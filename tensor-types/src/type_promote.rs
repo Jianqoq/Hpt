@@ -41,6 +41,8 @@ pub trait NormalOut<RHS = Self> {
     fn _rem(self, rhs: RHS) -> Self::Output;
     fn _square(self) -> Self::Output;
     fn _abs(self) -> Self::Output;
+    fn _ceil(self) -> Self::Output;
+    fn _floor(self) -> Self::Output;
 }
 
 impl_normal_out!();

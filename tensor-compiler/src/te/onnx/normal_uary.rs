@@ -48,4 +48,6 @@ impl Context {
     impl_normal_uary!(isnan, _is_nan);
     impl_normal_uary!(istrue, _is_true);
     impl_normal_uary!(isinf, _is_inf);
+    impl_normal_uary!(ceil, _ceil);
+    impl_normal_uary!(floor, _floor);
 }

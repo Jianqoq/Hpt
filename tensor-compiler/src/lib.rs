@@ -55,6 +55,7 @@ pub mod te {
         pub mod normal_uary;
         pub mod cast;
         pub mod cmp;
+        pub mod relu;
     }
     pub mod insert_axes;
     pub mod strides_visitor;
@@ -64,8 +65,6 @@ pub mod te {
     pub mod rc_mut;
     pub mod srg;
     pub mod srg_node;
-    pub mod value;
-    pub mod operation;
     pub mod hstrides;
     pub mod stages;
     pub mod schedule;

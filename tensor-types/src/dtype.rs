@@ -201,6 +201,12 @@ impl NormalOut for Dtype {
     fn _abs(self) -> Self::Output {
         self
     }
+    fn _ceil(self) -> Self::Output {
+        self
+    }
+    fn _floor(self) -> Self::Output {
+        self
+    }
 }
 
 impl BitWiseOut for Dtype {
@@ -328,7 +334,7 @@ impl Eval for Dtype {
     fn _is_true(&self) -> Dtype {
         Dtype::Bool
     }
-    
+
     fn _is_inf(&self) -> Self::Output {
         Dtype::Bool
     }
