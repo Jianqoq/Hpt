@@ -26,6 +26,7 @@ pub mod halide {
         pub mod executable;
         pub mod arr;
     }
+    pub mod utils;
     pub mod module;
     pub mod if_stmt;
     pub mod inplace_store_stmt;
@@ -47,6 +48,8 @@ pub mod halide {
 pub mod te {
     pub mod onnx {
         pub mod normal_binop;
+        pub mod pad;
+        pub mod reduce_sum;
     }
     pub mod insert_axes;
     pub mod strides_visitor;
