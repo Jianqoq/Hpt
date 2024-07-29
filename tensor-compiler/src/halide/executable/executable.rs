@@ -1,4 +1,4 @@
-use std::{ alloc::Layout, collections::HashMap, ffi::c_void, sync::Arc };
+use std::{ alloc::Layout, collections::HashMap, ffi::c_void, panic::Location, sync::Arc };
 
 use tensor_llvm::{
     builder::builder::Builder,
@@ -58,7 +58,9 @@ impl Executable {
         unsafe { std::mem::transmute_copy::<u64, F>(&address) }
     }
 
+    #[track_caller]
     pub fn execute(&self, inputs: HashMap<usize, Array>, outputs: HashMap<usize, Array>) {
+        let caller = Location::caller();
         for (idx, fn_name) in self.sorted_fns.iter().enumerate() {
             let c_str = to_c_str(fn_name);
             let address = unsafe {
@@ -92,20 +94,22 @@ impl Executable {
                     let expect_shape = self.inps_shapes[idx][i].as_ref();
                     if inp_shape != expect_shape {
                         panic!(
-                            "input shape mismatch: expect {:?}, got {:?}, input index: {}",
+                            "input shape mismatch: expect {:?}, got {:?}, input index: {} at {}",
                             expect_shape,
                             inp_shape,
-                            x
+                            x,
+                            caller
                         );
                     }
                     let inp_dtype = inputs[x].dtype();
                     let expect_dtype = self.inps_dtypes[idx][i];
                     if inp_dtype != expect_dtype {
                         panic!(
-                            "input dtype mismatch: expect {:?}, got {:?}, input index: {}",
+                            "input dtype mismatch: expect {:?}, got {:?}, input index: {} at {}",
                             expect_dtype,
                             inp_dtype,
-                            x
+                            x,
+                            caller
                         );
                     }
                     let data = inputs[x].ptr();
@@ -121,20 +125,22 @@ impl Executable {
                     let expect_shape = self.outs_shapes[idx][i].as_ref();
                     if out_shape != expect_shape {
                         panic!(
-                            "output shape mismatch: expect {:?}, got {:?}, output index: {}",
+                            "output shape mismatch: expect {:?}, got {:?}, output index: {} at {}",
                             expect_shape,
                             out_shape,
-                            x
+                            x,
+                            caller
                         );
                     }
                     let out_dtype = outputs[x].dtype();
                     let expect_dtype = self.outs_dtypes[idx][i];
                     if out_dtype != expect_dtype {
                         panic!(
-                            "output dtype mismatch: expect {:?}, got {:?}, output index: {}",
+                            "output dtype mismatch: expect {:?}, got {:?}, output index: {} at {}",
                             expect_dtype,
                             out_dtype,
-                            x
+                            x,
+                            caller
                         );
                     }
                     let data = outputs[x].ptr();
