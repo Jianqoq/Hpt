@@ -917,11 +917,27 @@ pub fn impl_eval(_: TokenStream) -> TokenStream {
             }
         };
 
+        let is_inf = if lhs_dtype.is_float() {
+            quote! {
+                fn _is_inf(&self) -> bool {
+                    self.is_infinite()
+                }
+            }
+        } else {
+            quote! {
+                fn _is_inf(&self) -> bool {
+                    false
+                }
+            }
+        };
+
         let res =
             quote! {
                 impl Eval for #lhs_dtype {
+                    type Output = bool;
                     #is_nan
                     #is_true
+                    #is_inf
                 }
             };
         ret.extend(res);

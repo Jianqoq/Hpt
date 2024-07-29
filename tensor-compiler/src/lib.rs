@@ -51,6 +51,7 @@ pub mod te {
         pub mod pad;
         pub mod reduce_sum;
         pub mod trigs;
+        pub mod normal_uary;
     }
     pub mod insert_axes;
     pub mod strides_visitor;

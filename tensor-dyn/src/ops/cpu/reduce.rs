@@ -821,7 +821,7 @@ register_reduction!(
     nansum,
     nansum_kernel,
     T::ZERO,
-    where T: CommonBounds + NormalOut<T, Output = T> + Eval
+    where T: CommonBounds + NormalOut<T, Output = T> + Eval<Output = bool>,
 );
 
 register_reduction!(
@@ -837,7 +837,7 @@ register_reduction!(
     nanprod,
     nanprod_kernel,
     T::ONE,
-    where T: CommonBounds + NormalOut<T, Output = T> + Eval
+    where T: CommonBounds + NormalOut<T, Output = T> + Eval<Output = bool>
 );
 
 register_reduction!(
@@ -861,7 +861,7 @@ register_reduction!(
     all,
     all_kernel,
     true,
-    where T: CommonBounds + NormalOut<T, Output = T> + Eval,
+    where T: CommonBounds + NormalOut<T, Output = T> + Eval<Output = bool>,
     bool: NormalOut<bool> + CommonBounds
 );
 
@@ -870,7 +870,7 @@ register_reduction!(
     any,
     any_kernel,
     false,
-    where T: CommonBounds + NormalOut<T, Output = T> + Eval,
+    where T: CommonBounds + NormalOut<T, Output = T> + Eval<Output = bool>,
     bool: NormalOut<bool> + CommonBounds,
 );
 
@@ -1060,7 +1060,7 @@ impl<T: CommonBounds + NormalOut<Output = T> + Cmp> IndexReduce for _Tensor<T> {
     }
 }
 
-impl<T: CommonBounds + NormalOut<Output = T> + Eval + Cmp> NormalReduce<T> for _Tensor<T> {
+impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> NormalReduce<T> for _Tensor<T> {
     type Output = _Tensor<T>;
 
     type BoolOutput = _Tensor<bool>;

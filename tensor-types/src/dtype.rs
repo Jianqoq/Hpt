@@ -4,7 +4,7 @@ use tensor_macros::infer_enum_type;
 use std::fmt::Display;
 use serde::{ Deserialize, Serialize };
 
-use crate::type_promote::{ BitWiseOut, FloatOut, NormalOut };
+use crate::type_promote::{ BitWiseOut, Eval, FloatOut, NormalOut };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub enum Dtype {
@@ -316,5 +316,20 @@ impl FloatOut for Dtype {
 
     fn _recip(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
+    }
+}
+
+impl Eval for Dtype {
+    type Output = Dtype;
+    fn _is_nan(&self) -> Dtype {
+        Dtype::Bool
+    }
+
+    fn _is_true(&self) -> Dtype {
+        Dtype::Bool
+    }
+    
+    fn _is_inf(&self) -> Self::Output {
+        Dtype::Bool
     }
 }

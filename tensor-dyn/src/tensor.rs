@@ -668,7 +668,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     }
 }
 
-impl<T: CommonBounds + NormalOut<Output = T> + Eval + Cmp> NormalReduce<T> for Tensor<T> {
+impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> NormalReduce<T> for Tensor<T> {
     type Output = Tensor<T>;
 
     type BoolOutput = Tensor<bool>;

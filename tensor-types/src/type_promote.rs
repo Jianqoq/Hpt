@@ -69,8 +69,10 @@ pub trait Cmp<RHS = Self> {
 impl_cmp!();
 
 pub trait Eval {
-    fn _is_nan(&self) -> bool;
-    fn _is_true(&self) -> bool;
+    type Output;
+    fn _is_nan(&self) -> Self::Output;
+    fn _is_true(&self) -> Self::Output;
+    fn _is_inf(&self) -> Self::Output;
 }
 
 impl_eval!();

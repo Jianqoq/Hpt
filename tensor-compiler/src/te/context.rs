@@ -516,17 +516,4 @@ impl Context {
         ret
     }
 
-    #[track_caller]
-    pub fn conv2d(
-        &mut self,
-        img: &Tensor,
-        kernel: &Tensor,
-        stride: &dyn ToPrimeExpr,
-        padding: &dyn ToPrimeExpr
-    ) -> Tensor {
-        let output_height =
-            (img.shape[0].clone() - kernel.shape[0].clone() + stride.to_prime_expr().clone()) /
-            stride.to_prime_expr().clone();
-        todo!()
-    }
 }
