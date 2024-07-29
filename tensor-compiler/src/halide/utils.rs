@@ -1,6 +1,6 @@
 use tensor_types::dtype::Dtype;
 
-use super::{ exprs::{ BitAnd, Float, Int }, prime_expr::PrimeExpr };
+use super::{ exprs::{ BitAnd, Call, Float, Int }, prime_expr::PrimeExpr };
 
 pub fn all(conds: &[PrimeExpr]) -> PrimeExpr {
     conds
@@ -8,6 +8,10 @@ pub fn all(conds: &[PrimeExpr]) -> PrimeExpr {
         .cloned()
         .reduce(|acc, x| BitAnd::make(acc, x).into())
         .unwrap()
+}
+
+pub fn exp(x: PrimeExpr) -> PrimeExpr {
+    Call::make("exp", &[&x]).into()
 }
 
 pub fn dtype_zero(dtype: Dtype) -> PrimeExpr {
