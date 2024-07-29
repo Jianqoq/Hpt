@@ -92,3 +92,45 @@ pub fn dtype_sqrt2(dtype: Dtype) -> PrimeExpr {
         _ => unreachable!(),
     }
 }
+
+pub fn dtype_inf(dtype: Dtype) -> PrimeExpr {
+    match dtype {
+        Dtype::Bool => PrimeExpr::Int(Int::make(Dtype::Bool, 1)),
+        Dtype::I8 => (i8::MAX).into(),
+        Dtype::U8 => (u8::MAX).into(),
+        Dtype::I16 => (i16::MAX).into(),
+        Dtype::U16 => (u16::MAX).into(),
+        Dtype::I32 => (i32::MAX).into(),
+        Dtype::U32 => (u32::MAX).into(),
+        Dtype::I64 => (i64::MAX).into(),
+        Dtype::U64 => (u64::MAX).into(),
+        Dtype::BF16 => PrimeExpr::Float(Float::make(Dtype::BF16, f32::INFINITY as f64)),
+        Dtype::F16 => PrimeExpr::Float(Float::make(Dtype::F16, f32::INFINITY as f64)),
+        Dtype::F32 => (f32::INFINITY).into(),
+        Dtype::F64 => (f64::INFINITY).into(),
+        Dtype::C32 => todo!(),
+        Dtype::C64 => todo!(),
+        _ => unreachable!(),
+    }
+}
+
+pub fn dtype_neginf(dtype: Dtype) -> PrimeExpr {
+    match dtype {
+        Dtype::Bool => PrimeExpr::Int(Int::make(Dtype::Bool, 1)),
+        Dtype::I8 => (i8::MIN).into(),
+        Dtype::U8 => (0u8).into(),
+        Dtype::I16 => (i16::MIN).into(),
+        Dtype::U16 => (0u16).into(),
+        Dtype::I32 => (i32::MIN).into(),
+        Dtype::U32 => (0u32).into(),
+        Dtype::I64 => (i64::MIN).into(),
+        Dtype::U64 => (0u64).into(),
+        Dtype::BF16 => PrimeExpr::Float(Float::make(Dtype::BF16, f32::NEG_INFINITY as f64)),
+        Dtype::F16 => PrimeExpr::Float(Float::make(Dtype::F16, f32::NEG_INFINITY as f64)),
+        Dtype::F32 => (f32::NEG_INFINITY).into(),
+        Dtype::F64 => (f64::NEG_INFINITY).into(),
+        Dtype::C32 => todo!(),
+        Dtype::C64 => todo!(),
+        _ => unreachable!(),
+    }
+}

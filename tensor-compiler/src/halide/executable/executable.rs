@@ -94,7 +94,6 @@ impl Executable {
                 istrides_vec_layout.push(layout);
                 strides_vec
             };
-
             let mut _layouts = vec![];
             let _ostrides = {
                 let real_shapes = self.sorted_out_shapes[idx]

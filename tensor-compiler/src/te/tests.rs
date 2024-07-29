@@ -17,6 +17,7 @@ use crate::{
     halide::{ code_gen::code_gen::CodeGen, exprs::Int, module::Module, prime_expr::PrimeExpr },
     te::context::Context,
 };
+use tensor_traits::tensor::IndexReduce;
 
 #[test]
 fn test_reshape_schedule() {
@@ -457,6 +458,157 @@ fn test_sum_broadcast_schedule() {
     executable.execute(inps_map, outs_map);
 
     let test = a.sum([1], false).unwrap();
+    assert!(test.allclose(&b));
+}
+
+#[test]
+fn test_argmin_broadcast_schedule() {
+    let mut ctx = Context::new();
+    let m = ctx.var("m");
+    let n = ctx.var("n");
+    let o = ctx.var("o");
+    let a = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
+    let b = ctx.argmin(&a, &0f32, 1);
+    let order = [a.id, b.id];
+
+    let schedule = ctx.to_schedule(&order);
+    let func = schedule.to_function();
+    assert_eq!(
+        func.to_string(),
+        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    let istrides0 = istrides_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (output_vec[0] as *i64);
+    let ostrides0 = ostrides_vec[0];
+    let m = shape_vars[0];
+    let n = shape_vars[1];
+    let o = shape_vars[2];
+    for ax0 in range(0, m) {
+        for ax1 in range(0, o) {
+            let %1_idx_ptr = alloca<i64>(1);
+            %1_idx_ptr[0] = 0;
+            let %1_val_ptr = alloca<f32>(1);
+            %1_val_ptr[0] = inf;
+            for 1red1 in range(0, n) {
+                let %1_val = %1_val_ptr[0];
+                let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1] + 1red1 * istrides0[2]];
+                if (%0_val < %1_val) {
+                    %1_val_ptr[0] = %0_val;
+                    %1_idx_ptr[0] = 1red1;
+                }
+            }
+            let %1_val = %1_idx_ptr[0];
+            %1[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %1_val;
+        }
+    }
+    return;
+}"
+    ); // prettier-ignore
+
+    let inputs = schedule.inputs();
+    let outputs = schedule.outputs();
+    assert!(inputs.len() == 1);
+    assert!(outputs.len() == 1);
+    assert!(inputs.contains(&0));
+    assert!(outputs.contains(&1));
+
+    let vars_map =
+        hashmap! {
+            "m" => 2,
+            "n" => 5,
+            "o" => 3,
+        };
+    
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
+
+    let a = tensor_dyn::tensor::Tensor::<f32>
+        ::arange(0.0, 30.0)
+        .expect("Failed to create tensor")
+        .reshape(&[2, 5, 3])
+        .expect("Failed to reshape");
+    let b = tensor_dyn::tensor::Tensor::<i64>::zeros(&[2, 3]).expect("Failed to create tensor");
+    let inps_map = hashmap! { 0usize => a.clone().into() };
+    let outs_map = hashmap! { 1usize => b.clone().into() };
+    executable.execute(inps_map, outs_map);
+
+    let test = a.argmin(1, false).unwrap();
+    assert!(test.allclose(&b));
+}
+
+#[test]
+fn test_argmax_broadcast_schedule() {
+    let mut ctx = Context::new();
+    let m = ctx.var("m");
+    let n = ctx.var("n");
+    let o = ctx.var("o");
+    let a = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
+    let b = ctx.argmax(&a, &0f32, 1);
+    let order = [a.id, b.id];
+
+    let schedule = ctx.to_schedule(&order);
+    let func = schedule.to_function();
+    assert_eq!(
+        func.to_string(),
+"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    let istrides0 = istrides_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (output_vec[0] as *i64);
+    let ostrides0 = ostrides_vec[0];
+    let m = shape_vars[0];
+    let n = shape_vars[1];
+    let o = shape_vars[2];
+    for ax0 in range(0, m) {
+        for ax1 in range(0, o) {
+            let %1_idx_ptr = alloca<i64>(1);
+            %1_idx_ptr[0] = 0;
+            let %1_val_ptr = alloca<f32>(1);
+            %1_val_ptr[0] = -inf;
+            for 1red1 in range(0, n) {
+                let %1_val = %1_val_ptr[0];
+                let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1] + 1red1 * istrides0[2]];
+                if (%1_val < %0_val) {
+                    %1_val_ptr[0] = %0_val;
+                    %1_idx_ptr[0] = 1red1;
+                }
+            }
+            let %1_val = %1_idx_ptr[0];
+            %1[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %1_val;
+        }
+    }
+    return;
+}"
+    ); // prettier-ignore
+    let inputs = schedule.inputs();
+    let outputs = schedule.outputs();
+    assert!(inputs.len() == 1);
+    assert!(outputs.len() == 1);
+    assert!(inputs.contains(&0));
+    assert!(outputs.contains(&1));
+
+    let vars_map =
+        hashmap! {
+            "m" => 2,
+            "n" => 5,
+            "o" => 3,
+        };
+
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
+
+    let a = tensor_dyn::tensor::Tensor::<f32>
+        ::arange(0.0, 30.0)
+        .expect("Failed to create tensor")
+        .reshape(&[2, 5, 3])
+        .expect("Failed to reshape");
+    let b = tensor_dyn::tensor::Tensor::<i64>::zeros(&[2, 3]).expect("Failed to create tensor");
+    let inps_map = hashmap! { 0usize => a.clone().into() };
+    let outs_map = hashmap! { 1usize => b.clone().into() };
+    executable.execute(inps_map, outs_map);
+
+    let test = a.argmax(1, false).unwrap();
     assert!(test.allclose(&b));
 }
 
