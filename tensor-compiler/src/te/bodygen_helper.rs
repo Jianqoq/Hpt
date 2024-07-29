@@ -433,7 +433,7 @@ pub fn common_unaryop_helper<F>(
                 dims,
                 bodys: stage.bodys.clone(),
                 id: output_id,
-                out_id: stage.out_id,
+                out_id: output_id,
                 dtype: ty_infer(stage.dtype),
             };
             Body::Stage(stage)

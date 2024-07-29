@@ -3,7 +3,6 @@ use std::{ collections::HashMap, panic::Location, sync::Arc };
 use crate::{
     halide::{
         alloca_stmt::AllocaStmt,
-        assign_stmt::AssignStmt,
         exprs::{ BitAnd, Ge, Load, Lt },
         let_stmt::LetStmt,
         passes::const_fold::ConstFold,

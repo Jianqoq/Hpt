@@ -23,6 +23,7 @@ pub mod halide {
         pub mod const_fold;
     }
     pub mod executable {
+        pub mod empty_executable;
         pub mod executable;
         pub mod arr;
     }
@@ -53,6 +54,7 @@ pub mod te {
         pub mod trigs;
         pub mod normal_uary;
         pub mod cast;
+        pub mod cmp;
     }
     pub mod insert_axes;
     pub mod strides_visitor;
@@ -76,12 +78,10 @@ pub mod te {
     pub mod slice_helper;
     pub mod tests;
 }
-pub mod arcstring;
-pub mod tensor;
 pub mod to_prim_expr;
 pub mod iter_var;
 pub mod edges;
-pub mod op;
-pub mod float;
+pub mod build;
+pub mod opt_lvl;
 
 

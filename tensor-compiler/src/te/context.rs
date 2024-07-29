@@ -5,7 +5,7 @@ use tensor_common::{
     shape_utils::is_reshape_possible,
     strides_utils::shape_to_strides,
 };
-use tensor_types::{ dtype::Dtype, type_promote::FloatOut };
+use tensor_types::dtype::Dtype;
 
 use crate::{
     halide::{
@@ -31,7 +31,7 @@ use super::{
     srg::Srg,
     srg_node::SrgNode,
     stages::{ Body, Stage },
-    strides_cal_helper::{ elementwise_strides_cal, slice_strides_cal },
+    strides_cal_helper::slice_strides_cal,
     tensor::{ StridesCal, Tensor },
 };
 
@@ -515,5 +515,4 @@ impl Context {
         self.nodes.borrow_mut().insert(id, ret.clone());
         ret
     }
-
 }

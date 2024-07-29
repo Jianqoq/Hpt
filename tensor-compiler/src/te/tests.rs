@@ -1,15 +1,17 @@
 #![allow(unused_imports)]
-
+use tensor_traits::ops::cmp::TensorCmp;
 use maplit::hashmap;
 use tensor_common::slice;
 use tensor_common::slice::Slice;
 use tensor_macros::match_selection;
+use tensor_traits::random::Random;
 use tensor_traits::shape_manipulate::ShapeManipulate;
 use tensor_dyn::slice::SliceOps;
 use tensor_traits::tensor::NormalReduce;
 use tensor_traits::tensor::TensorCreator;
 use tensor_types::dtype::Dtype;
 use tensor_traits::ops::uary::FloatUaryOps;
+use crate::build::build;
 use crate::to_prim_expr::ToPrimeExpr;
 use crate::{
     halide::{ code_gen::code_gen::CodeGen, exprs::Int, module::Module, prime_expr::PrimeExpr },
@@ -51,24 +53,21 @@ fn test_reshape_schedule() {
     return;
 }"
     ); // prettier-ignore
-    let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert!(inputs.len() == 1);
     assert!(outputs.len() == 1);
     assert!(inputs.contains(&0));
     assert!(outputs.contains(&1));
-    module.add_function2(&schedule);
-    let context = tensor_llvm::context::context::Context::new();
-    let mut codegen = CodeGen::new(context, &module, 3);
-    codegen.compile();
     let vars_map =
         hashmap! {
-            "m".to_string().into() => 2,
-            "n".to_string().into() => 5,
-            "o".to_string().into() => 3,
+            "m" => 2,
+            "n" => 5,
+            "o" => 3,
         };
-    let executable = codegen.into_executable(vars_map);
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
     let a = tensor_dyn::tensor::Tensor::<f32>
         ::arange(0.0, 30.0)
         .expect("Failed to create tensor")
@@ -120,7 +119,6 @@ fn test_add_schedule() {
     return;
 }"
     ); // prettier-ignore
-    let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert!(inputs.len() == 2);
@@ -128,17 +126,15 @@ fn test_add_schedule() {
     assert!(inputs.contains(&0));
     assert!(inputs.contains(&1));
     assert!(outputs.contains(&2));
-    module.add_function2(&schedule);
-    let context = tensor_llvm::context::context::Context::new();
-    let mut codegen = CodeGen::new(context, &module, 3);
-    codegen.compile();
     let vars_map =
         hashmap! {
-            "m".to_string().into() => 2,
-            "n".to_string().into() => 5,
-            "o".to_string().into() => 3,
+            "m" => 2,
+            "n" => 5,
+            "o" => 3,
         };
-    let executable = codegen.into_executable(vars_map);
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
 
     let a = tensor_dyn::tensor::Tensor::<f32>
         ::arange(0.0, 30.0)
@@ -200,7 +196,6 @@ fn test_add_broadcast_schedule() {
     return;
 }"
     ); // prettier-ignore
-    let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert!(inputs.len() == 2);
@@ -208,19 +203,17 @@ fn test_add_broadcast_schedule() {
     assert!(inputs.contains(&0));
     assert!(inputs.contains(&1));
     assert!(outputs.contains(&2));
-    module.add_function2(&schedule);
-    let context = tensor_llvm::context::context::Context::new();
-    let mut codegen = CodeGen::new(context, &module, 3);
-    codegen.compile();
 
     let vars_map =
         hashmap! {
-            "m".to_string().into() => 2,
-            "n".to_string().into() => 5,
-            "o".to_string().into() => 3,
+            "m" => 2,
+            "n" => 5,
+            "o" => 3,
         };
 
-    let executable = codegen.into_executable(vars_map);
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
     let a = tensor_dyn::tensor::Tensor::<f32>
         ::arange(0.0, 6.0)
         .expect("Failed to create tensor")
@@ -281,7 +274,6 @@ fn test_add_broadcast_diff_len_schedule() {
     return;
 }"
     ); // prettier-ignore
-    let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert!(inputs.len() == 2);
@@ -289,19 +281,17 @@ fn test_add_broadcast_diff_len_schedule() {
     assert!(inputs.contains(&0));
     assert!(inputs.contains(&1));
     assert!(outputs.contains(&2));
-    module.add_function2(&schedule);
-    let context = tensor_llvm::context::context::Context::new();
-    let mut codegen = CodeGen::new(context, &module, 3);
-    codegen.compile();
 
     let vars_map =
         hashmap! {
-            "m".to_string().into() => 2,
-            "n".to_string().into() => 5,
-            "o".to_string().into() => 3,
+            "m" => 2,
+            "n" => 5,
+            "o" => 3,
         };
 
-    let executable = codegen.into_executable(vars_map);
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
     let a = tensor_dyn::tensor::Tensor::<f32>
         ::arange(0.0, 6.0)
         .expect("Failed to create tensor")
@@ -360,7 +350,6 @@ fn test_add_broadcast_diff_len_schedule2() {
     return;
 }"
     ); // prettier-ignore
-    let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert!(inputs.len() == 2);
@@ -368,18 +357,15 @@ fn test_add_broadcast_diff_len_schedule2() {
     assert!(inputs.contains(&0));
     assert!(inputs.contains(&1));
     assert!(outputs.contains(&3));
-    module.add_function2(&schedule);
-    let context = tensor_llvm::context::context::Context::new();
-    let mut codegen = CodeGen::new(context, &module, 0);
-    codegen.compile();
 
-    let vars_map =
-        hashmap! {
-            "m".to_string().into() => 2,
-            "o".to_string().into() => 3,
+    let vars_map = hashmap! {
+            "m" => 2,
+            "o" => 3,
         };
 
-    let executable = codegen.into_executable(vars_map);
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
     let a = tensor_dyn::tensor::Tensor::<f32>
         ::arange(0.0, 6.0)
         .expect("Failed to create tensor")
@@ -443,26 +429,23 @@ fn test_sum_broadcast_schedule() {
     return;
 }"
     ); // prettier-ignore
-    let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert!(inputs.len() == 1);
     assert!(outputs.len() == 1);
     assert!(inputs.contains(&0));
     assert!(outputs.contains(&1));
-    module.add_function2(&schedule);
-    let context = tensor_llvm::context::context::Context::new();
-    let mut codegen = CodeGen::new(context, &module, 3);
-    codegen.compile();
 
     let vars_map =
         hashmap! {
-            "m".to_string().into() => 2,
-            "n".to_string().into() => 5,
-            "o".to_string().into() => 3,
+            "m" => 2,
+            "n" => 5,
+            "o" => 3,
         };
 
-    let executable = codegen.into_executable(vars_map);
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
     let a = tensor_dyn::tensor::Tensor::<f32>
         ::arange(0.0, 30.0)
         .expect("Failed to create tensor")
@@ -527,26 +510,23 @@ fn test_sum_all_broadcast_schedule() {
     return;
 }"
     ); // prettier-ignore
-    let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert!(inputs.len() == 1);
     assert!(outputs.len() == 1);
     assert!(inputs.contains(&0));
     assert!(outputs.contains(&3));
-    module.add_function2(&schedule);
-    let context = tensor_llvm::context::context::Context::new();
-    let mut codegen = CodeGen::new(context, &module, 3);
-    codegen.compile();
 
     let vars_map =
         hashmap! {
-            "m".to_string().into() => 2,
-            "n".to_string().into() => 5,
-            "o".to_string().into() => 3,
+            "m" => 2,
+            "n" => 5,
+            "o" => 3,
         };
 
-    let executable = codegen.into_executable(vars_map);
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
     let a = tensor_dyn::tensor::Tensor::<f32>
         ::arange(0.0, 30.0)
         .expect("Failed to create tensor")
@@ -599,26 +579,23 @@ fn test_sum_all_broadcast_schedule2() {
     return;
 }"
     ); // prettier-ignore
-    let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert!(inputs.len() == 1);
     assert!(outputs.len() == 1);
     assert!(inputs.contains(&0));
     assert!(outputs.contains(&1));
-    module.add_function2(&schedule);
-    let context = tensor_llvm::context::context::Context::new();
-    let mut codegen = CodeGen::new(context, &module, 3);
-    codegen.compile();
 
     let vars_map =
         hashmap! {
-            "m".to_string().into() => 2,
-            "n".to_string().into() => 5,
-            "o".to_string().into() => 3,
+            "m" => 2,
+            "n" => 5,
+            "o" => 3,
         };
 
-    let executable = codegen.into_executable(vars_map);
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
     let a = tensor_dyn::tensor::Tensor::<f32>
         ::arange(0.0, 30.0)
         .expect("Failed to create tensor")
@@ -732,20 +709,17 @@ fn test_schedule3() {
     return;
 }"
     ); // prettier-ignore
-    let mut module = Module::new("main");
-    module.add_function2(&schedule);
-    let context = tensor_llvm::context::context::Context::new();
-    let mut codegen = CodeGen::new(context, &module, 3);
-    codegen.compile();
 
     let vars_map =
         hashmap! {
-            "m".to_string().into() => 2,
-            "n".to_string().into() => 5,
-            "o".to_string().into() => 3,
+            "m" => 2,
+            "n" => 5,
+            "o" => 3,
         };
 
-    let executable = codegen.into_executable(vars_map);
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
     let a = tensor_dyn::tensor::Tensor::<f32>
         ::arange(0.0, 30.0)
         .expect("Failed to create tensor")
@@ -809,24 +783,20 @@ fn test_slice() {
     return;
 }"
     ); // prettier-ignore
-    let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert!(inputs.len() == 1);
     assert!(outputs.len() == 1);
     assert!(inputs.contains(&0));
-    module.add_function2(&schedule);
-    let context = tensor_llvm::context::context::Context::new();
-    let mut codegen = CodeGen::new(context, &module, 3);
-    codegen.compile();
 
-    let vars_map =
-        hashmap! {
-            "m".to_string().into() => 5,
-            "n".to_string().into() => 5,
+    let vars_map = hashmap! {
+            "m" => 5,
+            "n" => 5,
         };
 
-    let executable = codegen.into_executable(vars_map);
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
     let a = tensor_dyn::tensor::Tensor::<f32>
         ::arange(0.0, 25.0)
         .expect("Failed to create tensor")
@@ -888,24 +858,20 @@ fn test_slice_nested() {
     return;
 }"
     ); // prettier-ignore
-    let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert!(inputs.len() == 1);
     assert!(outputs.len() == 1);
     assert!(inputs.contains(&0));
-    module.add_function2(&schedule);
-    let context = tensor_llvm::context::context::Context::new();
-    let mut codegen = CodeGen::new(context, &module, 3);
-    codegen.compile();
 
-    let vars_map =
-        hashmap! {
-            "m".to_string().into() => 10,
-            "n".to_string().into() => 10,
+    let vars_map = hashmap! {
+            "m" => 10,
+            "n" => 10,
         };
 
-    let executable = codegen.into_executable(vars_map);
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
     let a = tensor_dyn::tensor::Tensor::<f32>
         ::arange(0.0, 100.0)
         .expect("Failed to create tensor")
@@ -947,7 +913,35 @@ fn test_pad() {
 
     let schedule = ctx.to_schedule(&order);
     let func = schedule.to_function();
-    println!("{}", func.to_string());
+    assert_eq!(
+        func.to_string(),
+        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    let istrides0 = istrides_vec[0];
+    let istrides1 = istrides_vec[1];
+    let %0 = (data_vec[0] as *f32);
+    let %2 = (data_vec[1] as *f32);
+    let %4 = (output_vec[0] as *f32);
+    let ostrides0 = ostrides_vec[0];
+    let m = shape_vars[0];
+    let n = shape_vars[1];
+    for ax0 in range(0, 10 + m) {
+        for ax1 in range(0, 10 + n) {
+            let %1_val_ptr = alloca<f32>(1);
+            if (((ax0 >= 5) && (ax0 < 10 + m - 5)) && ((ax1 >= 5) && (ax1 < 10 + n - 5))) {
+                let %0_val = %0[(ax0 + (0 - 5)) * istrides0[0] + (ax1 + (0 - 5)) * istrides0[1]];
+                %1_val_ptr[0] = %0_val;
+            } else {
+                %1_val_ptr[0] = 1;
+            }
+            let %1_val = %1_val_ptr[0];
+            let %3_val = sin(%1_val);
+            let %2_val = %2[ax0 * istrides1[0] + ax1 * istrides1[1]];
+            %4[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %3_val + %2_val;
+        }
+    }
+    return;
+}"
+    ); // prettier-ignore
 }
 
 #[test]
@@ -991,24 +985,20 @@ fn test_pad_out() {
 }"
     ); // prettier-ignore
 
-    let mut module = Module::new("main");
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert!(inputs.len() == 1);
     assert!(outputs.len() == 1);
     assert!(inputs.contains(&0));
-    module.add_function2(&schedule);
-    let context = tensor_llvm::context::context::Context::new();
-    let mut codegen = CodeGen::new(context, &module, 3);
-    codegen.compile();
 
-    let vars_map =
-        hashmap! {
-            "m".to_string().into() => 4,
-            "n".to_string().into() => 4,
+    let vars_map = hashmap! {
+            "m" => 4,
+            "n" => 4,
         };
 
-    let executable = codegen.into_executable(vars_map);
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
     let a = tensor_dyn::tensor::Tensor::<f32>
         ::arange(0.0, 16.0)
         .expect("Failed to create tensor")
@@ -1050,21 +1040,40 @@ fn test_pad_slice() {
 
     let schedule = ctx.to_schedule(&order);
     let func = schedule.to_function();
-    println!("{}", func.to_string());
+    assert_eq!(
+        func.to_string(),
+"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    let istrides0 = istrides_vec[0];
+    let %0 = (data_vec[0] as *f32);
+    let %2 = (output_vec[0] as *f32);
+    let ostrides0 = ostrides_vec[0];
+    let m = shape_vars[0];
+    let n = shape_vars[1];
+    for ax0 in range(0, 6 - 2) {
+        for ax1 in range(0, 6 - 2) {
+            let %1_val_ptr = alloca<f32>(1);
+            if (((ax0 >= 2) && (ax0 < 4 + m - 2)) && ((ax1 >= 2) && (ax1 < 4 + n - 2))) {
+                let %0_val = %0[(ax0 * (1 * 1) + (2 + (0 - 2))) * istrides0[0] + (ax1 * (1 * 1) + (2 + (0 - 2))) * istrides0[1]];
+                %1_val_ptr[0] = %0_val;
+            } else {
+                %1_val_ptr[0] = 1;
+            }
+            let %1_val = %1_val_ptr[0];
+            %2[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %1_val;
+        }
+    }
+    return;
+}"
+    ); // prettier-ignore
 
-    let mut module = Module::new("main");
-    module.add_function2(&schedule);
-    let context = tensor_llvm::context::context::Context::new();
-    let mut codegen = CodeGen::new(context, &module, 3);
-    codegen.compile();
-
-    let vars_map =
-        hashmap! {
-            "m".to_string().into() => 4,
-            "n".to_string().into() => 4,
+    let vars_map = hashmap! {
+            "m" => 4,
+            "n" => 4,
         };
 
-    let executable = codegen.into_executable(vars_map);
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
     let a = tensor_dyn::tensor::Tensor::<f32>
         ::arange(0.0, 16.0)
         .expect("Failed to create tensor")
@@ -1109,19 +1118,15 @@ fn test_cast() {
     return;
 }"
     ); // prettier-ignore
-    let mut module = Module::new("main");
-    module.add_function2(&schedule);
-    let context = tensor_llvm::context::context::Context::new();
-    let mut codegen = CodeGen::new(context, &module, 3);
-    codegen.compile();
 
-    let vars_map =
-        hashmap! {
-            "m".to_string().into() => 4,
-            "n".to_string().into() => 4,
+    let vars_map = hashmap! {
+            "m" => 4,
+            "n" => 4,
         };
 
-    let executable = codegen.into_executable(vars_map);
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
     let a = tensor_dyn::tensor::Tensor::<f32>
         ::arange(0.0, 16.0)
         .expect("Failed to create tensor")
@@ -1174,19 +1179,14 @@ fn test_prod() {
 }"
     ); // prettier-ignore
 
-    let mut module = Module::new("main");
-    module.add_function2(&schedule);
-    let context = tensor_llvm::context::context::Context::new();
-    let mut codegen = CodeGen::new(context, &module, 3);
-    codegen.compile();
-
-    let vars_map =
-        hashmap! {
-            "m".to_string().into() => 4,
-            "n".to_string().into() => 4,
+    let vars_map = hashmap! {
+            "m" => 4,
+            "n" => 4,
         };
 
-    let executable = codegen.into_executable(vars_map);
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
     let a = tensor_dyn::tensor::Tensor::<f32>
         ::arange(0.0, 16.0)
         .expect("Failed to create tensor")
@@ -1239,19 +1239,14 @@ fn test_min() {
 }"
     ); // prettier-ignore
 
-    let mut module = Module::new("main");
-    module.add_function2(&schedule);
-    let context = tensor_llvm::context::context::Context::new();
-    let mut codegen = CodeGen::new(context, &module, 3);
-    codegen.compile();
-
-    let vars_map =
-        hashmap! {
-            "m".to_string().into() => 4,
-            "n".to_string().into() => 4,
+    let vars_map = hashmap! {
+            "m" => 4,
+            "n" => 4,
         };
 
-    let executable = codegen.into_executable(vars_map);
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
     let a = tensor_dyn::tensor::Tensor::<f32>
         ::arange(0.0, 16.0)
         .expect("Failed to create tensor")
@@ -1305,19 +1300,14 @@ fn test_max() {
 }"
     ); // prettier-ignore
 
-    let mut module = Module::new("main");
-    module.add_function2(&schedule);
-    let context = tensor_llvm::context::context::Context::new();
-    let mut codegen = CodeGen::new(context, &module, 3);
-    codegen.compile();
-
-    let vars_map =
-        hashmap! {
-            "m".to_string().into() => 4,
-            "n".to_string().into() => 4,
+    let vars_map = hashmap! {
+            "m" => 4,
+            "n" => 4,
         };
 
-    let executable = codegen.into_executable(vars_map);
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
     let a = tensor_dyn::tensor::Tensor::<f32>
         ::arange(0.0, 16.0)
         .expect("Failed to create tensor")
@@ -1333,5 +1323,245 @@ fn test_max() {
     executable.execute(inps_map, outs_map);
 
     let test = a.max([1], false).unwrap();
+    assert!(test.allclose(&d));
+}
+
+#[test]
+fn test_ge() {
+    let mut ctx = Context::new();
+    let m = ctx.var("m");
+    let n = ctx.var("n");
+    let a = ctx.placeholder(&[&m, &n], Dtype::F32);
+    let b = ctx.placeholder(&[&m, &1i64], Dtype::F32);
+    let c = ctx.ge(&a, &b);
+    let order = [a.id, b.id, c.id];
+
+    let schedule = ctx.to_schedule(&order);
+    let func = schedule.to_function();
+    assert_eq!(
+        func.to_string(),
+        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    let istrides0 = istrides_vec[0];
+    let istrides1 = istrides_vec[1];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (data_vec[1] as *f32);
+    let %2 = (output_vec[0] as *bool);
+    let ostrides0 = ostrides_vec[0];
+    let m = shape_vars[0];
+    let n = shape_vars[1];
+    for ax0 in range(0, m) {
+        for ax1 in range(0, n) {
+            let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1]];
+            let %1_val = %1[ax0 * istrides1[0] + ax1 * istrides1[1]];
+            %2[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = (%0_val >= %1_val);
+        }
+    }
+    return;
+}"
+    ); // prettier-ignore
+
+    let vars_map = hashmap! {
+            "m" => 4,
+            "n" => 4,
+        };
+
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
+    let a = tensor_dyn::tensor::Tensor::<f32>::randn([4, 4]).expect("Failed to reshape");
+    let b = tensor_dyn::tensor::Tensor::<f32>::randn([4, 1]).expect("Failed to reshape");
+
+    let inps_map = hashmap! {
+        0usize => a.clone().into(),
+        1 => b.clone().into(),
+    };
+    let d = tensor_dyn::tensor::Tensor::<bool>::zeros(&[4, 4]).expect("Failed to create tensor");
+    let outs_map = hashmap! {
+            2 => d.clone().into(),
+        };
+
+    executable.execute(inps_map, outs_map);
+
+    let test = a.ge(&b).unwrap();
+    assert!(test.allclose(&d));
+}
+
+#[test]
+fn test_gt() {
+    let mut ctx = Context::new();
+    let m = ctx.var("m");
+    let n = ctx.var("n");
+    let a = ctx.placeholder(&[&m, &n], Dtype::F32);
+    let b = ctx.placeholder(&[&m, &1i64], Dtype::F32);
+    let c = ctx.gt(&a, &b);
+    let order = [a.id, b.id, c.id];
+
+    let schedule = ctx.to_schedule(&order);
+    let func = schedule.to_function();
+    assert_eq!(
+        func.to_string(),
+        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    let istrides0 = istrides_vec[0];
+    let istrides1 = istrides_vec[1];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (data_vec[1] as *f32);
+    let %2 = (output_vec[0] as *bool);
+    let ostrides0 = ostrides_vec[0];
+    let m = shape_vars[0];
+    let n = shape_vars[1];
+    for ax0 in range(0, m) {
+        for ax1 in range(0, n) {
+            let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1]];
+            let %1_val = %1[ax0 * istrides1[0] + ax1 * istrides1[1]];
+            %2[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = (%0_val > %1_val);
+        }
+    }
+    return;
+}"
+    ); // prettier-ignore
+
+    let vars_map = hashmap! {
+            "m" => 4,
+            "n" => 4,
+        };
+
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
+    let a = tensor_dyn::tensor::Tensor::<f32>::randn([4, 4]).expect("Failed to reshape");
+    let b = tensor_dyn::tensor::Tensor::<f32>::randn([4, 1]).expect("Failed to reshape");
+
+    let inps_map = hashmap! {
+        0usize => a.clone().into(),
+        1 => b.clone().into(),
+    };
+    let d = tensor_dyn::tensor::Tensor::<bool>::zeros(&[4, 4]).expect("Failed to create tensor");
+    let outs_map = hashmap! {
+            2 => d.clone().into(),
+        };
+
+    executable.execute(inps_map, outs_map);
+
+    let test = a.gt(&b).unwrap();
+    assert!(test.allclose(&d));
+}
+
+#[test]
+fn test_le() {
+    let mut ctx = Context::new();
+    let m = ctx.var("m");
+    let n = ctx.var("n");
+    let a = ctx.placeholder(&[&m, &n], Dtype::F32);
+    let b = ctx.placeholder(&[&m, &1i64], Dtype::F32);
+    let c = ctx.le(&a, &b);
+    let order = [a.id, b.id, c.id];
+
+    let schedule = ctx.to_schedule(&order);
+    let func = schedule.to_function();
+    assert_eq!(
+        func.to_string(),
+        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    let istrides0 = istrides_vec[0];
+    let istrides1 = istrides_vec[1];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (data_vec[1] as *f32);
+    let %2 = (output_vec[0] as *bool);
+    let ostrides0 = ostrides_vec[0];
+    let m = shape_vars[0];
+    let n = shape_vars[1];
+    for ax0 in range(0, m) {
+        for ax1 in range(0, n) {
+            let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1]];
+            let %1_val = %1[ax0 * istrides1[0] + ax1 * istrides1[1]];
+            %2[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = (%0_val <= %1_val);
+        }
+    }
+    return;
+}"
+    ); // prettier-ignore
+
+    let vars_map = hashmap! {
+            "m" => 4,
+            "n" => 4,
+        };
+
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
+    let a = tensor_dyn::tensor::Tensor::<f32>::randn([4, 4]).expect("Failed to reshape");
+    let b = tensor_dyn::tensor::Tensor::<f32>::randn([4, 1]).expect("Failed to reshape");
+
+    let inps_map = hashmap! {
+        0usize => a.clone().into(),
+        1 => b.clone().into(),
+    };
+    let d = tensor_dyn::tensor::Tensor::<bool>::zeros(&[4, 4]).expect("Failed to create tensor");
+    let outs_map = hashmap! {
+            2 => d.clone().into(),
+        };
+
+    executable.execute(inps_map, outs_map);
+
+    let test = a.le(&b).unwrap();
+    assert!(test.allclose(&d));
+}
+
+#[test]
+fn test_lt() {
+    let mut ctx = Context::new();
+    let m = ctx.var("m");
+    let n = ctx.var("n");
+    let a = ctx.placeholder(&[&m, &n], Dtype::F32);
+    let b = ctx.placeholder(&[&m, &1i64], Dtype::F32);
+    let c = ctx.lt(&a, &b);
+    let order = [a.id, b.id, c.id];
+
+    let schedule = ctx.to_schedule(&order);
+    let func = schedule.to_function();
+    assert_eq!(
+        func.to_string(),
+        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
+    let istrides0 = istrides_vec[0];
+    let istrides1 = istrides_vec[1];
+    let %0 = (data_vec[0] as *f32);
+    let %1 = (data_vec[1] as *f32);
+    let %2 = (output_vec[0] as *bool);
+    let ostrides0 = ostrides_vec[0];
+    let m = shape_vars[0];
+    let n = shape_vars[1];
+    for ax0 in range(0, m) {
+        for ax1 in range(0, n) {
+            let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1]];
+            let %1_val = %1[ax0 * istrides1[0] + ax1 * istrides1[1]];
+            %2[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = (%0_val < %1_val);
+        }
+    }
+    return;
+}"
+    ); // prettier-ignore
+
+    let vars_map = hashmap! {
+            "m" => 4,
+            "n" => 4,
+        };
+
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
+    let a = tensor_dyn::tensor::Tensor::<f32>::randn([4, 4]).expect("Failed to reshape");
+    let b = tensor_dyn::tensor::Tensor::<f32>::randn([4, 1]).expect("Failed to reshape");
+
+    let inps_map = hashmap! {
+        0usize => a.clone().into(),
+        1 => b.clone().into(),
+    };
+    let d = tensor_dyn::tensor::Tensor::<bool>::zeros(&[4, 4]).expect("Failed to create tensor");
+    let outs_map = hashmap! {
+            2 => d.clone().into(),
+        };
+
+    executable.execute(inps_map, outs_map);
+
+    let test = a.lt(&b).unwrap();
     assert!(test.allclose(&d));
 }

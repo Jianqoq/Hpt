@@ -10,6 +10,7 @@ pub mod ops {
         pub mod reduce_kernels;
         pub mod tensordot;
         pub mod fft;
+        pub mod cmp;
     }
 }
 pub mod backend;

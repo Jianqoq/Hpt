@@ -1389,3 +1389,21 @@ impl<T> Into<Tensor<T>> for _Tensor<T> {
         }
     }
 }
+
+impl<T> Into<_Tensor<T>> for &_Tensor<T> {
+    fn into(self) -> _Tensor<T> {
+        _Tensor {
+            data: self.data.clone(),
+            parent: self.parent.clone(),
+            layout: self.layout.clone(),
+            mem_layout: self.mem_layout.clone(),
+            _backend: Backend::new(),
+        }
+    }
+}
+
+impl<T> Into<Tensor<T>> for &Tensor<T> {
+    fn into(self) -> Tensor<T> {
+        Tensor { inner: self.inner.clone() }
+    }
+}

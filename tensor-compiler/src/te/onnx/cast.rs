@@ -37,22 +37,20 @@ pub fn common_cast(
             res_dtype,
             |dims: &Vec<IterVar>, stage_out_id: usize|
                 Body::Stmt(
-                    Stmt::StoreStmt(
-                        StoreStmt::make(
-                            &Variable::make(&format!("%{}", output_id)),
-                            dims
-                                .iter()
-                                .enumerate()
-                                .map(
-                                    |(idx, x)|
-                                        x.var().to_prime_expr() *
-                                        Load::make(&format!("%{}.s", output_id), idx).into()
-                                )
-                                .reduce(|acc, x| acc + x)
-                                .unwrap(),
-                            Cast::make(Variable::make(&format!("%{}_val", stage_out_id)), res_dtype)
-                        )
-                    )
+                    StoreStmt::make(
+                        &Variable::make(&format!("%{}", output_id)),
+                        dims
+                            .iter()
+                            .enumerate()
+                            .map(
+                                |(idx, x)|
+                                    x.var().to_prime_expr() *
+                                    Load::make(&format!("%{}.s", output_id), idx).into()
+                            )
+                            .reduce(|acc, x| acc + x)
+                            .unwrap(),
+                        Cast::make(Variable::make(&format!("%{}_val", stage_out_id)), res_dtype)
+                    ).into()
                 )
         )
     } else {

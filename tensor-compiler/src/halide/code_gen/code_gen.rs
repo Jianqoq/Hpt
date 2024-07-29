@@ -63,7 +63,6 @@ use crate::{
         traits::CodeGenVisitor,
     },
     te::hstrides::HStrides,
-    tensor::{ Tensor, _Tensor },
     to_prim_expr::ToPrimeExpr,
 };
 
