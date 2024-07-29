@@ -18,6 +18,7 @@ pub mod halide {
         pub mod code_gen;
         pub mod type_utils;
         pub mod scope;
+        pub mod to_executable;
     }
     pub mod passes {
         pub mod const_fold;
