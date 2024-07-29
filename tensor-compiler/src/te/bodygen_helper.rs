@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use tensor_types::{ dtype::Dtype, type_promote::NormalOut };
+use tensor_types::dtype::Dtype;
 
 use crate::{
     halide::{
         alloca_stmt::AllocaStmt,
-        exprs::{ Add, Load },
+        exprs::{ Add, Call, Load },
         let_stmt::LetStmt,
         prime_expr::PrimeExpr,
         primitive_type::PrimitiveType,
@@ -174,16 +174,20 @@ pub fn common_reduce_out(all_parent_dims: &Vec<IterVar>, output_id: usize) -> Ve
     ]
 }
 
-pub fn common_binop(
+pub fn common_binop<F>(
     is_output: bool,
     inputs: &Vec<Body>,
     lhs_new_axes: &[usize],
     lhs_replace: &[(usize, usize)],
     rhs_new_axes: &[usize],
     rhs_replace: &[(usize, usize)],
+    ty_infer: fn(Dtype, Dtype) -> Dtype,
+    binop: F,
     dims: &Vec<IterVar>,
     output_id: usize
-) -> Body {
+) -> Body
+    where F: Fn(PrimeExpr, PrimeExpr) -> PrimeExpr + Clone
+{
     if is_output {
         common_binop_helper(
             inputs,
@@ -193,8 +197,8 @@ pub fn common_binop(
             rhs_replace,
             dims,
             output_id,
-            |lhs, rhs| lhs._add(rhs),
-            || common_binop_out(dims, inputs[0].id(), inputs[1].id(), output_id)
+            ty_infer,
+            || common_binop_out(dims, inputs[0].id(), inputs[1].id(), output_id, binop.clone())
         )
     } else {
         common_binop_helper(
@@ -205,8 +209,8 @@ pub fn common_binop(
             rhs_replace,
             dims,
             output_id,
-            |lhs, rhs| lhs._add(rhs),
-            || common_binop_in(inputs[0].id(), inputs[1].id(), output_id)
+            ty_infer,
+            || common_binop_in(inputs[0].id(), inputs[1].id(), binop.clone(), output_id)
         )
     }
 }
@@ -289,12 +293,15 @@ pub fn common_binop_helper<F>(
     }
 }
 
-pub fn common_binop_out(
+pub fn common_binop_out<F>(
     dims: &Vec<IterVar>,
     lhs_id: usize,
     rhs_id: usize,
-    output_id: usize
-) -> Body {
+    output_id: usize,
+    binop: F
+) -> Body
+    where F: Fn(PrimeExpr, PrimeExpr) -> PrimeExpr
+{
     Body::Stmt(
         StoreStmt::make(
             &Variable::make(&format!("%{}", output_id)),
@@ -308,22 +315,121 @@ pub fn common_binop_out(
                 )
                 .reduce(|acc, x| acc + x)
                 .unwrap(),
-            Variable::make(&format!("%{}_val", lhs_id)) +
-                Variable::make(&format!("%{}_val", rhs_id))
+            binop(
+                Variable::make(&format!("%{}_val", lhs_id)).into(),
+                Variable::make(&format!("%{}_val", rhs_id)).into()
+            )
         ).into()
     )
 }
 
-pub fn common_binop_in(lhs_id: usize, rhs_id: usize, output_id: usize) -> Body {
+pub fn common_binop_in<F>(lhs_id: usize, rhs_id: usize, binop: F, output_id: usize) -> Body
+    where F: Fn(PrimeExpr, PrimeExpr) -> PrimeExpr
+{
     Body::Stmt(
         Stmt::LetStmt(
             LetStmt::make(
                 &Variable::make(&format!("%{}_val", output_id)),
-                Variable::make(&format!("%{}_val", lhs_id)) +
-                    Variable::make(&format!("%{}_val", rhs_id)),
+                binop(
+                    Variable::make(&format!("%{}_val", lhs_id)).into(),
+                    Variable::make(&format!("%{}_val", rhs_id)).into()
+                ),
                 false,
                 Stmt::None
             )
         ).into()
     )
+}
+
+pub fn common_uaryop(
+    is_output: bool,
+    inputs: &Vec<Body>,
+    shape: &Vec<PrimeExpr>,
+    ty_infer: fn(Dtype) -> Dtype,
+    method_name: &str,
+    output_id: usize
+) -> Body {
+    if is_output {
+        common_unaryop_helper(
+            inputs,
+            shape,
+            output_id,
+            ty_infer,
+            |dims: &Vec<IterVar>, stage_out_id: usize|
+                Body::Stmt(
+                    Stmt::StoreStmt(
+                        StoreStmt::make(
+                            &Variable::make(&format!("%{}", output_id)),
+                            dims
+                                .iter()
+                                .enumerate()
+                                .map(
+                                    |(idx, x)|
+                                        x.var().to_prime_expr() *
+                                        Load::make(&format!("%{}.s", output_id), idx).into()
+                                )
+                                .reduce(|acc, x| acc + x)
+                                .unwrap(),
+                            Call::make(
+                                method_name,
+                                &[Variable::make(&format!("%{}_val", stage_out_id))]
+                            )
+                        )
+                    )
+                )
+        )
+    } else {
+        common_unaryop_helper(inputs, shape, output_id, ty_infer, |_, stage_out_id: usize|
+            Body::Stmt(
+                Stmt::LetStmt(
+                    LetStmt::make(
+                        &Variable::make(&format!("%{}_val", output_id)),
+                        Call::make(
+                            method_name,
+                            &[Variable::make(&format!("%{}_val", stage_out_id))]
+                        ),
+                        false,
+                        Stmt::None
+                    )
+                ).into()
+            )
+        )
+    }
+}
+
+pub fn common_unaryop_helper<F>(
+    inputs: &Vec<Body>,
+    shape: &Vec<PrimeExpr>,
+    output_id: usize,
+    ty_infer: fn(Dtype) -> Dtype,
+    post: F
+) -> Body
+    where F: Fn(&Vec<IterVar>, usize) -> Body
+{
+    match &inputs[0] {
+        Body::Stage(stage) => {
+            let mut stage = stage.clone();
+            let dims = (0..shape.len())
+                .map(|x| IterVar::new(0i64, shape[x].clone(), 1i64, &format!("ax{}", x)))
+                .collect::<Vec<IterVar>>();
+            stage.broadcast_new_dims(
+                &(0..shape.len())
+                    .map(|x| Load::make(Variable::make(&format!("%{}.s", output_id)), x).into())
+                    .collect::<Vec<PrimeExpr>>(),
+                &(0..shape.len())
+                    .map(|x| Variable::make(&format!("ax{}", x)).into())
+                    .collect::<Vec<PrimeExpr>>()
+            );
+            stage.bodys.push(post(&dims, stage.out_id));
+            let stage = Stage {
+                dims,
+                bodys: stage.bodys.clone(),
+                id: output_id,
+                out_id: stage.out_id,
+                dtype: ty_infer(stage.dtype),
+            };
+            Body::Stage(stage)
+        }
+        _ => panic!("input is not a stage"),
+    }
 }

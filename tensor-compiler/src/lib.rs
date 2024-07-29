@@ -50,6 +50,7 @@ pub mod te {
         pub mod normal_binop;
         pub mod pad;
         pub mod reduce_sum;
+        pub mod trigs;
     }
     pub mod insert_axes;
     pub mod strides_visitor;

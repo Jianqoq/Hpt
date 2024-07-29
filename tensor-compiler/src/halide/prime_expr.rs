@@ -418,6 +418,46 @@ impl std::ops::Rem<&PrimeExpr> for &PrimeExpr {
     }
 }
 
+impl std::ops::BitAnd for PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn bitand(self, rhs: PrimeExpr) -> Self::Output {
+        PrimeExpr::BitAnd(BitAnd::make(self, rhs))
+    }
+}
+
+impl std::ops::BitOr for PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn bitor(self, rhs: PrimeExpr) -> Self::Output {
+        PrimeExpr::BitOr(BitOr::make(self, rhs))
+    }
+}
+
+impl std::ops::BitXor for PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn bitxor(self, rhs: PrimeExpr) -> Self::Output {
+        PrimeExpr::BitXor(BitXor::make(self, rhs))
+    }
+}
+
+impl std::ops::Shl for PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn shl(self, rhs: PrimeExpr) -> Self::Output {
+        PrimeExpr::Shl(Shl::make(self, rhs))
+    }
+}
+
+impl std::ops::Shr for PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn shr(self, rhs: PrimeExpr) -> Self::Output {
+        PrimeExpr::Shr(Shr::make(self, rhs))
+    }
+}
+
 impl Into<PrimeExpr> for bool {
     fn into(self) -> PrimeExpr {
         PrimeExpr::Int(Int::make(Dtype::Bool, self as i64))
