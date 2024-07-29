@@ -1,10 +1,10 @@
 use std::{ panic::Location, sync::Arc };
 
-use tensor_types::{ dtype::Dtype, type_promote::FloatOut };
+use tensor_types::{dtype::Dtype, type_promote::FloatOut};
 
 use crate::{
     halide::{
-        exprs::{ Call, Float, Gt, Load, Select },
+        exprs::{ Call, Gt, Load, Select },
         let_stmt::LetStmt,
         prime_expr::PrimeExpr,
         stmt::Stmt,
@@ -23,28 +23,23 @@ use crate::{
     to_prim_expr::ToPrimeExpr,
 };
 
-const SELU_ALPHA: f64 = 1.6732632423543772848170429916717;
-const SELU_SCALE: f64 = 1.0507009873554804934193349852946;
-
-pub fn common_selu(
+pub fn common_elu(
     is_output: bool,
     inputs: &Vec<Body>,
     shape: &Vec<PrimeExpr>,
+    alpha: PrimeExpr,
     res_dtype: Dtype,
     output_id: usize
 ) -> Body {
     let func = |stage_out_id: usize| {
         let var: PrimeExpr = Variable::make(&format!("%{}_val", stage_out_id)).into();
-        let alpha = PrimeExpr::Float(Float::make(res_dtype, SELU_ALPHA));
-        let scale = PrimeExpr::Float(Float::make(res_dtype, SELU_SCALE));
         let cond = Gt::make(&var, dtype_zero(res_dtype));
-        let true_val = var.clone() * alpha.clone();
         let exp: PrimeExpr = Call::make("exp", &[&var]).into();
-        let false_val = alpha * scale * (exp - dtype_one(res_dtype));
-        Select::make(cond, true_val, false_val)
+        let else_case = &alpha * &(exp - dtype_one(res_dtype));
+        Select::make(cond, &var, else_case)
     };
     if is_output {
-        common_selu_helper(
+        common_elu_helper(
             inputs,
             shape,
             output_id,
@@ -69,7 +64,7 @@ pub fn common_selu(
             }
         )
     } else {
-        common_selu_helper(inputs, shape, output_id, res_dtype, |_, stage_out_id: usize| {
+        common_elu_helper(inputs, shape, output_id, res_dtype, |_, stage_out_id: usize| {
             Body::Stmt(
                 Stmt::LetStmt(
                     LetStmt::make(
@@ -84,7 +79,7 @@ pub fn common_selu(
     }
 }
 
-pub fn common_selu_helper<F>(
+pub fn common_elu_helper<F>(
     inputs: &Vec<Body>,
     shape: &Vec<PrimeExpr>,
     output_id: usize,
@@ -125,11 +120,12 @@ pub fn common_selu_helper<F>(
 
 impl Context {
     #[track_caller]
-    pub fn selu(&mut self, a: &Tensor) -> Tensor {
+    pub fn elu(&mut self, a: &Tensor, alpha: &dyn ToPrimeExpr) -> Tensor {
         let id = self.id.borrow().clone();
         *self.id.borrow_mut() += 1;
         let shape = a.shape.clone();
         let res_dtype = a.dtype._exp();
+        let alpha = alpha.to_prime_expr();
         let ret = Tensor {
             shape: a.shape.clone(),
             inputs: Arc::new(vec![a.id]),
@@ -140,7 +136,8 @@ impl Context {
                 elementwise_strides_cal(prev_fn[0].clone())
             }),
             body_gen: Arc::new(move |inputs: Vec<Body>, is_output: bool, id: usize| {
-                common_selu(is_output, &inputs, &shape, res_dtype, id)
+                let alpha = alpha.clone();
+                common_elu(is_output, &inputs, &shape, alpha, res_dtype, id)
             }),
         };
         self.nodes.borrow_mut().insert(id, ret.clone());

@@ -56,6 +56,7 @@ pub mod te {
         pub mod cast;
         pub mod cmp;
         pub mod relu;
+        pub mod elu;
         pub mod selu;
     }
     pub mod insert_axes;
