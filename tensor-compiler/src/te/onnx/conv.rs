@@ -17,14 +17,14 @@ pub enum AutoPad {
 
 impl Context {
     /// ### Convolution
-    /// 
+    ///
     /// input: has size `(N x C x H x W)`, where `N` is the batch size, `C` is the number of channels, and `H` and `W` are the height and width.
     /// Note that this is for the 2D image. Otherwise the size is `(N x C x D1 x D2 … x Dn)`
-    /// 
-    /// weight: The weight tensor that will be used in the convolutions; 
-    /// has size `(M x C/group x kH x kW)`, where `C` is the number of channels, 
+    ///
+    /// weight: The weight tensor that will be used in the convolutions;
+    /// has size `(M x C/group x kH x kW)`, where `C` is the number of channels,
     /// and `kH` and `kW` are the height and width of the kernel, and `M` is the number of feature maps.
-    /// 
+    ///
     /// bias: Optional `1D` bias to be added to the convolution, has size of `M`.
     #[track_caller]
     pub fn conv(
@@ -58,7 +58,8 @@ impl Context {
             vec![(0i64.into(), 0i64.into()); tmp.len()]
         };
         let steps = if let Some(steps) = steps {
-            steps.iter()
+            steps
+                .iter()
                 .map(|x| x.to_prime_expr())
                 .collect()
         } else {
@@ -66,6 +67,18 @@ impl Context {
         };
         let dilations = dilations.unwrap_or(1);
         let group = group.unwrap_or(1);
+
+        if
+            auto_pad != AutoPad::Notset &&
+            pads.iter().any(|(x, y)| (x != &(0i64).into() || y != &(0i64).into()))
+        {
+            panic!("auto_pad and pads cannot be set at the same time at {}", caller);
+        }
+
+        if input.shape[1] != &weight.shape[1] * &group.into() {
+            panic!("The number of input channels should be equal to the number of kernel channels times the group at {}", caller);
+        }
+
         todo!()
     }
 }
