@@ -1,8 +1,18 @@
-use std::panic::Location;
+use std::{ panic::Location, sync::Arc };
 
 use crate::{
-    halide::prime_expr::PrimeExpr,
-    te::{ context::Context, tensor::Tensor },
+    halide::{
+        alloca_stmt::AllocaStmt,
+        exprs::Load,
+        prime_expr::PrimeExpr,
+        primitive_type::PrimitiveType,
+        stmt::Stmt,
+        store_stmt::StoreStmt,
+        utils::{ dtype_zero, floor },
+        variable::Variable,
+    },
+    iter_var::IterVar,
+    te::{ context::Context, stages::{ Body, ReduceStage, Stage }, tensor::{ StridesCal, Tensor } },
     to_prim_expr::ToPrimeExpr,
 };
 
@@ -36,7 +46,7 @@ impl Context {
         pads: Option<&[(&dyn ToPrimeExpr, &dyn ToPrimeExpr)]>,
         steps: Option<&[&dyn ToPrimeExpr]>,
         auto_pad: Option<AutoPad>,
-        dilations: Option<i64>,
+        dilations: Option<&[i64]>,
         group: Option<i64>
     ) -> Tensor {
         let id = self.id.borrow().clone();
@@ -65,7 +75,11 @@ impl Context {
         } else {
             vec![1i64.into(); tmp.len()]
         };
-        let dilations = dilations.unwrap_or(1);
+        let dilations = if let Some(dilations) = dilations {
+            dilations.iter().cloned().collect()
+        } else {
+            vec![1; tmp.len()]
+        };
         let group = group.unwrap_or(1);
 
         if
@@ -79,6 +93,142 @@ impl Context {
             panic!("The number of input channels should be equal to the number of kernel channels times the group at {}", caller);
         }
 
-        todo!()
+        let bias_id = bias.map(|x| x.id);
+        let mut outer_dims = vec![];
+        outer_dims.push(input.shape[0].clone());
+        outer_dims.push(weight.shape[0].clone());
+        let mut out_dims = vec![];
+        input.shape
+            .iter()
+            .skip(2)
+            .zip(weight.shape.iter().skip(2))
+            .enumerate()
+            .for_each(|(idx, (x, y))| {
+                let i = x.clone();
+                let (p_begin, p_end) = pads[idx].clone();
+                let d: PrimeExpr = dilations[idx].into();
+                let s = steps[idx].clone();
+                let k = y.clone();
+                let o = floor((i + p_begin + p_end - d * (k - 1i64) - 1i64) / s + 1i64);
+                out_dims.push(o);
+            });
+        outer_dims.append(&mut out_dims);
+        let outer_dims = Arc::new(outer_dims);
+        let shape = outer_dims.clone();
+        let body = move |inputs: Vec<Body>, is_output: bool, id: usize| {
+            match (&inputs[0], &inputs[1]) {
+                (Body::Stage(_), Body::Stage(kernel)) => {
+                    let mut kernel_dims = Vec::with_capacity(kernel.dims[2..].len());
+                    for (idx, i) in kernel.dims.iter().enumerate().skip(2) {
+                        let mut i = i.clone();
+                        i.set_var(Variable::new(format!("{}red{}", kernel.id, idx)));
+                        kernel_dims.push(i);
+                    }
+                    let sum_ptr = Variable::new(format!("%{}_val_ptr", id));
+                    let add_bias = if let Some(bias) = bias_id {
+                        let load_sum: PrimeExpr = Load::make(&sum_ptr, 0i64).into();
+                        let bias_val: PrimeExpr = Variable::new(format!("%{}_val", bias)).into();
+                        let add = load_sum + bias_val;
+                        Body::Stmt(Stmt::StoreStmt(StoreStmt::make(&sum_ptr, 0i64, add)).into())
+                    } else {
+                        Body::Stmt(Stmt::None)
+                    };
+                    let mut dims = outer_dims.as_ref().clone();
+                    dims.insert(2, kernel.dims[1].end().clone());
+                    let dims = dims
+                        .into_iter()
+                        .enumerate()
+                        .map(|(idx, x)| {
+                            IterVar::new(0i64, x, 1i64, Variable::new(format!("ax{}", idx)))
+                        })
+                        .collect();
+                    if is_output {
+                        let sum = ReduceStage {
+                            dims: kernel_dims,
+                            bodys: vec![],
+                            id: kernel.id,
+                            inits: vec![
+                                Body::Stmt(
+                                    Stmt::AllocaStmt(
+                                        AllocaStmt::make(
+                                            &Variable::new(format!("%{}_val_ptr", id)),
+                                            PrimitiveType::Dtype(kernel.dtype),
+                                            1i64,
+                                            Stmt::None
+                                        )
+                                    ).into()
+                                ),
+                                Body::Stmt(
+                                    Stmt::StoreStmt(
+                                        StoreStmt::make(
+                                            &Variable::make(&format!("%{}_val_ptr", id)),
+                                            0i64,
+                                            dtype_zero(kernel.dtype)
+                                        )
+                                    ).into()
+                                )
+                            ],
+                            posts: vec![add_bias],
+                            input: kernel.id,
+                        };
+                        let stage = Stage {
+                            dims,
+                            bodys: vec![Body::ReduceStage(sum)],
+                            dtype: kernel.dtype,
+                            id,
+                            out_id: id,
+                        };
+                        Body::Stage(stage)
+                    } else {
+                        let sum = ReduceStage {
+                            dims: kernel_dims,
+                            bodys: vec![],
+                            id: kernel.id,
+                            inits: vec![
+                                Body::Stmt(
+                                    Stmt::AllocaStmt(
+                                        AllocaStmt::make(
+                                            &Variable::new(format!("%{}_val_ptr", id)),
+                                            PrimitiveType::Dtype(kernel.dtype),
+                                            1i64,
+                                            Stmt::None
+                                        )
+                                    ).into()
+                                ),
+                                Body::Stmt(
+                                    Stmt::StoreStmt(
+                                        StoreStmt::make(
+                                            &Variable::make(&format!("%{}_val_ptr", id)),
+                                            0i64,
+                                            dtype_zero(kernel.dtype)
+                                        )
+                                    ).into()
+                                )
+                            ],
+                            posts: vec![add_bias],
+                            input: kernel.id,
+                        };
+                        let stage = Stage {
+                            dims,
+                            bodys: vec![Body::ReduceStage(sum)],
+                            dtype: kernel.dtype,
+                            id,
+                            out_id: id,
+                        };
+                        Body::Stage(stage)
+                    }
+                }
+                _ => panic!("The input should be a stage at {}", caller),
+            }
+        };
+        Tensor {
+            shape,
+            inputs: Arc::new(vec![input.id, weight.id]),
+            span: caller,
+            id,
+            dtype: weight.dtype.clone(),
+            strides_cal: Arc::new(move |_: Vec<StridesCal>| { todo!() }),
+            body_gen: Arc::new(body),
+        }
     }
 }

@@ -333,18 +333,18 @@ impl std::ops::Add<&PrimeExpr> for PrimeExpr {
     }
 }
 
-impl std::ops::Add<i32> for &PrimeExpr {
+impl std::ops::Add<i64> for &PrimeExpr {
     type Output = PrimeExpr;
 
-    fn add(self, rhs: i32) -> Self::Output {
+    fn add(self, rhs: i64) -> Self::Output {
         PrimeExpr::Add(Add::make(self, rhs))
     }
 }
 
-impl std::ops::Add<i32> for PrimeExpr {
+impl std::ops::Add<i64> for PrimeExpr {
     type Output = PrimeExpr;
 
-    fn add(self, rhs: i32) -> Self::Output {
+    fn add(self, rhs: i64) -> Self::Output {
         PrimeExpr::Add(Add::make(self, rhs))
     }
 }
@@ -357,18 +357,18 @@ impl std::ops::Sub for PrimeExpr {
     }
 }
 
-impl std::ops::Sub<i32> for &PrimeExpr {
+impl std::ops::Sub<i64> for &PrimeExpr {
     type Output = PrimeExpr;
 
-    fn sub(self, rhs: i32) -> Self::Output {
+    fn sub(self, rhs: i64) -> Self::Output {
         PrimeExpr::Sub(Sub::make(self, rhs))
     }
 }
 
-impl std::ops::Sub<i32> for PrimeExpr {
+impl std::ops::Sub<i64> for PrimeExpr {
     type Output = PrimeExpr;
 
-    fn sub(self, rhs: i32) -> Self::Output {
+    fn sub(self, rhs: i64) -> Self::Output {
         PrimeExpr::Sub(Sub::make(self, rhs))
     }
 }

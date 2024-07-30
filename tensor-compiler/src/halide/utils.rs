@@ -23,6 +23,10 @@ pub fn neg(x: PrimeExpr) -> PrimeExpr {
     Neg::make(x).into()
 }
 
+pub fn floor(x: PrimeExpr) -> PrimeExpr {
+    Call::make("floor", &[&x]).into()
+}
+
 pub fn dtype_zero(dtype: Dtype) -> PrimeExpr {
     match dtype {
         Dtype::Bool => PrimeExpr::Int(Int::make(Dtype::Bool, 0)),
