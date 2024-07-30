@@ -1999,3 +1999,25 @@ fn test_neg() {
 
     println!("{:?}", d);
 }
+
+#[test]
+fn test_conv() {
+    let mut ctx = Context::new();
+    let batch = ctx.var("batch");
+    let in_channels = ctx.var("in_channels");
+    let in_height = ctx.var("in_height");
+    let in_width = ctx.var("in_width");
+    let out_channels = ctx.var("out_channels");
+    let kernel_height = ctx.var("kernel_height");
+    let kernel_width = ctx.var("kernel_width");
+    let image = ctx.placeholder(&[&batch, &in_channels, &in_height, &in_width], Dtype::F32);
+    let kernel = ctx.placeholder(
+        &[&out_channels, &in_channels, &kernel_height, &kernel_width],
+        Dtype::F32
+    );
+    let b = ctx.conv(&image, &kernel, None, None, None, None, None, None, None);
+    let order = [image.id, kernel.id, b.id];
+    let schedule = ctx.to_schedule(&order);
+    let func = schedule.to_function();
+    println!("{}", func);
+}

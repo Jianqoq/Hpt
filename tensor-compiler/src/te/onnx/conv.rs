@@ -1,4 +1,4 @@
-use std::{ panic::Location, sync::Arc };
+use std::{ collections::HashMap, panic::Location, sync::Arc };
 
 use crate::{
     halide::{
@@ -80,18 +80,6 @@ impl Context {
         } else {
             vec![1; tmp.len()]
         };
-        let group = group.unwrap_or(1);
-
-        if
-            auto_pad != AutoPad::Notset &&
-            pads.iter().any(|(x, y)| (x != &(0i64).into() || y != &(0i64).into()))
-        {
-            panic!("auto_pad and pads cannot be set at the same time at {}", caller);
-        }
-
-        if input.shape[1] != &weight.shape[1] * &group.into() {
-            panic!("The number of input channels should be equal to the number of kernel channels times the group at {}", caller);
-        }
 
         let bias_id = bias.map(|x| x.id);
         let mut outer_dims = vec![];
@@ -221,14 +209,18 @@ impl Context {
                 _ => panic!("The input should be a stage at {}", caller),
             }
         };
-        Tensor {
+        let ret = Tensor {
             shape,
             inputs: Arc::new(vec![input.id, weight.id]),
             span: caller,
             id,
             dtype: weight.dtype.clone(),
-            strides_cal: Arc::new(move |_: Vec<StridesCal>| { todo!() }),
+            strides_cal: Arc::new(move |_: Vec<StridesCal>| {
+                Arc::new(move |_: &HashMap<Arc<String>, i64>| { vec![] })
+            }),
             body_gen: Arc::new(body),
-        }
+        };
+        self.nodes.borrow_mut().insert(id, ret.clone());
+        ret
     }
 }
