@@ -65,6 +65,7 @@ pub mod te {
         pub mod sigmoid;
         pub mod not;
         pub mod arg_reduce;
+        pub mod conv;
     }
     pub mod insert_axes;
     pub mod strides_visitor;
