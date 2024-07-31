@@ -1,5 +1,5 @@
 use std::{ fmt::Display, sync::Arc };
-
+use colored::Colorize;
 use super::{
     exprs::{ Add, Int, Mul },
     prime_expr::PrimeExpr,
@@ -77,7 +77,7 @@ impl From<Arc<String>> for Variable {
 
 impl Display for Variable {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.name)
+        write!(f, "{}", self.name.red())
     }
 }
 

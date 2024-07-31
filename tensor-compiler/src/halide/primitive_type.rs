@@ -294,6 +294,6 @@ impl Display for PrimitiveType {
             PrimitiveType::Void => format!("void"),
             PrimitiveType::Tensor(tensor) => { format!("Tensor<{}>", tensor.dtype) }
         };
-        write!(f, "{}", ret.truecolor(230, 200, 90))
+        write!(f, "{}", ret.truecolor(240, 177, 52))
     }
 }

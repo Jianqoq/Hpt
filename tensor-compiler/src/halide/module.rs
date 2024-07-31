@@ -48,7 +48,7 @@ impl Display for Function {
             if i != 0 {
                 write!(f, ", ")?;
             }
-            write!(f, "{}: {}", name, r#type)?;
+            write!(f, "{}: {}", name.red(), r#type)?;
         }
         write!(f, "{} {} {}", ")".bright_cyan(), "->".purple(), self.ty.ret_ty)?;
         write!(f, " {{\n")?;

@@ -1347,7 +1347,7 @@ impl Display for Call {
         write!(
             f,
             "{}{}{}{}",
-            self.name.blue(),
+            self.name.truecolor(70, 160, 230),
             "(".bright_cyan(),
             self.args
                 .iter()
