@@ -43,7 +43,7 @@ impl<T, U> TensorLike<T, U, Tensor<U>>
         self.as_raw()
     }
 
-    fn to_raw_mut(&self) -> &mut [T] {
+    fn to_raw_mut(&mut self) -> &mut [T] {
         self.as_raw_mut()
     }
 

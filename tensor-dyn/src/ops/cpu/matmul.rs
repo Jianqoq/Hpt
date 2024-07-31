@@ -225,7 +225,7 @@ macro_rules! impl_matmul {
         pub(crate) fn $func_name2<A, B, O>(
             lhs: &$tensor_type<A>,
             rhs: &$tensor_type<B>,
-            out: O,
+            mut out: O,
         ) -> anyhow::Result<$tensor_type<<A as NormalOut<B>>::Output>>
         where
             A: CommonBounds + NormalOut<B> + IntoScalar<<A as NormalOut<B>>::Output>,

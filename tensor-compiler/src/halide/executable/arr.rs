@@ -1,7 +1,7 @@
 use std::ffi::c_void;
 use tensor_common::shape::Shape;
 use tensor_dyn::tensor::Tensor;
-use tensor_traits::tensor::TensorInfo;
+use tensor_traits::tensor::{CommonBounds, TensorInfo};
 use tensor_types::dtype::{ Dtype, TypeCommon };
 
 pub struct Array {
@@ -22,7 +22,7 @@ impl Array {
     }
 }
 
-impl<T: TypeCommon> From<Tensor<T>> for Array {
+impl<T: TypeCommon + CommonBounds> From<Tensor<T>> for Array {
     fn from(tensor: Tensor<T>) -> Self {
         Array {
             shape: TensorInfo::shape(&tensor).clone(),
