@@ -1,8 +1,10 @@
+use colored::Colorize;
+
 use tensor_types::dtype::Dtype;
 
 use crate::halide::exprs::Int;
 
-use super::{ module::Module, prime_expr::PrimeExpr, stmt::Stmt };
+use super::{module::Module, prime_expr::PrimeExpr, stmt::Stmt};
 
 pub struct IRPrinter;
 
@@ -85,9 +87,10 @@ impl _IRPrinter {
                 res.push_str(&format!("{}: {}", name, r#type));
             }
             res.push_str(&format!(") -> {} {{\n", fn_meta.function.ty.ret_ty));
-            res.push_str(
-                &format!("{}", _IRPrinter::new(self.indent + 1).print_stmt_str(&fn_meta.function.body))
-            );
+            res.push_str(&format!(
+                "{}",
+                _IRPrinter::new(self.indent + 1).print_stmt_str(&fn_meta.function.body)
+            ));
             res.push_str(&self.do_indent_str());
             res.push_str("}\n");
         }
@@ -114,7 +117,12 @@ impl _IRPrinter {
             Stmt::For(var) => {
                 self.do_indent();
                 if var.step() == &Int::make(Dtype::I64, 1).into() {
-                    println!("for {} in range({}, {}) {{", var.var(), var.start(), var.end());
+                    println!(
+                        "for {} in range({}, {}) {{",
+                        var.var(),
+                        var.start(),
+                        var.end()
+                    );
                 } else {
                     println!(
                         "for {} in range({}, {}, {}) {{",
@@ -180,7 +188,12 @@ impl _IRPrinter {
             }
             Stmt::AllocaStmt(var) => {
                 self.do_indent();
-                println!("let {} = alloca<{}>({});", var.var(), var.dtype(), var.size());
+                println!(
+                    "let {} = alloca<{}>({});",
+                    var.var(),
+                    var.dtype(),
+                    var.size()
+                );
                 self.print_stmt(var.body());
             }
             Stmt::None => {}
@@ -193,7 +206,12 @@ impl _IRPrinter {
         match stmt {
             Stmt::LetStmt(var) => {
                 res.push_str(&self.do_indent_str());
-                res.push_str(&format!("let {} = {};\n", var.var(), var.value()));
+                res.push_str(&format!(
+                    "{} {} = {};\n",
+                    "let".purple(),
+                    var.var(),
+                    var.value()
+                ));
                 res.push_str(&self.print_stmt_str(var.body()));
             }
             Stmt::StoreStmt(var) => {
@@ -207,19 +225,24 @@ impl _IRPrinter {
             Stmt::For(var) => {
                 res.push_str(&self.do_indent_str());
                 if var.step() == &Int::make(Dtype::I64, 1).into() {
-                    res.push_str(
-                        &format!("for {} in range({}, {}) {{\n", var.var(), var.start(), var.end())
-                    );
+                    res.push_str(&format!(
+                        "{} {} in {}({}, {}) {{\n",
+                        "for".purple(),
+                        var.var(),
+                        "range".blue(),
+                        var.start(),
+                        var.end()
+                    ));
                 } else {
-                    res.push_str(
-                        &format!(
-                            "for {} in range({}, {}, {}) {{\n",
-                            var.var(),
-                            var.start(),
-                            var.end(),
-                            var.step()
-                        )
-                    );
+                    res.push_str(&format!(
+                        "{} {} in {}({}, {}, {}) {{\n",
+                        "for".purple(),
+                        var.var(),
+                        "range".blue(),
+                        var.start(),
+                        var.end(),
+                        var.step()
+                    ));
                 }
                 self.indent += 1;
                 res.push_str(&self.print_stmt_str(var.stmt()));
@@ -234,7 +257,7 @@ impl _IRPrinter {
             }
             Stmt::IfThenElse(stmt) => {
                 res.push_str(&self.do_indent_str());
-                res.push_str(&format!("if {} {{\n", stmt.cond()));
+                res.push_str(&format!("{} {} {{\n", "if".purple(), stmt.cond()));
                 self.indent += 1;
                 res.push_str(&self.print_stmt_str(stmt.then_case()));
                 self.indent -= 1;
@@ -244,7 +267,7 @@ impl _IRPrinter {
                     res.push_str("}\n");
                     return res;
                 } else {
-                    res.push_str("} else {\n");
+                    res.push_str(&format!("}} {} {{\n", "else".purple()));
                     self.indent += 1;
                     res.push_str(&self.print_stmt_str(stmt.else_case()));
                     self.indent -= 1;
@@ -278,7 +301,14 @@ impl _IRPrinter {
             }
             Stmt::AllocaStmt(var) => {
                 res.push_str(&self.do_indent_str());
-                res.push_str(&format!("let {} = alloca<{}>({});\n", var.var(), var.dtype(), var.size()));
+                res.push_str(&format!(
+                    "{} {} = {}<{}>({});\n",
+                    "let".purple(),
+                    var.var(),
+                    "alloc".blue(),
+                    var.dtype(),
+                    var.size()
+                ));
                 res.push_str(&self.print_stmt_str(var.body()));
             }
             Stmt::None => {}

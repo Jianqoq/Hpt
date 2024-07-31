@@ -43,7 +43,7 @@ impl std::hash::Hash for Function {
 
 impl Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {}(", "fn".purple(), self.name)?;
+        write!(f, "{} {}(", "fn".purple(), self.name.blue())?;
         for (i, (name, r#type)) in self.ty.args.iter().enumerate() {
             if i != 0 {
                 write!(f, ", ")?;
