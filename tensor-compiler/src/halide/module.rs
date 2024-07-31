@@ -1,6 +1,7 @@
 use std::{ fmt::Display, sync::Arc };
 
 use std::collections::{ HashMap, HashSet };
+use colored::Colorize;
 use tensor_llvm::{
     context::context::Context,
     types::{ general_types::GeneralType, values::StructValue },
@@ -42,7 +43,7 @@ impl std::hash::Hash for Function {
 
 impl Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "fn {}(", self.name)?;
+        write!(f, "{} {}(", "fn".purple(), self.name)?;
         for (i, (name, r#type)) in self.ty.args.iter().enumerate() {
             if i != 0 {
                 write!(f, ", ")?;
