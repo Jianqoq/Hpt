@@ -207,9 +207,10 @@ impl _IRPrinter {
             Stmt::LetStmt(var) => {
                 res.push_str(&self.do_indent_str());
                 res.push_str(&format!(
-                    "{} {} = {};\n",
+                    "{} {} {} {};\n",
                     "let".purple(),
                     var.var(),
+                    "=".purple(),
                     var.value()
                 ));
                 res.push_str(&self.print_stmt_str(var.body()));
@@ -226,18 +227,20 @@ impl _IRPrinter {
                 res.push_str(&self.do_indent_str());
                 if var.step() == &Int::make(Dtype::I64, 1).into() {
                     res.push_str(&format!(
-                        "{} {} in {}({}, {}) {{\n",
+                        "{} {} {} {}({}, {}) {{\n",
                         "for".purple(),
                         var.var(),
+                        "in".purple(),
                         "range".blue(),
                         var.start(),
                         var.end()
                     ));
                 } else {
                     res.push_str(&format!(
-                        "{} {} in {}({}, {}, {}) {{\n",
+                        "{} {} {} {}({}, {}, {}) {{\n",
                         "for".purple(),
                         var.var(),
+                        "in".purple(),
                         "range".blue(),
                         var.start(),
                         var.end(),
@@ -302,9 +305,10 @@ impl _IRPrinter {
             Stmt::AllocaStmt(var) => {
                 res.push_str(&self.do_indent_str());
                 res.push_str(&format!(
-                    "{} {} = {}<{}>({});\n",
+                    "{} {} {} {}<{}>({});\n",
                     "let".purple(),
                     var.var(),
+                    "=".purple(),
                     "alloc".blue(),
                     var.dtype(),
                     var.size()
