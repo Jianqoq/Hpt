@@ -1,5 +1,7 @@
 use std::{ fmt::Display, sync::Arc };
 
+use colored::Colorize;
+
 use super::{
     prime_expr::PrimeExpr,
     stmt::Stmt,
@@ -44,9 +46,9 @@ impl ReturnStmt {
 impl Display for ReturnStmt {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.exprs.is_empty() {
-            return write!(f, "return;");
+            return write!(f, "{};", "return".purple());
         }
-        write!(f, "return ")?;
+        write!(f, "{} ", "return".purple())?;
         for (i, e) in self.exprs.iter().enumerate() {
             write!(f, "{}", e)?;
             if i != self.exprs.len() - 1 {
