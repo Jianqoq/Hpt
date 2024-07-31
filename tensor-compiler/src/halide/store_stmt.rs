@@ -87,9 +87,9 @@ impl std::fmt::Display for StoreStmt {
             f,
             "{}{}{}{} {} {};",
             self.var,
-            "[".bright_cyan(),
+            "[".truecolor(220, 105, 173),
             self.indices,
-            "]".bright_cyan(),
+            "]".truecolor(220, 105, 173),
             "=".purple(),
             self.val
         )

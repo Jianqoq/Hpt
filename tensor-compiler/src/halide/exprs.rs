@@ -1525,9 +1525,9 @@ impl Display for Load {
             f,
             "{}{}{}{}",
             self.name,
-            "[".truecolor(100, 250, 240),
+            "[".truecolor(220, 105, 173),
             self.indices,
-            "]".truecolor(100, 250, 240)
+            "]".truecolor(220, 105, 173)
         )
     }
 }
