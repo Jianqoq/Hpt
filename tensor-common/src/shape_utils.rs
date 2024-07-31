@@ -7,17 +7,17 @@ use crate::{ err_handler::ErrHandler, layout::Layout, shape::Shape, strides::Str
 /// let shape = [10, 10, 10];
 /// let new_shape = yield_one_before(&shape.to_vec(), 1);
 /// assert_eq!(new_shape, [10, 1, 10, 10].to_vec());
-pub fn yield_one_before(shape: &Vec<i64>, idx: usize) -> Vec<i64> {
+pub fn yield_one_before(shape: &[i64], idx: usize) -> Vec<i64> {
     let mut new_shape = Vec::with_capacity(shape.len() + 1);
-    for i in 0..shape.len() {
+    for (i, s) in shape.iter().enumerate() {
         if i == idx {
             new_shape.push(1);
-            new_shape.push(shape[i]);
+            new_shape.push(*s);
         } else {
-            new_shape.push(shape[i]);
+            new_shape.push(*s);
         }
     }
-    return new_shape;
+    new_shape
 }
 
 /// # Internal Function
@@ -28,17 +28,17 @@ pub fn yield_one_before(shape: &Vec<i64>, idx: usize) -> Vec<i64> {
 /// let new_shape = yield_one_after(&shape.to_vec(), 1);
 /// assert_eq!(new_shape, [10, 10, 1, 10].to_vec());
 /// ```
-pub fn yield_one_after(shape: &Vec<i64>, idx: usize) -> Vec<i64> {
+pub fn yield_one_after(shape: &[i64], idx: usize) -> Vec<i64> {
     let mut new_shape = Vec::with_capacity(shape.len() + 1);
-    for i in 0..shape.len() {
+    for (i, s) in shape.iter().enumerate() {
         if i == idx {
-            new_shape.push(shape[i]);
+            new_shape.push(*s);
             new_shape.push(1);
         } else {
-            new_shape.push(shape[i]);
+            new_shape.push(*s);
         }
     }
-    return new_shape;
+    new_shape
 }
 
 /// # Internal Function
@@ -375,7 +375,6 @@ pub fn is_reshape_possible(
     let mut new_strides = vec![0; new_shape.len()];
     let mut old_strides = vec![0; original_shape.len()];
     let mut old_shape = vec![0; original_shape.len()];
-    let last_stride;
 
     let mut oi = 0;
     let mut oj = 1;
@@ -423,11 +422,11 @@ pub fn is_reshape_possible(
         oj += 1;
     }
 
-    if ni >= 1 {
-        last_stride = new_strides[ni - 1];
+    let last_stride = if ni >= 1 {
+        new_strides[ni - 1]
     } else {
-        last_stride = 1;
-    }
+        1
+    };
 
     for i in ni..new_shape.len() {
         new_strides[i] = last_stride;
@@ -491,7 +490,7 @@ pub fn mt_intervals(outer_loop_size: usize, num_threads: usize) -> Vec<(usize, u
             ((i < outer_loop_size % num_threads) as usize);
         intervals.push((start_index, end_index));
     }
-    return intervals;
+    intervals
 }
 
 pub fn is_broadcast(a_shape: &[i64], b_shape: &[i64]) -> bool {

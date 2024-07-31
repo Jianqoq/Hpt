@@ -57,9 +57,9 @@ impl Display for TensorLoad {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let one = PrimeExpr::Int(Int::make(Dtype::I64, 1i64));
         let zero = PrimeExpr::Int(Int::make(Dtype::I64, 0i64));
-        assert!(self.begins.len() == self.axes.len());
-        assert!(self.begins.len() == self.steps.len());
-        assert!(self.begins.len() == self.strides.len());
+        assert_eq!(self.begins.len(), self.axes.len());
+        assert_eq!(self.begins.len(), self.steps.len());
+        assert_eq!(self.begins.len(), self.strides.len());
         let mut indices = PrimeExpr::None;
         for (begin, axes, step, stride) in izip!(
             self.begins.iter(),

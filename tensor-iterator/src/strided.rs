@@ -35,16 +35,16 @@ pub struct Strided<T> {
 
 impl<T: CommonBounds> Strided<T> {
     pub fn shape(&self) -> &Shape {
-        &self.layout.shape()
+        self.layout.shape()
     }
 
     pub fn strides(&self) -> &Strides {
-        &self.layout.strides()
+        self.layout.strides()
     }
 
     pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
         let inner_loop_size = tensor.shape()[tensor.shape().len() - 1] as usize;
-        let outer_loop_size = tensor.size() / (inner_loop_size as usize);
+        let outer_loop_size = tensor.size() / (inner_loop_size);
         let num_threads;
         if outer_loop_size < rayon::current_num_threads() {
             num_threads = outer_loop_size;
@@ -69,7 +69,7 @@ impl<T: CommonBounds> Strided<T> {
             C: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
             <C as IterGetSet>::Item: Send
     {
-        let new_shape = predict_broadcast_shape(&self.shape(), &other.shape()).expect(
+        let new_shape = predict_broadcast_shape(self.shape(), other.shape()).expect(
             "Cannot broadcast shapes"
         );
 
@@ -136,17 +136,25 @@ impl<T: Copy + Display> IterGetSet for Strided<T> {
     }
 
     fn strides(&self) -> &Strides {
-        &self.layout.strides()
+        self.layout.strides()
     }
 
     fn shape(&self) -> &Shape {
-        &self.layout.shape()
+        self.layout.shape()
     }
 
     fn broadcast_set_strides(&mut self, shape: &Shape) {
-        let self_shape = try_pad_shape(&self.shape(), shape.len());
-        self.set_strides(preprocess_strides(&self_shape, &self.strides()).into());
+        let self_shape = try_pad_shape(self.shape(), shape.len());
+        self.set_strides(preprocess_strides(&self_shape, self.strides()).into());
         self.last_stride = self.strides()[self.strides().len() - 1];
+    }
+
+    fn outer_loop_size(&self) -> usize {
+        self.intervals[self.start_index].1 - self.intervals[self.start_index].0
+    }
+
+    fn inner_loop_size(&self) -> usize {
+        self.shape()[self.shape().len() - 1] as usize
     }
 
     fn next(&mut self) {
@@ -165,14 +173,6 @@ impl<T: Copy + Display> IterGetSet for Strided<T> {
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         unsafe { *self.ptr.get_ptr().add(index * (self.last_stride as usize)) }
-    }
-
-    fn outer_loop_size(&self) -> usize {
-        self.intervals[self.start_index].1 - self.intervals[self.start_index].0
-    }
-
-    fn inner_loop_size(&self) -> usize {
-        self.shape()[self.shape().len() - 1] as usize
     }
 }
 
@@ -241,13 +241,13 @@ impl<T> UnindexedProducer for Strided<T> where T: CommonBounds {
 impl<T: Copy + Display> ShapeManipulator for Strided<T> {
     fn reshape<S: Into<Shape>>(mut self, shape: S) -> Self {
         let tmp = shape.into();
-        let res_shape = Shape::from(tmp);
+        let res_shape = tmp;
         if self.layout.shape() == &res_shape {
             return self;
         }
         let size = res_shape.size() as usize;
         let inner_loop_size = res_shape[res_shape.len() - 1] as usize;
-        let outer_loop_size = size / (inner_loop_size as usize);
+        let outer_loop_size = size / (inner_loop_size);
         let num_threads;
         if outer_loop_size < rayon::current_num_threads() {
             num_threads = outer_loop_size;
@@ -261,7 +261,7 @@ impl<T: Copy + Display> ShapeManipulator for Strided<T> {
         let self_size = self.layout.size();
 
         if size > (self_size as usize) {
-            let self_shape = try_pad_shape(&self.shape(), res_shape.len());
+            let self_shape = try_pad_shape(self.shape(), res_shape.len());
 
             let axes_to_broadcast = get_broadcast_axes_from(&self_shape, &res_shape).expect(
                 "Cannot broadcast shapes"
@@ -333,7 +333,7 @@ impl<T: Copy + Display> ShapeManipulator for Strided<T> {
     }
 
     fn expand<S: Into<Shape>>(mut self, shape: S) -> Self {
-        let res_shape = Shape::from(shape.into());
+        let res_shape = shape.into();
 
         ErrHandler::check_expand_dims(self.shape(), &res_shape).unwrap();
 

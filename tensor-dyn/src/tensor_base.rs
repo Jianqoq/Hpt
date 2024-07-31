@@ -81,7 +81,7 @@ impl<T, U> TensorLike<T, U, _Tensor<U>>
         self.as_raw()
     }
 
-    fn to_raw_mut(&self) -> &mut [T] {
+    fn to_raw_mut(&mut self) -> &mut [T] {
         self.as_raw_mut()
     }
 
@@ -90,7 +90,7 @@ impl<T, U> TensorLike<T, U, _Tensor<U>>
     }
 }
 
-impl<T> TensorInfo<T> for _Tensor<T> {
+impl<T> TensorInfo<T> for _Tensor<T> where T: CommonBounds {
     fn ptr(&self) -> Pointer<T> {
         self.data
     }
@@ -99,7 +99,7 @@ impl<T> TensorInfo<T> for _Tensor<T> {
         self.layout.size() as usize
     }
 
-    fn shape(&self) -> &tensor_common::shape::Shape {
+    fn shape(&self) -> &Shape {
         self.layout.shape()
     }
 
@@ -124,7 +124,7 @@ impl<T> TensorInfo<T> for _Tensor<T> {
     }
 }
 
-impl<T> TensorInfo<T> for &_Tensor<T> {
+impl<T> TensorInfo<T> for &_Tensor<T> where T: CommonBounds {
     fn ptr(&self) -> Pointer<T> {
         self.data
     }
@@ -133,7 +133,7 @@ impl<T> TensorInfo<T> for &_Tensor<T> {
         self.layout.size() as usize
     }
 
-    fn shape(&self) -> &tensor_common::shape::Shape {
+    fn shape(&self) -> &Shape {
         self.layout.shape()
     }
 
@@ -161,7 +161,7 @@ impl<T> TensorInfo<T> for &_Tensor<T> {
 impl<T: CommonBounds> TensorAlloc for _Tensor<T> {
     type Meta = T;
 
-    fn _empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Self> where Self: Sized {
+    fn _empty<S: Into<Shape>>(shape: S) -> Result<Self> where Self: Sized {
         Self::empty(shape)
     }
 }
@@ -196,7 +196,7 @@ impl<T: CommonBounds> _Tensor<T> {
         } else {
             size = self.size();
         }
-        let slice = unsafe { std::slice::from_raw_parts(ptr as *mut T, size) };
+        let slice = unsafe { std::slice::from_raw_parts(ptr, size) };
         slice
     }
 
@@ -227,7 +227,7 @@ impl<T: CommonBounds> _Tensor<T> {
         } else {
             size = self.size();
         }
-        let slice = unsafe { std::slice::from_raw_parts_mut(ptr as *mut T, size) };
+        let slice = unsafe { std::slice::from_raw_parts_mut(ptr, size) };
         slice
     }
 
@@ -473,8 +473,8 @@ impl<T: CommonBounds> _Tensor<T> {
     pub fn hstack(mut tensors: Vec<&_Tensor<T>>) -> Result<_Tensor<T>> {
         for tensor in tensors.iter_mut() {
             if tensor.shape().len() < 2 {
-                if tensor.shape().len() == 1 {
-                    return stack(tensors, 0, false);
+                return if tensor.shape().len() == 1 {
+                    stack(tensors, 0, false)
                 } else {
                     // scalar
                     let mut tensors_ref = Vec::with_capacity(tensors.len());
@@ -485,7 +485,7 @@ impl<T: CommonBounds> _Tensor<T> {
                     for tensor in tensors_holder.iter() {
                         tensors_ref.push(tensor);
                     }
-                    return stack(tensors_ref, 0, false);
+                    stack(tensors_ref, 0, false)
                 }
             }
         }
@@ -546,7 +546,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
 
     type Basic = _Tensor<T>;
 
-    fn empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Self> {
+    fn empty<S: Into<Shape>>(shape: S) -> Result<Self> {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);
         let mut size = 1;
@@ -557,7 +557,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             size *= tmp as usize;
         }
         let layout = std::alloc::Layout
-            ::from_size_align((size as usize) * std::mem::size_of::<T>(), 8)
+            ::from_size_align((size) * std::mem::size_of::<T>(), 8)
             .unwrap();
         let ptr = unsafe { CACHE.allocate(layout) };
         Ok(_Tensor {
@@ -569,7 +569,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         })
     }
 
-    fn zeros<S: Into<Shape>>(shape: S) -> anyhow::Result<Self> {
+    fn zeros<S: Into<Shape>>(shape: S) -> Result<Self> {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);
         let mut size = 1;
@@ -595,7 +595,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         })
     }
 
-    fn ones<S: Into<Shape>>(shape: S) -> anyhow::Result<Self> where u8: IntoScalar<T> {
+    fn ones<S: Into<Shape>>(shape: S) -> Result<Self> where u8: IntoScalar<T> {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);
         let mut size = 1;
@@ -621,19 +621,19 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         })
     }
 
-    fn empty_like(&self) -> anyhow::Result<Self> {
+    fn empty_like(&self) -> Result<Self> {
         Self::empty(self.shape())
     }
 
-    fn zeros_like(&self) -> anyhow::Result<Self> {
+    fn zeros_like(&self) -> Result<Self> {
         Self::zeros(self.shape())
     }
 
-    fn ones_like(&self) -> anyhow::Result<Self> where u8: IntoScalar<T> {
+    fn ones_like(&self) -> Result<Self> where u8: IntoScalar<T> {
         Self::ones(self.shape())
     }
 
-    fn full<S: Into<Shape>>(val: T, shape: S) -> anyhow::Result<Self> {
+    fn full<S: Into<Shape>>(val: T, shape: S) -> Result<Self> {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);
         let ret = _Tensor::empty(res_shape)?;
@@ -645,11 +645,11 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(ret)
     }
 
-    fn full_like(&self, val: T) -> anyhow::Result<Self> {
+    fn full_like(&self, val: T) -> Result<Self> {
         _Tensor::full(val, self.shape())
     }
 
-    fn arange<U>(start: U, end: U) -> anyhow::Result<Self>
+    fn arange<U>(start: U, end: U) -> Result<Self>
         where T: Convertor + FromScalar<usize> + FromScalar<U> + NormalOut<T, Output = T>
     {
         let start = T::__from(start);
@@ -669,7 +669,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(data)
     }
 
-    fn arange_step(start: T, end: T, step: T) -> anyhow::Result<Self>
+    fn arange_step(start: T, end: T, step: T) -> Result<Self>
         where T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>
     {
         let step_float: f64 = step.to_f64();
@@ -686,12 +686,12 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(data)
     }
 
-    fn eye(n: usize, m: usize, k: usize) -> anyhow::Result<Self> where u8: IntoScalar<T> {
+    fn eye(n: usize, m: usize, k: usize) -> Result<Self> where u8: IntoScalar<T> {
         let shape = vec![n as i64, m as i64];
         let res = _Tensor::empty(Arc::new(shape))?;
         let _r = res.as_raw_mut();
-        let one = (1).into_scalar();
-        let zero = (0).into_scalar();
+        let one = 1.into_scalar();
+        let zero = 0.into_scalar();
         _r.into_par_iter()
             .enumerate()
             .for_each(|(i, x)| {
@@ -706,7 +706,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(res)
     }
 
-    fn linspace(start: T, end: T, num: usize, include_end: bool) -> anyhow::Result<Self>
+    fn linspace(start: T, end: T, num: usize, include_end: bool) -> Result<Self>
         where
             T: Convertor +
                 num::Float +
@@ -729,7 +729,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(data)
     }
 
-    fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> anyhow::Result<Self>
+    fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> Result<Self>
         where
             T: Convertor +
                 num::Float +
@@ -752,7 +752,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         return Ok(data);
     }
 
-    fn geomspace(start: T, end: T, n: usize, include_end: bool) -> anyhow::Result<Self>
+    fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self>
         where
             T: PartialOrd +
                 FloatOut<T> +
@@ -777,14 +777,12 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             } else {
                 return Err(anyhow::Error::msg("start and end must have the same sign"));
             }
+        } else if start > T::ZERO && end > T::ZERO {
+            (end._log10() - start._log10()) / <T as FloatOut>::Output::__from(n)
+        } else if start < T::ZERO && end < T::ZERO {
+            (end._abs()._log10() - start._abs()._log10()) / float_n
         } else {
-            if start > T::ZERO && end > T::ZERO {
-                (end._log10() - start._log10()) / <T as FloatOut>::Output::__from(n)
-            } else if start < T::ZERO && end < T::ZERO {
-                (end._abs()._log10() - start._abs()._log10()) / float_n
-            } else {
-                return Err(anyhow::Error::msg("start and end must have the same sign"));
-            }
+            return Err(anyhow::Error::msg("start and end must have the same sign"));
         };
         let data = _Tensor::<T>::empty(Arc::new(vec![n as i64]))?;
         let ten: <T as FloatOut>::Output = <T as FloatOut>::Output::__from(10.0);
@@ -812,40 +810,38 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                     });
             }
             return Ok(data);
+        } else if both_negative {
+            data.as_raw_mut()
+                .into_par_iter()
+                .enumerate()
+                .for_each(|(i, x)| {
+                    let val = ten._pow(
+                        start._add(<T as FloatOut>::Output::__from(i)._mul(step))
+                    );
+                    *x = -T::__from(val);
+                });
         } else {
-            if both_negative {
-                data.as_raw_mut()
-                    .into_par_iter()
-                    .enumerate()
-                    .for_each(|(i, x)| {
-                        let val = ten._pow(
-                            start._add(<T as FloatOut>::Output::__from(i)._mul(step))
-                        );
-                        *x = -T::__from(val);
-                    });
-            } else {
-                data.as_raw_mut()
-                    .into_par_iter()
-                    .enumerate()
-                    .for_each(|(i, x)| {
-                        let val = ten._pow(
-                            start._add(<T as FloatOut>::Output::__from(i)._mul(step))
-                        );
-                        *x = T::__from(val);
-                    });
-            }
+            data.as_raw_mut()
+                .into_par_iter()
+                .enumerate()
+                .for_each(|(i, x)| {
+                    let val = ten._pow(
+                        start._add(<T as FloatOut>::Output::__from(i)._mul(step))
+                    );
+                    *x = T::__from(val);
+                });
         }
         Ok(data)
     }
 
-    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> anyhow::Result<Self>
+    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self>
         where u8: IntoScalar<T>
     {
         let shape = vec![n as i64, m as i64];
         let res = _Tensor::empty(Arc::new(shape))?;
         let _r = res.as_raw_mut();
-        let one = (1).into_scalar();
-        let zero = (0).into_scalar();
+        let one = 1.into_scalar();
+        let zero = 0.into_scalar();
         if low_triangle {
             _r.into_par_iter()
                 .enumerate()
@@ -875,11 +871,11 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(res)
     }
 
-    fn tril(&self, k: i64) -> anyhow::Result<Self>
+    fn tril(&self, k: i64) -> Result<Self>
         where T: NormalOut<bool, Output = T> + IntoScalar<T>
     {
         if self.shape().len() < 2 {
-            let message = format!("_Tensor must have at least 2 dimensions for tril method");
+            let message = "_Tensor must have at least 2 dimensions for tril method".to_string();
             return Err(anyhow::Error::msg(message));
         }
         let mask: _Tensor<bool> = _Tensor::<bool>::tri(
@@ -892,13 +888,11 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(res)
     }
 
-    fn triu(&self, k: i64) -> anyhow::Result<Self>
+    fn triu(&self, k: i64) -> Result<Self>
         where T: NormalOut<bool, Output = T> + IntoScalar<T>
     {
         if self.shape().len() < 2 {
-            let message: String = format!(
-                "_Tensor must have at least 2 dimensions for tril method"
-            );
+            let message: String = "_Tensor must have at least 2 dimensions for tril method".to_string();
             return Err(anyhow::Error::msg(message));
         }
         let mask: _Tensor<bool> = _Tensor::<bool>::tri(
@@ -911,7 +905,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(res)
     }
 
-    fn identity(n: usize) -> anyhow::Result<Self> where u8: IntoScalar<T> {
+    fn identity(n: usize) -> Result<Self> where u8: IntoScalar<T> {
         _Tensor::eye(n, n, 0)
     }
 }
@@ -1027,8 +1021,8 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         let mut new_strides = self.strides().to_vec();
         let mut ptr = self.ptr();
         for &i in axes.iter() {
-            new_strides[i as usize] = -new_strides[i as usize];
-            ptr.offset(self.strides()[i as usize]);
+            new_strides[i] = -new_strides[i];
+            ptr.offset(self.strides()[i]);
         }
         if self.parent.is_none() {
             Ok(Self {
@@ -1390,11 +1384,11 @@ impl<T> Into<Tensor<T>> for _Tensor<T> {
     }
 }
 
-impl<T> Into<_Tensor<T>> for &_Tensor<T> {
+impl<T> Into<_Tensor<T>> for &_Tensor<T> where T: CommonBounds {
     fn into(self) -> _Tensor<T> {
         _Tensor {
-            data: self.data.clone(),
-            parent: self.parent.clone(),
+            data: self.data,
+            parent: self.parent,
             layout: self.layout.clone(),
             mem_layout: self.mem_layout.clone(),
             _backend: Backend::new(),

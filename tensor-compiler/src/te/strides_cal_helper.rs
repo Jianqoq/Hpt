@@ -36,7 +36,7 @@ pub fn binary_strides_cal(
         let mut lhs_strides_vec = vec![];
         for strides in lhs_strides.into_iter() {
             let masked = &strides[..strides.strides.len() - strides.reduced_dim];
-            assert!(masked.len() == lhs_real_shape.len());
+            assert_eq!(masked.len(), lhs_real_shape.len());
             let padded = try_pad_shape(&lhs_real_shape, res_real_shape.len());
             let new = preprocess_strides::<_, _, i64>(&padded, masked);
             let mut new_strides = vec![];
@@ -56,7 +56,7 @@ pub fn binary_strides_cal(
         let mut rhs_strides_vec = vec![];
         for strides in rhs_strides.into_iter() {
             let masked = &strides[..strides.strides.len() - strides.reduced_dim];
-            assert!(masked.len() == rhs_real_shape.len());
+            assert_eq!(masked.len(), rhs_real_shape.len());
             let padded = try_pad_shape(&rhs_real_shape, res_real_shape.len());
             let new = preprocess_strides::<_, _, i64>(&padded, masked);
             let mut new_strides = vec![];
@@ -102,7 +102,7 @@ pub fn reduce_strides_cal(
             for i in strides[strides.strides.len() - strides.reduced_dim..].iter() {
                 new_strides.push(*i);
             }
-            assert!(new_strides.len() == strides.strides.len());
+            assert_eq!(new_strides.len(), strides.strides.len());
             let new = HStrides {
                 strides: new_strides,
                 reduced_dim: strides.reduced_dim + axes.len(),

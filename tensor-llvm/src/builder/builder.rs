@@ -600,7 +600,7 @@ impl Builder {
                 c_string.as_ptr()
             )
         };
-        let mut ret = ptr.clone();
+        let mut ret = ptr;
         unsafe {
             ret.set_inner(value);
         }
@@ -622,7 +622,7 @@ impl Builder {
         let value = unsafe {
             LLVMBuildStructGEP2(self.builder, value.inner(), ptr.inner(), index, c_string.as_ptr())
         };
-        let mut ret = ptr.clone();
+        let mut ret = ptr;
         unsafe {
             ret.set_inner(value);
         }

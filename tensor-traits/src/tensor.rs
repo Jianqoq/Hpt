@@ -34,7 +34,7 @@ pub trait StaticTensorInfo {
 pub trait TensorLike<T, OutputMeta = T, Output = Self> {
     type Output;
     fn to_raw(&self) -> &[T];
-    fn to_raw_mut(&self) -> &mut [T];
+    fn to_raw_mut(&mut self) -> &mut [T];
     fn elsize() -> usize {
         std::mem::size_of::<T>()
     }
@@ -458,7 +458,7 @@ where
     /// # Example
     /// ```
     /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([1, 2, 3])
+    /// let a = Tensor::new([1, 2, 3]);
     /// assert_eq!(a.sum(0, false).unwrap(), Tensor::new(6));
     /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
     /// assert_eq!(a.sum(0, false).unwrap(), Tensor::new([5, 7, 9]));

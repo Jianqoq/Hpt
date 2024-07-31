@@ -57,13 +57,13 @@ impl ErrHandler {
         }
     }
 
-    pub fn check_axes_in_range<'a, Iter: Iterator<Item = i64>>(ndim: usize, axes: Iter) -> anyhow::Result<(), ErrHandler> {
+    pub fn check_axes_in_range<Iter: Iterator<Item = i64>>(ndim: usize, axes: Iter) -> anyhow::Result<(), ErrHandler> {
         let mut set = HashSet::new();
         let ndim = ndim as i64;
         for (idx, axis) in axes.enumerate() {
             if axis < 0 {
                 let val = axis % ndim;
-                let val = if val < 0 { val + ndim as i64 } else { val };
+                let val = if val < 0 { val + ndim } else { val };
                 if !set.insert(val) {
                     return Err(ErrHandler::IndexRepeated(format!(
                         "axes[{}] {} repeated.",
@@ -111,31 +111,31 @@ impl ErrHandler {
     }
 
     pub fn check_matmul_shape(lhs: &[i64], rhs: &[i64]) -> anyhow::Result<(), ErrHandler> {
-        match (lhs.get(1), rhs.get(0)) {
+        match (lhs.get(1), rhs.first()) {
             (Some(lhs), Some(rhs)) => {
                 if lhs != rhs {
-                    return Err(ErrHandler::MatmulShapeMismatched(format!(
+                    Err(ErrHandler::MatmulShapeMismatched(format!(
                         "lhs shape[1] should be equal to rhs shape[0], got shape {:?} and {:?}",
                         lhs, rhs
-                    )));
+                    )))
                 } else {
-                    return Ok(());
+                    Ok(())
                 }
             }
             (None, Some(rhs)) => {
-                return Err(ErrHandler::IndexOutOfRange(format!(
+                Err(ErrHandler::IndexOutOfRange(format!(
                     "lhs shape should have at least 2 dimensions, got shape {:?}",
                     rhs
                 )))
             }
             (Some(lhs), None) => {
-                return Err(ErrHandler::IndexOutOfRange(format!(
+                Err(ErrHandler::IndexOutOfRange(format!(
                     "rhs shape should have at least 2 dimensions, got shape {:?}",
                     lhs
                 )))
             }
             (None, None) => {
-                return Err(ErrHandler::IndexOutOfRange(format!(
+                Err(ErrHandler::IndexOutOfRange(format!(
                     "lhs and rhs shape should have at least 2 dimensions, got shape {:?} and {:?}",
                     lhs, rhs
                 )))

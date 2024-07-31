@@ -129,7 +129,7 @@ impl Context {
                             TensorLoad {
                                 var: Variable::make(&format!("%{}", id)).into(),
                                 begins: (0..shape.len())
-                                    .map(|_| (0i64).into())
+                                    .map(|_| 0i64.into())
                                     .collect::<Vec<PrimeExpr>>()
                                     .into(),
                                 axes: (0..shape.len())
@@ -137,7 +137,7 @@ impl Context {
                                     .collect::<Vec<PrimeExpr>>()
                                     .into(),
                                 steps: (0..shape.len())
-                                    .map(|_| (1i64).into())
+                                    .map(|_| 1i64.into())
                                     .collect::<Vec<PrimeExpr>>()
                                     .into(),
                                 strides: (0..shape.len())
@@ -224,7 +224,7 @@ impl Context {
                             for i in i[i.strides.len() - i.reduced_dim..].iter() {
                                 new.push(*i);
                             }
-                            assert!(new.len() == new_shape.len() + i.reduced_dim);
+                            assert_eq!(new.len(), new_shape.len() + i.reduced_dim);
                             let new = HStrides {
                                 strides: new,
                                 reduced_dim: i.reduced_dim,
@@ -272,7 +272,7 @@ impl Context {
                                                 Load::make(&format!("%{}.s", id), idx).into()
                                         )
                                         .reduce(|acc, x| acc + x)
-                                        .unwrap_or((0i64).into()),
+                                        .unwrap_or(0i64.into()),
                                     Variable::make(&format!("%{}_val", stage.out_id))
                                 )
                             )

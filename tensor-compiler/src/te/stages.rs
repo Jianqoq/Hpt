@@ -117,16 +117,16 @@ impl ReduceStage {
         let mut seq = Vec::new();
         for body in bodys {
             match body {
-                crate::te::stages::Body::Stmt(stmt) => {
+                Body::Stmt(stmt) => {
                     seq.push(stmt.clone());
                 }
-                crate::te::stages::Body::Stage(stage) => {
+                Body::Stage(stage) => {
                     seq.push(stage.to_halide(&map));
                 }
-                crate::te::stages::Body::ReduceStage(reduce_stage) => {
+                Body::ReduceStage(reduce_stage) => {
                     seq.push(reduce_stage.to_halide(&map));
                 }
-                crate::te::stages::Body::If(if_) => {
+                Body::If(if_) => {
                     seq.push(if_.to_halide(&map));
                 }
             }
@@ -218,16 +218,16 @@ impl Stage {
         let mut seq = Vec::new();
         for body in bodys {
             match body {
-                crate::te::stages::Body::Stmt(stmt) => {
+                Body::Stmt(stmt) => {
                     seq.push(stmt.clone());
                 }
-                crate::te::stages::Body::Stage(stage) => {
+                Body::Stage(stage) => {
                     seq.push(stage.to_halide(&map));
                 }
-                crate::te::stages::Body::ReduceStage(reduce_stage) => {
+                Body::ReduceStage(reduce_stage) => {
                     seq.push(reduce_stage.to_halide(&map));
                 }
-                crate::te::stages::Body::If(if_) => {
+                Body::If(if_) => {
                     seq.push(if_.to_halide(&map));
                 }
             }
@@ -297,16 +297,16 @@ impl If {
         let mut true_seq = Vec::new();
         for body in true_bodys {
             match body {
-                crate::te::stages::Body::Stmt(stmt) => {
+                Body::Stmt(stmt) => {
                     true_seq.push(stmt.clone());
                 }
-                crate::te::stages::Body::Stage(stage) => {
+                Body::Stage(stage) => {
                     true_seq.push(stage.to_halide(&map));
                 }
-                crate::te::stages::Body::ReduceStage(reduce_stage) => {
+                Body::ReduceStage(reduce_stage) => {
                     true_seq.push(reduce_stage.to_halide(&map));
                 }
-                crate::te::stages::Body::If(if_) => {
+                Body::If(if_) => {
                     true_seq.push(if_.to_halide(&map));
                 }
             }
@@ -315,16 +315,16 @@ impl If {
         let mut false_seq = Vec::new();
         for body in false_bodys {
             match body {
-                crate::te::stages::Body::Stmt(stmt) => {
+                Body::Stmt(stmt) => {
                     false_seq.push(stmt.clone());
                 }
-                crate::te::stages::Body::Stage(stage) => {
+                Body::Stage(stage) => {
                     false_seq.push(stage.to_halide(&map));
                 }
-                crate::te::stages::Body::ReduceStage(reduce_stage) => {
+                Body::ReduceStage(reduce_stage) => {
                     false_seq.push(reduce_stage.to_halide(&map));
                 }
-                crate::te::stages::Body::If(if_) => {
+                Body::If(if_) => {
                     false_seq.push(if_.to_halide(&map));
                 }
             }

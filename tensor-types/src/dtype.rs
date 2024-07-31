@@ -186,11 +186,11 @@ impl NormalOut for Dtype {
         infer_enum_type!(self, rhs, normal)
     }
 
-    fn _rem(self, rhs: Self) -> Dtype {
+    fn _pow(self, rhs: Self) -> Self::Output {
         infer_enum_type!(self, rhs, normal)
     }
 
-    fn _pow(self, rhs: Self) -> Self::Output {
+    fn _rem(self, rhs: Self) -> Dtype {
         infer_enum_type!(self, rhs, normal)
     }
 

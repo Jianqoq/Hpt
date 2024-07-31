@@ -150,28 +150,10 @@ impl IRComparator {
 }
 
 impl IRMutVisitor for IRComparator {
-    fn visit_int(&mut self, int: &Int) {
-        let expr = self.expr_.to_int();
-        if let Some(int) = expr {
-            self.compare_scalar(&int.value(), &int.value());
-        } else {
-            self.result = CmpResult::LessThan;
-        }
-    }
-
-    fn visit_uint(&mut self, uint: &UInt) {
-        let expr = self.expr_.to_uint();
-        if let Some(uint) = expr {
-            self.compare_scalar(&uint.value(), &uint.value());
-        } else {
-            self.result = CmpResult::LessThan;
-        }
-    }
-
-    fn visit_float(&mut self, float: &Float) {
-        let expr = self.expr_.to_float();
-        if let Some(float) = expr {
-            self.compare_scalar(&float.value(), &float.value());
+    fn visit_variable(&mut self, var: &Variable) {
+        let expr = self.expr_.to_variable().cloned();
+        if let Some(var) = expr {
+            self.compare_names(var.name(), var.name());
         } else {
             self.result = CmpResult::LessThan;
         }
@@ -195,60 +177,11 @@ impl IRMutVisitor for IRComparator {
         }
     }
 
-    fn visit_variable(&mut self, var: &Variable) {
-        let expr = self.expr_.to_variable().cloned();
-        if let Some(var) = expr {
-            self.compare_names(var.name(), var.name());
-        } else {
-            self.result = CmpResult::LessThan;
-        }
-    }
-
     fn visit_add(&mut self, add: &super::exprs::Add) {
         let expr = self.expr_.to_add().cloned();
         if let Some(add) = expr {
             self.compare_expr(add.e1(), add.e1());
             self.compare_expr(add.e2(), add.e2());
-        } else {
-            self.result = CmpResult::LessThan;
-        }
-    }
-
-    fn visit_and(&mut self, and: &super::exprs::BitAnd) {
-        let expr = self.expr_.to_and().cloned();
-        if let Some(and) = expr {
-            self.compare_expr(and.e1(), and.e1());
-            self.compare_expr(and.e2(), and.e2());
-        } else {
-            self.result = CmpResult::LessThan;
-        }
-    }
-
-    fn visit_div(&mut self, div: &super::exprs::Div) {
-        let expr = self.expr_.to_div().cloned();
-        if let Some(div) = expr {
-            self.compare_expr(div.e1(), div.e1());
-            self.compare_expr(div.e2(), div.e2());
-        } else {
-            self.result = CmpResult::LessThan;
-        }
-    }
-
-    fn visit_mul(&mut self, mul: &super::exprs::Mul) {
-        let expr = self.expr_.to_mul().cloned();
-        if let Some(mul) = expr {
-            self.compare_expr(mul.e1(), mul.e1());
-            self.compare_expr(mul.e2(), mul.e2());
-        } else {
-            self.result = CmpResult::LessThan;
-        }
-    }
-
-    fn visit_or(&mut self, or: &super::exprs::BitOr) {
-        let expr = self.expr_.to_or().cloned();
-        if let Some(or) = expr {
-            self.compare_expr(or.e1(), or.e1());
-            self.compare_expr(or.e2(), or.e2());
         } else {
             self.result = CmpResult::LessThan;
         }
@@ -264,80 +197,31 @@ impl IRMutVisitor for IRComparator {
         }
     }
 
+    fn visit_mul(&mut self, mul: &super::exprs::Mul) {
+        let expr = self.expr_.to_mul().cloned();
+        if let Some(mul) = expr {
+            self.compare_expr(mul.e1(), mul.e1());
+            self.compare_expr(mul.e2(), mul.e2());
+        } else {
+            self.result = CmpResult::LessThan;
+        }
+    }
+
+    fn visit_div(&mut self, div: &super::exprs::Div) {
+        let expr = self.expr_.to_div().cloned();
+        if let Some(div) = expr {
+            self.compare_expr(div.e1(), div.e1());
+            self.compare_expr(div.e2(), div.e2());
+        } else {
+            self.result = CmpResult::LessThan;
+        }
+    }
+
     fn visit_mod(&mut self, mod_: &super::exprs::Rem) {
         let expr = self.expr_.to_mod().cloned();
         if let Some(mod_) = expr {
             self.compare_expr(mod_.e1(), mod_.e1());
             self.compare_expr(mod_.e2(), mod_.e2());
-        } else {
-            self.result = CmpResult::LessThan;
-        }
-    }
-
-    fn visit_eq(&mut self, eq: &super::exprs::Eq) {
-        let expr = self.expr_.to_eq().cloned();
-        if let Some(eq) = expr {
-            self.compare_expr(eq.e1(), eq.e1());
-            self.compare_expr(eq.e2(), eq.e2());
-        } else {
-            self.result = CmpResult::LessThan;
-        }
-    }
-
-    fn visit_ne(&mut self, ne: &super::exprs::Ne) {
-        let expr = self.expr_.to_ne().cloned();
-        if let Some(ne) = expr {
-            self.compare_expr(ne.e1(), ne.e1());
-            self.compare_expr(ne.e2(), ne.e2());
-        } else {
-            self.result = CmpResult::LessThan;
-        }
-    }
-
-    fn visit_lt(&mut self, lt: &super::exprs::Lt) {
-        let expr = self.expr_.to_lt().cloned();
-        if let Some(lt) = expr {
-            self.compare_expr(lt.e1(), lt.e1());
-            self.compare_expr(lt.e2(), lt.e2());
-        } else {
-            self.result = CmpResult::LessThan;
-        }
-    }
-
-    fn visit_le(&mut self, le: &super::exprs::Le) {
-        let expr = self.expr_.to_le().cloned();
-        if let Some(le) = expr {
-            self.compare_expr(le.e1(), le.e1());
-            self.compare_expr(le.e2(), le.e2());
-        } else {
-            self.result = CmpResult::LessThan;
-        }
-    }
-
-    fn visit_gt(&mut self, gt: &super::exprs::Gt) {
-        let expr = self.expr_.to_gt().cloned();
-        if let Some(gt) = expr {
-            self.compare_expr(gt.e1(), gt.e1());
-            self.compare_expr(gt.e2(), gt.e2());
-        } else {
-            self.result = CmpResult::LessThan;
-        }
-    }
-
-    fn visit_ge(&mut self, ge: &super::exprs::Ge) {
-        let expr = self.expr_.to_ge().cloned();
-        if let Some(ge) = expr {
-            self.compare_expr(ge.e1(), ge.e1());
-            self.compare_expr(ge.e2(), ge.e2());
-        } else {
-            self.result = CmpResult::LessThan;
-        }
-    }
-
-    fn visit_not(&mut self, not: &super::exprs::Not) {
-        let expr = self.expr_.to_not().cloned();
-        if let Some(not) = expr {
-            self.compare_expr(not.e(), not.e());
         } else {
             self.result = CmpResult::LessThan;
         }
@@ -363,36 +247,90 @@ impl IRMutVisitor for IRComparator {
         }
     }
 
-    fn visit_load(&mut self, load: &super::exprs::Load) {
-        let expr = self.expr_.to_load().cloned();
-        if let Some(_load) = expr {
-            self.compare_expr(_load.name(), load.name());
-            self.compare_expr(_load.indices(), load.indices());
+    fn visit_ge(&mut self, ge: &super::exprs::Ge) {
+        let expr = self.expr_.to_ge().cloned();
+        if let Some(ge) = expr {
+            self.compare_expr(ge.e1(), ge.e1());
+            self.compare_expr(ge.e2(), ge.e2());
         } else {
             self.result = CmpResult::LessThan;
         }
     }
 
-    fn visit_call(&mut self, call: &super::exprs::Call) {
-        let expr = self.expr_.to_call().cloned();
-        if let Some(expr) = expr {
-            let self_expr = expr
-                .args()
-                .iter()
-                .map(|x| {
-                    let res = x.as_ref();
-                    res
-                })
-                .collect::<Vec<&PrimeExpr>>();
-            let call_expr = call
-                .args()
-                .iter()
-                .map(|x| {
-                    let res = x.as_ref();
-                    res
-                })
-                .collect::<Vec<&PrimeExpr>>();
-            self.compare_exprs(&self_expr, &call_expr);
+    fn visit_gt(&mut self, gt: &super::exprs::Gt) {
+        let expr = self.expr_.to_gt().cloned();
+        if let Some(gt) = expr {
+            self.compare_expr(gt.e1(), gt.e1());
+            self.compare_expr(gt.e2(), gt.e2());
+        } else {
+            self.result = CmpResult::LessThan;
+        }
+    }
+
+    fn visit_le(&mut self, le: &super::exprs::Le) {
+        let expr = self.expr_.to_le().cloned();
+        if let Some(le) = expr {
+            self.compare_expr(le.e1(), le.e1());
+            self.compare_expr(le.e2(), le.e2());
+        } else {
+            self.result = CmpResult::LessThan;
+        }
+    }
+
+    fn visit_lt(&mut self, lt: &super::exprs::Lt) {
+        let expr = self.expr_.to_lt().cloned();
+        if let Some(lt) = expr {
+            self.compare_expr(lt.e1(), lt.e1());
+            self.compare_expr(lt.e2(), lt.e2());
+        } else {
+            self.result = CmpResult::LessThan;
+        }
+    }
+
+    fn visit_eq(&mut self, eq: &super::exprs::Eq) {
+        let expr = self.expr_.to_eq().cloned();
+        if let Some(eq) = expr {
+            self.compare_expr(eq.e1(), eq.e1());
+            self.compare_expr(eq.e2(), eq.e2());
+        } else {
+            self.result = CmpResult::LessThan;
+        }
+    }
+
+    fn visit_ne(&mut self, ne: &super::exprs::Ne) {
+        let expr = self.expr_.to_ne().cloned();
+        if let Some(ne) = expr {
+            self.compare_expr(ne.e1(), ne.e1());
+            self.compare_expr(ne.e2(), ne.e2());
+        } else {
+            self.result = CmpResult::LessThan;
+        }
+    }
+
+    fn visit_and(&mut self, and: &super::exprs::BitAnd) {
+        let expr = self.expr_.to_and().cloned();
+        if let Some(and) = expr {
+            self.compare_expr(and.e1(), and.e1());
+            self.compare_expr(and.e2(), and.e2());
+        } else {
+            self.result = CmpResult::LessThan;
+        }
+    }
+
+    fn visit_or(&mut self, or: &super::exprs::BitOr) {
+        let expr = self.expr_.to_or().cloned();
+        if let Some(or) = expr {
+            self.compare_expr(or.e1(), or.e1());
+            self.compare_expr(or.e2(), or.e2());
+        } else {
+            self.result = CmpResult::LessThan;
+        }
+    }
+
+    fn visit_not(&mut self, not: &super::exprs::Not) {
+        let expr = self.expr_.to_not().cloned();
+        if let Some(not) = expr {
+            self.compare_expr(not.e(), not.e());
         } else {
             self.result = CmpResult::LessThan;
         }
@@ -427,6 +365,68 @@ impl IRMutVisitor for IRComparator {
             self.compare_expr(for_stmt.start(), for_stmt.start());
             self.compare_expr(for_stmt.end(), for_stmt.end());
             self.compare_stmt(for_stmt.stmt(), for_stmt.stmt());
+        } else {
+            self.result = CmpResult::LessThan;
+        }
+    }
+
+    fn visit_int(&mut self, int: &Int) {
+        let expr = self.expr_.to_int();
+        if let Some(int) = expr {
+            self.compare_scalar(&int.value(), &int.value());
+        } else {
+            self.result = CmpResult::LessThan;
+        }
+    }
+
+    fn visit_uint(&mut self, uint: &UInt) {
+        let expr = self.expr_.to_uint();
+        if let Some(uint) = expr {
+            self.compare_scalar(&uint.value(), &uint.value());
+        } else {
+            self.result = CmpResult::LessThan;
+        }
+    }
+
+    fn visit_float(&mut self, float: &Float) {
+        let expr = self.expr_.to_float();
+        if let Some(float) = expr {
+            self.compare_scalar(&float.value(), &float.value());
+        } else {
+            self.result = CmpResult::LessThan;
+        }
+    }
+
+    fn visit_call(&mut self, call: &super::exprs::Call) {
+        let expr = self.expr_.to_call().cloned();
+        if let Some(expr) = expr {
+            let self_expr = expr
+                .args()
+                .iter()
+                .map(|x| {
+                    let res = x.as_ref();
+                    res
+                })
+                .collect::<Vec<&PrimeExpr>>();
+            let call_expr = call
+                .args()
+                .iter()
+                .map(|x| {
+                    let res = x.as_ref();
+                    res
+                })
+                .collect::<Vec<&PrimeExpr>>();
+            self.compare_exprs(&self_expr, &call_expr);
+        } else {
+            self.result = CmpResult::LessThan;
+        }
+    }
+
+    fn visit_load(&mut self, load: &super::exprs::Load) {
+        let expr = self.expr_.to_load().cloned();
+        if let Some(_load) = expr {
+            self.compare_expr(_load.name(), load.name());
+            self.compare_expr(_load.indices(), load.indices());
         } else {
             self.result = CmpResult::LessThan;
         }

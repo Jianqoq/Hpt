@@ -42,7 +42,7 @@ impl MutatorGetSet for StridesVisitor {
 }
 
 impl IRMutateVisitor for StridesVisitor {
-    fn visit_tensor_load(&mut self, tensor_load: &crate::halide::tensor_load::TensorLoad) {
+    fn visit_tensor_load(&mut self, tensor_load: &TensorLoad) {
         self.set_expr(TensorLoad {
             var: tensor_load.var.clone(),
             begins: tensor_load.begins.clone(),
@@ -100,7 +100,7 @@ impl MutatorGetSet for StridesStoreVisitor {
 }
 
 impl IRMutateVisitor for StridesStoreVisitor {
-    fn visit_variable(&mut self, var: &crate::halide::variable::Variable) {
+    fn visit_variable(&mut self, var: &Variable) {
         if self.in_store {
             if var.name.contains(".s") {
                 self.set_expr(Variable::new(format!("ostrides{}", self.cnt)));

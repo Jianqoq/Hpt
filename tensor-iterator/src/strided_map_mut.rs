@@ -10,7 +10,7 @@ use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use crate::{ iterator_traits::IterGetSet, strided_zip::StridedZip };
 
 #[derive(Debug)]
-pub struct StridedMapMut<'a, T> {
+pub struct StridedMapMut<'a, T> where T: Copy {
     pub(crate) ptr: Pointer<T>,
     pub(crate) intervals: Arc<Vec<(usize, usize)>>,
     pub(crate) shape: Shape,
@@ -23,7 +23,7 @@ pub struct StridedMapMut<'a, T> {
 impl<'a, T> StridedMapMut<'a, T> where T: CommonBounds {
     pub fn new<U: TensorInfo<T>>(res_tensor: U) -> Self {
         let inner_loop_size = res_tensor.shape()[res_tensor.shape().len() - 1] as usize;
-        let outer_loop_size = res_tensor.size() / (inner_loop_size as usize);
+        let outer_loop_size = res_tensor.size() / (inner_loop_size);
         let mut num_threads = rayon::current_num_threads();
         if outer_loop_size < num_threads {
             num_threads = outer_loop_size;
@@ -50,7 +50,7 @@ impl<'a, T> StridedMapMut<'a, T> where T: CommonBounds {
     }
 }
 
-impl<'a, T> ParallelIterator for StridedMapMut<'a, T> where T: Clone + Sync + Send + 'a {
+impl<'a, T> ParallelIterator for StridedMapMut<'a, T> where T: Clone + Sync + Send + 'a + Copy {
     type Item = &'a mut T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item> {
@@ -58,7 +58,7 @@ impl<'a, T> ParallelIterator for StridedMapMut<'a, T> where T: Clone + Sync + Se
     }
 }
 
-impl<'a, T> UnindexedProducer for StridedMapMut<'a, T> where T: Clone + Sync + Send + 'a {
+impl<'a, T> UnindexedProducer for StridedMapMut<'a, T> where T: Clone + Sync + Send + 'a + Copy {
     type Item = &'a mut T;
 
     fn split(mut self) -> (Self, Option<Self>) {

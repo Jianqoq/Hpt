@@ -52,7 +52,7 @@ impl<T, U> TensorLike<T, U, Tensor<U>>
     }
 }
 
-impl<T> TensorInfo<T> for Tensor<T> {
+impl<T> TensorInfo<T> for Tensor<T> where T: CommonBounds {
     fn ptr(&self) -> Pointer<T> {
         self.data
     }
@@ -61,7 +61,7 @@ impl<T> TensorInfo<T> for Tensor<T> {
         self.layout.size() as usize
     }
 
-    fn shape(&self) -> &tensor_common::shape::Shape {
+    fn shape(&self) -> &Shape {
         self.layout.shape()
     }
 
@@ -86,7 +86,7 @@ impl<T> TensorInfo<T> for Tensor<T> {
     }
 }
 
-impl<T> TensorInfo<T> for &Tensor<T> {
+impl<T> TensorInfo<T> for &Tensor<T> where T: CommonBounds {
     fn ptr(&self) -> Pointer<T> {
         self.data
     }
@@ -95,7 +95,7 @@ impl<T> TensorInfo<T> for &Tensor<T> {
         self.layout.size() as usize
     }
 
-    fn shape(&self) -> &tensor_common::shape::Shape {
+    fn shape(&self) -> &Shape {
         self.layout.shape()
     }
 
@@ -123,7 +123,7 @@ impl<T> TensorInfo<T> for &Tensor<T> {
 impl<T: CommonBounds> TensorAlloc for Tensor<T> {
     type Meta = T;
 
-    fn _empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Self> where Self: Sized {
+    fn _empty<S: Into<Shape>>(shape: S) -> Result<Self> where Self: Sized {
         Self::empty(shape)
     }
 }
@@ -158,7 +158,7 @@ impl<T: CommonBounds> Tensor<T> {
         } else {
             size = self.size();
         }
-        let slice = unsafe { std::slice::from_raw_parts(ptr as *mut T, size) };
+        let slice = unsafe { std::slice::from_raw_parts(ptr, size) };
         slice
     }
 
@@ -189,7 +189,7 @@ impl<T: CommonBounds> Tensor<T> {
         } else {
             size = self.size();
         }
-        let slice = unsafe { std::slice::from_raw_parts_mut(ptr as *mut T, size) };
+        let slice = unsafe { std::slice::from_raw_parts_mut(ptr, size) };
         slice
     }
 
@@ -238,10 +238,10 @@ impl<T: CommonBounds> Tensor<T> {
     /// assert!(tensor.allclose(&converted_tensor))
     /// ```
     pub fn try_astype<U>(&self) -> Result<Tensor<U>> where U: CommonBounds, T: IntoScalar<U> {
-        if U::ID == T::ID {
-            return Ok(self.static_cast()?);
+        return if U::ID == T::ID {
+            Ok(self.static_cast()?)
         } else {
-            return Ok(self.astype::<U>()?);
+            Ok(self.astype::<U>()?)
         }
     }
 
@@ -283,8 +283,8 @@ impl<T: CommonBounds> Tensor<T> {
     /// let tensor2 = Tensor::<f64>::new([1.0, 2.0, 3.0]);
     /// assert!(tensor1.allclose(&tensor2));
     /// ```
-    pub fn allclose<U: CommonBounds>(&self, other: &Tensor<U>) -> bool
-        where T: Convertor, U: Convertor
+    pub fn allclose<U>(&self, other: &Tensor<U>) -> bool
+        where T: Convertor, U: Convertor + CommonBounds
     {
         self.inner.allclose(&other.inner)
     }
@@ -455,55 +455,55 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
 
     type Basic = Tensor<T>;
 
-    fn empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Self> {
+    fn empty<S: Into<Shape>>(shape: S) -> Result<Self> {
         Ok(_Tensor::empty(shape)?.into())
     }
 
-    fn zeros<S: Into<Shape>>(shape: S) -> anyhow::Result<Self> {
+    fn zeros<S: Into<Shape>>(shape: S) -> Result<Self> {
         Ok(_Tensor::zeros(shape)?.into())
     }
 
-    fn ones<S: Into<Shape>>(shape: S) -> anyhow::Result<Self> where u8: IntoScalar<T> {
+    fn ones<S: Into<Shape>>(shape: S) -> Result<Self> where u8: IntoScalar<T> {
         Ok(_Tensor::ones(shape)?.into())
     }
 
-    fn empty_like(&self) -> anyhow::Result<Self> {
+    fn empty_like(&self) -> Result<Self> {
         Ok(_Tensor::empty_like(self)?.into())
     }
 
-    fn zeros_like(&self) -> anyhow::Result<Self> {
+    fn zeros_like(&self) -> Result<Self> {
         Ok(_Tensor::zeros_like(self)?.into())
     }
 
-    fn ones_like(&self) -> anyhow::Result<Self> where u8: IntoScalar<T> {
+    fn ones_like(&self) -> Result<Self> where u8: IntoScalar<T> {
         Ok(_Tensor::ones_like(self)?.into())
     }
 
-    fn full<S: Into<Shape>>(val: T, shape: S) -> anyhow::Result<Self> {
+    fn full<S: Into<Shape>>(val: T, shape: S) -> Result<Self> {
         Ok(_Tensor::full(val, shape)?.into())
     }
 
-    fn full_like(&self, val: T) -> anyhow::Result<Self> {
+    fn full_like(&self, val: T) -> Result<Self> {
         Ok(_Tensor::full_like(self, val)?.into())
     }
 
-    fn arange<U>(start: U, end: U) -> anyhow::Result<Self>
+    fn arange<U>(start: U, end: U) -> Result<Self>
         where T: Convertor + FromScalar<usize> + FromScalar<U> + NormalOut<T, Output = T>
     {
         Ok(_Tensor::arange(start, end)?.into())
     }
 
-    fn arange_step(start: T, end: T, step: T) -> anyhow::Result<Self>
+    fn arange_step(start: T, end: T, step: T) -> Result<Self>
         where T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>
     {
         Ok(_Tensor::arange_step(start, end, step)?.into())
     }
 
-    fn eye(n: usize, m: usize, k: usize) -> anyhow::Result<Self> where u8: IntoScalar<T> {
+    fn eye(n: usize, m: usize, k: usize) -> Result<Self> where u8: IntoScalar<T> {
         Ok(_Tensor::eye(n, m, k)?.into())
     }
 
-    fn linspace(start: T, end: T, num: usize, include_end: bool) -> anyhow::Result<Self>
+    fn linspace(start: T, end: T, num: usize, include_end: bool) -> Result<Self>
         where
             T: Convertor +
                 num::Float +
@@ -514,7 +514,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
         Ok(_Tensor::linspace(start, end, num, include_end)?.into())
     }
 
-    fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> anyhow::Result<Self>
+    fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> Result<Self>
         where
             T: Convertor +
                 num::Float +
@@ -525,7 +525,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
         Ok(_Tensor::logspace(start, end, num, include_end, base)?.into())
     }
 
-    fn geomspace(start: T, end: T, n: usize, include_end: bool) -> anyhow::Result<Self>
+    fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self>
         where
             T: PartialOrd +
                 FloatOut<T> +
@@ -542,25 +542,25 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
         Ok(_Tensor::geomspace(start, end, n, include_end)?.into())
     }
 
-    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> anyhow::Result<Self>
+    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self>
         where u8: IntoScalar<T>
     {
         Ok(_Tensor::tri(n, m, k, low_triangle)?.into())
     }
 
-    fn tril(&self, k: i64) -> anyhow::Result<Self>
+    fn tril(&self, k: i64) -> Result<Self>
         where T: NormalOut<bool, Output = T> + IntoScalar<T>
     {
         Ok(_Tensor::tril(self, k)?.into())
     }
 
-    fn triu(&self, k: i64) -> anyhow::Result<Self>
+    fn triu(&self, k: i64) -> Result<Self>
         where T: NormalOut<bool, Output = T> + IntoScalar<T>
     {
         Ok(_Tensor::triu(self, k)?.into())
     }
 
-    fn identity(n: usize) -> anyhow::Result<Self> where u8: IntoScalar<T> {
+    fn identity(n: usize) -> Result<Self> where u8: IntoScalar<T> {
         Ok(_Tensor::identity(n)?.into())
     }
 }
@@ -673,7 +673,7 @@ impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> Normal
 
     type BoolOutput = Tensor<bool>;
 
-    fn sum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+    fn sum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output> {
         Ok(_Tensor::sum(self, axis, keep_dims)?.into())
     }
 
@@ -683,7 +683,7 @@ impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> Normal
         keep_dims: bool,
         init_out: bool,
         out: Self::Output
-    ) -> anyhow::Result<Self::Output> {
+    ) -> Result<Self::Output> {
         Ok(_Tensor::sum_(self, axis, keep_dims, init_out, out.inner.as_ref().clone())?.into())
     }
 
@@ -692,11 +692,11 @@ impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> Normal
         init_val: T,
         axes: S,
         keep_dims: bool
-    ) -> anyhow::Result<Self::Output> {
+    ) -> Result<Self::Output> {
         Ok(_Tensor::sum_with_init(self, init_val, axes, keep_dims)?.into())
     }
 
-    fn nansum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+    fn nansum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output> {
         Ok(_Tensor::nansum(self, axis, keep_dims)?.into())
     }
 
@@ -705,11 +705,11 @@ impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> Normal
         init_val: T,
         axes: S,
         keep_dims: bool
-    ) -> anyhow::Result<Self::Output> {
+    ) -> Result<Self::Output> {
         Ok(_Tensor::nansum_with_init(self, init_val, axes, keep_dims)?.into())
     }
 
-    fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+    fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output> {
         Ok(_Tensor::prod(self, axis, keep_dims)?.into())
     }
 
@@ -718,11 +718,11 @@ impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> Normal
         init_val: T,
         axes: S,
         keep_dims: bool
-    ) -> anyhow::Result<Self::Output> {
+    ) -> Result<Self::Output> {
         Ok(_Tensor::prod_with_init(self, init_val, axes, keep_dims)?.into())
     }
 
-    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output> {
         Ok(_Tensor::nanprod(self, axis, keep_dims)?.into())
     }
 
@@ -731,11 +731,11 @@ impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> Normal
         init_val: T,
         axes: S,
         keep_dims: bool
-    ) -> anyhow::Result<Self::Output> {
+    ) -> Result<Self::Output> {
         Ok(_Tensor::nanprod_with_init(self, init_val, axes, keep_dims)?.into())
     }
 
-    fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
+    fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self> {
         Ok(_Tensor::min(self, axis, keep_dims)?.into())
     }
 
@@ -744,11 +744,11 @@ impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> Normal
         init_val: T,
         axes: S,
         keep_dims: bool
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self> {
         Ok(_Tensor::min_with_init(self, init_val, axes, keep_dims)?.into())
     }
 
-    fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
+    fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self> {
         Ok(_Tensor::max(self, axis, keep_dims)?.into())
     }
 
@@ -757,15 +757,15 @@ impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> Normal
         init_val: T,
         axes: S,
         keep_dims: bool
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self> {
         Ok(_Tensor::max_with_init(self, init_val, axes, keep_dims)?.into())
     }
 
-    fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
+    fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::BoolOutput> {
         Ok(_Tensor::all(self, axis, keep_dims)?.into())
     }
 
-    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
+    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::BoolOutput> {
         Ok(_Tensor::any(self, axis, keep_dims)?.into())
     }
 }

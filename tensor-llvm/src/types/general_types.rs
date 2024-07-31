@@ -147,10 +147,7 @@ impl GeneralType {
         }
     }
     pub fn is_struct(&self) -> bool {
-        match self {
-            GeneralType::Struct(_) => true,
-            _ => false,
-        }
+        matches!(self, GeneralType::Struct(_))
     }
 }
 

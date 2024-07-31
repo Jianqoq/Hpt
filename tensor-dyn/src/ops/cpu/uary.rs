@@ -287,18 +287,6 @@ impl<T> FloatUaryOps for _Tensor<T> where T: FloatOut + CommonBounds, FloatType<
         uary_fn_with_out(self, |x| x._ln(), out)
     }
 
-    fn log10(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._log10())
-    }
-
-    fn log10_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
-    {
-        uary_fn_with_out(self, |x| x._log10(), out)
-    }
-
     fn log2(&self) -> anyhow::Result<Self::Output> {
         uary_fn(self, |x| x._log2())
     }
@@ -309,6 +297,18 @@ impl<T> FloatUaryOps for _Tensor<T> where T: FloatOut + CommonBounds, FloatType<
                 TensorInfo<Self::OutputMeta>
     {
         uary_fn_with_out(self, |x| x._log2(), out)
+    }
+
+    fn log10(&self) -> anyhow::Result<Self::Output> {
+        uary_fn(self, |x| x._log10())
+    }
+
+    fn log10_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        uary_fn_with_out(self, |x| x._log10(), out)
     }
 }
 
@@ -374,7 +374,7 @@ impl<T> Cum for _Tensor<T> where T: CommonBounds {
     fn cumsum(&self, axis: Option<i64>) -> anyhow::Result<Self>
         where Self::Meta: NormalOut<Self::Meta, Output = Self::Meta>
     {
-        match axis {
+        return match axis {
             Some(axis) => {
                 let mut _axis = axis;
                 if axis < 0 {
@@ -468,7 +468,7 @@ impl<T> Cum for _Tensor<T> where T: CommonBounds {
                         });
                     }
                 });
-                return Ok(res);
+                Ok(res)
             }
             None => {
                 let res = _Tensor::empty(vec![self.size() as i64])?;
@@ -480,7 +480,7 @@ impl<T> Cum for _Tensor<T> where T: CommonBounds {
                         tmp = tmp._add(raw[i]);
                         res_raw[i] = tmp;
                     }
-                    return Ok(res);
+                    Ok(res)
                 } else {
                     let new_self = self.contiguous()?;
                     let raw = new_self.as_raw();
@@ -490,7 +490,7 @@ impl<T> Cum for _Tensor<T> where T: CommonBounds {
                         tmp = tmp._add(raw[i]);
                         res_raw[i] = tmp;
                     }
-                    return Ok(res);
+                    Ok(res)
                 }
             }
         }
@@ -499,7 +499,7 @@ impl<T> Cum for _Tensor<T> where T: CommonBounds {
     fn cumprod(&self, axis: Option<i64>) -> anyhow::Result<Self>
         where Self::Meta: NormalOut<Self::Meta, Output = Self::Meta>
     {
-        match axis {
+        return match axis {
             Some(axis) => {
                 let mut _axis = axis;
                 if axis < 0 {
@@ -510,7 +510,7 @@ impl<T> Cum for _Tensor<T> where T: CommonBounds {
                 }
                 let stride = self.strides()[_axis as usize];
                 let inner_loop = self.shape()[_axis as usize] as usize;
-                let outer_loop = (self.size() as usize) / inner_loop;
+                let outer_loop = (self.size()) / inner_loop;
                 let mut shape = self.shape().to_vec();
                 shape.iter_mut().for_each(|x| {
                     *x -= 1;
@@ -593,12 +593,12 @@ impl<T> Cum for _Tensor<T> where T: CommonBounds {
                         });
                     }
                 });
-                return Ok(res);
+                Ok(res)
             }
             None => {
                 let res = _Tensor::empty(vec![self.size() as i64])?;
                 let mut tmp = T::ONE;
-                return if self.is_contiguous() {
+                if self.is_contiguous() {
                     let raw = self.as_raw();
                     let res_raw = res.as_raw_mut();
                     for i in 0..self.size() {
@@ -616,7 +616,7 @@ impl<T> Cum for _Tensor<T> where T: CommonBounds {
                         res_raw[i] = tmp;
                     }
                     Ok(res)
-                };
+                }
             }
         }
     }

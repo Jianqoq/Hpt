@@ -99,7 +99,7 @@ pub fn arg_reduce(
                                         Load::make(&format!("%{}.s", output_id), idx).into()
                                 )
                                 .reduce(|acc, x| acc + x)
-                                .unwrap_or((0i64).into()),
+                                .unwrap_or(0i64.into()),
                             Variable::make(&format!("%{}_val", output_id))
                         ).into()
                     )

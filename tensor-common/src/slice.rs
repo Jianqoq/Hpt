@@ -29,10 +29,10 @@ pub fn slice_process(
     });
     let mut res_ptr = 0;
     if index.len() > res_shape.len() {
-        let message = format!("slice input out of range");
+        let message = "slice input out of range".to_string();
         return Err(anyhow::Error::msg(message));
     }
-    for (idx, slice) in index.into_iter().enumerate() {
+    for (idx, slice) in index.iter().enumerate() {
         match slice {
             Slice::From(mut __index) => {
                 let mut index;
@@ -49,28 +49,26 @@ pub fn slice_process(
                     );
                     return Err(anyhow::Error::msg(message));
                 }
-                res_shape[idx] = 1 * alpha;
+                res_shape[idx] = alpha;
                 res_ptr += res_strides[idx] * index;
             }
             // tested
             Slice::RangeFrom(mut __index) => {
-                let index;
-                if __index >= 0 {
-                    index = __index;
+                let index = if __index >= 0 {
+                    __index
                 } else {
-                    index = __index + shape[idx];
-                }
+                    __index + shape[idx]
+                };
                 let length = (shape[idx] - index) * alpha;
                 res_shape[idx] = if length > 0 { length } else { 0 };
                 res_ptr += res_strides[idx] * index;
             }
             Slice::RangeTo(r) => {
-                let range_to;
-                if *r >= 0 {
-                    range_to = ..*r;
+                let range_to = if *r >= 0 {
+                    ..*r
                 } else {
-                    range_to = ..*r + shape[idx];
-                }
+                    ..*r + shape[idx]
+                };
                 let mut end = range_to.end;
                 end *= alpha;
                 if range_to.end > res_shape[idx] {
@@ -87,12 +85,10 @@ pub fn slice_process(
                     } else {
                         range = *start..*end + shape[idx];
                     }
+                } else if *end >= 0 {
+                    range = *start + shape[idx]..*end;
                 } else {
-                    if *end >= 0 {
-                        range = *start + shape[idx]..*end;
-                    } else {
-                        range = start + shape[idx]..*end + shape[idx];
-                    }
+                    range = start + shape[idx]..*end + shape[idx];
                 }
                 let mut start = range.start;
                 start *= alpha;
@@ -108,7 +104,7 @@ pub fn slice_process(
                     res_shape[idx] = 0;
                 } else {
                     res_shape[idx] = end - start;
-                    res_ptr += strides[idx] * (start as i64);
+                    res_ptr += strides[idx] * start;
                 }
             }
             // tested
@@ -135,11 +131,11 @@ pub fn slice_process(
                 }
                 if length == 1 {
                     res_shape[idx] = alpha;
-                    res_ptr += res_strides[idx] * (start as i64);
+                    res_ptr += res_strides[idx] * start;
                 } else if length >= 0 {
                     res_shape[idx] = length * alpha;
                     res_ptr += start * res_strides[idx];
-                    res_strides[idx] = res_strides[idx] * (*step as i64);
+                    res_strides[idx] *= *step;
                 } else {
                     res_shape[idx] = 0;
                 }
@@ -151,12 +147,11 @@ pub fn slice_process(
                 } else {
                     *start + shape[idx]
                 };
-                let end;
-                if *step > 0 {
-                    end = shape[idx];
+                let end = if *step > 0 {
+                    shape[idx]
                 } else {
-                    end = 0;
-                }
+                    0
+                };
                 if start >= shape[idx] {
                     start = shape[idx] - 1;
                 }
@@ -170,42 +165,39 @@ pub fn slice_process(
                 }
                 if length == 1 {
                     res_shape[idx] = alpha;
-                    res_ptr += res_strides[idx] * (start as i64);
+                    res_ptr += res_strides[idx] * start;
                 } else if length >= 0 {
                     res_shape[idx] = length * alpha;
                     res_ptr += start * res_strides[idx];
-                    res_strides[idx] = res_strides[idx] * (*step as i64);
+                    res_strides[idx] *= *step;
                 } else {
                     res_shape[idx] = 0;
                 }
             }
             // tested
             Slice::StepByFullRange(step) => {
-                let start;
-                if *step > 0 {
-                    start = 0;
+                let start = if *step > 0 {
+                    0
                 } else {
-                    start = shape[idx] - 1;
-                }
-                let end;
-                if *step > 0 {
-                    end = shape[idx] - 1;
+                    shape[idx] - 1
+                };
+                let end = if *step > 0 {
+                    shape[idx] - 1
                 } else {
-                    end = 0;
-                }
-                let length;
-                if (start <= end && *step > 0) || (start >= end && *step < 0) {
-                    length = (end - start + step) / step;
+                    0
+                };
+                let length = if (start <= end && *step > 0) || (start >= end && *step < 0) {
+                    (end - start + step) / step
                 } else {
-                    length = 0;
-                }
+                    0
+                };
                 if length == 1 {
                     res_shape[idx] = alpha;
                     res_ptr += res_strides[idx] * start;
                 } else if length >= 0 {
                     res_shape[idx] = length * alpha;
                     res_ptr += start * res_strides[idx];
-                    res_strides[idx] = res_strides[idx] * (*step);
+                    res_strides[idx] *= *step;
                 } else {
                     res_shape[idx] = 0;
                 }

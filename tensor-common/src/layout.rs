@@ -87,7 +87,7 @@ impl Layout {
                 max_idx = idx;
             }
         }
-        return (self.shape[max_idx] * max_stride) as usize;
+        (self.shape[max_idx] * max_stride) as usize
     }
 
     pub fn permute<A: Into<Axis>>(&self, axes: A) -> anyhow::Result<Layout> {
@@ -112,11 +112,11 @@ impl Layout {
                 strides: new_strides,
             })
         } else {
-            return Err(
+            Err(
                 ErrHandler::InplaceReshapeError(
                     format!("cannot perform inplace reshape {:?} to {:?}.", self.shape, shape)
                 ).into()
-            );
+            )
         }
     }
 
@@ -197,7 +197,7 @@ impl From<Shape> for Layout {
 
 impl From<&Shape> for Layout {
     fn from(shape: &Shape) -> Self {
-        let strides = shape_to_strides(&shape);
+        let strides = shape_to_strides(shape);
         Layout { shape: shape.clone(), strides }
     }
 }

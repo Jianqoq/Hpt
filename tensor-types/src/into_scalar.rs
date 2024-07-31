@@ -272,7 +272,7 @@ impl IntoScalar<bf16> for f64 {
 impl IntoScalar<bool> for f16 {
     #[inline(always)]
     fn into_scalar(self) -> bool {
-        if self.to_f32() == 0.0 { false } else { true }
+        self.to_f32() != 0.0
     }
 }
 

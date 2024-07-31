@@ -1,9 +1,11 @@
+use std::fmt::Formatter;
+
 use anyhow::Result;
 use num_complex::Complex32;
+
 use tensor_common::pointer::Pointer;
-use tensor_traits::tensor::{ CommonBounds, TensorInfo };
+use tensor_traits::tensor::{CommonBounds, TensorInfo};
 use tensor_types::dtype::Dtype;
-use std::fmt::Formatter;
 
 const EPSILON: f64 = 1e-5;
 
@@ -24,10 +26,12 @@ fn main_loop_push_str<U, T>(
     col_width: &mut Vec<usize>,
     prg: &mut Vec<i64>,
     shape: &Vec<i64>,
-    mut ptr: Pointer<T>
+    mut ptr: Pointer<T>,
 )
     -> Result<()>
-    where U: TensorInfo<T>, T: CommonBounds
+where
+    U: TensorInfo<T>,
+    T: CommonBounds,
 {
     for _ in 0..outer_loop {
         let mut offset = 0;
@@ -48,7 +52,7 @@ fn main_loop_push_str<U, T>(
                 } else if T::ID == Dtype::C32 || T::ID == Dtype::C64 {
                     let tmp_val: Complex32 = val.parse::<Complex32>().unwrap();
                     if
-                        tmp_val.re - (tmp_val.re as i64 as f32) != 0.0 ||
+                    tmp_val.re - (tmp_val.re as i64 as f32) != 0.0 ||
                         tmp_val.im - (tmp_val.im as i64 as f32) != 0.0
                     {
                         val = format!("{:.*}", precision, ptr[offset]);
@@ -57,7 +61,7 @@ fn main_loop_push_str<U, T>(
                 string.push_str(&format!("{:>width$} ... ", val, width = col_width[j]));
                 offset +=
                     (((tensor.shape()[tensor.ndim() - 1] as usize) - max_element + 1) as i64) *
-                    last_stride;
+                        last_stride;
             } else {
                 let mut val = ptr[offset].to_string();
                 if T::ID == Dtype::F32 || T::ID == Dtype::F64 {
@@ -73,7 +77,7 @@ fn main_loop_push_str<U, T>(
                 } else if T::ID == Dtype::C32 || T::ID == Dtype::C64 {
                     let tmp_val: Complex32 = val.parse::<Complex32>().unwrap();
                     if
-                        tmp_val.re - (tmp_val.re as i64 as f32) != 0.0 ||
+                    tmp_val.re - (tmp_val.re as i64 as f32) != 0.0 ||
                         tmp_val.im - (tmp_val.im as i64 as f32) != 0.0
                     {
                         val = format!("{:.*}", precision, ptr[offset]);
@@ -91,36 +95,36 @@ fn main_loop_push_str<U, T>(
             }
             if !col_exceeded && (j + 1) % row_threshold == 0 {
                 string.push_str("\n");
-                string.push_str(&" ".repeat("Tensor(".len() + (tensor.ndim() as usize)));
+                string.push_str(&" ".repeat("Tensor(".len() + (tensor.ndim())));
                 col = 0;
             } else {
                 col += 1;
             }
         }
         string.push_str("]");
-        for k in (0..(tensor.ndim() as usize) - 1).rev() {
+        for k in (0..(tensor.ndim()) - 1).rev() {
             if prg[k] < shape[k] {
                 if
-                    row_exceeded &&
+                row_exceeded &&
                     prg[k] + 1 == (max_element as i64) / 2 &&
                     tensor.shape()[k] > (max_element as i64)
                 {
                     prg[k] += tensor.shape()[k] - (max_element as i64) + 1;
                     string.push_str("\n");
-                    string.push_str(&" ".repeat("Tensor(".len() + (tensor.ndim() as usize)));
+                    string.push_str(&" ".repeat("Tensor(".len() + (tensor.ndim())));
                     string.push_str("... \n");
                     string.push_str(&" ".repeat(k + 1 + "Tensor(".len()));
-                    string.push_str(&"[".repeat((tensor.ndim() as usize) - ((k as usize) + 1)));
+                    string.push_str(&"[".repeat((tensor.ndim()) - (k + 1)));
                     ptr.offset(
                         tensor.strides()[k] *
-                            ((tensor.shape()[k] - (max_element as i64) + 1) as i64)
+                            tensor.shape()[k] - (max_element as i64) + 1
                     );
                     assert!(prg[k] < tensor.shape()[k]);
                 } else {
                     prg[k] += 1;
                     string.push_str("\n");
                     string.push_str(&" ".repeat(k + 1 + "Tensor(".len()));
-                    string.push_str(&"[".repeat((tensor.ndim() as usize) - ((k as usize) + 1)));
+                    string.push_str(&"[".repeat((tensor.ndim()) - (k + 1)));
                     ptr.offset(tensor.strides()[k]);
                     assert!(prg[k] < tensor.shape()[k]);
                 }
@@ -129,9 +133,9 @@ fn main_loop_push_str<U, T>(
                 prg[k] = 0;
                 string.push_str("]");
                 if k >= 1 && prg[k - 1] < shape[k - 1] {
-                    string.push_str(&"\n".repeat((tensor.ndim() as usize) - ((k as usize) + 1)));
+                    string.push_str(&"\n".repeat((tensor.ndim()) - (k + 1)));
                 }
-                ptr.offset(-tensor.strides()[k] * (shape[k] as i64));
+                ptr.offset(-tensor.strides()[k] * (shape[k]));
             }
         }
     }
@@ -154,10 +158,12 @@ fn main_loop_get_width<U, T>(
     col_width: &mut Vec<usize>,
     prg: &mut Vec<i64>,
     shape: &Vec<i64>,
-    mut ptr: Pointer<T>
+    mut ptr: Pointer<T>,
 )
     -> Result<()>
-    where U: TensorInfo<T>, T: CommonBounds
+where
+    U: TensorInfo<T>,
+    T: CommonBounds,
 {
     for _ in 0..outer_loop {
         let mut offset: i64 = 0;
@@ -176,7 +182,7 @@ fn main_loop_get_width<U, T>(
                 } else if T::ID == Dtype::C32 || T::ID == Dtype::C64 {
                     let tmp_val: Complex32 = val.parse::<Complex32>().unwrap();
                     if
-                        tmp_val.re - (tmp_val.re as i64 as f32) != 0.0 ||
+                    tmp_val.re - (tmp_val.re as i64 as f32) != 0.0 ||
                         tmp_val.im - (tmp_val.im as i64 as f32) != 0.0
                     {
                         val = format!("{:.*}", precision, ptr[offset]);
@@ -186,11 +192,9 @@ fn main_loop_get_width<U, T>(
                     col_width[j] = std::cmp::max(col_width[j], val.len());
                 }
                 offset +=
-                    (
-                        (tensor.shape()[(tensor.ndim() as usize) - 1] -
+                    tensor.shape()[(tensor.ndim()) - 1] -
                             (max_element as i64) +
-                            1) as i64
-                    ) * last_stride;
+                            1 * last_stride;
             } else {
                 let mut val: String = ptr[offset].to_string();
                 if T::ID == Dtype::F32 || T::ID == Dtype::F64 {
@@ -205,7 +209,7 @@ fn main_loop_get_width<U, T>(
                 } else if T::ID == Dtype::C32 || T::ID == Dtype::C64 {
                     let tmp_val: Complex32 = val.parse::<Complex32>().unwrap();
                     if
-                        tmp_val.re - (tmp_val.re as i64 as f32) != 0.0 ||
+                    tmp_val.re - (tmp_val.re as i64 as f32) != 0.0 ||
                         tmp_val.im - (tmp_val.im as i64 as f32) != 0.0
                     {
                         val = format!("{:.*}", precision, ptr[offset]);
@@ -222,17 +226,17 @@ fn main_loop_get_width<U, T>(
                 col += 1;
             }
         }
-        for k in (0..(tensor.ndim() as usize) - 1).rev() {
+        for k in (0..(tensor.ndim()) - 1).rev() {
             if prg[k] < shape[k] {
                 if
-                    row_exceeded &&
+                row_exceeded &&
                     prg[k] + 1 == (max_element as i64) / 2 &&
                     tensor.shape()[k] > (max_element as i64)
                 {
                     prg[k] += tensor.shape()[k] - (max_element as i64) + 1;
                     ptr.offset(
                         tensor.strides()[k] *
-                            ((tensor.shape()[k] - (max_element as i64) + 1) as i64)
+                            tensor.shape()[k] - (max_element as i64) + 1
                     );
                     assert!(prg[k] < tensor.shape()[k]);
                 } else {
@@ -243,7 +247,7 @@ fn main_loop_get_width<U, T>(
                 break;
             } else {
                 prg[k] = 0;
-                ptr.offset(-tensor.strides()[k] * (shape[k] as i64));
+                ptr.offset(-tensor.strides()[k] * (shape[k]));
             }
         }
     }
@@ -268,22 +272,24 @@ pub fn display<U, T>(
     max_elemnt_each_row: i64,
     row_threshold: usize,
     precision: usize,
-    show_backward: bool
+    show_backward: bool,
 )
     -> std::fmt::Result
-    where U: TensorInfo<T>, T: CommonBounds
+where
+    U: TensorInfo<T>,
+    T: CommonBounds,
 {
     let mut string: String = String::new();
-    if tensor.size() == 0 {
-        return write!(f, "{}", format!("Tensor([])\n"));
+    return if tensor.size() == 0 {
+        write!(f, "{}", "Tensor([])\n".to_string())
     } else if tensor.ndim() == 0 {
-        return write!(f, "{}", format!("Tensor({})\n", tensor.ptr().read()));
+        write!(f, "{}", format!("Tensor({})\n", tensor.ptr().read()))
     } else {
         let ptr: Pointer<T> = tensor.ptr();
         if !ptr.ptr.is_null() {
-            let mut inner_loop: usize = tensor.shape()[(tensor.ndim() as usize) - 1] as usize;
-            let mut outer_loop: usize = (tensor.size() as usize) / inner_loop;
-            let mut prg: Vec<i64> = vec![0; tensor.ndim() as usize];
+            let mut inner_loop: usize = tensor.shape()[(tensor.ndim()) - 1] as usize;
+            let mut outer_loop: usize = (tensor.size()) / inner_loop;
+            let mut prg: Vec<i64> = vec![0; tensor.ndim()];
             let mut shape: Vec<i64> = tensor.shape().to_vec();
             shape.iter_mut().for_each(|x: &mut i64| {
                 *x -= 1;
@@ -297,15 +303,15 @@ pub fn display<U, T>(
                         strides[i] = 0;
                     }
                 });
-            let last_stride = strides[(tensor.ndim() as usize) - 1];
+            let last_stride = strides[(tensor.ndim()) - 1];
             let mut col_exceeded: bool = false;
             let mut row_exceeded: bool = false;
             if tensor.size() > max_size {
-                if tensor.shape()[(tensor.ndim() as usize) - 1] >= max_element {
+                if tensor.shape()[(tensor.ndim()) - 1] >= max_element {
                     inner_loop = max_element as usize;
                     col_exceeded = true;
                 }
-                let tmp: &[i64] = &tensor.shape()[..(tensor.ndim() as usize) - 1];
+                let tmp: &[i64] = &tensor.shape()[..(tensor.ndim()) - 1];
                 let acc = tmp.iter().fold(1, |acc, x| {
                     if *x > max_element { max_element * acc } else { acc * x }
                 });
@@ -333,7 +339,7 @@ pub fn display<U, T>(
                 &mut col_width,
                 &mut prg,
                 &shape,
-                ptr.clone()
+                ptr.clone(),
             ).unwrap();
             main_loop_push_str(
                 &tensor,
@@ -350,7 +356,7 @@ pub fn display<U, T>(
                 &mut col_width,
                 &mut prg,
                 &shape,
-                ptr.clone()
+                ptr.clone(),
             ).unwrap();
         }
         let shape_str = tensor
@@ -380,6 +386,6 @@ pub fn display<U, T>(
                 )
             );
         }
-        return write!(f, "{}", format!("{}\n", string));
-    }
+        write!(f, "{}", format!("{}\n", string))
+    };
 }

@@ -17,10 +17,10 @@ impl<
     T: 'a,
     F
 > StridedMap<'a, I, T, F> {
-    pub fn collect<U: TensorAlloc>(self) -> U
+    pub fn collect<U>(self) -> U
         where
             F: Fn(T) -> U::Meta + Sync + Send + 'a,
-            U: Clone + TensorInfo<U::Meta>,
+            U: Clone + TensorInfo<U::Meta> + TensorAlloc,
             <I as IterGetSet>::Item: Send,
             <U as TensorAlloc>::Meta: CommonBounds
     {
