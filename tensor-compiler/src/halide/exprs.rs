@@ -1,5 +1,5 @@
 use std::{ fmt::Display, sync::Arc };
-
+use colored::Colorize;
 use tensor_types::dtype::Dtype;
 
 use crate::iter_var::IterVar;
@@ -281,7 +281,7 @@ impl Accepter for Cast {
 
 impl Display for Cast {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} as {})", self.expr, self.dtype)
+        write!(f, "{}{} {} {}{}", "(".bright_cyan(), self.expr, "as".purple(), self.dtype, ")".bright_cyan())
     }
 }
 
@@ -336,7 +336,7 @@ impl Accepter for BitCast {
 
 impl Display for BitCast {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} as {})", self.expr, self.dtype)
+        write!(f, "{}{} {} {}{}", "(".bright_cyan(), self.expr, "as".purple(), self.dtype, ")".bright_cyan())
     }
 }
 
@@ -411,7 +411,7 @@ impl Accepter for Add {
 
 impl Display for Add {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} + {})", self.e1, self.e2)
+        write!(f, "{}{} {} {}{}", "(".bright_cyan(), self.e1, "+".purple(), self.e2, ")".bright_cyan())
     }
 }
 
@@ -470,7 +470,7 @@ impl Sub {
 
 impl Display for Sub {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} - {})", self.e1, self.e2)
+        write!(f, "{}{} {} {}{}", "(".bright_cyan(), self.e1, "-".purple(), self.e2, ")".bright_cyan())
     }
 }
 
@@ -535,7 +535,7 @@ impl Mul {
 
 impl Display for Mul {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} * {})", self.e1, self.e2)
+        write!(f, "{}{} {} {}{}", "(".bright_cyan(), self.e1, "*".purple(), self.e2, ")".bright_cyan())
     }
 }
 
@@ -594,7 +594,7 @@ impl Div {
 
 impl Display for Div {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} / {})", self.e1, self.e2)
+        write!(f, "{}{} {} {}{}", "(".bright_cyan(), self.e1, "/".purple(), self.e2, ")".bright_cyan())
     }
 }
 
@@ -641,7 +641,7 @@ impl Neg {
 
 impl Display for Neg {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "-{}", self.e)
+        write!(f, "{}{}", "-".purple(), self.e)
     }
 }
 
@@ -700,7 +700,7 @@ impl FloorDiv {
 
 impl Display for FloorDiv {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} // {})", self.e1, self.e2)
+        write!(f, "{}{} {} {}{}", "(".bright_cyan(), self.e1, "//".purple(), self.e2, ")".bright_cyan(), )
     }
 }
 
@@ -759,7 +759,7 @@ impl Gt {
 
 impl Display for Gt {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} > {})", self.e1, self.e2)
+        write!(f, "{}{} {} {}{}", "(".bright_cyan(), self.e1, ">".purple(), self.e2, ")".bright_cyan())
     }
 }
 
