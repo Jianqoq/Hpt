@@ -2,14 +2,7 @@ use std::{ collections::HashMap, panic::Location, sync::Arc };
 
 use crate::{
     halide::{
-        alloca_stmt::AllocaStmt,
-        exprs::Load,
-        prime_expr::PrimeExpr,
-        primitive_type::PrimitiveType,
-        stmt::Stmt,
-        store_stmt::StoreStmt,
-        utils::{ dtype_zero, floor },
-        variable::Variable,
+        alloca_stmt::AllocaStmt, exprs::Load, passes::const_fold::ConstFold, prime_expr::PrimeExpr, primitive_type::PrimitiveType, stmt::Stmt, store_stmt::StoreStmt, utils::{ dtype_zero, floor }, variable::Variable
     },
     iter_var::IterVar,
     te::{ context::Context, stages::{ Body, ReduceStage, Stage }, tensor::{ StridesCal, Tensor } },
@@ -98,7 +91,7 @@ impl Context {
                 let s = steps[idx].clone();
                 let k = y.clone();
                 let o = floor((i + p_begin + p_end - d * (k - 1i64) - 1i64) / s + 1i64);
-                out_dims.push(o);
+                out_dims.push(ConstFold::new().const_fold(o));
             });
         outer_dims.append(&mut out_dims);
         let outer_dims = Arc::new(outer_dims);
