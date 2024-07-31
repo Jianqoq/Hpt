@@ -1,4 +1,4 @@
-use std::{fmt::Display, sync::Arc};
+use std::{ fmt::Display, sync::Arc };
 
 use colored::Colorize;
 
@@ -9,7 +9,7 @@ use crate::iter_var::IterVar;
 use super::{
     prime_expr::PrimeExpr,
     primitive_type::PrimitiveType,
-    traits::{Accepter, IRVisitor},
+    traits::{ Accepter, IRVisitor },
     variable::Variable,
 };
 
@@ -766,7 +766,7 @@ impl Display for FloorDiv {
             self.e1,
             "//".purple(),
             self.e2,
-            ")".bright_cyan(),
+            ")".bright_cyan()
         )
     }
 }
@@ -1322,7 +1322,10 @@ impl Call {
     pub fn make<T: Into<PrimeExpr> + Clone>(name: &str, args: &[T]) -> Self {
         Call {
             name: name.to_string().into(),
-            args: args.iter().map(|e| e.clone().into().into()).collect(),
+            args: args
+                .iter()
+                .map(|e| e.clone().into().into())
+                .collect(),
         }
     }
 
@@ -1385,7 +1388,7 @@ impl Select {
     pub fn new(
         cond: Arc<PrimeExpr>,
         true_expr: Arc<PrimeExpr>,
-        false_expr: Arc<PrimeExpr>,
+        false_expr: Arc<PrimeExpr>
     ) -> Self {
         Select {
             cond,
@@ -1397,7 +1400,7 @@ impl Select {
     pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>, C: Into<PrimeExpr>>(
         cond: A,
         true_expr: B,
-        false_expr: C,
+        false_expr: C
     ) -> Self {
         Select {
             cond: cond.into().into(),
@@ -1442,7 +1445,7 @@ impl Display for Select {
             self.true_expr,
             ":".purple(),
             self.false_expr,
-            ")".bright_cyan(),
+            ")".bright_cyan()
         )
     }
 }
@@ -1476,7 +1479,8 @@ impl Load {
         if indices.len() != strides.len() {
             panic!(
                 "Indices and strides must have the same length, got {:?} and {:?}",
-                indices, strides
+                indices,
+                strides
             );
         }
         let indices = indices
@@ -1517,7 +1521,14 @@ impl Load {
 
 impl Display for Load {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}[{}]", self.name, self.indices)
+        write!(
+            f,
+            "{}{}{}{}",
+            self.name,
+            "[".truecolor(100, 250, 240),
+            self.indices,
+            "]".truecolor(100, 250, 240)
+        )
     }
 }
 
@@ -1554,7 +1565,7 @@ impl Let {
     pub fn make<T: Into<PrimeExpr>, B: Into<PrimeExpr>>(
         name: &Variable,
         value: T,
-        body: B,
+        body: B
     ) -> Self {
         Let {
             name: name.clone(),
@@ -1692,7 +1703,15 @@ impl Ne {
 
 impl Display for Ne {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} != {})", self.e1, self.e2)
+        write!(
+            f,
+            "{}{} {} {}{}",
+            self.e1,
+            "(".bright_cyan(),
+            "!=".purple(),
+            self.e2,
+            ")".bright_cyan()
+        )
     }
 }
 
@@ -1745,7 +1764,15 @@ impl Lt {
 
 impl Display for Lt {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} < {})", self.e1, self.e2)
+        write!(
+            f,
+            "{}{} {} {}{}",
+            "(".bright_cyan(),
+            self.e1,
+            "<".purple(),
+            self.e2,
+            ")".bright_cyan()
+        )
     }
 }
 
@@ -1804,7 +1831,15 @@ impl Le {
 
 impl Display for Le {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} <= {})", self.e1, self.e2)
+        write!(
+            f,
+            "{}{} {} {}{}",
+            "(".bright_cyan(),
+            self.e1,
+            "<=".purple(),
+            self.e2,
+            ")".bright_cyan()
+        )
     }
 }
 
@@ -1863,7 +1898,15 @@ impl Rem {
 
 impl Display for Rem {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} % {})", self.e1, self.e2)
+        write!(
+            f,
+            "{}{} {} {}{}",
+            "(".bright_cyan(),
+            self.e1,
+            "%".bright_cyan(),
+            self.e2,
+            ")".bright_cyan()
+        )
     }
 }
 
@@ -1996,7 +2039,7 @@ impl Display for Max {
             "(".bright_cyan(),
             self.e1,
             self.e2,
-            ")".bright_cyan(),
+            ")".bright_cyan()
         )
     }
 }
@@ -2032,7 +2075,7 @@ impl Reduce {
         expr: Arc<Vec<PrimeExpr>>,
         identity: Arc<Vec<PrimeExpr>>,
         iter_vars: Arc<Vec<IterVar>>,
-        op: &'static str,
+        op: &'static str
     ) -> Self {
         Reduce {
             expr,
@@ -2046,7 +2089,7 @@ impl Reduce {
         expr: Vec<A>,
         identity: Vec<B>,
         iter_vars: Vec<C>,
-        op: &'static str,
+        op: &'static str
     ) -> Self {
         Reduce {
             expr: expr
@@ -2151,7 +2194,7 @@ impl Display for Malloc {
             "(".bright_cyan(),
             self.dtype,
             self.size,
-            ")".bright_cyan(),
+            ")".bright_cyan()
         )
     }
 }
@@ -2193,7 +2236,7 @@ impl Layout {
     pub fn make<T: Into<PrimeExpr>, U: Into<PrimeExpr>, V: Into<PrimeExpr>>(
         dim: T,
         shape: U,
-        strides: V,
+        strides: V
     ) -> Self {
         Layout {
             dim: dim.into().into(),

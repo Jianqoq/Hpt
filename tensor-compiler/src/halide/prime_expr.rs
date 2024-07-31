@@ -1,5 +1,5 @@
 use std::fmt::Display;
-
+use colored::Colorize;
 use tensor_types::{ dtype::Dtype, type_promote::{ BitWiseOut, Eval, FloatOut, NormalOut } };
 
 use super::{
@@ -184,16 +184,23 @@ impl PrimeExpr {
             PrimeExpr::Variable(a) => a.to_string(),
             PrimeExpr::Cast(a) => a.to_string(),
             PrimeExpr::BitCast(a) => a.to_string(),
-            PrimeExpr::Add(a) => format!("{} + {}", a.e1().print(prec), a.e2().print(prec + 1)),
-            PrimeExpr::Sub(a) => format!("{} - {}", a.e1().print(prec), a.e2().print(prec + 1)),
-            PrimeExpr::Mul(a) => format!("{} * {}", a.e1().print(prec), a.e2().print(prec + 1)),
-            PrimeExpr::Div(a) => format!("{} / {}", a.e1().print(prec), a.e2().print(prec + 1)),
-            PrimeExpr::Neg(a) => format!("-{}", a.e().print(prec + 1)),
+            PrimeExpr::Add(a) =>
+                format!("{} {} {}", a.e1().print(prec), "+".purple(), a.e2().print(prec + 1)),
+            PrimeExpr::Sub(a) =>
+                format!("{} {} {}", a.e1().print(prec), "-".purple(), a.e2().print(prec + 1)),
+            PrimeExpr::Mul(a) =>
+                format!("{} {} {}", a.e1().print(prec), "*".purple(), a.e2().print(prec + 1)),
+            PrimeExpr::Div(a) =>
+                format!("{} {} {}", a.e1().print(prec), "/".purple(), a.e2().print(prec + 1)),
+            PrimeExpr::Neg(a) => format!("{}{}", "-".purple(), a.e().print(prec + 1)),
             PrimeExpr::FloorDiv(a) =>
-                format!("{} // {}", a.e1().print(prec), a.e2().print(prec + 1)),
-            PrimeExpr::Rem(a) => format!("{} % {}", a.e1().print(prec), a.e2().print(prec + 1)),
-            PrimeExpr::Shl(a) => format!("{} << {}", a.e1().print(prec), a.e2().print(prec + 1)),
-            PrimeExpr::Shr(a) => format!("{} >> {}", a.e1().print(prec), a.e2().print(prec + 1)),
+                format!("{} {} {}", a.e1().print(prec), "//".purple(), a.e2().print(prec + 1)),
+            PrimeExpr::Rem(a) =>
+                format!("{} {} {}", a.e1().print(prec), "%".purple(), a.e2().print(prec + 1)),
+            PrimeExpr::Shl(a) =>
+                format!("{} {} {}", a.e1().print(prec), "<<".purple(), a.e2().print(prec + 1)),
+            PrimeExpr::Shr(a) =>
+                format!("{} {} {}", a.e1().print(prec), ">>".purple(), a.e2().print(prec + 1)),
             PrimeExpr::Min(a) => a.to_string(),
             PrimeExpr::Max(a) => a.to_string(),
             PrimeExpr::Eq(a) => a.to_string(),
@@ -218,7 +225,7 @@ impl PrimeExpr {
             PrimeExpr::None => "".to_string(),
         };
         if prec < parent_prec {
-            format!("({})", s)
+            format!("{}{}{}", "(".bright_cyan(), s, ")".bright_cyan())
         } else {
             s
         }

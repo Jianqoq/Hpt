@@ -43,14 +43,14 @@ impl std::hash::Hash for Function {
 
 impl Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {}(", "fn".purple(), self.name.blue())?;
+        write!(f, "{} {}{}", "fn".purple(), self.name.blue(), "(".bright_cyan())?;
         for (i, (name, r#type)) in self.ty.args.iter().enumerate() {
             if i != 0 {
                 write!(f, ", ")?;
             }
             write!(f, "{}: {}", name, r#type)?;
         }
-        write!(f, ") -> {}", self.ty.ret_ty)?;
+        write!(f, "{} {} {}", ")".bright_cyan(), "->".purple(), self.ty.ret_ty)?;
         write!(f, " {{\n")?;
         write!(f, "{}", _IRPrinter::new(1).print_stmt_str(&self.body))?;
         write!(f, "}}")

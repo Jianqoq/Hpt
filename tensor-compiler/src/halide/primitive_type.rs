@@ -1,5 +1,5 @@
 use std::{ fmt::Display, sync::Arc };
-
+use colored::Colorize;
 use tensor_llvm::{
     context::context::Context,
     types::{ general_types::GeneralType, values::StructValue },
@@ -271,26 +271,29 @@ impl PrimitiveType {
 
 impl Display for PrimitiveType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PrimitiveType::Dtype(dtype) => write!(f, "{}", dtype),
+        let ret = match self {
+            PrimitiveType::Dtype(dtype) => format!("{}", dtype),
             PrimitiveType::Tuple(tuple) => {
+                let mut string = String::new();
                 if tuple.inner.is_empty() {
-                    return write!(f, "()");
+                    string.push_str(&format!("()"));
                 }
                 if tuple.inner.len() == 1 {
-                    return write!(f, "({}, )", tuple.inner[0]);
+                    string.push_str(&format!("({}, )", tuple.inner[0]))
                 }
-                write!(f, "({}", tuple.inner[0])?;
+                string.push_str(&format!("({}", tuple.inner[0]));
                 for i in 1..tuple.inner.len() {
-                    write!(f, ", {}", tuple.inner[i])?;
+                    string.push_str(&format!(", {}", tuple.inner[i]))
                 }
-                write!(f, ")")
+                string.push_str(&format!(")"));
+                string
             }
-            PrimitiveType::Array(arr) => write!(f, "[{}; {}]", arr.inner, arr.size),
-            PrimitiveType::Ptr(ptr) => write!(f, "*{}", ptr.inner),
-            PrimitiveType::Str => write!(f, "str"),
-            PrimitiveType::Void => write!(f, "void"),
-            PrimitiveType::Tensor(tensor) => { write!(f, "Tensor<{}>", tensor.dtype) }
-        }
+            PrimitiveType::Array(arr) => format!("[{}; {}]", arr.inner, arr.size),
+            PrimitiveType::Ptr(ptr) => format!("*{}", ptr.inner),
+            PrimitiveType::Str => format!("str"),
+            PrimitiveType::Void => format!("void"),
+            PrimitiveType::Tensor(tensor) => { format!("Tensor<{}>", tensor.dtype) }
+        };
+        write!(f, "{}", ret.truecolor(230, 200, 90))
     }
 }
