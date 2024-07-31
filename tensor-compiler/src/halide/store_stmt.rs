@@ -1,15 +1,18 @@
 use std::sync::Arc;
 
+use colored::Colorize;
+
 use tensor_types::dtype::Dtype;
 
+use crate::halide::traits::{Accepter, AccepterMut};
+
 use super::{
-    prime_expr::PrimeExpr,
     exprs::Int,
+    prime_expr::PrimeExpr,
     stmt::Stmt,
-    traits::{ IRMutVisitor, IRMutateVisitor, IRVisitor },
+    traits::{IRMutateVisitor, IRMutVisitor, IRVisitor},
     variable::Variable,
 };
-use crate::halide::traits::{ Accepter, AccepterMut };
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct StoreStmt {
@@ -35,7 +38,7 @@ impl StoreStmt {
         var: &Variable,
         indices: &[&Variable],
         strides: &[i64],
-        e2: T
+        e2: T,
     ) -> Self {
         if indices.len() != strides.len() {
             panic!("Indices and strides must have the same length");
@@ -43,9 +46,7 @@ impl StoreStmt {
         let sum = strides
             .iter()
             .zip(indices.iter())
-            .map(|(stride, index)| {
-                *index * Int::make(Dtype::I64, *stride)
-            })
+            .map(|(stride, index)| *index * Int::make(Dtype::I64, *stride))
             .reduce(|acc, e| acc + e)
             .expect("Failed to reduce");
         StoreStmt {
@@ -82,7 +83,16 @@ impl StoreStmt {
 
 impl std::fmt::Display for StoreStmt {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}[{}] = {};", self.var, self.indices, self.val)
+        write!(
+            f,
+            "{}{}{}{} {} {};",
+            self.var,
+            "[".bright_cyan(),
+            self.indices,
+            "]".bright_cyan(),
+            "=".purple(),
+            self.val
+        )
     }
 }
 
