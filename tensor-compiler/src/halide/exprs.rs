@@ -1,10 +1,18 @@
-use std::{ fmt::Display, sync::Arc };
+use std::{fmt::Display, sync::Arc};
+
 use colored::Colorize;
+
 use tensor_types::dtype::Dtype;
 
 use crate::iter_var::IterVar;
 
-use super::{ prime_expr::PrimeExpr, primitive_type::PrimitiveType, traits::{ Accepter, IRVisitor }, variable::Variable };
+use super::{
+    prime_expr::PrimeExpr,
+    primitive_type::PrimitiveType,
+    traits::{Accepter, IRVisitor},
+    variable::Variable,
+};
+
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Int {
     value: i64,
@@ -281,7 +289,15 @@ impl Accepter for Cast {
 
 impl Display for Cast {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}{} {} {}{}", "(".bright_cyan(), self.expr, "as".purple(), self.dtype, ")".bright_cyan())
+        write!(
+            f,
+            "{}{} {} {}{}",
+            "(".bright_cyan(),
+            self.expr,
+            "as".purple(),
+            self.dtype,
+            ")".bright_cyan()
+        )
     }
 }
 
@@ -336,7 +352,15 @@ impl Accepter for BitCast {
 
 impl Display for BitCast {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}{} {} {}{}", "(".bright_cyan(), self.expr, "as".purple(), self.dtype, ")".bright_cyan())
+        write!(
+            f,
+            "{}{} {} {}{}",
+            "(".bright_cyan(),
+            self.expr,
+            "as".purple(),
+            self.dtype,
+            ")".bright_cyan()
+        )
     }
 }
 
@@ -411,7 +435,15 @@ impl Accepter for Add {
 
 impl Display for Add {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}{} {} {}{}", "(".bright_cyan(), self.e1, "+".purple(), self.e2, ")".bright_cyan())
+        write!(
+            f,
+            "{}{} {} {}{}",
+            "(".bright_cyan(),
+            self.e1,
+            "+".purple(),
+            self.e2,
+            ")".bright_cyan()
+        )
     }
 }
 
@@ -441,7 +473,10 @@ impl Accepter for Sub {
 
 impl Sub {
     pub fn new<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(e1: A, e2: B) -> Self {
-        Sub { e1: e1.into().into(), e2: e2.into().into() }
+        Sub {
+            e1: e1.into().into(),
+            e2: e2.into().into(),
+        }
     }
 
     pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(e1: A, e2: B) -> Self {
@@ -470,7 +505,15 @@ impl Sub {
 
 impl Display for Sub {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}{} {} {}{}", "(".bright_cyan(), self.e1, "-".purple(), self.e2, ")".bright_cyan())
+        write!(
+            f,
+            "{}{} {} {}{}",
+            "(".bright_cyan(),
+            self.e1,
+            "-".purple(),
+            self.e2,
+            ")".bright_cyan()
+        )
     }
 }
 
@@ -535,7 +578,15 @@ impl Mul {
 
 impl Display for Mul {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}{} {} {}{}", "(".bright_cyan(), self.e1, "*".purple(), self.e2, ")".bright_cyan())
+        write!(
+            f,
+            "{}{} {} {}{}",
+            "(".bright_cyan(),
+            self.e1,
+            "*".purple(),
+            self.e2,
+            ")".bright_cyan()
+        )
     }
 }
 
@@ -594,7 +645,15 @@ impl Div {
 
 impl Display for Div {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}{} {} {}{}", "(".bright_cyan(), self.e1, "/".purple(), self.e2, ")".bright_cyan())
+        write!(
+            f,
+            "{}{} {} {}{}",
+            "(".bright_cyan(),
+            self.e1,
+            "/".purple(),
+            self.e2,
+            ")".bright_cyan()
+        )
     }
 }
 
@@ -700,7 +759,15 @@ impl FloorDiv {
 
 impl Display for FloorDiv {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}{} {} {}{}", "(".bright_cyan(), self.e1, "//".purple(), self.e2, ")".bright_cyan(), )
+        write!(
+            f,
+            "{}{} {} {}{}",
+            "(".bright_cyan(),
+            self.e1,
+            "//".purple(),
+            self.e2,
+            ")".bright_cyan(),
+        )
     }
 }
 
@@ -759,7 +826,15 @@ impl Gt {
 
 impl Display for Gt {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}{} {} {}{}", "(".bright_cyan(), self.e1, ">".purple(), self.e2, ")".bright_cyan())
+        write!(
+            f,
+            "{}{} {} {}{}",
+            "(".bright_cyan(),
+            self.e1,
+            ">".purple(),
+            self.e2,
+            ")".bright_cyan()
+        )
     }
 }
 
@@ -818,7 +893,15 @@ impl Ge {
 
 impl Display for Ge {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} >= {})", self.e1, self.e2)
+        write!(
+            f,
+            "{}{} {} {}{}",
+            "(".bright_cyan(),
+            self.e1,
+            ">=".purple(),
+            self.e2,
+            ")".bright_cyan()
+        )
     }
 }
 
@@ -877,7 +960,15 @@ impl BitAnd {
 
 impl Display for BitAnd {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} && {})", self.e1, self.e2)
+        write!(
+            f,
+            "{}{} {} {}{}",
+            "(".bright_cyan(),
+            self.e1,
+            "&&".purple(),
+            self.e2,
+            ")".bright_cyan()
+        )
     }
 }
 
@@ -936,7 +1027,15 @@ impl BitOr {
 
 impl Display for BitOr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} || {})", self.e1, self.e2)
+        write!(
+            f,
+            "{}{} {} {}{}",
+            "(".bright_cyan(),
+            self.e1,
+            "||".purple(),
+            self.e2,
+            ")".bright_cyan()
+        )
     }
 }
 
@@ -995,7 +1094,15 @@ impl BitXor {
 
 impl Display for BitXor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} ^ {})", self.e1, self.e2)
+        write!(
+            f,
+            "{}{} {} {}{}",
+            "(".bright_cyan(),
+            self.e1,
+            "^".purple(),
+            self.e2,
+            ")".bright_cyan()
+        )
     }
 }
 
@@ -1042,7 +1149,7 @@ impl Not {
 
 impl Display for Not {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "(!{})", self.e)
+        write!(f, "{}{}", "!".purple(), self.e)
     }
 }
 
@@ -1101,7 +1208,15 @@ impl Shl {
 
 impl Display for Shl {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} << {})", self.e1, self.e2)
+        write!(
+            f,
+            "{}{} {} {}{}",
+            "(".bright_cyan(),
+            self.e1,
+            "<<".purple(),
+            self.e2,
+            ")".bright_cyan()
+        )
     }
 }
 
@@ -1160,7 +1275,15 @@ impl Shr {
 
 impl Display for Shr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} >> {})", self.e1, self.e2)
+        write!(
+            f,
+            "{}{} {} {}{}",
+            "(".bright_cyan(),
+            self.e1,
+            ">>".purple(),
+            self.e2,
+            ")".bright_cyan()
+        )
     }
 }
 
@@ -1199,10 +1322,7 @@ impl Call {
     pub fn make<T: Into<PrimeExpr> + Clone>(name: &str, args: &[T]) -> Self {
         Call {
             name: name.to_string().into(),
-            args: args
-                .iter()
-                .map(|e| e.clone().into().into())
-                .collect(),
+            args: args.iter().map(|e| e.clone().into().into()).collect(),
         }
     }
 
@@ -1223,13 +1343,15 @@ impl Display for Call {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{}({})",
-            self.name,
+            "{}{}{}{}",
+            self.name.blue(),
+            "(".bright_cyan(),
             self.args
                 .iter()
                 .map(|e| e.to_string())
                 .collect::<Vec<String>>()
-                .join(", ")
+                .join(", "),
+            ")".bright_cyan()
         )
     }
 }
@@ -1263,7 +1385,7 @@ impl Select {
     pub fn new(
         cond: Arc<PrimeExpr>,
         true_expr: Arc<PrimeExpr>,
-        false_expr: Arc<PrimeExpr>
+        false_expr: Arc<PrimeExpr>,
     ) -> Self {
         Select {
             cond,
@@ -1275,7 +1397,7 @@ impl Select {
     pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>, C: Into<PrimeExpr>>(
         cond: A,
         true_expr: B,
-        false_expr: C
+        false_expr: C,
     ) -> Self {
         Select {
             cond: cond.into().into(),
@@ -1311,7 +1433,17 @@ impl Select {
 
 impl Display for Select {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} ? {} : {})", self.cond, self.true_expr, self.false_expr)
+        write!(
+            f,
+            "{}{} {} {} {} {}{}",
+            "(".bright_cyan(),
+            self.cond,
+            "?".purple(),
+            self.true_expr,
+            ":".purple(),
+            self.false_expr,
+            ")".bright_cyan(),
+        )
     }
 }
 
@@ -1344,8 +1476,7 @@ impl Load {
         if indices.len() != strides.len() {
             panic!(
                 "Indices and strides must have the same length, got {:?} and {:?}",
-                indices,
-                strides
+                indices, strides
             );
         }
         let indices = indices
@@ -1423,7 +1554,7 @@ impl Let {
     pub fn make<T: Into<PrimeExpr>, B: Into<PrimeExpr>>(
         name: &Variable,
         value: T,
-        body: B
+        body: B,
     ) -> Self {
         Let {
             name: name.clone(),
@@ -1791,7 +1922,15 @@ impl Min {
 
 impl Display for Min {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "min({}, {})", self.e1, self.e2)
+        write!(
+            f,
+            "{}{}{}, {}{}",
+            "min".blue(),
+            "(".bright_cyan(),
+            self.e1,
+            self.e2,
+            ")".bright_cyan()
+        )
     }
 }
 
@@ -1850,7 +1989,15 @@ impl Max {
 
 impl Display for Max {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "max({}, {})", self.e1, self.e2)
+        write!(
+            f,
+            "{}{}{}, {}{}",
+            "max".blue(),
+            "(".bright_cyan(),
+            self.e1,
+            self.e2,
+            ")".bright_cyan(),
+        )
     }
 }
 
@@ -1885,7 +2032,7 @@ impl Reduce {
         expr: Arc<Vec<PrimeExpr>>,
         identity: Arc<Vec<PrimeExpr>>,
         iter_vars: Arc<Vec<IterVar>>,
-        op: &'static str
+        op: &'static str,
     ) -> Self {
         Reduce {
             expr,
@@ -1899,7 +2046,7 @@ impl Reduce {
         expr: Vec<A>,
         identity: Vec<B>,
         iter_vars: Vec<C>,
-        op: &'static str
+        op: &'static str,
     ) -> Self {
         Reduce {
             expr: expr
@@ -1997,7 +2144,15 @@ impl Malloc {
 
 impl Display for Malloc {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "malloc<{}>({})", self.dtype, self.size)
+        write!(
+            f,
+            "{}<{}>{}{}{}",
+            "malloc".blue(),
+            "(".bright_cyan(),
+            self.dtype,
+            self.size,
+            ")".bright_cyan(),
+        )
     }
 }
 
@@ -2028,13 +2183,17 @@ impl Accepter for Layout {
 
 impl Layout {
     pub fn new(dim: Arc<PrimeExpr>, shape: Arc<PrimeExpr>, strides: Arc<PrimeExpr>) -> Self {
-        Layout { dim, shape, strides }
+        Layout {
+            dim,
+            shape,
+            strides,
+        }
     }
 
     pub fn make<T: Into<PrimeExpr>, U: Into<PrimeExpr>, V: Into<PrimeExpr>>(
         dim: T,
         shape: U,
-        strides: V
+        strides: V,
     ) -> Self {
         Layout {
             dim: dim.into().into(),
