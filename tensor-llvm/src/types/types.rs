@@ -318,10 +318,7 @@ impl BasicType {
         }
     }
     pub fn is_struct(&self) -> bool {
-        match self {
-            BasicType::Struct(_) => true,
-            _ => false,
-        }
+        matches!(self, BasicType::Struct(_))
     }
 }
 

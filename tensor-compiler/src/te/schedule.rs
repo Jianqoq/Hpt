@@ -103,7 +103,7 @@ impl Schedule {
             .map(|x| {
                 let shape = self.nodes.borrow().get(x).unwrap().shape.clone();
                 if shape.len() == 0 {
-                    vec![(1i64).into()].into()
+                    vec![1i64.into()].into()
                 } else {
                     shape
                 }
@@ -116,7 +116,7 @@ impl Schedule {
             .map(|x| {
                 let shape = self.nodes.borrow().get(x).unwrap().shape.clone();
                 if shape.len() == 0 {
-                    vec![(1i64).into()].into()
+                    vec![1i64.into()].into()
                 } else {
                     shape
                 }
@@ -357,7 +357,7 @@ fn empty_fn() -> Function {
             args: Arc::new(
                 vec![
                     (
-                        format!("istrides_vec"),
+                        "istrides_vec".to_string(),
                         PrimitiveType::Ptr(Ptr {
                             inner: Arc::new(
                                 PrimitiveType::Ptr(Ptr {
@@ -367,7 +367,7 @@ fn empty_fn() -> Function {
                         }),
                     ),
                     (
-                        format!("ostrides_vec"),
+                        "ostrides_vec".to_string(),
                         PrimitiveType::Ptr(Ptr {
                             inner: Arc::new(
                                 PrimitiveType::Ptr(Ptr {
@@ -377,7 +377,7 @@ fn empty_fn() -> Function {
                         }),
                     ),
                     (
-                        format!("data_vec"),
+                        "data_vec".to_string(),
                         PrimitiveType::Ptr(Ptr {
                             inner: Arc::new(
                                 PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Void.into() })
@@ -385,7 +385,7 @@ fn empty_fn() -> Function {
                         }),
                     ),
                     (
-                        format!("output_vec"),
+                        "output_vec".to_string(),
                         PrimitiveType::Ptr(Ptr {
                             inner: Arc::new(
                                 PrimitiveType::Ptr(Ptr { inner: PrimitiveType::Void.into() })
@@ -393,18 +393,18 @@ fn empty_fn() -> Function {
                         }),
                     ),
                     (
-                        format!("offset_vec"),
+                        "offset_vec".to_string(),
                         PrimitiveType::Ptr(Ptr {
                             inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
                         }),
                     ),
                     (
-                        format!("shape_vars"),
+                        "shape_vars".to_string(),
                         PrimitiveType::Ptr(Ptr {
                             inner: Arc::new(PrimitiveType::Dtype(Dtype::I64)),
                         }),
                     ),
-                    (format!("thread_idx"), PrimitiveType::Dtype(Dtype::I64))
+                    ("thread_idx".to_string(), PrimitiveType::Dtype(Dtype::I64))
                 ]
             ),
         },

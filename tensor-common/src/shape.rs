@@ -131,10 +131,10 @@ impl DerefMut for Shape {
     }
 }
 
-impl Into<Shape> for &Shape {
-    fn into(self) -> Shape {
+impl From<&Shape> for Shape {
+    fn from(v: &Shape) -> Self {
         Shape {
-            inner: Arc::clone(&self.inner),
+            inner: Arc::clone(&v.inner),
         }
     }
 }
@@ -191,7 +191,7 @@ impl<const N: usize> From<Arc<[i64; N]>> for Shape {
     }
 }
 
-impl<'a> From<&[i64]> for Shape {
+impl From<&[i64]> for Shape {
     fn from(v: &[i64]) -> Self {
         Shape {
             inner: Arc::new(v.to_vec()),

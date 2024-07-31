@@ -42,8 +42,15 @@ use crate::{
     VoidType,
 };
 
+
 pub struct Context {
     pub(crate) context: *mut LLVMContext,
+}
+
+impl Default for Context {
+    fn default() -> Self {
+        Context::new()
+    }
 }
 
 impl Context {

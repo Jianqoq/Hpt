@@ -7,7 +7,7 @@ use serde::Serialize;
 /// This is for wrapping raw pointers to make them safe for multithreading
 ///
 /// This is for internal use only
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Pointer<T> {
     pub ptr: *mut T,
 }
@@ -28,7 +28,7 @@ impl<T> Pointer<T> {
     /// ```
     #[inline(always)]
     pub fn get_ptr(&self) -> *mut T {
-        return self.ptr;
+        self.ptr
     }
 
     /// Wrap a raw pointer into a Pointer struct for supporting `Send` in multithreading, zero cost
@@ -48,7 +48,7 @@ impl<T> Pointer<T> {
     /// ```
     #[inline(always)]
     pub fn new(ptr: *mut T) -> Self {
-        return Self { ptr };
+        Self { ptr }
     }
 
     /// return the address of the pointer
@@ -65,7 +65,7 @@ impl<T> Pointer<T> {
     /// assert_eq!(b, _a as usize);
     /// ```
     pub fn address(&self) -> usize {
-        return self.ptr as usize;
+        self.ptr as usize
     }
 
     /// read the value of the pointer in the current address
@@ -84,7 +84,7 @@ impl<T> Pointer<T> {
     /// ```
     #[inline(always)]
     pub fn read(&self) -> T {
-        return unsafe { self.ptr.read() };
+        unsafe { self.ptr.read() }
     }
 
     /// modify the value of the pointer in the address by the specified offset
@@ -213,19 +213,11 @@ impl<T> Pointer<T> {
     /// ```
     #[inline(always)]
     pub fn jump(&mut self, offset: usize) -> *mut T {
-        return unsafe { self.ptr.add(offset) };
+        unsafe { self.ptr.add(offset) }
     }
 }
 
 unsafe impl<T> Send for Pointer<T> {}
-
-impl<T> Clone for Pointer<T> {
-    fn clone(&self) -> Self {
-        return Self {
-            ptr: self.ptr.clone(),
-        };
-    }
-}
 
 impl<T: Display> Index<i64> for Pointer<T> {
     type Output = T;
@@ -241,8 +233,6 @@ impl<T> Deref for Pointer<T> {
     }
 }
 
-impl<T> Copy for Pointer<T> {}
-
 unsafe impl<T> Sync for Pointer<T> {}
 
 impl<T: Display> Display for Pointer<T> {
@@ -251,7 +241,7 @@ impl<T: Display> Display for Pointer<T> {
     }
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
 pub struct VoidPointer {
     pub ptr: *mut u8,
     pub layout: Layout,
@@ -282,7 +272,7 @@ impl VoidPointer {
     /// ```
     #[inline(always)]
     pub fn get_ptr(&self) -> *mut u8 {
-        return self.ptr;
+        self.ptr
     }
 
     /// Wrap a raw pointer into a Pointer struct for supporting `Send` in multithreading, zero cost
@@ -302,7 +292,7 @@ impl VoidPointer {
     /// ```
     #[inline(always)]
     pub fn new(ptr: *mut u8, layout: Layout) -> Self {
-        return Self { ptr, layout };
+        Self { ptr, layout }
     }
 
     /// return the address of the pointer
@@ -319,7 +309,7 @@ impl VoidPointer {
     /// assert_eq!(b, _a as usize);
     /// ```
     pub fn address(&self) -> usize {
-        return self.ptr as usize;
+        self.ptr as usize
     }
 
     /// inplace increment the value of the pointer in the current address
@@ -390,17 +380,6 @@ impl VoidPointer {
 }
 
 unsafe impl Send for VoidPointer {}
-
-impl Clone for VoidPointer {
-    fn clone(&self) -> Self {
-        return Self {
-            ptr: self.ptr.clone(),
-            layout: self.layout.clone(),
-        };
-    }
-}
-
-impl Copy for VoidPointer {}
 
 impl Debug for VoidPointer {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

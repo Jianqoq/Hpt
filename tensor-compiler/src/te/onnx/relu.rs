@@ -49,7 +49,7 @@ pub fn common_relu(
                                     Load::make(&format!("%{}.s", output_id), idx).into()
                             )
                             .reduce(|acc, x| acc + x)
-                            .unwrap_or((0i64).into()),
+                            .unwrap_or(0i64.into()),
                         Max::make(
                             Variable::make(&format!("%{}_val", stage_out_id)),
                             dtype_zero(res_dtype)

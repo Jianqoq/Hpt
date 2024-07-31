@@ -89,17 +89,17 @@ impl Convertor for bool {
     fn to_f16(self) -> f16 {
         f16::from_f32(self as u8 as f32)
     }
+    fn to_bf16(self) -> bf16 {
+        bf16::from_f32(self as u8 as f32)
+    }
     #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         Complex32::new(self as u8 as f32, 0.0)
     }
+
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         Complex64::new(self as u8 as f64, 0.0)
-    }
-
-    fn to_bf16(self) -> bf16 {
-        bf16::from_f32(self as u8 as f32)
     }
 }
 
@@ -168,17 +168,17 @@ impl Convertor for u8 {
     fn to_f16(self) -> f16 {
         f16::from_f32(self as f32)
     }
+    fn to_bf16(self) -> bf16 {
+        bf16::from_f32(self as f32)
+    }
     #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         Complex32::new(self as f32, 0.0)
     }
+
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         Complex64::new(self as f64, 0.0)
-    }
-
-    fn to_bf16(self) -> bf16 {
-        bf16::from_f32(self as f32)
     }
 }
 
@@ -247,17 +247,17 @@ impl Convertor for u16 {
     fn to_f16(self) -> f16 {
         f16::from_f32(self as f32)
     }
+    fn to_bf16(self) -> bf16 {
+        bf16::from_f32(self as f32)
+    }
     #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         Complex32::new(self as f32, 0.0)
     }
+
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         Complex64::new(self as f64, 0.0)
-    }
-
-    fn to_bf16(self) -> bf16 {
-        bf16::from_f32(self as f32)
     }
 }
 
@@ -326,17 +326,17 @@ impl Convertor for u32 {
     fn to_f16(self) -> f16 {
         f16::from_f32(self as f32)
     }
+    fn to_bf16(self) -> bf16 {
+        bf16::from_f32(self as f32)
+    }
     #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         Complex32::new(self as f32, 0.0)
     }
+
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         Complex64::new(self as f64, 0.0)
-    }
-
-    fn to_bf16(self) -> bf16 {
-        bf16::from_f32(self as f32)
     }
 }
 
@@ -405,17 +405,17 @@ impl Convertor for u64 {
     fn to_f16(self) -> f16 {
         f16::from_f32(self as f32)
     }
+    fn to_bf16(self) -> bf16 {
+        bf16::from_f32(self as f32)
+    }
     #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         Complex32::new(self as f32, 0.0)
     }
+
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         Complex64::new(self as f64, 0.0)
-    }
-
-    fn to_bf16(self) -> bf16 {
-        bf16::from_f32(self as f32)
     }
 }
 
@@ -484,17 +484,17 @@ impl Convertor for u128 {
     fn to_f16(self) -> f16 {
         f16::from_f32(self as f32)
     }
+    fn to_bf16(self) -> bf16 {
+        bf16::from_f32(self as f32)
+    }
     #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         Complex32::new(self as f32, 0.0)
     }
+
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         Complex64::new(self as f64, 0.0)
-    }
-
-    fn to_bf16(self) -> bf16 {
-        bf16::from_f32(self as f32)
     }
 }
 
@@ -563,17 +563,17 @@ impl Convertor for usize {
     fn to_f16(self) -> f16 {
         f16::from_f32(self as f32)
     }
+    fn to_bf16(self) -> bf16 {
+        bf16::from_f32(self as f32)
+    }
     #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         Complex32::new(self as f32, 0.0)
     }
+
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         Complex64::new(self as f64, 0.0)
-    }
-
-    fn to_bf16(self) -> bf16 {
-        bf16::from_f32(self as f32)
     }
 }
 
@@ -642,17 +642,17 @@ impl Convertor for i8 {
     fn to_f16(self) -> f16 {
         f16::from_f32(self as f32)
     }
+    fn to_bf16(self) -> bf16 {
+        bf16::from_f32(self as f32)
+    }
     #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         Complex32::new(self as f32, 0.0)
     }
+
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         Complex64::new(self as f64, 0.0)
-    }
-
-    fn to_bf16(self) -> bf16 {
-        bf16::from_f32(self as f32)
     }
 }
 
@@ -721,17 +721,17 @@ impl Convertor for i16 {
     fn to_f16(self) -> f16 {
         f16::from_f32(self as f32)
     }
+    fn to_bf16(self) -> bf16 {
+        bf16::from_f32(self as f32)
+    }
     #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         Complex32::new(self as f32, 0.0)
     }
+
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         Complex64::new(self as f64, 0.0)
-    }
-
-    fn to_bf16(self) -> bf16 {
-        bf16::from_f32(self as f32)
     }
 }
 
@@ -800,17 +800,17 @@ impl Convertor for i32 {
     fn to_f16(self) -> f16 {
         f16::from_f32(self as f32)
     }
+    fn to_bf16(self) -> bf16 {
+        bf16::from_f32(self as f32)
+    }
     #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         Complex32::new(self as f32, 0.0)
     }
+
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         Complex64::new(self as f64, 0.0)
-    }
-
-    fn to_bf16(self) -> bf16 {
-        bf16::from_f32(self as f32)
     }
 }
 
@@ -879,17 +879,17 @@ impl Convertor for i64 {
     fn to_f16(self) -> f16 {
         f16::from_f32(self as f32)
     }
+    fn to_bf16(self) -> bf16 {
+        bf16::from_f32(self as f32)
+    }
     #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         Complex32::new(self as f32, 0.0)
     }
+
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         Complex64::new(self as f64, 0.0)
-    }
-
-    fn to_bf16(self) -> bf16 {
-        bf16::from_f32(self as f32)
     }
 }
 
@@ -958,17 +958,17 @@ impl Convertor for i128 {
     fn to_f16(self) -> f16 {
         f16::from_f32(self as f32)
     }
+    fn to_bf16(self) -> bf16 {
+        bf16::from_f32(self as f32)
+    }
     #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         Complex32::new(self as f32, 0.0)
     }
+
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         Complex64::new(self as f64, 0.0)
-    }
-
-    fn to_bf16(self) -> bf16 {
-        bf16::from_f32(self as f32)
     }
 }
 
@@ -1039,6 +1039,10 @@ impl Convertor for isize {
         f16::from_f32(self as f32)
     }
 
+    fn to_bf16(self) -> bf16 {
+        bf16::from_f32(self as f32)
+    }
+
     #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         Complex32::new(self as f32, 0.0)
@@ -1047,10 +1051,6 @@ impl Convertor for isize {
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         Complex64::new(self as f64, 0.0)
-    }
-
-    fn to_bf16(self) -> bf16 {
-        bf16::from_f32(self as f32)
     }
 }
 
@@ -1121,6 +1121,10 @@ impl Convertor for f32 {
         f16::from_f32(self)
     }
 
+    fn to_bf16(self) -> bf16 {
+        bf16::from_f32(self)
+    }
+
     #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         Complex32::new(self, 0.0)
@@ -1129,10 +1133,6 @@ impl Convertor for f32 {
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         Complex64::new(self as f64, 0.0)
-    }
-
-    fn to_bf16(self) -> bf16 {
-        bf16::from_f32(self)
     }
 }
 
@@ -1203,6 +1203,10 @@ impl Convertor for f64 {
         f16::from_f32(self as f32)
     }
 
+    fn to_bf16(self) -> bf16 {
+        bf16::from_f32(self as f32)
+    }
+
     #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         Complex32::new(self as f32, 0.0)
@@ -1211,10 +1215,6 @@ impl Convertor for f64 {
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         Complex64::new(self, 0.0)
-    }
-
-    fn to_bf16(self) -> bf16 {
-        bf16::from_f32(self as f32)
     }
 }
 
@@ -1285,6 +1285,10 @@ impl Convertor for f16 {
         self
     }
 
+    fn to_bf16(self) -> bf16 {
+        bf16::from_f32(self.to_f32())
+    }
+
     #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         Complex32::new(self.to_f32(), 0.0)
@@ -1293,10 +1297,6 @@ impl Convertor for f16 {
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         Complex64::new(self.to_f64(), 0.0)
-    }
-
-    fn to_bf16(self) -> bf16 {
-        bf16::from_f32(self.to_f32())
     }
 }
 
@@ -1367,6 +1367,10 @@ impl Convertor for Complex32 {
         f16::from_f32(self.re)
     }
 
+    fn to_bf16(self) -> bf16 {
+        bf16::from_f32(self.re)
+    }
+
     #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         self
@@ -1375,10 +1379,6 @@ impl Convertor for Complex32 {
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         Complex64::new(self.re as f64, self.im as f64)
-    }
-
-    fn to_bf16(self) -> bf16 {
-        bf16::from_f32(self.re)
     }
 }
 
@@ -1449,6 +1449,10 @@ impl Convertor for Complex64 {
         f16::from_f32(self.re as f32)
     }
 
+    fn to_bf16(self) -> bf16 {
+        bf16::from_f32(self.re as f32)
+    }
+
     #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         Complex32::new(self.re as f32, self.im as f32)
@@ -1457,10 +1461,6 @@ impl Convertor for Complex64 {
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         self
-    }
-
-    fn to_bf16(self) -> bf16 {
-        bf16::from_f32(self.re as f32)
     }
 }
 
@@ -1532,6 +1532,11 @@ impl Convertor for bf16 {
     }
 
     #[inline(always)]
+    fn to_bf16(self) -> bf16 {
+        self
+    }
+
+    #[inline(always)]
     fn to_complex32(self) -> Complex32 {
         Complex32::new(self.to_f32(), 0.0)
     }
@@ -1539,11 +1544,6 @@ impl Convertor for bf16 {
     #[inline(always)]
     fn to_complex64(self) -> Complex64 {
         Complex64::new(self.to_f64(), 0.0)
-    }
-
-    #[inline(always)]
-    fn to_bf16(self) -> bf16 {
-        self
     }
 }
 

@@ -53,7 +53,7 @@ impl MutatorGetSet for ConstFold {
 }
 
 impl IRMutateVisitor for ConstFold {
-    fn visit_add(&mut self, add: &crate::halide::exprs::Add) {
+    fn visit_add(&mut self, add: &Add) {
         let e1 = self.mutate_expr(add.e1());
         let e2 = self.mutate_expr(add.e2());
         match (&e1, &e2) {
@@ -162,7 +162,7 @@ impl IRMutateVisitor for ConstFold {
             }
         }
     }
-    fn visit_sub(&mut self, sub: &crate::halide::exprs::Sub) {
+    fn visit_sub(&mut self, sub: &Sub) {
         let e1 = self.mutate_expr(sub.e1());
         let e2 = self.mutate_expr(sub.e2());
         match (&e1, &e2) {
@@ -207,7 +207,7 @@ impl IRMutateVisitor for ConstFold {
                         self.folded = true;
                     }
                     _ => {
-                        self.set_expr(PrimeExpr::Sub(crate::halide::exprs::Sub::make(e1, e2)));
+                        self.set_expr(PrimeExpr::Sub(Sub::make(e1, e2)));
                     }
                 }
             }
@@ -216,7 +216,7 @@ impl IRMutateVisitor for ConstFold {
                     self.set_expr(PrimeExpr::Neg(crate::halide::exprs::Neg::make(e2)));
                     self.folded = true;
                 } else {
-                    self.set_expr(PrimeExpr::Sub(crate::halide::exprs::Sub::make(e1, e2)));
+                    self.set_expr(PrimeExpr::Sub(Sub::make(e1, e2)));
                 }
             }
             (_, PrimeExpr::Int(i2)) => {
@@ -224,7 +224,7 @@ impl IRMutateVisitor for ConstFold {
                     self.set_expr(e1);
                     self.folded = true;
                 } else {
-                    self.set_expr(PrimeExpr::Sub(crate::halide::exprs::Sub::make(e1, e2)));
+                    self.set_expr(PrimeExpr::Sub(Sub::make(e1, e2)));
                 }
             }
             (PrimeExpr::Float(f1), _) => {
@@ -232,7 +232,7 @@ impl IRMutateVisitor for ConstFold {
                     self.set_expr(PrimeExpr::Neg(crate::halide::exprs::Neg::make(e2)));
                     self.folded = true;
                 } else {
-                    self.set_expr(PrimeExpr::Sub(crate::halide::exprs::Sub::make(e1, e2)));
+                    self.set_expr(PrimeExpr::Sub(Sub::make(e1, e2)));
                 }
             }
             (_, PrimeExpr::Float(f2)) => {
@@ -240,11 +240,11 @@ impl IRMutateVisitor for ConstFold {
                     self.set_expr(e1);
                     self.folded = true;
                 } else {
-                    self.set_expr(PrimeExpr::Sub(crate::halide::exprs::Sub::make(e1, e2)));
+                    self.set_expr(PrimeExpr::Sub(Sub::make(e1, e2)));
                 }
             }
             _ => {
-                self.set_expr(PrimeExpr::Sub(crate::halide::exprs::Sub::make(e1, e2)));
+                self.set_expr(PrimeExpr::Sub(Sub::make(e1, e2)));
             }
         }
     }
@@ -402,58 +402,43 @@ impl IRMutateVisitor for ConstFold {
         }
     }
 
-    fn visit_and(&mut self, and: &crate::halide::exprs::BitAnd) {
-        let e1 = self.mutate_expr(and.e1());
-        let e2 = self.mutate_expr(and.e2());
+    fn visit_min(&mut self, min: &crate::halide::exprs::Min) {
+        let e1 = self.mutate_expr(min.e1());
+        let e2 = self.mutate_expr(min.e2());
         match (&e1, &e2) {
             (PrimeExpr::Int(i1), PrimeExpr::Int(i2)) => {
                 self.set_expr(
                     PrimeExpr::Int(
-                        Int::make(i1.dtype()._bitand(*i2.dtype()), i1.value() & i2.value())
+                        Int::make(i1.dtype()._add(*i2.dtype()), i1.value().min(i2.value()))
+                    )
+                );
+                self.folded = true;
+            }
+            (PrimeExpr::Int(i1), PrimeExpr::Float(f2)) => {
+                self.set_expr(
+                    PrimeExpr::Float(
+                        Float::make(
+                            i1.dtype()._add(*f2.dtype()),
+                            (i1.value() as f64).min(f2.value())
+                        )
+                    )
+                );
+                self.folded = true;
+            }
+            (PrimeExpr::Float(f1), PrimeExpr::Int(i2)) => {
+                self.set_expr(
+                    PrimeExpr::Float(
+                        Float::make(f1.dtype()._add(*i2.dtype()), f1.value().min(i2.value() as f64))
                     )
                 );
                 self.folded = true;
             }
             _ => {
-                self.set_expr(PrimeExpr::BitAnd(crate::halide::exprs::BitAnd::make(e1, e2)));
+                self.set_expr(PrimeExpr::Min(crate::halide::exprs::Min::make(e1, e2)));
             }
         }
     }
 
-    fn visit_or(&mut self, or: &crate::halide::exprs::BitOr) {
-        let e1 = self.mutate_expr(or.e1());
-        let e2 = self.mutate_expr(or.e2());
-        match (&e1, &e2) {
-            (PrimeExpr::Int(i1), PrimeExpr::Int(i2)) => {
-                self.set_expr(
-                    PrimeExpr::Int(
-                        Int::make(i1.dtype()._bitor(*i2.dtype()), i1.value() | i2.value())
-                    )
-                );
-                self.folded = true;
-            }
-            _ => {
-                self.set_expr(PrimeExpr::BitOr(crate::halide::exprs::BitOr::make(e1, e2)));
-            }
-        }
-    }
-    fn visit_xor(&mut self, xor: &crate::halide::exprs::BitXor) {
-        let e1 = self.mutate_expr(xor.e1());
-        let e2 = self.mutate_expr(xor.e2());
-        match (&e1, &e2) {
-            (PrimeExpr::Int(i1), PrimeExpr::Int(i2)) => {
-                self.set_expr(
-                    PrimeExpr::Int(
-                        Int::make(i1.dtype()._bitxor(*i2.dtype()), i1.value() ^ i2.value())
-                    )
-                );
-                self.folded = true;
-            }
-            _ => {
-                self.set_expr(PrimeExpr::BitXor(crate::halide::exprs::BitXor::make(e1, e2)));
-            }
-        }
-    }
     fn visit_max(&mut self, max: &crate::halide::exprs::Max) {
         let e1 = self.mutate_expr(max.e1());
         let e2 = self.mutate_expr(max.e2());
@@ -489,40 +474,55 @@ impl IRMutateVisitor for ConstFold {
             }
         }
     }
-
-    fn visit_min(&mut self, min: &crate::halide::exprs::Min) {
-        let e1 = self.mutate_expr(min.e1());
-        let e2 = self.mutate_expr(min.e2());
+    fn visit_and(&mut self, and: &crate::halide::exprs::BitAnd) {
+        let e1 = self.mutate_expr(and.e1());
+        let e2 = self.mutate_expr(and.e2());
         match (&e1, &e2) {
             (PrimeExpr::Int(i1), PrimeExpr::Int(i2)) => {
                 self.set_expr(
                     PrimeExpr::Int(
-                        Int::make(i1.dtype()._add(*i2.dtype()), i1.value().min(i2.value()))
-                    )
-                );
-                self.folded = true;
-            }
-            (PrimeExpr::Int(i1), PrimeExpr::Float(f2)) => {
-                self.set_expr(
-                    PrimeExpr::Float(
-                        Float::make(
-                            i1.dtype()._add(*f2.dtype()),
-                            (i1.value() as f64).min(f2.value())
-                        )
-                    )
-                );
-                self.folded = true;
-            }
-            (PrimeExpr::Float(f1), PrimeExpr::Int(i2)) => {
-                self.set_expr(
-                    PrimeExpr::Float(
-                        Float::make(f1.dtype()._add(*i2.dtype()), f1.value().min(i2.value() as f64))
+                        Int::make(i1.dtype()._bitand(*i2.dtype()), i1.value() & i2.value())
                     )
                 );
                 self.folded = true;
             }
             _ => {
-                self.set_expr(PrimeExpr::Min(crate::halide::exprs::Min::make(e1, e2)));
+                self.set_expr(PrimeExpr::BitAnd(crate::halide::exprs::BitAnd::make(e1, e2)));
+            }
+        }
+    }
+    fn visit_xor(&mut self, xor: &crate::halide::exprs::BitXor) {
+        let e1 = self.mutate_expr(xor.e1());
+        let e2 = self.mutate_expr(xor.e2());
+        match (&e1, &e2) {
+            (PrimeExpr::Int(i1), PrimeExpr::Int(i2)) => {
+                self.set_expr(
+                    PrimeExpr::Int(
+                        Int::make(i1.dtype()._bitxor(*i2.dtype()), i1.value() ^ i2.value())
+                    )
+                );
+                self.folded = true;
+            }
+            _ => {
+                self.set_expr(PrimeExpr::BitXor(crate::halide::exprs::BitXor::make(e1, e2)));
+            }
+        }
+    }
+
+    fn visit_or(&mut self, or: &crate::halide::exprs::BitOr) {
+        let e1 = self.mutate_expr(or.e1());
+        let e2 = self.mutate_expr(or.e2());
+        match (&e1, &e2) {
+            (PrimeExpr::Int(i1), PrimeExpr::Int(i2)) => {
+                self.set_expr(
+                    PrimeExpr::Int(
+                        Int::make(i1.dtype()._bitor(*i2.dtype()), i1.value() | i2.value())
+                    )
+                );
+                self.folded = true;
+            }
+            _ => {
+                self.set_expr(PrimeExpr::BitOr(crate::halide::exprs::BitOr::make(e1, e2)));
             }
         }
     }

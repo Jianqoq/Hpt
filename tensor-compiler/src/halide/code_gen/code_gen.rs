@@ -170,6 +170,79 @@ impl CodeGen {
 }
 
 impl CodeGenVisitor for CodeGen {
+    fn visit_tensor_load(&mut self, tensor_load: &TensorLoad) -> BasicValue {
+        let one = PrimeExpr::Int(Int::make(Dtype::I64, 1i64));
+        let zero = PrimeExpr::Int(Int::make(Dtype::I64, 0i64));
+        assert_eq!(tensor_load.begins.len(), tensor_load.axes.len());
+        assert_eq!(tensor_load.begins.len(), tensor_load.steps.len());
+        assert_eq!(tensor_load.begins.len(), tensor_load.strides.len());
+        let mut indices = PrimeExpr::None;
+        for (begin, axes, step, stride) in izip!(
+            tensor_load.begins.iter(),
+            tensor_load.axes.iter(),
+            tensor_load.steps.iter(),
+            tensor_load.strides.iter()
+        ) {
+            if begin == &zero && step == &one {
+                if indices.is_none() {
+                    indices = axes.clone() * stride.clone();
+                } else {
+                    indices = indices + axes.clone() * stride.clone();
+                }
+            } else if step == &one {
+                if indices.is_none() {
+                    indices = (axes.clone() + begin.clone()) * stride.clone();
+                } else {
+                    indices = indices + (axes.clone() + begin.clone()) * stride.clone();
+                }
+            } else {
+                if indices.is_none() {
+                    indices = (axes.clone() * step.clone() + begin.clone()) * stride.clone();
+                } else {
+                    indices =
+                        indices + (axes.clone() * step.clone() + begin.clone()) * stride.clone();
+                }
+            }
+        }
+        let load = Load::make(tensor_load.var.as_ref(), indices);
+        self.visit_load(&load)
+    }
+
+    fn visit_alloca(&mut self, alloca: &AllocaStmt) {
+        let var = alloca.var();
+        self.bindings.get_mut(&self.current_fn).expect("fn not find").insert_mutable(&var.name);
+        let alloca_ty = PrimitiveType::Ptr(Ptr {
+            inner: Arc::new(alloca.dtype().clone()),
+        });
+        let llvm_ty = primitive_ty_to_llvm(&self.ctx, &alloca_ty, self.tensor_type);
+        let ptr = self.builder.build_alloca(llvm_ty, &var.name);
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_variable(&var.name, ptr.into());
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(ptr.into(), alloca_ty);
+        self.visit_stmt(&alloca.body())
+    }
+
+    fn visit_layout(&mut self, layout: &crate::halide::exprs::Layout) -> BasicValue {
+        todo!()
+    }
+
+    fn visit_malloc(&mut self, malloc: &crate::halide::exprs::Malloc) -> BasicValue {
+        todo!()
+    }
+
+    fn visit_shl(&mut self, shl: &crate::halide::exprs::Shl) -> BasicValue {
+        todo!()
+    }
+
+    fn visit_shr(&mut self, shr: &crate::halide::exprs::Shr) -> BasicValue {
+        todo!()
+    }
+
     fn visit_return(&mut self, return_: &crate::halide::return_stmt::ReturnStmt) {
         let return_block = self.ctx.append_basic_block(&self.id_fns[&self.current_fn], "return");
         self.builder.build_unconditional_branch(return_block);
@@ -345,6 +418,23 @@ impl CodeGenVisitor for CodeGen {
         res
     }
 
+    fn visit_neg(&mut self, neg: &crate::halide::exprs::Neg) -> BasicValue {
+        let val = self.visit_expr(neg.e());
+        let val_ty = self.bindings[&self.current_fn].find_type(&val).unwrap().dtype();
+        let res = match val_ty {
+            Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
+                self.builder.build_int_neg(val, "neg")
+            }
+            Dtype::F32 | Dtype::F64 => { self.builder.build_float_neg(val, "neg") }
+            _ => unimplemented!("unsupported dtype, {}", val_ty),
+        };
+        self.bindings
+            .get_mut(&self.current_fn)
+            .expect("fn not find")
+            .insert_type(res, PrimitiveType::Dtype(val_ty));
+        res
+    }
+
     fn visit_floor_div(&mut self, floor_div: &crate::halide::exprs::FloorDiv) -> BasicValue {
         let lhs = self.visit_expr(floor_div.e1());
         let rhs = self.visit_expr(floor_div.e2());
@@ -433,7 +523,7 @@ impl CodeGenVisitor for CodeGen {
         let res = match res_type {
             Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
                 let cond = self.builder.build_int_cmp(
-                    llvm_sys::LLVMIntPredicate::LLVMIntSLT,
+                    LLVMIntPredicate::LLVMIntSLT,
                     casted_lhs,
                     casted_rhs,
                     "min_cond"
@@ -442,7 +532,7 @@ impl CodeGenVisitor for CodeGen {
             }
             Dtype::Bool | Dtype::U8 | Dtype::U16 | Dtype::U32 | Dtype::U64 | Dtype::Usize => {
                 let cond = self.builder.build_int_cmp(
-                    llvm_sys::LLVMIntPredicate::LLVMIntULT,
+                    LLVMIntPredicate::LLVMIntULT,
                     casted_lhs,
                     casted_rhs,
                     "min_cond"
@@ -451,7 +541,7 @@ impl CodeGenVisitor for CodeGen {
             }
             Dtype::BF16 | Dtype::F16 | Dtype::F32 | Dtype::F64 => {
                 let cond = self.builder.build_float_cmp(
-                    llvm_sys::LLVMRealPredicate::LLVMRealOLT,
+                    LLVMRealPredicate::LLVMRealOLT,
                     casted_lhs,
                     casted_rhs,
                     "min_cond"
@@ -478,7 +568,7 @@ impl CodeGenVisitor for CodeGen {
         let res = match res_type {
             Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
                 let cond = self.builder.build_int_cmp(
-                    llvm_sys::LLVMIntPredicate::LLVMIntSLT,
+                    LLVMIntPredicate::LLVMIntSLT,
                     casted_lhs,
                     casted_rhs,
                     "max_cond"
@@ -487,7 +577,7 @@ impl CodeGenVisitor for CodeGen {
             }
             Dtype::Bool | Dtype::U8 | Dtype::U16 | Dtype::U32 | Dtype::U64 | Dtype::Usize => {
                 let cond = self.builder.build_int_cmp(
-                    llvm_sys::LLVMIntPredicate::LLVMIntULT,
+                    LLVMIntPredicate::LLVMIntULT,
                     casted_lhs,
                     casted_rhs,
                     "max_cond"
@@ -496,7 +586,7 @@ impl CodeGenVisitor for CodeGen {
             }
             Dtype::BF16 | Dtype::F16 | Dtype::F32 | Dtype::F64 => {
                 let cond = self.builder.build_float_cmp(
-                    llvm_sys::LLVMRealPredicate::LLVMRealOLT,
+                    LLVMRealPredicate::LLVMRealOLT,
                     casted_lhs,
                     casted_rhs,
                     "max_cond"
@@ -952,7 +1042,7 @@ impl CodeGenVisitor for CodeGen {
         phi.add_incoming(&[(&start, entry_block)]);
 
         let cond = self.builder.build_int_cmp(
-            llvm_sys::LLVMIntPredicate::LLVMIntSLT,
+            LLVMIntPredicate::LLVMIntSLT,
             phi.into(),
             end,
             "cond"
@@ -972,7 +1062,7 @@ impl CodeGenVisitor for CodeGen {
     }
 
     #[rustfmt::skip]
-    fn visit_int(&mut self, int: &crate::halide::exprs::Int) -> BasicValue {
+    fn visit_int(&mut self, int: &Int) -> BasicValue {
         let res: BasicValue = match int.dtype() {
             Dtype::I8 => self.ctx.i8_type().const_int(int.value() as u64, false).into(),
             Dtype::I16 =>   self.ctx.i16_type().const_int(int.value() as u64, false).into(),
@@ -991,11 +1081,11 @@ impl CodeGenVisitor for CodeGen {
     #[rustfmt::skip]
     fn visit_uint(&mut self, uint: &crate::halide::exprs::UInt) -> BasicValue {
         let res: BasicValue = match uint.dtype() {
-            Dtype::U8 => self.ctx.u8_type().const_int(uint.value() as u64, false).into(),
-            Dtype::U16 =>   self.ctx.u16_type().const_int(uint.value() as u64, false).into(),
-            Dtype::U32 => self.ctx.u32_type().const_int(uint.value() as u64, false).into(),
-            Dtype::U64 => self.ctx.u64_type().const_int(uint.value() as u64, false).into(),
-            Dtype::Usize => self.ctx.usize_type().const_int(uint.value() as u64, false).into(),
+            Dtype::U8 => self.ctx.u8_type().const_int(uint.value(), false).into(),
+            Dtype::U16 =>   self.ctx.u16_type().const_int(uint.value(), false).into(),
+            Dtype::U32 => self.ctx.u32_type().const_int(uint.value(), false).into(),
+            Dtype::U64 => self.ctx.u64_type().const_int(uint.value(), false).into(),
+            Dtype::Usize => self.ctx.usize_type().const_int(uint.value(), false).into(),
             _ => unimplemented!("unsupported dtype, {}", uint.dtype()),
         };
         self.bindings
@@ -1261,14 +1351,14 @@ impl CodeGenVisitor for CodeGen {
         let false_val = self.visit_expr(select.false_expr());
         let true_ty = self.bindings[&self.current_fn].find_type(&true_val).unwrap().clone();
         let false_ty = self.bindings[&self.current_fn].find_type(&false_val).unwrap().clone();
-        assert!(true_ty == false_ty);
+        assert_eq!(true_ty, false_ty);
 
         let res = self.builder.build_select(cond, true_val, false_val, "select");
         self.bindings.get_mut(&self.current_fn).expect("fn not find").insert_type(res, true_ty);
         res
     }
 
-    fn visit_load(&mut self, _load: &crate::halide::exprs::Load) -> BasicValue {
+    fn visit_load(&mut self, _load: &Load) -> BasicValue {
         let var = _load.name();
         let basic_val = self.bindings[&self.current_fn]
             .find_variable(&var.name)
@@ -1740,7 +1830,7 @@ impl CodeGenVisitor for CodeGen {
         self.builder.build_store(gep, res)
     }
 
-    fn visit_function(&mut self, function: &crate::halide::module::Function) {
+    fn visit_function(&mut self, function: &Function) {
         let id = self.fns_id[&self.fns[&function.name]];
         assert!(self.bindings.get(&id).is_none());
         let mut scope_stack = ScopeStack::new();
@@ -1756,96 +1846,6 @@ impl CodeGenVisitor for CodeGen {
         self.current_fn = id;
         self.visit_stmt(&function.body);
         self.builder.position_at_end(block);
-    }
-
-    fn visit_shl(&mut self, shl: &crate::halide::exprs::Shl) -> BasicValue {
-        todo!()
-    }
-
-    fn visit_shr(&mut self, shr: &crate::halide::exprs::Shr) -> BasicValue {
-        todo!()
-    }
-
-    fn visit_layout(&mut self, layout: &crate::halide::exprs::Layout) -> BasicValue {
-        todo!()
-    }
-
-    fn visit_malloc(&mut self, malloc: &crate::halide::exprs::Malloc) -> BasicValue {
-        todo!()
-    }
-
-    fn visit_alloca(&mut self, alloca: &AllocaStmt) {
-        let var = alloca.var();
-        self.bindings.get_mut(&self.current_fn).expect("fn not find").insert_mutable(&var.name);
-        let alloca_ty = PrimitiveType::Ptr(Ptr {
-            inner: Arc::new(alloca.dtype().clone()),
-        });
-        let llvm_ty = primitive_ty_to_llvm(&self.ctx, &alloca_ty, self.tensor_type);
-        let ptr = self.builder.build_alloca(llvm_ty, &var.name);
-        self.bindings
-            .get_mut(&self.current_fn)
-            .expect("fn not find")
-            .insert_variable(&var.name, ptr.into());
-        self.bindings
-            .get_mut(&self.current_fn)
-            .expect("fn not find")
-            .insert_type(ptr.into(), alloca_ty);
-        self.visit_stmt(&alloca.body())
-    }
-
-    fn visit_tensor_load(&mut self, tensor_load: &TensorLoad) -> BasicValue {
-        let one = PrimeExpr::Int(Int::make(Dtype::I64, 1i64));
-        let zero = PrimeExpr::Int(Int::make(Dtype::I64, 0i64));
-        assert!(tensor_load.begins.len() == tensor_load.axes.len());
-        assert!(tensor_load.begins.len() == tensor_load.steps.len());
-        assert!(tensor_load.begins.len() == tensor_load.strides.len());
-        let mut indices = PrimeExpr::None;
-        for (begin, axes, step, stride) in izip!(
-            tensor_load.begins.iter(),
-            tensor_load.axes.iter(),
-            tensor_load.steps.iter(),
-            tensor_load.strides.iter()
-        ) {
-            if begin == &zero && step == &one {
-                if indices.is_none() {
-                    indices = axes.clone() * stride.clone();
-                } else {
-                    indices = indices + axes.clone() * stride.clone();
-                }
-            } else if step == &one {
-                if indices.is_none() {
-                    indices = (axes.clone() + begin.clone()) * stride.clone();
-                } else {
-                    indices = indices + (axes.clone() + begin.clone()) * stride.clone();
-                }
-            } else {
-                if indices.is_none() {
-                    indices = (axes.clone() * step.clone() + begin.clone()) * stride.clone();
-                } else {
-                    indices =
-                        indices + (axes.clone() * step.clone() + begin.clone()) * stride.clone();
-                }
-            }
-        }
-        let load = Load::make(tensor_load.var.as_ref(), indices);
-        self.visit_load(&load)
-    }
-
-    fn visit_neg(&mut self, neg: &crate::halide::exprs::Neg) -> BasicValue {
-        let val = self.visit_expr(neg.e());
-        let val_ty = self.bindings[&self.current_fn].find_type(&val).unwrap().dtype();
-        let res = match val_ty {
-            Dtype::I8 | Dtype::I16 | Dtype::I32 | Dtype::I64 | Dtype::Isize => {
-                self.builder.build_int_neg(val, "neg")
-            }
-            Dtype::F32 | Dtype::F64 => { self.builder.build_float_neg(val, "neg") }
-            _ => unimplemented!("unsupported dtype, {}", val_ty),
-        };
-        self.bindings
-            .get_mut(&self.current_fn)
-            .expect("fn not find")
-            .insert_type(res, PrimitiveType::Dtype(val_ty));
-        res
     }
 }
 

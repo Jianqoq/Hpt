@@ -24,7 +24,7 @@ pub struct StridedMut<'a, T> {
 impl<'a, T: CommonBounds> StridedMut<'a, T> {
     pub fn new<U: TensorInfo<T>>(res_tensor: U) -> Self {
         let inner_loop_size = res_tensor.shape()[res_tensor.shape().len() - 1] as usize;
-        let outer_loop_size = res_tensor.size() / (inner_loop_size as usize);
+        let outer_loop_size = res_tensor.size() / (inner_loop_size);
         let mut num_threads = rayon::current_num_threads();
         if outer_loop_size < num_threads {
             num_threads = outer_loop_size;
@@ -57,7 +57,7 @@ impl<'a, T: CommonBounds> StridedMut<'a, T> {
     }
 }
 
-impl<'a, T> ParallelIterator for StridedMut<'a, T> where T: Clone + Sync + Send + 'a {
+impl<'a, T> ParallelIterator for StridedMut<'a, T> where T: Clone + Sync + Send + 'a + Copy {
     type Item = &'a mut T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item> {
@@ -65,7 +65,7 @@ impl<'a, T> ParallelIterator for StridedMut<'a, T> where T: Clone + Sync + Send 
     }
 }
 
-impl<'a, T> UnindexedProducer for StridedMut<'a, T> where T: Clone + Sync + Send + 'a {
+impl<'a, T> UnindexedProducer for StridedMut<'a, T> where T: Clone + Sync + Send + 'a + Copy {
     type Item = &'a mut T;
 
     fn split(mut self) -> (Self, Option<Self>) {
@@ -137,6 +137,14 @@ impl<'a, T: 'a> IterGetSet for StridedMut<'a, T> {
 
     fn broadcast_set_strides(&mut self, _: &Shape) {}
 
+    fn outer_loop_size(&self) -> usize {
+        (self.shape.size() as usize) / self.inner_loop_size()
+    }
+
+    fn inner_loop_size(&self) -> usize {
+        self.shape[self.shape.len() - 1] as usize
+    }
+
     fn next(&mut self) {
         let index = self.intervals[self.start_index].0 * (*self.shape.last().unwrap() as usize);
         self.ptr.add(index);
@@ -145,13 +153,5 @@ impl<'a, T: 'a> IterGetSet for StridedMut<'a, T> {
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         unsafe { self.ptr.get_ptr().add(index).as_mut().unwrap() }
-    }
-
-    fn outer_loop_size(&self) -> usize {
-        (self.shape.size() as usize) / self.inner_loop_size()
-    }
-
-    fn inner_loop_size(&self) -> usize {
-        self.shape[self.shape.len() - 1] as usize
     }
 }

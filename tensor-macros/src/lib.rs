@@ -24,7 +24,7 @@ struct Selections {
     selections: Vec<TokenStream>,
 }
 
-impl syn::parse::Parse for SelectionParser {
+impl parse::Parse for SelectionParser {
     fn parse(input: parse::ParseStream) -> syn::Result<Self> {
         let mut start: Option<i64> = None;
         let mut end: Option<i64> = None;
@@ -100,7 +100,7 @@ impl syn::parse::Parse for SelectionParser {
     }
 }
 
-impl syn::parse::Parse for Selections {
+impl parse::Parse for Selections {
     fn parse(input: parse::ParseStream) -> syn::Result<Self> {
         let mut selections: Vec<TokenStream> = vec![];
         let mut tokenstream = TokenStream2::new();
@@ -116,7 +116,7 @@ impl syn::parse::Parse for Selections {
             }
         }
         selections.push(tokenstream.into());
-        syn::Result::Ok(Self { selections })
+        Ok(Self { selections })
     }
 }
 
@@ -372,7 +372,7 @@ struct InferEnumType {
     mode: Ident,
 }
 
-impl syn::parse::Parse for InferEnumType {
+impl parse::Parse for InferEnumType {
     fn parse(input: parse::ParseStream) -> syn::Result<Self> {
         let lhs = input.parse::<Expr>().expect("lhs is not found");
         input.parse::<Token![,]>()?;
@@ -436,7 +436,7 @@ struct GenericCal {
     method: Ident,
 }
 
-impl syn::parse::Parse for GenericCal {
+impl parse::Parse for GenericCal {
     fn parse(input: parse::ParseStream) -> syn::Result<Self> {
         let lhs = input.parse::<Ident>().expect("lhs is not found");
         input.parse::<Token![,]>()?;

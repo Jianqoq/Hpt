@@ -70,7 +70,7 @@ impl Srg {
                             TensorLoad {
                                 var: Variable::make(&format!("%{}", node.id)).into(),
                                 begins: (0..node.shape.len())
-                                    .map(|_| (0i64).into())
+                                    .map(|_| 0i64.into())
                                     .collect::<Vec<PrimeExpr>>()
                                     .into(),
                                 axes: (0..node.shape.len())
@@ -78,7 +78,7 @@ impl Srg {
                                     .collect::<Vec<PrimeExpr>>()
                                     .into(),
                                 steps: (0..node.shape.len())
-                                    .map(|_| (1i64).into())
+                                    .map(|_| 1i64.into())
                                     .collect::<Vec<PrimeExpr>>()
                                     .into(),
                                 strides: (0..node.shape.len())

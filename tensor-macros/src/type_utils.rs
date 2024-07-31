@@ -7,10 +7,7 @@ pub fn is_float(list: &str) -> bool {
 }
 
 pub fn is_signed(list: &str) -> bool {
-    match list.to_lowercase().as_str() {
-        "i8" | "i16" | "i32" | "i64" | "bf16" | "f16" | "f32" | "f64" => true,
-        _ => false,
-    }
+    matches!(list.to_lowercase().as_str(), "i8" | "i16" | "i32" | "i64" | "bf16" | "f16" | "f32" | "f64")
 }
 
 pub fn type_level(list: &str) -> u8 {
@@ -122,16 +119,10 @@ pub(crate) enum Type {
 
 impl Type {
     pub fn is_float(&self) -> bool {
-        match self {
-            Type::BF16 | Type::F16 | Type::F32 | Type::F64 | Type::C32 | Type::C64 => true,
-            _ => false,
-        }
+        matches!(self, Type::BF16 | Type::F16 | Type::F32 | Type::F64 | Type::C32 | Type::C64)
     }
     pub fn is_unsigned(&self) -> bool {
-        match self {
-            Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Usize => true,
-            _ => false,
-        }
+        matches!(self, Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Usize)
     }
     pub fn is_bool(&self) -> bool {
         matches!(self, Type::Bool)

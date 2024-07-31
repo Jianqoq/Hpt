@@ -62,16 +62,6 @@ impl IRMutateVisitor for SubstituteExpr {
         }
     }
 
-    fn visit_let_stmt(&mut self, let_stmt: &LetStmt) {
-        let value = self.mutate_expr(let_stmt.value());
-        let body = self.mutate_stmt(let_stmt.body());
-        if &body == let_stmt.body() && &value == let_stmt.value() {
-            self.set_stmt(let_stmt);
-        } else {
-            self.set_stmt(LetStmt::make(let_stmt.var(), value, let_stmt.mutable(), body));
-        }
-    }
-
     fn visit_variable(&mut self, var: &crate::halide::variable::Variable) {
         if let Some(replacement) = self.find_replacement(&var.into()) {
             self.set_expr(replacement.clone());
@@ -79,11 +69,12 @@ impl IRMutateVisitor for SubstituteExpr {
             self.set_expr(var);
         }
     }
-    fn visit_mul(&mut self, mul: &crate::halide::exprs::Mul) {
-        if let Some(replacement) = self.find_replacement(&mul.into()) {
+
+    fn visit_add(&mut self, add: &crate::halide::exprs::Add) {
+        if let Some(replacement) = self.find_replacement(&add.into()) {
             self.set_expr(replacement.clone());
         } else {
-            visit_mul(self, mul);
+            visit_add(self, add);
         }
     }
     fn visit_sub(&mut self, sub: &crate::halide::exprs::Sub) {
@@ -93,11 +84,20 @@ impl IRMutateVisitor for SubstituteExpr {
             visit_sub(self, sub);
         }
     }
-    fn visit_add(&mut self, add: &crate::halide::exprs::Add) {
-        if let Some(replacement) = self.find_replacement(&add.into()) {
+    fn visit_mul(&mut self, mul: &crate::halide::exprs::Mul) {
+        if let Some(replacement) = self.find_replacement(&mul.into()) {
             self.set_expr(replacement.clone());
         } else {
-            visit_add(self, add);
+            visit_mul(self, mul);
+        }
+    }
+    fn visit_let_stmt(&mut self, let_stmt: &LetStmt) {
+        let value = self.mutate_expr(let_stmt.value());
+        let body = self.mutate_stmt(let_stmt.body());
+        if &body == let_stmt.body() && &value == let_stmt.value() {
+            self.set_stmt(let_stmt);
+        } else {
+            self.set_stmt(LetStmt::make(let_stmt.var(), value, let_stmt.mutable(), body));
         }
     }
 }

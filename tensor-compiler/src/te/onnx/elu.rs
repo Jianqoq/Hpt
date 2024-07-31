@@ -57,7 +57,7 @@ pub fn common_elu(
                                     Load::make(&format!("%{}.s", output_id), idx).into()
                             )
                             .reduce(|acc, x| acc + x)
-                            .unwrap_or((0i64).into()),
+                            .unwrap_or(0i64.into()),
                         func(stage_out_id)
                     ).into()
                 )

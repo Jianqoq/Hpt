@@ -7,7 +7,7 @@ use crate::{
     types::values::BasicValue,
 };
 
-pub fn to_c_str<'s>(mut s: &'s str) -> Cow<'s, CStr> {
+pub fn to_c_str(mut s: &str) -> Cow<CStr> {
     if s.is_empty() {
         s = "\0";
     }
@@ -47,7 +47,7 @@ pub fn insert_printf(
         "fmtstr"
     );
     let mut print_args = vec![format_str_ptr.into()];
-    args.iter().for_each(|arg| print_args.push((*arg).into()));
+    args.iter().for_each(|arg| print_args.push(*arg));
     let printf = ctx.i32_type().fn_type(&[ctx.i8_type().into()], true);
     let func = module.get_function(printf, "printf").unwrap();
     builder.build_call(&func, &print_args, "printfCall");

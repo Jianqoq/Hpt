@@ -99,7 +99,7 @@ impl<'a, A, B> StridedZip<'a, A, B>
             C: UnindexedProducer +
                 IterGetSet +
                 ShapeManipulator +
-                rayon::iter::ParallelIterator +
+                ParallelIterator +
                 IterGetSet,
             Self: UnindexedProducer + IterGetSet + ShapeManipulator,
             <C as IterGetSet>::Item: Send,

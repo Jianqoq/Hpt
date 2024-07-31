@@ -22,22 +22,22 @@ impl<T> _Tensor<T> where T: CommonBounds {
     }
 
     pub fn from_slice(&self, ptr: *mut T, shape: Vec<i64>, strides: Vec<i64>) -> _Tensor<T> {
-        if self.parent.is_none() {
-            return Self {
+        return if self.parent.is_none() {
+            Self {
                 data: Pointer::new(ptr),
                 parent: Some(self.data),
                 mem_layout: self.mem_layout.clone(),
                 layout: Layout::new(shape, strides),
                 _backend: Backend::new(),
-            };
+            }
         } else {
-            return Self {
+            Self {
                 data: Pointer::new(ptr),
                 parent: self.parent,
                 mem_layout: self.mem_layout.clone(),
                 layout: Layout::new(shape, strides),
                 _backend: Backend::new(),
-            };
+            }
         }
     }
 }

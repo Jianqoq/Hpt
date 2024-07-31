@@ -46,7 +46,7 @@ struct ReductionPreprocessor<T, U> {
     pub a_shape: Arc<Vec<i64>>,
 }
 
-impl<T, U> ReductionPreprocessor<T, U> {
+impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
     pub fn new(
         num_threads: usize,
         loop_size: usize,
@@ -796,7 +796,7 @@ macro_rules! register_reduction_one_axis {
     };
 }
 
-register_reduction!(T, sum, sum_kernel, (T::ZERO), where T: CommonBounds + NormalOut<T, Output = T>);
+register_reduction!(T, sum, sum_kernel, T::ZERO, where T: CommonBounds + NormalOut<T, Output = T>);
 
 #[allow(dead_code)]
 pub(crate) fn sum_with_cast<T, B>(

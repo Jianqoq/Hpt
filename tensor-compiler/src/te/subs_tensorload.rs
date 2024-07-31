@@ -49,9 +49,9 @@ impl<'a> IRMutateVisitor for SubsTensorLoadDims<'a> {
             self.set_expr(
                 TensorLoad::make(
                     tensor_load.var.as_ref(),
-                    (0..self.axes.len()).map(|_| (0i64).into()).collect::<Vec<PrimeExpr>>(),
+                    (0..self.axes.len()).map(|_| 0i64.into()).collect::<Vec<PrimeExpr>>(),
                     self.axes.clone(),
-                    (0..self.axes.len()).map(|_| (1i64).into()).collect::<Vec<PrimeExpr>>(),
+                    (0..self.axes.len()).map(|_| 1i64.into()).collect::<Vec<PrimeExpr>>(),
                     self.strides.clone(),
                     tensor_load.hints.as_ref().clone()
                 )
@@ -71,9 +71,9 @@ impl<'a> IRMutateVisitor for SubsTensorLoadDims<'a> {
             self.set_expr(
                 TensorLoad::make(
                     tensor_load.var.as_ref(),
-                    (0..self.axes.len()).map(|_| (0i64).into()).collect::<Vec<PrimeExpr>>(),
+                    (0..self.axes.len()).map(|_| 0i64.into()).collect::<Vec<PrimeExpr>>(),
                     self.axes.clone(),
-                    (0..self.axes.len()).map(|_| (1i64).into()).collect::<Vec<PrimeExpr>>(),
+                    (0..self.axes.len()).map(|_| 1i64.into()).collect::<Vec<PrimeExpr>>(),
                     self.strides.clone(),
                     tensor_load.hints.as_ref().clone()
                 )

@@ -43,7 +43,7 @@ pub fn pad_common(
                     x.var().to_prime_expr() * Load::make(&format!("%{}.s", id), idx).into()
                 })
                 .reduce(|acc, x| acc + x)
-                .unwrap_or((0i64).into());
+                .unwrap_or(0i64.into());
             let store_var = Variable::new(format!("%{}", id));
             pad_common_helper(
                 is_output,
@@ -232,7 +232,7 @@ impl Context {
     ) -> Tensor {
         let id = self.id.borrow().clone();
         *self.id.borrow_mut() += 1;
-        assert!(padding.len() == a.shape.len());
+        assert_eq!(padding.len(), a.shape.len());
         let mut new_shape = a.shape
             .iter()
             .zip(padding.iter())

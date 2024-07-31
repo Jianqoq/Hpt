@@ -31,9 +31,9 @@ pub fn detect_broadcast_axes_expr(
     for (i, (longer_dim, shorter_dim)) in longer.iter().zip(&padded_shorter).enumerate() {
         if longer_dim == shorter_dim {
             continue;
-        } else if longer_dim == &(1i64).into() {
+        } else if longer_dim == &1i64.into() {
             a_axes.push(i);
-        } else if shorter_dim == &(1i64).into() {
+        } else if shorter_dim == &1i64.into() {
             b_axes.push(i);
         }
     }
@@ -58,9 +58,9 @@ pub fn predict_broadcast_shape_expr(
     let mut result_shape = vec![0i64.into(); longer.len()];
 
     for (i, (longer_dim, shorter_dim)) in longer.iter().zip(&padded_shorter).enumerate() {
-        result_shape[i] = if longer_dim == shorter_dim || shorter_dim == &(1i64).into() {
+        result_shape[i] = if longer_dim == shorter_dim || shorter_dim == &1i64.into() {
             longer_dim.clone()
-        } else if longer_dim == &(1i64).into() {
+        } else if longer_dim == &1i64.into() {
             shorter_dim.clone()
         } else {
             panic!("Incompatible broadcast shapes: {:?} and {:?}", a_shape, b_shape);

@@ -1,4 +1,4 @@
-use tensor_types::{ convertion::Convertor, dtype::TypeCommon, into_scalar::IntoScalar };
+use tensor_types::{convertion::Convertor, dtype::TypeCommon, into_scalar::IntoScalar};
 
 use crate::strides::Strides;
 
@@ -25,8 +25,11 @@ use crate::strides::Strides;
 pub fn preprocess_strides<
     A: Convertor + Copy,
     B: Convertor + IntoScalar<C> + Copy,
-    C: TypeCommon + Copy
->(shape: &[A], stride: &[B]) -> Vec<C> {
+    C: TypeCommon + Copy,
+>(
+    shape: &[A],
+    stride: &[B],
+) -> Vec<C> {
     let mut strides = vec![C::ZERO; shape.len()];
     let start = shape.len() - stride.len();
 
@@ -56,12 +59,12 @@ pub fn preprocess_strides<
 /// let shape = vec![2, 3, 4];
 /// let strides = shape_to_strides(&shape);
 /// ```
-pub fn shape_to_strides(shape: &Vec<i64>) -> Strides {
+pub fn shape_to_strides(shape: &[i64]) -> Strides {
     let mut strides = vec![0; shape.len()];
     let mut size = 1;
     for i in (0..shape.len()).rev() {
         let tmp = shape[i];
-        strides[i] = size as i64;
+        strides[i] = size;
         size *= tmp;
     }
     strides.into()
@@ -75,7 +78,7 @@ pub fn calculate_new_strides(last_stride: i64, shape: &[i64]) -> Vec<i64> {
         strides[i] = size;
         size *= tmp;
     }
-    return strides;
+    strides
 }
 
 /// # Internal Function
@@ -95,7 +98,7 @@ pub fn calculate_new_strides(last_stride: i64, shape: &[i64]) -> Vec<i64> {
 /// let strides = vec![20, 5, 1];
 /// let is_contiguous = strides_is_contiguous(&strides);
 /// ```
-pub(crate) fn strides_is_contiguous(strides: &Vec<i64>) -> bool {
+pub(crate) fn strides_is_contiguous(strides: &[i64]) -> bool {
     let mut prev_stride = strides[strides.len() - 1];
     for i in (0..strides.len()).rev() {
         if strides[i] < prev_stride {
@@ -104,10 +107,10 @@ pub(crate) fn strides_is_contiguous(strides: &Vec<i64>) -> bool {
             prev_stride = strides[i];
         }
     }
-    return true;
+    true
 }
 
-pub fn strides_is_contiguous_ignore_zero(strides: &Vec<i64>) -> bool {
+pub fn strides_is_contiguous_ignore_zero(strides: &[i64]) -> bool {
     let mut contiguous = true;
     let mut prev_stride = strides[strides.len() - 1];
     for i in (0..strides.len()).rev() {
@@ -118,7 +121,7 @@ pub fn strides_is_contiguous_ignore_zero(strides: &Vec<i64>) -> bool {
             prev_stride = strides[i];
         }
     }
-    return contiguous;
+    contiguous
 }
 
 /// # Internal Function
@@ -139,7 +142,7 @@ pub fn strides_is_contiguous_ignore_zero(strides: &Vec<i64>) -> bool {
 /// let strides = vec![5, 0, 1];
 /// let is_expanded = strides_is_expanded(&strides);
 /// ```
-pub fn strides_is_expanded(strides: &Vec<i64>) -> bool {
+pub fn strides_is_expanded(strides: &[i64]) -> bool {
     let mut expanded = false;
     for i in (0..strides.len()).rev() {
         if strides[i] == 0 {
@@ -147,5 +150,5 @@ pub fn strides_is_expanded(strides: &Vec<i64>) -> bool {
             break;
         }
     }
-    return expanded;
+    expanded
 }

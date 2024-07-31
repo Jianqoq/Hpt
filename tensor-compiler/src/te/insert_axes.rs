@@ -47,9 +47,9 @@ impl MutatorGetSet for InsertAxes {
 impl IRMutateVisitor for InsertAxes {
     fn visit_tensor_load(&mut self, tensor_load: &crate::halide::tensor_load::TensorLoad) {
         let mut new_begins = (0..self.axes.len())
-            .map(|_| (0i64).into())
+            .map(|_| 0i64.into())
             .collect::<Vec<PrimeExpr>>();
-        let mut new_steps = (0..self.axes.len()).map(|_| (1i64).into()).collect::<Vec<PrimeExpr>>();
+        let mut new_steps = (0..self.axes.len()).map(|_| 1i64.into()).collect::<Vec<PrimeExpr>>();
         let mut new_strides = (0..self.axes.len())
             .map(|idx|
                 PrimeExpr::Load(Load::make(Variable::new(format!("%{}.s", self.id)), idx as i64))

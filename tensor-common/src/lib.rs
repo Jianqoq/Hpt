@@ -8,5 +8,3 @@ pub mod pointer;
 pub mod axis;
 pub mod slice;
 pub mod tensordot_args;
-pub mod block_info;
-pub mod block_manager;

@@ -56,8 +56,8 @@ fn test_reshape_schedule() {
     ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
-    assert!(inputs.len() == 1);
-    assert!(outputs.len() == 1);
+    assert_eq!(inputs.len(), 1);
+    assert_eq!(outputs.len(), 1);
     assert!(inputs.contains(&0));
     assert!(outputs.contains(&1));
     let vars_map =
@@ -122,8 +122,8 @@ fn test_add_schedule() {
     ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
-    assert!(inputs.len() == 2);
-    assert!(outputs.len() == 1);
+    assert_eq!(inputs.len(), 2);
+    assert_eq!(outputs.len(), 1);
     assert!(inputs.contains(&0));
     assert!(inputs.contains(&1));
     assert!(outputs.contains(&2));
@@ -199,8 +199,8 @@ fn test_add_broadcast_schedule() {
     ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
-    assert!(inputs.len() == 2);
-    assert!(outputs.len() == 1);
+    assert_eq!(inputs.len(), 2);
+    assert_eq!(outputs.len(), 1);
     assert!(inputs.contains(&0));
     assert!(inputs.contains(&1));
     assert!(outputs.contains(&2));
@@ -277,8 +277,8 @@ fn test_add_broadcast_diff_len_schedule() {
     ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
-    assert!(inputs.len() == 2);
-    assert!(outputs.len() == 1);
+    assert_eq!(inputs.len(), 2);
+    assert_eq!(outputs.len(), 1);
     assert!(inputs.contains(&0));
     assert!(inputs.contains(&1));
     assert!(outputs.contains(&2));
@@ -353,8 +353,8 @@ fn test_add_broadcast_diff_len_schedule2() {
     ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
-    assert!(inputs.len() == 2);
-    assert!(outputs.len() == 1);
+    assert_eq!(inputs.len(), 2);
+    assert_eq!(outputs.len(), 1);
     assert!(inputs.contains(&0));
     assert!(inputs.contains(&1));
     assert!(outputs.contains(&3));
@@ -432,8 +432,8 @@ fn test_sum_broadcast_schedule() {
     ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
-    assert!(inputs.len() == 1);
-    assert!(outputs.len() == 1);
+    assert_eq!(inputs.len(), 1);
+    assert_eq!(outputs.len(), 1);
     assert!(inputs.contains(&0));
     assert!(outputs.contains(&1));
 
@@ -507,8 +507,8 @@ fn test_argmin_broadcast_schedule() {
 
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
-    assert!(inputs.len() == 1);
-    assert!(outputs.len() == 1);
+    assert_eq!(inputs.len(), 1);
+    assert_eq!(outputs.len(), 1);
     assert!(inputs.contains(&0));
     assert!(outputs.contains(&1));
 
@@ -582,8 +582,8 @@ fn test_argmax_broadcast_schedule() {
     ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
-    assert!(inputs.len() == 1);
-    assert!(outputs.len() == 1);
+    assert_eq!(inputs.len(), 1);
+    assert_eq!(outputs.len(), 1);
     assert!(inputs.contains(&0));
     assert!(outputs.contains(&1));
 
@@ -664,8 +664,8 @@ fn test_sum_all_broadcast_schedule() {
     ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
-    assert!(inputs.len() == 1);
-    assert!(outputs.len() == 1);
+    assert_eq!(inputs.len(), 1);
+    assert_eq!(outputs.len(), 1);
     assert!(inputs.contains(&0));
     assert!(outputs.contains(&3));
 
@@ -733,8 +733,8 @@ fn test_sum_all_broadcast_schedule2() {
     ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
-    assert!(inputs.len() == 1);
-    assert!(outputs.len() == 1);
+    assert_eq!(inputs.len(), 1);
+    assert_eq!(outputs.len(), 1);
     assert!(inputs.contains(&0));
     assert!(outputs.contains(&1));
 
@@ -937,8 +937,8 @@ fn test_slice() {
     ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
-    assert!(inputs.len() == 1);
-    assert!(outputs.len() == 1);
+    assert_eq!(inputs.len(), 1);
+    assert_eq!(outputs.len(), 1);
     assert!(inputs.contains(&0));
 
     let vars_map = hashmap! {
@@ -982,8 +982,8 @@ fn test_slice_nested() {
     let c = ctx.slice(
         &b,
         &[
-            (&0i64, &(&(4i64).into() - &one), &2i64),
-            (&0i64, &(&(4i64).into() - &one), &2i64),
+            (&0i64, &(&4i64.into() - &one), &2i64),
+            (&0i64, &(&4i64.into() - &one), &2i64),
         ]
     );
     let order = [a.id, b.id, c.id];
@@ -1012,8 +1012,8 @@ fn test_slice_nested() {
     ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
-    assert!(inputs.len() == 1);
-    assert!(outputs.len() == 1);
+    assert_eq!(inputs.len(), 1);
+    assert_eq!(outputs.len(), 1);
     assert!(inputs.contains(&0));
 
     let vars_map = hashmap! {
@@ -1056,7 +1056,7 @@ fn test_pad() {
         &1f32
     );
     let c = ctx.placeholder(
-        &[&(&m.into() + &(10i64).to_prime_expr()), &(&n.into() + &(10i64).to_prime_expr())],
+        &[&(&m.into() + &10i64.to_prime_expr()), &(&n.into() + &10i64.to_prime_expr())],
         Dtype::F32
     );
     let d = ctx.sin(&b);
@@ -1139,8 +1139,8 @@ fn test_pad_out() {
 
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
-    assert!(inputs.len() == 1);
-    assert!(outputs.len() == 1);
+    assert_eq!(inputs.len(), 1);
+    assert_eq!(outputs.len(), 1);
     assert!(inputs.contains(&0));
 
     let vars_map = hashmap! {

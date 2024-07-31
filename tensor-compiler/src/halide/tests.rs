@@ -117,6 +117,5 @@ fn test_eqal() {
 
     let a = x.clone() + one.clone() + y.clone();
     let b = x.clone() + y.clone() + one.clone();
-    let eq = a == b;
     assert_eq!(a, b);
 }

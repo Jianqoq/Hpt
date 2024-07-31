@@ -51,7 +51,7 @@ impl Module {
     }
 
     pub fn add_function(&self, fn_type: FunctionType, name: &str) -> FunctionValue {
-        let c_string = to_c_str(&name);
+        let c_string = to_c_str(name);
         let fn_val = unsafe { LLVMAddFunction(self.module, c_string.as_ptr(), fn_type.inner()) };
         if fn_val.is_null() {
             panic!("{}", &format!("function {} not added", name));
@@ -88,7 +88,7 @@ impl Module {
         let path = to_c_str(path_str);
         let mut err_string = MaybeUninit::uninit();
         let return_code = unsafe {
-            LLVMPrintModuleToFile(self.module, path.as_ptr() as *const i8, err_string.as_mut_ptr())
+            LLVMPrintModuleToFile(self.module, path.as_ptr(), err_string.as_mut_ptr())
         };
 
         if return_code == 1 {
