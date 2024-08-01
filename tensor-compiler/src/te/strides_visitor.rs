@@ -4,7 +4,6 @@ use crate::halide::{
     store_stmt::StoreStmt,
     tensor_load::TensorLoad,
     traits::{ IRMutateVisitor, MutatorGetSet },
-    variable::Variable,
 };
 
 pub struct StridesVisitor {
