@@ -1279,7 +1279,8 @@ fn test_conv() {
         Dtype::F32
     );
     let b = ctx.conv(&image, &kernel, None, None, None, None, None, None);
-    let order = [image.id, kernel.id, b.id];
+    let c = ctx.sin(&b);
+    let order = [image.id, kernel.id, b.id, c.id];
     let schedule = ctx.to_schedule(&order);
     let func = schedule.to_function();
     println!("{}", func);

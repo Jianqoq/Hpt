@@ -4,12 +4,7 @@ use tensor_common::strides_utils::shape_to_strides;
 
 use crate::{
     halide::{
-        exprs::Load,
-        let_stmt::LetStmt,
-        prime_expr::PrimeExpr,
-        stmt::Stmt,
-        tensor_load::TensorLoad,
-        variable::Variable,
+        exprs::Load, let_stmt::LetStmt, prime_expr::PrimeExpr, stmt::Stmt, tensor_load::TensorLoad, utils::var, variable::Variable
     },
     iter_var::IterVar,
     te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator, stages::{ Body, Stage } },
@@ -109,7 +104,7 @@ impl Srg {
                     dtype: node.dtype.clone(),
                     begins: (0..node.shape.len()).map(|_| (0i64).into()).collect(),
                     steps: (0..node.shape.len()).map(|_| (1i64).into()).collect(),
-                    axes: (0..node.shape.len()).map(|x| format!("ax{}", x).into()).collect(),
+                    axes: (0..node.shape.len()).map(|x| var(format!("ax{}", x)).into()).collect(),
                 };
                 qa.insert(*id, (Body::Stage(stage), false));
                 declared_vars.insert(format!("%{}_val", node.id));

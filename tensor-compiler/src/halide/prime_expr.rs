@@ -668,12 +668,6 @@ impl Into<PrimeExpr> for &str {
     }
 }
 
-impl Into<PrimeExpr> for String {
-    fn into(self) -> PrimeExpr {
-        PrimeExpr::Str(Str::make(&self))
-    }
-}
-
 impl NormalOut for PrimeExpr {
     type Output = PrimeExpr;
 

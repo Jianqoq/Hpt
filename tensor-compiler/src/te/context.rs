@@ -16,7 +16,7 @@ use crate::{
         stmt::Stmt,
         tensor_load::TensorLoad,
         traits::MutatorGetSet,
-        utils::store_with_dims,
+        utils::{store_with_dims, var},
         variable::Variable,
     },
     iter_var::IterVar,
@@ -166,7 +166,7 @@ impl Context {
                     dtype,
                     steps: vec![1i64.into(); shape.len()],
                     begins: vec![0i64.into(); shape.len()],
-                    axes: (0..shape.len()).map(|x| format!("ax{}", x).into()).collect(),
+                    axes: (0..shape.len()).map(|x| var(format!("ax{}", x)).into()).collect(),
                 };
                 Body::Stage(stage)
             }),

@@ -13,7 +13,7 @@ use crate::{
         store_stmt::StoreStmt,
         substitute::subsititue_var::SubstituteVar,
         traits::MutatorGetSet,
-        utils::{ store_with_dims, store_with_idx },
+        utils::{ store_with_dims, store_with_idx, var },
         variable::Variable,
     },
     iter_var::IterVar,
@@ -286,7 +286,7 @@ pub fn common_binop_helper<F>(
                 dtype: ty_infer(lhs.dtype, rhs.dtype),
                 begins: (0..dims.len()).map(|_| (0i64).into()).collect(),
                 steps: (0..dims.len()).map(|_| (1i64).into()).collect(),
-                axes: (0..dims.len()).map(|x| format!("ax{}", x).into()).collect(),
+                axes: (0..dims.len()).map(|x| var(format!("ax{}", x)).into()).collect(),
             };
             Body::Stage(stage)
         }
@@ -356,7 +356,7 @@ pub fn common_uaryop(
             |dims: &Vec<IterVar>, stage_out_id: usize, stage: &Stage|
                 Body::Stmt(
                     StoreStmt::make(
-                        format!("%{}", output_id),
+                        Variable::new(format!("%{}", output_id)),
                         stage.begins.clone(),
                         stage.axes.clone(),
                         stage.steps.clone(),
