@@ -11,6 +11,10 @@ pub fn all(conds: &[PrimeExpr]) -> PrimeExpr {
         .unwrap()
 }
 
+pub fn bitand<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(a: A, b: B) -> PrimeExpr {
+    BitAnd::make(a.into(), b.into()).into()
+}
+
 pub fn exp(x: PrimeExpr) -> PrimeExpr {
     Call::make("exp", &[&x]).into()
 }

@@ -934,7 +934,7 @@ impl BitAnd {
         BitAnd { e1, e2 }
     }
 
-    pub fn make<T: Into<PrimeExpr>>(e1: T, e2: T) -> Self {
+    pub fn make<A: Into<PrimeExpr>, B: Into<PrimeExpr>>(e1: A, e2: B) -> Self {
         BitAnd {
             e1: e1.into().into(),
             e2: e2.into().into(),

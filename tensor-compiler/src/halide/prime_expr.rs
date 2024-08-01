@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt::{ Debug, Display };
 use colored::Colorize;
 use tensor_types::{ dtype::Dtype, type_promote::{ BitWiseOut, Eval, FloatOut, NormalOut } };
 
@@ -9,7 +9,7 @@ use super::{
     variable::Variable,
 };
 
-#[derive(Clone, PartialEq, Hash, Eq, Debug)]
+#[derive(Clone, PartialEq, Hash, Eq)]
 pub enum PrimeExpr {
     Int(Int),
     Float(Float),
@@ -49,6 +49,12 @@ pub enum PrimeExpr {
     TensorLoad(TensorLoad),
     Null,
     None,
+}
+
+impl Debug for PrimeExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.print(0))
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Hash, Eq, PartialOrd, Ord)]
@@ -408,6 +414,14 @@ impl std::ops::Div for PrimeExpr {
     type Output = PrimeExpr;
 
     fn div(self, rhs: PrimeExpr) -> Self::Output {
+        PrimeExpr::Div(Div::make(self, rhs))
+    }
+}
+
+impl std::ops::Div for &PrimeExpr {
+    type Output = PrimeExpr;
+
+    fn div(self, rhs: &PrimeExpr) -> Self::Output {
         PrimeExpr::Div(Div::make(self, rhs))
     }
 }

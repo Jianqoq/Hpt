@@ -1,4 +1,5 @@
 #![allow(unused_imports)]
+use regex::Regex;
 use tensor_traits::ops::cmp::TensorCmp;
 use maplit::hashmap;
 use tensor_common::slice;
@@ -982,8 +983,8 @@ fn test_slice_nested() {
     let c = ctx.slice(
         &b,
         &[
-            (&0i64, &(&4i64.into() - &one), &2i64),
-            (&0i64, &(&4i64.into() - &one), &2i64),
+            (&0i64, &(&(4i64).into() - &one), &2i64),
+            (&0i64, &(&(4i64).into() - &one), &2i64),
         ]
     );
     let order = [a.id, b.id, c.id];
@@ -1056,7 +1057,7 @@ fn test_pad() {
         &1f32
     );
     let c = ctx.placeholder(
-        &[&(&m.into() + &10i64.to_prime_expr()), &(&n.into() + &10i64.to_prime_expr())],
+        &[&(&m.into() + &(10i64).to_prime_expr()), &(&n.into() + &(10i64).to_prime_expr())],
         Dtype::F32
     );
     let d = ctx.sin(&b);
@@ -1065,8 +1066,9 @@ fn test_pad() {
 
     let schedule = ctx.to_schedule(&order);
     let func = schedule.to_function();
+    let regex = Regex::new(r"\x1b\[[0-9;]*m").unwrap();
     assert_eq!(
-        func.to_string(),
+        regex.replace_all(&func.to_string(), "").to_string(),
         "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
     let istrides0 = istrides_vec[0];
     let istrides1 = istrides_vec[1];
@@ -1078,7 +1080,7 @@ fn test_pad() {
     let n = shape_vars[1];
     for ax0 in range(0, 10 + m) {
         for ax1 in range(0, 10 + n) {
-            let %1_val_ptr = alloca<f32>(1);
+            let %1_val_ptr = alloc<f32>(1);
             if (((ax0 >= 5) && (ax0 < 10 + m - 5)) && ((ax1 >= 5) && (ax1 < 10 + n - 5))) {
                 let %0_val = %0[(ax0 + (0 - 5)) * istrides0[0] + (ax1 + (0 - 5)) * istrides0[1]];
                 %1_val_ptr[0] = %0_val;
@@ -2005,6 +2007,7 @@ fn test_conv() {
     let mut ctx = Context::new();
     let batch = ctx.var("batch");
     let in_channels = ctx.var("in_channels");
+    let in_channels_per_group = ctx.var("in_channels_per_group");
     let in_height = ctx.var("in_height");
     let in_width = ctx.var("in_width");
     let out_channels = ctx.var("out_channels");
@@ -2012,7 +2015,7 @@ fn test_conv() {
     let kernel_width = ctx.var("kernel_width");
     let image = ctx.placeholder(&[&batch, &in_channels, &in_height, &in_width], Dtype::F32);
     let kernel = ctx.placeholder(
-        &[&out_channels, &in_channels, &kernel_height, &kernel_width],
+        &[&out_channels, &in_channels_per_group, &kernel_height, &kernel_width],
         Dtype::F32
     );
     let b = ctx.conv(&image, &kernel, None, None, None, None, None, None, None);

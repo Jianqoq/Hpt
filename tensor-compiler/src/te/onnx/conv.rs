@@ -2,10 +2,24 @@ use std::{ collections::HashMap, panic::Location, sync::Arc };
 
 use crate::{
     halide::{
-        alloca_stmt::AllocaStmt, exprs::Load, passes::const_fold::ConstFold, prime_expr::PrimeExpr, primitive_type::PrimitiveType, stmt::Stmt, store_stmt::StoreStmt, utils::{ dtype_zero, floor }, variable::Variable
+        alloca_stmt::AllocaStmt,
+        exprs::{ BitAnd, Ge, Load, Lt },
+        let_stmt::LetStmt,
+        passes::const_fold::ConstFold,
+        prime_expr::PrimeExpr,
+        primitive_type::PrimitiveType,
+        stmt::Stmt,
+        store_stmt::StoreStmt,
+        tensor_load::TensorLoad,
+        utils::{ all, bitand, dtype_zero, floor },
+        variable::Variable,
     },
     iter_var::IterVar,
-    te::{ context::Context, stages::{ Body, ReduceStage, Stage }, tensor::{ StridesCal, Tensor } },
+    te::{
+        context::Context,
+        stages::{ Body, If, ReduceStage, Stage },
+        tensor::{ StridesCal, Tensor },
+    },
     to_prim_expr::ToPrimeExpr,
 };
 
@@ -96,9 +110,11 @@ impl Context {
         outer_dims.append(&mut out_dims);
         let outer_dims = Arc::new(outer_dims);
         let shape = outer_dims.clone();
+        let groups: PrimeExpr = group.unwrap_or(1i64).into();
+        let out_channels_per_group = &weight.shape[0] / &groups;
         let body = move |inputs: Vec<Body>, is_output: bool, id: usize| {
             match (&inputs[0], &inputs[1]) {
-                (Body::Stage(_), Body::Stage(kernel)) => {
+                (Body::Stage(input), Body::Stage(kernel)) => {
                     let mut kernel_dims = Vec::with_capacity(kernel.dims[2..].len());
                     for (idx, i) in kernel.dims.iter().enumerate().skip(2) {
                         let mut i = i.clone();
@@ -115,18 +131,119 @@ impl Context {
                         Body::Stmt(Stmt::None)
                     };
                     let mut dims = outer_dims.as_ref().clone();
-                    dims.insert(2, kernel.dims[1].end().clone());
+                    dims[1] = groups.clone();
+                    dims.insert(2, out_channels_per_group.clone());
                     let dims = dims
                         .into_iter()
                         .enumerate()
                         .map(|(idx, x)| {
                             IterVar::new(0i64, x, 1i64, Variable::new(format!("ax{}", idx)))
                         })
-                        .collect();
+                        .collect::<Vec<IterVar>>();
+                    let inp_begins = dims
+                        .iter()
+                        .skip(3)
+                        .map(|x| x.var().to_prime_expr())
+                        .collect::<Vec<_>>();
+                    println!("{:?}", inp_begins);
+                    let kernel_begins = kernel_dims
+                        .iter()
+                        .map(|x| x.var().to_prime_expr())
+                        .collect::<Vec<_>>();
+                    let begins = inp_begins
+                        .iter()
+                        .zip(kernel_begins.iter())
+                        .zip(steps.iter())
+                        .zip(dilations.iter())
+                        .map(|(((x, y), z), w)| {
+                            x.clone() * z.to_prime_expr() + y.clone() * w.to_prime_expr()
+                        })
+                        .collect::<Vec<_>>();
+                    let mut lets_ = begins
+                        .iter()
+                        .enumerate()
+                        .map(|(i, x)|
+                            Body::Stmt(
+                                Stmt::LetStmt(
+                                    LetStmt::make(
+                                        &Variable::new(format!("inp{}", i)),
+                                        x,
+                                        false,
+                                        Stmt::None
+                                    )
+                                )
+                            )
+                        )
+                        .collect::<Vec<Body>>();
+                    lets_.push(
+                        Body::Stmt(
+                            Stmt::LetStmt(
+                                LetStmt::make(
+                                    &Variable::new(format!("%{}_val", id)),
+                                    Load::make(&sum_ptr, 0i64),
+                                    false,
+                                    Stmt::None
+                                )
+                            )
+                        )
+                    );
+                    let cmps = pads
+                        .iter()
+                        .enumerate()
+                        .map(|(idx, (begin, end))| {
+                            let inp = Variable::new(format!("inp{}", idx));
+                            let ge = Ge::make(&inp, begin);
+                            let lt = Lt::make(&inp, input.dims[idx + 2].end() - end);
+                            bitand(ge, lt)
+                        })
+                        .collect::<Vec<PrimeExpr>>();
+                    let cond = all(&cmps);
+
+                    let g = PrimeExpr::Variable(Variable::new(format!("ax1")));
+                    let o = PrimeExpr::Variable(Variable::new(format!("ax2")));
+                    let mut kernel_begins = vec![&g * &out_channels_per_group];
+                    let mut kernel_steps = vec![(1i64).into()];
+                    let mut axes = vec![o.clone()];
+                    let mut strides = vec![
+                        PrimeExpr::Load(Load::make(&format!("%{}.s", kernel.out_id), 0i64))
+                    ];
+                    for (idx, dim) in kernel_dims.iter().enumerate() {
+                        kernel_begins.push((0i64).into());
+                        kernel_steps.push((1i64).into());
+                        axes.push(dim.var().to_prime_expr());
+                        strides.push(
+                            Load::make(&format!("%{}.s", kernel.out_id), (idx as i64) + 1).into()
+                        );
+                    }
+                    let kernel_loaded = TensorLoad::make(
+                        Variable::new(format!("%{}_val", kernel.out_id)),
+                        kernel_begins,
+                        axes,
+                        kernel_steps,
+                        strides,
+                        vec![]
+                    );
+                    let if_stage = If {
+                        cond,
+                        true_bodys: vec![
+                            Body::Stmt(
+                                LetStmt::make(
+                                    &Variable::new(format!("%{}_val", kernel.out_id)),
+                                    kernel_loaded,
+                                    false,
+                                    Stmt::None
+                                ).into()
+                            )
+                        ],
+                        false_bodys: vec![],
+                        id,
+                        input: input.id,
+                    };
+                    lets_.push(Body::If(if_stage.clone()));
                     if is_output {
                         let sum = ReduceStage {
                             dims: kernel_dims,
-                            bodys: vec![],
+                            bodys: lets_,
                             id: kernel.id,
                             inits: vec![
                                 Body::Stmt(
@@ -163,7 +280,7 @@ impl Context {
                     } else {
                         let sum = ReduceStage {
                             dims: kernel_dims,
-                            bodys: vec![],
+                            bodys: lets_,
                             id: kernel.id,
                             inits: vec![
                                 Body::Stmt(
