@@ -277,7 +277,7 @@ impl Context {
                     };
                     lets_.push(Body::If(if_stage.clone()));
                     if is_output {
-                        let mut store_begins = vec![(0i64).into(), g.clone()];
+                        let mut store_begins = vec![(0i64).into(), o.clone()];
                         let mut store_steps = vec![(1i64).into(), kernels_per_group.clone()];
                         let mut store_axes = vec![
                             dims[0].var().to_prime_expr(),
@@ -290,7 +290,7 @@ impl Context {
                         for idx in (0..dims.len()).skip(4) {
                             store_begins.push((0i64).into());
                             store_steps.push((1i64).into());
-                            store_axes.push(var(format!("ax{}", idx - 2)).into());
+                            store_axes.push(var(format!("ax{}", idx)).into());
                             store_strides.push(
                                 Load::make(&format!("%{}.s", id), (idx as i64) - 2).into()
                             );
