@@ -1278,7 +1278,7 @@ fn test_conv() {
         &[&out_channels, &in_channels_per_group, &kernel_height, &kernel_width],
         Dtype::F32
     );
-    let b = ctx.conv(&image, &kernel, None, None, None, None, None, None, None);
+    let b = ctx.conv(&image, &kernel, None, None, None, None, None, None);
     let order = [image.id, kernel.id, b.id];
     let schedule = ctx.to_schedule(&order);
     let func = schedule.to_function();

@@ -210,6 +210,9 @@ pub struct Stage {
     pub(crate) dtype: Dtype,
     pub(crate) id: usize,
     pub(crate) out_id: usize,
+    pub(crate) begins: Vec<PrimeExpr>,
+    pub(crate) steps: Vec<PrimeExpr>,
+    pub(crate) axes: Vec<PrimeExpr>,
 }
 
 impl Stage {

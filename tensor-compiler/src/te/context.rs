@@ -164,6 +164,9 @@ impl Context {
                     id,
                     out_id: id,
                     dtype,
+                    steps: vec![1i64.into(); shape.len()],
+                    begins: vec![0i64.into(); shape.len()],
+                    axes: (0..shape.len()).map(|x| format!("ax{}", x).into()).collect(),
                 };
                 Body::Stage(stage)
             }),
@@ -279,6 +282,9 @@ impl Context {
                             id,
                             out_id: stage.out_id,
                             dtype: stage.dtype,
+                            begins: stage.begins.clone(),
+                            steps: stage.steps.clone(),
+                            axes: stage.axes.clone(),
                         };
                         Body::Stage(stage)
                     } else {
@@ -319,6 +325,9 @@ impl Context {
                             id,
                             out_id: stage.out_id,
                             dtype: stage.dtype,
+                            begins: stage.begins.clone(),
+                            steps: stage.steps.clone(),
+                            axes: stage.axes.clone(),
                         };
                         Body::Stage(stage)
                     } else {
@@ -445,6 +454,9 @@ impl Context {
                             id,
                             out_id: id,
                             dtype: stage.dtype,
+                            begins: stage.begins.clone(),
+                            steps: stage.steps.clone(),
+                            axes: stage.axes.clone(),
                         };
                         Body::Stage(stage)
                     } else {
@@ -494,6 +506,9 @@ impl Context {
                             id,
                             out_id: id,
                             dtype: stage.dtype,
+                            begins: stage.begins.clone(),
+                            steps: stage.steps.clone(),
+                            axes: stage.axes.clone(),
                         };
                         Body::Stage(stage)
                     } else {

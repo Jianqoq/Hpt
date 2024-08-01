@@ -10,6 +10,7 @@ use crate::{
         prime_expr::PrimeExpr,
         primitive_type::PrimitiveType,
         stmt::Stmt,
+        store_stmt::StoreStmt,
         substitute::subsititue_var::SubstituteVar,
         traits::MutatorGetSet,
         utils::{ store_with_dims, store_with_idx },
@@ -283,6 +284,9 @@ pub fn common_binop_helper<F>(
                 id: output_id,
                 out_id: output_id,
                 dtype: ty_infer(lhs.dtype, rhs.dtype),
+                begins: (0..dims.len()).map(|_| (0i64).into()).collect(),
+                steps: (0..dims.len()).map(|_| (1i64).into()).collect(),
+                axes: (0..dims.len()).map(|x| format!("ax{}", x).into()).collect(),
             };
             Body::Stage(stage)
         }
@@ -349,23 +353,22 @@ pub fn common_uaryop(
             shape,
             output_id,
             ty_infer,
-            |dims: &Vec<IterVar>, stage_out_id: usize|
+            |dims: &Vec<IterVar>, stage_out_id: usize, stage: &Stage|
                 Body::Stmt(
-                    store_with_dims(
+                    StoreStmt::make(
                         format!("%{}", output_id),
-                        dims
-                            .iter()
-                            .map(|x| x.var().to_prime_expr())
-                            .collect::<Vec<PrimeExpr>>(),
+                        stage.begins.clone(),
+                        stage.axes.clone(),
+                        stage.steps.clone(),
                         (0..dims.len())
                             .map(|x| { Load::make(&format!("%{}.s", output_id), x).into() })
                             .collect::<Vec<PrimeExpr>>(),
                         unaryop(Variable::make(&format!("%{}_val", stage_out_id)).into())
-                    )
+                    ).into()
                 )
         )
     } else {
-        common_unaryop_helper(inputs, shape, output_id, ty_infer, |_, stage_out_id: usize|
+        common_unaryop_helper(inputs, shape, output_id, ty_infer, |_, stage_out_id: usize, _|
             Body::Stmt(
                 Stmt::LetStmt(
                     LetStmt::make(
@@ -387,7 +390,7 @@ pub fn common_unaryop_helper<F>(
     ty_infer: fn(Dtype) -> Dtype,
     post: F
 ) -> Body
-    where F: Fn(&Vec<IterVar>, usize) -> Body
+    where F: Fn(&Vec<IterVar>, usize, &Stage) -> Body
 {
     match &inputs[0] {
         Body::Stage(stage) => {
@@ -400,7 +403,7 @@ pub fn common_unaryop_helper<F>(
                 Variable::new(format!("%{}.s", stage.out_id)),
                 Variable::new(format!("%{}.s", output_id))
             );
-            stage.bodys.push(post(&dims, stage.out_id));
+            stage.bodys.push(post(&dims, stage.out_id, &stage));
             for i in stage.bodys.iter_mut() {
                 i.accept_mutate(&mut subs_var);
             }
@@ -410,6 +413,9 @@ pub fn common_unaryop_helper<F>(
                 id: output_id,
                 out_id: output_id,
                 dtype: ty_infer(stage.dtype),
+                begins: stage.begins.clone(),
+                steps: stage.steps.clone(),
+                axes: stage.axes.clone(),
             };
             Body::Stage(stage)
         }

@@ -11,8 +11,7 @@ use crate::{
         stmt::Stmt,
         store_stmt::StoreStmt,
         tensor_load::TensorLoad,
-        utils::{ all, bitand, dtype_zero, floor, store_with_dims, store_with_idx, var },
-        variable::Variable,
+        utils::{ all, bitand, dtype_zero, floor, store_with_idx, var },
     },
     iter_var::IterVar,
     te::{
@@ -52,14 +51,12 @@ impl Context {
         kernel_shape: Option<&[&dyn ToPrimeExpr]>,
         pads: Option<&[(&dyn ToPrimeExpr, &dyn ToPrimeExpr)]>,
         steps: Option<&[&dyn ToPrimeExpr]>,
-        auto_pad: Option<AutoPad>,
         dilations: Option<&[i64]>,
         group: Option<i64>
     ) -> Tensor {
         let id = self.id.borrow().clone();
         *self.id.borrow_mut() += 1;
         let caller = Location::caller();
-        let auto_pad = auto_pad.unwrap_or(AutoPad::Notset);
         let tmp: Vec<PrimeExpr> = if let Some(tmp) = kernel_shape {
             tmp.iter()
                 .map(|x| x.to_prime_expr())
@@ -276,26 +273,25 @@ impl Context {
                         input: input.id,
                     };
                     lets_.push(Body::If(if_stage.clone()));
+                    let mut store_begins = vec![(0i64).into(), o.clone()];
+                    let mut store_steps = vec![(1i64).into(), kernels_per_group.clone()];
+                    let mut store_axes = vec![
+                        dims[0].var().to_prime_expr(),
+                        dims[1].var().to_prime_expr()
+                    ];
+                    let mut store_strides = vec![
+                        PrimeExpr::Load(Load::make(&format!("%{}.s", id), 0i64)),
+                        PrimeExpr::Load(Load::make(&format!("%{}.s", id), 1i64))
+                    ];
+                    for idx in (0..dims.len()).skip(4) {
+                        store_begins.push((0i64).into());
+                        store_steps.push((1i64).into());
+                        store_axes.push(var(format!("ax{}", idx)).into());
+                        store_strides.push(
+                            Load::make(&format!("%{}.s", id), (idx as i64) - 2).into()
+                        );
+                    }
                     if is_output {
-                        let mut store_begins = vec![(0i64).into(), o.clone()];
-                        let mut store_steps = vec![(1i64).into(), kernels_per_group.clone()];
-                        let mut store_axes = vec![
-                            dims[0].var().to_prime_expr(),
-                            dims[1].var().to_prime_expr()
-                        ];
-                        let mut store_strides = vec![
-                            PrimeExpr::Load(Load::make(&format!("%{}.s", id), 0i64)),
-                            PrimeExpr::Load(Load::make(&format!("%{}.s", id), 1i64))
-                        ];
-                        for idx in (0..dims.len()).skip(4) {
-                            store_begins.push((0i64).into());
-                            store_steps.push((1i64).into());
-                            store_axes.push(var(format!("ax{}", idx)).into());
-                            store_strides.push(
-                                Load::make(&format!("%{}.s", id), (idx as i64) - 2).into()
-                            );
-                        }
-
                         let sum = ReduceStage {
                             dims: kernel_dims,
                             bodys: lets_,
@@ -330,9 +326,9 @@ impl Context {
                                     Stmt::StoreStmt(
                                         StoreStmt::make(
                                             format!("%{}", id),
-                                            store_begins,
-                                            store_axes,
-                                            store_steps,
+                                            store_begins.clone(),
+                                            store_axes.clone(),
+                                            store_steps.clone(),
                                             store_strides,
                                             Load::make(&format!("%{}_val_ptr", id), 0i64)
                                         )
@@ -342,6 +338,9 @@ impl Context {
                             dtype: kernel.dtype,
                             id,
                             out_id: id,
+                            begins: store_begins,
+                            steps: store_steps,
+                            axes: store_axes,
                         };
                         Body::Stage(stage)
                     } else {
@@ -385,6 +384,9 @@ impl Context {
                             dtype: kernel.dtype,
                             id,
                             out_id: id,
+                            begins: store_begins,
+                            steps: store_steps,
+                            axes: store_axes,
                         };
                         Body::Stage(stage)
                     }

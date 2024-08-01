@@ -158,6 +158,9 @@ pub fn pad_common_helper(
         id: out_id,
         out_id,
         dtype: input.dtype,
+        begins: input.begins.clone(),
+        steps: input.steps.clone(),
+        axes: input.axes.clone(),
     };
     Body::Stage(stage)
 }

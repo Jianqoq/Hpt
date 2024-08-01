@@ -107,6 +107,9 @@ pub fn common_elu_helper<F>(
                 id: output_id,
                 out_id: stage.out_id,
                 dtype: res_dtype,
+                begins: stage.begins.clone(),
+                steps: stage.steps.clone(),
+                axes: stage.axes.clone(),
             };
             Body::Stage(stage)
         }

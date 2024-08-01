@@ -8,8 +8,9 @@ use crate::{
         let_stmt::LetStmt,
         prime_expr::PrimeExpr,
         stmt::Stmt,
+        store_stmt::StoreStmt,
         substitute::subsititue_var::SubstituteVar,
-        utils::{ dtype_zero, store_with_dims },
+        utils::dtype_zero,
         variable::Variable,
     },
     iter_var::IterVar,
@@ -19,7 +20,6 @@ use crate::{
         strides_cal_helper::elementwise_strides_cal,
         tensor::{ StridesCal, Tensor },
     },
-    to_prim_expr::ToPrimeExpr,
 };
 
 pub fn common_relu(
@@ -35,14 +35,13 @@ pub fn common_relu(
             shape,
             output_id,
             res_dtype,
-            |dims: &Vec<IterVar>, stage_out_id: usize|
+            |dims: &Vec<IterVar>, stage_out_id: usize, stage: &Stage|
                 Body::Stmt(
-                    store_with_dims(
+                    StoreStmt::make(
                         format!("%{}", output_id),
-                        dims
-                            .iter()
-                            .map(|x| x.var().to_prime_expr())
-                            .collect::<Vec<PrimeExpr>>(),
+                        stage.begins.clone(),
+                        stage.axes.clone(),
+                        stage.steps.clone(),
                         (0..dims.len())
                             .map(|x| { Load::make(&format!("%{}.s", output_id), x).into() })
                             .collect::<Vec<PrimeExpr>>(),
@@ -50,11 +49,11 @@ pub fn common_relu(
                             Variable::make(&format!("%{}_val", stage_out_id)),
                             dtype_zero(res_dtype)
                         )
-                    )
+                    ).into()
                 )
         )
     } else {
-        common_relu_helper(inputs, shape, output_id, res_dtype, |_, stage_out_id: usize|
+        common_relu_helper(inputs, shape, output_id, res_dtype, |_, stage_out_id: usize, _|
             Body::Stmt(
                 Stmt::LetStmt(
                     LetStmt::make(
@@ -79,7 +78,7 @@ pub fn common_relu_helper<F>(
     res_dtype: Dtype,
     post: F
 ) -> Body
-    where F: Fn(&Vec<IterVar>, usize) -> Body
+    where F: Fn(&Vec<IterVar>, usize, &Stage) -> Body
 {
     match &inputs[0] {
         Body::Stage(stage) => {
@@ -93,7 +92,7 @@ pub fn common_relu_helper<F>(
                 Variable::new(format!("%{}.s", stage.out_id)),
                 Variable::new(format!("%{}.s", output_id))
             );
-            stage.bodys.push(post(&dims, stage.out_id));
+            stage.bodys.push(post(&dims, stage.out_id, &stage));
 
             for i in stage.bodys.iter_mut() {
                 i.accept_mutate(&mut subs_var);
@@ -104,6 +103,9 @@ pub fn common_relu_helper<F>(
                 id: output_id,
                 out_id: stage.out_id,
                 dtype: res_dtype,
+                begins: stage.begins.clone(),
+                steps: stage.steps.clone(),
+                axes: stage.axes.clone(),
             };
             Body::Stage(stage)
         }
