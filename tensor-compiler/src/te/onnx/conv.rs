@@ -10,7 +10,7 @@ use crate::{
         primitive_type::PrimitiveType,
         stmt::Stmt,
         tensor_load::TensorLoad,
-        utils::{ all, bitand, dtype_zero, floor, store_with_idx },
+        utils::{ all, bitand, dtype_zero, floor, store_with_idx, var },
         variable::Variable,
     },
     iter_var::IterVar,
@@ -110,20 +110,21 @@ impl Context {
         let outer_dims = Arc::new(outer_dims);
         let shape = outer_dims.clone();
         let groups: PrimeExpr = group.unwrap_or(1i64).into();
-        let out_channels_per_group = &weight.shape[0] / &groups;
+        let kernels_per_group = &weight.shape[0] / &groups;
+        let in_channdels_per_group = weight.shape[1].clone();
         let body = move |inputs: Vec<Body>, is_output: bool, id: usize| {
             match (&inputs[0], &inputs[1]) {
                 (Body::Stage(input), Body::Stage(kernel)) => {
                     let mut kernel_dims = Vec::with_capacity(kernel.dims[2..].len());
                     for (idx, i) in kernel.dims.iter().enumerate().skip(2) {
                         let mut i = i.clone();
-                        i.set_var(Variable::new(format!("{}red{}", kernel.id, idx)));
+                        i.set_var(var(format!("{}red{}", kernel.id, idx)));
                         kernel_dims.push(i);
                     }
-                    let sum_ptr = Variable::new(format!("%{}_val_ptr", id));
+                    let sum_ptr = var(format!("%{}_val_ptr", id));
                     let add_bias = if let Some(bias) = bias_id {
                         let load_sum: PrimeExpr = Load::make(&sum_ptr, 0i64).into();
-                        let bias_val: PrimeExpr = Variable::new(format!("%{}_val", bias)).into();
+                        let bias_val: PrimeExpr = var(format!("%{}_val", bias)).into();
                         let add = load_sum + bias_val;
                         Body::Stmt(store_with_idx(format!("%{}_val_ptr", id), 0i64, add))
                     } else {
@@ -131,20 +132,18 @@ impl Context {
                     };
                     let mut dims = outer_dims.as_ref().clone();
                     dims[1] = groups.clone();
-                    dims.insert(2, out_channels_per_group.clone());
+                    dims.insert(2, kernels_per_group.clone());
+                    dims.insert(3, in_channdels_per_group.clone());
                     let dims = dims
                         .into_iter()
                         .enumerate()
-                        .map(|(idx, x)| {
-                            IterVar::new(0i64, x, 1i64, Variable::new(format!("ax{}", idx)))
-                        })
+                        .map(|(idx, x)| { IterVar::new(0i64, x, 1i64, var(format!("ax{}", idx))) })
                         .collect::<Vec<IterVar>>();
                     let inp_begins = dims
                         .iter()
-                        .skip(3)
+                        .skip(4)
                         .map(|x| x.var().to_prime_expr())
                         .collect::<Vec<_>>();
-                    println!("{:?}", inp_begins);
                     let kernel_begins = kernel_dims
                         .iter()
                         .map(|x| x.var().to_prime_expr())
@@ -154,8 +153,11 @@ impl Context {
                         .zip(kernel_begins.iter())
                         .zip(steps.iter())
                         .zip(dilations.iter())
-                        .map(|(((x, y), z), w)| {
-                            x.clone() * z.to_prime_expr() + y.clone() * w.to_prime_expr()
+                        .zip(pads.iter())
+                        .map(|((((x, y), z), w), pad)| {
+                            x.clone() * z.to_prime_expr() +
+                                y.clone() * w.to_prime_expr() -
+                                pad.0.clone()
                         })
                         .collect::<Vec<_>>();
                     let mut lets_ = begins
@@ -164,12 +166,7 @@ impl Context {
                         .map(|(i, x)|
                             Body::Stmt(
                                 Stmt::LetStmt(
-                                    LetStmt::make(
-                                        &Variable::new(format!("inp{}", i)),
-                                        x,
-                                        false,
-                                        Stmt::None
-                                    )
+                                    LetStmt::make(&var(format!("inp{}", i)), x, false, Stmt::None)
                                 )
                             )
                         )
@@ -178,7 +175,7 @@ impl Context {
                         Body::Stmt(
                             Stmt::LetStmt(
                                 LetStmt::make(
-                                    &Variable::new(format!("%{}_val", id)),
+                                    &var(format!("%{}_val", id)),
                                     Load::make(&sum_ptr, 0i64),
                                     false,
                                     Stmt::None
@@ -186,53 +183,92 @@ impl Context {
                             )
                         )
                     );
-                    let cmps = pads
-                        .iter()
-                        .enumerate()
-                        .map(|(idx, (begin, end))| {
-                            let inp = Variable::new(format!("inp{}", idx));
-                            let ge = Ge::make(&inp, begin);
-                            let lt = Lt::make(&inp, input.dims[idx + 2].end() - end);
+                    let cmps = (0..pads.len())
+                        .map(|idx| {
+                            let inp = var(format!("inp{}", idx));
+                            let ge = Ge::make(&inp, 0i64);
+                            let lt = Lt::make(&inp, input.dims[idx + 2].end().clone());
                             bitand(ge, lt)
                         })
                         .collect::<Vec<PrimeExpr>>();
-                    let cond = all(&cmps);
 
-                    let g = PrimeExpr::Variable(Variable::new(format!("ax1")));
-                    let o = PrimeExpr::Variable(Variable::new(format!("ax2")));
-                    let mut kernel_begins = vec![&g * &out_channels_per_group];
-                    let mut kernel_steps = vec![(1i64).into()];
-                    let mut axes = vec![o.clone()];
+                    let g = PrimeExpr::Variable(var(format!("ax1")));
+                    let o = PrimeExpr::Variable(var(format!("ax2")));
+                    let mut kernel_begins = vec![o.clone(), (0i64).into()];
+                    let mut kernel_steps = vec![kernels_per_group.clone(), (1i64).into()];
+                    let mut axes = vec![g.clone(), dims[3].var().to_prime_expr()];
                     let mut strides = vec![
-                        PrimeExpr::Load(Load::make(&format!("%{}.s", kernel.out_id), 0i64))
+                        PrimeExpr::Load(Load::make(&format!("%{}.s", kernel.out_id), 0i64)),
+                        PrimeExpr::Load(Load::make(&format!("%{}.s", kernel.out_id), 1i64))
                     ];
-                    for (idx, dim) in kernel_dims.iter().enumerate() {
+                    for idx in 0..kernel_dims.len() {
                         kernel_begins.push((0i64).into());
                         kernel_steps.push((1i64).into());
-                        axes.push(dim.var().to_prime_expr());
+                        axes.push(var(format!("inp{}", idx)).into());
                         strides.push(
-                            Load::make(&format!("%{}.s", kernel.out_id), (idx as i64) + 1).into()
+                            Load::make(&format!("%{}.s", kernel.out_id), (idx as i64) + 2).into()
                         );
                     }
                     let kernel_loaded = TensorLoad::make(
-                        Variable::new(format!("%{}_val", kernel.out_id)),
+                        var(format!("%{}_val", kernel.out_id)),
                         kernel_begins,
                         axes,
                         kernel_steps,
                         strides,
                         vec![]
                     );
+
+                    let mut inp_begins = vec![(0i64).into(), dims[3].var().to_prime_expr()];
+                    let mut inp_steps = vec![(1i64).into(), in_channdels_per_group.clone()];
+                    let mut axes = vec![dims[0].var().to_prime_expr(), g.clone()];
+                    let mut strides = vec![
+                        PrimeExpr::Load(Load::make(&format!("%{}.s", input.out_id), 0i64)),
+                        PrimeExpr::Load(Load::make(&format!("%{}.s", input.out_id), 1i64))
+                    ];
+
+                    for idx in 0..input.dims.len() - 2 {
+                        inp_begins.push((0i64).into());
+                        inp_steps.push((1i64).into());
+                        axes.push(var(format!("inp{}", idx)).into());
+                        strides.push(
+                            Load::make(&format!("%{}.s", input.out_id), (idx as i64) + 2).into()
+                        );
+                    }
+
+                    let input_loaded = TensorLoad::make(
+                        var(format!("%{}_val", input.out_id)),
+                        inp_begins,
+                        axes,
+                        inp_steps,
+                        strides,
+                        vec![]
+                    );
+
+                    let mul =
+                        var(format!("%{}_val", kernel.out_id)) *
+                        var(format!("%{}_val", input.out_id));
+                    let add = PrimeExpr::Variable(var(format!("%{}_val", id))) + mul;
+
                     let if_stage = If {
-                        cond,
+                        cond: all(&cmps),
                         true_bodys: vec![
                             Body::Stmt(
                                 LetStmt::make(
-                                    &Variable::new(format!("%{}_val", kernel.out_id)),
+                                    &var(format!("%{}_val", kernel.out_id)),
                                     kernel_loaded,
                                     false,
                                     Stmt::None
                                 ).into()
-                            )
+                            ),
+                            Body::Stmt(
+                                LetStmt::make(
+                                    &var(format!("%{}_val", input.out_id)),
+                                    input_loaded,
+                                    false,
+                                    Stmt::None
+                                ).into()
+                            ),
+                            Body::Stmt(store_with_idx(format!("%{}_val_ptr", id), 0i64, add))
                         ],
                         false_bodys: vec![],
                         id,
@@ -248,7 +284,7 @@ impl Context {
                                 Body::Stmt(
                                     Stmt::AllocaStmt(
                                         AllocaStmt::make(
-                                            &Variable::new(format!("%{}_val_ptr", id)),
+                                            &var(format!("%{}_val_ptr", id)),
                                             PrimitiveType::Dtype(kernel.dtype),
                                             1i64,
                                             Stmt::None
@@ -283,7 +319,7 @@ impl Context {
                                 Body::Stmt(
                                     Stmt::AllocaStmt(
                                         AllocaStmt::make(
-                                            &Variable::new(format!("%{}_val_ptr", id)),
+                                            &var(format!("%{}_val_ptr", id)),
                                             PrimitiveType::Dtype(kernel.dtype),
                                             1i64,
                                             Stmt::None

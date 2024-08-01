@@ -8,6 +8,10 @@ use super::{
     variable::Variable,
 };
 
+pub fn var(name: String) -> Variable {
+    Variable::new(name)
+}
+
 pub fn all(conds: &[PrimeExpr]) -> PrimeExpr {
     conds
         .into_iter()

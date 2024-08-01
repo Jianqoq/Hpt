@@ -67,6 +67,19 @@ impl Display for IfThenElse {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self.else_case.as_ref() {
             Stmt::None => write!(f, "if {} {{\n{}}}", self.cond, self.then_case),
+            Stmt::Seq(seq) => {
+                if seq.stmts().is_empty() {
+                    write!(f, "if {} {{\n{}}}", self.cond, self.then_case)
+                } else {
+                    write!(
+                        f,
+                        "if {} {{\n{}}} else {{\n{}}}",
+                        self.cond,
+                        self.then_case,
+                        self.else_case
+                    )
+                }
+            }
             _ =>
                 write!(
                     f,
