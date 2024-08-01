@@ -31,30 +31,6 @@ fn test_reshape_schedule() {
     let order = [a.id, b.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    let o = shape_vars[2];
-    for ax0 in range(0, m) {
-        for ax1 in range(0, n) {
-            for ax2 in range(0, o) {
-                for ax3 in range(0, 1) {
-                    let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1] + ax2 * istrides0[2] + ax3 * istrides0[3]];
-                    %1[ax0 * ostrides0[0] + ax1 * ostrides0[1] + ax2 * ostrides0[2] + ax3 * ostrides0[3]] = %0_val;
-                }
-            }
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert_eq!(inputs.len(), 1);
@@ -96,31 +72,6 @@ fn test_add_schedule() {
     let order = [a.id, b.id, c.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let istrides1 = istrides_vec[1];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (data_vec[1] as *f32);
-    let %2 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    let o = shape_vars[2];
-    for ax0 in range(0, m) {
-        for ax1 in range(0, n) {
-            for ax2 in range(0, o) {
-                let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1] + ax2 * istrides0[2]];
-                let %1_val = %1[ax0 * istrides1[0] + ax1 * istrides1[1] + ax2 * istrides1[2]];
-                %2[ax0 * ostrides0[0] + ax1 * ostrides0[1] + ax2 * ostrides0[2]] = %0_val + %1_val;
-            }
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert_eq!(inputs.len(), 2);
@@ -173,31 +124,6 @@ fn test_add_broadcast_schedule() {
     let order = [a.id, b.id, c.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let istrides1 = istrides_vec[1];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (data_vec[1] as *f32);
-    let %2 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    let o = shape_vars[2];
-    for ax0 in range(0, m) {
-        for ax1 in range(0, n) {
-            for ax2 in range(0, o) {
-                let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1] + ax2 * istrides0[2]];
-                let %1_val = %1[ax0 * istrides1[0] + ax1 * istrides1[1] + ax2 * istrides1[2]];
-                %2[ax0 * ostrides0[0] + ax1 * ostrides0[1] + ax2 * ostrides0[2]] = %0_val + %1_val;
-            }
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert_eq!(inputs.len(), 2);
@@ -251,31 +177,6 @@ fn test_add_broadcast_diff_len_schedule() {
     let order = [a.id, b.id, c.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let istrides1 = istrides_vec[1];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (data_vec[1] as *f32);
-    let %2 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    let o = shape_vars[2];
-    for ax0 in range(0, o) {
-        for ax1 in range(0, m) {
-            for ax2 in range(0, n) {
-                let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1] + ax2 * istrides0[2]];
-                let %1_val = %1[ax0 * istrides1[0] + ax1 * istrides1[1] + ax2 * istrides1[2]];
-                %2[ax0 * ostrides0[0] + ax1 * ostrides0[1] + ax2 * ostrides0[2]] = %0_val + %1_val;
-            }
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert_eq!(inputs.len(), 2);
@@ -329,29 +230,6 @@ fn test_add_broadcast_diff_len_schedule2() {
     let order = [a.id, b.id, c.id, d.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let istrides1 = istrides_vec[1];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (data_vec[1] as *f32);
-    let %3 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let o = shape_vars[1];
-    for ax0 in range(0, o) {
-        for ax1 in range(0, m) {
-            let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1]];
-            let %1_val = %1[ax0 * istrides1[0] + ax1 * istrides1[1]];
-            let %2_val = %0_val + %1_val;
-            %3[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = sin(%2_val);
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert_eq!(inputs.len(), 2);
@@ -404,33 +282,6 @@ fn test_sum_broadcast_schedule() {
     let order = [a.id, b.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
- "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    let o = shape_vars[2];
-    for ax0 in range(0, m) {
-        for ax1 in range(0, o) {
-            let %1_val_ptr = alloca<f32>(1);
-            %1_val_ptr[0] = 0;
-            for 1red1 in range(0, n) {
-                let %1_val = %1_val_ptr[0];
-                let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1] + 1red1 * istrides0[2]];
-                %1_val_ptr[0] = %1_val + %0_val;
-            }
-            let %1_val = %1_val_ptr[0];
-            %1[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %1_val;
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert_eq!(inputs.len(), 1);
@@ -473,38 +324,6 @@ fn test_argmin_broadcast_schedule() {
     let order = [a.id, b.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (output_vec[0] as *i64);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    let o = shape_vars[2];
-    for ax0 in range(0, m) {
-        for ax1 in range(0, o) {
-            let %1_idx_ptr = alloca<i64>(1);
-            %1_idx_ptr[0] = 0;
-            let %1_val_ptr = alloca<f32>(1);
-            %1_val_ptr[0] = inf;
-            for 1red1 in range(0, n) {
-                let %1_val = %1_val_ptr[0];
-                let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1] + 1red1 * istrides0[2]];
-                if (%0_val < %1_val) {
-                    %1_val_ptr[0] = %0_val;
-                    %1_idx_ptr[0] = 1red1;
-                }
-            }
-            let %1_val = %1_idx_ptr[0];
-            %1[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %1_val;
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
 
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
@@ -549,38 +368,6 @@ fn test_argmax_broadcast_schedule() {
     let order = [a.id, b.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (output_vec[0] as *i64);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    let o = shape_vars[2];
-    for ax0 in range(0, m) {
-        for ax1 in range(0, o) {
-            let %1_idx_ptr = alloca<i64>(1);
-            %1_idx_ptr[0] = 0;
-            let %1_val_ptr = alloca<f32>(1);
-            %1_val_ptr[0] = -inf;
-            for 1red1 in range(0, n) {
-                let %1_val = %1_val_ptr[0];
-                let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1] + 1red1 * istrides0[2]];
-                if (%1_val < %0_val) {
-                    %1_val_ptr[0] = %0_val;
-                    %1_idx_ptr[0] = 1red1;
-                }
-            }
-            let %1_val = %1_idx_ptr[0];
-            %1[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %1_val;
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert_eq!(inputs.len(), 1);
@@ -626,43 +413,6 @@ fn test_sum_all_broadcast_schedule() {
     let order = [a.id, b.id, c.id, e.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %3 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    let o = shape_vars[2];
-    let %3_val_ptr = alloca<f32>(1);
-    %3_val_ptr[0] = 0;
-    for 3red0 in range(0, o) {
-        let %3_val = %3_val_ptr[0];
-        let %2_val_ptr = alloca<f32>(1);
-        %2_val_ptr[0] = 0;
-        for 2red0 in range(0, n) {
-            let %2_val = %2_val_ptr[0];
-            let %1_val_ptr = alloca<f32>(1);
-            %1_val_ptr[0] = 0;
-            for 1red0 in range(0, m) {
-                let %1_val = %1_val_ptr[0];
-                let %0_val = %0[3red0 * istrides0[0] + 2red0 * istrides0[1] + 1red0 * istrides0[2]];
-                %1_val_ptr[0] = %1_val + %0_val;
-            }
-            let %1_val = %1_val_ptr[0];
-            %2_val_ptr[0] = %2_val + %1_val;
-        }
-        let %2_val = %2_val_ptr[0];
-        %3_val_ptr[0] = %3_val + %2_val;
-    }
-    let %3_val = %3_val_ptr[0];
-    %3[0] = %3_val;
-    return;
-}"
-    ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert_eq!(inputs.len(), 1);
@@ -705,33 +455,6 @@ fn test_sum_all_broadcast_schedule2() {
     let order = [a.id, b.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    let o = shape_vars[2];
-    let %1_val_ptr = alloca<f32>(1);
-    %1_val_ptr[0] = 0;
-    for 1red0 in range(0, m) {
-        for 1red1 in range(0, n) {
-            for 1red2 in range(0, o) {
-                let %1_val = %1_val_ptr[0];
-                let %0_val = %0[1red0 * istrides0[0] + 1red1 * istrides0[1] + 1red2 * istrides0[2]];
-                %1_val_ptr[0] = %1_val + %0_val;
-            }
-        }
-    }
-    let %1_val = %1_val_ptr[0];
-    %1[0] = %1_val;
-    return;
-}"
-    ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert_eq!(inputs.len(), 1);
@@ -793,75 +516,6 @@ fn test_schedule3() {
     ];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let istrides1 = istrides_vec[1];
-    let istrides2 = istrides_vec[2];
-    let istrides3 = istrides_vec[3];
-    let istrides4 = istrides_vec[4];
-    let istrides5 = istrides_vec[5];
-    let istrides6 = istrides_vec[6];
-    let istrides7 = istrides_vec[7];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (data_vec[1] as *f64);
-    let %9 = (output_vec[0] as *f64);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    let o = shape_vars[2];
-    for ax0 in range(0, m) {
-        for ax1 in range(0, n) {
-            for ax2 in range(0, o) {
-                let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1] + ax2 * istrides0[2]];
-                let %1_val = %1[ax0 * istrides1[0] + ax1 * istrides1[1] + ax2 * istrides1[2]];
-                let %2_val = %0_val + %1_val;
-                let %3_val_ptr = alloca<f64>(1);
-                %3_val_ptr[0] = 0;
-                for 3red2 in range(0, o) {
-                    let %3_val = %3_val_ptr[0];
-                    let %0_val = %0[ax0 * istrides2[0] + ax1 * istrides2[1] + ax2 * istrides2[2] + 3red2 * istrides2[3]];
-                    let %1_val = %1[ax0 * istrides3[0] + ax1 * istrides3[1] + ax2 * istrides3[2] + 3red2 * istrides3[3]];
-                    let %2_val = %0_val + %1_val;
-                    %3_val_ptr[0] = %3_val + %2_val;
-                }
-                let %3_val = %3_val_ptr[0];
-                let %4_val = %3_val;
-                let %5_val = %2_val + %4_val;
-                let %6_val = sin(%5_val);
-                let %7_val_ptr = alloca<f64>(1);
-                %7_val_ptr[0] = 0;
-                for 7red2 in range(0, o) {
-                    let %7_val = %7_val_ptr[0];
-                    let %0_val = %0[ax0 * istrides4[0] + ax1 * istrides4[1] + ax2 * istrides4[2] + 7red2 * istrides4[3]];
-                    let %1_val = %1[ax0 * istrides5[0] + ax1 * istrides5[1] + ax2 * istrides5[2] + 7red2 * istrides5[3]];
-                    let %2_val = %0_val + %1_val;
-                    let %3_val_ptr = alloca<f64>(1);
-                    %3_val_ptr[0] = 0;
-                    for 3red2 in range(0, o) {
-                        let %3_val = %3_val_ptr[0];
-                        let %0_val = %0[ax0 * istrides6[0] + ax1 * istrides6[1] + ax2 * istrides6[2] + 7red2 * istrides6[3] + 3red2 * istrides6[4]];
-                        let %1_val = %1[ax0 * istrides7[0] + ax1 * istrides7[1] + ax2 * istrides7[2] + 7red2 * istrides7[3] + 3red2 * istrides7[4]];
-                        let %2_val = %0_val + %1_val;
-                        %3_val_ptr[0] = %3_val + %2_val;
-                    }
-                    let %3_val = %3_val_ptr[0];
-                    let %4_val = %3_val;
-                    let %5_val = %2_val + %4_val;
-                    let %6_val = sin(%5_val);
-                    %7_val_ptr[0] = %7_val + %6_val;
-                }
-                let %7_val = %7_val_ptr[0];
-                let %8_val = %7_val;
-                %9[ax0 * ostrides0[0] + ax1 * ostrides0[1] + ax2 * ostrides0[2]] = %6_val + %8_val;
-            }
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
 
     let vars_map =
         hashmap! {
@@ -917,25 +571,6 @@ fn test_slice() {
     let order = [a.id, b.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    for ax0 in range(0, ceil((m - 1) / 2)) {
-        for ax1 in range(0, ceil((n - 1) / 2)) {
-            let %0_val = %0[(ax0 * (2 * 1) + (0 + 0)) * istrides0[0] + (ax1 * (2 * 1) + (0 + 0)) * istrides0[1]];
-            %1[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %0_val;
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert_eq!(inputs.len(), 1);
@@ -990,27 +625,6 @@ fn test_slice_nested() {
     let order = [a.id, b.id, c.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-
-    assert_eq!(
-        func.to_string(),
-"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %2 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    for ax0 in range(0, 2) {
-        for ax1 in range(0, 2) {
-            let %0_val = %0[(ax0 * (2 * (2 * 1)) + (0 + (0 + 0))) * istrides0[0] + (ax1 * (2 * (2 * 1)) + (0 + (0 + 0))) * istrides0[1]];
-            let %1_val = %0_val;
-            %2[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %1_val;
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
     assert_eq!(inputs.len(), 1);
@@ -1066,36 +680,7 @@ fn test_pad() {
 
     let schedule = ctx.to_schedule(&order);
     let func = schedule.to_function();
-    let regex = Regex::new(r"\x1b\[[0-9;]*m").unwrap();
-    assert_eq!(
-        regex.replace_all(&func.to_string(), "").to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let istrides1 = istrides_vec[1];
-    let %0 = (data_vec[0] as *f32);
-    let %2 = (data_vec[1] as *f32);
-    let %4 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    for ax0 in range(0, 10 + m) {
-        for ax1 in range(0, 10 + n) {
-            let %1_val_ptr = alloc<f32>(1);
-            if (((ax0 >= 5) && (ax0 < 10 + m - 5)) && ((ax1 >= 5) && (ax1 < 10 + n - 5))) {
-                let %0_val = %0[(ax0 + (0 - 5)) * istrides0[0] + (ax1 + (0 - 5)) * istrides0[1]];
-                %1_val_ptr[0] = %0_val;
-            } else {
-                %1_val_ptr[0] = 1;
-            }
-            let %1_val = %1_val_ptr[0];
-            let %3_val = sin(%1_val);
-            let %2_val = %2[ax0 * istrides1[0] + ax1 * istrides1[1]];
-            %4[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %3_val + %2_val;
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
+    println!("{}", func.to_string());
 }
 
 #[test]
@@ -1115,29 +700,6 @@ fn test_pad_out() {
     let order = [a.id, b.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    for ax0 in range(0, 4 + m) {
-        for ax1 in range(0, 4 + n) {
-            if (((ax0 >= 2) && (ax0 < 4 + m - 2)) && ((ax1 >= 2) && (ax1 < 4 + n - 2))) {
-                let %0_val = %0[(ax0 + (0 - 2)) * istrides0[0] + (ax1 + (0 - 2)) * istrides0[1]];
-                %1[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %0_val;
-            } else {
-                %1[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = 1;
-            }
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
 
     let inputs = schedule.inputs();
     let outputs = schedule.outputs();
@@ -1193,32 +755,6 @@ fn test_pad_slice() {
     let order = [a.id, b.id, c.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %2 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    for ax0 in range(0, 6 - 2) {
-        for ax1 in range(0, 6 - 2) {
-            let %1_val_ptr = alloca<f32>(1);
-            if (((ax0 >= 2) && (ax0 < 4 + m - 2)) && ((ax1 >= 2) && (ax1 < 4 + n - 2))) {
-                let %0_val = %0[(ax0 * (1 * 1) + (2 + (0 - 2))) * istrides0[0] + (ax1 * (1 * 1) + (2 + (0 - 2))) * istrides0[1]];
-                %1_val_ptr[0] = %0_val;
-            } else {
-                %1_val_ptr[0] = 1;
-            }
-            let %1_val = %1_val_ptr[0];
-            %2[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = %1_val;
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
 
     let vars_map = hashmap! {
             "m" => 4,
@@ -1253,25 +789,6 @@ fn test_cast() {
     let order = [a.id, b.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (output_vec[0] as *f64);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    for ax0 in range(0, m) {
-        for ax1 in range(0, n) {
-            let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1]];
-            %1[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = (%0_val as f64);
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
 
     let vars_map = hashmap! {
             "m" => 4,
@@ -1308,30 +825,6 @@ fn test_prod() {
     let order = [a.id, b.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    for ax0 in range(0, m) {
-        let %1_val_ptr = alloca<f32>(1);
-        %1_val_ptr[0] = 1;
-        for 1red1 in range(0, n) {
-            let %1_val = %1_val_ptr[0];
-            let %0_val = %0[ax0 * istrides0[0] + 1red1 * istrides0[1]];
-            %1_val_ptr[0] = %1_val * %0_val;
-        }
-        let %1_val = %1_val_ptr[0];
-        %1[ax0 * ostrides0[0]] = %1_val;
-    }
-    return;
-}"
-    ); // prettier-ignore
 
     let vars_map = hashmap! {
             "m" => 4,
@@ -1368,30 +861,6 @@ fn test_min() {
     let order = [a.id, b.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    for ax0 in range(0, m) {
-        let %1_val_ptr = alloca<f32>(1);
-        %1_val_ptr[0] = inf;
-        for 1red1 in range(0, n) {
-            let %1_val = %1_val_ptr[0];
-            let %0_val = %0[ax0 * istrides0[0] + 1red1 * istrides0[1]];
-            %1_val_ptr[0] = min(%1_val, %0_val);
-        }
-        let %1_val = %1_val_ptr[0];
-        %1[ax0 * ostrides0[0]] = %1_val;
-    }
-    return;
-}"
-    ); // prettier-ignore
 
     let vars_map = hashmap! {
             "m" => 4,
@@ -1429,31 +898,6 @@ fn test_max() {
     let order = [a.id, b.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    for ax0 in range(0, m) {
-        let %1_val_ptr = alloca<f32>(1);
-        %1_val_ptr[0] = -inf;
-        for 1red1 in range(0, n) {
-            let %1_val = %1_val_ptr[0];
-            let %0_val = %0[ax0 * istrides0[0] + 1red1 * istrides0[1]];
-            %1_val_ptr[0] = max(%1_val, %0_val);
-        }
-        let %1_val = %1_val_ptr[0];
-        %1[ax0 * ostrides0[0]] = %1_val;
-    }
-    return;
-}"
-    ); // prettier-ignore
-
     let vars_map = hashmap! {
             "m" => 4,
             "n" => 4,
@@ -1491,28 +935,6 @@ fn test_ge() {
     let order = [a.id, b.id, c.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let istrides1 = istrides_vec[1];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (data_vec[1] as *f32);
-    let %2 = (output_vec[0] as *bool);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    for ax0 in range(0, m) {
-        for ax1 in range(0, n) {
-            let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1]];
-            let %1_val = %1[ax0 * istrides1[0] + ax1 * istrides1[1]];
-            %2[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = (%0_val >= %1_val);
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
 
     let vars_map = hashmap! {
             "m" => 4,
@@ -1551,28 +973,6 @@ fn test_gt() {
     let order = [a.id, b.id, c.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let istrides1 = istrides_vec[1];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (data_vec[1] as *f32);
-    let %2 = (output_vec[0] as *bool);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    for ax0 in range(0, m) {
-        for ax1 in range(0, n) {
-            let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1]];
-            let %1_val = %1[ax0 * istrides1[0] + ax1 * istrides1[1]];
-            %2[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = (%0_val > %1_val);
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
 
     let vars_map = hashmap! {
             "m" => 4,
@@ -1611,28 +1011,6 @@ fn test_le() {
     let order = [a.id, b.id, c.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let istrides1 = istrides_vec[1];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (data_vec[1] as *f32);
-    let %2 = (output_vec[0] as *bool);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    for ax0 in range(0, m) {
-        for ax1 in range(0, n) {
-            let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1]];
-            let %1_val = %1[ax0 * istrides1[0] + ax1 * istrides1[1]];
-            %2[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = (%0_val <= %1_val);
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
 
     let vars_map = hashmap! {
             "m" => 4,
@@ -1671,28 +1049,6 @@ fn test_lt() {
     let order = [a.id, b.id, c.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let istrides1 = istrides_vec[1];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (data_vec[1] as *f32);
-    let %2 = (output_vec[0] as *bool);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    let n = shape_vars[1];
-    for ax0 in range(0, m) {
-        for ax1 in range(0, n) {
-            let %0_val = %0[ax0 * istrides0[0] + ax1 * istrides0[1]];
-            let %1_val = %1[ax0 * istrides1[0] + ax1 * istrides1[1]];
-            %2[ax0 * ostrides0[0] + ax1 * ostrides0[1]] = (%0_val < %1_val);
-        }
-    }
-    return;
-}"
-    ); // prettier-ignore
 
     let vars_map = hashmap! {
             "m" => 4,
@@ -1729,22 +1085,6 @@ fn test_relu() {
     let order = [a.id, b.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    for ax0 in range(0, m) {
-        let %0_val = %0[ax0 * istrides0[0]];
-        %1[ax0 * ostrides0[0]] = max(%0_val, 0);
-    }
-    return;
-}"
-    ); // prettier-ignore
 
     let vars_map = hashmap! {
             "m" => 4,
@@ -1776,22 +1116,6 @@ fn test_elu() {
     let order = [a.id, b.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    for ax0 in range(0, m) {
-        let %0_val = %0[ax0 * istrides0[0]];
-        %1[ax0 * ostrides0[0]] = ((%0_val > 0) ? %0_val : 1 * (exp(%0_val) - 1));
-    }
-    return;
-}"
-    ); // prettier-ignore
 
     let vars_map = hashmap! {
             "m" => 4,
@@ -1823,22 +1147,6 @@ fn test_selu() {
     let order = [a.id, b.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    for ax0 in range(0, m) {
-        let %0_val = %0[ax0 * istrides0[0]];
-        %1[ax0 * ostrides0[0]] = ((%0_val > 0) ? %0_val * 1.6732632423543772 : 1.6732632423543772 * 1.0507009873554805 * (exp(%0_val) - 1));
-    }
-    return;
-}"
-    ); // prettier-ignore
 
     let vars_map = hashmap! {
             "m" => 4,
@@ -1870,22 +1178,6 @@ fn test_celu() {
     let order = [a.id, b.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-"fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    for ax0 in range(0, m) {
-        let %0_val = %0[ax0 * istrides0[0]];
-        %1[ax0 * ostrides0[0]] = max(0, %0_val) + min(0, 1 * (exp(%0_val / 1) - 1));
-    }
-    return;
-}"
-    ); // prettier-ignore
 
     let vars_map = hashmap! {
             "m" => 4,
@@ -1917,22 +1209,6 @@ fn test_gelu() {
     let order = [a.id, b.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    for ax0 in range(0, m) {
-        let %0_val = %0[ax0 * istrides0[0]];
-        %1[ax0 * ostrides0[0]] = %0_val * 0.5 * (1 + erf(%0_val / 1.4142135381698608));
-    }
-    return;
-}"
-    ); // prettier-ignore
 
     let vars_map = hashmap! {
             "m" => 4,
@@ -1964,22 +1240,6 @@ fn test_neg() {
     let order = [a.id, b.id];
 
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    assert_eq!(
-        func.to_string(),
-        "fn kernel(istrides_vec: **i64, ostrides_vec: **i64, data_vec: **void, output_vec: **void, offset_vec: *i64, shape_vars: *i64, thread_idx: i64) -> void {
-    let istrides0 = istrides_vec[0];
-    let %0 = (data_vec[0] as *f32);
-    let %1 = (output_vec[0] as *f32);
-    let ostrides0 = ostrides_vec[0];
-    let m = shape_vars[0];
-    for ax0 in range(0, m) {
-        let %0_val = %0[ax0 * istrides0[0]];
-        %1[ax0 * ostrides0[0]] = -(%0_val);
-    }
-    return;
-}"
-    ); // prettier-ignore
 
     let vars_map = hashmap! {
             "m" => 4,

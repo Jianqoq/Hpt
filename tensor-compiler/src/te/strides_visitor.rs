@@ -104,9 +104,14 @@ impl IRMutateVisitor for StridesStoreVisitor {
         let strides = store.strides
             .iter()
             .map(|x| {
-                let mut load = x.to_load().unwrap().clone();
-                load.name = format!("ostrides{}", self.cnt).into();
-                load.into()
+                let mut x = x.clone();
+                match &mut x {
+                    PrimeExpr::Load(load) => {
+                        load.name = format!("ostrides{}", self.cnt).into();
+                    }
+                    _ => {}
+                }
+                x
             })
             .collect::<Vec<PrimeExpr>>();
         self.set_stmt(StoreStmt {

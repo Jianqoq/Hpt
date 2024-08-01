@@ -57,15 +57,32 @@ pub fn store_with_dims<A: Into<PrimeExpr>, B: Into<PrimeExpr>, C: Into<PrimeExpr
     strides: Vec<B>,
     val: C
 ) -> Stmt {
+    let len = dims.len();
+    if len == 0 {
+        return (StoreStmt {
+            var: Variable::new(var),
+            begins: vec![(0i64).into()].into(),
+            axes: vec![(0i64).into()].into(),
+            steps: vec![(0i64).into()].into(),
+            strides: vec![(0i64).into()].into(),
+            val: val.into().into(),
+        }).into();
+    }
     (StoreStmt {
         var: Variable::new(var),
-        begins: vec![(0i64).into()].into(),
+        begins: (0..len)
+            .map(|_| (0i64).into())
+            .collect::<Vec<_>>()
+            .into(),
         axes: dims
             .into_iter()
             .map(|x| x.into())
             .collect::<Vec<_>>()
             .into(),
-        steps: vec![(1i64).into()].into(),
+        steps: (0..len)
+            .map(|_| (1i64).into())
+            .collect::<Vec<_>>()
+            .into(),
         strides: strides
             .into_iter()
             .map(|x| x.into())
