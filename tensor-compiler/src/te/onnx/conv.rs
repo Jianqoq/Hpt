@@ -3,15 +3,14 @@ use std::{ collections::HashMap, panic::Location, sync::Arc };
 use crate::{
     halide::{
         alloca_stmt::AllocaStmt,
-        exprs::{ BitAnd, Ge, Load, Lt },
+        exprs::{ Ge, Load, Lt },
         let_stmt::LetStmt,
         passes::const_fold::ConstFold,
         prime_expr::PrimeExpr,
         primitive_type::PrimitiveType,
         stmt::Stmt,
-        store_stmt::StoreStmt,
         tensor_load::TensorLoad,
-        utils::{ all, bitand, dtype_zero, floor },
+        utils::{ all, bitand, dtype_zero, floor, store_with_idx },
         variable::Variable,
     },
     iter_var::IterVar,
@@ -126,7 +125,7 @@ impl Context {
                         let load_sum: PrimeExpr = Load::make(&sum_ptr, 0i64).into();
                         let bias_val: PrimeExpr = Variable::new(format!("%{}_val", bias)).into();
                         let add = load_sum + bias_val;
-                        Body::Stmt(Stmt::StoreStmt(StoreStmt::make(&sum_ptr, 0i64, add)).into())
+                        Body::Stmt(store_with_idx(format!("%{}_val_ptr", id), 0i64, add))
                     } else {
                         Body::Stmt(Stmt::None)
                     };
@@ -257,13 +256,11 @@ impl Context {
                                     ).into()
                                 ),
                                 Body::Stmt(
-                                    Stmt::StoreStmt(
-                                        StoreStmt::make(
-                                            &Variable::make(&format!("%{}_val_ptr", id)),
-                                            0i64,
-                                            dtype_zero(kernel.dtype)
-                                        )
-                                    ).into()
+                                    store_with_idx(
+                                        format!("%{}_val_ptr", id),
+                                        0i64,
+                                        dtype_zero(kernel.dtype)
+                                    )
                                 )
                             ],
                             posts: vec![add_bias],
@@ -294,13 +291,11 @@ impl Context {
                                     ).into()
                                 ),
                                 Body::Stmt(
-                                    Stmt::StoreStmt(
-                                        StoreStmt::make(
-                                            &Variable::make(&format!("%{}_val_ptr", id)),
-                                            0i64,
-                                            dtype_zero(kernel.dtype)
-                                        )
-                                    ).into()
+                                    store_with_idx(
+                                        format!("%{}_val_ptr", id),
+                                        0i64,
+                                        dtype_zero(kernel.dtype)
+                                    )
                                 )
                             ],
                             posts: vec![add_bias],

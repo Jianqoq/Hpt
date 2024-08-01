@@ -14,9 +14,9 @@ use crate::{
         passes::const_fold::ConstFold,
         prime_expr::PrimeExpr,
         stmt::Stmt,
-        store_stmt::StoreStmt,
         tensor_load::TensorLoad,
         traits::MutatorGetSet,
+        utils::store_with_dims,
         variable::Variable,
     },
     iter_var::IterVar,
@@ -129,7 +129,7 @@ impl Context {
                             TensorLoad {
                                 var: Variable::make(&format!("%{}", id)).into(),
                                 begins: (0..shape.len())
-                                    .map(|_| 0i64.into())
+                                    .map(|_| (0i64).into())
                                     .collect::<Vec<PrimeExpr>>()
                                     .into(),
                                 axes: (0..shape.len())
@@ -137,7 +137,7 @@ impl Context {
                                     .collect::<Vec<PrimeExpr>>()
                                     .into(),
                                 steps: (0..shape.len())
-                                    .map(|_| 1i64.into())
+                                    .map(|_| (1i64).into())
                                     .collect::<Vec<PrimeExpr>>()
                                     .into(),
                                 strides: (0..shape.len())
@@ -260,21 +260,16 @@ impl Context {
                                 .collect::<Vec<PrimeExpr>>()
                         );
                         let body = Body::Stmt(
-                            Stmt::StoreStmt(
-                                StoreStmt::make(
-                                    &Variable::make(&format!("%{}", id)),
-                                    dims
-                                        .iter()
-                                        .enumerate()
-                                        .map(
-                                            |(idx, x)|
-                                                x.var().to_prime_expr() *
-                                                Load::make(&format!("%{}.s", id), idx).into()
-                                        )
-                                        .reduce(|acc, x| acc + x)
-                                        .unwrap_or(0i64.into()),
-                                    Variable::make(&format!("%{}_val", stage.out_id))
-                                )
+                            store_with_dims(
+                                format!("%{}", id),
+                                dims
+                                    .iter()
+                                    .map(|x| x.var().to_prime_expr())
+                                    .collect::<Vec<PrimeExpr>>(),
+                                (0..dims.len())
+                                    .map(|x| { Load::make(&format!("%{}.s", id), x).into() })
+                                    .collect::<Vec<PrimeExpr>>(),
+                                Variable::make(&format!("%{}_val", stage.out_id))
                             )
                         );
                         stage.bodys.push(body);
@@ -431,21 +426,16 @@ impl Context {
                             })
                             .collect::<Vec<Body>>();
                         let store_body = Body::Stmt(
-                            Stmt::StoreStmt(
-                                StoreStmt::make(
-                                    &Variable::make(&format!("%{}", id)),
-                                    dims
-                                        .iter()
-                                        .enumerate()
-                                        .map(
-                                            |(idx, x)|
-                                                x.var().to_prime_expr() *
-                                                Load::make(&format!("%{}.s", id), idx).into()
-                                        )
-                                        .reduce(|acc, x| acc + x)
-                                        .unwrap(),
-                                    Variable::make(&format!("%{}_val", stage.out_id))
-                                )
+                            store_with_dims(
+                                format!("%{}", id),
+                                dims
+                                    .iter()
+                                    .map(|x| x.var().to_prime_expr())
+                                    .collect::<Vec<PrimeExpr>>(),
+                                (0..dims.len())
+                                    .map(|x| { Load::make(&format!("%{}.s", id), x).into() })
+                                    .collect::<Vec<PrimeExpr>>(),
+                                Variable::make(&format!("%{}_val", stage.out_id))
                             )
                         );
                         bodys.push(store_body);

@@ -7,7 +7,6 @@ pub mod halide {
     pub mod substitute {
         pub mod subsititue_var;
         pub mod subsititue_expr;
-        pub mod substitue_load_partial_idx;
     }
     pub mod loop_utils {
         pub mod build_nested;
@@ -34,13 +33,11 @@ pub mod halide {
     pub mod inplace_store_stmt;
     pub mod alloca_stmt;
     pub mod r#type;
-    pub mod ir_cmp;
     pub mod printer;
     pub mod seq_stmt;
     pub mod stmt;
     pub mod store_stmt;
     pub mod assign_stmt;
-    pub mod tests;
     pub mod traits;
     pub mod exprs;
     pub mod variable;

@@ -10,9 +10,9 @@ use crate::{
         prime_expr::PrimeExpr,
         primitive_type::PrimitiveType,
         stmt::Stmt,
-        store_stmt::StoreStmt,
         substitute::subsititue_var::SubstituteVar,
         traits::MutatorGetSet,
+        utils::{ store_with_dims, store_with_idx },
         variable::Variable,
     },
     iter_var::IterVar,
@@ -45,15 +45,7 @@ pub fn common_reduce<F>(
                     )
                 ).into()
             ),
-            Body::Stmt(
-                Stmt::StoreStmt(
-                    StoreStmt::make(
-                        &Variable::make(&format!("%{}_val_ptr", output_id)),
-                        0i64,
-                        init.clone()
-                    )
-                ).into()
-            )
+            Body::Stmt(store_with_idx(format!("%{}_val_ptr", output_id), 0i64, init.clone()))
         ]
     };
     if is_output {
@@ -76,20 +68,17 @@ pub fn common_reduce<F>(
                             ).into()
                         ),
                         Body::Stmt(
-                            StoreStmt::make(
-                                &Variable::make(&format!("%{}", output_id)),
+                            store_with_dims(
+                                format!("%{}", output_id),
                                 origin_dims
                                     .iter()
-                                    .enumerate()
-                                    .map(
-                                        |(idx, x)|
-                                            PrimeExpr::Variable(x.var().clone()) *
-                                            Load::make(&format!("%{}.s", output_id), idx).into()
-                                    )
-                                    .reduce(|acc, x| acc + x)
-                                    .unwrap_or(0i64.into()),
+                                    .map(|x| x.var().to_prime_expr())
+                                    .collect::<Vec<PrimeExpr>>(),
+                                (0..origin_dims.len())
+                                    .map(|x| { Load::make(&format!("%{}.s", output_id), x).into() })
+                                    .collect::<Vec<PrimeExpr>>(),
                                 Variable::make(&format!("%{}_val", output_id))
-                            ).into()
+                            )
                         )
                     ]
             )
@@ -136,14 +125,14 @@ pub fn common_reduce_helper<F, C, D>(
     reduce_replace(original_shape.len(), &axes, &mut bodys, stage.id, output_id);
     bodys.push(
         Body::Stmt(
-            StoreStmt::make(
-                &Variable::make(&format!("%{}_val_ptr", output_id)),
-                0,
+            store_with_idx(
+                format!("%{}_val_ptr", output_id),
+                0i64,
                 reduce_op(
                     Variable::make(&format!("%{}_val", output_id)).into(),
                     Variable::make(&format!("%{}_val", stage.out_id)).into()
                 )
-            ).into()
+            )
         )
     );
     stage.dims = (0..stage.dims.len())
@@ -311,23 +300,20 @@ pub fn common_binop_out<F>(
     where F: Fn(PrimeExpr, PrimeExpr) -> PrimeExpr
 {
     Body::Stmt(
-        StoreStmt::make(
-            &Variable::make(&format!("%{}", output_id)),
+        store_with_dims(
+            format!("%{}", output_id),
             dims
                 .iter()
-                .enumerate()
-                .map(
-                    |(idx, x)|
-                        x.var().to_prime_expr() *
-                        Load::make(&format!("%{}.s", output_id), idx).into()
-                )
-                .reduce(|acc, x| acc + x)
-                .unwrap_or(0i64.into()),
+                .map(|x| x.var().to_prime_expr())
+                .collect::<Vec<PrimeExpr>>(),
+            (0..dims.len())
+                .map(|x| { Load::make(&format!("%{}.s", output_id), x).into() })
+                .collect::<Vec<PrimeExpr>>(),
             binop(
                 Variable::make(&format!("%{}_val", lhs_id)).into(),
                 Variable::make(&format!("%{}_val", rhs_id)).into()
             )
-        ).into()
+        )
     )
 }
 
@@ -365,20 +351,17 @@ pub fn common_uaryop(
             ty_infer,
             |dims: &Vec<IterVar>, stage_out_id: usize|
                 Body::Stmt(
-                    StoreStmt::make(
-                        &Variable::make(&format!("%{}", output_id)),
+                    store_with_dims(
+                        format!("%{}", output_id),
                         dims
                             .iter()
-                            .enumerate()
-                            .map(
-                                |(idx, x)|
-                                    x.var().to_prime_expr() *
-                                    Load::make(&format!("%{}.s", output_id), idx).into()
-                            )
-                            .reduce(|acc, x| acc + x)
-                            .unwrap_or(0i64.into()),
+                            .map(|x| x.var().to_prime_expr())
+                            .collect::<Vec<PrimeExpr>>(),
+                        (0..dims.len())
+                            .map(|x| { Load::make(&format!("%{}.s", output_id), x).into() })
+                            .collect::<Vec<PrimeExpr>>(),
                         unaryop(Variable::make(&format!("%{}_val", stage_out_id)).into())
-                    ).into()
+                    )
                 )
         )
     } else {

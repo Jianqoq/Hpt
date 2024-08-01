@@ -100,24 +100,22 @@ impl MutatorGetSet for StridesStoreVisitor {
 }
 
 impl IRMutateVisitor for StridesStoreVisitor {
-    fn visit_variable(&mut self, var: &Variable) {
-        if self.in_store {
-            if var.name.contains(".s") {
-                self.set_expr(Variable::new(format!("ostrides{}", self.cnt)));
-            } else {
-                self.set_expr(var.clone());
-            }
-        } else {
-            self.set_expr(var.clone());
-        }
-    }
-
     fn visit_store(&mut self, store: &StoreStmt) {
         self.in_store = true;
-        let indices = self.mutate_expr(store.indices());
+        let strides = store.strides
+            .iter()
+            .map(|x| {
+                let mut load = x.to_load().unwrap().clone();
+                load.name = format!("ostrides{}", self.cnt).into();
+                load.into()
+            })
+            .collect::<Vec<PrimeExpr>>();
         self.set_stmt(StoreStmt {
             var: store.var.clone(),
-            indices: indices.clone().into(),
+            begins: store.begins.clone(),
+            steps: store.steps.clone(),
+            axes: store.axes.clone(),
+            strides: strides.into(),
             val: store.val.clone(),
         });
         self.in_store = false;

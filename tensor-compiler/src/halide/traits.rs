@@ -3,7 +3,21 @@ use tensor_llvm::types::values::BasicValue;
 use crate::iter_var::IterVar;
 
 use super::{
-    alloca_stmt::AllocaStmt, assign_stmt::AssignStmt, exprs::*, for_stmt::For, if_stmt::IfThenElse, inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub }, let_stmt::LetStmt, module::{ Function, Module }, prime_expr::PrimeExpr, return_stmt::ReturnStmt, seq_stmt::Seq, stmt::Stmt, store_stmt::StoreStmt, tensor_load::TensorLoad, variable::Variable
+    alloca_stmt::AllocaStmt,
+    assign_stmt::AssignStmt,
+    exprs::*,
+    for_stmt::For,
+    if_stmt::IfThenElse,
+    inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub },
+    let_stmt::LetStmt,
+    module::{ Function, Module },
+    prime_expr::PrimeExpr,
+    return_stmt::ReturnStmt,
+    seq_stmt::Seq,
+    stmt::Stmt,
+    store_stmt::StoreStmt,
+    tensor_load::TensorLoad,
+    variable::Variable,
 };
 
 #[allow(unused_variables)]
@@ -227,7 +241,18 @@ pub trait IRVisitor where Self: Sized {
     }
     fn visit_store(&self, store: &StoreStmt) {
         store.var().accept(self);
-        store.indices().accept(self);
+        for i in store.begins().iter() {
+            i.accept(self);
+        }
+        for i in store.axes().iter() {
+            i.accept(self);
+        }
+        for i in store.steps().iter() {
+            i.accept(self);
+        }
+        for i in store.strides().iter() {
+            i.accept(self);
+        }
         store.val().accept(self);
     }
     fn visit_if_then_else(&self, if_then_else: &IfThenElse) {
@@ -485,7 +510,18 @@ pub trait IRMutVisitor where Self: Sized {
     }
     fn visit_store(&mut self, store: &StoreStmt) {
         store.var().accept_mut(self);
-        store.indices().accept_mut(self);
+        for i in store.begins().iter() {
+            i.accept_mut(self);
+        }
+        for i in store.axes().iter() {
+            i.accept_mut(self);
+        }
+        for i in store.steps().iter() {
+            i.accept_mut(self);
+        }
+        for i in store.strides().iter() {
+            i.accept_mut(self);
+        }
         store.val().accept_mut(self);
     }
 
@@ -983,13 +1019,41 @@ pub(crate) fn visit_store<V>(visitor: &mut V, store: &StoreStmt)
 {
     let var = store.var().into();
     let new_var = visitor.mutate_expr(&var);
-    let indices = visitor.mutate_expr(store.indices());
+    let new_begins = store
+        .begins()
+        .iter()
+        .map(|x| visitor.mutate_expr(x))
+        .collect::<Vec<_>>();
+    let new_axes = store
+        .axes()
+        .iter()
+        .map(|x| visitor.mutate_expr(x))
+        .collect::<Vec<_>>();
+    let new_steps = store
+        .steps()
+        .iter()
+        .map(|x| visitor.mutate_expr(x))
+        .collect::<Vec<_>>();
+    let new_strides = store
+        .strides()
+        .iter()
+        .map(|x| visitor.mutate_expr(x))
+        .collect::<Vec<_>>();
     let val = visitor.mutate_expr(store.val());
-    if &new_var == &var && &indices == store.indices() && &val == store.val() {
+    if
+        &new_var == &var &&
+        &new_begins == store.begins() &&
+        &val == store.val() &&
+        &new_axes == store.axes() &&
+        &new_steps == store.steps() &&
+        &new_strides == store.strides()
+    {
         visitor.set_stmt(store);
     } else {
         if let Some(new_var) = new_var.to_variable() {
-            visitor.set_stmt(StoreStmt::make(new_var, indices, val));
+            visitor.set_stmt(
+                StoreStmt::make(new_var, new_begins, new_axes, new_steps, new_strides, val)
+            );
         } else {
             eprintln!("Failed to convert variable, from: {} to: {}", var, new_var);
             visitor.set_stmt(Stmt::None);

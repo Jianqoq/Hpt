@@ -9,8 +9,7 @@ use crate::halide::if_stmt::IfThenElse;
 use crate::halide::let_stmt::LetStmt;
 use crate::halide::primitive_type::PrimitiveType;
 use crate::halide::seq_stmt::Seq;
-use crate::halide::store_stmt::StoreStmt;
-use crate::halide::utils::{ dtype_inf, dtype_neginf };
+use crate::halide::utils::{ dtype_inf, dtype_neginf, store_with_dims, store_with_idx };
 use crate::halide::variable::Variable;
 use crate::iter_var::IterVar;
 use crate::te::context::Context;
@@ -45,15 +44,7 @@ pub fn arg_reduce(
                     )
                 ).into()
             ),
-            Body::Stmt(
-                Stmt::StoreStmt(
-                    StoreStmt::make(
-                        &Variable::make(&format!("%{}_idx_ptr", output_id)),
-                        0i64,
-                        init.clone()
-                    )
-                ).into()
-            ),
+            Body::Stmt(store_with_idx(format!("%{}_idx_ptr", output_id), 0i64, &init)),
             Body::Stmt(
                 Stmt::AllocaStmt(
                     AllocaStmt::make(
@@ -64,15 +55,7 @@ pub fn arg_reduce(
                     )
                 ).into()
             ),
-            Body::Stmt(
-                Stmt::StoreStmt(
-                    StoreStmt::make(
-                        &Variable::make(&format!("%{}_val_ptr", output_id)),
-                        0i64,
-                        tmp_init.clone()
-                    )
-                ).into()
-            )
+            Body::Stmt(store_with_idx(format!("%{}_val_ptr", output_id), 0i64, &tmp_init))
         ]
     };
     if is_output {
@@ -88,20 +71,17 @@ pub fn arg_reduce(
                         ).into()
                     ),
                     Body::Stmt(
-                        StoreStmt::make(
-                            &Variable::make(&format!("%{}", output_id)),
+                        store_with_dims(
+                            format!("%{}", output_id),
                             origin_dims
                                 .iter()
-                                .enumerate()
-                                .map(
-                                    |(idx, x)|
-                                        PrimeExpr::Variable(x.var().clone()) *
-                                        Load::make(&format!("%{}.s", output_id), idx).into()
-                                )
-                                .reduce(|acc, x| acc + x)
-                                .unwrap_or(0i64.into()),
+                                .map(|x| PrimeExpr::Variable(x.var().clone()))
+                                .collect(),
+                            (0..origin_dims.len())
+                                .map(|x| { Load::make(&format!("%{}.s", output_id), x).into() })
+                                .collect::<Vec<PrimeExpr>>(),
                             Variable::make(&format!("%{}_val", output_id))
-                        ).into()
+                        )
                     )
                 ]
             )
@@ -145,8 +125,6 @@ pub fn arg_reduce_helper<F, D>(
     reduce_replace(original_shape.len(), &vec![axis as usize], &mut bodys, stage.id, output_id);
     let loade_val: PrimeExpr = Variable::make(&format!("%{}_val", output_id)).into();
     let stage_out: PrimeExpr = Variable::make(&format!("%{}_val", stage.out_id)).into();
-    let val_ptr = Variable::make(&format!("%{}_val_ptr", output_id));
-    let idx_ptr = Variable::make(&format!("%{}_idx_ptr", output_id));
     let cond = if max {
         Lt::make(&loade_val, &stage_out)
     } else {
@@ -154,8 +132,12 @@ pub fn arg_reduce_helper<F, D>(
     };
     let true_stmt = Seq::make(
         vec![
-            StoreStmt::make(&val_ptr, 0, stage_out),
-            StoreStmt::make(&idx_ptr, 0, Variable::make(&format!("{}red{}", output_id, axis)))
+            store_with_idx(format!("%{}_val_ptr", output_id), 0i64, stage_out),
+            store_with_idx(
+                format!("%{}_idx_ptr", output_id),
+                0i64,
+                Variable::make(&format!("{}red{}", output_id, axis))
+            )
         ]
     );
     let if_then_else = IfThenElse::make(cond, true_stmt, Stmt::None);

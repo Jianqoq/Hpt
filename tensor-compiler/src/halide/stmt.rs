@@ -1,7 +1,16 @@
 use std::fmt::Display;
 
 use super::{
-    alloca_stmt::AllocaStmt, assign_stmt::AssignStmt, for_stmt::For, if_stmt::IfThenElse, inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub }, let_stmt::LetStmt, return_stmt::ReturnStmt, seq_stmt::Seq, store_stmt::StoreStmt, traits::{ Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor }
+    alloca_stmt::AllocaStmt,
+    assign_stmt::AssignStmt,
+    for_stmt::For,
+    if_stmt::IfThenElse,
+    inplace_store_stmt::{ InplaceAdd, InplaceDiv, InplaceMul, InplaceStore, InplaceSub },
+    let_stmt::LetStmt,
+    return_stmt::ReturnStmt,
+    seq_stmt::Seq,
+    store_stmt::StoreStmt,
+    traits::{ Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor },
 };
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
@@ -71,7 +80,11 @@ impl Stmt {
         match (self, other) {
             (Stmt::LetStmt(a), Stmt::LetStmt(b)) => { a.var() == b.var() && a.body() == b.body() }
             (Stmt::StoreStmt(a), Stmt::StoreStmt(b)) => {
-                a.var() == b.var() && a.indices() == b.indices() && a.val() == b.val()
+                a.var() == b.var() &&
+                    a.begins() == b.begins() &&
+                    a.axes() == b.axes() &&
+                    a.steps() == b.steps() &&
+                    a.val() == b.val()
             }
             (Stmt::For(a), Stmt::For(b)) => {
                 a.var() == b.var() &&

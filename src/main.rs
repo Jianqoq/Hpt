@@ -23,9 +23,8 @@ fn conv2d_grouped(
 
     for g in 0..groups {
         for k in 0..kernels_per_group {
-            let kernel_idx = g * kernels_per_group + k;
             for c in 0..in_channels_per_group {
-                let channel_idx = g * in_channels_per_group + c;
+                
                 for y in 0..output_height {
                     for x in 0..output_width {
                         let mut sum = 0.0;
@@ -34,13 +33,13 @@ fn conv2d_grouped(
                                 let in_y = y * stride + i * dilation - padding;
                                 let in_x = x * stride + j * dilation - padding;
                                 if in_y >= 0 && in_y < in_height && in_x >= 0 && in_x < in_width {
-                                    let in_val = input[channel_idx][in_y as usize][in_x as usize];
-                                    let kernel_val = kernels[kernel_idx][c][i][j];
+                                    let in_val = input[g * in_channels_per_group + c][in_y as usize][in_x as usize];
+                                    let kernel_val = kernels[g * kernels_per_group + k][c][i][j];
                                     sum += in_val * kernel_val;
                                 }
                             }
                         }
-                        output[kernel_idx][y][x] += sum;
+                        output[g * kernels_per_group + k][y][x] += sum;
                     }
                 }
             }
@@ -61,9 +60,9 @@ fn main() {
     ]; // Single-channel input
     let kernels = vec![vec![vec![vec![1.0, 2.0, 3.0]; 3]; 1]; 2]; // Two kernels, single channel each
     let groups = 1;
-    let stride = 1;
-    let padding = 1;
-    let dilation = 1;
+    let stride = 2;
+    let padding = 2;
+    let dilation = 2;
 
     let output = conv2d_grouped(&input, &kernels, groups, stride, padding, dilation);
     for i in 0..output.len() {

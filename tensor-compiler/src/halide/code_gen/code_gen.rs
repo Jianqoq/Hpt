@@ -1393,7 +1393,40 @@ impl CodeGenVisitor for CodeGen {
             .find_type(&basic_val)
             .expect("type not find")
             .clone();
-        let indices = self.visit_expr(store.indices());
+        let one = PrimeExpr::Int(Int::make(Dtype::I64, 1i64));
+        let zero = PrimeExpr::Int(Int::make(Dtype::I64, 0i64));
+        assert_eq!(store.begins.len(), store.axes.len());
+        assert_eq!(store.begins.len(), store.steps.len());
+        assert_eq!(store.begins.len(), store.strides.len());
+        let mut indices = PrimeExpr::None;
+        for (begin, axes, step, stride) in izip!(
+            store.begins.iter(),
+            store.axes.iter(),
+            store.steps.iter(),
+            store.strides.iter()
+        ) {
+            if begin == &zero && step == &one {
+                if indices.is_none() {
+                    indices = axes.clone() * stride.clone();
+                } else {
+                    indices = indices + axes.clone() * stride.clone();
+                }
+            } else if step == &one {
+                if indices.is_none() {
+                    indices = (axes.clone() + begin.clone()) * stride.clone();
+                } else {
+                    indices = indices + (axes.clone() + begin.clone()) * stride.clone();
+                }
+            } else {
+                if indices.is_none() {
+                    indices = (axes.clone() * step.clone() + begin.clone()) * stride.clone();
+                } else {
+                    indices =
+                        indices + (axes.clone() * step.clone() + begin.clone()) * stride.clone();
+                }
+            }
+        }
+        let indices = self.visit_expr(&indices);
         let new_ptr = match &var_type {
             PrimitiveType::Ptr(ptr) =>
                 match ptr.inner.as_ref() {

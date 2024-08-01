@@ -8,8 +8,8 @@ use crate::{
         let_stmt::LetStmt,
         prime_expr::PrimeExpr,
         stmt::Stmt,
-        store_stmt::StoreStmt,
         substitute::subsititue_var::SubstituteVar,
+        utils::store_with_dims,
         variable::Variable,
     },
     iter_var::IterVar,
@@ -37,20 +37,17 @@ pub fn common_cast(
             res_dtype,
             |dims: &Vec<IterVar>, stage_out_id: usize|
                 Body::Stmt(
-                    StoreStmt::make(
-                        &Variable::make(&format!("%{}", output_id)),
+                    store_with_dims(
+                        format!("%{}", output_id),
                         dims
                             .iter()
-                            .enumerate()
-                            .map(
-                                |(idx, x)|
-                                    x.var().to_prime_expr() *
-                                    Load::make(&format!("%{}.s", output_id), idx).into()
-                            )
-                            .reduce(|acc, x| acc + x)
-                            .unwrap_or(0i64.into()),
+                            .map(|x| x.var().to_prime_expr())
+                            .collect::<Vec<PrimeExpr>>(),
+                        (0..dims.len())
+                            .map(|x| { Load::make(&format!("%{}.s", output_id), x).into() })
+                            .collect::<Vec<PrimeExpr>>(),
                         Cast::make(Variable::make(&format!("%{}_val", stage_out_id)), res_dtype)
-                    ).into()
+                    )
                 )
         )
     } else {

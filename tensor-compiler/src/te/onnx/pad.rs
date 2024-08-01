@@ -9,9 +9,8 @@ use crate::{
         prime_expr::PrimeExpr,
         primitive_type::PrimitiveType,
         stmt::Stmt,
-        store_stmt::StoreStmt,
         traits::{ IRMutateVisitor, MutatorGetSet },
-        utils::all,
+        utils::{ all, store_with_dims, store_with_idx },
         variable::Variable,
     },
     iter_var::IterVar,
@@ -36,15 +35,13 @@ pub fn pad_common(
         .collect::<Vec<IterVar>>();
     if is_output {
         if let Body::Stage(stage) = &inputs[0] {
-            let store_indices = stage.dims
+            let store_dims = stage.dims
                 .iter()
-                .enumerate()
-                .map(|(idx, x)| {
-                    x.var().to_prime_expr() * Load::make(&format!("%{}.s", id), idx).into()
-                })
-                .reduce(|acc, x| acc + x)
-                .unwrap_or(0i64.into());
-            let store_var = Variable::new(format!("%{}", id));
+                .map(|x| x.var().to_prime_expr())
+                .collect::<Vec<PrimeExpr>>();
+            let store_strides = (0..stage.dims.len())
+                .map(|x| { Load::make(&format!("%{}.s", id), x).into() })
+                .collect::<Vec<PrimeExpr>>();
             pad_common_helper(
                 is_output,
                 dims,
@@ -53,15 +50,18 @@ pub fn pad_common(
                 id,
                 vec![
                     Body::Stmt(
-                        StoreStmt::make(
-                            &store_var,
-                            &store_indices,
+                        store_with_dims(
+                            format!("%{}", id),
+                            store_dims.clone(),
+                            store_strides.clone(),
                             Variable::make(&format!("%{}_val", stage.out_id))
-                        ).into()
+                        )
                     )
                 ],
                 vec![
-                    Body::Stmt(StoreStmt::make(&store_var, &store_indices, pad_val.clone()).into())
+                    Body::Stmt(
+                        store_with_dims(format!("%{}", id), store_dims, store_strides, pad_val)
+                    )
                 ]
             )
         } else {
@@ -77,26 +77,14 @@ pub fn pad_common(
                 id,
                 vec![
                     Body::Stmt(
-                        Stmt::StoreStmt(
-                            StoreStmt::make(
-                                &Variable::make(&format!("%{}_val_ptr", id)),
-                                0i64,
-                                Variable::make(&format!("%{}_val", stage.out_id))
-                            )
-                        ).into()
+                        store_with_idx(
+                            format!("%{}_val_ptr", id),
+                            0i64,
+                            Variable::make(&format!("%{}_val", stage.out_id))
+                        )
                     )
                 ],
-                vec![
-                    Body::Stmt(
-                        Stmt::StoreStmt(
-                            StoreStmt::make(
-                                &Variable::make(&format!("%{}_val_ptr", id)),
-                                0i64,
-                                pad_val.clone()
-                            )
-                        ).into()
-                    )
-                ]
+                vec![Body::Stmt(store_with_idx(format!("%{}_val_ptr", id), 0i64, pad_val))]
             )
         } else {
             panic!("pad_common: input is not a stage");
