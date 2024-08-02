@@ -42,6 +42,7 @@ pub mod halide {
     pub mod exprs;
     pub mod variable;
     pub mod tensor_load;
+    pub mod switch_stmt;
 }
 
 pub mod te {

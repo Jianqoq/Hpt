@@ -159,6 +159,23 @@ impl _IRPrinter {
                     println!("}}");
                 }
             }
+            Stmt::SwitchStmt(stmt) => {
+                self.do_indent();
+                println!("switch {} {{", stmt.cond());
+                self.indent += 1;
+                for action in stmt.actions() {
+                    self.do_indent();
+                    println!("case {} {{", action.case_value());
+                    self.indent += 1;
+                    self.print_stmt(action.action());
+                    self.indent -= 1;
+                    self.do_indent();
+                    println!("}}");
+                }
+                self.indent -= 1;
+                self.do_indent();
+                println!("}}");
+            }
             Stmt::InplaceStore(var) => {
                 self.do_indent();
                 println!("{}", var);
@@ -289,6 +306,23 @@ impl _IRPrinter {
                         res.push_str("}\n");
                     }
                 }
+            }
+            Stmt::SwitchStmt(stmt) => {
+                res.push_str(&self.do_indent_str());
+                res.push_str(&format!("{} {} {{\n", "switch".purple(), stmt.cond()));
+                self.indent += 1;
+                for action in stmt.actions() {
+                    res.push_str(&self.do_indent_str());
+                    res.push_str(&format!("{} {} {{\n", "case".purple(), action.case_value()));
+                    self.indent += 1;
+                    res.push_str(&self.print_stmt_str(action.action()));
+                    self.indent -= 1;
+                    res.push_str(&self.do_indent_str());
+                    res.push_str("}\n");
+                }
+                self.indent -= 1;
+                res.push_str(&self.do_indent_str());
+                res.push_str("}\n");
             }
             Stmt::InplaceStore(var) => {
                 res.push_str(&self.do_indent_str());

@@ -2,7 +2,7 @@ use crate::halide::{
     prime_expr::PrimeExpr,
     stmt::Stmt,
     store_stmt::StoreStmt,
-    tensor_load::TensorLoad,
+    tensor_load::{ Flag, TensorLoad },
     traits::{ IRMutateVisitor, MutatorGetSet },
 };
 
@@ -42,12 +42,10 @@ impl MutatorGetSet for StridesVisitor {
 
 impl IRMutateVisitor for StridesVisitor {
     fn visit_tensor_load(&mut self, tensor_load: &TensorLoad) {
-        self.set_expr(TensorLoad {
-            var: tensor_load.var.clone(),
-            begins: tensor_load.begins.clone(),
-            steps: tensor_load.steps.clone(),
-            axes: tensor_load.axes.clone(),
-            strides: tensor_load.strides
+        let strides = if tensor_load.flag == Flag::NoReplaceStrides {
+            tensor_load.strides.as_ref().clone()
+        } else {
+            tensor_load.strides
                 .iter()
                 .map(|x| {
                     let mut load = x.to_load().unwrap().clone();
@@ -55,8 +53,15 @@ impl IRMutateVisitor for StridesVisitor {
                     load.into()
                 })
                 .collect::<Vec<PrimeExpr>>()
-                .into(),
+        };
+        self.set_expr(TensorLoad {
+            var: tensor_load.var.clone(),
+            begins: tensor_load.begins.clone(),
+            steps: tensor_load.steps.clone(),
+            axes: tensor_load.axes.clone(),
+            strides: strides.into(),
             hints: tensor_load.hints.clone(),
+            flag: tensor_load.flag.clone(),
         });
         self.cnt += 1;
     }

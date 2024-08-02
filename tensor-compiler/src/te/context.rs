@@ -150,6 +150,7 @@ impl Context {
                                     .collect::<Vec<PrimeExpr>>()
                                     .into(),
                                 hints: vec![].into(),
+                                flag: Default::default(),
                             },
                             false,
                             Stmt::None

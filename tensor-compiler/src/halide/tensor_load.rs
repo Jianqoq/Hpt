@@ -4,6 +4,14 @@ use tensor_types::dtype::Dtype;
 
 use crate::halide::{ exprs::{ Int, Load }, prime_expr::PrimeExpr, variable::Variable };
 
+#[derive(Clone, PartialEq, Hash, Eq, Debug, Default)]
+pub enum Flag {
+    NoReplace,
+    #[default]
+    Replace,
+    NoReplaceStrides,
+}
+
 #[derive(Clone, PartialEq, Hash, Eq, Debug)]
 pub struct TensorLoad {
     pub(crate) var: Arc<Variable>,
@@ -12,6 +20,7 @@ pub struct TensorLoad {
     pub(crate) axes: Arc<Vec<PrimeExpr>>,
     pub(crate) strides: Arc<Vec<PrimeExpr>>,
     pub(crate) hints: Arc<Vec<Hint>>,
+    pub(crate) flag: Flag,
 }
 
 #[derive(Clone, PartialEq, Hash, Eq, Debug)]
@@ -37,6 +46,7 @@ impl TensorLoad {
             steps: Arc::new(steps.into()),
             strides: Arc::new(strides.into()),
             hints: Arc::new(hints.into()),
+            flag: Flag::Replace,
         }
     }
 }

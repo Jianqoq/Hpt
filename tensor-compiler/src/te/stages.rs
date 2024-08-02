@@ -10,6 +10,7 @@ use crate::{
         prime_expr::PrimeExpr,
         seq_stmt::Seq,
         stmt::Stmt,
+        switch_stmt::{ SwitchCase, SwitchStmt },
         traits::{ AccepterMutate, IRMutateVisitor, MutatorGetSet },
         variable::Variable,
     },
@@ -25,6 +26,7 @@ pub enum Body {
     Stage(Stage),
     ReduceStage(ReduceStage),
     If(If),
+    Switch(Switch),
 }
 
 impl Body {
@@ -34,6 +36,7 @@ impl Body {
             Body::Stage(stage) => stage.id,
             Body::ReduceStage(reduce_stage) => reduce_stage.id,
             Body::If(if_) => if_.id,
+            Body::Switch(switch) => switch.id,
         }
     }
 
@@ -43,6 +46,7 @@ impl Body {
             Body::Stage(stage) => stage.to_halide(map),
             Body::ReduceStage(reduce_stage) => reduce_stage.to_halide(map),
             Body::If(if_) => if_.to_halide(map),
+            Body::Switch(switch) => switch.to_halide(map),
         }
     }
     pub fn all_parents_dims(&self, map: &HashMap<usize, (Body, bool)>) -> Vec<IterVar> {
@@ -59,6 +63,10 @@ impl Body {
             }
             Body::If(if_) => {
                 let (body, _) = map.get(&if_.input).unwrap();
+                body.all_parents_dims(map)
+            }
+            Body::Switch(switch) => {
+                let (body, _) = map.get(&switch.inputs).unwrap();
                 body.all_parents_dims(map)
             }
         }
@@ -78,6 +86,9 @@ impl Body {
             Body::If(if_) => {
                 if_.accept_mutate(subs_expr);
             }
+            Body::Switch(switch) => {
+                switch.accept_mutate(subs_expr);
+            }
         }
     }
     pub fn insert_new_axes(&mut self, axes: &mut InsertAxes) {
@@ -96,6 +107,9 @@ impl Body {
             }
             Body::If(if_) => {
                 if_.insert_new_axes(axes);
+            }
+            Body::Switch(switch) => {
+                switch.insert_new_axes(axes);
             }
         }
     }
@@ -128,6 +142,9 @@ impl ReduceStage {
                 }
                 Body::If(if_) => {
                     seq.push(if_.to_halide(&map));
+                }
+                Body::Switch(switch) => {
+                    seq.push(switch.to_halide(&map));
                 }
             }
         }
@@ -173,6 +190,9 @@ impl ReduceStage {
                 }
                 Body::If(if_) => {
                     if_.broadcast_new_dims(strides, axes);
+                }
+                Body::Switch(switch) => {
+                    switch.broadcast_new_dims(strides, axes);
                 }
             }
         }
@@ -233,6 +253,9 @@ impl Stage {
                 Body::If(if_) => {
                     seq.push(if_.to_halide(&map));
                 }
+                Body::Switch(switch) => {
+                    seq.push(switch.to_halide(&map));
+                }
             }
         }
         build_nested_for(&self.dims, Stmt::Seq(Seq::make(seq)))
@@ -266,6 +289,9 @@ impl Stage {
                 }
                 Body::If(if_) => {
                     if_.broadcast_new_dims(strides, axes);
+                }
+                Body::Switch(switch) => {
+                    switch.broadcast_new_dims(strides, axes);
                 }
             }
         }
@@ -312,6 +338,9 @@ impl If {
                 Body::If(if_) => {
                     true_seq.push(if_.to_halide(&map));
                 }
+                Body::Switch(switch) => {
+                    true_seq.push(switch.to_halide(&map));
+                }
             }
         }
         let true_stmt = Stmt::Seq(Seq::make(true_seq));
@@ -329,6 +358,9 @@ impl If {
                 }
                 Body::If(if_) => {
                     false_seq.push(if_.to_halide(&map));
+                }
+                Body::Switch(switch) => {
+                    false_seq.push(switch.to_halide(&map));
                 }
             }
         }
@@ -396,6 +428,9 @@ impl If {
                             Body::If(if_) => {
                                 if_.broadcast_new_dims(strides, axes);
                             }
+                            Body::Switch(switch) => {
+                                switch.broadcast_new_dims(strides, axes);
+                            }
                         }
                     }
                     for body in &mut if_.false_bodys {
@@ -430,6 +465,48 @@ impl If {
                             Body::If(if_) => {
                                 if_.broadcast_new_dims(strides, axes);
                             }
+                            Body::Switch(switch) => {
+                                switch.broadcast_new_dims(strides, axes);
+                            }
+                        }
+                    }
+                }
+                Body::Switch(switch) => {
+                    for (_, body) in &mut switch.bodys {
+                        match body {
+                            Body::Stmt(stmt) => {
+                                stmt.accept_mutate(&mut subs_tensorload);
+                                *body = Body::Stmt(subs_tensorload.stmt().clone());
+                            }
+                            Body::Stage(stage) => stage.broadcast_new_dims(strides, axes),
+                            Body::ReduceStage(red_stage) => {
+                                let red_strides = (strides.len()..strides.len() +
+                                    red_stage.dims.len())
+                                    .map(|x| {
+                                        Load::make(
+                                            Variable::new(format!("%{}.s", red_stage.id)),
+                                            x
+                                        ).into()
+                                    })
+                                    .collect::<Vec<PrimeExpr>>();
+                                let new_strides = strides
+                                    .iter()
+                                    .chain(red_strides.iter())
+                                    .cloned()
+                                    .collect::<Vec<PrimeExpr>>();
+                                let new_axes = axes
+                                    .iter()
+                                    .cloned()
+                                    .chain(red_stage.dims.iter().map(|x| x.var().into()))
+                                    .collect::<Vec<PrimeExpr>>();
+                                red_stage.broadcast_new_dims(&new_strides, &new_axes);
+                            }
+                            Body::If(if_) => {
+                                if_.broadcast_new_dims(strides, axes);
+                            }
+                            Body::Switch(switch) => {
+                                switch.broadcast_new_dims(strides, axes);
+                            }
                         }
                     }
                 }
@@ -453,5 +530,98 @@ impl If {
         for body in &mut self.false_bodys {
             body.insert_new_axes(axes);
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct Switch {
+    pub(crate) cond: PrimeExpr,
+    pub(crate) bodys: Vec<(PrimeExpr, Body)>,
+    pub(crate) id: usize,
+    pub(crate) inputs: usize,
+}
+
+impl Switch {
+    pub fn to_halide(&self, map: &HashMap<usize, (Body, bool)>) -> Stmt {
+        let bodys = self.bodys.clone();
+        let mut seq = Vec::new();
+        for (cond, body) in bodys {
+            match body {
+                Body::Stmt(stmt) => {
+                    seq.push(SwitchCase::make(cond, stmt));
+                }
+                Body::Stage(stage) => {
+                    seq.push(SwitchCase::make(cond, stage.to_halide(&map)));
+                }
+                Body::ReduceStage(reduce_stage) => {
+                    seq.push(SwitchCase::make(cond, reduce_stage.to_halide(&map)));
+                }
+                Body::If(if_) => {
+                    seq.push(SwitchCase::make(cond, if_.to_halide(&map)));
+                }
+                Body::Switch(switch) => {
+                    seq.push(SwitchCase::make(cond, switch.to_halide(&map)));
+                }
+            }
+        }
+        Stmt::SwitchStmt(SwitchStmt::make(self.cond.clone(), seq))
+    }
+
+    pub fn broadcast_new_dims(&mut self, strides: &Vec<PrimeExpr>, axes: &Vec<PrimeExpr>) {
+        let mut subs_tensorload = SubsTensorLoadDims::new(strides, axes);
+        for (_, body) in &mut self.bodys {
+            match body {
+                Body::Stmt(stmt) => {
+                    stmt.accept_mutate(&mut subs_tensorload);
+                    *body = Body::Stmt(subs_tensorload.stmt().clone());
+                }
+                Body::Stage(stage) => stage.broadcast_new_dims(strides, axes),
+                Body::ReduceStage(red_stage) => {
+                    let red_strides = (strides.len()..strides.len() + red_stage.dims.len())
+                        .map(|x| {
+                            Load::make(Variable::new(format!("%{}.s", red_stage.id)), x).into()
+                        })
+                        .collect::<Vec<PrimeExpr>>();
+                    let new_strides = strides
+                        .iter()
+                        .chain(red_strides.iter())
+                        .cloned()
+                        .collect::<Vec<PrimeExpr>>();
+                    let new_axes = axes
+                        .iter()
+                        .cloned()
+                        .chain(red_stage.dims.iter().map(|x| x.var().into()))
+                        .collect::<Vec<PrimeExpr>>();
+                    red_stage.broadcast_new_dims(&new_strides, &new_axes);
+                }
+                Body::If(if_) => {
+                    if_.broadcast_new_dims(strides, axes);
+                }
+                Body::Switch(switch) => {
+                    switch.broadcast_new_dims(strides, axes);
+                }
+            }
+        }
+    }
+
+    pub fn accept_mutate<V: IRMutateVisitor>(&mut self, subs_expr: &mut V) {
+        for body in &mut self.bodys {
+            body.1.accept_mutate(subs_expr);
+        }
+    }
+
+    pub fn insert_new_axes(&mut self, axes: &mut InsertAxes) {
+        for (_, body) in &mut self.bodys {
+            body.insert_new_axes(axes);
+        }
+    }
+
+    pub fn all_parents_dims(&self, map: &HashMap<usize, (Body, bool)>) -> Vec<IterVar> {
+        let mut dims = Vec::new();
+        for body in &self.bodys {
+            let mut parent_dims = body.1.all_parents_dims(map);
+            dims.append(&mut parent_dims);
+        }
+        dims
     }
 }

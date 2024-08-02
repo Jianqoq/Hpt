@@ -10,6 +10,7 @@ use super::{
     return_stmt::ReturnStmt,
     seq_stmt::Seq,
     store_stmt::StoreStmt,
+    switch_stmt::SwitchStmt,
     traits::{ Accepter, AccepterMut, AccepterMutate, IRMutVisitor, IRMutateVisitor, IRVisitor },
 };
 
@@ -28,6 +29,7 @@ pub enum Stmt {
     InplaceDiv(InplaceDiv),
     IfThenElse(IfThenElse),
     Return(ReturnStmt),
+    SwitchStmt(SwitchStmt),
     None,
 }
 
@@ -46,6 +48,7 @@ pub enum StmtType {
     InplaceMul,
     InplaceDiv,
     Return,
+    SwitchStmt,
     None,
 }
 
@@ -126,6 +129,7 @@ impl Stmt {
             Stmt::AssignStmt(_) => StmtType::AssignStmt,
             Stmt::Return(_) => StmtType::Return,
             Stmt::AllocaStmt(_) => StmtType::AllocaStmt,
+            Stmt::SwitchStmt(_) => StmtType::SwitchStmt,
             Stmt::None => StmtType::None,
         }
     }
@@ -147,6 +151,7 @@ impl Display for Stmt {
             Stmt::AssignStmt(stmt) => write!(f, "{}", stmt),
             Stmt::Return(stmt) => write!(f, "{}", stmt),
             Stmt::AllocaStmt(stmt) => write!(f, "{}", stmt),
+            Stmt::SwitchStmt(stmt) => write!(f, "{}", stmt),
             Stmt::None => Ok(()),
         }
     }
@@ -168,6 +173,9 @@ impl Accepter for Stmt {
                 stmts.accept(visitor);
             }
             Stmt::IfThenElse(stmt) => {
+                stmt.accept(visitor);
+            }
+            Stmt::SwitchStmt(stmt) => {
                 stmt.accept(visitor);
             }
             Stmt::InplaceStore(stmt) => {
@@ -217,6 +225,9 @@ impl AccepterMut for Stmt {
             Stmt::IfThenElse(stmt) => {
                 stmt.accept_mut(visitor);
             }
+            Stmt::SwitchStmt(stmt) => {
+                stmt.accept_mut(visitor);
+            }
             Stmt::InplaceStore(stmt) => {
                 stmt.accept_mut(visitor);
             }
@@ -262,6 +273,9 @@ impl AccepterMutate for Stmt {
                 stmts.accept_mutate(visitor);
             }
             Stmt::IfThenElse(stmt) => {
+                stmt.accept_mutate(visitor);
+            }
+            Stmt::SwitchStmt(stmt) => {
                 stmt.accept_mutate(visitor);
             }
             Stmt::InplaceStore(stmt) => {

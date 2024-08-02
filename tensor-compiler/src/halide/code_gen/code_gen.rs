@@ -1880,6 +1880,10 @@ impl CodeGenVisitor for CodeGen {
         self.visit_stmt(&function.body);
         self.builder.position_at_end(block);
     }
+    
+    fn visit_switch(&mut self, switch: &crate::halide::switch_stmt::SwitchStmt) {
+        todo!()
+    }
 }
 
 pub fn load(

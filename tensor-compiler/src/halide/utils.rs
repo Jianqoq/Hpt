@@ -8,8 +8,8 @@ use super::{
     variable::Variable,
 };
 
-pub fn var(name: String) -> Variable {
-    Variable::new(name)
+pub fn var<A: ToString>(name: A) -> Variable {
+    Variable::new(name.to_string())
 }
 
 pub fn all(conds: &[PrimeExpr]) -> PrimeExpr {

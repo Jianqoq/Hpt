@@ -4,7 +4,13 @@ use tensor_common::strides_utils::shape_to_strides;
 
 use crate::{
     halide::{
-        exprs::Load, let_stmt::LetStmt, prime_expr::PrimeExpr, stmt::Stmt, tensor_load::TensorLoad, utils::var, variable::Variable
+        exprs::Load,
+        let_stmt::LetStmt,
+        prime_expr::PrimeExpr,
+        stmt::Stmt,
+        tensor_load::{ Flag, TensorLoad },
+        utils::var,
+        variable::Variable,
     },
     iter_var::IterVar,
     te::{ hstrides::HStrides, idx_evaluator::IdxEvaluator, stages::{ Body, Stage } },
@@ -86,6 +92,7 @@ impl Srg {
                                     .collect::<Vec<PrimeExpr>>()
                                     .into(),
                                 hints: vec![].into(),
+                                flag: Flag::default(),
                             },
                             false,
                             Stmt::None

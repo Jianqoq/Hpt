@@ -16,6 +16,7 @@ use super::{
     seq_stmt::Seq,
     stmt::Stmt,
     store_stmt::StoreStmt,
+    switch_stmt::{SwitchCase, SwitchStmt},
     tensor_load::TensorLoad,
     variable::Variable,
 };
@@ -83,8 +84,19 @@ pub trait IRVisitor where Self: Sized {
             Stmt::AssignStmt(assign) => self.visit_assign(&assign),
             Stmt::AllocaStmt(alloca) => self.visit_alloca(&alloca),
             Stmt::Return(return_) => self.visit_return(&return_),
+            Stmt::SwitchStmt(switch) => self.visit_switch(&switch),
             Stmt::None => {}
         }
+    }
+    fn visit_switch(&self, switch: &SwitchStmt) {
+        switch.cond().accept(self);
+        switch
+            .actions()
+            .iter()
+            .for_each(|x| {
+                x.action.accept(self);
+                x.case_value.accept(self);
+            });
     }
     fn visit_tensor_load(&self, tensor_load: &TensorLoad) {}
     fn visit_layout(&self, layout: &Layout) {
@@ -352,8 +364,19 @@ pub trait IRMutVisitor where Self: Sized {
             Stmt::AssignStmt(assign) => self.visit_assign(&assign),
             Stmt::Return(return_) => self.visit_return(&return_),
             Stmt::AllocaStmt(alloca) => self.visit_alloca(&alloca),
+            Stmt::SwitchStmt(switch) => self.visit_switch(&switch),
             Stmt::None => {}
         }
+    }
+    fn visit_switch(&mut self, switch: &SwitchStmt) {
+        switch.cond().accept_mut(self);
+        switch
+            .actions()
+            .iter()
+            .for_each(|x| {
+                x.action.accept_mut(self);
+                x.case_value.accept_mut(self);
+            });
     }
     fn visit_tensor_load(&mut self, tensor_load: &TensorLoad) {}
     fn visit_alloca(&mut self, alloca: &AllocaStmt) {
@@ -666,6 +689,7 @@ pub(crate) fn visit_stmt<V>(visitor: &mut V, stmt: &Stmt)
         Stmt::AssignStmt(assign) => visitor.visit_assign(&assign),
         Stmt::Return(return_) => visitor.visit_return(&return_),
         Stmt::AllocaStmt(alloca) => visitor.visit_alloca(&alloca),
+        Stmt::SwitchStmt(switch) => visitor.visit_switch(&switch),
         Stmt::None => {}
     }
 }
@@ -944,6 +968,30 @@ pub(crate) fn visit_seq_stmt<V>(visitor: &mut V, seq: &Seq)
         visitor.set_stmt(seq);
     } else {
         visitor.set_stmt(Seq::make(new_stmts));
+    }
+}
+
+pub(crate) fn visit_switch<V>(visitor: &mut V, switch: &SwitchStmt)
+    where V: MutatorGetSet + Sized + IRMutateVisitor
+{
+    let cond = visitor.mutate_expr(switch.cond());
+    let actions = switch
+        .actions()
+        .iter()
+        .map(|x| {
+            let action = visitor.mutate_stmt(x.action());
+            let case_value = visitor.mutate_expr(x.case_value());
+            if &action == x.action() && &case_value == x.case_value() {
+                x.clone()
+            } else {
+                SwitchCase::make(case_value, action)
+            }
+        })
+        .collect::<Vec<_>>();
+    if &cond == switch.cond() && &actions == switch.actions() {
+        visitor.set_stmt(switch);
+    } else {
+        visitor.set_stmt(SwitchStmt::make(cond, actions));
     }
 }
 
@@ -1292,6 +1340,9 @@ pub trait IRMutateVisitor where Self: MutatorGetSet + Sized {
     fn mutate_stmt(&mut self, stmt: &Stmt) -> Stmt {
         mutate_stmt(self, stmt)
     }
+    fn visit_switch(&mut self, switch: &SwitchStmt) {
+        visit_switch(self, switch);
+    }
     fn visit_tensor_load(&mut self, tensor_load: &TensorLoad) {
         visit_tensor_load(self, tensor_load);
     }
@@ -1512,6 +1563,7 @@ pub trait CodeGenVisitor where Self: Sized {
             Stmt::AssignStmt(assign) => self.visit_assign(&assign),
             Stmt::Return(return_) => self.visit_return(&return_),
             Stmt::AllocaStmt(alloca) => self.visit_alloca(&alloca),
+            Stmt::SwitchStmt(switch) => self.visit_switch(&switch),
             Stmt::None => {}
         }
     }
@@ -1520,6 +1572,7 @@ pub trait CodeGenVisitor where Self: Sized {
             self.visit_function(&fn_meta.function);
         }
     }
+    fn visit_switch(&mut self, switch: &SwitchStmt);
     fn visit_tensor_load(&mut self, tensor_load: &TensorLoad) -> BasicValue;
     fn visit_alloca(&mut self, alloca: &AllocaStmt);
     fn visit_layout(&mut self, layout: &Layout) -> BasicValue;

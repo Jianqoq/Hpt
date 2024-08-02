@@ -210,6 +210,7 @@ impl IRMutateVisitor for PadVisitor {
             steps: tensor_load.steps.clone(),
             strides: tensor_load.strides.clone(),
             hints: tensor_load.hints.clone(),
+            flag: tensor_load.flag.clone(),
         });
     }
 }
