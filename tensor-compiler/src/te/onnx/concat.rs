@@ -52,58 +52,60 @@ impl Context {
             body_gen: Arc::new(move |inputs: Vec<Body>, is_output: bool, id: usize| {
                 let shape = res_shape.clone();
                 let dims = vec![IterVar::new(0i64, len as i64, 1i64, var("idx"))];
-                let mut cases = vec![];
-                let mut offsets = vec![];
-                for (case, i) in inputs.iter().enumerate() {
-                    let body = match i {
-                        Body::Stage(stage) => {
-                            let mut stage = stage.clone();
-                            let mut begins = vec![];
-                            for i in 0..shape.len() {
-                                if i == axis {
-                                    let offset = offsets[..case]
-                                        .iter()
-                                        .cloned()
-                                        .reduce(|x, y| x + y)
-                                        .unwrap_or((0i64).into());
-                                    begins.push(offset);
-                                } else {
-                                    begins.push((0i64).into());
-                                }
-                            }
-                            offsets.push(stage.dims[axis].end().clone());
-                            let mut axes = vec![];
-                            for i in 0..shape.len() {
-                                axes.push(stage.dims[i].var().into());
-                            }
-                            let mut steps = vec![];
-                            for _ in 0..shape.len() {
-                                steps.push((1i64).into());
-                            }
-                            let mut strides = vec![];
-                            for i in 0..shape.len() {
-                                strides.push(Load::make(var(format!("{}.s", id)), i as i64).into());
-                            }
-                            stage.bodys.push(
-                                Body::Stmt(
-                                    StoreStmt::make(
-                                        var(format!("%{}", id)),
-                                        begins,
-                                        axes,
-                                        steps,
-                                        strides,
-                                        var(format!("%{}_val", stage.out_id))
-                                    ).into()
-                                )
-                            );
-                            Body::Stage(stage)
-                        }
-                        Body::Switch(_) => todo!(),
-                        _ => { i.clone() }
-                    };
-                    cases.push(((case as i64).into(), body));
-                }
                 if is_output {
+                    let mut cases = vec![];
+                    let mut offsets = vec![];
+                    for (case, i) in inputs.iter().enumerate() {
+                        let body = match i {
+                            Body::Stage(stage) => {
+                                let mut stage = stage.clone();
+                                let mut begins = vec![];
+                                for i in 0..shape.len() {
+                                    if i == axis {
+                                        let offset = offsets[..case]
+                                            .iter()
+                                            .cloned()
+                                            .reduce(|x, y| x + y)
+                                            .unwrap_or((0i64).into());
+                                        begins.push(offset);
+                                    } else {
+                                        begins.push((0i64).into());
+                                    }
+                                }
+                                offsets.push(stage.dims[axis].end().clone());
+                                let mut axes = vec![];
+                                for i in 0..shape.len() {
+                                    axes.push(stage.dims[i].var().into());
+                                }
+                                let mut steps = vec![];
+                                for _ in 0..shape.len() {
+                                    steps.push((1i64).into());
+                                }
+                                let mut strides = vec![];
+                                for i in 0..shape.len() {
+                                    strides.push(
+                                        Load::make(var(format!("{}.s", id)), i as i64).into()
+                                    );
+                                }
+                                stage.bodys.push(
+                                    Body::Stmt(
+                                        StoreStmt::make(
+                                            var(format!("%{}", id)),
+                                            begins,
+                                            axes,
+                                            steps,
+                                            strides,
+                                            var(format!("%{}_val", stage.out_id))
+                                        ).into()
+                                    )
+                                );
+                                Body::Stage(stage)
+                            }
+                            Body::Switch(_) => todo!(),
+                            _ => { i.clone() }
+                        };
+                        cases.push(((case as i64).into(), body));
+                    }
                     let switch = Switch {
                         dims: dims.clone(),
                         cond: var("idx").into(),
@@ -115,6 +117,10 @@ impl Context {
                     };
                     Body::Switch(switch)
                 } else {
+                    let mut cases = vec![];
+                    for (case, i) in inputs.iter().enumerate() {
+                        cases.push(((case as i64).into(), i.clone()));
+                    }
                     let switch = Switch {
                         dims: dims.clone(),
                         cond: var("idx").into(),
