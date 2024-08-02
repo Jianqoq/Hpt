@@ -63,6 +63,12 @@ pub mod te {
         pub mod not;
         pub mod arg_reduce;
         pub mod conv;
+        pub mod concat;
+        pub mod split;
+        pub mod squeeze;
+        pub mod unsqueeze;
+        pub mod transpose;
+        pub mod expand;
     }
     pub mod insert_axes;
     pub mod strides_visitor;
