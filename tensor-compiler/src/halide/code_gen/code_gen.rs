@@ -1880,9 +1880,33 @@ impl CodeGenVisitor for CodeGen {
         self.visit_stmt(&function.body);
         self.builder.position_at_end(block);
     }
-    
+
     fn visit_switch(&mut self, switch: &crate::halide::switch_stmt::SwitchStmt) {
-        todo!()
+        let cond = self.visit_expr(switch.cond());
+        let default_block = self.ctx.append_basic_block(&self.id_fns[&self.current_fn], "default");
+        let end_block = self.ctx.append_basic_block(&self.id_fns[&self.current_fn], "end");
+        let case = switch.actions
+            .iter()
+            .map(|case| {
+                let val = self.visit_expr(&case.case_value);
+                let block = self.ctx.append_basic_block(&self.id_fns[&self.current_fn], "case");
+                (val, block)
+            })
+            .collect::<Vec<_>>();
+        self.builder.build_switch(cond, default_block, &case);
+        for (idx, (val, block)) in case.iter().enumerate() {
+            self.builder.position_at_end(*block);
+            self.visit_stmt(&switch.actions[idx].action);
+            self.builder.build_unconditional_branch(end_block);
+        }
+        self.builder.position_at_end(default_block);
+        if switch.default.is_none() {
+            self.builder.build_unconditional_branch(end_block);
+        } else {
+            self.visit_stmt(&switch.default.as_ref());
+            self.builder.build_unconditional_branch(end_block);
+        }
+        self.builder.position_at_end(end_block);
     }
 }
 

@@ -92,7 +92,34 @@ impl Builder {
         BasicBlock::from(block)
     }
 
-    pub fn build_bitcast(&self, value: BasicValue, cast_type: GeneralType, name: &str) -> BasicValue {
+    pub fn build_switch(
+        &self,
+        value: BasicValue,
+        default_block: BasicBlock,
+        cases: &[(BasicValue, BasicBlock)]
+    ) {
+        if *self.pos_state.borrow() == PositionState::NotSet {
+            panic!("Position not set");
+        }
+        unsafe {
+            let switch = llvm_sys::core::LLVMBuildSwitch(
+                self.builder,
+                value.inner(),
+                default_block.inner(),
+                cases.len() as u32
+            );
+            for &(case, block) in cases {
+                llvm_sys::core::LLVMAddCase(switch, case.inner(), block.inner());
+            }
+        }
+    }
+
+    pub fn build_bitcast(
+        &self,
+        value: BasicValue,
+        cast_type: GeneralType,
+        name: &str
+    ) -> BasicValue {
         if *self.pos_state.borrow() == PositionState::NotSet {
             panic!("Position not set");
         }

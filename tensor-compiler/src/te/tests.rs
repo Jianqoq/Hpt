@@ -1297,6 +1297,39 @@ fn test_concat() {
     let concat = ctx.concat(1, &[a.clone(), b.clone()]);
     let order = [a.id, b.id, concat.id];
     let schedule = ctx.to_schedule(&order);
-    let func = schedule.to_function();
-    println!("{}", func);
+    
+    let vars_map = hashmap! {
+            "m" => 2,
+            "n" => 5,
+            "o" => 3,
+        };
+    
+    let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
+        vars_map
+    );
+    let a = tensor_dyn::tensor::Tensor::<f32>
+        ::arange(0.0, 30.0)
+        .expect("Failed to create tensor")
+        .reshape(&[2, 5, 3])
+        .expect("Failed to reshape");
+
+    let b = tensor_dyn::tensor::Tensor::<f32>
+        ::arange(30.0, 60.0)
+        .expect("Failed to create tensor")
+        .reshape(&[2, 5, 3])
+        .expect("Failed to reshape");
+
+    let inps_map = hashmap! {
+        0usize => a.clone().into(),
+        1 => b.clone().into(),
+    };
+
+    let c = tensor_dyn::tensor::Tensor::<f32>::zeros(&[2, 10, 3]).expect("Failed to create tensor");
+    let outs_map = hashmap! {
+            2 => c.clone().into(),
+        };
+
+    executable.execute(inps_map, outs_map);
+    let test = tensor_dyn::tensor::Tensor::stack(vec![&a, &b], 1, false).unwrap();
+    assert!(test.allclose(&c));
 }

@@ -1,19 +1,11 @@
-use std::{ panic::Location, sync::Arc };
+use std::{ collections::HashMap, panic::Location, sync::Arc };
 
 use crate::{
-    halide::{ prime_expr::PrimeExpr, store_stmt::StoreStmt, tensor_load::Flag, utils::var },
+    halide::{ store_stmt::StoreStmt, utils::var },
     iter_var::IterVar,
-    te::{
-        context::Context,
-        stages::{ Body, Stage, Switch },
-        strides_cal_helper::elementwise_strides_cal,
-        tensor::{ StridesCal, Tensor },
-    },
+    te::{ context::Context, stages::{ Body, Switch }, tensor::{ StridesCal, Tensor } },
 };
 use crate::halide::exprs::Load;
-use crate::halide::let_stmt::LetStmt;
-use crate::halide::stmt::Stmt;
-use crate::halide::tensor_load::TensorLoad;
 
 impl Context {
     #[track_caller]
@@ -43,33 +35,45 @@ impl Context {
             id,
             dtype: res_dtype,
             strides_cal: Arc::new(move |prev_fn: Vec<StridesCal>| {
-                elementwise_strides_cal(prev_fn[0].clone())
+                {
+                    let prev_funcs = prev_fn
+                        .iter()
+                        .map(|x| x.clone())
+                        .collect::<Vec<_>>();
+                    Arc::new(move |map: &HashMap<Arc<String>, i64>| {
+                        let mut ret = vec![];
+                        for func in prev_funcs.iter() {
+                            ret.append(&mut func(map));
+                        }
+                        ret
+                    })
+                }
             }),
             body_gen: Arc::new(move |inputs: Vec<Body>, is_output: bool, id: usize| {
                 let shape = res_shape.clone();
                 let dims = vec![IterVar::new(0i64, len as i64, 1i64, var("idx"))];
                 let mut cases = vec![];
+                let mut offsets = vec![];
                 for (case, i) in inputs.iter().enumerate() {
                     let body = match i {
                         Body::Stage(stage) => {
                             let mut stage = stage.clone();
+                            offsets.push(stage.dims[axis].end().clone());
                             let mut begins = vec![];
                             for i in 0..shape.len() {
                                 if i == axis {
-                                    begins.push((case as i64).into());
+                                    if case == 0 {
+                                        begins.push((0i64).into());
+                                    } else {
+                                        begins.push(offsets[case - 1].clone());
+                                    }
                                 } else {
                                     begins.push((0i64).into());
                                 }
                             }
                             let mut axes = vec![];
-                            let mut cnt = 0;
                             for i in 0..shape.len() {
-                                if i == axis {
-                                    axes.push(var("idx").into());
-                                } else {
-                                    axes.push(stage.dims[cnt].var().into());
-                                    cnt += 1;
-                                }
+                                axes.push(stage.dims[i].var().into());
                             }
                             let mut steps = vec![];
                             for _ in 0..shape.len() {

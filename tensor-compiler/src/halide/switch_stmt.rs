@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 
 use super::{prime_expr::PrimeExpr, stmt::Stmt, traits::{IRMutVisitor, IRMutateVisitor, IRVisitor}};
 
@@ -29,6 +29,7 @@ impl SwitchCase {
 pub struct SwitchStmt {
     pub cond: PrimeExpr,
     pub actions: Vec<SwitchCase>,
+    pub default: Arc<Stmt>,
 }
 
 impl SwitchStmt {
@@ -36,6 +37,7 @@ impl SwitchStmt {
         SwitchStmt {
             cond: cond.into().into(),
             actions,
+            default: Arc::new(Stmt::None),
         }
     }
 
