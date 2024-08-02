@@ -5,7 +5,7 @@ use crate::{
     iter_var::IterVar,
     te::{
         context::Context,
-        stages::{ Body, Stage },
+        stages::{ Body, Stage, Switch },
         strides_cal_helper::elementwise_strides_cal,
         tensor::{ StridesCal, Tensor },
     },
@@ -30,6 +30,7 @@ impl Context {
         res_shape[axis] = concat_dim;
         let res_shape = Arc::new(res_shape);
         let res_dtype = inputs[0].dtype.clone();
+        let len = inputs.len();
         let ret = Tensor {
             shape: res_shape.clone(),
             inputs: Arc::new(
@@ -44,132 +45,81 @@ impl Context {
             strides_cal: Arc::new(move |prev_fn: Vec<StridesCal>| {
                 elementwise_strides_cal(prev_fn[0].clone())
             }),
-            body_gen: Arc::new(move |_: Vec<Body>, is_output: bool, id: usize| {
+            body_gen: Arc::new(move |inputs: Vec<Body>, is_output: bool, id: usize| {
                 let shape = res_shape.clone();
-                let mut dims = vec![
-                    IterVar::new(0i64, shape[axis].clone(), 1i64, var("ax0".to_string()))
-                ];
-                let mut cnt = 1;
-                for (idx, i) in shape.iter().enumerate() {
-                    if idx != axis {
-                        dims.push(IterVar::new(0i64, i.clone(), 1i64, var(format!("ax{}", cnt))));
-                        cnt += 1;
-                    }
+                let dims = vec![IterVar::new(0i64, len as i64, 1i64, var("idx"))];
+                let mut cases = vec![];
+                for (case, i) in inputs.iter().enumerate() {
+                    let body = match i {
+                        Body::Stage(stage) => {
+                            let mut stage = stage.clone();
+                            let mut begins = vec![];
+                            for i in 0..shape.len() {
+                                if i == axis {
+                                    begins.push((case as i64).into());
+                                } else {
+                                    begins.push((0i64).into());
+                                }
+                            }
+                            let mut axes = vec![];
+                            let mut cnt = 0;
+                            for i in 0..shape.len() {
+                                if i == axis {
+                                    axes.push(var("idx").into());
+                                } else {
+                                    axes.push(stage.dims[cnt].var().into());
+                                    cnt += 1;
+                                }
+                            }
+                            let mut steps = vec![];
+                            for _ in 0..shape.len() {
+                                steps.push((1i64).into());
+                            }
+                            let mut strides = vec![];
+                            for i in 0..shape.len() {
+                                strides.push(Load::make(var(format!("{}.s", id)), i as i64).into());
+                            }
+                            stage.bodys.push(
+                                Body::Stmt(
+                                    StoreStmt::make(
+                                        var(format!("%{}", id)),
+                                        begins,
+                                        axes,
+                                        steps,
+                                        strides,
+                                        var(format!("%{}_val", stage.out_id))
+                                    ).into()
+                                )
+                            );
+                            Body::Stage(stage)
+                        }
+                        Body::Switch(_) => todo!(),
+                        _ => { i.clone() }
+                    };
+                    cases.push(((case as i64).into(), body));
                 }
                 if is_output {
-                    let load = Load::make(var("data_vec".to_string()), var("ax0".to_string()));
-                    let let_stmt = Body::Stmt(
-                        LetStmt::make(
-                            &var(format!("%{}cat_ptr", id)),
-                            load,
-                            false,
-                            Stmt::None
-                        ).into()
-                    );
-                    let begins = (0..shape.len())
-                        .map(|_| (0i64).into())
-                        .collect::<Vec<PrimeExpr>>();
-                    let steps = (0..shape.len()).map(|_| (1i64).into()).collect::<Vec<PrimeExpr>>();
-                    let axes = (0..shape.len())
-                        .map(|idx| var(format!("ax{}", idx)).into())
-                        .collect::<Vec<PrimeExpr>>();
-                    let strides = (0..shape.len())
-                        .map(|idx| Load::make(var(format!("{}.s", id)), idx).into())
-                        .collect::<Vec<PrimeExpr>>();
-                    let mut tensor_load = TensorLoad::make(
-                        var(format!("%{}cat_ptr", id)),
-                        begins,
-                        axes,
-                        steps,
-                        strides,
-                        vec![]
-                    );
-                    tensor_load.flag = Flag::NoReplaceStrides;
-                    let loaded_istrides = Load::make(var("istrides_vec"), var("ax0"));
-                    let let_stmt_istrides = Body::Stmt(
-                        LetStmt::make(
-                            &var(format!("%{}istrides", id)),
-                            loaded_istrides,
-                            false,
-                            Stmt::None
-                        ).into()
-                    );
-                    let body = Body::Stmt(
-                        StoreStmt::make(
-                            var(format!("%{}", id)),
-                            (0..shape.len()).map(|_| (0i64).into()).collect::<Vec<PrimeExpr>>(),
-                            (0..shape.len())
-                                .map(|idx| var(format!("ax{}", idx)).into())
-                                .collect::<Vec<PrimeExpr>>(),
-                            (0..shape.len()).map(|_| (1i64).into()).collect::<Vec<PrimeExpr>>(),
-                            (0..shape.len())
-                                .map(|idx| Load::make(&var(format!("%{}istrides", id)), idx).into())
-                                .collect::<Vec<PrimeExpr>>(),
-                            tensor_load
-                        ).into()
-                    );
-                    let ret = Stage {
-                        dims,
-                        bodys: vec![let_stmt, let_stmt_istrides, body],
+                    let switch = Switch {
+                        dims: dims.clone(),
+                        cond: var("idx").into(),
                         dtype: res_dtype,
+                        bodys: cases,
                         id,
+                        input: id,
                         out_id: id,
-                        begins: (0..shape.len()).map(|_| (0i64).into()).collect(),
-                        steps: (0..shape.len()).map(|_| (1i64).into()).collect(),
-                        axes: (0..shape.len())
-                            .map(|idx| var(format!("ax{}", idx)).into())
-                            .collect(),
                     };
-                    Body::Stage(ret)
+                    Body::Switch(switch)
                 } else {
-                    let load = Load::make(var("data_vec".to_string()), var("ax0".to_string()));
-                    let let_stmt = Body::Stmt(
-                        LetStmt::make(
-                            &var(format!("%{}cat_ptr", id)),
-                            load,
-                            false,
-                            Stmt::None
-                        ).into()
-                    );
-                    let begins = (0..shape.len())
-                        .map(|_| (0i64).into())
-                        .collect::<Vec<PrimeExpr>>();
-                    let steps = (0..shape.len()).map(|_| (1i64).into()).collect::<Vec<PrimeExpr>>();
-                    let axes = (0..shape.len())
-                        .map(|idx| var(format!("ax{}", idx)).into())
-                        .collect::<Vec<PrimeExpr>>();
-                    let strides = (0..shape.len())
-                        .map(|idx| Load::make(var(format!("{}.s", id)), idx).into())
-                        .collect::<Vec<PrimeExpr>>();
-                    let tensor_load = TensorLoad::make(
-                        var(format!("%{}cat_ptr", id)),
-                        begins,
-                        axes,
-                        steps,
-                        strides,
-                        vec![]
-                    );
-                    let body = Body::Stmt(
-                        LetStmt::make(
-                            &var(format!("%{}_val", id)),
-                            tensor_load,
-                            false,
-                            Stmt::None
-                        ).into()
-                    );
-                    let ret = Stage {
-                        dims,
-                        bodys: vec![let_stmt, body],
+                    let switch = Switch {
+                        dims: dims.clone(),
+                        cond: var("idx").into(),
+                        bodys: cases,
                         dtype: res_dtype,
                         id,
+                        input: id,
                         out_id: id,
-                        begins: (0..shape.len()).map(|_| (0i64).into()).collect(),
-                        steps: (0..shape.len()).map(|_| (1i64).into()).collect(),
-                        axes: (0..shape.len())
-                            .map(|idx| var(format!("ax{}", idx)).into())
-                            .collect(),
                     };
-                    return Body::Stage(ret);
+                    Body::Switch(switch)
                 }
             }),
         };

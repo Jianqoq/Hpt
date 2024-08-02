@@ -66,7 +66,7 @@ impl Body {
                 body.all_parents_dims(map)
             }
             Body::Switch(switch) => {
-                let (body, _) = map.get(&switch.inputs).unwrap();
+                let (body, _) = map.get(&switch.input).unwrap();
                 body.all_parents_dims(map)
             }
         }
@@ -535,10 +535,13 @@ impl If {
 
 #[derive(Clone)]
 pub struct Switch {
+    pub(crate) dims: Vec<IterVar>,
     pub(crate) cond: PrimeExpr,
     pub(crate) bodys: Vec<(PrimeExpr, Body)>,
+    pub(crate) dtype: Dtype,
     pub(crate) id: usize,
-    pub(crate) inputs: usize,
+    pub(crate) out_id: usize,
+    pub(crate) input: usize,
 }
 
 impl Switch {
@@ -564,7 +567,7 @@ impl Switch {
                 }
             }
         }
-        Stmt::SwitchStmt(SwitchStmt::make(self.cond.clone(), seq))
+        build_nested_for(&self.dims, Stmt::SwitchStmt(SwitchStmt::make(self.cond.clone(), seq)))
     }
 
     pub fn broadcast_new_dims(&mut self, strides: &Vec<PrimeExpr>, axes: &Vec<PrimeExpr>) {

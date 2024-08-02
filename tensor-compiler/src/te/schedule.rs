@@ -44,6 +44,11 @@ impl Schedule {
                         ret.push(stage.to_halide(&self.qa));
                     }
                 }
+                Body::Switch(switch) => {
+                    if *is_output {
+                        ret.push(switch.to_halide(&self.qa));
+                    }
+                }
                 _ => {}
             }
         }
