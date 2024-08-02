@@ -58,19 +58,20 @@ impl Context {
                     let body = match i {
                         Body::Stage(stage) => {
                             let mut stage = stage.clone();
-                            offsets.push(stage.dims[axis].end().clone());
                             let mut begins = vec![];
                             for i in 0..shape.len() {
                                 if i == axis {
                                     if case == 0 {
                                         begins.push((0i64).into());
                                     } else {
-                                        begins.push(offsets[case - 1].clone());
+                                        let offset = offsets[..case].iter().cloned().reduce(|x, y| x + y).unwrap_or(0i64.into());
+                                        begins.push(offset);
                                     }
                                 } else {
                                     begins.push((0i64).into());
                                 }
                             }
+                            offsets.push(stage.dims[axis].end().clone());
                             let mut axes = vec![];
                             for i in 0..shape.len() {
                                 axes.push(stage.dims[i].var().into());
