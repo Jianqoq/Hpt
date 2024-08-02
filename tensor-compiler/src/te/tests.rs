@@ -1285,3 +1285,18 @@ fn test_conv() {
     let func = schedule.to_function();
     println!("{}", func);
 }
+
+#[test]
+fn test_concat() {
+    let mut ctx = Context::new();
+    let m = ctx.var("m");
+    let n = ctx.var("n");
+    let o = ctx.var("o");
+    let a = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
+    let b = ctx.placeholder(&[&m, &n, &o], Dtype::F32);
+    let concat = ctx.concat(1, &[a.clone(), b.clone()]);
+    let order = [a.id, b.id, concat.id];
+    let schedule = ctx.to_schedule(&order);
+    let func = schedule.to_function();
+    println!("{}", func);
+}

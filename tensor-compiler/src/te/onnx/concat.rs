@@ -1,15 +1,19 @@
-use std::{ panic::Location, sync::Arc };
+use std::{panic::Location, sync::Arc};
 
 use crate::{
-    halide::{ store_stmt::StoreStmt, utils::var },
+    halide::{store_stmt::StoreStmt, utils::var},
     iter_var::IterVar,
     te::{
         context::Context,
-        stages::{ Body, Stage },
+        stages::{Body, Stage},
         strides_cal_helper::elementwise_strides_cal,
-        tensor::{ StridesCal, Tensor },
+        tensor::{StridesCal, Tensor},
     },
 };
+use crate::halide::exprs::Load;
+use crate::halide::let_stmt::LetStmt;
+use crate::halide::stmt::Stmt;
+use crate::halide::tensor_load::TensorLoad;
 
 impl Context {
     #[track_caller]
@@ -25,68 +29,129 @@ impl Context {
         let mut res_shape = inputs[0].shape.as_ref().clone();
         res_shape[axis] = concat_dim;
         let res_shape = Arc::new(res_shape);
+        let res_dtype = inputs[0].dtype.clone();
         let ret = Tensor {
             shape: res_shape.clone(),
-            inputs: Arc::new(
-                inputs
-                    .iter()
-                    .map(|x| x.id)
-                    .collect()
-            ),
+            inputs: Arc::new(inputs.iter().map(|x| x.id).collect()),
             span: Location::caller(),
             id,
-            dtype: inputs[0].dtype,
+            dtype: res_dtype,
             strides_cal: Arc::new(move |prev_fn: Vec<StridesCal>| {
                 elementwise_strides_cal(prev_fn[0].clone())
             }),
             body_gen: Arc::new(move |inputs: Vec<Body>, is_output: bool, id: usize| {
                 let shape = res_shape.clone();
-                let mut dims = vec![
-                    IterVar::new(0i64, shape[axis].clone(), 1i64, var(format!("ax0")))
-                ];
+                let mut dims = vec![IterVar::new(
+                    0i64,
+                    shape[axis].clone(),
+                    1i64,
+                    var("ax0".to_string()),
+                )];
                 let mut cnt = 1;
                 for (idx, i) in shape.iter().enumerate() {
                     if idx != axis {
-                        dims.push(IterVar::new(0i64, i.clone(), 1i64, var(format!("ax{}", cnt))));
+                        dims.push(IterVar::new(
+                            0i64,
+                            i.clone(),
+                            1i64,
+                            var(format!("ax{}", cnt)),
+                        ));
                         cnt += 1;
                     }
                 }
                 if is_output {
-                    for i in inputs {
-                        if let Body::Stage(stage) = i {
-                            let mut stage = stage.clone();
-
-                            assert_eq!(stage.bodys.len(), 1);
-                            let body = stage.bodys[0].clone();
-                        } else {
-                            panic!("input is not a stage");
-                        }
-                    }
+                    let load = Load::make(var("data_vec".to_string()), var("ax0".to_string()));
+                    let let_stmt = Body::Stmt(
+                        LetStmt::make(&var(format!("%{}cat_ptr", id)), load, false, Stmt::None)
+                            .into(),
+                    );
+                    let begins = (0..shape.len()).map(|(_)| 0i64.into()).collect();
+                    let steps = (0..shape.len()).map(|(_)| 1i64.into()).collect();
+                    let axes = (0..shape.len())
+                        .map(|idx| var(format!("ax{}", idx)).into())
+                        .collect();
+                    let strides = (0..shape.len())
+                        .map(|idx| Load::make(var(format!("{}.s", id)), idx))
+                        .collect();
+                    let tensor_load = TensorLoad::make(
+                        var(format!("%{}cat_ptr", id)),
+                        begins,
+                        axes,
+                        steps,
+                        strides,
+                        vec![],
+                    );
                     let body = Body::Stmt(
                         StoreStmt::make(
                             var(format!("%{}", id)),
-                            (0..shape.len()).map(|_| var(format!("ax{}", x))).collect(),
-                            axes,
-                            steps,
-                            strides,
-                            val
-                        ).into()
+                            (0..shape.len()).map(|_| 0i64.into()).collect(),
+                            (0..shape.len())
+                                .map(|idx| var(format!("ax{}", idx)))
+                                .collect(),
+                            (0..shape.len()).map(|_| 1i64).collect(),
+                            (0..shape.len())
+                                .map(|idx| Load::make(var(format!("{}.s", id)), idx))
+                                .collect(),
+                            tensor_load,
+                        )
+                        .into(),
                     );
                     let ret = Stage {
                         dims,
-                        bodys: todo!(),
-                        dtype: todo!(),
+                        bodys: vec![let_stmt, body],
+                        dtype: res_dtype,
                         id,
-                        out_id: todo!(),
-                        begins: todo!(),
-                        steps: todo!(),
-                        axes: todo!(),
+                        out_id: id,
+                        begins: (0..shape.len()).map(|_| 0i64.into()).collect(),
+                        steps: (0..shape.len()).map(|_| 1i64.into()).collect(),
+                        axes: (0..shape.len())
+                            .map(|idx| var(format!("ax{}", idx)).into())
+                            .collect(),
                     };
+                    return Body::Stage(ret);
                 } else {
+                    let load = Load::make(var("data_vec".to_string()), var("ax0".to_string()));
+                    let let_stmt = Body::Stmt(
+                        LetStmt::make(&var(format!("%{}cat_ptr", id)), load, false, Stmt::None)
+                            .into(),
+                    );
+                    let begins = (0..shape.len()).map(|(_)| 0i64.into()).collect();
+                    let steps = (0..shape.len()).map(|(_)| 1i64.into()).collect();
+                    let axes = (0..shape.len())
+                        .map(|idx| var(format!("ax{}", idx)).into())
+                        .collect();
+                    let strides = (0..shape.len())
+                        .map(|idx| Load::make(var(format!("{}.s", id)), idx))
+                        .collect();
+                    let tensor_load = TensorLoad::make(
+                        var(format!("%{}cat_ptr", id)),
+                        begins,
+                        axes,
+                        steps,
+                        strides,
+                        vec![],
+                    );
+                    let body = Body::Stmt(
+                        LetStmt::make(&var(format!("%{}_val", id)), tensor_load, false, Stmt::None)
+                            .into(),
+                    );
+                    let ret = Stage {
+                        dims,
+                        bodys: vec![let_stmt, body],
+                        dtype: res_dtype,
+                        id,
+                        out_id: id,
+                        begins: (0..shape.len()).map(|_| 0i64.into()).collect(),
+                        steps: (0..shape.len()).map(|_| 1i64.into()).collect(),
+                        axes: (0..shape.len())
+                            .map(|idx| var(format!("ax{}", idx)).into())
+                            .collect(),
+                    };
+                    return Body::Stage(ret);
                 }
-                todo!()
             }),
         };
-        todo!()
+        self.nodes.borrow_mut().insert(ret.id, ret.clone());
+        ret
     }
 }
