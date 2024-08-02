@@ -61,12 +61,12 @@ impl Context {
                             let mut begins = vec![];
                             for i in 0..shape.len() {
                                 if i == axis {
-                                    if case == 0 {
-                                        begins.push((0i64).into());
-                                    } else {
-                                        let offset = offsets[..case].iter().cloned().reduce(|x, y| x + y).unwrap_or(0i64.into());
-                                        begins.push(offset);
-                                    }
+                                    let offset = offsets[..case]
+                                        .iter()
+                                        .cloned()
+                                        .reduce(|x, y| x + y)
+                                        .unwrap_or((0i64).into());
+                                    begins.push(offset);
                                 } else {
                                     begins.push((0i64).into());
                                 }
