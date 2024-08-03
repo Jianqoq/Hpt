@@ -9,7 +9,7 @@ use tensor_types::{
     type_promote::{ FloatOut, NormalOut },
 };
 use tensor_traits::TensorCreator;
-use crate::tensor_base::_Tensor;
+use crate::{ tensor::Tensor, tensor_base::_Tensor };
 
 impl<T> _Tensor<T>
     where
@@ -44,5 +44,25 @@ impl<T> _Tensor<T>
                     a2 * ((T::FOURPI * idx) / length)._cos();
             });
         Ok(ret)
+    }
+}
+
+impl<T> Tensor<T>
+    where
+        f64: IntoScalar<T>,
+        T: CommonBounds +
+            NormalOut<T, Output = T> +
+            FromScalar<T> +
+            FloatConst +
+            Mul<Output = T> +
+            Div<Output = T> +
+            Sub<Output = T> +
+            FloatOut<Output = T> +
+            Add<Output = T>,
+        usize: IntoScalar<T>,
+        i64: IntoScalar<T>
+{
+    pub fn blackman_window(window_length: i64, periodic: bool) -> anyhow::Result<Tensor<T>> {
+        Ok(_Tensor::<T>::blackman_window(window_length, periodic)?.into())
     }
 }
