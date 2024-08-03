@@ -1,4 +1,4 @@
-use std::{fmt::Display, sync::Arc};
+use std::{ fmt::Display, sync::Arc };
 
 use rayon::iter::{
     plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
@@ -44,7 +44,7 @@ impl<T: CommonBounds> Strided<T> {
 
     pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
         let inner_loop_size = tensor.shape()[tensor.shape().len() - 1] as usize;
-        let outer_loop_size = tensor.size() / (inner_loop_size);
+        let outer_loop_size = tensor.size() / inner_loop_size;
         let num_threads;
         if outer_loop_size < rayon::current_num_threads() {
             num_threads = outer_loop_size;
@@ -158,7 +158,7 @@ impl<T: Copy + Display> IterGetSet for Strided<T> {
     }
 
     fn next(&mut self) {
-        for j in (0..=(self.shape().len() as i16) - 2).rev() {
+        for j in (0..(self.shape().len() as i64) - 1).rev() {
             let j = j as usize;
             if self.prg[j] < self.shape()[j] {
                 self.prg[j] += 1;
@@ -247,7 +247,7 @@ impl<T: Copy + Display> ShapeManipulator for Strided<T> {
         }
         let size = res_shape.size() as usize;
         let inner_loop_size = res_shape[res_shape.len() - 1] as usize;
-        let outer_loop_size = size / (inner_loop_size);
+        let outer_loop_size = size / inner_loop_size;
         let num_threads;
         if outer_loop_size < rayon::current_num_threads() {
             num_threads = outer_loop_size;

@@ -17,7 +17,7 @@ macro_rules! sum_kernel {
                 tmp = a_val._add(tmp);
             }
             $result_ptr.modify(0, tmp);
-            for j in (0..=$shape_len - 2).rev() {
+            for j in (0..$shape_len - 1).rev() {
                 if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
                     $iterator.prg[j as usize] += 1;
                     $a_ptr.offset($iterator.strides[j as usize]);
@@ -58,7 +58,7 @@ macro_rules! sum_kernel {
                 }
             }
         }
-        for j in (0..=$shape_len - 2).rev() {
+        for j in (0..$shape_len - 1).rev() {
             if $iterator.a_prg[j as usize] < $iterator.a_shape[j as usize] {
                 $iterator.a_prg[j as usize] += 1;
                 $a_ptr.offset($iterator.strides[j as usize]);
@@ -96,7 +96,7 @@ macro_rules! sum_with_cast_kernel {
                 tmp = B::__from(a_val._add(tmp));
             }
             $result_ptr.modify(0, tmp);
-            for j in (0..=$shape_len - 2).rev() {
+            for j in (0..$shape_len - 1).rev() {
                 if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
                     $iterator.prg[j as usize] += 1;
                     $a_ptr.offset($iterator.strides[j as usize]);
@@ -137,7 +137,7 @@ macro_rules! sum_with_cast_kernel {
                 }
             }
         }
-        for j in (0..=$shape_len - 2).rev() {
+        for j in (0..$shape_len - 1).rev() {
             if $iterator.a_prg[j as usize] < $iterator.a_shape[j as usize] {
                 $iterator.a_prg[j as usize] += 1;
                 $a_ptr.offset($iterator.strides[j as usize]);
@@ -175,7 +175,7 @@ macro_rules! cumsum_kernel {
                 tmp = a_val._add(tmp);
             }
             $result_ptr.modify(0, tmp);
-            for j in (0..=$shape_len - 2).rev() {
+            for j in (0..$shape_len - 1).rev() {
                 if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
                     $iterator.prg[j as usize] += 1;
                     $a_ptr.offset($iterator.strides[j as usize]);
@@ -216,7 +216,7 @@ macro_rules! cumsum_kernel {
                 }
             }
         }
-        for j in (0..=$shape_len - 2).rev() {
+        for j in (0..$shape_len - 1).rev() {
             if $iterator.a_prg[j as usize] < $iterator.a_shape[j as usize] {
                 $iterator.a_prg[j as usize] += 1;
                 $a_ptr.offset($iterator.strides[j as usize]);
@@ -258,7 +258,7 @@ macro_rules! nansum_kernel {
                 }
             }
             $result_ptr.modify(0, tmp);
-            for j in (0..=$shape_len - 2).rev() {
+            for j in (0..$shape_len - 1).rev() {
                 if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
                     $iterator.prg[j as usize] += 1;
                     $a_ptr.offset($iterator.strides[j as usize]);
@@ -302,7 +302,7 @@ macro_rules! nansum_kernel {
                 }
             }
         }
-        for j in (0..=$shape_len - 2).rev() {
+        for j in (0..$shape_len - 1).rev() {
             if $iterator.a_prg[j as usize] < $iterator.a_shape[j as usize] {
                 $iterator.a_prg[j as usize] += 1;
                 $a_ptr.offset($iterator.strides[j as usize]);
@@ -344,7 +344,7 @@ macro_rules! prod_kernel {
                 tmp = $a_ptr[i * $a_last_stride]._mul(tmp);
             }
             $result_ptr.modify(0, tmp);
-            for j in (0..=$shape_len - 2).rev() {
+            for j in (0..$shape_len - 1).rev() {
                 if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
                     $iterator.prg[j as usize] += 1;
                     $a_ptr.offset($iterator.strides[j as usize]);
@@ -385,7 +385,7 @@ macro_rules! prod_kernel {
                 }
             }
         }
-        for j in (0..=$shape_len - 2).rev() {
+        for j in (0..$shape_len - 1).rev() {
             if $iterator.a_prg[j as usize] < $iterator.a_shape[j as usize] {
                 $iterator.a_prg[j as usize] += 1;
                 $a_ptr.offset($iterator.strides[j as usize]);
@@ -425,7 +425,7 @@ macro_rules! nanprod_kernel {
                 }
             }
             $result_ptr.modify(0, tmp);
-            for j in (0..=$shape_len - 2).rev() {
+            for j in (0..$shape_len - 1).rev() {
                 if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
                     $iterator.prg[j as usize] += 1;
                     $a_ptr.offset($iterator.strides[j as usize]);
@@ -468,7 +468,7 @@ macro_rules! nanprod_kernel {
                 }
             }
         }
-        for j in (0..=$shape_len - 2).rev() {
+        for j in (0..$shape_len - 1).rev() {
             if $iterator.a_prg[j as usize] < $iterator.a_shape[j as usize] {
                 $iterator.a_prg[j as usize] += 1;
                 $a_ptr.offset($iterator.strides[j as usize]);
@@ -513,7 +513,7 @@ macro_rules! min_kernel {
                 }
             }
             $result_ptr.modify(0, tmp);
-            for j in (0..=$shape_len - 2).rev() {
+            for j in (0..$shape_len - 1).rev() {
                 if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
                     $iterator.prg[j as usize] += 1;
                     $a_ptr.offset($iterator.strides[j as usize]);
@@ -556,7 +556,7 @@ macro_rules! min_kernel {
                 }
             }
         }
-        for j in (0..=$shape_len - 2).rev() {
+        for j in (0..$shape_len - 1).rev() {
             if $iterator.a_prg[j as usize] < $iterator.a_shape[j as usize] {
                 $iterator.a_prg[j as usize] += 1;
                 $a_ptr.offset($iterator.strides[j as usize]);
@@ -596,7 +596,7 @@ macro_rules! max_kernel {
                 }
             }
             $result_ptr.modify(0, tmp);
-            for j in (0..=$shape_len - 2).rev() {
+            for j in (0..$shape_len - 1).rev() {
                 if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
                     $iterator.prg[j as usize] += 1;
                     $a_ptr.offset($iterator.strides[j as usize]);
@@ -639,7 +639,7 @@ macro_rules! max_kernel {
                 }
             }
         }
-        for j in (0..=$shape_len - 2).rev() {
+        for j in (0..$shape_len - 1).rev() {
             if $iterator.a_prg[j as usize] < $iterator.a_shape[j as usize] {
                 $iterator.a_prg[j as usize] += 1;
                 $a_ptr.offset($iterator.strides[j as usize]);
@@ -677,7 +677,7 @@ macro_rules! all_kernel {
                 tmp = a_val._is_true() & tmp;
             }
             $result_ptr.modify(0, tmp);
-            for j in (0..=$shape_len - 2).rev() {
+            for j in (0..$shape_len - 1).rev() {
                 if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
                     $iterator.prg[j as usize] += 1;
                     $a_ptr.offset($iterator.strides[j as usize]);
@@ -718,7 +718,7 @@ macro_rules! all_kernel {
                 }
             }
         }
-        for j in (0..=$shape_len - 2).rev() {
+        for j in (0..$shape_len - 1).rev() {
             if $iterator.a_prg[j as usize] < $iterator.a_shape[j as usize] {
                 $iterator.a_prg[j as usize] += 1;
                 $a_ptr.offset($iterator.strides[j as usize]);
@@ -758,7 +758,7 @@ macro_rules! any_kernel {
                 tmp = a_val._is_true() | tmp;
             }
             $result_ptr.modify(0, tmp);
-            for j in (0..=$shape_len - 2).rev() {
+            for j in (0..$shape_len - 1).rev() {
                 if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
                     $iterator.prg[j as usize] += 1;
                     $a_ptr.offset($iterator.strides[j as usize]);
@@ -799,7 +799,7 @@ macro_rules! any_kernel {
                 }
             }
         }
-        for j in (0..=$shape_len - 2).rev() {
+        for j in (0..$shape_len - 1).rev() {
             if $iterator.a_prg[j as usize] < $iterator.a_shape[j as usize] {
                 $iterator.a_prg[j as usize] += 1;
                 $a_ptr.offset($iterator.strides[j as usize]);
@@ -838,7 +838,7 @@ macro_rules! mean_kernel {
                 let a_val = $a_ptr[i * $a_last_stride];
                 init_val = init_val._add(a_val);
             }
-            for j in (0..=$shape_len - 2).rev() {
+            for j in (0..$shape_len - 1).rev() {
                 if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
                     $iterator.prg[j as usize] += 1;
                     $a_ptr.offset($iterator.strides[j as usize]);
@@ -884,7 +884,7 @@ macro_rules! mean_kernel {
             let result_val = $result_ptr[i];
             $result_ptr.modify(i, result_val._div(<T as FloatOut>::Output::__from($loop_size2)));
         }
-        for j in (0..=$shape_len - 2).rev() {
+        for j in (0..$shape_len - 1).rev() {
             if $iterator.a_prg[j as usize] < $iterator.a_shape[j as usize] {
                 $iterator.a_prg[j as usize] += 1;
                 $a_ptr.offset($iterator.strides[j as usize]);
@@ -924,7 +924,7 @@ macro_rules! argmax_kernel {
                 max_index = i;
             }
         }
-        for j in (0..=$shape_len - 2).rev() {
+        for j in (0..$shape_len - 1).rev() {
             if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
                 $iterator.prg[j as usize] += 1;
                 $a_ptr.offset($iterator.strides[j as usize]);
@@ -960,7 +960,7 @@ macro_rules! argmin_kernel {
                 max_index = i;
             }
         }
-        for j in (0..=$shape_len - 2).rev() {
+        for j in (0..$shape_len - 1).rev() {
             if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
                 $iterator.prg[j as usize] += 1;
                 $a_ptr.offset($iterator.strides[j as usize]);
