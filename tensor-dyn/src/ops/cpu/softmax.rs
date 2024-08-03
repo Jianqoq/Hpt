@@ -33,3 +33,36 @@ impl<T> _Tensor<T>
         Ok(exp / sum)
     }
 }
+
+impl<T> _Tensor<T>
+    where
+        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOut,
+        <T as FloatOut>::Output: CommonBounds + TypeCommon,
+        <T as FloatOut>::Output: NormalOut +
+            NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output> +
+            FloatOut,
+        <<T as FloatOut>::Output as FloatOut>::Output: IntoScalar<<<T as FloatOut>::Output as FloatOut>::Output> +
+            CommonBounds +
+            FloatOut,
+        <<<T as FloatOut>::Output as FloatOut>::Output as FloatOut>::Output: CommonBounds
+{
+    pub fn logsoftmax(
+        &self,
+        axis: i64
+    ) -> anyhow::Result<_Tensor<<<<T as FloatOut>::Output as FloatOut>::Output as FloatOut>::Output>> {
+        let axis = (if axis < 0 { (self.layout.ndim() as i64) + axis } else { axis }) as usize;
+        let max = max(self, &[axis], T::ZERO, true, false, None)?;
+        let exp = self
+            .iter()
+            .zip(max.iter())
+            .strided_map(|(x, y)| { x._sub(y)._exp() })
+            .collect::<_Tensor<<T as FloatOut>::Output>>();
+        let sum = sum(&exp, &[axis], <T as FloatOut>::Output::ZERO, true, false, None)?;
+        let ret = exp
+            .iter()
+            .zip(sum.iter())
+            .strided_map(|(x, y)| { x._div(y)._ln() })
+            .collect::<_Tensor<<<<T as FloatOut>::Output as FloatOut>::Output as FloatOut>::Output>>();
+        Ok(ret)
+    }
+}
