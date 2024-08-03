@@ -483,6 +483,23 @@ impl<T> NormalUaryOps for _Tensor<T> where T: NormalOut + CommonBounds, NormalTy
     {
         uary_fn_with_out(self, |x| x._sign(), out)
     }
+
+    fn clip(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> anyhow::Result<Self::Output> {
+        uary_fn(self, |x| x._clip(min, max))
+    }
+
+    fn clip_<U>(
+        &self,
+        min: Self::OutputMeta,
+        max: Self::OutputMeta,
+        out: U
+    ) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        uary_fn_with_out(self, |x| x._clip(min, max), out)
+    }
 }
 
 type NegType<T> = <T as std::ops::Neg>::Output;

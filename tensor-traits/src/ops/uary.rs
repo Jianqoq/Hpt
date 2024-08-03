@@ -579,6 +579,13 @@ pub trait NormalUaryOps {
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>;
+    
+    fn clip(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> Result<Self::Output>;
+
+    fn clip_<U>(&self, min: Self::OutputMeta, max: Self::OutputMeta, out: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>;
 }
 
 pub trait Cum where Self: Sized {

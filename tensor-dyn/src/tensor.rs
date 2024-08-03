@@ -661,6 +661,10 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     fn swap_axes(&self, axis1: i64, axis2: i64) -> Result<Self> {
         Ok(_Tensor::swap_axes(self, axis1, axis2)?.into())
     }
+    
+    fn flatten<A>(&self, axis: A) -> Result<Self> where A: Into<Option<usize>> {
+        Ok(_Tensor::flatten(self, axis)?.into())
+    }
 }
 
 impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> NormalReduce<T>
@@ -1128,6 +1132,17 @@ impl<T> NormalUaryOps for Tensor<T> where T: NormalOut + CommonBounds, NormalTyp
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>
     {
+        todo!()
+    }
+    
+    fn clip(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> Result<Self::Output> {
+        Ok(_Tensor::clip(self, min, max)?.into())
+    }
+    
+    fn clip_<U>(&self, _: Self::OutputMeta, _: Self::OutputMeta, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta> {
         todo!()
     }
 }

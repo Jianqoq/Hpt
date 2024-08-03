@@ -870,6 +870,14 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                     #floor_method
                     #sign_method
                     #cmp_method
+                    fn _clip(self, min: Self::Output, max: Self::Output) -> Self::Output {
+                        paste::paste! {
+                            let a = self.[<to_ #res_type>]();
+                            let min = min.[<to_ #res_type>]();
+                            let max = max.[<to_ #res_type>]();
+                            if a < min { min } else if a > max { max } else { a }
+                        }
+                    }
                 }
             };
             ret.extend(res);

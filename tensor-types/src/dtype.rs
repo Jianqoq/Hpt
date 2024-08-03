@@ -244,6 +244,10 @@ impl NormalOut for Dtype {
     fn _sign(self) -> Self::Output {
         self
     }
+
+    fn _clip(self, min: Self::Output, _: Self::Output) -> Self::Output {
+        infer_enum_type!(self, min, normal)
+    }
 }
 
 impl BitWiseOut for Dtype {

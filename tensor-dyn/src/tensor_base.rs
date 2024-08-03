@@ -45,7 +45,10 @@ use rayon::iter::{
 };
 
 use crate::{
-    backend::{ Backend, Cpu, TensorBackend }, ops::cpu::stack::stack, slice::SliceOps, tensor::Tensor
+    backend::{ Backend, Cpu, TensorBackend },
+    ops::cpu::stack::stack,
+    slice::SliceOps,
+    tensor::Tensor,
 };
 /// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
 ///
@@ -483,7 +486,7 @@ impl<T: CommonBounds> _Tensor<T> {
                         tensors_ref.push(tensor);
                     }
                     stack(tensors_ref, 0, false)
-                }
+                };
             }
         }
         stack(tensors, 1, false)
@@ -554,7 +557,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             size *= tmp as usize;
         }
         let layout = std::alloc::Layout
-            ::from_size_align((size) * std::mem::size_of::<T>(), 8)
+            ::from_size_align(size * std::mem::size_of::<T>(), 8)
             .unwrap();
         let ptr = unsafe { CACHE.allocate(layout) };
         Ok(_Tensor {
@@ -687,8 +690,8 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let shape = vec![n as i64, m as i64];
         let res = _Tensor::empty(Arc::new(shape))?;
         let _r = res.as_raw_mut();
-        let one = 1.into_scalar();
-        let zero = 0.into_scalar();
+        let one = (1).into_scalar();
+        let zero = (0).into_scalar();
         _r.into_par_iter()
             .enumerate()
             .for_each(|(i, x)| {
@@ -812,9 +815,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                 .into_par_iter()
                 .enumerate()
                 .for_each(|(i, x)| {
-                    let val = ten._pow(
-                        start._add(<T as FloatOut>::Output::__from(i)._mul(step))
-                    );
+                    let val = ten._pow(start._add(<T as FloatOut>::Output::__from(i)._mul(step)));
                     *x = -T::__from(val);
                 });
         } else {
@@ -822,23 +823,19 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                 .into_par_iter()
                 .enumerate()
                 .for_each(|(i, x)| {
-                    let val = ten._pow(
-                        start._add(<T as FloatOut>::Output::__from(i)._mul(step))
-                    );
+                    let val = ten._pow(start._add(<T as FloatOut>::Output::__from(i)._mul(step)));
                     *x = T::__from(val);
                 });
         }
         Ok(data)
     }
 
-    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self>
-        where u8: IntoScalar<T>
-    {
+    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self> where u8: IntoScalar<T> {
         let shape = vec![n as i64, m as i64];
         let res = _Tensor::empty(Arc::new(shape))?;
         let _r = res.as_raw_mut();
-        let one = 1.into_scalar();
-        let zero = 0.into_scalar();
+        let one = (1).into_scalar();
+        let zero = (0).into_scalar();
         if low_triangle {
             _r.into_par_iter()
                 .enumerate()
@@ -868,9 +865,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(res)
     }
 
-    fn tril(&self, k: i64) -> Result<Self>
-        where T: NormalOut<bool, Output = T> + IntoScalar<T>
-    {
+    fn tril(&self, k: i64) -> Result<Self> where T: NormalOut<bool, Output = T> + IntoScalar<T> {
         if self.shape().len() < 2 {
             let message = "_Tensor must have at least 2 dimensions for tril method".to_string();
             return Err(anyhow::Error::msg(message));
@@ -885,11 +880,10 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(res)
     }
 
-    fn triu(&self, k: i64) -> Result<Self>
-        where T: NormalOut<bool, Output = T> + IntoScalar<T>
-    {
+    fn triu(&self, k: i64) -> Result<Self> where T: NormalOut<bool, Output = T> + IntoScalar<T> {
         if self.shape().len() < 2 {
-            let message: String = "_Tensor must have at least 2 dimensions for tril method".to_string();
+            let message: String =
+                "_Tensor must have at least 2 dimensions for tril method".to_string();
             return Err(anyhow::Error::msg(message));
         }
         let mask: _Tensor<bool> = _Tensor::<bool>::tri(
@@ -1207,6 +1201,37 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         let mut new_strides = self.strides().to_vec();
         new_shape.swap(axis1 as usize, axis2 as usize);
         new_strides.swap(axis1 as usize, axis2 as usize);
+        let layout = Layout::new(new_shape, new_strides);
+        Ok(Self {
+            data: self.data.clone(),
+            layout,
+            parent: self.parent.clone(),
+            mem_layout: self.mem_layout.clone(),
+            _backend: Backend::new(),
+        })
+    }
+
+    fn flatten<A>(&self, axis: A) -> Result<Self> where A: Into<Option<usize>> {
+        let axis = axis.into().unwrap_or(1);
+        let mut new_shape = vec![];
+        let mut new_strides = vec![];
+        let mut acc = 1;
+        for (idx, (dim, stride)) in self.layout
+            .shape()
+            .iter()
+            .zip(self.layout.strides().iter())
+            .enumerate() {
+            if idx == axis {
+                acc *= dim;
+                new_shape.push(acc);
+                new_strides.push(*stride);
+            } else if idx < axis {
+                acc *= dim;
+            } else {
+                new_shape.push(*dim);
+                new_strides.push(*stride);
+            }
+        }
         let layout = Layout::new(new_shape, new_strides);
         Ok(Self {
             data: self.data.clone(),
