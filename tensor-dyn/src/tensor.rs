@@ -506,11 +506,9 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
 
     fn linspace(start: T, end: T, num: usize, include_end: bool) -> Result<Self>
         where
-            T: Convertor +
-                num::Float +
-                FromScalar<usize> +
-                FromScalar<f64> +
-                NormalOut<T, Output = T>
+            T: Convertor + num::Float + NormalOut<T, Output = T>,
+            usize: IntoScalar<T>,
+            f64: IntoScalar<T>
     {
         Ok(_Tensor::linspace(start, end, num, include_end)?.into())
     }
@@ -1093,6 +1091,30 @@ impl<T> FloatUaryOps
         _: Option<Self::OutputMeta>,
         _: U
     ) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn hard_swish(&self) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::hard_swish(self)?.into())
+    }
+
+    fn hard_swish_<U>(&self, _: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn relu6(&self) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::relu6(self)?.into())
+    }
+
+    fn relu6_<U>(&self, _: U) -> anyhow::Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>

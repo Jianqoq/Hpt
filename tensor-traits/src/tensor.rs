@@ -1,4 +1,4 @@
-use std::{fmt::Display, ops::{ Div, Sub }};
+use std::{ fmt::Display, ops::{ Div, Sub } };
 
 use tensor_common::{ axis::Axis, layout::Layout, pointer::Pointer, shape::Shape, strides::Strides };
 use tensor_types::{
@@ -255,11 +255,9 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     fn linspace(start: T, end: T, num: usize, include_end: bool) -> anyhow::Result<Output>
         where
-            T: Convertor +
-                num::Float +
-                FromScalar<usize> +
-                FromScalar<f64> +
-                NormalOut<T, Output = T>;
+            T: Convertor + num::Float + NormalOut<T, Output = T>,
+            usize: IntoScalar<T>,
+            f64: IntoScalar<T>;
 
     /// Returns numbers spaced evenly on a log scale.
     ///
@@ -407,10 +405,7 @@ pub trait TensorAlloc<Output = Self> {
     fn _empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Output> where Self: Sized;
 }
 
-pub trait IndexReduce
-where
-    Self: Sized,
-{
+pub trait IndexReduce where Self: Sized {
     type Output;
 
     /// find the index of the max value along a specific axis
@@ -444,10 +439,7 @@ where
     fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }
 
-pub trait NormalReduce<T>
-where
-    Self: Sized,
-{
+pub trait NormalReduce<T> where Self: Sized {
     type Output;
     type BoolOutput;
 
@@ -471,7 +463,7 @@ where
         axis: S,
         keep_dims: bool,
         init_out: bool,
-        out: Self::Output,
+        out: Self::Output
     ) -> anyhow::Result<Self::Output>;
 
     /// sum along a specific axis or a set of axis, with initial value
@@ -491,7 +483,7 @@ where
         &self,
         init_val: T,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> anyhow::Result<Self::Output>;
 
     /// sum along a specific axis, NaN will be treated as 0
@@ -526,7 +518,7 @@ where
         &self,
         init_val: T,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> anyhow::Result<Self::Output>;
 
     /// product along a specific axis
@@ -561,7 +553,7 @@ where
         &self,
         init_val: T,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> anyhow::Result<Self::Output>;
 
     /// product along a specific axis, NaN will be treated as 0
@@ -596,7 +588,7 @@ where
         &self,
         init_val: T,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> anyhow::Result<Self::Output>;
 
     /// find the min value along a specific axis or a set of axis
@@ -627,7 +619,12 @@ where
     /// assert_eq!(a.min_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new([1, 2, 3]));
     /// assert_eq!(a.min_with_init(/*init_val*/1, /*axes*/1, /*keep_dims*/false).unwrap(), Tensor::new([1, 4]));
     /// ```
-    fn min_with_init<S: Into<Axis>>(&self, init_val: T, axes: S, keep_dims: bool) -> anyhow::Result<Self>;
+    fn min_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool
+    ) -> anyhow::Result<Self>;
 
     /// find the max value along a specific axis or a set of axis
     ///
@@ -657,7 +654,12 @@ where
     /// assert_eq!(a.max_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new([4, 5, 6]));
     /// assert_eq!(a.max_with_init(/*init_val*/1, /*axes*/1, /*keep_dims*/false).unwrap(), Tensor::new([3, 6]));
     /// ```
-    fn max_with_init<S: Into<Axis>>(&self, init_val: T, axes: S, keep_dims: bool) -> anyhow::Result<Self>;
+    fn max_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool
+    ) -> anyhow::Result<Self>;
 
     /// check if all values are true along a specific axis or a set of axis
     ///
@@ -690,10 +692,7 @@ where
     fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput>;
 }
 
-pub trait FloatReduce<T>
-where
-    Self: Sized,
-{
+pub trait FloatReduce<T> where Self: Sized {
     type Output;
 
     /// calculate average value along a specific axis or a set of axis

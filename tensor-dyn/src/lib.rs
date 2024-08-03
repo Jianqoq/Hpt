@@ -15,6 +15,7 @@ pub mod ops {
         pub mod softmax;
         pub mod unique;
         pub mod hamming_window;
+        pub mod hann_window;
     }
 }
 pub mod backend;

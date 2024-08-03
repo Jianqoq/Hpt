@@ -175,30 +175,40 @@ pub trait FloatConst {
     const HALF: Self;
     const E: Self;
     const PI: Self;
+    const THREE: Self;
+    const SIX: Self;
 }
 
 impl FloatConst for f32 {
     const HALF: Self = 0.5;
     const E: Self = std::f32::consts::E;
     const PI: Self = std::f32::consts::PI;
+    const THREE: Self = 3.0;
+    const SIX: Self = 6.0;
 }
 
 impl FloatConst for f64 {
     const HALF: Self = 0.5;
     const E: Self = std::f64::consts::E;
     const PI: Self = std::f64::consts::PI;
+    const THREE: Self = 3.0;
+    const SIX: Self = 6.0;
 }
 
 impl FloatConst for f16 {
     const HALF: Self = f16::from_f32_const(0.5);
     const E: Self = f16::from_f32_const(std::f32::consts::E);
     const PI: Self = f16::from_f32_const(std::f32::consts::PI);
+    const THREE: Self = f16::from_f32_const(3.0);
+    const SIX: Self = f16::from_f32_const(6.0);
 }
 
 impl FloatConst for bf16 {
     const HALF: Self = bf16::from_f32_const(0.5);
     const E: Self = bf16::from_f32_const(std::f32::consts::E);
     const PI: Self = bf16::from_f32_const(std::f32::consts::PI);
+    const THREE: Self = bf16::from_f32_const(3.0);
+    const SIX: Self = bf16::from_f32_const(6.0);
 }
 
 impl NormalOut for Dtype {
@@ -399,6 +409,14 @@ impl FloatOut for Dtype {
         infer_enum_type!(self, null, uary_float)
     }
     fn _hard_sigmoid(self, _: Self::Output, _: Self::Output) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _relu6(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _hard_swish(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
 }

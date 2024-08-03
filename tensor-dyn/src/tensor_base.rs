@@ -710,21 +710,21 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         where
             T: Convertor +
                 num::Float +
-                FromScalar<usize> +
-                FromScalar<f64> +
-                NormalOut<T, Output = T>
+                NormalOut<T, Output = T>,
+            usize: IntoScalar<T>,
+            f64: IntoScalar<T>
     {
         let _start: f64 = start.to_f64();
         let _end: f64 = end.to_f64();
         let n: f64 = num as f64;
         let step: f64 = if include_end { (_end - _start) / (n - 1.0) } else { (_end - _start) / n };
-        let step_t: T = T::__from(step);
+        let step_t: T = step.into_scalar();
         let data = _Tensor::empty(Arc::new(vec![n as i64]))?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()
             .for_each(|(i, x)| {
-                *x = start._add(T::__from(i)._mul(step_t));
+                *x = start._add(i.into_scalar()._mul(step_t));
             });
         Ok(data)
     }

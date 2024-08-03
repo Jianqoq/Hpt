@@ -691,6 +691,17 @@ pub fn impl_float_out(_: TokenStream) -> TokenStream {
                             #res_type::ZERO.max(#res_type::ONE.min(alpha * x + beta))
                         }
                     }
+                    fn _relu6(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().max(#res_type::ZERO).min(#res_type::SIX)
+                        }
+                    }
+                    fn _hard_swish(self) -> Self::Output {
+                        paste::paste! {
+                            let x = self.[<to_ #res_type>]();
+                            x * ((x + #res_type::THREE).max(#res_type::ZERO).min(#res_type::SIX)) / #res_type::SIX
+                        }
+                    }
                 }
             };
             ret.extend(res);

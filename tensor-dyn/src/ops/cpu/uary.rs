@@ -424,6 +424,30 @@ impl<T> FloatUaryOps
         let beta = beta.unwrap_or((0.5).into_scalar());
         uary_fn_with_out(self, |x| x._hard_sigmoid(alpha, beta), out)
     }
+
+    fn hard_swish(&self) -> anyhow::Result<Self::Output> {
+        uary_fn(self, |x| x._hard_swish())
+    }
+
+    fn hard_swish_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        uary_fn_with_out(self, |x| x._hard_swish(), out)
+    }
+
+    fn relu6(&self) -> anyhow::Result<Self::Output> {
+        uary_fn(self, |x| x._relu6())
+    }
+
+    fn relu6_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        uary_fn_with_out(self, |x| x._relu6(), out)
+    }
 }
 
 pub(crate) type NormalType<T> = <T as NormalOut>::Output;

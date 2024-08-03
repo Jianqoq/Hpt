@@ -39,6 +39,8 @@ pub trait FloatOut<RHS = Self> {
     fn _gelu(self) -> Self::Output;
     fn _selu(self, alpha: Self::Output, scale: Self::Output) -> Self::Output;
     fn _hard_sigmoid(self, alpha: Self::Output, beta: Self::Output) -> Self::Output;
+    fn _relu6(self) -> Self::Output;
+    fn _hard_swish(self) -> Self::Output;
 }
 
 impl_float_out!();

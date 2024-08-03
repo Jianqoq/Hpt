@@ -527,6 +527,20 @@ pub trait FloatUaryOps {
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>;
+
+    fn hard_swish(&self) -> anyhow::Result<Self::Output>;
+
+    fn hard_swish_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>;
+
+    fn relu6(&self) -> anyhow::Result<Self::Output>;
+
+    fn relu6_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>;
 }
 
 pub trait NormalUaryOps {
