@@ -380,22 +380,9 @@ impl<T> FloatUaryOps
         alpha: Option<Self::OutputMeta>,
         gamma: Option<Self::OutputMeta>
     ) -> anyhow::Result<Self::Output> {
-        match (alpha, gamma) {
-            (Some(alpha), Some(gamma)) => { uary_fn(self, |x| x._selu(alpha, gamma)) }
-            (Some(alpha), None) => {
-                let gamma = (1.05070102214813232421875).into_scalar();
-                uary_fn(self, |x| x._selu(alpha, gamma))
-            }
-            (None, Some(gamma)) => {
-                let alpha = (1.67326319217681884765625).into_scalar();
-                uary_fn(self, |x| x._selu(alpha, gamma))
-            }
-            (None, None) => {
-                let alpha = (1.67326319217681884765625).into_scalar();
-                let gamma = (1.05070102214813232421875).into_scalar();
-                uary_fn(self, |x| x._selu(alpha, gamma))
-            }
-        }
+        let alpha = alpha.unwrap_or((1.67326319217681884765625).into_scalar());
+        let gamma = gamma.unwrap_or((1.05070102214813232421875).into_scalar());
+        uary_fn(self, |x| x._selu(alpha, gamma))
     }
 
     fn selu_<U>(
@@ -408,22 +395,34 @@ impl<T> FloatUaryOps
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>
     {
-        match (alpha, gamma) {
-            (Some(alpha), Some(gamma)) => { uary_fn_with_out(self, |x| x._selu(alpha, gamma), out) }
-            (Some(alpha), None) => {
-                let gamma = (1.05070102214813232421875).into_scalar();
-                uary_fn_with_out(self, |x| x._selu(alpha, gamma), out)
-            }
-            (None, Some(gamma)) => {
-                let alpha = (1.67326319217681884765625).into_scalar();
-                uary_fn_with_out(self, |x| x._selu(alpha, gamma), out)
-            }
-            (None, None) => {
-                let alpha = (1.67326319217681884765625).into_scalar();
-                let gamma = (1.05070102214813232421875).into_scalar();
-                uary_fn_with_out(self, |x| x._selu(alpha, gamma), out)
-            }
-        }
+        let alpha = alpha.unwrap_or((1.67326319217681884765625).into_scalar());
+        let gamma = gamma.unwrap_or((1.05070102214813232421875).into_scalar());
+        uary_fn_with_out(self, |x| x._selu(alpha, gamma), out)
+    }
+
+    fn hard_sigmoid(
+        &self,
+        alpha: Option<Self::OutputMeta>,
+        beta: Option<Self::OutputMeta>
+    ) -> anyhow::Result<Self::Output> {
+        let alpha = alpha.unwrap_or((0.2).into_scalar());
+        let beta = beta.unwrap_or((0.5).into_scalar());
+        uary_fn(self, |x| x._hard_sigmoid(alpha, beta))
+    }
+
+    fn hard_sigmoid_<U>(
+        &self,
+        alpha: Option<Self::OutputMeta>,
+        beta: Option<Self::OutputMeta>,
+        out: U
+    ) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        let alpha = alpha.unwrap_or((0.2).into_scalar());
+        let beta = beta.unwrap_or((0.5).into_scalar());
+        uary_fn_with_out(self, |x| x._hard_sigmoid(alpha, beta), out)
     }
 }
 

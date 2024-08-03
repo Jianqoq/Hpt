@@ -511,6 +511,22 @@ pub trait FloatUaryOps {
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>;
+
+    fn hard_sigmoid(
+        &self,
+        alpha: Option<Self::OutputMeta>,
+        beta: Option<Self::OutputMeta>
+    ) -> anyhow::Result<Self::Output>;
+
+    fn hard_sigmoid_<U>(
+        &self,
+        alpha: Option<Self::OutputMeta>,
+        beta: Option<Self::OutputMeta>,
+        out: U
+    ) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>;
 }
 
 pub trait NormalUaryOps {
@@ -579,7 +595,7 @@ pub trait NormalUaryOps {
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>;
-    
+
     fn clip(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> Result<Self::Output>;
 
     fn clip_<U>(&self, min: Self::OutputMeta, max: Self::OutputMeta, out: U) -> Result<Self::Output>

@@ -671,7 +671,6 @@ pub fn impl_float_out(_: TokenStream) -> TokenStream {
                             #res_type::HALF * x * (#res_type::ONE + erf(x.to_f64() * sqrt2_over_2).[<to_ #res_type>]())
                         }
                     }
-
                     fn _selu(self, alpha: Self::Output, scale: Self::Output) -> Self::Output {
                         paste::paste! {
                             let x = self.[<to_ #res_type>]();
@@ -682,6 +681,14 @@ pub fn impl_float_out(_: TokenStream) -> TokenStream {
                             } else {
                                 alpha * x.exp() - alpha
                             }
+                        }
+                    }
+                    fn _hard_sigmoid(self, alpha: Self::Output, beta: Self::Output) -> Self::Output {
+                        paste::paste! {
+                            let x = self.[<to_ #res_type>]();
+                            let alpha = alpha.[<to_ #res_type>]();
+                            let beta = beta.[<to_ #res_type>]();
+                            #res_type::ZERO.max(#res_type::ONE.min(alpha * x + beta))
                         }
                     }
                 }

@@ -661,7 +661,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     fn swap_axes(&self, axis1: i64, axis2: i64) -> Result<Self> {
         Ok(_Tensor::swap_axes(self, axis1, axis2)?.into())
     }
-    
+
     fn flatten<A>(&self, axis: A) -> Result<Self> where A: Into<Option<usize>> {
         Ok(_Tensor::flatten(self, axis)?.into())
     }
@@ -1078,6 +1078,27 @@ impl<T> FloatUaryOps
     {
         todo!()
     }
+
+    fn hard_sigmoid(
+        &self,
+        alpha: Option<Self::OutputMeta>,
+        beta: Option<Self::OutputMeta>
+    ) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::hard_sigmoid(self, alpha, beta)?.into())
+    }
+
+    fn hard_sigmoid_<U>(
+        &self,
+        _: Option<Self::OutputMeta>,
+        _: Option<Self::OutputMeta>,
+        _: U
+    ) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
 }
 
 impl<T> NormalUaryOps for Tensor<T> where T: NormalOut + CommonBounds, NormalType<T>: CommonBounds {
@@ -1134,15 +1155,16 @@ impl<T> NormalUaryOps for Tensor<T> where T: NormalOut + CommonBounds, NormalTyp
     {
         todo!()
     }
-    
+
     fn clip(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> Result<Self::Output> {
         Ok(_Tensor::clip(self, min, max)?.into())
     }
-    
+
     fn clip_<U>(&self, _: Self::OutputMeta, _: Self::OutputMeta, _: U) -> Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta> {
+                TensorInfo<Self::OutputMeta>
+    {
         todo!()
     }
 }

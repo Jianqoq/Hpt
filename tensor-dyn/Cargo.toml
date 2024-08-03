@@ -21,3 +21,4 @@ rayon = "1.8.0"
 num = "0.4.1"
 half = { version = "2.3.1", features = ["num-traits", "rand_distr"] }
 gemm = { version = "0.18.0", features = ["rayon"] }
+hashbrown = "0.14.5"

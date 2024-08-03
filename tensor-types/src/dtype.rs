@@ -393,6 +393,9 @@ impl FloatOut for Dtype {
     fn _selu(self, _: Self, _: Self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
+    fn _hard_sigmoid(self, _: Self::Output, _: Self::Output) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
 }
 
 impl Eval for Dtype {

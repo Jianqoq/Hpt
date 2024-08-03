@@ -13,6 +13,7 @@ pub mod ops {
         pub mod cmp;
         pub mod stack;
         pub mod softmax;
+        pub mod unique;
     }
 }
 pub mod backend;
