@@ -17,6 +17,7 @@ pub mod ops {
         pub mod hamming_window;
         pub mod hann_window;
         pub mod hardmax;
+        pub mod blackman_window;
     }
 }
 pub mod backend;

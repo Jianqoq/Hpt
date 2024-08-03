@@ -177,6 +177,8 @@ pub trait FloatConst {
     const PI: Self;
     const THREE: Self;
     const SIX: Self;
+    const TWOPI: Self;
+    const FOURPI: Self;
 }
 
 impl FloatConst for f32 {
@@ -185,6 +187,8 @@ impl FloatConst for f32 {
     const PI: Self = std::f32::consts::PI;
     const THREE: Self = 3.0;
     const SIX: Self = 6.0;
+    const TWOPI: Self = std::f32::consts::PI * 2.0;
+    const FOURPI: Self = std::f32::consts::PI * 4.0;
 }
 
 impl FloatConst for f64 {
@@ -193,6 +197,8 @@ impl FloatConst for f64 {
     const PI: Self = std::f64::consts::PI;
     const THREE: Self = 3.0;
     const SIX: Self = 6.0;
+    const TWOPI: Self = std::f64::consts::PI * 2.0;
+    const FOURPI: Self = std::f64::consts::PI * 4.0;
 }
 
 impl FloatConst for f16 {
@@ -201,6 +207,8 @@ impl FloatConst for f16 {
     const PI: Self = f16::from_f32_const(std::f32::consts::PI);
     const THREE: Self = f16::from_f32_const(3.0);
     const SIX: Self = f16::from_f32_const(6.0);
+    const TWOPI: Self = f16::from_f32_const(std::f32::consts::PI * 2.0);
+    const FOURPI: Self = f16::from_f32_const(std::f32::consts::PI * 4.0);
 }
 
 impl FloatConst for bf16 {
@@ -209,6 +217,8 @@ impl FloatConst for bf16 {
     const PI: Self = bf16::from_f32_const(std::f32::consts::PI);
     const THREE: Self = bf16::from_f32_const(3.0);
     const SIX: Self = bf16::from_f32_const(6.0);
+    const TWOPI: Self = bf16::from_f32_const(std::f32::consts::PI * 2.0);
+    const FOURPI: Self = bf16::from_f32_const(std::f32::consts::PI * 4.0);
 }
 
 impl NormalOut for Dtype {
