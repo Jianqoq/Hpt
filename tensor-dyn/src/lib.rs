@@ -12,6 +12,7 @@ pub mod ops {
         pub mod fft;
         pub mod cmp;
         pub mod stack;
+        pub mod softmax;
     }
 }
 pub mod backend;

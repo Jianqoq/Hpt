@@ -577,7 +577,7 @@ macro_rules! register_reduction {
         $macro_init_val:expr,
         $($trait_bound:tt)*
     ) => {
-        pub(crate) fn $fn_name<$generic_a, $generic_b>(a: &_Tensor<$generic_a>, axes: Vec<usize>,
+        pub(crate) fn $fn_name<$generic_a, $generic_b>(a: &_Tensor<$generic_a>, axes: &[usize],
              init_val: $generic_b, keepdims: bool, init_out: bool, c: Option<_Tensor<$generic_b>>) -> anyhow::Result<_Tensor<$generic_b>> $($trait_bound)*
          {
             body!(axes, a, $macro_init_val, init_val, keepdims, init_out, c, $kernel_name, $generic_a, $generic_b);
@@ -590,7 +590,7 @@ macro_rules! register_reduction {
         $macro_init_val:expr,
         $($trait_bound:tt)*
     ) => {
-        pub(crate) fn $fn_name<$generic_a>(a: &_Tensor<$generic_a>, axes:& Vec<usize>,
+        pub(crate) fn $fn_name<$generic_a>(a: &_Tensor<$generic_a>, axes: &[usize],
              init_val: $generic_a, keepdims: bool, init_out: bool, c: Option<_Tensor<$generic_a>>) -> anyhow::Result<_Tensor<$generic_a>> $($trait_bound)*
          {
             body!(axes, a, $macro_init_val, init_val, keepdims, init_out, c, $kernel_name, $generic_a, $generic_a);
@@ -603,7 +603,7 @@ macro_rules! register_reduction {
         $macro_init_val:expr,
         $($trait_bound:tt)*
     ) => {
-        pub(crate) fn $fn_name<$generic_a>(a: &_Tensor<$generic_a>, axes: &Vec<usize>,
+        pub(crate) fn $fn_name<$generic_a>(a: &_Tensor<$generic_a>, axes: &[usize],
              init_val: $($specific_type)*, keepdims: bool, init_out: bool, c: Option<_Tensor<$($specific_type)*>>) -> anyhow::Result<_Tensor<$($specific_type)*>> $($trait_bound)*
          {
             body!(axes, a, $macro_init_val, init_val, keepdims, init_out, c, $kernel_name, $generic_a, $($specific_type)*);
