@@ -1,4 +1,4 @@
-use crate::{ ops::cpu::reduce::sum, tensor_base::_Tensor };
+use crate::{ ops::cpu::reduce::sum, tensor::Tensor, tensor_base::_Tensor };
 use tensor_traits::CommonBounds;
 use tensor_types::{
     dtype::TypeCommon,
@@ -34,6 +34,24 @@ impl<T> _Tensor<T>
     }
 }
 
+impl<T> Tensor<T>
+    where
+        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOut,
+        <T as FloatOut>::Output: CommonBounds + TypeCommon,
+        <T as FloatOut>::Output: NormalOut +
+            NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output> +
+            FloatOut,
+        <<T as FloatOut>::Output as FloatOut>::Output: IntoScalar<<<T as FloatOut>::Output as FloatOut>::Output> +
+            CommonBounds
+{
+    pub fn softmax(
+        &self,
+        axis: i64
+    ) -> anyhow::Result<Tensor<<<T as FloatOut>::Output as FloatOut>::Output>> {
+        Ok(Tensor::from(_Tensor::softmax(self, axis)?.into()))
+    }
+}
+
 impl<T> _Tensor<T>
     where
         T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOut,
@@ -64,5 +82,25 @@ impl<T> _Tensor<T>
             .strided_map(|(x, y)| { x._div(y)._ln() })
             .collect::<_Tensor<<<<T as FloatOut>::Output as FloatOut>::Output as FloatOut>::Output>>();
         Ok(ret)
+    }
+}
+
+impl<T> Tensor<T>
+    where
+        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOut,
+        <T as FloatOut>::Output: CommonBounds + TypeCommon,
+        <T as FloatOut>::Output: NormalOut +
+            NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output> +
+            FloatOut,
+        <<T as FloatOut>::Output as FloatOut>::Output: IntoScalar<<<T as FloatOut>::Output as FloatOut>::Output> +
+            CommonBounds +
+            FloatOut,
+        <<<T as FloatOut>::Output as FloatOut>::Output as FloatOut>::Output: CommonBounds
+{
+    pub fn logsoftmax(
+        &self,
+        axis: i64
+    ) -> anyhow::Result<Tensor<<<<T as FloatOut>::Output as FloatOut>::Output as FloatOut>::Output>> {
+        Ok(Tensor::from(_Tensor::logsoftmax(self, axis)?.into()))
     }
 }

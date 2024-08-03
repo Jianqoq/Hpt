@@ -8,7 +8,7 @@ use tensor_types::{
     type_promote::{ FloatOut, NormalOut },
 };
 
-use crate::tensor_base::_Tensor;
+use crate::{ tensor::Tensor, tensor_base::_Tensor };
 
 impl<T> _Tensor<T>
     where
@@ -38,5 +38,25 @@ impl<T> _Tensor<T>
                 *x = alpha - beta * ((T::TWO * T::PI * *x) / length)._cos();
             });
         Ok(ret)
+    }
+}
+
+impl<T> Tensor<T>
+    where
+        f64: IntoScalar<T>,
+        T: CommonBounds +
+            Convertor +
+            NormalOut<T, Output = T> +
+            FromScalar<T> +
+            TypeCommon +
+            tensor_types::dtype::FloatConst +
+            Mul<Output = T> +
+            Div<Output = T> +
+            Sub<Output = T> +
+            FloatOut<Output = T>,
+        usize: IntoScalar<T>
+{
+    pub fn hamming_window(window_length: i64, periodic: bool) -> anyhow::Result<Tensor<T>> {
+        Ok(Tensor::from(_Tensor::hamming_window(window_length, periodic)?.into()))
     }
 }
