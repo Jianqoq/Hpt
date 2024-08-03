@@ -41,6 +41,11 @@ pub trait TensorLike<T, OutputMeta = T, Output = Self> {
     fn static_cast(&self) -> anyhow::Result<Self::Output>;
 }
 
+pub trait BaseTensor {
+    type Output;
+    fn base(&self) -> &Self::Output;
+}
+
 pub trait TensorCreator<T, Output = Self> where Self: Sized {
     type StridedIter;
     type Mask;

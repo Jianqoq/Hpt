@@ -60,6 +60,7 @@ pub trait NormalOut<RHS = Self> {
     fn _max(self, rhs: RHS) -> Self::Output;
     fn _min(self, rhs: RHS) -> Self::Output;
     fn _clip(self, min: Self::Output, max: Self::Output) -> Self::Output;
+    fn _round(self) -> Self::Output;
 }
 
 impl_normal_out!();

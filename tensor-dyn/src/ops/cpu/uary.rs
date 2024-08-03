@@ -5,6 +5,7 @@ use rayon::iter::{
     ParallelIterator,
 };
 use tensor_common::shape_utils::mt_intervals;
+use tensor_traits::BaseTensor;
 use tensor_types::into_scalar::IntoScalar;
 use threadpool::ThreadPool;
 use crate::THREAD_POOL;
@@ -79,7 +80,14 @@ pub(crate) type FloatType<T> = <T as FloatOut>::Output;
 
 impl<T> FloatUaryOps
     for _Tensor<T>
-    where T: FloatOut + CommonBounds, FloatType<T>: CommonBounds, f64: IntoScalar<FloatType<T>>
+    where
+        T: FloatOut + CommonBounds,
+        FloatType<T>: CommonBounds,
+        f64: IntoScalar<FloatType<T>>,
+        _Tensor<<T as FloatOut>::Output>: TensorLike<
+            <T as FloatOut>::Output,
+            Output = _Tensor<<T as FloatOut>::Output>
+        >
 {
     type Output = _Tensor<FloatType<T>>;
 
@@ -136,99 +144,75 @@ impl<T> FloatUaryOps
     }
 
     fn sin_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._sin(), out)
+        uary_fn_with_out(self, |x| x._sin(), out.base().clone())
     }
 
     fn cos_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._cos(), out)
+        uary_fn_with_out(self, |x| x._cos(), out.base().clone())
     }
 
     fn tan_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._tan(), out)
+        uary_fn_with_out(self, |x| x._tan(), out.base().clone())
     }
 
     fn asin_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._asin(), out)
+        uary_fn_with_out(self, |x| x._asin(), out.base().clone())
     }
 
     fn acos_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._acos(), out)
+        uary_fn_with_out(self, |x| x._acos(), out.base().clone())
     }
 
     fn atan_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._atan(), out)
+        uary_fn_with_out(self, |x| x._atan(), out.base().clone())
     }
 
     fn sinh_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._sinh(), out)
+        uary_fn_with_out(self, |x| x._sinh(), out.base().clone())
     }
 
     fn cosh_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._cosh(), out)
+        uary_fn_with_out(self, |x| x._cosh(), out.base().clone())
     }
 
     fn tanh_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._tanh(), out)
+        uary_fn_with_out(self, |x| x._tanh(), out.base().clone())
     }
 
     fn asinh_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._asinh(), out)
+        uary_fn_with_out(self, |x| x._asinh(), out.base().clone())
     }
 
     fn acosh_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._acosh(), out)
+        uary_fn_with_out(self, |x| x._acosh(), out.base().clone())
     }
 
     fn atanh_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._atanh(), out)
+        uary_fn_with_out(self, |x| x._atanh(), out.base().clone())
     }
 
     fn exp(&self) -> anyhow::Result<Self::Output> {
@@ -236,11 +220,9 @@ impl<T> FloatUaryOps
     }
 
     fn exp_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._exp(), out)
+        uary_fn_with_out(self, |x| x._exp(), out.base().clone())
     }
 
     fn exp2(&self) -> anyhow::Result<Self::Output> {
@@ -248,11 +230,9 @@ impl<T> FloatUaryOps
     }
 
     fn exp2_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._exp2(), out)
+        uary_fn_with_out(self, |x| x._exp2(), out.base().clone())
     }
 
     fn sqrt(&self) -> anyhow::Result<Self::Output> {
@@ -260,11 +240,9 @@ impl<T> FloatUaryOps
     }
 
     fn sqrt_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._sqrt(), out)
+        uary_fn_with_out(self, |x| x._sqrt(), out.base().clone())
     }
 
     fn recip(&self) -> anyhow::Result<Self::Output> {
@@ -272,11 +250,9 @@ impl<T> FloatUaryOps
     }
 
     fn recip_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._recip(), out)
+        uary_fn_with_out(self, |x| x._recip(), out.base().clone())
     }
 
     fn ln(&self) -> anyhow::Result<Self::Output> {
@@ -284,11 +260,9 @@ impl<T> FloatUaryOps
     }
 
     fn ln_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._ln(), out)
+        uary_fn_with_out(self, |x| x._ln(), out.base().clone())
     }
 
     fn log2(&self) -> anyhow::Result<Self::Output> {
@@ -296,11 +270,9 @@ impl<T> FloatUaryOps
     }
 
     fn log2_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._log2(), out)
+        uary_fn_with_out(self, |x| x._log2(), out.base().clone())
     }
 
     fn log10(&self) -> anyhow::Result<Self::Output> {
@@ -308,11 +280,9 @@ impl<T> FloatUaryOps
     }
 
     fn log10_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._log10(), out)
+        uary_fn_with_out(self, |x| x._log10(), out.base().clone())
     }
 
     fn celu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
@@ -320,11 +290,9 @@ impl<T> FloatUaryOps
     }
 
     fn celu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._celu(alpha), out)
+        uary_fn_with_out(self, |x| x._celu(alpha), out.base().clone())
     }
 
     fn sigmoid(&self) -> anyhow::Result<Self::Output> {
@@ -332,11 +300,9 @@ impl<T> FloatUaryOps
     }
 
     fn sigmoid_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._sigmoid(), out)
+        uary_fn_with_out(self, |x| x._sigmoid(), out.base().clone())
     }
 
     fn elu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
@@ -344,11 +310,9 @@ impl<T> FloatUaryOps
     }
 
     fn elu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._elu(alpha), out)
+        uary_fn_with_out(self, |x| x._elu(alpha), out.base().clone())
     }
 
     fn leaky_relu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
@@ -356,11 +320,9 @@ impl<T> FloatUaryOps
     }
 
     fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._leaky_relu(alpha), out)
+        uary_fn_with_out(self, |x| x._leaky_relu(alpha), out.base().clone())
     }
 
     fn gelu(&self) -> anyhow::Result<Self::Output> {
@@ -368,11 +330,9 @@ impl<T> FloatUaryOps
     }
 
     fn gelu_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._gelu(), out)
+        uary_fn_with_out(self, |x| x._gelu(), out.base().clone())
     }
 
     fn selu(
@@ -391,13 +351,11 @@ impl<T> FloatUaryOps
         gamma: Option<Self::OutputMeta>,
         out: U
     ) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
         let alpha = alpha.unwrap_or((1.67326319217681884765625).into_scalar());
         let gamma = gamma.unwrap_or((1.05070102214813232421875).into_scalar());
-        uary_fn_with_out(self, |x| x._selu(alpha, gamma), out)
+        uary_fn_with_out(self, |x| x._selu(alpha, gamma), out.base().clone())
     }
 
     fn hard_sigmoid(
@@ -416,13 +374,11 @@ impl<T> FloatUaryOps
         beta: Option<Self::OutputMeta>,
         out: U
     ) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
         let alpha = alpha.unwrap_or((0.2).into_scalar());
         let beta = beta.unwrap_or((0.5).into_scalar());
-        uary_fn_with_out(self, |x| x._hard_sigmoid(alpha, beta), out)
+        uary_fn_with_out(self, |x| x._hard_sigmoid(alpha, beta), out.base().clone())
     }
 
     fn hard_swish(&self) -> anyhow::Result<Self::Output> {
@@ -430,11 +386,9 @@ impl<T> FloatUaryOps
     }
 
     fn hard_swish_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._hard_swish(), out)
+        uary_fn_with_out(self, |x| x._hard_swish(), out.base().clone())
     }
 
     fn relu6(&self) -> anyhow::Result<Self::Output> {
@@ -442,17 +396,21 @@ impl<T> FloatUaryOps
     }
 
     fn relu6_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._relu6(), out)
+        uary_fn_with_out(self, |x| x._relu6(), out.base().clone())
     }
 }
 
 pub(crate) type NormalType<T> = <T as NormalOut>::Output;
 
-impl<T> NormalUaryOps for _Tensor<T> where T: NormalOut + CommonBounds, NormalType<T>: CommonBounds {
+impl<T> NormalUaryOps
+    for _Tensor<T>
+    where
+        T: NormalOut + CommonBounds,
+        NormalType<T>: CommonBounds,
+        _Tensor<NormalType<T>>: TensorLike<NormalType<T>, Output = _Tensor<NormalType<T>>>
+{
     type Output = _Tensor<NormalType<T>>;
 
     type InplaceOutput = _Tensor<NormalType<T>>;
@@ -464,11 +422,9 @@ impl<T> NormalUaryOps for _Tensor<T> where T: NormalOut + CommonBounds, NormalTy
     }
 
     fn square_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._square(), out)
+        uary_fn_with_out(self, |x| x._square(), out.base().clone())
     }
 
     fn abs(&self) -> anyhow::Result<Self::Output> {
@@ -476,11 +432,9 @@ impl<T> NormalUaryOps for _Tensor<T> where T: NormalOut + CommonBounds, NormalTy
     }
 
     fn abs_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._abs(), out)
+        uary_fn_with_out(self, |x| x._abs(), out.base().clone())
     }
 
     fn ceil(&self) -> anyhow::Result<Self::Output> {
@@ -488,11 +442,9 @@ impl<T> NormalUaryOps for _Tensor<T> where T: NormalOut + CommonBounds, NormalTy
     }
 
     fn ceil_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._ceil(), out)
+        uary_fn_with_out(self, |x| x._ceil(), out.base().clone())
     }
 
     fn sign(&self) -> anyhow::Result<Self::Output> {
@@ -500,11 +452,9 @@ impl<T> NormalUaryOps for _Tensor<T> where T: NormalOut + CommonBounds, NormalTy
     }
 
     fn sign_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._sign(), out)
+        uary_fn_with_out(self, |x| x._sign(), out.base().clone())
     }
 
     fn clip(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> anyhow::Result<Self::Output> {
@@ -517,17 +467,31 @@ impl<T> NormalUaryOps for _Tensor<T> where T: NormalOut + CommonBounds, NormalTy
         max: Self::OutputMeta,
         out: U
     ) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._clip(min, max), out)
+        uary_fn_with_out(self, |x| x._clip(min, max), out.base().clone())
+    }
+
+    fn round(&self) -> anyhow::Result<Self::Output> {
+        uary_fn(self, |x| x._round())
+    }
+
+    fn round_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
+    {
+        uary_fn_with_out(self, |x| x._round(), out.base().clone())
     }
 }
 
 type NegType<T> = <T as std::ops::Neg>::Output;
 
-impl<T> Neg for _Tensor<T> where T: std::ops::Neg + CommonBounds, NegType<T>: CommonBounds {
+impl<T> Neg
+    for _Tensor<T>
+    where
+        T: std::ops::Neg + CommonBounds,
+        NegType<T>: CommonBounds,
+        _Tensor<NegType<T>>: TensorLike<NegType<T>, Output = _Tensor<NegType<T>>>
+{
     type Output = _Tensor<NegType<T>>;
 
     type InplaceOutput = _Tensor<NegType<T>>;
@@ -539,11 +503,9 @@ impl<T> Neg for _Tensor<T> where T: std::ops::Neg + CommonBounds, NegType<T>: Co
     }
 
     fn neg_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| -x, out)
+        uary_fn_with_out(self, |x| -x, out.base().clone())
     }
 }
 

@@ -7,6 +7,7 @@ use tensor_traits::{
     ops::uary::FloatUaryOps,
     shape_manipulate::ShapeManipulate,
     tensor::{ CommonBounds, NormalReduce, TensorAlloc, TensorCreator, TensorInfo, TensorLike },
+    BaseTensor,
     NormalUaryOps,
 };
 use tensor_types::{
@@ -130,6 +131,13 @@ impl<T: CommonBounds> TensorAlloc for Tensor<T> {
 
     fn _empty<S: Into<Shape>>(shape: S) -> Result<Self> where Self: Sized {
         Self::empty(shape)
+    }
+}
+
+impl<T: CommonBounds> BaseTensor for Tensor<T> {
+    type Output = _Tensor<T>;
+    fn base(&self) -> &Self::Output {
+        &self.inner
     }
 }
 
@@ -760,7 +768,11 @@ for Tensor<T> {
 
 impl<T> FloatUaryOps
     for Tensor<T>
-    where T: FloatOut + CommonBounds, FloatType<T>: CommonBounds, f64: IntoScalar<FloatType<T>>
+    where
+        T: FloatOut + CommonBounds,
+        FloatType<T>: CommonBounds,
+        f64: IntoScalar<FloatType<T>>,
+        <T as FloatOut>::Output: IntoScalar<<T as FloatOut>::Output>
 {
     type Output = Tensor<FloatType<T>>;
 
@@ -816,244 +828,196 @@ impl<T> FloatUaryOps
         Ok(_Tensor::atanh(self)?.into())
     }
 
-    fn sin_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn sin_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::sin_(self, out.base().clone())?.into())
     }
 
-    fn cos_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn cos_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::cos_(self, out.base().clone())?.into())
     }
 
-    fn tan_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn tan_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::tan_(self, out.base().clone())?.into())
     }
 
-    fn asin_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn asin_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::asin_(self, out.base().clone())?.into())
     }
 
-    fn acos_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn acos_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::acos_(self, out.base().clone())?.into())
     }
 
-    fn atan_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn atan_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::atan_(self, out.base().clone())?.into())
     }
 
-    fn sinh_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn sinh_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::sinh_(self, out.base().clone())?.into())
     }
 
-    fn cosh_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn cosh_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::cosh_(self, out.base().clone())?.into())
     }
 
-    fn tanh_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn tanh_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::tanh_(self, out.base().clone())?.into())
     }
 
-    fn asinh_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn asinh_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::asinh_(self, out.base().clone())?.into())
     }
 
-    fn acosh_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn acosh_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::acosh_(self, out.base().clone())?.into())
     }
 
-    fn atanh_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn atanh_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::atanh_(self, out.base().clone())?.into())
     }
 
     fn exp(&self) -> Result<Self::Output> {
         Ok(_Tensor::exp(self)?.into())
     }
 
-    fn exp_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn exp_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::exp_(self, out.base().clone())?.into())
     }
 
     fn exp2(&self) -> Result<Self::Output> {
         Ok(_Tensor::exp2(self)?.into())
     }
 
-    fn exp2_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn exp2_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::exp2_(self, out.base().clone())?.into())
     }
 
     fn sqrt(&self) -> Result<Self::Output> {
         Ok(_Tensor::sqrt(self)?.into())
     }
 
-    fn sqrt_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn sqrt_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::sqrt_(self, out.base().clone())?.into())
     }
 
     fn recip(&self) -> Result<Self::Output> {
         Ok(_Tensor::recip(self)?.into())
     }
 
-    fn recip_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn recip_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::recip_(self, out.base().clone())?.into())
     }
 
     fn ln(&self) -> Result<Self::Output> {
         Ok(_Tensor::ln(self)?.into())
     }
 
-    fn ln_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn ln_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::ln_(self, out.base().clone())?.into())
     }
 
     fn log2(&self) -> Result<Self::Output> {
         Ok(_Tensor::log2(self)?.into())
     }
 
-    fn log2_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn log2_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::log2_(self, out.base().clone())?.into())
     }
 
     fn log10(&self) -> Result<Self::Output> {
         Ok(_Tensor::log10(self)?.into())
     }
 
-    fn log10_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn log10_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::log10_(self, out.base().clone())?.into())
     }
 
     fn celu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
         Ok(_Tensor::celu(self, alpha)?.into())
     }
 
-    fn celu_<U>(&self, _: Self::OutputMeta, _: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn celu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::celu_(self, alpha, out.base().clone())?.into())
     }
 
     fn sigmoid(&self) -> Result<Self::Output> {
         Ok(_Tensor::sigmoid(self)?.into())
     }
 
-    fn sigmoid_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn sigmoid_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::sigmoid_(self, out.base().clone())?.into())
     }
 
     fn elu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
         Ok(_Tensor::elu(self, alpha)?.into())
     }
 
-    fn elu_<U>(&self, _: Self::OutputMeta, _: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn elu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::elu_(self, alpha, out.base().clone())?.into())
     }
 
     fn leaky_relu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
         Ok(_Tensor::leaky_relu(self, alpha)?.into())
     }
 
-    fn leaky_relu_<U>(&self, _: Self::OutputMeta, _: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::leaky_relu_(self, alpha, out.base().clone())?.into())
     }
 
     fn gelu(&self) -> anyhow::Result<Self::Output> {
         Ok(_Tensor::gelu(self)?.into())
     }
 
-    fn gelu_<U>(&self, _: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn gelu_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::gelu_(self, out.base().clone())?.into())
     }
 
     fn selu(
@@ -1066,15 +1030,13 @@ impl<T> FloatUaryOps
 
     fn selu_<U>(
         &self,
-        _: Option<Self::OutputMeta>,
-        _: Option<Self::OutputMeta>,
-        _: U
+        alpha: Option<Self::OutputMeta>,
+        gamma: Option<Self::OutputMeta>,
+        out: U
     ) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::selu_(self, alpha, gamma, out.base().clone())?.into())
     }
 
     fn hard_sigmoid(
@@ -1087,43 +1049,43 @@ impl<T> FloatUaryOps
 
     fn hard_sigmoid_<U>(
         &self,
-        _: Option<Self::OutputMeta>,
-        _: Option<Self::OutputMeta>,
-        _: U
+        alpha: Option<Self::OutputMeta>,
+        beta: Option<Self::OutputMeta>,
+        out: U
     ) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::hard_sigmoid_(self, alpha, beta, out.base().clone())?.into())
     }
 
     fn hard_swish(&self) -> anyhow::Result<Self::Output> {
         Ok(_Tensor::hard_swish(self)?.into())
     }
 
-    fn hard_swish_<U>(&self, _: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn hard_swish_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::hard_swish_(self, out.base().clone())?.into())
     }
 
     fn relu6(&self) -> anyhow::Result<Self::Output> {
         Ok(_Tensor::relu6(self)?.into())
     }
 
-    fn relu6_<U>(&self, _: U) -> anyhow::Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn relu6_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::relu6_(self, out.base().clone())?.into())
     }
 }
 
-impl<T> NormalUaryOps for Tensor<T> where T: NormalOut + CommonBounds, NormalType<T>: CommonBounds {
+impl<T> NormalUaryOps
+    for Tensor<T>
+    where
+        T: NormalOut + CommonBounds,
+        NormalType<T>: CommonBounds,
+        <T as NormalOut>::Output: IntoScalar<<T as NormalOut>::Output>
+{
     type Output = Tensor<NormalType<T>>;
 
     type InplaceOutput = Tensor<NormalType<T>>;
@@ -1134,60 +1096,60 @@ impl<T> NormalUaryOps for Tensor<T> where T: NormalOut + CommonBounds, NormalTyp
         Ok(_Tensor::square(self)?.into())
     }
 
-    fn square_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn square_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::square_(self, out.base().clone())?.into())
     }
 
     fn abs(&self) -> Result<Self::Output> {
         Ok(_Tensor::abs(self)?.into())
     }
 
-    fn abs_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn abs_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::abs_(self, out.base().clone())?.into())
     }
 
     fn ceil(&self) -> Result<Self::Output> {
         Ok(_Tensor::ceil(self)?.into())
     }
 
-    fn ceil_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn ceil_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::ceil_(self, out.base().clone())?.into())
     }
 
     fn sign(&self) -> Result<Self::Output> {
         Ok(_Tensor::sign(self)?.into())
     }
 
-    fn sign_<U>(&self, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn sign_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput> + BaseTensor
     {
-        todo!()
+        Ok(_Tensor::sign_(self, out.base().clone())?.into())
     }
 
     fn clip(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> Result<Self::Output> {
         Ok(_Tensor::clip(self, min, max)?.into())
     }
 
-    fn clip_<U>(&self, _: Self::OutputMeta, _: Self::OutputMeta, _: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>
+    fn clip_<U>(&self, min: Self::OutputMeta, max: Self::OutputMeta, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        todo!()
+        Ok(_Tensor::clip_(self, min, max, out.base().clone())?.into())
+    }
+
+    fn round(&self) -> Result<Self::Output> {
+        Ok(_Tensor::round(self)?.into())
+    }
+
+    fn round_<U>(&self, out: U) -> Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput> + BaseTensor
+    {
+        Ok(_Tensor::round_(self, out.base().clone())?.into())
     }
 }
 

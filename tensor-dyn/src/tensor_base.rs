@@ -27,6 +27,7 @@ use tensor_traits::{
     random::Random,
     shape_manipulate::ShapeManipulate,
     tensor::{ CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike },
+    BaseTensor,
 };
 use tensor_common::shape_utils::try_pad_shape;
 use anyhow::Result;
@@ -163,6 +164,13 @@ impl<T: CommonBounds> TensorAlloc for _Tensor<T> {
 
     fn _empty<S: Into<Shape>>(shape: S) -> Result<Self> where Self: Sized {
         Self::empty(shape)
+    }
+}
+
+impl<T: CommonBounds> BaseTensor for _Tensor<T> {
+    type Output = _Tensor<T>;
+    fn base(&self) -> &Self::Output {
+        &self
     }
 }
 
@@ -708,9 +716,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
 
     fn linspace(start: T, end: T, num: usize, include_end: bool) -> Result<Self>
         where
-            T: Convertor +
-                num::Float +
-                NormalOut<T, Output = T>,
+            T: Convertor + num::Float + NormalOut<T, Output = T>,
             usize: IntoScalar<T>,
             f64: IntoScalar<T>
     {

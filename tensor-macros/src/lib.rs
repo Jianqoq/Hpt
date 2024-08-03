@@ -852,6 +852,24 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                     }
                 };
 
+            let round_method = if res_type.is_float() {
+                quote! {
+                    fn _round(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().round()
+                        }
+                    }
+                }
+            } else {
+                quote! {
+                    fn _round(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]()
+                        }
+                    }
+                }
+            };
+
             let res =
                 quote! {
                 impl NormalOut<#rhs_dtype> for #lhs_dtype {
@@ -883,11 +901,6 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                             self.[<to_ #res_type>]() * self.[<to_ #res_type>]()
                         }
                     }
-                    #abs_method
-                    #ceil_method
-                    #floor_method
-                    #sign_method
-                    #cmp_method
                     fn _clip(self, min: Self::Output, max: Self::Output) -> Self::Output {
                         paste::paste! {
                             let a = self.[<to_ #res_type>]();
@@ -896,6 +909,12 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                             if a < min { min } else if a > max { max } else { a }
                         }
                     }
+                    #abs_method
+                    #ceil_method
+                    #floor_method
+                    #sign_method
+                    #cmp_method
+                    #round_method
                 }
             };
             ret.extend(res);
