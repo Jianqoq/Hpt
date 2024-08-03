@@ -461,9 +461,9 @@ pub trait FloatUaryOps {
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>;
 
-    fn celu(&self, alpha: f64) -> anyhow::Result<Self::Output>;
+    fn celu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output>;
 
-    fn celu_<U>(&self, alpha: f64, out: U) -> anyhow::Result<Self::Output>
+    fn celu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>;
@@ -475,16 +475,16 @@ pub trait FloatUaryOps {
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>;
 
-    fn elu(&self, alpha: f64) -> anyhow::Result<Self::Output>;
+    fn elu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output>;
 
-    fn elu_<U>(&self, alpha: f64, out: U) -> anyhow::Result<Self::Output>
+    fn elu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>;
 
-    fn leaky_relu(&self, alpha: f64) -> anyhow::Result<Self::Output>;
+    fn leaky_relu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output>;
 
-    fn leaky_relu_<U>(&self, alpha: f64, out: U) -> anyhow::Result<Self::Output>
+    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>;
@@ -492,6 +492,22 @@ pub trait FloatUaryOps {
     fn gelu(&self) -> anyhow::Result<Self::Output>;
 
     fn gelu_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>;
+
+    fn selu(
+        &self,
+        alpha: Option<Self::OutputMeta>,
+        gamma: Option<Self::OutputMeta>
+    ) -> anyhow::Result<Self::Output>;
+
+    fn selu_<U>(
+        &self,
+        alpha: Option<Self::OutputMeta>,
+        gamma: Option<Self::OutputMeta>,
+        out: U
+    ) -> anyhow::Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>;

@@ -5,6 +5,7 @@ use rayon::iter::{
     ParallelIterator,
 };
 use tensor_common::shape_utils::mt_intervals;
+use tensor_types::into_scalar::IntoScalar;
 use threadpool::ThreadPool;
 use crate::THREAD_POOL;
 use tensor_traits::ops::uary::{ Cum, FloatUaryOps, Neg, NormalUaryOps };
@@ -76,7 +77,10 @@ pub fn uary_fn_with_out<A, O, K, Q, F>(inp: &_Tensor<A>, f: F, out: O) -> anyhow
 
 pub(crate) type FloatType<T> = <T as FloatOut>::Output;
 
-impl<T> FloatUaryOps for _Tensor<T> where T: FloatOut + CommonBounds, FloatType<T>: CommonBounds {
+impl<T> FloatUaryOps
+    for _Tensor<T>
+    where T: FloatOut + CommonBounds, FloatType<T>: CommonBounds, f64: IntoScalar<FloatType<T>>
+{
     type Output = _Tensor<FloatType<T>>;
 
     type InplaceOutput = _Tensor<FloatType<T>>;
@@ -311,11 +315,11 @@ impl<T> FloatUaryOps for _Tensor<T> where T: FloatOut + CommonBounds, FloatType<
         uary_fn_with_out(self, |x| x._log10(), out)
     }
 
-    fn celu(&self, alpha: f64) -> anyhow::Result<Self::Output> {
+    fn celu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
         uary_fn(self, |x| x._celu(alpha))
     }
 
-    fn celu_<U>(&self, alpha: f64, out: U) -> anyhow::Result<Self::Output>
+    fn celu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>
@@ -335,11 +339,11 @@ impl<T> FloatUaryOps for _Tensor<T> where T: FloatOut + CommonBounds, FloatType<
         uary_fn_with_out(self, |x| x._sigmoid(), out)
     }
 
-    fn elu(&self, alpha: f64) -> anyhow::Result<Self::Output> {
+    fn elu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
         uary_fn(self, |x| x._elu(alpha))
     }
 
-    fn elu_<U>(&self, alpha: f64, out: U) -> anyhow::Result<Self::Output>
+    fn elu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>
@@ -347,27 +351,79 @@ impl<T> FloatUaryOps for _Tensor<T> where T: FloatOut + CommonBounds, FloatType<
         uary_fn_with_out(self, |x| x._elu(alpha), out)
     }
 
-    fn leaky_relu(&self, alpha: f64) -> anyhow::Result<Self::Output> {
+    fn leaky_relu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
         uary_fn(self, |x| x._leaky_relu(alpha))
     }
 
-    fn leaky_relu_<U>(&self, alpha: f64, out: U) -> anyhow::Result<Self::Output>
+    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>
     {
         uary_fn_with_out(self, |x| x._leaky_relu(alpha), out)
     }
-    
+
     fn gelu(&self) -> anyhow::Result<Self::Output> {
         uary_fn(self, |x| x._gelu())
     }
-    
+
     fn gelu_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta> {
+                TensorInfo<Self::OutputMeta>
+    {
         uary_fn_with_out(self, |x| x._gelu(), out)
+    }
+
+    fn selu(
+        &self,
+        alpha: Option<Self::OutputMeta>,
+        gamma: Option<Self::OutputMeta>
+    ) -> anyhow::Result<Self::Output> {
+        match (alpha, gamma) {
+            (Some(alpha), Some(gamma)) => { uary_fn(self, |x| x._selu(alpha, gamma)) }
+            (Some(alpha), None) => {
+                let gamma = (1.05070102214813232421875).into_scalar();
+                uary_fn(self, |x| x._selu(alpha, gamma))
+            }
+            (None, Some(gamma)) => {
+                let alpha = (1.67326319217681884765625).into_scalar();
+                uary_fn(self, |x| x._selu(alpha, gamma))
+            }
+            (None, None) => {
+                let alpha = (1.67326319217681884765625).into_scalar();
+                let gamma = (1.05070102214813232421875).into_scalar();
+                uary_fn(self, |x| x._selu(alpha, gamma))
+            }
+        }
+    }
+
+    fn selu_<U>(
+        &self,
+        alpha: Option<Self::OutputMeta>,
+        gamma: Option<Self::OutputMeta>,
+        out: U
+    ) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        match (alpha, gamma) {
+            (Some(alpha), Some(gamma)) => { uary_fn_with_out(self, |x| x._selu(alpha, gamma), out) }
+            (Some(alpha), None) => {
+                let gamma = (1.05070102214813232421875).into_scalar();
+                uary_fn_with_out(self, |x| x._selu(alpha, gamma), out)
+            }
+            (None, Some(gamma)) => {
+                let alpha = (1.67326319217681884765625).into_scalar();
+                uary_fn_with_out(self, |x| x._selu(alpha, gamma), out)
+            }
+            (None, None) => {
+                let alpha = (1.67326319217681884765625).into_scalar();
+                let gamma = (1.05070102214813232421875).into_scalar();
+                uary_fn_with_out(self, |x| x._selu(alpha, gamma), out)
+            }
+        }
     }
 }
 

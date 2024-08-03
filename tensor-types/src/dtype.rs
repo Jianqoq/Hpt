@@ -365,24 +365,28 @@ impl FloatOut for Dtype {
         infer_enum_type!(self, null, uary_float)
     }
 
-    fn _celu(self, _: f64) -> Self::Output {
+    fn _celu(self, _: Self::Output) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
 
     fn _sigmoid(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-    fn _elu(self, _: f64) -> Self::Output {
+    fn _elu(self, _: Self::Output) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-    fn _leaky_relu(self, _: f64) -> Self::Output {
+    fn _leaky_relu(self, _: Self::Output) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
     fn _relu(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-    
+
     fn _gelu(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _selu(self, _: Self, _: Self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
 }

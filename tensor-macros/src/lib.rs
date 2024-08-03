@@ -625,7 +625,7 @@ pub fn impl_float_out(_: TokenStream) -> TokenStream {
                             erf(self.to_f64()).[<to_ #res_type>]()
                         }
                     }
-                    fn _celu(self, alpha: f64) -> Self::Output {
+                    fn _celu(self, alpha: Self::Output) -> Self::Output {
                         paste::paste! {
                             let x = self.[<to_ #res_type>]();
                             let alpha = alpha.[<to_ #res_type>]();
@@ -637,7 +637,7 @@ pub fn impl_float_out(_: TokenStream) -> TokenStream {
                             #res_type::ONE / (#res_type::ONE + (-self.[<to_ #res_type>]()).exp())
                         }
                     }
-                    fn _elu(self, alpha: f64) -> Self::Output {
+                    fn _elu(self, alpha: Self::Output) -> Self::Output {
                         paste::paste! {
                             let x = self.[<to_ #res_type>]();
                             let alpha = alpha.[<to_ #res_type>]();
@@ -648,7 +648,7 @@ pub fn impl_float_out(_: TokenStream) -> TokenStream {
                             }
                         }
                     }
-                    fn _leaky_relu(self, alpha: f64) -> Self::Output {
+                    fn _leaky_relu(self, alpha: Self::Output) -> Self::Output {
                         paste::paste! {
                             let x = self.[<to_ #res_type>]();
                             let alpha = alpha.[<to_ #res_type>]();
@@ -669,6 +669,19 @@ pub fn impl_float_out(_: TokenStream) -> TokenStream {
                             let x = self.[<to_ #res_type>]();
                             let sqrt2_over_2 = std::f64::consts::FRAC_1_SQRT_2;
                             #res_type::HALF * x * (#res_type::ONE + erf(x.to_f64() * sqrt2_over_2).[<to_ #res_type>]())
+                        }
+                    }
+
+                    fn _selu(self, alpha: Self::Output, scale: Self::Output) -> Self::Output {
+                        paste::paste! {
+                            let x = self.[<to_ #res_type>]();
+                            let alpha = alpha.[<to_ #res_type>]();
+                            let scale = scale.[<to_ #res_type>]();
+                            if x > #res_type::ZERO {
+                                scale * x
+                            } else {
+                                alpha * x.exp() - alpha
+                            }
                         }
                     }
                 }

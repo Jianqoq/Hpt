@@ -756,7 +756,10 @@ for Tensor<T> {
     }
 }
 
-impl<T> FloatUaryOps for Tensor<T> where T: FloatOut + CommonBounds, FloatType<T>: CommonBounds {
+impl<T> FloatUaryOps
+    for Tensor<T>
+    where T: FloatOut + CommonBounds, FloatType<T>: CommonBounds, f64: IntoScalar<FloatType<T>>
+{
     type Output = Tensor<FloatType<T>>;
 
     type InplaceOutput = Tensor<FloatType<T>>;
@@ -991,11 +994,11 @@ impl<T> FloatUaryOps for Tensor<T> where T: FloatOut + CommonBounds, FloatType<T
         todo!()
     }
 
-    fn celu(&self, alpha: f64) -> anyhow::Result<Self::Output> {
+    fn celu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
         Ok(_Tensor::celu(self, alpha)?.into())
     }
 
-    fn celu_<U>(&self, _: f64, _: U) -> anyhow::Result<Self::Output>
+    fn celu_<U>(&self, _: Self::OutputMeta, _: U) -> anyhow::Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>
@@ -1015,11 +1018,11 @@ impl<T> FloatUaryOps for Tensor<T> where T: FloatOut + CommonBounds, FloatType<T
         todo!()
     }
 
-    fn elu(&self, alpha: f64) -> anyhow::Result<Self::Output> {
+    fn elu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
         Ok(_Tensor::elu(self, alpha)?.into())
     }
 
-    fn elu_<U>(&self, _: f64, _: U) -> anyhow::Result<Self::Output>
+    fn elu_<U>(&self, _: Self::OutputMeta, _: U) -> anyhow::Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>
@@ -1027,11 +1030,11 @@ impl<T> FloatUaryOps for Tensor<T> where T: FloatOut + CommonBounds, FloatType<T
         todo!()
     }
 
-    fn leaky_relu(&self, alpha: f64) -> anyhow::Result<Self::Output> {
+    fn leaky_relu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
         Ok(_Tensor::leaky_relu(self, alpha)?.into())
     }
 
-    fn leaky_relu_<U>(&self, _: f64, _: U) -> anyhow::Result<Self::Output>
+    fn leaky_relu_<U>(&self, _: Self::OutputMeta, _: U) -> anyhow::Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>
@@ -1044,6 +1047,27 @@ impl<T> FloatUaryOps for Tensor<T> where T: FloatOut + CommonBounds, FloatType<T
     }
 
     fn gelu_<U>(&self, _: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn selu(
+        &self,
+        alpha: Option<Self::OutputMeta>,
+        gamma: Option<Self::OutputMeta>
+    ) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::selu(self, alpha, gamma)?.into())
+    }
+
+    fn selu_<U>(
+        &self,
+        _: Option<Self::OutputMeta>,
+        _: Option<Self::OutputMeta>,
+        _: U
+    ) -> anyhow::Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>

@@ -14,7 +14,7 @@ pub trait FloatOut<RHS = Self> {
     fn _exp2(self) -> Self::Output;
     fn _ln(self) -> Self::Output;
     fn _log(self, base: RHS) -> Self::Output;
-    fn _celu(self, alpha: f64) -> Self::Output;
+    fn _celu(self, alpha: Self::Output) -> Self::Output;
     fn _log2(self) -> Self::Output;
     fn _log10(self) -> Self::Output;
     fn _sqrt(self) -> Self::Output;
@@ -33,10 +33,11 @@ pub trait FloatOut<RHS = Self> {
     fn _recip(self) -> Self::Output;
     fn _erf(self) -> Self::Output;
     fn _sigmoid(self) -> Self::Output;
-    fn _elu(self, alpha: f64) -> Self::Output;
-    fn _leaky_relu(self, alpha: f64) -> Self::Output;
+    fn _elu(self, alpha: Self::Output) -> Self::Output;
+    fn _leaky_relu(self, alpha: Self::Output) -> Self::Output;
     fn _relu(self) -> Self::Output;
     fn _gelu(self) -> Self::Output;
+    fn _selu(self, alpha: Self::Output, scale: Self::Output) -> Self::Output;
 }
 
 impl_float_out!();
