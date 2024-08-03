@@ -485,6 +485,16 @@ pub trait FloatUaryOps {
 
     fn relu6_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
+
+    fn softplus(&self) -> anyhow::Result<Self::Output>;
+
+    fn softplus_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>;
+
+    fn softsign(&self) -> anyhow::Result<Self::Output>;
+
+    fn softsign_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>;
 }
 
 pub trait NormalUaryOps {

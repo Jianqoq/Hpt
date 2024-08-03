@@ -702,6 +702,18 @@ pub fn impl_float_out(_: TokenStream) -> TokenStream {
                             x * ((x + #res_type::THREE).max(#res_type::ZERO).min(#res_type::SIX)) / #res_type::SIX
                         }
                     }
+                    fn _softplus(self) -> Self::Output {
+                        paste::paste! {
+                            let x = self.[<to_ #res_type>]();
+                            (#res_type::ONE + x.exp()).ln()
+                        }
+                    }
+                    fn _softsign(self) -> Self::Output {
+                        paste::paste! {
+                            let x = self.[<to_ #res_type>]();
+                            x / (#res_type::ONE + x.abs())
+                        }
+                    }
                 }
             };
             ret.extend(res);

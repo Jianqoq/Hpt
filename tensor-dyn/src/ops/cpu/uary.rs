@@ -400,6 +400,26 @@ impl<T> FloatUaryOps
     {
         uary_fn_with_out(self, |x| x._relu6(), out.base().clone())
     }
+
+    fn softplus(&self) -> anyhow::Result<Self::Output> {
+        uary_fn(self, |x| x._softplus())
+    }
+
+    fn softplus_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
+    {
+        uary_fn_with_out(self, |x| x._softplus(), out.base().clone())
+    }
+
+    fn softsign(&self) -> anyhow::Result<Self::Output> {
+        uary_fn(self, |x| x._softsign())
+    }
+
+    fn softsign_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
+    {
+        uary_fn_with_out(self, |x| x._softsign(), out.base().clone())
+    }
 }
 
 pub(crate) type NormalType<T> = <T as NormalOut>::Output;

@@ -1084,6 +1084,26 @@ impl<T> FloatUaryOps
     {
         Ok(_Tensor::relu6_(self, out.base().clone())?.into())
     }
+
+    fn softplus(&self) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::softplus(self)?.into())
+    }
+
+    fn softplus_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
+    {
+        Ok(_Tensor::softplus_(self, out.base().clone())?.into())
+    }
+
+    fn softsign(&self) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::softsign(self)?.into())
+    }
+
+    fn softsign_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
+    {
+        Ok(_Tensor::softsign_(self, out.base().clone())?.into())
+    }
 }
 
 impl<T> NormalUaryOps

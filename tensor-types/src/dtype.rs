@@ -303,95 +303,72 @@ impl FloatOut for Dtype {
     fn _div(self, rhs: Self) -> Self::Output {
         infer_enum_type!(self, rhs, binary_float)
     }
-
     fn _exp(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _exp2(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _ln(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _log(self, base: Self) -> Self::Output {
         infer_enum_type!(self, base, binary_float)
     }
-
     fn _log2(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _log10(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _sqrt(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _sin(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _cos(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _tan(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _asin(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _acos(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _atan(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _sinh(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _cosh(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _tanh(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _asinh(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _acosh(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _atanh(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _recip(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _erf(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _celu(self, _: Self::Output) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _sigmoid(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
@@ -404,23 +381,25 @@ impl FloatOut for Dtype {
     fn _relu(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _gelu(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _selu(self, _: Self, _: Self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
     fn _hard_sigmoid(self, _: Self::Output, _: Self::Output) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _relu6(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-
     fn _hard_swish(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+    fn _softplus(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+    fn _softsign(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
 }
