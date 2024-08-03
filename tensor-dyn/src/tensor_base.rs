@@ -45,10 +45,7 @@ use rayon::iter::{
 };
 
 use crate::{
-    backend::{ Backend, Cpu, TensorBackend },
-    ops::cpu::reduce::stack,
-    slice::SliceOps,
-    tensor::Tensor,
+    backend::{ Backend, Cpu, TensorBackend }, ops::cpu::stack::stack, slice::SliceOps, tensor::Tensor
 };
 /// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
 ///
@@ -1242,8 +1239,8 @@ impl<T> Random
         Ok(_Tensor::<T>::randn_like(self)?.into())
     }
 
-    fn rand<S: Into<Shape>>(shape: S) -> Result<Self> {
-        Ok(_Tensor::<T>::rand(shape)?.into())
+    fn rand<S: Into<Shape>>(shape: S, low: Self::Meta, high: Self::Meta) -> Result<Self> {
+        Ok(_Tensor::<T>::rand(shape, low, high)?.into())
     }
 
     fn rand_like(&self) -> Result<Self> {

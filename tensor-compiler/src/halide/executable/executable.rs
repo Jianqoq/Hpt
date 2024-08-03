@@ -59,7 +59,7 @@ impl Executable {
     }
 
     #[track_caller]
-    pub fn execute(&self, inputs: HashMap<usize, Array>, outputs: HashMap<usize, Array>) {
+    pub fn execute(&self, inputs: &HashMap<usize, Array>, outputs: &HashMap<usize, Array>) {
         let caller = Location::caller();
         for (idx, fn_name) in self.sorted_fns.iter().enumerate() {
             let c_str = to_c_str(fn_name);

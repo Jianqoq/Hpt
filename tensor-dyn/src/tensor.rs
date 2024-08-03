@@ -14,7 +14,7 @@ use tensor_types::{
     type_promote::{ Cmp, Eval, FloatOut, NormalOut },
 };
 use anyhow::Result;
-use crate::{ backend::Cpu, ops::cpu::{ reduce::stack, uary::FloatType }, tensor_base::_Tensor };
+use crate::{ backend::Cpu, ops::cpu::{stack::stack, uary::FloatType}, tensor_base::_Tensor };
 
 /// A wrapper of `Tensor` for user.
 /// This is the main tensor for user.
@@ -238,11 +238,7 @@ impl<T: CommonBounds> Tensor<T> {
     /// assert!(tensor.allclose(&converted_tensor))
     /// ```
     pub fn try_astype<U>(&self) -> Result<Tensor<U>> where U: CommonBounds, T: IntoScalar<U> {
-        return if U::ID == T::ID {
-            Ok(self.static_cast()?)
-        } else {
-            Ok(self.astype::<U>()?)
-        }
+        if U::ID == T::ID { Ok(self.static_cast()?) } else { Ok(self.astype::<U>()?) }
     }
 
     /// Performs a static cast of the tensor to a new type without actual data conversion.
@@ -331,7 +327,7 @@ impl<T: CommonBounds> Tensor<T> {
     /// let stacked_tensor = Tensor::stack(vec![&tensor1, &tensor2], 0, true).unwrap();
     /// assert!(stacked_tensor.allclose(&Tensor::<f64>::new([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])));
     /// ```
-    pub fn stack(tensors: Vec<&Tensor<T>>, axis: usize, keepdims: bool) -> Result<Self>
+    pub fn stack(tensors: &[Tensor<T>], axis: usize, keepdims: bool) -> Result<Self>
         where T: 'static
     {
         Ok(
@@ -542,21 +538,15 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
         Ok(_Tensor::geomspace(start, end, n, include_end)?.into())
     }
 
-    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self>
-        where u8: IntoScalar<T>
-    {
+    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self> where u8: IntoScalar<T> {
         Ok(_Tensor::tri(n, m, k, low_triangle)?.into())
     }
 
-    fn tril(&self, k: i64) -> Result<Self>
-        where T: NormalOut<bool, Output = T> + IntoScalar<T>
-    {
+    fn tril(&self, k: i64) -> Result<Self> where T: NormalOut<bool, Output = T> + IntoScalar<T> {
         Ok(_Tensor::tril(self, k)?.into())
     }
 
-    fn triu(&self, k: i64) -> Result<Self>
-        where T: NormalOut<bool, Output = T> + IntoScalar<T>
-    {
+    fn triu(&self, k: i64) -> Result<Self> where T: NormalOut<bool, Output = T> + IntoScalar<T> {
         Ok(_Tensor::triu(self, k)?.into())
     }
 
@@ -668,7 +658,8 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     }
 }
 
-impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> NormalReduce<T> for Tensor<T> {
+impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> NormalReduce<T>
+for Tensor<T> {
     type Output = Tensor<T>;
 
     type BoolOutput = Tensor<bool>;
@@ -739,12 +730,7 @@ impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> Normal
         Ok(_Tensor::min(self, axis, keep_dims)?.into())
     }
 
-    fn min_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool
-    ) -> Result<Self> {
+    fn min_with_init<S: Into<Axis>>(&self, init_val: T, axes: S, keep_dims: bool) -> Result<Self> {
         Ok(_Tensor::min_with_init(self, init_val, axes, keep_dims)?.into())
     }
 
@@ -752,12 +738,7 @@ impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> Normal
         Ok(_Tensor::max(self, axis, keep_dims)?.into())
     }
 
-    fn max_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool
-    ) -> Result<Self> {
+    fn max_with_init<S: Into<Axis>>(&self, init_val: T, axes: S, keep_dims: bool) -> Result<Self> {
         Ok(_Tensor::max_with_init(self, init_val, axes, keep_dims)?.into())
     }
 

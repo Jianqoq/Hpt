@@ -56,7 +56,7 @@ fn test_reshape_schedule() {
         .expect("Failed to create tensor");
     let inps_map = hashmap! { 0usize => a.clone().into() };
     let outs_map = hashmap! { 1usize => b.clone().into() };
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
     assert!(a.reshape(&[2, 5, 3, 1]).unwrap().allclose(&b));
 }
 
@@ -106,7 +106,7 @@ fn test_add_schedule() {
         };
     let c = tensor_dyn::tensor::Tensor::<f32>::empty(&[2, 5, 3]).expect("Failed to create tensor");
     let outs_map = hashmap! { 2usize => c.clone().into() };
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     let test = a + b;
     assert!(test.allclose(&c));
@@ -159,7 +159,7 @@ fn test_add_broadcast_schedule() {
         };
     let c = tensor_dyn::tensor::Tensor::<f32>::empty(&[2, 5, 3]).expect("Failed to create tensor");
     let outs_map = hashmap! { 2usize => c.clone().into() };
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     let test = a + b;
     assert!(test.allclose(&c));
@@ -212,7 +212,7 @@ fn test_add_broadcast_diff_len_schedule() {
         };
     let c = tensor_dyn::tensor::Tensor::<f32>::empty(&[3, 2, 5]).expect("Failed to create tensor");
     let outs_map = hashmap! { 2usize => c.clone().into() };
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     let test = a + b;
     assert!(test.allclose(&c));
@@ -265,7 +265,7 @@ fn test_add_broadcast_diff_len_schedule2() {
     let outs_map = hashmap! {
             3usize => d.clone().into(),
         };
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     let test = (a + b).sin().unwrap();
     assert!(test.allclose(&d));
@@ -307,7 +307,7 @@ fn test_sum_broadcast_schedule() {
     let b = tensor_dyn::tensor::Tensor::<f32>::zeros(&[2, 3]).expect("Failed to create tensor");
     let inps_map = hashmap! { 0usize => a.clone().into() };
     let outs_map = hashmap! { 1usize => b.clone().into() };
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map, &outs_map);
 
     let test = a.sum([1], false).unwrap();
     assert!(test.allclose(&b));
@@ -351,7 +351,7 @@ fn test_argmin_broadcast_schedule() {
     let b = tensor_dyn::tensor::Tensor::<i64>::zeros(&[2, 3]).expect("Failed to create tensor");
     let inps_map = hashmap! { 0usize => a.clone().into() };
     let outs_map = hashmap! { 1usize => b.clone().into() };
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     let test = a.argmin(1, false).unwrap();
     assert!(test.allclose(&b));
@@ -394,7 +394,7 @@ fn test_argmax_broadcast_schedule() {
     let b = tensor_dyn::tensor::Tensor::<i64>::zeros(&[2, 3]).expect("Failed to create tensor");
     let inps_map = hashmap! { 0usize => a.clone().into() };
     let outs_map = hashmap! { 1usize => b.clone().into() };
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     let test = a.argmax(1, false).unwrap();
     assert!(test.allclose(&b));
@@ -438,7 +438,7 @@ fn test_sum_all_broadcast_schedule() {
     let b = tensor_dyn::tensor::Tensor::<f32>::zeros(&[1]).expect("Failed to create tensor");
     let inps_map = hashmap! { 0usize => a.clone().into() };
     let outs_map = hashmap! { 3usize => b.clone().into() };
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     let test = a.sum([0, 1, 2], false).unwrap();
     assert!(test.allclose(&b));
@@ -480,7 +480,7 @@ fn test_sum_all_broadcast_schedule2() {
     let b = tensor_dyn::tensor::Tensor::<f32>::zeros(&[1]).expect("Failed to create tensor");
     let inps_map = hashmap! { 0usize => a.clone().into() };
     let outs_map = hashmap! { 1usize => b.clone().into() };
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     let test = a.sum([0, 1, 2], false).unwrap();
     assert!(test.allclose(&b));
@@ -544,7 +544,7 @@ fn test_schedule3() {
         };
     let c = tensor_dyn::tensor::Tensor::<f64>::zeros(&[2, 5, 3]).expect("Failed to create tensor");
     let outs_map = hashmap! { 9usize => c.clone().into() };
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
     let test = &a + &b;
     let sum = test.sum([2], true).unwrap();
     let add = test + &sum;
@@ -596,7 +596,7 @@ fn test_slice() {
             1 => d.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
     let test = slice!(a[0:4:2, 0:4:2]).unwrap();
     assert!(test.allclose(&d));
 }
@@ -650,7 +650,7 @@ fn test_slice_nested() {
             2 => d.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
     let test = slice!(a[0:9:2, 0:9:2]).unwrap();
     let test = slice!(test[0:4:2, 0:4:2]).unwrap();
     assert!(test.allclose(&d));
@@ -726,7 +726,7 @@ fn test_pad_out() {
             1 => d.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
     println!("{:?}", d);
 }
 
@@ -775,7 +775,7 @@ fn test_pad_slice() {
             2 => d.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
     println!("{:?}", d);
 }
 
@@ -809,7 +809,7 @@ fn test_cast() {
             1 => d.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     let test = a.astype::<f64>().unwrap();
     assert!(test.allclose(&d));
@@ -845,7 +845,7 @@ fn test_prod() {
             1 => d.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     let test = a.prod([1], false).unwrap();
     assert!(test.allclose(&d));
@@ -882,7 +882,7 @@ fn test_min() {
             1 => d.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     let test = a.min([1], false).unwrap();
     assert!(test.allclose(&d));
@@ -918,7 +918,7 @@ fn test_max() {
             1 => d.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     let test = a.max([1], false).unwrap();
     assert!(test.allclose(&d));
@@ -956,7 +956,7 @@ fn test_ge() {
             2 => d.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     let test = a.ge(&b).unwrap();
     assert!(test.allclose(&d));
@@ -994,7 +994,7 @@ fn test_gt() {
             2 => d.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     let test = a.gt(&b).unwrap();
     assert!(test.allclose(&d));
@@ -1032,7 +1032,7 @@ fn test_le() {
             2 => d.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     let test = a.le(&b).unwrap();
     assert!(test.allclose(&d));
@@ -1070,7 +1070,7 @@ fn test_lt() {
             2 => d.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     let test = a.lt(&b).unwrap();
     assert!(test.allclose(&d));
@@ -1102,7 +1102,7 @@ fn test_relu() {
             1 => d.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map, &outs_map);
 
     println!("{:?}", d);
 }
@@ -1133,7 +1133,7 @@ fn test_elu() {
             1 => d.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     println!("{:?}", d);
 }
@@ -1164,7 +1164,7 @@ fn test_selu() {
             1 => d.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map, &outs_map);
 
     println!("{:?}", d);
 }
@@ -1195,7 +1195,7 @@ fn test_celu() {
             1 => d.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     println!("{:?}", d);
 }
@@ -1226,7 +1226,7 @@ fn test_gelu() {
             1 => d.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     println!("{:?}", d);
 }
@@ -1257,7 +1257,7 @@ fn test_neg() {
             1 => d.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map,& outs_map);
 
     println!("{:?}", d);
 }
@@ -1300,14 +1300,15 @@ fn test_concat() {
     let concat = ctx.concat(1, &[a.clone(), b.clone(), c.clone()]);
     let order = [a.id, b.id, c.id, concat.id];
     let schedule = ctx.to_schedule(&order);
-    let vars_map = hashmap! {
+    let vars_map =
+        hashmap! {
             "m" => 2,
             "n" => 3,
             "o" => 3,
             "p" => 5,
             "i" => 4,
         };
-    
+
     let executable = build("main", &[schedule], crate::opt_lvl::OptLvl::O3).into_executable(
         vars_map
     );
@@ -1329,7 +1330,8 @@ fn test_concat() {
         .reshape(&[2, 4, 3])
         .expect("Failed to reshape");
 
-    let inps_map = hashmap! {
+    let inps_map =
+        hashmap! {
         0usize => a.clone().into(),
         1 => b.clone().into(),
         2 => c.clone().into(),
@@ -1340,6 +1342,6 @@ fn test_concat() {
             3 => c.clone().into(),
         };
 
-    executable.execute(inps_map, outs_map);
+    executable.execute(&inps_map, &outs_map);
     println!("{:?}", c);
 }

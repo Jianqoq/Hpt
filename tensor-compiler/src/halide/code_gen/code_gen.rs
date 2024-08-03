@@ -1388,7 +1388,7 @@ impl CodeGenVisitor for CodeGen {
         let var = store.var();
         let basic_val = self.bindings[&self.current_fn]
             .find_variable(&var.name)
-            .expect("var not find");
+            .expect(format!("variable {} not found", var.name).as_str());
         let var_type = self.bindings[&self.current_fn]
             .find_type(&basic_val)
             .expect("type not find")

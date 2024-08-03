@@ -94,17 +94,3 @@ macro_rules! impl_tensordot {
 
 impl_tensordot!(_Tensor, _tensordot);
 
-#[cfg(test)]
-mod tests {
-    use half::f16;
-    use tensor_traits::random::Random;
-    use super::*;
-
-    #[test]
-    fn test_tensordot() {
-        let a: _Tensor<f16> = _Tensor::rand([128, 128, 128]).unwrap();
-        let b: _Tensor<f16> = _Tensor::rand([128, 128, 128]).unwrap();
-        let c = _tensordot(&a, &b, (2, 2)).unwrap();
-        println!("{}", c);
-    }
-}

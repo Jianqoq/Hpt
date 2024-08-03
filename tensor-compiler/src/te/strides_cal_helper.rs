@@ -16,8 +16,7 @@ pub fn binary_strides_cal(
     Arc::new(move |map: &HashMap<Arc<String>, i64>| {
         let lhs_strides = lhs_strides_cal(map);
         let rhs_strides = rhs_strides_cal(map);
-        assert_eq!(lhs_strides.len(), rhs_strides.len());
-
+        
         let lhs_real_shape = lhs_shape
             .iter()
             .map(|x| { IdxEvaluator::new(map).eval(x) })

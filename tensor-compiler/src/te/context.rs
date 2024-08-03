@@ -51,7 +51,15 @@ impl Context {
         }
     }
 
-    pub fn to_schedule(self, order: &[usize]) -> Schedule {
+    pub fn nodes(&self) -> RcMut<HashMap<usize, Tensor>> {
+        self.nodes.clone()
+    }
+
+    pub fn vars(&self) -> RcMut<HashSet<Variable>> {
+        self.vars.clone()
+    }
+
+    pub fn to_schedule(&self, order: &[usize]) -> Schedule {
         let mut nodes = HashMap::new();
         for (id, node) in self.nodes.borrow().iter() {
             let srg_node = SrgNode {
@@ -63,7 +71,7 @@ impl Context {
                         .borrow()
                         .iter()
                         .filter_map(|(k, v)| {
-                            if v.inputs.contains(id) { Some(*k) } else { None }
+                            if v.inputs.contains(id) && order.contains(&v.id) { Some(*k) } else { None }
                         })
                         .collect()
                 ),

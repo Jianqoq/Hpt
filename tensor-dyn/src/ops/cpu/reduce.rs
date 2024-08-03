@@ -903,149 +903,6 @@ register_reduction_one_axis!(
     where T: CommonBounds + NormalOut<T, Output = T> + Cmp
 );
 
-macro_rules! impl_stack {
-    ($tensor_type:ident, $method_name:ident) => {
-        pub(crate) fn $method_name<T>(
-            tensors: Vec<&$tensor_type<T>>,
-            axis: usize,
-            keepdims: bool,
-        ) -> anyhow::Result<$tensor_type<T>>
-        where
-            T: CommonBounds,
-        {
-            let length = tensors.len();
-            let mut all_same_shape = true;
-            for i in tensors.iter() {
-                tensors[0]
-                    .shape()
-                    .iter()
-                    .enumerate()
-                    .try_for_each(|(idx, x)| {
-                        if idx != axis
-                            && i.shape().len() == tensors[0].shape().len()
-                            && *x != i.shape()[idx]
-                        {
-                            return Err(anyhow::Error::msg(
-                                "Shapes except the axis to stack must be the same",
-                            ));
-                        } else if i.shape().len() != tensors[0].shape().len() {
-                            return Err(anyhow::Error::msg(
-                                "Shape length mismatch when trying to stack tensors",
-                            ));
-                        } else if idx == axis && *x != i.shape()[idx] {
-                            all_same_shape = false;
-                        }
-                        return Ok(());
-                    })?;
-            }
-            let mut new_shape: Vec<i64> = vec![0; tensors[0].ndim() as usize];
-            tensors.iter().for_each(|x| {
-                new_shape[axis] += x.shape()[axis];
-            });
-            tensors[0].shape().iter().enumerate().for_each(|(i, x)| {
-                if i != axis {
-                    new_shape[i] = *x;
-                }
-            });
-            let new_tensor = $tensor_type::empty(&new_shape)?;
-            let res_ptr: Pointer<T> = new_tensor.ptr();
-            let mut res_ptr_cpy = new_tensor.ptr();
-            let mut each_shape = tensors[0].shape().to_vec();
-            let res_strides = new_tensor.strides();
-            each_shape.iter_mut().for_each(|x| {
-                *x -= 1;
-            });
-            let each_shape = Arc::new(each_shape);
-            let mut gap = 1;
-            for i in axis..new_shape.len() {
-                gap *= tensors[0].shape()[i];
-            }
-            THREAD_POOL.with_borrow_mut(|pool| {
-                let num_threads: usize;
-                if length < pool.max_count() {
-                    num_threads = length;
-                } else {
-                    num_threads = pool.max_count();
-                }
-                let mut ptrs: Vec<Pointer<T>> = Vec::with_capacity(num_threads);
-                let mut tensors_slice: Vec<Vec<$tensor_type<T>>> = Vec::with_capacity(num_threads);
-                let intervals: Vec<(usize, usize)> = mt_intervals(tensors.len(), num_threads);
-                for (start, end) in intervals {
-                    ptrs.push(res_ptr_cpy.clone());
-                    res_ptr_cpy.offset(((end - start) as i64) * gap);
-                    let mut vec = Vec::with_capacity(end - start);
-                    for i in start..end {
-                        vec.push(tensors[i].clone());
-                    }
-                    tensors_slice.push(vec);
-                }
-                let barrier = Arc::new(Barrier::new(num_threads + 1));
-                for _ in 0..num_threads {
-                    let mut res_ptr_thread = ptrs.pop().unwrap();
-                    let tensors_tmp = tensors_slice.pop().unwrap();
-                    let shape = each_shape.clone();
-                    let strides = res_strides.clone();
-                    let barrier_clone = Arc::clone(&barrier);
-                    pool.execute(move || {
-                        for tensor in tensors_tmp.iter() {
-                            let mut a_data = tensor.ptr();
-                            let a_strides = tensor.strides();
-                            let a_last_stride = a_strides[(tensor.ndim() - 1) as usize];
-                            let inner_loop_size = tensor.shape()[(tensor.ndim() - 1) as usize];
-                            let outer_loop_size = tensor.size() / (inner_loop_size as usize);
-                            let mut prg = vec![0; tensor.ndim() as usize];
-                            for _ in 0..outer_loop_size {
-                                for i in 0..inner_loop_size {
-                                    let a_val = a_data[i * a_last_stride];
-                                    res_ptr_thread.modify(i, a_val);
-                                }
-                                for j in (0..=(tensor.ndim() as i64) - 2).rev() {
-                                    if prg[j as usize] < shape[j as usize] {
-                                        prg[j as usize] += 1;
-                                        a_data.offset(a_strides[j as usize]);
-                                        res_ptr_thread.offset(strides[j as usize]);
-                                        break;
-                                    } else {
-                                        prg[j as usize] = 0;
-                                        a_data.offset(-shape[j as usize] * a_strides[j as usize]);
-                                        res_ptr_thread
-                                            .offset(-shape[j as usize] * strides[j as usize]);
-                                    }
-                                }
-                            }
-                            res_ptr_thread = res_ptr;
-                            res_ptr_thread.offset(gap);
-                        }
-                        barrier_clone.wait();
-                    });
-                }
-                barrier.wait();
-            });
-            if keepdims {
-                if !all_same_shape {
-                    return Err(anyhow::Error::msg(
-                        "keepdims is not supported for different shapes",
-                    ));
-                }
-                let mut res_shape = Vec::with_capacity(new_shape.len() + 1);
-                for (idx, i) in new_shape.iter().enumerate() {
-                    if idx == axis {
-                        res_shape.push(length as i64);
-                        res_shape.push(*i / (length as i64));
-                    } else {
-                        res_shape.push(*i);
-                    }
-                }
-                return new_tensor.reshape(res_shape);
-            } else {
-                return Ok(new_tensor);
-            }
-        }
-    };
-}
-
-impl_stack!(_Tensor, stack);
-
 impl<T: CommonBounds + NormalOut<Output = T> + Cmp> IndexReduce for _Tensor<T> {
     type Output = _Tensor<i64>;
 
@@ -1060,7 +917,8 @@ impl<T: CommonBounds + NormalOut<Output = T> + Cmp> IndexReduce for _Tensor<T> {
     }
 }
 
-impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> NormalReduce<T> for _Tensor<T> {
+impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> NormalReduce<T>
+for _Tensor<T> {
     type Output = _Tensor<T>;
 
     type BoolOutput = _Tensor<bool>;

@@ -41,17 +41,17 @@ impl<T> Random
                     *x = rand_num;
                 }
             );
-        return Ok(ret);
+        Ok(ret)
     }
 
     fn randn_like(&self) -> Result<Self> {
-        return _Tensor::randn(self.shape());
+        _Tensor::randn(self.shape())
     }
 
-    fn rand<S: Into<Shape>>(shape: S) -> Result<Self> {
+    fn rand<S: Into<Shape>>(shape: S, low: Self::Meta, high: Self::Meta) -> Result<Self> {
         let res_shape = Shape::from(shape.into());
         let ret = _Tensor::empty(res_shape)?;
-        let normal: Uniform<T> = Uniform::new(T::from(0.0).unwrap(), T::from(1.0).unwrap());
+        let normal: Uniform<T> = Uniform::new(low, high);
         ret.as_raw_mut()
             .into_par_iter()
             .for_each_init(
@@ -61,11 +61,11 @@ impl<T> Random
                     *x = rand_num;
                 }
             );
-        return Ok(ret);
+        Ok(ret)
     }
 
     fn rand_like(&self) -> Result<Self> {
-        return _Tensor::randn(self.shape().clone());
+        _Tensor::randn(self.shape().clone())
     }
 
     fn randint<S: Into<Shape>>(low: Self::Meta, high: Self::Meta, shape: S) -> Result<Self> {
@@ -81,11 +81,11 @@ impl<T> Random
                     *x = rand_num;
                 }
             );
-        return Ok(ret);
+        Ok(ret)
     }
 
     fn randint_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self> {
-        return _Tensor::randint(low, high, self.shape().clone());
+        _Tensor::randint(low, high, self.shape().clone())
     }
 
     fn beta<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self> {
@@ -101,11 +101,11 @@ impl<T> Random
                     *x = rand_num;
                 }
             );
-        return Ok(ret);
+        Ok(ret)
     }
 
     fn beta_like(&self, a: Self::Meta, b: Self::Meta) -> Result<Self> {
-        return _Tensor::beta(a, b, self.shape().clone());
+        _Tensor::beta(a, b, self.shape().clone())
     }
 
     fn chisquare<S: Into<Shape>>(df: Self::Meta, shape: S) -> Result<Self> {
@@ -121,11 +121,11 @@ impl<T> Random
                     *x = rand_num;
                 }
             );
-        return Ok(ret);
+        Ok(ret)
     }
 
     fn chisquare_like(&self, df: Self::Meta) -> Result<Self> {
-        return _Tensor::chisquare(df, self.shape().clone());
+        _Tensor::chisquare(df, self.shape().clone())
     }
 
     fn exponential<S: Into<Shape>>(lambda: Self::Meta, shape: S) -> Result<Self> {
@@ -141,11 +141,11 @@ impl<T> Random
                     *x = rand_num;
                 }
             );
-        return Ok(ret);
+        Ok(ret)
     }
 
     fn exponential_like(&self, lambda: Self::Meta) -> Result<Self> {
-        return _Tensor::exponential(lambda, self.shape().clone());
+        _Tensor::exponential(lambda, self.shape().clone())
     }
 
     fn gamma<S: Into<Shape>>(gamma_shape: Self::Meta, scale: Self::Meta, shape: S) -> Result<Self> {
@@ -161,11 +161,11 @@ impl<T> Random
                     *x = rand_num;
                 }
             );
-        return Ok(ret);
+        Ok(ret)
     }
 
     fn gamma_like(&self, gamma_shape: Self::Meta, scale: Self::Meta) -> Result<Self> {
-        return _Tensor::gamma(gamma_shape, scale, self.shape().clone());
+        _Tensor::gamma(gamma_shape, scale, self.shape().clone())
     }
 
     fn gumbel<S: Into<Shape>>(mu: Self::Meta, beta: Self::Meta, shape: S) -> Result<Self> {
@@ -181,11 +181,11 @@ impl<T> Random
                     *x = rand_num;
                 }
             );
-        return Ok(ret);
+        Ok(ret)
     }
 
     fn gumbel_like(&self, mu: Self::Meta, beta: Self::Meta) -> Result<Self> {
-        return _Tensor::gumbel(mu, beta, self.shape().clone());
+        _Tensor::gumbel(mu, beta, self.shape().clone())
     }
 
     fn lognormal<S: Into<Shape>>(mean: Self::Meta, std: Self::Meta, shape: S) -> Result<Self> {
@@ -201,11 +201,11 @@ impl<T> Random
                     *x = rand_num;
                 }
             );
-        return Ok(ret);
+        Ok(ret)
     }
 
     fn lognormal_like(&self, mean: Self::Meta, std: Self::Meta) -> Result<Self> {
-        return _Tensor::lognormal(mean, std, self.shape().clone());
+        _Tensor::lognormal(mean, std, self.shape().clone())
     }
 
     fn normal_gaussian<S: Into<Shape>>(
@@ -224,11 +224,11 @@ impl<T> Random
                     *x = normal.sample(rng);
                 }
             );
-        return Ok(ret);
+        Ok(ret)
     }
 
     fn normal_gaussian_like(&self, mean: Self::Meta, std: Self::Meta) -> Result<Self> {
-        return _Tensor::normal_gaussian(mean, std, self.shape().clone());
+        _Tensor::normal_gaussian(mean, std, self.shape().clone())
     }
 
     fn pareto<S: Into<Shape>>(pareto_shape: Self::Meta, a: Self::Meta, shape: S) -> Result<Self> {
@@ -243,11 +243,11 @@ impl<T> Random
                     *x = pareto.sample(rng);
                 }
             );
-        return Ok(ret);
+        Ok(ret)
     }
 
     fn pareto_like(&self, pareto_shape: Self::Meta, a: Self::Meta) -> Result<Self> {
-        return _Tensor::pareto(pareto_shape, a, self.shape().clone());
+        _Tensor::pareto(pareto_shape, a, self.shape().clone())
     }
 
     fn poisson<S: Into<Shape>>(lambda: Self::Meta, shape: S) -> Result<Self> {
@@ -262,7 +262,7 @@ impl<T> Random
                     *x = poisson.sample(rng);
                 }
             );
-        return Ok(ret);
+        Ok(ret)
     }
 
     fn poisson_like(&self, lambda: Self::Meta) -> Result<Self> {

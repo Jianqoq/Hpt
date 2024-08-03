@@ -136,6 +136,12 @@ impl Srg {
             })
             .last()
             .unwrap();
-        Schedule { qa, nodes: self.tensors.clone(), strides_cal }
+        let nodes = self.tensors
+            .borrow()
+            .iter()
+            .filter(|(_, x)| { sorted.contains(&x.id()) })
+            .map(|(k, x)| (*k, x.clone()))
+            .collect::<HashMap<usize, Tensor>>();
+        Schedule { qa, nodes: RcMut::new(nodes), strides_cal }
     }
 }

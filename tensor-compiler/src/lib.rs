@@ -70,6 +70,8 @@ pub mod te {
         pub mod unsqueeze;
         pub mod transpose;
         pub mod expand;
+        pub mod matmul;
+        pub mod softmax;
     }
     pub mod insert_axes;
     pub mod strides_visitor;
@@ -89,6 +91,8 @@ pub mod te {
     pub mod bodygen_helper;
     pub mod transpose_axes;
     pub mod slice_helper;
+    pub mod remove_reudundant;
+    pub mod scope;
     pub mod tests;
 }
 pub mod to_prim_expr;

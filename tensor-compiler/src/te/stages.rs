@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use tensor_types::dtype::Dtype;
 
@@ -18,7 +18,7 @@ use crate::{
     te::subs_tensorload::SubsTensorLoadDims,
 };
 
-use super::insert_axes::InsertAxes;
+use super::{insert_axes::InsertAxes, remove_reudundant::RemoveRedundant};
 
 #[derive(Clone)]
 pub enum Body {
@@ -110,6 +110,28 @@ impl Body {
             }
             Body::Switch(switch) => {
                 switch.insert_new_axes(axes);
+            }
+        }
+    }
+    pub fn remove_redudant_load(&mut self, rd: &mut RemoveRedundant) {
+        match self {
+            Body::Stmt(stmt) => {
+                stmt.accept_mutate(rd);
+                *self = Body::Stmt(rd.stmt().clone());
+                rd.set_stmt(Stmt::None);
+                rd.set_expr(PrimeExpr::None);
+            }
+            Body::Stage(stage) => {
+                stage.remove_redudant_load();
+            }
+            Body::ReduceStage(red_stage) => {
+                red_stage.remove_redudant_load();
+            }
+            Body::If(if_) => {
+                if_.remove_redudant_load();
+            }
+            Body::Switch(switch) => {
+                switch.remove_redudant_load();
             }
         }
     }
@@ -221,6 +243,20 @@ impl ReduceStage {
             body.insert_new_axes(axes);
         }
     }
+    pub fn remove_redudant_load(&mut self) {
+        let mut rd = RemoveRedundant::new();
+        for body in &mut self.bodys {
+            body.remove_redudant_load(&mut rd);
+        }
+        let mut rd = RemoveRedundant::new();
+        for body in &mut self.inits {
+            body.remove_redudant_load(&mut rd);
+        }
+        let mut rd = RemoveRedundant::new();
+        for body in &mut self.posts {
+            body.remove_redudant_load(&mut rd);
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -306,6 +342,12 @@ impl Stage {
     pub fn insert_new_axes(&mut self, axes: &mut InsertAxes) {
         for body in &mut self.bodys {
             body.insert_new_axes(axes);
+        }
+    }
+    pub fn remove_redudant_load(&mut self) {
+        let mut rd = RemoveRedundant::new();
+        for body in &mut self.bodys {
+            body.remove_redudant_load(&mut rd);
         }
     }
 }
@@ -531,6 +573,16 @@ impl If {
             body.insert_new_axes(axes);
         }
     }
+    pub fn remove_redudant_load(&mut self) {
+        let mut rd = RemoveRedundant::new();
+        for body in &mut self.true_bodys {
+            body.remove_redudant_load(&mut rd);
+        }
+        let mut rd = RemoveRedundant::new();
+        for body in &mut self.false_bodys {
+            body.remove_redudant_load(&mut rd);
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -626,5 +678,11 @@ impl Switch {
             dims.append(&mut parent_dims);
         }
         dims
+    }
+    pub fn remove_redudant_load(&mut self) {
+        let mut rd = RemoveRedundant::new();
+        for (_, body) in &mut self.bodys {
+            body.remove_redudant_load(&mut rd);
+        }
     }
 }

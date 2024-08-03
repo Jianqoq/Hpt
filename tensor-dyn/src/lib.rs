@@ -11,13 +11,13 @@ pub mod ops {
         pub mod tensordot;
         pub mod fft;
         pub mod cmp;
+        pub mod stack;
     }
 }
 pub mod backend;
 pub mod tensor;
 pub mod random;
 pub mod slice;
-
 pub mod to_tensor;
 
 use std::cell::RefCell;

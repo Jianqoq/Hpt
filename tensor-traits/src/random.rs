@@ -48,7 +48,7 @@ pub trait Random where Self: Sized {
     /// let uniform_array = Tensor::<f32>::rand([1000])?;
     /// ```
     /// This example creates a 1000-element array of random numbers with a uniform distribution between [0, 1).
-    fn rand<S: Into<Shape>>(shape: S) -> Result<Self>;
+    fn rand<S: Into<Shape>>(shape: S, low: Self::Meta, high: Self::Meta) -> Result<Self>;
 
     /// Generates a random number array with a uniform distribution between [0, 1),
     /// with the same shape as the calling instance.
