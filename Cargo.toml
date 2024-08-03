@@ -11,24 +11,17 @@ members = [
     "tensor-traits",
     "tensor-types",
     "tensor-macros",
-    "tensor-tests",
     "tensor-iterator",
     "tensor-display",
-    "tensor-compiler",
-    "tensor-llvm",
 ]
 
 [dependencies]
-inkwell = { version = "0.4.0", features = ["llvm17-0"] }
 tensor-allocator = { path = "tensor-allocator" }
-tensor-compiler = { path = "tensor-compiler" }
 tensor-common = { path = "tensor-common" }
-tensor-llvm = { path = "tensor-llvm" }
 tensor-dyn = { path = "tensor-dyn" }
 tensor-traits = { path = "tensor-traits" }
 tensor-types = { path = "tensor-types" }
 tensor-macros = { path = "tensor-macros" }
-tensor-tests = { path = "tensor-tests" }
 num-traits = "0.2.19"
 anyhow = "1.0.40"
 rand = "0.8.5"

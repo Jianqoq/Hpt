@@ -14,7 +14,7 @@ use tensor_types::{
     type_promote::{ Cmp, Eval, FloatOut, NormalOut },
 };
 use anyhow::Result;
-use crate::{ backend::Cpu, ops::cpu::{stack::stack, uary::FloatType}, tensor_base::_Tensor };
+use crate::{ backend::Cpu, ops::cpu::{ stack::stack, uary::FloatType }, tensor_base::_Tensor };
 
 /// A wrapper of `Tensor` for user.
 /// This is the main tensor for user.
