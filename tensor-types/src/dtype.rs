@@ -174,26 +174,31 @@ impl_type_common!(
 pub trait FloatConst {
     const HALF: Self;
     const E: Self;
+    const PI: Self;
 }
 
 impl FloatConst for f32 {
     const HALF: Self = 0.5;
     const E: Self = std::f32::consts::E;
+    const PI: Self = std::f32::consts::PI;
 }
 
 impl FloatConst for f64 {
     const HALF: Self = 0.5;
     const E: Self = std::f64::consts::E;
+    const PI: Self = std::f64::consts::PI;
 }
 
 impl FloatConst for f16 {
     const HALF: Self = f16::from_f32_const(0.5);
     const E: Self = f16::from_f32_const(std::f32::consts::E);
+    const PI: Self = f16::from_f32_const(std::f32::consts::PI);
 }
 
 impl FloatConst for bf16 {
     const HALF: Self = bf16::from_f32_const(0.5);
     const E: Self = bf16::from_f32_const(std::f32::consts::E);
+    const PI: Self = bf16::from_f32_const(std::f32::consts::PI);
 }
 
 impl NormalOut for Dtype {

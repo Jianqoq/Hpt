@@ -14,6 +14,7 @@ pub mod ops {
         pub mod stack;
         pub mod softmax;
         pub mod unique;
+        pub mod hamming_window;
     }
 }
 pub mod backend;

@@ -489,7 +489,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     }
 
     fn arange<U>(start: U, end: U) -> Result<Self>
-        where T: Convertor + FromScalar<usize> + FromScalar<U> + NormalOut<T, Output = T>
+        where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>
     {
         Ok(_Tensor::arange(start, end)?.into())
     }

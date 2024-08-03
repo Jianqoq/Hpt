@@ -195,7 +195,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// let range_tensor = YourType::arange(0, 10); // Creates a tensor with values from 0 to 9
     /// ```
     fn arange<U>(start: U, end: U) -> anyhow::Result<Output>
-        where T: Convertor + FromScalar<usize> + FromScalar<U> + NormalOut<T, Output = T>;
+        where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>;
 
     /// Creates a tensor with a range of values from `start` to `end` (exclusive), using a specified step.
     ///

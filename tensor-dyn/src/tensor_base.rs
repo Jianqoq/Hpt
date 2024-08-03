@@ -650,7 +650,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
     }
 
     fn arange<U>(start: U, end: U) -> Result<Self>
-        where T: Convertor + FromScalar<usize> + FromScalar<U> + NormalOut<T, Output = T>
+        where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>
     {
         let start = T::__from(start);
         let end = T::__from(end);
@@ -664,7 +664,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             .into_par_iter()
             .enumerate()
             .for_each(|(i, x)| {
-                *x = start._add(T::__from(i));
+                *x = start._add(i.into_scalar());
             });
         Ok(data)
     }
