@@ -141,6 +141,13 @@ impl<T: CommonBounds> BaseTensor for Tensor<T> {
     }
 }
 
+impl<T: CommonBounds> BaseTensor for &Tensor<T> {
+    type Output = _Tensor<T>;
+    fn base(&self) -> &Self::Output {
+        &self.inner
+    }
+}
+
 impl<T: CommonBounds> Tensor<T> {
     /// Converts a tensor to a raw slice representing direct memory access.
     ///
@@ -776,7 +783,7 @@ impl<T> FloatUaryOps
 {
     type Output = Tensor<FloatType<T>>;
 
-    type InplaceOutput = Tensor<FloatType<T>>;
+    type InplaceOutput = _Tensor<FloatType<T>>;
 
     type OutputMeta = FloatType<T>;
 

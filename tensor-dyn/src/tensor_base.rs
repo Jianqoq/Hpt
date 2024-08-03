@@ -174,6 +174,13 @@ impl<T: CommonBounds> BaseTensor for _Tensor<T> {
     }
 }
 
+impl<T: CommonBounds> BaseTensor for &_Tensor<T> {
+    type Output = _Tensor<T>;
+    fn base(&self) -> &Self::Output {
+        &self
+    }
+}
+
 impl<T: CommonBounds> _Tensor<T> {
     /// Converts a tensor to a raw slice representing direct memory access.
     ///
