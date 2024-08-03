@@ -460,6 +460,41 @@ pub trait FloatUaryOps {
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>;
+
+    fn celu(&self, alpha: f64) -> anyhow::Result<Self::Output>;
+
+    fn celu_<U>(&self, alpha: f64, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>;
+
+    fn sigmoid(&self) -> Result<Self::Output>;
+
+    fn sigmoid_<U>(&self, out: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>;
+
+    fn elu(&self, alpha: f64) -> anyhow::Result<Self::Output>;
+
+    fn elu_<U>(&self, alpha: f64, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>;
+
+    fn leaky_relu(&self, alpha: f64) -> anyhow::Result<Self::Output>;
+
+    fn leaky_relu_<U>(&self, alpha: f64, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>;
+
+    fn gelu(&self) -> anyhow::Result<Self::Output>;
+
+    fn gelu_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>;
 }
 
 pub trait NormalUaryOps {
@@ -514,12 +549,23 @@ pub trait NormalUaryOps {
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>;
+
+    fn ceil(&self) -> Result<Self::Output>;
+
+    fn ceil_<U>(&self, out: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>;
+
+    fn sign(&self) -> Result<Self::Output>;
+
+    fn sign_<U>(&self, out: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>;
 }
 
-pub trait Cum
-where
-    Self: Sized,
-{
+pub trait Cum where Self: Sized {
     type Meta: CommonBounds;
 
     /// Comput cumsum along specified axis.
@@ -532,8 +578,7 @@ where
     /// assert_eq!(b, Tensor::new([[1f32, 2f32, 3f32], [5f32, 7f32, 9f32]]));
     /// ```
     fn cumsum(&self, axis: Option<i64>) -> Result<Self>
-    where
-        Self::Meta: NormalOut<Self::Meta, Output = Self::Meta>;
+        where Self::Meta: NormalOut<Self::Meta, Output = Self::Meta>;
 
     /// Comput cumprod along specified axis.
     ///
@@ -545,8 +590,7 @@ where
     /// assert_eq!(b, Tensor::new([[1f32, 2f32, 3f32], [4f32, 10f32, 18f32]]));
     /// ```
     fn cumprod(&self, axis: Option<i64>) -> Result<Self>
-    where
-        Self::Meta: NormalOut<Self::Meta, Output = Self::Meta>;
+        where Self::Meta: NormalOut<Self::Meta, Output = Self::Meta>;
 }
 
 pub trait Neg {

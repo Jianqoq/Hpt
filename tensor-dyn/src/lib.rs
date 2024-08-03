@@ -19,6 +19,7 @@ pub mod tensor;
 pub mod random;
 pub mod slice;
 pub mod to_tensor;
+pub use tensor_traits::*;
 
 use std::cell::RefCell;
 thread_local! {

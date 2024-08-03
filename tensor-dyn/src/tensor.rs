@@ -7,6 +7,7 @@ use tensor_traits::{
     ops::uary::FloatUaryOps,
     shape_manipulate::ShapeManipulate,
     tensor::{ CommonBounds, NormalReduce, TensorAlloc, TensorCreator, TensorInfo, TensorLike },
+    NormalUaryOps,
 };
 use tensor_types::{
     convertion::{ Convertor, FromScalar },
@@ -14,7 +15,11 @@ use tensor_types::{
     type_promote::{ Cmp, Eval, FloatOut, NormalOut },
 };
 use anyhow::Result;
-use crate::{ backend::Cpu, ops::cpu::{ stack::stack, uary::FloatType }, tensor_base::_Tensor };
+use crate::{
+    backend::Cpu,
+    ops::cpu::{ stack::stack, uary::{ FloatType, NormalType } },
+    tensor_base::_Tensor,
+};
 
 /// A wrapper of `Tensor` for user.
 /// This is the main tensor for user.
@@ -979,6 +984,122 @@ impl<T> FloatUaryOps for Tensor<T> where T: FloatOut + CommonBounds, FloatType<T
     }
 
     fn log10_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn celu(&self, alpha: f64) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::celu(self, alpha)?.into())
+    }
+
+    fn celu_<U>(&self, _: f64, _: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn sigmoid(&self) -> Result<Self::Output> {
+        Ok(_Tensor::sigmoid(self)?.into())
+    }
+
+    fn sigmoid_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn elu(&self, alpha: f64) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::elu(self, alpha)?.into())
+    }
+
+    fn elu_<U>(&self, _: f64, _: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn leaky_relu(&self, alpha: f64) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::leaky_relu(self, alpha)?.into())
+    }
+
+    fn leaky_relu_<U>(&self, _: f64, _: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn gelu(&self) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::gelu(self)?.into())
+    }
+
+    fn gelu_<U>(&self, _: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+}
+
+impl<T> NormalUaryOps for Tensor<T> where T: NormalOut + CommonBounds, NormalType<T>: CommonBounds {
+    type Output = Tensor<NormalType<T>>;
+
+    type InplaceOutput = Tensor<NormalType<T>>;
+
+    type OutputMeta = NormalType<T>;
+
+    fn square(&self) -> Result<Self::Output> {
+        Ok(_Tensor::square(self)?.into())
+    }
+
+    fn square_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn abs(&self) -> Result<Self::Output> {
+        Ok(_Tensor::abs(self)?.into())
+    }
+
+    fn abs_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn ceil(&self) -> Result<Self::Output> {
+        Ok(_Tensor::ceil(self)?.into())
+    }
+
+    fn ceil_<U>(&self, _: U) -> Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        todo!()
+    }
+
+    fn sign(&self) -> Result<Self::Output> {
+        Ok(_Tensor::sign(self)?.into())
+    }
+
+    fn sign_<U>(&self, _: U) -> Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>

@@ -171,6 +171,31 @@ impl_type_common!(
     Complex64::new(2.0, 0.0)
 );
 
+pub trait FloatConst {
+    const HALF: Self;
+    const E: Self;
+}
+
+impl FloatConst for f32 {
+    const HALF: Self = 0.5;
+    const E: Self = std::f32::consts::E;
+}
+
+impl FloatConst for f64 {
+    const HALF: Self = 0.5;
+    const E: Self = std::f64::consts::E;
+}
+
+impl FloatConst for f16 {
+    const HALF: Self = f16::from_f32_const(0.5);
+    const E: Self = f16::from_f32_const(std::f32::consts::E);
+}
+
+impl FloatConst for bf16 {
+    const HALF: Self = bf16::from_f32_const(0.5);
+    const E: Self = bf16::from_f32_const(std::f32::consts::E);
+}
+
 impl NormalOut for Dtype {
     type Output = Dtype;
 
@@ -191,6 +216,14 @@ impl NormalOut for Dtype {
     }
 
     fn _rem(self, rhs: Self) -> Dtype {
+        infer_enum_type!(self, rhs, normal)
+    }
+
+    fn _max(self, rhs: Self) -> Self::Output {
+        infer_enum_type!(self, rhs, normal)
+    }
+
+    fn _min(self, rhs: Self) -> Self::Output {
         infer_enum_type!(self, rhs, normal)
     }
 
@@ -329,6 +362,27 @@ impl FloatOut for Dtype {
     }
 
     fn _erf(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _celu(self, _: f64) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _sigmoid(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+    fn _elu(self, _: f64) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+    fn _leaky_relu(self, _: f64) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+    fn _relu(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+    
+    fn _gelu(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
 }

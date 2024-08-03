@@ -310,9 +310,68 @@ impl<T> FloatUaryOps for _Tensor<T> where T: FloatOut + CommonBounds, FloatType<
     {
         uary_fn_with_out(self, |x| x._log10(), out)
     }
+
+    fn celu(&self, alpha: f64) -> anyhow::Result<Self::Output> {
+        uary_fn(self, |x| x._celu(alpha))
+    }
+
+    fn celu_<U>(&self, alpha: f64, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        uary_fn_with_out(self, |x| x._celu(alpha), out)
+    }
+
+    fn sigmoid(&self) -> anyhow::Result<Self::Output> {
+        uary_fn(self, |x| x._sigmoid())
+    }
+
+    fn sigmoid_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        uary_fn_with_out(self, |x| x._sigmoid(), out)
+    }
+
+    fn elu(&self, alpha: f64) -> anyhow::Result<Self::Output> {
+        uary_fn(self, |x| x._elu(alpha))
+    }
+
+    fn elu_<U>(&self, alpha: f64, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        uary_fn_with_out(self, |x| x._elu(alpha), out)
+    }
+
+    fn leaky_relu(&self, alpha: f64) -> anyhow::Result<Self::Output> {
+        uary_fn(self, |x| x._leaky_relu(alpha))
+    }
+
+    fn leaky_relu_<U>(&self, alpha: f64, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        uary_fn_with_out(self, |x| x._leaky_relu(alpha), out)
+    }
+    
+    fn gelu(&self) -> anyhow::Result<Self::Output> {
+        uary_fn(self, |x| x._gelu())
+    }
+    
+    fn gelu_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta> {
+        uary_fn_with_out(self, |x| x._gelu(), out)
+    }
 }
 
-type NormalType<T> = <T as NormalOut>::Output;
+pub(crate) type NormalType<T> = <T as NormalOut>::Output;
 
 impl<T> NormalUaryOps for _Tensor<T> where T: NormalOut + CommonBounds, NormalType<T>: CommonBounds {
     type Output = _Tensor<NormalType<T>>;
@@ -343,6 +402,30 @@ impl<T> NormalUaryOps for _Tensor<T> where T: NormalOut + CommonBounds, NormalTy
                 TensorInfo<Self::OutputMeta>
     {
         uary_fn_with_out(self, |x| x._abs(), out)
+    }
+
+    fn ceil(&self) -> anyhow::Result<Self::Output> {
+        uary_fn(self, |x| x._ceil())
+    }
+
+    fn ceil_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        uary_fn_with_out(self, |x| x._ceil(), out)
+    }
+
+    fn sign(&self) -> anyhow::Result<Self::Output> {
+        uary_fn(self, |x| x._sign())
+    }
+
+    fn sign_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        uary_fn_with_out(self, |x| x._sign(), out)
     }
 }
 
@@ -493,7 +576,7 @@ impl<T> Cum for _Tensor<T> where T: CommonBounds {
                     Ok(res)
                 }
             }
-        }
+        };
     }
 
     fn cumprod(&self, axis: Option<i64>) -> anyhow::Result<Self>
@@ -510,7 +593,7 @@ impl<T> Cum for _Tensor<T> where T: CommonBounds {
                 }
                 let stride = self.strides()[_axis as usize];
                 let inner_loop = self.shape()[_axis as usize] as usize;
-                let outer_loop = (self.size()) / inner_loop;
+                let outer_loop = self.size() / inner_loop;
                 let mut shape = self.shape().to_vec();
                 shape.iter_mut().for_each(|x| {
                     *x -= 1;
@@ -618,6 +701,6 @@ impl<T> Cum for _Tensor<T> where T: CommonBounds {
                     Ok(res)
                 }
             }
-        }
+        };
     }
 }

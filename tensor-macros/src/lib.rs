@@ -625,6 +625,52 @@ pub fn impl_float_out(_: TokenStream) -> TokenStream {
                             erf(self.to_f64()).[<to_ #res_type>]()
                         }
                     }
+                    fn _celu(self, alpha: f64) -> Self::Output {
+                        paste::paste! {
+                            let x = self.[<to_ #res_type>]();
+                            let alpha = alpha.[<to_ #res_type>]();
+                            x.max(#res_type::ZERO) + (alpha * (x / alpha).exp() - #res_type::ONE).min(#res_type::ZERO)
+                        }
+                    }
+                    fn _sigmoid(self) -> Self::Output {
+                        paste::paste! {
+                            #res_type::ONE / (#res_type::ONE + (-self.[<to_ #res_type>]()).exp())
+                        }
+                    }
+                    fn _elu(self, alpha: f64) -> Self::Output {
+                        paste::paste! {
+                            let x = self.[<to_ #res_type>]();
+                            let alpha = alpha.[<to_ #res_type>]();
+                            if x >= #res_type::ZERO {
+                                x
+                            } else {
+                                alpha * (x.exp() - #res_type::ONE)
+                            }
+                        }
+                    }
+                    fn _leaky_relu(self, alpha: f64) -> Self::Output {
+                        paste::paste! {
+                            let x = self.[<to_ #res_type>]();
+                            let alpha = alpha.[<to_ #res_type>]();
+                            if x >= #res_type::ZERO {
+                                x
+                            } else {
+                                alpha * x
+                            }
+                        }
+                    }
+                    fn _relu(self) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().max(#res_type::ZERO)
+                        }
+                    }
+                    fn _gelu(self) -> Self::Output {
+                        paste::paste! {
+                            let x = self.[<to_ #res_type>]();
+                            let sqrt2_over_2 = std::f64::consts::FRAC_1_SQRT_2;
+                            #res_type::HALF * x * (#res_type::ONE + erf(x.to_f64() * sqrt2_over_2).[<to_ #res_type>]())
+                        }
+                    }
                 }
             };
             ret.extend(res);
@@ -761,6 +807,20 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                 }
             };
 
+            let cmp_method =
+                quote! {
+                    fn _max(self, rhs: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().max(rhs.[<to_ #res_type>]())
+                        }
+                    }
+                    fn _min(self, rhs: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().min(rhs.[<to_ #res_type>]())
+                        }
+                    }
+                };
+
             let res =
                 quote! {
                 impl NormalOut<#rhs_dtype> for #lhs_dtype {
@@ -796,6 +856,7 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                     #ceil_method
                     #floor_method
                     #sign_method
+                    #cmp_method
                 }
             };
             ret.extend(res);

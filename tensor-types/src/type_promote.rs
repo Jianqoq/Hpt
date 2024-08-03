@@ -4,6 +4,7 @@ use crate::convertion::Convertor;
 use num_traits::float::Float;
 use crate::dtype::TypeCommon;
 use statrs::function::erf::erf;
+use crate::dtype::FloatConst;
 
 /// this trait is used to perform type promotion in dynamic graph
 pub trait FloatOut<RHS = Self> {
@@ -13,6 +14,7 @@ pub trait FloatOut<RHS = Self> {
     fn _exp2(self) -> Self::Output;
     fn _ln(self) -> Self::Output;
     fn _log(self, base: RHS) -> Self::Output;
+    fn _celu(self, alpha: f64) -> Self::Output;
     fn _log2(self) -> Self::Output;
     fn _log10(self) -> Self::Output;
     fn _sqrt(self) -> Self::Output;
@@ -30,6 +32,11 @@ pub trait FloatOut<RHS = Self> {
     fn _atanh(self) -> Self::Output;
     fn _recip(self) -> Self::Output;
     fn _erf(self) -> Self::Output;
+    fn _sigmoid(self) -> Self::Output;
+    fn _elu(self, alpha: f64) -> Self::Output;
+    fn _leaky_relu(self, alpha: f64) -> Self::Output;
+    fn _relu(self) -> Self::Output;
+    fn _gelu(self) -> Self::Output;
 }
 
 impl_float_out!();
@@ -46,6 +53,8 @@ pub trait NormalOut<RHS = Self> {
     fn _ceil(self) -> Self::Output;
     fn _floor(self) -> Self::Output;
     fn _sign(self) -> Self::Output;
+    fn _max(self, rhs: RHS) -> Self::Output;
+    fn _min(self, rhs: RHS) -> Self::Output;
 }
 
 impl_normal_out!();
