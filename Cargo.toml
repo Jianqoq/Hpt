@@ -25,6 +25,7 @@ tensor-macros = { path = "tensor-macros" }
 num-traits = "0.2.19"
 anyhow = "1.0.40"
 rand = "0.8.5"
+cudarc = { version = "0.11.8", features = ["cuda-12050"] }
 
 [[bin]]
 name = "etensor"

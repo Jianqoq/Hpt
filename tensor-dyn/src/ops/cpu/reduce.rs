@@ -487,7 +487,7 @@ macro_rules! body {
                         res_shape.clone(),
                     );
                     let barrier = Arc::new(Barrier::new(num_threads + 1));
-                    for _ in (0..num_threads).rev() {
+                    for _ in 0..num_threads {
                         let mut iterator = iterators.pop().unwrap();
                         let mut result_ptr_c = iterator.res_ptrs;
                         let mut a_data_ptr = iterator.ptrs;

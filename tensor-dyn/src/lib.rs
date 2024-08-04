@@ -18,6 +18,8 @@ pub mod ops {
         pub mod hann_window;
         pub mod hardmax;
         pub mod blackman_window;
+        pub mod onehot;
+        pub mod affine_grid;
     }
 }
 pub mod backend;

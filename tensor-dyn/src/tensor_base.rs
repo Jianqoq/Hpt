@@ -1436,3 +1436,25 @@ impl<T> Into<Tensor<T>> for &Tensor<T> {
         Tensor { inner: self.inner.clone() }
     }
 }
+
+impl<'a, T> Into<_Tensor<T>> for &'a [T] {
+    fn into(self) -> _Tensor<T> {
+        let shape = vec![self.len() as i64];
+        let strides = vec![1];
+        let layout = Layout::new(shape, strides);
+        let mem_layout = std::alloc::Layout
+            ::from_size_align(self.len() * std::mem::size_of::<T>(), 8)
+            .unwrap();
+        let ptr = unsafe { CACHE.allocate(mem_layout.clone()) };
+        unsafe {
+            std::ptr::copy_nonoverlapping(self.as_ptr(), ptr as *mut T, self.len());
+        }
+        _Tensor {
+            data: Pointer::new(ptr as *mut T),
+            parent: None,
+            layout,
+            mem_layout: Arc::new(mem_layout),
+            _backend: Backend::new(),
+        }
+    }
+}

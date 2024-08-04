@@ -18,11 +18,25 @@ impl<T> _Tensor<T> where T: CommonBounds {
             1
         )?;
         let res_ptr: *mut T = unsafe { self.data.ptr.offset(offset as isize) };
-        return Ok(self.from_slice(res_ptr, res_shape, res_strides));
+        Ok(self.from_slice(res_ptr, res_shape, res_strides))
     }
 
     pub fn from_slice(&self, ptr: *mut T, shape: Vec<i64>, strides: Vec<i64>) -> _Tensor<T> {
-        return if self.parent.is_none() {
+        let (shape, strides) = if shape.contains(&0) {
+            let mut new_shape = Vec::new();
+            let mut new_strides = Vec::new();
+            for (i, &s) in shape.iter().enumerate() {
+                if s == 0 {
+                    continue;
+                }
+                new_shape.push(s);
+                new_strides.push(strides[i]);
+            }
+            (new_shape, new_strides)
+        } else {
+            (shape, strides)
+        };
+        if self.parent.is_none() {
             Self {
                 data: Pointer::new(ptr),
                 parent: Some(self.data),
