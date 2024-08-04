@@ -1,0 +1,199 @@
+use std::fmt::Debug;
+use std::sync::Arc;
+use std::sync::Barrier;
+
+use crate::tensor_base::_Tensor;
+use crate::THREAD_POOL;
+use rand::Rng;
+use tensor_common::shape_utils::mt_intervals;
+use tensor_traits::CommonBounds;
+use tensor_traits::ShapeManipulate;
+use tensor_traits::TensorCreator;
+use tensor_traits::TensorInfo;
+
+impl<T> _Tensor<T> where T: CommonBounds + PartialOrd + Debug {
+    pub fn topk(
+        &self,
+        k: i64,
+        dim: i64,
+        largest: bool,
+        sorted: bool
+    ) -> anyhow::Result<(_Tensor<i64>, _Tensor<T>)> {
+        let mut axes = (0..self.ndim() as i64).collect::<Vec<i64>>();
+        axes.swap(dim as usize, self.ndim() - 1);
+        let transposed = self.permute(&axes)?;
+        let res_shape = self
+            .shape()
+            .iter()
+            .enumerate()
+            .map(|(idx, x)| {
+                if idx == (dim as usize) { k } else { *x }
+            })
+            .collect::<Vec<i64>>();
+        let res = _Tensor::<T>::empty(&res_shape)?;
+        let res_indices = _Tensor::<i64>::empty(&res_shape)?;
+        let transposed_res = res.permute(&axes)?;
+        let transposed_res_indices = res_indices.permute(&axes)?;
+
+        let outer_loop_size = self.size() / (*self.shape().last().unwrap() as usize);
+
+        let mut res_ptr = transposed_res.ptr();
+        let mut res_indices_ptr = transposed_res_indices.ptr();
+        let transposed_res_shape = transposed_res.shape();
+        let transposed_res_strides = transposed_res.strides();
+        THREAD_POOL.with_borrow_mut(move |x| {
+            let num_threads = if outer_loop_size < x.max_count() {
+                1
+            } else {
+                1
+            };
+            let intervals = mt_intervals(outer_loop_size, num_threads);
+
+            let mut prgs = vec![];
+            let mut ptrs = vec![];
+            let mut res_ptrs = vec![];
+            let mut res_indices_ptrs = vec![];
+            let mut res_prgs = vec![];
+
+            for (start, _) in intervals.iter() {
+                let mut ptr = transposed.ptr();
+
+                let mut curent_shape_prg: Vec<i64> = vec![0; self.shape().len()];
+                let mut res_shape_prg: Vec<i64> = vec![0; transposed_res_shape.len()];
+                let mut amount = start * (*self.shape().last().unwrap() as usize);
+                let mut res_amount = start * (*transposed_res_shape.last().unwrap() as usize);
+                let mut index = 0;
+                let mut res_index = 0;
+                for j in (0..self.ndim()).rev() {
+                    curent_shape_prg[j] = (amount as i64) % self.shape()[j];
+                    res_shape_prg[j] = (res_amount as i64) % transposed_res_shape[j];
+                    amount /= self.shape()[j] as usize;
+                    res_amount /= transposed_res_shape[j] as usize;
+                    index += curent_shape_prg[j] * self.strides()[j];
+                    res_index += res_shape_prg[j] * transposed_res_strides[j];
+                }
+                ptr.offset(index);
+                prgs.push(curent_shape_prg);
+                ptrs.push(ptr);
+                res_ptr.offset(res_index);
+                res_indices_ptr.offset(res_index);
+                res_ptrs.push(res_ptr);
+                res_indices_ptrs.push(res_indices_ptr);
+                res_prgs.push(res_shape_prg);
+            }
+            let barrier = Arc::new(Barrier::new(num_threads + 1));
+            for (
+                (((((start, end), mut prg), mut res_prg), mut ptr), mut res_ptr),
+                mut res_indices_ptr,
+            ) in intervals
+                .into_iter()
+                .rev()
+                .zip(prgs.into_iter().rev())
+                .zip(res_prgs.into_iter().rev())
+                .zip(ptrs.into_iter().rev())
+                .zip(res_ptrs.into_iter().rev())
+                .zip(res_indices_ptrs.into_iter().rev()) {
+                let inner_loop = *transposed.shape().last().unwrap() as isize;
+                let res_inner_loop = *transposed_res_shape.last().unwrap() as isize;
+                let barrier_clone = barrier.clone();
+                let tls = *transposed.strides().last().unwrap() as isize;
+                let rls = *transposed_res_strides.last().unwrap() as isize;
+                let ndim = transposed.ndim() as i64;
+                let ts = transposed.strides().clone();
+                let rts = transposed_res_strides.clone();
+                let tsp = transposed.shape().clone();
+                let rtsp = transposed_res_shape.clone();
+                x.execute(move || {
+                    for _ in start..end {
+                        let mut data = Vec::with_capacity(inner_loop as usize);
+                        for i in 0..inner_loop {
+                            data.push(ptr[i * tls]);
+                        }
+                        let mut res = topk_with_indices(&mut data, k as usize).to_vec();
+                        println!("{:?}", res);
+                        res.sort_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap());
+                        for i in 0..res_inner_loop {
+                            let (val, idx) = res[i as usize];
+                            res_ptr[i * rls] = val;
+                            res_indices_ptr[i * rls] = idx as i64;
+                        }
+                        for j in (0..ndim - 1).rev() {
+                            let j = j as usize;
+                            if prg[j] < tsp[j] - 1 {
+                                prg[j] += 1;
+                                ptr.offset(ts[j]);
+                                break;
+                            } else {
+                                prg[j] = 0;
+                                ptr.offset(-ts[j] * (tsp[j] - 1));
+                            }
+                            if res_prg[j] < rtsp[j] - 1 {
+                                res_prg[j] += 1;
+                                res_ptr.offset(rts[j]);
+                                res_indices_ptr.offset(rts[j]);
+                                break;
+                            } else {
+                                res_prg[j] = 0;
+                                res_ptr.offset(-rts[j] * (rtsp[j] - 1));
+                                res_indices_ptr.offset(-rts[j] * (rtsp[j] - 1));
+                            }
+                        }
+                    }
+                    barrier_clone.wait();
+                });
+            }
+            barrier.wait();
+        });
+        axes.swap(dim as usize, self.ndim() - 1);
+        Ok((transposed_res_indices.permute(&axes)?, transposed_res.permute(&axes)?))
+    }
+}
+
+fn topk_with_indices<T: PartialOrd + Clone + Copy>(arr: &mut [T], k: usize) -> Vec<(T, usize)> {
+    let n = arr.len();
+    let mut arr_with_index: Vec<(T, usize)> = arr
+        .iter()
+        .cloned()
+        .enumerate()
+        .map(|(idx, val)| (val, idx))
+        .collect();
+    quickselect_with_indices(&mut arr_with_index, 0, n - 1, n - k);
+    arr_with_index[n - k..].to_vec()
+}
+
+fn quickselect_with_indices<T: PartialOrd + Copy>(
+    arr: &mut [(T, usize)],
+    low: usize,
+    high: usize,
+    k: usize
+) {
+    if low < high {
+        let pi = partition_with_indices(arr, low, high);
+        if pi > k {
+            quickselect_with_indices(arr, low, pi - 1, k);
+        } else if pi < k {
+            quickselect_with_indices(arr, pi + 1, high, k);
+        }
+    }
+}
+
+fn partition_with_indices<T: PartialOrd + Copy>(
+    arr: &mut [(T, usize)],
+    low: usize,
+    high: usize
+) -> usize {
+    let mut rng = rand::thread_rng();
+    let pivot_index = rng.gen_range(low..=high);
+    arr.swap(pivot_index, high);
+    let pivot = arr[high];
+    let mut i = low;
+
+    for j in low..high {
+        if arr[j].0 <= pivot.0 {
+            arr.swap(i, j);
+            i += 1;
+        }
+    }
+    arr.swap(i, high);
+    i
+}

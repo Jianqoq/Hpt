@@ -1,5 +1,5 @@
 use serde::ser::SerializeStruct;
-use std::{ alloc::Layout, fmt::{ Debug, Display, Formatter }, ops::{ Deref, Index } };
+use std::{ alloc::Layout, fmt::{ Debug, Display, Formatter }, ops::{ Deref, Index, IndexMut } };
 
 use serde::Serialize;
 
@@ -223,6 +223,25 @@ impl<T: Display> Index<i64> for Pointer<T> {
     type Output = T;
     fn index(&self, index: i64) -> &Self::Output {
         unsafe { &*self.ptr.offset(index as isize) }
+    }
+}
+
+impl<T: Display> Index<isize> for Pointer<T> {
+    type Output = T;
+    fn index(&self, index: isize) -> &Self::Output {
+        unsafe { &*self.ptr.offset(index) }
+    }
+}
+
+impl<T: Display> IndexMut<i64> for Pointer<T> {
+    fn index_mut(&mut self, index: i64) -> &mut Self::Output {
+        unsafe { &mut *self.ptr.offset(index as isize) }
+    }
+}
+
+impl<T: Display> IndexMut<isize> for Pointer<T> {
+    fn index_mut(&mut self, index: isize) -> &mut Self::Output {
+        unsafe { &mut *self.ptr.offset(index) }
     }
 }
 

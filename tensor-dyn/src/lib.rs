@@ -21,6 +21,7 @@ pub mod ops {
         pub mod onehot;
         pub mod affine_grid;
         pub mod pad;
+        pub mod topk;
     }
 }
 pub mod backend;

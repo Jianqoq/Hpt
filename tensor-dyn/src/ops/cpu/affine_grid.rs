@@ -41,10 +41,10 @@ impl<T> _Tensor<T>
             THREAD_POOL.with_borrow_mut(|x| {
                 let outer_loop_size = grid.size() / 2;
                 let num_threads;
-                if outer_loop_size < rayon::current_num_threads() {
+                if outer_loop_size < x.max_count() {
                     num_threads = outer_loop_size;
                 } else {
-                    num_threads = rayon::current_num_threads();
+                    num_threads = x.max_count();
                 }
                 let mut intervals = mt_intervals(outer_loop_size, num_threads);
                 let mut ptrs = Vec::new();

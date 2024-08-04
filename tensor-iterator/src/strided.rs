@@ -193,7 +193,7 @@ impl<T> UnindexedProducer for Strided<T> where T: CommonBounds {
             let mut amount =
                 self.intervals[self.start_index].0 * (*self.shape().last().unwrap() as usize);
             let mut index = 0;
-            for j in (0..=self.shape().len() - 1).rev() {
+            for j in (0..self.shape().len()).rev() {
                 curent_shape_prg[j] = (amount as i64) % self.shape()[j];
                 amount /= self.shape()[j] as usize;
                 index += curent_shape_prg[j] * self.strides()[j];

@@ -11,7 +11,7 @@ macro_rules! sum_kernel {
         $shape_len:ident
     ) => {
         for _ in 0..$loop_size2 {
-            let mut tmp = $result_ptr[0];
+            let mut tmp = $result_ptr[0isize];
             for i in 0..$loop_size as i64 {
                 let a_val = $a_ptr[i * $a_last_stride];
                 tmp = a_val._add(tmp);
@@ -90,7 +90,7 @@ macro_rules! sum_with_cast_kernel {
         $shape_len:ident
     ) => {
         for _ in 0..$loop_size2 {
-            let mut tmp = $result_ptr[0];
+            let mut tmp = $result_ptr[0isize];
             for i in 0..$loop_size as i64 {
                 let a_val = $a_ptr[i * $a_last_stride];
                 tmp = B::__from(a_val._add(tmp));
@@ -169,7 +169,7 @@ macro_rules! cumsum_kernel {
         $shape_len:ident
     ) => {
         for _ in 0..$loop_size2 {
-            let mut tmp = $result_ptr[0];
+            let mut tmp = $result_ptr[0isize];
             for i in 0..$loop_size {
                 let a_val = $a_ptr[i * $a_last_stride];
                 tmp = a_val._add(tmp);
@@ -248,7 +248,7 @@ macro_rules! nansum_kernel {
         $shape_len:ident
     ) => {
         for _ in 0..$loop_size2 {
-            let mut tmp = $result_ptr[0];
+            let mut tmp = $result_ptr[0isize];
             for i in 0..$loop_size as i64 {
                 let a_val = $a_ptr[i * $a_last_stride];
                 if a_val._is_nan() {
@@ -339,7 +339,7 @@ macro_rules! prod_kernel {
         $shape_len:ident
     ) => {
         for _ in 0..$loop_size2 {
-            let mut tmp = $result_ptr[0];
+            let mut tmp = $result_ptr[0isize];
             for i in 0..$loop_size as i64 {
                 tmp = $a_ptr[i * $a_last_stride]._mul(tmp);
             }
@@ -417,7 +417,7 @@ macro_rules! nanprod_kernel {
         $shape_len:ident
     ) => {
         for _ in 0..$loop_size2 {
-            let mut tmp = $result_ptr[0];
+            let mut tmp = $result_ptr[0isize];
             for i in 0..$loop_size as i64 {
                 let a_val = $a_ptr[i * $a_last_stride];
                 if !a_val._is_nan() {
@@ -505,7 +505,7 @@ macro_rules! min_kernel {
         $shape_len:ident
     ) => {
         for _ in 0..$loop_size2 {
-            let mut tmp = $result_ptr[0];
+            let mut tmp = $result_ptr[0isize];
             for i in 0..$loop_size as i64 {
                 let a_val = $a_ptr[i * $a_last_stride];
                 if a_val._lt(tmp) {
@@ -588,7 +588,7 @@ macro_rules! max_kernel {
         $shape_len:ident
     ) => {
         for _ in 0..$loop_size2 {
-            let mut tmp = $result_ptr[0];
+            let mut tmp = $result_ptr[0isize];
             for i in 0..$loop_size as i64 {
                 let a_val = $a_ptr[i * $a_last_stride];
                 if a_val._gt(tmp) {
@@ -671,7 +671,7 @@ macro_rules! all_kernel {
         $shape_len:ident
     ) => {
         for _ in 0..$loop_size2 {
-            let mut tmp = $result_ptr[0];
+            let mut tmp = $result_ptr[0isize];
             for i in 0..$loop_size as i64 {
                 let a_val = $a_ptr[i * $a_last_stride];
                 tmp = a_val._is_true() & tmp;
@@ -752,7 +752,7 @@ macro_rules! any_kernel {
         $shape_len:ident
     ) => {
         for _ in 0..$loop_size2 {
-            let mut tmp = $result_ptr[0];
+            let mut tmp = $result_ptr[0isize];
             for i in 0..$loop_size as i64 {
                 let a_val = $a_ptr[i * $a_last_stride];
                 tmp = a_val._is_true() | tmp;

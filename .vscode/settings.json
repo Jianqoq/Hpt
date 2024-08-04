@@ -2,7 +2,4 @@
     "files.associations": {
         "xutility": "cpp"
     },
-    "rust-analyzer.runnables.extraEnv": {
-        "RUST_TEST_THREADS": "1"
-    }
 }
