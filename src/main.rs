@@ -1,14 +1,22 @@
+use tensor_common::slice;
 use tensor_dyn::{ tensor::Tensor, tensor_base::_Tensor };
 use tensor_traits::*;
+use tensor_dyn::slice::SliceOps;
+use tensor_macros::match_selection;
+use tensor_common::slice::Slice;
+use rayon::iter::ParallelIterator;
 
 fn main() -> anyhow::Result<()> {
-    let a = Tensor::<f32>::arange(0.0, 30000.0)?.reshape(&[5000, 2, 3])?;
+    let a = Tensor::<f32>::arange(0.0, 9.0)?.reshape(&[3, 3])?;
 
-    let mut grid = _Tensor::<f32>::affine_grid(&a, &[5000, 5, 3, 4], false)?;
-    let now = std::time::Instant::now();
-    for _ in 0..10000 {
-        grid = _Tensor::<f32>::affine_grid(&a, &[5000, 5, 3, 4], false)?;
-    }
-    println!("{:?}", now.elapsed());
+    let b = Tensor::<f32>::ones(&[5, 5])?;
+    
+    let sliced_b = slice!(b[1:4, 1:4])?;
+    println!("{:?}", sliced_b);
+    sliced_b.iter_mut().zip(a.iter()).for_each(|(x, y)| {
+        *x = y;
+    });
+
+    println!("{:?}", b);
     Ok(())
 }

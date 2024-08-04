@@ -96,11 +96,7 @@ impl<'a, A, B> StridedZip<'a, A, B>
 
     pub fn zip<C>(mut self, mut other: C) -> StridedZip<'a, Self, C>
         where
-            C: UnindexedProducer +
-                IterGetSet +
-                ShapeManipulator +
-                ParallelIterator +
-                IterGetSet,
+            C: UnindexedProducer + IterGetSet + ShapeManipulator + ParallelIterator + IterGetSet,
             Self: UnindexedProducer + IterGetSet + ShapeManipulator,
             <C as IterGetSet>::Item: Send,
             <Self as IterGetSet>::Item: Send
@@ -186,7 +182,7 @@ impl<'a, A, B> UnindexedProducer
 
     fn fold_with<F>(mut self, mut folder: F) -> F where F: Folder<Self::Item> {
         let outer_loop_size = self.outer_loop_size();
-        let inner_loop_size = self.inner_loop_size();
+        let inner_loop_size = self.inner_loop_size() + 1;
         for _ in 0..outer_loop_size {
             for idx in 0..inner_loop_size {
                 folder = folder.consume(self.inner_loop_next(idx));

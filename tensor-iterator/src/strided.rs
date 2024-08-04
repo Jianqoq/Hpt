@@ -154,7 +154,7 @@ impl<T: Copy + Display> IterGetSet for Strided<T> {
     }
 
     fn inner_loop_size(&self) -> usize {
-        self.shape()[self.shape().len() - 1] as usize
+        self.shape().last().unwrap().clone() as usize
     }
 
     fn next(&mut self) {

@@ -35,7 +35,6 @@ impl<'a, T: CommonBounds> StridedMut<'a, T> {
         // if collapse all is true, then the outer loop size is the product of all the elements in the shape
         // inner_loop_size in this case will be useless
         let outer_loop_size = (new_shape.size() as usize) / inner_loop_size;
-
         let num_threads;
         if outer_loop_size < rayon::current_num_threads() {
             num_threads = outer_loop_size;
@@ -114,14 +113,16 @@ impl<'a, T: 'a> IterGetSet for StridedMut<'a, T> where T: CommonBounds {
         self.base.shape()
     }
 
-    fn broadcast_set_strides(&mut self, _: &Shape) {}
+    fn broadcast_set_strides(&mut self, shape: &Shape) {
+        self.base.broadcast_set_strides(shape);
+    }
 
     fn outer_loop_size(&self) -> usize {
-        (self.shape().size() as usize) / self.inner_loop_size()
+        self.base.outer_loop_size()
     }
 
     fn inner_loop_size(&self) -> usize {
-        self.shape()[self.shape().len() - 1] as usize
+        self.base.inner_loop_size()
     }
 
     fn next(&mut self) {
