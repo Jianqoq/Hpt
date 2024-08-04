@@ -74,7 +74,7 @@ fn main_loop_push_str<U, T>(
                     string.push_str("\n");
                     string.push_str(&" ".repeat(k + 1 + "Tensor(".len()));
                     string.push_str("...");
-                    string.push_str("\n");
+                    string.push_str("\n\n");
                     string.push_str(&" ".repeat(k + 1 + "Tensor(".len()));
                     string.push_str(&"[".repeat(tensor.ndim() - (k + 1)));
                     ptr.offset(tensor.strides()[k] * (tensor.shape()[k] - (row_threshold as i64)));
