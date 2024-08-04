@@ -22,6 +22,7 @@ pub mod ops {
         pub mod affine_grid;
         pub mod pad;
         pub mod topk;
+        pub mod shrink;
     }
 }
 pub mod backend;
