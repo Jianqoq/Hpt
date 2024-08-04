@@ -1,18 +1,19 @@
 use std::cmp::Ordering;
-use std::fmt::Debug;
 use std::sync::Arc;
 use std::sync::Barrier;
 
+use crate::tensor::Tensor;
 use crate::tensor_base::_Tensor;
 use crate::THREAD_POOL;
 use rand::Rng;
 use tensor_common::shape_utils::mt_intervals;
+use tensor_traits::BaseTensor;
 use tensor_traits::CommonBounds;
 use tensor_traits::ShapeManipulate;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
 
-impl<T> _Tensor<T> where T: CommonBounds + PartialOrd + Debug {
+impl<T> _Tensor<T> where T: CommonBounds + PartialOrd {
     pub fn topk(
         &self,
         k: i64,
@@ -154,6 +155,19 @@ impl<T> _Tensor<T> where T: CommonBounds + PartialOrd + Debug {
             barrier.wait();
         });
         Ok((transposed_res_indices.permute(&axes)?, transposed_res.permute(&axes)?))
+    }
+}
+
+impl<T> Tensor<T> where T: CommonBounds + PartialOrd {
+    pub fn topk(
+        &self,
+        k: i64,
+        dim: i64,
+        largest: bool,
+        sorted: bool
+    ) -> anyhow::Result<(Tensor<i64>, Tensor<T>)> {
+        let (a, b) = self.base().topk(k, dim, largest, sorted)?;
+        Ok((a.into(), b.into()))
     }
 }
 
