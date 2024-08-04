@@ -8,6 +8,8 @@ use tensor_common::pointer::Pointer;
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use tensor_types::dtype::Dtype;
 
+use crate::formats::format_val;
+
 /// # Internal Function
 /// Pushes the string representation of the tensor to the string.
 fn main_loop_push_str<U, T>(
@@ -31,28 +33,7 @@ fn main_loop_push_str<U, T>(
     for _ in 0..outer_loop {
         let mut offset = 0;
         for j in 0..inner_loop {
-            let mut val = ptr[offset].to_string();
-            if
-                T::ID == Dtype::F32 ||
-                T::ID == Dtype::F64 ||
-                T::ID == Dtype::F16 ||
-                T::ID == Dtype::BF16
-            {
-                let tmp_val: f64 = val.parse::<f64>()?;
-                if tmp_val - (tmp_val as i64 as f64) != 0.0 {
-                    val = format!("{:.*}", precision, ptr[offset]);
-                } else {
-                    val = format!("{}.0", ptr[offset]);
-                }
-            } else if T::ID == Dtype::C32 || T::ID == Dtype::C64 {
-                let tmp_val: Complex32 = val.parse::<Complex32>().unwrap();
-                if
-                    tmp_val.re - (tmp_val.re as i64 as f32) != 0.0 ||
-                    tmp_val.im - (tmp_val.im as i64 as f32) != 0.0
-                {
-                    val = format!("{:.*}", precision, ptr[offset]);
-                }
-            }
+            let val = format_val(ptr[offset], precision);
             string.push_str(&format!("{:>width$}", val, width = col_width[j]));
             if j < inner_loop - 1 {
                 string.push(' ');
@@ -104,35 +85,8 @@ fn main_loop_get_width<U, T>(
     for _ in 0..outer_loop {
         let mut offset: i64 = 0;
         for j in 0..inner_loop {
-            let mut val: String = ptr[offset].to_string();
-            if
-                T::ID == Dtype::F32 ||
-                T::ID == Dtype::F64 ||
-                T::ID == Dtype::F16 ||
-                T::ID == Dtype::BF16
-            {
-                // the val is float
-                let tmp_val: f64 = val.parse::<f64>()?;
-                if tmp_val - (tmp_val as i64 as f64) != 0.0 {
-                    // if the float number has decimal part and the decimal part is not zero
-                    // then we cut the decimal part with precision
-                    val = format!("{:.*}", precision, ptr[offset]);
-                } else {
-                    val = format!("{}.0", ptr[offset]);
-                }
-                col_width[j] = std::cmp::max(col_width[j], val.len());
-            } else if T::ID == Dtype::C32 || T::ID == Dtype::C64 {
-                let tmp_val: Complex32 = val.parse::<Complex32>().unwrap();
-                if
-                    tmp_val.re - (tmp_val.re as i64 as f32) != 0.0 ||
-                    tmp_val.im - (tmp_val.im as i64 as f32) != 0.0
-                {
-                    val = format!("{:.*}", precision, ptr[offset]);
-                }
-                col_width[j] = std::cmp::max(col_width[j], val.len());
-            } else {
-                col_width[j] = std::cmp::max(col_width[j], val.len());
-            }
+            let val = format_val(ptr[offset], precision);
+            col_width[j] = std::cmp::max(col_width[j], val.len());
             offset += last_stride;
         }
         for k in (0..tensor.ndim() - 1).rev() {

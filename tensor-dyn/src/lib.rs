@@ -20,6 +20,7 @@ pub mod ops {
         pub mod blackman_window;
         pub mod onehot;
         pub mod affine_grid;
+        pub mod pad;
     }
 }
 pub mod backend;
