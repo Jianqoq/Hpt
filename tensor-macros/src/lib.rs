@@ -714,6 +714,12 @@ pub fn impl_float_out(_: TokenStream) -> TokenStream {
                             x / (#res_type::ONE + x.abs())
                         }
                     }
+                    fn _mish(self) -> Self::Output {
+                        paste::paste! {
+                            let x = self.[<to_ #res_type>]();
+                            x * (#res_type::ONE + x.exp()).ln().tanh()
+                        }
+                    }
                 }
             };
             ret.extend(res);

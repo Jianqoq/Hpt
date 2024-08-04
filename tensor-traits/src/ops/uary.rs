@@ -495,6 +495,11 @@ pub trait FloatUaryOps {
 
     fn softsign_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
+
+    fn mish(&self) -> anyhow::Result<Self::Output>;
+
+    fn mish_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>;
 }
 
 pub trait NormalUaryOps {

@@ -43,6 +43,7 @@ pub trait FloatOut<RHS = Self> {
     fn _hard_swish(self) -> Self::Output;
     fn _softplus(self) -> Self::Output;
     fn _softsign(self) -> Self::Output;
+    fn _mish(self) -> Self::Output;
 }
 
 impl_float_out!();

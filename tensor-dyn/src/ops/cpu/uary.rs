@@ -420,6 +420,16 @@ impl<T> FloatUaryOps
     {
         uary_fn_with_out(self, |x| x._softsign(), out.base().clone())
     }
+
+    fn mish(&self) -> anyhow::Result<Self::Output> {
+        uary_fn(self, |x| x._mish())
+    }
+
+    fn mish_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
+    {
+        uary_fn_with_out(self, |x| x._mish(), out.base().clone())
+    }
 }
 
 pub(crate) type NormalType<T> = <T as NormalOut>::Output;

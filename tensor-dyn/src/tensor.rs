@@ -1104,6 +1104,16 @@ impl<T> FloatUaryOps
     {
         Ok(_Tensor::softsign_(self, out.base().clone())?.into())
     }
+
+    fn mish(&self) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::mish(self)?.into())
+    }
+
+    fn mish_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+        where U: BaseTensor<Output = Self::InplaceOutput>
+    {
+        Ok(_Tensor::mish_(self, out.base().clone())?.into())
+    }
 }
 
 impl<T> NormalUaryOps
