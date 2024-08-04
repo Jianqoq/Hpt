@@ -8,6 +8,7 @@ use tensor_traits::{
     shape_manipulate::ShapeManipulate,
     tensor::{ CommonBounds, NormalReduce, TensorAlloc, TensorCreator, TensorInfo, TensorLike },
     BaseTensor,
+    FloatReduce,
     NormalUaryOps,
 };
 use tensor_types::{
@@ -770,6 +771,36 @@ for Tensor<T> {
 
     fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::BoolOutput> {
         Ok(_Tensor::any(self, axis, keep_dims)?.into())
+    }
+
+    fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::reducel1(self, axis, keep_dims)?.into())
+    }
+}
+
+impl<T> FloatReduce<T>
+    for Tensor<T>
+    where
+        T: CommonBounds                                                                                 // prettier-ignore
+        + NormalOut<T, Output = T>                                                                                  // prettier-ignore
+        + NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output>                          // prettier-ignore
+        + FloatOut, // prettier-ignore
+        <T as FloatOut>::Output: CommonBounds                                                           // prettier-ignore
+        + NormalOut<T, Output = <T as FloatOut>::Output>
+        + FloatOut<Output = <T as FloatOut>::Output>
+        + NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output> // prettier-ignore
+        + FromScalar<usize>, // prettier-ignore
+        f64: IntoScalar<<T as NormalOut>::Output> // prettier-ignore
+{
+    type Output = _Tensor<<T as FloatOut>::Output>;
+    fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::mean(self, axis, keep_dims)?.into())
+    }
+    fn reducel2<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::reducel2(self, axis, keep_dims)?.into())
+    }
+    fn reducel3<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::reducel3(self, axis, keep_dims)?.into())
     }
 }
 

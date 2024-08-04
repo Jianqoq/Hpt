@@ -1,17 +1,6 @@
 use crate::tensor_base::_Tensor;
 use crate::{
-    all_kernel,
-    any_kernel,
-    argmax_kernel,
-    argmin_kernel,
-    max_kernel,
-    mean_kernel,
-    min_kernel,
-    nanprod_kernel,
-    nansum_kernel,
-    prod_kernel,
-    sum_kernel,
-    sum_with_cast_kernel,
+    all_kernel, any_kernel, argmax_kernel, argmin_kernel, max_kernel, mean_kernel, min_kernel, nanprod_kernel, nansum_kernel, prod_kernel, reducel1_kernel, reducel2_kernel, reducel3_kernel, sum_kernel, sum_with_cast_kernel
 };
 use tensor_common::axis::{ process_axes, Axis };
 use tensor_types::into_scalar::IntoScalar;
@@ -797,6 +786,30 @@ macro_rules! register_reduction_one_axis {
 }
 
 register_reduction!(T, sum, sum_kernel, T::ZERO, where T: CommonBounds + NormalOut<T, Output = T>);
+register_reduction!(T, reducel1, reducel1_kernel, T::ZERO, where T: CommonBounds + NormalOut<T, Output = T>);
+register_reduction!(
+    T => [<T as FloatOut<T>>::Output],
+     reducel2, reducel2_kernel,
+     T::ZERO,
+     where
+         T: CommonBounds +
+             NormalOut<T, Output = T> +
+             NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output> + FloatOut,
+         <T as FloatOut>::Output: CommonBounds,
+         <T as FloatOut>::Output: FloatOut<Output = <T as FloatOut>::Output>,
+);
+register_reduction!(
+    T => [<T as FloatOut<T>>::Output],
+     reducel3, reducel3_kernel,
+     T::ZERO,
+     where
+         T: CommonBounds +
+             NormalOut<T, Output = T> +
+             NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output> + FloatOut,
+         <T as FloatOut>::Output: CommonBounds,
+         <T as FloatOut>::Output: FloatOut<Output = <T as FloatOut>::Output>,
+         f64: IntoScalar<<T as NormalOut>::Output>
+);
 
 #[allow(dead_code)]
 pub(crate) fn sum_with_cast<T, B>(
@@ -1033,24 +1046,40 @@ for _Tensor<T> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         any(self, &axes, false, keep_dims, false, None)
     }
+
+    fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        reducel1(self, &axes, T::ZERO, keep_dims, false, None)
+    }
 }
 
 impl<T> FloatReduce<T>
     for _Tensor<T>
     where
         T: CommonBounds                                                                                 // prettier-ignore
-        + NormalOut<T>                                                                                  // prettier-ignore
+        + NormalOut<T, Output = T>                                                                                  // prettier-ignore
         + NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output>                          // prettier-ignore
         + FloatOut, // prettier-ignore
         <T as FloatOut>::Output: CommonBounds                                                           // prettier-ignore
         + NormalOut<T, Output = <T as FloatOut>::Output>
         + FloatOut<Output = <T as FloatOut>::Output>
         + NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output> // prettier-ignore
-        + FromScalar<usize> // prettier-ignore
+        + FromScalar<usize>, // prettier-ignore
+        f64: IntoScalar<<T as NormalOut>::Output> // prettier-ignore
 {
     type Output = _Tensor<<T as FloatOut>::Output>;
     fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         mean(self, &axes, <T as FloatOut>::Output::ZERO, keep_dims, false, None)
+    }
+
+    fn reducel2<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        reducel2(self, &axes, <T as FloatOut>::Output::ZERO, keep_dims, false, None)
+    }
+    
+    fn reducel3<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        reducel3(self, &axes, <T as FloatOut>::Output::ZERO, keep_dims, false, None)
     }
 }

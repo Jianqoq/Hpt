@@ -695,6 +695,8 @@ pub trait NormalReduce<T> where Self: Sized {
     /// assert_eq!(a.any(1, false).unwrap(), Tensor::new([true, false]));
     /// ```
     fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput>;
+
+    fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }
 
 pub trait FloatReduce<T> where Self: Sized {
@@ -714,6 +716,10 @@ pub trait FloatReduce<T> where Self: Sized {
     /// assert_eq!(a.mean(1, false).unwrap(), Tensor::new([2., 5.]));
     /// ```
     fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+
+    fn reducel2<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+
+    fn reducel3<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }
 
 pub trait CommonBounds: Sync + Send + Clone + Copy + TypeCommon + 'static + Display {}

@@ -412,8 +412,12 @@ impl FloatOut for Dtype {
     fn _softsign(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-    
+
     fn _mish(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+
+    fn _cbrt(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
 }
