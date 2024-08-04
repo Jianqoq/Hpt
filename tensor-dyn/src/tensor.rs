@@ -776,6 +776,10 @@ for Tensor<T> {
     fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         Ok(_Tensor::reducel1(self, axis, keep_dims)?.into())
     }
+    
+    fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::sum_square(self, axis, keep_dims)?.into())
+    }
 }
 
 impl<T> FloatReduce<T>

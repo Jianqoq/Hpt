@@ -14,6 +14,7 @@ use crate::{
     reducel2_kernel,
     reducel3_kernel,
     sum_kernel,
+    sum_square_kernel,
     sum_with_cast_kernel,
 };
 use tensor_traits::FloatUaryOps;
@@ -804,6 +805,7 @@ macro_rules! register_reduction_one_axis {
 }
 
 register_reduction!(T, sum, sum_kernel, T::ZERO, where T: CommonBounds + NormalOut<T, Output = T>);
+register_reduction!(T, sum_square, sum_square_kernel, T::ZERO, where T: CommonBounds + NormalOut<T, Output = T>);
 register_reduction!(T, reducel1, reducel1_kernel, T::ZERO, where T: CommonBounds + NormalOut<T, Output = T>);
 register_reduction!(
     T => [<T as FloatOut<T>>::Output],
@@ -1068,6 +1070,11 @@ for _Tensor<T> {
     fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reducel1(self, &axes, T::ZERO, keep_dims, false, None)
+    }
+
+    fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        sum_square(self, &axes, T::ZERO, keep_dims, false, None)
     }
 }
 

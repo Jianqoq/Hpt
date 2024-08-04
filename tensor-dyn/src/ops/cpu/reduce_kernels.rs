@@ -236,6 +236,96 @@ macro_rules! reducel1_kernel {
 }
 
 #[macro_export]
+macro_rules! sum_square_kernel {
+    (
+        $_:expr,
+        $iterator:ident,
+        $loop_size:ident,
+        $loop_size2:ident,
+        $result_ptr:ident,
+        $a_ptr:ident,
+        $a_last_stride:ident,
+        $shape_len:ident
+    ) => {
+        for _ in 0..$loop_size2 {
+            let mut tmp = $result_ptr[0isize];
+            for i in 0..$loop_size as i64 {
+                let a_val = <T as NormalOut>::_square($a_ptr[i * $a_last_stride]);
+                tmp = a_val._add(tmp);
+            }
+            $result_ptr.modify(0, tmp);
+            for j in (0..$shape_len - 1).rev() {
+                if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
+                    $iterator.prg[j as usize] += 1;
+                    $a_ptr.offset($iterator.strides[j as usize]);
+                    break;
+                } else {
+                    $iterator.prg[j as usize] = 0;
+                    $a_ptr.offset(-$iterator.strides[j as usize] * $iterator.a_shape[j as usize]);
+                }
+            }
+        }
+        $result_ptr.modify(0, $result_ptr.read());
+        $result_ptr.add(1);
+    };
+    (
+        $_:expr,
+        $outer_idx:ident,
+        $iterator:ident,
+        $loop_size:ident,
+        $loop_size2:ident,
+        $result_ptr:ident,
+        $a_ptr:ident,
+        $a_stride:ident,
+        $shape_len:ident
+    ) => {
+        for _ in 0..$loop_size2 {
+            for i in 0..$loop_size  as i64{
+                let a_val = <T as NormalOut>::_square($a_ptr[i * $a_stride]);
+                let result_val = $result_ptr[i];
+                $result_ptr.modify(i, a_val._add(result_val));
+            }
+            for j in ($shape_len..=$iterator.a_shape.len() as i64 - 1).rev() {
+                if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
+                    $iterator.prg[j as usize] += 1;
+                    $a_ptr.offset($iterator.strides[j as usize]);
+                    break;
+                } else {
+                    $iterator.prg[j as usize] = 0;
+                    $a_ptr.offset(-$iterator.strides[j as usize] * $iterator.a_shape[j as usize]);
+                }
+            }
+        }
+        for j in (0..$shape_len - 1).rev() {
+            if $iterator.a_prg[j as usize] < $iterator.a_shape[j as usize] {
+                $iterator.a_prg[j as usize] += 1;
+                $a_ptr.offset($iterator.strides[j as usize]);
+                break;
+            } else {
+                $iterator.a_prg[j as usize] = 0;
+                $a_ptr.offset(-$iterator.strides[j as usize] * $iterator.a_shape[j as usize]);
+            }
+        }
+        for i in 0..$loop_size as i64 {
+            $result_ptr.modify(i, $result_ptr[i]);
+        }
+        $result_ptr.add($loop_size);
+        $iterator.reset_prg();
+    };
+    (reduce_all, $result_data:ident, $inp_name:ident, $init_val:expr) => {
+        let val = $inp_name.as_raw_mut().par_iter().fold(|| $init_val, |acc, &x| {
+            let square = <T as NormalOut>::_square(x);
+            acc._add(square)
+        }).reduce(|| $init_val,|a, b| {
+            let square = <T as NormalOut>::_square(b);
+            a._add(square)
+        });
+        
+        $result_data.write(val._add($result_data.read()));
+    };
+}
+
+#[macro_export]
 macro_rules! reducel2_kernel {
     (
         $_:expr,
