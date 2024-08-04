@@ -720,6 +720,8 @@ pub trait FloatReduce<T> where Self: Sized {
     fn reducel2<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 
     fn reducel3<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+
+    fn logsumexp<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }
 
 pub trait CommonBounds: Sync + Send + Clone + Copy + TypeCommon + 'static + Display {}

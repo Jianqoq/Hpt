@@ -4,7 +4,7 @@ use tensor_traits::*;
 
 fn main() -> anyhow::Result<()> {
     let a = Tensor::<i32>::arange(0.0, 9.0)?.reshape(&[3, 3])?;
-    println!("{:?}", a);
-    let res = a.reducel3(1, false)?;
+    let res = a.logsumexp(1, false)?;
+    println!("{:?}", res);
     Ok(())
 }

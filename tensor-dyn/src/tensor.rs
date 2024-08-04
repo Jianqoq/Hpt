@@ -545,13 +545,13 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
             T: PartialOrd +
                 FloatOut<T> +
                 NormalOut<T, Output = T> +
-                FromScalar<<T as FloatOut>::Output> +
+                FromScalar<FloatType<T>> +
                 std::ops::Neg<Output = T>,
-            <T as FloatOut>::Output: Sub<Output = <T as FloatOut>::Output> +
+            FloatType<T>: Sub<Output = FloatType<T>> +
                 FromScalar<usize> +
                 FromScalar<f64> +
-                Div<Output = <T as FloatOut>::Output> +
-                NormalOut<Output = <T as FloatOut>::Output> +
+                Div<Output = FloatType<T>> +
+                NormalOut<Output = FloatType<T>> +
                 CommonBounds
     {
         Ok(_Tensor::geomspace(start, end, n, include_end)?.into())
@@ -783,16 +783,21 @@ impl<T> FloatReduce<T>
     where
         T: CommonBounds                                                                                 // prettier-ignore
         + NormalOut<T, Output = T>                                                                                  // prettier-ignore
-        + NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output>                          // prettier-ignore
-        + FloatOut, // prettier-ignore
-        <T as FloatOut>::Output: CommonBounds                                                           // prettier-ignore
-        + NormalOut<T, Output = <T as FloatOut>::Output>
-        + FloatOut<Output = <T as FloatOut>::Output>
-        + NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output> // prettier-ignore
-        + FromScalar<usize>, // prettier-ignore
-        f64: IntoScalar<<T as NormalOut>::Output> // prettier-ignore
+        + NormalOut<FloatType<T>, Output = FloatType<T>>                          // prettier-ignore
+        + FloatOut + Cmp + IntoScalar<T>, // prettier-ignore
+        FloatType<T>: CommonBounds                                                           // prettier-ignore
+        + NormalOut<T, Output = FloatType<T>>
+        + FloatOut<Output = FloatType<T>>
+        + NormalOut<FloatType<T>, Output = FloatType<T>> // prettier-ignore
+        + FromScalar<usize> + IntoScalar<FloatType<T>>, // prettier-ignore
+        f64: IntoScalar<<T as NormalOut>::Output>, // prettier-ignore
+        f64: IntoScalar<FloatType<T>>, // prettier-ignore
+        _Tensor<FloatType<T>>: TensorLike<
+        FloatType<T>,
+        Output = _Tensor<FloatType<T>>
+    > // prettier-ignore
 {
-    type Output = _Tensor<<T as FloatOut>::Output>;
+    type Output = _Tensor<FloatType<T>>;
     fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         Ok(_Tensor::mean(self, axis, keep_dims)?.into())
     }
@@ -802,6 +807,9 @@ impl<T> FloatReduce<T>
     fn reducel3<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         Ok(_Tensor::reducel3(self, axis, keep_dims)?.into())
     }
+    fn logsumexp<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::logsumexp(self, axis, keep_dims)?.into())
+    }
 }
 
 impl<T> FloatUaryOps
@@ -810,7 +818,7 @@ impl<T> FloatUaryOps
         T: FloatOut + CommonBounds,
         FloatType<T>: CommonBounds,
         f64: IntoScalar<FloatType<T>>,
-        <T as FloatOut>::Output: IntoScalar<<T as FloatOut>::Output>
+        FloatType<T>: IntoScalar<FloatType<T>>
 {
     type Output = Tensor<FloatType<T>>;
 

@@ -1,8 +1,24 @@
 use crate::tensor_base::_Tensor;
 use crate::{
-    all_kernel, any_kernel, argmax_kernel, argmin_kernel, max_kernel, mean_kernel, min_kernel, nanprod_kernel, nansum_kernel, prod_kernel, reducel1_kernel, reducel2_kernel, reducel3_kernel, sum_kernel, sum_with_cast_kernel
+    all_kernel,
+    any_kernel,
+    argmax_kernel,
+    argmin_kernel,
+    max_kernel,
+    mean_kernel,
+    min_kernel,
+    nanprod_kernel,
+    nansum_kernel,
+    prod_kernel,
+    reducel1_kernel,
+    reducel2_kernel,
+    reducel3_kernel,
+    sum_kernel,
+    sum_with_cast_kernel,
 };
+use tensor_traits::FloatUaryOps;
 use tensor_common::axis::{ process_axes, Axis };
+use tensor_traits::TensorLike;
 use tensor_types::into_scalar::IntoScalar;
 use rayon::iter::IntoParallelRefIterator;
 use tensor_types::dtype::TypeCommon;
@@ -21,6 +37,8 @@ use tensor_types::type_promote::{ Cmp, Eval, FloatOut, NormalOut };
 use std::sync::Arc;
 use std::sync::Barrier;
 use tensor_traits::shape_manipulate::ShapeManipulate;
+
+use super::uary::FloatType;
 
 #[derive(Debug)]
 struct ReductionPreprocessor<T, U> {
@@ -1058,16 +1076,21 @@ impl<T> FloatReduce<T>
     where
         T: CommonBounds                                                                                 // prettier-ignore
         + NormalOut<T, Output = T>                                                                                  // prettier-ignore
-        + NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output>                          // prettier-ignore
-        + FloatOut, // prettier-ignore
-        <T as FloatOut>::Output: CommonBounds                                                           // prettier-ignore
-        + NormalOut<T, Output = <T as FloatOut>::Output>
-        + FloatOut<Output = <T as FloatOut>::Output>
-        + NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output> // prettier-ignore
-        + FromScalar<usize>, // prettier-ignore
-        f64: IntoScalar<<T as NormalOut>::Output> // prettier-ignore
+        + NormalOut<FloatType<T>, Output = FloatType<T>>                          // prettier-ignore
+        + FloatOut + Cmp + IntoScalar<T>, // prettier-ignore
+        FloatType<T>: CommonBounds                                                           // prettier-ignore
+        + NormalOut<T, Output = FloatType<T>>
+        + FloatOut<Output = FloatType<T>>
+        + NormalOut<FloatType<T>, Output = FloatType<T>> // prettier-ignore
+        + FromScalar<usize> + IntoScalar<FloatType<T>>, // prettier-ignore
+        f64: IntoScalar<<T as NormalOut>::Output>, // prettier-ignore
+        f64: IntoScalar<FloatType<T>>, // prettier-ignore
+        _Tensor<<T as FloatOut>::Output>: TensorLike<
+            <T as FloatOut>::Output,
+            Output = _Tensor<<T as FloatOut>::Output>
+        >
 {
-    type Output = _Tensor<<T as FloatOut>::Output>;
+    type Output = _Tensor<FloatType<T>>;
     fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         mean(self, &axes, <T as FloatOut>::Output::ZERO, keep_dims, false, None)
@@ -1077,9 +1100,23 @@ impl<T> FloatReduce<T>
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reducel2(self, &axes, <T as FloatOut>::Output::ZERO, keep_dims, false, None)
     }
-    
+
     fn reducel3<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reducel3(self, &axes, <T as FloatOut>::Output::ZERO, keep_dims, false, None)
+    }
+
+    fn logsumexp<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        let x_max = max(self, &axes, T::NEG_INF, true, false, None)?;
+        let sub = self - &x_max;
+        let exp = sub.exp()?;
+        let sum_exp = sum(&exp, &axes, <T as FloatOut>::Output::ZERO, true, false, None)?;
+        let add = x_max + sum_exp.ln()?;
+        if keep_dims {
+            Ok(add)
+        } else {
+            Ok(add.squeeze(axes)?)
+        }
     }
 }
