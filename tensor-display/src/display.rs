@@ -14,13 +14,12 @@ use crate::formats::format_val;
 /// Pushes the string representation of the tensor to the string.
 fn main_loop_push_str<U, T>(
     tensor: &U,
-    outer_loop: usize,
     inner_loop: usize,
     last_stride: i64,
     row_threshold: usize,
     string: &mut String,
     max_element: usize,
-    _: usize,
+    max_elemnt_each_row: i64,
     precision: usize,
     col_width: &mut Vec<usize>,
     prg: &mut Vec<i64>,
@@ -30,24 +29,63 @@ fn main_loop_push_str<U, T>(
     -> Result<()>
     where U: TensorInfo<T>, T: CommonBounds
 {
+    let print = |string: &mut String, ptr: Pointer<T>, offset: &mut i64, col: usize| {
+        let val = format_val(ptr[*offset], precision);
+        string.push_str(&format!("{:>width$}", val, width = col_width[col]));
+        if col < inner_loop - 1 {
+            string.push(' ');
+        }
+        *offset += last_stride;
+    };
+    let mut outer_loop = 1;
+    for i in tensor
+        .shape()
+        .iter()
+        .take(tensor.ndim() - 1) {
+        if i > &(row_threshold as i64) {
+            outer_loop *= 12;
+        } else {
+            outer_loop *= i;
+        }
+    }
     for _ in 0..outer_loop {
         let mut offset = 0;
-        for j in 0..inner_loop {
-            let val = format_val(ptr[offset], precision);
-            string.push_str(&format!("{:>width$}", val, width = col_width[j]));
-            if j < inner_loop - 1 {
-                string.push(' ');
+        if inner_loop >= (max_elemnt_each_row as usize) {
+            for i in 0..2 {
+                for j in 0..3 {
+                    print(string, ptr.clone(), &mut offset, j);
+                }
+                if i == 0 {
+                    string.push_str(" ... ");
+                    offset += last_stride * ((inner_loop as i64) - 6);
+                }
             }
-            offset += last_stride;
+        } else {
+            for j in 0..inner_loop {
+                print(string, ptr.clone(), &mut offset, j);
+            }
         }
         string.push_str("]");
         for k in (0..tensor.ndim() - 1).rev() {
             if prg[k] < shape[k] {
                 prg[k] += 1;
+                ptr.offset(tensor.strides()[k]);
+                if tensor.shape()[k] > (row_threshold as i64) && prg[k] == 6 {
+                    string.push_str("\n");
+                    string.push_str(&" ".repeat(k + 1 + "Tensor(".len()));
+                    string.push_str("...");
+                    string.push_str("\n");
+                    string.push_str(&" ".repeat(k + 1 + "Tensor(".len()));
+                    string.push_str(&"[".repeat(tensor.ndim() - (k + 1)));
+                    ptr.offset(tensor.strides()[k] * (tensor.shape()[k] - (row_threshold as i64)));
+                    prg[k] += tensor.shape()[k] - (row_threshold as i64);
+                    assert!(prg[k] < tensor.shape()[k]);
+                    break;
+                }
+
                 string.push_str("\n");
                 string.push_str(&" ".repeat(k + 1 + "Tensor(".len()));
                 string.push_str(&"[".repeat(tensor.ndim() - (k + 1)));
-                ptr.offset(tensor.strides()[k]);
                 assert!(prg[k] < tensor.shape()[k]);
                 break;
             } else {
@@ -67,7 +105,6 @@ fn main_loop_push_str<U, T>(
 /// Get the width of each column in the tensor.
 fn main_loop_get_width<U, T>(
     tensor: &U,
-    outer_loop: usize,
     inner_loop: usize,
     last_stride: i64,
     max_element: usize,
@@ -82,6 +119,17 @@ fn main_loop_get_width<U, T>(
     -> Result<()>
     where U: TensorInfo<T>, T: CommonBounds
 {
+    let mut outer_loop = 1;
+    for i in tensor
+        .shape()
+        .iter()
+        .take(tensor.ndim() - 1) {
+        if i > &(row_threshold as i64) {
+            outer_loop *= 12;
+        } else {
+            outer_loop *= i;
+        }
+    }
     for _ in 0..outer_loop {
         let mut offset: i64 = 0;
         for j in 0..inner_loop {
@@ -93,6 +141,12 @@ fn main_loop_get_width<U, T>(
             if prg[k] < shape[k] {
                 prg[k] += 1;
                 ptr.offset(tensor.strides()[k]);
+                if tensor.shape()[k] > (row_threshold as i64) && prg[k] == 6 {
+                    ptr.offset(tensor.strides()[k] * (tensor.shape()[k] - (row_threshold as i64)));
+                    prg[k] += tensor.shape()[k] - (row_threshold as i64);
+                    assert!(prg[k] < tensor.shape()[k]);
+                    break;
+                }
                 assert!(prg[k] < tensor.shape()[k]);
                 break;
             } else {
@@ -128,7 +182,7 @@ pub fn display<U, T>(
     where U: TensorInfo<T>, T: CommonBounds
 {
     let mut string: String = String::new();
-    return if tensor.size() == 0 {
+    if tensor.size() == 0 {
         write!(f, "{}", "Tensor([])\n".to_string())
     } else if tensor.ndim() == 0 {
         write!(f, "{}", format!("Tensor({})\n", tensor.ptr().read()))
@@ -159,7 +213,6 @@ pub fn display<U, T>(
             let mut col_width: Vec<usize> = vec![0; inner_loop];
             main_loop_get_width(
                 &tensor,
-                outer_loop,
                 inner_loop,
                 last_stride,
                 max_element as usize,
@@ -173,13 +226,12 @@ pub fn display<U, T>(
             ).unwrap();
             main_loop_push_str(
                 &tensor,
-                outer_loop,
                 inner_loop,
                 last_stride,
                 row_threshold,
                 &mut string,
                 max_element as usize,
-                max_elemnt_each_row as usize,
+                max_elemnt_each_row,
                 precision,
                 &mut col_width,
                 &mut prg,
@@ -215,5 +267,5 @@ pub fn display<U, T>(
             );
         }
         write!(f, "{}", format!("{}\n", string))
-    };
+    }
 }
