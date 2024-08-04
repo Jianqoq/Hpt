@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::sync::Barrier;
@@ -42,11 +43,7 @@ impl<T> _Tensor<T> where T: CommonBounds + PartialOrd + Debug {
         let transposed_res_shape = transposed_res.shape();
         let transposed_res_strides = transposed_res.strides();
         THREAD_POOL.with_borrow_mut(move |x| {
-            let num_threads = if outer_loop_size < x.max_count() {
-                1
-            } else {
-                1
-            };
+            let num_threads = if outer_loop_size < x.max_count() { 1 } else { 1 };
             let intervals = mt_intervals(outer_loop_size, num_threads);
 
             let mut prgs = vec![];
@@ -109,9 +106,18 @@ impl<T> _Tensor<T> where T: CommonBounds + PartialOrd + Debug {
                         for i in 0..inner_loop {
                             data.push(ptr[i * tls]);
                         }
-                        let mut res = topk_with_indices(&mut data, k as usize).to_vec();
-                        println!("{:?}", res);
-                        res.sort_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap());
+                        let mut res = if largest {
+                            topk_with_indices(&mut data, k as usize, |x, y|
+                                x.partial_cmp(y).unwrap()
+                            )
+                        } else {
+                            topk_with_indices(&mut data, k as usize, |x, y|
+                                y.partial_cmp(x).unwrap()
+                            )
+                        };
+                        if sorted {
+                            res.sort_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap());
+                        }
                         for i in 0..res_inner_loop {
                             let (val, idx) = res[i as usize];
                             res_ptr[i * rls] = val;
@@ -127,6 +133,9 @@ impl<T> _Tensor<T> where T: CommonBounds + PartialOrd + Debug {
                                 prg[j] = 0;
                                 ptr.offset(-ts[j] * (tsp[j] - 1));
                             }
+                        }
+                        for j in (0..ndim - 1).rev() {
+                            let j = j as usize;
                             if res_prg[j] < rtsp[j] - 1 {
                                 res_prg[j] += 1;
                                 res_ptr.offset(rts[j]);
@@ -144,12 +153,13 @@ impl<T> _Tensor<T> where T: CommonBounds + PartialOrd + Debug {
             }
             barrier.wait();
         });
-        axes.swap(dim as usize, self.ndim() - 1);
         Ok((transposed_res_indices.permute(&axes)?, transposed_res.permute(&axes)?))
     }
 }
 
-fn topk_with_indices<T: PartialOrd + Clone + Copy>(arr: &mut [T], k: usize) -> Vec<(T, usize)> {
+fn topk_with_indices<T, F>(arr: &mut [T], k: usize, compare: F) -> Vec<(T, usize)>
+    where T: PartialOrd + Copy, F: Fn(&T, &T) -> Ordering + Copy
+{
     let n = arr.len();
     let mut arr_with_index: Vec<(T, usize)> = arr
         .iter()
@@ -157,39 +167,46 @@ fn topk_with_indices<T: PartialOrd + Clone + Copy>(arr: &mut [T], k: usize) -> V
         .enumerate()
         .map(|(idx, val)| (val, idx))
         .collect();
-    quickselect_with_indices(&mut arr_with_index, 0, n - 1, n - k);
+    quickselect_with_indices(&mut arr_with_index, 0, n - 1, n - k, compare);
     arr_with_index[n - k..].to_vec()
 }
 
-fn quickselect_with_indices<T: PartialOrd + Copy>(
+fn quickselect_with_indices<T, F>(
     arr: &mut [(T, usize)],
     low: usize,
     high: usize,
-    k: usize
-) {
+    k: usize,
+    compare: F
+)
+    where T: PartialOrd + Copy, F: Fn(&T, &T) -> Ordering + Copy
+{
     if low < high {
-        let pi = partition_with_indices(arr, low, high);
+        let pi = partition_with_indices(arr, low, high, compare);
         if pi > k {
-            quickselect_with_indices(arr, low, pi - 1, k);
+            quickselect_with_indices(arr, low, pi - 1, k, compare);
         } else if pi < k {
-            quickselect_with_indices(arr, pi + 1, high, k);
+            quickselect_with_indices(arr, pi + 1, high, k, compare);
         }
     }
 }
 
-fn partition_with_indices<T: PartialOrd + Copy>(
+fn partition_with_indices<T, F>(
     arr: &mut [(T, usize)],
     low: usize,
-    high: usize
-) -> usize {
+    high: usize,
+    compare: F
+)
+    -> usize
+    where T: PartialOrd + Copy, F: Fn(&T, &T) -> Ordering + Copy
+{
     let mut rng = rand::thread_rng();
     let pivot_index = rng.gen_range(low..=high);
     arr.swap(pivot_index, high);
-    let pivot = arr[high];
+    let pivot = arr[high].0;
     let mut i = low;
 
     for j in low..high {
-        if arr[j].0 <= pivot.0 {
+        if compare(&arr[j].0, &pivot) != Ordering::Greater {
             arr.swap(i, j);
             i += 1;
         }
