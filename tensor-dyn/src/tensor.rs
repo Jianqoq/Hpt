@@ -797,7 +797,7 @@ impl<T> FloatReduce<T>
         Output = _Tensor<FloatType<T>>
     > // prettier-ignore
 {
-    type Output = _Tensor<FloatType<T>>;
+    type Output = Tensor<FloatType<T>>;
     fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         Ok(_Tensor::mean(self, axis, keep_dims)?.into())
     }
