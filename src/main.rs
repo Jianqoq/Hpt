@@ -1,4 +1,5 @@
 use std::{ borrow::Cow, fmt::Debug };
+use tensor_common::shape_utils::mt_intervals;
 use tensor_dyn::{ tensor::Tensor, CommonBounds, TensorCreator };
 use tensor_types::type_promote::NormalOut;
 use wgpu::util::DeviceExt;
@@ -480,6 +481,8 @@ fn main() -> anyhow::Result<()> {
             let b = Tensor::<i64>::arange(0, 1024).unwrap().reshape(&[512, 2]).unwrap();
             let res = binop(&device, &queue, include_str!("shader.wgsl"), &a, &b).await;
             println!("{:?}", res);
+            let intervals = mt_intervals(2, 16);
+            println!("{:?}", intervals);
         });
     }
     Ok(())
