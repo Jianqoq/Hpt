@@ -1,32 +1,30 @@
-@group(0) @binding(0) var<storage, read> a : array<i64>;
+@group(0) @binding(0) var<storage, read> a : array<a_ty>;
 @group(0) @binding(1) var<storage, read> a_strides : array<i64>;
-@group(0) @binding(2) var<storage, read> a_shape : array<i64>;
 
-@group(0) @binding(3) var<storage, read> b : array<i64>;
-@group(0) @binding(4) var<storage, read> b_strides : array<i64>;
-@group(0) @binding(5) var<storage, read> b_shape : array<i64>;
+@group(0) @binding(2) var<storage, read> b : array<b_ty>;
+@group(0) @binding(3) var<storage, read> b_strides : array<i64>;
 
-@group(0) @binding(6) var<storage, read_write> c : array<i64>;
-@group(0) @binding(7) var<storage, read> c_strides : array<i64>;
-@group(0) @binding(8) var<storage, read> c_shape : array<i64>;
+@group(0) @binding(4) var<storage, read_write> c : array<c_ty>;
+@group(0) @binding(5) var<storage, read> c_strides : array<i64>;
+@group(0) @binding(6) var<storage, read> c_shape : array<i64>;
 
-@group(0) @binding(9) var<storage, read> outer_loop_size : i64;
-@group(0) @binding(10) var<storage, read> inner_loop_size : i64;
+@group(0) @binding(7) var<storage, read> outer_loop_size : i64;
+@group(0) @binding(8) var<storage, read> inner_loop_size : i64;
 
-@group(0) @binding(11) var<storage, read> res_ndim : i64;
+@group(0) @binding(9) var<storage, read> res_ndim : i64;
 
 @compute
-@workgroup_size(16, 16, 1)
+@workgroup_size(GRP_SIZE_X, GRP_SIZE_Y, 1)
 fn main(
 @builtin(workgroup_id) workgroup_id : vec3 <u32>,
 @builtin(local_invocation_id) local_id : vec3 <u32>
 )
 {
-   let global_id_x = i64(workgroup_id.x) * 16 + i64(local_id.x);
+   let global_id_x = i64(workgroup_id.x) * GRP_SIZE_X + i64(local_id.x);
 
-   let tmp = outer_loop_size % (64 * 16);
-   let start_idx = global_id_x * (outer_loop_size / (64 * 16)) + min(global_id_x, tmp);
-   var end_idx = start_idx + (outer_loop_size / (64 * 16)) + i64(global_id_x < tmp);
+   let tmp = outer_loop_size % (NUM_GRP_X * GRP_SIZE_X);
+   let start_idx = global_id_x * (outer_loop_size / (NUM_GRP_X * GRP_SIZE_X)) + min(global_id_x, tmp);
+   var end_idx = start_idx + (outer_loop_size / (NUM_GRP_X * GRP_SIZE_X)) + i64(global_id_x < tmp);
 
    if end_idx - start_idx == 0 {
       return;
@@ -45,11 +43,11 @@ fn main(
       prg[i] = tmp;
       amount /= c_shape[i];
    }
-   let global_id_y = i64(workgroup_id.y) * 16 + i64(local_id.y);
+   let global_id_y = i64(workgroup_id.y) * GRP_SIZE_Y + i64(local_id.y);
 
-   let tmp2 = inner_loop_size % (64 * 16);
-   let start_idx2 = global_id_y * (inner_loop_size / 64 * 16) + min(global_id_y, tmp2);
-   var end_idx2 = start_idx2 + (inner_loop_size / 64 * 16) + i64(global_id_y < tmp2);
+   let tmp2 = inner_loop_size % (NUM_GRP_Y * GRP_SIZE_Y);
+   let start_idx2 = global_id_y * (inner_loop_size / NUM_GRP_Y * GRP_SIZE_Y) + min(global_id_y, tmp2);
+   var end_idx2 = start_idx2 + (inner_loop_size / NUM_GRP_Y * GRP_SIZE_Y) + i64(global_id_y < tmp2);
 
    let c_last_stride = c_strides[res_ndim - 1];
    let a_last_stride = a_strides[res_ndim - 1];

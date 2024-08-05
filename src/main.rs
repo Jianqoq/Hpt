@@ -1,6 +1,9 @@
 use std::{ borrow::Cow, fmt::Debug };
 use tensor_common::shape_utils::mt_intervals;
+use tensor_common::shape_utils::try_pad_shape;
+use tensor_common::strides_utils::preprocess_strides;
 use tensor_dyn::{ tensor::Tensor, CommonBounds, TensorCreator };
+use tensor_types::dtype::TypeCommon;
 use tensor_types::type_promote::NormalOut;
 use wgpu::util::DeviceExt;
 use tensor_dyn::TensorInfo;
@@ -10,12 +13,20 @@ async fn create_device() -> (wgpu::Device, wgpu::Queue) {
     let instance = wgpu::Instance::default();
 
     // `request_adapter` instantiates the general connection to the GPU
-    let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions::default()).await.unwrap();
+    let adapter = instance
+        .request_adapter(
+            &(RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                compatible_surface: None,
+                force_fallback_adapter: false,
+            })
+        ).await
+        .unwrap();
 
     // `request_device` instantiates the feature specific connection to the GPU, defining some parameters,
     //  `features` being the available features.
     let limits = wgpu::Limits {
-        max_buffer_size: 25 * 1024 * 1024 * 1024,
+        max_buffer_size: 20 * 1024 * 1024 * 1024,
         max_storage_buffers_per_shader_stage: 12,
         ..wgpu::Limits::default()
     };
@@ -41,16 +52,34 @@ async fn binop<A, B>(
 )
     -> Tensor<<A as NormalOut<B>>::Output>
     where
-        A: CommonBounds + NormalOut<B> + bytemuck::Pod,
-        B: CommonBounds + bytemuck::Pod,
-        <A as NormalOut<B>>::Output: CommonBounds + bytemuck::Pod + Debug
+        A: CommonBounds + NormalOut<B> + bytemuck::Pod + TypeCommon,
+        B: CommonBounds + bytemuck::Pod + TypeCommon,
+        <A as NormalOut<B>>::Output: CommonBounds + bytemuck::Pod + Debug + TypeCommon
 {
     let res_shape = a.layout().broadcast(&b.layout()).expect("Failed to broadcast shapes");
+
+    let a_strides: Vec<i64> = preprocess_strides(
+        &try_pad_shape(a.shape(), res_shape.ndim()),
+        a.strides()
+    );
+    let b_strides: Vec<i64> = preprocess_strides(
+        &try_pad_shape(b.shape(), res_shape.ndim()),
+        b.strides()
+    );
+
     let res = Tensor::<<A as NormalOut<B>>::Output>
         ::empty(res_shape.shape())
         .expect("Failed to create tensor");
 
-    let kernel = kernel.replace("prg_place_holder", &(res.ndim() - 1).to_string());
+    let kernel = kernel
+        .replace("prg_place_holder", &(res.ndim() - 1).to_string())
+        .replace("GRP_SIZE_X", &(16).to_string())
+        .replace("GRP_SIZE_Y", &(16).to_string())
+        .replace("NUM_GRP_X", &(64).to_string())
+        .replace("NUM_GRP_Y", &(64).to_string())
+        .replace("a_ty", &A::ID.to_string())
+        .replace("b_ty", &B::ID.to_string())
+        .replace("c_ty", &<A as NormalOut<B>>::Output::ID.to_string());
     let cs_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
         source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&kernel)),
@@ -156,17 +185,7 @@ async fn binop<A, B>(
     let a_strides_buffer = device.create_buffer_init(
         &(wgpu::util::BufferInitDescriptor {
             label: Some("a_strides_buffer"),
-            contents: bytemuck::cast_slice(a.strides()),
-            usage: wgpu::BufferUsages::STORAGE |
-            wgpu::BufferUsages::COPY_DST |
-            wgpu::BufferUsages::COPY_SRC,
-        })
-    );
-
-    let a_shape_buffer = device.create_buffer_init(
-        &(wgpu::util::BufferInitDescriptor {
-            label: Some("a_shape_buffer"),
-            contents: bytemuck::cast_slice(a.shape()),
+            contents: bytemuck::cast_slice(&a_strides),
             usage: wgpu::BufferUsages::STORAGE |
             wgpu::BufferUsages::COPY_DST |
             wgpu::BufferUsages::COPY_SRC,
@@ -186,17 +205,7 @@ async fn binop<A, B>(
     let b_strides_buffer = device.create_buffer_init(
         &(wgpu::util::BufferInitDescriptor {
             label: Some("b_strides_buffer"),
-            contents: bytemuck::cast_slice(b.strides()),
-            usage: wgpu::BufferUsages::STORAGE |
-            wgpu::BufferUsages::COPY_DST |
-            wgpu::BufferUsages::COPY_SRC,
-        })
-    );
-
-    let b_shape_buffer = device.create_buffer_init(
-        &(wgpu::util::BufferInitDescriptor {
-            label: Some("b_shape_buffer"),
-            contents: bytemuck::cast_slice(b.shape()),
+            contents: bytemuck::cast_slice(&b_strides),
             usage: wgpu::BufferUsages::STORAGE |
             wgpu::BufferUsages::COPY_DST |
             wgpu::BufferUsages::COPY_SRC,
@@ -252,7 +261,7 @@ async fn binop<A, B>(
                     binding: 4,
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
                         has_dynamic_offset: false,
                         min_binding_size: None,
                     },
@@ -272,7 +281,7 @@ async fn binop<A, B>(
                     binding: 6,
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
                         has_dynamic_offset: false,
                         min_binding_size: None,
                     },
@@ -300,26 +309,6 @@ async fn binop<A, B>(
                 },
                 wgpu::BindGroupLayoutEntry {
                     binding: 9,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 10,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 11,
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Storage { read_only: true },
@@ -347,42 +336,34 @@ async fn binop<A, B>(
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: a_shape_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 3,
                     resource: b_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 4,
+                    binding: 3,
                     resource: b_strides_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 5,
-                    resource: b_shape_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 6,
+                    binding: 4,
                     resource: res_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 7,
+                    binding: 5,
                     resource: res_strides_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 8,
+                    binding: 6,
                     resource: res_shape_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 9,
+                    binding: 7,
                     resource: outer_loop_size_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 10,
+                    binding: 8,
                     resource: inner_loop_size_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 11,
+                    binding: 9,
                     resource: res_ndim_buffer.as_entire_binding(),
                 },
             ],
@@ -431,11 +412,12 @@ async fn binop<A, B>(
         cpass.set_bind_group(0, &bind_group, &[]);
         cpass.insert_debug_marker("compute collatz iterations");
 
-
-
         cpass.dispatch_workgroups(64, 64, 1); // Number of cells to run, the (x,y,z) size of item being processed
     }
+    let now = std::time::Instant::now();
     encoder.copy_buffer_to_buffer(&res_buffer, 0, &result_buffer, 0, res_size);
+    println!("copy time: {:?}", now.elapsed());
+    let now = std::time::Instant::now();
     // Submits command encoder for processing
     queue.submit(Some(encoder.finish()));
 
@@ -467,21 +449,42 @@ async fn binop<A, B>(
         res.as_raw_mut().copy_from_slice(result);
         drop(data);
         result_buffer.unmap(); // Unmaps buffer from memory
+        println!("Time taken: {:?}", now.elapsed());
         res
     } else {
         panic!("failed to run compute on gpu!")
     }
 }
 use tensor_dyn::ShapeManipulate;
+use wgpu::RequestAdapterOptions;
 fn main() -> anyhow::Result<()> {
+    println!(
+        "allocating memory on gpu {}",
+        (std::mem::size_of::<f32>() * 1024 * 1024 * 16) / 1024 / 1024
+    );
+    let a = Tensor::<f32>
+        ::arange(0, 1024 * 1024 * 2)
+        .unwrap()
+        .reshape(&[1024, 1024, 2])
+        .unwrap();
+    let b = Tensor::<f32>
+        ::arange(0, 1024 * 1024 * 2)
+        .unwrap()
+        .reshape(&[1024, 1024, 2])
+        .unwrap();
     {
         pollster::block_on(async {
+            let now = std::time::Instant::now();
             let (device, queue) = create_device().await;
-            let a = Tensor::<i64>::arange(0, 1024).unwrap().reshape(&[512, 2]).unwrap();
-            let b = Tensor::<i64>::arange(0, 1024).unwrap().reshape(&[512, 2]).unwrap();
+            println!("get device time: {:?}", now.elapsed());
             let res = binop(&device, &queue, include_str!("shader.wgsl"), &a, &b).await;
-            println!("{:?}", res);
         });
     }
+
+    let now = std::time::Instant::now();
+    {
+        let res = a + b;
+    }
+    println!("Time taken: {:?}", now.elapsed());
     Ok(())
 }
