@@ -1,10 +1,8 @@
-use std::{borrow::Cow, fmt::Debug};
-use rayon::iter::{ IndexedParallelIterator, IntoParallelRefMutIterator };
+use std::{ borrow::Cow, fmt::Debug };
 use tensor_dyn::{ tensor::Tensor, CommonBounds, TensorCreator };
 use tensor_types::type_promote::NormalOut;
 use wgpu::util::DeviceExt;
 use tensor_dyn::TensorInfo;
-use rayon::iter::ParallelIterator;
 
 async fn create_device() -> (wgpu::Device, wgpu::Queue) {
     // Instantiates instance of WebGPU
@@ -16,7 +14,7 @@ async fn create_device() -> (wgpu::Device, wgpu::Queue) {
     // `request_device` instantiates the feature specific connection to the GPU, defining some parameters,
     //  `features` being the available features.
     let limits = wgpu::Limits {
-        max_storage_buffers_per_shader_stage: 6,
+        max_storage_buffers_per_shader_stage: 9,
         ..wgpu::Limits::default()
     };
     adapter
@@ -68,22 +66,36 @@ async fn binop<A, B>(
         &(wgpu::BufferDescriptor {
             label: Some("res_buffer"),
             size: res_size,
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::COPY_DST,
+            usage: wgpu::BufferUsages::STORAGE |
+            wgpu::BufferUsages::COPY_SRC |
+            wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         })
     );
 
-    let result_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("Result Buffer"),
-        size: res_size,
-        usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
+    let result_buffer = device.create_buffer(
+        &(wgpu::BufferDescriptor {
+            label: Some("Result Buffer"),
+            size: res_size,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        })
+    );
 
     let res_strides_buffer = device.create_buffer_init(
         &(wgpu::util::BufferInitDescriptor {
             label: Some("res_strides_buffer"),
             contents: bytemuck::cast_slice(res.strides()),
+            usage: wgpu::BufferUsages::STORAGE |
+            wgpu::BufferUsages::COPY_DST |
+            wgpu::BufferUsages::COPY_SRC,
+        })
+    );
+
+    let res_shape_buffer = device.create_buffer_init(
+        &(wgpu::util::BufferInitDescriptor {
+            label: Some("res_shape_buffer"),
+            contents: bytemuck::cast_slice(res.shape()),
             usage: wgpu::BufferUsages::STORAGE |
             wgpu::BufferUsages::COPY_DST |
             wgpu::BufferUsages::COPY_SRC,
@@ -115,6 +127,16 @@ async fn binop<A, B>(
         })
     );
 
+    let a_shape_buffer = device.create_buffer_init(
+        &(wgpu::util::BufferInitDescriptor {
+            label: Some("a_shape_buffer"),
+            contents: bytemuck::cast_slice(a.shape()),
+            usage: wgpu::BufferUsages::STORAGE |
+            wgpu::BufferUsages::COPY_DST |
+            wgpu::BufferUsages::COPY_SRC,
+        })
+    );
+
     let b_buffer = device.create_buffer_init(
         &(wgpu::util::BufferInitDescriptor {
             label: Some("b_buffer"),
@@ -135,72 +157,114 @@ async fn binop<A, B>(
         })
     );
 
+    let b_shape_buffer = device.create_buffer_init(
+        &(wgpu::util::BufferInitDescriptor {
+            label: Some("b_shape_buffer"),
+            contents: bytemuck::cast_slice(b.shape()),
+            usage: wgpu::BufferUsages::STORAGE |
+            wgpu::BufferUsages::COPY_DST |
+            wgpu::BufferUsages::COPY_SRC,
+        })
+    );
+
     // Instantiates the bind group, once again specifying the binding of buffers.
-    let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("Bind Group Layout"),
-        entries: &[
-            wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+    let bind_group_layout = device.create_bind_group_layout(
+        &(wgpu::BindGroupLayoutDescriptor {
+            label: Some("Bind Group Layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 2,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 3,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 4,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: false },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 5,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 5,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }
-        ],
-    });
+                wgpu::BindGroupLayoutEntry {
+                    binding: 6,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 7,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 8,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
+        })
+    );
 
     let bind_group = device.create_bind_group(
         &(wgpu::BindGroupDescriptor {
@@ -213,35 +277,49 @@ async fn binop<A, B>(
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
+                    resource: a_strides_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: a_shape_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
                     resource: b_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 4,
-                    resource: res_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: a_strides_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 3,
                     resource: b_strides_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 5,
+                    resource: b_shape_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 6,
+                    resource: res_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 7,
                     resource: res_strides_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 8,
+                    resource: res_shape_buffer.as_entire_binding(),
                 },
             ],
         })
     );
 
-    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("Pipeline Layout"),
-        bind_group_layouts: &[&bind_group_layout],
-        push_constant_ranges: &[],
-    });
+    let pipeline_layout = device.create_pipeline_layout(
+        &(wgpu::PipelineLayoutDescriptor {
+            label: Some("Pipeline Layout"),
+            bind_group_layouts: &[&bind_group_layout],
+            push_constant_ranges: &[],
+        })
+    );
 
-        // A bind group defines how buffers are accessed by shaders.
+    // A bind group defines how buffers are accessed by shaders.
     // It is to WebGPU what a descriptor set is to Vulkan.
     // `binding` here refers to the `binding` of a buffer in the shader (`layout(set = 0, binding = 0) buffer`).
 
@@ -306,12 +384,7 @@ async fn binop<A, B>(
         // It effectively frees the memory
 
         // Returns data from buffer
-        res.as_raw_mut()
-            .par_iter_mut()
-            .enumerate()
-            .for_each(|(i, x)| {
-                *x = result[i];
-            });
+        res.as_raw_mut().copy_from_slice(result);
         drop(data);
         result_buffer.unmap(); // Unmaps buffer from memory
         res
