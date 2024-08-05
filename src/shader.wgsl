@@ -49,9 +49,13 @@ fn main(
    let start_idx2 = global_id_y * (inner_loop_size / 1024 * 16) + min(global_id_y, tmp2);
    var end_idx2 = start_idx2 + (inner_loop_size / 1024 * 16) + i64(global_id_y < tmp2);
 
-   c_offset += c_strides[res_ndim - 1] * start_idx2;
-   a_offset += a_strides[res_ndim - 1] * start_idx2;
-   b_offset += b_strides[res_ndim - 1] * start_idx2;
+   let c_last_stride = c_strides[res_ndim - 1];
+   let a_last_stride = a_strides[res_ndim - 1];
+   let b_last_stride = b_strides[res_ndim - 1];
+
+   c_offset += c_last_stride * start_idx2;
+   a_offset += a_last_stride * start_idx2;
+   b_offset += b_last_stride * start_idx2;
 
    if end_idx2 - start_idx2 == 0 {
       return;
@@ -59,6 +63,6 @@ fn main(
 
    for (var i : i64 = start_idx2; i < end_idx2; i++)
    {
-      c[c_offset + i * c_strides[res_ndim - 1]] = a[a_offset + i * a_strides[res_ndim - 1]] + b[b_offset + i * b_strides[res_ndim - 1]];
+      c[c_offset + i * c_last_stride] = a[a_offset + i * a_last_stride] + b[b_offset + i * b_last_stride];
    }
 }
