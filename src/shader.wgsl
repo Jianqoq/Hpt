@@ -24,9 +24,9 @@ fn main(
 {
    let global_id_x = i64(workgroup_id.x) * 16 + i64(local_id.x);
 
-   let tmp = outer_loop_size % (1024 * 16);
-   let start_idx = global_id_x * (outer_loop_size / (1024 * 16)) + min(global_id_x, tmp);
-   var end_idx = start_idx + (outer_loop_size / (1024 * 16)) + i64(global_id_x < tmp);
+   let tmp = outer_loop_size % (64 * 16);
+   let start_idx = global_id_x * (outer_loop_size / (64 * 16)) + min(global_id_x, tmp);
+   var end_idx = start_idx + (outer_loop_size / (64 * 16)) + i64(global_id_x < tmp);
 
    if end_idx - start_idx == 0 {
       return;
@@ -47,9 +47,9 @@ fn main(
    }
    let global_id_y = i64(workgroup_id.y) * 16 + i64(local_id.y);
 
-   let tmp2 = inner_loop_size % (1024 * 16);
-   let start_idx2 = global_id_y * (inner_loop_size / 1024 * 16) + min(global_id_y, tmp2);
-   var end_idx2 = start_idx2 + (inner_loop_size / 1024 * 16) + i64(global_id_y < tmp2);
+   let tmp2 = inner_loop_size % (64 * 16);
+   let start_idx2 = global_id_y * (inner_loop_size / 64 * 16) + min(global_id_y, tmp2);
+   var end_idx2 = start_idx2 + (inner_loop_size / 64 * 16) + i64(global_id_y < tmp2);
 
    let c_last_stride = c_strides[res_ndim - 1];
    let a_last_stride = a_strides[res_ndim - 1];
@@ -63,9 +63,12 @@ fn main(
       return;
    }
 
-   for (var j : i64 = start_idx; j < end_idx; j++)
+   let inner_loop_size = end_idx2 - start_idx2;
+   let outer_loop_size = end_idx - start_idx;
+
+   for (var j : i64 = 0; j < outer_loop_size; j++)
    {
-      for (var i : i64 = start_idx2; i < end_idx2; i++)
+      for (var i : i64 = 0; i < inner_loop_size; i++)
       {
          c[c_offset + i * c_last_stride] = a[a_offset + i * a_last_stride] + b[b_offset + i * b_last_stride];
       }
