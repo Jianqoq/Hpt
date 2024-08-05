@@ -502,7 +502,7 @@ pub trait FloatUaryOps {
         where U: BaseTensor<Output = Self::InplaceOutput>;
 }
 
-pub trait NormalUaryOps {
+pub trait NormalUaryOps where Self: Sized {
     type Output;
     type InplaceOutput;
     type OutputMeta;
@@ -537,7 +537,7 @@ pub trait NormalUaryOps {
     /// let b = a.abs().unwrap();
     /// assert_eq!(b, Tensor::new([1f32, 0f32, 3.]));
     /// ```
-    fn abs(&self) -> Result<Self::Output>;
+    fn abs(&self) -> Result<Self>;
 
     /// Inplace Version of abs. Compute absolute value element-wise.
     /// # Example
@@ -548,8 +548,8 @@ pub trait NormalUaryOps {
     /// a.abs_(c).unwrap();
     /// assert!(a.allclose(&Tensor::<f64>::new([1f64, 0f64, 3f64])));
     /// ```
-    fn abs_<U>(&self, out: U) -> Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>;
+    fn abs_<U>(&self, out: U) -> Result<Self>
+        where U: BaseTensor<Output = Self>;
 
     fn ceil(&self) -> Result<Self::Output>;
 

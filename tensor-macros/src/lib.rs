@@ -781,9 +781,9 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                 }
             };
 
-            let abs_method = if res_type.is_unsigned() {
+            let abs_method = if lhs_dtype.is_unsigned() {
                 quote! {
-                    fn _abs(self) -> Self::Output {
+                    fn _abs(self) -> Self {
                         paste::paste! {
                             self
                         }
@@ -791,9 +791,9 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                 }
             } else {
                 quote! {
-                    fn _abs(self) -> Self::Output {
+                    fn _abs(self) -> Self {
                         paste::paste! {
-                            self.[<to_ #res_type>]().abs()
+                            self.abs()
                         }
                     }
                 }

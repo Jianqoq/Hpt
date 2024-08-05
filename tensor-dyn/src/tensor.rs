@@ -1162,7 +1162,7 @@ impl<T> FloatUaryOps
 impl<T> NormalUaryOps
     for Tensor<T>
     where
-        T: NormalOut + CommonBounds,
+        T: NormalOut + CommonBounds + IntoScalar<T>,
         NormalType<T>: CommonBounds,
         <T as NormalOut>::Output: IntoScalar<<T as NormalOut>::Output>
 {
@@ -1182,12 +1182,12 @@ impl<T> NormalUaryOps
         Ok(_Tensor::square_(self, out.base().clone())?.into())
     }
 
-    fn abs(&self) -> Result<Self::Output> {
+    fn abs(&self) -> Result<Self> {
         Ok(_Tensor::abs(self)?.into())
     }
 
-    fn abs_<U>(&self, out: U) -> Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
+    fn abs_<U>(&self, out: U) -> Result<Self>
+        where U: BaseTensor<Output = Self>
     {
         Ok(_Tensor::abs_(self, out.base().clone())?.into())
     }

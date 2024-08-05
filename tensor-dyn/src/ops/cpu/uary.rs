@@ -437,7 +437,7 @@ pub(crate) type NormalType<T> = <T as NormalOut>::Output;
 impl<T> NormalUaryOps
     for _Tensor<T>
     where
-        T: NormalOut + CommonBounds,
+        T: NormalOut + CommonBounds + IntoScalar<T>,
         NormalType<T>: CommonBounds,
         _Tensor<NormalType<T>>: TensorLike<NormalType<T>, Output = _Tensor<NormalType<T>>>
 {
@@ -457,13 +457,11 @@ impl<T> NormalUaryOps
         uary_fn_with_out(self, |x| x._square(), out.base().clone())
     }
 
-    fn abs(&self) -> anyhow::Result<Self::Output> {
+    fn abs(&self) -> anyhow::Result<Self> {
         uary_fn(self, |x| x._abs())
     }
 
-    fn abs_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
+    fn abs_<U>(&self, out: U) -> anyhow::Result<Self> where U: BaseTensor<Output = Self> {
         uary_fn_with_out(self, |x| x._abs(), out.base().clone())
     }
 

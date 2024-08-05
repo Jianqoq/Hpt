@@ -7,7 +7,10 @@ pub fn is_float(list: &str) -> bool {
 }
 
 pub fn is_signed(list: &str) -> bool {
-    matches!(list.to_lowercase().as_str(), "i8" | "i16" | "i32" | "i64" | "bf16" | "f16" | "f32" | "f64")
+    matches!(
+        list.to_lowercase().as_str(),
+        "i8" | "i16" | "i32" | "i64" | "bf16" | "f16" | "f32" | "f64"
+    )
 }
 
 pub fn type_level(list: &str) -> u8 {
@@ -68,29 +71,83 @@ pub(crate) fn level_to_uint(level: u8) -> Type {
 
 pub fn level_to_float_expr(level: u8) -> syn::Expr {
     match level {
-        1 => parse_quote! { Dtype::F16 },
-        2 => parse_quote! { Dtype::F16 },
-        3 => parse_quote! { Dtype::F16 },
-        4 => parse_quote! { Dtype::F16 },
-        5 => parse_quote! { Dtype::F32 },
-        6 => parse_quote! { Dtype::F32 },
-        7 => parse_quote! { Dtype::F64 },
-        8 => parse_quote! { Dtype::F64 },
-        _ => parse_quote! { Dtype::F64 },
+        1 =>
+            parse_quote! {
+                Dtype::F16
+            },
+        2 =>
+            parse_quote! {
+                Dtype::F16
+            },
+        3 =>
+            parse_quote! {
+                Dtype::F16
+            },
+        4 =>
+            parse_quote! {
+                Dtype::F16
+            },
+        5 =>
+            parse_quote! {
+                Dtype::F32
+            },
+        6 =>
+            parse_quote! {
+                Dtype::F32
+            },
+        7 =>
+            parse_quote! {
+                Dtype::F64
+            },
+        8 =>
+            parse_quote! {
+                Dtype::F64
+            },
+        _ =>
+            parse_quote! {
+                Dtype::F64
+            },
     }
 }
 
 pub fn level_to_int_expr(level: u8) -> syn::Expr {
     match level {
-        1 => parse_quote! { Dtype::I8 },
-        2 => parse_quote! { Dtype::I8 },
-        3 => parse_quote! { Dtype::I16 },
-        4 => parse_quote! { Dtype::I16 },
-        5 => parse_quote! { Dtype::I32 },
-        6 => parse_quote! { Dtype::I32 },
-        7 => parse_quote! { Dtype::I64 },
-        8 => parse_quote! { Dtype::I64 },
-        _ => parse_quote! { Dtype::I64 },
+        1 =>
+            parse_quote! {
+                Dtype::I8
+            },
+        2 =>
+            parse_quote! {
+                Dtype::I8
+            },
+        3 =>
+            parse_quote! {
+                Dtype::I16
+            },
+        4 =>
+            parse_quote! {
+                Dtype::I16
+            },
+        5 =>
+            parse_quote! {
+                Dtype::I32
+            },
+        6 =>
+            parse_quote! {
+                Dtype::I32
+            },
+        7 =>
+            parse_quote! {
+                Dtype::I64
+            },
+        8 =>
+            parse_quote! {
+                Dtype::I64
+            },
+        _ =>
+            parse_quote! {
+                Dtype::I64
+            },
     }
 }
 
@@ -122,7 +179,7 @@ impl Type {
         matches!(self, Type::BF16 | Type::F16 | Type::F32 | Type::F64 | Type::C32 | Type::C64)
     }
     pub fn is_unsigned(&self) -> bool {
-        matches!(self, Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Usize)
+        matches!(self, Type::Bool | Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Usize)
     }
     pub fn is_bool(&self) -> bool {
         matches!(self, Type::Bool)
@@ -318,7 +375,15 @@ impl TypeInfo {
                 if self.level > other.level { level_to_float(self.level) } else { other.dtype }
             }
             (false, false) => {
-                if self.level > other.level { self.dtype } else { level_to_int(other.level) }
+                if self.level > other.level {
+                    self.dtype
+                } else {
+                    if self.is_signed && other.is_signed {
+                        level_to_int(std::cmp::max(self.level, other.level))
+                    } else {
+                        level_to_uint(std::cmp::max(self.level, other.level))
+                    }
+                }
             }
         }
     }

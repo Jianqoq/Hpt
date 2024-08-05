@@ -24,12 +24,20 @@ pub mod ops {
         pub mod topk;
         pub mod shrink;
     }
+    pub mod wgpu {
+
+    }
+}
+
+pub mod wgpu_kernels {
+    
 }
 pub mod backend;
 pub mod tensor;
 pub mod random;
 pub mod slice;
 pub mod to_tensor;
+pub mod wgpu_exec;
 pub use tensor_traits::*;
 
 use std::cell::RefCell;
