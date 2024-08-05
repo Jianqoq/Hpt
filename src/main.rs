@@ -10,7 +10,12 @@ use tensor_dyn::TensorInfo;
 
 async fn create_device() -> (wgpu::Device, wgpu::Queue) {
     // Instantiates instance of WebGPU
-    let instance = wgpu::Instance::default();
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+        backends: wgpu::Backends::VULKAN | wgpu::Backends::METAL | wgpu::Backends::DX12 | wgpu::Backends::GL | wgpu::Backends::BROWSER_WEBGPU,
+        flags: InstanceFlags::VALIDATION,
+        dx12_shader_compiler: Dx12Compiler::Fxc,
+        gles_minor_version: Gles3MinorVersion::default(),
+    });
 
     // `request_adapter` instantiates the general connection to the GPU
     let adapter = instance
@@ -456,21 +461,21 @@ async fn binop<A, B>(
     }
 }
 use tensor_dyn::ShapeManipulate;
-use wgpu::RequestAdapterOptions;
+use wgpu::{Dx12Compiler, Gles3MinorVersion, InstanceFlags, RequestAdapterOptions};
 fn main() -> anyhow::Result<()> {
     println!(
         "allocating memory on gpu {}",
         (std::mem::size_of::<f32>() * 1024 * 1024 * 16) / 1024 / 1024
     );
     let a = Tensor::<f32>
-        ::arange(0, 1024 * 1024 * 2)
+        ::arange(0, 1024 * 1024 * 1)
         .unwrap()
-        .reshape(&[1024, 1024, 2])
+        .reshape(&[1024, 1024, 1])
         .unwrap();
     let b = Tensor::<f32>
-        ::arange(0, 1024 * 1024 * 2)
+        ::arange(0, 1024 * 1024 * 1)
         .unwrap()
-        .reshape(&[1024, 1024, 2])
+        .reshape(&[1024, 1024, 1])
         .unwrap();
     {
         pollster::block_on(async {

@@ -20,11 +20,11 @@ fn main(
 @builtin(local_invocation_id) local_id : vec3 <u32>
 )
 {
-   let global_id_x = i64(workgroup_id.x) * GRP_SIZE_X + i64(local_id.x);
+   let global_id_x: i64 = i64(workgroup_id.x) * GRP_SIZE_X + i64(local_id.x);
 
-   let tmp = outer_loop_size % (NUM_GRP_X * GRP_SIZE_X);
-   let start_idx = global_id_x * (outer_loop_size / (NUM_GRP_X * GRP_SIZE_X)) + min(global_id_x, tmp);
-   var end_idx = start_idx + (outer_loop_size / (NUM_GRP_X * GRP_SIZE_X)) + i64(global_id_x < tmp);
+   let tmp: i64 = outer_loop_size % (NUM_GRP_X * GRP_SIZE_X);
+   let start_idx: i64 = global_id_x * (outer_loop_size / (NUM_GRP_X * GRP_SIZE_X)) + min(global_id_x, tmp);
+   var end_idx: i64 = start_idx + (outer_loop_size / (NUM_GRP_X * GRP_SIZE_X)) + i64(global_id_x < tmp);
 
    if end_idx - start_idx == 0 {
       return;
@@ -43,15 +43,15 @@ fn main(
       prg[i] = tmp;
       amount /= c_shape[i];
    }
-   let global_id_y = i64(workgroup_id.y) * GRP_SIZE_Y + i64(local_id.y);
+   let global_id_y: i64 = i64(workgroup_id.y) * GRP_SIZE_Y + i64(local_id.y);
 
-   let tmp2 = inner_loop_size % (NUM_GRP_Y * GRP_SIZE_Y);
-   let start_idx2 = global_id_y * (inner_loop_size / NUM_GRP_Y * GRP_SIZE_Y) + min(global_id_y, tmp2);
-   var end_idx2 = start_idx2 + (inner_loop_size / NUM_GRP_Y * GRP_SIZE_Y) + i64(global_id_y < tmp2);
+   let tmp2: i64 = inner_loop_size % (NUM_GRP_Y * GRP_SIZE_Y);
+   let start_idx2: i64 = global_id_y * (inner_loop_size / NUM_GRP_Y * GRP_SIZE_Y) + min(global_id_y, tmp2);
+   var end_idx2: i64 = start_idx2 + (inner_loop_size / NUM_GRP_Y * GRP_SIZE_Y) + i64(global_id_y < tmp2);
 
-   let c_last_stride = c_strides[res_ndim - 1];
-   let a_last_stride = a_strides[res_ndim - 1];
-   let b_last_stride = b_strides[res_ndim - 1];
+   let c_last_stride: i64 = c_strides[res_ndim - 1];
+   let a_last_stride: i64 = a_strides[res_ndim - 1];
+   let b_last_stride: i64 = b_strides[res_ndim - 1];
 
    c_offset += c_last_stride * start_idx2;
    a_offset += a_last_stride * start_idx2;
@@ -61,8 +61,8 @@ fn main(
       return;
    }
 
-   let inner_loop_size = end_idx2 - start_idx2;
-   let outer_loop_size = end_idx - start_idx;
+   let inner_loop_size: i64 = end_idx2 - start_idx2;
+   let outer_loop_size: i64 = end_idx - start_idx;
 
    for (var j : i64 = 0; j < outer_loop_size; j++)
    {
