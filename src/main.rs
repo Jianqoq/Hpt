@@ -14,7 +14,7 @@ async fn create_device() -> (wgpu::Device, wgpu::Queue) {
     // `request_device` instantiates the feature specific connection to the GPU, defining some parameters,
     //  `features` being the available features.
     let limits = wgpu::Limits {
-        max_storage_buffers_per_shader_stage: 9,
+        max_storage_buffers_per_shader_stage: 12,
         ..wgpu::Limits::default()
     };
     adapter
@@ -96,6 +96,39 @@ async fn binop<A, B>(
         &(wgpu::util::BufferInitDescriptor {
             label: Some("res_shape_buffer"),
             contents: bytemuck::cast_slice(res.shape()),
+            usage: wgpu::BufferUsages::STORAGE |
+            wgpu::BufferUsages::COPY_DST |
+            wgpu::BufferUsages::COPY_SRC,
+        })
+    );
+
+    let res_ndim_buffer = device.create_buffer_init(
+        &(wgpu::util::BufferInitDescriptor {
+            label: Some("res_ndim_buffer"),
+            contents: bytemuck::cast_slice(&[res_shape.ndim()]),
+            usage: wgpu::BufferUsages::STORAGE |
+            wgpu::BufferUsages::COPY_DST |
+            wgpu::BufferUsages::COPY_SRC,
+        })
+    );
+
+    let outer_loop_size = res_shape.size() / res_shape.shape().last().unwrap();
+    let inner_loop_size = *res_shape.shape().last().unwrap();
+
+    let outer_loop_size_buffer = device.create_buffer_init(
+        &(wgpu::util::BufferInitDescriptor {
+            label: Some("outer_loop_size_buffer"),
+            contents: bytemuck::cast_slice(&[outer_loop_size]),
+            usage: wgpu::BufferUsages::STORAGE |
+            wgpu::BufferUsages::COPY_DST |
+            wgpu::BufferUsages::COPY_SRC,
+        })
+    );
+
+    let inner_loop_size_buffer = device.create_buffer_init(
+        &(wgpu::util::BufferInitDescriptor {
+            label: Some("inner_loop_size_buffer"),
+            contents: bytemuck::cast_slice(&[inner_loop_size]),
             usage: wgpu::BufferUsages::STORAGE |
             wgpu::BufferUsages::COPY_DST |
             wgpu::BufferUsages::COPY_SRC,
@@ -262,6 +295,36 @@ async fn binop<A, B>(
                     },
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 9,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 10,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 11,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         })
     );
@@ -306,6 +369,18 @@ async fn binop<A, B>(
                 wgpu::BindGroupEntry {
                     binding: 8,
                     resource: res_shape_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 9,
+                    resource: outer_loop_size_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 10,
+                    resource: inner_loop_size_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 11,
+                    resource: res_ndim_buffer.as_entire_binding(),
                 },
             ],
         })
@@ -352,7 +427,10 @@ async fn binop<A, B>(
         cpass.set_pipeline(&compute_pipeline);
         cpass.set_bind_group(0, &bind_group, &[]);
         cpass.insert_debug_marker("compute collatz iterations");
-        cpass.dispatch_workgroups(1024, 1, 1); // Number of cells to run, the (x,y,z) size of item being processed
+
+
+
+        cpass.dispatch_workgroups(1024, 1024, 1); // Number of cells to run, the (x,y,z) size of item being processed
     }
     encoder.copy_buffer_to_buffer(&res_buffer, 0, &result_buffer, 0, res_size);
     // Submits command encoder for processing
@@ -375,7 +453,6 @@ async fn binop<A, B>(
         let data = buffer_slice.get_mapped_range();
         // Since contents are got in bytes, this converts these bytes back to u32
         let result: &[<A as NormalOut<B>>::Output] = bytemuck::cast_slice(&data);
-        println!("{:?}", result);
         // With the current interface, we have to make sure all mapped views are
         // dropped before we unmap the buffer.
         // If you are familiar with C++ these 2 lines can be thought of similarly to:
@@ -397,8 +474,8 @@ fn main() -> anyhow::Result<()> {
     {
         pollster::block_on(async {
             let (device, queue) = create_device().await;
-            let a = Tensor::<u32>::arange(0u32, 10).unwrap();
-            let b = Tensor::<u32>::arange(0u32, 10).unwrap();
+            let a = Tensor::<i64>::arange(0, 1024 * 16).unwrap();
+            let b = Tensor::<i64>::arange(0, 1024 * 16).unwrap();
             let res = binop(&device, &queue, include_str!("shader.wgsl"), &a, &b).await;
             println!("{:?}", res);
         });
