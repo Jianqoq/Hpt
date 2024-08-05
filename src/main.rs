@@ -14,6 +14,7 @@ async fn create_device() -> (wgpu::Device, wgpu::Queue) {
     // `request_device` instantiates the feature specific connection to the GPU, defining some parameters,
     //  `features` being the available features.
     let limits = wgpu::Limits {
+        max_buffer_size: 25 * 1024 * 1024 * 1024,
         max_storage_buffers_per_shader_stage: 12,
         ..wgpu::Limits::default()
     };
@@ -430,7 +431,7 @@ async fn binop<A, B>(
 
 
 
-        cpass.dispatch_workgroups(1024, 1024, 1); // Number of cells to run, the (x,y,z) size of item being processed
+        cpass.dispatch_workgroups(64, 64, 1); // Number of cells to run, the (x,y,z) size of item being processed
     }
     encoder.copy_buffer_to_buffer(&res_buffer, 0, &result_buffer, 0, res_size);
     // Submits command encoder for processing
@@ -469,13 +470,13 @@ async fn binop<A, B>(
         panic!("failed to run compute on gpu!")
     }
 }
-
+use tensor_dyn::ShapeManipulate;
 fn main() -> anyhow::Result<()> {
     {
         pollster::block_on(async {
             let (device, queue) = create_device().await;
-            let a = Tensor::<i64>::arange(0, 1024 * 16).unwrap();
-            let b = Tensor::<i64>::arange(0, 1024 * 16).unwrap();
+            let a = Tensor::<i64>::arange(0, 64 * 16 * 64 * 16).unwrap().reshape(&[64 * 16, 64 * 16]).unwrap();
+            let b = Tensor::<i64>::arange(0, 64 * 16 * 64 * 16).unwrap().reshape(&[64 * 16, 64 * 16]).unwrap();
             let res = binop(&device, &queue, include_str!("shader.wgsl"), &a, &b).await;
             println!("{:?}", res);
         });

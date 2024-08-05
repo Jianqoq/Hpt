@@ -43,17 +43,22 @@ fn main(
       b_offset += tmp * b_strides[i];
       amount /= c_shape[i];
    }
-
-   let workgroup_id_y = i64(workgroup_id.y);
-   let local_id_y = i64(local_id.y);
-   let global_id_y = workgroup_id_y * 16 + local_id_y;
+   let global_id_y = i64(workgroup_id.y) * 16 + i64(local_id.y);
 
    let tmp2 = inner_loop_size % (1024 * 16);
    let start_idx2 = global_id_y * (inner_loop_size / 1024 * 16) + min(global_id_y, tmp2);
    var end_idx2 = start_idx2 + (inner_loop_size / 1024 * 16) + i64(global_id_y < tmp2);
 
-   c[global_id_x] = i64(workgroup_id.y);
-   var c_offset2 : i64 = c_strides[res_ndim - 1] * start_idx2;
-   var a_offset2 : i64 = a_strides[res_ndim - 1] * start_idx2;
-   var b_offset2 : i64 = b_strides[res_ndim - 1] * start_idx2;
+   c_offset += c_strides[res_ndim - 1] * start_idx2;
+   a_offset += a_strides[res_ndim - 1] * start_idx2;
+   b_offset += b_strides[res_ndim - 1] * start_idx2;
+
+   if end_idx2 - start_idx2 == 0 {
+      return;
+   }
+
+   for (var i : i64 = start_idx2; i < end_idx2; i++)
+   {
+      c[c_offset + i * c_strides[res_ndim - 1]] = a[a_offset + i * a_strides[res_ndim - 1]] + b[b_offset + i * b_strides[res_ndim - 1]];
+   }
 }
