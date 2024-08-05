@@ -35,12 +35,14 @@ fn main(
    var c_offset : i64 = 0;
    var a_offset : i64 = 0;
    var b_offset : i64 = 0;
+   var prg : array<i64, prg_place_holder>;
    for (var i : i64 = res_ndim - 1; i >= 0; i--)
    {
       let tmp : i64 = amount % c_shape[i];
       c_offset += tmp * c_strides[i];
       a_offset += tmp * a_strides[i];
       b_offset += tmp * b_strides[i];
+      prg[i] = tmp;
       amount /= c_shape[i];
    }
    let global_id_y = i64(workgroup_id.y) * 16 + i64(local_id.y);
@@ -61,8 +63,29 @@ fn main(
       return;
    }
 
-   for (var i : i64 = start_idx2; i < end_idx2; i++)
+   for (var j : i64 = start_idx; j < end_idx; j++)
    {
-      c[c_offset + i * c_last_stride] = a[a_offset + i * a_last_stride] + b[b_offset + i * b_last_stride];
+      for (var i : i64 = start_idx2; i < end_idx2; i++)
+      {
+         c[c_offset + i * c_last_stride] = a[a_offset + i * a_last_stride] + b[b_offset + i * b_last_stride];
+      }
+      for (var i : i64 = 0; i < res_ndim; i++)
+      {
+         if (prg[i] + 1 < c_shape[i])
+         {
+            prg[i]++;
+            c_offset += c_strides[i];
+            a_offset += a_strides[i];
+            b_offset += b_strides[i];
+            break;
+         }
+         else
+         {
+            prg[i] = i64(0);
+            c_offset -= c_strides[i] * (c_shape[i] - 1);
+            a_offset -= a_strides[i] * (c_shape[i] - 1);
+            b_offset -= b_strides[i] * (c_shape[i] - 1);
+         }
+      }
    }
 }

@@ -49,9 +49,10 @@ async fn binop<A, B>(
         ::empty(res_shape.shape())
         .expect("Failed to create tensor");
 
+    let kernel = kernel.replace("prg_place_holder", &(res.ndim() - 1).to_string());
     let cs_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
-        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(kernel)),
+        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&kernel)),
     });
 
     // Gets the size in bytes of the buffer.
@@ -475,8 +476,8 @@ fn main() -> anyhow::Result<()> {
     {
         pollster::block_on(async {
             let (device, queue) = create_device().await;
-            let a = Tensor::<i64>::arange(0, 64 * 16 * 64 * 16).unwrap().reshape(&[64 * 16, 64 * 16]).unwrap();
-            let b = Tensor::<i64>::arange(0, 64 * 16 * 64 * 16).unwrap().reshape(&[64 * 16, 64 * 16]).unwrap();
+            let a = Tensor::<i64>::arange(0, 1024).unwrap().reshape(&[512, 2]).unwrap();
+            let b = Tensor::<i64>::arange(0, 1024).unwrap().reshape(&[512, 2]).unwrap();
             let res = binop(&device, &queue, include_str!("shader.wgsl"), &a, &b).await;
             println!("{:?}", res);
         });
