@@ -1,5 +1,5 @@
-use std::borrow::Cow;
-use rayon::iter::{ IndexedParallelIterator, IntoParallelIterator, IntoParallelRefMutIterator };
+use std::{borrow::Cow, fmt::Debug};
+use rayon::iter::{ IndexedParallelIterator, IntoParallelRefMutIterator };
 use tensor_dyn::{ tensor::Tensor, CommonBounds, TensorCreator };
 use tensor_types::type_promote::NormalOut;
 use wgpu::util::DeviceExt;
@@ -43,7 +43,7 @@ async fn binop<A, B>(
     where
         A: CommonBounds + NormalOut<B> + bytemuck::Pod,
         B: CommonBounds + bytemuck::Pod,
-        <A as NormalOut<B>>::Output: CommonBounds + bytemuck::Pod
+        <A as NormalOut<B>>::Output: CommonBounds + bytemuck::Pod + Debug
 {
     let res_shape = a.layout().broadcast(&b.layout()).expect("Failed to broadcast shapes");
     let res = Tensor::<<A as NormalOut<B>>::Output>
@@ -297,7 +297,7 @@ async fn binop<A, B>(
         let data = buffer_slice.get_mapped_range();
         // Since contents are got in bytes, this converts these bytes back to u32
         let result: &[<A as NormalOut<B>>::Output] = bytemuck::cast_slice(&data);
-
+        println!("{:?}", result);
         // With the current interface, we have to make sure all mapped views are
         // dropped before we unmap the buffer.
         // If you are familiar with C++ these 2 lines can be thought of similarly to:
