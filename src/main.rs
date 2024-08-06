@@ -38,7 +38,9 @@ async fn create_device() -> (wgpu::Device, wgpu::Queue) {
         .request_device(
             &(wgpu::DeviceDescriptor {
                 label: None,
-                required_features: wgpu::Features::SHADER_INT64,
+                required_features: wgpu::Features::SHADER_INT64 |
+                wgpu::Features::BUFFER_BINDING_ARRAY |
+                wgpu::Features::STORAGE_RESOURCE_BINDING_ARRAY,
                 required_limits: limits,
                 memory_hints: wgpu::MemoryHints::MemoryUsage,
             }),
@@ -217,6 +219,16 @@ async fn binop<A, B>(
         })
     );
 
+    let res_group_buffer = device.create_buffer_init(
+        &(wgpu::util::BufferInitDescriptor {
+            label: Some("res_group_buffer"),
+            contents: bytemuck::cast_slice(&[res_shape.ndim()]),
+            usage: wgpu::BufferUsages::STORAGE |
+            wgpu::BufferUsages::COPY_DST |
+            wgpu::BufferUsages::COPY_SRC,
+        })
+    );
+
     // Instantiates the bind group, once again specifying the binding of buffers.
     let bind_group_layout = device.create_bind_group_layout(
         &(wgpu::BindGroupLayoutDescriptor {
@@ -322,6 +334,16 @@ async fn binop<A, B>(
                     },
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 10,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         })
     );
@@ -370,6 +392,10 @@ async fn binop<A, B>(
                 wgpu::BindGroupEntry {
                     binding: 9,
                     resource: res_ndim_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 10,
+                    resource: res_group_buffer.as_entire_binding(),
                 },
             ],
         })
@@ -468,14 +494,14 @@ fn main() -> anyhow::Result<()> {
         (std::mem::size_of::<f32>() * 1024 * 1024 * 16) / 1024 / 1024
     );
     let a = Tensor::<f32>
-        ::arange(0, 1024 * 1024 * 20)
+        ::arange(0, 1024 * 1024 * 2)
         .unwrap()
-        .reshape(&[1024, 1024, 20])
+        .reshape(&[1024, 1024, 2])
         .unwrap();
     let b = Tensor::<f32>
-        ::arange(0, 1024 * 1024 * 20)
+        ::arange(0, 1024 * 1024 * 2)
         .unwrap()
-        .reshape(&[1024, 1024, 20])
+        .reshape(&[1024, 1024, 2])
         .unwrap();
     {
         pollster::block_on(async {

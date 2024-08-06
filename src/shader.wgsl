@@ -1,3 +1,5 @@
+
+
 @group(0) @binding(0) var<storage, read> a : array<a_ty>;
 @group(0) @binding(1) var<storage, read> a_strides : array<i64>;
 
@@ -12,6 +14,8 @@
 @group(0) @binding(8) var<storage, read> inner_loop_size : i64;
 
 @group(0) @binding(9) var<storage, read> res_ndim : i64;
+
+@group(0) @binding(10) var<storage, read> c_group : array<array<i64, 805306368>>;
 
 @compute
 @workgroup_size(GRP_SIZE_X, GRP_SIZE_Y, 1)
