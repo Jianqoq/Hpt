@@ -1,4 +1,3 @@
-use std::u32;
 use std::{ borrow::Cow, fmt::Debug };
 use tensor_common::shape_utils::try_pad_shape;
 use tensor_common::strides_utils::preprocess_strides;
@@ -11,9 +10,9 @@ use tensor_dyn::TensorInfo;
 async fn create_device() -> (wgpu::Device, wgpu::Queue) {
     // Instantiates instance of WebGPU
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-        backends: wgpu::Backends::all(),
+        backends: wgpu::Backends::VULKAN | wgpu::Backends::DX12,
         flags: InstanceFlags::VALIDATION,
-        dx12_shader_compiler: Dx12Compiler::Fxc,
+        dx12_shader_compiler: Dx12Compiler::Dxc { dxil_path: None, dxc_path: None },
         gles_minor_version: Gles3MinorVersion::default(),
     });
 
@@ -32,9 +31,7 @@ async fn create_device() -> (wgpu::Device, wgpu::Queue) {
     //  `features` being the available features.
     let limits = wgpu::Limits {
         max_buffer_size: 20 * 1024 * 1024 * 1024,
-        max_storage_buffer_binding_size: u32::MAX,
-        max_uniform_buffer_binding_size: u32::MAX,
-        max_storage_buffers_per_shader_stage: 32,
+        max_storage_buffers_per_shader_stage: 12,
         ..wgpu::Limits::default()
     };
     adapter
@@ -45,7 +42,7 @@ async fn create_device() -> (wgpu::Device, wgpu::Queue) {
                 required_limits: limits,
                 memory_hints: wgpu::MemoryHints::MemoryUsage,
             }),
-            Some(std::path::Path::new("trace"))
+            None
         ).await
         .unwrap()
 }
@@ -79,17 +76,17 @@ async fn binop<A, B>(
         .expect("Failed to create tensor");
 
     let kernel = kernel
-        .replace("prg_place_holder", &res.ndim().to_string())
+        .replace("prg_place_holder", &(res.ndim() - 1).to_string())
         .replace("GRP_SIZE_X", &(16).to_string())
         .replace("GRP_SIZE_Y", &(16).to_string())
         .replace("NUM_GRP_X", &(64).to_string())
         .replace("NUM_GRP_Y", &(64).to_string())
         .replace("a_ty", &A::ID.to_string())
         .replace("b_ty", &B::ID.to_string())
-        .replace("c_ty", &<A as NormalOut<B>>::Output::ID.to_string())
-        .replace("res_ndim", &res.ndim().to_string());
+        .replace("c_ty", &<A as NormalOut<B>>::Output::ID.to_string());
+    println!("{}", kernel);
     let cs_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("Shader Module"),
+        label: None,
         source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&kernel)),
     });
 
@@ -125,19 +122,7 @@ async fn binop<A, B>(
     let res_strides_buffer = device.create_buffer_init(
         &(wgpu::util::BufferInitDescriptor {
             label: Some("res_strides_buffer"),
-            contents: bytemuck::cast_slice(
-                &res
-                    .strides()
-                    .iter()
-                    .map(|x| {
-                        if *x > (i32::MAX as i64) {
-                            panic!("webgpu does not support i64 strides yet");
-                        } else {
-                            *x as i32
-                        }
-                    })
-                    .collect::<Vec<i32>>()
-            ),
+            contents: bytemuck::cast_slice(res.strides()),
             usage: wgpu::BufferUsages::STORAGE |
             wgpu::BufferUsages::COPY_DST |
             wgpu::BufferUsages::COPY_SRC,
@@ -147,13 +132,17 @@ async fn binop<A, B>(
     let res_shape_buffer = device.create_buffer_init(
         &(wgpu::util::BufferInitDescriptor {
             label: Some("res_shape_buffer"),
-            contents: bytemuck::cast_slice(
-                &res
-                    .shape()
-                    .iter()
-                    .map(|x| *x as i32)
-                    .collect::<Vec<i32>>()
-            ),
+            contents: bytemuck::cast_slice(res.shape()),
+            usage: wgpu::BufferUsages::STORAGE |
+            wgpu::BufferUsages::COPY_DST |
+            wgpu::BufferUsages::COPY_SRC,
+        })
+    );
+
+    let res_ndim_buffer = device.create_buffer_init(
+        &(wgpu::util::BufferInitDescriptor {
+            label: Some("res_ndim_buffer"),
+            contents: bytemuck::cast_slice(&[res_shape.ndim()]),
             usage: wgpu::BufferUsages::STORAGE |
             wgpu::BufferUsages::COPY_DST |
             wgpu::BufferUsages::COPY_SRC,
@@ -166,7 +155,7 @@ async fn binop<A, B>(
     let outer_loop_size_buffer = device.create_buffer_init(
         &(wgpu::util::BufferInitDescriptor {
             label: Some("outer_loop_size_buffer"),
-            contents: bytemuck::cast_slice(&[outer_loop_size as i32]),
+            contents: bytemuck::cast_slice(&[outer_loop_size]),
             usage: wgpu::BufferUsages::STORAGE |
             wgpu::BufferUsages::COPY_DST |
             wgpu::BufferUsages::COPY_SRC,
@@ -176,7 +165,7 @@ async fn binop<A, B>(
     let inner_loop_size_buffer = device.create_buffer_init(
         &(wgpu::util::BufferInitDescriptor {
             label: Some("inner_loop_size_buffer"),
-            contents: bytemuck::cast_slice(&[inner_loop_size as i32]),
+            contents: bytemuck::cast_slice(&[inner_loop_size]),
             usage: wgpu::BufferUsages::STORAGE |
             wgpu::BufferUsages::COPY_DST |
             wgpu::BufferUsages::COPY_SRC,
@@ -201,18 +190,7 @@ async fn binop<A, B>(
     let a_strides_buffer = device.create_buffer_init(
         &(wgpu::util::BufferInitDescriptor {
             label: Some("a_strides_buffer"),
-            contents: bytemuck::cast_slice(
-                &a_strides
-                    .iter()
-                    .map(|x| {
-                        if *x > (i32::MAX as i64) {
-                            panic!("webgpu does not support i64 strides yet");
-                        } else {
-                            *x as i32
-                        }
-                    })
-                    .collect::<Vec<i32>>()
-            ),
+            contents: bytemuck::cast_slice(&a_strides),
             usage: wgpu::BufferUsages::STORAGE |
             wgpu::BufferUsages::COPY_DST |
             wgpu::BufferUsages::COPY_SRC,
@@ -232,18 +210,7 @@ async fn binop<A, B>(
     let b_strides_buffer = device.create_buffer_init(
         &(wgpu::util::BufferInitDescriptor {
             label: Some("b_strides_buffer"),
-            contents: bytemuck::cast_slice(
-                &b_strides
-                    .iter()
-                    .map(|x| {
-                        if *x > (i32::MAX as i64) {
-                            panic!("webgpu does not support i64 strides yet");
-                        } else {
-                            *x as i32
-                        }
-                    })
-                    .collect::<Vec<i32>>()
-            ),
+            contents: bytemuck::cast_slice(&b_strides),
             usage: wgpu::BufferUsages::STORAGE |
             wgpu::BufferUsages::COPY_DST |
             wgpu::BufferUsages::COPY_SRC,
@@ -345,6 +312,16 @@ async fn binop<A, B>(
                     },
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 9,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         })
     );
@@ -389,6 +366,10 @@ async fn binop<A, B>(
                 wgpu::BindGroupEntry {
                     binding: 8,
                     resource: inner_loop_size_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 9,
+                    resource: res_ndim_buffer.as_entire_binding(),
                 },
             ],
         })
@@ -482,15 +463,19 @@ async fn binop<A, B>(
 use tensor_dyn::ShapeManipulate;
 use wgpu::{ Dx12Compiler, Gles3MinorVersion, InstanceFlags, RequestAdapterOptions };
 fn main() -> anyhow::Result<()> {
+    println!(
+        "allocating memory on gpu {}",
+        (std::mem::size_of::<f32>() * 1024 * 1024 * 16) / 1024 / 1024
+    );
     let a = Tensor::<f32>
-        ::arange(0, 1024 * 1024 * 256)
+        ::arange(0, 1024 * 1024 * 20)
         .unwrap()
-        .reshape(&[1024, 1024, 256])
+        .reshape(&[1024, 1024, 20])
         .unwrap();
     let b = Tensor::<f32>
-        ::arange(0, 1024 * 1024 * 256)
+        ::arange(0, 1024 * 1024 * 20)
         .unwrap()
-        .reshape(&[1024, 1024, 256])
+        .reshape(&[1024, 1024, 20])
         .unwrap();
     {
         pollster::block_on(async {
@@ -498,7 +483,6 @@ fn main() -> anyhow::Result<()> {
             let (device, queue) = create_device().await;
             println!("get device time: {:?}", now.elapsed());
             let res = binop(&device, &queue, include_str!("shader.wgsl"), &a, &b).await;
-            println!("{:?}", res);
         });
     }
 
