@@ -10,13 +10,6 @@
 @group(0) @binding(5) var<storage, read> c_strides : array<i64>;
 @group(0) @binding(6) var<storage, read> c_shape : array<i64>;
 
-@group(0) @binding(7) var<storage, read> outer_loop_size : i64;
-@group(0) @binding(8) var<storage, read> inner_loop_size : i64;
-
-@group(0) @binding(9) var<storage, read> res_ndim : i64;
-
-@group(0) @binding(10) var<storage, read> c_group : array<array<i64, 805306368>>;
-
 @compute
 @workgroup_size(GRP_SIZE_X, GRP_SIZE_Y, 1)
 fn main(
@@ -26,14 +19,14 @@ fn main(
 {
    let global_id_x : i64 = i64(workgroup_id.x) * GRP_SIZE_X + i64(local_id.x);
 
-   let tmp : i64 = outer_loop_size % (NUM_GRP_X * GRP_SIZE_X);
-   let start_idx : i64 = global_id_x * (outer_loop_size / (NUM_GRP_X * GRP_SIZE_X)) + min(global_id_x, tmp);
-   var end_idx : i64 = start_idx + (outer_loop_size / (NUM_GRP_X * GRP_SIZE_X)) + i64(global_id_x < tmp);
+   let tmp : i64 = i64(outer_loop_size) % (NUM_GRP_X * GRP_SIZE_X);
+   let start_idx : i64 = global_id_x * (i64(outer_loop_size) / (NUM_GRP_X * GRP_SIZE_X)) + min(global_id_x, tmp);
+   var end_idx : i64 = start_idx + (i64(outer_loop_size) / (NUM_GRP_X * GRP_SIZE_X)) + i64(global_id_x < tmp);
 
    if end_idx - start_idx == 0 {
       return;
    }
-   var amount : i64 = start_idx * inner_loop_size;
+   var amount : i64 = start_idx * i64(inner_loop_size);
    var c_offset : i64 = 0;
    var a_offset : i64 = 0;
    var b_offset : i64 = 0;
@@ -50,9 +43,9 @@ fn main(
    }
    let global_id_y : i64 = i64(workgroup_id.y) * GRP_SIZE_Y + i64(local_id.y);
 
-   let tmp2 : i64 = inner_loop_size % (NUM_GRP_Y * GRP_SIZE_Y);
-   let start_idx2 : i64 = global_id_y * (inner_loop_size / NUM_GRP_Y * GRP_SIZE_Y) + min(global_id_y, tmp2);
-   var end_idx2 : i64 = start_idx2 + (inner_loop_size / NUM_GRP_Y * GRP_SIZE_Y) + i64(global_id_y < tmp2);
+   let tmp2 : i64 = i64(inner_loop_size) % (NUM_GRP_Y * GRP_SIZE_Y);
+   let start_idx2 : i64 = global_id_y * (i64(inner_loop_size) / NUM_GRP_Y * GRP_SIZE_Y) + min(global_id_y, tmp2);
+   var end_idx2 : i64 = start_idx2 + (i64(inner_loop_size) / NUM_GRP_Y * GRP_SIZE_Y) + i64(global_id_y < tmp2);
 
    if end_idx2 - start_idx2 == 0 {
       return;
@@ -66,12 +59,12 @@ fn main(
    a_offset += a_last_stride * start_idx2;
    b_offset += b_last_stride * start_idx2;
 
-   let inner_loop_size : i64 = end_idx2 - start_idx2;
-   let outer_loop_size : i64 = end_idx - start_idx;
+   let inner : i64 = end_idx2 - start_idx2;
+   let outer : i64 = end_idx - start_idx;
 
-   for (var j : i64 = 0; j < outer_loop_size; j++)
+   for (var j : i64 = 0; j < outer; j++)
    {
-      for (var i : i64 = 0; i < inner_loop_size; i++)
+      for (var i : i64 = 0; i < inner; i++)
       {
          c[c_offset + i * c_last_stride] = a[a_offset + i * a_last_stride] + b[b_offset + i * b_last_stride];
       }
