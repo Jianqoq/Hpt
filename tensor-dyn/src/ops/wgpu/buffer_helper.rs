@@ -1,8 +1,15 @@
-use std::num::NonZeroU32;
+use std::{num::NonZeroU32, sync::Arc};
 
 use bytemuck::Pod;
+use tensor_allocator::DeviceWrapper;
 use tensor_common::shape_utils::mt_intervals;
 use wgpu::{ util::DeviceExt, BufferUsages };
+
+#[derive(Clone)]
+pub struct WgpuDevice {
+    pub(crate) device: Arc<DeviceWrapper>,
+    pub(crate) queue: Arc<wgpu::Queue>,
+}
 
 pub fn create_buffer<T: Pod>(
     device: &wgpu::Device,

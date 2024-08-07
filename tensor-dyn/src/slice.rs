@@ -2,7 +2,7 @@ use tensor_common::{ layout::Layout, pointer::Pointer, slice::{ slice_process, S
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use anyhow::Result;
 
-use crate::{ backend::{ Backend, TensorBackend }, tensor::Tensor, tensor_base::_Tensor };
+use crate::{ backend::Backend, tensor::Tensor, tensor_base::_Tensor };
 
 pub trait SliceOps<T, U> where T: CommonBounds {
     // slice operation mostly change the shape of tensor only

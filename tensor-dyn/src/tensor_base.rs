@@ -45,12 +45,7 @@ use rayon::iter::{
     ParallelIterator,
 };
 
-use crate::{
-    backend::{ Backend, Cpu, TensorBackend },
-    ops::cpu::stack::stack,
-    slice::SliceOps,
-    tensor::Tensor,
-};
+use crate::{ backend::{ Backend, Cpu }, ops::cpu::stack::stack, slice::SliceOps, tensor::Tensor };
 /// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
 ///
 /// All the operations are happen on this struct.

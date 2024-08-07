@@ -10,7 +10,6 @@ use tensor_common::strides_utils::shape_to_strides;
 use tensor_allocator::CACHE;
 use num::complex::{ Complex32, Complex64 };
 use half::bf16;
-use crate::backend::TensorBackend;
 use crate::backend::Backend;
 
 macro_rules! from_scalar {

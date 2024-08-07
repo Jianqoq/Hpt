@@ -1,6 +1,7 @@
 #![allow(unused)]
 use std::{ fmt::{ Display, Debug }, ops::{ Div, Mul, Sub }, sync::Arc };
-
+use bytemuck::Pod;
+use wgpu::util::DeviceExt;
 use rand_distr::{
     uniform::SampleUniform,
     Distribution,
@@ -10,7 +11,7 @@ use rand_distr::{
     Standard,
     StandardNormal,
 };
-use tensor_allocator::CACHE;
+use tensor_allocator::{ CACHE, WGPU_CACHE };
 use tensor_common::{
     axis::{ process_axes, Axis },
     err_handler::ErrHandler,
@@ -47,8 +48,8 @@ use rayon::iter::{
 };
 
 use crate::{
-    backend::{ Backend, Cpu, TensorBackend, Wgpu },
-    ops::cpu::stack::stack,
+    backend::{ Backend, Cpu, Wgpu },
+    ops::{ cpu::stack::stack, wgpu::buffer_helper::WgpuDevice },
     slice::SliceOps,
     tensor::Tensor,
     tensor_base::_Tensor,
@@ -159,15 +160,7 @@ impl<T: CommonBounds> _Tensor<T, Wgpu> {
     /// // Use direct_memory_access for operations requiring direct memory access
     /// ```
     pub fn as_raw(&self) -> &[T] {
-        let ptr = self.data.ptr;
-        let size;
-        if !self.is_contiguous() {
-            size = self.layout.real_size();
-        } else {
-            size = self.size();
-        }
-        let slice = unsafe { std::slice::from_raw_parts(ptr, size) };
-        slice
+        todo!()
     }
 
     /// Converts a tensor to a raw mutable slice representing direct memory access.
@@ -190,23 +183,15 @@ impl<T: CommonBounds> _Tensor<T, Wgpu> {
     /// // Perform operations requiring direct and mutable memory access
     /// ```
     pub fn as_raw_mut(&self) -> &mut [T] {
-        let ptr = self.data.ptr;
-        let size;
-        if !self.is_contiguous() {
-            size = self.layout.real_size();
-        } else {
-            size = self.size();
-        }
-        let slice = unsafe { std::slice::from_raw_parts_mut(ptr, size) };
-        slice
+        todo!()
     }
 
     pub fn iter(&self) -> Strided<T> {
-        Strided::new(self)
+        todo!()
     }
 
     pub fn iter_mut(&self) -> StridedMut<T> {
-        StridedMut::new(self)
+        todo!()
     }
 
     /// Converts the tensor to a new type.
@@ -224,18 +209,15 @@ impl<T: CommonBounds> _Tensor<T, Wgpu> {
     /// let converted_tensor = tensor.astype::<i32>().unwrap();
     /// assert!(tensor.allclose(&converted_tensor))
     /// ```
-    pub fn astype<U>(&self) -> Result<_Tensor<U, Wgpu>> where U: CommonBounds, T: IntoScalar<U> {
+    pub fn astype<U>(&self) -> Result<_Tensor<U, Wgpu>> where U: CommonBounds + Pod, T: IntoScalar<U> {
         // Create an empty tensor of the new type with the same shape.
-        let ret: _Tensor<U, Wgpu> = _Tensor::<U, Wgpu>::empty(self.layout.shape().clone())?;
+        let ret: _Tensor<U, Wgpu> = _Tensor::<U, Wgpu>::empty(
+            self.layout.shape().clone(),
+            &self._backend._backend.device
+        )?;
 
         // Parallel iteration to convert and copy each element to the new tensor.
-        ret.as_raw_mut()
-            .par_iter_mut()
-            .zip(self.as_raw().par_iter())
-            .for_each(|(a, &b)| {
-                *a = b.into_scalar();
-            });
-        Ok(ret)
+        todo!()
     }
 
     /// Try to cast the tensor to a new type, with an optimization for same-type casting.
@@ -255,7 +237,7 @@ impl<T: CommonBounds> _Tensor<T, Wgpu> {
     /// let converted_tensor = tensor.try_astype::<i32>().unwrap();
     /// assert!(tensor.allclose(&converted_tensor))
     /// ```
-    pub fn try_astype<U>(&self) -> Result<_Tensor<U, Wgpu>> where U: CommonBounds, T: IntoScalar<U> {
+    pub fn try_astype<U>(&self) -> Result<_Tensor<U, Wgpu>> where U: CommonBounds + Pod, T: IntoScalar<U> {
         if U::ID == T::ID { Ok(self.static_cast()?) } else { Ok(self.astype::<U>()?) }
     }
 
@@ -465,16 +447,14 @@ impl<T: CommonBounds> _Tensor<T, Wgpu> {
     pub fn dstack(mut tensors: Vec<&_Tensor<T, Wgpu>>) -> Result<_Tensor<T, Wgpu>> {
         todo!()
     }
+
+    pub fn device(&self) -> &wgpu::Device {
+        self._backend._backend.device()
+    }
 }
 
-impl<T: CommonBounds> TensorCreator<T> for _Tensor<T, Wgpu> {
-    type StridedIter = Strided<T>;
-
-    type Mask = _Tensor<bool, Wgpu>;
-
-    type Basic = _Tensor<T, Wgpu>;
-
-    fn empty<S: Into<Shape>>(shape: S) -> Result<Self> {
+impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
+    fn empty<S: Into<Shape>>(shape: S, device: &WgpuDevice) -> Result<Self> {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);
         let mut size = 1;
@@ -487,60 +467,138 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T, Wgpu> {
         let layout = std::alloc::Layout
             ::from_size_align(size * std::mem::size_of::<T>(), 8)
             .unwrap();
-        let ptr = unsafe { CACHE.allocate(layout) };
-        todo!()
+
+        let buffer = unsafe {
+            WGPU_CACHE.allocate(
+                &layout,
+                &device.device,
+                wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+                false
+            )
+        };
+        let mut encoder = device.device.device.create_command_encoder(
+            &(wgpu::CommandEncoderDescriptor {
+                label: Some("Command Encoder"),
+            })
+        );
+        device.queue.submit(Some(encoder.finish()));
+        let backend = Backend {
+            _backend: Wgpu {
+                buffer,
+                device: device.clone(),
+            },
+        };
+        Ok(_Tensor {
+            data: Pointer::new(std::ptr::null_mut()),
+            parent: None,
+            mem_layout: layout.into(),
+            layout: Layout::new(res_shape, strides),
+            _backend: backend,
+        })
     }
 
-    fn zeros<S: Into<Shape>>(shape: S) -> Result<Self> {
-        let _shape = shape.into();
-        let res_shape = Shape::from(_shape);
-        let mut size = 1;
-        let mut strides = vec![0; res_shape.len()];
-        for i in (0..res_shape.len()).rev() {
-            let tmp = res_shape[i] as usize;
-            strides[i] = size as i64;
-            size *= tmp;
-        }
-        let layout = std::alloc::Layout
-            ::from_size_align(size * std::mem::size_of::<T>(), 8)
-            .unwrap();
-        let ptr = unsafe { CACHE.allocate(layout) };
-        unsafe {
-            std::ptr::write_bytes(ptr as *mut T, 0, size);
-        }
-        todo!()
+    fn zeros<S: Into<Shape>>(shape: S, device: &WgpuDevice) -> Result<Self> {
+        let zeros = _Tensor::<T, Cpu>::zeros(shape)?;
+        let layout = &zeros.mem_layout;
+        let buffer = unsafe {
+            WGPU_CACHE.allocate(
+                layout,
+                &device.device,
+                wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+                false
+            )
+        };
+        let mut encoder = device.device.device.create_command_encoder(
+            &(wgpu::CommandEncoderDescriptor {
+                label: Some("Command Encoder"),
+            })
+        );
+        let staging_buffer = device.device.device.create_buffer_init(
+            &(wgpu::util::BufferInitDescriptor {
+                label: Some("Staging Buffer"),
+                contents: bytemuck::cast_slice(&vec![0u8; zeros.size() * std::mem::size_of::<T>()]),
+                usage: wgpu::BufferUsages::COPY_SRC,
+            })
+        );
+        encoder.copy_buffer_to_buffer(
+            &staging_buffer,
+            0,
+            &buffer.buffer,
+            0,
+            (zeros.size() * std::mem::size_of::<T>()) as wgpu::BufferAddress
+        );
+        device.queue.submit(Some(encoder.finish()));
+        let backend = Backend {
+            _backend: Wgpu {
+                buffer,
+                device: device.clone(),
+            },
+        };
+        Ok(_Tensor {
+            data: Pointer::new(std::ptr::null_mut()),
+            parent: None,
+            mem_layout: zeros.mem_layout.clone(),
+            layout: zeros.layout.clone(),
+            _backend: backend,
+        })
     }
 
-    fn ones<S: Into<Shape>>(shape: S) -> Result<Self> where u8: IntoScalar<T> {
-        let _shape = shape.into();
-        let res_shape = Shape::from(_shape);
-        let mut size = 1;
-        let mut strides = vec![0; res_shape.len()];
-        for i in (0..res_shape.len()).rev() {
-            let tmp = res_shape[i] as usize;
-            strides[i] = size as i64;
-            size *= tmp;
-        }
-        let layout = std::alloc::Layout
-            ::from_size_align(size * std::mem::size_of::<T>(), 8)
-            .unwrap();
-        let ptr = unsafe { CACHE.allocate(layout) };
-        unsafe {
-            std::ptr::write_bytes(ptr as *mut T, 1, size);
-        }
-        todo!()
+    fn ones<S: Into<Shape>>(shape: S, device: &WgpuDevice) -> Result<Self> where u8: IntoScalar<T> {
+        let ones = _Tensor::<T, Cpu>::ones(shape)?;
+        let layout = &ones.mem_layout;
+        let buffer = unsafe {
+            WGPU_CACHE.allocate(
+                layout,
+                &device.device,
+                wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+                false
+            )
+        };
+        let mut encoder = device.device.device.create_command_encoder(
+            &(wgpu::CommandEncoderDescriptor {
+                label: Some("Command Encoder"),
+            })
+        );
+        let staging_buffer = device.device.device.create_buffer_init(
+            &(wgpu::util::BufferInitDescriptor {
+                label: Some("Staging Buffer"),
+                contents: bytemuck::cast_slice(&vec![1u8; ones.size() * std::mem::size_of::<T>()]),
+                usage: wgpu::BufferUsages::COPY_SRC,
+            })
+        );
+        encoder.copy_buffer_to_buffer(
+            &staging_buffer,
+            0,
+            &buffer.buffer,
+            0,
+            (ones.size() * std::mem::size_of::<T>()) as wgpu::BufferAddress
+        );
+        device.queue.submit(Some(encoder.finish()));
+        let backend = Backend {
+            _backend: Wgpu {
+                buffer,
+                device: device.clone(),
+            },
+        };
+        Ok(_Tensor {
+            data: Pointer::new(std::ptr::null_mut()),
+            parent: None,
+            mem_layout: layout.clone(),
+            layout: ones.layout.clone(),
+            _backend: backend,
+        })
     }
 
     fn empty_like(&self) -> Result<Self> {
-        Self::empty(self.shape())
+        Self::empty(self.shape(), &self._backend._backend.device)
     }
 
     fn zeros_like(&self) -> Result<Self> {
-        Self::zeros(self.shape())
+        Self::zeros(self.shape(), &self._backend._backend.device)
     }
 
     fn ones_like(&self) -> Result<Self> where u8: IntoScalar<T> {
-        Self::ones(self.shape())
+        Self::ones(self.shape(), &self._backend._backend.device)
     }
 
     fn full<S: Into<Shape>>(val: T, shape: S) -> Result<Self> {
@@ -551,20 +609,148 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T, Wgpu> {
         _Tensor::full(val, self.shape())
     }
 
-    fn arange<U>(start: U, end: U) -> Result<Self>
+    fn arange<U>(start: U, end: U, device: &WgpuDevice) -> Result<Self>
         where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>
     {
-        todo!()
+        let arange = _Tensor::<T, Cpu>::arange(start, end)?;
+        let layout = &arange.mem_layout;
+        let buffer = unsafe {
+            WGPU_CACHE.allocate(
+                layout,
+                &device.device,
+                wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+                false
+            )
+        };
+        let mut encoder = device.device.device.create_command_encoder(
+            &(wgpu::CommandEncoderDescriptor {
+                label: Some("Command Encoder"),
+            })
+        );
+        let staging_buffer = device.device.device.create_buffer_init(
+            &(wgpu::util::BufferInitDescriptor {
+                label: Some("Staging Buffer"),
+                contents: bytemuck::cast_slice(arange.as_raw()),
+                usage: wgpu::BufferUsages::COPY_SRC,
+            })
+        );
+        encoder.copy_buffer_to_buffer(
+            &staging_buffer,
+            0,
+            &buffer.buffer,
+            0,
+            (arange.size() * std::mem::size_of::<T>()) as wgpu::BufferAddress
+        );
+        device.queue.submit(Some(encoder.finish()));
+        let backend = Backend {
+            _backend: Wgpu {
+                buffer,
+                device: device.clone(),
+            },
+        };
+        Ok(_Tensor {
+            data: Pointer::new(std::ptr::null_mut()),
+            parent: None,
+            mem_layout: arange.mem_layout.clone(),
+            layout: arange.layout.clone(),
+            _backend: backend,
+        })
     }
 
-    fn arange_step(start: T, end: T, step: T) -> Result<Self>
+    fn arange_step(start: T, end: T, step: T, device: &WgpuDevice) -> Result<Self>
         where T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>
     {
-        todo!()
+        let arange = _Tensor::<T, Cpu>::arange_step(start, end, step)?;
+        let layout = &arange.mem_layout;
+        let buffer = unsafe {
+            WGPU_CACHE.allocate(
+                layout,
+                &device.device,
+                wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+                false
+            )
+        };
+        let mut encoder = device.device.device.create_command_encoder(
+            &(wgpu::CommandEncoderDescriptor {
+                label: Some("Command Encoder"),
+            })
+        );
+        let staging_buffer = device.device.device.create_buffer_init(
+            &(wgpu::util::BufferInitDescriptor {
+                label: Some("Staging Buffer"),
+                contents: bytemuck::cast_slice(arange.as_raw()),
+                usage: wgpu::BufferUsages::COPY_SRC,
+            })
+        );
+        encoder.copy_buffer_to_buffer(
+            &staging_buffer,
+            0,
+            &buffer.buffer,
+            0,
+            (arange.size() * std::mem::size_of::<T>()) as wgpu::BufferAddress
+        );
+        device.queue.submit(Some(encoder.finish()));
+        let backend = Backend {
+            _backend: Wgpu {
+                buffer,
+                device: device.clone(),
+            },
+        };
+        Ok(_Tensor {
+            data: Pointer::new(std::ptr::null_mut()),
+            parent: None,
+            mem_layout: arange.mem_layout.clone(),
+            layout: arange.layout.clone(),
+            _backend: backend,
+        })
     }
 
-    fn eye(n: usize, m: usize, k: usize) -> Result<Self> where u8: IntoScalar<T> {
-        todo!()
+    fn eye(n: usize, m: usize, k: usize, device: &WgpuDevice) -> Result<Self>
+        where u8: IntoScalar<T>
+    {
+        let eye = _Tensor::<T, Cpu>::eye(n, m, k)?;
+        let layout = &eye.mem_layout;
+        let buffer = unsafe {
+            WGPU_CACHE.allocate(
+                layout,
+                &device.device,
+                wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+                false
+            )
+        };
+        let mut encoder = device.device.device.create_command_encoder(
+            &(wgpu::CommandEncoderDescriptor {
+                label: Some("Command Encoder"),
+            })
+        );
+        let staging_buffer = device.device.device.create_buffer_init(
+            &(wgpu::util::BufferInitDescriptor {
+                label: Some("Staging Buffer"),
+                contents: bytemuck::cast_slice(eye.as_raw()),
+                usage: wgpu::BufferUsages::COPY_SRC,
+            })
+        );
+        encoder.copy_buffer_to_buffer(
+            &staging_buffer,
+            0,
+            &buffer.buffer,
+            0,
+            (eye.size() * std::mem::size_of::<T>()) as wgpu::BufferAddress
+        );
+        device.queue.submit(Some(encoder.finish()));
+        let backend = Backend {
+            _backend: Wgpu {
+                buffer,
+                device: device.clone(),
+            },
+        };
+        Ok(_Tensor {
+            data: Pointer::new(std::ptr::null_mut()),
+            parent: None,
+            mem_layout: eye.mem_layout.clone(),
+            layout: eye.layout.clone(),
+            _backend: backend,
+        })
     }
 
     fn linspace(start: T, end: T, num: usize, include_end: bool) -> Result<Self>
@@ -604,8 +790,50 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T, Wgpu> {
         todo!()
     }
 
-    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self> where u8: IntoScalar<T> {
-        todo!()
+    fn tri(n: usize, m: usize, k: i64, low_triangle: bool, device: &WgpuDevice) -> Result<Self> where u8: IntoScalar<T> {
+        let tri = _Tensor::<T, Cpu>::tri(n, m, k, low_triangle)?;
+        let layout = &tri.mem_layout;
+        let buffer = unsafe {
+            WGPU_CACHE.allocate(
+                layout,
+                &device.device,
+                wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+                false
+            )
+        };
+        let mut encoder = device.device.device.create_command_encoder(
+            &(wgpu::CommandEncoderDescriptor {
+                label: Some("Command Encoder"),
+            })
+        );
+        let staging_buffer = device.device.device.create_buffer_init(
+            &(wgpu::util::BufferInitDescriptor {
+                label: Some("Staging Buffer"),
+                contents: bytemuck::cast_slice(tri.as_raw()),
+                usage: wgpu::BufferUsages::COPY_SRC,
+            })
+        );
+        encoder.copy_buffer_to_buffer(
+            &staging_buffer,
+            0,
+            &buffer.buffer,
+            0,
+            (tri.size() * std::mem::size_of::<T>()) as wgpu::BufferAddress
+        );
+        device.queue.submit(Some(encoder.finish()));
+        let backend = Backend {
+            _backend: Wgpu {
+                buffer,
+                device: device.clone(),
+            },
+        };
+        Ok(_Tensor {
+            data: Pointer::new(std::ptr::null_mut()),
+            parent: None,
+            mem_layout: tri.mem_layout.clone(),
+            layout: tri.layout.clone(),
+            _backend: backend,
+        })
     }
 
     fn tril(&self, k: i64) -> Result<Self> where T: NormalOut<bool, Output = T> + IntoScalar<T> {
@@ -616,8 +844,8 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T, Wgpu> {
         todo!()
     }
 
-    fn identity(n: usize) -> Result<Self> where u8: IntoScalar<T> {
-        _Tensor::eye(n, n, 0)
+    fn identity(n: usize, device: &WgpuDevice) -> Result<Self> where u8: IntoScalar<T> {
+        _Tensor::eye(n, n, 0, device)
     }
 }
 
@@ -878,13 +1106,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T, Wgpu> {
         new_shape.swap(axis1 as usize, axis2 as usize);
         new_strides.swap(axis1 as usize, axis2 as usize);
         let layout = Layout::new(new_shape, new_strides);
-        Ok(Self {
-            data: self.data.clone(),
-            layout,
-            parent: self.parent.clone(),
-            mem_layout: self.mem_layout.clone(),
-            _backend: Backend::new(self.data.ptr as u64),
-        })
+        todo!()
     }
 
     fn flatten<A>(&self, axis: A) -> Result<Self> where A: Into<Option<usize>> {
@@ -909,13 +1131,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T, Wgpu> {
             }
         }
         let layout = Layout::new(new_shape, new_strides);
-        Ok(Self {
-            data: self.data.clone(),
-            layout,
-            parent: self.parent.clone(),
-            mem_layout: self.mem_layout.clone(),
-            _backend: Backend::new(self.data.ptr as u64),
-        })
+        todo!()
     }
 }
 

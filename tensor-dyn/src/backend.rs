@@ -2,6 +2,11 @@
 
 use std::sync::Arc;
 
+use tensor_allocator::BufferWrapper;
+use wgpu::Buffer;
+
+use crate::ops::wgpu::buffer_helper::WgpuDevice;
+
 #[derive(Clone)]
 pub struct Cpu {
     pub(crate) ptr: u64,
@@ -12,56 +17,46 @@ pub struct Cuda;
 
 #[derive(Clone)]
 pub struct Wgpu {
-    pub(crate) id: u64,
-    pub(crate) device: Arc<wgpu::Device>,
+    pub(crate) buffer: BufferWrapper,
+    pub(crate) device: WgpuDevice,
+}
+
+impl Wgpu {
+    pub fn device(&self) -> &wgpu::Device {
+        &self.device.device.device
+    }
+    pub fn queue(&self) -> &wgpu::Queue {
+        &self.device.queue
+    }
 }
 
 #[derive(Clone)]
 pub struct Backend<B> {
-    _backend: B,
+    pub(crate) _backend: B,
 }
 
-pub trait TensorBackend {
-    fn new(id: u64) -> Self;
-    fn wgpu_new(id: u64, device: Arc<wgpu::Device>) -> Self;
-}
-
-impl TensorBackend for Backend<Cpu> {
-    fn new(address: u64) -> Self {
+impl Backend<Cpu> {
+    pub fn new(address: u64) -> Self {
         Backend {
             _backend: Cpu {
                 ptr: address,
             },
         }
     }
+}
 
-    fn wgpu_new(id: u64, device: Arc<wgpu::Device>) -> Self {
+impl Backend<Cuda> {
+    pub fn wgpu_new(id: u64, device: Arc<wgpu::Device>) -> Self {
         todo!()
     }
 }
 
-impl TensorBackend for Backend<Cuda> {
-    fn new(_id: u64) -> Self {
-        Backend {
-            _backend: Cuda,
-        }
-    }
-
-    fn wgpu_new(id: u64, device: Arc<wgpu::Device>) -> Self {
-        todo!()
-    }
-}
-
-impl TensorBackend for Backend<Wgpu> {
-    fn new(id: u64) -> Self {
-        todo!()
-    }
-
-    fn wgpu_new(id: u64, device: Arc<wgpu::Device>) -> Self {
+impl Backend<Wgpu> {
+    pub fn wgpu_new(id: u64, device: &WgpuDevice, buffer: BufferWrapper) -> Self {
         Backend {
             _backend: Wgpu {
-                id,
-                device,
+                buffer,
+                device: device.clone(),
             },
         }
     }
