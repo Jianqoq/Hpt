@@ -1,4 +1,5 @@
 use std::{ borrow::Cow, fmt::Debug };
+use rayon::iter::{ IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator };
 use tensor_common::shape_utils::try_pad_shape;
 use tensor_common::strides_utils::preprocess_strides;
 use tensor_dyn::backend::{ Cpu, Wgpu };
@@ -9,53 +10,6 @@ use tensor_types::dtype::TypeCommon;
 use tensor_types::type_promote::NormalOut;
 use wgpu::util::DeviceExt;
 use tensor_dyn::TensorInfo;
-
-async fn create_device() -> (wgpu::Device, wgpu::Queue) {
-    // Instantiates instance of WebGPU
-    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-        backends: wgpu::Backends::VULKAN | wgpu::Backends::DX12,
-        flags: InstanceFlags::VALIDATION,
-        dx12_shader_compiler: Dx12Compiler::Dxc { dxil_path: None, dxc_path: None },
-        gles_minor_version: Gles3MinorVersion::default(),
-    });
-
-    // `request_adapter` instantiates the general connection to the GPU
-    let adapter = instance
-        .request_adapter(
-            &(RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::HighPerformance,
-                compatible_surface: None,
-                force_fallback_adapter: false,
-            })
-        ).await
-        .unwrap();
-
-    let adapter_limits = adapter.limits();
-
-    // `request_device` instantiates the feature specific connection to the GPU, defining some parameters,
-    //  `features` being the available features.
-    let limits = wgpu::Limits {
-        max_storage_buffer_binding_size: adapter_limits.max_storage_buffer_binding_size,
-        max_buffer_size: adapter_limits.max_buffer_size,
-        max_storage_buffers_per_shader_stage: 12,
-        ..wgpu::Limits::default()
-    };
-    adapter
-        .request_device(
-            &(wgpu::DeviceDescriptor {
-                label: None,
-                required_features: wgpu::Features::SHADER_INT64 |
-                wgpu::Features::BUFFER_BINDING_ARRAY |
-                wgpu::Features::STORAGE_RESOURCE_BINDING_ARRAY |
-                wgpu::Features::TIMESTAMP_QUERY |
-                wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS,
-                required_limits: limits,
-                memory_hints: wgpu::MemoryHints::Performance,
-            }),
-            None
-        ).await
-        .unwrap()
-}
 
 async fn binop<A, B>(
     kernel: &str,
@@ -365,8 +319,10 @@ async fn binop<A, B>(
     );
 
     encoder.copy_buffer_to_buffer(&res_buffer, 0, &result_buffer, 0, res_size);
+
+    let queue = device.queue();
     // Submits command encoder for processing
-    a.device().queue().submit(Some(encoder.finish()));
+    queue.submit(Some(encoder.finish()));
 
     let buffer_slice = result_buffer.slice(..);
     let time_slice = readback_buffer.slice(..);
@@ -383,8 +339,13 @@ async fn binop<A, B>(
     if let Ok(Ok(())) = receiver.recv_async().await {
         let data = buffer_slice.get_mapped_range();
         let result: &[<A as NormalOut<B>>::Output] = bytemuck::cast_slice(&data);
-
-        res_cpu.as_raw_mut().copy_from_slice(result);
+        res_cpu
+            .as_raw_mut()
+            .par_iter_mut()
+            .enumerate()
+            .for_each(|(i, x)| {
+                *x = result[i];
+            });
     } else {
         panic!("failed to run compute on gpu!");
     }
@@ -402,30 +363,28 @@ async fn binop<A, B>(
     res_cpu.into()
 }
 
-use wgpu::{ Dx12Compiler, Gles3MinorVersion, InstanceFlags, RequestAdapterOptions };
-fn main() -> anyhow::Result<()> {
-    {
-        pollster::block_on(async {
-            let device = WgpuDevice::new(
-                wgpu::Backends::VULKAN | wgpu::Backends::DX12,
-                wgpu::Features::SHADER_INT64 |
-                    wgpu::Features::BUFFER_BINDING_ARRAY |
-                    wgpu::Features::STORAGE_RESOURCE_BINDING_ARRAY |
-                    wgpu::Features::TIMESTAMP_QUERY |
-                    wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS
-            );
-            let a = _Tensor::<f32, Wgpu>::arange(0, 1024 * 1024 * 128, &device).unwrap();
-            let b = _Tensor::<f32, Wgpu>::arange(0, 1024 * 1024 * 128, &device).unwrap();
-            let res = binop(include_str!("shader.wgsl"), &a, &b).await;
-            println!("{:?}", res);
-        });
-    }
+use tensor_dyn::ShapeManipulate;
 
-    // let now = std::time::Instant::now();
-    // {
-    //     let res = a + b;
-    //     println!("{:?}", res);
-    // }
-    // println!("Time taken: {:?}", now.elapsed());
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let device = WgpuDevice::new(
+        wgpu::Backends::VULKAN | wgpu::Backends::DX12,
+        wgpu::Features::SHADER_INT64 |
+            wgpu::Features::BUFFER_BINDING_ARRAY |
+            wgpu::Features::STORAGE_RESOURCE_BINDING_ARRAY |
+            wgpu::Features::TIMESTAMP_QUERY |
+            wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS
+    );
+    let a = _Tensor::<f32, Wgpu>
+        ::arange(0, 1024 * 1024 * 128, &device).await?
+        .reshape(&[1024, 1024, 128])
+        .unwrap();
+    let b = _Tensor::<f32, Wgpu>
+        ::arange(0, 1024 * 1024 * 128, &device).await
+        .unwrap()
+        .reshape(&[1024, 1024, 128])
+        .unwrap();
+    let res = binop(include_str!("shader.wgsl"), &a, &b).await;
+    println!("{:?}", res);
     Ok(())
 }

@@ -480,18 +480,13 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
             WGPU_CACHE.allocate(
                 &layout,
                 &device.device,
-                wgpu::BufferUsages::COPY_SRC |
-                    wgpu::BufferUsages::COPY_DST |
-                    wgpu::BufferUsages::STORAGE,
+                wgpu::BufferUsages::STORAGE |
+                    wgpu::BufferUsages::COPY_SRC |
+                    wgpu::BufferUsages::COPY_DST,
                 false
             )
         };
-        let mut encoder = device.device.device.create_command_encoder(
-            &(wgpu::CommandEncoderDescriptor {
-                label: Some("Command Encoder"),
-            })
-        );
-        device.queue.submit(Some(encoder.finish()));
+
         let backend = Backend {
             _backend: Wgpu {
                 buffer,
@@ -619,7 +614,7 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
         _Tensor::full(val, self.shape())
     }
 
-    pub fn arange<U>(start: U, end: U, device: &WgpuDevice) -> Result<Self>
+    pub async fn arange<'a, U>(start: U, end: U, device: &WgpuDevice) -> Result<Self>
         where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>
     {
         let arange = _Tensor::<T, Cpu>::arange(start, end)?;
@@ -628,30 +623,15 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
             WGPU_CACHE.allocate(
                 layout,
                 &device.device,
-                wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+                wgpu::BufferUsages::COPY_DST |
+                    wgpu::BufferUsages::COPY_SRC |
+                    wgpu::BufferUsages::STORAGE,
                 false
             )
         };
-        let mut encoder = device.device.device.create_command_encoder(
-            &(wgpu::CommandEncoderDescriptor {
-                label: Some("Command Encoder"),
-            })
-        );
-        let staging_buffer = device.device.device.create_buffer_init(
-            &(wgpu::util::BufferInitDescriptor {
-                label: Some("Staging Buffer"),
-                contents: bytemuck::cast_slice(arange.as_raw()),
-                usage: wgpu::BufferUsages::COPY_SRC,
-            })
-        );
-        encoder.copy_buffer_to_buffer(
-            &staging_buffer,
-            0,
-            &buffer.buffer,
-            0,
-            (arange.size() * std::mem::size_of::<T>()) as wgpu::BufferAddress
-        );
-        device.queue.submit(Some(encoder.finish()));
+
+        device.queue.write_buffer(&buffer.buffer, 0, bytemuck::cast_slice(arange.as_raw()));
+
         let backend = Backend {
             _backend: Wgpu {
                 buffer,
@@ -900,7 +880,13 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T, Wgpu> {
         let shape = shape.into();
         ErrHandler::check_size_match(&shape, self.shape())?;
         if let Ok(new_layout) = self.layout.inplace_reshape(&shape) {
-            todo!()
+            Ok(_Tensor {
+                data: self.data.clone(),
+                parent: self.parent.clone(),
+                mem_layout: self.mem_layout.clone(),
+                layout: new_layout,
+                _backend: self._backend.clone(),
+            })
         } else {
             todo!()
         }

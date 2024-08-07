@@ -9,7 +9,6 @@ use wgpu::{
     Dx12Compiler,
     Gles3MinorVersion,
     InstanceFlags,
-    Limits,
     RequestAdapterOptions,
 };
 
