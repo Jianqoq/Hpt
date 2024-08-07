@@ -90,7 +90,7 @@ macro_rules! impl_binary_fn {
                 if out.size() * std::mem::size_of::<Q>() != rhs.size() * std::mem::size_of::<B>() {
                     ret = $tensor_type::<K, Cpu>::empty(rhs.shape()).unwrap();
                 } else {
-                    ret = $tensor_type::empty(rhs.shape()).unwrap();
+                    ret = $tensor_type::<K, Cpu>::empty(rhs.shape()).unwrap();
                 }
                 ret.as_raw_mut()
                     .par_iter_mut()

@@ -45,7 +45,7 @@ use rayon::iter::{
     ParallelIterator,
 };
 
-use crate::{ backend::{ Backend, Cpu }, ops::cpu::stack::stack, slice::SliceOps, tensor::Tensor };
+use crate::{ backend::{ Backend, BackendTy, Cpu }, ops::cpu::stack::stack, slice::SliceOps, tensor::Tensor };
 /// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
 ///
 /// All the operations are happen on this struct.
@@ -60,7 +60,7 @@ use crate::{ backend::{ Backend, Cpu }, ops::cpu::stack::stack, slice::SliceOps,
 ///  If the tensor is a view of another tensor, the parent tensor will be the original tensor.
 /// - `mem_layout`: std::alloc::layout, use for deallocate the memory.
 #[derive(Clone)]
-pub struct _Tensor<T, B = Cpu> {
+pub struct _Tensor<T, B = Cpu> where B: BackendTy {
     pub(crate) data: Pointer<T>,
     pub(crate) parent: Option<Pointer<T>>,
     pub(crate) layout: Layout,
@@ -666,9 +666,9 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let end = T::__from(end);
         let size: i64 = end.to_i64() - start.to_i64();
         if size <= 0 {
-            return _Tensor::empty(Arc::new(vec![0]));
+            return _Tensor::<T, Cpu>::empty(Arc::new(vec![0]));
         }
-        let data: _Tensor<T> = _Tensor::empty(Arc::new(vec![size]))?;
+        let data: _Tensor<T> = _Tensor::<T, Cpu>::empty(Arc::new(vec![size]))?;
 
         data.as_raw_mut()
             .into_par_iter()

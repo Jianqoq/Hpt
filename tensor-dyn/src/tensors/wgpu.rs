@@ -48,7 +48,7 @@ use rayon::iter::{
 };
 
 use crate::{
-    backend::{ Backend, Cpu, Wgpu },
+    backend::{ Backend, BackendTy, Cpu, Wgpu },
     ops::{ cpu::stack::stack, wgpu::buffer_helper::WgpuDevice },
     slice::SliceOps,
     tensor::Tensor,
@@ -138,6 +138,14 @@ impl<T: CommonBounds> BaseTensor for &_Tensor<T, Wgpu> {
 }
 
 impl<T: CommonBounds> _Tensor<T, Wgpu> {
+    pub fn buffer(&self) -> &wgpu::Buffer {
+        &self._backend._backend.buffer.buffer
+    }
+
+    pub fn device(&self) -> &WgpuDevice {
+        &self._backend._backend.device
+    }
+
     /// Converts a tensor to a raw slice representing direct memory access.
     ///
     /// This function provides direct, read-only access to the tensor's underlying memory. It is useful
@@ -209,7 +217,9 @@ impl<T: CommonBounds> _Tensor<T, Wgpu> {
     /// let converted_tensor = tensor.astype::<i32>().unwrap();
     /// assert!(tensor.allclose(&converted_tensor))
     /// ```
-    pub fn astype<U>(&self) -> Result<_Tensor<U, Wgpu>> where U: CommonBounds + Pod, T: IntoScalar<U> {
+    pub fn astype<U>(&self) -> Result<_Tensor<U, Wgpu>>
+        where U: CommonBounds + Pod, T: IntoScalar<U>
+    {
         // Create an empty tensor of the new type with the same shape.
         let ret: _Tensor<U, Wgpu> = _Tensor::<U, Wgpu>::empty(
             self.layout.shape().clone(),
@@ -237,7 +247,9 @@ impl<T: CommonBounds> _Tensor<T, Wgpu> {
     /// let converted_tensor = tensor.try_astype::<i32>().unwrap();
     /// assert!(tensor.allclose(&converted_tensor))
     /// ```
-    pub fn try_astype<U>(&self) -> Result<_Tensor<U, Wgpu>> where U: CommonBounds + Pod, T: IntoScalar<U> {
+    pub fn try_astype<U>(&self) -> Result<_Tensor<U, Wgpu>>
+        where U: CommonBounds + Pod, T: IntoScalar<U>
+    {
         if U::ID == T::ID { Ok(self.static_cast()?) } else { Ok(self.astype::<U>()?) }
     }
 
@@ -447,14 +459,10 @@ impl<T: CommonBounds> _Tensor<T, Wgpu> {
     pub fn dstack(mut tensors: Vec<&_Tensor<T, Wgpu>>) -> Result<_Tensor<T, Wgpu>> {
         todo!()
     }
-
-    pub fn device(&self) -> &wgpu::Device {
-        self._backend._backend.device()
-    }
 }
 
 impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
-    fn empty<S: Into<Shape>>(shape: S, device: &WgpuDevice) -> Result<Self> {
+    pub fn empty<S: Into<Shape>>(shape: S, device: &WgpuDevice) -> Result<Self> {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);
         let mut size = 1;
@@ -472,7 +480,9 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
             WGPU_CACHE.allocate(
                 &layout,
                 &device.device,
-                wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+                wgpu::BufferUsages::COPY_SRC |
+                    wgpu::BufferUsages::COPY_DST |
+                    wgpu::BufferUsages::STORAGE,
                 false
             )
         };
@@ -609,7 +619,7 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
         _Tensor::full(val, self.shape())
     }
 
-    fn arange<U>(start: U, end: U, device: &WgpuDevice) -> Result<Self>
+    pub fn arange<U>(start: U, end: U, device: &WgpuDevice) -> Result<Self>
         where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>
     {
         let arange = _Tensor::<T, Cpu>::arange(start, end)?;
@@ -790,7 +800,9 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
         todo!()
     }
 
-    fn tri(n: usize, m: usize, k: i64, low_triangle: bool, device: &WgpuDevice) -> Result<Self> where u8: IntoScalar<T> {
+    fn tri(n: usize, m: usize, k: i64, low_triangle: bool, device: &WgpuDevice) -> Result<Self>
+        where u8: IntoScalar<T>
+    {
         let tri = _Tensor::<T, Cpu>::tri(n, m, k, low_triangle)?;
         let layout = &tri.mem_layout;
         let buffer = unsafe {
@@ -1321,5 +1333,23 @@ impl<'a, T> Into<_Tensor<T, Wgpu>> for &'a [T] {
             std::ptr::copy_nonoverlapping(self.as_ptr(), ptr as *mut T, self.len());
         }
         todo!()
+    }
+}
+
+impl<T, B> Drop for _Tensor<T, B> where B: BackendTy {
+    fn drop(&mut self) {
+        match B::ID {
+            // 0 => {
+            //     unsafe {
+            //         std::alloc::dealloc(self.data.as_ptr(), self.mem_layout.clone());
+            //     }
+            // }
+            // 1 => {
+            //     unsafe {
+            //         self._backend._backend.device.device.drop();
+            //     }
+            // }
+            _ => {}
+        }
     }
 }

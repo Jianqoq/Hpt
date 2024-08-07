@@ -1,4 +1,4 @@
-use std::{ alloc::Layout, hash::Hash, num::NonZeroUsize, sync::{ Arc, Mutex } };
+use std::{ alloc::Layout, hash::Hash, num::NonZeroUsize, ops::Deref, sync::{ Arc, Mutex } };
 
 use hashbrown::{ HashMap, HashSet };
 use lru::LruCache;
@@ -97,6 +97,14 @@ impl Hash for BufferWrapper {
 #[derive(Clone)]
 pub struct DeviceWrapper {
     pub device: Arc<Device>,
+}
+
+impl Deref for DeviceWrapper {
+    type Target = Device;
+
+    fn deref(&self) -> &Self::Target {
+        &self.device
+    }
 }
 
 impl PartialEq for DeviceWrapper {

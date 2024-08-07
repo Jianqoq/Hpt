@@ -61,3 +61,19 @@ impl Backend<Wgpu> {
         }
     }
 }
+
+pub trait BackendTy {
+    const ID: u8;
+}
+
+impl BackendTy for Cpu {
+    const ID: u8 = 0;
+}
+
+impl BackendTy for Cuda {
+    const ID: u8 = 1;
+}
+
+impl BackendTy for Wgpu {
+    const ID: u8 = 2;
+}

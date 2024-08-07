@@ -17,6 +17,8 @@ use crate::{
     sum_square_kernel,
     sum_with_cast_kernel,
 };
+use crate::backend::Cpu;
+
 use tensor_traits::FloatUaryOps;
 use tensor_common::axis::{ process_axes, Axis };
 use tensor_traits::TensorLike;
@@ -366,8 +368,13 @@ macro_rules! register_stack {
 }
 
 macro_rules! init_arr {
-    ($result:ident, $shape:ident, $macro_init_val:expr) => {
-        $result = _Tensor::empty($shape.clone())?;
+    (
+        $result:ident,
+        $shape:ident,
+        $macro_init_val:expr,
+        $($specific_type:tt)*
+    ) => {
+        $result = _Tensor::<$($specific_type)*, Cpu>::empty($shape.clone())?;
         $result.as_raw_mut().par_iter_mut().for_each(|x| {
             *x = $macro_init_val;
         });
@@ -461,7 +468,7 @@ macro_rules! body {
                 });
             }
         } else {
-            init_arr!(result, res_shape, $init_val);
+            init_arr!(result, res_shape, $init_val, $($specific_type)*);
             result_size = result.size();
         }
         let mut result_data = result.ptr();
@@ -702,7 +709,7 @@ macro_rules! body_one_axis {
             result = out;
             result_size = result.size();
         } else {
-            init_arr!(result, res_shape, $init_val);
+            init_arr!(result, res_shape, $init_val, $($specific_type)*);
             result_size = result.size();
         }
         let result_data = result.ptr();
@@ -846,7 +853,7 @@ pub(crate) fn sum_with_cast<T, B>(
         B: CommonBounds + FromScalar<T> + FromScalar<<T as NormalOut<B>>::Output>,
         <T as NormalOut<B>>::Output: CommonBounds
 {
-    body!(axes, a, T::ZERO, init_val, keepdims, init_out, c, sum_with_cast_kernel, T, T);
+    body!(axes, a, T::ZERO, init_val, keepdims, init_out, c, sum_with_cast_kernel, T, B);
 }
 
 register_reduction!(

@@ -1,6 +1,9 @@
 use std::{ borrow::Cow, fmt::Debug };
 use tensor_common::shape_utils::try_pad_shape;
 use tensor_common::strides_utils::preprocess_strides;
+use tensor_dyn::backend::{ Cpu, Wgpu };
+use tensor_dyn::ops::wgpu::buffer_helper::WgpuDevice;
+use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::{ tensor::Tensor, CommonBounds, TensorCreator };
 use tensor_types::dtype::TypeCommon;
 use tensor_types::type_promote::NormalOut;
@@ -55,13 +58,11 @@ async fn create_device() -> (wgpu::Device, wgpu::Queue) {
 }
 
 async fn binop<A, B>(
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
     kernel: &str,
-    a: &Tensor<A>,
-    b: &Tensor<B>
+    a: &_Tensor<A, Wgpu>,
+    b: &_Tensor<B, Wgpu>
 )
-    -> Tensor<<A as NormalOut<B>>::Output>
+    -> Tensor<<A as NormalOut<B>>::Output, Cpu>
     where
         A: CommonBounds + NormalOut<B> + bytemuck::Pod + TypeCommon,
         B: CommonBounds + bytemuck::Pod + TypeCommon,
@@ -83,8 +84,8 @@ async fn binop<A, B>(
         b.strides()
     );
 
-    let res = Tensor::<<A as NormalOut<B>>::Output>
-        ::empty(res_shape.shape())
+    let res = _Tensor::<<A as NormalOut<B>>::Output, Wgpu>
+        ::empty(res_shape.shape(), a.device())
         .expect("Failed to create tensor");
 
     let outer = res_shape.size() / res_shape.shape().last().unwrap();
@@ -101,6 +102,7 @@ async fn binop<A, B>(
         .replace("outer_loop_size", &outer.to_string())
         .replace("inner_loop_size", &inner.to_string())
         .replace("res_ndim", &res.ndim().to_string());
+    let device = a.device().clone();
     let cs_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
         source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&kernel)),
@@ -115,16 +117,7 @@ async fn binop<A, B>(
     // `usage` of buffer specifies how it can be used:
     //   `BufferUsages::MAP_READ` allows it to be read (outside the shader).
     //   `BufferUsages::COPY_DST` allows it to be the destination of the copy.
-    let res_buffer = device.create_buffer(
-        &(wgpu::BufferDescriptor {
-            label: Some("res_buffer"),
-            size: res_size,
-            usage: wgpu::BufferUsages::STORAGE |
-            wgpu::BufferUsages::COPY_SRC |
-            wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        })
-    );
+    let res_buffer = res.buffer();
 
     let result_buffer = device.create_buffer(
         &(wgpu::BufferDescriptor {
@@ -160,15 +153,7 @@ async fn binop<A, B>(
     //   A storage buffer (can be bound within a bind group and thus available to a shader).
     //   The destination of a copy.
     //   The source of a copy.
-    let a_buffer = device.create_buffer_init(
-        &(wgpu::util::BufferInitDescriptor {
-            label: Some("a buffer"),
-            contents: bytemuck::cast_slice(a.as_raw()),
-            usage: wgpu::BufferUsages::STORAGE |
-            wgpu::BufferUsages::COPY_DST |
-            wgpu::BufferUsages::COPY_SRC,
-        })
-    );
+    let a_buffer = a.buffer();
 
     let a_strides_buffer = device.create_buffer_init(
         &(wgpu::util::BufferInitDescriptor {
@@ -180,15 +165,7 @@ async fn binop<A, B>(
         })
     );
 
-    let b_buffer = device.create_buffer_init(
-        &(wgpu::util::BufferInitDescriptor {
-            label: Some("b_buffer"),
-            contents: bytemuck::cast_slice(b.as_raw()),
-            usage: wgpu::BufferUsages::STORAGE |
-            wgpu::BufferUsages::COPY_DST |
-            wgpu::BufferUsages::COPY_SRC,
-        })
-    );
+    let b_buffer = b.buffer();
 
     let b_strides_buffer = device.create_buffer_init(
         &(wgpu::util::BufferInitDescriptor {
@@ -324,7 +301,6 @@ async fn binop<A, B>(
         })
     );
 
-
     let compute_pipeline = device.create_compute_pipeline(
         &(wgpu::ComputePipelineDescriptor {
             label: Some("compute_pipeline"),
@@ -343,7 +319,6 @@ async fn binop<A, B>(
             count: 2,
         })
     );
-
 
     let mut encoder = device.create_command_encoder(
         &(wgpu::CommandEncoderDescriptor { label: None })
@@ -391,8 +366,7 @@ async fn binop<A, B>(
 
     encoder.copy_buffer_to_buffer(&res_buffer, 0, &result_buffer, 0, res_size);
     // Submits command encoder for processing
-    queue.submit(Some(encoder.finish()));
-
+    a.device().queue().submit(Some(encoder.finish()));
 
     let buffer_slice = result_buffer.slice(..);
     let time_slice = readback_buffer.slice(..);
@@ -404,14 +378,13 @@ async fn binop<A, B>(
 
     device.poll(wgpu::Maintain::wait()).panic_on_timeout();
 
+    let res_cpu = _Tensor::<<A as NormalOut<B>>::Output, Cpu>::empty(res_shape.shape()).unwrap();
     // Awaits until `buffer_future` can be read from
     if let Ok(Ok(())) = receiver.recv_async().await {
         let data = buffer_slice.get_mapped_range();
         let result: &[<A as NormalOut<B>>::Output] = bytemuck::cast_slice(&data);
 
-        res.as_raw_mut().copy_from_slice(result);
-        drop(data);
-        result_buffer.unmap(); // Unmaps buffer from memory
+        res_cpu.as_raw_mut().copy_from_slice(result);
     } else {
         panic!("failed to run compute on gpu!");
     }
@@ -421,33 +394,29 @@ async fn binop<A, B>(
         let start_time = time[0];
         let end_time = time[1];
         let duration_ns = end_time - start_time;
-        let duration_ms = duration_ns as f64 / 1_000_000.0;
+        let duration_ms = (duration_ns as f64) / 1_000_000.0;
         println!("Kernel execution time: {:.3} ms", duration_ms);
-        drop(data);
-        readback_buffer.unmap();
     } else {
         panic!("failed to run compute on gpu!");
     }
-    res
+    res_cpu.into()
 }
 
-use tensor_dyn::ShapeManipulate;
 use wgpu::{ Dx12Compiler, Gles3MinorVersion, InstanceFlags, RequestAdapterOptions };
 fn main() -> anyhow::Result<()> {
-    let a = Tensor::<f32>
-        ::arange(0, 1024 * 1024 * 128)
-        .unwrap()
-        .reshape(&[1024, 1024, 128])
-        .unwrap();
-    let b = Tensor::<f32>
-        ::arange(0, 1024 * 1024 * 128)
-        .unwrap()
-        .reshape(&[1024, 1024, 128])
-        .unwrap();
     {
         pollster::block_on(async {
-            let (device, queue) = create_device().await;
-            let res = binop(&device, &queue, include_str!("shader.wgsl"), &a, &b).await;
+            let device = WgpuDevice::new(
+                wgpu::Backends::VULKAN | wgpu::Backends::DX12,
+                wgpu::Features::SHADER_INT64 |
+                    wgpu::Features::BUFFER_BINDING_ARRAY |
+                    wgpu::Features::STORAGE_RESOURCE_BINDING_ARRAY |
+                    wgpu::Features::TIMESTAMP_QUERY |
+                    wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS
+            );
+            let a = _Tensor::<f32, Wgpu>::arange(0, 1024 * 1024 * 128, &device).unwrap();
+            let b = _Tensor::<f32, Wgpu>::arange(0, 1024 * 1024 * 128, &device).unwrap();
+            let res = binop(include_str!("shader.wgsl"), &a, &b).await;
             println!("{:?}", res);
         });
     }

@@ -31,7 +31,7 @@ pub fn uary_fn<A, F, O>(inp: &_Tensor<A>, f: F) -> anyhow::Result<_Tensor<O>>
     where A: CommonBounds, O: CommonBounds, F: Fn(A) -> O + Sync + Send
 {
     let ret: _Tensor<O>;
-    ret = _Tensor::empty(inp.shape()).unwrap();
+    ret = _Tensor::<O, Cpu>::empty(inp.shape()).unwrap();
     let new_f = &f;
     ret.as_raw_mut()
         .par_iter_mut()
@@ -53,21 +53,25 @@ pub fn uary_fn<A, F, O>(inp: &_Tensor<A>, f: F) -> anyhow::Result<_Tensor<O>>
 ///
 /// # Returns
 /// `anyhow::Result<_Tensor<BFLOAT<A, A>>>`: A tensor with float type elements, with the result of applying `f`.
-pub fn uary_fn_with_out<A, O, K, Q, F>(inp: &_Tensor<A>, f: F, out: O) -> anyhow::Result<_Tensor<K>>
+pub fn uary_fn_with_out<A, O, K, Q, F>(
+    inp: &_Tensor<A, Cpu>,
+    f: F,
+    out: O
+)
+    -> anyhow::Result<_Tensor<K, Cpu>>
     where
         A: CommonBounds,
-        O: TensorLike<Q, Output = _Tensor<K>> + TensorInfo<Q>,
+        O: TensorLike<Q, Output = _Tensor<K, Cpu>> + TensorInfo<Q>,
         K: CommonBounds,
         Q: CommonBounds,
         F: Fn(A) -> K + Sync + Send
 {
-    let ret: <O as TensorLike<Q>>::Output;
     let ret_size: usize = inp.size();
-    if out.size() * std::mem::size_of::<Q>() != ret_size * std::mem::size_of::<K>() {
-        ret = _Tensor::empty(inp.shape()).unwrap();
+    let ret = if out.size() * std::mem::size_of::<Q>() != ret_size * std::mem::size_of::<K>() {
+        _Tensor::<K, Cpu>::empty(inp.shape())?
     } else {
-        ret = _Tensor::empty(inp.shape()).unwrap();
-    }
+        _Tensor::<K, Cpu>::empty(inp.shape())?
+    };
     ret.as_raw_mut()
         .par_iter_mut()
         .zip(inp.as_raw().par_iter())

@@ -30,7 +30,7 @@ impl<T> Random
     type Meta = T;
     fn randn<S: Into<Shape>>(shape: S) -> Result<Self> {
         let res_shape = Shape::from(shape.into());
-        let ret: _Tensor<T> = _Tensor::empty(res_shape)?;
+        let ret: _Tensor<T> = _Tensor::<T, Cpu>::empty(res_shape)?;
         let normal: Normal<T> = Normal::new(T::from(0.0).unwrap(), T::from(1.0).unwrap())?;
         ret.as_raw_mut()
             .into_par_iter()
