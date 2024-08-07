@@ -279,13 +279,13 @@ impl<T: CommonBounds> _Tensor<T, Wgpu> {
         match self.parent {
             Some(parent) => {
                 let new_parent = Pointer::new(parent.ptr as *mut U);
-                return Ok(_Tensor {
+                Ok(_Tensor {
                     data: Pointer::new(self.data.ptr as *mut U),
                     parent: Some(new_parent),
                     mem_layout: self.mem_layout.clone(),
                     layout: self.layout.clone(),
                     _backend: self._backend.clone(),
-                });
+                })
             }
             None => {
                 let new_parent = Pointer::new(self.data.ptr as *mut U);
