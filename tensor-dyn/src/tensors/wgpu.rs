@@ -284,7 +284,7 @@ impl<T: CommonBounds> _Tensor<T, Wgpu> {
                     parent: Some(new_parent),
                     mem_layout: self.mem_layout.clone(),
                     layout: self.layout.clone(),
-                    _backend: self._backend,
+                    _backend: self._backend.clone(),
                 });
             }
             None => {
@@ -294,7 +294,7 @@ impl<T: CommonBounds> _Tensor<T, Wgpu> {
                     parent: Some(new_parent),
                     mem_layout: self.mem_layout.clone(),
                     layout: self.layout.clone(),
-                    _backend: self._backend,
+                    _backend: self._backend.clone(),
                 })
             }
         }
