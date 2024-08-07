@@ -30,7 +30,7 @@ fn main(
    var c_offset : i64 = 0;
    var a_offset : i64 = 0;
    var b_offset : i64 = 0;
-   var prg : array<i64, prg_place_holder>;
+   var prg : array<i64, res_ndim>;
    for (var i : i64 = res_ndim - 1; i >= 0; i--)
    {
       let idx : u32 = u32(i);
@@ -66,7 +66,7 @@ fn main(
    {
       for (var i : i64 = 0; i < inner; i++)
       {
-         c[c_offset + i * c_last_stride] = a[a_offset + i * a_last_stride] + b[b_offset + i * b_last_stride];
+         c[c_offset + i * c_last_stride] = c_ty(a[a_offset + i * a_last_stride]) + c_ty(b[b_offset + i * b_last_stride]);
       }
       for (var k : i64 = res_ndim - 2; k >= 0; k--)
       {

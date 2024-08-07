@@ -238,7 +238,7 @@ impl<T: CommonBounds> Tensor<T> {
     /// assert!(tensor.allclose(&converted_tensor))
     /// ```
     pub fn astype<U>(&self) -> Result<Tensor<U>> where U: CommonBounds, T: IntoScalar<U> {
-        Ok(_Tensor::astype(self)?.into())
+        Ok(_Tensor::<T, Cpu>::astype(self)?.into())
     }
 
     /// Try to cast the tensor to a new type, with an optimization for same-type casting.
@@ -278,7 +278,7 @@ impl<T: CommonBounds> Tensor<T> {
     /// assert!(tensor.allclose(&static_cast_tensor))
     /// ```
     pub fn static_cast<U>(&self) -> Result<Tensor<U>> where U: CommonBounds {
-        Ok(_Tensor::static_cast(self)?.into())
+        Ok(_Tensor::<T, Cpu>::static_cast(self)?.into())
     }
 
     /// Checks if all elements of the tensor are close to the elements of another tensor.
@@ -324,7 +324,7 @@ impl<T: CommonBounds> Tensor<T> {
     /// assert!(contiguous_tensor.is_contiguous())
     /// ```
     pub fn contiguous(&self) -> Result<Self> {
-        Ok(_Tensor::contiguous(self)?.into())
+        Ok(_Tensor::<T, Cpu>::contiguous(self)?.into())
     }
 
     /// Stacks a sequence of tensors along a specified axis.
@@ -385,7 +385,7 @@ impl<T: CommonBounds> Tensor<T> {
     /// ```
     pub fn vstack(tensors: Vec<&Tensor<T>>) -> Result<Tensor<T>> {
         Ok(
-            _Tensor
+            _Tensor::<T, Cpu>
                 ::vstack(
                     tensors
                         .into_iter()
@@ -473,15 +473,15 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     type Basic = Tensor<T>;
 
     fn empty<S: Into<Shape>>(shape: S) -> Result<Self> {
-        Ok(_Tensor::empty(shape)?.into())
+        Ok(_Tensor::<T, Cpu>::empty(shape)?.into())
     }
 
     fn zeros<S: Into<Shape>>(shape: S) -> Result<Self> {
-        Ok(_Tensor::zeros(shape)?.into())
+        Ok(_Tensor::<T, Cpu>::zeros(shape)?.into())
     }
 
     fn ones<S: Into<Shape>>(shape: S) -> Result<Self> where u8: IntoScalar<T> {
-        Ok(_Tensor::ones(shape)?.into())
+        Ok(_Tensor::<T, Cpu>::ones(shape)?.into())
     }
 
     fn empty_like(&self) -> Result<Self> {
@@ -497,7 +497,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     }
 
     fn full<S: Into<Shape>>(val: T, shape: S) -> Result<Self> {
-        Ok(_Tensor::full(val, shape)?.into())
+        Ok(_Tensor::<T, Cpu>::full(val, shape)?.into())
     }
 
     fn full_like(&self, val: T) -> Result<Self> {
@@ -507,17 +507,17 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     fn arange<U>(start: U, end: U) -> Result<Self>
         where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>
     {
-        Ok(_Tensor::arange(start, end)?.into())
+        Ok(_Tensor::<T, Cpu>::arange(start, end)?.into())
     }
 
     fn arange_step(start: T, end: T, step: T) -> Result<Self>
         where T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>
     {
-        Ok(_Tensor::arange_step(start, end, step)?.into())
+        Ok(_Tensor::<T, Cpu>::arange_step(start, end, step)?.into())
     }
 
     fn eye(n: usize, m: usize, k: usize) -> Result<Self> where u8: IntoScalar<T> {
-        Ok(_Tensor::eye(n, m, k)?.into())
+        Ok(_Tensor::<T, Cpu>::eye(n, m, k)?.into())
     }
 
     fn linspace(start: T, end: T, num: usize, include_end: bool) -> Result<Self>
@@ -526,7 +526,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
             usize: IntoScalar<T>,
             f64: IntoScalar<T>
     {
-        Ok(_Tensor::linspace(start, end, num, include_end)?.into())
+        Ok(_Tensor::<T, Cpu>::linspace(start, end, num, include_end)?.into())
     }
 
     fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> Result<Self>
@@ -537,7 +537,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
                 FromScalar<f64> +
                 NormalOut<T, Output = T>
     {
-        Ok(_Tensor::logspace(start, end, num, include_end, base)?.into())
+        Ok(_Tensor::<T, Cpu>::logspace(start, end, num, include_end, base)?.into())
     }
 
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self>
@@ -554,11 +554,11 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
                 NormalOut<Output = FloatType<T>> +
                 CommonBounds
     {
-        Ok(_Tensor::geomspace(start, end, n, include_end)?.into())
+        Ok(_Tensor::<T, Cpu>::geomspace(start, end, n, include_end)?.into())
     }
 
     fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self> where u8: IntoScalar<T> {
-        Ok(_Tensor::tri(n, m, k, low_triangle)?.into())
+        Ok(_Tensor::<T, Cpu>::tri(n, m, k, low_triangle)?.into())
     }
 
     fn tril(&self, k: i64) -> Result<Self> where T: NormalOut<bool, Output = T> + IntoScalar<T> {
@@ -570,7 +570,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     }
 
     fn identity(n: usize) -> Result<Self> where u8: IntoScalar<T> {
-        Ok(_Tensor::identity(n)?.into())
+        Ok(_Tensor::<T, Cpu>::identity(n)?.into())
     }
 }
 

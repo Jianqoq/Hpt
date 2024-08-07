@@ -32,6 +32,11 @@ pub mod ops {
 pub mod wgpu_kernels {
     
 }
+
+pub mod tensors {
+    pub mod wgpu;
+}
+
 pub mod backend;
 pub mod tensor;
 pub mod random;

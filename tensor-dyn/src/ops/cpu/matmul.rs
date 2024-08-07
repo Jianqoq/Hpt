@@ -14,6 +14,7 @@ use tensor_traits::tensor::TensorLike;
 use tensor_traits::tensor::TensorInfo;
 use tensor_traits::tensor::TensorCreator;
 use tensor_types::dtype::TypeCommon;
+use crate::backend::Cpu;
 
 macro_rules! impl_matmul {
     ($tensor_type: ident, $func_name: ident, $func_name2: ident) => {
@@ -45,7 +46,7 @@ macro_rules! impl_matmul {
                     anyhow::bail!("shape mismatch when trying to perform matrix multiplication got {:?} and {:?}", lhs.shape(), rhs.shape());
                 } else {
                     let res;
-                    res = $tensor_type::zeros(vec![lhs.shape()[0], rhs.shape()[1]])?;
+                    res = $tensor_type::<<A as NormalOut<B>>::Output, Cpu>::zeros(vec![lhs.shape()[0], rhs.shape()[1]])?;
                     let new_a = &lhs.try_astype()?;
                     let new_b = &rhs.try_astype()?;
                     unsafe {
@@ -100,7 +101,7 @@ macro_rules! impl_matmul {
                     let new_a = &lhs.try_astype::<<A as NormalOut<B>>::Output>()?;
                     let new_b = &rhs.try_astype::<<A as NormalOut<B>>::Output>()?;
                     let res;
-                    res = $tensor_type::zeros(res_shape)?;
+                    res = $tensor_type::<<A as NormalOut<B>>::Output>::zeros(res_shape)?;
                     let a_strides: Vec<i64> = preprocess_strides(&a_shape, &lhs.strides());
                     let b_strides: Vec<i64> = preprocess_strides(&b_shape, &rhs.strides());
                     let len: usize = iterate_shape.iter().fold(1, |acc, x| acc * (*x as usize));

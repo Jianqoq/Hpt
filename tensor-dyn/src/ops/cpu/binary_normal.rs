@@ -1,6 +1,7 @@
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
+use crate::backend::Cpu;
 use tensor_traits::tensor::CommonBounds;
 use tensor_common::shape_utils::predict_broadcast_shape;
 use tensor_traits::tensor::TensorInfo;
@@ -87,7 +88,7 @@ macro_rules! impl_binary_fn {
                 let val = lhs.as_raw()[0];
                 let ret;
                 if out.size() * std::mem::size_of::<Q>() != rhs.size() * std::mem::size_of::<B>() {
-                    ret = $tensor_type::empty(rhs.shape()).unwrap();
+                    ret = $tensor_type::<K, Cpu>::empty(rhs.shape()).unwrap();
                 } else {
                     ret = $tensor_type::empty(rhs.shape()).unwrap();
                 }
@@ -102,9 +103,9 @@ macro_rules! impl_binary_fn {
                 let val = rhs.as_raw()[0];
                 let ret;
                 if out.size() * std::mem::size_of::<Q>() != lhs.size() * std::mem::size_of::<A>() {
-                    ret = $tensor_type::empty(lhs.shape()).unwrap();
+                    ret = $tensor_type::<K, Cpu>::empty(lhs.shape()).unwrap();
                 } else {
-                    ret = $tensor_type::empty(lhs.shape()).unwrap();
+                    ret = $tensor_type::<K, Cpu>::empty(lhs.shape()).unwrap();
                 }
                 ret.as_raw_mut()
                     .par_iter_mut()
@@ -118,9 +119,9 @@ macro_rules! impl_binary_fn {
                 let ret;
                 let ret_size: usize = res_shape.iter().product::<i64>() as usize;
                 if out.size() * std::mem::size_of::<Q>() != ret_size * std::mem::size_of::<A>() {
-                    ret = $tensor_type::empty(res_shape).unwrap();
+                    ret = $tensor_type::<K, Cpu>::empty(res_shape).unwrap();
                 } else {
-                    ret = $tensor_type::empty(res_shape).unwrap();
+                    ret = $tensor_type::<K, Cpu>::empty(res_shape).unwrap();
                 }
                 if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
                     let min_len: usize =
@@ -155,7 +156,7 @@ where
 {
     if lhs.size() == 1 {
         let val = lhs.as_raw()[0];
-        let res = _Tensor::empty(rhs.shape()).unwrap();
+        let res = _Tensor::<K, Cpu>::empty(rhs.shape()).unwrap();
         res.as_raw_mut()
             .par_iter_mut()
             .zip(rhs.as_raw().par_iter())
@@ -165,7 +166,7 @@ where
         Ok(res)
     } else if rhs.size() == 1 {
         let val = rhs.as_raw()[0];
-        let res = _Tensor::empty(lhs.shape()).unwrap();
+        let res = _Tensor::<K, Cpu>::empty(lhs.shape()).unwrap();
         res.as_raw_mut()
             .par_iter_mut()
             .zip(lhs.as_raw().par_iter())
@@ -177,7 +178,7 @@ where
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
             let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape())?;
             let ret;
-            ret = _Tensor::empty(res_shape).unwrap();
+            ret = _Tensor::<K, Cpu>::empty(res_shape).unwrap();
             let min_len: usize =
                 ret.size() / (((rayon::current_num_threads() as f64) * 1.3) as usize);
             ret.as_raw_mut()

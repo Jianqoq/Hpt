@@ -1,9 +1,17 @@
+#![allow(unused)]
 
 #[derive(Clone, Copy)]
-pub struct Cpu;
+pub struct Cpu {
+    pub(crate) ptr: u64,
+}
 
 #[derive(Clone, Copy)]
 pub struct Cuda;
+
+#[derive(Clone, Copy)]
+pub struct Wgpu {
+    pub(crate) id: u64,
+}
 
 #[derive(Clone, Copy)]
 pub struct Backend<B> {
@@ -11,17 +19,33 @@ pub struct Backend<B> {
 }
 
 pub trait TensorBackend {
-    fn new() -> Self;
+    fn new(id: u64) -> Self;
 }
 
 impl TensorBackend for Backend<Cpu> {
-    fn new() -> Self {
-        Backend { _backend: Cpu }
+    fn new(address: u64) -> Self {
+        Backend {
+            _backend: Cpu {
+                ptr: address,
+            },
+        }
     }
 }
 
 impl TensorBackend for Backend<Cuda> {
-    fn new() -> Self {
-        Backend { _backend: Cuda }
+    fn new(_id: u64) -> Self {
+        Backend {
+            _backend: Cuda,
+        }
+    }
+}
+
+impl TensorBackend for Backend<Wgpu> {
+    fn new(id: u64) -> Self {
+        Backend {
+            _backend: Wgpu {
+                id,
+            },
+        }
     }
 }

@@ -10,7 +10,7 @@ use tensor_types::{
     type_promote::{ FloatOut, NormalOut },
 };
 
-use crate::{ tensor::Tensor, tensor_base::_Tensor };
+use crate::{ backend::Cpu, tensor::Tensor, tensor_base::_Tensor };
 
 impl<T> _Tensor<T>
     where
@@ -32,7 +32,7 @@ impl<T> _Tensor<T>
     pub fn hann_window(window_length: i64, periodic: bool) -> anyhow::Result<_Tensor<T>> {
         let length_i64 = (if periodic { window_length } else { window_length - 1 }) as i64;
         let length: T = length_i64.into_scalar();
-        let data = _Tensor::empty(&[length_i64])?;
+        let data = _Tensor::<T, Cpu>::empty(&[length_i64])?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()

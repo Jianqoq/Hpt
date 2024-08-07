@@ -1,4 +1,3 @@
-use std::u32;
 use std::{ borrow::Cow, fmt::Debug };
 use tensor_common::shape_utils::try_pad_shape;
 use tensor_common::strides_utils::preprocess_strides;
@@ -44,7 +43,9 @@ async fn create_device() -> (wgpu::Device, wgpu::Queue) {
                 label: None,
                 required_features: wgpu::Features::SHADER_INT64 |
                 wgpu::Features::BUFFER_BINDING_ARRAY |
-                wgpu::Features::STORAGE_RESOURCE_BINDING_ARRAY,
+                wgpu::Features::STORAGE_RESOURCE_BINDING_ARRAY |
+                wgpu::Features::TIMESTAMP_QUERY |
+                wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS,
                 required_limits: limits,
                 memory_hints: wgpu::MemoryHints::Performance,
             }),
@@ -90,7 +91,6 @@ async fn binop<A, B>(
     let inner = *res_shape.shape().last().unwrap();
 
     let kernel = kernel
-        .replace("prg_place_holder", &(res.ndim() - 1).to_string())
         .replace("GRP_SIZE_X", &grp_size_x.to_string())
         .replace("GRP_SIZE_Y", &grp_size_y.to_string())
         .replace("NUM_GRP_X", &num_grp_x.to_string())
@@ -324,13 +324,7 @@ async fn binop<A, B>(
         })
     );
 
-    // A bind group defines how buffers are accessed by shaders.
-    // It is to WebGPU what a descriptor set is to Vulkan.
-    // `binding` here refers to the `binding` of a buffer in the shader (`layout(set = 0, binding = 0) buffer`).
 
-    // A pipeline specifies the operation of a shader
-
-    // Instantiates the pipeline.
     let compute_pipeline = device.create_compute_pipeline(
         &(wgpu::ComputePipelineDescriptor {
             label: Some("compute_pipeline"),
@@ -342,11 +336,19 @@ async fn binop<A, B>(
         })
     );
 
-    // A command encoder executes one or many pipelines.
-    // It is to WebGPU what a command buffer is to Vulkan.
+    let query_set = device.create_query_set(
+        &(wgpu::QuerySetDescriptor {
+            label: Some("Timestamp Query Set"),
+            ty: wgpu::QueryType::Timestamp,
+            count: 2,
+        })
+    );
+
+
     let mut encoder = device.create_command_encoder(
         &(wgpu::CommandEncoderDescriptor { label: None })
     );
+    encoder.write_timestamp(&query_set, 0);
     {
         let mut cpass = encoder.begin_compute_pass(
             &(wgpu::ComputePassDescriptor {
@@ -360,68 +362,93 @@ async fn binop<A, B>(
 
         cpass.dispatch_workgroups(num_grp_x, num_grp_y, 1); // Number of cells to run, the (x,y,z) size of item being processed
     }
-    let now = std::time::Instant::now();
+    encoder.write_timestamp(&query_set, 1);
+
+    let timestamp_buffer = device.create_buffer(
+        &(wgpu::BufferDescriptor {
+            label: Some("Timestamp Buffer"),
+            size: (std::mem::size_of::<u64>() as u64) * 2,
+            usage: wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::QUERY_RESOLVE,
+            mapped_at_creation: false,
+        })
+    );
+    let readback_buffer = device.create_buffer(
+        &(wgpu::BufferDescriptor {
+            label: Some("Timestamp Buffer"),
+            size: (std::mem::size_of::<u64>() as u64) * 2,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        })
+    );
+    encoder.resolve_query_set(&query_set, 0..2, &timestamp_buffer, 0);
+    encoder.copy_buffer_to_buffer(
+        &timestamp_buffer,
+        0,
+        &readback_buffer,
+        0,
+        (std::mem::size_of::<u64>() as u64) * 2
+    );
+
     encoder.copy_buffer_to_buffer(&res_buffer, 0, &result_buffer, 0, res_size);
-    println!("copy time: {:?}", now.elapsed());
-    let now = std::time::Instant::now();
     // Submits command encoder for processing
     queue.submit(Some(encoder.finish()));
 
-    // Note that we're not calling `.await` here.
-    let buffer_slice = result_buffer.slice(..);
-    // Sets the buffer up for mapping, sending over the result of the mapping back to us when it is finished.
-    let (sender, receiver) = flume::bounded(1);
-    buffer_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
 
-    // Poll the device in a blocking manner so that our future resolves.
-    // In an actual application, `device.poll(...)` should
-    // be called in an event loop or on another thread.
+    let buffer_slice = result_buffer.slice(..);
+    let time_slice = readback_buffer.slice(..);
+
+    let (sender, receiver) = flume::bounded(1);
+    let (sender2, receiver2) = flume::bounded(1);
+    buffer_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
+    time_slice.map_async(wgpu::MapMode::Read, move |v| sender2.send(v).unwrap());
+
     device.poll(wgpu::Maintain::wait()).panic_on_timeout();
 
     // Awaits until `buffer_future` can be read from
     if let Ok(Ok(())) = receiver.recv_async().await {
-        // Gets contents of buffer
         let data = buffer_slice.get_mapped_range();
-        // Since contents are got in bytes, this converts these bytes back to u32
         let result: &[<A as NormalOut<B>>::Output] = bytemuck::cast_slice(&data);
-        // With the current interface, we have to make sure all mapped views are
-        // dropped before we unmap the buffer.
-        // If you are familiar with C++ these 2 lines can be thought of similarly to:
-        //   delete myPointer;
-        //   myPointer = NULL;
-        // It effectively frees the memory
 
-        // Returns data from buffer
         res.as_raw_mut().copy_from_slice(result);
         drop(data);
         result_buffer.unmap(); // Unmaps buffer from memory
-        println!("Time taken: {:?}", now.elapsed());
-        res
     } else {
-        panic!("failed to run compute on gpu!")
+        panic!("failed to run compute on gpu!");
     }
+    if let Ok(Ok(())) = receiver2.recv_async().await {
+        let data = time_slice.get_mapped_range();
+        let time: &[u64] = bytemuck::cast_slice(&data);
+        let start_time = time[0];
+        let end_time = time[1];
+        let duration_ns = end_time - start_time;
+        let duration_ms = duration_ns as f64 / 1_000_000.0;
+        println!("Kernel execution time: {:.3} ms", duration_ms);
+        drop(data);
+        readback_buffer.unmap();
+    } else {
+        panic!("failed to run compute on gpu!");
+    }
+    res
 }
 
 use tensor_dyn::ShapeManipulate;
 use wgpu::{ Dx12Compiler, Gles3MinorVersion, InstanceFlags, RequestAdapterOptions };
 fn main() -> anyhow::Result<()> {
     let a = Tensor::<f32>
-        ::arange(0, 1024i64 * 1024 * 128)
+        ::arange(0, 1024 * 1024 * 128)
         .unwrap()
         .reshape(&[1024, 1024, 128])
         .unwrap();
     let b = Tensor::<f32>
-        ::arange(0, 1024i64 * 1024 * 128)
+        ::arange(0, 1024 * 1024 * 128)
         .unwrap()
         .reshape(&[1024, 1024, 128])
         .unwrap();
     {
         pollster::block_on(async {
-            let now = std::time::Instant::now();
             let (device, queue) = create_device().await;
-            println!("get device time: {:?}", now.elapsed());
             let res = binop(&device, &queue, include_str!("shader.wgsl"), &a, &b).await;
-            // println!("{:?}", res);
+            println!("{:?}", res);
         });
     }
 

@@ -8,6 +8,7 @@ use tensor_common::shape_utils::mt_intervals;
 use tensor_traits::BaseTensor;
 use tensor_types::into_scalar::IntoScalar;
 use threadpool::ThreadPool;
+use crate::backend::Cpu;
 use crate::THREAD_POOL;
 use tensor_traits::ops::uary::{ Cum, FloatUaryOps, Neg, NormalUaryOps };
 use tensor_traits::tensor::{ CommonBounds, TensorInfo, TensorLike };
@@ -640,7 +641,7 @@ impl<T> Cum for _Tensor<T> where T: CommonBounds {
                 Ok(res)
             }
             None => {
-                let res = _Tensor::empty(vec![self.size() as i64])?;
+                let res = _Tensor::<T, Cpu>::empty(vec![self.size() as i64])?;
                 let mut tmp = T::ZERO;
                 if self.is_contiguous() {
                     let raw = self.as_raw();
@@ -765,7 +766,7 @@ impl<T> Cum for _Tensor<T> where T: CommonBounds {
                 Ok(res)
             }
             None => {
-                let res = _Tensor::empty(vec![self.size() as i64])?;
+                let res = _Tensor::<T, Cpu>::empty(vec![self.size() as i64])?;
                 let mut tmp = T::ONE;
                 if self.is_contiguous() {
                     let raw = self.as_raw();

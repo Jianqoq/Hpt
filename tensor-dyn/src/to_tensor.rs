@@ -59,7 +59,7 @@ macro_rules! impl_type_num {
                         parent: None,
                         layout: tensor_common::layout::Layout::new(res_shape, vec![1]),
                         mem_layout: Arc::new(layout),
-                        _backend: Backend::new(),
+                        _backend: Backend::new(ptr as u64),
                     };
                 }
             }
@@ -94,7 +94,7 @@ macro_rules! impl_type_num {
                         parent: None,
                         layout: tensor_common::layout::Layout::new(shape, strides),
                         mem_layout: Arc::new(layout),
-                        _backend: Backend::new(),
+                        _backend: Backend::new(ptr as u64),
                     };
                 }
             }
@@ -129,7 +129,7 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: tensor_common::layout::Layout::new(shape, strides),
                     mem_layout: Arc::new(layout),
-                    _backend: Backend::new(),
+                    _backend: Backend::new(ptr as u64),
                 };
             }
         }
@@ -204,7 +204,7 @@ macro_rules! impl_type_num {
                 parent: None,
                 layout: tensor_common::layout::Layout::new(shape, strides),
                 mem_layout: Arc::new(layout),
-                _backend: Backend::new(),
+                _backend: Backend::new(ptr as u64),
             };
         }
     }
@@ -239,7 +239,7 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: tensor_common::layout::Layout::new(shape, strides),
                     mem_layout: Arc::new(layout),
-                    _backend: Backend::new(),
+                    _backend: Backend::new(ptr as u64),
                 };
             }
         }
@@ -274,7 +274,7 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: tensor_common::layout::Layout::new(shape, strides),
                     mem_layout: Arc::new(layout),
-                    _backend: Backend::new(),
+                    _backend: Backend::new(ptr as u64),
                 };
             }
         }
