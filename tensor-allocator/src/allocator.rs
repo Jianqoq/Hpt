@@ -5,6 +5,8 @@ use lru::LruCache;
 use once_cell::sync::Lazy;
 use wgpu::{ Buffer, BufferUsages, Device };
 
+use crate::{ strorage::CPU_STORAGE, WGPU_STORAGE };
+
 pub static mut CACHE: Lazy<Allocator> = Lazy::new(|| Allocator::new(1000));
 pub static mut WGPU_CACHE: Lazy<WgpuAllocator> = Lazy::new(|| WgpuAllocator::new(1000));
 
@@ -17,7 +19,7 @@ impl Allocator {
         self.allocator.lock().unwrap().allocate(layout)
     }
 
-    pub fn deallocate(&self, ptr: *mut u8, layout: Layout) {
+    pub fn deallocate(&self, ptr: *mut u8, layout: &Layout) {
         self.allocator.lock().unwrap().deallocate(ptr, layout);
     }
 }
@@ -53,6 +55,15 @@ impl _Allocator {
             self.allocated.insert(ptr);
             ptr
         };
+        unsafe {
+            if let Ok(mut storage) = CPU_STORAGE.lock() {
+                if let Some(cnt) = storage.get_mut(&ptr) {
+                    *cnt += 1;
+                } else {
+                    storage.insert(ptr, 1);
+                }
+            }
+        }
         if self.cache.cap().get() == self.cache.len() {
             if let Some((layout, ptrs)) = self.cache.pop_lru() {
                 for ptr in ptrs {
@@ -65,12 +76,23 @@ impl _Allocator {
         ptr
     }
 
-    fn deallocate(&mut self, ptr: *mut u8, layout: Layout) {
-        self.allocated.remove(&ptr);
-        if let Some(ptrs) = self.cache.get_mut(&layout) {
-            ptrs.push(ptr);
-        } else {
-            self.cache.put(layout, vec![ptr]);
+    fn deallocate(&mut self, ptr: *mut u8, layout: &Layout) {
+        unsafe {
+            if let Ok(mut storage) = CPU_STORAGE.lock() {
+                if let Some(cnt) = storage.get_mut(&ptr) {
+                    *cnt -= 1;
+                    if *cnt == 0 {
+                        self.allocated.remove(&ptr);
+                        if let Some(ptrs) = self.cache.get_mut(layout) {
+                            ptrs.push(ptr);
+                        } else {
+                            self.cache.put(layout.clone(), vec![ptr]);
+                        }
+                    }
+                } else {
+                    panic!("ptr not found in storage");
+                }
+            }
         }
     }
 }
@@ -130,13 +152,12 @@ impl WgpuAllocator {
         &self,
         layout: &Layout,
         device: &DeviceWrapper,
-        usage: BufferUsages,
         mapped_at_creation: bool
     ) -> BufferWrapper {
-        self.allocator.lock().unwrap().allocate(layout, device, usage, mapped_at_creation)
+        self.allocator.lock().unwrap().allocate(layout, device, mapped_at_creation)
     }
 
-    pub fn deallocate(&self, device: &DeviceWrapper, buffer: BufferWrapper, layout: Layout) {
+    pub fn deallocate(&self, device: &DeviceWrapper, buffer: &BufferWrapper, layout: &Layout) {
         self.allocator.lock().unwrap().deallocate(device, buffer, layout);
     }
 }
@@ -162,23 +183,39 @@ impl _WgpuAllocator {
         &mut self,
         layout: &Layout,
         device: &DeviceWrapper,
-        usage: BufferUsages,
         mapped_at_creation: bool
     ) -> BufferWrapper {
         if let Some(allocator) = self.devices.get_mut(device) {
-            allocator.allocate(layout, device, usage, mapped_at_creation)
+            let buffer = allocator.allocate(
+                layout,
+                device,
+                wgpu::BufferUsages::COPY_DST |
+                    wgpu::BufferUsages::COPY_SRC |
+                    wgpu::BufferUsages::STORAGE,
+                mapped_at_creation
+            );
+            println!("allocated buffer, {:?}", buffer.buffer.global_id());
+            buffer
         } else {
             let mut allocator = _WgpuAllocatorHelper {
                 cache: LruCache::new(NonZeroUsize::new(self.capacity).unwrap()),
                 allocated: HashSet::new(),
             };
-            let buffer = allocator.allocate(layout, device, usage, mapped_at_creation);
+            let buffer = allocator.allocate(
+                layout,
+                device,
+                wgpu::BufferUsages::COPY_DST |
+                    wgpu::BufferUsages::COPY_SRC |
+                    wgpu::BufferUsages::STORAGE,
+                mapped_at_creation
+            );
+            println!("allocated buffer, {:?}", buffer.buffer.global_id());
             self.devices.insert(device.clone(), allocator);
             buffer
         }
     }
 
-    fn deallocate(&mut self, device: &DeviceWrapper, buffer: BufferWrapper, layout: Layout) {
+    fn deallocate(&mut self, device: &DeviceWrapper, buffer: &BufferWrapper, layout: &Layout) {
         if let Some(ptr) = self.devices.get_mut(device) {
             ptr.deallocate(buffer, layout);
         }
@@ -200,49 +237,79 @@ impl _WgpuAllocatorHelper {
     ) -> BufferWrapper {
         let ptr = if let Some(ptr) = self.cache.get_mut(&layout) {
             if let Some(buffer) = ptr.pop() {
-                buffer
+                let usage = buffer.buffer.usage();
+                if usage == buffer.buffer.usage() {
+                    buffer
+                } else {
+                    cache(self, device, layout, usage, mapped_at_creation)
+                }
             } else {
-                let buffer = device.device.create_buffer(
-                    &(wgpu::BufferDescriptor {
-                        label: None,
-                        size: layout.size() as u64,
-                        usage,
-                        mapped_at_creation,
-                    })
-                );
-                let buffer = Arc::new(buffer);
-                self.allocated.insert(BufferWrapper { buffer: buffer.clone() });
-                BufferWrapper { buffer }
+                cache(self, device, layout, usage, mapped_at_creation)
             }
         } else {
+            cache(self, device, layout, usage, mapped_at_creation)
+        };
+
+        fn cache(
+            helper: &mut _WgpuAllocatorHelper,
+            device: &DeviceWrapper,
+            layout: &Layout,
+            usage: BufferUsages,
+            mapped_at_creation: bool
+        ) -> BufferWrapper {
             let buffer = device.device.create_buffer(
                 &(wgpu::BufferDescriptor {
-                    label: None,
+                    label: Some("Tensor buffer"),
                     size: layout.size() as u64,
                     usage,
                     mapped_at_creation,
                 })
             );
             let buffer = Arc::new(buffer);
-            self.allocated.insert(BufferWrapper { buffer: buffer.clone() });
+            helper.allocated.insert(BufferWrapper { buffer: buffer.clone() });
             BufferWrapper { buffer }
-        };
+        }
+        unsafe {
+            if let Ok(mut storage) = WGPU_STORAGE.lock() {
+                if let Some(cnt) = storage.get_mut(&ptr.buffer.global_id()) {
+                    *cnt += 1;
+                } else {
+                    storage.insert(ptr.buffer.global_id(), 1);
+                }
+            }
+        }
         if self.cache.cap().get() == self.cache.len() {
             if let Some((_, ptrs)) = self.cache.pop_lru() {
                 for ptr in ptrs {
-                    drop(ptr);
+                    if Arc::strong_count(&ptr.buffer) == 1 {
+                        ptr.buffer.unmap();
+                    } else {
+                        panic!("Buffer still in use");
+                    }
                 }
             }
         }
         ptr
     }
 
-    fn deallocate(&mut self, buffer: BufferWrapper, layout: Layout) {
-        self.allocated.remove(&buffer);
-        if let Some(ptrs) = self.cache.get_mut(&layout) {
-            ptrs.push(buffer);
-        } else {
-            self.cache.put(layout, vec![buffer]);
+    fn deallocate(&mut self, buffer: &BufferWrapper, layout: &Layout) {
+        unsafe {
+            if let Ok(mut storage) = WGPU_STORAGE.lock() {
+                if let Some(cnt) = storage.get_mut(&buffer.buffer.global_id()) {
+                    *cnt -= 1;
+                    if *cnt == 0 {
+                        println!("Deallocating buffer, {:?}", buffer.buffer.global_id());
+                        self.allocated.remove(buffer);
+                        if let Some(ptrs) = self.cache.get_mut(layout) {
+                            ptrs.push(buffer.clone());
+                        } else {
+                            self.cache.put(layout.clone(), vec![buffer.clone()]);
+                        }
+                    }
+                } else {
+                    panic!("Buffer not found in storage");
+                }
+            }
         }
     }
 }

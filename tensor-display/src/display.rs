@@ -56,7 +56,7 @@ fn main_loop_push_str<U, T>(
                     print(string, ptr.clone(), &mut offset, j);
                 }
                 if i == 0 {
-                    string.push_str(" ... ");
+                    string.push_str("... ");
                     offset += last_stride * ((inner_loop as i64) - 6);
                 }
             }

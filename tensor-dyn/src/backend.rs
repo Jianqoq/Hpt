@@ -2,12 +2,11 @@
 
 use std::sync::Arc;
 
-use tensor_allocator::BufferWrapper;
+use tensor_allocator::{ BufferWrapper, CPU_STORAGE, WGPU_STORAGE };
 use wgpu::Buffer;
 
 use crate::ops::wgpu::buffer_helper::WgpuDevice;
 
-#[derive(Clone)]
 pub struct Cpu {
     pub(crate) ptr: u64,
 }
@@ -15,7 +14,6 @@ pub struct Cpu {
 #[derive(Clone)]
 pub struct Cuda;
 
-#[derive(Clone)]
 pub struct Wgpu {
     pub(crate) buffer: BufferWrapper,
     pub(crate) device: WgpuDevice,
@@ -35,6 +33,22 @@ pub struct Backend<B> {
     pub(crate) _backend: B,
 }
 
+impl Clone for Cpu {
+    fn clone(&self) -> Self {
+        unsafe {
+            CPU_STORAGE.lock()
+                .unwrap()
+                .entry(self.ptr as *mut u8)
+                .and_modify(|v| {
+                    *v += 1;
+                });
+        }
+        Cpu {
+            ptr: self.ptr,
+        }
+    }
+}
+
 impl Backend<Cpu> {
     pub fn new(address: u64) -> Self {
         Backend {
@@ -51,6 +65,23 @@ impl Backend<Cuda> {
     }
 }
 
+impl Clone for Wgpu {
+    fn clone(&self) -> Self {
+        unsafe {
+            WGPU_STORAGE.lock()
+                .unwrap()
+                .entry(self.buffer.buffer.global_id())
+                .and_modify(|v| {
+                    *v += 1;
+                });
+        }
+        Wgpu {
+            buffer: self.buffer.clone(),
+            device: self.device.clone(),
+        }
+    }
+}
+
 impl Backend<Wgpu> {
     pub fn wgpu_new(id: u64, device: &WgpuDevice, buffer: BufferWrapper) -> Self {
         Backend {
@@ -59,6 +90,38 @@ impl Backend<Wgpu> {
                 device: device.clone(),
             },
         }
+    }
+}
+
+pub trait BackendDevice {
+    fn wgpu_device(&self) -> &WgpuDevice;
+    fn buffer(&self) -> &BufferWrapper;
+}
+
+impl BackendDevice for Cpu {
+    fn wgpu_device(&self) -> &WgpuDevice {
+        panic!("Cpu backend does not have a device")
+    }
+    fn buffer(&self) -> &BufferWrapper {
+        panic!("Cpu backend does not have a buffer")
+    }
+}
+
+impl BackendDevice for Cuda {
+    fn wgpu_device(&self) -> &WgpuDevice {
+        panic!("Cuda backend does not have a device")
+    }
+    fn buffer(&self) -> &BufferWrapper {
+        panic!("Cuda backend does not have a buffer")
+    }
+}
+
+impl BackendDevice for Wgpu {
+    fn wgpu_device(&self) -> &WgpuDevice {
+        &self.device
+    }
+    fn buffer(&self) -> &BufferWrapper {
+        &self.buffer
     }
 }
 

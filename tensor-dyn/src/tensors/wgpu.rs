@@ -48,7 +48,7 @@ use rayon::iter::{
 };
 
 use crate::{
-    backend::{ Backend, BackendTy, Cpu, Wgpu },
+    backend::{ Backend, BackendDevice, BackendTy, Cpu, Wgpu },
     ops::{ cpu::stack::stack, wgpu::buffer_helper::WgpuDevice },
     slice::SliceOps,
     tensor::Tensor,
@@ -476,16 +476,7 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
             ::from_size_align(size * std::mem::size_of::<T>(), 8)
             .unwrap();
 
-        let buffer = unsafe {
-            WGPU_CACHE.allocate(
-                &layout,
-                &device.device,
-                wgpu::BufferUsages::STORAGE |
-                    wgpu::BufferUsages::COPY_SRC |
-                    wgpu::BufferUsages::COPY_DST,
-                false
-            )
-        };
+        let buffer = unsafe { WGPU_CACHE.allocate(&layout, &device.device, false) };
 
         let backend = Backend {
             _backend: Wgpu {
@@ -505,14 +496,7 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
     fn zeros<S: Into<Shape>>(shape: S, device: &WgpuDevice) -> Result<Self> {
         let zeros = _Tensor::<T, Cpu>::zeros(shape)?;
         let layout = &zeros.mem_layout;
-        let buffer = unsafe {
-            WGPU_CACHE.allocate(
-                layout,
-                &device.device,
-                wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
-                false
-            )
-        };
+        let buffer = unsafe { WGPU_CACHE.allocate(layout, &device.device, false) };
         let mut encoder = device.device.device.create_command_encoder(
             &(wgpu::CommandEncoderDescriptor {
                 label: Some("Command Encoder"),
@@ -551,14 +535,7 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
     fn ones<S: Into<Shape>>(shape: S, device: &WgpuDevice) -> Result<Self> where u8: IntoScalar<T> {
         let ones = _Tensor::<T, Cpu>::ones(shape)?;
         let layout = &ones.mem_layout;
-        let buffer = unsafe {
-            WGPU_CACHE.allocate(
-                layout,
-                &device.device,
-                wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
-                false
-            )
-        };
+        let buffer = unsafe { WGPU_CACHE.allocate(layout, &device.device, false) };
         let mut encoder = device.device.device.create_command_encoder(
             &(wgpu::CommandEncoderDescriptor {
                 label: Some("Command Encoder"),
@@ -619,16 +596,7 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
     {
         let arange = _Tensor::<T, Cpu>::arange(start, end)?;
         let layout = &arange.mem_layout;
-        let buffer = unsafe {
-            WGPU_CACHE.allocate(
-                layout,
-                &device.device,
-                wgpu::BufferUsages::COPY_DST |
-                    wgpu::BufferUsages::COPY_SRC |
-                    wgpu::BufferUsages::STORAGE,
-                false
-            )
-        };
+        let buffer = unsafe { WGPU_CACHE.allocate(layout, &device.device, false) };
 
         device.queue.write_buffer(&buffer.buffer, 0, bytemuck::cast_slice(arange.as_raw()));
 
@@ -652,14 +620,7 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
     {
         let arange = _Tensor::<T, Cpu>::arange_step(start, end, step)?;
         let layout = &arange.mem_layout;
-        let buffer = unsafe {
-            WGPU_CACHE.allocate(
-                layout,
-                &device.device,
-                wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
-                false
-            )
-        };
+        let buffer = unsafe { WGPU_CACHE.allocate(layout, &device.device, false) };
         let mut encoder = device.device.device.create_command_encoder(
             &(wgpu::CommandEncoderDescriptor {
                 label: Some("Command Encoder"),
@@ -700,14 +661,7 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
     {
         let eye = _Tensor::<T, Cpu>::eye(n, m, k)?;
         let layout = &eye.mem_layout;
-        let buffer = unsafe {
-            WGPU_CACHE.allocate(
-                layout,
-                &device.device,
-                wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
-                false
-            )
-        };
+        let buffer = unsafe { WGPU_CACHE.allocate(layout, &device.device, false) };
         let mut encoder = device.device.device.create_command_encoder(
             &(wgpu::CommandEncoderDescriptor {
                 label: Some("Command Encoder"),
@@ -785,14 +739,7 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
     {
         let tri = _Tensor::<T, Cpu>::tri(n, m, k, low_triangle)?;
         let layout = &tri.mem_layout;
-        let buffer = unsafe {
-            WGPU_CACHE.allocate(
-                layout,
-                &device.device,
-                wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
-                false
-            )
-        };
+        let buffer = unsafe { WGPU_CACHE.allocate(layout, &device.device, false) };
         let mut encoder = device.device.device.create_command_encoder(
             &(wgpu::CommandEncoderDescriptor {
                 label: Some("Command Encoder"),
@@ -1276,15 +1223,81 @@ impl<T> Random
     }
 }
 
-impl<T> Display for _Tensor<T, Wgpu> where T: CommonBounds {
+impl<T> Display for _Tensor<T, Wgpu> where T: CommonBounds + bytemuck::Pod {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        let res_size = self.size() * std::mem::size_of::<T>();
+        let read_buffer = self.device().create_buffer(
+            &(wgpu::BufferDescriptor {
+                label: Some("Result Buffer"),
+                size: res_size as u64,
+                usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            })
+        );
+        let mut encoder = self
+            .device()
+            .create_command_encoder(&(wgpu::CommandEncoderDescriptor { label: None }));
+        encoder.copy_buffer_to_buffer(self.buffer(), 0, &read_buffer, 0, res_size as u64);
+        self.device().queue.submit(Some(encoder.finish()));
+        let buffer_slice = read_buffer.slice(..);
+        let (sender, receiver) = flume::bounded(1);
+        buffer_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
+
+        self.device().poll(wgpu::Maintain::wait()).panic_on_timeout();
+        let tensor = _Tensor::<T, Cpu>::empty(self.shape()).unwrap();
+        pollster::block_on(async {
+            if let Ok(Ok(())) = receiver.recv_async().await {
+                let data = buffer_slice.get_mapped_range();
+                let result: &[T] = bytemuck::cast_slice(&data);
+                tensor
+                    .as_raw_mut()
+                    .par_iter_mut()
+                    .enumerate()
+                    .for_each(|(i, x)| {
+                        *x = result[i];
+                    });
+            }
+        });
+        write!(f, "{}", tensor)
     }
 }
 
-impl<T> Debug for _Tensor<T, Wgpu> where T: CommonBounds {
+impl<T> Debug for _Tensor<T, Wgpu> where T: CommonBounds + bytemuck::Pod {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        let res_size = self.size() * std::mem::size_of::<T>();
+        let read_buffer = self.device().create_buffer(
+            &(wgpu::BufferDescriptor {
+                label: Some("Result Buffer"),
+                size: res_size as u64,
+                usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            })
+        );
+        let mut encoder = self
+            .device()
+            .create_command_encoder(&(wgpu::CommandEncoderDescriptor { label: None }));
+        encoder.copy_buffer_to_buffer(self.buffer(), 0, &read_buffer, 0, res_size as u64);
+        self.device().queue.submit(Some(encoder.finish()));
+        let buffer_slice = read_buffer.slice(..);
+        let (sender, receiver) = flume::bounded(1);
+        buffer_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
+
+        self.device().poll(wgpu::Maintain::wait()).panic_on_timeout();
+        let tensor = _Tensor::<T, Cpu>::empty(self.shape()).unwrap();
+        pollster::block_on(async {
+            if let Ok(Ok(())) = receiver.recv_async().await {
+                let data = buffer_slice.get_mapped_range();
+                let result: &[T] = bytemuck::cast_slice(&data);
+                tensor
+                    .as_raw_mut()
+                    .par_iter_mut()
+                    .enumerate()
+                    .for_each(|(i, x)| {
+                        *x = result[i];
+                    });
+            }
+        });
+        write!(f, "{}", tensor)
     }
 }
 
@@ -1322,20 +1335,22 @@ impl<'a, T> Into<_Tensor<T, Wgpu>> for &'a [T] {
     }
 }
 
-impl<T, B> Drop for _Tensor<T, B> where B: BackendTy {
+impl<T, B> Drop for _Tensor<T, B> where B: BackendTy + BackendDevice {
     fn drop(&mut self) {
         match B::ID {
-            // 0 => {
-            //     unsafe {
-            //         std::alloc::dealloc(self.data.as_ptr(), self.mem_layout.clone());
-            //     }
-            // }
-            // 1 => {
-            //     unsafe {
-            //         self._backend._backend.device.device.drop();
-            //     }
-            // }
-            _ => {}
+            0 => {
+                unsafe { CACHE.deallocate(self.data.ptr as *mut u8, &self.mem_layout) }
+            }
+            2 => {
+                unsafe {
+                    WGPU_CACHE.deallocate(
+                        self._backend._backend.wgpu_device(),
+                        self._backend._backend.buffer(),
+                        &self.mem_layout
+                    )
+                }
+            }
+            _ => { panic!("Invalid Backend ID") }
         }
     }
 }

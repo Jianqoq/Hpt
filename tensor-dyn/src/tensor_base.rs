@@ -45,7 +45,7 @@ use rayon::iter::{
     ParallelIterator,
 };
 
-use crate::{ backend::{ Backend, BackendTy, Cpu }, ops::cpu::stack::stack, slice::SliceOps, tensor::Tensor };
+use crate::{ backend::{ Backend, BackendDevice, BackendTy, Cpu }, ops::cpu::stack::stack, slice::SliceOps, tensor::Tensor };
 /// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
 ///
 /// All the operations are happen on this struct.
@@ -60,7 +60,7 @@ use crate::{ backend::{ Backend, BackendTy, Cpu }, ops::cpu::stack::stack, slice
 ///  If the tensor is a view of another tensor, the parent tensor will be the original tensor.
 /// - `mem_layout`: std::alloc::layout, use for deallocate the memory.
 #[derive(Clone)]
-pub struct _Tensor<T, B = Cpu> where B: BackendTy {
+pub struct _Tensor<T, B = Cpu> where B: BackendTy + BackendDevice {
     pub(crate) data: Pointer<T>,
     pub(crate) parent: Option<Pointer<T>>,
     pub(crate) layout: Layout,

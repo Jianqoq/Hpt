@@ -1,5 +1,4 @@
 use std::{ borrow::Cow, fmt::Debug };
-use rayon::iter::{ IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator };
 use tensor_common::shape_utils::try_pad_shape;
 use tensor_common::strides_utils::preprocess_strides;
 use tensor_dyn::backend::{ Cpu, Wgpu };
@@ -16,7 +15,7 @@ async fn binop<A, B>(
     a: &_Tensor<A, Wgpu>,
     b: &_Tensor<B, Wgpu>
 )
-    -> Tensor<<A as NormalOut<B>>::Output, Cpu>
+    -> _Tensor<<A as NormalOut<B>>::Output, Wgpu>
     where
         A: CommonBounds + NormalOut<B> + bytemuck::Pod + TypeCommon,
         B: CommonBounds + bytemuck::Pod + TypeCommon,
@@ -62,25 +61,7 @@ async fn binop<A, B>(
         source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&kernel)),
     });
 
-    // Gets the size in bytes of the buffer.
-    let res_size =
-        (res.size() as u64) *
-        (std::mem::size_of::<<A as NormalOut<B>>::Output>() as wgpu::BufferAddress);
-
-    // Instantiates buffer without data.
-    // `usage` of buffer specifies how it can be used:
-    //   `BufferUsages::MAP_READ` allows it to be read (outside the shader).
-    //   `BufferUsages::COPY_DST` allows it to be the destination of the copy.
     let res_buffer = res.buffer();
-
-    let result_buffer = device.create_buffer(
-        &(wgpu::BufferDescriptor {
-            label: Some("Result Buffer"),
-            size: res_size,
-            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        })
-    );
 
     let res_strides_buffer = device.create_buffer_init(
         &(wgpu::util::BufferInitDescriptor {
@@ -102,11 +83,6 @@ async fn binop<A, B>(
         })
     );
 
-    // Instantiates buffer with data (`numbers`).
-    // Usage allowing the buffer to be:
-    //   A storage buffer (can be bound within a bind group and thus available to a shader).
-    //   The destination of a copy.
-    //   The source of a copy.
     let a_buffer = a.buffer();
 
     let a_strides_buffer = device.create_buffer_init(
@@ -317,38 +293,17 @@ async fn binop<A, B>(
         0,
         (std::mem::size_of::<u64>() as u64) * 2
     );
-
-    encoder.copy_buffer_to_buffer(&res_buffer, 0, &result_buffer, 0, res_size);
-
     let queue = device.queue();
     // Submits command encoder for processing
     queue.submit(Some(encoder.finish()));
 
-    let buffer_slice = result_buffer.slice(..);
     let time_slice = readback_buffer.slice(..);
 
-    let (sender, receiver) = flume::bounded(1);
     let (sender2, receiver2) = flume::bounded(1);
-    buffer_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
     time_slice.map_async(wgpu::MapMode::Read, move |v| sender2.send(v).unwrap());
 
     device.poll(wgpu::Maintain::wait()).panic_on_timeout();
 
-    let res_cpu = _Tensor::<<A as NormalOut<B>>::Output, Cpu>::empty(res_shape.shape()).unwrap();
-    // Awaits until `buffer_future` can be read from
-    if let Ok(Ok(())) = receiver.recv_async().await {
-        let data = buffer_slice.get_mapped_range();
-        let result: &[<A as NormalOut<B>>::Output] = bytemuck::cast_slice(&data);
-        res_cpu
-            .as_raw_mut()
-            .par_iter_mut()
-            .enumerate()
-            .for_each(|(i, x)| {
-                *x = result[i];
-            });
-    } else {
-        panic!("failed to run compute on gpu!");
-    }
     if let Ok(Ok(())) = receiver2.recv_async().await {
         let data = time_slice.get_mapped_range();
         let time: &[u64] = bytemuck::cast_slice(&data);
@@ -360,7 +315,7 @@ async fn binop<A, B>(
     } else {
         panic!("failed to run compute on gpu!");
     }
-    res_cpu.into()
+    res
 }
 
 use tensor_dyn::ShapeManipulate;
@@ -377,14 +332,12 @@ async fn main() -> anyhow::Result<()> {
     );
     let a = _Tensor::<f32, Wgpu>
         ::arange(0, 1024 * 1024 * 128, &device).await?
-        .reshape(&[1024, 1024, 128])
-        .unwrap();
+        .reshape(&[1024, 1024, 128])?;
     let b = _Tensor::<f32, Wgpu>
-        ::arange(0, 1024 * 1024 * 128, &device).await
-        .unwrap()
-        .reshape(&[1024, 1024, 128])
-        .unwrap();
+        ::arange(0, 1024 * 1024 * 128, &device).await?
+        .reshape(&[1024, 1024, 128])?;
     let res = binop(include_str!("shader.wgsl"), &a, &b).await;
-    println!("{:?}", res);
+
+    println!("{}", res);
     Ok(())
 }
