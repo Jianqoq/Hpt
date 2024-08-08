@@ -298,7 +298,7 @@ impl _WgpuAllocatorHelper {
                 if let Some(cnt) = storage.get_mut(&buffer.buffer.global_id()) {
                     *cnt -= 1;
                     if *cnt == 0 {
-                        println!("Deallocating buffer, {:?}", buffer.buffer.global_id());
+                        // println!("Deallocating buffer, {:?}", buffer.buffer.global_id());
                         self.allocated.remove(buffer);
                         if let Some(ptrs) = self.cache.get_mut(layout) {
                             ptrs.push(buffer.clone());
