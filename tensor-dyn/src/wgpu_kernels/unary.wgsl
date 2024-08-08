@@ -25,6 +25,6 @@ fn main(
 
     let range : u32 = end_idx - start_idx;
     for (var i: u32 = 0; i < range; i++) {
-        c[t_id + i] = c_ty(t_id + i);
+        c[t_id + i] = c_ty(op_place_holder(c_ty(a[t_id + i])));
     }
 }

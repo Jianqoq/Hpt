@@ -138,7 +138,7 @@ impl<T: CommonBounds> BaseTensor for &_Tensor<T, Wgpu> {
 }
 
 impl<T: CommonBounds> _Tensor<T, Wgpu> {
-    pub fn to_cpu(&self) -> _Tensor<T, Cpu> where T: Pod {
+    pub fn to_cpu(&self) -> _Tensor<T, Cpu> where T: Pod + Debug {
         let res_size = self.size() * std::mem::size_of::<T>();
         let read_buffer = self.device().create_buffer(
             &(wgpu::BufferDescriptor {
@@ -163,6 +163,7 @@ impl<T: CommonBounds> _Tensor<T, Wgpu> {
             if let Ok(Ok(())) = receiver.recv_async().await {
                 let data = buffer_slice.get_mapped_range();
                 let result: &[T] = bytemuck::cast_slice(&data);
+                println!("{:?}", result);
                 tensor
                     .as_raw_mut()
                     .par_iter_mut()
@@ -1260,7 +1261,7 @@ impl<T> Random
     }
 }
 
-impl<T> Display for _Tensor<T, Wgpu> where T: CommonBounds + bytemuck::Pod {
+impl<T> Display for _Tensor<T, Wgpu> where T: CommonBounds + bytemuck::Pod + Debug {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.to_cpu())
     }

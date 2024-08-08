@@ -31,6 +31,7 @@ pub(crate) fn unary<A>(op: &str, a: &_Tensor<A, Wgpu>) -> _Tensor<<A as FloatOut
         .replace("NUM_GRP_X", &num_grp_x.to_string())
         .replace("NUM_GRP_Y", &num_grp_y.to_string())
         .replace("TOTAL_SIZE", &size.to_string());
+    
     let device = a.device().clone();
     let cs_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
