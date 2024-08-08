@@ -8,8 +8,6 @@ async fn main() -> anyhow::Result<()> {
     let device = WgpuDevice::new(
         wgpu::Backends::VULKAN | wgpu::Backends::DX12,
         wgpu::Features::SHADER_INT64 |
-            wgpu::Features::BUFFER_BINDING_ARRAY |
-            wgpu::Features::STORAGE_RESOURCE_BINDING_ARRAY |
             wgpu::Features::TIMESTAMP_QUERY |
             wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS |
             wgpu::Features::SHADER_F64
