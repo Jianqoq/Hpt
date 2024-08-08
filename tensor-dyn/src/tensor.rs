@@ -19,7 +19,7 @@ use tensor_types::{
 use anyhow::Result;
 use crate::{
     backend::{BackendDevice, BackendTy, Cpu},
-    ops::cpu::{ stack::stack, uary::{ FloatType, NormalType } },
+    ops::cpu::{ stack::stack, unary::{ FloatType, NormalType } },
     tensor_base::_Tensor,
 };
 

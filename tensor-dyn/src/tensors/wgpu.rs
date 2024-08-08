@@ -138,6 +138,43 @@ impl<T: CommonBounds> BaseTensor for &_Tensor<T, Wgpu> {
 }
 
 impl<T: CommonBounds> _Tensor<T, Wgpu> {
+    pub fn to_cpu(&self) -> _Tensor<T, Cpu> where T: Pod {
+        let res_size = self.size() * std::mem::size_of::<T>();
+        let read_buffer = self.device().create_buffer(
+            &(wgpu::BufferDescriptor {
+                label: Some("Result Buffer"),
+                size: res_size as u64,
+                usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            })
+        );
+        let mut encoder = self
+            .device()
+            .create_command_encoder(&(wgpu::CommandEncoderDescriptor { label: None }));
+        encoder.copy_buffer_to_buffer(self.buffer(), 0, &read_buffer, 0, res_size as u64);
+        self.device().queue.submit(Some(encoder.finish()));
+        let buffer_slice = read_buffer.slice(..);
+        let (sender, receiver) = flume::bounded(1);
+        buffer_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
+
+        self.device().poll(wgpu::Maintain::wait()).panic_on_timeout();
+        let tensor = _Tensor::<T, Cpu>::empty(self.shape()).unwrap();
+        pollster::block_on(async {
+            if let Ok(Ok(())) = receiver.recv_async().await {
+                let data = buffer_slice.get_mapped_range();
+                let result: &[T] = bytemuck::cast_slice(&data);
+                tensor
+                    .as_raw_mut()
+                    .par_iter_mut()
+                    .enumerate()
+                    .for_each(|(i, x)| {
+                        *x = result[i];
+                    });
+            }
+        });
+        tensor
+    }
+
     pub fn buffer(&self) -> &wgpu::Buffer {
         &self._backend._backend.buffer.buffer
     }
@@ -1225,40 +1262,7 @@ impl<T> Random
 
 impl<T> Display for _Tensor<T, Wgpu> where T: CommonBounds + bytemuck::Pod {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let res_size = self.size() * std::mem::size_of::<T>();
-        let read_buffer = self.device().create_buffer(
-            &(wgpu::BufferDescriptor {
-                label: Some("Result Buffer"),
-                size: res_size as u64,
-                usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
-                mapped_at_creation: false,
-            })
-        );
-        let mut encoder = self
-            .device()
-            .create_command_encoder(&(wgpu::CommandEncoderDescriptor { label: None }));
-        encoder.copy_buffer_to_buffer(self.buffer(), 0, &read_buffer, 0, res_size as u64);
-        self.device().queue.submit(Some(encoder.finish()));
-        let buffer_slice = read_buffer.slice(..);
-        let (sender, receiver) = flume::bounded(1);
-        buffer_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
-
-        self.device().poll(wgpu::Maintain::wait()).panic_on_timeout();
-        let tensor = _Tensor::<T, Cpu>::empty(self.shape()).unwrap();
-        pollster::block_on(async {
-            if let Ok(Ok(())) = receiver.recv_async().await {
-                let data = buffer_slice.get_mapped_range();
-                let result: &[T] = bytemuck::cast_slice(&data);
-                tensor
-                    .as_raw_mut()
-                    .par_iter_mut()
-                    .enumerate()
-                    .for_each(|(i, x)| {
-                        *x = result[i];
-                    });
-            }
-        });
-        write!(f, "{}", tensor)
+        write!(f, "{}", self.to_cpu())
     }
 }
 

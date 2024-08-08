@@ -194,7 +194,7 @@ impl _WgpuAllocator {
                     wgpu::BufferUsages::STORAGE,
                 mapped_at_creation
             );
-            println!("allocated buffer, {:?}", buffer.buffer.global_id());
+            // println!("allocated buffer, {:?}", buffer.buffer.global_id());
             buffer
         } else {
             let mut allocator = _WgpuAllocatorHelper {
@@ -209,7 +209,7 @@ impl _WgpuAllocator {
                     wgpu::BufferUsages::STORAGE,
                 mapped_at_creation
             );
-            println!("allocated buffer, {:?}", buffer.buffer.global_id());
+            // println!("allocated buffer, {:?}", buffer.buffer.global_id());
             self.devices.insert(device.clone(), allocator);
             buffer
         }

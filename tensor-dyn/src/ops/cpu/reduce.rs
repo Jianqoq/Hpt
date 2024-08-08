@@ -41,7 +41,7 @@ use std::sync::Arc;
 use std::sync::Barrier;
 use tensor_traits::shape_manipulate::ShapeManipulate;
 
-use super::uary::FloatType;
+use super::unary::FloatType;
 
 #[derive(Debug)]
 struct ReductionPreprocessor<T, U> {

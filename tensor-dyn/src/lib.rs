@@ -3,7 +3,7 @@ pub mod ops {
     pub mod cpu {
         pub mod binary_normal;
         pub mod std_ops;
-        pub mod uary;
+        pub mod unary;
         pub mod binary;
         pub mod matmul;
         pub mod reduce;
@@ -26,6 +26,10 @@ pub mod ops {
     }
     pub mod wgpu {
         pub mod buffer_helper;
+        pub mod binary;
+        pub mod binary_normal;
+        pub mod std_ops;
+        pub mod unary;
     }
 }
 

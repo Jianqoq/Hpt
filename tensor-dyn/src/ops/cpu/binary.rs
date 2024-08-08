@@ -8,7 +8,7 @@ use crate::{ tensor::Tensor, tensor_base::_Tensor };
 
 use super::{ binary_normal::binary_fn_with_out, matmul::{ matmul_no_out, matmul_with_out } };
 
-type NormalType<A, B> = <A as NormalOut<B>>::Output;
+pub(crate) type NormalType<A, B> = <A as NormalOut<B>>::Output;
 
 macro_rules! impl_bin_ops {
     (
