@@ -1,7 +1,7 @@
-use tensor_dyn::set_global_display_precision;
+use tensor_dyn::{set_global_display_precision, TensorCreator};
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::Random;
-use tensor_dyn::NormalReduce;
+use tensor_traits::tensor::FloatReduce;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -16,14 +16,11 @@ async fn main() -> anyhow::Result<()> {
     // let res1 = a.sinh().await?;
     // println!("{}", res1);
     set_global_display_precision(7);
-    let a = _Tensor::<f32>::randn(&[8, 2048, 4, 2048])?;
+    let a = _Tensor::<i32>::arange(0, 100)?;
     let mut i = 0;
     let now = std::time::Instant::now();
-    for _ in 0..100 {
-        let _ = a.sum([0, 1], false);
-        i += 1;
-    }
+    let a = a.mean([0], true)?;
     println!("{:?}", now.elapsed() / 100);
-    println!("{:?}", i);
+    println!("{:?}", a);
     Ok(())
 }

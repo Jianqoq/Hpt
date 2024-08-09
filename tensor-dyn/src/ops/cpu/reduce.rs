@@ -1,6 +1,6 @@
 use crate::slice::SliceOps;
 use crate::tensor_base::_Tensor;
-use crate::{ argmax_kernel, argmin_kernel, mean_kernel, reducel2_kernel, reducel3_kernel };
+use crate::{ argmax_kernel, argmin_kernel };
 use crate::backend::Cpu;
 
 use tensor_common::slice::Slice;
@@ -364,251 +364,6 @@ macro_rules! init_arr {
         $result.as_raw_mut().par_iter_mut().for_each(|x| {
             *x = $macro_init_val;
         });
-    };
-}
-
-macro_rules! body {
-    (
-        $axes:ident,
-        $a:ident,
-        $macro_init_val:expr,
-        $init_val:ident,
-        $keepdims:ident,
-        $init_out:ident,
-        $c:ident,
-        $kernel_name:ident,
-        $generic_a:ident,
-        $($specific_type:tt)*
-    ) => {
-        let mut is_left: bool = true;
-        for axis in $axes.iter() {
-            if axis == &(($a.ndim() as usize) - 1) {
-                is_left = false;
-                break;
-            }
-        }
-        let a_: &_Tensor<T> = &$a;
-        let a_shape = a_.shape();
-        let a_last_stride = a_.strides()[a_.ndim() - 1];
-        let a_shape_tmp = a_shape.clone();
-        let (a_shape_cpy, res_shape) = predict_reduce_shape(&a_shape_tmp, &$axes);
-        let mut j = a_.ndim() - $axes.len();
-        let mut k = 0;
-        let mut track_idx = 0;
-        let mut transposed_axis = vec![0; a_.ndim()];
-        for i in 0..a_.ndim() {
-            if a_shape_cpy[i] != 0 {
-                transposed_axis[k] = i;
-                k += 1;
-            } else {
-                transposed_axis[j] = $axes[track_idx];
-                j += 1;
-                track_idx += 1;
-            }
-        }
-        transposed_axis[$a.ndim() - $axes.len()..].sort();
-        transposed_axis[..$a.ndim() - $axes.len()].sort();
-        let transposed_tensor = a_.permute(transposed_axis)?;
-        let transposed_strides = transposed_tensor.strides().inner();
-        let transposed_strides_cpy = transposed_strides.clone();
-        let transposed_shape = transposed_tensor.shape().to_vec();
-        let mut transposed_shape_cpy = transposed_shape.clone();
-        transposed_shape_cpy.iter_mut().for_each(|x| {
-            *x -= 1;
-        });
-        let a_data: Pointer<T> = a_.ptr();
-        let mut new_shape: Option<Vec<i64>> = None;
-        let result;
-        let result_size: usize;
-        if $keepdims {
-            let mut shape_tmp = Vec::with_capacity(a_.ndim());
-            a_shape_cpy.iter().for_each(|x| {
-                (if *x != 0 {
-                    shape_tmp.push(*x);
-                } else {
-                    shape_tmp.push(1);
-                })
-            });
-            new_shape = Some(shape_tmp);
-        }
-        let res_shape = Arc::new(res_shape);
-        if let Some(out) = $c {
-            if let Some(s) = &new_shape {
-                if s != out.shape().inner() {
-                    return Err(anyhow::Error::msg(format!(
-                        "Output array has incorrect shape"
-                    )));
-                }
-            } else {
-                if res_shape.as_ref() != out.shape().inner() {
-                    return Err(anyhow::Error::msg(format!(
-                        "Output array has incorrect shape"
-                    )));
-                }
-            }
-            result = out;
-            result_size = result.size();
-            if $init_out {
-                result.as_raw_mut().par_iter_mut().for_each(|x| {
-                    *x = $init_val;
-                });
-            }
-        } else {
-            init_arr!(result, res_shape, $init_val, $($specific_type)*);
-            result_size = result.size();
-        }
-        let mut result_data = result.ptr();
-        let transposed_shape: Arc<Vec<i64>> = Arc::new(transposed_shape);
-        if a_.ndim() == $axes.len() {
-            $kernel_name!(reduce_all, result_data, a_, $macro_init_val);
-        } else {
-            let a_last_index: usize = a_.ndim() - 1;
-            let inner_loop_size: usize = a_.shape()[a_last_index] as usize;
-            let a_size: usize = a_.size();
-            let a_data_ptr: Pointer<T> = a_data.clone();
-            THREAD_POOL.with_borrow_mut(|pool| {
-                if !is_left {
-                    let outer_loop_size = a_size / inner_loop_size;
-                    let inner_loop_size_2 = outer_loop_size / result_size;
-                    let num_threads;
-                    if result_size < pool.max_count() {
-                        num_threads = result_size;
-                    } else {
-                        num_threads = pool.max_count();
-                    }
-                    let mut iterators = ReductionPreprocessor::new(
-                        num_threads,
-                        result_size,
-                        inner_loop_size_2,
-                        a_data_ptr,
-                        result_data,
-                        transposed_strides_cpy,
-                        Arc::new(transposed_shape_cpy),
-                        transposed_shape.clone(),
-                        res_shape.clone(),
-                    );
-                    let barrier = Arc::new(Barrier::new(num_threads + 1));
-                    for _ in 0..num_threads {
-                        let mut iterator = iterators.pop().unwrap();
-                        let mut result_ptr_c = iterator.res_ptrs;
-                        let mut a_data_ptr = iterator.ptrs;
-                        let current_size = iterator.end - iterator.start;
-                        let barrier_clone = Arc::clone(&barrier);
-                        pool.execute(move || {
-                            let shape_len = iterator.a_shape.len() as i64;
-                            for _ in 0..current_size {
-                                $kernel_name!(
-                                    $macro_init_val,
-                                    iterator,
-                                    inner_loop_size,
-                                    inner_loop_size_2,
-                                    result_ptr_c,
-                                    a_data_ptr,
-                                    a_last_stride,
-                                    shape_len
-                                );
-                            }
-                            barrier_clone.wait();
-                        });
-                    }
-                    barrier.wait();
-                } else {
-                    let outer_loop_size = result_size / inner_loop_size;
-                    let inner_loop_size_2 = $a.size() / result_size;
-                    let num_threads;
-                    if outer_loop_size < pool.max_count() {
-                        num_threads = outer_loop_size;
-                    } else {
-                        num_threads = pool.max_count();
-                    }
-                    let mut iterators = ReductionPreprocessor::new2(
-                        num_threads,
-                        outer_loop_size,
-                        inner_loop_size,
-                        a_data_ptr,
-                        result_data,
-                        transposed_strides_cpy,
-                        Arc::new(transposed_shape_cpy),
-                        res_shape.clone(),
-                    );
-                    let barrier = Arc::new(Barrier::new(num_threads + 1));
-                    for _ in (0..num_threads).rev() {
-                        let mut iterator = iterators.pop().unwrap();
-                        let mut result_ptr_c = iterator.res_ptrs;
-                        let mut a_data_ptr = iterator.ptrs;
-                        let current_size = iterator.end - iterator.start;
-                        let barrier_clone = Arc::clone(&barrier);
-                        pool.execute(move || {
-                            let shape_len = iterator.shape.len() as i64;
-                            for _i in 0..current_size {
-                                $kernel_name!(
-                                    $macro_init_val,
-                                    _i,
-                                    iterator,
-                                    inner_loop_size,
-                                    inner_loop_size_2,
-                                    result_ptr_c,
-                                    a_data_ptr,
-                                    a_last_stride,
-                                    shape_len
-                                );
-                            }
-                            barrier_clone.wait();
-                        });
-                    }
-                    barrier.wait();
-                }
-            });
-        }
-        if let Some(new_shape) = new_shape {
-            let result = result.reshape(new_shape)?;
-            return Ok(result);
-        } else {
-            return Ok(result);
-        }
-    };
-}
-
-macro_rules! register_reduction {
-    (
-        $generic_a:ident,
-        $generic_b:ident,
-        $fn_name:ident,
-        $kernel_name:ident,
-        $macro_init_val:expr,
-        $($trait_bound:tt)*
-    ) => {
-        pub(crate) fn $fn_name<$generic_a, $generic_b>(a: &_Tensor<$generic_a>, axes: &[usize],
-             init_val: $generic_b, keepdims: bool, init_out: bool, c: Option<_Tensor<$generic_b>>) -> anyhow::Result<_Tensor<$generic_b>> $($trait_bound)*
-         {
-            body!(axes, a, $macro_init_val, init_val, keepdims, init_out, c, $kernel_name, $generic_a, $generic_b);
-        }
-    };
-    (
-        $generic_a:ident,
-        $fn_name:ident,
-        $kernel_name:ident,
-        $macro_init_val:expr,
-        $($trait_bound:tt)*
-    ) => {
-        pub(crate) fn $fn_name<$generic_a>(a: &_Tensor<$generic_a>, axes: &[usize],
-             init_val: $generic_a, keepdims: bool, init_out: bool, c: Option<_Tensor<$generic_a>>) -> anyhow::Result<_Tensor<$generic_a>> $($trait_bound)*
-         {
-            body!(axes, a, $macro_init_val, init_val, keepdims, init_out, c, $kernel_name, $generic_a, $generic_a);
-        }
-    };
-    (
-        $generic_a:ident => [$($specific_type:tt)*],
-        $fn_name:ident,
-        $kernel_name:ident,
-        $macro_init_val:expr,
-        $($trait_bound:tt)*
-    ) => {
-        pub(crate) fn $fn_name<$generic_a>(a: &_Tensor<$generic_a>, axes: &[usize],
-             init_val: $($specific_type)*, keepdims: bool, init_out: bool, c: Option<_Tensor<$($specific_type)*>>) -> anyhow::Result<_Tensor<$($specific_type)*>> $($trait_bound)*
-         {
-            body!(axes, a, $macro_init_val, init_val, keepdims, init_out, c, $kernel_name, $generic_a, $($specific_type)*);
-        }
     };
 }
 
@@ -1155,45 +910,27 @@ pub(crate) fn reduce2<T, F, F2, O>(
 {
     _reduce::<_, _, _, fn(O) -> O, O>(a, op, op2, None, &axes, init_val, keepdims, init_out, c)
 }
-
-register_reduction!(
-    T => [<T as FloatOut<T>>::Output],
-     reducel2, reducel2_kernel,
-     T::ZERO,
-     where
-         T: CommonBounds +
-             NormalOut<T, Output = T> +
-             NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output> + FloatOut,
-         <T as FloatOut>::Output: CommonBounds,
-         <T as FloatOut>::Output: FloatOut<Output = <T as FloatOut>::Output>,
-);
-register_reduction!(
-    T => [<T as FloatOut<T>>::Output],
-     reducel3, reducel3_kernel,
-     T::ZERO,
-     where
-         T: CommonBounds +
-             NormalOut<T, Output = T> +
-             NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output> + FloatOut,
-         <T as FloatOut>::Output: CommonBounds,
-         <T as FloatOut>::Output: FloatOut<Output = <T as FloatOut>::Output>,
-         f64: IntoScalar<<T as NormalOut>::Output>
-);
-
-register_reduction!(
-    T => [<T as FloatOut<T>>::Output],
-    mean,
-    mean_kernel,
-    <T as FloatOut>::Output::ZERO,
+pub(crate) fn reduce3<T, F, F2, F3, O>(
+    a: &_Tensor<T>,
+    op: F,
+    op2: F2,
+    op3: F3,
+    axes: &[usize],
+    init_val: O,
+    keepdims: bool,
+    init_out: bool,
+    c: Option<_Tensor<O>>
+)
+    -> anyhow::Result<_Tensor<O>>
     where
-        T: CommonBounds +
-            NormalOut<T> +
-            NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output> + FloatOut,
-        <T as FloatOut>::Output: CommonBounds +
-            NormalOut<T, Output = <T as FloatOut>::Output>,
-        <T as FloatOut>::Output: FloatOut<Output = <T as FloatOut>::Output>,
-        <T as FloatOut>::Output: NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output> + FromScalar<usize>
-);
+        T: CommonBounds,
+        F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
+        F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+        F3: Fn(O) -> O + Sync + Send + 'static + Copy,
+        O: CommonBounds
+{
+    _reduce::<_, _, _, _, O>(a, op, op2, Some(op3), &axes, init_val, keepdims, init_out, c)
+}
 
 register_reduction_one_axis!(
     T => [i64],
@@ -1431,17 +1168,51 @@ impl<T> FloatReduce<T>
     type Output = _Tensor<FloatType<T>>;
     fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        mean(self, &axes, <T as FloatOut>::Output::ZERO, keep_dims, false, None)
+        let reduce_size: FloatType<T> = (
+            axes.iter().fold(1, |acc, &x| acc * (self.shape()[x] as usize)) as f64
+        ).into_scalar();
+        reduce3(
+            self,
+            |a, b| a._add(b),
+            |a, b| a._add(b),
+            move |a| a._div(reduce_size),
+            &axes,
+            <T as FloatOut>::Output::ZERO,
+            keep_dims,
+            false,
+            None
+        )
     }
 
     fn reducel2<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reducel2(self, &axes, <T as FloatOut>::Output::ZERO, keep_dims, false, None)
+        reduce3(
+            self,
+            |a: <T as FloatOut>::Output, b| a._add(<T as NormalOut>::_square(b)),
+            |a, b| a._add(b),
+            move |a| a._sqrt(),
+            &axes,
+            <T as FloatOut>::Output::ZERO,
+            keep_dims,
+            false,
+            None
+        )
     }
 
     fn reducel3<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reducel3(self, &axes, <T as FloatOut>::Output::ZERO, keep_dims, false, None)
+        let three: <T as NormalOut>::Output = (3.0).into_scalar();
+        reduce3(
+            self,
+            move |a: <T as FloatOut>::Output, b| a._add(<T as NormalOut>::_abs(b)._pow(three)),
+            move |a, b| a._add(<FloatType<T> as NormalOut>::_abs(b)._pow(three)),
+            move |a| a,
+            &axes,
+            <T as FloatOut>::Output::ZERO,
+            keep_dims,
+            false,
+            None
+        )
     }
 
     fn logsumexp<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
