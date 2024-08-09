@@ -14,6 +14,7 @@ use rayon::iter::{ IntoParallelIterator, ParallelIterator };
 use tensor_common::shape::Shape;
 use tensor_traits::{ random::Random, tensor::{ CommonBounds, TensorCreator, TensorInfo } };
 use anyhow::Result;
+use tensor_types::into_scalar::IntoScalar;
 use crate::{ backend::Cpu, tensor_base::_Tensor };
 
 impl<T> Random
@@ -329,5 +330,22 @@ impl<T> Random
 
     fn triangular_like(&self, low: Self::Meta, high: Self::Meta, mode: Self::Meta) -> Result<Self> {
         _Tensor::triangular(low, high, mode, self.shape().clone())
+    }
+
+    fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self>
+        where T: IntoScalar<f64>, bool: IntoScalar<T>
+    {
+        let res_shape = Shape::from(shape.into());
+        let ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let bernoulli: rand_distr::Bernoulli = rand_distr::Bernoulli::new(p.into_scalar())?;
+        ret.as_raw_mut()
+            .into_par_iter()
+            .for_each_init(
+                || rand::thread_rng(),
+                |rng, x| {
+                    *x = bernoulli.sample(rng).into_scalar();
+                }
+            );
+        Ok(ret)
     }
 }

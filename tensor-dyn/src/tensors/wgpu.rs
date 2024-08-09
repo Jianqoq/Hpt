@@ -1259,6 +1259,12 @@ impl<T> Random
     fn triangular_like(&self, low: Self::Meta, high: Self::Meta, mode: Self::Meta) -> Result<Self> {
         todo!()
     }
+
+    fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self>
+        where Self::Meta: IntoScalar<f64>, bool: IntoScalar<Self::Meta>
+    {
+        todo!()
+    }
 }
 
 impl<T> Display for _Tensor<T, Wgpu> where T: CommonBounds + bytemuck::Pod + Debug {
@@ -1344,7 +1350,9 @@ impl<T, B> Drop for _Tensor<T, B> where B: BackendTy + BackendDevice {
     fn drop(&mut self) {
         match B::ID {
             0 => {
-                unsafe { CACHE.deallocate(self.data.ptr as *mut u8, &self.mem_layout) }
+                unsafe {
+                    CACHE.deallocate(self._backend._backend.ptr() as *mut u8, &self.mem_layout)
+                }
             }
             2 => {
                 unsafe {

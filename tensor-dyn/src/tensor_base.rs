@@ -1,4 +1,4 @@
-use std::{ fmt::{ Display, Debug }, ops::{ Div, Mul, Sub }, sync::Arc };
+use std::{ fmt::{ Debug, Display }, ops::{ Div, Mul, Sub }, sync::{ atomic::Ordering, Arc } };
 
 use rand_distr::{
     uniform::SampleUniform,
@@ -45,7 +45,13 @@ use rayon::iter::{
     ParallelIterator,
 };
 
-use crate::{ backend::{ Backend, BackendDevice, BackendTy, Cpu }, ops::cpu::stack::stack, slice::SliceOps, tensor::Tensor };
+use crate::{
+    backend::{ Backend, BackendDevice, BackendTy, Cpu },
+    ops::cpu::stack::stack,
+    slice::SliceOps,
+    tensor::Tensor,
+    DISPLAY_PRECISION,
+};
 /// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
 ///
 /// All the operations are happen on this struct.
@@ -1392,17 +1398,23 @@ impl<T> Random
     fn triangular_like(&self, low: Self::Meta, high: Self::Meta, mode: Self::Meta) -> Result<Self> {
         Ok(_Tensor::<T>::triangular_like(self, low, high, mode)?.into())
     }
+    
+    fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self> where T: IntoScalar<f64>, bool: IntoScalar<T> {
+        Ok(_Tensor::<T>::bernoulli(shape, p)?.into())
+    }
 }
 
 impl<T> Display for _Tensor<T> where T: CommonBounds {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        display(self, f, 1000, 20, 6, 12, 4, false)
+        let precision = unsafe { DISPLAY_PRECISION.load(Ordering::Relaxed) };
+        display(self, f, 1000, 20, 6, 12, precision, false)
     }
 }
 
 impl<T> Debug for _Tensor<T> where T: CommonBounds {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        display(self, f, 1000, 20, 6, 12, 4, false)
+        let precision = unsafe { DISPLAY_PRECISION.load(Ordering::Relaxed) };
+        display(self, f, 1000, 20, 6, 12, precision, false)
     }
 }
 

@@ -36,12 +36,15 @@ pub struct Backend<B> {
 impl Clone for Cpu {
     fn clone(&self) -> Self {
         unsafe {
-            CPU_STORAGE.lock()
-                .unwrap()
-                .entry(self.ptr as *mut u8)
-                .and_modify(|v| {
-                    *v += 1;
-                });
+            if
+                let Some(cnt) = CPU_STORAGE.lock()
+                    .unwrap()
+                    .get_mut(&(self.ptr as *mut u8))
+            {
+                *cnt += 1;
+            } else {
+                panic!("Pointer not found in CPU_STORAGE");
+            }
         }
         Cpu {
             ptr: self.ptr,
@@ -96,6 +99,7 @@ impl Backend<Wgpu> {
 pub trait BackendDevice {
     fn wgpu_device(&self) -> &WgpuDevice;
     fn buffer(&self) -> &BufferWrapper;
+    fn ptr(&self) -> u64;
 }
 
 impl BackendDevice for Cpu {
@@ -104,6 +108,9 @@ impl BackendDevice for Cpu {
     }
     fn buffer(&self) -> &BufferWrapper {
         panic!("Cpu backend does not have a buffer")
+    }
+    fn ptr(&self) -> u64 {
+        self.ptr
     }
 }
 
@@ -114,6 +121,9 @@ impl BackendDevice for Cuda {
     fn buffer(&self) -> &BufferWrapper {
         panic!("Cuda backend does not have a buffer")
     }
+    fn ptr(&self) -> u64 {
+        panic!("Cuda backend does not have a pointer")
+    }
 }
 
 impl BackendDevice for Wgpu {
@@ -122,6 +132,9 @@ impl BackendDevice for Wgpu {
     }
     fn buffer(&self) -> &BufferWrapper {
         &self.buffer
+    }
+    fn ptr(&self) -> u64 {
+        panic!("Wgpu backend does not have a pointer")
     }
 }
 

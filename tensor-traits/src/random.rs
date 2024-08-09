@@ -1,5 +1,6 @@
 use anyhow::Result;
 use tensor_common::shape::Shape;
+use tensor_types::into_scalar::IntoScalar;
 
 pub trait Random where Self: Sized {
     /// Associated type for meta-information or parameters relevant to distributions.
@@ -545,4 +546,6 @@ pub trait Random where Self: Sized {
     /// This example creates an array of random numbers following a Triangular distribution,
     /// similar to `a` in shape, ranging from 0 to 10 with a mode (peak) at 5.
     fn triangular_like(&self, low: Self::Meta, high: Self::Meta, mode: Self::Meta) -> Result<Self>;
+
+    fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self> where Self::Meta: IntoScalar<f64>, bool: IntoScalar<Self::Meta>;
 }

@@ -49,9 +49,16 @@ pub mod to_tensor;
 pub mod wgpu_exec;
 pub use tensor_traits::*;
 
-use std::cell::RefCell;
+use std::{cell::RefCell, sync::atomic::AtomicUsize};
 thread_local! {
     static THREAD_POOL: RefCell<threadpool::ThreadPool> = RefCell::new(
         threadpool::ThreadPool::new(std::thread::available_parallelism().unwrap().into())
     );
+}
+
+static mut DISPLAY_PRECISION: AtomicUsize = AtomicUsize::new(4);
+pub fn set_global_display_precision(precision: usize) {
+    unsafe {
+        DISPLAY_PRECISION.store(precision, std::sync::atomic::Ordering::Relaxed);
+    }
 }

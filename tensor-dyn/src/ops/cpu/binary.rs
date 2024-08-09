@@ -141,3 +141,29 @@ impl<A, B> Matmul<_Tensor<B>>
         matmul_with_out(self, &rhs, out)
     }
 }
+
+impl<A, B> Matmul<&_Tensor<B>>
+    for _Tensor<A>
+    where
+        A: CommonBounds + NormalOut<B> + IntoScalar<<A as NormalOut<B>>::Output>,
+        B: CommonBounds + IntoScalar<<A as NormalOut<B>>::Output>,
+        <A as NormalOut<B>>::Output: CommonBounds
+{
+    type Output = _Tensor<<A as NormalOut<B>>::Output>;
+
+    type OutputMeta = <A as NormalOut<B>>::Output;
+
+    type InplaceOutput = _Tensor<<A as NormalOut<B>>::Output>;
+
+    fn matmul(&self, rhs: &_Tensor<B>) -> anyhow::Result<Self::Output> {
+        matmul_no_out(self, rhs)
+    }
+
+    fn matmul_<U>(&self, rhs: &_Tensor<B>, out: U) -> anyhow::Result<Self::Output>
+        where
+            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
+                TensorInfo<Self::OutputMeta>
+    {
+        matmul_with_out(self, rhs, out)
+    }
+}

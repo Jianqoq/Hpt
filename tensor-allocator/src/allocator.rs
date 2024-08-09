@@ -47,29 +47,35 @@ impl _Allocator {
                 ptr
             } else {
                 let ptr = unsafe { std::alloc::alloc(layout) };
+                if ptr.is_null() {
+                    panic!("Failed to allocate memory, for {} MB", layout.size() / 1024 / 1024);
+                }
                 self.allocated.insert(ptr);
                 ptr
             }
         } else {
             let ptr = unsafe { std::alloc::alloc(layout) };
+            if ptr.is_null() {
+                panic!("Failed to allocate memory, for {} MB", layout.size() / 1024 / 1024);
+            }
             self.allocated.insert(ptr);
             ptr
         };
-        unsafe {
-            if let Ok(mut storage) = CPU_STORAGE.lock() {
-                if let Some(cnt) = storage.get_mut(&ptr) {
-                    *cnt += 1;
-                } else {
-                    storage.insert(ptr, 1);
-                }
-            }
-        }
         if self.cache.cap().get() == self.cache.len() {
             if let Some((layout, ptrs)) = self.cache.pop_lru() {
                 for ptr in ptrs {
                     unsafe {
                         std::alloc::dealloc(ptr, layout);
                     }
+                }
+            }
+        }
+        unsafe {
+            if let Ok(mut storage) = CPU_STORAGE.lock() {
+                if let Some(cnt) = storage.get_mut(&ptr) {
+                    *cnt += 1;
+                } else {
+                    storage.insert(ptr, 1);
                 }
             }
         }
@@ -90,7 +96,7 @@ impl _Allocator {
                         }
                     }
                 } else {
-                    panic!("ptr not found in storage");
+                    panic!("ptr {:p} not found in storage", ptr);
                 }
             }
         }

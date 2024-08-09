@@ -42,7 +42,7 @@ impl<T> _Tensor<T> where T: CommonBounds {
                 parent: Some(self.data),
                 mem_layout: self.mem_layout.clone(),
                 layout: Layout::new(shape, strides),
-                _backend: Backend::new(ptr as u64),
+                _backend: Backend::new(self.data.ptr as u64),
             }
         } else {
             Self {
@@ -50,7 +50,7 @@ impl<T> _Tensor<T> where T: CommonBounds {
                 parent: self.parent,
                 mem_layout: self.mem_layout.clone(),
                 layout: Layout::new(shape, strides),
-                _backend: Backend::new(ptr as u64),
+                _backend: Backend::new(self.parent.unwrap().ptr as u64),
             }
         }
     }

@@ -811,7 +811,204 @@ macro_rules! register_reduction_one_axis {
     };
 }
 
-register_reduction!(T, sum, sum_kernel, T::ZERO, where T: CommonBounds + NormalOut<T, Output = T>);
+pub(crate) fn sum<T>(
+    a: &_Tensor<T>,
+    axes: &[usize],
+    init_val: T,
+    keepdims: bool,
+    init_out: bool,
+    c: Option<_Tensor<T>>
+) -> anyhow::Result<_Tensor<T>>
+    where T: CommonBounds + NormalOut<T, Output = T>
+{
+    let mut is_left: bool = true;
+    for axis in axes.iter() {
+        if axis == &((a.ndim() as usize) - 1) {
+            is_left = false;
+            break;
+        }
+    }
+    let a_: &_Tensor<T> = &a;
+    let a_shape = a_.shape();
+    let a_last_stride = a_.strides()[a_.ndim() - 1];
+    let a_shape_tmp = a_shape.clone();
+    let (a_shape_cpy, res_shape) = predict_reduce_shape(&a_shape_tmp, &axes);
+    let mut j = a_.ndim() - axes.len();
+    let mut k = 0;
+    let mut track_idx = 0;
+    let mut transposed_axis = vec![0;
+a_.ndim()];
+    for i in 0..a_.ndim() {
+        if a_shape_cpy[i] != 0 {
+            transposed_axis[k] = i;
+            k += 1;
+        } else {
+            transposed_axis[j] = axes[track_idx];
+            j += 1;
+            track_idx += 1;
+        }
+    }
+    transposed_axis[a.ndim() - axes.len()..].sort();
+    transposed_axis[..a.ndim() - axes.len()].sort();
+    let transposed_tensor = a_.permute(transposed_axis)?;
+    let transposed_strides = transposed_tensor.strides().inner();
+    let transposed_strides_cpy = transposed_strides.clone();
+    let transposed_shape = transposed_tensor.shape().to_vec();
+    let mut transposed_shape_cpy = transposed_shape.clone();
+    transposed_shape_cpy.iter_mut().for_each(|x| {
+        *x -= 1;
+    });
+    let a_data: Pointer<T> = a_.ptr();
+    let mut new_shape: Option<Vec<i64>> = None;
+    let result;
+    let result_size: usize;
+    if keepdims {
+        let mut shape_tmp = Vec::with_capacity(a_.ndim());
+        a_shape_cpy.iter().for_each(|x| {
+            if *x != 0 {
+                shape_tmp.push(*x);
+            } else {
+                shape_tmp.push(1);
+            }
+        });
+        new_shape = Some(shape_tmp);
+    }
+    let res_shape = Arc::new(res_shape);
+    if let Some(out) = c {
+        if let Some(s) = &new_shape {
+            if s != out.shape().inner() {
+                return Err(anyhow::Error::msg(format!("Output array has incorrect shape")));
+            }
+        } else {
+            if res_shape.as_ref() != out.shape().inner() {
+                return Err(anyhow::Error::msg(format!("Output array has incorrect shape")));
+            }
+        }
+        result = out;
+        result_size = result.size();
+        if init_out {
+            result
+                .as_raw_mut()
+                .par_iter_mut()
+                .for_each(|x| {
+                    *x = init_val;
+                });
+        }
+    } else {
+        init_arr!(result, res_shape, init_val, T);
+        result_size = result.size();
+    }
+    let mut result_data = result.ptr();
+    let transposed_shape: Arc<Vec<i64>> = Arc::new(transposed_shape);
+    if a_.ndim() == axes.len() {
+        sum_kernel!(reduce_all, result_data, a_, T::ZERO);
+    } else {
+        let a_last_index: usize = a_.ndim() - 1;
+        let inner_loop_size: usize = a_.shape()[a_last_index] as usize;
+        let a_size: usize = a_.size();
+        let a_data_ptr: Pointer<T> = a_data.clone();
+        THREAD_POOL.with_borrow_mut(|pool| {
+            if !is_left {
+                let outer_loop_size = a_size / inner_loop_size;
+                let inner_loop_size_2 = outer_loop_size / result_size;
+                let num_threads;
+                if result_size < pool.max_count() {
+                    num_threads = result_size;
+                } else {
+                    num_threads = pool.max_count();
+                }
+                let mut iterators = ReductionPreprocessor::new(
+                    num_threads,
+                    result_size,
+                    inner_loop_size_2,
+                    a_data_ptr,
+                    result_data,
+                    transposed_strides_cpy,
+                    Arc::new(transposed_shape_cpy),
+                    transposed_shape.clone(),
+                    res_shape.clone()
+                );
+                let barrier = Arc::new(Barrier::new(num_threads + 1));
+                for _ in 0..num_threads {
+                    let mut iterator = iterators.pop().unwrap();
+                    let mut result_ptr_c = iterator.res_ptrs;
+                    let mut a_data_ptr = iterator.ptrs;
+                    let current_size = iterator.end - iterator.start;
+                    let barrier_clone = Arc::clone(&barrier);
+                    pool.execute(move || {
+                        let shape_len = iterator.a_shape.len() as i64;
+                        for _ in 0..current_size {
+                            sum_kernel!(
+                                T::ZERO,
+                                iterator,
+                                inner_loop_size,
+                                inner_loop_size_2,
+                                result_ptr_c,
+                                a_data_ptr,
+                                a_last_stride,
+                                shape_len
+                            );
+                        }
+                        barrier_clone.wait();
+                    });
+                }
+                barrier.wait();
+            } else {
+                let outer_loop_size = result_size / inner_loop_size;
+                let inner_loop_size_2 = a.size() / result_size;
+                let num_threads;
+                if outer_loop_size < pool.max_count() {
+                    num_threads = outer_loop_size;
+                } else {
+                    num_threads = pool.max_count();
+                }
+                println!("current_size: {}", outer_loop_size);
+                let mut iterators = ReductionPreprocessor::new2(
+                    num_threads,
+                    outer_loop_size,
+                    inner_loop_size,
+                    a_data_ptr,
+                    result_data,
+                    transposed_strides_cpy,
+                    Arc::new(transposed_shape_cpy),
+                    res_shape.clone()
+                );
+                let barrier = Arc::new(Barrier::new(num_threads + 1));
+                for _ in (0..num_threads).rev() {
+                    let mut iterator = iterators.pop().unwrap();
+                    let mut result_ptr_c = iterator.res_ptrs;
+                    let mut a_data_ptr = iterator.ptrs;
+                    let current_size = iterator.end - iterator.start;
+                    let barrier_clone = Arc::clone(&barrier);
+                    pool.execute(move || {
+                        let shape_len = iterator.shape.len() as i64;
+                        for _i in 0..current_size {
+                            sum_kernel!(
+                                T::ZERO,
+                                _i,
+                                iterator,
+                                inner_loop_size,
+                                inner_loop_size_2,
+                                result_ptr_c,
+                                a_data_ptr,
+                                a_last_stride,
+                                shape_len
+                            );
+                        }
+                        barrier_clone.wait();
+                    });
+                }
+                barrier.wait();
+            }
+        });
+    }
+    if let Some(new_shape) = new_shape {
+        let result = result.reshape(new_shape)?;
+        return Ok(result);
+    } else {
+        return Ok(result);
+    }
+}
 register_reduction!(T, sum_square, sum_square_kernel, T::ZERO, where T: CommonBounds + NormalOut<T, Output = T>);
 register_reduction!(T, reducel1, reducel1_kernel, T::ZERO, where T: CommonBounds + NormalOut<T, Output = T>);
 register_reduction!(

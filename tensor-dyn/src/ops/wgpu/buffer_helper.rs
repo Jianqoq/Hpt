@@ -38,6 +38,7 @@ impl WgpuDevice {
                     })
                 ).await
                 .unwrap();
+            println!("Adapter: {:?}", adapter.get_info());
 
             let adapter_limits = adapter.limits();
 

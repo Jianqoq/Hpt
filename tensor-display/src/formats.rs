@@ -8,7 +8,7 @@ pub(crate) fn format_float<T: CommonBounds>(val: T, precision: usize) -> String 
             let tmp_val: bf16 = val.parse::<bf16>().expect("Failed to parse bf16");
             let f64_val = tmp_val.to_f64();
             if f64_val - (f64_val as i64 as f64) != 0.0 {
-                val = format!("{:.*}", precision, val);
+                val = format!("{:.prec$}", val, prec = precision);
             } else {
                 val = format!("{}.", val);
             }
@@ -17,7 +17,7 @@ pub(crate) fn format_float<T: CommonBounds>(val: T, precision: usize) -> String 
             let tmp_val: half::f16 = val.parse::<half::f16>().expect("Failed to parse f16");
             let f64_val = tmp_val.to_f64();
             if f64_val - (f64_val as i64 as f64) != 0.0 {
-                val = format!("{:.*}", precision, val);
+                val = format!("{:.prec$}", val, prec = precision);
             } else {
                 val = format!("{}.", val);
             }
@@ -25,7 +25,7 @@ pub(crate) fn format_float<T: CommonBounds>(val: T, precision: usize) -> String 
         tensor_types::dtype::Dtype::F32 => {
             let tmp_val: f32 = val.parse::<f32>().expect("Failed to parse f32");
             if tmp_val - (tmp_val as i64 as f32) != 0.0 {
-                val = format!("{:.*}", precision, val);
+                val = format!("{:.prec$}", val, prec = precision);
             } else {
                 val = format!("{}.", val);
             }
@@ -33,7 +33,7 @@ pub(crate) fn format_float<T: CommonBounds>(val: T, precision: usize) -> String 
         tensor_types::dtype::Dtype::F64 => {
             let tmp_val: f64 = val.parse::<f64>().expect("Failed to parse f64");
             if tmp_val - (tmp_val as i64 as f64) != 0.0 {
-                val = format!("{:.*}", precision, val);
+                val = format!("{:.prec$}", val, prec = precision);
             } else {
                 val = format!("{}.", val);
             }

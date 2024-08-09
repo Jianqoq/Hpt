@@ -117,9 +117,6 @@ pub(crate) fn stack<T>(
         barrier.wait();
     });
     if keepdims {
-        if !all_same_shape {
-            return Err(anyhow::Error::msg("keepdims is not supported for different shapes"));
-        }
         let mut res_shape = Vec::with_capacity(new_shape.len() + 1);
         for (idx, i) in new_shape.iter().enumerate() {
             if idx == axis {

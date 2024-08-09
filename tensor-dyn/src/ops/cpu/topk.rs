@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::cmp::Ordering;
 use std::sync::Arc;
 use std::sync::Barrier;
@@ -39,12 +41,16 @@ impl<T> _Tensor<T> where T: CommonBounds + PartialOrd {
 
         let outer_loop_size = self.size() / (*self.shape().last().unwrap() as usize);
 
-        let mut res_ptr = transposed_res.ptr();
-        let mut res_indices_ptr = transposed_res_indices.ptr();
+        let res_ptr = transposed_res.ptr();
+        let res_indices_ptr = transposed_res_indices.ptr();
         let transposed_res_shape = transposed_res.shape();
         let transposed_res_strides = transposed_res.strides();
         THREAD_POOL.with_borrow_mut(move |x| {
-            let num_threads = if outer_loop_size < x.max_count() { 1 } else { 1 };
+            let num_threads = if outer_loop_size < x.max_count() {
+                outer_loop_size
+            } else {
+                x.max_count()
+            };
             let intervals = mt_intervals(outer_loop_size, num_threads);
 
             let mut prgs = vec![];
@@ -55,28 +61,29 @@ impl<T> _Tensor<T> where T: CommonBounds + PartialOrd {
 
             for (start, _) in intervals.iter() {
                 let mut ptr = transposed.ptr();
-
-                let mut curent_shape_prg: Vec<i64> = vec![0; self.shape().len()];
+                let mut res_ptr_cpy = res_ptr.clone();
+                let mut res_indices_ptr_cpy = res_indices_ptr.clone();
+                let mut curent_shape_prg: Vec<i64> = vec![0; transposed.ndim()];
                 let mut res_shape_prg: Vec<i64> = vec![0; transposed_res_shape.len()];
-                let mut amount = start * (*self.shape().last().unwrap() as usize);
+                let mut amount = start * (*transposed.shape().last().unwrap() as usize);
                 let mut res_amount = start * (*transposed_res_shape.last().unwrap() as usize);
                 let mut index = 0;
                 let mut res_index = 0;
-                for j in (0..self.ndim()).rev() {
-                    curent_shape_prg[j] = (amount as i64) % self.shape()[j];
+                for j in (0..transposed.ndim()).rev() {
+                    curent_shape_prg[j] = (amount as i64) % transposed.shape()[j];
                     res_shape_prg[j] = (res_amount as i64) % transposed_res_shape[j];
-                    amount /= self.shape()[j] as usize;
+                    amount /= transposed.shape()[j] as usize;
                     res_amount /= transposed_res_shape[j] as usize;
-                    index += curent_shape_prg[j] * self.strides()[j];
+                    index += curent_shape_prg[j] * transposed.strides()[j];
                     res_index += res_shape_prg[j] * transposed_res_strides[j];
                 }
                 ptr.offset(index);
                 prgs.push(curent_shape_prg);
                 ptrs.push(ptr);
-                res_ptr.offset(res_index);
-                res_indices_ptr.offset(res_index);
-                res_ptrs.push(res_ptr);
-                res_indices_ptrs.push(res_indices_ptr);
+                res_ptr_cpy.offset(res_index);
+                res_indices_ptr_cpy.offset(res_index);
+                res_ptrs.push(res_ptr_cpy);
+                res_indices_ptrs.push(res_indices_ptr_cpy);
                 res_prgs.push(res_shape_prg);
             }
             let barrier = Arc::new(Barrier::new(num_threads + 1));
@@ -101,26 +108,26 @@ impl<T> _Tensor<T> where T: CommonBounds + PartialOrd {
                 let rts = transposed_res_strides.clone();
                 let tsp = transposed.shape().clone();
                 let rtsp = transposed_res_shape.clone();
+                let mut data = vec![(T::ZERO, 0); inner_loop as usize];
                 x.execute(move || {
                     for _ in start..end {
-                        let mut data = Vec::with_capacity(inner_loop as usize);
                         for i in 0..inner_loop {
-                            data.push(ptr[i * tls]);
+                            data[i as usize] = (ptr[i * tls], i as usize);
                         }
-                        let mut res = if largest {
-                            topk_with_indices(&mut data, k as usize, |x, y|
-                                x.partial_cmp(y).unwrap()
+                        let (before, _, _) = if largest {
+                            data.select_nth_unstable_by(k as usize, |x, y|
+                                y.0.partial_cmp(&x.0).unwrap()
                             )
                         } else {
-                            topk_with_indices(&mut data, k as usize, |x, y|
-                                y.partial_cmp(x).unwrap()
+                            data.select_nth_unstable_by(k as usize, |x, y|
+                                x.0.partial_cmp(&y.0).unwrap()
                             )
                         };
                         if sorted {
-                            res.sort_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap());
+                            before.sort_unstable_by(|(a, _), (b, _)| b.partial_cmp(a).unwrap());
                         }
                         for i in 0..res_inner_loop {
-                            let (val, idx) = res[i as usize];
+                            let (val, idx) = before[i as usize];
                             res_ptr[i * rls] = val;
                             res_indices_ptr[i * rls] = idx as i64;
                         }
@@ -171,18 +178,11 @@ impl<T> Tensor<T> where T: CommonBounds + PartialOrd {
     }
 }
 
-fn topk_with_indices<T, F>(arr: &mut [T], k: usize, compare: F) -> Vec<(T, usize)>
+fn topk_with_indices<T, F>(arr: &mut [(T, usize)], k: usize, compare: F)
     where T: PartialOrd + Copy, F: Fn(&T, &T) -> Ordering + Copy
 {
     let n = arr.len();
-    let mut arr_with_index: Vec<(T, usize)> = arr
-        .iter()
-        .cloned()
-        .enumerate()
-        .map(|(idx, val)| (val, idx))
-        .collect();
-    quickselect_with_indices(&mut arr_with_index, 0, n - 1, n - k, compare);
-    arr_with_index[n - k..].to_vec()
+    quickselect_with_indices(arr, 0, n - 1, n - k, compare);
 }
 
 fn quickselect_with_indices<T, F>(
