@@ -34,7 +34,7 @@ impl<T: CommonBounds> Strided<T> {
         Strided {
             ptr: tensor.ptr(),
             layout: tensor.layout().clone(),
-            prg: vec![0; tensor.ndim()],
+            prg: vec![],
             last_stride: tensor.strides()[tensor.strides().len() - 1],
         }
     }
@@ -104,19 +104,23 @@ impl<T: Copy + Display> IterGetSet for Strided<T> {
     fn next(&mut self) {
         for j in (0..(self.shape().len() as i64) - 1).rev() {
             let j = j as usize;
-            if self.prg[j] < self.shape()[j] {
+            if self.prg[j] < self.shape()[j] - 1 {
                 self.prg[j] += 1;
                 self.ptr.offset(self.strides()[j]);
                 break;
             } else {
                 self.prg[j] = 0;
-                self.ptr.offset(-self.strides()[j] * self.shape()[j]);
+                self.ptr.offset(-self.strides()[j] * (self.shape()[j] - 1));
             }
         }
     }
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         unsafe { *self.ptr.get_ptr().add(index * (self.last_stride as usize)) }
+    }
+    
+    fn set_prg(&mut self, prg: Vec<i64>) {
+        self.prg = prg;
     }
 }
 

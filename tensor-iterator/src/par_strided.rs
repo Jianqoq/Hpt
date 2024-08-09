@@ -174,6 +174,10 @@ impl<T: Copy + Display> IterGetSet for ParStrided<T> {
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         unsafe { *self.ptr.get_ptr().add(index * (self.last_stride as usize)) }
     }
+    
+    fn set_prg(&mut self, prg: Vec<i64>) {
+        self.prg = prg;
+    }
 }
 
 impl<T> ParallelIterator for ParStrided<T> where T: CommonBounds {

@@ -77,6 +77,11 @@ impl<'a, A, B> IterGetSet for ParStridedZip<'a, A, B> where A: IterGetSet, B: It
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         (self.a.inner_loop_next(index), self.b.inner_loop_next(index))
     }
+    
+    fn set_prg(&mut self, prg: Vec<i64>) {
+        self.a.set_prg(prg.clone());
+        self.b.set_prg(prg);
+    }
 }
 
 impl<'a, A, B> ParStridedZip<'a, A, B>

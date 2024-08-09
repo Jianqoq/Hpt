@@ -8,6 +8,7 @@ pub trait IterGetSet {
     fn set_intervals(&mut self, intervals: Arc<Vec<(usize, usize)>>);
     fn set_strides(&mut self, last_stride: Strides);
     fn set_shape(&mut self, shape: Shape);
+    fn set_prg(&mut self, prg: Vec<i64>);
     fn intervals(&self) -> &Arc<Vec<(usize, usize)>>;
     fn strides(&self) -> &Strides;
     fn shape(&self) -> &Shape;

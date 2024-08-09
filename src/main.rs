@@ -1,9 +1,7 @@
-use tensor_dyn::set_global_display_lr_elements;
 use tensor_dyn::set_global_display_precision;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::Random;
 use tensor_dyn::NormalReduce;
-use tensor_dyn::StridedIterator;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -18,13 +16,14 @@ async fn main() -> anyhow::Result<()> {
     // let res1 = a.sinh().await?;
     // println!("{}", res1);
     set_global_display_precision(7);
-    set_global_display_lr_elements(6);
-    let a = _Tensor::<f32>::randn(&[8, 2048, 2048])?;
+    let a = _Tensor::<f32>::randn(&[8, 2048, 4, 2048])?;
+    let mut i = 0;
     let now = std::time::Instant::now();
-    a.iter_mut().zip(a.iter()).for_each(|(x, y)| {
-        *x = y;
-    });
+    for _ in 0..100 {
+        let _ = a.sum([0, 1], false);
+        i += 1;
+    }
     println!("{:?}", now.elapsed() / 100);
-    println!("{:?}", a);
+    println!("{:?}", i);
     Ok(())
 }

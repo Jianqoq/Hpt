@@ -1,26 +1,10 @@
 use crate::slice::SliceOps;
 use crate::tensor_base::_Tensor;
-use crate::{
-    all_kernel,
-    any_kernel,
-    argmax_kernel,
-    argmin_kernel,
-    max_kernel,
-    mean_kernel,
-    min_kernel,
-    nanprod_kernel,
-    nansum_kernel,
-    prod_kernel,
-    reducel1_kernel,
-    reducel2_kernel,
-    reducel3_kernel,
-    sum_kernel,
-    sum_square_kernel,
-    sum_with_cast_kernel,
-};
+use crate::{ argmax_kernel, argmin_kernel, mean_kernel, reducel2_kernel, reducel3_kernel };
 use crate::backend::Cpu;
 
 use tensor_common::slice::Slice;
+use tensor_iterator::iterator_traits::StridedIterator;
 use tensor_traits::FloatUaryOps;
 use tensor_common::axis::{ process_axes, Axis };
 use tensor_traits::TensorLike;
@@ -813,15 +797,24 @@ macro_rules! register_reduction_one_axis {
     };
 }
 
-pub(crate) fn sum<T>(
+pub(crate) fn _reduce<T, F, F2, F3, O>(
     a: &_Tensor<T>,
+    op: F,
+    op2: F2,
+    op3: Option<F3>,
     axes: &[usize],
-    init_val: T,
+    init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<T>>
-) -> anyhow::Result<_Tensor<T>>
-    where T: CommonBounds + NormalOut<T, Output = T>
+    c: Option<_Tensor<O>>
+)
+    -> anyhow::Result<_Tensor<O>>
+    where
+        T: CommonBounds,
+        O: CommonBounds,
+        F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
+        F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+        F3: Fn(O) -> O + Sync + Send + 'static + Copy
 {
     let mut is_left: bool = true;
     for axis in axes.iter() {
@@ -838,8 +831,7 @@ pub(crate) fn sum<T>(
     let mut j = a_.ndim() - axes.len();
     let mut k = 0;
     let mut track_idx = 0;
-    let mut transposed_axis = vec![0;
-a_.ndim()];
+    let mut transposed_axis = vec![0; a_.ndim()];
     for i in 0..a_.ndim() {
         if a_shape_cpy[i] != 0 {
             transposed_axis[k] = i;
@@ -897,13 +889,34 @@ a_.ndim()];
                 });
         }
     } else {
-        init_arr!(result, res_shape, init_val, T);
+        result = _Tensor::<O, Cpu>::empty(res_shape.clone())?;
+        result
+            .as_raw_mut()
+            .par_iter_mut()
+            .for_each(|x| {
+                *x = init_val;
+            });
         result_size = result.size();
     }
     let mut result_data = result.ptr();
     let transposed_shape: Arc<Vec<i64>> = Arc::new(transposed_shape);
     if a_.ndim() == axes.len() {
-        sum_kernel!(reduce_all, result_data, a_, T::ZERO);
+        let val = a_
+            .as_raw_mut()
+            .par_iter()
+            .fold(
+                || init_val,
+                |acc, &x| op(acc, x)
+            )
+            .reduce(
+                || init_val,
+                |a, b| op2(a, b)
+            );
+        if let Some(op3) = op3 {
+            result_data.write(op3(op2(val, result_data.read())));
+        } else {
+            result_data.write(op2(val, result_data.read()));
+        }
     } else {
         let a_last_index: usize = a_.ndim() - 1;
         let inner_loop_size: usize = a_.shape()[a_last_index] as usize;
@@ -940,16 +953,33 @@ a_.ndim()];
                     pool.execute(move || {
                         let shape_len = iterator.a_shape.len() as i64;
                         for _ in 0..current_size {
-                            sum_kernel!(
-                                T::ZERO,
-                                iterator,
-                                inner_loop_size,
-                                inner_loop_size_2,
-                                result_ptr_c,
-                                a_data_ptr,
-                                a_last_stride,
-                                shape_len
-                            );
+                            for _ in 0..inner_loop_size_2 {
+                                let mut tmp = result_ptr_c[0isize];
+                                for i in 0..inner_loop_size as i64 {
+                                    let a_val = a_data_ptr[i * a_last_stride];
+                                    tmp = op(tmp, a_val);
+                                }
+                                result_ptr_c.modify(0, tmp);
+                                for j in (0..shape_len - 1).rev() {
+                                    if iterator.prg[j as usize] < iterator.a_shape[j as usize] {
+                                        iterator.prg[j as usize] += 1;
+                                        a_data_ptr.offset(iterator.strides[j as usize]);
+                                        break;
+                                    } else {
+                                        iterator.prg[j as usize] = 0;
+                                        a_data_ptr.offset(
+                                            -iterator.strides[j as usize] *
+                                                iterator.a_shape[j as usize]
+                                        );
+                                    }
+                                }
+                            }
+                            if let Some(op3) = op3 {
+                                let tmp = result_ptr_c[0isize];
+                                let tmp = op3(tmp);
+                                result_ptr_c.modify(0, tmp);
+                            }
+                            result_ptr_c.add(1);
                         }
                         barrier_clone.wait();
                     });
@@ -960,18 +990,46 @@ a_.ndim()];
                 let inner_loop_size_2 = a.size() / result_size;
                 if outer_loop_size == 1 {
                     let num_threads = if inner_loop_size < pool.max_count() {
-                        outer_loop_size
+                        inner_loop_size
                     } else {
                         pool.max_count()
                     };
                     let intervals = mt_intervals(inner_loop_size, num_threads);
-                    let mut sliced = vec![Slice::Full; a.ndim() as usize];
+                    let mut slices = vec![Slice::Full; a.ndim() as usize];
+                    let mut slices_res = vec![Slice::Full; result.ndim() as usize];
                     let mut sliced_tensors = Vec::with_capacity(num_threads);
+                    let mut sliced_res = Vec::with_capacity(num_threads);
+                    assert_eq!(inner_loop_size, result_size);
                     for i in 0..num_threads {
-                        sliced[a.ndim() as usize - 1] = Slice::Range((intervals[i].0 as i64, intervals[i].1 as i64));
-                        sliced_tensors.push(a.slice(&sliced).expect("Slice failed"));
+                        slices[(a.ndim() as usize) - 1] = Slice::Range((
+                            intervals[i].0 as i64,
+                            intervals[i].1 as i64,
+                        ));
+                        slices_res[(result.ndim() as usize) - 1] = Slice::Range((
+                            intervals[i].0 as i64,
+                            intervals[i].1 as i64,
+                        ));
+                        sliced_tensors.push(a.slice(&slices).expect("Slice failed"));
+                        sliced_res.push(result.slice(&slices_res).expect("Slice failed"));
                     }
-                    todo!()
+                    let barrier = Arc::new(Barrier::new(num_threads + 1));
+                    for (inp, res) in sliced_tensors.into_iter().zip(sliced_res.into_iter()) {
+                        let barrier_clone = barrier.clone();
+                        pool.execute(move || {
+                            res.iter_mut()
+                                .zip(inp.iter())
+                                .for_each(|(x, y)| {
+                                    *x = op(*x, y);
+                                });
+                            if let Some(op3) = op3 {
+                                res.iter_mut().for_each(|x| {
+                                    *x = op3(*x);
+                                });
+                            }
+                            barrier_clone.wait();
+                        });
+                    }
+                    barrier.wait();
                 } else {
                     let num_threads = if outer_loop_size < pool.max_count() {
                         outer_loop_size
@@ -998,17 +1056,54 @@ a_.ndim()];
                         pool.execute(move || {
                             let shape_len = iterator.shape.len() as i64;
                             for _i in 0..current_size {
-                                sum_kernel!(
-                                    T::ZERO,
-                                    _i,
-                                    iterator,
-                                    inner_loop_size,
-                                    inner_loop_size_2,
-                                    result_ptr_c,
-                                    a_data_ptr,
-                                    a_last_stride,
-                                    shape_len
-                                );
+                                for _ in 0..inner_loop_size_2 {
+                                    for i in 0..inner_loop_size as i64 {
+                                        let a_val = a_data_ptr[i * a_last_stride];
+                                        let result_val = result_ptr_c[i];
+                                        let mut_ref = unsafe {
+                                            &mut *result_ptr_c.ptr.offset(i as isize)
+                                        };
+                                        *mut_ref = op(result_val, a_val);
+                                    }
+                                    for j in (shape_len..=(iterator.a_shape.len() as i64) -
+                                        1).rev() {
+                                        if iterator.prg[j as usize] < iterator.a_shape[j as usize] {
+                                            iterator.prg[j as usize] += 1;
+                                            a_data_ptr.offset(iterator.strides[j as usize]);
+                                            break;
+                                        } else {
+                                            iterator.prg[j as usize] = 0;
+                                            a_data_ptr.offset(
+                                                -iterator.strides[j as usize] *
+                                                    iterator.a_shape[j as usize]
+                                            );
+                                        }
+                                    }
+                                }
+                                for j in (0..shape_len - 1).rev() {
+                                    if iterator.a_prg[j as usize] < iterator.a_shape[j as usize] {
+                                        iterator.a_prg[j as usize] += 1;
+                                        a_data_ptr.offset(iterator.strides[j as usize]);
+                                        break;
+                                    } else {
+                                        iterator.a_prg[j as usize] = 0;
+                                        a_data_ptr.offset(
+                                            -iterator.strides[j as usize] *
+                                                iterator.a_shape[j as usize]
+                                        );
+                                    }
+                                }
+                                if let Some(op3) = op3 {
+                                    for i in 0..inner_loop_size as i64 {
+                                        let result_val = result_ptr_c[i];
+                                        let mut_ref = unsafe {
+                                            &mut *result_ptr_c.ptr.offset(i as isize)
+                                        };
+                                        *mut_ref = op3(result_val);
+                                    }
+                                }
+                                result_ptr_c.add(inner_loop_size);
+                                iterator.reset_prg();
                             }
                             barrier_clone.wait();
                         });
@@ -1020,13 +1115,47 @@ a_.ndim()];
     }
     if let Some(new_shape) = new_shape {
         let result = result.reshape(new_shape)?;
-        return Ok(result);
+        Ok(result)
     } else {
-        return Ok(result);
+        Ok(result)
     }
 }
-register_reduction!(T, sum_square, sum_square_kernel, T::ZERO, where T: CommonBounds + NormalOut<T, Output = T>);
-register_reduction!(T, reducel1, reducel1_kernel, T::ZERO, where T: CommonBounds + NormalOut<T, Output = T>);
+
+pub(crate) fn reduce<T, F>(
+    a: &_Tensor<T>,
+    op: F,
+    axes: &[usize],
+    init_val: T,
+    keepdims: bool,
+    init_out: bool,
+    c: Option<_Tensor<T>>
+)
+    -> anyhow::Result<_Tensor<T>>
+    where T: CommonBounds, F: Fn(T, T) -> T + Sync + Send + 'static + Copy
+{
+    _reduce::<_, _, _, fn(T) -> T, T>(a, op, op, None, &axes, init_val, keepdims, init_out, c)
+}
+
+pub(crate) fn reduce2<T, F, F2, O>(
+    a: &_Tensor<T>,
+    op: F,
+    op2: F2,
+    axes: &[usize],
+    init_val: O,
+    keepdims: bool,
+    init_out: bool,
+    c: Option<_Tensor<O>>
+)
+    -> anyhow::Result<_Tensor<O>>
+    where
+        T: CommonBounds,
+        F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
+        F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+        O: CommonBounds
+{
+    _reduce::<_, _, _, fn(O) -> O, O>(a, op, op2, None, &axes, init_val, keepdims, init_out, c)
+}
+
 register_reduction!(
     T => [<T as FloatOut<T>>::Output],
      reducel2, reducel2_kernel,
@@ -1049,82 +1178,6 @@ register_reduction!(
          <T as FloatOut>::Output: CommonBounds,
          <T as FloatOut>::Output: FloatOut<Output = <T as FloatOut>::Output>,
          f64: IntoScalar<<T as NormalOut>::Output>
-);
-
-#[allow(dead_code)]
-pub(crate) fn sum_with_cast<T, B>(
-    a: &_Tensor<T>,
-    axes: &Vec<usize>,
-    init_val: B,
-    keepdims: bool,
-    init_out: bool,
-    c: Option<_Tensor<B>>
-)
-    -> anyhow::Result<_Tensor<B>>
-    where
-        T: CommonBounds + NormalOut<T, Output = T> + NormalOut<B>,
-        B: CommonBounds + FromScalar<T> + FromScalar<<T as NormalOut<B>>::Output>,
-        <T as NormalOut<B>>::Output: CommonBounds
-{
-    body!(axes, a, T::ZERO, init_val, keepdims, init_out, c, sum_with_cast_kernel, T, B);
-}
-
-register_reduction!(
-    T,
-    nansum,
-    nansum_kernel,
-    T::ZERO,
-    where T: CommonBounds + NormalOut<T, Output = T> + Eval<Output = bool>,
-);
-
-register_reduction!(
-    T,
-    prod,
-    prod_kernel,
-    T::ONE,
-    where T: CommonBounds + NormalOut<T, Output = T>
-);
-
-register_reduction!(
-    T,
-    nanprod,
-    nanprod_kernel,
-    T::ONE,
-    where T: CommonBounds + NormalOut<T, Output = T> + Eval<Output = bool>
-);
-
-register_reduction!(
-    T,
-    min,
-    min_kernel,
-    T::INF,
-    where T: CommonBounds + NormalOut<T, Output = T> + Cmp
-);
-
-register_reduction!(
-    T,
-    max,
-    max_kernel,
-    T::NEG_INF,
-    where T: CommonBounds + NormalOut<T, Output = T> + Cmp
-);
-
-register_reduction!(
-    T => [bool],
-    all,
-    all_kernel,
-    true,
-    where T: CommonBounds + NormalOut<T, Output = T> + Eval<Output = bool>,
-    bool: NormalOut<bool> + CommonBounds
-);
-
-register_reduction!(
-    T => [bool],
-    any,
-    any_kernel,
-    false,
-    where T: CommonBounds + NormalOut<T, Output = T> + Eval<Output = bool>,
-    bool: NormalOut<bool> + CommonBounds,
 );
 
 register_reduction!(
@@ -1178,7 +1231,7 @@ for _Tensor<T> {
 
     fn sum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        sum(self, &axes, T::ZERO, keep_dims, false, None)
+        reduce(self, |a, b| a._add(b), &axes, T::ZERO, keep_dims, false, None)
     }
 
     fn sum_<S: Into<Axis>>(
@@ -1189,7 +1242,7 @@ for _Tensor<T> {
         out: Self::Output
     ) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        sum(self, &axes, T::ZERO, keep_dims, init_out, Some(out))
+        reduce(self, |a, b| a._add(b), &axes, T::ZERO, keep_dims, init_out, Some(out))
     }
 
     fn sum_with_init<S: Into<Axis>>(
@@ -1199,12 +1252,22 @@ for _Tensor<T> {
         keep_dims: bool
     ) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        sum(self, &axes, init_val, keep_dims, false, None)
+        reduce(self, |a, b| a._add(b), &axes, init_val, keep_dims, false, None)
     }
 
     fn nansum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        nansum(self, &axes, T::ZERO, keep_dims, false, None)
+        reduce(
+            self,
+            |a, b| {
+                if b._is_nan() { a } else { b._add(a) }
+            },
+            &axes,
+            T::ZERO,
+            keep_dims,
+            false,
+            None
+        )
     }
 
     fn nansum_with_init<S: Into<Axis>>(
@@ -1214,12 +1277,22 @@ for _Tensor<T> {
         keep_dims: bool
     ) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        nansum(self, &axes, init_val, keep_dims, false, None)
+        reduce(
+            self,
+            |a, b| {
+                if b._is_nan() { a } else { b._add(a) }
+            },
+            &axes,
+            init_val,
+            keep_dims,
+            false,
+            None
+        )
     }
 
     fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        prod(self, &axes, T::ONE, keep_dims, false, None)
+        reduce(self, |a, b| a._mul(b), &axes, T::ONE, keep_dims, false, None)
     }
 
     fn prod_with_init<S: Into<Axis>>(
@@ -1229,12 +1302,22 @@ for _Tensor<T> {
         keep_dims: bool
     ) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        prod(self, &axes, init_val, keep_dims, false, None)
+        reduce(self, |a, b| a._mul(b), &axes, init_val, keep_dims, false, None)
     }
 
     fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        nanprod(self, &axes, T::ONE, keep_dims, false, None)
+        reduce(
+            self,
+            |a, b| {
+                if b._is_nan() { a } else { b._mul(a) }
+            },
+            &axes,
+            T::ONE,
+            keep_dims,
+            false,
+            None
+        )
     }
 
     fn nanprod_with_init<S: Into<Axis>>(
@@ -1244,12 +1327,22 @@ for _Tensor<T> {
         keep_dims: bool
     ) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        nanprod(self, &axes, init_val, keep_dims, false, None)
+        reduce(
+            self,
+            |a, b| {
+                if b._is_nan() { a } else { b._mul(a) }
+            },
+            &axes,
+            init_val,
+            keep_dims,
+            false,
+            None
+        )
     }
 
     fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        min(self, &axes, T::INF, keep_dims, false, None)
+        reduce(self, |a, b| a._min(b), &axes, T::INF, keep_dims, false, None)
     }
 
     fn min_with_init<S: Into<Axis>>(
@@ -1259,12 +1352,12 @@ for _Tensor<T> {
         keep_dims: bool
     ) -> anyhow::Result<Self> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        min(self, &axes, init_val, keep_dims, false, None)
+        reduce(self, |a, b| a._min(b), &axes, init_val, keep_dims, false, None)
     }
 
     fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        max(self, &axes, T::NEG_INF, keep_dims, false, None)
+        reduce(self, |a, b| a._max(b), &axes, T::NEG_INF, keep_dims, false, None)
     }
 
     fn max_with_init<S: Into<Axis>>(
@@ -1274,27 +1367,45 @@ for _Tensor<T> {
         keep_dims: bool
     ) -> anyhow::Result<Self> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        max(self, &axes, init_val, keep_dims, false, None)
+        reduce(self, |a, b| a._max(b), &axes, init_val, keep_dims, false, None)
     }
 
     fn all<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        all(self, &axes, true, keep_dims, false, None)
+        reduce2(
+            self,
+            |a, b| b._is_true() & a,
+            |a, b| b._is_true() & a,
+            &axes,
+            true,
+            keep_dims,
+            false,
+            None
+        )
     }
 
     fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        any(self, &axes, false, keep_dims, false, None)
+        reduce2(
+            self,
+            |a, b| b._is_true() | a,
+            |a, b| b._is_true() | a,
+            &axes,
+            false,
+            keep_dims,
+            false,
+            None
+        )
     }
 
     fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reducel1(self, &axes, T::ZERO, keep_dims, false, None)
+        reduce(self, |a, b| a._add(b._abs()), &axes, T::ZERO, keep_dims, false, None)
     }
 
     fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        sum_square(self, &axes, T::ZERO, keep_dims, false, None)
+        reduce(self, |a, b| a._add(b._square()), &axes, T::ZERO, keep_dims, false, None)
     }
 }
 
@@ -1335,10 +1446,18 @@ impl<T> FloatReduce<T>
 
     fn logsumexp<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        let x_max = max(self, &axes, T::NEG_INF, true, false, None)?;
+        let x_max = reduce(self, |a, b| a._max(b), &axes, T::NEG_INF, true, false, None)?;
         let sub = self - &x_max;
         let exp = sub.exp()?;
-        let sum_exp = sum(&exp, &axes, <T as FloatOut>::Output::ZERO, true, false, None)?;
+        let sum_exp = reduce(
+            &exp,
+            |a, b| a._add(b),
+            &axes,
+            <T as FloatOut>::Output::ZERO,
+            true,
+            false,
+            None
+        )?;
         let add = x_max + sum_exp.ln()?;
         if keep_dims {
             Ok(add)

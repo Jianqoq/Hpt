@@ -107,4 +107,8 @@ impl<'a, T: 'a> IterGetSet for StridedMut<'a, T> where T: CommonBounds {
                 .unwrap()
         }
     }
+    
+    fn set_prg(&mut self, prg: Vec<i64>) {
+        self.base.set_prg(prg);
+    }
 }

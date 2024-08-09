@@ -81,4 +81,8 @@ impl<'a, T: 'a + CommonBounds> IterGetSet for StridedMapMut<'a, T> {
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         self.base.inner_loop_next(index)
     }
+
+    fn set_prg(&mut self, prg: Vec<i64>) {
+        self.base.set_prg(prg);
+    }
 }

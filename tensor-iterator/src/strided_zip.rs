@@ -64,6 +64,11 @@ impl<'a, A, B> IterGetSet for StridedZip<'a, A, B> where A: IterGetSet, B: IterG
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         (self.a.inner_loop_next(index), self.b.inner_loop_next(index))
     }
+
+    fn set_prg(&mut self, prg: Vec<i64>) {
+        self.a.set_prg(prg.clone());
+        self.b.set_prg(prg);
+    }
 }
 
 impl<'a, A, B> StridedZip<'a, A, B>
@@ -106,7 +111,8 @@ impl<'a, A, B> StridedIterator for StridedZip<'a, A, B> where A: IterGetSet, B: 
 
     fn for_each<F>(mut self, folder: F) where F: Fn(Self::Item) {
         let outer_loop_size = self.outer_loop_size();
-        let inner_loop_size = self.inner_loop_size() + 1;
+        let inner_loop_size = self.inner_loop_size(); // we don't need to add 1 as we didn't subtract shape by 1
+        self.set_prg(vec![0; self.a.shape().len()]);
         for _ in 0..outer_loop_size {
             for idx in 0..inner_loop_size {
                 folder(self.inner_loop_next(idx));
