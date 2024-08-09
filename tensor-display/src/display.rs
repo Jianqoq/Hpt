@@ -50,7 +50,7 @@ fn main_loop_push_str<U, T>(
                 }
                 if i == 0 {
                     string.push_str("... ");
-                    offset += last_stride * ((inner_loop as i64) - 6);
+                    offset += last_stride * ((inner_loop as i64) - 2 * (lr_elements_size as i64));
                 }
             }
         } else {
@@ -136,7 +136,7 @@ fn main_loop_get_width<U, T>(
                     offset += last_stride;
                 }
                 if i == 0 {
-                    offset += last_stride * ((inner_loop as i64) - 6);
+                    offset += last_stride * ((inner_loop as i64) - 2 * (lr_elements_size as i64));
                 }
             }
         } else {
