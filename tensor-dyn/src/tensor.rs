@@ -1,4 +1,8 @@
-use std::{ fmt::{ Debug, Display }, ops::{ Add, Deref, Div, Mul, Rem, Sub }, sync::Arc };
+use std::{
+    fmt::{ Debug, Display },
+    ops::{ Add, Deref, Div, Mul, Rem, Sub },
+    sync::{ atomic::Ordering, Arc },
+};
 
 use tensor_common::{ axis::Axis, layout::Layout, pointer::Pointer, shape::Shape };
 use tensor_display::display;
@@ -18,9 +22,11 @@ use tensor_types::{
 };
 use anyhow::Result;
 use crate::{
-    backend::{BackendDevice, BackendTy, Cpu},
+    backend::{ BackendDevice, BackendTy, Cpu },
     ops::cpu::{ stack::stack, unary::{ FloatType, NormalType } },
     tensor_base::_Tensor,
+    DISPLAY_LR_ELEMENTS,
+    DISPLAY_PRECISION,
 };
 
 /// A wrapper of `Tensor` for user.
@@ -776,7 +782,7 @@ for Tensor<T> {
     fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         Ok(_Tensor::reducel1(self, axis, keep_dims)?.into())
     }
-    
+
     fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         Ok(_Tensor::sum_square(self, axis, keep_dims)?.into())
     }
@@ -1186,9 +1192,7 @@ impl<T> NormalUaryOps
         Ok(_Tensor::abs(self)?.into())
     }
 
-    fn abs_<U>(&self, out: U) -> Result<Self>
-        where U: BaseTensor<Output = Self>
-    {
+    fn abs_<U>(&self, out: U) -> Result<Self> where U: BaseTensor<Output = Self> {
         Ok(_Tensor::abs_(self, out.base().clone())?.into())
     }
 
@@ -1235,13 +1239,17 @@ impl<T> NormalUaryOps
 
 impl<T> Display for Tensor<T> where T: CommonBounds {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        display(self, f, 1000, 20, 6, 12, 4, false)
+        let precision = unsafe { DISPLAY_PRECISION.load(Ordering::Relaxed) };
+        let lr_element_size = unsafe { DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed) };
+        display(self, f, lr_element_size, precision, false)
     }
 }
 
 impl<T> Debug for Tensor<T> where T: CommonBounds {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        display(self, f, 1000, 20, 6, 12, 4, false)
+        let precision = unsafe { DISPLAY_PRECISION.load(Ordering::Relaxed) };
+        let lr_element_size = unsafe { DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed) };
+        display(self, f, lr_element_size, precision, false)
     }
 }
 

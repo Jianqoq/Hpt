@@ -50,6 +50,7 @@ use crate::{
     ops::cpu::stack::stack,
     slice::SliceOps,
     tensor::Tensor,
+    DISPLAY_LR_ELEMENTS,
     DISPLAY_PRECISION,
 };
 /// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
@@ -1398,8 +1399,10 @@ impl<T> Random
     fn triangular_like(&self, low: Self::Meta, high: Self::Meta, mode: Self::Meta) -> Result<Self> {
         Ok(_Tensor::<T>::triangular_like(self, low, high, mode)?.into())
     }
-    
-    fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self> where T: IntoScalar<f64>, bool: IntoScalar<T> {
+
+    fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self>
+        where T: IntoScalar<f64>, bool: IntoScalar<T>
+    {
         Ok(_Tensor::<T>::bernoulli(shape, p)?.into())
     }
 }
@@ -1407,14 +1410,16 @@ impl<T> Random
 impl<T> Display for _Tensor<T> where T: CommonBounds {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = unsafe { DISPLAY_PRECISION.load(Ordering::Relaxed) };
-        display(self, f, 1000, 20, 6, 12, precision, false)
+        let lr_element_size = unsafe { DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed) };
+        display(self, f, lr_element_size, precision, false)
     }
 }
 
 impl<T> Debug for _Tensor<T> where T: CommonBounds {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = unsafe { DISPLAY_PRECISION.load(Ordering::Relaxed) };
-        display(self, f, 1000, 20, 6, 12, precision, false)
+        let lr_element_size = unsafe { DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed) };
+        display(self, f, lr_element_size, precision, false)
     }
 }
 

@@ -33,9 +33,7 @@ pub mod ops {
     }
 }
 
-pub mod wgpu_kernels {
-    
-}
+pub mod wgpu_kernels {}
 
 pub mod tensors {
     pub mod wgpu;
@@ -49,7 +47,7 @@ pub mod to_tensor;
 pub mod wgpu_exec;
 pub use tensor_traits::*;
 
-use std::{cell::RefCell, sync::atomic::AtomicUsize};
+use std::{ cell::RefCell, sync::atomic::AtomicUsize };
 thread_local! {
     static THREAD_POOL: RefCell<threadpool::ThreadPool> = RefCell::new(
         threadpool::ThreadPool::new(std::thread::available_parallelism().unwrap().into())
@@ -57,8 +55,14 @@ thread_local! {
 }
 
 static mut DISPLAY_PRECISION: AtomicUsize = AtomicUsize::new(4);
+static mut DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(3);
 pub fn set_global_display_precision(precision: usize) {
     unsafe {
         DISPLAY_PRECISION.store(precision, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+pub fn set_global_display_lr_elements(lr_elements: usize) {
+    unsafe {
+        DISPLAY_LR_ELEMENTS.store(lr_elements, std::sync::atomic::Ordering::Relaxed);
     }
 }
