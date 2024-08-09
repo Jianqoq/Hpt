@@ -135,8 +135,8 @@ macro_rules! impl_binary_fn {
                             *ret = f(lhs, rhs);
                         });
                 } else {
-                    ret.iter_mut()
-                        .zip(lhs.iter().zip(rhs.iter()))
+                    ret.par_iter_mut()
+                        .zip(lhs.par_iter().zip(rhs.par_iter()))
                         .for_each(|(res, (x, y))| {
                             *res = f(x, y);
                         });
@@ -192,8 +192,8 @@ where
             Ok(ret)
         } else {
             let ret = lhs
-                .iter()
-                .zip(rhs.iter())
+                .par_iter()
+                .zip(rhs.par_iter())
                 .strided_map(|(x, y)| f(x, y))
                 .collect::<_Tensor<K>>();
             Ok(ret)

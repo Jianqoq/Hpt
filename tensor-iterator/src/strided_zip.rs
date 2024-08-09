@@ -1,18 +1,7 @@
 use std::sync::Arc;
+use tensor_common::{ shape::Shape, shape_utils::predict_broadcast_shape, strides::Strides };
 
-use rayon::iter::{
-    plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
-    ParallelIterator,
-};
-use tensor_common::{
-    shape::Shape,
-    shape_utils::{ mt_intervals, predict_broadcast_shape },
-    strides::Strides,
-};
-use tensor_traits::tensor::CommonBounds;
-
-use crate::iterator_traits::{ IterGetSet, ShapeManipulator };
-use crate::strided_map::StridedMap;
+use crate::iterator_traits::{ IterGetSet, ShapeManipulator, StridedIterator };
 
 #[derive(Clone)]
 pub struct StridedZip<'a, A: 'a, B: 'a> {
@@ -24,14 +13,12 @@ pub struct StridedZip<'a, A: 'a, B: 'a> {
 impl<'a, A, B> IterGetSet for StridedZip<'a, A, B> where A: IterGetSet, B: IterGetSet {
     type Item = (<A as IterGetSet>::Item, <B as IterGetSet>::Item);
 
-    fn set_end_index(&mut self, end_index: usize) {
-        self.a.set_end_index(end_index);
-        self.b.set_end_index(end_index);
+    fn set_end_index(&mut self, _: usize) {
+        panic!("single thread strided zip does not support set_intervals");
     }
 
-    fn set_intervals(&mut self, intervals: Arc<Vec<(usize, usize)>>) {
-        self.a.set_intervals(intervals.clone());
-        self.b.set_intervals(intervals);
+    fn set_intervals(&mut self, _: Arc<Vec<(usize, usize)>>) {
+        panic!("single thread strided zip does not support set_intervals");
     }
 
     fn set_strides(&mut self, last_stride: Strides) {
@@ -45,7 +32,7 @@ impl<'a, A, B> IterGetSet for StridedZip<'a, A, B> where A: IterGetSet, B: IterG
     }
 
     fn intervals(&self) -> &Arc<Vec<(usize, usize)>> {
-        self.a.intervals()
+        panic!("single thread strided zip does not support intervals");
     }
 
     fn strides(&self) -> &Strides {
@@ -81,8 +68,8 @@ impl<'a, A, B> IterGetSet for StridedZip<'a, A, B> where A: IterGetSet, B: IterG
 
 impl<'a, A, B> StridedZip<'a, A, B>
     where
-        A: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
-        B: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
+        A: 'a + IterGetSet,
+        B: 'a + IterGetSet,
         <A as IterGetSet>::Item: Send,
         <B as IterGetSet>::Item: Send
 {
@@ -94,32 +81,16 @@ impl<'a, A, B> StridedZip<'a, A, B>
         }
     }
 
-    pub fn zip<C>(mut self, mut other: C) -> StridedZip<'a, Self, C>
+    pub fn zip<C>(self, other: C) -> StridedZip<'a, Self, C>
         where
-            C: UnindexedProducer + IterGetSet + ShapeManipulator + ParallelIterator + IterGetSet,
-            Self: UnindexedProducer + IterGetSet + ShapeManipulator,
+            C: IterGetSet + ShapeManipulator,
+            Self: IterGetSet + ShapeManipulator,
             <C as IterGetSet>::Item: Send,
             <Self as IterGetSet>::Item: Send
     {
         let new_shape = predict_broadcast_shape(&self.shape(), &other.shape()).expect(
             "Cannot broadcast shapes"
         );
-
-        let inner_loop_size = new_shape[new_shape.len() - 1] as usize;
-        let outer_loop_size = (new_shape.size() as usize) / inner_loop_size;
-
-        let num_threads;
-        if outer_loop_size < rayon::current_num_threads() {
-            num_threads = outer_loop_size;
-        } else {
-            num_threads = rayon::current_num_threads();
-        }
-        let intervals = Arc::new(mt_intervals(outer_loop_size, num_threads));
-        let len = intervals.len();
-        self.set_intervals(intervals.clone());
-        self.set_end_index(len);
-        other.set_intervals(intervals.clone());
-        other.set_end_index(len);
 
         let mut a = self.reshape(new_shape.clone());
         let mut b = other.reshape(new_shape.clone());
@@ -128,82 +99,19 @@ impl<'a, A, B> StridedZip<'a, A, B>
         b.set_shape(new_shape.clone());
         StridedZip::new(a, b)
     }
-
-    pub fn strided_map<F, U>(self, func: F) -> StridedMap<'a, Self, <Self as IterGetSet>::Item, F>
-        where
-            F: Fn(<Self as IterGetSet>::Item) -> U + Sync + Send + 'a,
-            U: CommonBounds,
-            <A as IterGetSet>::Item: Send,
-            <B as IterGetSet>::Item: Send
-    {
-        StridedMap {
-            iter: self,
-            f: func,
-            phantom: std::marker::PhantomData,
-        }
-    }
 }
 
-impl<'a, A, B> UnindexedProducer
-    for StridedZip<'a, A, B>
-    where
-        A: UnindexedProducer + ParallelIterator + IterGetSet,
-        B: UnindexedProducer + ParallelIterator + IterGetSet
-{
+impl<'a, A, B> StridedIterator for StridedZip<'a, A, B> where A: IterGetSet, B: IterGetSet {
     type Item = <Self as IterGetSet>::Item;
 
-    fn split(self) -> (Self, Option<Self>) {
-        let (left_a, right_a) = self.a.split();
-        let (left_b, right_b) = self.b.split();
-        if right_a.is_none() {
-            (
-                StridedZip {
-                    a: left_a,
-                    b: left_b,
-                    phantom: std::marker::PhantomData,
-                },
-                None,
-            )
-        } else {
-            (
-                StridedZip {
-                    a: left_a,
-                    b: left_b,
-                    phantom: std::marker::PhantomData,
-                },
-                Some(StridedZip {
-                    a: right_a.unwrap(),
-                    b: right_b.unwrap(),
-                    phantom: std::marker::PhantomData,
-                }),
-            )
-        }
-    }
-
-    fn fold_with<F>(mut self, mut folder: F) -> F where F: Folder<Self::Item> {
+    fn for_each<F>(mut self, folder: F) where F: Fn(Self::Item) {
         let outer_loop_size = self.outer_loop_size();
         let inner_loop_size = self.inner_loop_size() + 1;
         for _ in 0..outer_loop_size {
             for idx in 0..inner_loop_size {
-                folder = folder.consume(self.inner_loop_next(idx));
+                folder(self.inner_loop_next(idx));
             }
             self.next();
         }
-        folder
-    }
-}
-
-impl<'a, A, B> ParallelIterator
-    for StridedZip<'a, A, B>
-    where
-        A: UnindexedProducer + ParallelIterator + IterGetSet,
-        B: UnindexedProducer + ParallelIterator + IterGetSet,
-        <A as IterGetSet>::Item: Send,
-        <B as IterGetSet>::Item: Send
-{
-    type Item = (<A as IterGetSet>::Item, <B as IterGetSet>::Item);
-
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item> {
-        bridge_unindexed(self, consumer)
     }
 }

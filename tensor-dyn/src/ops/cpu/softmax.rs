@@ -25,8 +25,8 @@ impl<T> _Tensor<T>
         let axis = (if axis < 0 { (self.layout.ndim() as i64) + axis } else { axis }) as usize;
         let max = max(self, &[axis], T::ZERO, true, false, None)?;
         let exp = self
-            .iter()
-            .zip(max.iter())
+            .par_iter()
+            .zip(max.par_iter())
             .strided_map(|(x, y)| { x._sub(y)._exp() })
             .collect::<_Tensor<<T as FloatOut>::Output>>();
         let sum = sum(&exp, &[axis], <T as FloatOut>::Output::ZERO, true, false, None)?;
@@ -71,14 +71,14 @@ impl<T> _Tensor<T>
         let axis = (if axis < 0 { (self.layout.ndim() as i64) + axis } else { axis }) as usize;
         let max = max(self, &[axis], T::ZERO, true, false, None)?;
         let exp = self
-            .iter()
-            .zip(max.iter())
+            .par_iter()
+            .zip(max.par_iter())
             .strided_map(|(x, y)| { x._sub(y)._exp() })
             .collect::<_Tensor<<T as FloatOut>::Output>>();
         let sum = sum(&exp, &[axis], <T as FloatOut>::Output::ZERO, true, false, None)?;
         let ret = exp
-            .iter()
-            .zip(sum.iter())
+            .par_iter()
+            .zip(sum.par_iter())
             .strided_map(|(x, y)| { x._div(y)._ln() })
             .collect::<_Tensor<<<<T as FloatOut>::Output as FloatOut>::Output as FloatOut>::Output>>();
         Ok(ret)

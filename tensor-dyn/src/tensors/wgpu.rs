@@ -24,7 +24,7 @@ use tensor_common::{
 use tensor_display::display;
 use tensor_macros::match_selection;
 use tensor_common::slice;
-use tensor_iterator::{ strided::Strided, strided_mut::StridedMut };
+use tensor_iterator::{ par_strided::ParStrided, par_strided_mut::ParStridedMut };
 use tensor_traits::{
     random::Random,
     shape_manipulate::ShapeManipulate,
@@ -232,11 +232,11 @@ impl<T: CommonBounds> _Tensor<T, Wgpu> {
         todo!()
     }
 
-    pub fn iter(&self) -> Strided<T> {
+    pub fn iter(&self) -> ParStrided<T> {
         todo!()
     }
 
-    pub fn iter_mut(&self) -> StridedMut<T> {
+    pub fn iter_mut(&self) -> ParStridedMut<T> {
         todo!()
     }
 
@@ -359,7 +359,7 @@ impl<T: CommonBounds> _Tensor<T, Wgpu> {
         }
         let folder = self
             .iter()
-            .zip(other.iter())
+            .zip(other.par_iter())
             .fold(
                 || true,
                 |acc, (a, b)| {

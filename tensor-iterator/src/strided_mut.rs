@@ -1,12 +1,11 @@
 use std::sync::Arc;
-
-use rayon::iter::{
-    plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
-    ParallelIterator,
-};
-use tensor_common::{ shape::Shape, shape_utils::{ mt_intervals, predict_broadcast_shape } };
+use tensor_common::{ shape::Shape, shape_utils::predict_broadcast_shape };
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
-use crate::{ iterator_traits::IterGetSet, strided::Strided, strided_zip::StridedZip };
+use crate::{
+    iterator_traits::{ IterGetSet, StridedIterator },
+    strided::Strided,
+    strided_zip::StridedZip,
+};
 
 pub struct StridedMut<'a, T> {
     pub(crate) base: Strided<T>,
@@ -22,31 +21,11 @@ impl<'a, T: CommonBounds> StridedMut<'a, T> {
     }
 
     pub fn zip<C>(mut self, mut other: C) -> StridedZip<'a, Self, C>
-        where
-            C: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
-            <C as IterGetSet>::Item: Send
+        where C: 'a + IterGetSet, <C as IterGetSet>::Item: Send
     {
         let new_shape = predict_broadcast_shape(self.shape(), other.shape()).expect(
             "Cannot broadcast shapes"
         );
-
-        let inner_loop_size = new_shape[new_shape.len() - 1] as usize;
-
-        // if collapse all is true, then the outer loop size is the product of all the elements in the shape
-        // inner_loop_size in this case will be useless
-        let outer_loop_size = (new_shape.size() as usize) / inner_loop_size;
-        let num_threads;
-        if outer_loop_size < rayon::current_num_threads() {
-            num_threads = outer_loop_size;
-        } else {
-            num_threads = rayon::current_num_threads();
-        }
-        let intervals = Arc::new(mt_intervals(outer_loop_size, num_threads));
-        let len = intervals.len();
-        self.set_intervals(intervals.clone());
-        self.set_end_index(len);
-        other.set_intervals(intervals.clone());
-        other.set_end_index(len);
 
         other.broadcast_set_strides(&new_shape);
         self.broadcast_set_strides(&new_shape);
@@ -58,27 +37,17 @@ impl<'a, T: CommonBounds> StridedMut<'a, T> {
     }
 }
 
-impl<'a, T> ParallelIterator for StridedMut<'a, T> where T: CommonBounds {
+impl<'a, T> StridedIterator for StridedMut<'a, T> where T: CommonBounds {
     type Item = &'a mut T;
-
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item> {
-        bridge_unindexed(self, consumer)
-    }
-}
-
-impl<'a, T> UnindexedProducer for StridedMut<'a, T> where T: CommonBounds {
-    type Item = &'a mut T;
-
-    fn split(self) -> (Self, Option<Self>) {
-        let (a, b) = self.base.split();
-        (
-            StridedMut { base: a, phantom: std::marker::PhantomData },
-            b.map(|x| StridedMut { base: x, phantom: std::marker::PhantomData }),
-        )
-    }
-
-    fn fold_with<F>(self, folder: F) -> F where F: Folder<Self::Item> {
-        folder
+    fn for_each<F>(mut self, func: F) where F: Fn(Self::Item) {
+        let outer_loop_size = self.outer_loop_size();
+        let inner_loop_size = self.inner_loop_size() + 1;
+        for _ in 0..outer_loop_size {
+            for idx in 0..inner_loop_size {
+                func(self.inner_loop_next(idx));
+            }
+            self.next();
+        }
     }
 }
 

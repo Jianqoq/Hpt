@@ -10,7 +10,7 @@ impl<T> _Tensor<T>
     pub fn shrink(&self, bias: T, lambda: T) -> anyhow::Result<_Tensor<T>> {
         Ok(
             self
-                .iter()
+                .par_iter()
                 .strided_map(|x| {
                     if x > lambda { x - bias } else if x < -lambda { x + bias } else { T::ZERO }
                 })

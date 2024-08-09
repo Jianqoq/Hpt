@@ -195,8 +195,8 @@ macro_rules! normal_promote_ops_assign {
     ($([$op:ident, $op2:ident, $op3:ident]),*) => {
         $(impl<T> $op<_Tensor<T>> for _Tensor<T> where T: CommonBounds + NormalOut<Output=T> {
             fn $op2(&mut self, rhs: _Tensor<T>) {
-                    self.iter_mut()
-                        .zip(rhs.iter())
+                    self.par_iter_mut()
+                        .zip(rhs.par_iter())
                         .for_each(|(x, y)| {
                             *x = x.$op3(y);
                         });
@@ -205,8 +205,8 @@ macro_rules! normal_promote_ops_assign {
 
         $(impl<'a, T> $op<_Tensor<T>> for &'a _Tensor<T> where T: CommonBounds + NormalOut<Output=T> {
             fn $op2(&mut self, rhs: _Tensor<T>) {
-                    self.iter_mut()
-                        .zip(rhs.iter())
+                    self.par_iter_mut()
+                        .zip(rhs.par_iter())
                         .for_each(|(x, y)| {
                             *x = x.$op3(y);
                         });
@@ -215,8 +215,8 @@ macro_rules! normal_promote_ops_assign {
 
         $(impl<'a, T> $op<&'a _Tensor<T>> for &'a _Tensor<T> where T: CommonBounds + NormalOut<Output=T> {
             fn $op2(&mut self, rhs: &'a _Tensor<T>) {
-                    self.iter_mut()
-                        .zip(rhs.iter())
+                    self.par_iter_mut()
+                        .zip(rhs.par_iter())
                         .for_each(|(x, y)| {
                             *x = x.$op3(y);
                         });
@@ -225,8 +225,8 @@ macro_rules! normal_promote_ops_assign {
 
         $(impl<'a, T> $op<&'a _Tensor<T>> for _Tensor<T> where T: CommonBounds + NormalOut<Output=T> {
             fn $op2(&mut self, rhs: &'a _Tensor<T>) {
-                    self.iter_mut()
-                        .zip(rhs.iter())
+                    self.par_iter_mut()
+                        .zip(rhs.par_iter())
                         .for_each(|(x, y)| {
                             *x = x.$op3(y);
                         });

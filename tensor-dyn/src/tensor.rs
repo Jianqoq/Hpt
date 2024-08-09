@@ -6,7 +6,7 @@ use std::{
 
 use tensor_common::{ axis::Axis, layout::Layout, pointer::Pointer, shape::Shape };
 use tensor_display::display;
-use tensor_iterator::{ strided::Strided, strided_mut::StridedMut };
+use tensor_iterator::{ par_strided::ParStrided, par_strided_mut::ParStridedMut };
 use tensor_traits::{
     ops::uary::FloatUaryOps,
     shape_manipulate::ShapeManipulate,
@@ -220,12 +220,12 @@ impl<T: CommonBounds> Tensor<T> {
         slice
     }
 
-    pub fn iter(&self) -> Strided<T> {
-        Strided::new(self)
+    pub fn iter(&self) -> ParStrided<T> {
+        ParStrided::new(self)
     }
 
-    pub fn iter_mut(&self) -> StridedMut<T> {
-        StridedMut::new(self)
+    pub fn iter_mut(&self) -> ParStridedMut<T> {
+        ParStridedMut::new(self)
     }
 
     /// Converts the tensor to a new type.
@@ -472,7 +472,7 @@ impl<T: CommonBounds> Tensor<T> {
 }
 
 impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
-    type StridedIter = Strided<T>;
+    type StridedIter = ParStrided<T>;
 
     type Mask = Tensor<bool>;
 

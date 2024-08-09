@@ -23,3 +23,8 @@ pub trait ShapeManipulator {
     fn transpose<AXIS: Into<Axis>>(self, axes: AXIS) -> Self;
     fn expand<S: Into<Shape>>(self, shape: S) -> Self;
 }
+
+pub trait StridedIterator where Self: Sized {
+    type Item;
+    fn for_each<F>(self, func: F) where F: Fn(Self::Item);
+}

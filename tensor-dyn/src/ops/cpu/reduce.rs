@@ -1,3 +1,4 @@
+use crate::slice::SliceOps;
 use crate::tensor_base::_Tensor;
 use crate::{
     all_kernel,
@@ -19,6 +20,7 @@ use crate::{
 };
 use crate::backend::Cpu;
 
+use tensor_common::slice::Slice;
 use tensor_traits::FloatUaryOps;
 use tensor_common::axis::{ process_axes, Axis };
 use tensor_traits::TensorLike;
@@ -956,49 +958,63 @@ a_.ndim()];
             } else {
                 let outer_loop_size = result_size / inner_loop_size;
                 let inner_loop_size_2 = a.size() / result_size;
-                let num_threads;
-                if outer_loop_size < pool.max_count() {
-                    num_threads = outer_loop_size;
+                if outer_loop_size == 1 {
+                    let num_threads = if inner_loop_size < pool.max_count() {
+                        outer_loop_size
+                    } else {
+                        pool.max_count()
+                    };
+                    let intervals = mt_intervals(inner_loop_size, num_threads);
+                    let mut sliced = vec![Slice::Full; a.ndim() as usize];
+                    let mut sliced_tensors = Vec::with_capacity(num_threads);
+                    for i in 0..num_threads {
+                        sliced[a.ndim() as usize - 1] = Slice::Range((intervals[i].0 as i64, intervals[i].1 as i64));
+                        sliced_tensors.push(a.slice(&sliced).expect("Slice failed"));
+                    }
+                    todo!()
                 } else {
-                    num_threads = pool.max_count();
+                    let num_threads = if outer_loop_size < pool.max_count() {
+                        outer_loop_size
+                    } else {
+                        pool.max_count()
+                    };
+                    let mut iterators = ReductionPreprocessor::new2(
+                        num_threads,
+                        outer_loop_size,
+                        inner_loop_size,
+                        a_data_ptr,
+                        result_data,
+                        transposed_strides_cpy,
+                        Arc::new(transposed_shape_cpy),
+                        res_shape.clone()
+                    );
+                    let barrier = Arc::new(Barrier::new(num_threads + 1));
+                    for _ in (0..num_threads).rev() {
+                        let mut iterator = iterators.pop().unwrap();
+                        let mut result_ptr_c = iterator.res_ptrs;
+                        let mut a_data_ptr = iterator.ptrs;
+                        let current_size = iterator.end - iterator.start;
+                        let barrier_clone = Arc::clone(&barrier);
+                        pool.execute(move || {
+                            let shape_len = iterator.shape.len() as i64;
+                            for _i in 0..current_size {
+                                sum_kernel!(
+                                    T::ZERO,
+                                    _i,
+                                    iterator,
+                                    inner_loop_size,
+                                    inner_loop_size_2,
+                                    result_ptr_c,
+                                    a_data_ptr,
+                                    a_last_stride,
+                                    shape_len
+                                );
+                            }
+                            barrier_clone.wait();
+                        });
+                    }
+                    barrier.wait();
                 }
-                println!("current_size: {}", outer_loop_size);
-                let mut iterators = ReductionPreprocessor::new2(
-                    num_threads,
-                    outer_loop_size,
-                    inner_loop_size,
-                    a_data_ptr,
-                    result_data,
-                    transposed_strides_cpy,
-                    Arc::new(transposed_shape_cpy),
-                    res_shape.clone()
-                );
-                let barrier = Arc::new(Barrier::new(num_threads + 1));
-                for _ in (0..num_threads).rev() {
-                    let mut iterator = iterators.pop().unwrap();
-                    let mut result_ptr_c = iterator.res_ptrs;
-                    let mut a_data_ptr = iterator.ptrs;
-                    let current_size = iterator.end - iterator.start;
-                    let barrier_clone = Arc::clone(&barrier);
-                    pool.execute(move || {
-                        let shape_len = iterator.shape.len() as i64;
-                        for _i in 0..current_size {
-                            sum_kernel!(
-                                T::ZERO,
-                                _i,
-                                iterator,
-                                inner_loop_size,
-                                inner_loop_size_2,
-                                result_ptr_c,
-                                a_data_ptr,
-                                a_last_stride,
-                                shape_len
-                            );
-                        }
-                        barrier_clone.wait();
-                    });
-                }
-                barrier.wait();
             }
         });
     }

@@ -1,70 +1,46 @@
 use std::sync::Arc;
-
-use rayon::iter::{
-    plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
-    ParallelIterator,
-};
 use tensor_common::{ shape::Shape, strides::Strides };
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 
-use crate::{ iterator_traits::IterGetSet, strided_mut::StridedMut, strided_zip::StridedZip };
+use crate::{
+    iterator_traits::{ IterGetSet, StridedIterator },
+    par_strided_mut::ParStridedMut,
+    strided_zip::StridedZip,
+};
 
 pub struct StridedMapMut<'a, T> where T: Copy {
-    pub(crate) base: StridedMut<'a, T>,
+    pub(crate) base: ParStridedMut<'a, T>,
     pub(crate) phantom: std::marker::PhantomData<&'a ()>,
 }
 
 impl<'a, T> StridedMapMut<'a, T> where T: CommonBounds {
     pub fn new<U: TensorInfo<T>>(res_tensor: U) -> Self {
         StridedMapMut {
-            base: StridedMut::new(res_tensor),
+            base: ParStridedMut::new(res_tensor),
             phantom: std::marker::PhantomData,
         }
     }
 
     pub fn zip<C>(self, other: C) -> StridedZip<'a, Self, C>
-        where
-            C: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
-            <C as IterGetSet>::Item: Send
+        where C: 'a + IterGetSet, <C as IterGetSet>::Item: Send
     {
         StridedZip::new(self, other)
     }
 }
 
-impl<'a, T> ParallelIterator for StridedMapMut<'a, T> where T: 'a + CommonBounds {
+impl<'a, T> StridedIterator for StridedMapMut<'a, T> where T: 'a + CommonBounds {
     type Item = &'a mut T;
-
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item> {
-        bridge_unindexed(self, consumer)
-    }
-}
-
-impl<'a, T> UnindexedProducer for StridedMapMut<'a, T> where T: 'a + CommonBounds {
-    type Item = &'a mut T;
-
-    fn split(self) -> (Self, Option<Self>) {
-        let (a, b) = self.base.split();
-        (
-            StridedMapMut { base: a, phantom: std::marker::PhantomData },
-            b.map(|x| StridedMapMut { base: x, phantom: std::marker::PhantomData }),
-        )
-    }
-
-    fn fold_with<F>(self, folder: F) -> F where F: Folder<Self::Item> {
-        folder
+    fn for_each<F>(self, _: F) where F: Fn(Self::Item) {
+        unimplemented!()
     }
 }
 
 impl<'a, T: 'a + CommonBounds> IterGetSet for StridedMapMut<'a, T> {
     type Item = &'a mut T;
 
-    fn set_end_index(&mut self, end_index: usize) {
-        self.base.set_end_index(end_index);
-    }
+    fn set_end_index(&mut self, _: usize) {}
 
-    fn set_intervals(&mut self, intervals: Arc<Vec<(usize, usize)>>) {
-        self.base.set_intervals(intervals);
-    }
+    fn set_intervals(&mut self, _: Arc<Vec<(usize, usize)>>) {}
 
     fn set_strides(&mut self, strides: Strides) {
         self.base.set_strides(strides);

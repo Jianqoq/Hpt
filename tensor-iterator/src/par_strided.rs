@@ -1,4 +1,9 @@
 use std::{ fmt::Display, sync::Arc };
+
+use rayon::iter::{
+    plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
+    ParallelIterator,
+};
 use tensor_common::{
     axis::{ process_axes, Axis },
     err_handler::ErrHandler,
@@ -11,17 +16,24 @@ use tensor_common::{
 };
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use tensor_common::shape_utils::predict_broadcast_shape;
-use crate::{ iterator_traits::{ IterGetSet, ShapeManipulator }, strided_zip::StridedZip };
+use crate::{
+    iterator_traits::{ IterGetSet, ShapeManipulator },
+    par_strided_map::ParStridedMap,
+    par_strided_zip::ParStridedZip,
+};
 
 #[derive(Clone)]
-pub struct Strided<T> {
+pub struct ParStrided<T> {
     pub(crate) ptr: Pointer<T>,
     pub(crate) layout: Layout,
     pub(crate) prg: Vec<i64>,
+    pub(crate) intervals: Arc<Vec<(usize, usize)>>,
+    pub(crate) start_index: usize,
+    pub(crate) end_index: usize,
     pub(crate) last_stride: i64,
 }
 
-impl<T: CommonBounds> Strided<T> {
+impl<T: CommonBounds> ParStrided<T> {
     pub fn shape(&self) -> &Shape {
         self.layout.shape()
     }
@@ -31,20 +43,54 @@ impl<T: CommonBounds> Strided<T> {
     }
 
     pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
-        Strided {
+        let inner_loop_size = tensor.shape()[tensor.shape().len() - 1] as usize;
+        let outer_loop_size = tensor.size() / inner_loop_size;
+        let num_threads;
+        if outer_loop_size < rayon::current_num_threads() {
+            num_threads = outer_loop_size;
+        } else {
+            num_threads = rayon::current_num_threads();
+        }
+        let intervals = mt_intervals(outer_loop_size, num_threads);
+        let len = intervals.len();
+        ParStrided {
             ptr: tensor.ptr(),
             layout: tensor.layout().clone(),
-            prg: vec![0; tensor.ndim()],
+            prg: vec![],
+            intervals: Arc::new(intervals),
+            start_index: 0,
+            end_index: len,
             last_stride: tensor.strides()[tensor.strides().len() - 1],
         }
     }
 
-    pub fn zip<'a, C>(mut self, mut other: C) -> StridedZip<'a, Self, C>
-        where C: 'a + IterGetSet, <C as IterGetSet>::Item: Send
+    pub fn zip<'a, C>(mut self, mut other: C) -> ParStridedZip<'a, Self, C>
+        where
+            C: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
+            <C as IterGetSet>::Item: Send
     {
         let new_shape = predict_broadcast_shape(self.shape(), other.shape()).expect(
             "Cannot broadcast shapes"
         );
+
+        let inner_loop_size = new_shape[new_shape.len() - 1] as usize;
+
+        // if collapse all is true, then the outer loop size is the product of all the elements in the shape
+        // inner_loop_size in this case will be useless
+        let outer_loop_size = (new_shape.size() as usize) / inner_loop_size;
+
+        let num_threads;
+        if outer_loop_size < rayon::current_num_threads() {
+            num_threads = outer_loop_size;
+        } else {
+            num_threads = rayon::current_num_threads();
+        }
+        let intervals = Arc::new(mt_intervals(outer_loop_size, num_threads));
+        let len = intervals.len();
+        self.set_intervals(intervals.clone());
+        self.set_end_index(len);
+        other.set_intervals(intervals.clone());
+        other.set_end_index(len);
 
         other.broadcast_set_strides(&new_shape);
         self.broadcast_set_strides(&new_shape);
@@ -52,19 +98,29 @@ impl<T: CommonBounds> Strided<T> {
         other.set_shape(new_shape.clone());
         self.set_shape(new_shape.clone());
 
-        StridedZip::new(self, other)
+        ParStridedZip::new(self, other)
+    }
+
+    pub fn strided_map<'a, F, U>(self, f: F) -> ParStridedMap<'a, ParStrided<T>, T, F>
+        where F: Fn(T) -> U + Sync + Send + 'a, U: CommonBounds
+    {
+        ParStridedMap {
+            iter: self,
+            f,
+            phantom: std::marker::PhantomData,
+        }
     }
 }
 
-impl<T: Copy + Display> IterGetSet for Strided<T> {
+impl<T: Copy + Display> IterGetSet for ParStrided<T> {
     type Item = T;
 
-    fn set_end_index(&mut self, _: usize) {
-        panic!("single thread iterator does not support set_end_index");
+    fn set_end_index(&mut self, end_index: usize) {
+        self.end_index = end_index;
     }
 
-    fn set_intervals(&mut self, _: Arc<Vec<(usize, usize)>>) {
-        panic!("single thread iterator does not support set_intervals");
+    fn set_intervals(&mut self, intervals: Arc<Vec<(usize, usize)>>) {
+        self.intervals = intervals;
     }
 
     fn set_strides(&mut self, strides: Strides) {
@@ -76,7 +132,7 @@ impl<T: Copy + Display> IterGetSet for Strided<T> {
     }
 
     fn intervals(&self) -> &Arc<Vec<(usize, usize)>> {
-        panic!("single thread iterator does not support intervals");
+        &self.intervals
     }
 
     fn strides(&self) -> &Strides {
@@ -94,7 +150,7 @@ impl<T: Copy + Display> IterGetSet for Strided<T> {
     }
 
     fn outer_loop_size(&self) -> usize {
-        (self.shape().iter().product::<i64>() as usize) / self.inner_loop_size()
+        self.intervals[self.start_index].1 - self.intervals[self.start_index].0
     }
 
     fn inner_loop_size(&self) -> usize {
@@ -120,7 +176,69 @@ impl<T: Copy + Display> IterGetSet for Strided<T> {
     }
 }
 
-impl<T: Copy + Display> ShapeManipulator for Strided<T> {
+impl<T> ParallelIterator for ParStrided<T> where T: CommonBounds {
+    type Item = T;
+
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item> {
+        bridge_unindexed(self, consumer)
+    }
+}
+
+impl<T> UnindexedProducer for ParStrided<T> where T: CommonBounds {
+    type Item = T;
+
+    fn split(mut self) -> (Self, Option<Self>) {
+        if self.end_index - self.start_index <= 1 {
+            let mut curent_shape_prg: Vec<i64> = vec![0; self.shape().len()];
+            let mut amount =
+                self.intervals[self.start_index].0 * (*self.shape().last().unwrap() as usize);
+            let mut index = 0;
+            for j in (0..self.shape().len()).rev() {
+                curent_shape_prg[j] = (amount as i64) % self.shape()[j];
+                amount /= self.shape()[j] as usize;
+                index += curent_shape_prg[j] * self.strides()[j];
+            }
+            self.ptr.offset(index);
+            self.prg = curent_shape_prg;
+            let mut new_shape = self.shape().to_vec();
+            new_shape.iter_mut().for_each(|x| {
+                *x -= 1;
+            });
+            self.last_stride = self.strides()[self.strides().len() - 1];
+            self.set_shape(Shape::from(new_shape));
+            return (self, None);
+        }
+        let _left_interval = &self.intervals[self.start_index..self.end_index];
+        let left = _left_interval.len() / 2;
+        let right = _left_interval.len() / 2 + (_left_interval.len() % 2);
+        (
+            ParStrided {
+                ptr: self.ptr,
+                layout: self.layout.clone(),
+                prg: vec![],
+                intervals: self.intervals.clone(),
+                start_index: self.start_index,
+                end_index: self.start_index + left,
+                last_stride: self.last_stride,
+            },
+            Some(ParStrided {
+                ptr: self.ptr,
+                layout: self.layout.clone(),
+                prg: vec![],
+                intervals: self.intervals.clone(),
+                start_index: self.start_index + left,
+                end_index: self.start_index + left + right,
+                last_stride: self.last_stride,
+            }),
+        )
+    }
+
+    fn fold_with<F>(self, folder: F) -> F where F: Folder<Self::Item> {
+        folder
+    }
+}
+
+impl<T: Copy + Display> ShapeManipulator for ParStrided<T> {
     fn reshape<S: Into<Shape>>(mut self, shape: S) -> Self {
         let tmp = shape.into();
         let res_shape = tmp;
@@ -128,6 +246,18 @@ impl<T: Copy + Display> ShapeManipulator for Strided<T> {
             return self;
         }
         let size = res_shape.size() as usize;
+        let inner_loop_size = res_shape[res_shape.len() - 1] as usize;
+        let outer_loop_size = size / inner_loop_size;
+        let num_threads;
+        if outer_loop_size < rayon::current_num_threads() {
+            num_threads = outer_loop_size;
+        } else {
+            num_threads = rayon::current_num_threads();
+        }
+        let intervals = mt_intervals(outer_loop_size, num_threads);
+        let len = intervals.len();
+        self.set_intervals(Arc::new(intervals));
+        self.set_end_index(len);
         let self_size = self.layout.size();
 
         if size > (self_size as usize) {

@@ -22,7 +22,7 @@ use tensor_common::{
 use tensor_display::display;
 use tensor_macros::match_selection;
 use tensor_common::slice;
-use tensor_iterator::{ strided::Strided, strided_mut::StridedMut };
+use tensor_iterator::{ par_strided::ParStrided, par_strided_mut::ParStridedMut, strided::Strided, strided_mut::StridedMut };
 use tensor_traits::{
     random::Random,
     shape_manipulate::ShapeManipulate,
@@ -256,6 +256,14 @@ impl<T: CommonBounds> _Tensor<T> {
         StridedMut::new(self)
     }
 
+    pub fn par_iter(&self) -> ParStrided<T> {
+        ParStrided::new(self)
+    }
+
+    pub fn par_iter_mut(&self) -> ParStridedMut<T> {
+        ParStridedMut::new(self)
+    }
+
     /// Converts the tensor to a new type.
     ///
     /// This method attempts to convert the elements of the tensor to a specified type `U`.
@@ -373,8 +381,8 @@ impl<T: CommonBounds> _Tensor<T> {
             return false;
         }
         let folder = self
-            .iter()
-            .zip(other.iter())
+            .par_iter()
+            .zip(other.par_iter())
             .fold(
                 || true,
                 |acc, (a, b)| {
@@ -410,7 +418,7 @@ impl<T: CommonBounds> _Tensor<T> {
     /// ```
     pub fn contiguous(&self) -> Result<Self> {
         let res = self
-            .iter()
+            .par_iter()
             .strided_map(|x| { x })
             .collect();
         Ok(res)
@@ -557,7 +565,7 @@ impl<T: CommonBounds> _Tensor<T> {
 }
 
 impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
-    type StridedIter = Strided<T>;
+    type StridedIter = ParStrided<T>;
 
     type Mask = _Tensor<bool>;
 

@@ -10,8 +10,8 @@ impl<T> _Tensor<T> where T: CommonBounds + NormalOut<T, Output = T> + Cmp {
         let axis = (if axis < 0 { (self.layout.ndim() as i64) + axis } else { axis }) as usize;
         let max = max(self, &[axis], T::ZERO, true, false, None)?;
         let ret = self
-            .iter()
-            .zip(max.iter())
+            .par_iter()
+            .zip(max.par_iter())
             .strided_map(|(a, b)| {
                 if a._eq(b) { T::ONE } else { T::ZERO }
             })
