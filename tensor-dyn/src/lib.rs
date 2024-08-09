@@ -46,10 +46,7 @@ pub mod slice;
 pub mod to_tensor;
 pub mod wgpu_exec;
 pub use tensor_iterator::iterator_traits::*;
-pub use tensor_traits::TensorCreator;
-pub use tensor_traits::Random;
-pub use tensor_traits::NormalReduce;
-pub use tensor_traits::ShapeManipulate;
+pub use tensor_traits::*;
 
 use std::{ cell::RefCell, sync::atomic::AtomicUsize };
 thread_local! {

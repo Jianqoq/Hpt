@@ -8,15 +8,7 @@ use super::reduce::reduce;
 impl<T> _Tensor<T> where T: CommonBounds + NormalOut<T, Output = T> + Cmp {
     pub fn hardmax(&self, axis: i64) -> anyhow::Result<_Tensor<T>> {
         let axis = (if axis < 0 { (self.layout.ndim() as i64) + axis } else { axis }) as usize;
-        let max = reduce(
-            self,
-            |a, b| a._max(b),
-            &[axis],
-            T::ZERO,
-            true,
-            false,
-            None
-        )?;
+        let max = reduce(self, |a, b| a._max(b), &[axis], T::ZERO, true, false, None)?;
         let ret = self
             .par_iter()
             .zip(max.par_iter())

@@ -910,6 +910,7 @@ pub(crate) fn reduce2<T, F, F2, O>(
 {
     _reduce::<_, _, _, fn(O) -> O, O>(a, op, op2, None, &axes, init_val, keepdims, init_out, c)
 }
+
 pub(crate) fn reduce3<T, F, F2, F3, O>(
     a: &_Tensor<T>,
     op: F,
