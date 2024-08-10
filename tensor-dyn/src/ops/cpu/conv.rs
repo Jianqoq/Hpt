@@ -21,31 +21,31 @@ where
         out_pads: Option<&[(i64, i64)]>,
         group: Option<i64>,
     ) -> anyhow::Result<Self> {
-        let kernel_shape = if let Some(kernel_shape) = kernel_shape {
-            kernel_shape.to_vec()
+        let _kernel_shape = if let Some(_kernel_shape) = kernel_shape {
+            _kernel_shape.to_vec()
         } else {
             kernel.shape().iter().skip(2).cloned().collect::<Vec<_>>()
         };
         let process_pads = |pads: Option<&[(i64, i64)]>| {
-            if let Some(pads) = pads {
-                pads.iter().map(|(a, b)| (*a, *b)).collect::<Vec<_>>()
+            if let Some(_pads) = pads {
+                _pads.iter().map(|(a, b)| (*a, *b)).collect::<Vec<_>>()
             } else {
-                vec![(0, 0); kernel_shape.len()]
+                vec![(0, 0); _kernel_shape.len()]
             }
         };
-        let pads = process_pads(pads);
-        let out_pads = process_pads(out_pads);
-        let steps = if let Some(steps) = steps {
-            steps.to_vec()
+        let _pads = process_pads(pads);
+        let _out_pads = process_pads(out_pads);
+        let _steps = if let Some(_steps) = steps {
+            _steps.to_vec()
         } else {
-            vec![1; kernel_shape.len()]
+            vec![1; _kernel_shape.len()]
         };
-        let dilation = if let Some(dilation) = dilation {
-            Arc::new(dilation.iter().map(|a| *a).collect::<Vec<_>>())
+        let _dilation = if let Some(_dilation) = dilation {
+            Arc::new(_dilation.iter().map(|a| *a).collect::<Vec<_>>())
         } else {
-            Arc::new(vec![1; kernel_shape.len()])
+            Arc::new(vec![1; _kernel_shape.len()])
         };
-        let groups = group.unwrap_or(1);
+        let _groups = group.unwrap_or(1);
         let mut outer_dims = vec![];
         outer_dims.push(self.shape()[1]);
         outer_dims.push(kernel.shape()[0]);
@@ -57,37 +57,37 @@ where
             .enumerate()
             .for_each(|(idx, (x, y))| {
                 let i = *x;
-                let (p_begin, p_end) = pads[idx];
-                let d = dilation[idx];
-                let s = steps[idx];
+                let (p_begin, p_end) = _pads[idx];
+                let d = _dilation[idx];
+                let s = _steps[idx];
                 let k = *y;
                 let o = (i + p_begin + p_end - d * (k - 1) - 1) / s + 1;
-                let (p_begin, p_end) = out_pads[idx];
+                let (p_begin, p_end) = _out_pads[idx];
                 out_dims.push(o + p_begin + p_end);
             });
-        let kernel_per_group = kernel.shape()[0] / groups as i64;
+        let kernel_per_group = kernel.shape()[0] / _groups;
         let in_channels_per_group = self.shape()[1];
-        let mut loop_shape = vec![1; 4 + kernel_shape.len()];
+        let mut loop_shape = vec![1; 4 + _kernel_shape.len()];
         loop_shape[0] = self.shape()[0];
-        loop_shape[1] = groups;
+        loop_shape[1] = _groups;
         loop_shape[2] = kernel_per_group;
         loop_shape[3] = in_channels_per_group;
-        loop_shape[4..].copy_from_slice(&out_dims[2..]);
+        loop_shape[4..].copy_from_slice(&out_dims);
         let loop_shape = Arc::new(loop_shape);
         outer_dims.append(&mut out_dims);
         let ret = _Tensor::<T, Cpu>::zeros(outer_dims)?;
 
         let outer_loop_size = loop_shape.iter().product::<i64>();
         let kernel_outer_loop_size =
-            kernel_shape.iter().product::<i64>() / kernel_shape.last().unwrap();
-        let kernel_inner_loop_size = *kernel_shape.last().unwrap();
-        let kernel_ndim = kernel_shape.len();
-        let kernal_shape = Arc::new(kernel_shape);
+            _kernel_shape.iter().product::<i64>() / _kernel_shape.last().unwrap();
+        let kernel_inner_loop_size = *_kernel_shape.last().unwrap();
+        let kernel_ndim = _kernel_shape.len();
+        let kernal_shape = Arc::new(_kernel_shape);
         THREAD_POOL.with_borrow_mut(|pool| {
             let num_threads = if (outer_loop_size as usize) < pool.max_count() {
-                outer_loop_size as usize
+                1
             } else {
-                pool.max_count()
+                1
             };
             let intervals = mt_intervals(outer_loop_size as usize, num_threads);
             let mut prgs = vec![];
@@ -98,37 +98,30 @@ where
                 let mut current_prg: Vec<i64> = vec![0; loop_shape.len()];
                 let mut res_offset = 0;
                 let mut inp_offset = 0;
-                let mut idx_tracker = 0;
-                let mut res_idx_tracker = 0;
                 // inp[batch * inp.strides[0] + g * in_channel * inp.strides[1] + c * inp.strides[1] + ...]
-                for j in (0..loop_shape.len()).rev() {
+                for (idx, j) in (0..loop_shape.len()).enumerate().rev() {
                     current_prg[j] = (amount as i64) % loop_shape[j];
                     amount /= loop_shape[j] as usize;
                     if j == 0
                     /* batch */
                     {
-                        inp_offset += current_prg[j] * self.strides()[idx_tracker];
-                        idx_tracker += 1;
-                        res_offset += current_prg[j] * ret.strides()[res_idx_tracker];
-                        res_idx_tracker += 1;
+                        inp_offset += current_prg[j] * self.strides()[0];
+                        res_offset += current_prg[j] * ret.strides()[0];
                     } else if j == 1
-                    /* group idx */
+                    /* _group idx */
                     {
                         res_offset +=
-                            (current_prg[j] * kernel_per_group) * ret.strides()[res_idx_tracker];
+                            (current_prg[j] * kernel_per_group) * ret.strides()[1];
                         inp_offset +=
-                            (current_prg[j] * in_channels_per_group) * self.strides()[idx_tracker];
+                            (current_prg[j] * in_channels_per_group) * self.strides()[1];
                     } else if j == 2 {
-                        inp_offset += current_prg[j] * self.strides()[idx_tracker];
-                        idx_tracker += 1;
-                        res_offset += current_prg[j] * ret.strides()[res_idx_tracker];
-                        res_idx_tracker += 1;
+                        res_offset += current_prg[j] * ret.strides()[1];
+                    } else if j == 3 {
+                        inp_offset += current_prg[j] * self.strides()[1];
                     } else {
-                        res_offset += current_prg[j] * ret.strides()[res_idx_tracker];
-                        inp_offset += (current_prg[j] * steps[idx_tracker] - pads[idx_tracker].0)
-                            * self.strides()[idx_tracker];
-                        idx_tracker += 1;
-                        res_idx_tracker += 1;
+                        res_offset += current_prg[j] * ret.strides()[idx - 2];
+                        inp_offset += (current_prg[j] * _steps[idx - 4] - _pads[idx - 4].0)
+                            * self.strides()[idx - 4 + 2];
                     }
                 }
                 let mut inp_ptr = self.ptr();
@@ -149,14 +142,14 @@ where
                 let barrier_clone = barrier.clone();
                 let mut reduce_prg = vec![0; kernel_ndim];
                 let inp_strides = self.strides().clone();
-                let kernel_shape = kernal_shape.clone();
-                let dilations = dilation.clone();
+                let _kernel_shape = kernal_shape.clone();
+                let dilations = _dilation.clone();
                 let inp_last_strides = *inp_strides.last().unwrap();
                 let last_dilation = *dilations.last().unwrap();
                 let ret_strides = ret.strides().clone();
                 let ret_last_strides = *ret_strides.last().unwrap();
                 let loop_shape = loop_shape.clone();
-                let steps = steps.to_vec();
+                let _steps = _steps.to_vec();
                 pool.execute(move || {
                     let inp_reduce_strides = &inp_strides[2..];
                     for _ in start..end {
@@ -168,7 +161,7 @@ where
                                 sum = sum._add(val._mul(kernel_val));
                             }
                             for j in (0..kernel_ndim).rev() {
-                                if reduce_prg[j] < kernel_shape[j] - 1 {
+                                if reduce_prg[j] < _kernel_shape[j] - 1 {
                                     reduce_prg[j] += 1;
                                     inp_ptr.offset(dilations[j] * inp_reduce_strides[j]);
                                     res_ptr.offset(ret_strides[j]);
@@ -178,36 +171,35 @@ where
                                     inp_ptr.offset(
                                         -dilations[j]
                                             * inp_reduce_strides[j]
-                                            * (kernel_shape[j] - 1),
+                                            * (_kernel_shape[j] - 1),
                                     );
-                                    res_ptr.offset(-ret_strides[j] * (kernel_shape[j] - 1));
+                                    res_ptr.offset(-ret_strides[j] * (_kernel_shape[j] - 1));
                                 }
                             }
                         }
                         let res_val = res_ptr.read();
                         res_ptr.modify(0, res_val._add(sum));
-                        let mut idx_tracker = 0;
-                        let mut res_idx_tracker = 0;
                         for k in (0..loop_shape.len()).rev() {
                             if prg[k] < loop_shape[k] - 1 {
                                 prg[k] += 1;
                                 if k == 0
                                 /* batch */
                                 {
-                                    inp_ptr.offset(inp_strides[idx_tracker]);
-                                    res_ptr.offset(ret_strides[res_idx_tracker]);
+                                    inp_ptr.offset(inp_strides[0]);
+                                    res_ptr.offset(ret_strides[0]);
                                 } else if k == 1
-                                /* group idx */
+                                /* _group idx */
                                 {
-                                    res_ptr.offset(kernel_per_group * ret_strides[res_idx_tracker]);
+                                    res_ptr.offset(kernel_per_group * ret_strides[1]);
                                     inp_ptr
-                                        .offset(in_channels_per_group * inp_strides[idx_tracker]);
+                                        .offset(in_channels_per_group * inp_strides[1]);
                                 } else if k == 2 {
-                                    res_ptr.offset(ret_strides[res_idx_tracker]);
-                                    inp_ptr.offset(inp_strides[idx_tracker]);
+                                    res_ptr.offset(ret_strides[1]);
+                                } else if k == 3 {
+                                    inp_ptr.offset(inp_strides[1]);
                                 } else {
-                                    res_ptr.offset(ret_strides[res_idx_tracker]);
-                                    inp_ptr.offset(steps[idx_tracker] * inp_strides[idx_tracker]);
+                                    res_ptr.offset(ret_strides[k - 2]);
+                                    inp_ptr.offset(_steps[k - 4] * inp_strides[k - 4 + 2]);
                                 }
                                 break;
                             } else {
@@ -215,29 +207,24 @@ where
                                 if k == 0
                                 /* batch */
                                 {
-                                    inp_ptr.offset(-inp_strides[idx_tracker] * (loop_shape[k] - 1));
+                                    inp_ptr.offset(-inp_strides[0] * (loop_shape[k] - 1));
                                     res_ptr.offset(
-                                        -ret_strides[res_idx_tracker] * (loop_shape[k] - 1),
+                                        -ret_strides[0] * (loop_shape[k] - 1),
                                     );
-                                    idx_tracker += 1;
-                                    res_idx_tracker += 1;
                                 } else if k == 1
-                                /* group idx */
+                                /* _group idx */
                                 {
                                     res_ptr
-                                        .offset(-kernel_per_group * ret_strides[res_idx_tracker]);
+                                        .offset(-kernel_per_group * ret_strides[1]);
                                     inp_ptr
-                                        .offset(-in_channels_per_group * inp_strides[idx_tracker]);
+                                        .offset(-in_channels_per_group * inp_strides[1]);
                                 } else if k == 2 {
-                                    res_ptr.offset(-ret_strides[res_idx_tracker]);
-                                    inp_ptr.offset(-inp_strides[idx_tracker]);
-                                    idx_tracker += 1;
-                                    res_idx_tracker += 1;
-                                } else {
-                                    res_ptr.offset(-ret_strides[res_idx_tracker]);
-                                    inp_ptr.offset(-steps[idx_tracker] * inp_strides[idx_tracker]);
-                                    idx_tracker += 1;
-                                    res_idx_tracker += 1;
+                                    res_ptr.offset(-ret_strides[1] * (loop_shape[k] - 1));
+                                } else if k == 3 {
+                                    inp_ptr.offset(-inp_strides[1] * (loop_shape[k] - 1));
+                                }else {
+                                    res_ptr.offset(-ret_strides[k - 2] * (loop_shape[k] - 1));
+                                    inp_ptr.offset(-_steps[k - 4] * inp_strides[k - 4 + 2] * (loop_shape[k] - 1));
                                 }
                             }
                         }
