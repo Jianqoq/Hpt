@@ -41,11 +41,11 @@ name = "etensor"
 path = "src/main.rs"
 
 [profile.dev]
-opt-level = 3
+opt-level = 0
 incremental = true
 debug = true
 
 [profile.release]
-opt-level = 3
+opt-level = 0
 incremental = true
 debug = true

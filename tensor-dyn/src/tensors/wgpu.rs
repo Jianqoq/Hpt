@@ -1147,14 +1147,6 @@ impl<T> Random
         todo!()
     }
 
-    fn randint<S: Into<Shape>>(low: Self::Meta, high: Self::Meta, shape: S) -> Result<Self> {
-        todo!()
-    }
-
-    fn randint_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self> {
-        todo!()
-    }
-
     fn beta<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self> {
         todo!()
     }

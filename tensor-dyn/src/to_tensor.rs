@@ -1,5 +1,5 @@
 use half::f16;
-use crate::tensor_base::_Tensor;
+use crate::{ backend::Cpu, tensor_base::_Tensor };
 use tensor_common::shape::Shape;
 use tensor_common::pointer::Pointer;
 use std::alloc::Layout;
@@ -43,11 +43,12 @@ macro_rules! impl_type_num {
                     let length = data.len();
                     let res_shape = Shape::from(vec![length as i64]);
                     let layout;
-                    if (ptr as usize) % 32 == 0 {
+                    if (ptr as usize) % 8 == 0 {
                         let _ = ManuallyDrop::new(data);
-                        layout = Layout::from_size_align(length * std::mem::size_of::<$t>(), 32).unwrap();
+                        layout = Layout::from_size_align(length * std::mem::size_of::<$t>(), 8).unwrap();
+                        unsafe { CACHE.insert_ptr(ptr as *mut u8) };
                     } else {
-                        layout = Layout::from_size_align(data.len() * std::mem::size_of::<$t>(), 32).unwrap();
+                        layout = Layout::from_size_align(data.len() * std::mem::size_of::<$t>(), 8).unwrap();
                         ptr = unsafe { CACHE.allocate(layout) } as *mut $t;
                         unsafe {
                             std::ptr::copy_nonoverlapping(data.as_ptr(), ptr, data.len());
@@ -74,16 +75,15 @@ macro_rules! impl_type_num {
                     let mut ptr = vec.as_mut_ptr();
                     let length = repeate_generic!(mul, $($generic), *);
                     let layout;
-                    if (ptr as usize) % 32 == 0 {
+                    if (ptr as usize) % 8 == 0 {
                         let _ = ManuallyDrop::new(vec);
-                        layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 32).unwrap();
+                        layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
+                        unsafe { CACHE.insert_ptr(ptr as *mut u8) };
                     } else {
-                        layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 32).unwrap();
+                        layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
                         ptr = unsafe { CACHE.allocate(layout) } as *mut $ct;
                         unsafe {
-                            for i in 0..vec.len() {
-                                std::ptr::write(ptr.add(i), vec[i]);
-                            }
+                            std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                         }
                     }
                     let strides = shape_to_strides(&shape);
@@ -109,16 +109,15 @@ macro_rules! impl_type_num {
                 let mut ptr = vec.as_mut_ptr();
                 let length = repeate_generic!(mul, $($generic), *);
                 let layout;
-                if (ptr as usize) % 32 == 0 {
+                if (ptr as usize) % 8 == 0 {
                     let _ = ManuallyDrop::new(vec);
-                    layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 32).unwrap();
+                    layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
+                    unsafe { CACHE.insert_ptr(ptr as *mut u8) };
                 } else {
-                    layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 32).unwrap();
+                    layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
                     ptr = unsafe { CACHE.allocate(layout) } as *mut $ct;
                     unsafe {
-                        for i in 0..vec.len() {
-                            std::ptr::write(ptr.add(i), vec[i]);
-                        }
+                        std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                     }
                 }
                 let strides = shape_to_strides(&shape);
@@ -151,16 +150,15 @@ macro_rules! impl_type_num {
                 let mut ptr = vec.as_mut_ptr();
                 let length = repeate_generic!(mul, $($generic), *);
                 let layout;
-                if (ptr as usize) % 32 == 0 {
+                if (ptr as usize) % 8 == 0 {
                     let _ = ManuallyDrop::new(vec);
-                    layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 32).unwrap();
+                    layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
+                    unsafe { CACHE.insert_ptr(ptr as *mut u8) };
                 } else {
-                    layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 32).unwrap();
+                    layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
                     ptr = unsafe { CACHE.allocate(layout) } as *mut $ct;
                     unsafe {
-                        for i in 0..vec.len() {
-                            std::ptr::write(ptr.add(i), vec[i]);
-                        }
+                        std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                     }
                 }
                 let strides = shape_to_strides(&shape);
@@ -185,16 +183,15 @@ macro_rules! impl_type_num {
             let mut ptr = vec.as_mut_ptr();
             let length = repeate_generic!(mul, $($generic), *);
             let layout;
-            if (ptr as usize) % 32 == 0 {
+            if (ptr as usize) % 8 == 0 {
                 let _ = ManuallyDrop::new(vec);
-                layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 32).unwrap();
+                layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
+                unsafe { CACHE.insert_ptr(ptr as *mut u8) };
             } else {
-                layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 32).unwrap();
+                layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
                 ptr = unsafe { CACHE.allocate(layout) } as *mut $ct;
                 unsafe {
-                    for i in 0..vec.len() {
-                        std::ptr::write(ptr.add(i), vec[i]);
-                    }
+                    std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                 }
             }
             let strides = shape_to_strides(&shape);
@@ -219,16 +216,15 @@ macro_rules! impl_type_num {
                 let mut ptr = vec.as_mut_ptr();
                 let length = repeate_generic!(mul, $($generic), *);
                 let layout;
-                if (ptr as usize) % 32 == 0 {
+                if (ptr as usize) % 8 == 0 {
                     let _ = ManuallyDrop::new(vec);
-                    layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 32).unwrap();
+                    layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
+                    unsafe { CACHE.insert_ptr(ptr as *mut u8) };
                 } else {
-                    layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 32).unwrap();
+                    layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
                     ptr = unsafe { CACHE.allocate(layout) } as *mut $ct;
                     unsafe {
-                        for i in 0..vec.len() {
-                            std::ptr::write(ptr.add(i), vec[i]);
-                        }
+                        std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                     }
                 }
                 let strides = shape_to_strides(&shape);
@@ -254,16 +250,15 @@ macro_rules! impl_type_num {
                 let mut ptr = vec.as_mut_ptr();
                 let length = repeate_generic!(mul, $($generic), *);
                 let layout;
-                if (ptr as usize) % 32 == 0 {
+                if (ptr as usize) % 8 == 0 {
                     let _ = ManuallyDrop::new(vec);
-                    layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 32).unwrap();
+                    layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
+                    unsafe { CACHE.insert_ptr(ptr as *mut u8) };
                 } else {
-                    layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 32).unwrap();
+                    layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
                     ptr = unsafe { CACHE.allocate(layout) } as *mut $ct;
                     unsafe {
-                        for i in 0..vec.len() {
-                            std::ptr::write(ptr.add(i), vec[i]);
-                        }
+                        std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                     }
                 }
                 let strides = shape_to_strides(&shape);
@@ -363,3 +358,9 @@ impl_type_num!(ndarray_source_target, f32, N, M, O, P, Q, R, S; i, j, k, l, m, n
 impl_type_num!(ndarray_source_target, f64, N, M, O, P, Q, R, S; i, j, k, l, m, n; Complex64);
 impl_type_num!(ndarray_source_target, f32, N, M, O, P, Q, R, S, T; i, j, k, l, m, n, o; Complex32);
 impl_type_num!(ndarray_source_target, f64, N, M, O, P, Q, R, S, T; i, j, k, l, m, n, o; Complex64);
+
+impl<T> _Tensor<T, Cpu> {
+    pub fn new<A>(data: A) -> Self where A: Into<_Tensor<T>> {
+        data.into()
+    }
+}

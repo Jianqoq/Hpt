@@ -23,6 +23,7 @@ pub mod ops {
         pub mod pad;
         pub mod topk;
         pub mod shrink;
+        pub mod gather;
     }
     pub mod wgpu {
         pub mod buffer_helper;

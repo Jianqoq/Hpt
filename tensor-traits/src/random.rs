@@ -1,4 +1,5 @@
 use anyhow::Result;
+use rand_distr::uniform::SampleUniform;
 use tensor_common::shape::Shape;
 use tensor_types::into_scalar::IntoScalar;
 
@@ -65,42 +66,6 @@ pub trait Random where Self: Sized {
     /// This example creates an array of random numbers with a uniform distribution between [0, 1),
     /// similar to `a` in shape.
     fn rand_like(&self) -> Result<Self>;
-
-    /// Generates a random integer array with values in the specified range.
-    ///
-    /// # Parameters
-    /// - `low`: A value of type `Self::Meta` representing the lower bound of the range (inclusive).
-    /// - `high`: A value of type `Self::Meta` representing the upper bound of the range (exclusive).
-    /// - `shape`: The shape of the output array, which can be converted from `S` into `Shape`.
-    ///
-    /// # Returns
-    /// `Result<Tensor<T>>`: A result containing the generated array or an error.
-    ///
-    /// # Example
-    /// ```
-    /// let integer_array = Tensor::<i32>::randint(0, 10, [1000])?;
-    /// ```
-    /// This example creates a 1000-element array of random integers in the range [0, 10).
-    fn randint<S: Into<Shape>>(low: Self::Meta, high: Self::Meta, shape: S) -> Result<Self>;
-
-    /// Generates a random integer array with values in the specified range,
-    /// with the same shape as the calling instance.
-    ///
-    /// # Parameters
-    /// - `low`: A value of type `Self::Meta` representing the lower bound of the range (inclusive).
-    /// - `high`: A value of type `Self::Meta` representing the upper bound of the range (exclusive).
-    ///
-    /// # Returns
-    /// `Result<Tensor<T>>`: A result containing the generated array or an error.
-    ///
-    /// # Example
-    /// ```
-    /// let a = Tensor::<i32>::randn([1000])?;
-    /// let integer_array_like = a.randint_like(0, 10)?;
-    /// ```
-    /// This example creates an array of random integers in the range [0, 10),
-    /// similar to `a` in shape.
-    fn randint_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self>;
 
     /// Generates a random number array following the Beta distribution.
     ///
@@ -547,5 +512,49 @@ pub trait Random where Self: Sized {
     /// similar to `a` in shape, ranging from 0 to 10 with a mode (peak) at 5.
     fn triangular_like(&self, low: Self::Meta, high: Self::Meta, mode: Self::Meta) -> Result<Self>;
 
-    fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self> where Self::Meta: IntoScalar<f64>, bool: IntoScalar<Self::Meta>;
+    fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self>
+        where Self::Meta: IntoScalar<f64>, bool: IntoScalar<Self::Meta>;
+}
+
+pub trait RandomInt where Self: Sized {
+    /// Associated type for meta-information or parameters relevant to distributions.
+    type Meta;
+
+    /// Generates a random integer array with values in the specified range.
+    ///
+    /// # Parameters
+    /// - `low`: A value of type `Self::Meta` representing the lower bound of the range (inclusive).
+    /// - `high`: A value of type `Self::Meta` representing the upper bound of the range (exclusive).
+    /// - `shape`: The shape of the output array, which can be converted from `S` into `Shape`.
+    ///
+    /// # Returns
+    /// `Result<Tensor<T>>`: A result containing the generated array or an error.
+    ///
+    /// # Example
+    /// ```
+    /// let integer_array = Tensor::<i32>::randint(0, 10, [1000])?;
+    /// ```
+    /// This example creates a 1000-element array of random integers in the range [0, 10).
+    fn randint<S: Into<Shape>>(low: Self::Meta, high: Self::Meta, shape: S) -> Result<Self>
+        where Self::Meta: SampleUniform, <Self::Meta as SampleUniform>::Sampler: Sync;
+
+    /// Generates a random integer array with values in the specified range,
+    /// with the same shape as the calling instance.
+    ///
+    /// # Parameters
+    /// - `low`: A value of type `Self::Meta` representing the lower bound of the range (inclusive).
+    /// - `high`: A value of type `Self::Meta` representing the upper bound of the range (exclusive).
+    ///
+    /// # Returns
+    /// `Result<Tensor<T>>`: A result containing the generated array or an error.
+    ///
+    /// # Example
+    /// ```
+    /// let a = Tensor::<i32>::randn([1000])?;
+    /// let integer_array_like = a.randint_like(0, 10)?;
+    /// ```
+    /// This example creates an array of random integers in the range [0, 10),
+    /// similar to `a` in shape.
+    fn randint_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self>
+        where Self::Meta: SampleUniform, <Self::Meta as SampleUniform>::Sampler: Sync;
 }

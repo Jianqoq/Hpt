@@ -12,7 +12,11 @@ use rand_distr::{
 };
 use rayon::iter::{ IntoParallelIterator, ParallelIterator };
 use tensor_common::shape::Shape;
-use tensor_traits::{ random::Random, tensor::{ CommonBounds, TensorCreator, TensorInfo } };
+use tensor_traits::{
+    random::Random,
+    tensor::{ CommonBounds, TensorCreator, TensorInfo },
+    RandomInt,
+};
 use anyhow::Result;
 use tensor_types::into_scalar::IntoScalar;
 use crate::{ backend::Cpu, tensor_base::_Tensor };
@@ -67,26 +71,6 @@ impl<T> Random
 
     fn rand_like(&self) -> Result<Self> {
         _Tensor::randn(self.shape().clone())
-    }
-
-    fn randint<S: Into<Shape>>(low: Self::Meta, high: Self::Meta, shape: S) -> Result<Self> {
-        let res_shape = Shape::from(shape.into());
-        let ret = _Tensor::<T, Cpu>::empty(res_shape)?;
-        let normal: Uniform<T> = Uniform::new(low, high);
-        ret.as_raw_mut()
-            .into_par_iter()
-            .for_each_init(
-                || rand::thread_rng(),
-                |rng, x| {
-                    let rand_num = normal.sample(rng);
-                    *x = rand_num;
-                }
-            );
-        Ok(ret)
-    }
-
-    fn randint_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self> {
-        _Tensor::randint(low, high, self.shape().clone())
     }
 
     fn beta<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self> {
@@ -347,5 +331,32 @@ impl<T> Random
                 }
             );
         Ok(ret)
+    }
+}
+
+impl<T> RandomInt for _Tensor<T, Cpu> where T: CommonBounds + SampleUniform {
+    type Meta = T;
+    fn randint<S: Into<Shape>>(low: Self::Meta, high: Self::Meta, shape: S) -> Result<Self>
+        where <T as SampleUniform>::Sampler: Sync
+    {
+        let res_shape = Shape::from(shape.into());
+        let ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let normal: Uniform<T> = Uniform::new(low, high);
+        ret.as_raw_mut()
+            .into_par_iter()
+            .for_each_init(
+                || rand::thread_rng(),
+                |rng, x| {
+                    let rand_num = normal.sample(rng);
+                    *x = rand_num;
+                }
+            );
+        Ok(ret)
+    }
+
+    fn randint_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self>
+        where <T as SampleUniform>::Sampler: Sync
+    {
+        _Tensor::<T, Cpu>::randint(low, high, self.shape().clone())
     }
 }

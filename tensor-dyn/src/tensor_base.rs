@@ -22,12 +22,18 @@ use tensor_common::{
 use tensor_display::display;
 use tensor_macros::match_selection;
 use tensor_common::slice;
-use tensor_iterator::{ par_strided::ParStrided, par_strided_mut::ParStridedMut, strided::Strided, strided_mut::StridedMut };
+use tensor_iterator::{
+    par_strided::ParStrided,
+    par_strided_mut::ParStridedMut,
+    strided::Strided,
+    strided_mut::StridedMut,
+};
 use tensor_traits::{
     random::Random,
     shape_manipulate::ShapeManipulate,
     tensor::{ CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike },
     BaseTensor,
+    RandomInt,
 };
 use tensor_common::shape_utils::try_pad_shape;
 use anyhow::Result;
@@ -1295,14 +1301,6 @@ impl<T> Random
         Ok(_Tensor::<T>::rand_like(self)?.into())
     }
 
-    fn randint<S: Into<Shape>>(low: Self::Meta, high: Self::Meta, shape: S) -> Result<Self> {
-        Ok(_Tensor::<T>::randint(low, high, shape)?.into())
-    }
-
-    fn randint_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self> {
-        Ok(_Tensor::<T>::randint_like(self, low, high)?.into())
-    }
-
     fn beta<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self> {
         Ok(_Tensor::<T>::beta(a, b, shape)?.into())
     }
@@ -1412,6 +1410,22 @@ impl<T> Random
         where T: IntoScalar<f64>, bool: IntoScalar<T>
     {
         Ok(_Tensor::<T>::bernoulli(shape, p)?.into())
+    }
+}
+
+impl<T> RandomInt for Tensor<T> where T: CommonBounds + SampleUniform {
+    type Meta = T;
+
+    fn randint<S: Into<Shape>>(low: Self::Meta, high: Self::Meta, shape: S) -> Result<Self>
+        where <T as SampleUniform>::Sampler: Sync
+    {
+        Ok(_Tensor::<T>::randint(low, high, shape)?.into())
+    }
+
+    fn randint_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self>
+        where <T as SampleUniform>::Sampler: Sync
+    {
+        Ok(_Tensor::<T>::randint_like(self, low, high)?.into())
     }
 }
 
