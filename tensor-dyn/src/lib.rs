@@ -25,6 +25,7 @@ pub mod ops {
         pub mod shrink;
         pub mod gather_elements;
         pub mod gather;
+        pub mod conv;
     }
     pub mod wgpu {
         pub mod buffer_helper;
