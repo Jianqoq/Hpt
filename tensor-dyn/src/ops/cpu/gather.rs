@@ -1,140 +1,61 @@
 use std::sync::{ Arc, Barrier };
 
-use tensor_common::shape_utils::mt_intervals;
+use tensor_common::{ shape_utils::mt_intervals, slice::Slice };
+use tensor_iterator::iterator_traits::StridedIterator;
 use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
 
-use crate::{ backend::Cpu, tensor_base::_Tensor, THREAD_POOL };
+use crate::{ backend::Cpu, slice::SliceOps, tensor_base::_Tensor, THREAD_POOL };
 
 impl<T> _Tensor<T, Cpu> where T: CommonBounds {
-    pub fn gather_elements(&self, indices: &_Tensor<i64, Cpu>, axis: i64) -> anyhow::Result<Self> {
+    pub fn gather(&self, indices: &_Tensor<i64, Cpu>, axis: i64) -> anyhow::Result<Self> {
+        assert_eq!(indices.ndim(), 1);
         let axis = (if axis < 0 { (self.ndim() as i64) + axis } else { axis }) as usize;
-        let ret = _Tensor::<T, Cpu>::empty(indices.shape())?;
-        let inner_loop_size = indices.shape()[indices.ndim() - 1] as usize;
-        let outer_loop_size = indices.size() / inner_loop_size;
+        let res_shape = self
+            .shape()
+            .iter()
+            .enumerate()
+            .map(|(i, &x)| if i == axis { indices.size() as i64 } else { x })
+            .collect::<Vec<_>>();
+        let ret = _Tensor::<T, Cpu>::empty(res_shape)?;
 
         THREAD_POOL.with_borrow_mut(|pool| {
-            let num_threads = if outer_loop_size < pool.max_count() {
-                outer_loop_size
+            let num_threads = if indices.size() < pool.max_count() {
+                indices.size()
             } else {
                 pool.max_count()
             };
-            let intervals = mt_intervals(outer_loop_size, num_threads);
-            let mut res_ptrs = Vec::with_capacity(num_threads);
-            let mut idx_ptrs = Vec::with_capacity(num_threads);
-            let mut prgs = Vec::with_capacity(num_threads);
-            for (start, _) in intervals.iter() {
-                let mut res_ptr = ret.ptr().clone();
-                let mut idx_ptr = indices.ptr().clone();
-                let mut res_prg = vec![0; ret.ndim()];
-                let mut amount = *start * (*ret.shape().last().unwrap() as usize);
-
-                let mut index = 0;
-                let mut idx_index = 0;
-                for j in (0..ret.shape().len()).rev() {
-                    res_prg[j] = (amount as i64) % ret.shape()[j];
-                    amount /= ret.shape()[j] as usize;
-                    index += res_prg[j] * ret.strides()[j];
-                    idx_index += res_prg[j] * indices.strides()[j];
-                }
-                res_ptr.offset(index);
-                res_ptrs.push(res_ptr);
-                prgs.push(res_prg);
-                idx_ptr.offset(idx_index);
-                idx_ptrs.push(idx_ptr);
+            let intervals = mt_intervals(indices.size(), num_threads);
+            let mut sliced_res = Vec::with_capacity(num_threads);
+            let mut sliced_indices = Vec::with_capacity(num_threads);
+            for (start, end) in intervals.iter() {
+                let mut slices = vec![Slice::Full; ret.ndim()];
+                slices[axis] = Slice::Range((*start as i64, *end as i64));
+                let sliced = ret.slice(&slices).expect("slice failed");
+                sliced_res.push(sliced);
+                let sliced_indice = indices
+                    .slice(&[Slice::Range((*start as i64, *end as i64))])
+                    .expect("slice failed");
+                sliced_indices.push(sliced_indice);
             }
-            let idx_last_stride = indices.strides()[indices.ndim() - 1];
-            let ndim = self.ndim() as i64;
-
             let barrier = Arc::new(Barrier::new(num_threads + 1));
-            for ((((start, end), mut res_ptr), mut idx_ptr), mut prg) in intervals
-                .into_iter()
-                .zip(res_ptrs.into_iter())
-                .zip(idx_ptrs.into_iter())
-                .zip(prgs.into_iter()) {
-                let shape = ret.shape().clone();
-                let ret_strides = ret.strides().clone();
-                let indice_strides = indices.strides().clone();
-                let inp_ptr = self.ptr().clone();
-                let inp_strides = self.strides().clone();
-                let inp_idx_stride = self.strides()[axis];
-                let inp_last_stride = self.strides()[(ndim as usize) - 1];
+            for (res, indices) in sliced_res.into_iter().zip(sliced_indices.into_iter()) {
+                let inp = self.clone();
                 let barrier_clone = barrier.clone();
                 pool.execute(move || {
-                    if axis == (ndim as usize) - 1 {
-                        let index_cal = |prg: &[i64]| {
-                            let mut acc = 0;
-                            for (i, &x) in prg
-                                .iter()
-                                .enumerate()
-                                .take((ndim as usize) - 1) {
-                                acc += x * inp_strides[i];
-                            }
-                            acc
-                        };
-                        for _ in start..end {
-                            for i in 0..inner_loop_size as i64 {
-                                let idx = idx_ptr[i * idx_last_stride];
-                                let inp_index = index_cal(&prg);
-                                res_ptr[i] = inp_ptr[inp_index + idx * inp_idx_stride];
-                            }
-                            for j in (0..ndim - 1).rev() {
-                                let j = j as usize;
-                                if prg[j] < shape[j] - 1 {
-                                    prg[j] += 1;
-                                    res_ptr.offset(ret_strides[j]);
-                                    idx_ptr.offset(indice_strides[j]);
-                                    break;
-                                } else {
-                                    prg[j] = 0;
-                                    res_ptr.offset(-ret_strides[j] * (shape[j] - 1));
-                                    idx_ptr.offset(-indice_strides[j] * (shape[j] - 1));
-                                }
-                            }
-                        }
-                    } else {
-                        let index_cal = |prg: &mut [i64]| {
-                            let tmp = prg[axis];
-                            let mut acc = 0;
-                            for (i, &x) in prg
-                                .iter()
-                                .enumerate()
-                                .take((ndim as usize) - 1) {
-                                if i == axis {
-                                    continue;
-                                }
-                                acc += x * inp_strides[i];
-                            }
-                            prg[axis] = tmp;
-                            acc
-                        };
-                        let mut offset = index_cal(&mut prg);
-                        for _ in start..end {
-                            for i in 0..inner_loop_size as i64 {
-                                let idx = idx_ptr[i * idx_last_stride];
-                                res_ptr[i] = inp_ptr[
-                                    offset + idx * inp_idx_stride + i * inp_last_stride
-                                ];
-                            }
-                            for j in (0..ndim - 1).rev() {
-                                let j = j as usize;
-                                if prg[j] < shape[j] - 1 {
-                                    prg[j] += 1;
-                                    res_ptr.offset(ret_strides[j]);
-                                    idx_ptr.offset(indice_strides[j]);
-                                    if j != axis {
-                                        offset += inp_strides[j];
-                                    }
-                                    break;
-                                } else {
-                                    prg[j] = 0;
-                                    res_ptr.offset(-ret_strides[j] * (shape[j] - 1));
-                                    idx_ptr.offset(-indice_strides[j] * (shape[j] - 1));
-                                    if j != axis {
-                                        offset -= inp_strides[j] * (shape[j] - 1);
-                                    }
-                                }
-                            }
-                        }
+                    let mut slices = vec![Slice::Full; inp.ndim()];
+                    let mut res_slices = vec![Slice::Full; res.ndim()];
+                    let raw = indices.as_raw();
+                    for (i, idx) in raw.into_iter().enumerate() {
+                        slices[axis] = Slice::Range((*idx, *idx + 1));
+                        let slice = inp.slice(&slices).expect("slice failed");
+                        res_slices[axis] = Slice::Range((i as i64, (i as i64) + 1));
+                        let res_slice = res.slice(&res_slices).expect("slice failed");
+                        res_slice
+                            .iter_mut()
+                            .zip(slice.iter())
+                            .for_each(|(a, b)| {
+                                *a = b;
+                            });
                     }
                     barrier_clone.wait();
                 });
