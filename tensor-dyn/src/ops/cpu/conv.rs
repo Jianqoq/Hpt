@@ -90,14 +90,18 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds + NormalOut<Output = T> {
         let kernel_ndim = _kernel_shape.len();
         let kernal_shape = Arc::new(_kernel_shape);
         THREAD_POOL.with_borrow_mut(|pool| {
-            let num_threads = if (outer_loop_size as usize) < pool.max_count() { 1 } else { 1 };
+            let num_threads = if (outer_loop_size as usize) < pool.max_count() {
+                outer_loop_size as usize
+            } else {
+                pool.max_count()
+            };
             let intervals = mt_intervals(outer_loop_size as usize, num_threads);
             let mut prgs = vec![];
             let mut res_ptrs = vec![];
             let mut ptrs = vec![];
             let mut kernel_ptrs = vec![];
             for (start, _) in intervals.iter() {
-                let mut amount = *start;
+                let mut amount = *start * inner_loop_size as usize;
                 let mut current_prg: Vec<i64> = vec![0; loop_shape.len()];
                 let mut res_offset = 0;
                 let mut inp_offset = 0;
@@ -112,20 +116,19 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds + NormalOut<Output = T> {
                     {
                         inp_offset += current_prg[j] * self.strides()[0];
                         res_offset += current_prg[j] * ret.strides()[0];
-                        kernel_offset += current_prg[j] * kernel.strides()[0];
                     } else if
                         j == 1
                         /* _group idx */
                     {
                         res_offset += current_prg[j] * kernel_per_group * ret.strides()[1];
                         inp_offset += current_prg[j] * in_channels_per_group * self.strides()[1];
-                        kernel_offset += current_prg[j] * kernel_per_group * kernel.strides()[1];
+                        kernel_offset += current_prg[j] * kernel_per_group * kernel.strides()[0];
                     } else if j == 2 {
                         res_offset += current_prg[j] * ret.strides()[1];
-                        kernel_offset += current_prg[j] * kernel.strides()[1];
+                        kernel_offset += current_prg[j] * kernel.strides()[0];
                     } else if j == 3 {
                         inp_offset += current_prg[j] * self.strides()[1];
-                        kernel_offset += current_prg[j] * kernel.strides()[2];
+                        kernel_offset += current_prg[j] * kernel.strides()[1];
                     } else {
                         res_offset += current_prg[j] * ret.strides()[idx - 2];
                         inp_offset +=
@@ -151,7 +154,6 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds + NormalOut<Output = T> {
                 .zip(ptrs.into_iter())
                 .zip(res_ptrs.into_iter())
                 .zip(kernel_ptrs.into_iter()) {
-                println!("{}", res_ptr.ptr as usize);
                 let barrier_clone = barrier.clone();
                 let mut reduce_prg = vec![0; kernel_ndim];
                 let inp_strides = self.strides().clone();
