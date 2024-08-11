@@ -52,7 +52,7 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds + NormalOut<Output = T> {
         };
         let _groups = group.unwrap_or(1);
         let mut outer_dims = vec![];
-        outer_dims.push(self.shape()[1]);
+        outer_dims.push(self.shape()[0]);
         outer_dims.push(kernel.shape()[0]);
         let mut out_dims = vec![];
         self.shape()
@@ -151,6 +151,7 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds + NormalOut<Output = T> {
                 .zip(ptrs.into_iter())
                 .zip(res_ptrs.into_iter())
                 .zip(kernel_ptrs.into_iter()) {
+                println!("{}", res_ptr.ptr as usize);
                 let barrier_clone = barrier.clone();
                 let mut reduce_prg = vec![0; kernel_ndim];
                 let inp_strides = self.strides().clone();
@@ -168,6 +169,7 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds + NormalOut<Output = T> {
                 pool.execute(move || {
                     let inp_reduce_strides = &inp_strides[2..];
                     let _kernel_strides = &kernel_strides[2..];
+                    let left_kernel_strides = &kernel_strides[..3];
                     for _ in start..end {
                         for x in 0..inner_loop_size {
                             let mut sum = T::ZERO;
@@ -199,6 +201,11 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds + NormalOut<Output = T> {
                                 }
                             }
                             let res_val = res_ptr[x * ret_last_stride];
+                            println!(
+                                "{}",
+                                (res_ptr.ptr as usize) + (x as usize) * (ret_last_stride as usize)
+                            );
+                            println!("{}", sum);
                             res_ptr.modify(x * ret_last_stride, res_val._add(sum));
                         }
                         for k in (0..loop_shape.len() - 1).rev() {
@@ -210,20 +217,19 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds + NormalOut<Output = T> {
                                 {
                                     inp_ptr.offset(inp_strides[0]);
                                     res_ptr.offset(ret_strides[0]);
-                                    kernel_ptr.offset(_kernel_strides[0]);
                                 } else if
                                     k == 1
                                     /* _group idx */
                                 {
                                     res_ptr.offset(kernel_per_group * ret_strides[1]);
                                     inp_ptr.offset(in_channels_per_group * inp_strides[1]);
-                                    kernel_ptr.offset(kernel_per_group * _kernel_strides[1]);
+                                    kernel_ptr.offset(kernel_per_group * left_kernel_strides[0]);
                                 } else if k == 2 {
                                     res_ptr.offset(ret_strides[1]);
-                                    kernel_ptr.offset(_kernel_strides[1]);
+                                    kernel_ptr.offset(left_kernel_strides[0]);
                                 } else if k == 3 {
                                     inp_ptr.offset(inp_strides[1]);
-                                    kernel_ptr.offset(_kernel_strides[2]);
+                                    kernel_ptr.offset(left_kernel_strides[1]);
                                 } else {
                                     res_ptr.offset(ret_strides[k - 2]);
                                     inp_ptr.offset(_steps[k - 4] * inp_strides[k - 4 + 2]);
@@ -231,29 +237,29 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds + NormalOut<Output = T> {
                                 break;
                             } else {
                                 prg[k] = 0;
+                                let dim = loop_shape[k] - 1;
                                 if
                                     k == 0
                                     /* batch */
                                 {
-                                    inp_ptr.offset(-inp_strides[0] * (loop_shape[k] - 1));
-                                    res_ptr.offset(-ret_strides[0] * (loop_shape[k] - 1));
+                                    inp_ptr.offset(-inp_strides[0] * dim);
+                                    res_ptr.offset(-ret_strides[0] * dim);
                                 } else if
                                     k == 1
                                     /* _group idx */
                                 {
-                                    res_ptr.offset(-kernel_per_group * ret_strides[1]);
-                                    inp_ptr.offset(-in_channels_per_group * inp_strides[1]);
+                                    res_ptr.offset(-kernel_per_group * ret_strides[1] * dim);
+                                    inp_ptr.offset(-in_channels_per_group * inp_strides[1] * dim);
+                                    kernel_ptr.offset(-kernel_per_group * left_kernel_strides[0] * dim);
                                 } else if k == 2 {
-                                    res_ptr.offset(-ret_strides[1] * (loop_shape[k] - 1));
+                                    res_ptr.offset(-ret_strides[1] * dim);
+                                    kernel_ptr.offset(-left_kernel_strides[0] * dim);
                                 } else if k == 3 {
-                                    inp_ptr.offset(-inp_strides[1] * (loop_shape[k] - 1));
+                                    inp_ptr.offset(-inp_strides[1] * dim);
+                                    kernel_ptr.offset(-left_kernel_strides[1] * dim);
                                 } else {
-                                    res_ptr.offset(-ret_strides[k - 2] * (loop_shape[k] - 1));
-                                    inp_ptr.offset(
-                                        -_steps[k - 4] *
-                                            inp_strides[k - 4 + 2] *
-                                            (loop_shape[k] - 1)
-                                    );
+                                    res_ptr.offset(-ret_strides[k - 2] * dim);
+                                    inp_ptr.offset(-_steps[k - 4] * inp_strides[k - 4 + 2] * dim);
                                 }
                             }
                         }
