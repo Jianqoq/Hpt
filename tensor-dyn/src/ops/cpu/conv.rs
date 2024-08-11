@@ -201,11 +201,6 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds + NormalOut<Output = T> {
                                 }
                             }
                             let res_val = res_ptr[x * ret_last_stride];
-                            println!(
-                                "{}",
-                                (res_ptr.ptr as usize) + (x as usize) * (ret_last_stride as usize)
-                            );
-                            println!("{}", sum);
                             res_ptr.modify(x * ret_last_stride, res_val._add(sum));
                         }
                         for k in (0..loop_shape.len() - 1).rev() {
@@ -250,7 +245,9 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds + NormalOut<Output = T> {
                                 {
                                     res_ptr.offset(-kernel_per_group * ret_strides[1] * dim);
                                     inp_ptr.offset(-in_channels_per_group * inp_strides[1] * dim);
-                                    kernel_ptr.offset(-kernel_per_group * left_kernel_strides[0] * dim);
+                                    kernel_ptr.offset(
+                                        -kernel_per_group * left_kernel_strides[0] * dim
+                                    );
                                 } else if k == 2 {
                                     res_ptr.offset(-ret_strides[1] * dim);
                                     kernel_ptr.offset(-left_kernel_strides[0] * dim);
