@@ -24,7 +24,6 @@ impl<T> _Tensor<T, Cpu>
         steps: Option<&[i64]>,
         pads: Option<&[(i64, i64)]>,
         dilation: Option<&[i64]>,
-        out_pads: Option<&[(i64, i64)]>,
         group: Option<i64>
     ) -> anyhow::Result<Self> {
         let _kernel_shape = if let Some(_kernel_shape) = kernel_shape {
@@ -43,7 +42,6 @@ impl<T> _Tensor<T, Cpu>
             }
         };
         let _pads = process_pads(pads);
-        let _out_pads = process_pads(out_pads);
         let _steps = if let Some(_steps) = steps {
             _steps.to_vec()
         } else {
@@ -76,8 +74,7 @@ impl<T> _Tensor<T, Cpu>
                 let s = _steps[idx];
                 let k = *y;
                 let o = (i + p_begin + p_end - d * (k - 1) - 1) / s + 1;
-                let (p_begin, p_end) = _out_pads[idx];
-                out_dims.push(o + p_begin + p_end);
+                out_dims.push(o);
             });
         let kernel_per_group = kernel.shape()[0] / _groups;
         let in_channels_per_group = self.shape()[1] / _groups;
