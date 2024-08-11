@@ -100,41 +100,51 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds + NormalOut<Output = T> {
             let mut res_ptrs = vec![];
             let mut ptrs = vec![];
             let mut kernel_ptrs = vec![];
+            let mut inp_prg_mask = vec![0; loop_shape.len()];
+            let mut kernel_prg_mask = vec![0; loop_shape.len()];
+            let mut res_prg_mask = vec![0; loop_shape.len()];
+            for (idx, j) in (0..loop_shape.len()).enumerate().rev() {
+                if
+                    j == 0
+                    /* batch */
+                {
+                    inp_prg_mask[j] = self.strides()[0];
+                    res_prg_mask[j] = ret.strides()[0];
+                } else if
+                    j == 1
+                    /* _group idx */
+                {
+                    res_prg_mask[j] = kernel_per_group * ret.strides()[1];
+                    inp_prg_mask[j] = in_channels_per_group * self.strides()[1];
+                    kernel_prg_mask[j] = kernel_per_group * kernel.strides()[0];
+                } else if j == 2 {
+                    res_prg_mask[j] = ret.strides()[1];
+                    kernel_prg_mask[j] = kernel.strides()[0];
+                } else if j == 3 {
+                    inp_prg_mask[j] = self.strides()[1];
+                    kernel_prg_mask[j] = kernel.strides()[1];
+                } else {
+                    res_prg_mask[j] = ret.strides()[idx - 2];
+                    inp_prg_mask[j] = _steps[idx - 4] * self.strides()[idx - 4 + 2];
+                }
+            }
+            let inp_prg_mask = Arc::new(inp_prg_mask);
+            let kernel_prg_mask = Arc::new(kernel_prg_mask);
+            let res_prg_mask = Arc::new(res_prg_mask);
+
             for (start, _) in intervals.iter() {
-                let mut amount = *start * inner_loop_size as usize;
+                let mut amount = *start * (inner_loop_size as usize);
                 let mut current_prg: Vec<i64> = vec![0; loop_shape.len()];
                 let mut res_offset = 0;
                 let mut inp_offset = 0;
                 let mut kernel_offset = 0;
                 // inp[batch * inp.strides[0] + g * in_channel * inp.strides[1] + c * inp.strides[1] + ...]
-                for (idx, j) in (0..loop_shape.len()).enumerate().rev() {
+                for j in (0..loop_shape.len()).rev() {
                     current_prg[j] = (amount as i64) % loop_shape[j];
                     amount /= loop_shape[j] as usize;
-                    if
-                        j == 0
-                        /* batch */
-                    {
-                        inp_offset += current_prg[j] * self.strides()[0];
-                        res_offset += current_prg[j] * ret.strides()[0];
-                    } else if
-                        j == 1
-                        /* _group idx */
-                    {
-                        res_offset += current_prg[j] * kernel_per_group * ret.strides()[1];
-                        inp_offset += current_prg[j] * in_channels_per_group * self.strides()[1];
-                        kernel_offset += current_prg[j] * kernel_per_group * kernel.strides()[0];
-                    } else if j == 2 {
-                        res_offset += current_prg[j] * ret.strides()[1];
-                        kernel_offset += current_prg[j] * kernel.strides()[0];
-                    } else if j == 3 {
-                        inp_offset += current_prg[j] * self.strides()[1];
-                        kernel_offset += current_prg[j] * kernel.strides()[1];
-                    } else {
-                        res_offset += current_prg[j] * ret.strides()[idx - 2];
-                        inp_offset +=
-                            (current_prg[j] * _steps[idx - 4] - _pads[idx - 4].0) *
-                            self.strides()[idx - 4 + 2];
-                    }
+                    inp_offset += current_prg[j] * inp_prg_mask[j];
+                    res_offset += current_prg[j] * res_prg_mask[j];
+                    kernel_offset += current_prg[j] * kernel_prg_mask[j];
                 }
                 let mut inp_ptr = self.ptr();
                 let mut res_ptr = ret.ptr();
@@ -161,17 +171,18 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds + NormalOut<Output = T> {
                 let dilations = _dilation.clone();
                 let inp_last_strides = *inp_strides.last().unwrap();
                 let last_dilation = *dilations.last().unwrap();
-                let ret_strides = ret.strides().clone();
                 let kernel_last_strides = *kernel.strides().last().unwrap();
                 let ret_last_stride = *ret.strides().last().unwrap();
                 let loop_shape = loop_shape.clone();
                 let kernel_strides = kernel.strides().clone();
                 let _steps = _steps.to_vec();
                 let last_steps = *_steps.last().unwrap();
+                let inp_prg_mask = inp_prg_mask.clone();
+                let kernel_prg_mask = kernel_prg_mask.clone();
+                let res_prg_mask = res_prg_mask.clone();
                 pool.execute(move || {
                     let inp_reduce_strides = &inp_strides[2..];
                     let _kernel_strides = &kernel_strides[2..];
-                    let left_kernel_strides = &kernel_strides[..3];
                     for _ in start..end {
                         for x in 0..inner_loop_size {
                             let mut sum = T::ZERO;
@@ -208,58 +219,15 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds + NormalOut<Output = T> {
                         for k in (0..loop_shape.len() - 1).rev() {
                             if prg[k] < loop_shape[k] - 1 {
                                 prg[k] += 1;
-                                if
-                                    k == 0
-                                    /* batch */
-                                {
-                                    inp_ptr.offset(inp_strides[0]);
-                                    res_ptr.offset(ret_strides[0]);
-                                } else if
-                                    k == 1
-                                    /* _group idx */
-                                {
-                                    res_ptr.offset(kernel_per_group * ret_strides[1]);
-                                    inp_ptr.offset(in_channels_per_group * inp_strides[1]);
-                                    kernel_ptr.offset(kernel_per_group * left_kernel_strides[0]);
-                                } else if k == 2 {
-                                    res_ptr.offset(ret_strides[1]);
-                                    kernel_ptr.offset(left_kernel_strides[0]);
-                                } else if k == 3 {
-                                    inp_ptr.offset(inp_strides[1]);
-                                    kernel_ptr.offset(left_kernel_strides[1]);
-                                } else {
-                                    res_ptr.offset(ret_strides[k - 2]);
-                                    inp_ptr.offset(_steps[k - 4] * inp_strides[k - 4 + 2]);
-                                }
+                                inp_ptr.offset(inp_prg_mask[k]);
+                                res_ptr.offset(res_prg_mask[k]);
+                                kernel_ptr.offset(kernel_prg_mask[k]);
                                 break;
                             } else {
                                 prg[k] = 0;
-                                let dim = loop_shape[k] - 1;
-                                if
-                                    k == 0
-                                    /* batch */
-                                {
-                                    inp_ptr.offset(-inp_strides[0] * dim);
-                                    res_ptr.offset(-ret_strides[0] * dim);
-                                } else if
-                                    k == 1
-                                    /* _group idx */
-                                {
-                                    res_ptr.offset(-kernel_per_group * ret_strides[1] * dim);
-                                    inp_ptr.offset(-in_channels_per_group * inp_strides[1] * dim);
-                                    kernel_ptr.offset(
-                                        -kernel_per_group * left_kernel_strides[0] * dim
-                                    );
-                                } else if k == 2 {
-                                    res_ptr.offset(-ret_strides[1] * dim);
-                                    kernel_ptr.offset(-left_kernel_strides[0] * dim);
-                                } else if k == 3 {
-                                    inp_ptr.offset(-inp_strides[1] * dim);
-                                    kernel_ptr.offset(-left_kernel_strides[1] * dim);
-                                } else {
-                                    res_ptr.offset(-ret_strides[k - 2] * dim);
-                                    inp_ptr.offset(-_steps[k - 4] * inp_strides[k - 4 + 2] * dim);
-                                }
+                                inp_ptr.offset(-inp_prg_mask[k] * (loop_shape[k] - 1));
+                                res_ptr.offset(-res_prg_mask[k] * (loop_shape[k] - 1));
+                                kernel_ptr.offset(-kernel_prg_mask[k] * (loop_shape[k] - 1));
                             }
                         }
                     }
