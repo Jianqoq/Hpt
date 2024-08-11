@@ -21,9 +21,10 @@ async fn main() -> anyhow::Result<()> {
             ],
         ],
     ]);
+    let bias = _Tensor::<f32>::new([1.0, 2.0]);
     let a = _Tensor::<f32>::arange(0, 100)?.reshape([2, 2, 5, 5])?;
     let now = std::time::Instant::now();
-    let res = a.conv(&kernel, None, None, Some(&[2, 2]), Some(&[(1, 1), (1, 1)]), Some(&[2, 2]), None, Some(2))?;
+    let res = a.conv(&kernel, Some(&bias), None, Some(&[2, 2]), Some(&[(2, 2), (2, 2)]), Some(&[2, 2]), None, Some(2))?;
     println!("{:?}", now.elapsed());
     println!("{}", res);
     Ok(())
