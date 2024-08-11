@@ -6,9 +6,7 @@ use num::traits::MulAdd;
 use tensor_common::{ pointer::Pointer, shape_utils::mt_intervals };
 use tensor_traits::{ CommonBounds, ShapeManipulate, TensorCreator, TensorInfo };
 use tensor_types::type_promote::NormalOut;
-use crate::slice::SliceOps;
 use rayon::iter::ParallelIterator;
-use tensor_common::slice::Slice;
 
 impl<T> _Tensor<T, Cpu>
     where
