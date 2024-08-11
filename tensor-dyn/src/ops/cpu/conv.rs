@@ -3,7 +3,7 @@ use crate::tensor_base::_Tensor;
 use crate::THREAD_POOL;
 use std::{ ops::Mul, sync::{ Arc, Barrier } };
 use num::traits::MulAdd;
-use tensor_common::shape_utils::mt_intervals;
+use tensor_common::{ pointer::Pointer, shape_utils::mt_intervals };
 use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
 use tensor_types::type_promote::NormalOut;
 
@@ -177,49 +177,36 @@ impl<T> _Tensor<T, Cpu>
                 let inp_strides = self.strides().clone();
                 let _kernel_shape = kernal_shape.clone();
                 let dilations = _dilation.clone();
-                let inp_last_strides = *inp_strides.last().unwrap();
-                let last_dilation = *dilations.last().unwrap();
                 let kernel_last_strides = *kernel.strides().last().unwrap();
                 let ret_last_stride = *ret.strides().last().unwrap();
                 let loop_shape = loop_shape.clone();
                 let kernel_strides = kernel.strides().clone();
-                let _steps = _steps.to_vec();
                 let last_steps = *_steps.last().unwrap();
                 let inp_prg_mask = inp_prg_mask.clone();
                 let kernel_prg_mask = kernel_prg_mask.clone();
                 let res_prg_mask = res_prg_mask.clone();
+                let cache = *inp_strides.last().unwrap() * *dilations.last().unwrap();
                 pool.execute(move || {
                     let inp_reduce_strides = &inp_strides[2..];
                     let _kernel_strides = &kernel_strides[2..];
                     for _ in start..end {
                         for x in 0..inner_loop_size {
-                            let mut sum = T::ZERO;
                             let begin = x * last_steps;
-                            for _ in 0..kernel_outer_loop_size {
-                                for i in 0..kernel_inner_loop_size {
-                                    let val = inp_ptr[begin + i * inp_last_strides * last_dilation];
-                                    let kernel_val = kernel_ptr[i * kernel_last_strides];
-                                    sum += val._mul(kernel_val);
-                                }
-                                for j in (0..kernel_ndim - 1).rev() {
-                                    if reduce_prg[j] < _kernel_shape[j] - 1 {
-                                        reduce_prg[j] += 1;
-                                        inp_ptr.offset(dilations[j] * inp_reduce_strides[j]);
-                                        kernel_ptr.offset(_kernel_strides[j]);
-                                        break;
-                                    } else {
-                                        reduce_prg[j] = 0;
-                                        inp_ptr.offset(
-                                            -dilations[j] *
-                                                inp_reduce_strides[j] *
-                                                (_kernel_shape[j] - 1)
-                                        );
-                                        kernel_ptr.offset(
-                                            -_kernel_strides[j] * (_kernel_shape[j] - 1)
-                                        );
-                                    }
-                                }
-                            }
+                            let sum = _sum(
+                                begin as isize,
+                                kernel_outer_loop_size as isize,
+                                kernel_inner_loop_size as isize,
+                                &mut inp_ptr,
+                                &mut kernel_ptr,
+                                &_kernel_shape,
+                                &dilations,
+                                kernel_last_strides as isize,
+                                &mut reduce_prg,
+                                kernel_ndim,
+                                inp_reduce_strides,
+                                _kernel_strides,
+                                cache as isize
+                            );
                             let res_val = res_ptr[x * ret_last_stride];
                             res_ptr.modify(x * ret_last_stride, res_val._add(sum));
                         }
@@ -245,4 +232,44 @@ impl<T> _Tensor<T, Cpu>
         });
         Ok(ret)
     }
+}
+
+fn _sum<T>(
+    begin: isize,
+    outer: isize,
+    inner: isize,
+    inp_ptr: &mut Pointer<T>,
+    kernel_ptr: &mut Pointer<T>,
+    _kernel_shape: &[i64],
+    dilations: &[i64],
+    kernel_last_strides: isize,
+    reduce_prg: &mut Vec<i64>,
+    kernel_ndim: usize,
+    inp_reduce_strides: &[i64],
+    _kernel_strides: &[i64],
+    cache: isize
+) -> T
+    where T: CommonBounds + NormalOut<Output = T> + Mul<Output = T> + MulAdd<Output = T>
+{
+    let mut sum = T::ZERO;
+    for _ in 0..outer {
+        for i in 0..inner {
+            let val = inp_ptr[begin + i * cache];
+            let kernel_val = kernel_ptr[i * kernel_last_strides];
+            sum = val.mul_add(kernel_val, sum);
+        }
+        for j in (0..kernel_ndim - 1).rev() {
+            if reduce_prg[j] < _kernel_shape[j] - 1 {
+                reduce_prg[j] += 1;
+                inp_ptr.offset(dilations[j] * inp_reduce_strides[j]);
+                kernel_ptr.offset(_kernel_strides[j]);
+                break;
+            } else {
+                reduce_prg[j] = 0;
+                inp_ptr.offset(-dilations[j] * inp_reduce_strides[j] * (_kernel_shape[j] - 1));
+                kernel_ptr.offset(-_kernel_strides[j] * (_kernel_shape[j] - 1));
+            }
+        }
+    }
+    sum
 }
