@@ -79,7 +79,7 @@ impl<T> _Tensor<T, Cpu>
                 out_dims.push(o + p_begin + p_end);
             });
         let kernel_per_group = kernel.shape()[0] / _groups;
-        let in_channels_per_group = self.shape()[1];
+        let in_channels_per_group = self.shape()[1] / _groups;
         let mut loop_shape = vec![1; 4 + _kernel_shape.len()];
         loop_shape[0] = self.shape()[0];
         loop_shape[1] = _groups;
@@ -98,11 +98,7 @@ impl<T> _Tensor<T, Cpu>
         let kernel_ndim = _kernel_shape.len();
         let kernal_shape = Arc::new(_kernel_shape);
         THREAD_POOL.with_borrow_mut(|pool| {
-            let num_threads = if (outer_loop_size as usize) < pool.max_count() {
-                outer_loop_size as usize
-            } else {
-                pool.max_count()
-            };
+            let num_threads = if (outer_loop_size as usize) < pool.max_count() { 1 } else { 1 };
             let intervals = mt_intervals(outer_loop_size as usize, num_threads);
             let mut prgs = vec![];
             let mut res_ptrs = vec![];
@@ -182,10 +178,22 @@ impl<T> _Tensor<T, Cpu>
                 let loop_shape = loop_shape.clone();
                 let kernel_strides = kernel.strides().clone();
                 let last_steps = *_steps.last().unwrap();
+                let steps = _steps.clone();
                 let inp_prg_mask = inp_prg_mask.clone();
                 let kernel_prg_mask = kernel_prg_mask.clone();
                 let res_prg_mask = res_prg_mask.clone();
                 let cache = *inp_strides.last().unwrap() * *dilations.last().unwrap();
+                let pads = _pads.clone();
+                let inp_shape = self.shape().clone();
+                let mut padding_bounds_right = (0..kernel_ndim)
+                    .map(|x| inp_shape[2..][x] + pads[x].0)
+                    .collect::<Vec<_>>();
+                let mut padding_bounds_left = (0..kernel_ndim)
+                    .map(|x| pads[x].0)
+                    .collect::<Vec<_>>();
+                let pad_offset = (0..kernel_ndim)
+                    .map(|x| pads[x].0 * inp_strides[2..][x])
+                    .sum::<i64>();
                 pool.execute(move || {
                     let inp_reduce_strides = &inp_strides[2..];
                     let _kernel_strides = &kernel_strides[2..];
@@ -205,23 +213,40 @@ impl<T> _Tensor<T, Cpu>
                                 kernel_ndim,
                                 inp_reduce_strides,
                                 _kernel_strides,
-                                cache as isize
+                                cache as isize,
+                                &padding_bounds_right,
+                                &padding_bounds_left,
+                                pad_offset as isize
                             );
                             let res_val = res_ptr[x * ret_last_stride];
                             res_ptr.modify(x * ret_last_stride, res_val._add(sum));
+                            padding_bounds_right[kernel_ndim - 1] -= steps.last().unwrap();
+                            padding_bounds_left[kernel_ndim - 1] -= steps.last().unwrap();
                         }
+                        padding_bounds_right[kernel_ndim - 1] =
+                            pads[kernel_ndim - 1].0 + inp_shape[2..][kernel_ndim - 1];
+                        padding_bounds_left[kernel_ndim - 1] = pads[kernel_ndim - 1].0;
                         for k in (0..loop_shape.len() - 1).rev() {
                             if prg[k] < loop_shape[k] - 1 {
                                 prg[k] += 1;
                                 inp_ptr.offset(inp_prg_mask[k]);
                                 res_ptr.offset(res_prg_mask[k]);
                                 kernel_ptr.offset(kernel_prg_mask[k]);
+                                if k >= 4 {
+                                    padding_bounds_right[k - 4] -= steps[k - 4];
+                                    padding_bounds_left[k - 4] -= steps[k - 4];
+                                }
                                 break;
                             } else {
                                 prg[k] = 0;
                                 inp_ptr.offset(-inp_prg_mask[k] * (loop_shape[k] - 1));
                                 res_ptr.offset(-res_prg_mask[k] * (loop_shape[k] - 1));
                                 kernel_ptr.offset(-kernel_prg_mask[k] * (loop_shape[k] - 1));
+                                if k >= 4 {
+                                    padding_bounds_right[k - 4] =
+                                        pads[k - 4].0 + inp_shape[2..][k - 4];
+                                    padding_bounds_left[k - 4] = pads[k - 4].0;
+                                }
                             }
                         }
                     }
@@ -247,16 +272,29 @@ fn _sum<T>(
     kernel_ndim: usize,
     inp_reduce_strides: &[i64],
     _kernel_strides: &[i64],
-    cache: isize
+    cache: isize,
+    padding_bounds_right: &[i64],
+    padding_bounds_left: &[i64],
+    pad_offset: isize
 ) -> T
     where T: CommonBounds + NormalOut<Output = T> + Mul<Output = T> + MulAdd<Output = T>
 {
     let mut sum = T::ZERO;
     for _ in 0..outer {
         for i in 0..inner {
-            let val = inp_ptr[begin + i * cache];
-            let kernel_val = kernel_ptr[i * kernel_last_strides];
-            sum = val.mul_add(kernel_val, sum);
+            let any = (0..kernel_ndim - 1).all(|x| {
+                let a = reduce_prg[x] * dilations[x];
+                a >= padding_bounds_left[x] && a < padding_bounds_right[x]
+            });
+            if
+                any &&
+                (i as i64) * dilations[kernel_ndim - 1] >= padding_bounds_left[kernel_ndim - 1] &&
+                (i as i64) * dilations[kernel_ndim - 1] < padding_bounds_right[kernel_ndim - 1]
+            {
+                let val = inp_ptr[begin + i * cache - pad_offset];
+                let kernel_val = kernel_ptr[i * kernel_last_strides];
+                sum = val.mul_add(kernel_val, sum);
+            }
         }
         for j in (0..kernel_ndim - 1).rev() {
             if reduce_prg[j] < _kernel_shape[j] - 1 {
