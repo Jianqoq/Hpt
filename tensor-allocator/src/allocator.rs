@@ -26,6 +26,19 @@ impl Allocator {
     pub fn insert_ptr(&self, ptr: *mut u8) {
         self.allocator.lock().unwrap().insert_ptr(ptr);
     }
+
+    pub fn clear(&self) {
+        let mut allocator = self.allocator.lock().unwrap();
+        for (layout, ptrs) in allocator.cache.iter_mut() {
+            for ptr in ptrs.iter() {
+                unsafe {
+                    std::alloc::dealloc(*ptr, layout.clone());
+                }
+            }
+        }
+        allocator.cache.clear();
+        assert_eq!(allocator.allocated.len(), 0);
+    }
 }
 
 impl Allocator {

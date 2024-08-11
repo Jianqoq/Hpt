@@ -18,16 +18,16 @@ impl<T> _Tensor<T>
         i64: IntoScalar<T>
 {
     pub fn affine_grid<S: Into<Shape>>(
-        theta: &_Tensor<T>,
+        &self,
         shape: S,
         align_corners: bool
     ) -> anyhow::Result<_Tensor<T>> {
         let shape: Vec<i64> = shape.into().inner().clone();
-        let theta_strides = theta.strides();
-        let theta_shape = theta.shape();
+        let theta_strides = self.strides();
+        let theta_shape = self.shape();
         if shape.len() == 4 {
             if
-                theta.ndim() != 3 ||
+                self.ndim() != 3 ||
                 theta_shape[0] != shape[0] ||
                 theta_shape[1] != 2 ||
                 theta_shape[2] != 3
@@ -71,7 +71,7 @@ impl<T> _Tensor<T>
                     let ts0 = theta_strides[0];
                     let ts1 = theta_strides[1];
                     let ts2 = theta_strides[2];
-                    let theta_ptr = theta.ptr();
+                    let theta_ptr = self.ptr();
                     let (start, end) = intervals.pop().unwrap();
                     let mut ptr = ptrs.pop().unwrap();
                     let mut prg = prgs.pop().unwrap();

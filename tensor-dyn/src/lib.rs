@@ -48,25 +48,37 @@ pub mod random;
 pub mod slice;
 pub mod to_tensor;
 pub mod wgpu_exec;
+use ctor::ctor;
 pub use tensor_iterator::iterator_traits::*;
 pub use tensor_traits::*;
 
 use std::{ cell::RefCell, sync::atomic::AtomicUsize };
 thread_local! {
     static THREAD_POOL: RefCell<threadpool::ThreadPool> = RefCell::new(
-        threadpool::ThreadPool::new(std::thread::available_parallelism().unwrap().into())
+        threadpool::ThreadPool::new(num_cpus::get_physical())
     );
 }
 
-static mut DISPLAY_PRECISION: AtomicUsize = AtomicUsize::new(4);
-static mut DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(3);
+static DISPLAY_PRECISION: AtomicUsize = AtomicUsize::new(4);
+static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(3);
 pub fn set_global_display_precision(precision: usize) {
-    unsafe {
-        DISPLAY_PRECISION.store(precision, std::sync::atomic::Ordering::Relaxed);
-    }
+    DISPLAY_PRECISION.store(precision, std::sync::atomic::Ordering::Relaxed);
 }
 pub fn set_global_display_lr_elements(lr_elements: usize) {
-    unsafe {
-        DISPLAY_LR_ELEMENTS.store(lr_elements, std::sync::atomic::Ordering::Relaxed);
-    }
+    DISPLAY_LR_ELEMENTS.store(lr_elements, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn set_num_threads(num_threads: usize) {
+    THREAD_POOL.with(|x| {
+        x.borrow_mut().set_num_threads(num_threads);
+    });
+    rayon::ThreadPoolBuilder::new().num_threads(num_threads).build_global().unwrap();
+}
+pub fn get_num_threads() -> usize {
+    THREAD_POOL.with(|x| x.borrow().max_count())
+}
+
+#[ctor]
+fn init() {
+    rayon::ThreadPoolBuilder::new().num_threads(num_cpus::get_physical()).build_global().unwrap();
 }

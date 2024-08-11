@@ -2,4 +2,7 @@
     "files.associations": {
         "xutility": "cpp"
     },
+    "rust-analyzer.runnables.extraEnv": {
+        "RUSTFLAGS": "-C target-cpu=native"
+    }
 }

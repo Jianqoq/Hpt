@@ -1,12 +1,20 @@
 use crate::backend::Cpu;
 use crate::tensor_base::_Tensor;
 use crate::THREAD_POOL;
-use std::sync::{ Arc, Barrier };
+use std::{ ops::Mul, sync::{ Arc, Barrier } };
+use num::traits::MulAdd;
 use tensor_common::shape_utils::mt_intervals;
 use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
 use tensor_types::type_promote::NormalOut;
 
-impl<T> _Tensor<T, Cpu> where T: CommonBounds + NormalOut<Output = T> {
+impl<T> _Tensor<T, Cpu>
+    where
+        T: CommonBounds +
+            NormalOut<Output = T> +
+            Mul<Output = T> +
+            std::ops::AddAssign +
+            MulAdd<Output = T>
+{
     pub fn conv(
         &self,
         kernel: &_Tensor<T, Cpu>,
@@ -186,13 +194,12 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds + NormalOut<Output = T> {
                     for _ in start..end {
                         for x in 0..inner_loop_size {
                             let mut sum = T::ZERO;
+                            let begin = x * last_steps;
                             for _ in 0..kernel_outer_loop_size {
                                 for i in 0..kernel_inner_loop_size {
-                                    let val =
-                                        inp_ptr
-                                            [x * last_steps + i * inp_last_strides * last_dilation];
+                                    let val = inp_ptr[begin + i * inp_last_strides * last_dilation];
                                     let kernel_val = kernel_ptr[i * kernel_last_strides];
-                                    sum = sum._add(val._mul(kernel_val));
+                                    sum += val._mul(kernel_val);
                                 }
                                 for j in (0..kernel_ndim - 1).rev() {
                                     if reduce_prg[j] < _kernel_shape[j] - 1 {
