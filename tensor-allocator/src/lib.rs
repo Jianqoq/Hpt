@@ -11,9 +11,9 @@ pub use allocator::DeviceWrapper;
 pub use allocator::WgpuAllocator;
 pub use allocator::BufferWrapper;
 
-#[dtor]
-fn free_pools() {
-    unsafe {
-        CACHE.clear();
-    }
-}
+// #[dtor]
+// fn free_pools() {
+//     unsafe {
+//         CACHE.clear();
+//     }
+// }

@@ -75,6 +75,22 @@ async fn main() -> anyhow::Result<()> {
         ],
     ]);
     let a = _Tensor::<f32>::arange(0, 100)?.reshape([2, 2, 5, 5])?;
+
+    let res = a.conv(
+        &kernel,
+        None,
+        None,
+        Some(&[2, 2]),
+        Some(
+            &[
+                (2, 2),
+                (2, 2),
+            ]
+        ),
+        Some(&[2, 2]),
+        Some(2)
+    )?;
+
     let res = a.img2col(
         kernel.shape(),
         Some(&[2, 2]),
@@ -87,6 +103,6 @@ async fn main() -> anyhow::Result<()> {
         Some(&[2, 2]),
         Some(2)
     )?;
-    println!("{:?}", res);
+    println!("{:?}", res.reshape([2, 3, 3, 3, 9])?);
     Ok(())
 }

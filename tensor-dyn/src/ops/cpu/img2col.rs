@@ -84,8 +84,12 @@ impl<T> _Tensor<T, Cpu>
         let mut res_shape = outer_dims.clone();
         res_shape.insert(2, flatten_dims);
         let ret = _Tensor::<T, Cpu>::empty(&res_shape)?;
-        let mut permute_axes = (0..ret.shape().len()).map(|x| x as i64).collect::<Vec<_>>();
-        permute_axes.swap(2, res_shape.len() - 1);
+        let mut permute_axes = (0..res_shape.len()).map(|x| x as i64).collect::<Vec<_>>();
+
+        for i in 2..permute_axes.len() - 1 {
+            permute_axes[i] = permute_axes[i + 1];
+        }
+        permute_axes[res_shape.len() - 1] = 2;
         let ret = ret.permute(&permute_axes)?;
         let mut new_shape = ret.shape().inner().clone();
         new_shape.pop();
@@ -93,6 +97,7 @@ impl<T> _Tensor<T, Cpu>
             new_shape.push(*i);
         }
         let ret = ret.reshape(new_shape)?;
+        println!("{:?}", ret);
 
         let outer_loop_size = loop_shape.iter().product::<i64>() / loop_shape.last().unwrap();
         let inner_loop_size = *loop_shape.last().unwrap();
@@ -103,9 +108,9 @@ impl<T> _Tensor<T, Cpu>
         let kernal_shape = Arc::new(_kernel_shape);
         THREAD_POOL.with_borrow_mut(|pool| {
             let num_threads = if (outer_loop_size as usize) < pool.max_count() {
-                outer_loop_size as usize
+                1
             } else {
-                pool.max_count()
+                1
             };
             let intervals = mt_intervals(outer_loop_size as usize, num_threads);
             let mut prgs = vec![];
