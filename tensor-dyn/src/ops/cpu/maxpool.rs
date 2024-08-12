@@ -254,3 +254,57 @@ fn _max<T>(
     }
     max
 }
+
+#[allow(unused)]
+fn max_pool2d_dilated(
+    input: &Vec<Vec<Vec<Vec<f32>>>>,
+    kernel_size: (usize, usize),
+    stride: usize,
+    padding: usize,
+    dilation: usize
+) -> Vec<Vec<Vec<Vec<f32>>>> {
+    let (kernel_height, kernel_width) = kernel_size;
+
+    // 计算输出尺寸
+    let batches = input.len();
+    let channels = input[0].len();
+    let in_height = input[0][0].len();
+    let in_width = input[0][0][0].len();
+
+    let output_height = (in_height + 2 * padding - dilation * (kernel_height - 1) - 1) / stride + 1;
+    let output_width = (in_width + 2 * padding - dilation * (kernel_width - 1) - 1) / stride + 1;
+
+    // 初始化输出向量
+    let mut output = vec![vec![vec![vec![0.0f32; output_width]; output_height]; channels]; batches];
+
+    for b in 0..batches {
+        for c in 0..channels {
+            for y in 0..output_height {
+                for x in 0..output_width {
+                    let mut max_val = f32::MIN; // 初始化最小值，使用浮点数的最小值
+
+                    // 遍历每个池化窗口
+                    for i in 0..kernel_height {
+                        for j in 0..kernel_width {
+                            let in_y = y * stride + i * dilation - padding;
+                            let in_x = x * stride + j * dilation - padding;
+
+                            // 检查边界条件
+                            if in_y >= 0 && in_y < in_height && in_x >= 0 && in_x < in_width {
+                                let val = input[b][c][in_y as usize][in_x as usize];
+                                if val > max_val {
+                                    max_val = val;
+                                }
+                            }
+                        }
+                    }
+
+                    // 将找到的最大值赋给输出
+                    output[b][c][y][x] = max_val;
+                }
+            }
+        }
+    }
+
+    output
+}
