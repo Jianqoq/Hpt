@@ -58,7 +58,7 @@ fn max_pool2d_dilated(
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     set_global_display_precision(7);
-    let a = _Tensor::<f32>::arange(0, 100)?.reshape([10, 10])?;
-    println!("{}", a.dropout(0.5)?);
+    let a = _Tensor::<i8>::arange(0, 100)?.reshape([10, 10])?;
+    let res = a.lp_normalization(2, 0)?;
     Ok(())
 }

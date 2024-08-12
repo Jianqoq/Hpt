@@ -30,6 +30,7 @@ pub mod ops {
         pub mod avgpool;
         pub mod lp_pool;
         pub mod dropout;
+        pub mod lp_norm;
     }
     pub mod wgpu {
         pub mod buffer_helper;
