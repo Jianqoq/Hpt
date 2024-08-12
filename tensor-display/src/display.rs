@@ -272,6 +272,6 @@ pub fn display<U, T>(
                 )
             );
         }
-        write!(f, "{}", format!("{}\n", string))
+        write!(f, "{}", format!("{}", string))
     }
 }

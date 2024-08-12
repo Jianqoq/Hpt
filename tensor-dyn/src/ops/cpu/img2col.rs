@@ -24,7 +24,10 @@ impl<T> _Tensor<T, Cpu>
         group: Option<i64>
     ) -> anyhow::Result<Self> {
         let kernel_shape: Shape = kernel_shape.into();
-        let _kernel_shape = kernel_shape.iter().skip(2).cloned().collect::<Vec<_>>();
+        if kernel_shape.len() < 2 {
+            anyhow::bail!("kernel_shape must be 3D, [in_channels, kernel dims...]");
+        }
+        let _kernel_shape = kernel_shape.iter().skip(1).cloned().collect::<Vec<_>>();
         let process_pads = |pads: Option<&[(i64, i64)]>| {
             if let Some(_pads) = pads {
                 _pads
@@ -54,12 +57,12 @@ impl<T> _Tensor<T, Cpu>
         let _groups = group.unwrap_or(1);
         let mut outer_dims = vec![];
         outer_dims.push(self.shape()[0]);
-        outer_dims.push(_kernel_shape[0]);
+        outer_dims.push(self.shape()[1]);
         let mut out_dims = vec![];
         self.shape()
             .iter()
             .skip(2)
-            .zip(kernel_shape.iter().skip(2))
+            .zip(kernel_shape.iter().skip(1))
             .enumerate()
             .for_each(|(idx, (x, y))| {
                 let i = *x;
@@ -70,16 +73,14 @@ impl<T> _Tensor<T, Cpu>
                 let o = (i + p_begin + p_end - d * (k - 1) - 1) / s + 1;
                 out_dims.push(o);
             });
-        let kernel_per_group = _kernel_shape[0] / _groups;
         let in_channels_per_group = self.shape()[1] / _groups;
-        let mut loop_shape = vec![1; 4 + _kernel_shape.len()];
+        let mut loop_shape = vec![1; 3 + _kernel_shape.len()];
         loop_shape[0] = self.shape()[0];
         loop_shape[1] = _groups;
-        loop_shape[2] = kernel_per_group;
-        loop_shape[3] = in_channels_per_group;
-        loop_shape[4..].copy_from_slice(&out_dims);
+        loop_shape[2] = in_channels_per_group;
+        loop_shape[3..].copy_from_slice(&out_dims);
         let loop_shape = Arc::new(loop_shape);
-        outer_dims.append(&mut out_dims);
+        outer_dims.extend(&out_dims);
         let flatten_dims = _kernel_shape.iter().product::<i64>();
         let mut res_shape = outer_dims.clone();
         res_shape.insert(2, flatten_dims);
@@ -91,14 +92,13 @@ impl<T> _Tensor<T, Cpu>
         }
         permute_axes[res_shape.len() - 1] = 2;
         let ret = ret.permute(&permute_axes)?;
+        let old_shape = ret.shape();
         let mut new_shape = ret.shape().inner().clone();
         new_shape.pop();
-        for i in kernel_shape.iter().skip(2) {
+        for i in kernel_shape.iter().skip(1) {
             new_shape.push(*i);
         }
         let ret = ret.reshape(new_shape)?;
-        println!("{:?}", ret);
-
         let outer_loop_size = loop_shape.iter().product::<i64>() / loop_shape.last().unwrap();
         let inner_loop_size = *loop_shape.last().unwrap();
         let kernel_outer_loop_size =
@@ -108,9 +108,9 @@ impl<T> _Tensor<T, Cpu>
         let kernal_shape = Arc::new(_kernel_shape);
         THREAD_POOL.with_borrow_mut(|pool| {
             let num_threads = if (outer_loop_size as usize) < pool.max_count() {
-                1
+                outer_loop_size as usize
             } else {
-                1
+                pool.max_count()
             };
             let intervals = mt_intervals(outer_loop_size as usize, num_threads);
             let mut prgs = vec![];
@@ -120,7 +120,7 @@ impl<T> _Tensor<T, Cpu>
             let mut res_prg_mask = vec![0; loop_shape.len()];
             let mut padding_bounds_rights = vec![];
             let mut padding_bounds_lefts = vec![];
-            for (idx, j) in (0..loop_shape.len()).enumerate().rev() {
+            for j in (0..loop_shape.len()).rev() {
                 if
                     j == 0
                     /* batch */
@@ -131,15 +131,14 @@ impl<T> _Tensor<T, Cpu>
                     j == 1
                     /* _group idx */
                 {
-                    res_prg_mask[j] = kernel_per_group * ret.strides()[1];
+                    res_prg_mask[j] = in_channels_per_group * ret.strides()[1];
                     inp_prg_mask[j] = in_channels_per_group * self.strides()[1];
                 } else if j == 2 {
                     res_prg_mask[j] = ret.strides()[1];
-                } else if j == 3 {
                     inp_prg_mask[j] = self.strides()[1];
                 } else {
-                    res_prg_mask[j] = ret.strides()[idx - 2];
-                    inp_prg_mask[j] = _steps[idx - 4] * self.strides()[idx - 4 + 2];
+                    res_prg_mask[j] = ret.strides()[j - 1];
+                    inp_prg_mask[j] = _steps[j - 3] * self.strides()[j - 3 + 2];
                 }
             }
             let inp_prg_mask = Arc::new(inp_prg_mask);
@@ -161,9 +160,9 @@ impl<T> _Tensor<T, Cpu>
                     amount /= loop_shape[j] as usize;
                     inp_offset += current_prg[j] * inp_prg_mask[j];
                     res_offset += current_prg[j] * res_prg_mask[j];
-                    if j >= 4 {
-                        padding_bounds_right[j - 4] -= current_prg[j] * _steps[j - 4];
-                        padding_bounds_left[j - 4] -= current_prg[j] * _steps[j - 4];
+                    if j >= 3 {
+                        padding_bounds_right[j - 3] -= current_prg[j] * _steps[j - 3];
+                        padding_bounds_left[j - 3] -= current_prg[j] * _steps[j - 3];
                     }
                 }
                 let mut inp_ptr = self.ptr();
@@ -193,6 +192,7 @@ impl<T> _Tensor<T, Cpu>
                 let _kernel_shape = kernal_shape.clone();
                 let dilations = _dilation.clone();
                 let ret_last_stride = *ret.strides().last().unwrap() as isize;
+                let ret_last_strides2 = ret.strides()[3] as isize;
                 let loop_shape = loop_shape.clone();
                 let last_steps = *_steps.last().unwrap();
                 let steps = _steps.clone();
@@ -201,6 +201,7 @@ impl<T> _Tensor<T, Cpu>
                 let cache = *inp_strides.last().unwrap() * *dilations.last().unwrap();
                 let pads = _pads.clone();
                 let inp_shape = self.shape().clone();
+                let ret = ret.clone();
                 let pad_offset = (0..kernel_ndim)
                     .map(|x| pads[x].0 * inp_strides[2..][x])
                     .sum::<i64>();
@@ -234,9 +235,13 @@ impl<T> _Tensor<T, Cpu>
                                             padding_bounds_right[kernel_ndim - 1]
                                     {
                                         let val = inp_ptr[begin + i * cache - pad_offset];
-                                        res_ptr[i * ret_last_stride] = val;
+                                        res_ptr[
+                                            (x as isize) * ret_last_strides2 + i * ret_last_stride
+                                        ] = val;
                                     } else {
-                                        res_ptr[i * ret_last_stride] = T::ZERO;
+                                        res_ptr[
+                                            (x as isize) * ret_last_strides2 + i * ret_last_stride
+                                        ] = T::ZERO;
                                     }
                                 }
                                 for j in (0..kernel_ndim - 1).rev() {
@@ -267,19 +272,19 @@ impl<T> _Tensor<T, Cpu>
                                 prg[k] += 1;
                                 inp_ptr.offset(inp_prg_mask[k]);
                                 res_ptr.offset(res_prg_mask[k]);
-                                if k >= 4 {
-                                    padding_bounds_right[k - 4] -= steps[k - 4];
-                                    padding_bounds_left[k - 4] -= steps[k - 4];
+                                if k >= 3 {
+                                    padding_bounds_right[k - 3] -= steps[k - 3];
+                                    padding_bounds_left[k - 3] -= steps[k - 3];
                                 }
                                 break;
                             } else {
                                 prg[k] = 0;
                                 inp_ptr.offset(-inp_prg_mask[k] * (loop_shape[k] - 1));
                                 res_ptr.offset(-res_prg_mask[k] * (loop_shape[k] - 1));
-                                if k >= 4 {
-                                    padding_bounds_right[k - 4] =
-                                        pads[k - 4].0 + inp_shape[2..][k - 4];
-                                    padding_bounds_left[k - 4] = pads[k - 4].0;
+                                if k >= 3 {
+                                    padding_bounds_right[k - 3] =
+                                        pads[k - 3].0 + inp_shape[2..][k - 3];
+                                    padding_bounds_left[k - 3] = pads[k - 3].0;
                                 }
                             }
                         }
@@ -289,6 +294,13 @@ impl<T> _Tensor<T, Cpu>
             }
             barrier.wait();
         });
-        Ok(ret)
+        let permuted = ret.reshape(old_shape)?.permute_inv(&permute_axes)?;
+        let mut new_shape = permuted.shape().inner().clone();
+        let mut out_dims_size = 1;
+        for _ in kernel_shape.iter().skip(1) {
+            out_dims_size *= new_shape.pop().unwrap();
+        }
+        new_shape.push(out_dims_size);
+        Ok(permuted.reshape(new_shape)?)
     }
 }

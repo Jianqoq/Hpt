@@ -685,6 +685,10 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     fn flatten<A>(&self, axis: A) -> Result<Self> where A: Into<Option<usize>> {
         Ok(_Tensor::flatten(self, axis)?.into())
     }
+    
+    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
+        Ok(_Tensor::permute_inv(self, axes)?.into())
+    }
 }
 
 impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> NormalReduce<T>

@@ -1116,6 +1116,10 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T, Wgpu> {
         let layout = Layout::new(new_shape, new_strides);
         todo!()
     }
+    
+    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
+        todo!()
+    }
 }
 
 impl<T> Random

@@ -105,6 +105,21 @@ impl Layout {
         })
     }
 
+    pub fn permute_inv<A: Into<Axis>>(&self, axes: A) -> anyhow::Result<Layout> {
+        let axes = process_axes(axes, self.shape.len())?;
+        ErrHandler::check_ndim_match(axes.len(), self.shape.len())?;
+        let mut new_shape = self.shape().to_vec();
+        let mut new_strides = self.strides().to_vec();
+        for i in axes.iter() {
+            new_shape[axes[*i]] = self.shape()[*i];
+            new_strides[axes[*i]] = self.strides()[*i];
+        }
+        Ok(Layout {
+            shape: new_shape.into(),
+            strides: new_strides.into(),
+        })
+    }
+
     pub fn inplace_reshape(&self, shape: &Shape) -> anyhow::Result<Layout> {
         if let Some(new_strides) = self.is_reshape_possible(shape) {
             Ok(Layout {

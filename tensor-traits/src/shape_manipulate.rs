@@ -92,6 +92,8 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// ```
     fn permute<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
 
+    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
+
     /// Expand the tensor to the specified shape
     /// only the dimensions that are 1 can be expanded
     ///

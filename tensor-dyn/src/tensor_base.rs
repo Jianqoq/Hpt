@@ -1000,7 +1000,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             layout: permuted_layout,
             parent: self.parent,
             mem_layout: self.mem_layout.clone(),
-            _backend: Backend::new(self.data.ptr as u64),
+            _backend: self._backend.clone(),
         })
     }
 
@@ -1268,6 +1268,17 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             parent: self.parent.clone(),
             mem_layout: self.mem_layout.clone(),
             _backend: Backend::new(self.data.ptr as u64),
+        })
+    }
+    
+    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
+        let permuted_layout = self.layout.permute_inv(axes)?;
+        Ok(_Tensor {
+            data: self.data.clone(),
+            layout: permuted_layout,
+            parent: self.parent,
+            mem_layout: self.mem_layout.clone(),
+            _backend: self._backend.clone(),
         })
     }
 }
