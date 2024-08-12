@@ -58,43 +58,7 @@ fn max_pool2d_dilated(
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     set_global_display_precision(7);
-    let kernel = _Tensor::<f32>::new([
-        [
-            [
-                [1.0, 2.0, 3.0],
-                [4.0, 5.0, 6.0],
-                [7.0, 8.0, 9.0],
-            ],
-        ],
-        [
-            [
-                [1.0, 2.0, 3.0],
-                [4.0, 5.0, 6.0],
-                [7.0, 8.0, 9.0],
-            ],
-        ],
-    ]);
-    let bias = _Tensor::<f32>::new([1.0, 2.0]);
-    let a = _Tensor::<f32>::arange(0, 100000)?.reshape([20, 2, 50, 50])?;
-    let now = std::time::Instant::now();
-    let res = a.conv(
-        &kernel,
-        None,
-        None,
-        Some(&[2, 2]),
-        Some(
-            &[
-                (2, 2),
-                (2, 2),
-            ]
-        ),
-        Some(&[2, 2]),
-        Some(2)
-    )?;
-    println!("{:?}", res);
-    println!("shape: {}", res.shape());
-    let max_pooled = res.lp_pool(&[2, 2], None, None, None, 1.0)?;
-    println!("{:?}", now.elapsed());
-    println!("{}", max_pooled);
+    let a = _Tensor::<f32>::arange(0, 100)?.reshape([10, 10])?;
+    println!("{}", a.dropout(0.5)?);
     Ok(())
 }

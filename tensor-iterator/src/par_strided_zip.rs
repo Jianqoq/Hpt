@@ -77,7 +77,7 @@ impl<'a, A, B> IterGetSet for ParStridedZip<'a, A, B> where A: IterGetSet, B: It
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         (self.a.inner_loop_next(index), self.b.inner_loop_next(index))
     }
-    
+
     fn set_prg(&mut self, prg: Vec<i64>) {
         self.a.set_prg(prg.clone());
         self.b.set_prg(prg);
@@ -134,7 +134,11 @@ impl<'a, A, B> ParStridedZip<'a, A, B>
         ParStridedZip::new(a, b)
     }
 
-    pub fn strided_map<F, U>(self, func: F) -> ParStridedMap<'a, Self, <Self as IterGetSet>::Item, F>
+    pub fn strided_map<F, U>(
+        self,
+        func: F
+    )
+        -> ParStridedMap<'a, Self, <Self as IterGetSet>::Item, F>
         where
             F: Fn(<Self as IterGetSet>::Item) -> U + Sync + Send + 'a,
             U: CommonBounds,
@@ -188,6 +192,7 @@ impl<'a, A, B> UnindexedProducer
     fn fold_with<F>(mut self, mut folder: F) -> F where F: Folder<Self::Item> {
         let outer_loop_size = self.outer_loop_size();
         let inner_loop_size = self.inner_loop_size() + 1;
+        println!("outer_loop_size: {}, inner_loop_size: {}", outer_loop_size, inner_loop_size);
         for _ in 0..outer_loop_size {
             for idx in 0..inner_loop_size {
                 folder = folder.consume(self.inner_loop_next(idx));
