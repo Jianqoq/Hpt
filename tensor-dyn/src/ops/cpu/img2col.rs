@@ -4,7 +4,7 @@ use crate::THREAD_POOL;
 use std::{ ops::Mul, sync::{ Arc, Barrier } };
 use num::traits::MulAdd;
 use tensor_common::{ pointer::Pointer, shape::Shape, shape_utils::mt_intervals };
-use tensor_traits::{ CommonBounds, ShapeManipulate, TensorCreator, TensorInfo };
+use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
 use tensor_types::type_promote::NormalOut;
 
 impl<T> _Tensor<T, Cpu>
@@ -55,9 +55,6 @@ impl<T> _Tensor<T, Cpu>
             Arc::new(vec![1; _kernel_shape.len()])
         };
         let _groups = group.unwrap_or(1);
-        let mut outer_dims = vec![];
-        outer_dims.push(self.shape()[0]);
-        outer_dims.push(self.shape()[1]);
         let mut out_dims = vec![];
         self.shape()
             .iter()
@@ -80,25 +77,16 @@ impl<T> _Tensor<T, Cpu>
         loop_shape[2] = in_channels_per_group;
         loop_shape[3..].copy_from_slice(&out_dims);
         let loop_shape = Arc::new(loop_shape);
-        outer_dims.extend(&out_dims);
-        let flatten_dims = _kernel_shape.iter().product::<i64>();
-        let mut res_shape = outer_dims.clone();
-        res_shape.insert(2, flatten_dims);
-        let ret = _Tensor::<T, Cpu>::empty(&res_shape)?;
-        let mut permute_axes = (0..res_shape.len()).map(|x| x as i64).collect::<Vec<_>>();
 
-        for i in 2..permute_axes.len() - 1 {
-            permute_axes[i] = permute_axes[i + 1];
-        }
-        permute_axes[res_shape.len() - 1] = 2;
-        let ret = ret.permute(&permute_axes)?;
-        let old_shape = ret.shape();
-        let mut new_shape = ret.shape().inner().clone();
-        new_shape.pop();
-        for i in kernel_shape.iter().skip(1) {
-            new_shape.push(*i);
-        }
-        let ret = ret.reshape(new_shape)?;
+        let mut outer_dims = vec![];
+        outer_dims.push(self.shape()[0]); // batch
+        outer_dims.extend(&out_dims); // out_dims
+        outer_dims.push(self.shape()[1]); // in_channels
+
+        let mut res_shape = outer_dims.clone();
+        res_shape.extend(_kernel_shape.iter()); // kernel_shape
+        let ret = _Tensor::<T, Cpu>::empty(&res_shape)?;
+
         let outer_loop_size = loop_shape.iter().product::<i64>() / loop_shape.last().unwrap();
         let inner_loop_size = *loop_shape.last().unwrap();
         let kernel_outer_loop_size =
@@ -131,13 +119,13 @@ impl<T> _Tensor<T, Cpu>
                     j == 1
                     /* _group idx */
                 {
-                    res_prg_mask[j] = in_channels_per_group * ret.strides()[1];
+                    res_prg_mask[j] = in_channels_per_group * ret.strides()[kernel_ndim + 1];
                     inp_prg_mask[j] = in_channels_per_group * self.strides()[1];
                 } else if j == 2 {
-                    res_prg_mask[j] = ret.strides()[1];
+                    res_prg_mask[j] = ret.strides()[kernel_ndim + 1];
                     inp_prg_mask[j] = self.strides()[1];
                 } else {
-                    res_prg_mask[j] = ret.strides()[j - 1];
+                    res_prg_mask[j] = ret.strides()[j - kernel_ndim];
                     inp_prg_mask[j] = _steps[j - 3] * self.strides()[j - 3 + 2];
                 }
             }
@@ -192,7 +180,7 @@ impl<T> _Tensor<T, Cpu>
                 let _kernel_shape = kernal_shape.clone();
                 let dilations = _dilation.clone();
                 let ret_last_stride = *ret.strides().last().unwrap() as isize;
-                let ret_last_strides2 = ret.strides()[3] as isize;
+                let ret_last_strides2 = ret.strides()[ret.ndim() - kernel_ndim - 2] as isize;
                 let loop_shape = loop_shape.clone();
                 let last_steps = *_steps.last().unwrap();
                 let steps = _steps.clone();
@@ -294,13 +282,6 @@ impl<T> _Tensor<T, Cpu>
             }
             barrier.wait();
         });
-        let permuted = ret.reshape(old_shape)?.permute_inv(&permute_axes)?;
-        let mut new_shape = permuted.shape().inner().clone();
-        let mut out_dims_size = 1;
-        for _ in kernel_shape.iter().skip(1) {
-            out_dims_size *= new_shape.pop().unwrap();
-        }
-        new_shape.push(out_dims_size);
-        Ok(permuted.reshape(new_shape)?)
+        Ok(ret)
     }
 }

@@ -1,4 +1,4 @@
-use tensor_dyn::{ set_global_display_precision, TensorCreator };
+use tensor_dyn::TensorCreator;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
@@ -20,8 +20,8 @@ fn main() -> anyhow::Result<()> {
         Some(&[1, 1]),
         Some(
             &[
-                (1, 1),
-                (1, 1),
+                (0, 0),
+                (0, 0),
             ]
         ),
         Some(&[1, 1]),
