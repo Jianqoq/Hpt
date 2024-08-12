@@ -33,6 +33,11 @@ impl<'a, T> StridedIterator for StridedMapMut<'a, T> where T: 'a + CommonBounds 
     fn for_each<F>(self, _: F) where F: Fn(Self::Item) {
         unimplemented!()
     }
+    
+    fn for_each_init<F, INIT, I>(self, _: INIT, _: F)
+        where F: Fn(&mut I, Self::Item), INIT: Fn() -> I {
+            unimplemented!()
+    }
 }
 
 impl<'a, T: 'a + CommonBounds> IterGetSet for StridedMapMut<'a, T> {

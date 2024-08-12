@@ -120,4 +120,18 @@ impl<'a, A, B> StridedIterator for StridedZip<'a, A, B> where A: IterGetSet, B: 
             self.next();
         }
     }
+
+    fn for_each_init<F, INIT, T>(mut self, init: INIT, func: F)
+        where F: Fn(&mut T, Self::Item), INIT: Fn() -> T
+    {
+        let outer_loop_size = self.outer_loop_size();
+        let inner_loop_size = self.inner_loop_size();
+        let mut init = init();
+        for _ in 0..outer_loop_size {
+            for idx in 0..inner_loop_size {
+                func(&mut init, self.inner_loop_next(idx));
+            }
+            self.next();
+        }
+    }
 }

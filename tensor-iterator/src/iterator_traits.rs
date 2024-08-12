@@ -28,4 +28,6 @@ pub trait ShapeManipulator {
 pub trait StridedIterator where Self: Sized {
     type Item;
     fn for_each<F>(self, func: F) where F: Fn(Self::Item);
+    fn for_each_init<F, INIT, T>(self, init: INIT, func: F)
+        where F: Fn(&mut T, Self::Item), INIT: Fn() -> T;
 }

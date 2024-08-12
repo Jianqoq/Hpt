@@ -49,6 +49,20 @@ impl<'a, T> StridedIterator for StridedMut<'a, T> where T: CommonBounds {
             self.next();
         }
     }
+
+    fn for_each_init<F, INIT, I>(mut self, init: INIT, func: F)
+        where F: Fn(&mut I, Self::Item), INIT: Fn() -> I
+    {
+        let outer_loop_size = self.outer_loop_size();
+        let inner_loop_size = self.inner_loop_size() + 1;
+        let mut init = init();
+        for _ in 0..outer_loop_size {
+            for idx in 0..inner_loop_size {
+                func(&mut init, self.inner_loop_next(idx));
+            }
+            self.next();
+        }
+    }
 }
 
 impl<'a, T: 'a> IterGetSet for StridedMut<'a, T> where T: CommonBounds {
@@ -107,7 +121,7 @@ impl<'a, T: 'a> IterGetSet for StridedMut<'a, T> where T: CommonBounds {
                 .unwrap()
         }
     }
-    
+
     fn set_prg(&mut self, prg: Vec<i64>) {
         self.base.set_prg(prg);
     }

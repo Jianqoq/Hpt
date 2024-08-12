@@ -4,10 +4,10 @@ use tensor_dyn::*;
 
 fn max_pool2d_dilated(
     input: &Vec<Vec<Vec<Vec<f32>>>>, // 输入数据: batches, channels, height, width
-    kernel_size: (usize, usize),     // 池化窗口大小: (height, width)
-    stride: usize,                   // 步长
-    padding: usize,                  // 填充
-    dilation: usize                  // 扩张
+    kernel_size: (usize, usize), // 池化窗口大小: (height, width)
+    stride: usize, // 步长
+    padding: usize, // 填充
+    dilation: usize // 扩张
 ) -> Vec<Vec<Vec<Vec<f32>>>> {
     let (kernel_height, kernel_width) = kernel_size;
 
@@ -27,7 +27,7 @@ fn max_pool2d_dilated(
         for c in 0..channels {
             for y in 0..output_height {
                 for x in 0..output_width {
-                    let mut max_val = f32::MIN;  // 初始化最小值，使用浮点数的最小值
+                    let mut max_val = f32::MIN; // 初始化最小值，使用浮点数的最小值
 
                     // 遍历每个池化窗口
                     for i in 0..kernel_height {
@@ -93,7 +93,7 @@ async fn main() -> anyhow::Result<()> {
     )?;
     println!("{:?}", res);
     println!("shape: {}", res.shape());
-    let max_pooled = res.maxpool(&[2, 2], None, None, None)?;
+    let max_pooled = res.lp_pool(&[2, 2], None, None, None, 1.0)?;
     println!("{:?}", now.elapsed());
     println!("{}", max_pooled);
     Ok(())
