@@ -27,6 +27,7 @@ pub mod ops {
         pub mod gather;
         pub mod conv;
         pub mod maxpool;
+        pub mod avgpool;
     }
     pub mod wgpu {
         pub mod buffer_helper;

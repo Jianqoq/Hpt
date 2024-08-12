@@ -59,10 +59,10 @@ macro_rules! impl_fftops {
                     THREAD_POOL.with_borrow_mut(|pool| {
                         unsafe {
                             let num_threads;
-                            if outer_loop_size < (rayon::current_num_threads() as i64) {
+                            if outer_loop_size < pool.max_count() as i64 {
                                 num_threads = outer_loop_size as usize;
                             } else {
-                                num_threads = rayon::current_num_threads();
+                                num_threads = pool.max_count();
                             }
                             let ndim = new_self.ndim();
                             let mut shape = new_self.shape().to_vec();
@@ -100,7 +100,7 @@ macro_rules! impl_fftops {
                             let barrier = Arc::new(Barrier::new(num_threads + 1));
                             for idx in (0..num_threads).rev() {
                                 // Allocate buffer and perform FFT in parallel. (Could be removed?)
-                                let buffer = std::alloc::alloc(
+                                let raw_buffer = std::alloc::alloc(
                                     std::alloc::Layout::from_size_align(
                                         (inner_loop_size as usize) * std::mem::size_of::<$type>(),
                                         32,
@@ -108,7 +108,7 @@ macro_rules! impl_fftops {
                                     .unwrap(),
                                 );
                                 let buffer: &mut [$type] = std::slice::from_raw_parts_mut(
-                                    buffer as *mut $type,
+                                    raw_buffer as *mut $type,
                                     inner_loop_size as usize,
                                 );
 
@@ -149,6 +149,10 @@ macro_rules! impl_fftops {
                                     }
                                     barrier_clone.wait();
                                 });
+                                std::alloc::dealloc(raw_buffer as *mut u8, std::alloc::Layout::from_size_align(
+                                    (inner_loop_size as usize) * std::mem::size_of::<$type>(),
+                                    32,
+                                ).unwrap());
                             }
                             barrier.wait();
                             if idx == 0 {
@@ -177,10 +181,10 @@ macro_rules! impl_fftops {
 
                     THREAD_POOL.with_borrow_mut(|pool| unsafe {
                         let num_threads;
-                        if outer_loop_size < (rayon::current_num_threads() as i64) {
+                        if outer_loop_size < (pool.max_count() as i64) {
                             num_threads = outer_loop_size as usize;
                         } else {
-                            num_threads = rayon::current_num_threads();
+                            num_threads = pool.max_count();
                         }
                         let ndim = new_self.ndim();
                         let mut shape = new_self.shape().to_vec();
@@ -216,7 +220,7 @@ macro_rules! impl_fftops {
                         }
                         let barrier = Arc::new(Barrier::new(num_threads + 1));
                         for idx in (0..num_threads).rev() {
-                            let buffer = std::alloc::alloc(
+                            let raw_buffer = std::alloc::alloc(
                                 std::alloc::Layout::from_size_align(
                                     (inner_loop_size as usize) * std::mem::size_of::<$type>(),
                                     32,
@@ -224,7 +228,7 @@ macro_rules! impl_fftops {
                                 .unwrap(),
                             );
                             let buffer: &mut [$type] = std::slice::from_raw_parts_mut(
-                                buffer as *mut $type,
+                                raw_buffer as *mut $type,
                                 inner_loop_size as usize,
                             );
                             let local_shape = shape.clone();
@@ -263,6 +267,10 @@ macro_rules! impl_fftops {
                                 }
                                 barrier_clone.wait();
                             });
+                            std::alloc::dealloc(raw_buffer as *mut u8, std::alloc::Layout::from_size_align(
+                                (inner_loop_size as usize) * std::mem::size_of::<$type>(),
+                                32,
+                            ).unwrap());
                         }
                         barrier.wait();
                         if idx == 0 {
