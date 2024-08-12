@@ -974,7 +974,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
                 parent: self.parent.clone(),
                 mem_layout: self.mem_layout.clone(),
                 layout: new_layout,
-                _backend: Backend::new(self.data.ptr as u64),
+                _backend: self._backend.clone(),
             })
         } else {
             self.contiguous()?.reshape(shape)

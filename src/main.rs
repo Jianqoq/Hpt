@@ -38,7 +38,8 @@ async fn main() -> anyhow::Result<()> {
         Some(&[2, 2]),
         Some(2)
     )?;
+    let max_pooled = res.maxpool(&[3, 3], None, None, None)?;
     println!("{:?}", now.elapsed());
-    println!("{}", res);
+    println!("{}", max_pooled);
     Ok(())
 }

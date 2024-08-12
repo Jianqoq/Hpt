@@ -87,6 +87,7 @@ impl _Allocator {
                 }
             }
         }
+        // println!("Allocating ptr {:p}", ptr);
         unsafe {
             if let Ok(mut storage) = CPU_STORAGE.lock() {
                 if let Some(cnt) = storage.get_mut(&ptr) {
@@ -103,6 +104,7 @@ impl _Allocator {
         unsafe {
             if let Ok(mut storage) = CPU_STORAGE.lock() {
                 if let Some(cnt) = storage.get_mut(&ptr) {
+                    // println!("Deallocating ptr {:p}", ptr);
                     *cnt -= 1;
                     if *cnt == 0 {
                         self.allocated.remove(&ptr);
@@ -121,7 +123,7 @@ impl _Allocator {
 
     fn insert_ptr(&mut self, ptr: *mut u8) {
         self.allocated.insert(ptr);
-
+        // println!("Inserting ptr {:p}", ptr);
         unsafe {
             if let Ok(mut storage) = CPU_STORAGE.lock() {
                 if let Some(cnt) = storage.get_mut(&ptr) {
