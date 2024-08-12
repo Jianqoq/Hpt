@@ -53,7 +53,7 @@ use rayon::iter::{
 
 use crate::{
     backend::{ Backend, BackendDevice, BackendTy, Cpu },
-    ops::cpu::stack::stack,
+    ops::cpu::concat::concat,
     slice::SliceOps,
     tensor::Tensor,
     DISPLAY_LR_ELEMENTS,
@@ -454,7 +454,7 @@ impl<T: CommonBounds> _Tensor<T> {
     pub fn stack(tensors: Vec<&_Tensor<T>>, axis: usize, keepdims: bool) -> Result<Self>
         where T: 'static
     {
-        stack(tensors, axis, keepdims)
+        concat(tensors, axis, keepdims)
     }
 
     /// Vertically stacks a sequence of tensors.
@@ -478,7 +478,7 @@ impl<T: CommonBounds> _Tensor<T> {
     /// assert!(vstacked_tensor.allclose(&_Tensor::<f64>::new([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])));
     /// ```
     pub fn vstack(tensors: Vec<&_Tensor<T>>) -> Result<_Tensor<T>> {
-        stack(tensors, 0, false)
+        concat(tensors, 0, false)
     }
     /// Horizontally stacks a sequence of tensors.
     ///
@@ -505,7 +505,7 @@ impl<T: CommonBounds> _Tensor<T> {
         for tensor in tensors.iter_mut() {
             if tensor.shape().len() < 2 {
                 return if tensor.shape().len() == 1 {
-                    stack(tensors, 0, false)
+                    concat(tensors, 0, false)
                 } else {
                     // scalar
                     let mut tensors_ref = Vec::with_capacity(tensors.len());
@@ -516,11 +516,11 @@ impl<T: CommonBounds> _Tensor<T> {
                     for tensor in tensors_holder.iter() {
                         tensors_ref.push(tensor);
                     }
-                    stack(tensors_ref, 0, false)
+                    concat(tensors_ref, 0, false)
                 };
             }
         }
-        stack(tensors, 1, false)
+        concat(tensors, 1, false)
     }
 
     /// Depth-stacks a sequence of tensors.
@@ -566,7 +566,7 @@ impl<T: CommonBounds> _Tensor<T> {
         for tensor in new_tensors.iter() {
             tensors_ref.push(tensor);
         }
-        stack(tensors_ref, 2, false)
+        concat(tensors_ref, 2, false)
     }
 }
 

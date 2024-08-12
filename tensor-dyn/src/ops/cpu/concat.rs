@@ -8,7 +8,7 @@ use tensor_traits::{
 
 use crate::{ slice::SliceOps, tensor_base::_Tensor, THREAD_POOL };
 
-pub(crate) fn stack<T>(
+pub(crate) fn concat<T>(
     tensors: Vec<&_Tensor<T>>,
     axis: usize,
     keepdims: bool

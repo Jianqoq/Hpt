@@ -49,7 +49,7 @@ use rayon::iter::{
 
 use crate::{
     backend::{ Backend, BackendDevice, BackendTy, Cpu, Wgpu },
-    ops::{ cpu::stack::stack, wgpu::buffer_helper::WgpuDevice },
+    ops::{ cpu::concat::concat, wgpu::buffer_helper::WgpuDevice },
     slice::SliceOps,
     tensor::Tensor,
     tensor_base::_Tensor,

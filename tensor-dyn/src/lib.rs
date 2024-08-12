@@ -11,7 +11,7 @@ pub mod ops {
         pub mod tensordot;
         pub mod fft;
         pub mod cmp;
-        pub mod stack;
+        pub mod concat;
         pub mod softmax;
         pub mod unique;
         pub mod hamming_window;
@@ -31,6 +31,7 @@ pub mod ops {
         pub mod lp_pool;
         pub mod dropout;
         pub mod lp_norm;
+        pub mod img2col;
     }
     pub mod wgpu {
         pub mod buffer_helper;

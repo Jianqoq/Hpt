@@ -23,7 +23,7 @@ use tensor_types::{
 use anyhow::Result;
 use crate::{
     backend::{ BackendDevice, BackendTy, Cpu },
-    ops::cpu::{ stack::stack, unary::{ FloatType, NormalType } },
+    ops::cpu::{ concat::concat, unary::{ FloatType, NormalType } },
     tensor_base::_Tensor,
     DISPLAY_LR_ELEMENTS,
     DISPLAY_PRECISION,
@@ -358,7 +358,7 @@ impl<T: CommonBounds> Tensor<T> {
         where T: 'static
     {
         Ok(
-            stack(
+            concat(
                 tensors
                     .iter()
                     .map(|x| x.inner.as_ref())
@@ -424,7 +424,7 @@ impl<T: CommonBounds> Tensor<T> {
     /// ```
     pub fn hstack(mut tensors: Vec<&Tensor<T>>) -> Result<Tensor<T>> {
         Ok(
-            stack(
+            concat(
                 tensors
                     .iter_mut()
                     .map(|x| x.inner.as_ref())
@@ -459,7 +459,7 @@ impl<T: CommonBounds> Tensor<T> {
     /// ```
     pub fn dstack(mut tensors: Vec<&Tensor<T>>) -> Result<Tensor<T>> {
         Ok(
-            stack(
+            concat(
                 tensors
                     .iter_mut()
                     .map(|x| x.inner.as_ref())
