@@ -192,7 +192,6 @@ impl<'a, A, B> UnindexedProducer
     fn fold_with<F>(mut self, mut folder: F) -> F where F: Folder<Self::Item> {
         let outer_loop_size = self.outer_loop_size();
         let inner_loop_size = self.inner_loop_size() + 1;
-        println!("outer_loop_size: {}, inner_loop_size: {}", outer_loop_size, inner_loop_size);
         for _ in 0..outer_loop_size {
             for idx in 0..inner_loop_size {
                 folder = folder.consume(self.inner_loop_next(idx));
