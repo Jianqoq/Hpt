@@ -96,7 +96,11 @@ impl<T> _Tensor<T, Cpu>
         let kernel_ndim = _kernel_shape.len();
         let kernal_shape = Arc::new(_kernel_shape);
         THREAD_POOL.with_borrow_mut(|pool| {
-            let num_threads = if (outer_loop_size as usize) < pool.max_count() { 1 } else { 1 };
+            let num_threads = if (outer_loop_size as usize) < pool.max_count() {
+                outer_loop_size as usize
+            } else {
+                pool.max_count()
+            };
             let intervals = mt_intervals(outer_loop_size as usize, num_threads);
             let mut prgs = vec![];
             let mut res_ptrs = vec![];
@@ -105,6 +109,8 @@ impl<T> _Tensor<T, Cpu>
             let mut inp_prg_mask = vec![0; loop_shape.len()];
             let mut kernel_prg_mask = vec![0; loop_shape.len()];
             let mut res_prg_mask = vec![0; loop_shape.len()];
+            let mut padding_bounds_rights = vec![];
+            let mut padding_bounds_lefts = vec![];
             for (idx, j) in (0..loop_shape.len()).enumerate().rev() {
                 if
                     j == 0
@@ -133,13 +139,18 @@ impl<T> _Tensor<T, Cpu>
             let inp_prg_mask = Arc::new(inp_prg_mask);
             let kernel_prg_mask = Arc::new(kernel_prg_mask);
             let res_prg_mask = Arc::new(res_prg_mask);
-
             for (start, _) in intervals.iter() {
                 let mut amount = *start * (inner_loop_size as usize);
                 let mut current_prg: Vec<i64> = vec![0; loop_shape.len()];
                 let mut res_offset = 0;
                 let mut inp_offset = 0;
                 let mut kernel_offset = 0;
+                let mut padding_bounds_right = (0..kernel_ndim)
+                    .map(|x| self.shape()[2..][x] + _pads[x].0)
+                    .collect::<Vec<_>>();
+                let mut padding_bounds_left = (0..kernel_ndim)
+                    .map(|x| _pads[x].0)
+                    .collect::<Vec<_>>();
                 // inp[batch * inp.strides[0] + g * in_channel * inp.strides[1] + c * inp.strides[1] + ...]
                 for j in (0..loop_shape.len()).rev() {
                     current_prg[j] = (amount as i64) % loop_shape[j];
@@ -147,6 +158,10 @@ impl<T> _Tensor<T, Cpu>
                     inp_offset += current_prg[j] * inp_prg_mask[j];
                     res_offset += current_prg[j] * res_prg_mask[j];
                     kernel_offset += current_prg[j] * kernel_prg_mask[j];
+                    if j >= 4 {
+                        padding_bounds_right[j - 4] -= current_prg[j] * _steps[j - 4];
+                        padding_bounds_left[j - 4] -= current_prg[j] * _steps[j - 4];
+                    }
                 }
                 let mut inp_ptr = self.ptr();
                 let mut res_ptr = ret.ptr();
@@ -158,14 +173,24 @@ impl<T> _Tensor<T, Cpu>
                 ptrs.push(inp_ptr);
                 kernel_ptrs.push(kernel_ptr);
                 res_ptrs.push(res_ptr);
+                padding_bounds_rights.push(padding_bounds_right);
+                padding_bounds_lefts.push(padding_bounds_left);
             }
             let barrier = Arc::new(Barrier::new(num_threads + 1));
-            for (((((start, end), mut prg), mut inp_ptr), mut res_ptr), mut kernel_ptr) in intervals
+            for (
+                (
+                    (((((start, end), mut prg), mut inp_ptr), mut res_ptr), mut kernel_ptr),
+                    mut padding_bounds_right,
+                ),
+                mut padding_bounds_left,
+            ) in intervals
                 .into_iter()
                 .zip(prgs.into_iter())
                 .zip(ptrs.into_iter())
                 .zip(res_ptrs.into_iter())
-                .zip(kernel_ptrs.into_iter()) {
+                .zip(kernel_ptrs.into_iter())
+                .zip(padding_bounds_rights.into_iter())
+                .zip(padding_bounds_lefts.into_iter()) {
                 let barrier_clone = barrier.clone();
                 let mut reduce_prg = vec![0; kernel_ndim];
                 let inp_strides = self.strides().clone();
@@ -183,12 +208,6 @@ impl<T> _Tensor<T, Cpu>
                 let cache = *inp_strides.last().unwrap() * *dilations.last().unwrap();
                 let pads = _pads.clone();
                 let inp_shape = self.shape().clone();
-                let mut padding_bounds_right = (0..kernel_ndim)
-                    .map(|x| inp_shape[2..][x] + pads[x].0)
-                    .collect::<Vec<_>>();
-                let mut padding_bounds_left = (0..kernel_ndim)
-                    .map(|x| pads[x].0)
-                    .collect::<Vec<_>>();
                 let pad_offset = (0..kernel_ndim)
                     .map(|x| pads[x].0 * inp_strides[2..][x])
                     .sum::<i64>();

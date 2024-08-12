@@ -9,20 +9,22 @@ use tensor_types::type_promote::NormalOut;
 use tensor_common::shape::Shape;
 
 impl<T> _Tensor<T, Cpu>
-where
-    T: CommonBounds +
-    NormalOut<Output = T> +
-    Mul<Output = T> +
-    std::ops::AddAssign +
-    MulAdd<Output = T>
+    where
+        T: CommonBounds +
+            NormalOut<Output = T> +
+            Mul<Output = T> +
+            std::ops::AddAssign +
+            MulAdd<Output = T>
 {
     pub fn maxpool<S>(
         &self,
         kernel_shape: S,
         steps: Option<&[i64]>,
         pads: Option<&[(i64, i64)]>,
-        dilation: Option<&[i64]>,
-    ) -> anyhow::Result<Self> where S: Into<Shape> {
+        dilation: Option<&[i64]>
+    ) -> anyhow::Result<Self>
+        where S: Into<Shape>
+    {
         let _kernel_shape = kernel_shape.into();
         let process_pads = |pads: Option<&[(i64, i64)]>| {
             if let Some(_pads) = pads {
@@ -52,7 +54,7 @@ where
         };
         let mut loop_shape = vec![];
         loop_shape.push(self.shape()[0]);
-        loop_shape.push(_kernel_shape[0]);
+        loop_shape.push(self.shape()[1]);
         assert_eq!(self.shape().len(), _kernel_shape.len() + 2);
         self.shape()
             .iter()
@@ -65,7 +67,6 @@ where
                 loop_shape.push(o);
             });
         let loop_shape = Arc::new(loop_shape);
-        println!("{:?}", loop_shape);
         let ret = _Tensor::<T, Cpu>::full(T::MIN, &loop_shape)?;
 
         let outer_loop_size = loop_shape.iter().product::<i64>() / loop_shape.last().unwrap();
@@ -76,23 +77,39 @@ where
         let kernel_ndim = _kernel_shape.len();
         let kernal_shape = Arc::new(_kernel_shape);
         THREAD_POOL.with_borrow_mut(|pool| {
-            let num_threads = if (outer_loop_size as usize) < pool.max_count() { 1 } else { 1 };
+            let num_threads = if (outer_loop_size as usize) < pool.max_count() {
+                outer_loop_size as usize
+            } else {
+                pool.max_count()
+            };
             let intervals = mt_intervals(outer_loop_size as usize, num_threads);
             let mut prgs = vec![];
             let mut res_ptrs = vec![];
             let mut ptrs = vec![];
+            let mut padding_bounds_rights = vec![];
+            let mut padding_bounds_lefts = vec![];
 
             for (start, _) in intervals.iter() {
                 let mut amount = *start * (inner_loop_size as usize);
                 let mut current_prg: Vec<i64> = vec![0; loop_shape.len()];
                 let mut res_offset = 0;
                 let mut inp_offset = 0;
+                let mut padding_bounds_right = (0..kernel_ndim)
+                    .map(|x| self.shape()[2..][x] + _pads[x].0)
+                    .collect::<Vec<_>>();
+                let mut padding_bounds_left = (0..kernel_ndim)
+                    .map(|x| _pads[x].0)
+                    .collect::<Vec<_>>();
                 // inp[batch * inp.strides[0] + g * in_channel * inp.strides[1] + c * inp.strides[1] + ...]
                 for j in (0..loop_shape.len()).rev() {
                     current_prg[j] = (amount as i64) % loop_shape[j];
                     amount /= loop_shape[j] as usize;
                     inp_offset += current_prg[j] * self.strides()[j];
                     res_offset += current_prg[j] * ret.strides()[j];
+                    if j >= 2 {
+                        padding_bounds_right[j - 2] -= current_prg[j] * _steps[j - 2];
+                        padding_bounds_left[j - 2] -= current_prg[j] * _steps[j - 2];
+                    }
                 }
                 let mut inp_ptr = self.ptr();
                 let mut res_ptr = ret.ptr();
@@ -101,13 +118,20 @@ where
                 prgs.push(current_prg);
                 ptrs.push(inp_ptr);
                 res_ptrs.push(res_ptr);
+                padding_bounds_rights.push(padding_bounds_right);
+                padding_bounds_lefts.push(padding_bounds_left);
             }
             let barrier = Arc::new(Barrier::new(num_threads + 1));
-            for ((((start, end), mut prg), mut inp_ptr), mut res_ptr) in intervals
+            for (
+                (((((start, end), mut prg), mut inp_ptr), mut res_ptr), mut padding_bounds_right),
+                mut padding_bounds_left,
+            ) in intervals
                 .into_iter()
                 .zip(prgs.into_iter())
                 .zip(ptrs.into_iter())
-                .zip(res_ptrs.into_iter()) {
+                .zip(res_ptrs.into_iter())
+                .zip(padding_bounds_rights.into_iter())
+                .zip(padding_bounds_lefts.into_iter()) {
                 let barrier_clone = barrier.clone();
                 let mut reduce_prg = vec![0; kernel_ndim];
                 let inp_strides = self.strides().clone();
@@ -121,12 +145,6 @@ where
                 let cache = *inp_strides.last().unwrap() * *dilations.last().unwrap();
                 let pads = _pads.clone();
                 let inp_shape = self.shape().clone(); // [batch, in_channel, ...]
-                let mut padding_bounds_right = (0..kernel_ndim)
-                    .map(|x| inp_shape[2..][x] + pads[x].0)
-                    .collect::<Vec<_>>();
-                let mut padding_bounds_left = (0..kernel_ndim)
-                    .map(|x| pads[x].0)
-                    .collect::<Vec<_>>();
                 let pad_offset = (0..kernel_ndim)
                     .map(|x| pads[x].0 * inp_strides[2..][x])
                     .sum::<i64>();
@@ -205,7 +223,7 @@ fn _max<T>(
     padding_bounds_left: &[i64],
     pad_offset: isize
 ) -> T
-where T: CommonBounds + NormalOut<Output = T> + Mul<Output = T> + MulAdd<Output = T>
+    where T: CommonBounds + NormalOut<Output = T> + Mul<Output = T> + MulAdd<Output = T>
 {
     let mut max = T::NEG_INF;
     for _ in 0..outer {
@@ -215,7 +233,7 @@ where T: CommonBounds + NormalOut<Output = T> + Mul<Output = T> + MulAdd<Output 
                 a >= padding_bounds_left[x] && a < padding_bounds_right[x]
             });
             if
-            any &&
+                any &&
                 (i as i64) * dilations[kernel_ndim - 1] >= padding_bounds_left[kernel_ndim - 1] &&
                 (i as i64) * dilations[kernel_ndim - 1] < padding_bounds_right[kernel_ndim - 1]
             {

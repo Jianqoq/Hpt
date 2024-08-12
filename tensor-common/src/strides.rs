@@ -28,7 +28,13 @@ impl Strides {
 
 impl std::fmt::Debug for Strides {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("Strides {{ {:?} }}", self.inner))
+        f.write_fmt(format_args!("strides({:?})", self.inner))
+    }
+}
+
+impl std::fmt::Display for Strides {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("strides({:?})", self.inner))
     }
 }
 
