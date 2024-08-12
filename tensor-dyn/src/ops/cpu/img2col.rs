@@ -4,7 +4,7 @@ use crate::THREAD_POOL;
 use std::{ ops::Mul, sync::{ Arc, Barrier } };
 use num::traits::MulAdd;
 use tensor_common::{ pointer::Pointer, shape::Shape, shape_utils::mt_intervals };
-use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
+use tensor_traits::{ CommonBounds, ShapeManipulate, TensorCreator, TensorInfo };
 use tensor_types::type_promote::NormalOut;
 
 impl<T> _Tensor<T, Cpu>
@@ -282,6 +282,17 @@ impl<T> _Tensor<T, Cpu>
             }
             barrier.wait();
         });
-        Ok(ret)
+        let mut c_kernel_dims = 1;
+        let mut out_dims = 1;
+        let mut new_shape = ret.shape().to_vec();
+        for _ in 0..kernel_ndim + 1 {
+            c_kernel_dims *= new_shape.pop().unwrap();
+        }
+        for _ in 0..kernel_ndim {
+            out_dims *= new_shape.pop().unwrap();
+        }
+        new_shape.push(out_dims);
+        new_shape.push(c_kernel_dims);
+        ret.reshape(new_shape)
     }
 }
