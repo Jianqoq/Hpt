@@ -57,6 +57,7 @@ pub mod wgpu_exec;
 use ctor::ctor;
 pub use tensor_iterator::iterator_traits::*;
 pub use tensor_traits::*;
+pub use tensor_macros::match_selection;
 
 use std::{ cell::RefCell, sync::atomic::AtomicUsize };
 thread_local! {

@@ -71,6 +71,13 @@ impl<T> _Tensor<T, Cpu>
                 out_dims.push(o);
             });
         let in_channels_per_group = self.shape()[1] / _groups;
+        if in_channels_per_group != kernel_shape[0] {
+            anyhow::bail!(
+                "in_channels_per_group must be equal to kernel_shape[0], got {} and {}",
+                in_channels_per_group,
+                _kernel_shape[0]
+            );
+        }
         let mut loop_shape = vec![1; 3 + _kernel_shape.len()];
         loop_shape[0] = self.shape()[0];
         loop_shape[1] = _groups;
@@ -80,8 +87,9 @@ impl<T> _Tensor<T, Cpu>
 
         let mut outer_dims = vec![];
         outer_dims.push(self.shape()[0]); // batch
+        outer_dims.push(_groups); // _group idx
         outer_dims.extend(&out_dims); // out_dims
-        outer_dims.push(self.shape()[1]); // in_channels
+        outer_dims.push(in_channels_per_group); // in_channels
 
         let mut res_shape = outer_dims.clone();
         res_shape.extend(_kernel_shape.iter()); // kernel_shape
@@ -95,11 +103,11 @@ impl<T> _Tensor<T, Cpu>
         let kernel_ndim = _kernel_shape.len();
         let kernal_shape = Arc::new(_kernel_shape);
         THREAD_POOL.with_borrow_mut(|pool| {
-            let num_threads = if (outer_loop_size as usize) < pool.max_count() {
+            let num_threads = if (outer_loop_size as usize) < pool.max_count() { 
                 outer_loop_size as usize
-            } else {
+             } else { 
                 pool.max_count()
-            };
+              };
             let intervals = mt_intervals(outer_loop_size as usize, num_threads);
             let mut prgs = vec![];
             let mut res_ptrs = vec![];
@@ -119,13 +127,13 @@ impl<T> _Tensor<T, Cpu>
                     j == 1
                     /* _group idx */
                 {
-                    res_prg_mask[j] = in_channels_per_group * ret.strides()[kernel_ndim + 1];
+                    res_prg_mask[j] = in_channels_per_group * ret.strides()[1];
                     inp_prg_mask[j] = in_channels_per_group * self.strides()[1];
                 } else if j == 2 {
-                    res_prg_mask[j] = ret.strides()[kernel_ndim + 1];
+                    res_prg_mask[j] = ret.strides()[1];
                     inp_prg_mask[j] = self.strides()[1];
                 } else {
-                    res_prg_mask[j] = ret.strides()[j - kernel_ndim];
+                    res_prg_mask[j] = ret.strides()[j - 1];
                     inp_prg_mask[j] = _steps[j - 3] * self.strides()[j - 3 + 2];
                 }
             }
@@ -180,7 +188,7 @@ impl<T> _Tensor<T, Cpu>
                 let _kernel_shape = kernal_shape.clone();
                 let dilations = _dilation.clone();
                 let ret_last_stride = *ret.strides().last().unwrap() as isize;
-                let ret_last_strides2 = ret.strides()[ret.ndim() - kernel_ndim - 2] as isize;
+                let ret_last_strides2 = ret.strides()[ret.ndim() - kernel_ndim - 1] as isize;
                 let loop_shape = loop_shape.clone();
                 let last_steps = *_steps.last().unwrap();
                 let steps = _steps.clone();
@@ -288,7 +296,7 @@ impl<T> _Tensor<T, Cpu>
         for _ in 0..kernel_ndim + 1 {
             c_kernel_dims *= new_shape.pop().unwrap();
         }
-        for _ in 0..kernel_ndim {
+        for _ in 0..kernel_ndim + 1 {
             out_dims *= new_shape.pop().unwrap();
         }
         new_shape.push(out_dims);
