@@ -32,6 +32,9 @@ pub mod ops {
         pub mod dropout;
         pub mod lp_norm;
         pub mod img2col;
+        pub mod convolutions {
+            pub mod conv2d;
+        }
     }
     pub mod wgpu {
         pub mod buffer_helper;

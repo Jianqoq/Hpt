@@ -97,9 +97,9 @@ impl<T> _Tensor<T, Cpu>
         let kernal_shape = Arc::new(_kernel_shape);
         THREAD_POOL.with_borrow_mut(|pool| {
             let num_threads = if (outer_loop_size as usize) < pool.max_count() {
-                outer_loop_size as usize
+                1
             } else {
-                pool.max_count()
+                1
             };
             let intervals = mt_intervals(outer_loop_size as usize, num_threads);
             let mut prgs = vec![];

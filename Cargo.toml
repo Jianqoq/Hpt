@@ -1,3 +1,5 @@
+cargo-features = ["profile-rustflags"]
+
 [package]
 name = "e_tensor"
 version = "0.1.0"
@@ -40,12 +42,15 @@ ash = "0.35"
 name = "etensor"
 path = "src/main.rs"
 
+
 [profile.dev]
-opt-level = 0
+opt-level = 3
 incremental = true
-debug = true
+debug = false
+rustflags = ["-C", "target-cpu=native"]
 
 [profile.release]
-opt-level = 0
+opt-level = 3
 incremental = true
-debug = true
+debug = false
+rustflags = ["-C", "target-cpu=native"]
