@@ -1,4 +1,4 @@
-use ops::cpu::convolutions::conv2d::conv2d;
+use ops::cpu::convolutions::conv2d::{conv2d, conv2d_naive};
 use tensor_dyn::TensorCreator;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
@@ -57,10 +57,31 @@ fn main() -> anyhow::Result<()> {
             ],
         ],
     ]);
-    println!("{:?}", kernel.shape());
     let a = _Tensor::<f32>::arange(0, 500000)?.reshape([2, 500, 500])?; // shape [2, 2, 5, 5]
     let now = std::time::Instant::now();
     let res = conv2d(&a, &kernel, [1, 1])?;
+
+    println!("{:?}", now.elapsed());
+
+    println!("{:?}", res);
+
+    let kernel = _Tensor::<f32>::new([
+        [
+            [
+                [1.0, 2.0, 3.0],
+                [4.0, 5.0, 6.0],
+                [7.0, 8.0, 9.0],
+            ],
+            [
+                [1.0, 2.0, 3.0],
+                [4.0, 5.0, 6.0],
+                [7.0, 8.0, 9.0],
+            ],
+        ],
+    ]);
+    let a = _Tensor::<f32>::arange(0, 500000)?.reshape([2, 500, 500])?; // shape [2, 2, 5, 5]
+    let now = std::time::Instant::now();
+    let res = conv2d_naive(&a, &kernel, [1, 1])?;
 
     println!("{:?}", now.elapsed());
 
