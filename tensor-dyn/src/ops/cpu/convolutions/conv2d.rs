@@ -16,10 +16,10 @@ pub fn conv2d<T>(
     let img_width = img_shape[1];
     let img_height = img_shape[2];
     let kernel_shape = kernels.shape();
-    let in_channels = kernel_shape[0];
-    let out_channels = kernel_shape[1];
-    let kernel_width = kernel_shape[2];
-    let kernel_height = kernel_shape[3];
+    let in_channels = kernel_shape[2];
+    let out_channels = kernel_shape[3];
+    let kernel_width = kernel_shape[1];
+    let kernel_height = kernel_shape[0];
     if in_channels != img_channels {
         panic!(
             "The number of input channels in the image must be equal to the number of input channels in the kernel."
@@ -42,10 +42,10 @@ pub fn conv2d<T>(
     let is1 = img.strides()[1];
     let is2 = img.strides()[2];
 
-    let ks0 = kernels.strides()[0];
-    let ks1 = kernels.strides()[1];
-    let ks2 = kernels.strides()[2];
-    let ks3 = kernels.strides()[3];
+    let ks0 = kernels.strides()[2];
+    let ks1 = kernels.strides()[3];
+    let ks2 = kernels.strides()[1];
+    let ks3 = kernels.strides()[0];
 
     for l in 0..out_height {
         for n in 0..kernel_height {
