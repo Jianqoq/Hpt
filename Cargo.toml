@@ -47,10 +47,8 @@ path = "src/main.rs"
 opt-level = 3
 incremental = true
 debug = true
-rustflags = ["-C", "target-cpu=native"]
 
 [profile.release]
 opt-level = 3
 incremental = true
 debug = true
-rustflags = ["-C", "target-cpu=native"]
