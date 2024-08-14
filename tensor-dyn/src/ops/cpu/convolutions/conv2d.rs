@@ -4,6 +4,10 @@ use tensor_traits::TensorCreator;
 use tensor_types::type_promote::NormalOut;
 use crate::tensor_base::_Tensor;
 
+/// image: [height, width, channels]
+/// kernels: [kernel_height, kernel_width, in_channels, out_channels]
+/// steps: [step_width, step_height]
+/// output: [out_width, out_height, out_channels]
 #[cfg(target_feature = "fma")]
 pub fn conv2d<T>(
     img: &_Tensor<T>,
