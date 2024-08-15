@@ -2,7 +2,6 @@ mod allocator;
 mod strorage;
 extern crate lru;
 
-use ctor::dtor;
 pub use strorage::WGPU_STORAGE;
 pub use strorage::CPU_STORAGE;
 pub use allocator::CACHE;

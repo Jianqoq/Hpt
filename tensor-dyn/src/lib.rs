@@ -34,6 +34,7 @@ pub mod ops {
         pub mod img2col;
         pub mod convolutions {
             pub mod conv2d;
+            pub mod conv2d_unroll;
         }
     }
     pub mod wgpu {
