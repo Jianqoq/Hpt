@@ -90,7 +90,6 @@ pub fn get_num_threads() -> usize {
 
 #[ctor]
 fn init() {
-    rayon::ThreadPoolBuilder::new().num_threads(num_cpus::get_physical()).build_global().unwrap();
 }
 
 #[cfg(target_feature = "avx512f")]
