@@ -92,3 +92,12 @@ pub fn get_num_threads() -> usize {
 fn init() {
     rayon::ThreadPoolBuilder::new().num_threads(num_cpus::get_physical()).build_global().unwrap();
 }
+
+#[cfg(target_feature = "avx512f")]
+static ALIGN: usize = 64;
+
+#[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
+static ALIGN: usize = 32;
+
+#[cfg(not(target_feature = "avx2"))]
+static ALIGN: usize = 16;

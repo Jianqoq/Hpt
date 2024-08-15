@@ -56,6 +56,7 @@ use crate::{
     ops::cpu::concat::concat,
     slice::SliceOps,
     tensor::Tensor,
+    ALIGN,
     DISPLAY_LR_ELEMENTS,
     DISPLAY_PRECISION,
 };
@@ -588,7 +589,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             size *= tmp as usize;
         }
         let layout = std::alloc::Layout
-            ::from_size_align(size * std::mem::size_of::<T>(), 8)
+            ::from_size_align(size * std::mem::size_of::<T>(), ALIGN)
             .unwrap();
         let ptr = unsafe { CACHE.allocate(layout) };
         Ok(_Tensor {
@@ -611,7 +612,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             size *= tmp;
         }
         let layout = std::alloc::Layout
-            ::from_size_align(size * std::mem::size_of::<T>(), 8)
+            ::from_size_align(size * std::mem::size_of::<T>(), ALIGN)
             .unwrap();
         let ptr = unsafe { CACHE.allocate(layout) };
         unsafe {
@@ -636,20 +637,11 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             strides[i] = size as i64;
             size *= tmp;
         }
-        let layout = std::alloc::Layout
-            ::from_size_align(size * std::mem::size_of::<T>(), 8)
-            .unwrap();
-        let ptr = unsafe { CACHE.allocate(layout) };
+        let ret = _Tensor::<T>::empty(res_shape)?;
         unsafe {
-            std::ptr::write_bytes(ptr as *mut T, 1, size);
+            ret.as_raw_mut().as_mut_ptr().write_bytes(1, size);
         }
-        Ok(_Tensor {
-            data: Pointer::new(ptr as *mut T),
-            parent: None,
-            layout: Layout::new(res_shape, strides),
-            mem_layout: Arc::new(layout),
-            _backend: Backend::new(ptr as u64),
-        })
+        Ok(ret)
     }
 
     fn empty_like(&self) -> Result<Self> {
@@ -1270,7 +1262,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             _backend: Backend::new(self.data.ptr as u64),
         })
     }
-    
+
     fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
         let permuted_layout = self.layout.permute_inv(axes)?;
         Ok(_Tensor {
@@ -1488,7 +1480,7 @@ impl<'a, T> Into<_Tensor<T>> for &'a [T] {
         let strides = vec![1];
         let layout = Layout::new(shape, strides);
         let mem_layout = std::alloc::Layout
-            ::from_size_align(self.len() * std::mem::size_of::<T>(), 8)
+            ::from_size_align(self.len() * std::mem::size_of::<T>(), ALIGN)
             .unwrap();
         let ptr = unsafe { CACHE.allocate(mem_layout.clone()) };
         unsafe {

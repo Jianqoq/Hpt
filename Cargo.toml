@@ -1,4 +1,3 @@
-cargo-features = ["profile-rustflags"]
 
 [package]
 name = "e_tensor"

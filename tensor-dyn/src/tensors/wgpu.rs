@@ -52,7 +52,7 @@ use crate::{
     ops::{ cpu::concat::concat, wgpu::buffer_helper::WgpuDevice },
     slice::SliceOps,
     tensor::Tensor,
-    tensor_base::_Tensor,
+    tensor_base::_Tensor, ALIGN,
 };
 
 impl<T> TensorInfo<T> for _Tensor<T, Wgpu> where T: CommonBounds {
@@ -511,7 +511,7 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
             size *= tmp as usize;
         }
         let layout = std::alloc::Layout
-            ::from_size_align(size * std::mem::size_of::<T>(), 8)
+            ::from_size_align(size * std::mem::size_of::<T>(), ALIGN)
             .unwrap();
 
         let buffer = unsafe { WGPU_CACHE.allocate(&layout, &device.device, false) };
@@ -1332,7 +1332,7 @@ impl<'a, T> Into<_Tensor<T, Wgpu>> for &'a [T] {
         let strides = vec![1];
         let layout = Layout::new(shape, strides);
         let mem_layout = std::alloc::Layout
-            ::from_size_align(self.len() * std::mem::size_of::<T>(), 8)
+            ::from_size_align(self.len() * std::mem::size_of::<T>(), ALIGN)
             .unwrap();
         let ptr = unsafe { CACHE.allocate(mem_layout.clone()) };
         unsafe {
