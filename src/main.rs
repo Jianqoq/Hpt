@@ -31,7 +31,6 @@ fn main() -> anyhow::Result<()> {
         .contiguous()?;
     let now = std::time::Instant::now();
     let res = conv2d_block_simd(&a, &kernel, [1, 1])?.permute([2, 0, 1])?;
-    println!("{:?}", res);
     println!("{:?}", now.elapsed());
 
     let kernel = _Tensor::<f32>
@@ -43,6 +42,5 @@ fn main() -> anyhow::Result<()> {
     let now = std::time::Instant::now();
     let res2 = conv2d_naive(&a, &kernel, [1, 1])?;
     println!("{:?}", now.elapsed());
-    println!("{:?}", res2);
     Ok(())
 }
