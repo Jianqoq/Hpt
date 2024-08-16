@@ -76,12 +76,12 @@ pub fn conv2d_block_simd_parallel_unroll_i32<T>(
                                     let _k = kp * w_ob + k as i64;
                                     let res_ptr = &mut out[jp * c_ob * os2 + _k * os1 + l * os0]; // prettier-ignore
                                     let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
-                                    res_vectors[k as usize]
+                                    res_vectors[k]
                                         .as_array_mut()
                                         .copy_from_slice(unsafe {
                                             std::mem::transmute::<&[T], &[i32]>(res_vec)
                                         });
-                                    res_ptrs[k as usize] = res_vec.as_mut_ptr() as *mut i32;
+                                    res_ptrs[k] = res_vec.as_mut_ptr() as *mut i32;
                                 }
                                 let mut scalar_vec = i32x8::splat(0i32);
                                 for i in 0..c_ib {
