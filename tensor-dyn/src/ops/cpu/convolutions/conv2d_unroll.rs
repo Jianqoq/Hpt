@@ -238,7 +238,7 @@ pub fn conv2d_block_simd_parallel_unroll_f32<T>(
 }
 
 #[cfg(target_feature = "fma")]
-pub fn conv2d_block_simd_parallel_unroll_pad_dilation_f32<T>(
+pub fn conv2d_block_simd_parallel_unroll_pad_dilation_i32<T>(
     img: &_Tensor<T>,
     kernels: &_Tensor<T>,
     steps: [i64; 2],
@@ -248,10 +248,9 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_f32<T>(
     -> anyhow::Result<_Tensor<T>>
     where
         T: CommonBounds + std::ops::Mul<Output = T> + std::ops::AddAssign<T> + MulAdd<Output = T>,
-        T: IntoScalar<f32>
+        T: IntoScalar<i32>
 {
-    use likely_stable::likely;
-    use wide::f32x8;
+    use wide::i32x8;
 
     let img_shape = img.shape();
     let img_height = img_shape[0];
@@ -268,10 +267,12 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_f32<T>(
         );
     }
     let (step_width, step_height) = (steps[0], steps[1]);
+    let ((pw_start, pw_end), (ph_start, ph_end)) = (padding[0], padding[1]);
+    let (dw, dh) = (dilation[0], dilation[1]);
 
     let out_height =
-        <i64 as NormalOut<i64>>::_floor((img_height - kernel_height) / step_height) + 1;
-    let out_width = <i64 as NormalOut<i64>>::_floor((img_width - kernel_width) / step_width) + 1;
+        <i64 as NormalOut<i64>>::_floor((img_height + ph_start + ph_end - dh * (kernel_height - 1) - 1) / step_height) + 1; // prettier-ignore
+    let out_width = <i64 as NormalOut<i64>>::_floor((img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width) + 1; // prettier-ignore
     let output = _Tensor::<T>::zeros([out_height, out_width, out_channels])?;
     let inp = img.ptr();
     let kernel = kernels.ptr();
@@ -296,23 +297,26 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_f32<T>(
     (0..jp_end).into_par_iter().for_each_init(
         || output.ptr(),
         |out, jp| {
-            let mut res_vectors = [f32x8::splat(0f32); 14];
-            let mut res_ptrs = [0 as *mut f32; 14];
-            let mut scalar_vec = f32x8::splat(0f32);
-            let mut kernel_vector = f32x8::splat(0f32);
+            let mut res_vectors = [i32x8::splat(0i32); 14];
+            let mut res_ptrs = [0 as *mut i32; 14];
+            let mut scalar_vec = i32x8::splat(0i32);
+            let mut kernel_vector = i32x8::splat(0i32);
+            let mut stop;
             for l in 0..out_height {
                 for kp in 0..kp_end {
+                    stop = 0;
                     for k in 0..14 {
                         let _k = kp * w_ob + k;
-                        if likely(_k < out_width) {
+                        if _k < out_width {
                             let res_ptr = &mut out[jp * c_ob * os2 + _k * os1 + l * os0]; // prettier-ignore
                             let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
                             res_vectors[k as usize]
                                 .as_array_mut()
                                 .copy_from_slice(unsafe {
-                                    std::mem::transmute::<&[T], &[f32]>(res_vec)
+                                    std::mem::transmute::<&[T], &[i32]>(res_vec)
                                 });
-                            res_ptrs[k as usize] = res_vec.as_mut_ptr() as *mut f32;
+                            res_ptrs[k as usize] = res_vec.as_mut_ptr() as *mut i32;
+                            stop += 1;
                         } else {
                             break;
                         }
@@ -324,13 +328,20 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_f32<T>(
                                 kernel_vector
                                     .as_array_mut()
                                     .copy_from_slice(unsafe {
-                                        std::mem::transmute::<&[T], &[f32]>(
+                                        std::mem::transmute::<&[T], &[i32]>(
                                             std::slice::from_raw_parts(kernel_ptr, 8)
                                         )
                                     });
-                                for k in 0..14 {
+                                let in_y = l * step_height + n * dh - ph_start;
+                                for k in 0..stop {
                                     let _k = kp * w_ob + k;
-                                    if likely(_k < out_width) {
+                                    let in_x = _k * step_width + m * dw - pw_start;
+                                    if
+                                        in_y >= 0 &&
+                                        in_y < img_height &&
+                                        in_x >= 0 &&
+                                        in_x < img_width
+                                    {
                                         let res_vector = &mut res_vectors[k as usize];
 
                                         let i_val = inp[i * is2 + (_k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
@@ -345,18 +356,13 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_f32<T>(
                             }
                         }
                     }
-                    for k in 0..14 {
-                        let _k = kp * w_ob + k;
-                        if likely(_k < out_width) {
-                            unsafe {
-                                std::ptr::copy_nonoverlapping(
-                                    res_vectors[k as usize].as_array_ref().as_ptr() as *const f32,
-                                    res_ptrs[k as usize] as *mut f32,
-                                    8
-                                );
-                            }
-                        } else {
-                            break;
+                    for k in 0..stop {
+                        unsafe {
+                            std::ptr::copy_nonoverlapping(
+                                res_vectors[k as usize].as_array_ref().as_ptr() as *const i32,
+                                res_ptrs[k as usize] as *mut i32,
+                                8
+                            );
                         }
                     }
                 }
