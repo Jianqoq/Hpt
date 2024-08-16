@@ -72,8 +72,8 @@ pub fn conv2d_block_simd_parallel_unroll_i32<T>(
                             for m in 0..kernel_width {
                                 let mut res_vectors = [i32x8::splat(0i32); 14];
                                 let mut res_ptrs = [0 as *mut i32; 14];
-                                for k in 0..14 {
-                                    let _k = kp * w_ob + k;
+                                for k in 0..14usize {
+                                    let _k = kp * w_ob + k as i64;
                                     let res_ptr = &mut out[jp * c_ob * os2 + _k * os1 + l * os0]; // prettier-ignore
                                     let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
                                     res_vectors[k as usize]
@@ -90,10 +90,10 @@ pub fn conv2d_block_simd_parallel_unroll_i32<T>(
                                     let kernel_vec = unsafe { std::slice::from_raw_parts(kernel_ptr, 8) }; // prettier-ignore
                                     let kernel_vector = unsafe { i32x8::from(std::mem::transmute::<&[T], &[i32]>(kernel_vec)) }; // prettier-ignore
                                     let _kernel_vector_arr = kernel_vector.to_array();
-                                    for k in 0..14 {
-                                        let res_vector = &mut res_vectors[k as usize];
+                                    for k in 0..14usize {
+                                        let res_vector = &mut res_vectors[k];
 
-                                        let i_val = inp[_i * is2 + ((kp * w_ob + k) * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
+                                        let i_val = inp[_i * is2 + ((kp * w_ob + k as i64) * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
                                         scalar_vec
                                             .as_array_mut()
                                             .copy_from_slice(&[i_val.into_scalar(); 8]);
@@ -104,9 +104,9 @@ pub fn conv2d_block_simd_parallel_unroll_i32<T>(
                                             .copy_from_slice(res.as_array_ref());
                                     }
                                 }
-                                for k in 0..14 {
-                                    let res_vector = &res_vectors[k as usize].as_array_ref();
-                                    let res_ptr = res_ptrs[k as usize];
+                                for k in 0..14usize {
+                                    let res_vector = &res_vectors[k].as_array_ref();
+                                    let res_ptr = res_ptrs[k];
                                     unsafe {
                                         std::ptr::copy_nonoverlapping(
                                             res_vector.as_ptr() as *const i32,
