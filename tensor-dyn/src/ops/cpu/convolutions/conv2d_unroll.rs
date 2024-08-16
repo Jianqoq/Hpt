@@ -536,10 +536,8 @@ pub fn conv2d_block_simd_parallel_unroll_f32<T>(
     let ks3 = kernels.strides()[3]; // out_channels
 
     let c_ob = 8;
-    let c_ib = 4;
     let w_ob = 14;
     let jp_end = (out_channels + c_ob - 1) / c_ob;
-    let ip_end = (in_channels + c_ib - 1) / c_ib;
     let kp_end = (out_width + w_ob - 1) / w_ob;
     (0..jp_end).into_par_iter().for_each_init(
         || output.ptr(),
