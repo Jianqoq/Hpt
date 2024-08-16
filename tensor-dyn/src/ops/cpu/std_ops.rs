@@ -1,5 +1,6 @@
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use rayon::iter::ParallelIterator;
+use tensor_types::convertion::Convertor;
 use tensor_types::into_scalar::IntoScalar;
 use std::ops::AddAssign;
 use std::ops::{
@@ -415,13 +416,29 @@ macro_rules! bitwise_promote_ops_4 {
     };
 }
 
-bitwise_promote_ops_1!([BitAnd, bitand, _bitand], [BitOr, bitor, _bitor], [BitXor, bitxor, _bitxor]);
+bitwise_promote_ops_1!(
+    [BitAnd, bitand, _bitand],
+    [BitOr, bitor, _bitor],
+    [BitXor, bitxor, _bitxor]
+);
 
-bitwise_promote_ops_2!([BitAnd, bitand, _bitand], [BitOr, bitor, _bitor], [BitXor, bitxor, _bitxor]);
+bitwise_promote_ops_2!(
+    [BitAnd, bitand, _bitand],
+    [BitOr, bitor, _bitor],
+    [BitXor, bitxor, _bitxor]
+);
 
-bitwise_promote_ops_3!([BitAnd, bitand, _bitand], [BitOr, bitor, _bitor], [BitXor, bitxor, _bitxor]);
+bitwise_promote_ops_3!(
+    [BitAnd, bitand, _bitand],
+    [BitOr, bitor, _bitor],
+    [BitXor, bitxor, _bitxor]
+);
 
-bitwise_promote_ops_4!([BitAnd, bitand, _bitand], [BitOr, bitor, _bitor], [BitXor, bitxor, _bitxor]);
+bitwise_promote_ops_4!(
+    [BitAnd, bitand, _bitand],
+    [BitOr, bitor, _bitor],
+    [BitXor, bitxor, _bitxor]
+);
 
 macro_rules! shift_promote_ops_1 {
     ($([$op:ident, $op2:ident, $op3:ident]),*) => {
@@ -763,7 +780,10 @@ float_binary_promote_ops_2!([Div, div, _div]);
 float_binary_promote_ops_3!([Div, div, _div]);
 float_binary_promote_ops_4!([Div, div, _div]);
 
-impl<T, U> PartialEq<_Tensor<U>> for _Tensor<T> where T: CommonBounds, U: CommonBounds {
+impl<T, U> PartialEq<_Tensor<U>>
+    for _Tensor<T>
+    where T: CommonBounds + Convertor, U: CommonBounds + Convertor
+{
     fn eq(&self, other: &_Tensor<U>) -> bool {
         if self.size() != other.size() {
             return false;
@@ -771,7 +791,7 @@ impl<T, U> PartialEq<_Tensor<U>> for _Tensor<T> where T: CommonBounds, U: Common
         if self.shape() != other.shape() {
             return false;
         }
-        (self.ptr().ptr as usize) == (other.ptr().ptr as usize)
+        self.allclose(other)
     }
 }
 
