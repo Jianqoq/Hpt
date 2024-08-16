@@ -99,14 +99,20 @@ pub fn conv2d_block_simd_parallel_unroll_i32<T>(
                                             .copy_from_slice(&[i_val.into_scalar(); 8]);
                                         let _scalar_arr = scalar_vec.to_array();
                                         let res = kernel_vector * scalar_vec + *res_vector; // prettier-ignore
-                                        let _res_arr = res.to_array();
-                                        unsafe {
-                                            std::ptr::copy_nonoverlapping(
-                                                res.to_array().as_ptr() as *const i32,
-                                                res_ptrs[k as usize] as *mut i32,
-                                                8
-                                            );
-                                        }
+                                        res_vector
+                                            .as_array_mut()
+                                            .copy_from_slice(res.as_array_ref());
+                                    }
+                                }
+                                for k in 0..14 {
+                                    let res_vector = &res_vectors[k as usize].as_array_ref();
+                                    let res_ptr = res_ptrs[k as usize];
+                                    unsafe {
+                                        std::ptr::copy_nonoverlapping(
+                                            res_vector.as_ptr() as *const i32,
+                                            res_ptr as *mut i32,
+                                            8
+                                        );
                                     }
                                 }
                             }

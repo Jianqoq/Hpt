@@ -15,19 +15,19 @@ use tensor_dyn::*;
 
 fn main() -> anyhow::Result<()> {
     set_global_display_lr_elements(6);
-    set_num_threads(1);
+    set_num_threads(10);
     let kernel = _Tensor::<i32>
         ::arange(0, 10240)?
         .reshape([8, 80, 4, 4])?
         .permute([2, 3, 0, 1])?
         .contiguous()?;
     let a = _Tensor::<i32>
-        ::arange(0, 8 * 256 * 128)?
-        .reshape([8, 256, 128])?
+        ::arange(0, 8 * 256 * 129)?
+        .reshape([8, 256, 129])?
         .permute([1, 2, 0])?
         .contiguous()?;
     let now = std::time::Instant::now();
-    let res = conv2d_block_simd_parallel(&a, &kernel, [1, 1])?.permute([2, 0, 1])?;
+    let res = conv2d(&a, &kernel, [1, 1])?.permute([2, 0, 1])?;
 
     println!("{:?}", now.elapsed());
     let kernel = _Tensor::<i32>
@@ -44,7 +44,6 @@ fn main() -> anyhow::Result<()> {
     let res2 = conv2d_block_simd_parallel_unroll_i32(&a, &kernel, [1, 1])?.permute([2, 0, 1])?;
     println!("{:?}", now.elapsed());
 
-    println!("{:?}", res);
-    println!("{:?}", res2);
+    assert!(res.allclose(&res2));
     Ok(())
 }
