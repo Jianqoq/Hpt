@@ -7,7 +7,8 @@ use ops::cpu::convolutions::conv2d::{
     conv2d_naive,
 };
 use ops::cpu::convolutions::conv2d_unroll::{
-    conv2d_block_simd_parallel_unroll_f32, conv2d_block_simd_parallel_unroll_i32
+    conv2d_block_simd_parallel_unroll_f32,
+    conv2d_block_simd_parallel_unroll_i32,
 };
 use tensor_dyn::TensorCreator;
 use tensor_dyn::tensor_base::_Tensor;
@@ -41,8 +42,10 @@ fn main() -> anyhow::Result<()> {
         .permute([1, 2, 0])?
         .contiguous()?;
     let now = std::time::Instant::now();
-    let res2 = conv2d_block_simd_parallel_unroll_f32(&a, &kernel, [1, 1])?.permute([2, 0, 1])?;
-    println!("{:?}", now.elapsed());
+    for i in 0..100 {
+        let _ = conv2d_block_simd_parallel_unroll_f32(&a, &kernel, [1, 1])?.permute([2, 0, 1])?;
+    }
+    println!("{:?}", now.elapsed() / 100);
 
     Ok(())
 }
