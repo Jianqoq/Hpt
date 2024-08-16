@@ -431,294 +431,44 @@ pub fn conv2d_block_simd_parallel_unroll_i32<T>(
                     for kp in 0..kp_end {
                         for n in 0..kernel_height {
                             for m in 0..kernel_width {
-                                let k0 = kp * w_ob + 0;
-                                let res_ptr0 = &mut out[jp * c_ob * os2 + k0 * os1 + l * os0]; // prettier-ignore
-                                let res_vec0 = unsafe { std::slice::from_raw_parts_mut(res_ptr0, 8) }; // prettier-ignore
-                                let mut res_vector0 = unsafe { i32x8::from(std::mem::transmute::<&[T], &[i32]>(res_vec0)) }; // prettier-ignore
-
-                                let k1 = kp * w_ob + 1;
-                                let res_ptr1 = &mut out[jp * c_ob * os2 + k1 * os1 + l * os0]; // prettier-ignore
-                                let res_vec1 = unsafe { std::slice::from_raw_parts_mut(res_ptr1, 8) }; // prettier-ignore
-                                let mut res_vector1 = unsafe { i32x8::from(std::mem::transmute::<&[T], &[i32]>(res_vec1)) }; // prettier-ignore
-
-                                let k2 = kp * w_ob + 2;
-                                let res_ptr2 = &mut out[jp * c_ob * os2 + k2 * os1 + l * os0]; // prettier-ignore
-                                let res_vec2 = unsafe { std::slice::from_raw_parts_mut(res_ptr2, 8) }; // prettier-ignore
-                                let mut res_vector2 = unsafe { i32x8::from(std::mem::transmute::<&[T], &[i32]>(res_vec2)) }; // prettier-ignore
-
-                                let k3 = kp * w_ob + 3;
-                                let res_ptr3 = &mut out[jp * c_ob * os2 + k3 * os1 + l * os0]; // prettier-ignore
-                                let res_vec3 = unsafe { std::slice::from_raw_parts_mut(res_ptr3, 8) }; // prettier-ignore
-                                let mut res_vector3 = unsafe { i32x8::from(std::mem::transmute::<&[T], &[i32]>(res_vec3)) }; // prettier-ignore
-
-                                let k4 = kp * w_ob + 4;
-                                let res_ptr4 = &mut out[jp * c_ob * os2 + k4 * os1 + l * os0]; // prettier-ignore
-                                let res_vec4 = unsafe { std::slice::from_raw_parts_mut(res_ptr4, 8) }; // prettier-ignore
-                                let mut res_vector4 = unsafe { i32x8::from(std::mem::transmute::<&[T], &[i32]>(res_vec4)) }; // prettier-ignore
-
-                                let k5 = kp * w_ob + 5;
-                                let res_ptr5 = &mut out[jp * c_ob * os2 + k5 * os1 + l * os0]; // prettier-ignore
-                                let res_vec5 = unsafe { std::slice::from_raw_parts_mut(res_ptr5, 8) }; // prettier-ignore
-                                let mut res_vector5 = unsafe { i32x8::from(std::mem::transmute::<&[T], &[i32]>(res_vec5)) }; // prettier-ignore
-
-                                let k6 = kp * w_ob + 6;
-                                let res_ptr6 = &mut out[jp * c_ob * os2 + k6 * os1 + l * os0]; // prettier-ignore
-                                let res_vec6 = unsafe { std::slice::from_raw_parts_mut(res_ptr6, 8) }; // prettier-ignore
-                                let mut res_vector6 = unsafe { i32x8::from(std::mem::transmute::<&[T], &[i32]>(res_vec6)) }; // prettier-ignore
-
-                                let k7 = kp * w_ob + 7;
-                                let res_ptr7 = &mut out[jp * c_ob * os2 + k7 * os1 + l * os0]; // prettier-ignore
-                                let res_vec7 = unsafe { std::slice::from_raw_parts_mut(res_ptr7, 8) }; // prettier-ignore
-                                let mut res_vector7 = unsafe { i32x8::from(std::mem::transmute::<&[T], &[i32]>(res_vec7)) }; // prettier-ignore
-
-                                let k8 = kp * w_ob + 8;
-                                let res_ptr8 = &mut out[jp * c_ob * os2 + k8 * os1 + l * os0]; // prettier-ignore
-                                let res_vec8 = unsafe { std::slice::from_raw_parts_mut(res_ptr8, 8) }; // prettier-ignore
-                                let mut res_vector8 = unsafe { i32x8::from(std::mem::transmute::<&[T], &[i32]>(res_vec8)) }; // prettier-ignore
-
-                                let k9 = kp * w_ob + 9;
-                                let res_ptr9 = &mut out[jp * c_ob * os2 + k9 * os1 + l * os0]; // prettier-ignore
-                                let res_vec9 = unsafe { std::slice::from_raw_parts_mut(res_ptr9, 8) }; // prettier-ignore
-                                let mut res_vector9 = unsafe { i32x8::from(std::mem::transmute::<&[T], &[i32]>(res_vec9)) }; // prettier-ignore
-
-                                let k10 = kp * w_ob + 10;
-                                let res_ptr10 = &mut out[jp * c_ob * os2 + k10 * os1 + l * os0]; // prettier-ignore
-                                let res_vec10 = unsafe { std::slice::from_raw_parts_mut(res_ptr10, 8) }; // prettier-ignore
-                                let mut res_vector10 = unsafe { i32x8::from(std::mem::transmute::<&[T], &[i32]>(res_vec10)) }; // prettier-ignore
-
-                                let k11 = kp * w_ob + 11;
-                                let res_ptr11 = &mut out[jp * c_ob * os2 + k11 * os1 + l * os0]; // prettier-ignore
-                                let res_vec11 = unsafe { std::slice::from_raw_parts_mut(res_ptr11, 8) }; // prettier-ignore
-                                let mut res_vector11 = unsafe { i32x8::from(std::mem::transmute::<&[T], &[i32]>(res_vec11)) }; // prettier-ignore
-
-                                let k12 = kp * w_ob + 12;
-                                let res_ptr12 = &mut out[jp * c_ob * os2 + k12 * os1 + l * os0]; // prettier-ignore
-                                let res_vec12 = unsafe { std::slice::from_raw_parts_mut(res_ptr12, 8) }; // prettier-ignore
-                                let mut res_vector12 = unsafe { i32x8::from(std::mem::transmute::<&[T], &[i32]>(res_vec12)) }; // prettier-ignore
-
-                                let k13 = kp * w_ob + 13;
-                                let res_ptr13 = &mut out[jp * c_ob * os2 + k13 * os1 + l * os0]; // prettier-ignore
-                                let res_vec13 = unsafe { std::slice::from_raw_parts_mut(res_ptr13, 8) }; // prettier-ignore
-                                let mut res_vector13 = unsafe { i32x8::from(std::mem::transmute::<&[T], &[i32]>(res_vec13)) }; // prettier-ignore
-
+                                let mut res_vectors = [i32x8::splat(0i32); 14];
+                                let mut res_ptrs = [0 as *mut i32; 14];
+                                for k in 0..14 {
+                                    let _k = kp * w_ob + k;
+                                    let res_ptr = &mut out[jp * c_ob * os2 + _k * os1 + l * os0]; // prettier-ignore
+                                    let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
+                                    res_vectors[k as usize]
+                                        .as_array_mut()
+                                        .copy_from_slice(unsafe {
+                                            std::mem::transmute::<&[T], &[i32]>(res_vec)
+                                        });
+                                    res_ptrs[k as usize] = res_vec.as_mut_ptr() as *mut i32;
+                                }
                                 let mut scalar_vec = i32x8::splat(0i32);
                                 for i in 0..c_ib {
-                                    let i = ip * c_ib + i;
-                                    let kernel_ptr = &kernel[i * ks2 + jp * c_ob * ks3 + m * ks1 + n * ks0] as *const T; // prettier-ignore
+                                    let _i = ip * c_ib + i;
+                                    let kernel_ptr = &kernel[_i * ks2 + jp * c_ob * ks3 + m * ks1 + n * ks0] as *const T; // prettier-ignore
                                     let kernel_vec = unsafe { std::slice::from_raw_parts(kernel_ptr, 8) }; // prettier-ignore
                                     let kernel_vector = unsafe { i32x8::from(std::mem::transmute::<&[T], &[i32]>(kernel_vec)) }; // prettier-ignore
-                                    // create img vector
-                                    let k = kp * w_ob + 0;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector * scalar_vec + res_vector0; // prettier-ignore
-                                    res_vector0
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
+                                    let _kernel_vector_arr = kernel_vector.to_array();
+                                    for k in 0..14 {
+                                        let res_vector = &mut res_vectors[k as usize];
 
-                                    let k = kp * w_ob + 1;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector * scalar_vec + res_vector1; // prettier-ignore
-                                    res_vector1
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
-
-                                    let k = kp * w_ob + 2;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector * scalar_vec + res_vector2; // prettier-ignore
-                                    res_vector2
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
-
-                                    let k = kp * w_ob + 3;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector * scalar_vec +  res_vector3; // prettier-ignore
-                                    res_vector3
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
-
-                                    let k = kp * w_ob + 4;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector * scalar_vec +  res_vector4; // prettier-ignore
-                                    res_vector4
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
-
-                                    let k = kp * w_ob + 5;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector * scalar_vec +  res_vector5; // prettier-ignore
-                                    res_vector5
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
-
-                                    let k = kp * w_ob + 6;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector * scalar_vec +  res_vector6; // prettier-ignore
-                                    res_vector6
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
-
-                                    let k = kp * w_ob + 7;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector * scalar_vec +  res_vector7; // prettier-ignore
-                                    res_vector7
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
-
-                                    let k = kp * w_ob + 8;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector * scalar_vec +  res_vector8; // prettier-ignore
-                                    res_vector8
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
-
-                                    let k = kp * w_ob + 9;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector * scalar_vec +  res_vector9; // prettier-ignore
-                                    res_vector9
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
-
-                                    let k = kp * w_ob + 10;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector * scalar_vec +  res_vector10; // prettier-ignore
-                                    res_vector10
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
-
-                                    let k = kp * w_ob + 11;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector * scalar_vec +  res_vector11; // prettier-ignore
-                                    res_vector11
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
-
-                                    let k = kp * w_ob + 12;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector * scalar_vec +  res_vector12; // prettier-ignore
-                                    res_vector12
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
-
-                                    let k = kp * w_ob + 13;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector * scalar_vec +  res_vector13; // prettier-ignore
-                                    res_vector13
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
-                                }
-                                unsafe {
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector0.to_array().as_ptr() as *const i32,
-                                        res_vec0.as_mut_ptr() as *mut i32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector1.to_array().as_ptr() as *const i32,
-                                        res_vec1.as_mut_ptr() as *mut i32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector2.to_array().as_ptr() as *const i32,
-                                        res_vec2.as_mut_ptr() as *mut i32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector3.to_array().as_ptr() as *const i32,
-                                        res_vec3.as_mut_ptr() as *mut i32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector4.to_array().as_ptr() as *const i32,
-                                        res_vec4.as_mut_ptr() as *mut i32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector5.to_array().as_ptr() as *const i32,
-                                        res_vec5.as_mut_ptr() as *mut i32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector6.to_array().as_ptr() as *const i32,
-                                        res_vec6.as_mut_ptr() as *mut i32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector7.to_array().as_ptr() as *const i32,
-                                        res_vec7.as_mut_ptr() as *mut i32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector8.to_array().as_ptr() as *const i32,
-                                        res_vec8.as_mut_ptr() as *mut i32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector9.to_array().as_ptr() as *const i32,
-                                        res_vec9.as_mut_ptr() as *mut i32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector10.to_array().as_ptr() as *const i32,
-                                        res_vec10.as_mut_ptr() as *mut i32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector11.to_array().as_ptr() as *const i32,
-                                        res_vec11.as_mut_ptr() as *mut i32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector12.to_array().as_ptr() as *const i32,
-                                        res_vec12.as_mut_ptr() as *mut i32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector13.to_array().as_ptr() as *const i32,
-                                        res_vec13.as_mut_ptr() as *mut i32,
-                                        8
-                                    );
+                                        let i_val = inp[_i * is2 + ((kp * w_ob + k) * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
+                                        scalar_vec
+                                            .as_array_mut()
+                                            .copy_from_slice(&[i_val.into_scalar(); 8]);
+                                        let _scalar_arr = scalar_vec.to_array();
+                                        let res = kernel_vector * scalar_vec + *res_vector; // prettier-ignore
+                                        let _res_arr = res.to_array();
+                                        unsafe {
+                                            std::ptr::copy_nonoverlapping(
+                                                res.to_array().as_ptr() as *const i32,
+                                                res_ptrs[k as usize] as *mut i32,
+                                                8
+                                            );
+                                        }
+                                    }
                                 }
                             }
                         }
