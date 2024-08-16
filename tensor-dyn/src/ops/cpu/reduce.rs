@@ -714,7 +714,7 @@ pub(crate) fn _reduce<T, F, F2, F3, O>(
                                     let a_val = a_data_ptr[i * a_last_stride];
                                     tmp = op(tmp, a_val);
                                 }
-                                result_ptr_c.modify(0, tmp);
+                                result_ptr_c[0isize] = tmp;
                                 for j in (0..shape_len - 1).rev() {
                                     if iterator.prg[j as usize] < iterator.a_shape[j as usize] {
                                         iterator.prg[j as usize] += 1;
@@ -732,7 +732,7 @@ pub(crate) fn _reduce<T, F, F2, F3, O>(
                             if let Some(op3) = op3 {
                                 let tmp = result_ptr_c[0isize];
                                 let tmp = op3(tmp);
-                                result_ptr_c.modify(0, tmp);
+                                result_ptr_c[0isize] = tmp;
                             }
                             result_ptr_c.add(1);
                         }
