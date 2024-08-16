@@ -460,7 +460,9 @@ pub fn conv2d_block_simd_parallel_unroll_i32<T>(
                                             .copy_from_slice(&[i_val.into_scalar(); 8]);
                                         let _scalar_arr = scalar_vec.to_array();
                                         let res = kernel_vector * scalar_vec + *res_vector; // prettier-ignore
-                                        res_vector.as_array_mut().copy_from_slice(res.as_array_ref());
+                                        res_vector
+                                            .as_array_mut()
+                                            .copy_from_slice(res.as_array_ref());
                                     }
                                 }
                                 for k in 0..14 {
