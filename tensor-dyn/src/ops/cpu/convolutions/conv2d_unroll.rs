@@ -236,3 +236,132 @@ pub fn conv2d_block_simd_parallel_unroll_f32<T>(
     );
     Ok(output)
 }
+
+#[cfg(target_feature = "fma")]
+pub fn conv2d_block_simd_parallel_unroll_pad_dilation_f32<T>(
+    img: &_Tensor<T>,
+    kernels: &_Tensor<T>,
+    steps: [i64; 2],
+    padding: [(i64, i64); 2],
+    dilation: [i64; 2]
+)
+    -> anyhow::Result<_Tensor<T>>
+    where
+        T: CommonBounds + std::ops::Mul<Output = T> + std::ops::AddAssign<T> + MulAdd<Output = T>,
+        T: IntoScalar<f32>
+{
+    use likely_stable::likely;
+    use wide::f32x8;
+
+    let img_shape = img.shape();
+    let img_height = img_shape[0];
+    let img_width = img_shape[1];
+    let img_channels = img_shape[2];
+    let kernel_shape = kernels.shape();
+    let kernel_height = kernel_shape[0];
+    let kernel_width = kernel_shape[1];
+    let in_channels = kernel_shape[2];
+    let out_channels = kernel_shape[3];
+    if in_channels != img_channels {
+        panic!(
+            "The number of input channels in the image must be equal to the number of input channels in the kernel."
+        );
+    }
+    let (step_width, step_height) = (steps[0], steps[1]);
+
+    let out_height =
+        <i64 as NormalOut<i64>>::_floor((img_height - kernel_height) / step_height) + 1;
+    let out_width = <i64 as NormalOut<i64>>::_floor((img_width - kernel_width) / step_width) + 1;
+    let output = _Tensor::<T>::zeros([out_height, out_width, out_channels])?;
+    let inp = img.ptr();
+    let kernel = kernels.ptr();
+
+    let os0 = output.strides()[0]; // height
+    let os1 = output.strides()[1]; // width
+    let os2 = output.strides()[2]; // channels
+
+    let is0 = img.strides()[0]; // height
+    let is1 = img.strides()[1]; // width
+    let is2 = img.strides()[2]; // channels
+
+    let ks0 = kernels.strides()[0]; // kernel_height
+    let ks1 = kernels.strides()[1]; // kernel_width
+    let ks2 = kernels.strides()[2]; // in_channels
+    let ks3 = kernels.strides()[3]; // out_channels
+
+    let c_ob = 8;
+    let w_ob = 14;
+    let jp_end = (out_channels + c_ob - 1) / c_ob;
+    let kp_end = (out_width + w_ob - 1) / w_ob;
+    (0..jp_end).into_par_iter().for_each_init(
+        || output.ptr(),
+        |out, jp| {
+            let mut res_vectors = [f32x8::splat(0f32); 14];
+            let mut res_ptrs = [0 as *mut f32; 14];
+            let mut scalar_vec = f32x8::splat(0f32);
+            let mut kernel_vector = f32x8::splat(0f32);
+            for l in 0..out_height {
+                for kp in 0..kp_end {
+                    for k in 0..14 {
+                        let _k = kp * w_ob + k;
+                        if likely(_k < out_width) {
+                            let res_ptr = &mut out[jp * c_ob * os2 + _k * os1 + l * os0]; // prettier-ignore
+                            let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
+                            res_vectors[k as usize]
+                                .as_array_mut()
+                                .copy_from_slice(unsafe {
+                                    std::mem::transmute::<&[T], &[f32]>(res_vec)
+                                });
+                            res_ptrs[k as usize] = res_vec.as_mut_ptr() as *mut f32;
+                        } else {
+                            break;
+                        }
+                    }
+                    for n in 0..kernel_height {
+                        for m in 0..kernel_width {
+                            for i in 0..in_channels {
+                                let kernel_ptr = &kernel[i * ks2 + jp * c_ob * ks3 + m * ks1 + n * ks0] as *const T; // prettier-ignore
+                                kernel_vector
+                                    .as_array_mut()
+                                    .copy_from_slice(unsafe {
+                                        std::mem::transmute::<&[T], &[f32]>(
+                                            std::slice::from_raw_parts(kernel_ptr, 8)
+                                        )
+                                    });
+                                for k in 0..14 {
+                                    let _k = kp * w_ob + k;
+                                    if likely(_k < out_width) {
+                                        let res_vector = &mut res_vectors[k as usize];
+
+                                        let i_val = inp[i * is2 + (_k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
+                                        scalar_vec
+                                            .as_array_mut()
+                                            .copy_from_slice(&[i_val.into_scalar(); 8]);
+                                        *res_vector += kernel_vector * scalar_vec;
+                                    } else {
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    for k in 0..14 {
+                        let _k = kp * w_ob + k;
+                        if likely(_k < out_width) {
+                            unsafe {
+                                std::ptr::copy_nonoverlapping(
+                                    res_vectors[k as usize].as_array_ref().as_ptr() as *const f32,
+                                    res_ptrs[k as usize] as *mut f32,
+                                    8
+                                );
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    );
+    Ok(output)
+}

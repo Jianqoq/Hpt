@@ -29,3 +29,4 @@ gemm = { version = "0.18.0", features = ["rayon"] }
 hashbrown = "0.14.5"
 pollster = "0.3.0"
 num_cpus = "1.16.0"
+likely_stable = "0.1.2"
