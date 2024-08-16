@@ -35,6 +35,7 @@ pub mod ops {
         pub mod convolutions {
             pub mod conv2d;
             pub mod conv2d_unroll;
+            pub mod conv2d_unroll_block;
         }
     }
     pub mod wgpu {
@@ -83,15 +84,19 @@ pub fn set_num_threads(num_threads: usize) {
     THREAD_POOL.with(|x| {
         x.borrow_mut().set_num_threads(num_threads);
     });
-    rayon::ThreadPoolBuilder::new().num_threads(num_threads).build_global().unwrap();
+    rayon::ThreadPoolBuilder
+        ::new()
+        .num_threads(num_threads)
+        .stack_size(4 * 1024 * 1024)
+        .build_global()
+        .unwrap();
 }
 pub fn get_num_threads() -> usize {
     THREAD_POOL.with(|x| x.borrow().max_count())
 }
 
 #[ctor]
-fn init() {
-}
+fn init() {}
 
 #[cfg(target_feature = "avx512f")]
 static ALIGN: usize = 64;

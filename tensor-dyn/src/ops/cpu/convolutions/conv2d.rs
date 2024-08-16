@@ -182,7 +182,6 @@ pub fn conv2d_block_parallel<T>(
         <i64 as NormalOut<i64>>::_floor((img_height - kernel_height) / step_height) + 1;
     let out_width = <i64 as NormalOut<i64>>::_floor((img_width - kernel_width) / step_width) + 1;
     let output = _Tensor::<T>::zeros([out_height, out_width, out_channels])?;
-    let mut out = output.ptr();
     let inp = img.ptr();
     let kernel = kernels.ptr();
 
@@ -400,12 +399,11 @@ pub fn conv2d_block_simd_parallel<T>(
                             for m in 0..kernel_width {
                                 for i in 0..c_ib {
                                     let i = ip * c_ib + i;
+                                    let kernel_ptr = &kernel[i * ks2 + jp * c_ob * ks3 + m * ks1 + n * ks0] as *const T; // prettier-ignore
+                                    let kernel_vec = unsafe { std::slice::from_raw_parts(kernel_ptr, 8) }; // prettier-ignore
+                                    let kernel_vector = unsafe { f32x8::from(std::mem::transmute::<&[T], &[f32]>(kernel_vec)) }; // prettier-ignore
                                     for k in 0..w_ob {
                                         let k = kp * w_ob + k;
-
-                                        let kernel_ptr = &kernel[i * ks2 + jp * c_ob * ks3 + m * ks1 + n * ks0] as *const T; // prettier-ignore
-                                        let kernel_vec = unsafe { std::slice::from_raw_parts(kernel_ptr, 8) }; // prettier-ignore
-                                        let kernel_vector = unsafe { f32x8::from(std::mem::transmute::<&[T], &[f32]>(kernel_vec)) }; // prettier-ignore
 
                                         let res_ptr = &mut out[jp * c_ob * os2 + k * os1 + l * os0]; // prettier-ignore
                                         let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
