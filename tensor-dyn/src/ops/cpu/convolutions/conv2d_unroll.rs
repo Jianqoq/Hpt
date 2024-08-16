@@ -7,6 +7,7 @@ use num::traits::MulAdd;
 use tensor_types::type_promote::NormalOut;
 use tensor_traits::TensorInfo;
 use tensor_traits::TensorCreator;
+use std::arch::asm;
 
 #[cfg(target_feature = "fma")]
 pub fn conv2d_block_simd_parallel_unroll<T>(
@@ -67,298 +68,177 @@ pub fn conv2d_block_simd_parallel_unroll<T>(
             for ip in 0..ip_end {
                 for l in 0..out_height {
                     for kp in 0..kp_end {
+                        unsafe {
+                            asm!(
+                                "vmovaps ymm0, [{0}]",
+                                "vmovaps ymm1, [{1}]",
+                                "vmovaps ymm2, [{2}]",
+                                "vmovaps ymm3, [{3}]",
+                                "vmovaps ymm4, [{4}]",
+                                "vmovaps ymm5, [{5}]",
+                                "vmovaps ymm6, [{6}]",
+                                "vmovaps ymm7, [{7}]",
+                                "vmovaps ymm8, [{8}]",
+                                "vmovaps ymm9, [{9}]",
+                                "vmovaps ymm10, [{10}]",
+                                "vmovaps ymm11, [{11}]",
+                                "vmovaps ymm12, [{12}]",
+                                "vmovaps ymm13, [{13}]",
+                                in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 0) * os1 + l * os0],           // 指向 out 的起始位置
+                                in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 1) * os1 + l * os0],  // 假设每个 YMM 寄存器对应 8 个 f32
+                                in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 2) * os1 + l * os0],
+                                in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 3) * os1 + l * os0],
+                                in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 4) * os1 + l * os0],
+                                in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 5) * os1 + l * os0],
+                                in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 6) * os1 + l * os0],
+                                in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 7) * os1 + l * os0],
+                                in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 8) * os1 + l * os0],
+                                in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 9) * os1 + l * os0],
+                                in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 10) * os1 + l * os0],
+                                in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 11) * os1 + l * os0],
+                                in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 12) * os1 + l * os0],
+                                in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 13) * os1 + l * os0],
+                                options(nostack),
+                            );
+                        }
+
                         for n in 0..kernel_height {
                             for m in 0..kernel_width {
-                                let k0 = kp * w_ob + 0;
-                                let res_ptr0 = &mut out[jp * c_ob * os2 + k0 * os1 + l * os0]; // prettier-ignore
-                                let res_vec0 = unsafe { std::slice::from_raw_parts_mut(res_ptr0, 8) }; // prettier-ignore
-                                let mut res_vector0 = unsafe { f32x8::from(std::mem::transmute::<&[T], &[f32]>(res_vec0)) }; // prettier-ignore
-
-                                let k1 = kp * w_ob + 1;
-                                let res_ptr1 = &mut out[jp * c_ob * os2 + k1 * os1 + l * os0]; // prettier-ignore
-                                let res_vec1 = unsafe { std::slice::from_raw_parts_mut(res_ptr1, 8) }; // prettier-ignore
-                                let mut res_vector1 = unsafe { f32x8::from(std::mem::transmute::<&[T], &[f32]>(res_vec1)) }; // prettier-ignore
-
-                                let k2 = kp * w_ob + 2;
-                                let res_ptr2 = &mut out[jp * c_ob * os2 + k2 * os1 + l * os0]; // prettier-ignore
-                                let res_vec2 = unsafe { std::slice::from_raw_parts_mut(res_ptr2, 8) }; // prettier-ignore
-                                let mut res_vector2 = unsafe { f32x8::from(std::mem::transmute::<&[T], &[f32]>(res_vec2)) }; // prettier-ignore
-
-                                let k3 = kp * w_ob + 3;
-                                let res_ptr3 = &mut out[jp * c_ob * os2 + k3 * os1 + l * os0]; // prettier-ignore
-                                let res_vec3 = unsafe { std::slice::from_raw_parts_mut(res_ptr3, 8) }; // prettier-ignore
-                                let mut res_vector3 = unsafe { f32x8::from(std::mem::transmute::<&[T], &[f32]>(res_vec3)) }; // prettier-ignore
-
-                                let k4 = kp * w_ob + 4;
-                                let res_ptr4 = &mut out[jp * c_ob * os2 + k4 * os1 + l * os0]; // prettier-ignore
-                                let res_vec4 = unsafe { std::slice::from_raw_parts_mut(res_ptr4, 8) }; // prettier-ignore
-                                let mut res_vector4 = unsafe { f32x8::from(std::mem::transmute::<&[T], &[f32]>(res_vec4)) }; // prettier-ignore
-
-                                let k5 = kp * w_ob + 5;
-                                let res_ptr5 = &mut out[jp * c_ob * os2 + k5 * os1 + l * os0]; // prettier-ignore
-                                let res_vec5 = unsafe { std::slice::from_raw_parts_mut(res_ptr5, 8) }; // prettier-ignore
-                                let mut res_vector5 = unsafe { f32x8::from(std::mem::transmute::<&[T], &[f32]>(res_vec5)) }; // prettier-ignore
-
-                                let k6 = kp * w_ob + 6;
-                                let res_ptr6 = &mut out[jp * c_ob * os2 + k6 * os1 + l * os0]; // prettier-ignore
-                                let res_vec6 = unsafe { std::slice::from_raw_parts_mut(res_ptr6, 8) }; // prettier-ignore
-                                let mut res_vector6 = unsafe { f32x8::from(std::mem::transmute::<&[T], &[f32]>(res_vec6)) }; // prettier-ignore
-
-                                let k7 = kp * w_ob + 7;
-                                let res_ptr7 = &mut out[jp * c_ob * os2 + k7 * os1 + l * os0]; // prettier-ignore
-                                let res_vec7 = unsafe { std::slice::from_raw_parts_mut(res_ptr7, 8) }; // prettier-ignore
-                                let mut res_vector7 = unsafe { f32x8::from(std::mem::transmute::<&[T], &[f32]>(res_vec7)) }; // prettier-ignore
-
-                                let k8 = kp * w_ob + 8;
-                                let res_ptr8 = &mut out[jp * c_ob * os2 + k8 * os1 + l * os0]; // prettier-ignore
-                                let res_vec8 = unsafe { std::slice::from_raw_parts_mut(res_ptr8, 8) }; // prettier-ignore
-                                let mut res_vector8 = unsafe { f32x8::from(std::mem::transmute::<&[T], &[f32]>(res_vec8)) }; // prettier-ignore
-
-                                let k9 = kp * w_ob + 9;
-                                let res_ptr9 = &mut out[jp * c_ob * os2 + k9 * os1 + l * os0]; // prettier-ignore
-                                let res_vec9 = unsafe { std::slice::from_raw_parts_mut(res_ptr9, 8) }; // prettier-ignore
-                                let mut res_vector9 = unsafe { f32x8::from(std::mem::transmute::<&[T], &[f32]>(res_vec9)) }; // prettier-ignore
-
-                                let k10 = kp * w_ob + 10;
-                                let res_ptr10 = &mut out[jp * c_ob * os2 + k10 * os1 + l * os0]; // prettier-ignore
-                                let res_vec10 = unsafe { std::slice::from_raw_parts_mut(res_ptr10, 8) }; // prettier-ignore
-                                let mut res_vector10 = unsafe { f32x8::from(std::mem::transmute::<&[T], &[f32]>(res_vec10)) }; // prettier-ignore
-
-                                let k11 = kp * w_ob + 11;
-                                let res_ptr11 = &mut out[jp * c_ob * os2 + k11 * os1 + l * os0]; // prettier-ignore
-                                let res_vec11 = unsafe { std::slice::from_raw_parts_mut(res_ptr11, 8) }; // prettier-ignore
-                                let mut res_vector11 = unsafe { f32x8::from(std::mem::transmute::<&[T], &[f32]>(res_vec11)) }; // prettier-ignore
-
-                                let k12 = kp * w_ob + 12;
-                                let res_ptr12 = &mut out[jp * c_ob * os2 + k12 * os1 + l * os0]; // prettier-ignore
-                                let res_vec12 = unsafe { std::slice::from_raw_parts_mut(res_ptr12, 8) }; // prettier-ignore
-                                let mut res_vector12 = unsafe { f32x8::from(std::mem::transmute::<&[T], &[f32]>(res_vec12)) }; // prettier-ignore
-
-                                let k13 = kp * w_ob + 13;
-                                let res_ptr13 = &mut out[jp * c_ob * os2 + k13 * os1 + l * os0]; // prettier-ignore
-                                let res_vec13 = unsafe { std::slice::from_raw_parts_mut(res_ptr13, 8) }; // prettier-ignore
-                                let mut res_vector13 = unsafe { f32x8::from(std::mem::transmute::<&[T], &[f32]>(res_vec13)) }; // prettier-ignore
-
-                                let mut scalar_vec = f32x8::splat(0f32);
                                 for i in 0..c_ib {
                                     let i = ip * c_ib + i;
                                     let kernel_ptr = &kernel[i * ks2 + jp * c_ob * ks3 + m * ks1 + n * ks0] as *const T; // prettier-ignore
-                                    let kernel_vec = unsafe { std::slice::from_raw_parts(kernel_ptr, 8) }; // prettier-ignore
-                                    let kernel_vector = unsafe { f32x8::from(std::mem::transmute::<&[T], &[f32]>(kernel_vec)) }; // prettier-ignore
+                                    unsafe {
+                                        asm!(
+                                            "vmovaps ymm14, [{}]",
+                                            in(reg) kernel_ptr,          
+                                            options(nostack)
+                                        );
+                                    }
                                     // create img vector
                                     let k = kp * w_ob + 0;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector.mul_add(scalar_vec, res_vector0); // prettier-ignore
-                                    res_vector0
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
+                                    let i_val0 = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
 
                                     let k = kp * w_ob + 1;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector.mul_add(scalar_vec, res_vector1); // prettier-ignore
-                                    res_vector1
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
+                                    let i_val1 = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
 
                                     let k = kp * w_ob + 2;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector.mul_add(scalar_vec, res_vector2); // prettier-ignore
-                                    res_vector2
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
+                                    let i_val2 = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
 
                                     let k = kp * w_ob + 3;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector.mul_add(scalar_vec, res_vector3); // prettier-ignore
-                                    res_vector3
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
+                                    let i_val3 = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
 
                                     let k = kp * w_ob + 4;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector.mul_add(scalar_vec, res_vector4); // prettier-ignore
-                                    res_vector4
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
+                                    let i_val4 = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
 
                                     let k = kp * w_ob + 5;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector.mul_add(scalar_vec, res_vector5); // prettier-ignore
-                                    res_vector5
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
+                                    let i_val5 = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
 
                                     let k = kp * w_ob + 6;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector.mul_add(scalar_vec, res_vector6); // prettier-ignore
-                                    res_vector6
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
+                                    let i_val6 = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
 
                                     let k = kp * w_ob + 7;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector.mul_add(scalar_vec, res_vector7); // prettier-ignore
-                                    res_vector7
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
+                                    let i_val7 = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
 
                                     let k = kp * w_ob + 8;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector.mul_add(scalar_vec, res_vector8); // prettier-ignore
-                                    res_vector8
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
+                                    let i_val8 = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
 
                                     let k = kp * w_ob + 9;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector.mul_add(scalar_vec, res_vector9); // prettier-ignore
-                                    res_vector9
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
+                                    let i_val9 = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
 
                                     let k = kp * w_ob + 10;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector.mul_add(scalar_vec, res_vector10); // prettier-ignore
-                                    res_vector10
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
+                                    let i_val10 = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
 
                                     let k = kp * w_ob + 11;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector.mul_add(scalar_vec, res_vector11); // prettier-ignore
-                                    res_vector11
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
+                                    let i_val11 = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
 
                                     let k = kp * w_ob + 12;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector.mul_add(scalar_vec, res_vector12); // prettier-ignore
-                                    res_vector12
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
+                                    let i_val12 = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
 
                                     let k = kp * w_ob + 13;
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    let res = kernel_vector.mul_add(scalar_vec, res_vector13); // prettier-ignore
-                                    res_vector13
-                                        .as_array_mut()
-                                        .copy_from_slice(res.to_array().as_slice());
-                                }
-                                unsafe {
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector0.to_array().as_ptr() as *const f32,
-                                        res_vec0.as_mut_ptr() as *mut f32,
-                                        8
+                                    let i_val13 = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
+
+                                    unsafe {
+                                        asm!(
+                                        "vbroadcastss ymm15, [{0}]",
+                                        "vfmadd231ps ymm0, ymm15, ymm14",
+                                        "vbroadcastss ymm15, [{1}]",
+                                        "vfmadd231ps ymm1, ymm15, ymm14",
+                                        "vbroadcastss ymm15, [{2}]",
+                                        "vfmadd231ps ymm2, ymm15, ymm14",
+                                        "vbroadcastss ymm15, [{3}]",
+                                        "vfmadd231ps ymm3, ymm15, ymm14",
+                                        "vbroadcastss ymm15, [{4}]",
+                                        "vfmadd231ps ymm4, ymm15, ymm14",
+                                        "vbroadcastss ymm15, [{5}]",
+                                        "vfmadd231ps ymm5, ymm15, ymm14",
+                                        "vbroadcastss ymm15, [{6}]",
+                                        "vfmadd231ps ymm6, ymm15, ymm14",
+                                        "vbroadcastss ymm15, [{7}]",
+                                        "vfmadd231ps ymm7, ymm15, ymm14",
+                                        "vbroadcastss ymm15, [{8}]",
+                                        "vfmadd231ps ymm8, ymm15, ymm14",
+                                        "vbroadcastss ymm15, [{9}]",
+                                        "vfmadd231ps ymm9, ymm15, ymm14",
+                                        "vbroadcastss ymm15, [{10}]",
+                                        "vfmadd231ps ymm10, ymm15, ymm14",
+                                        "vbroadcastss ymm15, [{11}]",
+                                        "vfmadd231ps ymm11, ymm15, ymm14",
+                                        "vbroadcastss ymm15, [{12}]",
+                                        "vfmadd231ps ymm12, ymm15, ymm14",
+                                        "vbroadcastss ymm15, [{13}]",
+                                        "vfmadd231ps ymm13, ymm15, ymm14",
+                                        in(reg) &i_val0,
+                                        in(reg) &i_val1,
+                                        in(reg) &i_val2,
+                                        in(reg) &i_val3,
+                                        in(reg) &i_val4,
+                                        in(reg) &i_val5,
+                                        in(reg) &i_val6,
+                                        in(reg) &i_val7,
+                                        in(reg) &i_val8,
+                                        in(reg) &i_val9,
+                                        in(reg) &i_val10,
+                                        in(reg) &i_val11,
+                                        in(reg) &i_val12,
+                                        in(reg) &i_val13,
+                                        options(nostack)
                                     );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector1.to_array().as_ptr() as *const f32,
-                                        res_vec1.as_mut_ptr() as *mut f32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector2.to_array().as_ptr() as *const f32,
-                                        res_vec2.as_mut_ptr() as *mut f32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector3.to_array().as_ptr() as *const f32,
-                                        res_vec3.as_mut_ptr() as *mut f32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector4.to_array().as_ptr() as *const f32,
-                                        res_vec4.as_mut_ptr() as *mut f32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector5.to_array().as_ptr() as *const f32,
-                                        res_vec5.as_mut_ptr() as *mut f32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector6.to_array().as_ptr() as *const f32,
-                                        res_vec6.as_mut_ptr() as *mut f32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector7.to_array().as_ptr() as *const f32,
-                                        res_vec7.as_mut_ptr() as *mut f32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector8.to_array().as_ptr() as *const f32,
-                                        res_vec8.as_mut_ptr() as *mut f32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector9.to_array().as_ptr() as *const f32,
-                                        res_vec9.as_mut_ptr() as *mut f32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector10.to_array().as_ptr() as *const f32,
-                                        res_vec10.as_mut_ptr() as *mut f32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector11.to_array().as_ptr() as *const f32,
-                                        res_vec11.as_mut_ptr() as *mut f32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector12.to_array().as_ptr() as *const f32,
-                                        res_vec12.as_mut_ptr() as *mut f32,
-                                        8
-                                    );
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vector13.to_array().as_ptr() as *const f32,
-                                        res_vec13.as_mut_ptr() as *mut f32,
-                                        8
-                                    );
+                                    }
                                 }
                             }
+                        }
+                        unsafe {
+                            asm!(
+                            "vmovaps [{}], ymm0",
+                            "vmovaps [{}], ymm1",
+                            "vmovaps [{}], ymm2",
+                            "vmovaps [{}], ymm3",
+                            "vmovaps [{}], ymm4",
+                            "vmovaps [{}], ymm5",
+                            "vmovaps [{}], ymm6",
+                            "vmovaps [{}], ymm7",
+                            "vmovaps [{}], ymm8",
+                            "vmovaps [{}], ymm9",
+                            "vmovaps [{}], ymm10",
+                            "vmovaps [{}], ymm11",
+                            "vmovaps [{}], ymm12",
+                            "vmovaps [{}], ymm13",
+                            in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 0) * os1 + l * os0],
+                            in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 1) * os1 + l * os0],
+                            in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 2) * os1 + l * os0],
+                            in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 3) * os1 + l * os0],
+                            in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 4) * os1 + l * os0],
+                            in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 5) * os1 + l * os0],
+                            in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 6) * os1 + l * os0],
+                            in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 7) * os1 + l * os0],
+                            in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 8) * os1 + l * os0],
+                            in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 9) * os1 + l * os0],
+                            in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 10) * os1 + l * os0],
+                            in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 11) * os1 + l * os0],
+                            in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 12) * os1 + l * os0],
+                            in(reg) &out[jp * c_ob * os2 + (kp * w_ob + 13) * os1 + l * os0],
+                            options(nostack)
+                        );
                         }
                     }
                 }
