@@ -1,5 +1,4 @@
 use rayon::iter::{ IntoParallelIterator, ParallelIterator };
-use wide::f32x8;
 use tensor_traits::CommonBounds;
 use crate::tensor_base::_Tensor;
 use tensor_types::into_scalar::IntoScalar;
