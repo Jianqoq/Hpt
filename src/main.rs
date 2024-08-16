@@ -7,7 +7,6 @@ use ops::cpu::convolutions::conv2d::{
     conv2d_naive,
 };
 use ops::cpu::convolutions::conv2d_unroll::{
-    conv2d_block_simd_parallel_unroll,
     conv2d_block_simd_parallel_unroll_i32,
 };
 use tensor_dyn::TensorCreator;
