@@ -222,12 +222,10 @@ pub fn conv2d_block_simd_parallel_unroll_f32<T>(
                         }
                     }
                     for k in 0..14 {
-                        let res_vector = &res_vectors[k as usize].as_array_ref();
-                        let res_ptr = res_ptrs[k as usize];
                         unsafe {
                             std::ptr::copy_nonoverlapping(
-                                res_vector.as_ptr() as *const f32,
-                                res_ptr as *mut f32,
+                                res_vectors[k].as_array_ref().as_ptr() as *const f32,
+                                res_ptrs[k] as *mut f32,
                                 8
                             );
                         }
