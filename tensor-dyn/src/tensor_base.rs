@@ -191,6 +191,13 @@ impl<T: CommonBounds> BaseTensor for &_Tensor<T> {
 }
 
 impl<T: CommonBounds> _Tensor<T> {
+    pub fn assign(&mut self, other: &_Tensor<T>) {
+        self.par_iter_mut()
+        .zip(other.par_iter())
+        .for_each(|(a, b)| {
+            *a = b;
+        });
+    }
     /// Converts a tensor to a raw slice representing direct memory access.
     ///
     /// This function provides direct, read-only access to the tensor's underlying memory. It is useful

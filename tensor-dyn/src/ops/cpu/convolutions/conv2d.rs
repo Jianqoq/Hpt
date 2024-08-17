@@ -178,8 +178,8 @@ pub fn conv2d_pad_dilation_group<T>(
     let (dw, dh) = (dilation[0], dilation[1]);
 
     let out_height =
-        <i64 as NormalOut<i64>>::_floor((img_height + ph_start + ph_end - dh * (kernel_height - 1) - 1) / step_height) + 1; // prettier-ignore
-    let out_width = <i64 as NormalOut<i64>>::_floor((img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width) + 1; // prettier-ignore
+        (img_height + ph_start + ph_end - dh * (kernel_height - 1) - 1) / step_height + 1;
+    let out_width = (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1;
     let output = _Tensor::<T>::zeros([out_height, out_width, out_channels])?;
     let mut out = output.ptr();
     let inp = img.ptr();
@@ -208,7 +208,7 @@ pub fn conv2d_pad_dilation_group<T>(
                             let in_x = k * step_width + m * dw - pw_start;
                             if in_y >= 0 && in_y < img_height && in_x >= 0 && in_x < img_width {
                                 let k_val = kernel[i * ks2 + j * ks3 + m * ks1 + n * ks0];
-                                let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
+                                let i_val = inp[i * is2 + in_x * is1 + in_y * is0]; // prettier-ignore
                                 out[j * os2 + k * os1 + l * os0] += i_val * k_val;
                             }
                         }

@@ -236,6 +236,11 @@ macro_rules! slice {
     (
         $tensor:ident [$($indexes:tt)*]
     ) => {
-        $tensor.slice(match_selection!($($indexes)*))
+        {
+            use crate::slice::SliceOps;
+            use tensor_macros::match_selection;
+            use tensor_common::slice::Slice;
+            $tensor.slice(match_selection!($($indexes)*))
+        }
     };
 }
