@@ -648,10 +648,12 @@ pub fn conv2d_naive<T>(
 
 #[cfg(test)]
 mod tests {
+
     use tensor_traits::{ ShapeManipulate, TensorCreator };
+    use wide::i32x8;
 
     use crate::{
-        ops::cpu::convolutions::conv2d::{ conv2d_pad_dilation, conv2d_pad_dilation_ex },
+        ops::cpu::convolutions::{conv2d::{ conv2d_pad_dilation, conv2d_pad_dilation_ex }, conv2d_unroll::conv2d_ex},
         tensor_base::_Tensor,
     };
 
@@ -688,7 +690,18 @@ mod tests {
             ],
             [1, 1]
         )?.permute([2, 0, 1])?;
+        let res3 = conv2d_ex::<i32, i32x8, true, 4>(
+            &a,
+            &kernel,
+            [1, 1],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [1, 1]
+        )?.permute([2, 0, 1])?; // case 3
         assert_eq!(res1, res2);
+        assert_eq!(res1, res3);
         Ok(())
     }
 
@@ -725,7 +738,19 @@ mod tests {
             ],
             [1, 1]
         )?.permute([2, 0, 1])?;
+
+        let res3 = conv2d_ex::<i32, i32x8, true, 14>(
+            &a,
+            &kernel,
+            [1, 1],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [1, 1]
+        )?.permute([2, 0, 1])?; // case 2
         assert_eq!(res1, res2);
+        assert_eq!(res1, res3);
         Ok(())
     }
 
@@ -762,7 +787,21 @@ mod tests {
             ],
             [1, 1]
         )?.permute([2, 0, 1])?;
+
+        let res3 = conv2d_ex::<i32, i32x8, true, 4>(
+            &a,
+            &kernel,
+            [1, 1],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [1, 1]
+        )?.permute([2, 0, 1])?; // case 3
+
         assert_eq!(res1, res2);
+        assert_eq!(res1, res3);
+
         Ok(())
     }
 
@@ -799,7 +838,19 @@ mod tests {
             ],
             [1, 1]
         )?.permute([2, 0, 1])?;
+
+        let res3 = conv2d_ex::<i32, i32x8, true, 15>(
+            &a,
+            &kernel,
+            [1, 1],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [1, 1]
+        )?.permute([2, 0, 1])?; // case 1
         assert_eq!(res1, res2);
+        assert_eq!(res1, res3);
         Ok(())
     }
 }
