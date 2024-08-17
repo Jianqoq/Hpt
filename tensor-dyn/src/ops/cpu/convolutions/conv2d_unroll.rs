@@ -250,6 +250,8 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_i32<T>(
         T: CommonBounds + std::ops::Mul<Output = T> + std::ops::AddAssign<T> + MulAdd<Output = T>,
         T: IntoScalar<i32>
 {
+    use likely_stable::likely;
+    use tensor_common::slice;
     use wide::i32x8;
 
     let img_shape = img.shape();
@@ -273,6 +275,20 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_i32<T>(
     let out_height =
         (img_height + ph_start + ph_end - dh * (kernel_height - 1) - 1) / step_height + 1; // prettier-ignore
     let out_width = (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1; // prettier-ignore
+    let img = if !padding.iter().all(|(a, b)| *a == 0 && *b == 0) {
+        let img_padded = _Tensor::<T>::zeros([
+            img_height + ph_start + ph_end,
+            img_width + pw_start + pw_end,
+            img_channels,
+        ])?;
+        let he = img_height + ph_start;
+        let we = img_width + pw_start;
+        let mut slice = slice!(img_padded[ph_start:he, pw_start:we, :])?;
+        slice.assign(&img);
+        img_padded
+    } else {
+        img.clone()
+    };
     let output = _Tensor::<T>::zeros([out_height, out_width, out_channels])?;
     let inp = img.ptr();
     let kernel = kernels.ptr();
@@ -299,7 +315,6 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_i32<T>(
         |out, jp| {
             let mut res_vectors = [i32x8::splat(0i32); 14];
             let mut res_ptrs = [0 as *mut i32; 14];
-            let mut scalar_vec = i32x8::splat(0i32);
             let mut kernel_vector = i32x8::splat(0i32);
             let mut stop;
             for l in 0..out_height {
@@ -307,7 +322,7 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_i32<T>(
                     stop = 0;
                     for k in 0..14 {
                         let _k = kp * w_ob + k;
-                        if _k < out_width {
+                        if likely(_k < out_width) {
                             let res_ptr = &mut out[jp * c_ob * os2 + _k * os1 + l * os0]; // prettier-ignore
                             let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
                             res_vectors[k as usize]
@@ -317,8 +332,6 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_i32<T>(
                                 });
                             res_ptrs[k as usize] = res_vec.as_mut_ptr() as *mut i32;
                             stop += 1;
-                        } else {
-                            break;
                         }
                     }
                     for n in 0..kernel_height {
@@ -332,28 +345,11 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_i32<T>(
                                             std::slice::from_raw_parts(kernel_ptr, 8)
                                         )
                                     });
-                                let in_y = l * step_height + n * dh - ph_start;
-
                                 for k in 0..stop {
-                                    let _k = kp * w_ob + k;
-                                    if _k >= out_width {
-                                        break;
-                                    }
-                                    let in_x = _k * step_width + m * dw - pw_start;
-                                    if
-                                        in_y >= 0 &&
-                                        in_y < img_height &&
-                                        in_x >= 0 &&
-                                        in_x < img_width
-                                    {
-                                        let res_vector = &mut res_vectors[k as usize];
-
-                                        let i_val = inp[i * is2 + in_x * is1 + in_y * is0]; // prettier-ignore
-                                        scalar_vec
-                                            .as_array_mut()
-                                            .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                        *res_vector += kernel_vector * scalar_vec;
-                                    }
+                                    let res_vector = &mut res_vectors[k as usize];
+                                    let i_val = inp[i * is2 + ((kp * w_ob + k) * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
+                                    *res_vector +=
+                                        kernel_vector * i32x8::splat(i_val.into_scalar());
                                 }
                             }
                         }
@@ -413,7 +409,11 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_f32<T>(
         (img_height + ph_start + ph_end - dh * (kernel_height - 1) - 1) / step_height + 1; // prettier-ignore
     let out_width = (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1; // prettier-ignore
     let img = if !padding.iter().all(|(a, b)| *a == 0 && *b == 0) {
-        let img_padded = _Tensor::<T>::zeros([img_height + ph_start + ph_end, img_width + pw_start + pw_end, img_channels])?;
+        let img_padded = _Tensor::<T>::zeros([
+            img_height + ph_start + ph_end,
+            img_width + pw_start + pw_end,
+            img_channels,
+        ])?;
         let he = img_height + ph_start;
         let we = img_width + pw_start;
         let mut slice = slice!(img_padded[ph_start:he, pw_start:we, :])?;
@@ -547,7 +547,11 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_group_i32<T>(
         (img_height + ph_start + ph_end - dh * (kernel_height - 1) - 1) / step_height + 1; // prettier-ignore
     let out_width = (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1; // prettier-ignore
     let img = if !padding.iter().all(|(a, b)| *a == 0 && *b == 0) {
-        let img_padded = _Tensor::<T>::zeros([img_height + ph_start + ph_end, img_width + pw_start + pw_end, img_channels])?;
+        let img_padded = _Tensor::<T>::zeros([
+            img_height + ph_start + ph_end,
+            img_width + pw_start + pw_end,
+            img_channels,
+        ])?;
         let he = img_height + ph_start;
         let we = img_width + pw_start;
         let mut slice = slice!(img_padded[ph_start:he, pw_start:we, :])?;
@@ -582,7 +586,6 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_group_i32<T>(
         |out, jp| {
             let mut res_vectors = [i32x8::splat(0i32); 14];
             let mut res_ptrs = [0 as *mut i32; 14];
-            let mut scalar_vec = i32x8::splat(0i32);
             let mut kernel_vector = i32x8::splat(0i32);
             let mut stop;
             for l in 0..out_height {
@@ -615,12 +618,9 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_group_i32<T>(
                                     });
                                 for k in 0..stop {
                                     let res_vector = &mut res_vectors[k as usize];
-
                                     let i_val = inp[i * is2 + ((kp * w_ob + k) * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    scalar_vec
-                                        .as_array_mut()
-                                        .copy_from_slice(&[i_val.into_scalar(); 8]);
-                                    *res_vector += kernel_vector * scalar_vec;
+                                    *res_vector +=
+                                        kernel_vector * i32x8::splat(i_val.into_scalar());
                                 }
                             }
                         }

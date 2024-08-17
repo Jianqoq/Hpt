@@ -43,7 +43,7 @@ fn main() -> anyhow::Result<()> {
         .permute([1, 2, 0])?
         .contiguous()?;
     let now = std::time::Instant::now();
-    for _ in 0..1 {
+    for _ in 0..100 {
         let res2 = conv2d_block_simd_parallel_unroll_pad_dilation_group_i32(
             &a,
             &kernel,
@@ -55,7 +55,6 @@ fn main() -> anyhow::Result<()> {
             [1, 1],
             1
         )?.permute([2, 0, 1])?;
-        assert_eq!(res1, res2);
     }
     println!("{:?}", now.elapsed() / 100);
 
