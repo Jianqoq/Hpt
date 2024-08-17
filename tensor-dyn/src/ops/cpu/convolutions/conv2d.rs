@@ -77,6 +77,13 @@ pub fn conv2d<T>(
     Ok(output)
 }
 
+/// image: `[height, width, channels]`
+///
+/// kernels: `[kernel_height, kernel_width, in_channels, out_channels]`
+///
+/// steps: `[step_width, step_height]`
+///
+/// output: `[out_width, out_height, out_channels]`
 #[cfg(target_feature = "fma")]
 pub fn conv2d_pad_dilation<T>(
     img: &_Tensor<T>,
@@ -106,8 +113,8 @@ pub fn conv2d_pad_dilation<T>(
     let (dw, dh) = (dilation[0], dilation[1]);
 
     let out_height =
-        <i64 as NormalOut<i64>>::_floor((img_height + ph_start + ph_end - dh * (kernel_height - 1) - 1) / step_height) + 1; // prettier-ignore
-    let out_width = <i64 as NormalOut<i64>>::_floor((img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width) + 1; // prettier-ignore
+        (img_height + ph_start + ph_end - dh * (kernel_height - 1) - 1) / step_height + 1; // prettier-ignore
+    let out_width = (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1; // prettier-ignore
     let output = _Tensor::<T>::zeros([out_height, out_width, out_channels])?;
     let mut out = output.ptr();
     let inp = img.ptr();
@@ -242,61 +249,45 @@ pub fn conv2d_pad_dilation_ex<T>(
         if ow_r14 > 0 {
             let ow_n = out_width / 14;
             for l in 0..out_height {
-                let (n_min, n_max) = calculate_kernel_height_range(ph_start, l, step_height, dh, img_height, kernel_height);
-                for n in n_min..n_max {
+                for n in 0..kernel_height {
                     for m in 0..kernel_width {
                         for i in 0..in_channels {
-                            let (k_min, k_max) = calculate_out_width_range(pw_start, m, step_width, dw, img_width, ow_n * 14);
-                            for k in k_min..k_max {
+                            for k in 0..ow_n * 14 {
                                 for j in 0..o_n * 8 {
-                                    // let in_y = l * step_height + n * dh - ph_start;
-                                    // let in_x = k * step_width + m * dw - pw_start;
-                                    // in_y >= 0 => l * step_height + n * dh - ph_start >= 0 => n * dh >= (ph_start - l * step_height)
-                                    // in_y < img_height => l * step_height + n * dh - ph_start < img_height => n * dh < (img_height + ph_start - l * step_height)
-
-                                    // in_x >= 0 => k * step_width + m * dw - pw_start >= 0 => k * step_width >= (pw_start - m * dw)
-                                    // in_x < img_width => k * step_width + m * dw - pw_start < img_width => k * step_width < (img_width + pw_start - m * dw)
-                                    let k_val = kernel[i * ks2 + j * ks3 + m * ks1 + n * ks0];
-                                    let i_val = inp[i * is2 + (k * step_width + m) * is1 + n * is0]; // prettier-ignore
-                                    out[j * os2 + k * os1 + l * os0] += i_val * k_val;
+                                    let in_y = l * step_height + n * dh - ph_start;
+                                    let in_x = k * step_width + m * dw - pw_start;
+                                    if in_y >= 0 && in_y < img_height && in_x >= 0 && in_x < img_width {
+                                        let k_val = kernel[i * ks2 + j * ks3 + m * ks1 + n * ks0];
+                                        let i_val = inp[i * is2 + in_x * is1 + in_y * is0]; // prettier-ignore
+                                        out[j * os2 + k * os1 + l * os0] += i_val * k_val;
+                                    }
                                 }
                                 for j in o_n * 8..o_n * 8 + oc_r8 {
                                     let in_y = l * step_height + n * dh - ph_start;
                                     let in_x = k * step_width + m * dw - pw_start;
                                     if in_y >= 0 && in_y < img_height && in_x >= 0 && in_x < img_width {
                                         let k_val = kernel[i * ks2 + j * ks3 + m * ks1 + n * ks0];
-                                        let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
+                                        let i_val = inp[i * is2 + in_x * is1 + in_y * is0]; // prettier-ignore
                                         out[j * os2 + k * os1 + l * os0] += i_val * k_val;
-                                    } else {
-                                        println!("{} {} {} {} {} {} {} {} {}", l, n, m, i, k, j, in_y, in_x, img_height);
                                     }
                                 }
                             }
-                            let (k_min2, k_max2) = {
-                                let _k_min = (((pw_start - m * dw) as f64) / (step_width as f64)).ceil() as i64;
-                                let _k_min = _k_min.max(k_max);
-                                let k_max_bound = (
-                                    ((img_width + pw_start - m * dw) as f64) / (step_width as f64)
-                                ).floor() as i64;
-                                let k_max = k_max_bound.min(k_max + ow_r14 - 1);
-
-                                (_k_min, k_max)
-                            };
-                            println!("{} {} {} {} {} {} {} {} {}", l, n, m, i, k_min2, k_max2, ow_n, ow_r14, out_width);
-                            for k in k_min2..k_max2 {
+                            for k in ow_n * 14..ow_n * 14 + ow_r14 {
                                 for j in 0..o_n * 8 {
                                     let in_y = l * step_height + n * dh - ph_start;
                                     let in_x = k * step_width + m * dw - pw_start;
-                                    let k_val = kernel[i * ks2 + j * ks3 + m * ks1 + n * ks0];
-                                    let i_val = inp[i * is2 + in_x * is1 + in_y * is0]; // prettier-ignore
-                                    out[j * os2 + k * os1 + l * os0] += i_val * k_val;
+                                    if in_y >= 0 && in_y < img_height && in_x >= 0 && in_x < img_width {
+                                        let k_val = kernel[i * ks2 + j * ks3 + m * ks1 + n * ks0];
+                                        let i_val = inp[i * is2 + in_x * is1 + in_y * is0]; // prettier-ignore
+                                        out[j * os2 + k * os1 + l * os0] += i_val * k_val;
+                                    }
                                 }
                                 for j in o_n * 8..o_n * 8 + oc_r8 {
                                     let in_y = l * step_height + n * dh - ph_start;
                                     let in_x = k * step_width + m * dw - pw_start;
                                     if in_y >= 0 && in_y < img_height && in_x >= 0 && in_x < img_width {
                                         let k_val = kernel[i * ks2 + j * ks3 + m * ks1 + n * ks0];
-                                        let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
+                                        let i_val = inp[i * is2 + in_x * is1 + in_y * is0]; // prettier-ignore
                                         out[j * os2 + k * os1 + l * os0] += i_val * k_val;
                                     }
                                 }
@@ -307,21 +298,17 @@ pub fn conv2d_pad_dilation_ex<T>(
             } // prettier-ignore
         } else {
             for l in 0..out_height {
-                let (n_min, n_max) = calculate_kernel_height_range(ph_start, l, step_height, dh, img_height, kernel_height);
-                for n in n_min..n_max {
+                for n in 0..kernel_height {
                     for m in 0..kernel_width {
                         for i in 0..in_channels {
-                            let (k_min, k_max) = calculate_out_width_range(pw_start, m, step_width, dw, img_width, out_width);
-                            for k in k_min..k_max {
+                            for k in 0..out_width {
                                 for j in 0..o_n * 8 {
                                     let in_y = l * step_height + n * dh - ph_start;
                                     let in_x = k * step_width + m * dw - pw_start;
                                     if in_y >= 0 && in_y < img_height && in_x >= 0 && in_x < img_width {
                                         let k_val = kernel[i * ks2 + j * ks3 + m * ks1 + n * ks0];
-                                        let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
+                                        let i_val = inp[i * is2 + in_x * is1 + in_y * is0]; // prettier-ignore
                                         out[j * os2 + k * os1 + l * os0] += i_val * k_val;
-                                    } else {
-                                        println!("{} {} {} {} {} {} {} {} {}", l, n, m, i, k, j, in_y, in_x, img_height);
                                     }
                                 }
                                 for j in o_n * 8..o_n * 8 + oc_r8 {
@@ -329,10 +316,8 @@ pub fn conv2d_pad_dilation_ex<T>(
                                     let in_x = k * step_width + m * dw - pw_start;
                                     if in_y >= 0 && in_y < img_height && in_x >= 0 && in_x < img_width {
                                         let k_val = kernel[i * ks2 + j * ks3 + m * ks1 + n * ks0];
-                                        let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
+                                        let i_val = inp[i * is2 + in_x * is1 + in_y * is0]; // prettier-ignore
                                         out[j * os2 + k * os1 + l * os0] += i_val * k_val;
-                                    } else {
-                                        println!("{} {} {} {} {} {} {} {} {}", l, n, m, i, k, j, in_y, in_x, img_height);
                                     }
                                 }
                             }
@@ -346,21 +331,17 @@ pub fn conv2d_pad_dilation_ex<T>(
         if ow_r14 > 0 {
             let ow_n = out_width / 14;
             for l in 0..out_height {
-                let (n_min, n_max) = calculate_kernel_height_range(ph_start, l, step_height, dh, img_height, kernel_height);
-                for n in n_min..n_max {
+                for n in 0..kernel_height {
                     for m in 0..kernel_width {
                         for i in 0..in_channels {
-                            let (k_min, k_max) = calculate_out_width_range(pw_start, m, step_width, dw, img_width, ow_n * 14);
-                            for k in k_min..k_max {
+                            for k in 0..ow_n * 14 {
                                 for j in 0..out_channels {
                                     let in_y = l * step_height + n * dh - ph_start;
                                     let in_x = k * step_width + m * dw - pw_start;
                                     if in_y >= 0 && in_y < img_height && in_x >= 0 && in_x < img_width {
                                         let k_val = kernel[i * ks2 + j * ks3 + m * ks1 + n * ks0];
-                                        let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
+                                        let i_val = inp[i * is2 + in_x * is1 + in_y * is0]; // prettier-ignore
                                         out[j * os2 + k * os1 + l * os0] += i_val * k_val;
-                                    } else {
-                                        println!("{} {} {} {} {} {} {} {} {}", l, n, m, i, k, j, in_y, in_x, img_height);
                                     }
                                 }
                             }
@@ -370,10 +351,8 @@ pub fn conv2d_pad_dilation_ex<T>(
                                     let in_x = k * step_width + m * dw - pw_start;
                                     if in_y >= 0 && in_y < img_height && in_x >= 0 && in_x < img_width {
                                         let k_val = kernel[i * ks2 + j * ks3 + m * ks1 + n * ks0];
-                                        let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
+                                        let i_val = inp[i * is2 + in_x * is1 + in_y * is0]; // prettier-ignore
                                         out[j * os2 + k * os1 + l * os0] += i_val * k_val;
-                                    } else {
-                                        println!("{} {} {} {} {} {} {} {} {}", l, n, m, i, k, j, in_y, in_x, img_height);
                                     }
                                 }
                             }
@@ -383,21 +362,17 @@ pub fn conv2d_pad_dilation_ex<T>(
             } // prettier-ignore
         } else {
             for l in 0..out_height {
-                let (n_min, n_max) = calculate_kernel_height_range(ph_start, l, step_height, dh, img_height, kernel_height);
-                for n in n_min..n_max {
+                for n in 0..kernel_height {
                     for m in 0..kernel_width {
                         for i in 0..in_channels {
-                            let (k_min, k_max) = calculate_out_width_range(pw_start, m, step_width, dw, img_width, out_width);
-                            for k in k_min..k_max {
+                            for k in 0..out_width {
                                 for j in 0..out_channels {
                                     let in_y = l * step_height + n * dh - ph_start;
                                     let in_x = k * step_width + m * dw - pw_start;
                                     if in_y >= 0 && in_y < img_height && in_x >= 0 && in_x < img_width {
                                         let k_val = kernel[i * ks2 + j * ks3 + m * ks1 + n * ks0];
-                                        let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
+                                        let i_val = inp[i * is2 + in_x * is1 + in_y * is0]; // prettier-ignore
                                         out[j * os2 + k * os1 + l * os0] += i_val * k_val;
-                                    } else {
-                                        println!("{} {} {} {} {} {} {} {} {}", l, n, m, i, k, j, in_y, in_x, img_height);
                                     }
                                 }
                             }
@@ -669,4 +644,162 @@ pub fn conv2d_naive<T>(
         }
     }
     Ok(output)
+}
+
+#[cfg(test)]
+mod tests {
+    use tensor_traits::{ ShapeManipulate, TensorCreator };
+
+    use crate::{
+        ops::cpu::convolutions::conv2d::{ conv2d_pad_dilation, conv2d_pad_dilation_ex },
+        tensor_base::_Tensor,
+    };
+
+    #[test]
+    fn test_conv2d_oc_d8_ow_d14() -> anyhow::Result<()> {
+        let kernel = _Tensor::<i32>
+            ::arange(0, 3 * 8 * 4 * 4)?
+            .reshape([3, 8, 4, 4])?
+            .permute([2, 3, 0, 1])?
+            .contiguous()?;
+        let a = _Tensor::<i32>
+            ::arange(0, 3 * 13 * 13)?
+            .reshape([3, 13, 13])?
+            .permute([1, 2, 0])?
+            .contiguous()?;
+        let res1: _Tensor<i32> = conv2d_pad_dilation(
+            &a,
+            &kernel,
+            [1, 1],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [1, 1]
+        )?.permute([2, 0, 1])?;
+
+        let res2 = conv2d_pad_dilation_ex(
+            &a,
+            &kernel,
+            [1, 1],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [1, 1]
+        )?.permute([2, 0, 1])?;
+        assert_eq!(res1, res2);
+        Ok(())
+    }
+
+    #[test]
+    fn test_conv2d_oc_nd8_ow_d14() -> anyhow::Result<()> {
+        let kernel = _Tensor::<i32>
+            ::arange(0, 3 * 9 * 4 * 4)?
+            .reshape([3, 9, 4, 4])?
+            .permute([2, 3, 0, 1])?
+            .contiguous()?;
+        let a = _Tensor::<i32>
+            ::arange(0, 3 * 13 * 13)?
+            .reshape([3, 13, 13])?
+            .permute([1, 2, 0])?
+            .contiguous()?;
+        let res1: _Tensor<i32> = conv2d_pad_dilation(
+            &a,
+            &kernel,
+            [1, 1],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [1, 1]
+        )?.permute([2, 0, 1])?;
+
+        let res2 = conv2d_pad_dilation_ex(
+            &a,
+            &kernel,
+            [1, 1],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [1, 1]
+        )?.permute([2, 0, 1])?;
+        assert_eq!(res1, res2);
+        Ok(())
+    }
+
+    #[test]
+    fn test_conv2d_oc_d8_ow_nd14() -> anyhow::Result<()> {
+        let kernel = _Tensor::<i32>
+            ::arange(0, 3 * 8 * 4 * 4)?
+            .reshape([3, 8, 4, 4])?
+            .permute([2, 3, 0, 1])?
+            .contiguous()?;
+        let a = _Tensor::<i32>
+            ::arange(0, 3 * 14 * 14)?
+            .reshape([3, 14, 14])?
+            .permute([1, 2, 0])?
+            .contiguous()?;
+        let res1: _Tensor<i32> = conv2d_pad_dilation(
+            &a,
+            &kernel,
+            [1, 1],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [1, 1]
+        )?.permute([2, 0, 1])?;
+
+        let res2 = conv2d_pad_dilation_ex(
+            &a,
+            &kernel,
+            [1, 1],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [1, 1]
+        )?.permute([2, 0, 1])?;
+        assert_eq!(res1, res2);
+        Ok(())
+    }
+
+    #[test]
+    fn test_conv2d_oc_nd8_ow_nd14() -> anyhow::Result<()> {
+        let kernel = _Tensor::<i32>
+            ::arange(0, 3 * 9 * 4 * 4)?
+            .reshape([3, 9, 4, 4])?
+            .permute([2, 3, 0, 1])?
+            .contiguous()?;
+        let a = _Tensor::<i32>
+            ::arange(0, 3 * 14 * 14)?
+            .reshape([3, 14, 14])?
+            .permute([1, 2, 0])?
+            .contiguous()?;
+        let res1: _Tensor<i32> = conv2d_pad_dilation(
+            &a,
+            &kernel,
+            [1, 1],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [1, 1]
+        )?.permute([2, 0, 1])?;
+
+        let res2 = conv2d_pad_dilation_ex(
+            &a,
+            &kernel,
+            [1, 1],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [1, 1]
+        )?.permute([2, 0, 1])?;
+        assert_eq!(res1, res2);
+        Ok(())
+    }
 }
