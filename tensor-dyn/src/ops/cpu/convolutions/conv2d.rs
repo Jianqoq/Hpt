@@ -272,15 +272,24 @@ pub fn conv2d_pad_dilation_ex<T>(
                                     }
                                 }
                             }
-                            for k in ow_n * 14..ow_n * 14 + ow_r14 {
+                            let (k_min2, k_max2) = {
+                                let _k_min = (((pw_start - m * dw) as f64) / (step_width as f64)).ceil() as i64;
+                                let _k_min = _k_min.max(k_max);
+                                let k_max_bound = (
+                                    ((img_width + pw_start - m * dw) as f64) / (step_width as f64)
+                                ).floor() as i64;
+                                let k_max = k_max_bound.min(k_max + ow_r14 - 1);
+
+                                (_k_min, k_max)
+                            };
+                            println!("{} {} {} {} {} {} {} {} {}", l, n, m, i, k_min2, k_max2, ow_n, ow_r14, out_width);
+                            for k in k_min2..k_max2 {
                                 for j in 0..o_n * 8 {
                                     let in_y = l * step_height + n * dh - ph_start;
                                     let in_x = k * step_width + m * dw - pw_start;
-                                    if in_y >= 0 && in_y < img_height && in_x >= 0 && in_x < img_width {
-                                        let k_val = kernel[i * ks2 + j * ks3 + m * ks1 + n * ks0];
-                                        let i_val = inp[i * is2 + (k * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                        out[j * os2 + k * os1 + l * os0] += i_val * k_val;
-                                    }
+                                    let k_val = kernel[i * ks2 + j * ks3 + m * ks1 + n * ks0];
+                                    let i_val = inp[i * is2 + in_x * is1 + in_y * is0]; // prettier-ignore
+                                    out[j * os2 + k * os1 + l * os0] += i_val * k_val;
                                 }
                                 for j in o_n * 8..o_n * 8 + oc_r8 {
                                     let in_y = l * step_height + n * dh - ph_start;

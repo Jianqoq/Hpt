@@ -49,12 +49,12 @@ fn main() -> anyhow::Result<()> {
         let res2 = conv2d_pad_dilation_ex(
             &a,
             &kernel,
-            [2, 2],
+            [1, 1],
             [
                 (2, 2),
                 (2, 2),
             ],
-            [2, 2]
+            [1, 1]
         )?.permute([2, 0, 1])?;
     }
     println!("{:?}", now.elapsed() / 100);
