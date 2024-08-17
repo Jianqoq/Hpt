@@ -371,7 +371,7 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_i32<T>(
 }
 
 #[cfg(target_feature = "fma")]
-pub fn conv2d_block_simd_parallel_unroll_pad_dilation_group_i32<T>(
+pub fn conv2d_group_i32<T>(
     img: &_Tensor<T>,
     kernels: &_Tensor<T>,
     steps: [i64; 2],

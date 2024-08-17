@@ -1,8 +1,8 @@
 use ops::cpu::convolutions::conv2d::conv2d_pad_dilation_group;
 use ops::cpu::convolutions::conv2d_unroll::{
     conv2d_block_simd_parallel_unroll_f32,
-    conv2d_block_simd_parallel_unroll_pad_dilation_group_i32,
     conv2d_block_simd_parallel_unroll_pad_dilation_i32,
+    conv2d_group_i32,
 };
 use tensor_dyn::TensorCreator;
 use tensor_dyn::tensor_base::_Tensor;
@@ -46,7 +46,7 @@ fn main() -> anyhow::Result<()> {
         .contiguous()?;
     let now = std::time::Instant::now();
     for _ in 0..1 {
-        let res2 = conv2d_block_simd_parallel_unroll_pad_dilation_group_i32(
+        let res2 = conv2d_group_i32(
             &a,
             &kernel,
             [2, 2],

@@ -37,6 +37,9 @@ pub mod ops {
             pub mod conv2d_unroll;
             pub mod conv2d_unroll_block;
         }
+        pub mod vector {
+            pub mod traits;
+        }
     }
     pub mod wgpu {
         pub mod buffer_helper;
