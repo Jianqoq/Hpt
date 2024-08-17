@@ -403,7 +403,9 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_group_i32<T>(
         );
     }
     if in_channels % groups != 0 || out_channels % groups != 0 {
-        panic!("The number of input and output channels must be divisible by the number of groups.");
+        panic!(
+            "The number of input and output channels must be divisible by the number of groups."
+        );
     }
     let kernels_per_group = out_channels / groups;
     let channels_per_group = in_channels / groups;
@@ -448,7 +450,7 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_group_i32<T>(
     let c_ob = 8;
     let w_ob = 14;
     let kp_end = (out_width + w_ob - 1) / w_ob;
-    
+    let jp_end = (kernels_per_group + c_ob - 1) / c_ob;
     (0..groups).into_par_iter().for_each_init(
         || output.ptr(),
         |out, g| {
@@ -456,7 +458,6 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_group_i32<T>(
             let mut res_ptrs = [0 as *mut i32; 14];
             let mut kernel_vector = i32x8::splat(0i32);
             let mut stop;
-            let jp_end = (kernels_per_group + c_ob - 1) / c_ob;
             for jp in 0..jp_end {
                 for l in 0..out_height {
                     for kp in 0..kp_end {

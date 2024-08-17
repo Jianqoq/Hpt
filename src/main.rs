@@ -25,12 +25,12 @@ fn main() -> anyhow::Result<()> {
     let res1: _Tensor<i32> = conv2d_pad_dilation_group(
         &a,
         &kernel,
-        [1, 1],
+        [2, 2],
         [
-            (1, 1),
-            (1, 1),
+            (2, 2),
+            (2, 2),
         ],
-        [1, 1],
+        [2, 2],
         2
     )?.permute([2, 0, 1])?;
 
@@ -49,12 +49,12 @@ fn main() -> anyhow::Result<()> {
         let res2 = conv2d_block_simd_parallel_unroll_pad_dilation_group_i32(
             &a,
             &kernel,
-            [1, 1],
+            [2, 2],
             [
-                (1, 1),
-                (1, 1),
+                (2, 2),
+                (2, 2),
             ],
-            [1, 1],
+            [2, 2],
             2
         )?.permute([2, 0, 1])?;
         assert_eq!(res1, res2);
