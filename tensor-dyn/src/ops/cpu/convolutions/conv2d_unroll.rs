@@ -534,3 +534,99 @@ pub fn conv2d_group<
     );
     Ok(output)
 }
+
+#[cfg(target_feature = "fma")]
+pub fn conv2d_no_group_ex<
+    T,
+    VEC,
+    const DVSB_REGCNT: bool,
+    const DVSB_VECSIZE: bool,
+    const REGCNT: usize,
+    const PAD: bool
+    >(
+    img: &_Tensor<T>,
+    kernels: &_Tensor<T>,
+    steps: [i64; 2],
+    padding: [(i64, i64); 2],
+    dilation: [i64; 2]
+)
+    -> anyhow::Result<_Tensor<T>>
+    where T: CommonBounds, VEC: Init<T> + Copy + VecTrait<T> + VecSize
+{
+    use likely_stable::likely;
+    use tensor_common::{ pointer::Pointer, slice };
+
+    let img_shape = img.shape();
+    let img_height = img_shape[0];
+    let img_width = img_shape[1];
+    let img_channels = img_shape[2];
+    let kernel_shape = kernels.shape();
+    let kernel_height = kernel_shape[0];
+    let kernel_width = kernel_shape[1];
+    let in_channels = kernel_shape[2];
+    let out_channels = kernel_shape[3];
+    if in_channels != img_channels {
+        panic!(
+            "The number of input channels in the image must be equal to the number of input channels in the kernel."
+        );
+    }
+    let (step_width, step_height) = (steps[0], steps[1]);
+    let ((pw_start, pw_end), (ph_start, ph_end)) = (padding[0], padding[1]);
+    let (dw, dh) = (dilation[0], dilation[1]);
+
+    let out_height =
+        (img_height + ph_start + ph_end - dh * (kernel_height - 1) - 1) / step_height + 1; // prettier-ignore
+    let out_width = (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1; // prettier-ignore
+    let img = if PAD {
+        let img_padded = _Tensor::<T>::zeros([
+            img_height + ph_start + ph_end,
+            img_width + pw_start + pw_end,
+            img_channels,
+        ])?;
+        let he = img_height + ph_start;
+        let we = img_width + pw_start;
+        let mut slice = slice!(img_padded[ph_start:he, pw_start:we, :])?;
+        slice.assign(&img);
+        img_padded
+    } else {
+        img.clone()
+    };
+    let output = _Tensor::<T>::zeros([out_height, out_width, out_channels])?;
+    let inp = img.ptr();
+    let kernel = kernels.ptr();
+
+    let os0 = output.strides()[0]; // height
+    let os1 = output.strides()[1]; // width
+    let os2 = output.strides()[2]; // channels
+
+    let is0 = img.strides()[0]; // height
+    let is1 = img.strides()[1]; // width
+    let is2 = img.strides()[2]; // channels
+
+    let ks0 = kernels.strides()[0]; // kernel_height
+    let ks1 = kernels.strides()[1]; // kernel_width
+    let ks2 = kernels.strides()[2]; // in_channels
+    let ks3 = kernels.strides()[3]; // out_channels
+
+    let c_ob = VEC::SIZE as i64;
+    let w_ob = REGCNT as i64;
+    let kp_end = (out_width + w_ob - 1) / w_ob;
+    if DVSB_REGCNT {
+        assert_eq!(kp_end * w_ob, out_width);
+    }
+    let out_width_remain = out_width % w_ob;
+    let out_width_iter_num = if out_width_remain == 0 { out_width / w_ob } else { out_width / w_ob + 1 };
+    let remain = out_channels % c_ob;
+    let out_iter_num = if remain == 0 { out_channels / c_ob } else { out_channels / c_ob + 1 };
+    (0..out_iter_num).into_par_iter().for_each_init(
+        || output.ptr(),
+        |out, idx| {
+            if idx == out_iter_num - 1 {
+
+            } else {
+                
+            }
+        }
+    );
+    Ok(output)
+}
