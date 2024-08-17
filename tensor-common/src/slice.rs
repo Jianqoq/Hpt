@@ -17,7 +17,7 @@ pub fn slice_process(
     shape: Vec<i64>,
     strides: Vec<i64>,
     index: &[Slice],
-    alpha: i64,
+    alpha: i64
 ) -> Result<(Vec<i64>, Vec<i64>, i64)> {
     let mut res_shape: Vec<i64> = shape.clone();
     let mut res_strides: Vec<i64> = strides.clone();
@@ -45,7 +45,9 @@ pub fn slice_process(
                 if index >= shape[idx] {
                     let message = format!(
                         "slice index out of range for {} (arg: {}). It should < {}",
-                        index, idx, shape[idx]
+                        index,
+                        idx,
+                        shape[idx]
                     );
                     return Err(anyhow::Error::msg(message));
                 }
@@ -54,21 +56,13 @@ pub fn slice_process(
             }
             // tested
             Slice::RangeFrom(mut __index) => {
-                let index = if __index >= 0 {
-                    __index
-                } else {
-                    __index + shape[idx]
-                };
+                let index = if __index >= 0 { __index } else { __index + shape[idx] };
                 let length = (shape[idx] - index) * alpha;
                 res_shape[idx] = if length > 0 { length } else { 0 };
                 res_ptr += res_strides[idx] * index;
             }
             Slice::RangeTo(r) => {
-                let range_to = if *r >= 0 {
-                    ..*r
-                } else {
-                    ..*r + shape[idx]
-                };
+                let range_to = if *r >= 0 { ..*r } else { ..*r + shape[idx] };
                 let mut end = range_to.end;
                 end *= alpha;
                 if range_to.end > res_shape[idx] {
@@ -109,11 +103,7 @@ pub fn slice_process(
             }
             // tested
             Slice::StepByRangeFromTo((start, end, step)) => {
-                let mut start = if *start >= 0 {
-                    *start
-                } else {
-                    *start + shape[idx]
-                };
+                let mut start = if *start >= 0 { *start } else { *start + shape[idx] };
                 let mut end = if *end >= 0 { *end } else { *end + shape[idx] };
                 if start >= shape[idx] {
                     start = shape[idx] - 1;
@@ -142,16 +132,8 @@ pub fn slice_process(
             }
             // tested
             Slice::StepByRangeFrom((start, step)) => {
-                let mut start = if *start >= 0 {
-                    *start
-                } else {
-                    *start + shape[idx]
-                };
-                let end = if *step > 0 {
-                    shape[idx]
-                } else {
-                    0
-                };
+                let mut start = if *start >= 0 { *start } else { *start + shape[idx] };
+                let end = if *step > 0 { shape[idx] } else { 0 };
                 if start >= shape[idx] {
                     start = shape[idx] - 1;
                 }
@@ -176,16 +158,8 @@ pub fn slice_process(
             }
             // tested
             Slice::StepByFullRange(step) => {
-                let start = if *step > 0 {
-                    0
-                } else {
-                    shape[idx] - 1
-                };
-                let end = if *step > 0 {
-                    shape[idx] - 1
-                } else {
-                    0
-                };
+                let start = if *step > 0 { 0 } else { shape[idx] - 1 };
+                let end = if *step > 0 { shape[idx] - 1 } else { 0 };
                 let length = if (start <= end && *step > 0) || (start >= end && *step < 0) {
                     (end - start + step) / step
                 } else {
@@ -236,11 +210,6 @@ macro_rules! slice {
     (
         $tensor:ident [$($indexes:tt)*]
     ) => {
-        {
-            use crate::slice::SliceOps;
-            use tensor_macros::match_selection;
-            use tensor_common::slice::Slice;
-            $tensor.slice(match_selection!($($indexes)*))
-        }
+        $tensor.slice(match_selection!($($indexes)*))
     };
 }

@@ -6,6 +6,9 @@ use num::traits::MulAdd;
 use tensor_types::type_promote::NormalOut;
 use tensor_traits::TensorInfo;
 use tensor_traits::TensorCreator;
+use crate::slice::SliceOps;
+use tensor_macros::match_selection;
+use tensor_common::slice::Slice;
 
 #[cfg(target_feature = "fma")]
 pub fn conv2d_block_simd_parallel_unroll_i32<T>(
@@ -370,8 +373,12 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_i32<T>(
     Ok(output)
 }
 
+use crate::ops::cpu::vector::traits::Init;
+use crate::ops::cpu::vector::traits::VecTrait;
+use crate::ops::cpu::vector::traits::VecSize;
+
 #[cfg(target_feature = "fma")]
-pub fn conv2d_group_i32<T>(
+pub fn conv2d_group<T, VEC>(
     img: &_Tensor<T>,
     kernels: &_Tensor<T>,
     steps: [i64; 2],
@@ -382,11 +389,10 @@ pub fn conv2d_group_i32<T>(
     -> anyhow::Result<_Tensor<T>>
     where
         T: CommonBounds + std::ops::Mul<Output = T> + std::ops::AddAssign<T> + MulAdd<Output = T>,
-        T: IntoScalar<i32>
+        VEC: Init<T> + Copy + VecTrait<T> + VecSize
 {
     use likely_stable::likely;
     use tensor_common::slice;
-    use wide::i32x8;
 
     let img_shape = img.shape();
     let img_height = img_shape[0];
@@ -447,16 +453,16 @@ pub fn conv2d_group_i32<T>(
     let ks2 = kernels.strides()[2]; // in_channels
     let ks3 = kernels.strides()[3]; // out_channels
 
-    let c_ob = 8;
+    let c_ob = VEC::SIZE as i64;
     let w_ob = 14;
     let kp_end = (out_width + w_ob - 1) / w_ob;
     let jp_end = (kernels_per_group + c_ob - 1) / c_ob;
     (0..groups).into_par_iter().for_each_init(
         || output.ptr(),
         |out, g| {
-            let mut res_vectors = [i32x8::splat(0i32); 14];
-            let mut res_ptrs = [0 as *mut i32; 14];
-            let mut kernel_vector = i32x8::splat(0i32);
+            let mut res_vectors = [VEC::splat(T::ZERO); 14];
+            let mut res_ptrs = [0 as *mut T; 14];
+            let mut kernel_vector = VEC::splat(T::ZERO);
             let mut stop;
             for jp in 0..jp_end {
                 for l in 0..out_height {
@@ -466,13 +472,9 @@ pub fn conv2d_group_i32<T>(
                             let _k = kp * w_ob + k;
                             if likely(_k < out_width) {
                                 let res_ptr = &mut out[(g * kernels_per_group + jp * c_ob) * os2 + _k * os1 + l * os0]; // prettier-ignore
-                                let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
-                                res_vectors[k as usize]
-                                    .as_array_mut()
-                                    .copy_from_slice(unsafe {
-                                        std::mem::transmute::<&[T], &[i32]>(res_vec)
-                                    });
-                                res_ptrs[k as usize] = res_vec.as_mut_ptr() as *mut i32;
+                                let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, VEC::SIZE) }; // prettier-ignore
+                                res_vectors[k as usize].copy_from_slice(res_vec);
+                                res_ptrs[k as usize] = res_vec.as_mut_ptr();
                                 stop += 1;
                             }
                         }
@@ -480,18 +482,13 @@ pub fn conv2d_group_i32<T>(
                             for m in 0..kernel_width {
                                 for i in 0..channels_per_group {
                                     let kernel_ptr = &kernel[i * ks2 + (g * kernels_per_group + jp * c_ob) * ks3 + m * ks1 + n * ks0] as *const T; // prettier-ignore
-                                    kernel_vector
-                                        .as_array_mut()
-                                        .copy_from_slice(unsafe {
-                                            std::mem::transmute::<&[T], &[i32]>(
-                                                std::slice::from_raw_parts(kernel_ptr, 8)
-                                            )
-                                        });
+                                    kernel_vector.copy_from_slice(unsafe {
+                                        std::slice::from_raw_parts(kernel_ptr, VEC::SIZE)
+                                    });
                                     for k in 0..stop {
                                         let res_vector = &mut res_vectors[k as usize];
                                         let i_val = inp[(g * channels_per_group + i) * is2 + ((kp * w_ob + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0]; // prettier-ignore
-                                        *res_vector +=
-                                            kernel_vector * i32x8::splat(i_val.into_scalar());
+                                        res_vector.fma(&kernel_vector, &VEC::splat(i_val));
                                     }
                                 }
                             }
@@ -499,9 +496,9 @@ pub fn conv2d_group_i32<T>(
                         for k in 0..stop {
                             unsafe {
                                 std::ptr::copy_nonoverlapping(
-                                    res_vectors[k as usize].as_array_ref().as_ptr() as *const i32,
-                                    res_ptrs[k as usize] as *mut i32,
-                                    8
+                                    res_vectors[k as usize].as_ptr(),
+                                    res_ptrs[k as usize],
+                                    VEC::SIZE
                                 );
                             }
                         }
