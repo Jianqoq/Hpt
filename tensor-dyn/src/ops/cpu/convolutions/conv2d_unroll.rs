@@ -539,6 +539,8 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_group_i32<T>(
             "The number of input channels in the image must be equal to the number of input channels in the kernel."
         );
     }
+    let kernels_per_group = out_channels / groups;
+    let channels_per_group = in_channels / groups;
     let (step_width, step_height) = (steps[0], steps[1]);
     let ((pw_start, pw_end), (ph_start, ph_end)) = (padding[0], padding[1]);
     let (dw, dh) = (dilation[0], dilation[1]);
@@ -579,59 +581,60 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_group_i32<T>(
 
     let c_ob = 8;
     let w_ob = 14;
-    let jp_end = (out_channels + c_ob - 1) / c_ob;
     let kp_end = (out_width + w_ob - 1) / w_ob;
-    (0..jp_end).into_par_iter().for_each_init(
+    (0..groups).into_par_iter().for_each_init(
         || output.ptr(),
-        |out, jp| {
+        |out, g| {
             let mut res_vectors = [i32x8::splat(0i32); 14];
             let mut res_ptrs = [0 as *mut i32; 14];
             let mut kernel_vector = i32x8::splat(0i32);
             let mut stop;
-            for l in 0..out_height {
-                for kp in 0..kp_end {
-                    stop = 0;
-                    for k in 0..14 {
-                        let _k = kp * w_ob + k;
-                        if likely(_k < out_width) {
-                            let res_ptr = &mut out[jp * c_ob * os2 + _k * os1 + l * os0]; // prettier-ignore
-                            let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
-                            res_vectors[k as usize]
-                                .as_array_mut()
-                                .copy_from_slice(unsafe {
-                                    std::mem::transmute::<&[T], &[i32]>(res_vec)
-                                });
-                            res_ptrs[k as usize] = res_vec.as_mut_ptr() as *mut i32;
-                            stop += 1;
-                        }
-                    }
-                    for n in 0..kernel_height {
-                        for m in 0..kernel_width {
-                            for i in 0..in_channels {
-                                let kernel_ptr = &kernel[i * ks2 + jp * c_ob * ks3 + m * ks1 + n * ks0] as *const T; // prettier-ignore
-                                kernel_vector
+            for jp in 0..kernels_per_group {
+                for l in 0..out_height {
+                    for kp in 0..kp_end {
+                        stop = 0;
+                        for k in 0..14 {
+                            let _k = kp * w_ob + k;
+                            if likely(_k < out_width) {
+                                let res_ptr = &mut out[jp * c_ob * os2 + _k * os1 + l * os0]; // prettier-ignore
+                                let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
+                                res_vectors[k as usize]
                                     .as_array_mut()
                                     .copy_from_slice(unsafe {
-                                        std::mem::transmute::<&[T], &[i32]>(
-                                            std::slice::from_raw_parts(kernel_ptr, 8)
-                                        )
+                                        std::mem::transmute::<&[T], &[i32]>(res_vec)
                                     });
-                                for k in 0..stop {
-                                    let res_vector = &mut res_vectors[k as usize];
-                                    let i_val = inp[i * is2 + ((kp * w_ob + k) * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
-                                    *res_vector +=
-                                        kernel_vector * i32x8::splat(i_val.into_scalar());
+                                res_ptrs[k as usize] = res_vec.as_mut_ptr() as *mut i32;
+                                stop += 1;
+                            }
+                        }
+                        for n in 0..kernel_height {
+                            for m in 0..kernel_width {
+                                for i in 0..channels_per_group {
+                                    let kernel_ptr = &kernel[i * ks2 + jp * c_ob * ks3 + m * ks1 + n * ks0] as *const T; // prettier-ignore
+                                    kernel_vector
+                                        .as_array_mut()
+                                        .copy_from_slice(unsafe {
+                                            std::mem::transmute::<&[T], &[i32]>(
+                                                std::slice::from_raw_parts(kernel_ptr, 8)
+                                            )
+                                        });
+                                    for k in 0..stop {
+                                        let res_vector = &mut res_vectors[k as usize];
+                                        let i_val = inp[i * is2 + ((kp * w_ob + k) * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
+                                        *res_vector +=
+                                            kernel_vector * i32x8::splat(i_val.into_scalar());
+                                    }
                                 }
                             }
                         }
-                    }
-                    for k in 0..stop {
-                        unsafe {
-                            std::ptr::copy_nonoverlapping(
-                                res_vectors[k as usize].as_array_ref().as_ptr() as *const i32,
-                                res_ptrs[k as usize] as *mut i32,
-                                8
-                            );
+                        for k in 0..stop {
+                            unsafe {
+                                std::ptr::copy_nonoverlapping(
+                                    res_vectors[k as usize].as_array_ref().as_ptr() as *const i32,
+                                    res_ptrs[k as usize] as *mut i32,
+                                    8
+                                );
+                            }
                         }
                     }
                 }
