@@ -198,18 +198,29 @@ pub fn conv2d_pad_dilation_group<T>(
     let ks2 = kernels.strides()[2]; // in_channels
     let ks3 = kernels.strides()[3]; // out_channels
 
-    for l in 0..out_height {
-        for n in 0..kernel_height {
-            for m in 0..kernel_width {
-                for i in 0..in_channels {
-                    for k in 0..out_width {
-                        for j in 0..out_channels {
-                            let in_y = l * step_height + n * dh - ph_start;
-                            let in_x = k * step_width + m * dw - pw_start;
-                            if in_y >= 0 && in_y < img_height && in_x >= 0 && in_x < img_width {
-                                let k_val = kernel[i * ks2 + j * ks3 + m * ks1 + n * ks0];
-                                let i_val = inp[i * is2 + in_x * is1 + in_y * is0]; // prettier-ignore
-                                out[j * os2 + k * os1 + l * os0] += i_val * k_val;
+    if in_channels % groups != 0 || out_channels % groups != 0 {
+        panic!(
+            "The number of input channels and output channels must be divisible by the number of groups."
+        );
+    }
+
+    let in_channels_per_group = in_channels / groups;
+    let out_channels_per_group = out_channels / groups;
+
+    for g in 0..groups {
+        for l in 0..out_height {
+            for n in 0..kernel_height {
+                for m in 0..kernel_width {
+                    for i in 0..in_channels_per_group {
+                        for k in 0..out_width {
+                            for j in 0..out_channels_per_group {
+                                let in_y = l * step_height + n * dh - ph_start;
+                                let in_x = k * step_width + m * dw - pw_start;
+                                if in_y >= 0 && in_y < img_height && in_x >= 0 && in_x < img_width {
+                                    let k_val = kernel[i * ks2 + (g * out_channels_per_group + j) * ks3 + m * ks1 + n * ks0];
+                                    let i_val = inp[(g * in_channels_per_group + i) * is2 + in_x * is1 + in_y * is0]; // prettier-ignore
+                                    out[(g * out_channels_per_group + j) * os2 + k * os1 + l * os0] += i_val * k_val;
+                                }
                             }
                         }
                     }

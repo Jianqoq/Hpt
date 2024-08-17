@@ -448,6 +448,7 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_group_i32<T>(
     let c_ob = 8;
     let w_ob = 14;
     let kp_end = (out_width + w_ob - 1) / w_ob;
+    
     (0..groups).into_par_iter().for_each_init(
         || output.ptr(),
         |out, g| {
@@ -455,14 +456,15 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_group_i32<T>(
             let mut res_ptrs = [0 as *mut i32; 14];
             let mut kernel_vector = i32x8::splat(0i32);
             let mut stop;
-            for jp in 0..kernels_per_group {
+            let jp_end = (kernels_per_group + c_ob - 1) / c_ob;
+            for jp in 0..jp_end {
                 for l in 0..out_height {
                     for kp in 0..kp_end {
                         stop = 0;
                         for k in 0..14 {
                             let _k = kp * w_ob + k;
                             if likely(_k < out_width) {
-                                let res_ptr = &mut out[(g * kernels_per_group + jp) * c_ob * os2 + _k * os1 + l * os0]; // prettier-ignore
+                                let res_ptr = &mut out[(g * kernels_per_group + jp * c_ob) * os2 + _k * os1 + l * os0]; // prettier-ignore
                                 let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
                                 res_vectors[k as usize]
                                     .as_array_mut()
@@ -476,7 +478,7 @@ pub fn conv2d_block_simd_parallel_unroll_pad_dilation_group_i32<T>(
                         for n in 0..kernel_height {
                             for m in 0..kernel_width {
                                 for i in 0..channels_per_group {
-                                    let kernel_ptr = &kernel[i * ks2 + (g * kernels_per_group + jp) * c_ob * ks3 + m * ks1 + n * ks0] as *const T; // prettier-ignore
+                                    let kernel_ptr = &kernel[i * ks2 + (g * kernels_per_group + jp * c_ob) * ks3 + m * ks1 + n * ks0] as *const T; // prettier-ignore
                                     kernel_vector
                                         .as_array_mut()
                                         .copy_from_slice(unsafe {
