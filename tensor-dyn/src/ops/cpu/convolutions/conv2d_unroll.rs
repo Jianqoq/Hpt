@@ -241,7 +241,14 @@ pub fn conv2d_block_simd_parallel_unroll_f32<T>(
 }
 
 #[cfg(target_feature = "fma")]
-pub fn conv2d_no_group<T, VEC, const DVSB: bool, const REGCNT: usize, const PAD: bool>(
+pub fn conv2d_no_group<
+    T,
+    VEC,
+    const DVSB_REGCNT: bool,
+    const DVSB_VECSIZE: bool,
+    const REGCNT: usize,
+    const PAD: bool
+    >(
     img: &_Tensor<T>,
     kernels: &_Tensor<T>,
     steps: [i64; 2],
@@ -310,6 +317,12 @@ pub fn conv2d_no_group<T, VEC, const DVSB: bool, const REGCNT: usize, const PAD:
     let w_ob = REGCNT as i64;
     let jp_end = (out_channels + c_ob - 1) / c_ob;
     let kp_end = (out_width + w_ob - 1) / w_ob;
+    if DVSB_REGCNT {
+        assert_eq!(kp_end * w_ob, out_width);
+    }
+    if DVSB_VECSIZE {
+        assert_eq!(jp_end * c_ob, out_channels);
+    }
     (0..jp_end).into_par_iter().for_each_init(
         || output.ptr(),
         |out, jp| {
@@ -329,7 +342,7 @@ pub fn conv2d_no_group<T, VEC, const DVSB: bool, const REGCNT: usize, const PAD:
                             ptrs[k as usize] = res_vec.as_mut_ptr() as *mut T;
                             *stop += 1;
                         }; // prettier-ignore
-                        if DVSB {
+                        if DVSB_REGCNT {
                             load_register(out, &mut res_vectors, &mut res_ptrs, &mut stop);
                         } else {
                             if likely(_k < out_width) {
@@ -373,7 +386,14 @@ use crate::ops::cpu::vector::traits::VecTrait;
 use crate::ops::cpu::vector::traits::VecSize;
 
 #[cfg(all(target_feature = "fma", target_feature = "avx2"))]
-pub fn conv2d_group<T, VEC, const DVSB: bool, const REGCNT: usize, const PAD: bool>(
+pub fn conv2d_group<
+    T,
+    VEC,
+    const DVSB_REGCNT: bool,
+    const DVSB_VECSIZE: bool,
+    const REGCNT: usize,
+    const PAD: bool
+    >(
     img: &_Tensor<T>,
     kernels: &_Tensor<T>,
     steps: [i64; 2],
@@ -449,10 +469,13 @@ pub fn conv2d_group<T, VEC, const DVSB: bool, const REGCNT: usize, const PAD: bo
     let c_ob = VEC::SIZE as i64;
     let w_ob = REGCNT as i64;
     let kp_end = (out_width + w_ob - 1) / w_ob;
-    if DVSB {
+    if DVSB_REGCNT {
         assert_eq!(kp_end * w_ob, out_width);
     }
     let jp_end = (kernels_per_group + c_ob - 1) / c_ob;
+    if DVSB_VECSIZE {
+        assert_eq!(jp_end * c_ob, kernels_per_group);
+    }
     (0..groups).into_par_iter().for_each_init(
         || output.ptr(),
         |out, g| {
@@ -472,7 +495,7 @@ pub fn conv2d_group<T, VEC, const DVSB: bool, const REGCNT: usize, const PAD: bo
                                 ptrs[k as usize] = res_vec.as_mut_ptr();
                                 *stop += 1;
                             }; // prettier-ignore
-                            if DVSB {
+                            if DVSB_REGCNT {
                                 load_to_reg(out, &mut res_vectors, &mut res_ptrs, &mut stop);
                             } else {
                                 if likely(_k < out_width) {
