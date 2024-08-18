@@ -802,8 +802,7 @@ pub fn conv2d_ex_f32(
                                         for k in 0..14i64 {
                                             let res_vector = &mut res_vectors[k as usize];
                                             let i_val = inp[i * is2
-                                                + ((kp * 14i64 + k) * step_width + m * dw)
-                                                    * is1
+                                                + ((kp * 14i64 + k) * step_width + m * dw) * is1
                                                 + (l * step_height + n * dh) * is0];
                                             res_vector.fma(
                                                 kernel_vector,
@@ -843,8 +842,7 @@ pub fn conv2d_ex_f32(
                                         for k in 0..ow_r14 {
                                             let res_vector = &mut res_vectors_heap[k as usize];
                                             let i_val = inp[i * is2
-                                                + ((kp * 14i64 + k) * step_width + m * dw)
-                                                    * is1
+                                                + ((kp * 14i64 + k) * step_width + m * dw) * is1
                                                 + (l * step_height + n * dh) * is0];
                                             res_vector.fma(
                                                 kernel_vector,
@@ -899,8 +897,7 @@ pub fn conv2d_ex_f32(
                                         for k in 0..14i64 {
                                             let res_vector = &mut res_vectors[k as usize];
                                             let i_val = inp[i * is2
-                                                + ((kp * 14i64 + k) * step_width + m * dw)
-                                                    * is1
+                                                + ((kp * 14i64 + k) * step_width + m * dw) * is1
                                                 + (l * step_height + n * dh) * is0]; // prettier-ignore
                                             res_vector
                                                 .iter_mut()
@@ -944,8 +941,7 @@ pub fn conv2d_ex_f32(
                                         for k in 0..ow_r14 {
                                             let res_vector = &mut res_vectors_heap[k as usize];
                                             let i_val = inp[i * is2
-                                                + ((kp * 14i64 + k) * step_width + m * dw)
-                                                    * is1
+                                                + ((kp * 14i64 + k) * step_width + m * dw) * is1
                                                 + (l * step_height + n * dh) * is0]; // prettier-ignore
                                             res_vector
                                                 .iter_mut()
@@ -1002,8 +998,7 @@ pub fn conv2d_ex_f32(
                                         for k in 0..14i64 {
                                             let res_vector = &mut res_vectors[k as usize];
                                             let i_val = inp[i * is2
-                                                + ((kp * 14i64 + k) * step_width + m * dw)
-                                                    * is1
+                                                + ((kp * 14i64 + k) * step_width + m * dw) * is1
                                                 + (l * step_height + n * dh) * is0]; // prettier-ignore
                                             res_vector.fma(
                                                 kernel_vector,
@@ -1055,8 +1050,7 @@ pub fn conv2d_ex_f32(
                                         for k in 0..14i64 {
                                             let res_vector = &mut res_vectors[k as usize];
                                             let i_val = inp[i * is2
-                                                + ((kp * 14i64 + k) * step_width + m * dw)
-                                                    * is1
+                                                + ((kp * 14i64 + k) * step_width + m * dw) * is1
                                                 + (l * step_height + n * dh) * is0]; // prettier-ignore
                                             res_vector.iter_mut().enumerate().for_each(
                                                 |(idx, val)| {
@@ -1119,8 +1113,7 @@ pub fn conv2d_ex_f32(
                                         for k in 0..14i64 {
                                             let res_vector = &mut res_vectors[k as usize];
                                             let i_val = inp[i * is2
-                                                + ((kp * 14i64 + k) * step_width + m * dw)
-                                                    * is1
+                                                + ((kp * 14i64 + k) * step_width + m * dw) * is1
                                                 + (l * step_height + n * dh) * is0]; // prettier-ignore
                                             *res_vector +=
                                                 kernel_vector * f32x8::splat(i_val.into_scalar());
@@ -1160,8 +1153,7 @@ pub fn conv2d_ex_f32(
                                         for k in 0..ow_r14 {
                                             let res_vector = &mut res_vectors_heap[k as usize];
                                             let i_val = inp[i * is2
-                                                + ((kp * 14i64 + k) * step_width + m * dw)
-                                                    * is1
+                                                + ((kp * 14i64 + k) * step_width + m * dw) * is1
                                                 + (l * step_height + n * dh) * is0]; // prettier-ignore
                                             res_vector.fma(
                                                 kernel_vector,
@@ -1216,8 +1208,7 @@ pub fn conv2d_ex_f32(
                                         for k in 0..14i64 {
                                             let res_vector = &mut res_vectors[k as usize];
                                             let i_val = inp[i * is2
-                                                + ((kp * 14i64 + k) * step_width + m * dw)
-                                                    * is1
+                                                + ((kp * 14i64 + k) * step_width + m * dw) * is1
                                                 + (l * step_height + n * dh) * is0]; // prettier-ignore
                                             res_vector.fma(
                                                 kernel_vector,
