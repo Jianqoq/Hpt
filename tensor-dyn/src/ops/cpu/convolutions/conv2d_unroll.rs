@@ -670,9 +670,7 @@ pub fn conv2d_ex_f32(
     steps: [i64; 2],
     padding: [(i64, i64); 2],
     dilation: [i64; 2]
-)
-    -> anyhow::Result<_Tensor<f32>>
-{
+) -> anyhow::Result<_Tensor<f32>> {
     use tensor_common::slice;
     use wide::f32x8;
 
@@ -786,11 +784,7 @@ pub fn conv2d_ex_f32(
                             let _k = kp * 14 + k;
                             let res_ptr = &mut out[jp * 8 as i64 * os2 + _k * os1 + l * os0];
                             let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) };
-                            res_vectors_heap[k as usize].copy_from_slice(
-                                unsafe {
-                                    std::mem::transmute::<&[f32], &[f32]>(res_vec)
-                                }
-                            );
+                            res_vectors_heap[k as usize].copy_from_slice(res_vec);
                             res_ptrs_heap[k as usize] = res_vec.as_mut_ptr() as *mut f32;
                         }
                         for n in 0..kernel_height {
@@ -799,8 +793,7 @@ pub fn conv2d_ex_f32(
                                     let kernel_ptr = &kernel[i * ks2 + jp * 8 as i64 * ks3 + m * ks1 + n * ks0] as *const f32;
                                     kernel_vector.copy_from_slice(unsafe {
                                         std::slice::from_raw_parts(
-                                            kernel_ptr as *const f32
-                                            , 8)
+                                            kernel_ptr as *const f32, 8)
                                     });
                                     for k in 0..ow_r14 as i64 {
                                         let res_vector = &mut res_vectors_heap[k as usize];
@@ -1035,15 +1028,13 @@ pub fn conv2d_ex_f32(
                                     for i in 0..in_channels {
                                         let kernel_ptr = &kernel[i * ks2 + jp * 8 as i64 * ks3 + m * ks1 + n * ks0] as *const f32; // prettier-ignore
                                         kernel_vector.copy_from_slice(unsafe {
-                                            std::slice::from_raw_parts(
-                                                kernel_ptr as *const f32,
-                                                8
-                                            )
+                                            std::slice::from_raw_parts(kernel_ptr as *const f32, 8)
                                         });
                                         for k in 0..14 as i64 {
                                             let res_vector = &mut res_vectors[k as usize];
                                             let i_val = inp[i * is2 + ((kp * 14 as i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0]; // prettier-ignore
-                                            *res_vector += kernel_vector * f32x8::splat(i_val.into_scalar());
+                                            *res_vector +=
+                                                kernel_vector * f32x8::splat(i_val.into_scalar());
                                         }
                                     }
                                 }
@@ -1063,9 +1054,9 @@ pub fn conv2d_ex_f32(
                                 let _k = kp * 14 + k;
                                 let res_ptr = &mut out[jp * 8 as i64 * os2 + _k * os1 + l * os0]; // prettier-ignore
                                 let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
-                                res_vectors_heap[k as usize].copy_from_slice(
-                                    unsafe { std::mem::transmute::<&[f32], &[f32]>(res_vec) }
-                                );
+                                res_vectors_heap[k as usize].copy_from_slice(unsafe {
+                                    std::mem::transmute::<&[f32], &[f32]>(res_vec)
+                                });
                                 res_ptrs_heap[k as usize] = res_vec.as_mut_ptr() as *mut f32;
                             }
                             for n in 0..kernel_height {
@@ -1073,14 +1064,15 @@ pub fn conv2d_ex_f32(
                                     for i in 0..in_channels {
                                         let kernel_ptr = &kernel[i * ks2 + jp * 8 as i64 * ks3 + m * ks1 + n * ks0] as *const f32; // prettier-ignore
                                         kernel_vector.copy_from_slice(unsafe {
-                                            std::slice::from_raw_parts(
-                                                kernel_ptr as *const f32,
-                                                8)
+                                            std::slice::from_raw_parts(kernel_ptr as *const f32, 8)
                                         });
                                         for k in 0..ow_r14 as i64 {
                                             let res_vector = &mut res_vectors_heap[k as usize];
                                             let i_val = inp[i * is2 + ((kp * 14 as i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0]; // prettier-ignore
-                                            res_vector.fma(kernel_vector, f32x8::splat(i_val.into_scalar()));
+                                            res_vector.fma(
+                                                kernel_vector,
+                                                f32x8::splat(i_val.into_scalar())
+                                            );
                                         }
                                     }
                                 }
@@ -1113,9 +1105,9 @@ pub fn conv2d_ex_f32(
                                 let _k = kp * 14 + k;
                                 let res_ptr = &mut out[jp * 8 as i64 * os2 + _k * os1 + l * os0]; // prettier-ignore
                                 let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
-                                res_vectors[k as usize].copy_from_slice(
-                                    unsafe { std::mem::transmute::<&[f32], &[f32]>(res_vec) }
-                                );
+                                res_vectors[k as usize].copy_from_slice(unsafe {
+                                    std::mem::transmute::<&[f32], &[f32]>(res_vec)
+                                });
                                 res_ptrs[k as usize] = res_vec.as_mut_ptr() as *mut f32;
                             }
                             for n in 0..kernel_height {
@@ -1123,16 +1115,15 @@ pub fn conv2d_ex_f32(
                                     for i in 0..in_channels {
                                         let kernel_ptr = &kernel[i * ks2 + jp * 8 as i64 * ks3 + m * ks1 + n * ks0] as *const f32; // prettier-ignore
                                         kernel_vector.copy_from_slice(unsafe {
-                                            std::slice::from_raw_parts(
-                                                kernel_ptr as *const f32
-                                                , 8)
+                                            std::slice::from_raw_parts(kernel_ptr as *const f32, 8)
                                         });
                                         for k in 0..14 as i64 {
                                             let res_vector = &mut res_vectors[k as usize];
                                             let i_val = inp[i * is2 + ((kp * 14 as i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0]; // prettier-ignore
-                                            res_vector.fma(kernel_vector, f32x8::splat(
-                                                i_val.into_scalar()
-                                            ));
+                                            res_vector.fma(
+                                                kernel_vector,
+                                                f32x8::splat(i_val.into_scalar())
+                                            );
                                         }
                                     }
                                 }
