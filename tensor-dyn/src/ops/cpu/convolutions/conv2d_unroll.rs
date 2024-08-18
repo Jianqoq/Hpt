@@ -1786,19 +1786,9 @@ pub fn conv2d_ex_f32_enhanced(
                             );
                             for n in kh_start..kh_end {
                                 for m in 0..kernel_width {
-                                    let (start, end) = calculate_valid_k_range(
-                                        kp,
-                                        m,
-                                        dw,
-                                        step_width,
-                                        pw_start,
-                                        img_width,
-                                        ow_r14
-                                    );
+                                    let (start, end) = calculate_valid_k_range(kp, m, dw, step_width, pw_start, img_width, ow_r14); // prettier-ignore
                                     for i in 0..in_channels {
-                                        let kernel_ptr = &kernel
-                                                [i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0]
-                                                as *const f32; // prettier-ignore
+                                        let kernel_ptr = &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const f32; // prettier-ignore
                                         kernel_vector.copy_from_slice(unsafe {
                                             std::slice::from_raw_parts(kernel_ptr, oc_r8 as usize)
                                         });
@@ -1841,14 +1831,7 @@ pub fn conv2d_ex_f32_enhanced(
                     let mut res_ptrs = [0 as *mut f32; 14];
                     let mut kernel_vector = f32x8::splat(f32::ZERO);
                     for l in 0..out_height {
-                        let (kh_start, kh_end) = calculate_valid_n_range(
-                            l,
-                            step_height,
-                            ph_start,
-                            dh,
-                            img_height,
-                            kernel_height
-                        );
+                        let (kh_start, kh_end) = calculate_valid_n_range(l, step_height, ph_start, dh, img_height, kernel_height); // prettier-ignore
                         for kp in 0..kp_end {
                             prepare_regs::<f32, wide::f32x8, 14, _>(
                                 8, 14, kp, &mut res_vectors, res_ptrs.as_mut_slice(), 
@@ -1856,15 +1839,7 @@ pub fn conv2d_ex_f32_enhanced(
                             );
                             for n in kh_start..kh_end {
                                 for m in 0..kernel_width {
-                                    let (start, end) = calculate_valid_k_range(
-                                        kp,
-                                        m,
-                                        dw,
-                                        step_width,
-                                        pw_start,
-                                        img_width,
-                                        14
-                                    );
+                                    let (start, end) = calculate_valid_k_range(kp, m, dw, step_width, pw_start, img_width, 14); // prettier-ignore
                                     for i in 0..in_channels {
                                         micro_kernel_range::<f32, f32x8, _>(
                                             start,
@@ -1898,14 +1873,7 @@ pub fn conv2d_ex_f32_enhanced(
                         let mut res_vectors = vec![vec![f32::ZERO; oc_r8 as usize]; 14];
                         let mut res_ptrs = [0 as *mut f32; 14];
                         let mut kernel_vector = vec![f32::ZERO; oc_r8 as usize];
-                        let (kh_start, kh_end) = calculate_valid_n_range(
-                            l,
-                            step_height,
-                            ph_start,
-                            dh,
-                            img_height,
-                            kernel_height
-                        );
+                        let (kh_start, kh_end) = calculate_valid_n_range(l, step_height, ph_start, dh, img_height, kernel_height); // prettier-ignore
                         for kp in 0..kp_end {
                             prepare_regs2::<f32, wide::f32x8, 14, _>(
                                 oc_r8 as usize,
@@ -1917,15 +1885,7 @@ pub fn conv2d_ex_f32_enhanced(
                             );
                             for n in kh_start..kh_end {
                                 for m in 0..kernel_width {
-                                    let (start, end) = calculate_valid_k_range(
-                                        kp,
-                                        m,
-                                        dw,
-                                        step_width,
-                                        pw_start,
-                                        img_width,
-                                        14
-                                    );
+                                    let (start, end) = calculate_valid_k_range(kp, m, dw, step_width, pw_start, img_width, 14); // prettier-ignore
                                     for i in 0..in_channels {
                                         let kernel_ptr = &kernel
                                             [i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0]
@@ -1977,14 +1937,7 @@ pub fn conv2d_ex_f32_enhanced(
                     let mut res_ptrs_heap = vec![0 as *mut f32; ow_r14 as usize];
                     let mut kernel_vector = f32x8::splat(f32::ZERO);
                     for l in 0..out_height {
-                        let (kh_start, kh_end) = calculate_valid_n_range(
-                            l,
-                            step_height,
-                            ph_start,
-                            dh,
-                            img_height,
-                            kernel_height
-                        );
+                        let (kh_start, kh_end) = calculate_valid_n_range(l, step_height, ph_start, dh, img_height, kernel_height); // prettier-ignore
                         for kp in 0..kp_end {
                             prepare_regs::<f32, wide::f32x8, 14, _>(
                                 8,
@@ -1996,15 +1949,7 @@ pub fn conv2d_ex_f32_enhanced(
                             );
                             for n in kh_start..kh_end {
                                 for m in 0..kernel_width {
-                                    let (start, end) = calculate_valid_k_range(
-                                        kp,
-                                        m,
-                                        dw,
-                                        step_width,
-                                        pw_start,
-                                        img_width,
-                                        14
-                                    );
+                                    let (start, end) = calculate_valid_k_range(kp, m, dw, step_width, pw_start, img_width, 14); // prettier-ignore
                                     for i in 0..in_channels {
                                         micro_kernel_range::<f32, f32x8, _>(
                                             start,
@@ -2039,15 +1984,7 @@ pub fn conv2d_ex_f32_enhanced(
                             );
                             for n in kh_start..kh_end {
                                 for m in 0..kernel_width {
-                                    let (start, end) = calculate_valid_k_range(
-                                        kp,
-                                        m,
-                                        dw,
-                                        step_width,
-                                        pw_start,
-                                        img_width,
-                                        ow_r14
-                                    );
+                                    let (start, end) = calculate_valid_k_range(kp, m, dw, step_width, pw_start, img_width, ow_r14); // prettier-ignore
                                     for i in 0..in_channels {
                                         micro_kernel_range::<f32, f32x8, _>(
                                             start,
@@ -2084,14 +2021,7 @@ pub fn conv2d_ex_f32_enhanced(
                     let mut res_ptrs = [0 as *mut f32; 14];
                     let mut kernel_vector = f32x8::splat(f32::ZERO);
                     for l in 0..out_height {
-                        let (kh_start, kh_end) = calculate_valid_n_range(
-                            l,
-                            step_height,
-                            ph_start,
-                            dh,
-                            img_height,
-                            kernel_height
-                        );
+                        let (kh_start, kh_end) = calculate_valid_n_range(l, step_height, ph_start, dh, img_height, kernel_height); // prettier-ignore
                         for kp in 0..kp_end {
                             prepare_regs::<f32, wide::f32x8, 14, _>(
                                 8,
@@ -2104,24 +2034,13 @@ pub fn conv2d_ex_f32_enhanced(
 
                             for n in kh_start..kh_end {
                                 for m in 0..kernel_width {
-                                    let (start, end) = calculate_valid_k_range(
-                                        kp,
-                                        m,
-                                        dw,
-                                        step_width,
-                                        pw_start,
-                                        img_width,
-                                        14
-                                    );
+                                    let (start, end) = calculate_valid_k_range(kp, m, dw, step_width, pw_start, img_width, 14); // prettier-ignore
                                     for i in 0..in_channels {
                                         micro_kernel_range::<f32, f32x8, _>(
                                             start,
                                             end,
                                             8,
-                                            &kernel
-                                                [
-                                                    i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0
-                                                ] as *const f32,
+                                            &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const f32, // prettier-ignore
                                             &mut kernel_vector,
                                             &mut res_vectors,
                                             |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
@@ -2146,7 +2065,6 @@ pub fn conv2d_ex_f32_enhanced(
     }
     Ok(output)
 }
-
 
 #[inline(always)]
 fn calculate_valid_k_range(

@@ -116,8 +116,8 @@ fn main() -> anyhow::Result<()> {
         .contiguous()?;
 
     let now = std::time::Instant::now();
-    for _ in 0..100 {
-        let _ = conv2d_ex_f32(
+    for _ in 0..1 {
+        let _ = conv2d_ex_f32_enhanced(
             &a,
             &kernel,
             [1, 1],
