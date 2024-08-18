@@ -1,25 +1,24 @@
-use rayon::iter::{ IntoParallelIterator, ParallelIterator };
-use tensor_traits::CommonBounds;
-use crate::tensor_base::_Tensor;
-use tensor_types::into_scalar::IntoScalar;
-use num::traits::MulAdd;
-use tensor_types::type_promote::NormalOut;
-use tensor_traits::TensorInfo;
-use tensor_traits::TensorCreator;
 use crate::slice::SliceOps;
-use tensor_macros::match_selection;
+use crate::tensor_base::_Tensor;
+use num::traits::MulAdd;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tensor_common::slice::Slice;
+use tensor_macros::match_selection;
+use tensor_traits::CommonBounds;
+use tensor_traits::TensorCreator;
+use tensor_traits::TensorInfo;
+use tensor_types::into_scalar::IntoScalar;
+use tensor_types::type_promote::NormalOut;
 
 #[cfg(target_feature = "fma")]
 pub fn conv2d_block_simd_parallel_unroll_i32<T>(
     img: &_Tensor<T>,
     kernels: &_Tensor<T>,
-    steps: [i64; 2]
-)
-    -> anyhow::Result<_Tensor<T>>
-    where
-        T: CommonBounds + std::ops::Mul<Output = T> + std::ops::AddAssign<T> + MulAdd<Output = T>,
-        T: IntoScalar<i32>
+    steps: [i64; 2],
+) -> anyhow::Result<_Tensor<T>>
+where
+    T: CommonBounds + std::ops::Mul<Output = T> + std::ops::AddAssign<T> + MulAdd<Output = T>,
+    T: IntoScalar<i32>,
 {
     use wide::i32x8;
 
@@ -89,14 +88,21 @@ pub fn conv2d_block_simd_parallel_unroll_i32<T>(
                                 let mut scalar_vec = i32x8::splat(0i32);
                                 for i in 0..c_ib {
                                     let _i = ip * c_ib + i;
-                                    let kernel_ptr = &kernel[_i * ks2 + jp * c_ob * ks3 + m * ks1 + n * ks0] as *const T; // prettier-ignore
-                                    let kernel_vec = unsafe { std::slice::from_raw_parts(kernel_ptr, 8) }; // prettier-ignore
-                                    let kernel_vector = unsafe { i32x8::from(std::mem::transmute::<&[T], &[i32]>(kernel_vec)) }; // prettier-ignore
+                                    let kernel_ptr = &kernel
+                                        [_i * ks2 + jp * c_ob * ks3 + m * ks1 + n * ks0]
+                                        as *const T; // prettier-ignore
+                                    let kernel_vec =
+                                        unsafe { std::slice::from_raw_parts(kernel_ptr, 8) }; // prettier-ignore
+                                    let kernel_vector = unsafe {
+                                        i32x8::from(std::mem::transmute::<&[T], &[i32]>(kernel_vec))
+                                    }; // prettier-ignore
                                     let _kernel_vector_arr = kernel_vector.to_array();
                                     for k in 0..14 {
                                         let res_vector = &mut res_vectors[k as usize];
 
-                                        let i_val = inp[_i * is2 + ((kp * w_ob + k) * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
+                                        let i_val = inp[_i * is2
+                                            + ((kp * w_ob + k) * step_width + m) * is1
+                                            + (l * step_height + n) * is0]; // prettier-ignore
                                         scalar_vec
                                             .as_array_mut()
                                             .copy_from_slice(&[i_val.into_scalar(); 8]);
@@ -113,17 +119,13 @@ pub fn conv2d_block_simd_parallel_unroll_i32<T>(
                             let res_vector = &res_vectors[k as usize].as_array_ref();
                             let res_ptr = res_ptrs[k as usize];
                             unsafe {
-                                std::ptr::copy_nonoverlapping(
-                                    res_vector.as_ptr() as *const i32,
-                                    res_ptr as *mut i32,
-                                    8
-                                );
+                                std::ptr::copy_nonoverlapping(res_vector.as_ptr(), res_ptr, 8);
                             }
                         }
                     }
                 }
             }
-        }
+        },
     );
     Ok(output)
 }
@@ -132,12 +134,11 @@ pub fn conv2d_block_simd_parallel_unroll_i32<T>(
 pub fn conv2d_block_simd_parallel_unroll_f32<T>(
     img: &_Tensor<T>,
     kernels: &_Tensor<T>,
-    steps: [i64; 2]
-)
-    -> anyhow::Result<_Tensor<T>>
-    where
-        T: CommonBounds + std::ops::Mul<Output = T> + std::ops::AddAssign<T> + MulAdd<Output = T>,
-        T: IntoScalar<f32>
+    steps: [i64; 2],
+) -> anyhow::Result<_Tensor<T>>
+where
+    T: CommonBounds + std::ops::Mul<Output = T> + std::ops::AddAssign<T> + MulAdd<Output = T>,
+    T: IntoScalar<f32>,
 {
     use wide::f32x8;
 
@@ -204,18 +205,20 @@ pub fn conv2d_block_simd_parallel_unroll_f32<T>(
                     for n in 0..kernel_height {
                         for m in 0..kernel_width {
                             for i in 0..in_channels {
-                                let kernel_ptr = &kernel[i * ks2 + jp * c_ob * ks3 + m * ks1 + n * ks0] as *const T; // prettier-ignore
-                                kernel_vector
-                                    .as_array_mut()
-                                    .copy_from_slice(unsafe {
-                                        std::mem::transmute::<&[T], &[f32]>(
-                                            std::slice::from_raw_parts(kernel_ptr, 8)
-                                        )
-                                    });
+                                let kernel_ptr = &kernel
+                                    [i * ks2 + jp * c_ob * ks3 + m * ks1 + n * ks0]
+                                    as *const T; // prettier-ignore
+                                kernel_vector.as_array_mut().copy_from_slice(unsafe {
+                                    std::mem::transmute::<&[T], &[f32]>(std::slice::from_raw_parts(
+                                        kernel_ptr, 8,
+                                    ))
+                                });
                                 for k in 0..14 {
                                     let res_vector = &mut res_vectors[k as usize];
 
-                                    let i_val = inp[i * is2 + ((kp * w_ob + k) * step_width + m) * is1 + (l * step_height + n) * is0]; // prettier-ignore
+                                    let i_val = inp[i * is2
+                                        + ((kp * w_ob + k) * step_width + m) * is1
+                                        + (l * step_height + n) * is0]; // prettier-ignore
                                     scalar_vec
                                         .as_array_mut()
                                         .copy_from_slice(&[i_val.into_scalar(); 8]);
@@ -227,15 +230,15 @@ pub fn conv2d_block_simd_parallel_unroll_f32<T>(
                     for k in 0..14 {
                         unsafe {
                             std::ptr::copy_nonoverlapping(
-                                res_vectors[k].as_array_ref().as_ptr() as *const f32,
-                                res_ptrs[k] as *mut f32,
-                                8
+                                res_vectors[k].as_array_ref().as_ptr(),
+                                res_ptrs[k],
+                                8,
                             );
                         }
                     }
                 }
             }
-        }
+        },
     );
     Ok(output)
 }
@@ -247,19 +250,20 @@ pub fn conv2d_no_group<
     const DVSB_REGCNT: bool,
     const DVSB_VECSIZE: bool,
     const REGCNT: usize,
-    const PAD: bool
-    >(
+    const PAD: bool,
+>(
     img: &_Tensor<T>,
     kernels: &_Tensor<T>,
     steps: [i64; 2],
     padding: [(i64, i64); 2],
-    dilation: [i64; 2]
-)
-    -> anyhow::Result<_Tensor<T>>
-    where T: CommonBounds, VEC: Init<T> + Copy + VecTrait<T> + VecSize
+    dilation: [i64; 2],
+) -> anyhow::Result<_Tensor<T>>
+where
+    T: CommonBounds,
+    VEC: Init<T> + Copy + VecTrait<T> + VecSize,
 {
     use likely_stable::likely;
-    use tensor_common::{ pointer::Pointer, slice };
+    use tensor_common::{pointer::Pointer, slice};
 
     let img_shape = img.shape();
     let img_height = img_shape[0];
@@ -335,13 +339,18 @@ pub fn conv2d_no_group<
                     stop = 0;
                     for k in 0..w_ob {
                         let _k = kp * w_ob + k;
-                        let load_register = |out: &mut Pointer<T>, vec: &mut [VEC; REGCNT], ptrs: &mut [*mut T; REGCNT], stop: &mut i64| {
-                            let res_ptr = &mut out[jp * c_ob * os2 + _k * os1 + l * os0]; // prettier-ignore
-                            let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, VEC::SIZE) }; // prettier-ignore
-                            vec[k as usize].copy_from_slice(res_vec);
-                            ptrs[k as usize] = res_vec.as_mut_ptr() as *mut T;
-                            *stop += 1;
-                        }; // prettier-ignore
+                        let load_register =
+                            |out: &mut Pointer<T>,
+                             vec: &mut [VEC; REGCNT],
+                             ptrs: &mut [*mut T; REGCNT],
+                             stop: &mut i64| {
+                                let res_ptr = &mut out[jp * c_ob * os2 + _k * os1 + l * os0]; // prettier-ignore
+                                let res_vec =
+                                    unsafe { std::slice::from_raw_parts_mut(res_ptr, VEC::SIZE) }; // prettier-ignore
+                                vec[k as usize].copy_from_slice(res_vec);
+                                ptrs[k as usize] = res_vec.as_mut_ptr();
+                                *stop += 1;
+                            }; // prettier-ignore
                         if DVSB_REGCNT {
                             load_register(out, &mut res_vectors, &mut res_ptrs, &mut stop);
                         } else {
@@ -353,13 +362,17 @@ pub fn conv2d_no_group<
                     for n in 0..kernel_height {
                         for m in 0..kernel_width {
                             for i in 0..in_channels {
-                                let kernel_ptr = &kernel[i * ks2 + jp * c_ob * ks3 + m * ks1 + n * ks0] as *const T; // prettier-ignore
+                                let kernel_ptr = &kernel
+                                    [i * ks2 + jp * c_ob * ks3 + m * ks1 + n * ks0]
+                                    as *const T; // prettier-ignore
                                 kernel_vector.copy_from_slice(unsafe {
                                     std::slice::from_raw_parts(kernel_ptr, VEC::SIZE)
                                 });
                                 for k in 0..stop {
                                     let res_vector = &mut res_vectors[k as usize];
-                                    let i_val = inp[i * is2 + ((kp * w_ob + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0]; // prettier-ignore
+                                    let i_val = inp[i * is2
+                                        + ((kp * w_ob + k) * step_width + m * dw) * is1
+                                        + (l * step_height + n * dh) * is0]; // prettier-ignore
                                     res_vector.fma(kernel_vector, VEC::splat(i_val));
                                 }
                             }
@@ -370,13 +383,13 @@ pub fn conv2d_no_group<
                             std::ptr::copy_nonoverlapping(
                                 res_vectors[k as usize].as_ptr(),
                                 res_ptrs[k as usize],
-                                VEC::SIZE
+                                VEC::SIZE,
                             );
                         }
                     }
                 }
             }
-        }
+        },
     );
     Ok(output)
 }
@@ -387,13 +400,14 @@ pub fn conv2d_no_group_f32<T, const PAD: bool>(
     kernels: &_Tensor<T>,
     steps: [i64; 2],
     padding: [(i64, i64); 2],
-    dilation: [i64; 2]
-)
-    -> anyhow::Result<_Tensor<T>>
-    where T: CommonBounds, T: IntoScalar<f32>
+    dilation: [i64; 2],
+) -> anyhow::Result<_Tensor<T>>
+where
+    T: CommonBounds,
+    T: IntoScalar<f32>,
 {
     use likely_stable::likely;
-    use tensor_common::{ pointer::Pointer, slice };
+    use tensor_common::{pointer::Pointer, slice};
     use wide::f32x8;
 
     let img_shape = img.shape();
@@ -464,15 +478,19 @@ pub fn conv2d_no_group_f32<T, const PAD: bool>(
                     stop = 0;
                     for k in 0..w_ob {
                         let _k = kp * w_ob + k;
-                        let load_register = |out: &mut Pointer<T>, vec: &mut [f32x8; 14], ptrs: &mut [*mut T; 14], stop: &mut i64| {
-                            let res_ptr = &mut out[jp * c_ob * os2 + _k * os1 + l * os0]; // prettier-ignore
-                            let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
-                            vec[k as usize].copy_from_slice(
-                                unsafe { std::mem::transmute::<&[T], &[f32]>(res_vec) }
-                            );
-                            ptrs[k as usize] = res_vec.as_mut_ptr() as *mut T;
-                            *stop += 1;
-                        }; // prettier-ignore
+                        let load_register =
+                            |out: &mut Pointer<T>,
+                             vec: &mut [f32x8; 14],
+                             ptrs: &mut [*mut T; 14],
+                             stop: &mut i64| {
+                                let res_ptr = &mut out[jp * c_ob * os2 + _k * os1 + l * os0]; // prettier-ignore
+                                let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
+                                vec[k as usize].copy_from_slice(unsafe {
+                                    std::mem::transmute::<&[T], &[f32]>(res_vec)
+                                });
+                                ptrs[k as usize] = res_vec.as_mut_ptr();
+                                *stop += 1;
+                            }; // prettier-ignore
                         if likely(_k < out_width) {
                             load_register(out, &mut res_vectors, &mut res_ptrs, &mut stop);
                         }
@@ -480,13 +498,17 @@ pub fn conv2d_no_group_f32<T, const PAD: bool>(
                     for n in 0..kernel_height {
                         for m in 0..kernel_width {
                             for i in 0..in_channels {
-                                let kernel_ptr = &kernel[i * ks2 + jp * c_ob * ks3 + m * ks1 + n * ks0] as *const T; // prettier-ignore
+                                let kernel_ptr = &kernel
+                                    [i * ks2 + jp * c_ob * ks3 + m * ks1 + n * ks0]
+                                    as *const T; // prettier-ignore
                                 kernel_vector.copy_from_slice(unsafe {
                                     std::slice::from_raw_parts(kernel_ptr as *const f32, 8)
                                 });
                                 for k in 0..stop {
                                     let res_vector = &mut res_vectors[k as usize];
-                                    let i_val = inp[i * is2 + ((kp * w_ob + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0]; // prettier-ignore
+                                    let i_val = inp[i * is2
+                                        + ((kp * w_ob + k) * step_width + m * dw) * is1
+                                        + (l * step_height + n * dh) * is0]; // prettier-ignore
                                     *res_vector +=
                                         kernel_vector * f32x8::splat(i_val.into_scalar());
                                 }
@@ -498,20 +520,20 @@ pub fn conv2d_no_group_f32<T, const PAD: bool>(
                             std::ptr::copy_nonoverlapping(
                                 res_vectors[k as usize].as_ptr(),
                                 res_ptrs[k as usize] as *mut f32,
-                                8
+                                8,
                             );
                         }
                     }
                 }
             }
-        }
+        },
     );
     Ok(output)
 }
 
 use crate::ops::cpu::vector::traits::Init;
-use crate::ops::cpu::vector::traits::VecTrait;
 use crate::ops::cpu::vector::traits::VecSize;
+use crate::ops::cpu::vector::traits::VecTrait;
 
 #[cfg(all(target_feature = "fma", target_feature = "avx2"))]
 pub fn conv2d_group<
@@ -520,20 +542,21 @@ pub fn conv2d_group<
     const DVSB_REGCNT: bool,
     const DVSB_VECSIZE: bool,
     const REGCNT: usize,
-    const PAD: bool
-    >(
+    const PAD: bool,
+>(
     img: &_Tensor<T>,
     kernels: &_Tensor<T>,
     steps: [i64; 2],
     padding: [(i64, i64); 2],
     dilation: [i64; 2],
-    groups: i64
-)
-    -> anyhow::Result<_Tensor<T>>
-    where T: CommonBounds, VEC: Init<T> + Copy + VecTrait<T> + VecSize
+    groups: i64,
+) -> anyhow::Result<_Tensor<T>>
+where
+    T: CommonBounds,
+    VEC: Init<T> + Copy + VecTrait<T> + VecSize,
 {
     use likely_stable::likely;
-    use tensor_common::{ pointer::Pointer, slice };
+    use tensor_common::{pointer::Pointer, slice};
 
     let img_shape = img.shape();
     let img_height = img_shape[0];
@@ -616,13 +639,22 @@ pub fn conv2d_group<
                         let mut stop = 0;
                         for k in 0..w_ob {
                             let _k = kp * w_ob + k;
-                            let load_to_reg = |out: &mut Pointer<T>, vec: &mut [VEC; REGCNT], ptrs: &mut [*mut T; REGCNT], stop: &mut i64| {
-                                let res_ptr = &mut out[(g * kernels_per_group + jp * c_ob) * os2 + _k * os1 + l * os0]; // prettier-ignore
-                                let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, VEC::SIZE) }; // prettier-ignore
-                                vec[k as usize].copy_from_slice(res_vec);
-                                ptrs[k as usize] = res_vec.as_mut_ptr();
-                                *stop += 1;
-                            }; // prettier-ignore
+                            let load_to_reg =
+                                |out: &mut Pointer<T>,
+                                 vec: &mut [VEC; REGCNT],
+                                 ptrs: &mut [*mut T; REGCNT],
+                                 stop: &mut i64| {
+                                    let res_ptr = &mut out[(g * kernels_per_group + jp * c_ob)
+                                        * os2
+                                        + _k * os1
+                                        + l * os0]; // prettier-ignore
+                                    let res_vec = unsafe {
+                                        std::slice::from_raw_parts_mut(res_ptr, VEC::SIZE)
+                                    }; // prettier-ignore
+                                    vec[k as usize].copy_from_slice(res_vec);
+                                    ptrs[k as usize] = res_vec.as_mut_ptr();
+                                    *stop += 1;
+                                }; // prettier-ignore
                             if DVSB_REGCNT {
                                 load_to_reg(out, &mut res_vectors, &mut res_ptrs, &mut stop);
                             } else {
@@ -634,13 +666,19 @@ pub fn conv2d_group<
                         for n in 0..kernel_height {
                             for m in 0..kernel_width {
                                 for i in 0..channels_per_group {
-                                    let kernel_ptr = &kernel[i * ks2 + (g * kernels_per_group + jp * c_ob) * ks3 + m * ks1 + n * ks0] as *const T; // prettier-ignore
+                                    let kernel_ptr = &kernel[i * ks2
+                                        + (g * kernels_per_group + jp * c_ob) * ks3
+                                        + m * ks1
+                                        + n * ks0]
+                                        as *const T; // prettier-ignore
                                     kernel_vector.copy_from_slice(unsafe {
                                         std::slice::from_raw_parts(kernel_ptr, VEC::SIZE)
                                     });
                                     for k in 0..stop {
                                         let res_vector = &mut res_vectors[k as usize];
-                                        let i_val = inp[(g * channels_per_group + i) * is2 + ((kp * w_ob + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0]; // prettier-ignore
+                                        let i_val = inp[(g * channels_per_group + i) * is2
+                                            + ((kp * w_ob + k) * step_width + m * dw) * is1
+                                            + (l * step_height + n * dh) * is0]; // prettier-ignore
                                         res_vector.fma(kernel_vector, VEC::splat(i_val));
                                     }
                                 }
@@ -651,14 +689,14 @@ pub fn conv2d_group<
                                 std::ptr::copy_nonoverlapping(
                                     res_vectors[k as usize].as_ptr(),
                                     res_ptrs[k as usize],
-                                    VEC::SIZE
+                                    VEC::SIZE,
                                 );
                             }
                         }
                     }
                 }
             }
-        }
+        },
     );
     Ok(output)
 }
@@ -669,7 +707,7 @@ pub fn conv2d_ex_f32(
     kernels: &_Tensor<f32>,
     steps: [i64; 2],
     padding: [(i64, i64); 2],
-    dilation: [i64; 2]
+    dilation: [i64; 2],
 ) -> anyhow::Result<_Tensor<f32>> {
     use tensor_common::slice;
     use wide::f32x8;
@@ -733,88 +771,102 @@ pub fn conv2d_ex_f32(
         let ow_r14 = out_width % 14;
         if ow_r14 > 0 {
             let ow_n = out_width / 14;
-            (0..o_n).into_par_iter().for_each_init(||out, |out, jp|{
-                let mut res_vectors = [f32x8::splat(0.0); 14];
-                let mut res_vectors_heap = vec![f32x8::splat(0.0); ow_r14 as usize];
-                let mut res_ptrs = [0 as *mut f32; 14];
-                let mut res_ptrs_heap = vec![0 as *mut f32; ow_r14 as usize];
-                let mut kernel_vector = f32x8::splat(0.0);
-                for l in 0..out_height {
-                    for kp in 0..ow_n {
-                        for k in 0..14 as i64 {
-                            let _k = kp * 14 + k;
-                            let res_ptr = &mut out[jp * 8 as i64 * os2 + _k * os1 + l * os0]; // prettier-ignore
-                            let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
-                            res_vectors[k as usize].copy_from_slice(
-                                unsafe {
+            (0..o_n).into_par_iter().for_each_init(
+                || out,
+                |out, jp| {
+                    let mut res_vectors = [f32x8::splat(0.0); 14];
+                    let mut res_vectors_heap = vec![f32x8::splat(0.0); ow_r14 as usize];
+                    let mut res_ptrs = [0 as *mut f32; 14];
+                    let mut res_ptrs_heap = vec![0 as *mut f32; ow_r14 as usize];
+                    let mut kernel_vector = f32x8::splat(0.0);
+                    for l in 0..out_height {
+                        for kp in 0..ow_n {
+                            for k in 0..14i64 {
+                                let _k = kp * 14 + k;
+                                let res_ptr = &mut out[jp * 8i64 * os2 + _k * os1 + l * os0]; // prettier-ignore
+                                let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
+                                res_vectors[k as usize].copy_from_slice(unsafe {
                                     std::mem::transmute::<&[f32], &[f32]>(res_vec)
-                                }
-                            );
-                            res_ptrs[k as usize] = res_vec.as_mut_ptr() as *mut f32;
-                        }
-                        for n in 0..kernel_height {
-                            for m in 0..kernel_width {
-                                for i in 0..in_channels {
-                                    let kernel_ptr = &kernel[i * ks2 + jp * 8 as i64 * ks3 + m * ks1 + n * ks0] as *const f32;
-                                    kernel_vector.copy_from_slice(unsafe {
-                                        std::slice::from_raw_parts(
-                                            kernel_ptr as *const f32,
-                                            8)
-                                    });
-                                    for k in 0..14 as i64 {
-                                        let res_vector = &mut res_vectors[k as usize];
-                                        let i_val = inp[i * is2 + ((kp * 14 as i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0];
-                                        res_vector.fma(kernel_vector, f32x8::splat(i_val.into_scalar()));
+                                });
+                                res_ptrs[k as usize] = res_vec.as_mut_ptr();
+                            }
+                            for n in 0..kernel_height {
+                                for m in 0..kernel_width {
+                                    for i in 0..in_channels {
+                                        let kernel_ptr = &kernel
+                                            [i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0]
+                                            as *const f32;
+                                        kernel_vector.copy_from_slice(unsafe {
+                                            std::slice::from_raw_parts(kernel_ptr, 8)
+                                        });
+                                        for k in 0..14i64 {
+                                            let res_vector = &mut res_vectors[k as usize];
+                                            let i_val = inp[i * is2
+                                                + ((kp * 14i64 + k) * step_width + m * dw)
+                                                    * is1
+                                                + (l * step_height + n * dh) * is0];
+                                            res_vector.fma(
+                                                kernel_vector,
+                                                f32x8::splat(i_val.into_scalar()),
+                                            );
+                                        }
                                     }
                                 }
                             }
-                        }
-                        for k in 0..14 as i64 {
-                            unsafe {
-                                std::ptr::copy_nonoverlapping(
-                                    res_vectors[k as usize].as_ptr(),
-                                    res_ptrs[k as usize] as *mut f32,
-                                    8
-                                );
-                            }
-                        }
-                    }
-                    for kp in ow_n..ow_n + 1 {
-                        for k in 0..ow_r14 {
-                            let _k = kp * 14 + k;
-                            let res_ptr = &mut out[jp * 8 as i64 * os2 + _k * os1 + l * os0];
-                            let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) };
-                            res_vectors_heap[k as usize].copy_from_slice(res_vec);
-                            res_ptrs_heap[k as usize] = res_vec.as_mut_ptr() as *mut f32;
-                        }
-                        for n in 0..kernel_height {
-                            for m in 0..kernel_width {
-                                for i in 0..in_channels {
-                                    let kernel_ptr = &kernel[i * ks2 + jp * 8 as i64 * ks3 + m * ks1 + n * ks0] as *const f32;
-                                    kernel_vector.copy_from_slice(unsafe {
-                                        std::slice::from_raw_parts(
-                                            kernel_ptr as *const f32, 8)
-                                    });
-                                    for k in 0..ow_r14 as i64 {
-                                        let res_vector = &mut res_vectors_heap[k as usize];
-                                        let i_val = inp[i * is2 + ((kp * 14 as i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0];
-                                        res_vector.fma(kernel_vector, f32x8::splat(i_val.into_scalar()));
-                                    }
+                            for k in 0..14i64 {
+                                unsafe {
+                                    std::ptr::copy_nonoverlapping(
+                                        res_vectors[k as usize].as_ptr(),
+                                        res_ptrs[k as usize],
+                                        8,
+                                    );
                                 }
                             }
                         }
-                        for k in 0..ow_r14 {
-                            unsafe {
-                                std::ptr::copy_nonoverlapping(
-                                    res_vectors_heap[k as usize].as_ptr(),
-                                    res_ptrs_heap[k as usize] as *mut f32,
-                                    8
-                                );
+                        for kp in ow_n..ow_n + 1 {
+                            for k in 0..ow_r14 {
+                                let _k = kp * 14 + k;
+                                let res_ptr = &mut out[jp * 8i64 * os2 + _k * os1 + l * os0];
+                                let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) };
+                                res_vectors_heap[k as usize].copy_from_slice(res_vec);
+                                res_ptrs_heap[k as usize] = res_vec.as_mut_ptr();
+                            }
+                            for n in 0..kernel_height {
+                                for m in 0..kernel_width {
+                                    for i in 0..in_channels {
+                                        let kernel_ptr = &kernel
+                                            [i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0]
+                                            as *const f32;
+                                        kernel_vector.copy_from_slice(unsafe {
+                                            std::slice::from_raw_parts(kernel_ptr, 8)
+                                        });
+                                        for k in 0..ow_r14 {
+                                            let res_vector = &mut res_vectors_heap[k as usize];
+                                            let i_val = inp[i * is2
+                                                + ((kp * 14i64 + k) * step_width + m * dw)
+                                                    * is1
+                                                + (l * step_height + n * dh) * is0];
+                                            res_vector.fma(
+                                                kernel_vector,
+                                                f32x8::splat(i_val.into_scalar()),
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                            for k in 0..ow_r14 {
+                                unsafe {
+                                    std::ptr::copy_nonoverlapping(
+                                        res_vectors_heap[k as usize].as_ptr(),
+                                        res_ptrs_heap[k as usize],
+                                        8,
+                                    );
+                                }
                             }
                         }
                     }
-                }
-            }); // prettier-ignore
+                },
+            ); // prettier-ignore
             for jp in o_n..o_n + 1 {
                 (0..out_height).into_par_iter().for_each_init(
                     || out,
@@ -826,23 +878,30 @@ pub fn conv2d_ex_f32(
                         let mut res_ptrs_heap = vec![0 as *mut f32; ow_r14 as usize];
                         let mut kernel_vector = vec![f32::ZERO; oc_r8 as usize];
                         for kp in 0..ow_n {
-                            for k in 0..14 as i64 {
+                            for k in 0..14i64 {
                                 let _k = kp * 14 + k;
-                                let res_ptr = &mut out[jp * 8 as i64 * os2 + _k * os1 + l * os0]; // prettier-ignore
-                                let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, oc_r8 as usize) }; // prettier-ignore
+                                let res_ptr = &mut out[jp * 8i64 * os2 + _k * os1 + l * os0]; // prettier-ignore
+                                let res_vec = unsafe {
+                                    std::slice::from_raw_parts_mut(res_ptr, oc_r8 as usize)
+                                }; // prettier-ignore
                                 res_vectors[k as usize].copy_from_slice(res_vec);
-                                res_ptrs[k as usize] = res_vec.as_mut_ptr() as *mut f32;
+                                res_ptrs[k as usize] = res_vec.as_mut_ptr();
                             }
                             for n in 0..kernel_height {
                                 for m in 0..kernel_width {
                                     for i in 0..in_channels {
-                                        let kernel_ptr = &kernel[i * ks2 + jp * 8 as i64 * ks3 + m * ks1 + n * ks0] as *const f32; // prettier-ignore
+                                        let kernel_ptr = &kernel
+                                            [i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0]
+                                            as *const f32; // prettier-ignore
                                         kernel_vector.copy_from_slice(unsafe {
                                             std::slice::from_raw_parts(kernel_ptr, oc_r8 as usize)
                                         });
-                                        for k in 0..14 as i64 {
+                                        for k in 0..14i64 {
                                             let res_vector = &mut res_vectors[k as usize];
-                                            let i_val = inp[i * is2 + ((kp * 14 as i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0]; // prettier-ignore
+                                            let i_val = inp[i * is2
+                                                + ((kp * 14i64 + k) * step_width + m * dw)
+                                                    * is1
+                                                + (l * step_height + n * dh) * is0]; // prettier-ignore
                                             res_vector
                                                 .iter_mut()
                                                 .zip(kernel_vector.iter())
@@ -853,12 +912,12 @@ pub fn conv2d_ex_f32(
                                     }
                                 }
                             }
-                            for k in 0..14 as i64 {
+                            for k in 0..14i64 {
                                 unsafe {
                                     std::ptr::copy_nonoverlapping(
                                         res_vectors[k as usize].as_ptr(),
                                         res_ptrs[k as usize],
-                                        oc_r8 as usize
+                                        oc_r8 as usize,
                                     );
                                 }
                             }
@@ -866,21 +925,28 @@ pub fn conv2d_ex_f32(
                         for kp in ow_n..ow_n + 1 {
                             for k in 0..ow_r14 {
                                 let _k = kp * 14 + k;
-                                let res_ptr = &mut out[jp * 8 as i64 * os2 + _k * os1 + l * os0]; // prettier-ignore
-                                let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, oc_r8 as usize) }; // prettier-ignore
+                                let res_ptr = &mut out[jp * 8i64 * os2 + _k * os1 + l * os0]; // prettier-ignore
+                                let res_vec = unsafe {
+                                    std::slice::from_raw_parts_mut(res_ptr, oc_r8 as usize)
+                                }; // prettier-ignore
                                 res_vectors_heap[k as usize].copy_from_slice(res_vec);
-                                res_ptrs_heap[k as usize] = res_vec.as_mut_ptr() as *mut f32;
+                                res_ptrs_heap[k as usize] = res_vec.as_mut_ptr();
                             }
                             for n in 0..kernel_height {
                                 for m in 0..kernel_width {
                                     for i in 0..in_channels {
-                                        let kernel_ptr = &kernel[i * ks2 + jp * 8 as i64 * ks3 + m * ks1 + n * ks0] as *const f32; // prettier-ignore
+                                        let kernel_ptr = &kernel
+                                            [i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0]
+                                            as *const f32; // prettier-ignore
                                         kernel_vector.copy_from_slice(unsafe {
                                             std::slice::from_raw_parts(kernel_ptr, oc_r8 as usize)
                                         });
-                                        for k in 0..ow_r14 as i64 {
+                                        for k in 0..ow_r14 {
                                             let res_vector = &mut res_vectors_heap[k as usize];
-                                            let i_val = inp[i * is2 + ((kp * 14 as i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0]; // prettier-ignore
+                                            let i_val = inp[i * is2
+                                                + ((kp * 14i64 + k) * step_width + m * dw)
+                                                    * is1
+                                                + (l * step_height + n * dh) * is0]; // prettier-ignore
                                             res_vector
                                                 .iter_mut()
                                                 .zip(kernel_vector.iter())
@@ -896,91 +962,53 @@ pub fn conv2d_ex_f32(
                                     std::ptr::copy_nonoverlapping(
                                         res_vectors_heap[k as usize].as_ptr(),
                                         res_ptrs_heap[k as usize],
-                                        oc_r8 as usize
+                                        oc_r8 as usize,
                                     );
                                 }
                             }
                         }
-                    }
+                    },
                 );
             }
         } else {
             let kp_end = out_width / 14;
             let o_n = out_channels / 8;
-            (0..o_n).into_par_iter().for_each_init(||out, |out, jp|{
-                let mut res_vectors = [f32x8::splat(0.0); 14];
-                let mut res_ptrs = [0 as *mut f32; 14];
-                let mut kernel_vector = f32x8::splat(0.0);
-                for l in 0..out_height {
-                    for kp in 0..kp_end {
-                        for k in 0..14 as i64 {
-                            let _k = kp * 14 + k;
-                            let res_ptr = &mut out[jp * 8 as i64 * os2 + _k * os1 + l * os0]; // prettier-ignore
-                            let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
-                            res_vectors[k as usize].copy_from_slice(
-                                unsafe {
-                                    std::mem::transmute::<&[f32], &[f32]>(res_vec)
-                                }
-                            );
-                            res_ptrs[k as usize] = res_vec.as_mut_ptr() as *mut f32;
-                        }
-                        for n in 0..kernel_height {
-                            for m in 0..kernel_width {
-                                for i in 0..in_channels {
-                                    let kernel_ptr = &kernel[i * ks2 + jp * 8 as i64 * ks3 + m * ks1 + n * ks0] as *const f32; // prettier-ignore
-                                    kernel_vector.copy_from_slice(unsafe {
-                                        std::slice::from_raw_parts(
-                                            kernel_ptr as *const f32
-                                            , 8)
-                                    });
-                                    for k in 0..14 as i64 {
-                                        let res_vector = &mut res_vectors[k as usize];
-                                        let i_val = inp[i * is2 + ((kp * 14 as i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0]; // prettier-ignore
-                                        res_vector.fma(kernel_vector, f32x8::splat(i_val.into_scalar()));
-                                    }
-                                }
-                            }
-                        }
-                        for k in 0..14 {
-                            unsafe {
-                                std::ptr::copy_nonoverlapping(
-                                    res_vectors[k].as_ptr(),
-                                    res_ptrs[k] as *mut f32,
-                                    8
-                                );
-                            }
-                        }
-                    }
-                }
-            }); // prettier-ignore
-            for jp in o_n..o_n + 1 {
-                (0..out_height).into_par_iter().for_each_init(
-                    || out,
-                    |out, l| {
-                        let mut res_vectors = vec![vec![f32::ZERO; oc_r8 as usize]; 14];
-                        let mut res_ptrs = [0 as *mut f32; 14];
-                        let mut kernel_vector = vec![f32::ZERO; oc_r8 as usize];
+            (0..o_n).into_par_iter().for_each_init(
+                || out,
+                |out, jp| {
+                    let mut res_vectors = [f32x8::splat(0.0); 14];
+                    let mut res_ptrs = [0 as *mut f32; 14];
+                    let mut kernel_vector = f32x8::splat(0.0);
+                    for l in 0..out_height {
                         for kp in 0..kp_end {
-                            for k in 0..14 as i64 {
+                            for k in 0..14i64 {
                                 let _k = kp * 14 + k;
-                                let res_ptr = &mut out[jp * 8 as i64 * os2 + _k * os1 + l * os0]; // prettier-ignore
-                                let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, oc_r8 as usize) }; // prettier-ignore
-                                res_vectors[k as usize].copy_from_slice(res_vec);
-                                res_ptrs[k as usize] = res_vec.as_mut_ptr() as *mut f32;
+                                let res_ptr = &mut out[jp * 8i64 * os2 + _k * os1 + l * os0]; // prettier-ignore
+                                let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
+                                res_vectors[k as usize].copy_from_slice(unsafe {
+                                    std::mem::transmute::<&[f32], &[f32]>(res_vec)
+                                });
+                                res_ptrs[k as usize] = res_vec.as_mut_ptr();
                             }
                             for n in 0..kernel_height {
                                 for m in 0..kernel_width {
                                     for i in 0..in_channels {
-                                        let kernel_ptr = &kernel[i * ks2 + jp * 8 as i64 * ks3 + m * ks1 + n * ks0] as *const f32; // prettier-ignore
+                                        let kernel_ptr = &kernel
+                                            [i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0]
+                                            as *const f32; // prettier-ignore
                                         kernel_vector.copy_from_slice(unsafe {
-                                            std::slice::from_raw_parts(kernel_ptr, oc_r8 as usize)
+                                            std::slice::from_raw_parts(kernel_ptr, 8)
                                         });
-                                        for k in 0..14 as i64 {
+                                        for k in 0..14i64 {
                                             let res_vector = &mut res_vectors[k as usize];
-                                            let i_val = inp[i * is2 + ((kp * 14 as i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0]; // prettier-ignore
-                                            res_vector.iter_mut().enumerate().for_each(|(idx, val)| {
-                                            *val += unsafe { *kernel_vector.as_ptr().wrapping_add(idx) } * i_val;
-                                        }); // prettier-ignore
+                                            let i_val = inp[i * is2
+                                                + ((kp * 14i64 + k) * step_width + m * dw)
+                                                    * is1
+                                                + (l * step_height + n * dh) * is0]; // prettier-ignore
+                                            res_vector.fma(
+                                                kernel_vector,
+                                                f32x8::splat(i_val.into_scalar()),
+                                            );
                                         }
                                     }
                                 }
@@ -990,12 +1018,68 @@ pub fn conv2d_ex_f32(
                                     std::ptr::copy_nonoverlapping(
                                         res_vectors[k].as_ptr(),
                                         res_ptrs[k],
-                                        oc_r8 as usize
+                                        8,
                                     );
                                 }
                             }
                         }
                     }
+                },
+            ); // prettier-ignore
+            for jp in o_n..o_n + 1 {
+                (0..out_height).into_par_iter().for_each_init(
+                    || out,
+                    |out, l| {
+                        let mut res_vectors = vec![vec![f32::ZERO; oc_r8 as usize]; 14];
+                        let mut res_ptrs = [0 as *mut f32; 14];
+                        let mut kernel_vector = vec![f32::ZERO; oc_r8 as usize];
+                        for kp in 0..kp_end {
+                            for k in 0..14i64 {
+                                let _k = kp * 14 + k;
+                                let res_ptr = &mut out[jp * 8i64 * os2 + _k * os1 + l * os0]; // prettier-ignore
+                                let res_vec = unsafe {
+                                    std::slice::from_raw_parts_mut(res_ptr, oc_r8 as usize)
+                                }; // prettier-ignore
+                                res_vectors[k as usize].copy_from_slice(res_vec);
+                                res_ptrs[k as usize] = res_vec.as_mut_ptr();
+                            }
+                            for n in 0..kernel_height {
+                                for m in 0..kernel_width {
+                                    for i in 0..in_channels {
+                                        let kernel_ptr = &kernel
+                                            [i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0]
+                                            as *const f32; // prettier-ignore
+                                        kernel_vector.copy_from_slice(unsafe {
+                                            std::slice::from_raw_parts(kernel_ptr, oc_r8 as usize)
+                                        });
+                                        for k in 0..14i64 {
+                                            let res_vector = &mut res_vectors[k as usize];
+                                            let i_val = inp[i * is2
+                                                + ((kp * 14i64 + k) * step_width + m * dw)
+                                                    * is1
+                                                + (l * step_height + n * dh) * is0]; // prettier-ignore
+                                            res_vector.iter_mut().enumerate().for_each(
+                                                |(idx, val)| {
+                                                    *val += unsafe {
+                                                        *kernel_vector.as_ptr().wrapping_add(idx)
+                                                    } * i_val;
+                                                },
+                                            ); // prettier-ignore
+                                        }
+                                    }
+                                }
+                            }
+                            for k in 0..14 {
+                                unsafe {
+                                    std::ptr::copy_nonoverlapping(
+                                        res_vectors[k].as_ptr(),
+                                        res_ptrs[k],
+                                        oc_r8 as usize,
+                                    );
+                                }
+                            }
+                        }
+                    },
                 );
             }
         }
@@ -1014,37 +1098,42 @@ pub fn conv2d_ex_f32(
                     let mut kernel_vector = f32x8::splat(0.0);
                     for l in 0..out_height {
                         for kp in 0..kp_end {
-                            for k in 0..14 as i64 {
+                            for k in 0..14i64 {
                                 let _k = kp * 14 + k;
-                                let res_ptr = &mut out[jp * 8 as i64 * os2 + _k * os1 + l * os0]; // prettier-ignore
+                                let res_ptr = &mut out[jp * 8i64 * os2 + _k * os1 + l * os0]; // prettier-ignore
                                 let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
                                 res_vectors[k as usize].copy_from_slice(unsafe {
                                     std::mem::transmute::<&[f32], &[f32]>(res_vec)
                                 });
-                                res_ptrs[k as usize] = res_vec.as_mut_ptr() as *mut f32;
+                                res_ptrs[k as usize] = res_vec.as_mut_ptr();
                             }
                             for n in 0..kernel_height {
                                 for m in 0..kernel_width {
                                     for i in 0..in_channels {
-                                        let kernel_ptr = &kernel[i * ks2 + jp * 8 as i64 * ks3 + m * ks1 + n * ks0] as *const f32; // prettier-ignore
+                                        let kernel_ptr = &kernel
+                                            [i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0]
+                                            as *const f32; // prettier-ignore
                                         kernel_vector.copy_from_slice(unsafe {
-                                            std::slice::from_raw_parts(kernel_ptr as *const f32, 8)
+                                            std::slice::from_raw_parts(kernel_ptr, 8)
                                         });
-                                        for k in 0..14 as i64 {
+                                        for k in 0..14i64 {
                                             let res_vector = &mut res_vectors[k as usize];
-                                            let i_val = inp[i * is2 + ((kp * 14 as i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0]; // prettier-ignore
+                                            let i_val = inp[i * is2
+                                                + ((kp * 14i64 + k) * step_width + m * dw)
+                                                    * is1
+                                                + (l * step_height + n * dh) * is0]; // prettier-ignore
                                             *res_vector +=
                                                 kernel_vector * f32x8::splat(i_val.into_scalar());
                                         }
                                     }
                                 }
                             }
-                            for k in 0..14 as i64 {
+                            for k in 0..14i64 {
                                 unsafe {
                                     std::ptr::copy_nonoverlapping(
                                         res_vectors[k as usize].as_ptr(),
-                                        res_ptrs[k as usize] as *mut f32,
-                                        8
+                                        res_ptrs[k as usize],
+                                        8,
                                     );
                                 }
                             }
@@ -1052,26 +1141,31 @@ pub fn conv2d_ex_f32(
                         for kp in kp_end..kp_end + 1 {
                             for k in 0..ow_r14 {
                                 let _k = kp * 14 + k;
-                                let res_ptr = &mut out[jp * 8 as i64 * os2 + _k * os1 + l * os0]; // prettier-ignore
+                                let res_ptr = &mut out[jp * 8i64 * os2 + _k * os1 + l * os0]; // prettier-ignore
                                 let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
                                 res_vectors_heap[k as usize].copy_from_slice(unsafe {
                                     std::mem::transmute::<&[f32], &[f32]>(res_vec)
                                 });
-                                res_ptrs_heap[k as usize] = res_vec.as_mut_ptr() as *mut f32;
+                                res_ptrs_heap[k as usize] = res_vec.as_mut_ptr();
                             }
                             for n in 0..kernel_height {
                                 for m in 0..kernel_width {
                                     for i in 0..in_channels {
-                                        let kernel_ptr = &kernel[i * ks2 + jp * 8 as i64 * ks3 + m * ks1 + n * ks0] as *const f32; // prettier-ignore
+                                        let kernel_ptr = &kernel
+                                            [i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0]
+                                            as *const f32; // prettier-ignore
                                         kernel_vector.copy_from_slice(unsafe {
-                                            std::slice::from_raw_parts(kernel_ptr as *const f32, 8)
+                                            std::slice::from_raw_parts(kernel_ptr, 8)
                                         });
-                                        for k in 0..ow_r14 as i64 {
+                                        for k in 0..ow_r14 {
                                             let res_vector = &mut res_vectors_heap[k as usize];
-                                            let i_val = inp[i * is2 + ((kp * 14 as i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0]; // prettier-ignore
+                                            let i_val = inp[i * is2
+                                                + ((kp * 14i64 + k) * step_width + m * dw)
+                                                    * is1
+                                                + (l * step_height + n * dh) * is0]; // prettier-ignore
                                             res_vector.fma(
                                                 kernel_vector,
-                                                f32x8::splat(i_val.into_scalar())
+                                                f32x8::splat(i_val.into_scalar()),
                                             );
                                         }
                                     }
@@ -1081,14 +1175,14 @@ pub fn conv2d_ex_f32(
                                 unsafe {
                                     std::ptr::copy_nonoverlapping(
                                         res_vectors_heap[k as usize].as_ptr(),
-                                        res_ptrs_heap[k as usize] as *mut f32,
-                                        8
+                                        res_ptrs_heap[k as usize],
+                                        8,
                                     );
                                 }
                             }
                         }
                     }
-                }
+                },
             );
         } else {
             let jp_end = out_channels / 8;
@@ -1101,28 +1195,33 @@ pub fn conv2d_ex_f32(
                     let mut kernel_vector = f32x8::splat(0.0);
                     for l in 0..out_height {
                         for kp in 0..kp_end {
-                            for k in 0..14 as i64 {
+                            for k in 0..14i64 {
                                 let _k = kp * 14 + k;
-                                let res_ptr = &mut out[jp * 8 as i64 * os2 + _k * os1 + l * os0]; // prettier-ignore
+                                let res_ptr = &mut out[jp * 8i64 * os2 + _k * os1 + l * os0]; // prettier-ignore
                                 let res_vec = unsafe { std::slice::from_raw_parts_mut(res_ptr, 8) }; // prettier-ignore
                                 res_vectors[k as usize].copy_from_slice(unsafe {
                                     std::mem::transmute::<&[f32], &[f32]>(res_vec)
                                 });
-                                res_ptrs[k as usize] = res_vec.as_mut_ptr() as *mut f32;
+                                res_ptrs[k as usize] = res_vec.as_mut_ptr();
                             }
                             for n in 0..kernel_height {
                                 for m in 0..kernel_width {
                                     for i in 0..in_channels {
-                                        let kernel_ptr = &kernel[i * ks2 + jp * 8 as i64 * ks3 + m * ks1 + n * ks0] as *const f32; // prettier-ignore
+                                        let kernel_ptr = &kernel
+                                            [i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0]
+                                            as *const f32; // prettier-ignore
                                         kernel_vector.copy_from_slice(unsafe {
-                                            std::slice::from_raw_parts(kernel_ptr as *const f32, 8)
+                                            std::slice::from_raw_parts(kernel_ptr, 8)
                                         });
-                                        for k in 0..14 as i64 {
+                                        for k in 0..14i64 {
                                             let res_vector = &mut res_vectors[k as usize];
-                                            let i_val = inp[i * is2 + ((kp * 14 as i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0]; // prettier-ignore
+                                            let i_val = inp[i * is2
+                                                + ((kp * 14i64 + k) * step_width + m * dw)
+                                                    * is1
+                                                + (l * step_height + n * dh) * is0]; // prettier-ignore
                                             res_vector.fma(
                                                 kernel_vector,
-                                                f32x8::splat(i_val.into_scalar())
+                                                f32x8::splat(i_val.into_scalar()),
                                             );
                                         }
                                     }
@@ -1132,14 +1231,14 @@ pub fn conv2d_ex_f32(
                                 unsafe {
                                     std::ptr::copy_nonoverlapping(
                                         res_vectors[k].as_ptr(),
-                                        res_ptrs[k] as *mut f32,
-                                        8
+                                        res_ptrs[k],
+                                        8,
                                     );
                                 }
                             }
                         }
                     }
-                }
+                },
             );
         }
     }
