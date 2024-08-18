@@ -1,4 +1,5 @@
-use ops::cpu::convolutions::conv2d_unroll::{ conv2d_ex_f32, conv2d_ex_i32, conv2d_ex_i32_enhenced };
+use ops::cpu::convolutions::conv2d::{ conv2d_pad_dilation, conv2d_pad_dilation_ex };
+use ops::cpu::convolutions::conv2d_unroll::{ conv2d_ex_f32, conv2d_ex_i32, conv2d_ex_i32_enhanced };
 use tensor_dyn::TensorCreator;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
@@ -157,32 +158,56 @@ fn conv2d_grouped(
 }
 
 fn main() -> anyhow::Result<()> {
-    set_global_display_lr_elements(6);
-    set_num_threads(10);
+    // set_global_display_lr_elements(6);
+    // set_num_threads(10);
+    // let kernel = _Tensor::<i32>
+    //     ::arange(0, 8 * 80 * 4 * 4)?
+    //     .reshape([80, 8, 4, 4])?
+    //     .permute([2, 3, 1, 0])?
+    //     .contiguous()?;
+    // let a = _Tensor::<i32>
+    //     ::arange(0, 8 * 1260 * 1260)?
+    //     .reshape([8, 1260, 1260])?
+    //     .permute([1, 2, 0])?
+    //     .contiguous()?;
+
+    // let now = std::time::Instant::now();
+    // for _ in 0..100 {
+    //     let _ = conv2d_ex_i32_enhenced(
+    //         &a,
+    //         &kernel,
+    //         [1, 1],
+    //         [
+    //             (2, 2),
+    //             (2, 2),
+    //         ],
+    //         [2, 2]
+    //     )?.permute([2, 0, 1])?;
+    // }
+    // println!("{:?}", now.elapsed() / 100);
+    set_num_threads(1);
     let kernel = _Tensor::<i32>
-        ::arange(0, 8 * 80 * 4 * 4)?
-        .reshape([80, 8, 4, 4])?
-        .permute([2, 3, 1, 0])?
+        ::arange(0, 80* 8*100*100)?
+        .reshape([8, 80, 100, 100])?
+        .permute([2, 3, 0, 1])?
         .contiguous()?;
     let a = _Tensor::<i32>
-        ::arange(0, 8 * 1260 * 1260)?
-        .reshape([8, 1260, 1260])?
+        ::arange(0, 8 * 400 * 1260)?
+        .reshape([8, 400, 1260])?
         .permute([1, 2, 0])?
         .contiguous()?;
 
     let now = std::time::Instant::now();
-    for _ in 0..100 {
-        let _ = conv2d_ex_i32_enhenced(
-            &a,
-            &kernel,
-            [1, 1],
-            [
-                (2, 2),
-                (2, 2),
-            ],
-            [2, 2]
-        )?.permute([2, 0, 1])?;
-    }
-    println!("{:?}", now.elapsed() / 100);
+    let res3 = conv2d_ex_i32_enhanced(
+        &a,
+        &kernel,
+        [3, 3],
+        [
+            (2, 2),
+            (2, 2),
+        ],
+        [1, 1]
+    )?.permute([2, 0, 1])?; // case 1
+    println!("{:?}", now.elapsed());
     Ok(())
 }

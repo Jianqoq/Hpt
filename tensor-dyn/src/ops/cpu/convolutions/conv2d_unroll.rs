@@ -2,7 +2,6 @@ use crate::ops::cpu::vector::traits::Init;
 use crate::ops::cpu::vector::traits::VecTrait;
 use crate::slice::SliceOps;
 use crate::tensor_base::_Tensor;
-use num::range_step;
 use rayon::iter::{ IntoParallelIterator, ParallelIterator };
 use tensor_common::slice::Slice;
 use tensor_macros::match_selection;
@@ -105,7 +104,7 @@ pub fn conv2d_ex_f32(
                                             &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const f32,
                                             &mut kernel_vector,
                                             &mut res_vectors,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
                                         );
                                     }
                                 }
@@ -134,7 +133,7 @@ pub fn conv2d_ex_f32(
                                             &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const f32,
                                             &mut kernel_vector,
                                             &mut res_vectors_heap,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
                                         );
                                     }
                                 }
@@ -275,7 +274,7 @@ pub fn conv2d_ex_f32(
                                             &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const f32,
                                             &mut kernel_vector,
                                             &mut res_vectors,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
                                         );
                                     }
                                 }
@@ -380,7 +379,7 @@ pub fn conv2d_ex_f32(
                                             &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const f32, // prettier-ignore
                                             &mut kernel_vector,
                                             &mut res_vectors,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
                                         );
                                     }
                                 }
@@ -413,7 +412,7 @@ pub fn conv2d_ex_f32(
                                             &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const f32, // prettier-ignore
                                             &mut kernel_vector,
                                             &mut res_vectors_heap,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
                                         );
                                     }
                                 }
@@ -462,7 +461,7 @@ pub fn conv2d_ex_f32(
                                                 ] as *const f32,
                                             &mut kernel_vector,
                                             &mut res_vectors,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
                                         );
                                     }
                                 }
@@ -578,7 +577,7 @@ pub fn conv2d_ex_i32(
                                             &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const i32,
                                             &mut kernel_vector,
                                             &mut res_vectors,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
                                         );
                                     }
                                 }
@@ -607,7 +606,7 @@ pub fn conv2d_ex_i32(
                                             &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const i32,
                                             &mut kernel_vector,
                                             &mut res_vectors_heap,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
                                         );
                                     }
                                 }
@@ -748,7 +747,7 @@ pub fn conv2d_ex_i32(
                                             &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const i32,
                                             &mut kernel_vector,
                                             &mut res_vectors,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
                                         );
                                     }
                                 }
@@ -853,7 +852,7 @@ pub fn conv2d_ex_i32(
                                             &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const i32, // prettier-ignore
                                             &mut kernel_vector,
                                             &mut res_vectors,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
                                         );
                                     }
                                 }
@@ -886,7 +885,7 @@ pub fn conv2d_ex_i32(
                                             &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const i32, // prettier-ignore
                                             &mut kernel_vector,
                                             &mut res_vectors_heap,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
                                         );
                                     }
                                 }
@@ -935,7 +934,7 @@ pub fn conv2d_ex_i32(
                                                 ] as *const i32,
                                             &mut kernel_vector,
                                             &mut res_vectors,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
                                         );
                                     }
                                 }
@@ -959,7 +958,7 @@ pub fn conv2d_ex_i32(
 }
 
 #[cfg(target_feature = "fma")]
-pub fn conv2d_ex_i32_enhenced(
+pub fn conv2d_ex_i32_enhanced(
     img: &_Tensor<i32>,
     kernels: &_Tensor<i32>,
     steps: [i64; 2],
@@ -1022,27 +1021,39 @@ pub fn conv2d_ex_i32_enhenced(
                     let mut res_ptrs_heap = vec![0 as *mut i32; ow_r14 as usize];
                     let mut kernel_vector = i32x8::splat(0);
                     for l in 0..out_height {
+                        let (kh_start, kh_end) = calculate_valid_n_range(
+                            l,
+                            step_height,
+                            ph_start,
+                            dh,
+                            img_height,
+                            kernel_height
+                        );
                         for kp in 0..ow_n {
                             prepare_regs::<i32, wide::i32x8, 14, _>(
                                 8, 14, kp, &mut res_vectors, &mut res_ptrs, 
                                 |_k|&mut out[jp * 8i64 * os2 + _k * os1 + l * os0]
                             );
-                            for n in 0..kernel_height {
+                            for n in kh_start..kh_end {
                                 for m in 0..kernel_width {
+                                    let (start, end) = calculate_valid_k_range(
+                                        kp,
+                                        m,
+                                        dw,
+                                        step_width,
+                                        pw_start,
+                                        img_width,
+                                        14
+                                    );
                                     for i in 0..in_channels {
-                                        let k_start =
-                                        (pw_start - m * dw + step_width - 1) / step_width;
-                                    let k_end = (img_width + pw_start - m * dw) / step_width;
-                                    let start = ((k_start >= kp * 14) as i64) * 15;
-                                    let stop = (k_end - kp * 14).min(14);
                                         micro_kernel_range::<i32, i32x8, _>(
                                             start,
-                                            stop,
+                                            end,
                                             8,
                                             &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const i32,
                                             &mut kernel_vector,
                                             &mut res_vectors,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
                                         );
                                     }
                                 }
@@ -1062,22 +1073,26 @@ pub fn conv2d_ex_i32_enhenced(
                                 8, ow_r14, kp, &mut res_vectors_heap, res_ptrs_heap.as_mut_slice(), 
                                 |_k|&mut out[jp * 8i64 * os2 + _k * os1 + l * os0]
                             );
-                            for n in 0..kernel_height {
+                            for n in kh_start..kh_end {
                                 for m in 0..kernel_width {
+                                    let (start, end) = calculate_valid_k_range(
+                                        kp,
+                                        m,
+                                        dw,
+                                        step_width,
+                                        pw_start,
+                                        img_width,
+                                        ow_r14
+                                    );
                                     for i in 0..in_channels {
-                                        let k_start =
-                                        (pw_start - m * dw + step_width - 1) / step_width;
-                                    let k_end = (img_width + pw_start - m * dw) / step_width;
-                                    let start = ((k_start >= kp * 14) as i64) * 15;
-                                    let stop = (k_end - kp * 14).min(ow_r14);
                                         micro_kernel_range::<i32, i32x8, _>(
                                             start,
-                                            stop,
+                                            end,
                                             8,
                                             &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const i32,
                                             &mut kernel_vector,
                                             &mut res_vectors_heap,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
                                         );
                                     }
                                 }
@@ -1105,6 +1120,14 @@ pub fn conv2d_ex_i32_enhenced(
                         let mut res_ptrs = [0 as *mut i32; 14];
                         let mut res_ptrs_heap = vec![0 as *mut i32; ow_r14 as usize];
                         let mut kernel_vector = vec![i32::ZERO; oc_r8 as usize];
+                        let (kh_start, kh_end) = calculate_valid_n_range(
+                            l,
+                            step_height,
+                            ph_start,
+                            dh,
+                            img_height,
+                            kernel_height
+                        );
                         for kp in 0..ow_n {
                             prepare_regs2::<i32, wide::i32x8, 14, _>(
                                 oc_r8 as usize,
@@ -1114,8 +1137,17 @@ pub fn conv2d_ex_i32_enhenced(
                                 res_ptrs.as_mut_slice(),
                                 |_k| &mut out[jp * 8i64 * os2 + _k * os1 + l * os0]
                             );
-                            for n in 0..kernel_height {
+                            for n in kh_start..kh_end {
                                 for m in 0..kernel_width {
+                                    let (start, end) = calculate_valid_k_range(
+                                        kp,
+                                        m,
+                                        dw,
+                                        step_width,
+                                        pw_start,
+                                        img_width,
+                                        14
+                                    );
                                     for i in 0..in_channels {
                                         let kernel_ptr = &kernel
                                             [i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0]
@@ -1123,16 +1155,11 @@ pub fn conv2d_ex_i32_enhenced(
                                         kernel_vector.copy_from_slice(unsafe {
                                             std::slice::from_raw_parts(kernel_ptr, oc_r8 as usize)
                                         });
-                                        let k_start =
-                                            (pw_start - m * dw + step_width - 1) / step_width;
-                                        let k_end = (img_width + pw_start - m * dw) / step_width;
-                                        let start = ((k_start >= kp * 14) as i64) * 15;
-                                        let stop = (k_end - kp * 14).min(14);
-                                        for k in start..stop {
+                                        for k in start..end {
                                             let res_vector = &mut res_vectors[k as usize];
                                             let i_val = inp[i * is2
-                                                + ((kp * 14i64 + k) * step_width + m * dw) * is1
-                                                + (l * step_height + n * dh) * is0]; // prettier-ignore
+                                                + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1
+                                                + (l * step_height + n * dh - ph_start) * is0]; // prettier-ignore
                                             res_vector
                                                 .iter_mut()
                                                 .zip(kernel_vector.iter())
@@ -1162,25 +1189,30 @@ pub fn conv2d_ex_i32_enhenced(
                                 res_ptrs_heap.as_mut_slice(),
                                 |_k| &mut out[jp * 8i64 * os2 + _k * os1 + l * os0]
                             );
-                            for n in 0..kernel_height {
+                            for n in kh_start..kh_end {
                                 for m in 0..kernel_width {
+                                    let (start, end) = calculate_valid_k_range(
+                                        kp,
+                                        m,
+                                        dw,
+                                        step_width,
+                                        pw_start,
+                                        img_width,
+                                        ow_r14
+                                    );
                                     for i in 0..in_channels {
                                         let kernel_ptr = &kernel
-                                            [i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0]
-                                            as *const i32; // prettier-ignore
+                                                [i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0]
+                                                as *const i32; // prettier-ignore
                                         kernel_vector.copy_from_slice(unsafe {
                                             std::slice::from_raw_parts(kernel_ptr, oc_r8 as usize)
                                         });
-                                        let k_start =
-                                            (pw_start - m * dw + step_width - 1) / step_width;
-                                        let k_end = (img_width + pw_start - m * dw) / step_width;
-                                        let start = ((k_start >= kp * 14) as i64) * 15;
-                                        let stop = (k_end - kp * 14).min(ow_r14);
-                                        for k in start..stop {
+                                        for k in start..end {
+                                            let _k = kp * 14 + k;
                                             let res_vector = &mut res_vectors_heap[k as usize];
                                             let i_val = inp[i * is2
-                                                + ((kp * 14i64 + k) * step_width + m * dw) * is1
-                                                + (l * step_height + n * dh) * is0]; // prettier-ignore
+                                                        + (_k * step_width + m * dw - pw_start) * is1
+                                                        + (l * step_height + n * dh - ph_start) * is0]; // prettier-ignore
                                             res_vector
                                                 .iter_mut()
                                                 .zip(kernel_vector.iter())
@@ -1214,27 +1246,39 @@ pub fn conv2d_ex_i32_enhenced(
                     let mut res_ptrs = [0 as *mut i32; 14];
                     let mut kernel_vector = i32x8::splat(0);
                     for l in 0..out_height {
+                        let (kh_start, kh_end) = calculate_valid_n_range(
+                            l,
+                            step_height,
+                            ph_start,
+                            dh,
+                            img_height,
+                            kernel_height
+                        );
                         for kp in 0..kp_end {
                             prepare_regs::<i32, wide::i32x8, 14, _>(
                                 8, 14, kp, &mut res_vectors, res_ptrs.as_mut_slice(), 
                                 |_k|&mut out[jp * 8i64 * os2 + _k * os1 + l * os0]
                             );
-                            for n in 0..kernel_height {
+                            for n in kh_start..kh_end {
                                 for m in 0..kernel_width {
+                                    let (start, end) = calculate_valid_k_range(
+                                        kp,
+                                        m,
+                                        dw,
+                                        step_width,
+                                        pw_start,
+                                        img_width,
+                                        14
+                                    );
                                     for i in 0..in_channels {
-                                        let k_start =
-                                        (pw_start - m * dw + step_width - 1) / step_width;
-                                    let k_end = (img_width + pw_start - m * dw) / step_width;
-                                    let start = ((k_start >= kp * 14) as i64) * 15;
-                                    let stop = (k_end - kp * 14).min(14);
                                         micro_kernel_range::<i32, i32x8, _>(
                                             start,
-                                            stop,
+                                            end,
                                             8,
                                             &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const i32,
                                             &mut kernel_vector,
                                             &mut res_vectors,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
                                         );
                                     }
                                 }
@@ -1259,6 +1303,14 @@ pub fn conv2d_ex_i32_enhenced(
                         let mut res_vectors = vec![vec![i32::ZERO; oc_r8 as usize]; 14];
                         let mut res_ptrs = [0 as *mut i32; 14];
                         let mut kernel_vector = vec![i32::ZERO; oc_r8 as usize];
+                        let (kh_start, kh_end) = calculate_valid_n_range(
+                            l,
+                            step_height,
+                            ph_start,
+                            dh,
+                            img_height,
+                            kernel_height
+                        );
                         for kp in 0..kp_end {
                             prepare_regs2::<i32, wide::i32x8, 14, _>(
                                 oc_r8 as usize,
@@ -1268,8 +1320,17 @@ pub fn conv2d_ex_i32_enhenced(
                                 res_ptrs.as_mut_slice(),
                                 |_k| &mut out[jp * 8i64 * os2 + _k * os1 + l * os0]
                             );
-                            for n in 0..kernel_height {
+                            for n in kh_start..kh_end {
                                 for m in 0..kernel_width {
+                                    let (start, end) = calculate_valid_k_range(
+                                        kp,
+                                        m,
+                                        dw,
+                                        step_width,
+                                        pw_start,
+                                        img_width,
+                                        14
+                                    );
                                     for i in 0..in_channels {
                                         let kernel_ptr = &kernel
                                             [i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0]
@@ -1277,16 +1338,11 @@ pub fn conv2d_ex_i32_enhenced(
                                         kernel_vector.copy_from_slice(unsafe {
                                             std::slice::from_raw_parts(kernel_ptr, oc_r8 as usize)
                                         });
-                                        let k_start =
-                                            (pw_start - m * dw + step_width - 1) / step_width;
-                                        let k_end = (img_width + pw_start - m * dw) / step_width;
-                                        let start = ((k_start >= kp * 14) as i64) * 15;
-                                        let stop = (k_end - kp * 14).min(14);
-                                        for k in start..stop {
+                                        for k in start..end {
                                             let res_vector = &mut res_vectors[k as usize];
                                             let i_val = inp[i * is2
-                                                + ((kp * 14i64 + k) * step_width + m * dw) * is1
-                                                + (l * step_height + n * dh) * is0]; // prettier-ignore
+                                                + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1
+                                                + (l * step_height + n * dh - ph_start) * is0]; // prettier-ignore
                                             res_vector.iter_mut().enumerate().for_each(
                                                 |(idx, val)| {
                                                     *val += unsafe {
@@ -1326,6 +1382,14 @@ pub fn conv2d_ex_i32_enhenced(
                     let mut res_ptrs_heap = vec![0 as *mut i32; ow_r14 as usize];
                     let mut kernel_vector = i32x8::splat(0);
                     for l in 0..out_height {
+                        let (kh_start, kh_end) = calculate_valid_n_range(
+                            l,
+                            step_height,
+                            ph_start,
+                            dh,
+                            img_height,
+                            kernel_height
+                        );
                         for kp in 0..kp_end {
                             prepare_regs::<i32, wide::i32x8, 14, _>(
                                 8,
@@ -1335,22 +1399,26 @@ pub fn conv2d_ex_i32_enhenced(
                                 res_ptrs.as_mut_slice(),
                                 |_k| &mut out[jp * 8i64 * os2 + _k * os1 + l * os0]
                             );
-                            for n in 0..kernel_height {
+                            for n in kh_start..kh_end {
                                 for m in 0..kernel_width {
+                                    let (start, end) = calculate_valid_k_range(
+                                        kp,
+                                        m,
+                                        dw,
+                                        step_width,
+                                        pw_start,
+                                        img_width,
+                                        14
+                                    );
                                     for i in 0..in_channels {
-                                        let k_start =
-                                            (pw_start - m * dw + step_width - 1) / step_width;
-                                        let k_end = (img_width + pw_start - m * dw) / step_width;
-                                        let start = ((k_start >= kp * 14) as i64) * 15;
-                                        let stop = (k_end - kp * 14).min(14);
                                         micro_kernel_range::<i32, i32x8, _>(
                                             start,
-                                            stop,
+                                            end,
                                             8,
                                             &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const i32, // prettier-ignore
                                             &mut kernel_vector,
                                             &mut res_vectors,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
                                         );
                                     }
                                 }
@@ -1374,16 +1442,26 @@ pub fn conv2d_ex_i32_enhenced(
                                 res_ptrs_heap.as_mut_slice(),
                                 |_k| &mut out[jp * 8i64 * os2 + _k * os1 + l * os0]
                             );
-                            for n in 0..kernel_height {
+                            for n in kh_start..kh_end {
                                 for m in 0..kernel_width {
+                                    let (start, end) = calculate_valid_k_range(
+                                        kp,
+                                        m,
+                                        dw,
+                                        step_width,
+                                        pw_start,
+                                        img_width,
+                                        ow_r14
+                                    );
                                     for i in 0..in_channels {
-                                        micro_kernel::<i32, i32x8, _>(
+                                        micro_kernel_range::<i32, i32x8, _>(
+                                            start,
+                                            end,
                                             8,
-                                            ow_r14,
                                             &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const i32, // prettier-ignore
                                             &mut kernel_vector,
                                             &mut res_vectors_heap,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
                                         );
                                     }
                                 }
@@ -1411,6 +1489,14 @@ pub fn conv2d_ex_i32_enhenced(
                     let mut res_ptrs = [0 as *mut i32; 14];
                     let mut kernel_vector = i32x8::splat(0);
                     for l in 0..out_height {
+                        let (kh_start, kh_end) = calculate_valid_n_range(
+                            l,
+                            step_height,
+                            ph_start,
+                            dh,
+                            img_height,
+                            kernel_height
+                        );
                         for kp in 0..kp_end {
                             prepare_regs::<i32, wide::i32x8, 14, _>(
                                 8,
@@ -1420,24 +1506,22 @@ pub fn conv2d_ex_i32_enhenced(
                                 res_ptrs.as_mut_slice(),
                                 |_k| &mut out[jp * 8i64 * os2 + _k * os1 + l * os0]
                             );
-                            let in_y_start = l * step_height - ph_start;
-                            let in_y_end = in_y_start + kernel_height * dh;
-                            let y_start = ((0).max(in_y_start) / dh).min(kernel_height);
-                            let y_end = (img_height.min(in_y_end) / dh).min(kernel_height);
 
-                            for n in y_start..y_end {
+                            for n in kh_start..kh_end {
                                 for m in 0..kernel_width {
+                                    let (start, end) = calculate_valid_k_range(
+                                        kp,
+                                        m,
+                                        dw,
+                                        step_width,
+                                        pw_start,
+                                        img_width,
+                                        14
+                                    );
                                     for i in 0..in_channels {
-                                        let k_start =
-                                            (pw_start - m * dw + step_width - 1) / step_width;
-                                        let k_end = (img_width + pw_start - m * dw) / step_width;
-                                        let start = ((k_start >= kp * 14) as i64) * 15;
-                                        let stop = (k_end - kp * 14).min(14);
-
-                                        // for k in range_step(0, stop, step)
                                         micro_kernel_range::<i32, i32x8, _>(
                                             start,
-                                            stop,
+                                            end,
                                             8,
                                             &kernel
                                                 [
@@ -1445,7 +1529,7 @@ pub fn conv2d_ex_i32_enhenced(
                                                 ] as *const i32,
                                             &mut kernel_vector,
                                             &mut res_vectors,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw - pw_start) * is1 + (l * step_height + n * dh - ph_start) * is0] // prettier-ignore
                                         );
                                     }
                                 }
@@ -1466,6 +1550,40 @@ pub fn conv2d_ex_i32_enhenced(
         }
     }
     Ok(output)
+}
+
+#[inline(always)]
+fn calculate_valid_k_range(
+    kp: i64,
+    m: i64,
+    dw: i64,
+    step_width: i64,
+    pw_start: i64,
+    img_width: i64,
+    end: i64
+) -> (i64, i64) {
+    let base = m * dw + kp * 14 * step_width - pw_start;
+
+    let k_start = (-base + step_width - 1) / step_width;
+    let k_end = (img_width - base + step_width - 1) / step_width;
+
+    (k_start.max(0), k_end.min(end))
+}
+
+fn calculate_valid_n_range(
+    l: i64,
+    step_height: i64,
+    ph_start: i64,
+    dh: i64,
+    img_height: i64,
+    kernel_height: i64
+) -> (i64, i64) {
+    let base = l * step_height - ph_start;
+
+    let n_start = (-base + dh - 1) / dh;
+    let n_end = (img_height - base) / dh;
+
+    (n_start.max(0), n_end.min(kernel_height))
 }
 
 #[inline(always)]

@@ -615,8 +615,9 @@ mod tests {
     use crate::{
         ops::cpu::convolutions::{
             conv2d::{ conv2d_pad_dilation, conv2d_pad_dilation_ex },
-            conv2d_unroll::{conv2d_ex_i32, conv2d_ex_i32_enhenced},
+            conv2d_unroll::conv2d_ex_i32_enhanced,
         },
+        set_num_threads,
         tensor_base::_Tensor,
     };
 
@@ -653,7 +654,7 @@ mod tests {
             ],
             [1, 1]
         )?.permute([2, 0, 1])?;
-        let res3 = conv2d_ex_i32_enhenced(
+        let res3 = conv2d_ex_i32_enhanced(
             &a,
             &kernel,
             [1, 1],
@@ -702,7 +703,7 @@ mod tests {
             [1, 1]
         )?.permute([2, 0, 1])?;
 
-        let res3 = conv2d_ex_i32_enhenced(
+        let res3 = conv2d_ex_i32_enhanced(
             &a,
             &kernel,
             [1, 1],
@@ -751,7 +752,7 @@ mod tests {
             [1, 1]
         )?.permute([2, 0, 1])?;
 
-        let res3 = conv2d_ex_i32_enhenced(
+        let res3 = conv2d_ex_i32_enhanced(
             &a,
             &kernel,
             [1, 1],
@@ -770,6 +771,7 @@ mod tests {
 
     #[test]
     fn test_conv2d_oc_nd8_ow_nd14() -> anyhow::Result<()> {
+        set_num_threads(1);
         let kernel = _Tensor::<i32>
             ::arange(0, 3 * 9 * 4 * 4)?
             .reshape([3, 9, 4, 4])?
@@ -802,10 +804,60 @@ mod tests {
             [1, 1]
         )?.permute([2, 0, 1])?;
 
-        let res3 = conv2d_ex_i32_enhenced(
+        let res3 = conv2d_ex_i32_enhanced(
             &a,
             &kernel,
             [1, 1],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [1, 1]
+        )?.permute([2, 0, 1])?; // case 1
+        assert_eq!(res1, res2);
+        assert_eq!(res1, res3);
+        Ok(())
+    }
+
+    #[test]
+    fn test_() -> anyhow::Result<()> {
+        set_num_threads(1);
+        let kernel = _Tensor::<i32>
+            ::arange(0, 1 * 1 * 3 * 3)?
+            .reshape([1, 1, 3, 3])?
+            .permute([2, 3, 0, 1])?
+            .contiguous()?;
+        let a = _Tensor::<i32>
+            ::arange(0, 1 * 5 * 5)?
+            .reshape([1, 5, 5])?
+            .permute([1, 2, 0])?
+            .contiguous()?;
+        let res1: _Tensor<i32> = conv2d_pad_dilation(
+            &a,
+            &kernel,
+            [3, 3],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [1, 1]
+        )?.permute([2, 0, 1])?;
+
+        let res2 = conv2d_pad_dilation_ex(
+            &a,
+            &kernel,
+            [3, 3],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [1, 1]
+        )?.permute([2, 0, 1])?;
+
+        let res3 = conv2d_ex_i32_enhanced(
+            &a,
+            &kernel,
+            [3, 3],
             [
                 (2, 2),
                 (2, 2),
