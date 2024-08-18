@@ -615,7 +615,7 @@ mod tests {
     use crate::{
         ops::cpu::convolutions::{
             conv2d::{ conv2d_pad_dilation, conv2d_pad_dilation_ex },
-            conv2d_unroll::conv2d_ex_i32,
+            conv2d_unroll::{conv2d_ex_i32, conv2d_ex_i32_enhenced},
         },
         tensor_base::_Tensor,
     };
@@ -653,7 +653,7 @@ mod tests {
             ],
             [1, 1]
         )?.permute([2, 0, 1])?;
-        let res3 = conv2d_ex_i32(
+        let res3 = conv2d_ex_i32_enhenced(
             &a,
             &kernel,
             [1, 1],
@@ -702,7 +702,7 @@ mod tests {
             [1, 1]
         )?.permute([2, 0, 1])?;
 
-        let res3 = conv2d_ex_i32(
+        let res3 = conv2d_ex_i32_enhenced(
             &a,
             &kernel,
             [1, 1],
@@ -751,7 +751,7 @@ mod tests {
             [1, 1]
         )?.permute([2, 0, 1])?;
 
-        let res3 = conv2d_ex_i32(
+        let res3 = conv2d_ex_i32_enhenced(
             &a,
             &kernel,
             [1, 1],
@@ -802,7 +802,7 @@ mod tests {
             [1, 1]
         )?.permute([2, 0, 1])?;
 
-        let res3 = conv2d_ex_i32(
+        let res3 = conv2d_ex_i32_enhenced(
             &a,
             &kernel,
             [1, 1],

@@ -1,4 +1,4 @@
-use ops::cpu::convolutions::conv2d_unroll::{conv2d_ex_f32, conv2d_ex_i32};
+use ops::cpu::convolutions::conv2d_unroll::{ conv2d_ex_f32, conv2d_ex_i32, conv2d_ex_i32_enhenced };
 use tensor_dyn::TensorCreator;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
@@ -29,6 +29,61 @@ fn _get_memory_info() -> Result<PROCESS_MEMORY_COUNTERS, String> {
         // 将结构体变为初始化状态
         Ok(mem_counters.assume_init())
     }
+}
+
+fn conv2d_grouped_(
+    input: &Vec<Vec<Vec<f32>>>,
+    kernels: &Vec<Vec<Vec<Vec<f32>>>>,
+    groups: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize
+) -> Vec<Vec<Vec<f32>>> {
+    let in_channels: usize = input.len();
+    let in_height: usize = input[0].len();
+    let in_width: usize = input[0][0].len();
+    let num_kernels: usize = kernels.len();
+    let kernel_height: usize = kernels[0][0].len();
+    let kernel_width: usize = kernels[0][0][0].len();
+
+    let in_channels_per_group: usize = in_channels / groups;
+    let kernels_per_group: usize = num_kernels / groups;
+
+    let output_height: usize =
+        (in_height + 2 * padding - dilation * (kernel_height - 1) - 1) / stride + 1;
+    let output_width: usize =
+        (in_width + 2 * padding - dilation * (kernel_width - 1) - 1) / stride + 1;
+
+    let mut output: Vec<Vec<Vec<f32>>> =
+        vec![vec![vec![0.0; output_width]; output_height]; num_kernels];
+
+    for g in 0..groups {
+        for k in 0..kernels_per_group {
+            for c in 0..in_channels_per_group {
+                for y in 0..output_height {
+                    for j in 0..kernel_width {
+                        let mut sum: f32 = 0.0;
+                        for i in 0..kernel_height {
+                            for x in 0..output_width {
+                                let in_y = y * stride + i * dilation - padding;
+                                let in_x = x * stride + j * dilation - padding;
+                                if in_y < in_height && in_x < in_width {
+                                    let in_val: f32 =
+                                        input[g * in_channels_per_group + c][in_y][in_x];
+                                    let kernel_val: f32 =
+                                        kernels[g * kernels_per_group + k][c][i][j];
+                                    sum += in_val * kernel_val;
+                                }
+                            }
+                        }
+                        output[g * kernels_per_group + k][y][j] += sum;
+                    }
+                }
+            }
+        }
+    }
+
+    output
 }
 
 fn conv2d_grouped(
@@ -117,7 +172,7 @@ fn main() -> anyhow::Result<()> {
 
     let now = std::time::Instant::now();
     for _ in 0..100 {
-        let _ = conv2d_ex_i32(
+        let _ = conv2d_ex_i32_enhenced(
             &a,
             &kernel,
             [1, 1],
