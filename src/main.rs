@@ -35,7 +35,7 @@ fn main() -> anyhow::Result<()> {
 
     let now = std::time::Instant::now();
     for _ in 0..1 {
-        let _ = conv2d_ex_f32::<f32, f32x8, true, 14>(
+        let _ = conv2d_ex_f32(
             &a,
             &kernel,
             [1, 1],
