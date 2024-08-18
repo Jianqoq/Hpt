@@ -617,7 +617,6 @@ mod tests {
             conv2d::{ conv2d_pad_dilation, conv2d_pad_dilation_ex },
             conv2d_unroll::conv2d_ex_i32_enhanced,
         },
-        set_num_threads,
         tensor_base::_Tensor,
     };
 
@@ -771,7 +770,6 @@ mod tests {
 
     #[test]
     fn test_conv2d_oc_nd8_ow_nd14() -> anyhow::Result<()> {
-        set_num_threads(1);
         let kernel = _Tensor::<i32>
             ::arange(0, 3 * 9 * 4 * 4)?
             .reshape([3, 9, 4, 4])?
@@ -821,7 +819,6 @@ mod tests {
 
     #[test]
     fn test_() -> anyhow::Result<()> {
-        set_num_threads(1);
         let kernel = _Tensor::<i32>
             ::arange(0, 1 * 1 * 3 * 3)?
             .reshape([1, 1, 3, 3])?
