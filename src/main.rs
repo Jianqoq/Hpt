@@ -128,6 +128,6 @@ fn main() -> anyhow::Result<()> {
             [2, 2]
         )?.permute([2, 0, 1])?;
     }
-    println!("{:?}", now.elapsed() / 100);
+    println!("{:?}", now.elapsed());
     Ok(())
 }
