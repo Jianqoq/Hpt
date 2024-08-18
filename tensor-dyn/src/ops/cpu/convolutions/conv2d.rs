@@ -653,7 +653,7 @@ mod tests {
     use wide::i32x8;
 
     use crate::{
-        ops::cpu::convolutions::{conv2d::{ conv2d_pad_dilation, conv2d_pad_dilation_ex }, conv2d_unroll::conv2d_ex},
+        ops::cpu::convolutions::conv2d::{ conv2d_pad_dilation, conv2d_pad_dilation_ex },
         tensor_base::_Tensor,
     };
 
