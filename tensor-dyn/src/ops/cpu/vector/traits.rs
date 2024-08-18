@@ -1,7 +1,7 @@
 use wide::*;
 
 pub trait VecTrait<T> {
-    fn fma(&mut self, a: &Self, b: &Self);
+    fn fma(&mut self, a: Self, b: Self);
     fn copy_from_slice(&mut self, slice: &[T]);
     fn as_ptr(&self) -> *const T;
 }
@@ -21,8 +21,8 @@ macro_rules! impl_vectors {
         }
         impl VecTrait<$base> for $T {
             #[inline(always)]
-            fn fma(&mut self, a: &Self, b: &Self) {
-                *self += *a * *b;
+            fn fma(&mut self, a: Self, b: Self) {
+                *self += a * b;
             }
             #[inline(always)]
             fn copy_from_slice(&mut self, slice: &[$base]) {

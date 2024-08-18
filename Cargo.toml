@@ -43,11 +43,11 @@ path = "src/main.rs"
 
 
 [profile.dev]
-opt-level = 0
-incremental = true
+opt-level = 3
+incremental = false
 debug = true
 
 [profile.release]
-opt-level = 0
-incremental = true
+opt-level = 3
+incremental = false
 debug = true
