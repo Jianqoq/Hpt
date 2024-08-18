@@ -155,44 +155,6 @@ pub fn conv2d_pad_dilation<T>(
     Ok(output)
 }
 
-fn calculate_kernel_height_range(
-    ph_start: i64,
-    l: i64,
-    step_height: i64,
-    dh: i64,
-    img_height: i64,
-    kernel_height: i64
-) -> (i64, i64) {
-    let n_min = (((ph_start - l * step_height) as f64) / (dh as f64)).ceil() as i64;
-    let n_max_bound = (
-        ((img_height + ph_start - l * step_height) as f64) / (dh as f64)
-    ).floor() as i64;
-
-    // 限制 n 的范围在 0..kernel_height 之间
-    let n_min = n_min.max(0);
-    let n_max = n_max_bound.min(kernel_height - 1).max(0);
-
-    (n_min, n_max)
-}
-
-fn calculate_out_width_range(
-    pw_start: i64,
-    m: i64,
-    step_width: i64,
-    dw: i64,
-    img_width: i64,
-    ow_n: i64
-) -> (i64, i64) {
-    let k_min = (((pw_start - m * dw) as f64) / (step_width as f64)).ceil() as i64;
-    let k_min = k_min.max(0);
-    let k_max_bound = (
-        ((img_width + pw_start - m * dw) as f64) / (step_width as f64)
-    ).floor() as i64;
-    let k_max = k_max_bound.min(ow_n - 1);
-
-    (k_min, k_max)
-}
-
 #[cfg(target_feature = "fma")]
 pub fn conv2d_pad_dilation_ex<T>(
     img: &_Tensor<T>,
@@ -648,12 +610,13 @@ pub fn conv2d_naive<T>(
 
 #[cfg(test)]
 mod tests {
-
     use tensor_traits::{ ShapeManipulate, TensorCreator };
-    use wide::i32x8;
 
     use crate::{
-        ops::cpu::convolutions::conv2d::{ conv2d_pad_dilation, conv2d_pad_dilation_ex },
+        ops::cpu::convolutions::{
+            conv2d::{ conv2d_pad_dilation, conv2d_pad_dilation_ex },
+            conv2d_unroll::conv2d_ex_i32,
+        },
         tensor_base::_Tensor,
     };
 
@@ -690,7 +653,7 @@ mod tests {
             ],
             [1, 1]
         )?.permute([2, 0, 1])?;
-        let res3 = conv2d_ex::<i32, i32x8, true, 4>(
+        let res3 = conv2d_ex_i32(
             &a,
             &kernel,
             [1, 1],
@@ -739,7 +702,7 @@ mod tests {
             [1, 1]
         )?.permute([2, 0, 1])?;
 
-        let res3 = conv2d_ex::<i32, i32x8, true, 14>(
+        let res3 = conv2d_ex_i32(
             &a,
             &kernel,
             [1, 1],
@@ -788,7 +751,7 @@ mod tests {
             [1, 1]
         )?.permute([2, 0, 1])?;
 
-        let res3 = conv2d_ex::<i32, i32x8, true, 4>(
+        let res3 = conv2d_ex_i32(
             &a,
             &kernel,
             [1, 1],
@@ -839,7 +802,7 @@ mod tests {
             [1, 1]
         )?.permute([2, 0, 1])?;
 
-        let res3 = conv2d_ex::<i32, i32x8, true, 15>(
+        let res3 = conv2d_ex_i32(
             &a,
             &kernel,
             [1, 1],
