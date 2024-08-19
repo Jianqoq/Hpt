@@ -35,7 +35,6 @@ pub mod ops {
         pub mod convolutions {
             pub mod conv2d;
             pub mod conv2d_unroll;
-            pub mod conv2d_revised;
         }
         pub mod vector {
             pub mod traits;
@@ -101,11 +100,4 @@ pub fn get_num_threads() -> usize {
 #[ctor]
 fn init() {}
 
-#[cfg(target_feature = "avx512f")]
 static ALIGN: usize = 64;
-
-#[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
-static ALIGN: usize = 32;
-
-#[cfg(not(target_feature = "avx2"))]
-static ALIGN: usize = 16;

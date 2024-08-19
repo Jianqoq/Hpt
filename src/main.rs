@@ -1,4 +1,5 @@
-use ops::cpu::convolutions::conv2d_revised::conv2d_ex_f32_revised;
+use ops::cpu::convolutions::conv2d::conv2d_pad_dilation;
+use ops::cpu::convolutions::conv2d_unroll::conv2d_ex_f32;
 use tensor_dyn::TensorCreator;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
@@ -19,7 +20,7 @@ fn main() -> anyhow::Result<()> {
 
     let now = std::time::Instant::now();
     for _ in 0..1 {
-        let res = conv2d_ex_f32_revised::<8, 7, 14>(
+        let res = conv2d_ex_f32(
             &a,
             &kernel,
             [1, 1],
@@ -29,6 +30,7 @@ fn main() -> anyhow::Result<()> {
             ],
             [2, 2]
         )?.permute([2, 0, 1])?;
+        // assert_eq!(res, c);
     }
     println!("{:?}", now.elapsed() / 1);
     Ok(())
