@@ -351,6 +351,7 @@ pub fn conv2d_ex_f32(
         let ow_r14 = out_width % 14;
         if ow_r14 > 0 {
             let jp_end = out_channels / 8;
+            println!("jp_end: {}", jp_end);
             let kp_end = out_width / 14;
             (0..jp_end).into_par_iter().for_each_init(
                 || out,
