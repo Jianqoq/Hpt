@@ -137,6 +137,11 @@ pub fn conv2d_ex_f32(
     let ks2 = kernels.strides()[2]; // in_channels
     let ks3 = kernels.strides()[3]; // out_channels
 
+    let l3 = cache_size::l3_cache_size().unwrap_or(10 * 1024 * 1024) / std::mem::size_of::<f32>(); // 2MB
+    let res_cache_num = ((l3 / 8) * 14) as i64;
+    let total = 8 * 14 * out_height;
+    let should_oh = if total < res_cache_num { out_height } else { res_cache_num / (8 * 14) };
+
     let oc_r8 = out_channels % 8;
     if oc_r8 > 0 {
         let o_n = out_channels / 8;
@@ -429,13 +434,21 @@ pub fn conv2d_ex_f32(
                         for l in 0..factor {
                             let l = oh_end * factor + l;
                             for kp in 0..kp_end {
-                                prepare_regs!(
-                                    14,
-                                    8,
-                                    [jp * 8, kp * 14, l],
-                                    [os0, os1, os2],
-                                    [out, res_vectors, res_ptrs]
-                                );
+                                for k in 0..14 {
+                                    let ptr = unsafe {
+                                        out.offset(
+                                            (jp * 8 * os2 + (kp * 14 + k) * os1 + l * os0) as isize
+                                        )
+                                    };
+                                    unsafe {
+                                        std::ptr::copy_nonoverlapping(
+                                            ptr,
+                                            res_vectors[k as usize].as_mut_ptr(),
+                                            8
+                                        );
+                                    }
+                                    res_ptrs[k as usize] = ptr;
+                                }
                                 let ii = 4;
                                 let i = 2;
                                 __kernel!(
