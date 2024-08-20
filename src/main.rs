@@ -18,6 +18,17 @@ fn main() -> anyhow::Result<()> {
         .permute([1, 2, 0])?
         .contiguous()?;
 
+    // let c = conv2d_pad_dilation(
+    //     &a,
+    //     &kernel,
+    //     [1, 1],
+    //     [
+    //         (2, 2),
+    //         (2, 2),
+    //     ],
+    //     [2, 2]
+    // )?.permute([2, 0, 1])?;
+
     let now = std::time::Instant::now();
     for _ in 0..1 {
         let res = conv2d_ex_f32(
@@ -30,7 +41,6 @@ fn main() -> anyhow::Result<()> {
             ],
             [2, 2]
         )?.permute([2, 0, 1])?;
-        // assert_eq!(res, c);
     }
     println!("{:?}", now.elapsed() / 1);
     Ok(())

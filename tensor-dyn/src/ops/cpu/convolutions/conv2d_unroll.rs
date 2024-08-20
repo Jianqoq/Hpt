@@ -19,6 +19,7 @@ pub fn conv2d_ex_f32(
     padding: [(i64, i64); 2],
     dilation: [i64; 2]
 ) -> anyhow::Result<_Tensor<f32>> {
+    use num::Integer;
     use tensor_common::slice;
     use wide::f32x8;
 
@@ -352,86 +353,92 @@ pub fn conv2d_ex_f32(
         if ow_r14 > 0 {
             let jp_end = out_channels / 8;
             let kp_end = out_width / 14;
-            (0..jp_end).into_par_iter().for_each_init(
+            let factor = 2;
+            println!("factor: {}", largest_prime_factor(out_height));
+            let oh_end = out_height / factor;
+            (0..oh_end).into_par_iter().for_each_init(
                 || out,
-                |out, jp| {
+                |out, oh_end| {
                     let mut res_vectors = [f32x8::splat(0.0); 14];
                     let mut res_vectors_heap = vec![f32x8::splat(0.); ow_r14 as usize];
                     let mut res_ptrs = [0 as *mut f32; 14];
                     let mut res_ptrs_heap = vec![0 as *mut f32; ow_r14 as usize];
                     let mut kernel_vector = f32x8::splat(0.0);
                     let out = out.ptr;
-                    for l in 0..out_height {
-                        for kp in 0..kp_end {
-                            prepare_regs::<f32, wide::f32x8, 14, _>(
-                                8,
-                                14,
-                                kp,
-                                &mut res_vectors,
-                                res_ptrs.as_mut_slice(),
-                                |_k| unsafe {
-                                    out.offset((jp * 8i64 * os2 + _k * os1 + l * os0) as isize)
+                    for jp in 0..jp_end {
+                        for l in 0..factor {
+                            let l = oh_end * factor + l;
+                            for kp in 0..kp_end {
+                                prepare_regs::<f32, wide::f32x8, 14, _>(
+                                    8,
+                                    14,
+                                    kp,
+                                    &mut res_vectors,
+                                    res_ptrs.as_mut_slice(),
+                                    |_k| unsafe {
+                                        out.offset((jp * 8i64 * os2 + _k * os1 + l * os0) as isize)
+                                    }
+                                );
+                                for ii in 0..4 {
+                                    for n in 0..kernel_height {
+                                        for m in 0..kernel_width {
+                                            for i in 0..2 {
+                                                let i = ii * 2 + i;
+                                                micro_kernel::<f32, f32x8, _>(
+                                                    8,
+                                                    14,
+                                                    &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const f32, // prettier-ignore
+                                                    &mut kernel_vector,
+                                                    &mut res_vectors,
+                                                    |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                                );
+                                            }
+                                        }
+                                    }
                                 }
-                            );
-                            for ii in 0..4 {
+                                for k in 0..14i64 {
+                                    unsafe {
+                                        std::ptr::copy_nonoverlapping(
+                                            res_vectors[k as usize].as_ptr(),
+                                            res_ptrs[k as usize],
+                                            8
+                                        );
+                                    }
+                                }
+                            }
+                            for kp in kp_end..kp_end + 1 {
+                                prepare_regs::<f32, wide::f32x8, 14, _>(
+                                    8,
+                                    ow_r14,
+                                    kp,
+                                    &mut res_vectors_heap,
+                                    res_ptrs_heap.as_mut_slice(),
+                                    |k| unsafe {
+                                        out.offset((jp * 8i64 * os2 + k * os1 + l * os0) as isize)
+                                    }
+                                );
                                 for n in 0..kernel_height {
                                     for m in 0..kernel_width {
-                                        for i in 0..2 {
-                                            let i = ii * 2 + i;
+                                        for i in 0..in_channels {
                                             micro_kernel::<f32, f32x8, _>(
                                                 8,
-                                                14,
+                                                ow_r14,
                                                 &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const f32, // prettier-ignore
                                                 &mut kernel_vector,
-                                                &mut res_vectors,
+                                                &mut res_vectors_heap,
                                                 |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
                                             );
                                         }
                                     }
                                 }
-                            }
-                            for k in 0..14i64 {
-                                unsafe {
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vectors[k as usize].as_ptr(),
-                                        res_ptrs[k as usize],
-                                        8
-                                    );
-                                }
-                            }
-                        }
-                        for kp in kp_end..kp_end + 1 {
-                            prepare_regs::<f32, wide::f32x8, 14, _>(
-                                8,
-                                ow_r14,
-                                kp,
-                                &mut res_vectors_heap,
-                                res_ptrs_heap.as_mut_slice(),
-                                |k| unsafe {
-                                    out.offset((jp * 8i64 * os2 + k * os1 + l * os0) as isize)
-                                }
-                            );
-                            for n in 0..kernel_height {
-                                for m in 0..kernel_width {
-                                    for i in 0..in_channels {
-                                        micro_kernel::<f32, f32x8, _>(
-                                            8,
-                                            ow_r14,
-                                            &kernel[i * ks2 + jp * 8i64 * ks3 + m * ks1 + n * ks0] as *const f32, // prettier-ignore
-                                            &mut kernel_vector,
-                                            &mut res_vectors_heap,
-                                            |k| inp[i * is2 + ((kp * 14i64 + k) * step_width + m * dw) * is1 + (l * step_height + n * dh) * is0] // prettier-ignore
+                                for k in 0..ow_r14 {
+                                    unsafe {
+                                        std::ptr::copy_nonoverlapping(
+                                            res_vectors_heap[k as usize].as_ptr(),
+                                            res_ptrs_heap[k as usize],
+                                            8
                                         );
                                     }
-                                }
-                            }
-                            for k in 0..ow_r14 {
-                                unsafe {
-                                    std::ptr::copy_nonoverlapping(
-                                        res_vectors_heap[k as usize].as_ptr(),
-                                        res_ptrs_heap[k as usize],
-                                        8
-                                    );
                                 }
                             }
                         }
@@ -2624,7 +2631,7 @@ fn micro_kernel<T: CommonBounds + IntoScalar<T>, VEC: VecTrait<T> + Copy + Init<
         let res_vector = &mut rvec[(k * 4) as usize];
         *res_vector = kvec._mul_add(VEC::splat(f(k * 4).into_scalar()), *res_vector);
         let res_vector = &mut rvec[((k * 4) as usize) + 1];
-        *res_vector = kvec._mul_add(VEC::splat(f((k * 4) + 1).into_scalar()), *res_vector);
+        *res_vector = kvec._mul_add(VEC::splat(f(k * 4 + 1).into_scalar()), *res_vector);
         let res_vector = &mut rvec[((k * 4) as usize) + 2];
         *res_vector = kvec._mul_add(VEC::splat(f(k * 4 + 2).into_scalar()), *res_vector);
         let res_vector = &mut rvec[((k * 4) as usize) + 3];
@@ -2693,4 +2700,26 @@ fn prepare_regs2<T: CommonBounds, U, const REGN: usize, F>(
         res_vectors[k as usize].copy_from_slice(res_vec);
         res_ptrs[k as usize] = res_vec.as_mut_ptr();
     }
+}
+
+use primal::Primes;
+fn largest_prime_factor(mut n: i64) -> i64 {
+    let mut max_prime = 1;
+    let primes = Primes::all();
+
+    for prime in primes {
+        let prime = prime as i64;
+        while n % prime == 0 {
+            max_prime = prime;
+            n /= prime;
+        }
+
+        if prime * prime > n {
+            break;
+        }
+    }
+    if n > 2 {
+        max_prime = n;
+    }
+    max_prime
 }
