@@ -41,6 +41,7 @@ fn main() -> anyhow::Result<()> {
             ],
             [2, 2]
         )?.permute([2, 0, 1])?;
+        // assert_eq!(c, res);
     }
     println!("{:?}", now.elapsed() / 1);
     Ok(())
