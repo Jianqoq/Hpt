@@ -1,3 +1,4 @@
+
 use ops::cpu::convolutions::conv2d::conv2d_pad_dilation;
 use ops::cpu::convolutions::conv2d_unroll::conv2d_ex_f32;
 use tensor_dyn::TensorCreator;
@@ -6,7 +7,7 @@ use tensor_dyn::*;
 
 fn main() -> anyhow::Result<()> {
     set_global_display_lr_elements(6);
-    set_num_threads(1);
+    set_num_threads(10);
     let kernel = _Tensor::<f32>
         ::arange(0, 8 * 80 * 4 * 4)?
         .reshape([80, 8, 4, 4])?
@@ -30,7 +31,7 @@ fn main() -> anyhow::Result<()> {
     // )?.permute([2, 0, 1])?;
 
     let now = std::time::Instant::now();
-    for _ in 0..1 {
+    for _ in 0..100 {
         let res = conv2d_ex_f32(
             &a,
             &kernel,
@@ -41,8 +42,8 @@ fn main() -> anyhow::Result<()> {
             ],
             [2, 2]
         )?.permute([2, 0, 1])?;
-        // assert_eq!(c, res);
+        
     }
-    println!("{:?}", now.elapsed() / 1);
+    println!("{:?}", now.elapsed() / 100);
     Ok(())
 }

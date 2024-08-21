@@ -613,10 +613,7 @@ mod tests {
     use tensor_traits::{ ShapeManipulate, TensorCreator };
 
     use crate::{
-        ops::cpu::convolutions::{
-            conv2d::{ conv2d_pad_dilation, conv2d_pad_dilation_ex },
-            conv2d_unroll::conv2d_ex_i32_enhanced,
-        },
+        ops::cpu::convolutions::{conv2d::{ conv2d_pad_dilation, conv2d_pad_dilation_ex }, conv2d_copy::conv2d_ex_i32_enhanced},
         tensor_base::_Tensor,
     };
 

@@ -35,6 +35,7 @@ pub mod ops {
         pub mod convolutions {
             pub mod conv2d;
             pub mod conv2d_unroll;
+            pub mod conv2d_copy;
         }
         pub mod vector {
             pub mod traits;
