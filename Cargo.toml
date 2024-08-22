@@ -45,10 +45,10 @@ path = "src/main.rs"
 
 [profile.dev]
 opt-level = 3
-incremental = false
+incremental = true
 debug = true
 
 [profile.release]
 opt-level = 3
-incremental = false
+incremental = true
 debug = true
