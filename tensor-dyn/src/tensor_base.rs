@@ -43,12 +43,15 @@ use tensor_types::{
     into_scalar::IntoScalar,
     type_promote::{ FloatOut, NormalOut },
 };
-use rayon::iter::{
-    IndexedParallelIterator,
-    IntoParallelIterator,
-    IntoParallelRefIterator,
-    IntoParallelRefMutIterator,
-    ParallelIterator,
+use rayon::{
+    iter::{
+        IndexedParallelIterator,
+        IntoParallelIterator,
+        IntoParallelRefIterator,
+        IntoParallelRefMutIterator,
+        ParallelIterator,
+    },
+    slice::ParallelSliceMut,
 };
 
 use crate::{
@@ -193,10 +196,10 @@ impl<T: CommonBounds> BaseTensor for &_Tensor<T> {
 impl<T: CommonBounds> _Tensor<T> {
     pub fn assign(&mut self, other: &_Tensor<T>) {
         self.par_iter_mut()
-        .zip(other.par_iter())
-        .for_each(|(a, b)| {
-            *a = b;
-        });
+            .zip(other.par_iter())
+            .for_each(|(a, b)| {
+                *a = b;
+            });
     }
     /// Converts a tensor to a raw slice representing direct memory access.
     ///
@@ -622,9 +625,14 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             ::from_size_align(size * std::mem::size_of::<T>(), ALIGN)
             .unwrap();
         let ptr = unsafe { CACHE.allocate(layout) };
-        unsafe {
-            std::ptr::write_bytes(ptr as *mut T, 0, size);
-        }
+        let slice = unsafe { std::slice::from_raw_parts_mut(ptr as *mut T, size) };
+        let zero = [T::ZERO; 8];
+        slice.par_chunks_exact_mut(8).for_each(|x| {
+            x.copy_from_slice(&zero);
+        });
+        slice[size - size % 8..size].iter_mut().for_each(|x| {
+            *x = T::ZERO;
+        });
         Ok(_Tensor {
             data: Pointer::new(ptr as *mut T),
             parent: None,
@@ -667,11 +675,16 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);
         let ret = _Tensor::<T, Cpu>::empty(res_shape)?;
-        ret.as_raw_mut()
-            .into_par_iter()
-            .for_each(|x| {
-                *x = val;
-            });
+        let slice = ret.as_raw_mut();
+        let size = ret.size();
+        let remain = size % 8;
+        let vector = [val; 8];
+        slice[0..size - remain].par_chunks_exact_mut(8).for_each(|x| {
+            x.copy_from_slice(&vector);
+        });
+        slice[size - remain..size].iter_mut().for_each(|x| {
+            *x = val;
+        });
         Ok(ret)
     }
 

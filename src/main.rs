@@ -1,4 +1,3 @@
-
 use ops::cpu::convolutions::conv2d::conv2d_pad_dilation;
 use ops::cpu::convolutions::conv2d_unroll::conv2d_ex_f32;
 use tensor_dyn::TensorCreator;
@@ -18,7 +17,6 @@ fn main() -> anyhow::Result<()> {
         .reshape([8, 1260, 1260])?
         .permute([1, 2, 0])?
         .contiguous()?;
-
     // let c = conv2d_pad_dilation(
     //     &a,
     //     &kernel,
@@ -42,7 +40,6 @@ fn main() -> anyhow::Result<()> {
             ],
             [2, 2]
         )?.permute([2, 0, 1])?;
-        
     }
     println!("{:?}", now.elapsed() / 100);
     Ok(())

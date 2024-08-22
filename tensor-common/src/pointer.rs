@@ -1,5 +1,5 @@
 use serde::ser::SerializeStruct;
-use std::{ alloc::Layout, fmt::{ Debug, Display, Formatter }, ops::{ Deref, Index, IndexMut } };
+use std::{ alloc::Layout, fmt::{ Debug, Display, Formatter }, ops::{ Deref, DerefMut, Index, IndexMut } };
 
 use serde::Serialize;
 
@@ -249,6 +249,12 @@ impl<T> Deref for Pointer<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
         unsafe { &*self.ptr }
+    }
+}
+
+impl<T> DerefMut for Pointer<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { &mut *self.ptr }
     }
 }
 
