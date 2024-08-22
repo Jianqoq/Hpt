@@ -1,10 +1,7 @@
 use crate::ops::cpu::vector::traits::Init;
 use crate::ops::cpu::vector::traits::VecTrait;
-use crate::slice::SliceOps;
 use crate::tensor_base::_Tensor;
 use rayon::iter::{ IntoParallelIterator, ParallelIterator };
-use tensor_common::slice::Slice;
-use tensor_macros::match_selection;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
@@ -98,14 +95,14 @@ pub fn conv2d_ex_f32(
         );
     }
     let (step_width, step_height) = (steps[0], steps[1]);
-    let ((pw_start, pw_end), (ph_start, ph_end)) = (padding[0], padding[1]);
-    let (dw, dh) = (dilation[0], dilation[1]);
+    let ((ph_start, ph_end), (pw_start, pw_end)) = (padding[0], padding[1]);
+    let (dh, dw) = (dilation[0], dilation[1]);
 
     let out_height =
         (img_height + ph_start + ph_end - dh * (kernel_height - 1) - 1) / step_height + 1;
     let out_width = (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1;
     let img = if !padding.iter().all(|(a, b)| *a == 0 && *b == 0) {
-        img.pad(&[(0, 0), (pw_start, pw_end), (ph_start, ph_end)], f32::ZERO)?
+        img.pad(&[(ph_start, ph_end), (pw_start, pw_end), (0, 0)], f32::ZERO)?
     } else {
         img.clone()
     };
@@ -409,58 +406,57 @@ pub fn conv2d_ex_f32(
             (0..oh_end).into_par_iter().for_each_init(
                 || out,
                 |out, oh_end| {
-                    // let mut res_vectors = [f32x8::splat(0.0); 14];
-                    // let mut res_vectors_heap = vec![f32x8::splat(0.); ow_r14 as usize];
-                    // let mut res_ptrs = [0 as *mut f32; 14];
-                    // let mut res_ptrs_heap = vec![0 as *mut f32; ow_r14 as usize];
-                    // let mut kernel_vector = f32x8::splat(0.0);
-                    // let out = out.ptr;
-                    // for jp in 0..jp_end {
-                    //     for l in 0..factor {
-                    //         let l = oh_end * factor + l;
-                    //         for kp in 0..kp_end {
-                    //             prepare_regs!(
-                    //                 14,
-                    //                 8,
-                    //                 [jp * 8, kp * 14, l],
-                    //                 [os0, os1, os2],
-                    //                 [out, res_vectors, res_ptrs]
-                    //             );
-                    //             let ii = 1;
-                    //             let i = 8;
-                    //             __kernel!(
-                    //                 [f32, f32x8, 8, 14],
-                    //                 [kernel_height, kernel_width, ii, i],
-                    //                 [ks0, ks1, ks2, ks3],
-                    //                 [is0, is1, is2],
-                    //                 [jp * 8, kp * 14, l, step_width, step_height, dw, dh],
-                    //                 [kernel, kernel_vector, res_vectors, inp]
-                    //             );
-                    //             flush!(8, 14, res_vectors, res_ptrs);
-                    //         }
-                    //         for kp in kp_end..kp_end + 1 {
-                    //             prepare_regs!(
-                    //                 ow_r14,
-                    //                 8,
-                    //                 [jp * 8, kp * 14, l],
-                    //                 [os0, os1, os2],
-                    //                 [out, res_vectors_heap, res_ptrs_heap]
-                    //             );
-                    //             let ii = 4;
-                    //             let i = 2;
-                    //             __kernel!(
-                    //                 [f32, f32x8, 8, ow_r14],
-                    //                 [kernel_height, kernel_width, ii, i],
-                    //                 [ks0, ks1, ks2, ks3],
-                    //                 [is0, is1, is2],
-                    //                 [jp * 8, kp * 14, l, step_width, step_height, dw, dh],
-                    //                 [kernel, kernel_vector, res_vectors_heap, inp]
-                    //             );
-                    //             flush!(8, ow_r14 as usize, res_vectors_heap, res_ptrs_heap);
-                    //         }
-                    //     }
-                    // }
-                
+                    let mut res_vectors = [f32x8::splat(0.0); 14];
+                    let mut res_vectors_heap = vec![f32x8::splat(0.); ow_r14 as usize];
+                    let mut res_ptrs = [0 as *mut f32; 14];
+                    let mut res_ptrs_heap = vec![0 as *mut f32; ow_r14 as usize];
+                    let mut kernel_vector = f32x8::splat(0.0);
+                    let out = out.ptr;
+                    for jp in 0..jp_end {
+                        for l in 0..factor {
+                            let l = oh_end * factor + l;
+                            for kp in 0..kp_end {
+                                prepare_regs!(
+                                    14,
+                                    8,
+                                    [jp * 8, kp * 14, l],
+                                    [os0, os1, os2],
+                                    [out, res_vectors, res_ptrs]
+                                );
+                                let ii = 1;
+                                let i = 8;
+                                __kernel!(
+                                    [f32, f32x8, 8, 14],
+                                    [kernel_height, kernel_width, ii, i],
+                                    [ks0, ks1, ks2, ks3],
+                                    [is0, is1, is2],
+                                    [jp * 8, kp * 14, l, step_width, step_height, dw, dh],
+                                    [kernel, kernel_vector, res_vectors, inp]
+                                );
+                                flush!(8, 14, res_vectors, res_ptrs);
+                            }
+                            for kp in kp_end..kp_end + 1 {
+                                prepare_regs!(
+                                    ow_r14,
+                                    8,
+                                    [jp * 8, kp * 14, l],
+                                    [os0, os1, os2],
+                                    [out, res_vectors_heap, res_ptrs_heap]
+                                );
+                                let ii = 4;
+                                let i = 2;
+                                __kernel!(
+                                    [f32, f32x8, 8, ow_r14],
+                                    [kernel_height, kernel_width, ii, i],
+                                    [ks0, ks1, ks2, ks3],
+                                    [is0, is1, is2],
+                                    [jp * 8, kp * 14, l, step_width, step_height, dw, dh],
+                                    [kernel, kernel_vector, res_vectors_heap, inp]
+                                );
+                                flush!(8, ow_r14 as usize, res_vectors_heap, res_ptrs_heap);
+                            }
+                        }
+                    }
                 }
             );
         } else {
@@ -640,6 +636,7 @@ pub(crate) fn prepare_regs2<T: CommonBounds, U, const REGN: usize, F>(
     }
 }
 
+#[allow(unused)]
 pub(crate) fn find_divisors(n: i64) -> Vec<i64> {
     let mut divisors = Vec::new();
 
@@ -655,6 +652,8 @@ pub(crate) fn find_divisors(n: i64) -> Vec<i64> {
     divisors.sort();
     divisors
 }
+
+#[allow(unused)]
 pub(crate) fn get_cache_set(address: usize, cache_line_size: usize, num_cache_sets: usize) -> usize {
     // 计算块偏移 (Block Offset)，即低于缓存行大小的地址位
     let block_offset_bits = cache_line_size.trailing_zeros() as usize;
