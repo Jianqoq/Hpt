@@ -57,13 +57,14 @@ impl<T: CommonBounds> _Tensor<T> {
                 let tsp = self.shape().clone();
                 let rs = res.strides().clone();
                 let mut res_ptr = res.ptr();
-                for (dim_idx, (&prg_idx, &stride)) in inp_prg.iter().zip(rs.iter()).enumerate() {
-                    let padded_idx = prg_idx + pads[dim_idx].0;
-                    let offset = padded_idx * stride;
-                    res_ptr.offset(offset);
-                }
                 let inp_last_stride = self.strides()[ndim - 1];
+                let pads = pads.clone();
                 pool.execute(move || {
+                    for (dim_idx, (&prg_idx, &stride)) in inp_prg.iter().zip(rs.iter()).enumerate() {
+                        let padded_idx = prg_idx + pads[dim_idx].0;
+                        let offset = padded_idx * stride;
+                        res_ptr.offset(offset);
+                    }
                     for _ in start..end {
                         for i in 0..inner_loop {
                             res_ptr[i] = ptr[i * inp_last_stride];
