@@ -1,4 +1,5 @@
 use rayon::iter::{ IntoParallelRefMutIterator, ParallelIterator };
+use tensor_common::err_handler::ErrHandler;
 use std::panic::Location;
 use std::sync::{ Arc, Barrier };
 use tensor_traits::tensor::CommonBounds;
@@ -44,11 +45,14 @@ pub(crate) fn matmul_no_out<A, B>(
 {
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         if lhs.shape()[1] != rhs.shape()[0] {
-            anyhow::bail!(
-                "shape mismatch when trying to perform matrix multiplication got {:?} and {:?}",
-                lhs.shape(),
-                rhs.shape()
-            );
+            Err(
+                ErrHandler::MatmulShapeMismatched(
+                    [lhs.shape()[0], lhs.shape()[1]],
+                    [rhs.shape()[0], rhs.shape()[1]],
+                    lhs.shape()[1],
+                    Location::caller()
+                ).into()
+            )
         } else {
             let res;
             res = _Tensor::<<A as NormalOut<B>>::Output, Cpu>::zeros(
@@ -93,16 +97,19 @@ pub(crate) fn matmul_no_out<A, B>(
             b_shape = longer_shape;
         }
         if a_shape[a_shape.len() - 1] != b_shape[b_shape.len() - 2] {
-            anyhow::bail!(
-                "shape mismatch when trying to perform matrix multiplication got {:?} and {:?}",
-                lhs.shape(),
-                rhs.shape()
-            );
+            Err(
+                ErrHandler::MatmulShapeMismatched(
+                    [a_shape[a_shape.len() - 2], a_shape[a_shape.len() - 1]],
+                    [b_shape[b_shape.len() - 2], b_shape[b_shape.len() - 1]],
+                    a_shape[a_shape.len() - 1],
+                    Location::caller()
+                ).into()
+            )
         } else {
             let mut res_shape = predict_broadcast_shape(
                 &a_shape[..a_shape.len() - 2],
                 &b_shape[..b_shape.len() - 2],
-                Location::caller(),
+                Location::caller()
             )?.to_vec();
             let mut iterate_shape: Vec<i64> = res_shape.clone();
             res_shape.push(a_shape[a_shape.len() - 2]);
@@ -250,11 +257,14 @@ pub(crate) fn matmul_with_out<A, B, O>(
 {
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         if lhs.shape()[1] != rhs.shape()[0] {
-            anyhow::bail!(
-                "shape mismatch when trying to perform matrix multiplication got {:?} and {:?}",
-                lhs.shape(),
-                rhs.shape()
-            );
+            Err(
+                ErrHandler::MatmulShapeMismatched(
+                    [lhs.shape()[0], lhs.shape()[1]],
+                    [rhs.shape()[0], rhs.shape()[1]],
+                    lhs.shape()[1],
+                    Location::caller()
+                ).into()
+            )
         } else {
             let res;
             if out.size() == ((lhs.shape()[0] * rhs.shape()[1]) as usize) && out.parent().is_none() {
@@ -307,16 +317,19 @@ pub(crate) fn matmul_with_out<A, B, O>(
             b_shape = longer_shape;
         }
         if a_shape[a_shape.len() - 1] != b_shape[b_shape.len() - 2] {
-            anyhow::bail!(
-                "shape mismatch when trying to perform matrix multiplication got {:?} and {:?}",
-                lhs.shape(),
-                rhs.shape()
-            );
+            Err(
+                ErrHandler::MatmulShapeMismatched(
+                    [a_shape[a_shape.len() - 2], a_shape[a_shape.len() - 1]],
+                    [b_shape[b_shape.len() - 2], b_shape[b_shape.len() - 1]],
+                    a_shape[a_shape.len() - 1],
+                    Location::caller()
+                ).into()
+            )
         } else {
             let mut res_shape = predict_broadcast_shape(
                 &a_shape[..a_shape.len() - 2],
                 &b_shape[..b_shape.len() - 2],
-                Location::caller(),
+                Location::caller()
             )?.to_vec();
             let mut iterate_shape = res_shape.clone();
             res_shape.push(a_shape[a_shape.len() - 2]);
@@ -468,11 +481,14 @@ pub(crate) fn matmul_no_out_concret<A, B, C>(
 {
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         if lhs.shape()[1] != rhs.shape()[0] {
-            anyhow::bail!(
-                "shape mismatch when trying to perform matrix multiplication got {:?} and {:?}",
-                lhs.shape(),
-                rhs.shape()
-            );
+            Err(
+                ErrHandler::MatmulShapeMismatched(
+                    [lhs.shape()[0], lhs.shape()[1]],
+                    [rhs.shape()[0], rhs.shape()[1]],
+                    lhs.shape()[1],
+                    Location::caller()
+                ).into()
+            )
         } else {
             let res: _Tensor<C>;
             res = _Tensor::zeros(vec![lhs.shape()[0], rhs.shape()[1]])?;
@@ -515,16 +531,19 @@ pub(crate) fn matmul_no_out_concret<A, B, C>(
             b_shape = longer_shape;
         }
         if a_shape[a_shape.len() - 1] != b_shape[b_shape.len() - 2] {
-            anyhow::bail!(
-                "shape mismatch when trying to perform matrix multiplication got {:?} and {:?}",
-                lhs.shape(),
-                rhs.shape()
-            );
+            Err(
+                ErrHandler::MatmulShapeMismatched(
+                    [a_shape[a_shape.len() - 2], a_shape[a_shape.len() - 1]],
+                    [b_shape[b_shape.len() - 2], b_shape[b_shape.len() - 1]],
+                    a_shape[a_shape.len() - 1],
+                    Location::caller()
+                ).into()
+            )
         } else {
             let mut res_shape = predict_broadcast_shape(
                 &a_shape[..a_shape.len() - 2],
                 &b_shape[..b_shape.len() - 2],
-                Location::caller(),
+                Location::caller()
             )?.to_vec();
             let mut iterate_shape: Vec<i64> = res_shape.clone();
             res_shape.push(a_shape[a_shape.len() - 2]);
@@ -665,11 +684,14 @@ pub(crate) fn matmul_out_concret<A, B, C>(
 {
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         if lhs.shape()[1] != rhs.shape()[0] {
-            anyhow::bail!(
-                "shape mismatch when trying to perform matrix multiplication got {:?} and {:?}",
-                lhs.shape(),
-                rhs.shape()
-            );
+            Err(
+                ErrHandler::MatmulShapeMismatched(
+                    [lhs.shape()[0], lhs.shape()[1]],
+                    [rhs.shape()[0], rhs.shape()[1]],
+                    lhs.shape()[1],
+                    Location::caller()
+                ).into()
+            )
         } else {
             let res: _Tensor<C>;
             res = out.clone();
@@ -712,12 +734,19 @@ pub(crate) fn matmul_out_concret<A, B, C>(
             b_shape = longer_shape;
         }
         if a_shape[a_shape.len() - 1] != b_shape[b_shape.len() - 2] {
-            anyhow::bail!("shape mismatch");
+            Err(
+                ErrHandler::MatmulShapeMismatched(
+                    [a_shape[a_shape.len() - 2], a_shape[a_shape.len() - 1]],
+                    [b_shape[b_shape.len() - 2], b_shape[b_shape.len() - 1]],
+                    a_shape[a_shape.len() - 1],
+                    Location::caller()
+                ).into()
+            )
         } else {
             let mut res_shape = predict_broadcast_shape(
                 &a_shape[..a_shape.len() - 2],
                 &b_shape[..b_shape.len() - 2],
-                Location::caller(),
+                Location::caller()
             )?.to_vec();
             let mut iterate_shape: Vec<i64> = res_shape.clone();
             res_shape.push(a_shape[a_shape.len() - 2]);

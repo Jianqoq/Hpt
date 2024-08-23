@@ -11,6 +11,7 @@ use tensor_traits::tensor::TensorInfo;
 use tensor_traits::tensor::TensorCreator;
 use std::sync::Arc;
 use std::sync::Barrier;
+use crate::ALIGN;
 use tensor_traits::shape_manipulate::ShapeManipulate;
 
 macro_rules! impl_fftops {
@@ -103,7 +104,7 @@ macro_rules! impl_fftops {
                                 let raw_buffer = std::alloc::alloc(
                                     std::alloc::Layout::from_size_align(
                                         (inner_loop_size as usize) * std::mem::size_of::<$type>(),
-                                        32,
+                                        ALIGN,
                                     )
                                     .unwrap(),
                                 );
@@ -151,7 +152,7 @@ macro_rules! impl_fftops {
                                 });
                                 std::alloc::dealloc(raw_buffer as *mut u8, std::alloc::Layout::from_size_align(
                                     (inner_loop_size as usize) * std::mem::size_of::<$type>(),
-                                    32,
+                                    ALIGN,
                                 ).unwrap());
                             }
                             barrier.wait();
@@ -223,7 +224,7 @@ macro_rules! impl_fftops {
                             let raw_buffer = std::alloc::alloc(
                                 std::alloc::Layout::from_size_align(
                                     (inner_loop_size as usize) * std::mem::size_of::<$type>(),
-                                    32,
+                                    ALIGN,
                                 )
                                 .unwrap(),
                             );
@@ -269,7 +270,7 @@ macro_rules! impl_fftops {
                             });
                             std::alloc::dealloc(raw_buffer as *mut u8, std::alloc::Layout::from_size_align(
                                 (inner_loop_size as usize) * std::mem::size_of::<$type>(),
-                                32,
+                                ALIGN,
                             ).unwrap());
                         }
                         barrier.wait();
