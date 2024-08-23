@@ -16,6 +16,7 @@ pub trait FloatUaryOps {
     /// let b = a.sin().unwrap();
     /// assert!(b.allclose(&Tensor::<f32>::new([0f32, 0.8414709848078965f32, 0.9092974268256817f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn sin(&self) -> Result<Self::Output>;
 
     /// Compute cosine, element-wise.
@@ -26,6 +27,7 @@ pub trait FloatUaryOps {
     /// let b = a.cos().unwrap();
     /// assert!(b.allclose(&Tensor::<f32>::new([1f32, 0.5403023058681398f32, -0.4161468365471424f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn cos(&self) -> Result<Self::Output>;
 
     /// Compute tangent, element-wise.
@@ -36,6 +38,7 @@ pub trait FloatUaryOps {
     /// let b = a.tan().unwrap();
     /// assert!(b.allclose(&Tensor::<f32>::new([0f32, 1.5574077246549023f32, -2.185039863261519f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn tan(&self) -> Result<Self::Output>;
 
     /// Compute inverse sine, element-wise.
@@ -46,6 +49,7 @@ pub trait FloatUaryOps {
     /// let b = a.asin().unwrap();
     /// assert!(b.allclose(&Tensor::<f32>::new([0f32, 0.5235987755982989f32, 1.5707963267948966f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn asin(&self) -> Result<Self::Output>;
 
     /// Compute inverse cosine, element-wise.
@@ -56,6 +60,7 @@ pub trait FloatUaryOps {
     /// let b = a.acos().unwrap();
     /// assert!(b.allclose(&Tensor::<f32>::new([1.5707963267948966f32, 1.0471975511965979f32, 0f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn acos(&self) -> Result<Self::Output>;
 
     /// Compute inverse tangent, element-wise.
@@ -66,6 +71,7 @@ pub trait FloatUaryOps {
     /// let b = a.atan().unwrap();
     /// assert!(b.allclose(&Tensor::<f32>::new([0f32, 0.4636476090008061f32, 0.7853981633974483f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn atan(&self) -> Result<Self::Output>;
 
     /// Compute hyperbolic sine, element-wise.
@@ -76,6 +82,7 @@ pub trait FloatUaryOps {
     /// let b = a.sinh().unwrap();
     /// assert!(b.allclose(&Tensor::<f32>::new([0f32, 1.1752011936438014f32, 3.626860407847019f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn sinh(&self) -> Result<Self::Output>;
 
     /// Compute hyperbolic cosine, element-wise.
@@ -86,6 +93,7 @@ pub trait FloatUaryOps {
     /// let b = a.cosh().unwrap();
     /// assert!(b.allclose(&Tensor::<f32>::new([1f32, 1.5430806348152437f32, 3.7621956910836314f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn cosh(&self) -> Result<Self::Output>;
 
     /// Compute hyperbolic tangent, element-wise.
@@ -96,6 +104,7 @@ pub trait FloatUaryOps {
     /// let b = a.tanh().unwrap();
     /// assert!(b.allclose(&Tensor::<f32>::new([0f32, 0.7615941559557649f32, 0.9640275800758169f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn tanh(&self) -> Result<Self::Output>;
 
     /// Compute inverse hyperbolic sine, element-wise.
@@ -106,6 +115,7 @@ pub trait FloatUaryOps {
     /// let b = a.asinh().unwrap();
     /// assert!(b.allclose(&Tensor::<f32>::new([0.48121182505960347f32, 0.881373587019543f32, 1.4436354751788103f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn asinh(&self) -> Result<Self::Output>;
 
     /// Compute inverse hyperbolic cosine, element-wise.
@@ -116,6 +126,7 @@ pub trait FloatUaryOps {
     /// let b = a.acosh().unwrap();
     /// assert!(b.allclose(&Tensor::<f32>::new([0f32, 1.3169578969248166f32, 1.762747174039086f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn acosh(&self) -> Result<Self::Output>;
 
     /// Compute inverse hyperbolic tangent, element-wise.
@@ -126,6 +137,7 @@ pub trait FloatUaryOps {
     /// let b = a.atanh().unwrap();
     /// assert!(b.allclose(&Tensor::<f32>::new([0.5493061443340549f32, 1.0986122886681098f32, 1.4722194895832204f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn atanh(&self) -> Result<Self::Output>;
 
     /// Inplace Version of sin. Compute sine, element-wise.
@@ -137,6 +149,7 @@ pub trait FloatUaryOps {
     /// let res = a.sin_(c).unwrap(); // note: c moved into sin_ and out as res
     /// assert!(res.allclose(&Tensor::<f32>::new([0f32, 0.8414709848078965f32, 0.9092974268256817f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn sin_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -149,6 +162,7 @@ pub trait FloatUaryOps {
     /// let res = a.cos_(c).unwrap(); // note: c moved into sin_ and out as res
     /// assert!(res.allclose(&Tensor::<f32>::new([1f32, 0.5403023058681398f32, -0.4161468365471424f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn cos_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -161,6 +175,7 @@ pub trait FloatUaryOps {
     /// let res = a.tan_(c).unwrap(); // note: c moved into sin_ and out as res
     /// assert!(res.allclose(&Tensor::<f32>::new([0f32, 1.5574077246549023f32, -2.185039863261519f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn tan_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -173,6 +188,7 @@ pub trait FloatUaryOps {
     /// let res = a.asin_(c).unwrap(); // note: c moved into sin_ and out as res
     /// assert!(res.allclose(&Tensor::<f32>::new([0f32, 0.5235987755982989f32, 1.5707963267948966f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn asin_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -185,6 +201,7 @@ pub trait FloatUaryOps {
     /// let res = a.acos_(c).unwrap(); // note: c moved into sin_ and out as res
     /// assert!(res.allclose(&Tensor::<f32>::new([1.5707963267948966f32, 1.0471975511965979f32, 0f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn acos_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -197,6 +214,7 @@ pub trait FloatUaryOps {
     /// let res = a.atan_(c).unwrap(); // note: c moved into sin_ and out as res
     /// assert!(res.allclose(&Tensor::<f32>::new([0f32, 0.4636476090008061f32, 0.7853981633974483f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn atan_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -209,6 +227,7 @@ pub trait FloatUaryOps {
     /// let res = a.sinh_(c).unwrap(); // note: c moved into sin_ and out as res
     /// assert!(res.allclose(&Tensor::<f32>::new([0f32, 1.1752011936438014f32, 3.626860407847019f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn sinh_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -221,6 +240,7 @@ pub trait FloatUaryOps {
     /// let res = a.cosh_(c).unwrap(); // note: c moved into sin_ and out as res
     /// assert!(res.allclose(&Tensor::<f32>::new([1f32, 1.5430806348152437f32, 3.7621956910836314f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn cosh_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -233,6 +253,7 @@ pub trait FloatUaryOps {
     /// let res = a.tanh_(c).unwrap(); // note: c moved into sin_ and out as res
     /// assert!(res.allclose(&Tensor::<f32>::new([0f32, 0.7615941559557649f32, 0.9640275800758169f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn tanh_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -245,6 +266,7 @@ pub trait FloatUaryOps {
     /// let res = a.asinh_(c).unwrap(); // note: c moved into sin_ and out as res
     /// assert!(res.allclose(&Tensor::<f32>::new([0.48121182505960347f32, 0.881373587019543f32, 1.4436354751788103f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn asinh_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -257,6 +279,7 @@ pub trait FloatUaryOps {
     /// let res = a.acosh_(c).unwrap(); // note: c moved into sin_ and out as res
     /// assert!(res.allclose(&Tensor::<f32>::new([0f32, 1.3169578969248166f32, 1.762747174039086f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn acosh_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -269,6 +292,7 @@ pub trait FloatUaryOps {
     /// let res = a.atanh_(c).unwrap(); // note: c moved into sin_ and out as res
     /// assert!(res.allclose(&Tensor::<f32>::new([0.5493061443340549f32, 1.0986122886681098f32, 1.4722194895832204f32])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn atanh_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -280,6 +304,7 @@ pub trait FloatUaryOps {
     /// let b = a.exp().unwrap();
     /// assert!(b.allclose(&Tensor::<f64>::new([1f64, 2.718281828459045f64, 7.38905609893065f64])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn exp(&self) -> Result<Self::Output>;
 
     /// Compute exponential, element-wise.
@@ -290,6 +315,7 @@ pub trait FloatUaryOps {
     /// let b = a.exp().unwrap();
     /// assert!(b.allclose(&Tensor::<f64>::new([1f64, 2.718281828459045f64, 7.38905609893065f64])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn exp_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -301,6 +327,7 @@ pub trait FloatUaryOps {
     /// let b = a.expm1().unwrap();
     /// assert!(b.allclose(&Tensor::<f64>::new([0.6487212707001282f64, 1.718281828459045f64, 6.38905609893065f64])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn exp2(&self) -> Result<Self::Output>;
 
     /// Compute exponential minus one, element-wise.
@@ -311,6 +338,7 @@ pub trait FloatUaryOps {
     /// let b = a.expm1().unwrap();
     /// assert!(b.allclose(&Tensor::<f64>::new([0.6487212707001282f64, 1.718281828459045f64, 6.38905609893065f64])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn exp2_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -322,6 +350,7 @@ pub trait FloatUaryOps {
     /// let b = a.sqrt().unwrap();
     /// assert!(b.allclose(&Tensor::<f64>::new([2f64, 3f64, 4f64])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn sqrt(&self) -> Result<Self::Output>;
 
     /// Compute square root, element-wise.
@@ -332,6 +361,7 @@ pub trait FloatUaryOps {
     /// let b = a.sqrt().unwrap();
     /// assert!(b.allclose(&Tensor::<f64>::new([2f64, 3f64, 4f64])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn sqrt_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -343,6 +373,7 @@ pub trait FloatUaryOps {
     /// let b = a.recip().unwrap();
     /// assert!(b.allclose(&Tensor::<f64>::new([-0.23809523809523808f64, 0.10204081632653061f64, 0.06134969325153374f64])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn recip(&self) -> Result<Self::Output>;
 
     /// Inplace Version of reciprocal. Compute reciprocal, element-wise.
@@ -354,6 +385,7 @@ pub trait FloatUaryOps {
     /// a.recip_(c).unwrap();
     /// assert!(a.allclose(&Tensor::<f64>::new([-0.23809523809523808f64, 0.10204081632653061f64, 0.06134969325153374f64])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn recip_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -365,6 +397,7 @@ pub trait FloatUaryOps {
     /// let b = a.ln().unwrap();
     /// assert!(b.allclose(&Tensor::<f64>::new([0f64, 0.6931471805599453f64, 1.0986122886681098f64])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn ln(&self) -> Result<Self::Output>;
 
     /// Inplace Version of ln. Compute natural logarithm, element-wise.
@@ -376,6 +409,7 @@ pub trait FloatUaryOps {
     /// a.ln_(c).unwrap();
     /// assert!(a.allclose(&Tensor::<f64>::new([0f64, 0.6931471805599453f64, 1.0986122886681098f64])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn ln_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -387,6 +421,7 @@ pub trait FloatUaryOps {
     /// let b = a.log2().unwrap();
     /// assert!(b.allclose(&Tensor::<f64>::new([0f64, 1f64, 1.5849625007211563f64])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn log2(&self) -> Result<Self::Output>;
 
     /// Inplace Version of log2. Compute logarithm base 2, element-wise.
@@ -398,6 +433,7 @@ pub trait FloatUaryOps {
     /// a.log2_(c).unwrap();
     /// assert!(a.allclose(&Tensor::<f64>::new([0f64, 1f64, 1.5849625007211563f64])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn log2_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -409,6 +445,7 @@ pub trait FloatUaryOps {
     /// let b = a.log10().unwrap();
     /// assert!(b.allclose(&Tensor::<f64>::new([0f64, 0.3010299956639812f64, 0.47712125471966244f64])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn log10(&self) -> Result<Self::Output>;
 
     /// Inplace Version of log10. Compute logarithm base 10, element-wise.
@@ -420,40 +457,41 @@ pub trait FloatUaryOps {
     /// a.log10_(c).unwrap();
     /// assert!(a.allclose(&Tensor::<f64>::new([0f64, 0.3010299956639812f64, 0.47712125471966244f64])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn log10_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn celu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn celu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn sigmoid(&self) -> Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn sigmoid_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn elu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn elu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn leaky_relu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn gelu(&self) -> anyhow::Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn gelu_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn selu(
         &self,
         alpha: Option<Self::OutputMeta>,
         gamma: Option<Self::OutputMeta>
     ) -> anyhow::Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn selu_<U>(
         &self,
         alpha: Option<Self::OutputMeta>,
@@ -461,13 +499,13 @@ pub trait FloatUaryOps {
         out: U
     ) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn hard_sigmoid(
         &self,
         alpha: Option<Self::OutputMeta>,
         beta: Option<Self::OutputMeta>
     ) -> anyhow::Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn hard_sigmoid_<U>(
         &self,
         alpha: Option<Self::OutputMeta>,
@@ -475,29 +513,29 @@ pub trait FloatUaryOps {
         out: U
     ) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn hard_swish(&self) -> anyhow::Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn hard_swish_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn relu6(&self) -> anyhow::Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn relu6_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn softplus(&self) -> anyhow::Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn softplus_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn softsign(&self) -> anyhow::Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn softsign_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn mish(&self) -> anyhow::Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn mish_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 }
@@ -514,6 +552,7 @@ pub trait NormalUaryOps where Self: Sized {
     /// let b = a.square().unwrap();
     /// assert!(b.allclose(&Tensor::<f64>::new([1f64, 4f64, 9f64])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn square(&self) -> Result<Self::Output>;
 
     /// Inplace Version of square. Compute square, element-wise.
@@ -525,6 +564,7 @@ pub trait NormalUaryOps where Self: Sized {
     /// a.square_(c).unwrap();
     /// assert!(a.allclose(&Tensor::<f64>::new([1f64, 4f64, 9f64])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn square_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 
@@ -537,6 +577,7 @@ pub trait NormalUaryOps where Self: Sized {
     /// let b = a.abs().unwrap();
     /// assert_eq!(b, Tensor::new([1f32, 0f32, 3.]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn abs(&self) -> Result<Self>;
 
     /// Inplace Version of abs. Compute absolute value element-wise.
@@ -548,26 +589,26 @@ pub trait NormalUaryOps where Self: Sized {
     /// a.abs_(c).unwrap();
     /// assert!(a.allclose(&Tensor::<f64>::new([1f64, 0f64, 3f64])));
     /// ```
-    fn abs_<U>(&self, out: U) -> Result<Self>
-        where U: BaseTensor<Output = Self>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn abs_<U>(&self, out: U) -> Result<Self> where U: BaseTensor<Output = Self>;
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn ceil(&self) -> Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn ceil_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn sign(&self) -> Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn sign_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn clip(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn clip_<U>(&self, min: Self::OutputMeta, max: Self::OutputMeta, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn round(&self) -> Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn round_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 }
@@ -584,6 +625,7 @@ pub trait Cum where Self: Sized {
     /// let b = a.cumsum(Some(0)).unwrap();
     /// assert_eq!(b, Tensor::new([[1f32, 2f32, 3f32], [5f32, 7f32, 9f32]]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn cumsum(&self, axis: Option<i64>) -> Result<Self>
         where Self::Meta: NormalOut<Self::Meta, Output = Self::Meta>;
 
@@ -596,6 +638,7 @@ pub trait Cum where Self: Sized {
     /// let b = a.cumprod(Some(0)).unwrap();
     /// assert_eq!(b, Tensor::new([[1f32, 2f32, 3f32], [4f32, 10f32, 18f32]]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn cumprod(&self, axis: Option<i64>) -> Result<Self>
         where Self::Meta: NormalOut<Self::Meta, Output = Self::Meta>;
 }
@@ -613,6 +656,7 @@ pub trait Neg {
     /// let b = a.neg().unwrap();
     /// assert_eq!(b, Tensor::new([1f32, 0f32, -3.]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn neg(&self) -> Result<Self::Output>;
 
     /// Inplace Version of neg. Compute negative value element-wise.
@@ -624,6 +668,7 @@ pub trait Neg {
     /// a.neg_(c).unwrap();
     /// assert!(a.allclose(&Tensor::<f64>::new([1f64, 0f64, -3f64])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn neg_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 }
