@@ -40,7 +40,7 @@ macro_rules! normal_promote_ops_1 {
             {
                 type Output = _Tensor<<T as NormalOut<U>>::Output>;
 
-                #[track_caller]
+                #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
@@ -62,7 +62,7 @@ macro_rules! normal_promote_ops_1 {
                                 Location::caller()
                             ).unwrap();
                         } else {
-                            return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                            return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                         }
                     } else if lhs_size < rhs_size {
                         if rhs_size == res_size && U::ID == <T as NormalOut<U>>::Output::ID {
@@ -75,7 +75,7 @@ macro_rules! normal_promote_ops_1 {
                                 out, Location::caller()
                             ).unwrap();
                         } else {
-                            return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                            return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                         }
                     } else {
                         if T::ID == <T as NormalOut<U>>::Output::ID {
@@ -97,7 +97,7 @@ macro_rules! normal_promote_ops_1 {
                                 out, Location::caller()
                             ).unwrap();
                         } else {
-                            return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                            return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                         }
                     }
                 }
@@ -118,7 +118,7 @@ macro_rules! normal_promote_ops_2 {
             {
                 type Output = _Tensor<<T as NormalOut<U>>::Output>;
 
-                #[track_caller]
+                #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
@@ -136,7 +136,7 @@ macro_rules! normal_promote_ops_2 {
                             out, Location::caller()
                         ).unwrap();
                     } else {
-                        return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                     }
                 }
             }
@@ -155,9 +155,9 @@ macro_rules! normal_promote_ops_3 {
                 <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>
             {
                 type Output = _Tensor<<T as NormalOut<U>>::Output>;
-                #[track_caller]
+                #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
-                    return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                    return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                 }
             }
         )*
@@ -175,7 +175,7 @@ macro_rules! normal_promote_ops_4 {
                 <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>
             {
                 type Output = _Tensor<<T as NormalOut<U>>::Output>;
-                #[track_caller]
+                #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
@@ -193,7 +193,7 @@ macro_rules! normal_promote_ops_4 {
                             out, Location::caller()
                         ).unwrap();
                     } else {
-                        return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                     }
                 }
             }
@@ -271,7 +271,7 @@ macro_rules! bitwise_promote_ops_1 {
                 <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>
             {
                 type Output = _Tensor<<T as BitWiseOut<U>>::Output>;
-                #[track_caller]
+                #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
@@ -291,7 +291,7 @@ macro_rules! bitwise_promote_ops_1 {
                                 out, Location::caller()
                             ).unwrap();
                         } else {
-                            return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                            return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                         }
                     } else if lhs_size < rhs_size {
                         if rhs_size == res_size && U::ID == <T as BitWiseOut<U>>::Output::ID {
@@ -304,7 +304,7 @@ macro_rules! bitwise_promote_ops_1 {
                                 out, Location::caller()
                             ).unwrap();
                         } else {
-                            return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                            return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                         }
                     } else {
                         if T::ID == <T as BitWiseOut<U>>::Output::ID {
@@ -326,7 +326,7 @@ macro_rules! bitwise_promote_ops_1 {
                                 out, Location::caller()
                             ).unwrap();
                         } else {
-                            return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                            return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                         }
                     }
                 }
@@ -363,7 +363,7 @@ macro_rules! bitwise_promote_ops_2 {
                             out, Location::caller()
                         ).unwrap();
                     } else {
-                        return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                     }
                 }
             }
@@ -383,7 +383,7 @@ macro_rules! bitwise_promote_ops_3 {
             {
                 type Output = _Tensor<<T as BitWiseOut<U>>::Output>;
                 fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
-                    return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                    return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                 }
             }
         )*
@@ -418,7 +418,7 @@ macro_rules! bitwise_promote_ops_4 {
                             out, Location::caller()
                         ).unwrap();
                     } else {
-                        return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                     }
                 }
             }
@@ -462,7 +462,7 @@ macro_rules! shift_promote_ops_1 {
             {
                 type Output = _Tensor<<T as BitWiseOut<U>>::Output>;
 
-                #[track_caller]
+                #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
@@ -482,7 +482,7 @@ macro_rules! shift_promote_ops_1 {
                                 out, Location::caller()
                             ).unwrap();
                         } else {
-                            return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                            return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                         }
                     } else if lhs_size < rhs_size {
                         if rhs_size == res_size && U::ID == <T as BitWiseOut<U>>::Output::ID {
@@ -495,7 +495,7 @@ macro_rules! shift_promote_ops_1 {
                                 out, Location::caller()
                             ).unwrap();
                         } else {
-                            return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                            return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                         }
                     } else {
                         if T::ID == <T as BitWiseOut<U>>::Output::ID {
@@ -517,7 +517,7 @@ macro_rules! shift_promote_ops_1 {
                                 out, Location::caller()
                             ).unwrap();
                         } else {
-                            return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                            return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                         }
                     }
                 }
@@ -538,7 +538,7 @@ macro_rules! shift_promote_ops_2 {
             {
                 type Output = _Tensor<<T as BitWiseOut<U>>::Output>;
 
-                #[track_caller]
+                #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
@@ -556,7 +556,7 @@ macro_rules! shift_promote_ops_2 {
                             out, Location::caller()
                         ).unwrap();
                     } else {
-                        return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                     }
                 }
             }
@@ -576,9 +576,9 @@ macro_rules! shift_promote_ops_3 {
             {
                 type Output = _Tensor<<T as BitWiseOut<U>>::Output>;
 
-                #[track_caller]
+                #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
-                    return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                    return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                 }
             }
         )*
@@ -596,7 +596,7 @@ macro_rules! shift_promote_ops_4 {
                 <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>
             {
                 type Output = _Tensor<<T as BitWiseOut<U>>::Output>;
-                #[track_caller]
+                #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
@@ -614,7 +614,7 @@ macro_rules! shift_promote_ops_4 {
                             out, Location::caller()
                         ).unwrap();
                     } else {
-                        return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                     }
                 }
             }
@@ -638,7 +638,7 @@ macro_rules! float_binary_promote_ops_1 {
                 <T as FloatOut<U>>::Output: IntoScalar<<T as FloatOut<U>>::Output>
             {
                 type Output = _Tensor<<T as FloatOut<U>>::Output>;
-                #[track_caller]
+                #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
@@ -658,7 +658,7 @@ macro_rules! float_binary_promote_ops_1 {
                                 out, Location::caller()
                             ).unwrap();
                         } else {
-                            return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                            return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                         }
                     } else if lhs_size < rhs_size {
                         if rhs_size == res_size && U::ID == <T as FloatOut<U>>::Output::ID {
@@ -671,7 +671,7 @@ macro_rules! float_binary_promote_ops_1 {
                                 out, Location::caller()
                             ).unwrap();
                         } else {
-                            return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                            return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                         }
                     } else {
                         if T::ID == <T as FloatOut<U>>::Output::ID {
@@ -693,7 +693,7 @@ macro_rules! float_binary_promote_ops_1 {
                                 out, Location::caller()
                             ).unwrap();
                         } else {
-                            return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                            return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                         }
                     }
                 }
@@ -713,7 +713,7 @@ macro_rules! float_binary_promote_ops_2 {
                 <T as FloatOut<U>>::Output: IntoScalar<<T as FloatOut<U>>::Output>
             {
                 type Output = _Tensor<<T as FloatOut<U>>::Output>;
-                #[track_caller]
+                #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
@@ -731,7 +731,7 @@ macro_rules! float_binary_promote_ops_2 {
                             out, Location::caller()
                         ).unwrap();
                     } else {
-                        return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                     }
                 }
             }
@@ -751,7 +751,7 @@ macro_rules! float_binary_promote_ops_3 {
             {
                 type Output = _Tensor<<T as FloatOut<U>>::Output>;
                 fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
-                    return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                    return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                 }
             }
         )*
@@ -769,10 +769,12 @@ macro_rules! float_binary_promote_ops_4 {
                 <T as FloatOut<U>>::Output: IntoScalar<<T as FloatOut<U>>::Output>
             {
                 type Output = _Tensor<<T as FloatOut<U>>::Output>;
+                #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
-                        rhs.shape(), Location::caller()
+                        rhs.shape(),
+                        Location::caller()
                     ).unwrap();
                     let res_size: usize = res_shape.size() as usize;
                     let rhs_size: usize = rhs.layout().real_size();
@@ -786,7 +788,7 @@ macro_rules! float_binary_promote_ops_4 {
                             out, Location::caller()
                         ).unwrap();
                     } else {
-                        return binary_fn(&self, &rhs, |x, y| x.$op3(y), Location::caller()).unwrap();
+                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                     }
                 }
             }
@@ -823,42 +825,42 @@ macro_rules! normal_scalar_rhs {
     ) => {
         $(impl<T> Add<$type> for $($tokens)*_Tensor<T> where T: NormalOut<$type> + CommonBounds, <T as NormalOut<$type>>::Output: CommonBounds {
             type Output = _Tensor<<T as NormalOut<$type>>::Output>;
-            #[track_caller]
+            #[cfg_attr(feature = "track_caller", track_caller)]
             fn add(self, rhs: $type) -> Self::Output {
                 let rhs: _Tensor<$type> = rhs.into();
-                return binary_fn(&self, &rhs, |x, y| x._add(y), Location::caller()).unwrap();
+                return binary_fn(&self, &rhs, |x, y| x._add(y)).unwrap();
             }
         }
         impl<T> Mul<$type> for $($tokens)*_Tensor<T> where T: NormalOut<$type> + CommonBounds, <T as NormalOut<$type>>::Output: CommonBounds {
             type Output = _Tensor<<T as NormalOut<$type>>::Output>;
-            #[track_caller]
+            #[cfg_attr(feature = "track_caller", track_caller)]
             fn mul(self, rhs: $type) -> Self::Output {
                 let rhs: _Tensor<$type> = rhs.into();
-                return binary_fn(&self, &rhs, |x, y| x._mul(y), Location::caller()).unwrap();
+                return binary_fn(&self, &rhs, |x, y| x._mul(y)).unwrap();
             }
         }
         impl<T> Sub<$type> for $($tokens)*_Tensor<T> where T: NormalOut<$type> + CommonBounds, <T as NormalOut<$type>>::Output: CommonBounds {
             type Output = _Tensor<<T as NormalOut<$type>>::Output>;
-            #[track_caller]
+            #[cfg_attr(feature = "track_caller", track_caller)]
             fn sub(self, rhs: $type) -> Self::Output {
                 let rhs: _Tensor<$type> = rhs.into();
-                return binary_fn(&self, &rhs, |x, y| x._sub(y), Location::caller()).unwrap();
+                return binary_fn(&self, &rhs, |x, y| x._sub(y)).unwrap();
             }
         }
         impl<T> Div<$type> for $($tokens)*_Tensor<T> where T: FloatOut<$type> + CommonBounds, <T as FloatOut<$type>>::Output: CommonBounds {
             type Output = _Tensor<<T as FloatOut<$type>>::Output>;
-            #[track_caller]
+            #[cfg_attr(feature = "track_caller", track_caller)]
             fn div(self, rhs: $type) -> Self::Output {
                 let rhs: _Tensor<$type> = rhs.into();
-                return binary_fn(&self, &rhs, |x, y| x._div(y), Location::caller()).unwrap();
+                return binary_fn(&self, &rhs, |x, y| x._div(y)).unwrap();
             }
         }
         impl<T> Rem<$type> for $($tokens)*_Tensor<T> where T: NormalOut<$type> + CommonBounds, <T as NormalOut<$type>>::Output: CommonBounds {
             type Output = _Tensor<<T as NormalOut<$type>>::Output>;
-            #[track_caller]
+            #[cfg_attr(feature = "track_caller", track_caller)]
             fn rem(self, rhs: $type) -> Self::Output {
                 let rhs: _Tensor<$type> = rhs.into();
-                return binary_fn(&self, &rhs, |x, y| x._rem(y), Location::caller()).unwrap();
+                return binary_fn(&self, &rhs, |x, y| x._rem(y)).unwrap();
             }
         })*
     };
@@ -873,34 +875,34 @@ macro_rules! normal_scalar_lhs {
     ) => {
         $(impl<T> Add<$($tokens)*_Tensor<T>> for $type where T: CommonBounds, <$type as NormalOut<T>>::Output: CommonBounds, $type: NormalOut<T> {
             type Output = _Tensor<<$type as NormalOut<T>>::Output>;
-            #[track_caller]
+            #[cfg_attr(feature = "track_caller", track_caller)]
             fn add(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
                 let lhs: _Tensor<$type> = self.into();
-                return binary_fn(&lhs, &rhs, |x, y| x._add(y), Location::caller()).unwrap();
+                return binary_fn(&lhs, &rhs, |x, y| x._add(y)).unwrap();
             }
         }
         impl<T> Mul<$($tokens)*_Tensor<T>> for $type where T: CommonBounds, <$type as NormalOut<T>>::Output: CommonBounds, $type: NormalOut<T> {
             type Output = _Tensor<<$type as NormalOut<T>>::Output>;
-            #[track_caller]
+            #[cfg_attr(feature = "track_caller", track_caller)]
             fn mul(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
                 let lhs: _Tensor<$type> = self.into();
-                return binary_fn(&lhs, &rhs, |x, y| x._mul(y), Location::caller()).unwrap();
+                return binary_fn(&lhs, &rhs, |x, y| x._mul(y)).unwrap();
             }
         }
         impl<T> Sub<$($tokens)*_Tensor<T>> for $type where T: CommonBounds, <$type as NormalOut<T>>::Output: CommonBounds, $type: NormalOut<T> {
             type Output = _Tensor<<$type as NormalOut<T>>::Output>;
-            #[track_caller]
+            #[cfg_attr(feature = "track_caller", track_caller)]
             fn sub(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
                 let lhs: _Tensor<$type> = self.into();
-                return binary_fn(&lhs, &rhs, |x, y| x._sub(y), Location::caller()).unwrap();
+                return binary_fn(&lhs, &rhs, |x, y| x._sub(y)).unwrap();
             }
         }
         impl<T> Div<$($tokens)*_Tensor<T>> for $type where T: FloatOut<T> + CommonBounds, <$type as FloatOut<T>>::Output: CommonBounds, $type: FloatOut<T> {
             type Output = _Tensor<<$type as FloatOut<T>>::Output>;
-            #[track_caller]
+            #[cfg_attr(feature = "track_caller", track_caller)]
             fn div(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
                 let lhs: _Tensor<$type> = self.into();
-                return binary_fn(&lhs, &rhs, |x, y| x._div(y), Location::caller()).unwrap();
+                return binary_fn(&lhs, &rhs, |x, y| x._div(y)).unwrap();
             }
         })*
     };

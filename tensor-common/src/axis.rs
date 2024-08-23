@@ -1,9 +1,12 @@
+use core::panic::Location;
+
 use crate::err_handler::ErrHandler;
 
 pub struct Axis {
     pub axes: Vec<i64>,
 }
 
+#[cfg_attr(feature = "track_caller", track_caller)]
 pub fn process_axes<T: Into<Axis>>(axes: T, ndim: usize) -> anyhow::Result<Vec<usize>> {
     let ndim = ndim as i64;
     let axes = axes.into().axes;
@@ -14,7 +17,7 @@ pub fn process_axes<T: Into<Axis>>(axes: T, ndim: usize) -> anyhow::Result<Vec<u
             new_axes.push(val as usize);
         } else {
             if axis >= ndim {
-                return Err(ErrHandler::IndexOutOfRange(ndim as usize, axis, axis + ndim).into());
+                return Err(ErrHandler::IndexOutOfRange(ndim as usize, axis, axis + ndim, Location::caller()).into());
             }
             new_axes.push(axis as usize);
         }

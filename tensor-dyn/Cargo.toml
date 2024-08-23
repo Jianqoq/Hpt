@@ -35,3 +35,6 @@ pollster = "0.3.0"
 num_cpus = "1.16.0"
 likely_stable = "0.1.2"
 thiserror = "1.0.63"
+
+[features]
+track_caller = []

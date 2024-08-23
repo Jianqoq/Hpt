@@ -122,6 +122,7 @@ impl Layout {
         })
     }
 
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn inplace_reshape(&self, shape: &Shape) -> anyhow::Result<Layout> {
         if let Some(new_strides) = self.is_reshape_possible(shape) {
             Ok(Layout {
@@ -133,7 +134,8 @@ impl Layout {
                 ErrHandler::IterInplaceReshapeError(
                     shape.clone(),
                     self.shape.clone(),
-                    self.strides.clone()
+                    self.strides.clone(),
+                    Location::caller(),
                 ).into()
             )
         }

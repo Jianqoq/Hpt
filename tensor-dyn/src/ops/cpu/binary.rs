@@ -25,7 +25,7 @@ macro_rules! impl_bin_ops {
         type OutputMeta = NormalType<A, B>;
         type InplaceOutput = _Tensor<NormalType<A, B>>;
 
-        #[track_caller]
+        #[cfg_attr(feature = "track_caller", track_caller)]
         fn add_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
             where
                 U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
@@ -33,7 +33,7 @@ macro_rules! impl_bin_ops {
         {
             binary_fn_with_out(self, &rhs, |a, b| a._add(b), out, Location::caller())
         }
-        #[track_caller]
+        #[cfg_attr(feature = "track_caller", track_caller)]
         fn sub_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
             where
                 U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
@@ -41,7 +41,7 @@ macro_rules! impl_bin_ops {
         {
             binary_fn_with_out(self, &rhs, |a, b| a._sub(b), out, Location::caller())
         }
-        #[track_caller]
+        #[cfg_attr(feature = "track_caller", track_caller)]
         fn mul_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
             where
                 U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
@@ -49,7 +49,7 @@ macro_rules! impl_bin_ops {
         {
             binary_fn_with_out(self, &rhs, |a, b| a._mul(b), out, Location::caller())
         }
-        #[track_caller]
+        #[cfg_attr(feature = "track_caller", track_caller)]
         fn rem_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
             where
                 U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
@@ -82,7 +82,7 @@ macro_rules! impl_bin_ops_basic {
         type Output = Tensor<NormalType<A, B>>;
         type OutputMeta = NormalType<A, B>;
         type InplaceOutput = _Tensor<NormalType<A, B>>;
-        #[track_caller]
+        #[cfg_attr(feature = "track_caller", track_caller)]
         fn add_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
             where
                 U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
@@ -90,7 +90,7 @@ macro_rules! impl_bin_ops_basic {
         {
             Ok(binary_fn_with_out(self, &rhs, |a, b| a._add(b), out, Location::caller())?.into())
         }
-        #[track_caller]
+        #[cfg_attr(feature = "track_caller", track_caller)]
         fn sub_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
             where
                 U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
@@ -98,7 +98,7 @@ macro_rules! impl_bin_ops_basic {
         {
             Ok(binary_fn_with_out(self, &rhs, |a, b| a._sub(b), out, Location::caller())?.into())
         }
-        #[track_caller]
+        #[cfg_attr(feature = "track_caller", track_caller)]
         fn mul_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
             where
                 U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
@@ -106,7 +106,7 @@ macro_rules! impl_bin_ops_basic {
         {
             Ok(binary_fn_with_out(self, &rhs, |a, b| a._mul(b), out, Location::caller())?.into())
         }
-        #[track_caller]
+        #[cfg_attr(feature = "track_caller", track_caller)]
         fn rem_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
             where
                 U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
@@ -139,17 +139,17 @@ impl<A, B> Matmul<_Tensor<B>>
 
     type InplaceOutput = _Tensor<<A as NormalOut<B>>::Output>;
 
-    #[track_caller]
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn matmul(&self, rhs: _Tensor<B>) -> anyhow::Result<Self::Output> {
-        matmul_no_out(self, &rhs, Location::caller())
+        matmul_no_out(self, &rhs)
     }
-    #[track_caller]
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn matmul_<U>(&self, rhs: _Tensor<B>, out: U) -> anyhow::Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>
     {
-        matmul_with_out(self, &rhs, out, Location::caller())
+        matmul_with_out(self, &rhs, out)
     }
 }
 
@@ -166,17 +166,17 @@ impl<A, B> Matmul<&_Tensor<B>>
 
     type InplaceOutput = _Tensor<<A as NormalOut<B>>::Output>;
 
-    #[track_caller]
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn matmul(&self, rhs: &_Tensor<B>) -> anyhow::Result<Self::Output> {
-        matmul_no_out(self, rhs, Location::caller())
+        matmul_no_out(self, rhs)
     }
 
-    #[track_caller]
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn matmul_<U>(&self, rhs: &_Tensor<B>, out: U) -> anyhow::Result<Self::Output>
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>
     {
-        matmul_with_out(self, rhs, out, Location::caller())
+        matmul_with_out(self, rhs, out)
     }
 }

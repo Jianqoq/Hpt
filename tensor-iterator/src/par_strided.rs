@@ -64,7 +64,7 @@ impl<T: CommonBounds> ParStrided<T> {
         }
     }
 
-    #[track_caller]
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn zip<'a, C>(mut self, mut other: C) -> ParStridedZip<'a, Self, C>
         where
             C: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
@@ -244,7 +244,7 @@ impl<T> UnindexedProducer for ParStrided<T> where T: CommonBounds {
 }
 
 impl<T: Copy + Display> ShapeManipulator for ParStrided<T> {
-    #[track_caller]
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn reshape<S: Into<Shape>>(mut self, shape: S) -> Self {
         let tmp = shape.into();
         let res_shape = tmp;
@@ -296,7 +296,8 @@ impl<T: Copy + Display> ShapeManipulator for ParStrided<T> {
                 ErrHandler::IterInplaceReshapeError(
                     self.shape().clone(),
                     res_shape.clone(),
-                    self.strides().clone()
+                    self.strides().clone(),
+                    Location::caller(),
                 );
             }
         }

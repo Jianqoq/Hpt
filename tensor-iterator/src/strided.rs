@@ -43,9 +43,11 @@ impl<T: CommonBounds> Strided<T> {
     pub fn zip<'a, C>(mut self, mut other: C) -> StridedZip<'a, Self, C>
         where C: 'a + IterGetSet, <C as IterGetSet>::Item: Send
     {
-        let new_shape = predict_broadcast_shape(self.shape(), other.shape(), Location::caller()).expect(
-            "Cannot broadcast shapes"
-        );
+        let new_shape = predict_broadcast_shape(
+            self.shape(),
+            other.shape(),
+            Location::caller()
+        ).expect("Cannot broadcast shapes");
 
         other.broadcast_set_strides(&new_shape);
         self.broadcast_set_strides(&new_shape);
@@ -119,14 +121,13 @@ impl<T: Copy + Display> IterGetSet for Strided<T> {
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         unsafe { *self.ptr.get_ptr().add(index * (self.last_stride as usize)) }
     }
-    
+
     fn set_prg(&mut self, prg: Vec<i64>) {
         self.prg = prg;
     }
 }
 
 impl<T: Copy + Display> ShapeManipulator for Strided<T> {
-
     #[track_caller]
     fn reshape<S: Into<Shape>>(mut self, shape: S) -> Self {
         let tmp = shape.into();
@@ -140,9 +141,11 @@ impl<T: Copy + Display> ShapeManipulator for Strided<T> {
         if size > (self_size as usize) {
             let self_shape = try_pad_shape(self.shape(), res_shape.len());
 
-            let axes_to_broadcast = get_broadcast_axes_from(&self_shape, &res_shape, Location::caller()).expect(
-                "Cannot broadcast shapes"
-            );
+            let axes_to_broadcast = get_broadcast_axes_from(
+                &self_shape,
+                &res_shape,
+                Location::caller()
+            ).expect("Cannot broadcast shapes");
 
             let mut new_strides = vec![0; res_shape.len()];
             new_strides
@@ -167,7 +170,8 @@ impl<T: Copy + Display> ShapeManipulator for Strided<T> {
                 let error = ErrHandler::IterInplaceReshapeError(
                     self.shape().clone(),
                     res_shape.clone(),
-                    self.strides().clone()
+                    self.strides().clone(),
+                    Location::caller()
                 );
                 panic!("{}", error);
             }

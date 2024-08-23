@@ -148,7 +148,8 @@ macro_rules! impl_binary_fn {
     };
 }
 
-pub fn binary_fn<A, B, K, F>(lhs: &_Tensor<A>, rhs: &_Tensor<B>, f: F, location: &'static Location<'static>) -> anyhow::Result<_Tensor<K>>
+#[cfg_attr(feature = "track_caller", track_caller)]
+pub fn binary_fn<A, B, K, F>(lhs: &_Tensor<A>, rhs: &_Tensor<B>, f: F) -> anyhow::Result<_Tensor<K>>
 where
     A: CommonBounds,
     B: CommonBounds,
@@ -177,7 +178,7 @@ where
         Ok(res)
     } else {
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
-            let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape(), location)?;
+            let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape(), Location::caller())?;
             let ret;
             ret = _Tensor::<K, Cpu>::empty(res_shape).unwrap();
             let min_len: usize =

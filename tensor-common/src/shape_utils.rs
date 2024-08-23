@@ -146,10 +146,10 @@ pub fn predict_broadcast_shape(a_shape: &[i64], b_shape: &[i64], location: &'sta
     Ok(Shape::from(result_shape))
 }
 
+#[cfg_attr(feature = "track_caller", track_caller)]
 pub fn predict_broadcast_strides<T: Into<Layout>>(
     brocasted_shape: &[i64],
-    original_layout: T,
-    location: &'static Location<'static>
+    original_layout: T
 ) -> Strides {
     let original_layout: Layout = original_layout.into();
     let brocasted_size = brocasted_shape.iter().product::<i64>();
@@ -158,7 +158,7 @@ pub fn predict_broadcast_strides<T: Into<Layout>>(
     // if true, it is brocasted
     if brocasted_size > original_size {
         let shape = try_pad_shape(original_layout.shape(), brocasted_shape.len());
-        let axes_to_broadcast = get_broadcast_axes_from(&shape, brocasted_shape, location).expect(
+        let axes_to_broadcast = get_broadcast_axes_from(&shape, brocasted_shape, Location::caller()).expect(
             "Cannot broadcast shapes"
         );
 
@@ -183,7 +183,8 @@ pub fn predict_broadcast_strides<T: Into<Layout>>(
             ErrHandler::IterInplaceReshapeError(
                 brocasted_shape.into(),
                 original_layout.shape().clone(),
-                original_layout.strides().clone()
+                original_layout.strides().clone(),
+                Location::caller()
             );
             unreachable!()
         }
