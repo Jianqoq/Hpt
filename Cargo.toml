@@ -17,23 +17,11 @@ members = [
 ]
 
 [dependencies]
-tensor-allocator = { path = "tensor-allocator" }
-tensor-common = { path = "tensor-common" }
 tensor-dyn = { path = "tensor-dyn" }
-tensor-traits = { path = "tensor-traits" }
-tensor-types = { path = "tensor-types" }
-tensor-macros = { path = "tensor-macros" }
-num-traits = "0.2.19"
 anyhow = "1.0.40"
-tokio = { version = "1.39.2", features = ["full"] }
-rand = "0.8.5"
 wgpu = { version = "22.1.0", features = ["naga-ir"] }
 rayon = "1.8.0"
 half = "2.4.1"
-pollster = "0.3.0"
-flume = "0.11.0"
-bytemuck = "1.16.3"
-naga = "22.1.0"
 wide = "0.7.28"
 cudarc = { version = "0.11.8", features = ["cuda-12010"] }
 winapi = { version = "0.3", features = ["psapi", "handleapi", "processthreadsapi"] }

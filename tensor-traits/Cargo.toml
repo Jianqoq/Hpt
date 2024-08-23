@@ -4,8 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tensor-common ={ path = "../tensor-common" }
+tensor-common = { path = "../tensor-common" }
 tensor-types = { path = "../tensor-types" }
 anyhow = "1.0.75"
 num = "0.4"
 rand_distr = "0.4.3"
+
+[features]
+track_caller = []

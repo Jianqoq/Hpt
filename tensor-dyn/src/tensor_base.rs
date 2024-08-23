@@ -982,7 +982,6 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         self.reshape(res_shape)
     }
 
-    #[cfg_attr(feature = "track_caller", track_caller)]
     fn reshape<S: Into<Shape>>(&self, shape: S) -> Result<_Tensor<T>> {
         let shape: Shape = shape.into();
         if shape.size() != (self.size() as i64) {

@@ -1,5 +1,3 @@
-use std::panic::Location;
-
 use tensor_traits::{ ops::cmp::TensorCmp, tensor::CommonBounds };
 use tensor_types::type_promote::Cmp;
 use anyhow::Result;

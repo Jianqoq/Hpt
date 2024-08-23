@@ -19,6 +19,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// let b = a.squeeze(0).unwrap();
     /// assert_eq!(b.shape(), &[100]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn squeeze<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
 
     /// yeild `1` dimension to the shape of a tensor in the specific axes
@@ -36,6 +37,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// let b = a.unsqueeze(0).unwrap();
     /// assert_eq!(b.shape(), &[1, 100]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn unsqueeze<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
 
     /// Gives a new shape to an array without changing its data.
@@ -53,6 +55,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// let b = a.reshape([10, 10]).unwrap();
     /// assert_eq!(b.shape(), &[10, 10]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn reshape<S: Into<Shape>>(&self, shape: S) -> Result<Output>;
 
     /// Returns an array with axes swapped.
@@ -72,6 +75,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// let b = a.transpose(0, 1).unwrap();
     /// assert_eq!(b.shape(), &[100, 1]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn transpose(&self, axis1: i64, axis2: i64) -> Result<Output>;
 
     /// Permutes the dimensions of an array.
@@ -90,8 +94,9 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// let b = a.permute([1, 0]).unwrap();
     /// assert_eq!(b.shape(), &[100, 1]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn permute<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
 
     /// Expand the tensor to the specified shape
@@ -110,6 +115,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// let b = a.expand([10, 10]).unwrap();
     /// assert_eq!(b.shape(), &[10, 10]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn expand<S: Into<Shape>>(&self, shape: S) -> Result<Output>;
 
     /// tranpose a Tensor with dimension `>= 2`
@@ -126,6 +132,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// let b = a.t().unwrap();
     /// assert_eq!(b.shape(), &[1, 100]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn t(&self) -> Result<Output>;
 
     /// flip the axes of a tensor
@@ -140,6 +147,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// let b = a.flip(Axis(0)).unwrap();
     /// assert_eq!(b.shape(), &[100]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn mt(&self) -> Result<Output>;
 
     /// flip the elements of a tensor along a sequence of axes
@@ -157,9 +165,11 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// let b = a.flip(Axis(0)).unwrap();
     /// assert_eq!(b.shape(), &[100]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn flip<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn fliplr(&self) -> Result<Output>;
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn flipud(&self) -> Result<Output>;
 
     /// Construct a tensor by repeating A the number of times given by reps.
@@ -177,6 +187,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// let b = a.tile(3).unwrap();
     /// assert_eq!(b.shape(), &[3, 3]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn tile<S: Into<Axis>>(&self, reps: S) -> Result<Output>;
 
     /// Trim the leading and/or trailing zeros from a 1-D tensor.
@@ -194,6 +205,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// let b = a.trim_zeros("fb").unwrap();
     /// assert_eq!(b.shape(), &[1, 2, 3]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn trim_zeros(&self, trim: &str) -> Result<Output> where Self::Meta: PartialEq;
 
     /// Repeat elements along a given axis of a tensor.
@@ -212,6 +224,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// let b = a.repeat(3, 0).unwrap();
     /// assert_eq!(b.shape(), &[9]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn repeat(&self, repeats: usize, axis: i16) -> Result<Output>;
 
     /// Split a tensor into multiple sub-tensors.
@@ -232,6 +245,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// assert_eq!(b[1].shape(), &[2]);
     /// assert_eq!(b[2].shape(), &[2]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn split(&self, indices_or_sections: &[i64], axis: i64) -> Result<Vec<Output>>;
 
     /// Split a tensor into multiple sub-tensors along the first axis.
@@ -251,6 +265,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// assert_eq!(b[1].shape(), &[2, 3]);
     /// assert_eq!(b[2].shape(), &[2, 3]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn dsplit(&self, indices: &[i64]) -> Result<Vec<Output>>;
 
     /// Split a tensor into multiple sub-tensors along the last axis.
@@ -270,6 +285,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// assert_eq!(b[1].shape(), &[3, 2]);
     /// assert_eq!(b[2].shape(), &[3, 2]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn hsplit(&self, indices: &[i64]) -> Result<Vec<Output>>;
 
     /// Split a tensor into multiple sub-tensors along the second axis.
@@ -289,6 +305,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// assert_eq!(b[1].shape(), &[3, 2]);
     /// assert_eq!(b[2].shape(), &[3, 2]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn vsplit(&self, indices: &[i64]) -> Result<Vec<Output>>;
 
     /// Swap the axes of a tensor.
@@ -307,7 +324,8 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// let b = a.swap_axes(0, 1).unwrap();
     /// assert_eq!(b.shape(), &[3, 2]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn swap_axes(&self, axis1: i64, axis2: i64) -> Result<Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn flatten<A>(&self, axis: A) -> Result<Output> where A: Into<Option<usize>>;
 }

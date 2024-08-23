@@ -66,6 +66,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     /// let empty_tensor = YourType::empty([2, 3]); // Creates a 2x3 empty tensor
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Output>;
 
     /// Creates a tensor filled with zeros.
@@ -82,6 +83,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     /// let zeros_tensor = YourType::zeros([2, 3]); // Creates a 2x3 tensor filled with zeros
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn zeros<S: Into<Shape>>(shape: S) -> anyhow::Result<Output>;
 
     /// Creates a tensor filled with ones.
@@ -98,6 +100,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     /// let ones_tensor = YourType::ones([2, 3]); // Creates a 2x3 tensor filled with ones
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn ones<S: Into<Shape>>(shape: S) -> anyhow::Result<Output> where u8: IntoScalar<T>;
 
     /// Creates a tensor with the same shape as the caller tensor, but empty.
@@ -112,6 +115,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// let original_tensor = YourType::new(...);
     /// let empty_tensor = original_tensor.empty_like(); // New tensor with the same shape, but empty
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn empty_like(&self) -> anyhow::Result<Output>;
 
     /// Creates a tensor with all zeros, based on the shape of `self`.
@@ -126,6 +130,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// let original_tensor = YourType::new(...);
     /// let zeros_tensor = original_tensor.zeros_like(); // New tensor with the same shape, filled with zeros
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn zeros_like(&self) -> anyhow::Result<Output>;
 
     /// Creates a tensor with all ones, based on the shape of `self`.
@@ -140,6 +145,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// let original_tensor = YourType::new(...);
     /// let ones_tensor = original_tensor.ones_like(); // New tensor with the same shape, filled with ones
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn ones_like(&self) -> anyhow::Result<Output> where u8: IntoScalar<T>;
 
     /// Creates a tensor filled entirely with a specified value.
@@ -160,6 +166,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     /// let tensor = YourType::full(3.14, [2, 2]); // Creates a 2x2 tensor filled with 3.14
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn full<S: Into<Shape>>(val: T, shape: S) -> anyhow::Result<Output>;
 
     /// Creates a tensor with the same shape as another tensor, filled with a specified value.
@@ -178,6 +185,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// let original_tensor = YourType::new(...);
     /// let filled_tensor = original_tensor.full_like(1.0); // New tensor with the same shape, filled with 1.0
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn full_like(&self, val: T) -> anyhow::Result<Output>;
 
     /// Creates a tensor with a range of values from `start` to `end` (exclusive).
@@ -199,6 +207,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     /// let range_tensor = YourType::arange(0, 10); // Creates a tensor with values from 0 to 9
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn arange<U>(start: U, end: U) -> anyhow::Result<Output>
         where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>;
 
@@ -219,6 +228,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     /// let range_step_tensor = YourType::arange_step(0, 10, 2); // Creates a tensor with values [0, 2, 4, 6, 8]
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn arange_step(start: T, end: T, step: T) -> anyhow::Result<Output>
         where T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>;
 
@@ -237,6 +247,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     /// let eye_matrix = Tensor::<i32>::eye(3, 3, 0); // Creates a 3x3 identity matrix
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn eye(n: usize, m: usize, k: usize) -> anyhow::Result<Output> where u8: IntoScalar<T>;
 
     /// Returns evenly spaced numbers over a specified interval.
@@ -258,6 +269,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// let linspace_tensor = YourType::linspace(0., 10., 5, false);
     /// // Creates a tensor with values [0., 2.5, 5., 7.5, 10.]
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn linspace(start: T, end: T, num: usize, include_end: bool) -> anyhow::Result<Output>
         where
             T: Convertor + num::Float + NormalOut<T, Output = T>,
@@ -284,6 +296,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// let logspace_tensor = YourType::logspace(0., 10., 5, false, 2.);
     /// // Creates a tensor with values [1., 2.160119483, 4.641588833, 10., 21.5443469]
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> anyhow::Result<Output>
         where
             T: Convertor +
@@ -314,6 +327,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// let geomspace_tensor = YourType::geomspace(1., 1000., 4, true);
     /// // Creates a tensor with values [1., 10., 100., 1000.]
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> anyhow::Result<Output>
         where
             T: PartialOrd +
@@ -346,6 +360,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     /// let tri_matrix = YourType::tri(3, 3, 0, true); // Creates a 3x3 lower triangular matrix
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> anyhow::Result<Output>
         where u8: IntoScalar<T>;
 
@@ -364,6 +379,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// let tensor = YourType::new(...);
     /// let lower_tri_matrix = tensor.tril(0); // Creates a lower triangular matrix from tensor
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn tril(&self, k: i64) -> anyhow::Result<Self>
         where T: NormalOut<bool, Output = T> + IntoScalar<T>;
 
@@ -385,6 +401,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// let tensor = YourType::new(...);
     /// let upper_tri_matrix = tensor.triu(0); // Creates an upper triangular matrix from tensor
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn triu(&self, k: i64) -> anyhow::Result<Self>
         where T: NormalOut<bool, Output = T> + IntoScalar<T>;
 
@@ -402,6 +419,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     /// let identity_matrix = YourType::identity(3); // Creates a 3x3 identity matrix
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn identity(n: usize) -> anyhow::Result<Output> where u8: IntoScalar<T>;
 }
 
