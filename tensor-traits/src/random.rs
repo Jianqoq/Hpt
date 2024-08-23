@@ -20,6 +20,7 @@ pub trait Random where Self: Sized {
     /// let normal_array = Tensor::<f32>::randn([1000])?;
     /// ```
     /// This example creates a 1000-element array of random numbers following a standard normal distribution.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn randn<S: Into<Shape>>(shape: S) -> Result<Self>;
 
     /// Generates a random number array with a standard normal distribution (mean = `0`, standard deviation = `1`),
@@ -35,6 +36,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates an array of random numbers following a standard normal distribution,
     /// similar to `a` in shape.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn randn_like(&self) -> Result<Self>;
 
     /// Generates a random number array with a uniform distribution between [0, 1).
@@ -50,6 +52,7 @@ pub trait Random where Self: Sized {
     /// let uniform_array = Tensor::<f32>::rand([1000])?;
     /// ```
     /// This example creates a 1000-element array of random numbers with a uniform distribution between [0, 1).
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn rand<S: Into<Shape>>(shape: S, low: Self::Meta, high: Self::Meta) -> Result<Self>;
 
     /// Generates a random number array with a uniform distribution between [0, 1),
@@ -65,6 +68,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates an array of random numbers with a uniform distribution between [0, 1),
     /// similar to `a` in shape.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn rand_like(&self) -> Result<Self>;
 
     /// Generates a random number array following the Beta distribution.
@@ -83,6 +87,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates a 1000-element array of random numbers following a Beta distribution
     /// with alpha = 2.0 and beta = 5.0.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn beta<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self>;
 
     /// Generates a random number array following the Beta distribution,
@@ -102,6 +107,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates an array of random numbers following a Beta distribution,
     /// similar to `a` in shape, with alpha = 2.0 and beta = 5.0.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn beta_like(&self, a: Self::Meta, b: Self::Meta) -> Result<Self>;
 
     /// Generates a random number array following the Chi-Squared distribution.
@@ -119,6 +125,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates a 1000-element array of random numbers following a Chi-Squared distribution
     /// with 2 degrees of freedom.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn chisquare<S: Into<Shape>>(df: Self::Meta, shape: S) -> Result<Self>;
 
     /// Generates a random number array following the Chi-Squared distribution,
@@ -137,6 +144,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates an array of random numbers following a Chi-Squared distribution,
     /// similar to `a` in shape, with 2 degrees of freedom.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn chisquare_like(&self, df: Self::Meta) -> Result<Self>;
 
     /// Generates a random number array following the Exponential distribution.
@@ -154,6 +162,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates a 1000-element array of random numbers following an Exponential distribution
     /// with a rate parameter of 1.0.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn exponential<S: Into<Shape>>(lambda: Self::Meta, shape: S) -> Result<Self>;
 
     /// Generates a random number array following the Exponential distribution,
@@ -172,6 +181,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates an array of random numbers following an Exponential distribution,
     /// similar to `a` in shape, with a rate parameter of 1.0.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn exponential_like(&self, lambda: Self::Meta) -> Result<Self>;
 
     /// Generates a random number array following the Gamma distribution.
@@ -190,6 +200,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates a 1000-element array of random numbers following a Gamma distribution
     /// with a shape parameter of 2.0 and a scale parameter of 1.0.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn gamma<S: Into<Shape>>(shape: Self::Meta, scale: Self::Meta, shape: S) -> Result<Self>;
 
     /// Generates a random number array following the Gamma distribution,
@@ -209,6 +220,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates an array of random numbers following a Gamma distribution,
     /// similar to `a` in shape, with a shape parameter of 2.0 and a scale parameter of 1.0.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn gamma_like(&self, shape: Self::Meta, scale: Self::Meta) -> Result<Self>;
 
     /// Generates a random number array following the Gumbel distribution.
@@ -227,6 +239,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates a 1000-element array of random numbers following a Gumbel distribution
     /// with a location parameter of 0.0 and a scale parameter of 1.0.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn gumbel<S: Into<Shape>>(mu: Self::Meta, beta: Self::Meta, shape: S) -> Result<Self>;
 
     /// Generates a random number array following the Gumbel distribution,
@@ -246,6 +259,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates an array of random numbers following a Gumbel distribution,
     /// similar to `a` in shape, with a location parameter of 0.0 and a scale parameter of 1.0.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn gumbel_like(&self, mu: Self::Meta, beta: Self::Meta) -> Result<Self>;
 
     /// Generates a random number array following the Log-Normal distribution.
@@ -264,6 +278,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates a 1000-element array of random numbers following a Log-Normal distribution
     /// with a mean of 0.0 and a standard deviation of 1.0 for the underlying normal distribution.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn lognormal<S: Into<Shape>>(mean: Self::Meta, std: Self::Meta, shape: S) -> Result<Self>;
 
     /// Generates a random number array following the Log-Normal distribution,
@@ -283,6 +298,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates an array of random numbers following a Log-Normal distribution,
     /// similar to `a` in shape, with a mean of 0.0 and a standard deviation of 1.0 for the underlying normal distribution.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn lognormal_like(&self, mean: Self::Meta, std: Self::Meta) -> Result<Self>;
 
     /// Generates a random number array following the Normal (Gaussian) distribution.
@@ -301,6 +317,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates a 1000-element array of random numbers following a Normal (Gaussian) distribution
     /// with a mean of 0.0 and a standard deviation of 1.0.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn normal_gaussian<S: Into<Shape>>(mean: Self::Meta, std: Self::Meta, shape: S) -> Result<Self>;
 
     /// Generates a random number array following the Normal (Gaussian) distribution,
@@ -320,6 +337,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates an array of random numbers following a Normal (Gaussian) distribution,
     /// similar to `a` in shape, with a mean of 0.0 and a standard deviation of 1.0.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn normal_gaussian_like(&self, mean: Self::Meta, std: Self::Meta) -> Result<Self>;
 
     /// Generates a random number array following the Pareto distribution.
@@ -338,6 +356,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates a 1000-element array of random numbers following a Pareto distribution
     /// with a shape parameter of 3.0 and a scale parameter 'a' of 1.0.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn pareto<S: Into<Shape>>(pareto_shape: Self::Meta, a: Self::Meta, shape: S) -> Result<Self>;
 
     /// Generates a random number array following the Pareto distribution,
@@ -357,6 +376,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates an array of random numbers following a Pareto distribution,
     /// similar to `a` in shape, with a shape parameter of 3.0 and a scale parameter 'a' of 1.0.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn pareto_like(&self, pareto_shape: Self::Meta, a: Self::Meta) -> Result<Self>;
 
     /// Generates a random number array following the Poisson distribution.
@@ -374,6 +394,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates a 1000-element array of random numbers following a Poisson distribution
     /// with a rate parameter (λ) of 4.0.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn poisson<S: Into<Shape>>(lambda: Self::Meta, shape: S) -> Result<Self>;
 
     /// Generates a random number array following the Poisson distribution,
@@ -392,6 +413,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates an array of random numbers following a Poisson distribution,
     /// similar to `a` in shape, with a rate parameter (λ) of 4.0.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn poisson_like(&self, lambda: Self::Meta) -> Result<Self>;
 
     /// Generates a random number array following the Weibull distribution.
@@ -410,6 +432,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates a 1000-element array of random numbers following a Weibull distribution
     /// with a shape parameter of 1.5 and a scale parameter of 2.0.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn weibull<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self>;
 
     /// Generates a random number array following the Weibull distribution,
@@ -429,6 +452,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates an array of random numbers following a Weibull distribution,
     /// similar to `a` in shape, with a shape parameter of 1.5 and a scale parameter of 2.0.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn weibull_like(&self, a: Self::Meta, b: Self::Meta) -> Result<Self>;
 
     /// Generates a random number array following the Zipf distribution.
@@ -447,6 +471,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates an array of random numbers following a Zipf distribution
     /// with 1000 elements and exponent parameter 1.5.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn zipf<S: Into<Shape>>(n: u64, a: Self::Meta, shape: S) -> Result<Self>;
 
     /// Generates a random number array following the Zipf distribution,
@@ -466,6 +491,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates an array of random numbers following a Zipf distribution,
     /// similar to `some_instance` in shape, with 1000 elements and exponent parameter 1.5.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn zipf_like(&self, n: u64, a: Self::Meta) -> Result<Self>;
 
     /// Generates a random number array following the Triangular distribution.
@@ -485,6 +511,7 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates an array of random numbers following a Triangular distribution
     /// ranging from 0 to 10 with a mode (peak) at 5.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn triangular<S: Into<Shape>>(
         low: Self::Meta,
         high: Self::Meta,
@@ -510,8 +537,10 @@ pub trait Random where Self: Sized {
     /// ```
     /// This example creates an array of random numbers following a Triangular distribution,
     /// similar to `a` in shape, ranging from 0 to 10 with a mode (peak) at 5.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn triangular_like(&self, low: Self::Meta, high: Self::Meta, mode: Self::Meta) -> Result<Self>;
 
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self>
         where Self::Meta: IntoScalar<f64>, bool: IntoScalar<Self::Meta>;
 }
@@ -535,6 +564,7 @@ pub trait RandomInt where Self: Sized {
     /// let integer_array = Tensor::<i32>::randint(0, 10, [1000])?;
     /// ```
     /// This example creates a 1000-element array of random integers in the range [0, 10).
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn randint<S: Into<Shape>>(low: Self::Meta, high: Self::Meta, shape: S) -> Result<Self>
         where Self::Meta: SampleUniform, <Self::Meta as SampleUniform>::Sampler: Sync;
 
@@ -555,6 +585,7 @@ pub trait RandomInt where Self: Sized {
     /// ```
     /// This example creates an array of random integers in the range [0, 10),
     /// similar to `a` in shape.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn randint_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self>
         where Self::Meta: SampleUniform, <Self::Meta as SampleUniform>::Sampler: Sync;
 }

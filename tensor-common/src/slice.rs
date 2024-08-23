@@ -1,4 +1,8 @@
+use std::panic::Location;
+
 use anyhow::Result;
+
+use crate::err_handler::ErrHandler;
 
 #[derive(Debug, Clone)]
 pub enum Slice {
@@ -13,6 +17,7 @@ pub enum Slice {
     StepByRangeTo((i64, i64)),
 }
 
+#[cfg_attr(feature = "track_caller", track_caller)]
 pub fn slice_process(
     shape: Vec<i64>,
     strides: Vec<i64>,
@@ -28,10 +33,7 @@ pub fn slice_process(
         *x *= alpha;
     });
     let mut res_ptr = 0;
-    if index.len() > res_shape.len() {
-        let message = "slice input out of range".to_string();
-        return Err(anyhow::Error::msg(message));
-    }
+    ErrHandler::check_index_in_range(res_shape.len(), index.len() as i64)?;
     for (idx, slice) in index.iter().enumerate() {
         match slice {
             Slice::From(mut __index) => {
@@ -43,13 +45,14 @@ pub fn slice_process(
                 }
                 index *= alpha;
                 if index >= shape[idx] {
-                    let message = format!(
-                        "slice index out of range for {} (arg: {}). It should < {}",
-                        index,
-                        idx,
-                        shape[idx]
+                    return Err(
+                        ErrHandler::SliceIndexOutOfRange(
+                            index,
+                            idx as i64,
+                            shape[idx],
+                            Location::caller()
+                        ).into()
                     );
-                    return Err(anyhow::Error::msg(message));
                 }
                 res_shape[idx] = alpha;
                 res_ptr += res_strides[idx] * index;

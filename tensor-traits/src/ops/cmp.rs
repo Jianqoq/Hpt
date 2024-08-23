@@ -21,6 +21,7 @@ pub trait TensorCmp<T, U> {
     /// let b = a.eq(0.0).unwrap();
     /// assert_eq!(b.shape(), &[100]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn neq<D: Into<Self::RHS>>(&self, rhs: D) -> Result<Self::Output>
         where T: Cmp<U>;
 
@@ -39,6 +40,7 @@ pub trait TensorCmp<T, U> {
     /// let b = a.eq(0.0).unwrap();
     /// assert_eq!(b.shape(), &[100]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn eq<D: Into<Self::RHS>>(&self, rhs: D) -> Result<Self::Output>
         where T: Cmp<U>;
         
@@ -57,6 +59,7 @@ pub trait TensorCmp<T, U> {
     /// let b = a.lt(0.0).unwrap();
     /// assert_eq!(b.shape(), &[100]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn lt<D: Into<Self::RHS>>(&self, rhs: D) -> Result<Self::Output>
         where T: Cmp<U>;
 
@@ -75,6 +78,7 @@ pub trait TensorCmp<T, U> {
     /// let b = a.gt(0.0).unwrap();
     /// assert_eq!(b.shape(), &[100]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn gt<D: Into<Self::RHS>>(&self, rhs: D) -> Result<Self::Output>
         where T: Cmp<U>;
 
@@ -93,6 +97,7 @@ pub trait TensorCmp<T, U> {
     /// let b = a.le(0.0).unwrap();
     /// assert_eq!(b.shape(), &[100]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn le<D: Into<Self::RHS>>(&self, rhs: D) -> Result<Self::Output>
         where T: Cmp<U>;
 
@@ -111,6 +116,7 @@ pub trait TensorCmp<T, U> {
     /// let b = a.ge(0.0).unwrap();
     /// assert_eq!(b.shape(), &[100]);
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn ge<D: Into<Self::RHS>>(&self, rhs: D) -> Result<Self::Output>
         where T: Cmp<U>;
 }

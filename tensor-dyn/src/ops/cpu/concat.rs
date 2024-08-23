@@ -1,6 +1,6 @@
-use std::sync::{ Arc, Barrier };
+use std::{ panic::Location, sync::{ Arc, Barrier } };
 
-use tensor_common::{ shape_utils::mt_intervals, slice::Slice };
+use tensor_common::{ err_handler::ErrHandler, shape_utils::mt_intervals, slice::Slice };
 use tensor_traits::{
     shape_manipulate::ShapeManipulate,
     tensor::{ CommonBounds, TensorCreator, TensorInfo },
@@ -8,6 +8,7 @@ use tensor_traits::{
 
 use crate::{ slice::SliceOps, tensor_base::_Tensor, THREAD_POOL };
 
+#[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn concat<T>(
     tensors: Vec<&_Tensor<T>>,
     axis: usize,
@@ -33,7 +34,11 @@ pub(crate) fn concat<T>(
                     );
                 } else if i.shape().len() != tensors[0].shape().len() {
                     return Err(
-                        anyhow::Error::msg("Shape length mismatch when trying to stack tensors")
+                        ErrHandler::NdimMismatched(
+                            tensors[0].ndim() as usize,
+                            i.ndim() as usize,
+                            Location::caller()
+                        ).into()
                     );
                 } else if idx == axis && *x != i.shape()[idx] {
                     all_same_shape = false;

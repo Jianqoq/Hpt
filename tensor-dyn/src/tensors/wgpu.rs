@@ -1071,8 +1071,8 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T, Wgpu> {
     }
 
     fn swap_axes(&self, mut axis1: i64, mut axis2: i64) -> Result<Self> {
-        ErrHandler::check_index_in_range(self.ndim(), &mut axis1)?;
-        ErrHandler::check_index_in_range(self.ndim(), &mut axis2)?;
+        ErrHandler::check_index_in_range_mut(self.ndim(), &mut axis1)?;
+        ErrHandler::check_index_in_range_mut(self.ndim(), &mut axis2)?;
         let mut new_shape = self.shape().to_vec();
         let mut new_strides = self.strides().to_vec();
         new_shape.swap(axis1 as usize, axis2 as usize);

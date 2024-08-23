@@ -467,6 +467,7 @@ impl<T: CommonBounds> _Tensor<T> {
     /// let stacked_tensor = _Tensor::stack(vec![&tensor1, &tensor2], 0, true).unwrap();
     /// assert!(stacked_tensor.allclose(&_Tensor::<f64>::new([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn stack(tensors: Vec<&_Tensor<T>>, axis: usize, keepdims: bool) -> Result<Self>
         where T: 'static
     {
@@ -493,6 +494,7 @@ impl<T: CommonBounds> _Tensor<T> {
     /// let vstacked_tensor = _Tensor::vstack(vec![&tensor1, &tensor2]).unwrap();
     /// assert!(vstacked_tensor.allclose(&_Tensor::<f64>::new([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn vstack(tensors: Vec<&_Tensor<T>>) -> Result<_Tensor<T>> {
         concat(tensors, 0, false)
     }
@@ -517,6 +519,7 @@ impl<T: CommonBounds> _Tensor<T> {
     /// let hstacked_tensor = _Tensor::hstack(vec![&tensor1, &tensor2]).unwrap();
     /// assert!(hstacked_tensor.allclose(&_Tensor::<f64>::new([1.0, 2.0, 3.0,4.0, 5.0, 6.0])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn hstack(mut tensors: Vec<&_Tensor<T>>) -> Result<_Tensor<T>> {
         for tensor in tensors.iter_mut() {
             if tensor.shape().len() < 2 {
@@ -561,6 +564,7 @@ impl<T: CommonBounds> _Tensor<T> {
     /// let dstacked_tensor = _Tensor::dstack(vec![&tensor1, &tensor2]).unwrap();
     /// assert!(dstacked_tensor.allclose(&_Tensor::<f64>::new([[[1.0, 4.0], [2.0, 5.0], [3.0, 6.0]]])));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn dstack(mut tensors: Vec<&_Tensor<T>>) -> Result<_Tensor<T>> {
         let mut new_tensors = Vec::with_capacity(tensors.len());
         for tensor in tensors.iter_mut() {
@@ -1011,9 +1015,11 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
     fn transpose(&self, axis1: i64, axis2: i64) -> Result<_Tensor<T>> {
         if self.ndim() < 2 {
             Err(
-                anyhow::Error::msg(
-                    "_Tensor with less than 2 dimensions for `transpose` method is not allowed"
-                )
+                ErrHandler::TransposeError(
+                    self.shape().clone(),
+                    self.ndim(),
+                    Location::caller()
+                ).into()
             )
         } else {
             self.permute(vec![axis1, axis2])
@@ -1044,13 +1050,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
     }
 
     fn t(&self) -> Result<Self> {
-        if self.ndim() < 2 {
-            return Err(
-                anyhow::Error::msg(
-                    "_Tensor with less than 2 dimensions for `t` method is not allowed"
-                )
-            );
-        } else if self.ndim() > 2 {
+        if self.ndim() > 2 {
             let mut axes = (0..self.ndim() as i64).collect::<Vec<i64>>();
             axes.swap(self.ndim() - 1, self.ndim() - 2);
             return self.permute(axes);
@@ -1091,14 +1091,14 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
 
     fn fliplr(&self) -> Result<Self> {
         if self.ndim() < 2 {
-            return Err(anyhow::Error::msg("_Tensor must have at least 2 dimensions for fliplr"));
+            return Err(ErrHandler::NdimNotEnough(2, self.ndim(), Location::caller()).into());
         }
         self.flip(1)
     }
 
     fn flipud(&self) -> Result<Self> {
         if self.ndim() < 1 {
-            return Err(anyhow::Error::msg("_Tensor must have at least 1 dimensions for flipud"));
+            return Err(ErrHandler::NdimNotEnough(1, self.ndim(), Location::caller()).into());
         }
         self.flip(0)
     }
@@ -1139,9 +1139,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             return Err(anyhow::Error::msg("trim must be one of 'fb', 'f', 'b'"));
         }
         if self.ndim() > 1 {
-            return Err(
-                anyhow::Error::msg("_Tensor must have at most 1 dimension for trim_zeros method")
-            );
+            return Err(ErrHandler::NdimExceed(1, self.ndim(), Location::caller()).into());
         }
         let stride = self.strides()[0] as isize;
         let raw = self.as_raw();
@@ -1214,34 +1212,28 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
 
     fn dsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
         if self.shape().len() < 3 {
-            return Err(
-                anyhow::Error::msg("_Tensor must have at least 3 dimensions for dsplit method")
-            );
+            return Err(ErrHandler::NdimNotEnough(3, self.shape().len(), Location::caller()).into());
         }
         self.split(indices, 2)
     }
 
     fn hsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
         if self.shape().len() < 2 {
-            return Err(
-                anyhow::Error::msg("_Tensor must have at least 2 dimensions for hsplit method")
-            );
+            return Err(ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into());
         }
         self.split(indices, 1)
     }
 
     fn vsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
         if self.shape().len() < 1 {
-            return Err(
-                anyhow::Error::msg("_Tensor must have at least 1 dimensions for vsplit method")
-            );
+            return Err(ErrHandler::NdimNotEnough(1, self.shape().len(), Location::caller()).into());
         }
         self.split(indices, 0)
     }
 
     fn swap_axes(&self, mut axis1: i64, mut axis2: i64) -> Result<Self> {
-        ErrHandler::check_index_in_range(self.ndim(), &mut axis1)?;
-        ErrHandler::check_index_in_range(self.ndim(), &mut axis2)?;
+        ErrHandler::check_index_in_range_mut(self.ndim(), &mut axis1)?;
+        ErrHandler::check_index_in_range_mut(self.ndim(), &mut axis2)?;
         let mut new_shape = self.shape().to_vec();
         let mut new_strides = self.strides().to_vec();
         new_shape.swap(axis1 as usize, axis2 as usize);

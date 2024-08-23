@@ -13,7 +13,9 @@ pub enum ErrHandler {
     #[error(
         "lhs matrix shape is {0:?}, rhs matrix shape is {1:?}, expect rhs matrix shape to be [{2}, any], at {3}"
     )] MatmulShapeMismatched([i64; 2], [i64; 2], i64, &'static Location<'static>),
-    #[error("expect {0} but got {1}")] NdimMismatched(usize, usize, &'static Location<'static>),
+    #[error("expect ndim to be {0} but got {1}")] NdimMismatched(usize, usize, &'static Location<'static>),
+    #[error("expect ndim at least {0} but got {1}")] NdimNotEnough(usize, usize, &'static Location<'static>),
+    #[error("expect ndim at most {0} but got {1}")] NdimExceed(usize, usize, &'static Location<'static>),
     #[error("tensor ndim is {0} but got index {1} => {2}, at {3}")] IndexOutOfRange(
         usize,
         i64,
@@ -25,12 +27,9 @@ pub enum ErrHandler {
     #[error(
         "can't perform inplace reshape to from {0} to {1} with strides {2}, at {3}"
     )] IterInplaceReshapeError(Shape, Shape, Strides, &'static Location<'static>),
-    #[error("can't broacast lhs: {0} with rhs: {1}, expect lhs_shape[{2}] to be 1, at {3}")] BroadcastError(
-        Shape,
-        Shape,
-        usize,
-        &'static Location<'static>,
-    ),
+    #[error(
+        "can't broacast lhs: {0} with rhs: {1}, expect lhs_shape[{2}] to be 1, at {3}"
+    )] BroadcastError(Shape, Shape, usize, &'static Location<'static>),
     #[error("axis should be unique, but got {0} and {1}")] SameAxisError(i64, i64),
     #[error("can't reshape from {0} with size {2} to {1} with size {3}, at {4}")] ReshapeError(
         Shape,
@@ -39,6 +38,13 @@ pub enum ErrHandler {
         usize,
         &'static Location<'static>,
     ),
+    #[error("can't transpose {0}, ndim is expected to >= 2 but got {1}, at {2}")] TransposeError(
+        Shape,
+        usize,
+        &'static Location<'static>,
+    ),
+    #[error("slice index out of range for {0} (arg: {1}), it should < {2}, At {3}")] 
+    SliceIndexOutOfRange(i64, i64, i64, &'static Location<'static>),
 }
 
 impl ErrHandler {
@@ -57,7 +63,15 @@ impl ErrHandler {
         Ok(())
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn check_index_in_range(ndim: usize, index: &mut i64) -> Result<(), Self> {
+    pub fn check_index_in_range(ndim: usize, index: i64) -> Result<(), Self> {
+        let indedx = if index < 0 { index + (ndim as i64) } else { index };
+        if indedx < 0 || indedx >= (ndim as i64) {
+            return Err(ErrHandler::IndexOutOfRange(ndim, index, indedx, Location::caller()));
+        }
+        Ok(())
+    }
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn check_index_in_range_mut(ndim: usize, index: &mut i64) -> Result<(), Self> {
         let indedx = if *index < 0 { *index + (ndim as i64) } else { *index };
         if indedx < 0 || indedx >= (ndim as i64) {
             return Err(ErrHandler::IndexOutOfRange(ndim, *index, indedx, Location::caller()));
