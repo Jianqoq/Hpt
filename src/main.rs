@@ -16,7 +16,6 @@ fn main() -> anyhow::Result<()> {
     let a = _Tensor::<f32>
         ::arange(0, 8 * 1260 * 1260)?
         .reshape([8, 1260, 1260])?
-        .permute([1, 2, 0])?
         .contiguous()?;
     // let c = conv2d_pad_dilation(
     //     &a,
@@ -31,7 +30,7 @@ fn main() -> anyhow::Result<()> {
 
     let now = std::time::Instant::now();
     for _ in 0..100 {
-        let res = a.pad(&[(0, 0), (2, 2), (2, 2)], f32::INFINITY)?;
+        let res = a.pad(&[(0, 0), (2, 2), (2, 2)], 0.0)?;
     }
     println!("{:?}", now.elapsed() / 100);
     Ok(())

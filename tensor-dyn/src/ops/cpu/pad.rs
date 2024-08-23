@@ -60,6 +60,9 @@ impl<T: CommonBounds> _Tensor<T> {
                 let inp_last_stride = self.strides()[ndim - 1];
                 let pads = pads.clone();
                 pool.execute(move || {
+                    assert_eq!(tsp.len(), ndim);
+                    assert_eq!(ts.len(), ndim);
+                    assert_eq!(rs.len(), ndim);
                     for (dim_idx, (&prg_idx, &stride)) in inp_prg.iter().zip(rs.iter()).enumerate() {
                         let padded_idx = prg_idx + pads[dim_idx].0;
                         let offset = padded_idx * stride;
