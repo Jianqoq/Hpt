@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, panic::Location};
 use wgpu::util::DeviceExt;
 use tensor_common::{ shape_utils::try_pad_shape, strides_utils::preprocess_strides };
 use tensor_traits::{ CommonBounds, TensorInfo };
@@ -9,7 +9,8 @@ use crate::{ backend::Wgpu, tensor_base::_Tensor };
 pub(crate) fn binop<A, B>(
     op: &str,
     a: &_Tensor<A, Wgpu>,
-    b: &_Tensor<B, Wgpu>
+    b: &_Tensor<B, Wgpu>,
+    location: &'static Location<'static>
 )
     -> _Tensor<<A as NormalOut<B>>::Output, Wgpu>
     where
@@ -22,7 +23,7 @@ pub(crate) fn binop<A, B>(
     let num_grp_x = 512;
     let num_grp_y = 512;
 
-    let res_shape = a.layout().broadcast(&b.layout()).expect("Failed to broadcast shapes");
+    let res_shape = a.layout().broadcast(&b.layout(), location).expect("Failed to broadcast shapes");
 
     let a_strides: Vec<i64> = preprocess_strides(
         &try_pad_shape(a.shape(), res_shape.ndim()),

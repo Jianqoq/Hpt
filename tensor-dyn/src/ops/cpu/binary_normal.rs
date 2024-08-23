@@ -1,6 +1,7 @@
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
+use std::panic::Location;
 use crate::backend::Cpu;
 use tensor_traits::tensor::CommonBounds;
 use tensor_common::shape_utils::predict_broadcast_shape;
@@ -74,7 +75,7 @@ macro_rules! impl_binary_fn {
             lhs: &$tensor_type<A>,
             rhs: &$tensor_type<B>,
             f: F,
-            out: O,
+            out: O, location: &'static Location<'static>
         ) -> anyhow::Result<$tensor_type<K>>
         where
             A: CommonBounds,
@@ -115,7 +116,7 @@ macro_rules! impl_binary_fn {
                     });
                 Ok(ret)
             } else {
-                let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape())?;
+                let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape(), location)?;
                 let ret;
                 let ret_size: usize = res_shape.iter().product::<i64>() as usize;
                 if out.size() * std::mem::size_of::<Q>() != ret_size * std::mem::size_of::<A>() {
@@ -147,7 +148,7 @@ macro_rules! impl_binary_fn {
     };
 }
 
-pub fn binary_fn<A, B, K, F>(lhs: &_Tensor<A>, rhs: &_Tensor<B>, f: F) -> anyhow::Result<_Tensor<K>>
+pub fn binary_fn<A, B, K, F>(lhs: &_Tensor<A>, rhs: &_Tensor<B>, f: F, location: &'static Location<'static>) -> anyhow::Result<_Tensor<K>>
 where
     A: CommonBounds,
     B: CommonBounds,
@@ -176,7 +177,7 @@ where
         Ok(res)
     } else {
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
-            let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape())?;
+            let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape(), location)?;
             let ret;
             ret = _Tensor::<K, Cpu>::empty(res_shape).unwrap();
             let min_len: usize =

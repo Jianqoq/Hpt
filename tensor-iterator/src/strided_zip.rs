@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{panic::Location, sync::Arc};
 use tensor_common::{ shape::Shape, shape_utils::predict_broadcast_shape, strides::Strides };
 
 use crate::iterator_traits::{ IterGetSet, ShapeManipulator, StridedIterator };
@@ -86,6 +86,7 @@ impl<'a, A, B> StridedZip<'a, A, B>
         }
     }
 
+    #[track_caller]
     pub fn zip<C>(self, other: C) -> StridedZip<'a, Self, C>
         where
             C: IterGetSet + ShapeManipulator,
@@ -93,7 +94,7 @@ impl<'a, A, B> StridedZip<'a, A, B>
             <C as IterGetSet>::Item: Send,
             <Self as IterGetSet>::Item: Send
     {
-        let new_shape = predict_broadcast_shape(&self.shape(), &other.shape()).expect(
+        let new_shape = predict_broadcast_shape(&self.shape(), &other.shape(), Location::caller()).expect(
             "Cannot broadcast shapes"
         );
 

@@ -15,7 +15,7 @@ fn main() -> anyhow::Result<()> {
         .contiguous()?;
     let a = _Tensor::<f32>
         ::arange(0, 8 * 1260 * 1260)?
-        .reshape([8, 1260, 1260])?
+        .reshape([8, 6, 1260])?
         .permute([1, 2, 0])?
         .contiguous()?;
     // let c = conv2d_pad_dilation(

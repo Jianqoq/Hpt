@@ -1,4 +1,9 @@
-use std::{ fmt::{ Debug, Display }, ops::{ Div, Mul, Sub }, sync::{ atomic::Ordering, Arc } };
+use std::{
+    fmt::{ Debug, Display },
+    ops::{ Div, Mul, Sub },
+    panic::Location,
+    sync::{ atomic::Ordering, Arc },
+};
 
 use rand_distr::{
     uniform::SampleUniform,
@@ -630,7 +635,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         slice.par_chunks_exact_mut(8).for_each(|x| {
             x.copy_from_slice(&zero);
         });
-        slice[size - size % 8..size].iter_mut().for_each(|x| {
+        slice[size - (size % 8)..size].iter_mut().for_each(|x| {
             *x = T::ZERO;
         });
         Ok(_Tensor {
@@ -977,9 +982,20 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         self.reshape(res_shape)
     }
 
+    #[track_caller]
     fn reshape<S: Into<Shape>>(&self, shape: S) -> Result<_Tensor<T>> {
-        let shape = shape.into();
-        ErrHandler::check_size_match(&shape, self.shape())?;
+        let shape: Shape = shape.into();
+        if shape.size() != (self.size() as i64) {
+            return Err(
+                ErrHandler::ReshapeError(
+                    self.shape().clone(),
+                    shape.clone(),
+                    self.size(),
+                    shape.size() as usize,
+                    Location::caller()
+                ).into()
+            );
+        }
         if let Ok(new_layout) = self.layout.inplace_reshape(&shape) {
             Ok(_Tensor {
                 data: self.data.clone(),
@@ -1018,7 +1034,6 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
 
     fn expand<S: Into<Shape>>(&self, shape: S) -> Result<_Tensor<T>> {
         let res_shape = Shape::from(shape.into());
-        ErrHandler::check_expand_dims(self.shape(), &res_shape).unwrap();
         let res_strides = self.layout.expand_strides(&res_shape);
         Ok(Self {
             data: self.data.clone(),
@@ -1226,18 +1241,8 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
     }
 
     fn swap_axes(&self, mut axis1: i64, mut axis2: i64) -> Result<Self> {
-        if axis1 < 0 {
-            while axis1 < 0 {
-                axis1 += self.ndim() as i64;
-            }
-        }
-        if axis2 < 0 {
-            while axis2 < 0 {
-                axis2 += self.ndim() as i64;
-            }
-        }
-        ErrHandler::check_index_in_range(self.ndim(), axis1 as usize)?;
-        ErrHandler::check_index_in_range(self.ndim(), axis2 as usize)?;
+        ErrHandler::check_index_in_range(self.ndim(), &mut axis1)?;
+        ErrHandler::check_index_in_range(self.ndim(), &mut axis2)?;
         let mut new_shape = self.shape().to_vec();
         let mut new_strides = self.strides().to_vec();
         new_shape.swap(axis1 as usize, axis2 as usize);

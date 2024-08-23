@@ -1,6 +1,6 @@
 use tensor_traits::CommonBounds;
 use tensor_types::type_promote::NormalOut;
-
+use std::panic::Location;
 use crate::{ backend::Wgpu, ops::wgpu::binary_normal::binop, tensor_base::_Tensor };
 
 macro_rules! impl_std_ops {
@@ -13,8 +13,9 @@ macro_rules! impl_std_ops {
                 <T as NormalOut<U>>::Output: CommonBounds + bytemuck::Pod
                 {
                     type Output = _Tensor<<T as NormalOut<U>>::Output, Wgpu>;
+                    #[track_caller]
                     fn $op_name(self, rhs: _Tensor<U, Wgpu>) -> Self::Output {
-                        binop($op_str, &self, &rhs)
+                        binop($op_str, &self, &rhs, Location::caller())
                     }
                 }
 
@@ -26,8 +27,9 @@ macro_rules! impl_std_ops {
                 <T as NormalOut<U>>::Output: CommonBounds + bytemuck::Pod
                 {
                     type Output = _Tensor<<T as NormalOut<U>>::Output, Wgpu>;
+                    #[track_caller]
                     fn $op_name(self, rhs: &_Tensor<U, Wgpu>) -> Self::Output {
-                        binop($op_str, &self, &rhs)
+                        binop($op_str, &self, &rhs, Location::caller())
                     }
                 }
 
@@ -39,8 +41,9 @@ macro_rules! impl_std_ops {
                 <T as NormalOut<U>>::Output: CommonBounds + bytemuck::Pod
                 {
                     type Output = _Tensor<<T as NormalOut<U>>::Output, Wgpu>;
+                    #[track_caller]
                     fn $op_name(self, rhs: _Tensor<U, Wgpu>) -> Self::Output {
-                        binop($op_str, &self, &rhs)
+                        binop($op_str, &self, &rhs, Location::caller())
                     }
                 }
 
@@ -52,8 +55,9 @@ macro_rules! impl_std_ops {
                 <T as NormalOut<U>>::Output: CommonBounds + bytemuck::Pod
                 {
                     type Output = _Tensor<<T as NormalOut<U>>::Output, Wgpu>;
+                    #[track_caller]
                     fn $op_name(self, rhs: &_Tensor<U, Wgpu>) -> Self::Output {
-                        binop($op_str, &self, &rhs)
+                        binop($op_str, &self, &rhs, Location::caller())
                     }
                 }
             };

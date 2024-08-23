@@ -1,4 +1,5 @@
 use rayon::iter::{ IntoParallelRefMutIterator, ParallelIterator };
+use std::panic::Location;
 use std::sync::{ Arc, Barrier };
 use tensor_traits::tensor::CommonBounds;
 use tensor_types::type_promote::NormalOut;
@@ -461,7 +462,8 @@ macro_rules! impl_matmul {
 #[doc = r" Returns an error if shapes are not compatible for matrix multiplication."]
 pub(crate) fn matmul_no_out<A, B>(
     lhs: &_Tensor<A>,
-    rhs: &_Tensor<B>
+    rhs: &_Tensor<B>,
+    location: &'static Location<'static>,
 )
     -> anyhow::Result<_Tensor<<A as NormalOut<B>>::Output>>
     where
@@ -528,7 +530,8 @@ pub(crate) fn matmul_no_out<A, B>(
         } else {
             let mut res_shape = predict_broadcast_shape(
                 &a_shape[..a_shape.len() - 2],
-                &b_shape[..b_shape.len() - 2]
+                &b_shape[..b_shape.len() - 2],
+                location
             )?.to_vec();
             let mut iterate_shape: Vec<i64> = res_shape.clone();
             res_shape.push(a_shape[a_shape.len() - 2]);
@@ -662,7 +665,8 @@ pub(crate) fn matmul_no_out<A, B>(
 pub(crate) fn matmul_with_out<A, B, O>(
     lhs: &_Tensor<A>,
     rhs: &_Tensor<B>,
-    mut out: O
+    mut out: O,
+    location: &'static Location<'static>,
 )
     -> anyhow::Result<_Tensor<<A as NormalOut<B>>::Output>>
     where
@@ -739,7 +743,8 @@ pub(crate) fn matmul_with_out<A, B, O>(
         } else {
             let mut res_shape = predict_broadcast_shape(
                 &a_shape[..a_shape.len() - 2],
-                &b_shape[..b_shape.len() - 2]
+                &b_shape[..b_shape.len() - 2],
+                location
             )?.to_vec();
             let mut iterate_shape = res_shape.clone();
             res_shape.push(a_shape[a_shape.len() - 2]);
@@ -884,7 +889,8 @@ pub(crate) fn matmul_with_out<A, B, O>(
 #[allow(unused)]
 pub(crate) fn matmul_no_out_concret<A, B, C>(
     lhs: &_Tensor<A>,
-    rhs: &_Tensor<B>
+    rhs: &_Tensor<B>,
+    location: &'static Location<'static>
 )
     -> anyhow::Result<_Tensor<C>>
     where C: CommonBounds, A: CommonBounds + IntoScalar<C>, B: CommonBounds + IntoScalar<C>
@@ -946,7 +952,8 @@ pub(crate) fn matmul_no_out_concret<A, B, C>(
         } else {
             let mut res_shape = predict_broadcast_shape(
                 &a_shape[..a_shape.len() - 2],
-                &b_shape[..b_shape.len() - 2]
+                &b_shape[..b_shape.len() - 2],
+                location
             )?.to_vec();
             let mut iterate_shape: Vec<i64> = res_shape.clone();
             res_shape.push(a_shape[a_shape.len() - 2]);
@@ -1080,7 +1087,8 @@ pub(crate) fn matmul_no_out_concret<A, B, C>(
 pub(crate) fn matmul_out_concret<A, B, C>(
     lhs: &_Tensor<A>,
     rhs: &_Tensor<B>,
-    out: &_Tensor<C>
+    out: &_Tensor<C>,
+    location: &'static Location<'static>
 )
     -> anyhow::Result<_Tensor<C>>
     where C: CommonBounds, A: CommonBounds + IntoScalar<C>, B: CommonBounds + IntoScalar<C>
@@ -1138,7 +1146,8 @@ pub(crate) fn matmul_out_concret<A, B, C>(
         } else {
             let mut res_shape = predict_broadcast_shape(
                 &a_shape[..a_shape.len() - 2],
-                &b_shape[..b_shape.len() - 2]
+                &b_shape[..b_shape.len() - 2],
+                location
             )?.to_vec();
             let mut iterate_shape: Vec<i64> = res_shape.clone();
             res_shape.push(a_shape[a_shape.len() - 2]);

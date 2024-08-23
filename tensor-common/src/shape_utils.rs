@@ -1,3 +1,5 @@
+use std::panic::Location;
+
 use crate::{ err_handler::ErrHandler, layout::Layout, shape::Shape, strides::Strides };
 
 /// # Internal Function
@@ -121,7 +123,7 @@ pub fn compare_and_pad_shapes(a_shape: &[i64], b_shape: &[i64]) -> (Vec<i64>, Ve
 /// let broadcasted_shape = predict_broadcast_shape(&shape1, &shape2).unwrap();
 /// assert_eq!(*broadcasted_shape, vec![2, 3]);
 /// ```
-pub fn predict_broadcast_shape(a_shape: &[i64], b_shape: &[i64]) -> anyhow::Result<Shape> {
+pub fn predict_broadcast_shape(a_shape: &[i64], b_shape: &[i64], location: &'static Location<'static>) -> anyhow::Result<Shape> {
     let (longer, shorter) = if a_shape.len() >= b_shape.len() {
         (a_shape, b_shape)
     } else {
@@ -137,7 +139,7 @@ pub fn predict_broadcast_shape(a_shape: &[i64], b_shape: &[i64]) -> anyhow::Resu
         } else if longer_dim == 1 {
             shorter_dim
         } else {
-            return Err(ErrHandler::BroadcastError(a_shape.into(), b_shape.into(), i).into());
+            return Err(ErrHandler::BroadcastError(a_shape.into(), b_shape.into(), i, location).into());
         };
     }
 
@@ -146,7 +148,8 @@ pub fn predict_broadcast_shape(a_shape: &[i64], b_shape: &[i64]) -> anyhow::Resu
 
 pub fn predict_broadcast_strides<T: Into<Layout>>(
     brocasted_shape: &[i64],
-    original_layout: T
+    original_layout: T,
+    location: &'static Location<'static>
 ) -> Strides {
     let original_layout: Layout = original_layout.into();
     let brocasted_size = brocasted_shape.iter().product::<i64>();
@@ -155,7 +158,7 @@ pub fn predict_broadcast_strides<T: Into<Layout>>(
     // if true, it is brocasted
     if brocasted_size > original_size {
         let shape = try_pad_shape(original_layout.shape(), brocasted_shape.len());
-        let axes_to_broadcast = get_broadcast_axes_from(&shape, brocasted_shape).expect(
+        let axes_to_broadcast = get_broadcast_axes_from(&shape, brocasted_shape, location).expect(
             "Cannot broadcast shapes"
         );
 
@@ -187,7 +190,7 @@ pub fn predict_broadcast_strides<T: Into<Layout>>(
     }
 }
 
-pub fn get_broadcast_axes_from(a_shape: &[i64], res_shape: &[i64]) -> anyhow::Result<Vec<usize>> {
+pub fn get_broadcast_axes_from(a_shape: &[i64], res_shape: &[i64], location: &'static Location<'static>) -> anyhow::Result<Vec<usize>> {
     assert!(a_shape.len() <= res_shape.len());
 
     let padded_a = try_pad_shape(a_shape, res_shape.len());
@@ -202,7 +205,7 @@ pub fn get_broadcast_axes_from(a_shape: &[i64], res_shape: &[i64]) -> anyhow::Re
         if a_dim == 1 && res_dim != 1 && !padded_axes.contains(&i) {
             axes.push(i);
         } else if res_dim == 1 && a_dim != 1 {
-            anyhow::bail!(ErrHandler::BroadcastError(a_shape.into(), res_shape.into(), i));
+            anyhow::bail!(ErrHandler::BroadcastError(a_shape.into(), res_shape.into(), i, location));
         }
     }
 

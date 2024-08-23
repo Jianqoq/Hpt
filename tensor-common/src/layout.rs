@@ -1,3 +1,5 @@
+use std::panic::Location;
+
 use serde::Serialize;
 use serde::ser::SerializeStruct;
 use crate::{
@@ -148,8 +150,8 @@ impl Layout {
         Ok(Layout::new(new_shape, new_strides))
     }
 
-    pub fn broadcast(&self, other: &Layout) -> anyhow::Result<Layout> {
-        let shape = predict_broadcast_shape(&self.shape, &other.shape)?;
+    pub fn broadcast(&self, other: &Layout, location: &'static Location<'static>) -> anyhow::Result<Layout> {
+        let shape = predict_broadcast_shape(&self.shape, &other.shape, location)?;
         let strides = shape_to_strides(&shape);
         Ok(Layout { shape, strides })
     }

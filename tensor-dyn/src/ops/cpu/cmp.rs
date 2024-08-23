@@ -1,3 +1,5 @@
+use std::panic::Location;
+
 use tensor_traits::{ ops::cmp::TensorCmp, tensor::CommonBounds };
 use tensor_types::type_promote::Cmp;
 use anyhow::Result;
@@ -10,39 +12,40 @@ impl<T, U> TensorCmp<T, U> for _Tensor<T> where T: CommonBounds, U: CommonBounds
 
     type Output = _Tensor<bool>;
 
+    #[track_caller]
     fn neq<D: Into<Self::RHS>>(&self, rhs: D) -> Result<Self::Output> where T: Cmp<U> {
         let _rhs: _Tensor<U> = rhs.into();
-        let res: _Tensor<bool> = binary_fn(self, &_rhs, |x, y| x._ne(y))?;
+        let res: _Tensor<bool> = binary_fn(self, &_rhs, |x, y| x._ne(y), Location::caller())?;
         Ok(res)
     }
-
+    #[track_caller]
     fn eq<D: Into<Self::RHS>>(&self, rhs: D) -> Result<Self::Output> where T: Cmp<U> {
         let _rhs: _Tensor<U> = rhs.into();
-        let res: _Tensor<bool> = binary_fn(self, &_rhs, |x, y| x._eq(y))?;
+        let res: _Tensor<bool> = binary_fn(self, &_rhs, |x, y| x._eq(y), Location::caller())?;
         Ok(res)
     }
-
+    #[track_caller]
     fn lt<D: Into<Self::RHS>>(&self, rhs: D) -> Result<Self::Output> where T: Cmp<U> {
         let _rhs: _Tensor<U> = rhs.into();
-        let res: _Tensor<bool> = binary_fn(self, &_rhs, |x, y| x._lt(y))?;
+        let res: _Tensor<bool> = binary_fn(self, &_rhs, |x, y| x._lt(y), Location::caller())?;
         Ok(res)
     }
-
+    #[track_caller]
     fn gt<D: Into<Self::RHS>>(&self, rhs: D) -> Result<Self::Output> where T: Cmp<U> {
         let _rhs: _Tensor<U> = rhs.into();
-        let res: _Tensor<bool> = binary_fn(self, &_rhs, |x, y| x._gt(y))?;
+        let res: _Tensor<bool> = binary_fn(self, &_rhs, |x, y| x._gt(y), Location::caller())?;
         Ok(res)
     }
-
+    #[track_caller]
     fn le<D: Into<Self::RHS>>(&self, rhs: D) -> Result<Self::Output> where T: Cmp<U> {
         let _rhs: _Tensor<U> = rhs.into();
-        let res: _Tensor<bool> = binary_fn(self, &_rhs, |x, y| x._le(y))?;
+        let res: _Tensor<bool> = binary_fn(self, &_rhs, |x, y| x._le(y), Location::caller())?;
         Ok(res)
     }
-
+    #[track_caller]
     fn ge<D: Into<Self::RHS>>(&self, rhs: D) -> Result<Self::Output> where T: Cmp<U> {
         let _rhs: _Tensor<U> = rhs.into();
-        let res: _Tensor<bool> = binary_fn(self, &_rhs, |x, y| x._ge(y))?;
+        let res: _Tensor<bool> = binary_fn(self, &_rhs, |x, y| x._ge(y), Location::caller())?;
         Ok(res)
     }
 }

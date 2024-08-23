@@ -863,7 +863,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T, Wgpu> {
 
     fn reshape<S: Into<Shape>>(&self, shape: S) -> Result<_Tensor<T, Wgpu>> {
         let shape = shape.into();
-        ErrHandler::check_size_match(&shape, self.shape())?;
+        ErrHandler::check_size_match(shape.size(), self.shape().size())?;
         if let Ok(new_layout) = self.layout.inplace_reshape(&shape) {
             Ok(_Tensor {
                 data: self.data.clone(),
@@ -896,7 +896,6 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T, Wgpu> {
 
     fn expand<S: Into<Shape>>(&self, shape: S) -> Result<_Tensor<T, Wgpu>> {
         let res_shape = Shape::from(shape.into());
-        ErrHandler::check_expand_dims(self.shape(), &res_shape).unwrap();
         let res_strides = self.layout.expand_strides(&res_shape);
         todo!()
     }
@@ -1072,18 +1071,8 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T, Wgpu> {
     }
 
     fn swap_axes(&self, mut axis1: i64, mut axis2: i64) -> Result<Self> {
-        if axis1 < 0 {
-            while axis1 < 0 {
-                axis1 += self.ndim() as i64;
-            }
-        }
-        if axis2 < 0 {
-            while axis2 < 0 {
-                axis2 += self.ndim() as i64;
-            }
-        }
-        ErrHandler::check_index_in_range(self.ndim(), axis1 as usize)?;
-        ErrHandler::check_index_in_range(self.ndim(), axis2 as usize)?;
+        ErrHandler::check_index_in_range(self.ndim(), &mut axis1)?;
+        ErrHandler::check_index_in_range(self.ndim(), &mut axis2)?;
         let mut new_shape = self.shape().to_vec();
         let mut new_strides = self.strides().to_vec();
         new_shape.swap(axis1 as usize, axis2 as usize);

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{panic::Location, sync::Arc};
 use tensor_common::{ shape::Shape, shape_utils::predict_broadcast_shape };
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use crate::{
@@ -20,10 +20,11 @@ impl<'a, T: CommonBounds> StridedMut<'a, T> {
         }
     }
 
+    #[track_caller]
     pub fn zip<C>(mut self, mut other: C) -> StridedZip<'a, Self, C>
         where C: 'a + IterGetSet, <C as IterGetSet>::Item: Send
     {
-        let new_shape = predict_broadcast_shape(self.shape(), other.shape()).expect(
+        let new_shape = predict_broadcast_shape(self.shape(), other.shape(), Location::caller()).expect(
             "Cannot broadcast shapes"
         );
 

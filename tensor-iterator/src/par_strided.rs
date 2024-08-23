@@ -1,4 +1,4 @@
-use std::{ fmt::Display, sync::Arc };
+use std::{ fmt::Display, panic::Location, sync::Arc };
 
 use rayon::iter::{
     plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
@@ -64,12 +64,13 @@ impl<T: CommonBounds> ParStrided<T> {
         }
     }
 
+    #[track_caller]
     pub fn zip<'a, C>(mut self, mut other: C) -> ParStridedZip<'a, Self, C>
         where
             C: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
             <C as IterGetSet>::Item: Send
     {
-        let new_shape = predict_broadcast_shape(self.shape(), other.shape()).expect(
+        let new_shape = predict_broadcast_shape(self.shape(), other.shape(), Location::caller()).expect(
             "Cannot broadcast shapes"
         );
 
@@ -243,6 +244,7 @@ impl<T> UnindexedProducer for ParStrided<T> where T: CommonBounds {
 }
 
 impl<T: Copy + Display> ShapeManipulator for ParStrided<T> {
+    #[track_caller]
     fn reshape<S: Into<Shape>>(mut self, shape: S) -> Self {
         let tmp = shape.into();
         let res_shape = tmp;
@@ -267,7 +269,7 @@ impl<T: Copy + Display> ShapeManipulator for ParStrided<T> {
         if size > (self_size as usize) {
             let self_shape = try_pad_shape(self.shape(), res_shape.len());
 
-            let axes_to_broadcast = get_broadcast_axes_from(&self_shape, &res_shape).expect(
+            let axes_to_broadcast = get_broadcast_axes_from(&self_shape, &res_shape, Location::caller()).expect(
                 "Cannot broadcast shapes"
             );
 
@@ -286,15 +288,16 @@ impl<T: Copy + Display> ShapeManipulator for ParStrided<T> {
             self.last_stride = new_strides[new_strides.len() - 1];
             self.set_strides(new_strides.into());
         } else {
-            ErrHandler::check_size_match(self.layout.shape(), &res_shape).unwrap();
+            ErrHandler::check_size_match(self.layout.shape().size(), res_shape.size()).unwrap();
             if let Some(new_strides) = self.layout.is_reshape_possible(&res_shape) {
                 self.set_strides(new_strides);
                 self.last_stride = self.strides()[self.strides().len() - 1];
             } else {
-                ErrHandler::raise_requires_allocation_when_use_iterator(
-                    self.shape(),
-                    self.strides()
-                ).unwrap();
+                ErrHandler::IterInplaceReshapeError(
+                    self.shape().clone(),
+                    res_shape.clone(),
+                    self.strides().clone()
+                );
             }
         }
 
@@ -338,8 +341,6 @@ impl<T: Copy + Display> ShapeManipulator for ParStrided<T> {
 
     fn expand<S: Into<Shape>>(mut self, shape: S) -> Self {
         let res_shape = shape.into();
-
-        ErrHandler::check_expand_dims(self.shape(), &res_shape).unwrap();
 
         let new_strides = self.layout.expand_strides(&res_shape);
 

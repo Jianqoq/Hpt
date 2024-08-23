@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{panic::Location, sync::Arc};
 
 use rayon::iter::{
     plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
@@ -99,6 +99,7 @@ impl<'a, A, B> ParStridedZip<'a, A, B>
         }
     }
 
+    #[track_caller]
     pub fn zip<C>(mut self, mut other: C) -> ParStridedZip<'a, Self, C>
         where
             C: UnindexedProducer + IterGetSet + ShapeManipulator + ParallelIterator + IterGetSet,
@@ -106,7 +107,7 @@ impl<'a, A, B> ParStridedZip<'a, A, B>
             <C as IterGetSet>::Item: Send,
             <Self as IterGetSet>::Item: Send
     {
-        let new_shape = predict_broadcast_shape(&self.shape(), &other.shape()).expect(
+        let new_shape = predict_broadcast_shape(&self.shape(), &other.shape(), Location::caller()).expect(
             "Cannot broadcast shapes"
         );
 
