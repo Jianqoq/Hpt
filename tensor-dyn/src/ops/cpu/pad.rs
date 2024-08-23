@@ -14,7 +14,7 @@ impl<T: CommonBounds> _Tensor<T> {
             .map(|(x, (a, b))| x + a + b)
             .collect::<Vec<_>>();
 
-        let res = _Tensor::<T>::empty(&res_shape)?;
+        let res = _Tensor::<T>::full(val, &res_shape)?;
 
         let outer_loop = self.shape()[..self.ndim() - 1].iter().product::<i64>();
         let inner_loop = self.shape()[self.ndim() - 1];
@@ -75,7 +75,6 @@ impl<T: CommonBounds> _Tensor<T> {
                                 inp_prg[j] += 1;
                                 ptr.offset(ts[j]);
                                 res_ptr.offset(rs[j]);
-                                
                                 break;
                             } else {
                                 inp_prg[j] = 0;

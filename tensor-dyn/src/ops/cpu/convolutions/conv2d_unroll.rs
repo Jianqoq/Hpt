@@ -7,8 +7,6 @@ use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
 use tensor_types::into_scalar::IntoScalar;
 
-use tensor_types::dtype::TypeCommon;
-
 macro_rules! __kernel {
     (
         [$T:ident, $vec:ident, $vec_size:expr, $reg_num:expr],
@@ -71,7 +69,7 @@ macro_rules! prepare_regs {
 }
 
 #[cfg(target_feature = "fma")]
-pub fn conv2d_ex_f32<T: CommonBounds + std::ops::Mul<Output = T> + std::ops::AddAssign, const REGNUM: usize, const VECSIZE: usize, VEC>(
+pub fn conv2d_ex<T: CommonBounds + std::ops::Mul<Output = T> + std::ops::AddAssign, const REGNUM: usize, const VECSIZE: usize, VEC>(
     img: &_Tensor<T>,
     kernels: &_Tensor<T>,
     steps: [i64; 2],

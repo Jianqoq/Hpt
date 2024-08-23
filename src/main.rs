@@ -1,9 +1,9 @@
-use ops::cpu::convolutions::conv2d::conv2d_pad_dilation;
-use ops::cpu::convolutions::conv2d_unroll::conv2d_ex_f32;
+
+use core::f32;
+
 use tensor_dyn::TensorCreator;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
-use wide::f32x8;
 
 fn main() -> anyhow::Result<()> {
     set_global_display_lr_elements(6);
@@ -31,16 +31,7 @@ fn main() -> anyhow::Result<()> {
 
     let now = std::time::Instant::now();
     for _ in 0..100 {
-        let res = conv2d_ex_f32::<f32, 14, 8, f32x8>(
-            &a,
-            &kernel,
-            [1, 1],
-            [
-                (2, 2),
-                (2, 2),
-            ],
-            [2, 2]
-        )?.permute([2, 0, 1])?;
+        let res = a.pad(&[(0, 0), (2, 2), (2, 2)], f32::INFINITY)?;
     }
     println!("{:?}", now.elapsed() / 100);
     Ok(())
