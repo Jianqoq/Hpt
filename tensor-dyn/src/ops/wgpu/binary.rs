@@ -11,7 +11,7 @@ impl<A, B> NormalBinOps<&_Tensor<B, Wgpu>>
     type OutputMeta = NormalType<A, B>;
     type InplaceOutput = _Tensor<NormalType<A, B>>;
 
-    fn add_<U>(&self, rhs: &_Tensor<B, Wgpu>, out: U) -> anyhow::Result<Self::Output>
+    fn add_<U>(&self, _: &_Tensor<B, Wgpu>, _: U) -> anyhow::Result<Self::Output>
         where
             U: tensor_traits::TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 tensor_traits::TensorInfo<Self::OutputMeta>
@@ -19,7 +19,7 @@ impl<A, B> NormalBinOps<&_Tensor<B, Wgpu>>
         todo!()
     }
 
-    fn sub_<U>(&self, rhs: &_Tensor<B, Wgpu>, out: U) -> anyhow::Result<Self::Output>
+    fn sub_<U>(&self, _: &_Tensor<B, Wgpu>, _: U) -> anyhow::Result<Self::Output>
         where
             U: tensor_traits::TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 tensor_traits::TensorInfo<Self::OutputMeta>
@@ -27,7 +27,7 @@ impl<A, B> NormalBinOps<&_Tensor<B, Wgpu>>
         todo!()
     }
 
-    fn mul_<U>(&self, rhs: &_Tensor<B, Wgpu>, out: U) -> anyhow::Result<Self::Output>
+    fn mul_<U>(&self, _: &_Tensor<B, Wgpu>, _: U) -> anyhow::Result<Self::Output>
         where
             U: tensor_traits::TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 tensor_traits::TensorInfo<Self::OutputMeta>
@@ -35,7 +35,7 @@ impl<A, B> NormalBinOps<&_Tensor<B, Wgpu>>
         todo!()
     }
 
-    fn rem_<U>(&self, rhs: &_Tensor<B, Wgpu>, out: U) -> anyhow::Result<Self::Output>
+    fn rem_<U>(&self, _: &_Tensor<B, Wgpu>, _: U) -> anyhow::Result<Self::Output>
         where
             U: tensor_traits::TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 tensor_traits::TensorInfo<Self::OutputMeta>
@@ -43,7 +43,7 @@ impl<A, B> NormalBinOps<&_Tensor<B, Wgpu>>
         todo!()
     }
 
-    fn convolve(&self, rhs: &_Tensor<B, Wgpu>) -> anyhow::Result<Self::Output> {
+    fn convolve(&self, _: &_Tensor<B, Wgpu>) -> anyhow::Result<Self::Output> {
         todo!()
     }
 }

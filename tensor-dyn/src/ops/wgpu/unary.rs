@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use bytemuck::Pod;
-use tensor_traits::{ CommonBounds, FloatUaryOps, TensorInfo };
+use tensor_traits::{ CommonBounds, TensorInfo };
 use tensor_types::{ dtype::TypeCommon, type_promote::FloatOut };
 
 use crate::{ backend::Wgpu, ops::cpu::unary::FloatType, tensor_base::_Tensor };
