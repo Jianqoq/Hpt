@@ -742,17 +742,15 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let shape = vec![n as i64, m as i64];
         let res = _Tensor::<T, Cpu>::empty(Arc::new(shape))?;
         let _r = res.as_raw_mut();
-        let one = (1).into_scalar();
-        let zero = (0).into_scalar();
         _r.into_par_iter()
             .enumerate()
             .for_each(|(i, x)| {
                 let row = i / m;
                 let col = i % m;
                 if col == row + k {
-                    *x = one;
+                    *x = T::ONE;
                 } else {
-                    *x = zero;
+                    *x = T::ZERO;
                 }
             });
         Ok(res)
@@ -884,8 +882,6 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let shape = vec![n as i64, m as i64];
         let res = _Tensor::<T, Cpu>::empty(Arc::new(shape))?;
         let _r = res.as_raw_mut();
-        let one = (1).into_scalar();
-        let zero = (0).into_scalar();
         if low_triangle {
             _r.into_par_iter()
                 .enumerate()
@@ -893,9 +889,9 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                     let row = i / m;
                     let col = i % m;
                     if (col as i64) <= (row as i64) + k {
-                        *x = one;
+                        *x = T::ONE;
                     } else {
-                        *x = zero;
+                        *x = T::ZERO;
                     }
                 });
         } else {
@@ -906,9 +902,9 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                     let row = i / m;
                     let col = i % m;
                     if (col as i64) <= (row as i64) + k {
-                        *x = zero;
+                        *x = T::ZERO;
                     } else {
-                        *x = one;
+                        *x = T::ONE;
                     }
                 });
         }
@@ -917,8 +913,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
 
     fn tril(&self, k: i64) -> Result<Self> where T: NormalOut<bool, Output = T> + IntoScalar<T> {
         if self.shape().len() < 2 {
-            let message = "_Tensor must have at least 2 dimensions for tril method".to_string();
-            return Err(anyhow::Error::msg(message));
+            return Err(ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into());
         }
         let mask: _Tensor<bool> = _Tensor::<bool>::tri(
             self.shape()[self.shape().len() - 2] as usize,
@@ -932,9 +927,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
 
     fn triu(&self, k: i64) -> Result<Self> where T: NormalOut<bool, Output = T> + IntoScalar<T> {
         if self.shape().len() < 2 {
-            let message: String =
-                "_Tensor must have at least 2 dimensions for tril method".to_string();
-            return Err(anyhow::Error::msg(message));
+            return Err(ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into());
         }
         let mask: _Tensor<bool> = _Tensor::<bool>::tri(
             self.shape()[self.shape().len() - 2] as usize,
@@ -958,12 +951,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         for i in 0..axes.len() {
             if self.shape()[axes[i]] != 1 {
                 return Err(
-                    anyhow::anyhow!(
-                        "cannot select an axis to squeeze out which has size not equal to one, try to squeeze axis {} with size {} in shape {:?}",
-                        axes[i],
-                        self.shape()[axes[i]],
-                        self.shape()
-                    )
+                    ErrHandler::SqueezeError(axes[i], self.shape().clone(), Location::caller()).into()
                 );
             }
         }

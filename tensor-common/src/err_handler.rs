@@ -45,6 +45,8 @@ pub enum ErrHandler {
     ),
     #[error("slice index out of range for {0} (arg: {1}), it should < {2}, At {3}")] 
     SliceIndexOutOfRange(i64, i64, i64, &'static Location<'static>),
+    #[error("cannot select an axis to squeeze out which has size != 1, found error for index {0} in {1}, at {2}")] 
+    SqueezeError(usize, Shape, &'static Location<'static>),
 }
 
 impl ErrHandler {
