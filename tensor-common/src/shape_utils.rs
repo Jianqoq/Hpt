@@ -137,16 +137,7 @@ pub fn predict_broadcast_shape(a_shape: &[i64], b_shape: &[i64]) -> anyhow::Resu
         } else if longer_dim == 1 {
             shorter_dim
         } else {
-            return Err(
-                ErrHandler::BroadcastError(
-                    format!(
-                        "Cannot broadcast shape: {:?} to {:?}, at axis {}.",
-                        a_shape,
-                        b_shape,
-                        i
-                    )
-                ).into()
-            );
+            return Err(ErrHandler::BroadcastError(a_shape.into(), b_shape.into(), i).into());
         };
     }
 
@@ -189,7 +180,7 @@ pub fn predict_broadcast_strides<T: Into<Layout>>(
             ErrHandler::IterInplaceReshapeError(
                 brocasted_shape.into(),
                 original_layout.shape().clone(),
-                original_layout.strides().clone(),
+                original_layout.strides().clone()
             );
             unreachable!()
         }
@@ -211,7 +202,7 @@ pub fn get_broadcast_axes_from(a_shape: &[i64], res_shape: &[i64]) -> anyhow::Re
         if a_dim == 1 && res_dim != 1 && !padded_axes.contains(&i) {
             axes.push(i);
         } else if res_dim == 1 && a_dim != 1 {
-            anyhow::bail!(format!("Invalid broadcast shape: {:?} -> {:?}", a_shape, res_shape));
+            anyhow::bail!(ErrHandler::BroadcastError(a_shape.into(), res_shape.into(), i));
         }
     }
 
@@ -422,11 +413,7 @@ pub fn is_reshape_possible(
         oj += 1;
     }
 
-    let last_stride = if ni >= 1 {
-        new_strides[ni - 1]
-    } else {
-        1
-    };
+    let last_stride = if ni >= 1 { new_strides[ni - 1] } else { 1 };
 
     for i in ni..new_shape.len() {
         new_strides[i] = last_stride;

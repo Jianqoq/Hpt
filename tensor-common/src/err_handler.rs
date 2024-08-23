@@ -16,7 +16,7 @@ pub enum ErrHandler {
     #[error("Shape mismatched: {0}")] IndexRepeated(String),
     #[error("Shape mismatched: {0}")] ExpandDimError(String),
     #[error("perform reshape error: can't perform inplace reshape to {0} from shape {0} and strides {1}")] IterInplaceReshapeError(Shape, Shape, Strides),
-    #[error("broadcast error: {0}")] BroadcastError(String),
+    #[error("broadcast error: can't broacast lhs: {0} with rhs: {1}, expect lhs_shape[{2}] to be 1")] BroadcastError(Shape, Shape, usize),
     #[error("same axis error: axis should be unique, but got {0} and {1}")] SameAxisError(i64, i64),
 }
 
