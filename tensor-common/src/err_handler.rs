@@ -1,237 +1,50 @@
-use std::collections::HashSet;
-
-use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use crate::{shape::Shape, strides::Strides};
-
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Error)]
 pub enum ErrHandler {
-    AxisMismatched(String),
-    SameAxisError(String),
-    SizeMismatched(String),
-    MatmulShapeMismatched(String),
-    NdimMismatched(String),
-    AllocRequired(String),
-    IndexOutOfRange(String),
-    IndexRepeated(String),
-    ExpandDimError(String),
-    InplaceReshapeError(String),
-    BroadcastError(String),
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum ErrHandlerType {
-    SizeMismatched,
-    NdimMismatched,
-    AllocRequired,
-    IndexOutOfRange,
-    IndexRepeated,
-    ExpandDimError,
-    AxisMismatched,
-    SameAxisError,
-    InplaceReshapeError,
-    BroadcastError,
+    #[error("size mismatched: expect {0} but got {1}")] SizeMismatched(i64, i64),
+    #[error(
+        "matmul shape mismatched: lhs matrix shape is {0:?}, rhs matrix shape is {1:?}, expect rhs matrix shape to be [{2}, any]"
+    )] MatmulShapeMismatched([i64; 2], [i64; 2], i64),
+    #[error("ndim mismatched: expect {0} but got {1}")] NdimMismatched(usize, usize),
+    #[error("axis out of range: tensor ndim is {0} but got index {1} => {2}")] IndexOutOfRange(
+        usize,
+        i64,
+        i64,
+    ),
+    #[error("Shape mismatched: {0}")] IndexRepeated(String),
+    #[error("Shape mismatched: {0}")] ExpandDimError(String),
+    #[error("perform reshape error: can't perform inplace reshape to {0} from shape {0} and strides {1}")] IterInplaceReshapeError(Shape, Shape, Strides),
+    #[error("broadcast error: {0}")] BroadcastError(String),
+    #[error("same axis error: axis should be unique, but got {0} and {1}")] SameAxisError(i64, i64),
 }
 
 impl ErrHandler {
-    pub fn check_size_match(lhs: &[i64], rhs: &[i64]) -> anyhow::Result<(), ErrHandler> {
-        if lhs.iter().product::<i64>() != rhs.iter().product::<i64>() {
-            Err(ErrHandler::SizeMismatched(format!(
-                "size mismatched, lhs: {}, rhs: {}.",
-                lhs.iter().product::<i64>(),
-                rhs.iter().product::<i64>()
-            )))
-        } else {
-            Ok(())
-        }
-    }
-
-    pub fn check_ndim_match(lhs: usize, rhs: usize) -> anyhow::Result<(), ErrHandler> {
-        if lhs != rhs {
-            Err(ErrHandler::NdimMismatched(format!(
-                "ndim mismatched, lhs: {}, rhs: {}.",
-                lhs, rhs
-            )))
-        } else {
-            Ok(())
-        }
-    }
-
-    pub fn check_axes_in_range<Iter: Iterator<Item = i64>>(ndim: usize, axes: Iter) -> anyhow::Result<(), ErrHandler> {
-        let mut set = HashSet::new();
-        let ndim = ndim as i64;
-        for (idx, axis) in axes.enumerate() {
-            if axis < 0 {
-                let val = axis % ndim;
-                let val = if val < 0 { val + ndim } else { val };
-                if !set.insert(val) {
-                    return Err(ErrHandler::IndexRepeated(format!(
-                        "axes[{}] {} repeated.",
-                        idx, val
-                    )));
-                }
-            } else {
-                if axis >= ndim  {
-                    return Err(ErrHandler::IndexOutOfRange(format!(
-                        "axes[{}]: {} out of range(should be in range {}..{}).",
-                        idx, axis, 0, ndim
-                    )));
-                }
-                if !set.insert(axis) {
-                    return Err(ErrHandler::IndexRepeated(format!(
-                        "axes[{}] {} repeated.",
-                        idx, axis
-                    )));
-                }
-            }
+    pub fn check_ndim_match(ndim: usize, expect_ndim: usize) -> Result<(), Self> {
+        if ndim != expect_ndim {
+            return Err(ErrHandler::NdimMismatched(expect_ndim, ndim));
         }
         Ok(())
     }
-
-    pub fn check_index_in_range(ndim: usize, axes: usize) -> anyhow::Result<(), ErrHandler> {
-        if axes >= ndim {
-            Err(ErrHandler::IndexOutOfRange(format!(
-                "axes: {} out of range(should be in range {}..{}).",
-                axes, 0, ndim
-            )))
-        } else {
-            Ok(())
-        }
-    }
-
-    pub fn check_axis_same(lhs: i64, rhs: i64) -> anyhow::Result<(), ErrHandler> {
-        if lhs == rhs {
-            Err(ErrHandler::SameAxisError(format!(
-                "axis should not be the same, lhs: {}, rhs: {}.",
-                lhs, rhs
-            )))
-        } else {
-            Ok(())
-        }
-    }
-
-    pub fn check_matmul_shape(lhs: &[i64], rhs: &[i64]) -> anyhow::Result<(), ErrHandler> {
-        match (lhs.get(1), rhs.first()) {
-            (Some(lhs), Some(rhs)) => {
-                if lhs != rhs {
-                    Err(ErrHandler::MatmulShapeMismatched(format!(
-                        "lhs shape[1] should be equal to rhs shape[0], got shape {:?} and {:?}",
-                        lhs, rhs
-                    )))
-                } else {
-                    Ok(())
-                }
-            }
-            (None, Some(rhs)) => {
-                Err(ErrHandler::IndexOutOfRange(format!(
-                    "lhs shape should have at least 2 dimensions, got shape {:?}",
-                    rhs
-                )))
-            }
-            (Some(lhs), None) => {
-                Err(ErrHandler::IndexOutOfRange(format!(
-                    "rhs shape should have at least 2 dimensions, got shape {:?}",
-                    lhs
-                )))
-            }
-            (None, None) => {
-                Err(ErrHandler::IndexOutOfRange(format!(
-                    "lhs and rhs shape should have at least 2 dimensions, got shape {:?} and {:?}",
-                    lhs, rhs
-                )))
-            }
-        }
-    }
-
-    pub fn check_expand_dims(
-        shape: &Shape,
-        expand_shape: &Shape,
-    ) -> anyhow::Result<(), ErrHandler> {
-        for (x, (idx, y)) in expand_shape
-            .iter()
-            .rev()
-            .zip(shape.iter().rev().enumerate())
-        {
-            if x != y && y != &1 {
-                return Err(ErrHandler::ExpandDimError(format!(
-                        "input shape {:?} can not be expanded to {:?}, please make sure input shape[{}]: {} equals 1 if you want to expand",
-                        shape,
-                        expand_shape,
-                        idx,
-                        shape[idx]
-                    )));
-            }
+    pub fn check_same_axis(axis1: i64, axis2: i64) -> Result<(), Self> {
+        if axis1 == axis2 {
+            return Err(ErrHandler::SameAxisError(axis1, axis2));
         }
         Ok(())
     }
-
-    pub fn raise_requires_allocation_when_use_iterator(
-        shape: &Shape,
-        strides: &Strides,
-    ) -> anyhow::Result<(), ErrHandler> {
-        Err(ErrHandler::AllocRequired(format!(
-            "Detected allocation required when using iterator, shape: {:?}, strides: {:?}",
-            shape, strides
-        )))
-    }
-
-    pub fn raise_broadcast_error<T>(lhs: &Shape, rhs: &Shape) -> anyhow::Result<T, ErrHandler> {
-        Err(ErrHandler::BroadcastError(format!(
-            "Broadcast error, lhs: {:?}, rhs: {:?}",
-            lhs, rhs
-        )))
-    }
-
-    pub fn to_type(&self) -> ErrHandlerType {
-        match self {
-            ErrHandler::SizeMismatched(_) => ErrHandlerType::SizeMismatched,
-            ErrHandler::NdimMismatched(_) => ErrHandlerType::NdimMismatched,
-            ErrHandler::AllocRequired(_) => ErrHandlerType::AllocRequired,
-            ErrHandler::IndexOutOfRange(_) => ErrHandlerType::IndexOutOfRange,
-            ErrHandler::IndexRepeated(_) => ErrHandlerType::IndexRepeated,
-            ErrHandler::ExpandDimError(_) => ErrHandlerType::ExpandDimError,
-            ErrHandler::AxisMismatched(_) => ErrHandlerType::AxisMismatched,
-            ErrHandler::SameAxisError(_) => ErrHandlerType::SameAxisError,
-            ErrHandler::InplaceReshapeError(_) => ErrHandlerType::SizeMismatched,
-            ErrHandler::BroadcastError(_) => ErrHandlerType::BroadcastError,
-            ErrHandler::MatmulShapeMismatched(_) => ErrHandlerType::SizeMismatched,
+    pub fn check_index_in_range(ndim: usize, index: &mut i64) -> Result<(), Self> {
+        let indedx = if *index < 0 { *index + (ndim as i64) } else { *index };
+        if indedx < 0 || indedx >= (ndim as i64) {
+            return Err(ErrHandler::IndexOutOfRange(ndim, *index, indedx));
         }
+        *index = indedx;
+        Ok(())
+    }
+    pub fn check_size_match(size1: i64, size2: i64) -> Result<(), Self> {
+        if size1 != size2 {
+            return Err(ErrHandler::SizeMismatched(size1, size2));
+        }
+        Ok(())
     }
 }
-
-impl std::fmt::Display for ErrHandler {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ErrHandler::SizeMismatched(msg) => write!(f, "{}", msg),
-            ErrHandler::AllocRequired(msg) => write!(f, "{}", msg),
-            ErrHandler::IndexOutOfRange(msg) => write!(f, "{}", msg),
-            ErrHandler::IndexRepeated(msg) => write!(f, "{}", msg),
-            ErrHandler::ExpandDimError(msg) => write!(f, "{}", msg),
-            ErrHandler::NdimMismatched(msg) => write!(f, "{}", msg),
-            ErrHandler::AxisMismatched(msg) => write!(f, "{}", msg),
-            ErrHandler::SameAxisError(msg) => write!(f, "{}", msg),
-            ErrHandler::InplaceReshapeError(msg) => write!(f, "{}", msg),
-            ErrHandler::BroadcastError(msg) => write!(f, "{}", msg),
-            ErrHandler::MatmulShapeMismatched(msg) => write!(f, "{}", msg),
-        }
-    }
-}
-
-impl std::fmt::Display for ErrHandlerType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ErrHandlerType::SizeMismatched => write!(f, "SizeMismatched"),
-            ErrHandlerType::AllocRequired => write!(f, "AllocRequired"),
-            ErrHandlerType::IndexOutOfRange => write!(f, "IndexOutOfRange"),
-            ErrHandlerType::IndexRepeated => write!(f, "IndexRepeated"),
-            ErrHandlerType::ExpandDimError => write!(f, "ExpandDimError"),
-            ErrHandlerType::NdimMismatched => write!(f, "NdimMismatched"),
-            ErrHandlerType::AxisMismatched => write!(f, "AxisMismatched"),
-            ErrHandlerType::SameAxisError => write!(f, "SameAxisError"),
-            ErrHandlerType::InplaceReshapeError => write!(f, "InplaceReshapeError"),
-            ErrHandlerType::BroadcastError => write!(f, "BroadcastError"),
-        }
-    }
-}
-
-impl std::error::Error for ErrHandler {}

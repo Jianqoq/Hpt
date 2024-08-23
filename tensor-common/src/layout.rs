@@ -128,27 +128,19 @@ impl Layout {
             })
         } else {
             Err(
-                ErrHandler::InplaceReshapeError(
-                    format!("cannot perform inplace reshape {:?} to {:?}.", self.shape, shape)
+                ErrHandler::IterInplaceReshapeError(
+                    shape.clone(),
+                    self.shape.clone(),
+                    self.strides.clone()
                 ).into()
             )
         }
     }
 
     pub fn swap_axis(&self, mut axis1: i64, mut axis2: i64) -> anyhow::Result<Layout> {
-        ErrHandler::check_axis_same(axis1, axis2)?;
-        if axis1 < 0 {
-            while axis1 < 0 {
-                axis1 += self.shape.len() as i64;
-            }
-        }
-        if axis2 < 0 {
-            while axis2 < 0 {
-                axis2 += self.shape.len() as i64;
-            }
-        }
-        ErrHandler::check_index_in_range(self.ndim(), axis1 as usize)?;
-        ErrHandler::check_index_in_range(self.ndim(), axis2 as usize)?;
+        ErrHandler::check_same_axis(axis1, axis2)?;
+        ErrHandler::check_index_in_range(self.ndim(), &mut axis1)?;
+        ErrHandler::check_index_in_range(self.ndim(), &mut axis2)?;
         let mut new_shape = self.shape().to_vec();
         let mut new_strides = self.strides().to_vec();
         new_shape.swap(axis1 as usize, axis2 as usize);

@@ -8,3 +8,4 @@ serde = { version = "1.0.203", features = ["derive"] }
 tensor-types = { path = "../tensor-types" }
 anyhow = "1.0.75"
 getset = "0.1.2"
+thiserror = "1.0.63"

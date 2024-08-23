@@ -8,23 +8,13 @@ pub fn process_axes<T: Into<Axis>>(axes: T, ndim: usize) -> anyhow::Result<Vec<u
     let ndim = ndim as i64;
     let axes = axes.into().axes;
     let mut new_axes = Vec::with_capacity(axes.len());
-    for (i, &axis) in axes.iter().enumerate() {
+    for &axis in axes.iter() {
         if axis < 0 {
-            let val = (axis % ndim) + ndim;
+            let val = axis + ndim;
             new_axes.push(val as usize);
         } else {
             if axis >= ndim {
-                return Err(
-                    ErrHandler::IndexOutOfRange(
-                        format!(
-                            "Axes {} out of range(Should be {}..{}). Pos: {}",
-                            axis,
-                            0,
-                            ndim,
-                            i
-                        )
-                    ).into()
-                );
+                return Err(ErrHandler::IndexOutOfRange(ndim as usize, axis, axis + ndim).into());
             }
             new_axes.push(axis as usize);
         }

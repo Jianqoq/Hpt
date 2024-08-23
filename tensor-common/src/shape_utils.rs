@@ -182,15 +182,15 @@ pub fn predict_broadcast_strides<T: Into<Layout>>(
         }
         new_strides.into()
     } else {
-        ErrHandler::check_size_match(original_layout.shape(), brocasted_shape).unwrap();
+        ErrHandler::check_size_match(original_layout.size(), brocasted_size).unwrap();
         if let Some(new_strides) = original_layout.is_reshape_possible(brocasted_shape) {
             new_strides
         } else {
-            ErrHandler::raise_requires_allocation_when_use_iterator(
-                original_layout.shape(),
-                original_layout.strides(),
-            )
-            .unwrap();
+            ErrHandler::IterInplaceReshapeError(
+                brocasted_shape.into(),
+                original_layout.shape().clone(),
+                original_layout.strides().clone(),
+            );
             unreachable!()
         }
     }

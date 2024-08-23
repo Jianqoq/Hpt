@@ -1,9 +1,9 @@
 
-use core::f32;
-
+use ops::cpu::convolutions::conv2d_unroll::conv2d_ex;
 use tensor_dyn::TensorCreator;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
+use wide::f32x8;
 
 fn main() -> anyhow::Result<()> {
     set_global_display_lr_elements(6);
@@ -16,6 +16,7 @@ fn main() -> anyhow::Result<()> {
     let a = _Tensor::<f32>
         ::arange(0, 8 * 1260 * 1260)?
         .reshape([8, 1260, 1260])?
+        .permute([1, 2, 0])?
         .contiguous()?;
     // let c = conv2d_pad_dilation(
     //     &a,
@@ -30,8 +31,17 @@ fn main() -> anyhow::Result<()> {
 
     let now = std::time::Instant::now();
     for _ in 0..100 {
-        let res = a.pad(&[(0, 0), (2, 2), (2, 2)], 0.0)?;
+        let res = conv2d_ex::<f32, 14, 8, f32x8>(
+            &a,
+            &kernel,
+            [1, 1],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [2, 2]
+        )?.permute([2, 0, 1])?;
     }
-    println!("{:?}", now.elapsed() / 100);
+    println!("{:?}", now.elapsed() / 1);
     Ok(())
 }
