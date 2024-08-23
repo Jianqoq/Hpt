@@ -4,6 +4,7 @@ use rayon::iter::{
     IntoParallelRefMutIterator,
     ParallelIterator,
 };
+use tensor_common::err_handler::ErrHandler;
 use tensor_common::shape_utils::mt_intervals;
 use tensor_traits::BaseTensor;
 use tensor_types::into_scalar::IntoScalar;
@@ -548,15 +549,10 @@ impl<T> Cum for _Tensor<T> where T: CommonBounds {
     fn cumsum(&self, axis: Option<i64>) -> anyhow::Result<Self>
         where Self::Meta: NormalOut<Self::Meta, Output = Self::Meta>
     {
-        return match axis {
+        match axis {
             Some(axis) => {
                 let mut _axis = axis;
-                if axis < 0 {
-                    _axis = (self.ndim() as i64) + axis;
-                    if _axis < 0 {
-                        anyhow::bail!("axis out of range");
-                    }
-                }
+                ErrHandler::check_index_in_range_mut(self.ndim(), &mut _axis)?;
                 let stride = self.strides()[_axis as usize];
                 let inner_loop = self.shape()[_axis as usize] as usize;
                 let outer_loop = self.size() / inner_loop;
@@ -667,21 +663,16 @@ impl<T> Cum for _Tensor<T> where T: CommonBounds {
                     Ok(res)
                 }
             }
-        };
+        }
     }
 
     fn cumprod(&self, axis: Option<i64>) -> anyhow::Result<Self>
         where Self::Meta: NormalOut<Self::Meta, Output = Self::Meta>
     {
-        return match axis {
+        match axis {
             Some(axis) => {
                 let mut _axis = axis;
-                if axis < 0 {
-                    _axis = (self.ndim() as i64) + axis;
-                    if _axis < 0 {
-                        anyhow::bail!("axis out of range");
-                    }
-                }
+                ErrHandler::check_index_in_range_mut(self.ndim(), &mut _axis)?;
                 let stride = self.strides()[_axis as usize];
                 let inner_loop = self.shape()[_axis as usize] as usize;
                 let outer_loop = self.size() / inner_loop;
@@ -792,6 +783,6 @@ impl<T> Cum for _Tensor<T> where T: CommonBounds {
                     Ok(res)
                 }
             }
-        };
+        }
     }
 }
