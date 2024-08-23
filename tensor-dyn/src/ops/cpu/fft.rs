@@ -85,7 +85,7 @@ macro_rules! impl_fftops {
                                 let mut local_amount = amount;
 
                                 let mut current_prg = vec![0; ndim];
-                                for j in (0..=ndim - 1).rev() {
+                                for j in (0..ndim).rev() {
                                     current_prg[j] = local_amount % new_self.shape()[j];
                                     local_ptr.offset(current_prg[j] * new_self.strides()[j]);
                                     local_res_ptr
@@ -134,7 +134,7 @@ macro_rules! impl_fftops {
                                         for i in 0..inner_loop_size {
                                             res_ptr.modify(i * last_stride, buffer[i as usize]);
                                         }
-                                        for j in (0..=ndim - 2).rev() {
+                                        for j in (0..ndim - 1).rev() {
                                             if local_prg[j] < local_shape[j] {
                                                 local_prg[j] += 1;
                                                 ptr.offset(strides[j]);
@@ -207,7 +207,7 @@ macro_rules! impl_fftops {
                             let mut local_amount = amount;
 
                             let mut current_prg = vec![0; ndim];
-                            for j in (0..=ndim - 1).rev() {
+                            for j in (0..ndim).rev() {
                                 current_prg[j] = local_amount % new_self.shape()[j];
                                 local_ptr.offset(current_prg[j] * new_self.strides()[j]);
                                 local_res_ptr.offset(current_prg[j] * transposed_res.strides()[j]);
@@ -253,7 +253,7 @@ macro_rules! impl_fftops {
                                     for i in 0..inner_loop_size {
                                         res_ptr.modify(i * last_stride, buffer[i as usize]);
                                     }
-                                    for j in (0..=ndim - 2).rev() {
+                                    for j in (0..ndim - 1).rev() {
                                         if local_prg[j] < local_shape[j] {
                                             local_prg[j] += 1;
                                             ptr.offset(strides[j]);

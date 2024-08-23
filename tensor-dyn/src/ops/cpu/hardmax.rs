@@ -6,6 +6,7 @@ use crate::{ tensor::Tensor, tensor_base::_Tensor };
 use super::reduce::reduce;
 
 impl<T> _Tensor<T> where T: CommonBounds + NormalOut<T, Output = T> + Cmp {
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn hardmax(&self, axis: i64) -> anyhow::Result<_Tensor<T>> {
         let axis = (if axis < 0 { (self.layout.ndim() as i64) + axis } else { axis }) as usize;
         let max = reduce(self, |a, b| a._max(b), &[axis], T::ZERO, true, false, None)?;
@@ -21,6 +22,7 @@ impl<T> _Tensor<T> where T: CommonBounds + NormalOut<T, Output = T> + Cmp {
 }
 
 impl<T> Tensor<T> where T: CommonBounds + NormalOut<T, Output = T> + Cmp {
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn hardmax(&self, axis: i64) -> anyhow::Result<Tensor<T>> {
         Ok(Tensor::from(_Tensor::hardmax(self, axis)?.into()))
     }

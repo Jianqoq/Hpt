@@ -425,6 +425,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
 
 pub trait TensorAlloc<Output = Self> {
     type Meta;
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn _empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Output> where Self: Sized;
 }
 
@@ -444,6 +445,7 @@ pub trait IndexReduce where Self: Sized {
     /// assert_eq!(a.argmax(0, false).unwrap(), Tensor::new([1, 1, 1]));
     /// assert_eq!(a.argmax(1, false).unwrap(), Tensor::new([2, 2]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn argmax<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 
     /// find the index of the min value along a specific axis
@@ -459,6 +461,7 @@ pub trait IndexReduce where Self: Sized {
     /// assert_eq!(a.argmin(0, false).unwrap(), Tensor::new([0, 0, 0]));
     /// assert_eq!(a.argmin(1, false).unwrap(), Tensor::new([0, 0]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }
 
@@ -479,8 +482,10 @@ pub trait NormalReduce<T> where Self: Sized {
     /// assert_eq!(a.sum(0, false).unwrap(), Tensor::new([5, 7, 9]));
     /// assert_eq!(a.sum(1, false).unwrap(), Tensor::new([6, 15]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn sum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn sum_<S: Into<Axis>>(
         &self,
         axis: S,
@@ -502,6 +507,7 @@ pub trait NormalReduce<T> where Self: Sized {
     /// assert_eq!(a.sum_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new([6, 8, 10]));
     /// assert_eq!(a.sum_with_init(/*init_val*/1, /*axes*/1, /*keep_dims*/false).unwrap(), Tensor::new([7, 16]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn sum_with_init<S: Into<Axis>>(
         &self,
         init_val: T,
@@ -522,6 +528,7 @@ pub trait NormalReduce<T> where Self: Sized {
     /// assert_eq!(a.nansum(0, false).unwrap(), Tensor::new([5., 2., 6.]));
     /// assert_eq!(a.nansum(1, false).unwrap(), Tensor::new([3., 10.]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn nansum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 
     /// sum along a specific axis, NaN will be treated as 0, with initial value
@@ -537,6 +544,7 @@ pub trait NormalReduce<T> where Self: Sized {
     /// assert_eq!(a.nansum_with_init(1f32, 0, false).unwrap(), Tensor::new([6., 3., 7.]));
     /// assert_eq!(a.nansum_with_init(1f32, 1, false).unwrap(), Tensor::new([4., 11.]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn nansum_with_init<S: Into<Axis>>(
         &self,
         init_val: T,
@@ -557,6 +565,7 @@ pub trait NormalReduce<T> where Self: Sized {
     /// assert_eq!(a.prod(0, false).unwrap(), Tensor::new([4, 10, 18]));
     /// assert_eq!(a.prod(1, false).unwrap(), Tensor::new([6, 120]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 
     /// product along a specific axis, with initial value
@@ -572,6 +581,7 @@ pub trait NormalReduce<T> where Self: Sized {
     /// assert_eq!(a.prod_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new([4, 10, 18]));
     /// assert_eq!(a.prod_with_init(/*init_val*/1, /*axes*/1, /*keep_dims*/false).unwrap(), Tensor::new([6, 120]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn prod_with_init<S: Into<Axis>>(
         &self,
         init_val: T,
@@ -592,6 +602,7 @@ pub trait NormalReduce<T> where Self: Sized {
     /// assert_eq!(a.nanprod(0, false).unwrap(), Tensor::new([4., 2., 6.]));
     /// assert_eq!(a.nanprod(1, false).unwrap(), Tensor::new([2., 24.]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 
     /// product along a specific axis, NaN will be treated as 0, with initial value
@@ -607,6 +618,7 @@ pub trait NormalReduce<T> where Self: Sized {
     /// assert_eq!(a.nanprod_with_init(1f32, 0, false).unwrap(), Tensor::new([4., 2., 6.]));
     /// assert_eq!(a.nanprod_with_init(1f32, 1, false).unwrap(), Tensor::new([2., 24.]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn nanprod_with_init<S: Into<Axis>>(
         &self,
         init_val: T,
@@ -627,6 +639,7 @@ pub trait NormalReduce<T> where Self: Sized {
     /// assert_eq!(a.min(0, false).unwrap(), Tensor::new([1, 2, 3]));
     /// assert_eq!(a.min(1, false).unwrap(), Tensor::new([1, 4]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self>;
 
     /// find the min value along a specific axis or a set of axis, with initial value
@@ -642,6 +655,7 @@ pub trait NormalReduce<T> where Self: Sized {
     /// assert_eq!(a.min_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new([1, 2, 3]));
     /// assert_eq!(a.min_with_init(/*init_val*/1, /*axes*/1, /*keep_dims*/false).unwrap(), Tensor::new([1, 4]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn min_with_init<S: Into<Axis>>(
         &self,
         init_val: T,
@@ -662,6 +676,7 @@ pub trait NormalReduce<T> where Self: Sized {
     /// assert_eq!(a.max(0, false).unwrap(), Tensor::new([4, 5, 6]));
     /// assert_eq!(a.max(1, false).unwrap(), Tensor::new([3, 6]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self>;
 
     /// find the max value along a specific axis or a set of axis, with initial value
@@ -677,6 +692,7 @@ pub trait NormalReduce<T> where Self: Sized {
     /// assert_eq!(a.max_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new([4, 5, 6]));
     /// assert_eq!(a.max_with_init(/*init_val*/1, /*axes*/1, /*keep_dims*/false).unwrap(), Tensor::new([3, 6]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn max_with_init<S: Into<Axis>>(
         &self,
         init_val: T,
@@ -697,6 +713,7 @@ pub trait NormalReduce<T> where Self: Sized {
     /// assert_eq!(a.all(0, false).unwrap(), Tensor::new([true, true, true]));
     /// assert_eq!(a.all(1, false).unwrap(), Tensor::new([true, true]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput>;
 
     /// check if any value is true along a specific axis or a set of axis
@@ -712,10 +729,11 @@ pub trait NormalReduce<T> where Self: Sized {
     /// assert_eq!(a.any(0, false).unwrap(), Tensor::new([true, false, true]));
     /// assert_eq!(a.any(1, false).unwrap(), Tensor::new([true, false]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }
 
@@ -735,12 +753,13 @@ pub trait FloatReduce<T> where Self: Sized {
     /// assert_eq!(a.mean(0, false).unwrap(), Tensor::new([2.5, 3.5, 4.5]));
     /// assert_eq!(a.mean(1, false).unwrap(), Tensor::new([2., 5.]));
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn reducel2<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn reducel3<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn logsumexp<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }
 

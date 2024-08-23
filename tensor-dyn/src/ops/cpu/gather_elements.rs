@@ -6,6 +6,7 @@ use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
 use crate::{ backend::Cpu, tensor_base::_Tensor, THREAD_POOL };
 
 impl<T> _Tensor<T, Cpu> where T: CommonBounds {
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn gather_elements(&self, indices: &_Tensor<i64, Cpu>, axis: i64) -> anyhow::Result<Self> {
         let axis = (if axis < 0 { (self.ndim() as i64) + axis } else { axis }) as usize;
         let ret = _Tensor::<T, Cpu>::empty(indices.shape())?;

@@ -108,7 +108,7 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
                 a_shape: a_shape.clone(),
             });
         }
-        return iterators;
+        iterators
     }
 
     pub fn new2(
@@ -164,7 +164,7 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
                 a_shape: transposed_shape.clone(),
             });
         }
-        return iterators;
+        iterators
     }
 
     pub fn reset_prg(&mut self) {
@@ -177,6 +177,7 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
 #[allow(unused_macros)]
 macro_rules! register_stack {
     ($name:ident) => {
+        #[cfg_attr(feature = "track_caller", track_caller)]
         pub(crate) fn $name<T>(
             tensors: Vec<&_Tensor<T>>,
             axis: usize,
@@ -520,6 +521,7 @@ macro_rules! register_reduction_one_axis {
         $kernel_name:ident,
         $($trait_bound:tt)*
     ) => {
+        #[cfg_attr(feature = "track_caller", track_caller)]
         pub(crate) fn $fn_name<$generic_a, $generic_b>(a: &_Tensor<$generic_a>, axes: Vec<usize>,
              init_val: $generic_b, keepdims: bool, c: Option<_Tensor<$generic_b>>) -> anyhow::Result<_Tensor<$generic_b>> $($trait_bound)*
          {
@@ -532,6 +534,7 @@ macro_rules! register_reduction_one_axis {
         $kernel_name:ident,
         $($trait_bound:tt)*
     ) => {
+        #[cfg_attr(feature = "track_caller", track_caller)]
         pub(crate) fn $fn_name<$generic_a>(a: &_Tensor<$generic_a>, axes: Vec<usize>,
              init_val: $generic_a, keepdims: bool, c: Option<_Tensor<$generic_a>>) -> anyhow::Result<_Tensor<$generic_a>> $($trait_bound)*
          {
@@ -544,6 +547,7 @@ macro_rules! register_reduction_one_axis {
         $kernel_name:ident,
         $($trait_bound:tt)*
     ) => {
+        #[cfg_attr(feature = "track_caller", track_caller)]
         pub(crate) fn $fn_name<$generic_a>(a: &_Tensor<$generic_a>, axes: Vec<usize>,
              init_val: $($specific_type)*, keepdims: bool, c: Option<_Tensor<$($specific_type)*>>) -> anyhow::Result<_Tensor<$($specific_type)*>> $($trait_bound)*
          {
@@ -552,6 +556,7 @@ macro_rules! register_reduction_one_axis {
     };
 }
 
+#[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn _reduce<T, F, F2, F3, O>(
     a: &_Tensor<T>,
     op: F,
@@ -875,7 +880,7 @@ pub(crate) fn _reduce<T, F, F2, F3, O>(
         Ok(result)
     }
 }
-
+#[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn reduce<T, F>(
     a: &_Tensor<T>,
     op: F,
@@ -890,7 +895,7 @@ pub(crate) fn reduce<T, F>(
 {
     _reduce::<_, _, _, fn(T) -> T, T>(a, op, op, None, &axes, init_val, keepdims, init_out, c)
 }
-
+#[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn reduce2<T, F, F2, O>(
     a: &_Tensor<T>,
     op: F,
@@ -910,7 +915,7 @@ pub(crate) fn reduce2<T, F, F2, O>(
 {
     _reduce::<_, _, _, fn(O) -> O, O>(a, op, op2, None, &axes, init_val, keepdims, init_out, c)
 }
-
+#[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn reduce3<T, F, F2, F3, O>(
     a: &_Tensor<T>,
     op: F,

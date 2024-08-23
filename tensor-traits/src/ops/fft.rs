@@ -23,6 +23,7 @@ pub trait FFTOps where Self: Sized {
     /// let tensor = Tensor::<Complex32>::new([1.0, 2.0, 3.0]);
     /// let result = tensor.fft(0); // Compute FFT along the first axis
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn fft(&self, axis: i64) -> Result<Self>;
 
     /// Performs an Inverse Fast Fourier Transform (IFFT) along a specified axis.
@@ -46,6 +47,7 @@ pub trait FFTOps where Self: Sized {
     /// let tensor = Tensor::<Complex32>::new([1.0, 2.0, 3.0]);
     /// let result = tensor.ifft(0); // Compute IFFT along the first axis
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn ifft(&self, axis: i64) -> Result<Self>;
 
     /// Performs a Fast Fourier Transform (FFT) along two specified axes.
@@ -69,6 +71,7 @@ pub trait FFTOps where Self: Sized {
     /// let tensor = Tensor::<Complex32>::new([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]);
     /// let result = tensor.fft2([0, 1]); // Compute FFT along all the axis
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn fft2(&self, axis1: i64, axis2: i64) -> Result<Self>;
 
     /// Performs an Inverse Fast Fourier Transform (FFT) along two specified axes.
@@ -92,6 +95,7 @@ pub trait FFTOps where Self: Sized {
     /// let tensor = Tensor::<Complex32>::new([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]);
     /// let result = tensor.ifft2([0, 1]); // Compute inverse FFT along all the axis
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn ifft2(&self, axis1: i64, axis2: i64) -> Result<Self>;
 
     /// Performs an N-dimensional Fast Fourier Transform (FFT).
@@ -117,6 +121,7 @@ pub trait FFTOps where Self: Sized {
     /// let tensor = Tensor::<Complex32>::new([1.0, 2.0, 3.0]);
     /// let fft_result = tensor.fftn(vec![0, 1]); // Compute FFT along axes 0 and 1
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn fftn<A: Into<Axis>>(&self, axes: A) -> Result<Self>;
 
     /// Performs an N-dimensional Inverse Fast Fourier Transform (IFFT).
@@ -145,5 +150,6 @@ pub trait FFTOps where Self: Sized {
     /// let tensor = Tensor::<Complex32>::new([1.0, 2.0, 3.0]);
     /// let ifft_result = tensor.ifftn(vec![0, 1]); // Compute IFFT along axes 0 and 1
     /// ```
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn ifftn<A: Into<Axis>>(&self, axes: A) -> Result<Self>;
 }

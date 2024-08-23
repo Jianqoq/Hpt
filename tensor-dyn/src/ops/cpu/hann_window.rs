@@ -29,6 +29,7 @@ impl<T> _Tensor<T>
         usize: IntoScalar<T>,
         i64: IntoScalar<T>
 {
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn hann_window(window_length: i64, periodic: bool) -> anyhow::Result<_Tensor<T>> {
         let length_i64 = (if periodic { window_length } else { window_length - 1 }) as i64;
         let length: T = length_i64.into_scalar();
@@ -61,6 +62,7 @@ impl<T> Tensor<T>
         usize: IntoScalar<T>,
         i64: IntoScalar<T>
 {
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn hann_window(window_length: i64, periodic: bool) -> anyhow::Result<Tensor<T>> {
         Ok(Tensor::from(_Tensor::hann_window(window_length, periodic)?.into()))
     }

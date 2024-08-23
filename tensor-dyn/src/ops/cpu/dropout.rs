@@ -9,6 +9,7 @@ impl<T> _Tensor<T, Cpu>
         T: CommonBounds + NormalOut<bool, Output = T> + NormalOut<T, Output = T>,
         f64: IntoScalar<T>
 {
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn dropout(&self, rate: f64) -> anyhow::Result<_Tensor<T>> {
         let ret = _Tensor::<T>::empty(self.shape())?;
         let bernoli = rand::distributions::Bernoulli::new(rate).unwrap();
