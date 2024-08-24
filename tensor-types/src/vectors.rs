@@ -1,3 +1,4 @@
+
 use half::{ bf16, f16 };
 use num_complex::{ Complex32, Complex64 };
 use wide::*;
@@ -443,27 +444,27 @@ impl FloatOut for f32x8 {
     }
 
     fn _sinh(self) -> Self::Output {
-        todo!()
+        self.exp() - (-self).exp() / 2.0
     }
 
     fn _cosh(self) -> Self::Output {
-        todo!()
+        self.exp() + (-self).exp() / 2.0
     }
 
     fn _tanh(self) -> Self::Output {
-        todo!()
+        self._sinh() / self._cosh()
     }
 
     fn _asinh(self) -> Self::Output {
-        todo!()
+        (self + (self * self + 1.0).sqrt()).ln()
     }
 
     fn _acosh(self) -> Self::Output {
-        todo!()
+        (self + (self * self - 1.0).sqrt()).ln()
     }
 
     fn _atanh(self) -> Self::Output {
-        todo!()
+        (1.0 + self) / (1.0 - self).ln() / 2.0
     }
 
     fn _recip(self) -> Self::Output {
@@ -495,11 +496,8 @@ impl FloatOut for f32x8 {
     }
 
     fn _selu(self, alpha: Self::Output, scale: Self::Output) -> Self::Output {
-        fn select(mask: f32x8, a: f32x8, b: f32x8) -> f32x8 {
-            (mask & a) | (!mask & b)
-        }
         let mask = self.cmp_gt(Self::Output::splat(0.0));
-        select(mask, scale * self, scale * alpha * (self.exp() - 1.0))
+        (scale * self).blend(scale * alpha * (self.exp() - 1.0), mask)
     }
 
     fn _hard_sigmoid(self, _: Self::Output, _: Self::Output) -> Self::Output {

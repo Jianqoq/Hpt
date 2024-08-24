@@ -9,10 +9,10 @@ fn main() -> anyhow::Result<()> {
     tch::set_num_threads(10);
     let a = _Tensor::<f32>::randn(&[8, 2048, 2048])?;
     // let b = _Tensor::<f32>::randn(&[104, 104, 104, 104])?;
-    
+
     let now = std::time::Instant::now();
     black_box(for _ in 0..100 {
-        let _ = a.sin()?;
+        let _ = a.sinh()?;
     });
     println!("hpt time: {:?}", now.elapsed() / 100);
 
@@ -21,7 +21,7 @@ fn main() -> anyhow::Result<()> {
 
     let now = std::time::Instant::now();
     black_box(for _ in 0..100 {
-        let _ = a.sin();
+        let _ = a.selu();
     });
     println!("torch time: {:?}", now.elapsed() / 100);
     Ok(())

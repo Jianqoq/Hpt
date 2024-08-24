@@ -17,7 +17,7 @@ members = [
 ]
 
 [dependencies]
-tensor-dyn = { path = "tensor-dyn" }
+tensor-dyn = { path = "tensor-dyn", features = ["simd"]}
 anyhow = "1.0.40"
 wgpu = { version = "22.1.0", features = ["naga-ir"] }
 rayon = "1.8.0"
@@ -36,12 +36,8 @@ path = "src/main.rs"
 opt-level = 3
 incremental = true
 debug = false
-lto = "fat"
-codegen-units = 1
 
 [profile.release]
 opt-level = 3
 incremental = true
 debug = false
-lto = "fat"
-codegen-units = 1
