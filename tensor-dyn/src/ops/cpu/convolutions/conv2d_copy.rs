@@ -1,5 +1,5 @@
-
-use crate::{ops::cpu::{convolutions::conv2d_unroll::{calculate_valid_k_range, calculate_valid_n_range, micro_kernel_range, prepare_regs, prepare_regs2}, vector::traits::VecTrait}, tensor_base::_Tensor};
+use tensor_types::vectors::*;
+use crate::{ops::cpu::convolutions::conv2d_unroll::{calculate_valid_k_range, calculate_valid_n_range, micro_kernel_range, prepare_regs, prepare_regs2}, tensor_base::_Tensor};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tensor_traits::{TensorCreator, TensorInfo};
 use wide::f32x8;

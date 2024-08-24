@@ -1,10 +1,14 @@
 use half::{ bf16, f16 };
 use num_complex::{ Complex32, Complex64 };
 use tensor_macros::infer_enum_type;
+use wide::{ f64x4, i16x8, i32x8, i64x2, i8x32, u16x8, u32x8, u64x2 };
 use std::fmt::Display;
 use serde::{ Deserialize, Serialize };
-
-use crate::type_promote::{ BitWiseOut, Eval, FloatOut, NormalOut };
+use wide::f32x8;
+use crate::{
+    type_promote::{ BitWiseOut, Eval, FloatOut, NormalOut },
+    vectors::{ Init, VecSize, VecTrait },
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub enum Dtype {
@@ -96,7 +100,7 @@ impl Dtype {
     }
 }
 
-pub trait TypeCommon {
+pub trait TypeCommon where Self: Sized {
     const ID: Dtype;
     const MAX: Self;
     const MIN: Self;
@@ -106,6 +110,7 @@ pub trait TypeCommon {
     const NEG_INF: Self;
     const TWO: Self;
     const STR: &'static str;
+    type Vec: VecTrait<Self> + Init<Self> + VecSize;
 }
 
 macro_rules! impl_type_common {
@@ -119,7 +124,8 @@ macro_rules! impl_type_common {
         $inf:expr,
         $neg_inf:expr,
         $two:expr,
-        $str:expr
+        $str:expr,
+        $vec:ty
     ) => {
         impl TypeCommon for $type {
             const ID: Dtype = Dtype::$dtype;
@@ -131,20 +137,21 @@ macro_rules! impl_type_common {
             const NEG_INF: Self = $neg_inf;
             const TWO: Self = $two;
             const STR: &'static str = $str;
+            type Vec = $vec;
         }
     };
 }
 
 // Implement TypeCommon for primitive types, this trait will be used when we use generic type
-impl_type_common!(bool, Bool, true, false, false, true, true, false, false, "bool");
-impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, "i8");
-impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, "u8");
-impl_type_common!(i16, I16, i16::MAX, i16::MIN, 0, 1, i16::MAX, i16::MIN, 2, "i16");
-impl_type_common!(u16, U16, u16::MAX, u16::MIN, 0, 1, u16::MAX, u16::MIN, 2, "u16");
-impl_type_common!(i32, I32, i32::MAX, i32::MIN, 0, 1, i32::MAX, i32::MIN, 2, "i32");
-impl_type_common!(u32, U32, u32::MAX, u32::MIN, 0, 1, u32::MAX, u32::MIN, 2, "u32");
-impl_type_common!(i64, I64, i64::MAX, i64::MIN, 0, 1, i64::MAX, i64::MIN, 2, "i64");
-impl_type_common!(u64, U64, u64::MAX, u64::MIN, 0, 1, u64::MAX, u64::MIN, 2, "u64");
+impl_type_common!(bool, Bool, true, false, false, true, true, false, false, "bool", [bool; 8]);
+impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, "i8", i8x32);
+impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, "u8", [u8; 32]);
+impl_type_common!(i16, I16, i16::MAX, i16::MIN, 0, 1, i16::MAX, i16::MIN, 2, "i16", i16x8);
+impl_type_common!(u16, U16, u16::MAX, u16::MIN, 0, 1, u16::MAX, u16::MIN, 2, "u16", u16x8);
+impl_type_common!(i32, I32, i32::MAX, i32::MIN, 0, 1, i32::MAX, i32::MIN, 2, "i32", i32x8);
+impl_type_common!(u32, U32, u32::MAX, u32::MIN, 0, 1, u32::MAX, u32::MIN, 2, "u32", u32x8);
+impl_type_common!(i64, I64, i64::MAX, i64::MIN, 0, 1, i64::MAX, i64::MIN, 2, "i64", i64x2);
+impl_type_common!(u64, U64, u64::MAX, u64::MIN, 0, 1, u64::MAX, u64::MIN, 2, "u64", u64x2);
 impl_type_common!(
     f32,
     F32,
@@ -155,7 +162,8 @@ impl_type_common!(
     f32::INFINITY,
     f32::NEG_INFINITY,
     2.0,
-    "f32"
+    "f32",
+    f32x8
 );
 impl_type_common!(
     f64,
@@ -167,12 +175,37 @@ impl_type_common!(
     f64::INFINITY,
     f64::NEG_INFINITY,
     2.0,
-    "f64"
+    "f64",
+    f64x4
 );
-impl_type_common!(isize, Isize, isize::MAX, isize::MIN, 0, 1, isize::MAX, isize::MIN, 2, "isize");
-impl_type_common!(usize, Usize, usize::MAX, usize::MIN, 0, 1, usize::MAX, usize::MIN, 2, "usize");
-impl_type_common!(f16, F16, f16::MAX, f16::MIN, f16::ZERO, f16::ONE, f16::INFINITY, f16::NEG_INFINITY, f16::from_f32_const(2.0), "f16"); // prettier-ignore
-impl_type_common!(bf16, BF16, bf16::MAX, bf16::MIN, bf16::ZERO, bf16::ONE, bf16::INFINITY, bf16::NEG_INFINITY, bf16::from_f32_const(2.0), "bf16"); // prettier-ignore
+impl_type_common!(
+    isize,
+    Isize,
+    isize::MAX,
+    isize::MIN,
+    0,
+    1,
+    isize::MAX,
+    isize::MIN,
+    2,
+    "isize",
+    [isize; 8]
+);
+impl_type_common!(
+    usize,
+    Usize,
+    usize::MAX,
+    usize::MIN,
+    0,
+    1,
+    usize::MAX,
+    usize::MIN,
+    2,
+    "usize",
+    [usize; 8]
+);
+impl_type_common!(f16, F16, f16::MAX, f16::MIN, f16::ZERO, f16::ONE, f16::INFINITY, f16::NEG_INFINITY, f16::from_f32_const(2.0), "f16", [f16; 32]); // prettier-ignore
+impl_type_common!(bf16, BF16, bf16::MAX, bf16::MIN, bf16::ZERO, bf16::ONE, bf16::INFINITY, bf16::NEG_INFINITY, bf16::from_f32_const(2.0), "bf16", [bf16; 32]); // prettier-ignore
 impl_type_common!(
     Complex32,
     C32,
@@ -183,7 +216,8 @@ impl_type_common!(
     Complex32::new(f32::INFINITY, f32::INFINITY),
     Complex32::new(f32::NEG_INFINITY, f32::NEG_INFINITY),
     Complex32::new(2.0, 0.0),
-    "c32"
+    "c32",
+    [Complex32; 4]
 );
 impl_type_common!(
     Complex64,
@@ -195,7 +229,8 @@ impl_type_common!(
     Complex64::new(f64::INFINITY, f64::INFINITY),
     Complex64::new(f64::NEG_INFINITY, f64::NEG_INFINITY),
     Complex64::new(2.0, 0.0),
-    "c64"
+    "c64",
+    [Complex64; 2]
 );
 
 pub trait FloatConst {

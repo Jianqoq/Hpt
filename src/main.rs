@@ -1,47 +1,28 @@
-use ops::cpu::convolutions::conv2d::conv2d_pad_dilation;
-use ops::cpu::convolutions::conv2d_unroll::conv2d_ex;
-use tensor_dyn::TensorCreator;
+use std::hint::black_box;
+use tch::{ Device, Kind, Tensor };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
-use wide::f32x8;
 
 fn main() -> anyhow::Result<()> {
     set_global_display_lr_elements(6);
     set_num_threads(10);
-    let kernel = _Tensor::<f32>
-        ::arange(0, 8 * 80 * 4 * 4)?
-        .reshape([80, 8, 4, 4])?
-        .permute([2, 3, 1, 0])?
-        .contiguous()?;
-    let a = _Tensor::<f32>
-        ::arange(0, 8 * 1260 * 1260)?
-        .reshape([8, 1260, 1260])?
-        .permute([1, 2, 0])?
-        .contiguous()?;
-    // let c = conv2d_pad_dilation(
-    //     &a,
-    //     &kernel,
-    //     [1, 1],
-    //     [
-    //         (2, 2),
-    //         (2, 2),
-    //     ],
-    //     [2, 2]
-    // )?.permute([2, 0, 1])?;
+    tch::set_num_threads(10);
+    let a = _Tensor::<f32>::randn(&[8, 2048, 2048])?;
+    // let b = _Tensor::<f32>::randn(&[104, 104, 104, 104])?;
+    
+    let now = std::time::Instant::now();
+    black_box(for _ in 0..100 {
+        let _ = a.sin()?;
+    });
+    println!("hpt time: {:?}", now.elapsed() / 100);
+
+    let a = Tensor::randn(&[8, 2048, 2048], (Kind::Float, Device::Cpu));
+    // let c = Tensor::randn([104, 1, 104, 1], (Kind::Float, Device::Cpu));
 
     let now = std::time::Instant::now();
-    for _ in 0..100 {
-        let res = conv2d_ex::<f32, 14, 8, f32x8>(
-            &a,
-            &kernel,
-            [1, 1],
-            [
-                (2, 2),
-                (2, 2),
-            ],
-            [2, 2]
-        )?.permute([2, 0, 1])?;
-    }
-    println!("{:?}", now.elapsed() / 100);
+    black_box(for _ in 0..100 {
+        let _ = a.sin();
+    });
+    println!("torch time: {:?}", now.elapsed() / 100);
     Ok(())
 }

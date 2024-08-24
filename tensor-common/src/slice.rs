@@ -33,7 +33,10 @@ pub fn slice_process(
         *x *= alpha;
     });
     let mut res_ptr = 0;
-    ErrHandler::check_index_in_range(res_shape.len(), index.len() as i64)?;
+    if index.len() > res_shape.len() {
+        let message = "slice input out of range".to_string();
+        return Err(anyhow::Error::msg(message));
+    }
     for (idx, slice) in index.iter().enumerate() {
         match slice {
             Slice::From(mut __index) => {

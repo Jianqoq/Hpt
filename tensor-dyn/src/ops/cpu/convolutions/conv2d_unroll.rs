@@ -1,5 +1,4 @@
-use crate::ops::cpu::vector::traits::Init;
-use crate::ops::cpu::vector::traits::VecTrait;
+use tensor_types::vectors::*;
 use crate::tensor_base::_Tensor;
 use rayon::iter::{ IntoParallelIterator, ParallelIterator };
 use tensor_traits::CommonBounds;
@@ -589,7 +588,7 @@ pub(crate) fn micro_kernel_range<T: CommonBounds + IntoScalar<T>, VEC: VecTrait<
     kvec.copy_from_slice(unsafe { std::slice::from_raw_parts(kernel_ptr, vec_size) });
     for k in start..end {
         let res_vector = &mut rvec[k as usize];
-        res_vector.fma(*kvec, VEC::splat(f(k).into_scalar()));
+        todo!()
     }
 }
 

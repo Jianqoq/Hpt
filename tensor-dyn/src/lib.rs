@@ -37,9 +37,6 @@ pub mod ops {
             pub mod conv2d_unroll;
             pub mod conv2d_copy;
         }
-        pub mod vector {
-            pub mod traits;
-        }
     }
     pub mod wgpu {
         pub mod buffer_helper;
@@ -99,6 +96,10 @@ pub fn get_num_threads() -> usize {
 }
 
 #[ctor]
-fn init() {}
+fn init() {
+    THREAD_POOL.with(|x| {
+        x.borrow_mut().set_num_threads(num_cpus::get());
+    });
+}
 
-static ALIGN: usize = 64;
+static ALIGN: usize = 32;

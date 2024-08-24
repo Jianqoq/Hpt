@@ -16,9 +16,7 @@ use tensor_traits::{
     NormalUaryOps,
 };
 use tensor_types::{
-    convertion::{ Convertor, FromScalar },
-    into_scalar::IntoScalar,
-    type_promote::{ Cmp, Eval, FloatOut, NormalOut },
+    convertion::{ Convertor, FromScalar }, dtype::TypeCommon, into_scalar::IntoScalar, type_promote::{ Cmp, Eval, FloatOut, NormalOut }
 };
 use anyhow::Result;
 use crate::{
@@ -685,7 +683,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     fn flatten<A>(&self, axis: A) -> Result<Self> where A: Into<Option<usize>> {
         Ok(_Tensor::flatten(self, axis)?.into())
     }
-    
+
     fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
         Ok(_Tensor::permute_inv(self, axes)?.into())
     }
@@ -832,7 +830,9 @@ impl<T> FloatUaryOps
         T: FloatOut + CommonBounds,
         FloatType<T>: CommonBounds,
         f64: IntoScalar<FloatType<T>>,
-        FloatType<T>: IntoScalar<FloatType<T>>
+        FloatType<T>: IntoScalar<FloatType<T>>,
+        <T as TypeCommon>::Vec: FloatOut<Output = <FloatType<T> as TypeCommon>::Vec>,
+        <FloatType<T> as TypeCommon>::Vec: Send + Copy + Sync
 {
     type Output = Tensor<FloatType<T>>;
 

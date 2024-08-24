@@ -141,8 +141,7 @@ pub(crate) fn matmul_no_out<A, B>(
                     .map(|x| x.1 - x.0)
                     .collect::<Vec<usize>>()
             } else {
-                vec![1;
-                rayon::current_num_threads()]
+                vec![1; rayon::current_num_threads()]
             };
             let intervals = mt_intervals(len, num_threads);
             let mut res_ptrs = Vec::with_capacity(num_threads);

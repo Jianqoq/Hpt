@@ -5,7 +5,6 @@ use crate::backend::Cpu;
 
 use tensor_common::slice::Slice;
 use tensor_iterator::iterator_traits::StridedIterator;
-use tensor_traits::FloatUaryOps;
 use tensor_common::axis::{ process_axes, Axis };
 use tensor_traits::TensorLike;
 use tensor_types::into_scalar::IntoScalar;
@@ -1221,25 +1220,26 @@ impl<T> FloatReduce<T>
         )
     }
 
-    fn logsumexp<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        let x_max = reduce(self, |a, b| a._max(b), &axes, T::NEG_INF, true, false, None)?;
-        let sub = self - &x_max;
-        let exp = sub.exp()?;
-        let sum_exp = reduce(
-            &exp,
-            |a, b| a._add(b),
-            &axes,
-            <T as FloatOut>::Output::ZERO,
-            true,
-            false,
-            None
-        )?;
-        let add = x_max + sum_exp.ln()?;
-        if keep_dims {
-            Ok(add)
-        } else {
-            Ok(add.squeeze(axes)?)
-        }
+    fn logsumexp<S: Into<Axis>>(&self, _: S, _: bool) -> anyhow::Result<Self::Output> {
+        // let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        // let x_max = reduce(self, |a, b| a._max(b), &axes, T::NEG_INF, true, false, None)?;
+        // let sub = self - &x_max;
+        // let exp = sub.exp()?;
+        // let sum_exp = reduce(
+        //     &exp,
+        //     |a, b| a._add(b),
+        //     &axes,
+        //     <T as FloatOut>::Output::ZERO,
+        //     true,
+        //     false,
+        //     None
+        // )?;
+        // let add = x_max + sum_exp.ln()?;
+        // if keep_dims {
+        //     Ok(add)
+        // } else {
+        //     Ok(add.squeeze(axes)?)
+        // }
+        todo!()
     }
 }

@@ -1,0 +1,51 @@
+[package]
+name = "tensor-bench"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tch = "0.17.0"
+tensor-dyn = { path = "../tensor-dyn" }
+criterion = { version = "0.5.1", features = ["html_reports"] }
+half = "2.4.1"
+gnuplot = "0.0.43"
+num_cpus = "1.13.0"
+
+# [[bench]]
+# name = "randn_f16"
+# path = "benches/random/randn_f16.rs"
+# harness = false
+
+# [[bench]]
+# name = "randn_f32"
+# path = "benches/random/randn_f32.rs"
+# harness = false
+
+# [[bench]]
+# name = "add_f16"
+# path = "benches/binary/add_f16.rs"
+# harness = false
+
+[[bench]]
+name = "add_broadcast_f16"
+path = "benches/binary/add_broadcast_f16.rs"
+harness = false
+
+# [[bench]]
+# name = "matmul_f32"
+# path = "benches/binary/matmul_f32.rs"
+# harness = false
+
+[profile.dev]
+opt-level = 3
+incremental = true
+debug = true
+lto = "fat"
+codegen-units = 1
+
+[profile.release]
+opt-level = 3
+incremental = true
+debug = true
+lto = "fat"
+codegen-units = 1

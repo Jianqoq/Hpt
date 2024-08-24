@@ -365,10 +365,9 @@ impl<T: CommonBounds> _Tensor<T> {
                 });
             }
             None => {
-                let new_parent = Pointer::new(self.data.ptr as *mut U);
                 Ok(_Tensor {
                     data: Pointer::new(self.data.ptr as *mut U),
-                    parent: Some(new_parent),
+                    parent: None,
                     mem_layout: self.mem_layout.clone(),
                     layout: self.layout.clone(),
                     _backend: self._backend.clone(),

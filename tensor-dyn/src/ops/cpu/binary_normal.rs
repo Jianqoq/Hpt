@@ -181,13 +181,10 @@ where
             let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape(), Location::caller())?;
             let ret;
             ret = _Tensor::<K, Cpu>::empty(res_shape)?;
-            let min_len: usize =
-                ret.size() / (((rayon::current_num_threads() as f64) * 1.3) as usize);
             ret.as_raw_mut()
                 .par_iter_mut()
-                .with_min_len(min_len)
-                .zip(lhs.as_raw().par_iter().with_min_len(min_len))
-                .zip(rhs.as_raw().par_iter().with_min_len(min_len))
+                .zip(lhs.as_raw().par_iter())
+                .zip(rhs.as_raw().par_iter())
                 .for_each(|((ret, &lhs), &rhs)| {
                     *ret = f(lhs, rhs);
                 });

@@ -4,11 +4,17 @@ use rayon::iter::{
     IntoParallelRefMutIterator,
     ParallelIterator,
 };
+use tensor_types::vectors::VecSize;
+use tensor_types::vectors::VecTrait;
+use tensor_types::vectors::Init;
+use rayon::slice::{ ParallelSlice, ParallelSliceMut };
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::shape_utils::mt_intervals;
 use tensor_traits::BaseTensor;
+use tensor_types::dtype::TypeCommon;
 use tensor_types::into_scalar::IntoScalar;
 use threadpool::ThreadPool;
+use wide::f32x8;
 use crate::backend::Cpu;
 use crate::THREAD_POOL;
 use tensor_traits::ops::uary::{ Cum, FloatUaryOps, Neg, NormalUaryOps };
@@ -28,17 +34,71 @@ use crate::tensor_base::_Tensor;
 ///
 /// # Returns
 /// `anyhow::Result<_Tensor<BFLOAT<A, A>>>`: A tensor with float type elements, with the result of applying `f`.
+
+#[inline(always)]
 pub fn uary_fn<A, F, O>(inp: &_Tensor<A>, f: F) -> anyhow::Result<_Tensor<O>>
     where A: CommonBounds, O: CommonBounds, F: Fn(A) -> O + Sync + Send
 {
     let ret: _Tensor<O>;
     ret = _Tensor::<O, Cpu>::empty(inp.shape()).unwrap();
     let new_f = &f;
+    let remain = inp.size() % 8;
+    let exect_size = inp.size() - remain;
     ret.as_raw_mut()
-        .par_iter_mut()
-        .zip(inp.as_raw().par_iter())
+        .par_chunks_exact_mut(8)
+        .zip(inp.as_raw().par_chunks_exact(8))
+        .for_each(|(a, b)| {
+            a[0] = new_f(b[0]);
+            a[1] = new_f(b[1]);
+            a[2] = new_f(b[2]);
+            a[3] = new_f(b[3]);
+            a[4] = new_f(b[4]);
+            a[5] = new_f(b[5]);
+            a[6] = new_f(b[6]);
+            a[7] = new_f(b[7]);
+        });
+    ret.as_raw_mut()
+        [exect_size..].iter_mut()
+        .zip(inp.as_raw()[exect_size..].iter())
         .for_each(|(a, &b)| {
-            *a = new_f(b);
+            *a = f(b);
+        });
+    Ok(ret)
+}
+
+#[inline(always)]
+pub fn uary_fn_simd<A, F, O, F2>(inp: &_Tensor<A>, f: F, f2: F2) -> anyhow::Result<_Tensor<O>>
+    where
+        A: CommonBounds,
+        O: CommonBounds,
+        F: Fn(<A as TypeCommon>::Vec) -> <O as TypeCommon>::Vec + Sync + Send,
+        F2: Fn(A) -> O + Sync + Send
+{
+    let ret: _Tensor<O>;
+    ret = _Tensor::<O, Cpu>::empty(inp.shape()).unwrap();
+    let remain = inp.size() % <A as TypeCommon>::Vec::SIZE;
+    let exect_size = inp.size() - remain;
+    ret.as_raw_mut()
+        .par_chunks_exact_mut(<A as TypeCommon>::Vec::SIZE)
+        .zip(inp.as_raw().par_chunks_exact(<A as TypeCommon>::Vec::SIZE))
+        .for_each(|(a, b)| {
+            let b_ptr = b.as_ptr() as *const A;
+            let inp = unsafe { A::Vec::from_ptr(b_ptr) };
+            let res = f(inp);
+            let res_ptr = res.as_ptr() as *mut O;
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    res_ptr,
+                    a.as_mut_ptr(),
+                    <A as TypeCommon>::Vec::SIZE
+                );
+            }
+        });
+    ret.as_raw_mut()
+        [exect_size..].iter_mut()
+        .zip(inp.as_raw()[exect_size..].iter())
+        .for_each(|(a, &b)| {
+            *a = f2(b);
         });
     Ok(ret)
 }
@@ -93,7 +153,9 @@ impl<T> FloatUaryOps
         _Tensor<<T as FloatOut>::Output>: TensorLike<
             <T as FloatOut>::Output,
             Output = _Tensor<<T as FloatOut>::Output>
-        >
+        >,
+        <T as TypeCommon>::Vec: FloatOut<Output = <FloatType<T> as TypeCommon>::Vec>,
+        <FloatType<T> as TypeCommon>::Vec: Send + Copy + Sync
 {
     type Output = _Tensor<FloatType<T>>;
 
@@ -102,27 +164,27 @@ impl<T> FloatUaryOps
     type OutputMeta = FloatType<T>;
 
     fn sin(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._sin())
+        uary_fn_simd(self, |x| x._sin(), |x| x._sin())
     }
 
     fn cos(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._cos())
+        uary_fn_simd(self, |x| x._cos(), |x| x._cos())
     }
 
     fn tan(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._tan())
+        uary_fn_simd(self, |x| x._tan(), |x| x._tan())
     }
 
     fn asin(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._asin())
+        uary_fn_simd(self, |x| x._asin(), |x| x._asin())
     }
 
     fn acos(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._acos())
+        uary_fn_simd(self, |x| x._acos(), |x| x._acos())
     }
 
     fn atan(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._atan())
+        uary_fn_simd(self, |x| x._atan(), |x| x._atan())
     }
 
     fn sinh(&self) -> anyhow::Result<Self::Output> {
@@ -348,7 +410,13 @@ impl<T> FloatUaryOps
     ) -> anyhow::Result<Self::Output> {
         let alpha = alpha.unwrap_or((1.67326319217681884765625).into_scalar());
         let gamma = gamma.unwrap_or((1.05070102214813232421875).into_scalar());
-        uary_fn(self, |x| x._selu(alpha, gamma))
+        let alpha_splat = <FloatType<T> as TypeCommon>::Vec::splat(alpha);
+        let gamma_splat = <FloatType<T> as TypeCommon>::Vec::splat(gamma);
+        uary_fn_simd(
+            self,
+            |x| x._selu(alpha_splat, gamma_splat),
+            move |x| x._selu(alpha, gamma)
+        )
     }
 
     fn selu_<U>(

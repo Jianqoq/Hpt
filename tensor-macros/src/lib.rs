@@ -510,6 +510,54 @@ pub fn impl_float_out(_: TokenStream) -> TokenStream {
             let lhs_dtype = lhs_type.dtype;
             let rhs_dtype = rhs_type.dtype;
             let res_type = lhs_type.infer_float_res_type(&rhs_type);
+            let selu = if res_type.is_f16() && !lhs_dtype.is_f16() {
+                quote! {
+                    paste::paste! {
+                    let x = self.[<to_ #res_type>]();
+                    let alpha = alpha.[<to_ #res_type>]();
+                    let scale = scale.[<to_ #res_type>]();
+                    let positive_part = x.max(#res_type::ZERO);
+                    let negative_part = alpha * (x.exp() - #res_type::ONE) * (x <= #res_type::ZERO).[<to_ #res_type>]();
+                    scale * positive_part + negative_part
+                }
+            }
+            } else if res_type.is_f16() {
+                quote! {
+                        paste::paste! {
+                        let scale = scale.to_f32();
+                        if self.to_bits() > 0 {
+                            (self.to_f32() * scale).to_f16()
+                        } else {
+                            let alpha = alpha.to_f32();
+                            let x = self.to_f32();
+                            (alpha * (x.exp() - f32::ONE) * scale).to_f16()
+                        }
+                    }
+                }
+            } else if res_type.is_f32() || res_type.is_f64() {
+                quote! {
+                        paste::paste! {
+                        let x = self.[<to_ #res_type>]();
+                        let alpha = alpha.[<to_ #res_type>]();
+                        let scale = scale.[<to_ #res_type>]();
+                        let positive_part = x.max(#res_type::ZERO);
+                        let negative_part = alpha * (x.exp() - #res_type::ONE) * (x <= #res_type::ZERO).[<to_ #res_type>]();
+                        scale * positive_part + negative_part
+                    }
+                }
+            } else {
+                quote! {
+                    paste::paste! {
+                    let x = self.[<to_ #res_type>]();
+                    let alpha = alpha.[<to_ #res_type>]();
+                    let scale = scale.[<to_ #res_type>]();
+                    fn select(mask: #res_type, a: #res_type, b: #res_type) -> #res_type {
+                        (mask & a) | (!mask & b)
+                    }
+                    select((x > #res_type::ZERO).[<to_ #res_type>](), scale * x, alpha * (x.exp() - #res_type::ONE) * scale)
+                }
+            }
+            };
             let res =
                 quote! {
                 impl FloatOut<#rhs_dtype> for #lhs_dtype {
@@ -672,16 +720,7 @@ pub fn impl_float_out(_: TokenStream) -> TokenStream {
                         }
                     }
                     fn _selu(self, alpha: Self::Output, scale: Self::Output) -> Self::Output {
-                        paste::paste! {
-                            let x = self.[<to_ #res_type>]();
-                            let alpha = alpha.[<to_ #res_type>]();
-                            let scale = scale.[<to_ #res_type>]();
-                            if x > #res_type::ZERO {
-                                scale * x
-                            } else {
-                                alpha * x.exp() - alpha
-                            }
-                        }
+                        #selu
                     }
                     fn _hard_sigmoid(self, alpha: Self::Output, beta: Self::Output) -> Self::Output {
                         paste::paste! {
