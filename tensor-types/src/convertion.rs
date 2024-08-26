@@ -1,24 +1,12 @@
 use half::f16;
 use half::bf16;
 use num_complex::{ Complex64, Complex32 };
-
-use crate::vectors::bf16x16::bf16x16;
-use crate::vectors::boolx32::boolx32;
-use crate::vectors::cplx32x4::cplx32x4;
-use crate::vectors::cplx64x2::cplx64x2;
-use crate::vectors::f16x16::f16x16;
-use crate::vectors::f32x8::f32x8;
-use crate::vectors::f64x4::f64x4;
-use crate::vectors::i16x16::i16x16;
-use crate::vectors::i32x8::i32x8;
-use crate::vectors::i64x4::i64x4;
-use crate::vectors::i8x32::i8x32;
-use crate::vectors::isizex4::isizex4;
-use crate::vectors::u16x16::u16x16;
-use crate::vectors::u32x8::u32x8;
-use crate::vectors::u64x4::u64x4;
-use crate::vectors::u8x32::u8x32;
-use crate::vectors::usizex4::usizex4;
+use tensor_macros::impl_simd_convert;
+use std::simd::num::SimdFloat;
+use crate::vectors::*;
+use crate::dtype::TypeCommon;
+use std::simd::num::SimdInt;
+use std::simd::num::SimdUint;
 
 pub trait Convertor {
     fn to_bool(self) -> bool;
@@ -43,24 +31,26 @@ pub trait Convertor {
 }
 
 pub trait VecConvertor {
-    fn to_bool(self) -> boolx32;
-    fn to_u8(self) -> u8x32;
-    fn to_u16(self) -> u16x16;
-    fn to_u32(self) -> u32x8;
-    fn to_u64(self) -> u64x4;
-    fn to_usize(self) -> usizex4;
-    fn to_i8(self) -> i8x32;
-    fn to_i16(self) -> i16x16;
-    fn to_i32(self) -> i32x8;
-    fn to_i64(self) -> i64x4;
-    fn to_isize(self) -> isizex4;
-    fn to_f32(self) -> f32x8;
-    fn to_f64(self) -> f64x4;
-    fn to_f16(self) -> f16x16;
-    fn to_bf16(self) -> bf16x16;
-    fn to_complex32(self) -> cplx32x4;
-    fn to_complex64(self) -> cplx64x2;
+    fn to_bool(self) -> boolx32::boolx32;
+    fn to_u8(self) -> u8x32::u8x32;
+    fn to_u16(self) -> u16x16::u16x16;
+    fn to_u32(self) -> u32x8::u32x8;
+    fn to_u64(self) -> u64x4::u64x4;
+    fn to_usize(self) -> usizex4::usizex4;
+    fn to_i8(self) -> i8x32::i8x32;
+    fn to_i16(self) -> i16x16::i16x16;
+    fn to_i32(self) -> i32x8::i32x8;
+    fn to_i64(self) -> i64x4::i64x4;
+    fn to_isize(self) -> isizex4::isizex4;
+    fn to_f32(self) -> f32x8::f32x8;
+    fn to_f64(self) -> f64x4::f64x4;
+    fn to_f16(self) -> f16x16::f16x16;
+    fn to_bf16(self) -> bf16x16::bf16x16;
+    fn to_complex32(self) -> cplx32x4::cplx32x4;
+    fn to_complex64(self) -> cplx64x2::cplx64x2;
 }
+
+impl_simd_convert!();
 
 impl Convertor for bool {
     #[inline(always)]

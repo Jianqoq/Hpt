@@ -53,6 +53,14 @@ pub fn type_simd_lanes(list: &str) -> u8 {
         "isize" => 4,
         #[cfg(target_pointer_width = "32")]
         "usize" => 4,
+        #[cfg(target_pointer_width = "64")]
+        "complex32" => 2,
+        #[cfg(target_pointer_width = "64")]
+        "complex64" => 1,
+        #[cfg(target_pointer_width = "32")]
+        "complex32" => 4,
+        #[cfg(target_pointer_width = "32")]
+        "complex64" => 2,
         _ => 0,
     }
     #[cfg(target_feature = "avx2")]
@@ -78,6 +86,14 @@ pub fn type_simd_lanes(list: &str) -> u8 {
         "isize" => 8,
         #[cfg(target_pointer_width = "32")]
         "usize" => 8,
+        #[cfg(target_pointer_width = "64")]
+        "complex32" => 4,
+        #[cfg(target_pointer_width = "64")]
+        "complex64" => 2,
+        #[cfg(target_pointer_width = "32")]
+        "complex32" => 8,
+        #[cfg(target_pointer_width = "32")]
+        "complex64" => 4,
         _ => 0,
     }
     #[cfg(target_feature = "avx512f")]
@@ -103,6 +119,116 @@ pub fn type_simd_lanes(list: &str) -> u8 {
         "isize" => 16,
         #[cfg(target_pointer_width = "32")]
         "usize" => 16,
+        #[cfg(target_pointer_width = "64")]
+        "complex32" => 8,
+        #[cfg(target_pointer_width = "64")]
+        "complex64" => 4,
+        #[cfg(target_pointer_width = "32")]
+        "complex32" => 16,
+        _ => 0,
+    }
+}
+
+pub fn type_simd_is_arr(list: &str) -> bool {
+    #[cfg(
+        all(target_feature = "sse", not(target_feature = "avx2"), not(target_feature = "avx512f"))
+    )]
+    match list.to_lowercase().as_str() {
+        "bool" => true,
+        "i8" => false,
+        "u8" => false,
+        "i16" => false,
+        "u16" => false,
+        "i32" => false,
+        "u32" => false,
+        "i64" => false,
+        "u64" => false,
+        "bf16" => true,
+        "f16" => true,
+        "f32" => false,
+        "f64" => false,
+        #[cfg(target_pointer_width = "64")]
+        "isize" => false,
+        #[cfg(target_pointer_width = "64")]
+        "usize" => false,
+        #[cfg(target_pointer_width = "32")]
+        "isize" => false,
+        #[cfg(target_pointer_width = "32")]
+        "usize" => false,
+        #[cfg(target_pointer_width = "64")]
+        "complex32" => true,
+        #[cfg(target_pointer_width = "64")]
+        "complex64" => true,
+        #[cfg(target_pointer_width = "32")]
+        "complex32" => true,
+        #[cfg(target_pointer_width = "32")]
+        "complex64" => true,
+        _ => false,
+    }
+    #[cfg(target_feature = "avx2")]
+    match list.to_lowercase().as_str() {
+        "bool" => true,
+        "i8" => false,
+        "u8" => false,
+        "i16" => false,
+        "u16" => false,
+        "i32" => false,
+        "u32" => false,
+        "i64" => false,
+        "u64" => false,
+        "bf16" => true,
+        "f16" => true,
+        "f32" => false,
+        "f64" => false,
+        #[cfg(target_pointer_width = "64")]
+        "isize" => false,
+        #[cfg(target_pointer_width = "64")]
+        "usize" => false,
+        #[cfg(target_pointer_width = "32")]
+        "isize" => false,
+        #[cfg(target_pointer_width = "32")]
+        "usize" => false,
+        #[cfg(target_pointer_width = "64")]
+        "complex32" => true,
+        #[cfg(target_pointer_width = "64")]
+        "complex64" => true,
+        #[cfg(target_pointer_width = "32")]
+        "complex32" => true,
+        #[cfg(target_pointer_width = "32")]
+        "complex64" => true,
+        _ => false,
+    }
+    #[cfg(target_feature = "avx512f")]
+    match list.to_lowercase().as_str() {
+        "bool" => true,
+        "i8" => false,
+        "u8" => false,
+        "i16" => false,
+        "u16" => false,
+        "i32" => false,
+        "u32" => false,
+        "i64" => false,
+        "u64" => false,
+        "bf16" => true,
+        "f16" => true,
+        "f32" => false,
+        "f64" => false,
+        #[cfg(target_pointer_width = "64")]
+        "isize" => false,
+        #[cfg(target_pointer_width = "64")]
+        "usize" => false,
+        #[cfg(target_pointer_width = "32")]
+        "isize" => false,
+        #[cfg(target_pointer_width = "32")]
+        "usize" => false,
+        #[cfg(target_pointer_width = "64")]
+        "Complex32" => true,
+        #[cfg(target_pointer_width = "64")]
+        "Complex64" => true,
+        #[cfg(target_pointer_width = "32")]
+        "Complex32" => true,
+        #[cfg(target_pointer_width = "32")]
+        "Complex64" => true,
         _ => 0,
     }
 }

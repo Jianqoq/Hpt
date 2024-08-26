@@ -6,10 +6,10 @@ use super::traits::{ Init, VecSize, VecTrait };
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq)]
-pub struct f64x4(wide::f64x4);
+pub struct f64x4(pub(crate) std::simd::f64x4);
 
 impl Deref for f64x4 {
-    type Target = wide::f64x4;
+    type Target = std::simd::f64x4;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -22,11 +22,11 @@ impl DerefMut for f64x4 {
 impl VecTrait<f64> for f64x4 {
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[f64]) {
-        self.as_array_mut().copy_from_slice(slice);
+        self.as_mut_array().copy_from_slice(slice);
     }
     #[inline(always)]
     fn as_ptr(&self) -> *const f64 {
-        self.as_array_ref().as_ptr()
+        self.as_array().as_ptr()
     }
     #[inline(always)]
     fn _mul_add(self, _: Self, _: Self) -> Self {
@@ -34,15 +34,15 @@ impl VecTrait<f64> for f64x4 {
     }
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut f64 {
-        self.as_array_mut().as_mut_ptr()
+        self.as_mut_array().as_mut_ptr()
     }
     #[inline(always)]
     fn as_mut_ptr_uncheck(&self) -> *mut f64 {
-        self.as_array_ref().as_ptr() as *mut _
+        self.as_array().as_ptr() as *mut _
     }
     #[inline(always)]
     fn sum(&self) -> f64 {
-        self.as_array_ref().iter().sum()
+        self.as_array().iter().sum()
     }
 }
 impl VecSize for f64x4 {
@@ -50,7 +50,7 @@ impl VecSize for f64x4 {
 }
 impl Init<f64> for f64x4 {
     fn splat(val: f64) -> f64x4 {
-        f64x4(wide::f64x4::splat(val))
+        f64x4(std::simd::f64x4::splat(val))
     }
 
     unsafe fn from_ptr(ptr: *const f64) -> Self {

@@ -6,7 +6,7 @@ use super::traits::{ Init, VecSize, VecTrait };
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq)]
-pub struct cplx32x4([Complex32; 4]);
+pub struct cplx32x4(pub(crate) [Complex32; 4]);
 
 impl VecTrait<Complex32> for cplx32x4 {
     #[inline(always)]

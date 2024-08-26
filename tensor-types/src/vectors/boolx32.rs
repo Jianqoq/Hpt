@@ -4,7 +4,7 @@ use super::traits::{ Init, VecSize, VecTrait };
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq)]
-pub struct boolx32([bool; 32]);
+pub struct boolx32(pub(crate) [bool; 32]);
 
 impl VecTrait<bool> for boolx32 {
     #[inline(always)]

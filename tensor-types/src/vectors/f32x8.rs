@@ -8,7 +8,7 @@ use super::traits::{ Init, VecSize, VecTrait };
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq)]
-pub struct f32x8(std::simd::f32x8);
+pub struct f32x8(pub(crate) std::simd::f32x8);
 
 impl Deref for f32x8 {
     type Target = std::simd::f32x8;

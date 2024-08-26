@@ -1,8 +1,10 @@
 use proc_macro::TokenStream;
+use simd_convert::__impl_simd_convert;
 use syn::{ parse, parse_macro_input, Expr, Ident, Token };
 mod type_utils;
 mod list_enum;
 mod simd_normal_out;
+mod simd_convert;
 use quote::quote;
 use type_utils::TypeInfo;
 use proc_macro2::{ TokenStream as TokenStream2, TokenTree };
@@ -991,6 +993,11 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn impl_normal_out_simd(_: TokenStream) -> TokenStream {
     impl_simd_normal_out()
+}
+
+#[proc_macro]
+pub fn impl_simd_convert(_: TokenStream) -> TokenStream {
+    __impl_simd_convert()
 }
 
 #[proc_macro]

@@ -6,10 +6,10 @@ use super::traits::{ Init, VecSize, VecTrait };
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq)]
-pub struct i8x32(wide::i8x32);
+pub struct i8x32(pub(crate) std::simd::i8x32);
 
 impl Deref for i8x32 {
-    type Target = wide::i8x32;
+    type Target = std::simd::i8x32;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -22,11 +22,11 @@ impl DerefMut for i8x32 {
 impl VecTrait<i8> for i8x32 {
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[i8]) {
-        self.as_array_mut().copy_from_slice(slice);
+        self.as_mut_array().copy_from_slice(slice);
     }
     #[inline(always)]
     fn as_ptr(&self) -> *const i8 {
-        self.as_array_ref().as_ptr()
+        self.as_array().as_ptr()
     }
     #[inline(always)]
     fn _mul_add(self, _: Self, _: Self) -> Self {
@@ -34,15 +34,15 @@ impl VecTrait<i8> for i8x32 {
     }
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut i8 {
-        self.as_array_mut().as_mut_ptr()
+        self.as_mut_array().as_mut_ptr()
     }
     #[inline(always)]
     fn as_mut_ptr_uncheck(&self) -> *mut i8 {
-        self.as_array_ref().as_ptr() as *mut _
+        self.as_array().as_ptr() as *mut _
     }
     #[inline(always)]
     fn sum(&self) -> i8 {
-        self.as_array_ref().iter().sum()
+        self.as_array().iter().sum()
     }
 }
 impl VecSize for i8x32 {
@@ -50,7 +50,7 @@ impl VecSize for i8x32 {
 }
 impl Init<i8> for i8x32 {
     fn splat(val: i8) -> i8x32 {
-        i8x32(wide::i8x32::splat(val))
+        i8x32(std::simd::i8x32::splat(val))
     }
 
     unsafe fn from_ptr(ptr: *const i8) -> Self {

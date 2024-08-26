@@ -4,7 +4,7 @@ use super::traits::{ Init, VecSize, VecTrait };
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq)]
-pub struct bf16x16([half::bf16; 16]);
+pub struct bf16x16(pub(crate) [half::bf16; 16]);
 
 impl VecTrait<half::bf16> for bf16x16 {
     #[inline(always)]
