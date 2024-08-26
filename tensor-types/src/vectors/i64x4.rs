@@ -87,3 +87,9 @@ impl std::ops::Div for i64x4 {
         i64x4(self.0 / rhs.0)
     }
 }
+impl std::ops::Rem for i64x4 {
+    type Output = i64x4;
+    fn rem(self, rhs: Self) -> Self::Output {
+        i64x4(self.0 % rhs.0)
+    }
+}

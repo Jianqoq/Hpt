@@ -96,3 +96,14 @@ impl std::ops::Div for boolx32 {
         ret
     }
 }
+impl std::ops::Rem for boolx32 {
+    type Output = Self;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        let mut ret = boolx32::default();
+        for i in 0..32 {
+            ret.0[i] = self.0[i] ^ rhs.0[i];
+        }
+        ret
+    }
+}

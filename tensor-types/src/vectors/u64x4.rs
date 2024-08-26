@@ -86,3 +86,9 @@ impl std::ops::Div for u64x4 {
         u64x4(self.0 / rhs.0)
     }
 }
+impl std::ops::Rem for u64x4 {
+    type Output = Self;
+    fn rem(self, rhs: Self) -> Self {
+        u64x4(self.0 % rhs.0)
+    }
+}

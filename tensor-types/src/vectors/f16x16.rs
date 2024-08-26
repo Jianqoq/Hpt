@@ -99,3 +99,14 @@ impl std::ops::Div for f16x16 {
         ret
     }
 }
+impl std::ops::Rem for f16x16 {
+    type Output = Self;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        let mut ret = f16x16::default();
+        for i in 0..16 {
+            ret.0[i] = self.0[i] % rhs.0[i];
+        }
+        ret
+    }
+}

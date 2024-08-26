@@ -345,7 +345,9 @@ pub fn impl_simd_normal_out() -> TokenStream {
                     #pow_method
 
                     fn _rem(self, rhs: #rhs_simd) -> Self::Output {
-                        todo!()
+                        paste::paste! {
+                            self.[<to_ #res_type>]() % rhs.[<to_ #res_type>]()
+                        }
                     }
                     fn _clip(self, min: Self::Output, max: Self::Output) -> Self::Output {
                         todo!()

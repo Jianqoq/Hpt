@@ -111,3 +111,10 @@ impl std::ops::Div for usizex4 {
         usizex4(self.0 / rhs.0)
     }
 }
+impl std::ops::Rem for usizex4 {
+    type Output = Self;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        usizex4(self.0 % rhs.0)
+    }
+}

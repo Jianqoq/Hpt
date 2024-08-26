@@ -66,43 +66,34 @@ impl std::ops::Add for i16x16 {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let mut ret = i16x16::default();
-        for i in 0..16 {
-            ret.0[i] = self.0[i] + rhs.0[i];
-        }
-        ret
+        i16x16(self.0 + rhs.0)
     }
 }
 impl std::ops::Sub for i16x16 {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        let mut ret = i16x16::default();
-        for i in 0..16 {
-            ret.0[i] = self.0[i] - rhs.0[i];
-        }
-        ret
+        i16x16(self.0 - rhs.0)
     }
 }
 impl std::ops::Mul for i16x16 {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        let mut ret = i16x16::default();
-        for i in 0..16 {
-            ret.0[i] = self.0[i] * rhs.0[i];
-        }
-        ret
+        i16x16(self.0 * rhs.0)
     }
 }
 impl std::ops::Div for i16x16 {
     type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
-        let mut ret = i16x16::default();
-        for i in 0..16 {
-            ret.0[i] = self.0[i] / rhs.0[i];
-        }
-        ret
+        i16x16(self.0 / rhs.0)
+    }
+}
+impl std::ops::Rem for i16x16 {
+    type Output = Self;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        i16x16(self.0 % rhs.0)
     }
 }

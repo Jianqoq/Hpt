@@ -97,6 +97,13 @@ impl std::ops::Div for f32x8 {
     }
 }
 
+impl std::ops::Rem for f32x8 {
+    type Output = Self;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        f32x8(self.0 % rhs.0)
+    }
+}
 // impl FloatOut for f32x8 {
 //     type Output = f32x8;
 

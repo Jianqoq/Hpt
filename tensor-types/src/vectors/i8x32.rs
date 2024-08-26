@@ -86,3 +86,9 @@ impl std::ops::Div for i8x32 {
         i8x32(self.0 / rhs.0)
     }
 }
+impl std::ops::Rem for i8x32 {
+    type Output = Self;
+    fn rem(self, rhs: Self) -> Self::Output {
+        i8x32(self.0 % rhs.0)
+    }
+}

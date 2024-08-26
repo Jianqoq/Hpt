@@ -86,3 +86,9 @@ impl std::ops::Div for u16x16 {
         u16x16(self.0 / rhs.0)
     }
 }
+impl std::ops::Rem for u16x16 {
+    type Output = u16x16;
+    fn rem(self, rhs: Self) -> Self::Output {
+        u16x16(self.0 % rhs.0)
+    }
+}
