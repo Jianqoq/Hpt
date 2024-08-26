@@ -83,3 +83,31 @@ impl IntoVec<usizex4> for usizex4 {
         self
     }
 }
+impl std::ops::Add for usizex4 {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        usizex4(self.0 + rhs.0)
+    }
+}
+impl std::ops::Sub for usizex4 {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        usizex4(self.0 - rhs.0)
+    }
+}
+impl std::ops::Mul for usizex4 {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        usizex4(self.0 * rhs.0)
+    }
+}
+impl std::ops::Div for usizex4 {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        usizex4(self.0 / rhs.0)
+    }
+}

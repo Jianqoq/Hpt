@@ -52,3 +52,47 @@ impl IntoVec<boolx32> for boolx32 {
         self
     }
 }
+impl std::ops::Add for boolx32 {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let mut ret = boolx32::default();
+        for i in 0..32 {
+            ret.0[i] = self.0[i] || rhs.0[i];
+        }
+        ret
+    }
+}
+impl std::ops::Sub for boolx32 {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let mut ret = boolx32::default();
+        for i in 0..32 {
+            ret.0[i] = self.0[i] && !rhs.0[i];
+        }
+        ret
+    }
+}
+impl std::ops::Mul for boolx32 {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        let mut ret = boolx32::default();
+        for i in 0..32 {
+            ret.0[i] = self.0[i] && rhs.0[i];
+        }
+        ret
+    }
+}
+impl std::ops::Div for boolx32 {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        let mut ret = boolx32::default();
+        for i in 0..32 {
+            ret.0[i] = self.0[i] && !rhs.0[i];
+        }
+        ret
+    }
+}

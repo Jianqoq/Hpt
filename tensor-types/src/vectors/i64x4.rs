@@ -44,6 +44,7 @@ impl VecTrait<i64> for i64x4 {
     fn sum(&self) -> i64 {
         self.as_array().iter().sum()
     }
+    
 }
 impl VecSize for i64x4 {
     const SIZE: usize = 4;
@@ -60,5 +61,29 @@ impl Init<i64> for i64x4 {
 impl IntoVec<i64x4> for i64x4 {
     fn into_vec(self) -> i64x4 {
         self
+    }
+}
+impl std::ops::Add for i64x4 {
+    type Output = i64x4;
+    fn add(self, rhs: Self) -> Self::Output {
+        i64x4(self.0 + rhs.0)
+    }
+}
+impl std::ops::Sub for i64x4 {
+    type Output = i64x4;
+    fn sub(self, rhs: Self) -> Self::Output {
+        i64x4(self.0 - rhs.0)
+    }
+}
+impl std::ops::Mul for i64x4 {
+    type Output = i64x4;
+    fn mul(self, rhs: Self) -> Self::Output {
+        i64x4(self.0 * rhs.0)
+    }
+}
+impl std::ops::Div for i64x4 {
+    type Output = i64x4;
+    fn div(self, rhs: Self) -> Self::Output {
+        i64x4(self.0 / rhs.0)
     }
 }

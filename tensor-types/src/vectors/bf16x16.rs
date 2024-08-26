@@ -51,3 +51,47 @@ impl IntoVec<bf16x16> for bf16x16 {
         self
     }
 }
+impl std::ops::Add for bf16x16 {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let mut ret = bf16x16::default();
+        for i in 0..16 {
+            ret.0[i] = self.0[i] + rhs.0[i];
+        }
+        ret
+    }
+}
+impl std::ops::Sub for bf16x16 {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let mut ret = bf16x16::default();
+        for i in 0..16 {
+            ret.0[i] = self.0[i] - rhs.0[i];
+        }
+        ret
+    }
+}
+impl std::ops::Mul for bf16x16 {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        let mut ret = bf16x16::default();
+        for i in 0..16 {
+            ret.0[i] = self.0[i] * rhs.0[i];
+        }
+        ret
+    }
+}
+impl std::ops::Div for bf16x16 {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        let mut ret = bf16x16::default();
+        for i in 0..16 {
+            ret.0[i] = self.0[i] / rhs.0[i];
+        }
+        ret
+    }
+}

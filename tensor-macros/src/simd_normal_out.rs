@@ -1,7 +1,8 @@
 use proc_macro::TokenStream;
-use crate::type_utils::{ type_simd_lanes, SimdType, TypeInfo };
+use crate::type_utils::{ type_simd_is_arr, type_simd_lanes, SimdType, Type, TypeInfo };
 use quote::quote;
 use crate::TokenStream2;
+use proc_macro2::Ident;
 
 pub fn impl_simd_normal_out() -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
@@ -33,85 +34,271 @@ pub fn impl_simd_normal_out() -> TokenStream {
             let lhs_dtype = lhs_type.dtype;
             let rhs_dtype = rhs_type.dtype;
             let res_type = lhs_type.infer_normal_res_type(&rhs_type);
-            if lhs_lanes != rhs_lanes {
-                let res_simd_ty = types
-                    .iter()
-                    .find(|(_, ty)| *ty == res_type.to_string().as_str())
-                    .unwrap()
-                    .0.clone();
+            let res_lanes = type_simd_lanes(&res_type.to_string());
+            if lhs_lanes != rhs_lanes || lhs_lanes != res_lanes || rhs_lanes != res_lanes {
                 ret.extend(
-                    impl_unreachable((*lhs).into(), (*rhs).into(), (res_type.to_string().as_str()).into())
+                    impl_unreachable(
+                        (*lhs).into(),
+                        (*rhs).into(),
+                        res_type.to_string().as_str().into()
+                    )
                 );
                 continue;
             }
+            let lhs_simd: SimdType = (*lhs).into();
+            let rhs_simd: SimdType = (*rhs).into();
+            let res_simd_ty = Ident::new(
+                &format!("{}x{}", res_type.to_string(), type_simd_lanes(&res_type.to_string())),
+                proc_macro2::Span::call_site()
+            );
             let pow_method = if res_type.is_float() {
-                quote! {
-                    fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().powf(rhs.[<to_ #res_type>]())
+                if res_type.is_f32() {
+                    quote! {
+                        fn _pow(self, rhs: #rhs_simd) -> Self::Output {
+                            #res_simd_ty::#res_simd_ty(sleef::f32x::pow_u10(self.to_f32().0, rhs.to_f32().0))
                         }
+                        fn _max(self, rhs: #rhs_simd) -> Self::Output {
+                            #res_simd_ty::#res_simd_ty(self.to_f32().0.simd_max(rhs.to_f32().0))
+                        }
+                        fn _min(self, rhs: #rhs_simd) -> Self::Output {
+                            #res_simd_ty::#res_simd_ty(self.to_f32().0.simd_min(rhs.to_f32().0))
+                        }
+                    }
+                } else if res_type.is_f64() {
+                    quote! {
+                        fn _pow(self, rhs: #rhs_simd) -> Self::Output {
+                            #res_simd_ty::#res_simd_ty(sleef::f64x::pow_u10(self.to_f64().0, rhs.to_f64().0))
+                        }
+                        fn _max(self, rhs: #rhs_simd) -> Self::Output {
+                            #res_simd_ty::#res_simd_ty(self.to_f64().0.simd_max(rhs.to_f64().0))
+                        }
+                        fn _min(self, rhs: #rhs_simd) -> Self::Output {
+                            #res_simd_ty::#res_simd_ty(self.to_f64().0.simd_min(rhs.to_f64().0))
+                        }
+                    }
+                } else {
+                    let pow = array_cal(
+                        lhs,
+                        rhs,
+                        res_type,
+                        lhs_lanes,
+                        rhs_simd,
+                        res_simd_ty.clone(),
+                        Ident::new("_pow", proc_macro2::Span::call_site())
+                    );
+                    let max = array_cal(
+                        lhs,
+                        rhs,
+                        res_type,
+                        lhs_lanes,
+                        rhs_simd,
+                        res_simd_ty.clone(),
+                        Ident::new("_max", proc_macro2::Span::call_site())
+                    );
+                    let min = array_cal(
+                        lhs,
+                        rhs,
+                        res_type,
+                        lhs_lanes,
+                        rhs_simd,
+                        res_simd_ty.clone(),
+                        Ident::new("_min", proc_macro2::Span::call_site())
+                    );
+                    quote! {
+                        #pow
+                        #max
+                        #min
                     }
                 }
             } else {
-                quote! {
-                    fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().pow(rhs.to_u32())
+                let pow = array_cal(
+                    lhs,
+                    rhs,
+                    res_type,
+                    lhs_lanes,
+                    rhs_simd,
+                    res_simd_ty.clone(),
+                    Ident::new("_pow", proc_macro2::Span::call_site())
+                );
+                let b2 = if !type_simd_is_arr(rhs) && !type_simd_is_arr(lhs) {
+                    quote! {
+                        fn _max(self, rhs: #rhs_simd) -> Self::Output {
+                            paste::paste! {
+                                #res_simd_ty::#res_simd_ty(self.[<to_ #res_type>]().0.simd_max(rhs.[<to_ #res_type>]().0))
+                            }
+                        }
+                        fn _min(self, rhs: #rhs_simd) -> Self::Output {
+                            paste::paste! {
+                                #res_simd_ty::#res_simd_ty(self.[<to_ #res_type>]().0.simd_min(rhs.[<to_ #res_type>]().0))
+                            }
                         }
                     }
+                } else {
+                    let max = array_cal(
+                        lhs,
+                        rhs,
+                        res_type,
+                        lhs_lanes,
+                        rhs_simd,
+                        res_simd_ty.clone(),
+                        Ident::new("_max", proc_macro2::Span::call_site())
+                    );
+                    let min = array_cal(
+                        lhs,
+                        rhs,
+                        res_type,
+                        lhs_lanes,
+                        rhs_simd,
+                        res_simd_ty.clone(),
+                        Ident::new("_min", proc_macro2::Span::call_site())
+                    );
+                    quote! {
+                        #max
+                        #min
+                    }
+                };
+                quote! {
+                    #pow
+                    #b2
                 }
             };
 
-            let abs_method = if lhs_dtype.is_unsigned() {
-                quote! {
-                    fn _abs(self) -> Self {
-                        paste::paste! {
+            let abs_method = if lhs_dtype.is_float() {
+                if lhs_dtype.is_f32() {
+                    quote! {
+                        fn _abs(self) -> Self {
+                            #lhs_simd(self.to_f32().0.abs())
+                        }
+                    }
+                } else if lhs_dtype.is_f64() {
+                    quote! {
+                        fn _abs(self) -> Self {
+                            #lhs_simd(self.to_f64().0.abs())
+                        }
+                    }
+                } else {
+                    array_cal_single(
+                        lhs,
+                        lhs_dtype,
+                        lhs_lanes,
+                        lhs_simd.clone(),
+                        Ident::new("_abs", proc_macro2::Span::call_site())
+                    )
+                }
+            } else {
+                if !type_simd_is_arr(lhs) && lhs_type.is_signed {
+                    quote! {
+                        fn _abs(self) -> Self {
+                            #lhs_simd(self.0.abs())
+                        }
+                    }
+                } else if !type_simd_is_arr(lhs) && !lhs_type.is_signed {
+                    quote! {
+                        fn _abs(self) -> Self {
                             self
                         }
                     }
-                }
-            } else {
-                quote! {
-                    fn _abs(self) -> Self {
-                        paste::paste! {
-                            self.abs()
+                } else {
+                    if lhs_type.is_signed {
+                        quote! {
+                            fn _abs(self) -> Self {
+                                let mut arr = [#lhs_dtype::ZERO; #lhs_lanes as usize];
+                                for i in 0..#lhs_lanes as usize {
+                                    arr[i] = self.0[i].abs();
+                                }
+                                #lhs_simd(arr.into())
+                            }
+                        }
+                    } else {
+                        quote! {
+                            fn _abs(self) -> Self {
+                                self
+                            }
                         }
                     }
                 }
             };
 
-            let ceil_method = if res_type.is_float() {
-                quote! {
-                    fn _ceil(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().ceil()
+            let unary_no_change_ty_method = if lhs_dtype.is_float() {
+                if lhs_dtype.is_f32() {
+                    quote! {
+                        fn _floor(self) -> Self {
+                            #lhs_simd(self.to_f32().0.floor())
                         }
+                        fn _round(self) -> Self {
+                            #lhs_simd(self.to_f32().0.round())
+                        }
+                        fn _ceil(self) -> Self {
+                            #lhs_simd(self.to_f32().0.ceil())
+                        }
+                        fn _square(self) -> Self {
+                            #lhs_simd(self.to_f32().0 * self.to_f32().0)
+                        }
+                    }
+                } else if lhs_dtype.is_f64() {
+                    quote! {
+                        fn _floor(self) -> Self {
+                            #lhs_simd(self.to_f64().0.floor())
+                        }
+                        fn _round(self) -> Self {
+                            #lhs_simd(self.to_f64().0.round())
+                        }
+                        fn _ceil(self) -> Self {
+                            #lhs_simd(self.to_f64().0.ceil())
+                        }
+                        fn _square(self) -> Self {
+                            #lhs_simd(self.to_f64().0 * self.to_f64().0)
+                        }
+                    }
+                } else {
+                    let floor = array_cal_single(
+                        lhs,
+                        lhs_dtype,
+                        lhs_lanes,
+                        lhs_simd.clone(),
+                        Ident::new("_floor", proc_macro2::Span::call_site())
+                    );
+                    let round = array_cal_single(
+                        lhs,
+                        lhs_dtype,
+                        lhs_lanes,
+                        lhs_simd.clone(),
+                        Ident::new("_round", proc_macro2::Span::call_site())
+                    );
+                    let ceil = array_cal_single(
+                        lhs,
+                        lhs_dtype,
+                        lhs_lanes,
+                        lhs_simd.clone(),
+                        Ident::new("_ceil", proc_macro2::Span::call_site())
+                    );
+                    let square = array_cal_single(
+                        lhs,
+                        lhs_dtype,
+                        lhs_lanes,
+                        lhs_simd.clone(),
+                        Ident::new("_square", proc_macro2::Span::call_site())
+                    );
+                    quote! {
+                        #floor
+                        #round
+                        #ceil
+                        #square
                     }
                 }
             } else {
                 quote! {
-                    fn _ceil(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]()
-                        }
+                    fn _floor(self) -> Self {
+                        self
                     }
-                }
-            };
-
-            let floor_method = if res_type.is_float() {
-                quote! {
-                    fn _floor(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().floor()
-                        }
+                    fn _round(self) -> Self {
+                        self
                     }
-                }
-            } else {
-                quote! {
-                    fn _floor(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]()
-                        }
+                    fn _ceil(self) -> Self {
+                        self
+                    }
+                    fn _square(self) -> Self {
+                        self
                     }
                 }
             };
@@ -119,135 +306,82 @@ pub fn impl_simd_normal_out() -> TokenStream {
             let sign_method = if res_type.is_float() {
                 quote! {
                     fn _sign(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().signum()
-                        }
+                        todo!()
                     }
                 }
             } else if res_type.is_unsigned() {
                 quote! {
                     fn _sign(self) -> Self::Output {
-                        paste::paste! {
-                            #res_type::ZERO
-                        }
+                        todo!()
                     }
                 }
             } else {
                 quote! {
                     fn _sign(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().signum()
-                        }
-                    }
-                }
-            };
-
-            let cmp_method =
-                quote! {
-                    fn _max(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().max(rhs.[<to_ #res_type>]())
-                        }
-                    }
-                    fn _min(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().min(rhs.[<to_ #res_type>]())
-                        }
-                    }
-                };
-
-            let round_method = if res_type.is_float() {
-                quote! {
-                    fn _round(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().round()
-                        }
-                    }
-                }
-            } else {
-                quote! {
-                    fn _round(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]()
-                        }
+                        todo!()
                     }
                 }
             };
 
             let res =
                 quote! {
-                impl NormalOut<#rhs_dtype> for #lhs_dtype {
-                    type Output = #res_type;
-                    fn _add(self, rhs: #rhs_dtype) -> Self::Output {
+                impl NormalOut<#rhs_simd> for #lhs_simd {
+                    type Output = #res_simd_ty::#res_simd_ty;
+                    fn _add(self, rhs: #rhs_simd) -> Self::Output {
                         paste::paste! {
                             self.[<to_ #res_type>]() + rhs.[<to_ #res_type>]()
                         }
                     }
-                    fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
+                    fn _sub(self, rhs: #rhs_simd) -> Self::Output {
                         paste::paste! {
                             self.[<to_ #res_type>]() - rhs.[<to_ #res_type>]()
                         }
                     }
-                    fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
+                    fn _mul(self, rhs: #rhs_simd) -> Self::Output {
                         paste::paste! {
                             self.[<to_ #res_type>]() * rhs.[<to_ #res_type>]()
                         }
                     }
                     #pow_method
 
-                    fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() % rhs.[<to_ #res_type>]()
-                        }
-                    }
-                    fn _square(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() * self.[<to_ #res_type>]()
-                        }
+                    fn _rem(self, rhs: #rhs_simd) -> Self::Output {
+                        todo!()
                     }
                     fn _clip(self, min: Self::Output, max: Self::Output) -> Self::Output {
-                        paste::paste! {
-                            let a = self.[<to_ #res_type>]();
-                            let min = min.[<to_ #res_type>]();
-                            let max = max.[<to_ #res_type>]();
-                            if a < min { min } else if a > max { max } else { a }
-                        }
+                        todo!()
                     }
                     #abs_method
-                    #ceil_method
-                    #floor_method
+                    #unary_no_change_ty_method
                     #sign_method
-                    #cmp_method
-                    #round_method
                 }
             };
-            // ret.extend(res);
+            ret.extend(res);
         }
     }
 
     ret.into()
 }
 
-fn impl_unreachable(lhs_dtype: SimdType, rhs_dtype: SimdType, res_type: SimdType) -> TokenStream2 {
+fn impl_unreachable(lhs_dtype: SimdType, rhs_simd: SimdType, res_type: SimdType) -> TokenStream2 {
     quote! {
-        impl NormalOut<#rhs_dtype> for #lhs_dtype {
+        impl NormalOut<#rhs_simd> for #lhs_dtype {
             type Output = #res_type;
-            fn _add(self, rhs: #rhs_dtype) -> Self::Output {
+            fn _add(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
-            fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
+            fn _sub(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
-            fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
+            fn _mul(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
-            fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
+            fn _pow(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
-            fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
+            fn _rem(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
-            fn _square(self) -> Self::Output {
+            fn _square(self) -> Self {
                 unreachable!()
             }
             fn _clip(self, min: Self::Output, max: Self::Output) -> Self::Output {
@@ -256,23 +390,123 @@ fn impl_unreachable(lhs_dtype: SimdType, rhs_dtype: SimdType, res_type: SimdType
             fn _abs(self) -> Self {
                 unreachable!()
             }
-            fn _ceil(self) -> Self::Output {
+            fn _ceil(self) -> Self {
                 unreachable!()
             }
-            fn _floor(self) -> Self::Output {
+            fn _floor(self) -> Self {
                 unreachable!()
             }
             fn _sign(self) -> Self::Output {
                 unreachable!()
             }
-            fn _max(self, rhs: #rhs_dtype) -> Self::Output {
+            fn _max(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
-            fn _min(self, rhs: #rhs_dtype) -> Self::Output {
+            fn _min(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
-            fn _round(self) -> Self::Output {
+            fn _round(self) -> Self {
                 unreachable!()
+            }
+        }
+    }
+}
+
+fn array_cal(
+    lhs: &str,
+    rhs: &str,
+    res_type: Type,
+    lhs_lanes: u8,
+    rhs_simd: SimdType,
+    res_simd_ty: Ident,
+    method: Ident
+) -> TokenStream2 {
+    match (type_simd_is_arr(lhs), type_simd_is_arr(rhs)) {
+        (true, true) => {
+            quote! {
+                fn #method(self, rhs: #rhs_simd) -> Self::Output {
+                    let lhs_arr = self.0;
+                    let rhs_arr = rhs.0;
+                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
+                    for i in 0..#lhs_lanes as usize {
+                        arr[i] = lhs_arr[i].#method(rhs_arr[i]);
+                    }
+                    #res_simd_ty::#res_simd_ty(arr.into())
+                }
+            }
+        }
+        (true, false) => {
+            quote! {
+                fn #method(self, rhs: #rhs_simd) -> Self::Output {
+                    let lhs_arr = self.0;
+                    let rhs_arr = rhs.0.as_array();
+                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
+                    for i in 0..#lhs_lanes as usize {
+                        arr[i] = lhs_arr[i].#method(rhs_arr[i]);
+                    }
+                    #res_simd_ty::#res_simd_ty(arr.into())
+                }
+            }
+        }
+        (false, true) => {
+            quote! {
+                fn #method(self, rhs: #rhs_simd) -> Self::Output {
+                    let lhs_arr = self.0.as_array();
+                    let rhs_arr = rhs.0;
+                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
+                    for i in 0..#lhs_lanes as usize {
+                        arr[i] = lhs_arr[i].#method(rhs_arr[i]);
+                    }
+                    #res_simd_ty::#res_simd_ty(arr.into())
+                }
+            }
+        }
+        (false, false) => {
+            quote! {
+                fn #method(self, rhs: #rhs_simd) -> Self::Output {
+                    let lhs_arr = self.0.as_array();
+                    let rhs_arr = rhs.0.as_array();
+                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
+                    for i in 0..#lhs_lanes as usize {
+                        arr[i] = lhs_arr[i].#method(rhs_arr[i]);
+                    }
+                    #res_simd_ty::#res_simd_ty(arr.into())
+                }
+            }
+        }
+    }
+}
+
+fn array_cal_single(
+    lhs: &str,
+    res_type: Type,
+    lhs_lanes: u8,
+    res_simd_ty: SimdType,
+    method: Ident
+) -> TokenStream2 {
+    match type_simd_is_arr(lhs) {
+        true => {
+            quote! {
+                fn #method(self) -> Self {
+                    let lhs_arr = self.0;
+                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
+                    for i in 0..#lhs_lanes as usize {
+                        arr[i] = <#res_type as NormalOut<#res_type>>::#method(lhs_arr[i]);
+                    }
+                    #res_simd_ty(arr.into())
+                }
+            }
+        }
+        false => {
+            quote! {
+                fn #method(self) -> Self {
+                    let lhs_arr = self.0.as_array();
+                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
+                    for i in 0..#lhs_lanes as usize {
+                        arr[i] = <#res_type as NormalOut<#res_type>>::#method(lhs_arr[i]);
+                    }
+                    #res_simd_ty(arr.into())
+                }
             }
         }
     }

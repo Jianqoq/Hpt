@@ -794,6 +794,7 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
         "u16",
         "u32",
         "u64",
+        "bf16",
         "isize",
         "usize",
     ];
@@ -815,10 +816,18 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                     }
                 }
             } else {
-                quote! {
-                    fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().pow(rhs.to_u32())
+                if res_type.is_bool() {
+                    quote! {
+                        fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
+                            self || rhs
+                        }
+                    }
+                } else {
+                    quote! {
+                        fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
+                            paste::paste! {
+                                self.[<to_ #res_type>]().pow(rhs.to_u32())
+                            }
                         }
                     }
                 }
@@ -827,53 +836,41 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
             let abs_method = if lhs_dtype.is_unsigned() {
                 quote! {
                     fn _abs(self) -> Self {
-                        paste::paste! {
-                            self
-                        }
+                        self
                     }
                 }
             } else {
                 quote! {
                     fn _abs(self) -> Self {
-                        paste::paste! {
-                            self.abs()
-                        }
+                        self.abs()
                     }
                 }
             };
 
-            let ceil_method = if res_type.is_float() {
+            let ceil_method = if lhs_dtype.is_float() {
                 quote! {
-                    fn _ceil(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().ceil()
-                        }
+                    fn _ceil(self) -> Self {
+                        self.ceil()
                     }
                 }
             } else {
                 quote! {
-                    fn _ceil(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]()
-                        }
+                    fn _ceil(self) -> Self {
+                        self
                     }
                 }
             };
 
-            let floor_method = if res_type.is_float() {
+            let floor_method = if lhs_dtype.is_float() {
                 quote! {
-                    fn _floor(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().floor()
-                        }
+                    fn _floor(self) -> Self {
+                        self.floor()
                     }
                 }
             } else {
                 quote! {
-                    fn _floor(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]()
-                        }
+                    fn _floor(self) -> Self {
+                        self
                     }
                 }
             };
@@ -889,9 +886,7 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
             } else if res_type.is_unsigned() {
                 quote! {
                     fn _sign(self) -> Self::Output {
-                        paste::paste! {
-                            #res_type::ZERO
-                        }
+                        #res_type::ZERO
                     }
                 }
             } else {
@@ -904,7 +899,16 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                 }
             };
 
-            let cmp_method =
+            let cmp_method = if res_type.is_bool() {
+                quote! {
+                    fn _max(self, rhs: #rhs_dtype) -> Self::Output {
+                        self || rhs
+                    }
+                    fn _min(self, rhs: #rhs_dtype) -> Self::Output {
+                        self && rhs
+                    }
+                }
+            } else {
                 quote! {
                     fn _max(self, rhs: #rhs_dtype) -> Self::Output {
                         paste::paste! {
@@ -916,56 +920,69 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                             self.[<to_ #res_type>]().min(rhs.[<to_ #res_type>]())
                         }
                     }
-                };
+                }
+            };
 
-            let round_method = if res_type.is_float() {
+            let round_method = if lhs_dtype.is_float() {
                 quote! {
-                    fn _round(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().round()
-                        }
+                    fn _round(self) -> Self {
+                        self.round()
                     }
                 }
             } else {
                 quote! {
-                    fn _round(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]()
-                        }
+                    fn _round(self) -> Self {
+                        self
                     }
                 }
+            };
+            let std_ops = if res_type.is_bool() {
+                quote! {
+                    fn _add(self, rhs: #rhs_dtype) -> Self::Output {
+                        self || rhs
+                    }
+                    fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
+                        self && !rhs
+                    }
+                    fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
+                        self && rhs
+                    }
+                    fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
+                        self && !rhs
+                    }
+                }
+            } else {
+                quote! {
+                fn _add(self, rhs: #rhs_dtype) -> Self::Output {
+                    paste::paste! {
+                        self.[<to_ #res_type>]() + rhs.[<to_ #res_type>]()
+                    }
+                }
+                fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
+                    paste::paste! {
+                        self.[<to_ #res_type>]() - rhs.[<to_ #res_type>]()
+                    }
+                }
+                fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
+                    paste::paste! {
+                        self.[<to_ #res_type>]() * rhs.[<to_ #res_type>]()
+                    }
+                }
+                fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
+                    paste::paste! {
+                        self.[<to_ #res_type>]() % rhs.[<to_ #res_type>]()
+                    }
+                }
+            }
             };
 
             let res =
                 quote! {
                 impl NormalOut<#rhs_dtype> for #lhs_dtype {
                     type Output = #res_type;
-                    fn _add(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() + rhs.[<to_ #res_type>]()
-                        }
-                    }
-                    fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() - rhs.[<to_ #res_type>]()
-                        }
-                    }
-                    fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() * rhs.[<to_ #res_type>]()
-                        }
-                    }
                     #pow_method
-
-                    fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() % rhs.[<to_ #res_type>]()
-                        }
-                    }
-                    fn _square(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() * self.[<to_ #res_type>]()
-                        }
+                    fn _square(self) -> Self {
+                        self._mul(self)
                     }
                     fn _clip(self, min: Self::Output, max: Self::Output) -> Self::Output {
                         paste::paste! {
@@ -975,6 +992,7 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                             if a < min { min } else if a > max { max } else { a }
                         }
                     }
+                    #std_ops
                     #abs_method
                     #ceil_method
                     #floor_method
@@ -1014,6 +1032,30 @@ pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
             let rhs_dtype = rhs_type.dtype;
             let res_type = lhs_type.infer_normal_res_type(&rhs_type);
 
+            let shift = if res_type.is_bool() {
+                quote! {
+                    fn _shl(self, rhs: #rhs_dtype) -> Self::Output {
+                        self || rhs
+                    }
+                    fn _shr(self, rhs: #rhs_dtype) -> Self::Output {
+                        self && !rhs
+                    }
+                }
+            } else {
+                quote! {
+                    fn _shl(self, rhs: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() << rhs.[<to_ #res_type>]()
+                        }
+                    }
+                    fn _shr(self, rhs: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() >> rhs.[<to_ #res_type>]()
+                        }
+                    }
+                }
+            };
+
             let res =
                 quote! {
                 impl BitWiseOut<#rhs_dtype> for #lhs_dtype {
@@ -1038,16 +1080,7 @@ pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
                             !self.[<to_ #res_type>]()
                         }
                     }
-                    fn _shl(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() << rhs.[<to_ #res_type>]()
-                        }
-                    }
-                    fn _shr(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() >> rhs.[<to_ #res_type>]()
-                        }
-                    }
+                    #shift
                 }
             };
             ret.extend(res);

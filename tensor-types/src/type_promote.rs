@@ -7,6 +7,12 @@ use statrs::function::erf::erf;
 use crate::dtype::FloatConst;
 use tensor_macros::impl_normal_out_simd;
 use crate::vectors::*;
+use half::bf16;
+use crate::convertion::VecConvertor;
+use std::simd::num::SimdInt;
+use std::simd::num::SimdFloat;
+use std::simd::StdFloat;
+use std::simd::cmp::SimdOrd;
 
 /// this trait is used to perform type promotion in dynamic graph
 pub trait FloatOut<RHS = Self> {
@@ -58,15 +64,15 @@ pub trait NormalOut<RHS = Self> {
     fn _mul(self, rhs: RHS) -> Self::Output;
     fn _pow(self, rhs: RHS) -> Self::Output;
     fn _rem(self, rhs: RHS) -> Self::Output;
-    fn _square(self) -> Self::Output;
+    fn _square(self) -> Self;
     fn _abs(self) -> Self;
-    fn _ceil(self) -> Self::Output;
-    fn _floor(self) -> Self::Output;
+    fn _ceil(self) -> Self;
+    fn _floor(self) -> Self;
     fn _sign(self) -> Self::Output;
     fn _max(self, rhs: RHS) -> Self::Output;
     fn _min(self, rhs: RHS) -> Self::Output;
     fn _clip(self, min: Self::Output, max: Self::Output) -> Self::Output;
-    fn _round(self) -> Self::Output;
+    fn _round(self) -> Self;
 }
 
 impl_normal_out!();

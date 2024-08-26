@@ -61,3 +61,27 @@ impl IntoVec<i32x8> for i32x8 {
         self
     }
 }
+impl std::ops::Add  for i32x8 {
+    type Output = i32x8;
+    fn add(self, rhs: Self) -> Self::Output {
+        i32x8(self.0 + rhs.0)
+    }
+}
+impl std::ops::Sub  for i32x8 {
+    type Output = i32x8;
+    fn sub(self, rhs: Self) -> Self::Output {
+        i32x8(self.0 - rhs.0)
+    }
+}
+impl std::ops::Mul  for i32x8 {
+    type Output = i32x8;
+    fn mul(self, rhs: Self) -> Self::Output {
+        i32x8(self.0 * rhs.0)
+    }
+}
+impl std::ops::Div  for i32x8 {
+    type Output = i32x8;
+    fn div(self, rhs: Self) -> Self::Output {
+        i32x8(self.0 / rhs.0)
+    }
+}

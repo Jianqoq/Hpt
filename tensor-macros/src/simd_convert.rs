@@ -1,8 +1,6 @@
 use proc_macro::TokenStream;
-use syn::parse_quote;
 use crate::type_utils::{ type_simd_is_arr, type_simd_lanes, SimdType, TypeInfo };
 use quote::quote;
-use crate::TokenStream2;
 use proc_macro2::Ident;
 
 pub fn __impl_simd_convert() -> TokenStream {
@@ -38,13 +36,17 @@ pub fn __impl_simd_convert() -> TokenStream {
             let function_name: Ident = Ident::new(&func_name, proc_macro2::Span::call_site());
             let res_simd: Ident = Ident::new(&res_ty_str, proc_macro2::Span::call_site());
             let func_gen = if lhs_lanes == rhs_lanes {
-                if (lhs_dtype.dtype.is_f32() || lhs_dtype.dtype.is_f64()) && !type_simd_is_arr(rhs) && !type_simd_is_arr(lhs) {
+                if
+                    (lhs_dtype.dtype.is_f32() || lhs_dtype.dtype.is_f64()) &&
+                    !type_simd_is_arr(rhs) &&
+                    !type_simd_is_arr(lhs)
+                {
                     quote! {
                         fn #function_name(self) -> #res_simd::#res_simd {
                             #res_simd::#res_simd(self.cast().into())
                         }
                     }
-                }  else if type_simd_is_arr(rhs) || type_simd_is_arr(lhs) {
+                } else if type_simd_is_arr(rhs) || type_simd_is_arr(lhs) {
                     let unroll = (0..lhs_lanes as usize).map(|i| {
                         quote! {
                             arr[#i] = self_arr[#i].#function_name();

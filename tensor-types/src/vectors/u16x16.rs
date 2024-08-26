@@ -62,3 +62,27 @@ impl IntoVec<u16x16> for u16x16 {
         self
     }
 }
+impl std::ops::Add for u16x16 {
+    type Output = u16x16;
+    fn add(self, rhs: Self) -> Self::Output {
+        u16x16(self.0 + rhs.0)
+    }
+}
+impl std::ops::Sub for u16x16 {
+    type Output = u16x16;
+    fn sub(self, rhs: Self) -> Self::Output {
+        u16x16(self.0 - rhs.0)
+    }
+}
+impl std::ops::Mul for u16x16 {
+    type Output = u16x16;
+    fn mul(self, rhs: Self) -> Self::Output {
+        u16x16(self.0 * rhs.0)
+    }
+}
+impl std::ops::Div for u16x16 {
+    type Output = u16x16;
+    fn div(self, rhs: Self) -> Self::Output {
+        u16x16(self.0 / rhs.0)
+    }
+}

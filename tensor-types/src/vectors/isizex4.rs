@@ -59,6 +59,11 @@ impl VecTrait<isize> for isizex4 {
         let ret = self.as_array().iter().sum::<isize>();
         ret as isize
     }
+    #[cfg(target_pointer_width = "32")]
+    #[inline(always)]
+    fn as_array<N>(&self) -> &[isize; 8] {
+        self.0.as_array()
+    }
 }
 
 impl VecSize for isizex4 {
@@ -85,5 +90,29 @@ impl Init<isize> for isizex4 {
 impl IntoVec<isizex4> for isizex4 {
     fn into_vec(self) -> isizex4 {
         self
+    }
+}
+impl std::ops::Add for isizex4 {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self {
+        isizex4(self.0 + rhs.0)
+    }
+}
+impl std::ops::Sub for isizex4 {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self {
+        isizex4(self.0 - rhs.0)
+    }
+}
+impl std::ops::Mul for isizex4 {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self {
+        isizex4(self.0 * rhs.0)
+    }
+}
+impl std::ops::Div for isizex4 {
+    type Output = Self;
+    fn div(self, rhs: Self) -> Self {
+        isizex4(self.0 / rhs.0)
     }
 }

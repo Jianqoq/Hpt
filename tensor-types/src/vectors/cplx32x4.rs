@@ -51,3 +51,47 @@ impl IntoVec<cplx32x4> for cplx32x4 {
         self
     }
 }
+impl std::ops::Add for cplx32x4 {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let mut ret = cplx32x4::default();
+        for i in 0..4 {
+            ret.0[i] = self.0[i] + rhs.0[i];
+        }
+        ret
+    }
+}
+impl std::ops::Sub for cplx32x4 {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let mut ret = cplx32x4::default();
+        for i in 0..4 {
+            ret.0[i] = self.0[i] - rhs.0[i];
+        }
+        ret
+    }
+}
+impl std::ops::Mul for cplx32x4 {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        let mut ret = cplx32x4::default();
+        for i in 0..4 {
+            ret.0[i] = self.0[i] * rhs.0[i];
+        }
+        ret
+    }
+}
+impl std::ops::Div for cplx32x4 {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        let mut ret = cplx32x4::default();
+        for i in 0..4 {
+            ret.0[i] = self.0[i] / rhs.0[i];
+        }
+        ret
+    }
+}

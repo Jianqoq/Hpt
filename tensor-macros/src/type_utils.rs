@@ -263,7 +263,7 @@ pub(crate) fn level_to_int(level: u8) -> Type {
 
 pub(crate) fn level_to_uint(level: u8) -> Type {
     match level {
-        1 => Type::U8,
+        1 => Type::Bool,
         2 => Type::U8,
         3 => Type::U8,
         4 => Type::U16,
@@ -747,10 +747,22 @@ impl TypeInfo {
                 if self.level > other.level {
                     self.dtype
                 } else {
-                    if self.is_signed && other.is_signed {
-                        level_to_int(std::cmp::max(self.level, other.level))
+                    if self.is_signed || other.is_signed {
+                        if (self.level == 8 || other.level == 8) && (self.dtype as u8 == Type::Isize as u8 || other.dtype as u8 == Type::Isize as u8) {
+                            Type::Isize
+                        } else if (self.level == 8 || other.level == 8) && (self.dtype as u8 == Type::Usize as u8 || other.dtype as u8 == Type::Usize as u8) {
+                            Type::Isize
+                        } else {
+                            level_to_int(std::cmp::max(self.level, other.level))
+                        }
                     } else {
-                        level_to_uint(std::cmp::max(self.level, other.level))
+                        if (self.level == 8 || other.level == 8) && (self.dtype as u8 == Type::Isize as u8 || other.dtype as u8 == Type::Isize as u8) {
+                            Type::Usize
+                        } else if (self.level == 8 || other.level == 8) && (self.dtype as u8 == Type::Usize as u8 || other.dtype as u8 == Type::Usize as u8) {
+                            Type::Usize
+                        } else {
+                            level_to_uint(std::cmp::max(self.level, other.level))
+                        }
                     }
                 }
             }
