@@ -5,6 +5,8 @@ use num_traits::float::Float;
 use crate::dtype::TypeCommon;
 use statrs::function::erf::erf;
 use crate::dtype::FloatConst;
+use tensor_macros::impl_normal_out_simd;
+use crate::vectors::*;
 
 /// this trait is used to perform type promotion in dynamic graph
 pub trait FloatOut<RHS = Self> {
@@ -68,6 +70,8 @@ pub trait NormalOut<RHS = Self> {
 }
 
 impl_normal_out!();
+
+impl_normal_out_simd!();
 
 pub trait BitWiseOut<RHS = Self> {
     type Output;

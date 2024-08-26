@@ -1,6 +1,7 @@
 #![allow(unused)]
 use std::{ fmt::{ Display, Debug }, ops::{ Div, Mul, Sub }, sync::Arc };
 use bytemuck::Pod;
+use tensor_iterator::{par_strided::ParStrided, par_strided_mut::ParStridedMut};
 use wgpu::util::DeviceExt;
 use rand_distr::{
     uniform::SampleUniform,
@@ -24,7 +25,6 @@ use tensor_common::{
 use tensor_display::display;
 use tensor_macros::match_selection;
 use tensor_common::slice;
-use tensor_iterator::{ par_strided::ParStrided, par_strided_mut::ParStridedMut };
 use tensor_traits::{
     random::Random,
     shape_manipulate::ShapeManipulate,
@@ -354,26 +354,7 @@ impl<T: CommonBounds> _Tensor<T, Wgpu> {
     pub fn allclose<U: CommonBounds>(&self, other: &_Tensor<U>) -> bool
         where T: Convertor, U: Convertor
     {
-        if self.shape() != other.shape() {
-            return false;
-        }
-        let folder = self
-            .iter()
-            .zip(other.par_iter())
-            .fold(
-                || true,
-                |acc, (a, b)| {
-                    let a_val: f64 = a.to_f64();
-                    let b_val: f64 = b.to_f64();
-                    let abs_diff: f64 = (a_val - b_val).abs();
-                    let torlerance: f64 = 1.0e-8 + 1.0e-5 * b_val.abs();
-                    acc && abs_diff <= torlerance
-                }
-            );
-        folder.reduce(
-            || true,
-            |a, b| a && b
-        )
+        todo!()
     }
 
     /// Create a contiguous copy of the tensor.

@@ -484,6 +484,21 @@ pub fn mt_intervals(outer_loop_size: usize, num_threads: usize) -> Vec<(usize, u
     intervals
 }
 
+pub fn mt_intervals_simd(outer_loop_size: usize, num_threads: usize, vec_size: usize) -> Vec<(usize, usize)> {
+    let mut intervals = Vec::with_capacity(num_threads);
+    
+    let per_thread = (outer_loop_size / num_threads / vec_size) * vec_size;
+    for i in 0..num_threads - 1 {
+        let start_index = i * per_thread;
+        let end_index = start_index + per_thread;
+        intervals.push((start_index, end_index));
+    }
+    
+    let last_start_index = per_thread * (num_threads - 1);
+    intervals.push((last_start_index, outer_loop_size));
+    
+    intervals
+}
 pub fn is_broadcast(a_shape: &[i64], b_shape: &[i64]) -> bool {
     let mut a_shape = a_shape.to_vec();
     let mut b_shape = b_shape.to_vec();

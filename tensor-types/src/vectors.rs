@@ -1,15 +1,19 @@
+use std::ops::Rem;
 
 use half::{ bf16, f16 };
 use num_complex::{ Complex32, Complex64 };
+use statrs::function::erf::erf;
 use wide::*;
 
-use crate::type_promote::FloatOut;
+use crate::type_promote::{ Cmp, Eval, FloatOut, NormalOut };
 
 pub trait VecTrait<T> {
     fn _mul_add(self, a: Self, b: Self) -> Self;
     fn copy_from_slice(&mut self, slice: &[T]);
     fn as_ptr(&self) -> *const T;
     fn as_mut_ptr(&mut self) -> *mut T;
+    fn as_mut_ptr_uncheck(&self) -> *mut T;
+    fn sum(&self) -> T;
 }
 pub trait Init<T> {
     fn splat(val: T) -> Self;
@@ -37,6 +41,14 @@ macro_rules! impl_vectors {
             #[inline(always)]
             fn as_mut_ptr(&mut self) -> *mut $base {
                 self.as_array_mut().as_mut_ptr()
+            }
+            #[inline(always)]
+            fn as_mut_ptr_uncheck(&self) -> *mut $base {
+                self.as_array_ref().as_ptr() as *mut _
+            }
+            #[inline(always)]
+            fn sum(&self) -> $base {
+                self.as_array_ref().iter().sum()
             }
         }
         impl VecSize for $T {
@@ -80,10 +92,11 @@ impl Init<u32> for u32x8 {
 }
 impl_vectors!(f32x4, f32, 4);
 impl Init<f32> for f32x8 {
+    #[inline(always)]
     fn splat(val: f32) -> f32x8 {
         unsafe { std::mem::transmute(std::arch::x86_64::_mm256_set1_ps(val)) }
     }
-
+#[inline(always)]
     unsafe fn from_ptr(ptr: *const f32) -> Self {
         let ret = unsafe { std::mem::transmute(std::arch::x86_64::_mm256_load_ps(ptr)) };
         ret
@@ -110,6 +123,15 @@ impl Init<i64> for i64x2 {
         unsafe { std::mem::transmute(std::arch::x86_64::_mm_load_si128(ptr as *const _)) }
     }
 }
+impl_vectors!(i64x4, i64, 4);
+impl Init<i64> for i64x4 {
+    fn splat(val: i64) -> i64x4 {
+        i64x4::splat(val)
+    }
+    unsafe fn from_ptr(ptr: *const i64) -> Self {
+        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_load_si256(ptr as *const _)) }
+    }
+}
 impl_vectors!(u64x2, u64, 2);
 impl Init<u64> for u64x2 {
     fn splat(val: u64) -> u64x2 {
@@ -131,6 +153,14 @@ impl Init<i16> for i16x8 {
     }
 }
 impl_vectors!(i16x16, i16, 16);
+impl Init<i16> for i16x16 {
+    fn splat(val: i16) -> i16x16 {
+        i16x16::splat(val)
+    }
+    unsafe fn from_ptr(ptr: *const i16) -> Self {
+        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_load_si256(ptr as *const _)) }
+    }
+}
 impl_vectors!(u16x8, u16, 8);
 impl Init<u16> for u16x8 {
     fn splat(val: u16) -> u16x8 {
@@ -141,15 +171,15 @@ impl Init<u16> for u16x8 {
     }
 }
 impl_vectors!(u16x16, u16, 16);
-impl Init<bool> for [bool; 8] {
-    fn splat(val: bool) -> [bool; 8] {
-        [val; 8]
+impl Init<bool> for [bool; 32] {
+    fn splat(val: bool) -> [bool; 32] {
+        [val; 32]
     }
     unsafe fn from_ptr(ptr: *const bool) -> Self {
-        unsafe { std::slice::from_raw_parts(ptr, 8).try_into().unwrap() }
+        unsafe { std::slice::from_raw_parts(ptr, 32).try_into().unwrap() }
     }
 }
-impl VecTrait<bool> for [bool; 8] {
+impl VecTrait<bool> for [bool; 32] {
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[bool]) {
         self[..slice.len()].copy_from_slice(slice);
@@ -166,9 +196,17 @@ impl VecTrait<bool> for [bool; 8] {
     fn as_mut_ptr(&mut self) -> *mut bool {
         self[..].as_mut_ptr()
     }
+    #[inline(always)]
+    fn sum(&self) -> bool {
+        unimplemented!()
+    }
+    
+    fn as_mut_ptr_uncheck(&self) -> *mut bool {
+        self[..].as_ptr() as *mut _
+    }
 }
-impl VecSize for [bool; 8] {
-    const SIZE: usize = 8;
+impl VecSize for [bool; 32] {
+    const SIZE: usize = 32;
 }
 impl Init<u8> for [u8; 32] {
     fn splat(val: u8) -> [u8; 32] {
@@ -194,6 +232,14 @@ impl VecTrait<u8> for [u8; 32] {
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut u8 {
         self[..].as_mut_ptr()
+    }
+    #[inline(always)]
+    fn sum(&self) -> u8 {
+        self.iter().sum()
+    }
+    
+    fn as_mut_ptr_uncheck(&self) -> *mut u8 {
+        self[..].as_ptr() as *mut _
     }
 }
 impl VecSize for [u8; 32] {
@@ -225,6 +271,14 @@ impl VecTrait<isize> for [isize; 8] {
     fn as_mut_ptr(&mut self) -> *mut isize {
         self[..].as_mut_ptr()
     }
+    #[inline(always)]
+    fn sum(&self) -> isize {
+        self.iter().sum()
+    }
+    
+    fn as_mut_ptr_uncheck(&self) -> *mut isize {
+        self[..].as_ptr() as *mut _
+    }
 }
 impl VecSize for [isize; 8] {
     const SIZE: usize = 8;
@@ -254,6 +308,14 @@ impl VecTrait<usize> for [usize; 8] {
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut usize {
         self[..].as_mut_ptr()
+    }
+    #[inline(always)]
+    fn sum(&self) -> usize {
+        self.iter().sum()
+    }
+    
+    fn as_mut_ptr_uncheck(&self) -> *mut usize {
+        self[..].as_ptr() as *mut _
     }
 }
 impl VecSize for [usize; 8] {
@@ -285,6 +347,14 @@ impl VecTrait<f16> for [f16; 32] {
     fn as_mut_ptr(&mut self) -> *mut f16 {
         self[..].as_mut_ptr()
     }
+    #[inline(always)]
+    fn sum(&self) -> f16 {
+        self.iter().sum()
+    }
+    
+    fn as_mut_ptr_uncheck(&self) -> *mut f16 {
+        self[..].as_ptr() as *mut _
+    }
 }
 impl VecSize for [f16; 32] {
     const SIZE: usize = 32;
@@ -314,6 +384,14 @@ impl VecTrait<bf16> for [bf16; 32] {
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut bf16 {
         self[..].as_mut_ptr()
+    }
+    #[inline(always)]
+    fn sum(&self) -> bf16 {
+        self.iter().sum()
+    }
+    
+    fn as_mut_ptr_uncheck(&self) -> *mut bf16 {
+        self[..].as_ptr() as *mut _
     }
 }
 impl VecSize for [bf16; 32] {
@@ -345,6 +423,14 @@ impl VecTrait<Complex32> for [Complex32; 4] {
     fn as_mut_ptr(&mut self) -> *mut Complex32 {
         self[..].as_mut_ptr()
     }
+    #[inline(always)]
+    fn sum(&self) -> Complex32 {
+        self.iter().sum()
+    }
+    
+    fn as_mut_ptr_uncheck(&self) -> *mut Complex32 {
+        self[..].as_ptr() as *mut _
+    }
 }
 impl VecSize for [Complex32; 4] {
     const SIZE: usize = 4;
@@ -374,6 +460,14 @@ impl VecTrait<Complex64> for [Complex64; 2] {
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut Complex64 {
         self[..].as_mut_ptr()
+    }
+    #[inline(always)]
+    fn sum(&self) -> Complex64 {
+        self.iter().sum()
+    }
+    
+    fn as_mut_ptr_uncheck(&self) -> *mut Complex64 {
+        self[..].as_ptr() as *mut _
     }
 }
 impl VecSize for [Complex64; 2] {
@@ -472,7 +566,13 @@ impl FloatOut for f32x8 {
     }
 
     fn _erf(self) -> Self::Output {
-        todo!()
+        let mut res = self.clone();
+        res.as_array_mut()
+            .iter_mut()
+            .for_each(|x| {
+                *x = erf(*x as f64) as f32;
+            });
+        res
     }
 
     fn _sigmoid(self) -> Self::Output {
@@ -488,11 +588,12 @@ impl FloatOut for f32x8 {
     }
 
     fn _relu(self) -> Self::Output {
-        todo!()
+        self.max(Self::Output::splat(0.0))
     }
 
     fn _gelu(self) -> Self::Output {
-        todo!()
+        let sqrt2_over_2 = f32x8::splat(std::f32::consts::FRAC_1_SQRT_2);
+        0.5 * self * (f32x8::splat(1.0) + (self * sqrt2_over_2)._erf())
     }
 
     fn _selu(self, alpha: Self::Output, scale: Self::Output) -> Self::Output {
@@ -528,3 +629,521 @@ impl FloatOut for f32x8 {
         todo!()
     }
 }
+impl NormalOut for f32x8 {
+    type Output = f32x8;
+    fn _add(self, rhs: Self) -> Self::Output {
+        self + rhs
+    }
+    fn _sub(self, rhs: Self) -> Self::Output {
+        self - rhs
+    }
+    fn _mul(self, rhs: Self) -> Self::Output {
+        self * rhs
+    }
+    fn _pow(self, rhs: Self) -> Self::Output {
+        self.pow_f32x8(rhs)
+    }
+    fn _rem(self, _: Self) -> Self::Output {
+        todo!()
+    }
+    fn _square(self) -> Self::Output {
+        self * self
+    }
+    fn _abs(self) -> Self {
+        self.abs()
+    }
+    fn _ceil(self) -> Self::Output {
+        todo!()
+    }
+    fn _floor(self) -> Self::Output {
+        todo!()
+    }
+    fn _sign(self) -> Self::Output {
+        self.sign_bit()
+    }
+    fn _max(self, rhs: Self) -> Self::Output {
+        self.max(rhs)
+    }
+    fn _min(self, rhs: Self) -> Self::Output {
+        self.min(rhs)
+    }
+    fn _clip(self, _: Self::Output, _: Self::Output) -> Self::Output {
+        todo!()
+    }
+    fn _round(self) -> Self::Output {
+        self.round()
+    }
+}
+impl Eval for f32x8 {
+    type Output = bool;
+
+    fn _is_nan(&self) -> Self::Output {
+        self.is_nan().all()
+    }
+
+    fn _is_true(&self) -> Self::Output {
+        todo!()
+    }
+
+    fn _is_inf(&self) -> Self::Output {
+        self.is_inf().all()
+    }
+}
+impl Cmp for f32x8 {
+    fn _eq(self, rhs: Self) -> bool {
+        self.cmp_eq(rhs).all()
+    }
+
+    fn _ne(self, rhs: Self) -> bool {
+        self.cmp_ne(rhs).all()
+    }
+
+    fn _lt(self, rhs: Self) -> bool {
+        self.cmp_lt(rhs).all()
+    }
+
+    fn _le(self, rhs: Self) -> bool {
+        self.cmp_le(rhs).all()
+    }
+
+    fn _gt(self, rhs: Self) -> bool {
+        self.cmp_gt(rhs).all()
+    }
+
+    fn _ge(self, rhs: Self) -> bool {
+        self.cmp_ge(rhs).all()
+    }
+}
+
+impl NormalOut for f64x4 {
+    type Output = f64x4;
+    fn _add(self, rhs: Self) -> Self::Output {
+        self + rhs
+    }
+    fn _sub(self, rhs: Self) -> Self::Output {
+        self - rhs
+    }
+    fn _mul(self, rhs: Self) -> Self::Output {
+        self * rhs
+    }
+    fn _pow(self, rhs: Self) -> Self::Output {
+        self.pow_f64x4(rhs)
+    }
+    fn _rem(self, _: Self) -> Self::Output {
+        todo!()
+    }
+    fn _square(self) -> Self::Output {
+        self * self
+    }
+    fn _abs(self) -> Self {
+        self.abs()
+    }
+    fn _ceil(self) -> Self::Output {
+        todo!()
+    }
+    fn _floor(self) -> Self::Output {
+        todo!()
+    }
+    fn _sign(self) -> Self::Output {
+        todo!()
+    }
+    fn _max(self, rhs: Self) -> Self::Output {
+        self.max(rhs)
+    }
+    fn _min(self, rhs: Self) -> Self::Output {
+        self.min(rhs)
+    }
+    fn _clip(self, _: Self::Output, _: Self::Output) -> Self::Output {
+        todo!()
+    }
+    fn _round(self) -> Self::Output {
+        self.round()
+    }
+}
+
+impl NormalOut for i32x8 {
+    type Output = i32x8;
+    fn _add(self, rhs: Self) -> Self::Output {
+        self + rhs
+    }
+    fn _sub(self, rhs: Self) -> Self::Output {
+        self - rhs
+    }
+    fn _mul(self, rhs: Self) -> Self::Output {
+        self * rhs
+    }
+    fn _pow(self, _: Self) -> Self::Output {
+        todo!()
+    }
+    fn _rem(self, _: Self) -> Self::Output {
+        todo!()
+    }
+    fn _square(self) -> Self::Output {
+        self * self
+    }
+    fn _abs(self) -> Self {
+        self.abs()
+    }
+    fn _ceil(self) -> Self::Output {
+        todo!()
+    }
+    fn _floor(self) -> Self::Output {
+        todo!()
+    }
+    fn _sign(self) -> Self::Output {
+        todo!()
+    }
+    fn _max(self, rhs: Self) -> Self::Output {
+        self.max(rhs)
+    }
+    fn _min(self, rhs: Self) -> Self::Output {
+        self.min(rhs)
+    }
+    fn _clip(self, _: Self::Output, _: Self::Output) -> Self::Output {
+        todo!()
+    }
+    fn _round(self) -> Self::Output {
+        self
+    }
+}
+
+impl Eval for i32x8 {
+    type Output = bool;
+
+    fn _is_nan(&self) -> Self::Output {
+        false
+    }
+
+    fn _is_true(&self) -> Self::Output {
+        !self.cmp_eq(i32x8::splat(0)).all()
+    }
+
+    fn _is_inf(&self) -> Self::Output {
+        false
+    }
+}
+impl Cmp for i32x8 {
+    fn _eq(self, rhs: Self) -> bool {
+        self.cmp_eq(rhs).all()
+    }
+
+    fn _ne(self, rhs: Self) -> bool {
+        self != rhs
+    }
+
+    fn _lt(self, rhs: Self) -> bool {
+        self.cmp_lt(rhs).all()
+    }
+
+    fn _le(self, rhs: Self) -> bool {
+        !self.cmp_gt(rhs).all()
+    }
+
+    fn _gt(self, rhs: Self) -> bool {
+        self.cmp_gt(rhs).all()
+    }
+
+    fn _ge(self, rhs: Self) -> bool {
+        !self.cmp_lt(rhs).all()
+    }
+}
+
+impl NormalOut for i64x4 {
+    type Output = i64x4;
+    fn _add(self, rhs: Self) -> Self::Output {
+        self + rhs
+    }
+    fn _sub(self, rhs: Self) -> Self::Output {
+        self - rhs
+    }
+    fn _mul(self, rhs: Self) -> Self::Output {
+        self * rhs
+    }
+    fn _pow(self, _: Self) -> Self::Output {
+        todo!()
+    }
+    fn _rem(self, _: Self) -> Self::Output {
+        todo!()
+    }
+    fn _square(self) -> Self::Output {
+        self * self
+    }
+    fn _abs(self) -> Self {
+        self.abs()
+    }
+    fn _ceil(self) -> Self::Output {
+        todo!()
+    }
+    fn _floor(self) -> Self::Output {
+        todo!()
+    }
+    fn _sign(self) -> Self::Output {
+        todo!()
+    }
+    fn _max(self, rhs: Self) -> Self::Output {
+        todo!()
+    }
+    fn _min(self, rhs: Self) -> Self::Output {
+        todo!()
+    }
+    fn _clip(self, _: Self::Output, _: Self::Output) -> Self::Output {
+        todo!()
+    }
+    fn _round(self) -> Self::Output {
+        self
+    }
+}
+
+impl Eval for i64x4 {
+    type Output = bool;
+
+    fn _is_nan(&self) -> Self::Output {
+        false
+    }
+
+    fn _is_true(&self) -> Self::Output {
+        !self.cmp_eq(i64x4::splat(0)).all()
+    }
+
+    fn _is_inf(&self) -> Self::Output {
+        false
+    }
+}
+impl Cmp for i64x4 {
+    fn _eq(self, rhs: Self) -> bool {
+        self.cmp_eq(rhs).all()
+    }
+
+    fn _ne(self, rhs: Self) -> bool {
+        self != rhs
+    }
+
+    fn _lt(self, rhs: Self) -> bool {
+        self.cmp_lt(rhs).all()
+    }
+
+    fn _le(self, rhs: Self) -> bool {
+        !self.cmp_gt(rhs).all()
+    }
+
+    fn _gt(self, rhs: Self) -> bool {
+        self.cmp_gt(rhs).all()
+    }
+
+    fn _ge(self, rhs: Self) -> bool {
+        !self.cmp_lt(rhs).all()
+    }
+}
+
+impl NormalOut for i16x16 {
+    type Output = i16x16;
+    fn _add(self, rhs: Self) -> Self::Output {
+        self + rhs
+    }
+    fn _sub(self, rhs: Self) -> Self::Output {
+        self - rhs
+    }
+    fn _mul(self, rhs: Self) -> Self::Output {
+        self * rhs
+    }
+    fn _pow(self, _: Self) -> Self::Output {
+        todo!()
+    }
+    fn _rem(self, _: Self) -> Self::Output {
+        todo!()
+    }
+    fn _square(self) -> Self::Output {
+        self * self
+    }
+    fn _abs(self) -> Self {
+        self.abs()
+    }
+    fn _ceil(self) -> Self::Output {
+        todo!()
+    }
+    fn _floor(self) -> Self::Output {
+        todo!()
+    }
+    fn _sign(self) -> Self::Output {
+        todo!()
+    }
+    fn _max(self, rhs: Self) -> Self::Output {
+        self.max(rhs)
+    }
+    fn _min(self, rhs: Self) -> Self::Output {
+        self.min(rhs)
+    }
+    fn _clip(self, _: Self::Output, _: Self::Output) -> Self::Output {
+        todo!()
+    }
+    fn _round(self) -> Self::Output {
+        self
+    }
+}
+
+impl NormalOut for i8x32 {
+    type Output = i8x32;
+    fn _add(self, rhs: Self) -> Self::Output {
+        self + rhs
+    }
+    fn _sub(self, rhs: Self) -> Self::Output {
+        self - rhs
+    }
+    fn _mul(self, rhs: Self) -> Self::Output {
+        let arr = self.as_array_ref();
+        let rhs_arr = rhs.as_array_ref();
+        let mut res = [0i8; 32];
+        res.iter_mut()
+            .zip(arr.iter().zip(rhs_arr.iter()))
+            .for_each(|(r, (a, b))| {
+                *r = a.wrapping_mul(*b);
+            });
+        i8x32::new(res)
+    }
+    fn _pow(self, rhs: Self) -> Self::Output {
+        let arr = self.as_array_ref();
+        let rhs_arr = rhs.as_array_ref();
+        let mut res = [0i8; 32];
+        res.iter_mut()
+            .zip(arr.iter().zip(rhs_arr.iter()))
+            .for_each(|(r, (a, b))| {
+                *r = a.pow(*b as u32);
+            });
+        i8x32::new(res)
+    }
+    fn _rem(self, rhs: Self) -> Self::Output {
+        let arr = self.as_array_ref();
+        let rhs_arr = rhs.as_array_ref();
+        let mut res = [0i8; 32];
+        res.iter_mut()
+            .zip(arr.iter().zip(rhs_arr.iter()))
+            .for_each(|(r, (a, b))| {
+                *r = a.rem(*b);
+            });
+        i8x32::new(res)
+    }
+    fn _square(self) -> Self::Output {
+        let arr = self.as_array_ref();
+        let mut res = [0i8; 32];
+        res.iter_mut()
+            .zip(arr.iter())
+            .for_each(|(r, a)| {
+                *r = a.wrapping_mul(*a);
+            });
+        i8x32::new(res)
+    }
+    fn _abs(self) -> Self {
+        self.abs()
+    }
+    fn _ceil(self) -> Self::Output {
+        self
+    }
+    fn _floor(self) -> Self::Output {
+        self
+    }
+    fn _sign(self) -> Self::Output {
+        let arr = self.as_array_ref();
+        let mut res = [0i8; 32];
+        res.iter_mut()
+            .zip(arr.iter())
+            .for_each(|(r, a)| {
+                *r = a.signum();
+            });
+        i8x32::new(res)
+    }
+    fn _max(self, rhs: Self) -> Self::Output {
+        self.max(rhs)
+    }
+    fn _min(self, rhs: Self) -> Self::Output {
+        self.min(rhs)
+    }
+    fn _clip(self, _: Self::Output, _: Self::Output) -> Self::Output {
+        todo!()
+    }
+    fn _round(self) -> Self::Output {
+        self
+    }
+}
+
+impl NormalOut for [bool; 32] {
+    type Output = [bool; 32];
+    fn _add(self, rhs: Self) -> Self::Output {
+        let mut res = [false; 32];
+        res.iter_mut()
+            .zip(self.iter().zip(rhs.iter()))
+            .for_each(|(r, (a, b))| {
+                *r = *a || *b;
+            });
+        res
+    }
+    fn _sub(self, rhs: Self) -> Self::Output {
+        let mut res = [false; 32];
+        res.iter_mut()
+            .zip(self.iter().zip(rhs.iter()))
+            .for_each(|(r, (a, b))| {
+                *r = *a && !*b;
+            });
+        res
+    }
+    fn _mul(self, rhs: Self) -> Self::Output {
+        let mut res = [false; 32];
+        res.iter_mut()
+            .zip(self.iter().zip(rhs.iter()))
+            .for_each(|(r, (a, b))| {
+                *r = *a && *b;
+            });
+        res
+    }
+    fn _pow(self, rhs: Self) -> Self::Output {
+        let mut res = [false; 32];
+        res.iter_mut()
+            .zip(self.iter().zip(rhs.iter()))
+            .for_each(|(r, (a, b))| {
+                *r = *a ^ *b;
+            });
+        res
+    }
+    fn _rem(self, rhs: Self) -> Self::Output {
+        let mut res = [false; 32];
+        res.iter_mut()
+            .zip(self.iter().zip(rhs.iter()))
+            .for_each(|(r, (a, b))| {
+                *r = *a ^ *b;
+            });
+        res
+    }
+    fn _square(self) -> Self::Output {
+        let mut res = [false; 32];
+        res.iter_mut()
+            .zip(self.iter())
+            .for_each(|(r, a)| {
+                *r = *a;
+            });
+        res
+    }
+    fn _abs(self) -> Self {
+        self
+    }
+    fn _ceil(self) -> Self::Output {
+        self
+    }
+    fn _floor(self) -> Self::Output {
+        self
+    }
+    fn _sign(self) -> Self::Output {
+        [false; 32]
+    }
+    fn _max(self, rhs: Self) -> Self::Output {
+        self.max(rhs)
+    }
+    fn _min(self, rhs: Self) -> Self::Output {
+        self.min(rhs)
+    }
+    fn _clip(self, _: Self::Output, _: Self::Output) -> Self::Output {
+        todo!()
+    }
+    fn _round(self) -> Self::Output {
+        self
+    }
+}
+

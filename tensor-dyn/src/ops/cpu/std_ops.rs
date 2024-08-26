@@ -18,11 +18,10 @@ use std::ops::{
     MulAssign,
     RemAssign,
 };
+use crate::ops::cpu::binary_normal::*;
 use tensor_types::dtype::TypeCommon;
 use tensor_types::type_promote::BitWiseOut;
 use tensor_types::type_promote::FloatOut;
-use crate::ops::cpu::binary_normal::binary_fn;
-use crate::ops::cpu::binary_normal::binary_fn_with_out;
 use tensor_common::shape_utils::predict_broadcast_shape;
 use tensor_types::type_promote::NormalOut;
 use crate::tensor_base::_Tensor;
@@ -31,6 +30,7 @@ use std::panic::Location;
 macro_rules! normal_promote_ops_1 {
     ($([$op:ident, $op2:ident, $op3:ident]),*) => {
         $(
+            #[cfg(not(feature = "simd"))]
             impl<T, U> $op<_Tensor<U>> for _Tensor<T>
                 where
                 T: CommonBounds + NormalOut<U>,
@@ -102,6 +102,80 @@ macro_rules! normal_promote_ops_1 {
                     }
                 }
             }
+            #[cfg(feature = "simd")]
+            impl<T, U> $op<_Tensor<U>> for _Tensor<T>
+            where
+            T: CommonBounds + NormalOut<U>,
+            U: CommonBounds,
+            <T as NormalOut<U>>::Output: CommonBounds,
+            <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+            <T as TypeCommon>::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>
+        {
+            type Output = _Tensor<<T as NormalOut<U>>::Output>;
+
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
+                let res_shape = predict_broadcast_shape(
+                    self.shape(),
+                    rhs.shape(),
+                    Location::caller()
+                ).unwrap();
+                let res_size: usize = res_shape.size() as usize;
+                let lhs_size: usize = self.layout().real_size();
+                let rhs_size: usize = rhs.layout().real_size();
+                if lhs_size > rhs_size {
+                    if lhs_size == res_size && T::ID == <T as NormalOut<U>>::Output::ID {
+                        let out: _Tensor<T> = self.clone();
+                        let out: Self::Output = out.static_cast().unwrap();
+                        return binary_fn_with_out_simd(
+                            &self,
+                            &rhs,
+                            |x, y| x.$op3(y),
+                            |x, y| x.$op3(y),
+                            out,
+                        ).unwrap();
+                    } else {
+                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
+                    }
+                } else if lhs_size < rhs_size {
+                    if rhs_size == res_size && U::ID == <T as NormalOut<U>>::Output::ID {
+                        let out: _Tensor<U> = rhs.clone();
+                        let out: Self::Output = out.static_cast().unwrap();
+                        return binary_fn_with_out_simd(
+                            &self,
+                            &rhs,
+                            |x, y| x.$op3(y),
+                            |x, y| x.$op3(y),
+                            out
+                        ).unwrap();
+                    } else {
+                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
+                    }
+                } else {
+                    if T::ID == <T as NormalOut<U>>::Output::ID {
+                        let out: _Tensor<T> = self.clone();
+                        let out: Self::Output = out.static_cast().unwrap();
+                        return binary_fn_with_out(
+                            &self,
+                            &rhs,
+                            |x, y| x.$op3(y),
+                            out, Location::caller()
+                        ).unwrap();
+                    } else if U::ID == <T as NormalOut<U>>::Output::ID {
+                        let out: _Tensor<U> = rhs.clone();
+                        let out: Self::Output = out.static_cast().unwrap();
+                        return binary_fn_with_out(
+                            &self,
+                            &rhs,
+                            |x, y| x.$op3(y),
+                            out, Location::caller()
+                        ).unwrap();
+                    } else {
+                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
+                    }
+                }
+            }
+        }
         )*
     };
 }
@@ -147,6 +221,7 @@ macro_rules! normal_promote_ops_2 {
 macro_rules! normal_promote_ops_3 {
     ($([$op:ident, $op2:ident, $op3:ident]),*) => {
         $(
+            #[cfg(not(feature = "simd"))]
             impl<'a, T, U> $op<&'a _Tensor<U>> for &'a _Tensor<T>
                 where
                 T: CommonBounds + NormalOut<U>,
@@ -158,6 +233,21 @@ macro_rules! normal_promote_ops_3 {
                 #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
                     return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
+                }
+            }
+            #[cfg(feature = "simd")]
+            impl<'a, T, U> $op<&'a _Tensor<U>> for &'a _Tensor<T>
+                where
+                T: CommonBounds + NormalOut<U>,
+                U: CommonBounds,
+                <T as NormalOut<U>>::Output: CommonBounds,
+                <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+                <T as TypeCommon>::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>
+            {
+                type Output = _Tensor<<T as NormalOut<U>>::Output>;
+                #[cfg_attr(feature = "track_caller", track_caller)]
+                fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
+                    return binary_fn_simd(&self, &rhs, |x, y| x.$op3(y), |x, y| x.$op3(y)).unwrap();
                 }
             }
         )*

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tensor_types::type_promote::NormalOut;
+use tensor_types::{dtype::TypeCommon, type_promote::NormalOut};
 
 use crate::{ tensor::CommonBounds, BaseTensor };
 
@@ -613,7 +613,7 @@ pub trait NormalUaryOps where Self: Sized {
         where U: BaseTensor<Output = Self::InplaceOutput>;
 }
 
-pub trait Cum where Self: Sized {
+pub trait Cum where Self: Sized, <<Self as Cum>::Meta as TypeCommon>::Vec: Send + Sync {
     type Meta: CommonBounds;
 
     /// Comput cumsum along specified axis.

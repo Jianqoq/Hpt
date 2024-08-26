@@ -340,7 +340,8 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
                 FromScalar<f64> +
                 Div<Output = <T as FloatOut>::Output> +
                 NormalOut<Output = <T as FloatOut>::Output> +
-                CommonBounds;
+                CommonBounds,
+            <<T as FloatOut>::Output as TypeCommon>::Vec: Send + Sync;
 
     /// Creates a triangular matrix with dimensions `n` x `m`.
     ///
@@ -381,7 +382,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tril(&self, k: i64) -> anyhow::Result<Self>
-        where T: NormalOut<bool, Output = T> + IntoScalar<T>;
+        where T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon, <T as TypeCommon>::Vec: NormalOut<tensor_types::vectors::boolx32::boolx32, Output = <T as TypeCommon>::Vec>;
 
     /// Creates an upper triangular matrix from the existing tensor.
     ///
@@ -403,7 +404,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn triu(&self, k: i64) -> anyhow::Result<Self>
-        where T: NormalOut<bool, Output = T> + IntoScalar<T>;
+        where T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon, <T as TypeCommon>::Vec: NormalOut<tensor_types::vectors::boolx32::boolx32, Output = <T as TypeCommon>::Vec>;
 
     /// Creates an identity matrix of size `n` x `n`.
     ///
@@ -763,5 +764,9 @@ pub trait FloatReduce<T> where Self: Sized {
     fn logsumexp<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }
 
-pub trait CommonBounds: Sync + Send + Clone + Copy + TypeCommon + 'static + Display {}
-impl<T: Sync + Send + Clone + Copy + TypeCommon + 'static + Display> CommonBounds for T {}
+pub trait CommonBounds
+    : Sync + Send + Clone + Copy + TypeCommon + 'static + Display
+    where <Self as TypeCommon>::Vec: Send + Sync + Copy {}
+impl<T: Sync + Send + Clone + Copy + TypeCommon + 'static + Display> CommonBounds
+    for T
+    where <Self as TypeCommon>::Vec: Send + Sync + Copy {}

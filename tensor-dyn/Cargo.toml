@@ -43,4 +43,4 @@ track_caller = [
     "tensor-common/track_caller",
     "tensor-iterator/track_caller",
 ]
-simd = []
+simd = ["tensor-iterator/simd"]

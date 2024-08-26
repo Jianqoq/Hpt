@@ -1,10 +1,18 @@
 use std::{
     fmt::{ Debug, Display },
-    ops::{ Div, Mul, Sub },
+    ops::{ Div, Sub },
     panic::Location,
     sync::{ atomic::Ordering, Arc },
 };
-
+#[cfg(feature = "simd")]
+use tensor_iterator::par_strided::par_strided_simd::ParStridedSimd;
+#[cfg(feature = "simd")]
+use tensor_iterator::strided::strided_simd::StridedSimd;
+#[cfg(feature = "simd")]
+use tensor_iterator::par_strided_mut::par_strided_map_mut_simd::ParStridedMutSimd;
+#[cfg(feature = "simd")]
+use tensor_iterator::strided_mut::simd_imports::StridedMutSimd;
+use tensor_types::dtype::TypeCommon;
 use rand_distr::{
     uniform::SampleUniform,
     Distribution,
@@ -200,6 +208,13 @@ impl<T: CommonBounds> BaseTensor for &_Tensor<T> {
 
 impl<T: CommonBounds> _Tensor<T> {
     pub fn assign(&mut self, other: &_Tensor<T>) {
+        #[cfg(feature = "simd")]
+        self.par_iter_mut_simd()
+            .zip(other.par_iter_simd())
+            .for_each(|(a, b)| {
+                *a = b;
+            });
+        #[cfg(not(feature = "simd"))]
         self.par_iter_mut()
             .zip(other.par_iter())
             .for_each(|(a, b)| {
@@ -276,6 +291,26 @@ impl<T: CommonBounds> _Tensor<T> {
 
     pub fn iter_mut(&self) -> StridedMut<T> {
         StridedMut::new(self)
+    }
+
+    #[cfg(feature = "simd")]
+    pub fn iter_simd(&self) -> StridedSimd<T> {
+        StridedSimd::new(self)
+    }
+
+    #[cfg(feature = "simd")]
+    pub fn iter_mut_simd(&self) -> StridedMutSimd<T> {
+        StridedMutSimd::new(self)
+    }
+
+    #[cfg(feature = "simd")]
+    pub fn par_iter_simd(&self) -> ParStridedSimd<T> {
+        ParStridedSimd::new(self)
+    }
+
+    #[cfg(feature = "simd")]
+    pub fn par_iter_mut_simd(&self) -> ParStridedMutSimd<T> {
+        ParStridedMutSimd::new(self)
     }
 
     pub fn par_iter(&self) -> ParStrided<T> {
@@ -401,6 +436,21 @@ impl<T: CommonBounds> _Tensor<T> {
         if self.shape() != other.shape() {
             return false;
         }
+        #[cfg(feature = "simd")]
+        let folder = self
+            .par_iter_simd()
+            .zip(other.par_iter_simd())
+            .fold(
+                || true,
+                |acc, (a, b)| {
+                    let a_val: f64 = a.to_f64();
+                    let b_val: f64 = b.to_f64();
+                    let abs_diff: f64 = (a_val - b_val).abs();
+                    let torlerance: f64 = 1.0e-8 + 1.0e-5 * b_val.abs();
+                    acc && abs_diff <= torlerance
+                }
+            );
+        #[cfg(not(feature = "simd"))]
         let folder = self
             .par_iter()
             .zip(other.par_iter())
@@ -437,10 +487,22 @@ impl<T: CommonBounds> _Tensor<T> {
     /// let contiguous_tensor = tensor.contiguous().unwrap();
     /// assert!(contiguous_tensor.is_contiguous())
     /// ```
+    #[cfg(not(feature = "simd"))]
     pub fn contiguous(&self) -> Result<Self> {
         let res = self
             .par_iter()
             .strided_map(|x| { x })
+            .collect();
+        Ok(res)
+    }
+    #[cfg(feature = "simd")]
+    pub fn contiguous(&self) -> Result<Self> {
+        let res = self
+            .par_iter_simd()
+            .strided_map_simd(
+                |x| { x },
+                |x| { x }
+            )
             .collect();
         Ok(res)
     }
@@ -590,6 +652,9 @@ impl<T: CommonBounds> _Tensor<T> {
 }
 
 impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
+    #[cfg(feature = "simd")]
+    type StridedIter = ParStridedSimd<T>;
+    #[cfg(not(feature = "simd"))]
     type StridedIter = ParStrided<T>;
 
     type Mask = _Tensor<bool>;
@@ -910,7 +975,10 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(res)
     }
 
+    #[cfg(not(feature = "simd"))]
     fn tril(&self, k: i64) -> Result<Self> where T: NormalOut<bool, Output = T> + IntoScalar<T> {
+        use std::ops::Mul;
+
         if self.shape().len() < 2 {
             return Err(ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into());
         }
@@ -924,7 +992,36 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(res)
     }
 
-    fn triu(&self, k: i64) -> Result<Self> where T: NormalOut<bool, Output = T> + IntoScalar<T> {
+    #[cfg(feature = "simd")]
+    fn tril(&self, k: i64) -> Result<Self>
+        where
+            T: NormalOut<bool, Output = T> + IntoScalar<T>,
+            <T as TypeCommon>::Vec: NormalOut<
+                tensor_types::vectors::boolx32::boolx32,
+                Output = <T as TypeCommon>::Vec
+            >
+    {
+        if self.shape().len() < 2 {
+            return Err(ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into());
+        }
+        let mask: _Tensor<bool> = _Tensor::<bool>::tri(
+            self.shape()[self.shape().len() - 2] as usize,
+            self.shape()[self.shape().len() - 1] as usize,
+            k,
+            true
+        )?;
+        let res: _Tensor<T> = self.clone() * mask;
+        Ok(res)
+    }
+
+    fn triu(&self, k: i64) -> Result<Self>
+        where
+            T: NormalOut<bool, Output = T> + IntoScalar<T>,
+            <T as TypeCommon>::Vec: NormalOut<
+                tensor_types::vectors::boolx32::boolx32,
+                Output = <T as TypeCommon>::Vec
+            >
+    {
         if self.shape().len() < 2 {
             return Err(ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into());
         }
@@ -950,7 +1047,11 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         for i in 0..axes.len() {
             if self.shape()[axes[i]] != 1 {
                 return Err(
-                    ErrHandler::SqueezeError(axes[i], self.shape().clone(), Location::caller()).into()
+                    ErrHandler::SqueezeError(
+                        axes[i],
+                        self.shape().clone(),
+                        Location::caller()
+                    ).into()
                 );
             }
         }

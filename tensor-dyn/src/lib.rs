@@ -25,7 +25,6 @@ pub mod ops {
         pub mod shrink;
         pub mod gather_elements;
         pub mod gather;
-        pub mod conv;
         pub mod maxpool;
         pub mod avgpool;
         pub mod lp_pool;
@@ -102,4 +101,4 @@ fn init() {
     });
 }
 
-static ALIGN: usize = 32;
+static ALIGN: usize = 64;

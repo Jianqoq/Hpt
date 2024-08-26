@@ -4,9 +4,7 @@ use rayon::iter::{
     IntoParallelRefMutIterator,
     ParallelIterator,
 };
-use tensor_types::vectors::VecSize;
-use tensor_types::vectors::VecTrait;
-use tensor_types::vectors::Init;
+use tensor_types::vectors::traits::*;
 use rayon::slice::{ ParallelSlice, ParallelSliceMut };
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::shape_utils::mt_intervals;
@@ -14,7 +12,6 @@ use tensor_traits::BaseTensor;
 use tensor_types::dtype::TypeCommon;
 use tensor_types::into_scalar::IntoScalar;
 use threadpool::ThreadPool;
-use wide::f32x8;
 use crate::backend::Cpu;
 use crate::THREAD_POOL;
 use tensor_traits::ops::uary::{ Cum, FloatUaryOps, Neg, NormalUaryOps };
@@ -213,11 +210,15 @@ impl<T> FloatUaryOps
     type OutputMeta = FloatType<T>;
 
     fn sin(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._sin(),
             |x| x._sin()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._sin());
+        ret
     }
 
     fn cos(&self) -> anyhow::Result<Self::Output> {

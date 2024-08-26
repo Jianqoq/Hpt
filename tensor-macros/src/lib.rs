@@ -2,9 +2,11 @@ use proc_macro::TokenStream;
 use syn::{ parse, parse_macro_input, Expr, Ident, Token };
 mod type_utils;
 mod list_enum;
+mod simd_normal_out;
 use quote::quote;
 use type_utils::TypeInfo;
 use proc_macro2::{ TokenStream as TokenStream2, TokenTree };
+use crate::simd_normal_out::impl_simd_normal_out;
 
 #[derive(Debug)]
 struct SelectionParser {
@@ -984,6 +986,11 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
     }
 
     ret.into()
+}
+
+#[proc_macro]
+pub fn impl_normal_out_simd(_: TokenStream) -> TokenStream {
+    impl_simd_normal_out()
 }
 
 #[proc_macro]
