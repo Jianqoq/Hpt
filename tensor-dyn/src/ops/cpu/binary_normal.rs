@@ -549,10 +549,36 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
                 <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE &&
                 <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
             {
+                // let remain = ret.size() % <K as TypeCommon>::Vec::SIZE;
                 let per_thread_len = ret.size() / rayon::current_num_threads();
                 let per_thread_remain = per_thread_len % <K as TypeCommon>::Vec::SIZE;
                 let total_remain = rayon::current_num_threads() * per_thread_remain;
                 let per_thread_real_len = per_thread_len - per_thread_remain;
+                // ret.as_raw_mut()
+                // .par_chunks_exact_mut(<A as TypeCommon>::Vec::SIZE)
+                // .zip(lhs.as_raw().par_chunks_exact(<A as TypeCommon>::Vec::SIZE))
+                // .zip(rhs.as_raw().par_chunks_exact(<A as TypeCommon>::Vec::SIZE))
+                // .for_each(|((ret, lhs), rhs)| {
+                //     let a = unsafe { <A as TypeCommon>::Vec::from_ptr(lhs.as_ptr()) };
+                //     let b = unsafe { <B as TypeCommon>::Vec::from_ptr(rhs.as_ptr()) };
+                //     let res = f2(a, b);
+                //     unsafe {
+                //         std::ptr::copy_nonoverlapping(
+                //             res.as_ptr(),
+                //             ret.as_mut_ptr(),
+                //             <K as TypeCommon>::Vec::SIZE
+                //         );
+                //     }
+                // });
+                // if remain > 0 {
+                //     ret.as_raw_mut()
+                //         [ret.size() - remain..].iter_mut()
+                //         .zip(lhs.as_raw()[ret.size() - remain..].iter())
+                //         .zip(rhs.as_raw()[ret.size() - remain..].iter())
+                //         .for_each(|((a, &lhs), &rhs)| {
+                //             *a = f(lhs, rhs);
+                //         });
+                // }
                 ret.as_raw_mut()
                     .par_chunks_exact_mut(per_thread_real_len)
                     .zip(lhs.as_raw().par_chunks_exact(per_thread_real_len))
