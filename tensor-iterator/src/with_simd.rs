@@ -36,8 +36,7 @@ impl<I, F> UnindexedProducer
 
     fn fold_with<FOLD>(mut self, mut folder: FOLD) -> FOLD where FOLD: Folder<Self::Item> {
         let outer_loop_size = self.outer_loop_size();
-        let inner_loop_size = self.inner_loop_size(); // we don't need to add 1 as we didn't subtract shape by 1
-        self.set_prg(vec![0; self.shape().len()]);
+        let inner_loop_size = self.inner_loop_size() + 1;
         let vec_op = self.vec_op;
         match (self.all_last_stride_one(), self.lanes()) {
             (true, Some(vec_size)) => {

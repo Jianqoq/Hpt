@@ -538,6 +538,7 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
 
             let pow_method = if res_type.is_float() {
                 quote! {
+                    #[inline(always)]
                     fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
                         paste::paste! {
                             self.[<to_ #res_type>]().powf(rhs.[<to_ #res_type>]())
@@ -547,12 +548,14 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
             } else {
                 if res_type.is_bool() {
                     quote! {
+                        #[inline(always)]
                         fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
                             self || rhs
                         }
                     }
                 } else {
                     quote! {
+                        #[inline(always)]
                         fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
                             paste::paste! {
                                 self.[<to_ #res_type>]().pow(rhs.to_u32())
@@ -564,12 +567,14 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
 
             let abs_method = if lhs_dtype.is_unsigned() {
                 quote! {
+                    #[inline(always)]
                     fn _abs(self) -> Self {
                         self
                     }
                 }
             } else {
                 quote! {
+                    #[inline(always)]
                     fn _abs(self) -> Self {
                         self.abs()
                     }
@@ -578,12 +583,14 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
 
             let ceil_method = if lhs_dtype.is_float() {
                 quote! {
+                    #[inline(always)]
                     fn _ceil(self) -> Self {
                         self.ceil()
                     }
                 }
             } else {
                 quote! {
+                    #[inline(always)]
                     fn _ceil(self) -> Self {
                         self
                     }
@@ -592,12 +599,14 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
 
             let floor_method = if lhs_dtype.is_float() {
                 quote! {
+                    #[inline(always)]
                     fn _floor(self) -> Self {
                         self.floor()
                     }
                 }
             } else {
                 quote! {
+                    #[inline(always)]
                     fn _floor(self) -> Self {
                         self
                     }
@@ -606,6 +615,7 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
 
             let sign_method = if res_type.is_float() {
                 quote! {
+                    #[inline(always)]
                     fn _sign(self) -> Self::Output {
                         paste::paste! {
                             self.[<to_ #res_type>]().signum()
@@ -614,12 +624,14 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                 }
             } else if res_type.is_unsigned() {
                 quote! {
+                    #[inline(always)]
                     fn _sign(self) -> Self::Output {
                         #res_type::ZERO
                     }
                 }
             } else {
                 quote! {
+                    #[inline(always)]
                     fn _sign(self) -> Self::Output {
                         paste::paste! {
                             self.[<to_ #res_type>]().signum()
@@ -630,20 +642,24 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
 
             let cmp_method = if res_type.is_bool() {
                 quote! {
+                    #[inline(always)]
                     fn _max(self, rhs: #rhs_dtype) -> Self::Output {
                         self || rhs
                     }
+                    #[inline(always)]
                     fn _min(self, rhs: #rhs_dtype) -> Self::Output {
                         self && rhs
                     }
                 }
             } else {
                 quote! {
+                    #[inline(always)]
                     fn _max(self, rhs: #rhs_dtype) -> Self::Output {
                         paste::paste! {
                             self.[<to_ #res_type>]().max(rhs.[<to_ #res_type>]())
                         }
                     }
+                    #[inline(always)]
                     fn _min(self, rhs: #rhs_dtype) -> Self::Output {
                         paste::paste! {
                             self.[<to_ #res_type>]().min(rhs.[<to_ #res_type>]())
@@ -654,12 +670,14 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
 
             let round_method = if lhs_dtype.is_float() {
                 quote! {
+                    #[inline(always)]
                     fn _round(self) -> Self {
                         self.round()
                     }
                 }
             } else {
                 quote! {
+                    #[inline(always)]
                     fn _round(self) -> Self {
                         self
                     }
@@ -667,36 +685,44 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
             };
             let std_ops = if res_type.is_bool() {
                 quote! {
+                    #[inline(always)]
                     fn _add(self, rhs: #rhs_dtype) -> Self::Output {
                         self || rhs
                     }
+                    #[inline(always)]
                     fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
                         self && !rhs
                     }
+                    #[inline(always)]
                     fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
                         self && rhs
                     }
+                    #[inline(always)]
                     fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
                         self && !rhs
                     }
                 }
             } else {
                 quote! {
+                #[inline(always)]
                 fn _add(self, rhs: #rhs_dtype) -> Self::Output {
                     paste::paste! {
                         self.[<to_ #res_type>]() + rhs.[<to_ #res_type>]()
                     }
                 }
+                #[inline(always)]
                 fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
                     paste::paste! {
                         self.[<to_ #res_type>]() - rhs.[<to_ #res_type>]()
                     }
                 }
+                #[inline(always)]
                 fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
                     paste::paste! {
                         self.[<to_ #res_type>]() * rhs.[<to_ #res_type>]()
                     }
                 }
+                #[inline(always)]
                 fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
                     paste::paste! {
                         self.[<to_ #res_type>]() % rhs.[<to_ #res_type>]()
@@ -710,9 +736,11 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                 impl NormalOut<#rhs_dtype> for #lhs_dtype {
                     type Output = #res_type;
                     #pow_method
+                    #[inline(always)]
                     fn _square(self) -> Self {
                         self._mul(self)
                     }
+                    #[inline(always)]
                     fn _clip(self, min: Self::Output, max: Self::Output) -> Self::Output {
                         paste::paste! {
                             let a = self.[<to_ #res_type>]();
