@@ -9,3 +9,4 @@ pub mod strided;
 pub mod strided_mut;
 pub mod strided_map;
 pub mod strided_map_mut;
+mod with_simd;

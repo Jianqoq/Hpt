@@ -500,8 +500,10 @@ impl<T: CommonBounds> _Tensor<T> {
         let res = self
             .par_iter_simd()
             .strided_map_simd(
-                |x| { x },
-                |x| { x }
+                |(res, x)| { *res = x },
+                |(res, x)| { 
+                    *res = x;
+                 }
             )
             .collect();
         Ok(res)
@@ -770,7 +772,6 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
     {
         let size: i64 = end.to_i64() - start.to_i64();
         let start = start.into_scalar();
-        println!("size: {}", size);
         if size <= 0 {
             return _Tensor::<T, Cpu>::empty(Arc::new(vec![0]));
         }

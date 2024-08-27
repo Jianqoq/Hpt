@@ -190,7 +190,7 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
     rhs: &_Tensor<B>,
     f: F,
     f2: F2,
-    out: O,
+    out: O
 )
     -> anyhow::Result<_Tensor<K>>
     where
@@ -201,11 +201,11 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
         Q: CommonBounds,
         F: Fn(A, B) -> K + Sync + Send + Copy,
         F2: Fn(<A as TypeCommon>::Vec, <B as TypeCommon>::Vec) -> <K as TypeCommon>::Vec +
-        Sync +
-        Send +
-        Copy
+            Sync +
+            Send +
+            Copy
 {
-    use rayon::slice::{ParallelSlice, ParallelSliceMut};
+    use rayon::slice::{ ParallelSlice, ParallelSliceMut };
 
     if lhs.size() == 1 {
         let val = lhs.as_raw()[0];
@@ -323,7 +323,9 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
         Ok(res)
     } else {
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
-            let ret = if out.size() * std::mem::size_of::<Q>() != rhs.size() * std::mem::size_of::<B>() {
+            let ret = if
+                out.size() * std::mem::size_of::<Q>() != rhs.size() * std::mem::size_of::<B>()
+            {
                 _Tensor::<K, Cpu>::empty(rhs.shape())?
             } else {
                 _Tensor::<K, Cpu>::empty(rhs.shape())?
@@ -380,18 +382,20 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
                     .par_iter_simd()
                     .zip(rhs.par_iter_simd())
                     .strided_map(
-                        |(x, y)| f(x, y),
-                        |(x, y)| {
+                        |(res, (x, y))| {
+                            *res = f(x, y);
+                        },
+                        |(res, (x, y))| {
                             let x_ptr = x.as_ptr();
                             let y_ptr = y.as_ptr();
-                            f2(
+                            *res = f2(
                                 unsafe {
                                     <A as TypeCommon>::Vec::from_ptr(x_ptr)
                                 },
                                 unsafe {
                                     <B as TypeCommon>::Vec::from_ptr(y_ptr)
                                 }
-                            )
+                            );
                         }
                     )
                     .collect::<_Tensor<K>>();
@@ -407,7 +411,6 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
         }
     }
 }
-
 
 use tensor_types::dtype::TypeCommon;
 use tensor_types::vectors::traits::*;
@@ -546,28 +549,39 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
                 <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE &&
                 <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
             {
-                let remain = ret.size() % <K as TypeCommon>::Vec::SIZE;
+                let per_thread_len = ret.size() / rayon::current_num_threads();
+                let per_thread_remain = per_thread_len % <K as TypeCommon>::Vec::SIZE;
+                let total_remain = rayon::current_num_threads() * per_thread_remain;
+                let per_thread_real_len = per_thread_len - per_thread_remain;
                 ret.as_raw_mut()
-                    .par_chunks_exact_mut(<K as TypeCommon>::Vec::SIZE)
-                    .zip(lhs.as_raw().par_chunks_exact(<K as TypeCommon>::Vec::SIZE))
-                    .zip(rhs.as_raw().par_chunks_exact(<K as TypeCommon>::Vec::SIZE))
+                    .par_chunks_exact_mut(per_thread_real_len)
+                    .zip(lhs.as_raw().par_chunks_exact(per_thread_real_len))
+                    .zip(rhs.as_raw().par_chunks_exact(per_thread_real_len))
                     .for_each(|((ret, lhs), rhs)| {
-                        let a = unsafe { <A as TypeCommon>::Vec::from_ptr(lhs.as_ptr()) };
-                        let b = unsafe { <B as TypeCommon>::Vec::from_ptr(rhs.as_ptr()) };
-                        let res = f2(a, b);
-                        unsafe {
-                            std::ptr::copy_nonoverlapping(
-                                res.as_ptr(),
-                                ret.as_mut_ptr(),
-                                <K as TypeCommon>::Vec::SIZE
-                            );
-                        }
+                        assert_eq!(ret.len() % <K as TypeCommon>::Vec::SIZE, 0);
+                        assert_eq!(lhs.len() % <A as TypeCommon>::Vec::SIZE, 0);
+                        assert_eq!(rhs.len() % <B as TypeCommon>::Vec::SIZE, 0);
+                        ret.chunks_exact_mut(<A as TypeCommon>::Vec::SIZE)
+                            .zip(lhs.chunks_exact(<A as TypeCommon>::Vec::SIZE))
+                            .zip(rhs.chunks_exact(<A as TypeCommon>::Vec::SIZE))
+                            .for_each(|((ret, lhs), rhs)| {
+                                let a = unsafe { <A as TypeCommon>::Vec::from_ptr(lhs.as_ptr()) };
+                                let b = unsafe { <B as TypeCommon>::Vec::from_ptr(rhs.as_ptr()) };
+                                let res = f2(a, b);
+                                unsafe {
+                                    std::ptr::copy_nonoverlapping(
+                                        res.as_ptr(),
+                                        ret.as_mut_ptr(),
+                                        <K as TypeCommon>::Vec::SIZE
+                                    );
+                                }
+                            });
                     });
-                if remain > 0 {
+                if total_remain > 0 {
                     ret.as_raw_mut()
-                        [ret.size() - remain..].iter_mut()
-                        .zip(lhs.as_raw()[ret.size() - remain..].iter())
-                        .zip(rhs.as_raw()[ret.size() - remain..].iter())
+                        [ret.size() - total_remain..].iter_mut()
+                        .zip(lhs.as_raw()[ret.size() - total_remain..].iter())
+                        .zip(rhs.as_raw()[ret.size() - total_remain..].iter())
                         .for_each(|((a, &lhs), &rhs)| {
                             *a = f(lhs, rhs);
                         });
@@ -594,18 +608,11 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
                     .par_iter_simd()
                     .zip(rhs.par_iter_simd())
                     .strided_map(
-                        |(x, y)| f(x, y),
-                        |(x, y)| {
-                            let x_ptr = x.as_ptr();
-                            let y_ptr = y.as_ptr();
-                            f2(
-                                unsafe {
-                                    <A as TypeCommon>::Vec::from_ptr(x_ptr)
-                                },
-                                unsafe {
-                                    <B as TypeCommon>::Vec::from_ptr(y_ptr)
-                                }
-                            )
+                        |(res, (x, y))| {
+                            *res = f(x, y);
+                        },
+                        |(res, (x, y))| {
+                            *res = f2(x, y);
                         }
                     )
                     .collect::<_Tensor<K>>();

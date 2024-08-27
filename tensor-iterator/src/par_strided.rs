@@ -136,16 +136,16 @@ pub mod par_strided_simd {
             ParStridedZipSimd::new(self, other)
         }
 
-        pub fn strided_map_simd<'a, F, F2, U>(
+        pub fn strided_map_simd<'a, F, F2>(
             self,
             f: F,
             vec_op: F2
         )
             -> ParStridedMapSimd<'a, ParStridedSimd<T>, T, F, F2>
             where
-                F: Fn(T) -> U + Sync + Send + 'a,
-                U: CommonBounds,
-                F2: Fn(<T as TypeCommon>::Vec) -> <U as TypeCommon>::Vec
+                F: Fn((&mut T, <Self as IterGetSetSimd>::Item)) + Sync + Send + 'a,
+                <Self as IterGetSetSimd>::Item: Send,
+                F2: Send + Sync + Copy + Fn((&mut <T as TypeCommon>::Vec, <Self as IterGetSetSimd>::SimdItem))
         {
             {
                 ParStridedMapSimd {

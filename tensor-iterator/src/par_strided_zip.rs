@@ -10,10 +10,7 @@ use tensor_common::{
 };
 use tensor_traits::tensor::CommonBounds;
 
-use crate::{
-    iterator_traits::{ IterGetSet, ShapeManipulator },
-    par_strided_map::ParStridedMap,
-};
+use crate::{ iterator_traits::{ IterGetSet, ShapeManipulator }, par_strided_map::ParStridedMap };
 
 #[cfg(feature = "simd")]
 pub mod par_strided_zip_simd {
@@ -188,22 +185,22 @@ pub mod par_strided_zip_simd {
             b.set_shape(new_shape.clone());
             ParStridedZipSimd::new(a, b)
         }
-        pub fn strided_map<F, F2, U>(
+        pub fn strided_map<F, F2, T>(
             self,
             func: F,
             func2: F2
         )
             -> ParStridedMapSimd<'a, Self, <Self as IterGetSetSimd>::Item, F, F2>
             where
-                F: Fn(<Self as IterGetSetSimd>::Item) -> U + Sync + Send + 'a,
-                F2: Fn(<Self as IterGetSetSimd>::SimdItem) -> <U as TypeCommon>::Vec +
+                F: Fn((&mut T, <Self as IterGetSetSimd>::Item)) + Sync + Send + 'a,
+                F2: Fn((&mut <T as TypeCommon>::Vec, <Self as IterGetSetSimd>::SimdItem)) +
                     Sync +
                     Send +
                     'a,
-                U: CommonBounds,
+                T: CommonBounds,
                 <A as IterGetSetSimd>::Item: Send,
                 <B as IterGetSetSimd>::Item: Send,
-                <U as TypeCommon>::Vec: Send
+                <T as TypeCommon>::Vec: Send
         {
             ParStridedMapSimd {
                 iter: self,
