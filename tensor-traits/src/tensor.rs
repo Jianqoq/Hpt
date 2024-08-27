@@ -209,7 +209,7 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn arange<U>(start: U, end: U) -> anyhow::Result<Output>
-        where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>;
+        where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>, U: Convertor + IntoScalar<T> + Copy;
 
     /// Creates a tensor with a range of values from `start` to `end` (exclusive), using a specified step.
     ///

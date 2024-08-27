@@ -766,11 +766,11 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
     }
 
     fn arange<U>(start: U, end: U) -> Result<Self>
-        where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>
+        where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>, U: Convertor + IntoScalar<T> + Copy
     {
-        let start = T::__from(start);
-        let end = T::__from(end);
         let size: i64 = end.to_i64() - start.to_i64();
+        let start = start.into_scalar();
+        println!("size: {}", size);
         if size <= 0 {
             return _Tensor::<T, Cpu>::empty(Arc::new(vec![0]));
         }

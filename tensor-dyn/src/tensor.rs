@@ -527,7 +527,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     }
 
     fn arange<U>(start: U, end: U) -> Result<Self>
-        where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>
+        where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>, U: Convertor + IntoScalar<T> + Copy
     {
         Ok(_Tensor::<T, Cpu>::arange(start, end)?.into())
     }

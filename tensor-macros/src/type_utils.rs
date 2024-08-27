@@ -585,6 +585,7 @@ impl ToTokens for SimdType {
     }
 }
 
+#[derive(Copy, Clone)]
 pub(crate) struct TypeInfo {
     pub(crate) is_float: bool,
     pub(crate) is_signed: bool,

@@ -611,7 +611,7 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
     }
 
     pub async fn arange<'a, U>(start: U, end: U, device: &WgpuDevice) -> Result<Self>
-        where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>
+        where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>, U: Convertor + IntoScalar<T> + Copy
     {
         let arange = _Tensor::<T, Cpu>::arange(start, end)?;
         let layout = &arange.mem_layout;

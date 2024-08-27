@@ -43,174 +43,203 @@ pub fn impl_float_out_unary() -> TokenStream {
         }
         if type_simd_is_arr(lhs) || type_simd_is_arr(&res_type.to_string()) {
             let sin = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_sin", proc_macro2::Span::call_site())
             );
             let cos = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_cos", proc_macro2::Span::call_site())
             );
             let tan = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_tan", proc_macro2::Span::call_site())
             );
             let asin = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_asin", proc_macro2::Span::call_site())
             );
             let acos = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_acos", proc_macro2::Span::call_site())
             );
             let atan = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_atan", proc_macro2::Span::call_site())
             );
             let sinh = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_sinh", proc_macro2::Span::call_site())
             );
             let cosh = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_cosh", proc_macro2::Span::call_site())
             );
             let tanh = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_tanh", proc_macro2::Span::call_site())
             );
             let asinh = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_asinh", proc_macro2::Span::call_site())
             );
             let acosh = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_acosh", proc_macro2::Span::call_site())
             );
             let atanh = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_atanh", proc_macro2::Span::call_site())
             );
             let recip = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_recip", proc_macro2::Span::call_site())
             );
             let erf = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_erf", proc_macro2::Span::call_site())
             );
             let sigmoid = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_sigmoid", proc_macro2::Span::call_site())
             );
             let ln = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_ln", proc_macro2::Span::call_site())
             );
             let exp = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_exp", proc_macro2::Span::call_site())
             );
             let exp2 = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_exp2", proc_macro2::Span::call_site())
             );
             let log2 = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_log2", proc_macro2::Span::call_site())
             );
             let log10 = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_log10", proc_macro2::Span::call_site())
             );
             let sqrt = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_sqrt", proc_macro2::Span::call_site())
             );
             let relu = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_relu", proc_macro2::Span::call_site())
             );
             let gelu = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_gelu", proc_macro2::Span::call_site())
             );
             let relu6 = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_relu6", proc_macro2::Span::call_site())
             );
             let _hard_swish = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_hard_swish", proc_macro2::Span::call_site())
             );
             let soft_plus = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_softplus", proc_macro2::Span::call_site())
             );
             let softsign = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_softsign", proc_macro2::Span::call_site())
             );
             let mish = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_mish", proc_macro2::Span::call_site())
             );
             let cbrt = gen_func_arr(
+                lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
@@ -495,6 +524,7 @@ pub fn impl_float_out_unary() -> TokenStream {
 }
 
 fn gen_func_arr(
+    lhs_dtype: TypeInfo,
     lhs_lanes: u8,
     res_type: Type,
     res_simd_ty: Ident,
@@ -505,14 +535,50 @@ fn gen_func_arr(
             arr[#i] = self_arr[#i].[<to_ #res_type>]().#method();
         }
     });
-    let func =
+    let func = if lhs_dtype.dtype.is_f16() || lhs_dtype.dtype.is_bf16() {
+        let f32_lanes = type_simd_lanes("f32");
+        let ident = Ident::new(&format!("f32x{}", f32_lanes), proc_macro2::Span::call_site());
+        if lhs_dtype.dtype.is_f16() {
+            quote! {
+                fn #method(self) -> Self::Output {
+                    paste::paste! {
+                        let mut arr = #ident::#ident::splat(f32::ZERO);
+                        let ptr = arr.as_mut_array();
+                        let self_arr = self.0;
+                        for i in 0..#lhs_lanes as usize {
+                            ptr[i] = self_arr[i].to_f32();
+                        }
+                        let res_f32 = arr.#method();
+                        let mut half_arr = [half::f16::ZERO; #lhs_lanes as usize];
+                        for i in 0..#lhs_lanes as usize {
+                            half_arr[i] = half::f16::from_f32(res_f32[i]);
+                        }
+                        #res_simd_ty::#res_simd_ty(half_arr)
+                    }
+                }
+            }
+        } else {
+            quote! {
+                fn #method(self) -> Self::Output {
+                    paste::paste! {
+                        let mut casted = self.to_2_f32x8();
+                        for i in 0..2 {
+                            casted[i] = casted[i].#method();
+                        }
+                        bf16x16::bf16x16::from_2_f32x8(casted)
+                    }
+                }
+            }
+        }
+    } else {
         quote! {
-        fn #method(self) -> Self::Output {
-            paste::paste! {
-                let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                let self_arr = self.0;
-                #(#unroll)*
-                #res_simd_ty::#res_simd_ty(arr.into())
+            fn #method(self) -> Self::Output {
+                paste::paste! {
+                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
+                    let self_arr = self.0;
+                    #(#unroll)*
+                    #res_simd_ty::#res_simd_ty(arr.into())
+                }
             }
         }
     };
