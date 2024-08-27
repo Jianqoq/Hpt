@@ -190,25 +190,28 @@ fn uary_fn_with_out_simd<A, O, K, Q, F, F2>(
 pub(crate) type FloatUnaryType<T> = <T as FloatOutUnary>::Output;
 pub(crate) type FloatBinaryType<T> = <T as FloatOutBinary>::Output;
 
-#[cfg(feature = "simd")]
 impl<T> FloatUaryOps
     for _Tensor<T>
     where
         T: FloatOutUnary + CommonBounds,
         FloatUnaryType<T>: CommonBounds,
-        f64: IntoScalar<FloatUnaryType<T>>,
+        f64: IntoScalar<<T as FloatOutUnary>::Base>,
         _Tensor<<T as FloatOutUnary>::Output>: TensorLike<
             <T as FloatOutUnary>::Output,
             Output = _Tensor<<T as FloatOutUnary>::Output>
         >,
-        <T as TypeCommon>::Vec: FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec>,
-        <FloatUnaryType<T> as TypeCommon>::Vec: Send + Copy + Sync
+        <T as TypeCommon>::Vec: FloatOutUnary<
+            Output = <FloatUnaryType<T> as TypeCommon>::Vec,
+            Base = <T as FloatOutUnary>::Base
+        >,
+        <FloatUnaryType<T> as TypeCommon>::Vec: Send + Copy + Sync,
+        <T as FloatOutUnary>::Base: CommonBounds
 {
     type Output = _Tensor<FloatUnaryType<T>>;
 
     type InplaceOutput = _Tensor<FloatUnaryType<T>>;
 
-    type OutputMeta = FloatUnaryType<T>;
+    type OutputMeta = <T as FloatOutUnary>::Base;
 
     fn sin(&self) -> anyhow::Result<Self::Output> {
         #[cfg(feature = "simd")]
@@ -223,767 +226,639 @@ impl<T> FloatUaryOps
     }
 
     fn cos(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._cos(),
             |x| x._cos()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._cos());
+        ret
     }
 
     fn tan(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._tan(),
             |x| x._tan()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._tan());
+        ret
     }
 
     fn asin(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._asin(),
             |x| x._asin()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._asin());
+        ret
     }
 
     fn acos(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._acos(),
             |x| x._acos()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._acos());
+        ret
     }
 
     fn atan(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._atan(),
             |x| x._atan()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._atan());
+        ret
     }
 
     fn sinh(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._sinh(),
             |x| x._sinh()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._sinh());
+        ret
     }
 
     fn cosh(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._cosh(),
             |x| x._cosh()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._cosh());
+        ret
     }
 
     fn tanh(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._tanh(),
             |x| x._tanh()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._tanh());
+        ret
     }
 
     fn asinh(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._asinh(),
             |x| x._asinh()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._asinh());
+        ret
     }
 
     fn acosh(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._acosh(),
             |x| x._acosh()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._acosh());
+        ret
     }
 
     fn atanh(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._atanh(),
             |x| x._atanh()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._atanh());
+        ret
     }
 
     fn sin_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._sin(),
             |x| x._sin(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._sin(), out.base().clone());
+        ret
     }
 
     fn cos_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._cos(),
             |x| x._cos(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._cos(), out.base().clone());
+        ret
     }
 
     fn tan_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._tan(),
             |x| x._tan(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._tan(), out.base().clone());
+        ret
     }
 
     fn asin_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._asin(),
             |x| x._asin(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._asin(), out.base().clone());
+        ret
     }
 
     fn acos_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._acos(),
             |x| x._acos(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._acos(), out.base().clone());
+        ret
     }
 
     fn atan_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._atan(),
             |x| x._atan(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._atan(), out.base().clone());
+        ret
     }
 
     fn sinh_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._sinh(),
             |x| x._sinh(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._sinh(), out.base().clone());
+        ret
     }
 
     fn cosh_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._cosh(),
             |x| x._cosh(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._cosh(), out.base().clone());
+        ret
     }
 
     fn tanh_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._tanh(),
             |x| x._tanh(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._tanh(), out.base().clone());
+        ret
     }
 
     fn asinh_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._asinh(),
             |x| x._asinh(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._asinh(), out.base().clone());
+        ret
     }
 
     fn acosh_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._acosh(),
             |x| x._acosh(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._acosh(), out.base().clone());
+        ret
     }
 
     fn atanh_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._atanh(),
             |x| x._atanh(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._atanh(), out.base().clone());
+        ret
     }
 
     fn exp(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._exp(),
             |x| x._exp()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._exp());
+        ret
     }
 
     fn exp_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._exp(),
             |x| x._exp(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._exp(), out.base().clone());
+        ret
     }
 
     fn exp2(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._exp2(),
             |x| x._exp2()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._exp2());
+        ret
     }
 
     fn exp2_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._exp2(),
             |x| x._exp2(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._exp2(), out.base().clone());
+        ret
     }
 
     fn sqrt(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._sqrt(),
             |x| x._sqrt()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._sqrt());
+        ret
     }
 
     fn sqrt_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._sqrt(),
             |x| x._sqrt(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._sqrt(), out.base().clone());
+        ret
     }
 
     fn recip(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._recip(),
             |x| x._recip()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._recip());
+        ret
     }
 
     fn recip_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._recip(),
             |x| x._recip(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._recip(), out.base().clone());
+        ret
     }
 
     fn ln(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._ln(),
             |x| x._ln()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._ln());
+        ret
     }
 
     fn ln_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._ln(),
             |x| x._ln(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._ln(), out.base().clone());
+        ret
     }
 
     fn log2(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._log2(),
             |x| x._log2()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._log2());
+        ret
     }
 
     fn log2_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._log2(),
             |x| x._log2(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._log2(), out.base().clone());
+        ret
     }
 
     fn log10(&self) -> anyhow::Result<Self::Output> {
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
             |x| x._log10(),
             |x| x._log10()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._log10());
+        ret
     }
 
     fn log10_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
             self,
             |x| x._log10(),
             |x| x._log10(),
             out.base().clone()
-        )
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._log10(), out.base().clone());
+        ret
     }
 
     fn celu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._celu(alpha))
-    }
-
-    fn celu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._celu(alpha), out.base().clone())
-    }
-
-    fn sigmoid(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._sigmoid())
-    }
-
-    fn sigmoid_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._sigmoid(), out.base().clone())
-    }
-
-    fn elu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._elu(alpha))
-    }
-
-    fn elu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._elu(alpha), out.base().clone())
-    }
-
-    fn leaky_relu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._leaky_relu(alpha))
-    }
-
-    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._leaky_relu(alpha), out.base().clone())
-    }
-
-    fn gelu(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._gelu())
-    }
-
-    fn gelu_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._gelu(), out.base().clone())
-    }
-
-    fn selu(
-        &self,
-        alpha: Option<Self::OutputMeta>,
-        gamma: Option<Self::OutputMeta>
-    ) -> anyhow::Result<Self::Output> {
-        let alpha = alpha.unwrap_or((1.67326319217681884765625).into_scalar());
-        let gamma = gamma.unwrap_or((1.05070102214813232421875).into_scalar());
-        let alpha_splat = <FloatUnaryType<T> as TypeCommon>::Vec::splat(alpha);
-        let gamma_splat = <FloatUnaryType<T> as TypeCommon>::Vec::splat(gamma);
-        uary_fn_simd(
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
             self,
-            |x| x._selu(alpha_splat, gamma_splat),
-            move |x| x._selu(alpha, gamma)
-        )
-    }
-
-    fn selu_<U>(
-        &self,
-        alpha: Option<Self::OutputMeta>,
-        gamma: Option<Self::OutputMeta>,
-        out: U
-    ) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        let alpha = alpha.unwrap_or((1.67326319217681884765625).into_scalar());
-        let gamma = gamma.unwrap_or((1.05070102214813232421875).into_scalar());
-        uary_fn_with_out(self, |x| x._selu(alpha, gamma), out.base().clone())
-    }
-
-    fn hard_sigmoid(
-        &self,
-        alpha: Option<Self::OutputMeta>,
-        beta: Option<Self::OutputMeta>
-    ) -> anyhow::Result<Self::Output> {
-        let alpha = alpha.unwrap_or((0.2).into_scalar());
-        let beta = beta.unwrap_or((0.5).into_scalar());
-        uary_fn(self, |x| x._hard_sigmoid(alpha, beta))
-    }
-
-    fn hard_sigmoid_<U>(
-        &self,
-        alpha: Option<Self::OutputMeta>,
-        beta: Option<Self::OutputMeta>,
-        out: U
-    ) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        let alpha = alpha.unwrap_or((0.2).into_scalar());
-        let beta = beta.unwrap_or((0.5).into_scalar());
-        uary_fn_with_out(self, |x| x._hard_sigmoid(alpha, beta), out.base().clone())
-    }
-
-    fn hard_swish(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._hard_swish())
-    }
-
-    fn hard_swish_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._hard_swish(), out.base().clone())
-    }
-
-    fn relu6(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._relu6())
-    }
-
-    fn relu6_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._relu6(), out.base().clone())
-    }
-
-    fn softplus(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._softplus())
-    }
-
-    fn softplus_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._softplus(), out.base().clone())
-    }
-
-    fn softsign(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._softsign())
-    }
-
-    fn softsign_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._softsign(), out.base().clone())
-    }
-
-    fn mish(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._mish())
-    }
-
-    fn mish_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._mish(), out.base().clone())
-    }
-}
-
-#[cfg(not(feature = "simd"))]
-impl<T> FloatUaryOps
-    for _Tensor<T>
-    where
-        T: FloatOutUnary + CommonBounds,
-        FloatType<T>: CommonBounds,
-        f64: IntoScalar<FloatType<T>>,
-        _Tensor<<T as FloatOutUnary>::Output>: TensorLike<
-            <T as FloatOutUnary>::Output,
-            Output = _Tensor<<T as FloatOutUnary>::Output>
-        >
-{
-    type Output = _Tensor<FloatType<T>>;
-
-    type InplaceOutput = _Tensor<FloatType<T>>;
-
-    type OutputMeta = FloatType<T>;
-
-    fn sin(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._sin())
-    }
-
-    fn cos(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._cos())
-    }
-
-    fn tan(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._tan())
-    }
-
-    fn asin(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._asin())
-    }
-
-    fn acos(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._acos())
-    }
-
-    fn atan(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._atan())
-    }
-
-    fn sinh(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._sinh())
-    }
-
-    fn cosh(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._cosh())
-    }
-
-    fn tanh(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._tanh())
-    }
-
-    fn asinh(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._asinh())
-    }
-
-    fn acosh(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._acosh())
-    }
-
-    fn atanh(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._atanh())
-    }
-
-    fn sin_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._sin(), out.base().clone())
-    }
-
-    fn cos_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._cos(), out.base().clone())
-    }
-
-    fn tan_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._tan(), out.base().clone())
-    }
-
-    fn asin_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._asin(), out.base().clone())
-    }
-
-    fn acos_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._acos(), out.base().clone())
-    }
-
-    fn atan_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._atan(), out.base().clone())
-    }
-
-    fn sinh_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._sinh(), out.base().clone())
-    }
-
-    fn cosh_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._cosh(), out.base().clone())
-    }
-
-    fn tanh_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._tanh(), out.base().clone())
-    }
-
-    fn asinh_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._asinh(), out.base().clone())
-    }
-
-    fn acosh_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._acosh(), out.base().clone())
-    }
-
-    fn atanh_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._atanh(), out.base().clone())
-    }
-
-    fn exp(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._exp())
-    }
-
-    fn exp_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._exp(), out.base().clone())
-    }
-
-    fn exp2(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._exp2())
-    }
-
-    fn exp2_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._exp2(), out.base().clone())
-    }
-
-    fn sqrt(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._sqrt())
-    }
-
-    fn sqrt_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._sqrt(), out.base().clone())
-    }
-
-    fn recip(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._recip())
-    }
-
-    fn recip_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._recip(), out.base().clone())
-    }
-
-    fn ln(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._ln())
-    }
-
-    fn ln_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._ln(), out.base().clone())
-    }
-
-    fn log2(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._log2())
-    }
-
-    fn log2_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._log2(), out.base().clone())
-    }
-
-    fn log10(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._log10())
-    }
-
-    fn log10_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-        where U: BaseTensor<Output = Self::InplaceOutput>
-    {
-        uary_fn_with_out(self, |x| x._log10(), out.base().clone())
-    }
-
-    fn celu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._celu(alpha))
+            |x| x._celu(alpha),
+            |x| x._celu(alpha)
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._celu(alpha));
+        ret
     }
 
     fn celu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._celu(alpha), out.base().clone())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
+            self,
+            |x| x._celu(alpha),
+            |x| x._celu(alpha),
+            out.base().clone()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._celu(alpha), out.base().clone());
+        ret
     }
 
     fn sigmoid(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._sigmoid())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
+            self,
+            |x| x._sigmoid(),
+            |x| x._sigmoid()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._sigmoid());
+        ret
     }
 
     fn sigmoid_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._sigmoid(), out.base().clone())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
+            self,
+            |x| x._sigmoid(),
+            |x| x._sigmoid(),
+            out.base().clone()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._sigmoid(), out.base().clone());
+        ret
     }
 
     fn elu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._elu(alpha))
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
+            self,
+            |x| x._elu(alpha),
+            |x| x._elu(alpha)
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._elu(alpha));
+        ret
     }
 
     fn elu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._elu(alpha), out.base().clone())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
+            self,
+            |x| x._elu(alpha),
+            |x| x._elu(alpha),
+            out.base().clone()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._elu(alpha), out.base().clone());
+        ret
     }
 
     fn leaky_relu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._leaky_relu(alpha))
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
+            self,
+            |x| x._leaky_relu(alpha),
+            |x| x._leaky_relu(alpha)
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._leaky_relu(alpha));
+        ret
     }
 
     fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._leaky_relu(alpha), out.base().clone())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
+            self,
+            |x| x._leaky_relu(alpha),
+            |x| x._leaky_relu(alpha),
+            out.base().clone()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._leaky_relu(alpha), out.base().clone());
+        ret
     }
 
     fn gelu(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._gelu())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
+            self,
+            |x| x._gelu(),
+            |x| x._gelu()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._gelu());
+        ret
     }
 
     fn gelu_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._gelu(), out.base().clone())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
+            self,
+            |x| x._gelu(),
+            |x| x._gelu(),
+            out.base().clone()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._gelu(), out.base().clone());
+        ret
     }
 
     fn selu(
@@ -993,7 +868,15 @@ impl<T> FloatUaryOps
     ) -> anyhow::Result<Self::Output> {
         let alpha = alpha.unwrap_or((1.67326319217681884765625).into_scalar());
         let gamma = gamma.unwrap_or((1.05070102214813232421875).into_scalar());
-        uary_fn(self, |x| x._selu(alpha, gamma))
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
+            self,
+            |x| x._selu(alpha, gamma),
+            move |x| x._selu(alpha, gamma)
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._selu(alpha, gamma));
+        ret
     }
 
     fn selu_<U>(
@@ -1006,80 +889,178 @@ impl<T> FloatUaryOps
     {
         let alpha = alpha.unwrap_or((1.67326319217681884765625).into_scalar());
         let gamma = gamma.unwrap_or((1.05070102214813232421875).into_scalar());
-        uary_fn_with_out(self, |x| x._selu(alpha, gamma), out.base().clone())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
+            self,
+            |x| x._selu(alpha, gamma),
+            |x| x._selu(alpha, gamma),
+            out.base().clone()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._selu(alpha, gamma), out.base().clone());
+        ret
     }
 
-    fn hard_sigmoid(
-        &self,
-        alpha: Option<Self::OutputMeta>,
-        beta: Option<Self::OutputMeta>
-    ) -> anyhow::Result<Self::Output> {
-        let alpha = alpha.unwrap_or((0.2).into_scalar());
-        let beta = beta.unwrap_or((0.5).into_scalar());
-        uary_fn(self, |x| x._hard_sigmoid(alpha, beta))
+    fn hard_sigmoid(&self) -> anyhow::Result<Self::Output> {
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
+            self,
+            |x| x._hard_sigmoid(),
+            |x| x._hard_sigmoid()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._hard_sigmoid());
+        ret
     }
 
-    fn hard_sigmoid_<U>(
-        &self,
-        alpha: Option<Self::OutputMeta>,
-        beta: Option<Self::OutputMeta>,
-        out: U
-    ) -> anyhow::Result<Self::Output>
+    fn hard_sigmoid_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        let alpha = alpha.unwrap_or((0.2).into_scalar());
-        let beta = beta.unwrap_or((0.5).into_scalar());
-        uary_fn_with_out(self, |x| x._hard_sigmoid(alpha, beta), out.base().clone())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
+            self,
+            |x| x._hard_sigmoid(),
+            |x| x._hard_sigmoid(),
+            out.base().clone()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._hard_sigmoid(), out.base().clone());
+        ret
     }
 
     fn hard_swish(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._hard_swish())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
+            self,
+            |x| x._hard_swish(),
+            |x| x._hard_swish()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._hard_swish());
+        ret
     }
 
     fn hard_swish_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._hard_swish(), out.base().clone())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
+            self,
+            |x| x._hard_swish(),
+            |x| x._hard_swish(),
+            out.base().clone()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._hard_swish(), out.base().clone());
+        ret
     }
 
     fn relu6(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._relu6())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
+            self,
+            |x| x._relu6(),
+            |x| x._relu6()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._relu6());
+        ret
     }
 
     fn relu6_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._relu6(), out.base().clone())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
+            self,
+            |x| x._relu6(),
+            |x| x._relu6(),
+            out.base().clone()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._relu6(), out.base().clone());
+        ret
     }
 
     fn softplus(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._softplus())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
+            self,
+            |x| x._softplus(),
+            |x| x._softplus()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._softplus());
+        ret
     }
 
     fn softplus_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._softplus(), out.base().clone())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
+            self,
+            |x| x._softplus(),
+            |x| x._softplus(),
+            out.base().clone()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._softplus(), out.base().clone());
+        ret
     }
 
     fn softsign(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._softsign())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
+            self,
+            |x| x._softsign(),
+            |x| x._softsign()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._softsign());
+        ret
     }
 
     fn softsign_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._softsign(), out.base().clone())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
+            self,
+            |x| x._softsign(),
+            |x| x._softsign(),
+            out.base().clone()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._softsign(), out.base().clone());
+        ret
     }
 
     fn mish(&self) -> anyhow::Result<Self::Output> {
-        uary_fn(self, |x| x._mish())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
+            self,
+            |x| x._mish(),
+            |x| x._mish()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._mish());
+        ret
     }
 
     fn mish_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        uary_fn_with_out(self, |x| x._mish(), out.base().clone())
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
+            self,
+            |x| x._mish(),
+            |x| x._mish(),
+            out.base().clone()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._mish(), out.base().clone());
+        ret
     }
 }
 

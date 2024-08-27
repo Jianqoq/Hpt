@@ -861,16 +861,20 @@ impl<T> FloatUaryOps
     where
         T: FloatOutUnary + CommonBounds,
         FloatUnaryType<T>: CommonBounds,
-        f64: IntoScalar<FloatUnaryType<T>>,
+        f64: IntoScalar<<T as FloatOutUnary>::Base>,
         FloatUnaryType<T>: IntoScalar<FloatUnaryType<T>>,
-        <T as TypeCommon>::Vec: FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec>,
-        <FloatUnaryType<T> as TypeCommon>::Vec: Send + Copy + Sync
+        <T as TypeCommon>::Vec: FloatOutUnary<
+            Output = <FloatUnaryType<T> as TypeCommon>::Vec,
+            Base = <T as FloatOutUnary>::Base
+        >,
+        <FloatUnaryType<T> as TypeCommon>::Vec: Send + Copy + Sync,
+        <T as FloatOutUnary>::Base: CommonBounds
 {
     type Output = Tensor<FloatUnaryType<T>>;
 
     type InplaceOutput = _Tensor<FloatUnaryType<T>>;
 
-    type OutputMeta = FloatUnaryType<T>;
+    type OutputMeta = <T as FloatOutUnary>::Base;
 
     fn sin(&self) -> Result<Self::Output> {
         Ok(_Tensor::<T, Cpu>::sin(self)?.into())
@@ -1131,23 +1135,14 @@ impl<T> FloatUaryOps
         Ok(_Tensor::<T, Cpu>::selu_(self, alpha, gamma, out.base().clone())?.into())
     }
 
-    fn hard_sigmoid(
-        &self,
-        alpha: Option<Self::OutputMeta>,
-        beta: Option<Self::OutputMeta>
-    ) -> anyhow::Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::hard_sigmoid(self, alpha, beta)?.into())
+    fn hard_sigmoid(&self) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::<T, Cpu>::hard_sigmoid(self)?.into())
     }
 
-    fn hard_sigmoid_<U>(
-        &self,
-        alpha: Option<Self::OutputMeta>,
-        beta: Option<Self::OutputMeta>,
-        out: U
-    ) -> anyhow::Result<Self::Output>
+    fn hard_sigmoid_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        Ok(_Tensor::<T, Cpu>::hard_sigmoid_(self, alpha, beta, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::hard_sigmoid_(self, out.base().clone())?.into())
     }
 
     fn hard_swish(&self) -> anyhow::Result<Self::Output> {

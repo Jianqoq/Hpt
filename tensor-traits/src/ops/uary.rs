@@ -1,12 +1,12 @@
 use anyhow::Result;
-use tensor_types::{dtype::TypeCommon, type_promote::NormalOut};
+use tensor_types::{ dtype::TypeCommon, type_promote::NormalOut };
 
 use crate::{ tensor::CommonBounds, BaseTensor };
 
 pub trait FloatUaryOps {
     type Output;
     type InplaceOutput;
-    type OutputMeta;
+    type OutputMeta: Send;
     /// Compute sine, element-wise.
     ///
     /// # Example
@@ -500,18 +500,9 @@ pub trait FloatUaryOps {
     ) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn hard_sigmoid(
-        &self,
-        alpha: Option<Self::OutputMeta>,
-        beta: Option<Self::OutputMeta>
-    ) -> anyhow::Result<Self::Output>;
+    fn hard_sigmoid(&self) -> anyhow::Result<Self::Output>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn hard_sigmoid_<U>(
-        &self,
-        alpha: Option<Self::OutputMeta>,
-        beta: Option<Self::OutputMeta>,
-        out: U
-    ) -> anyhow::Result<Self::Output>
+    fn hard_sigmoid_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn hard_swish(&self) -> anyhow::Result<Self::Output>;
