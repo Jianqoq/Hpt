@@ -17,7 +17,7 @@ use crate::THREAD_POOL;
 use tensor_traits::ops::uary::{ Cum, FloatUaryOps, Neg, NormalUaryOps };
 use tensor_traits::tensor::{ CommonBounds, TensorInfo, TensorLike };
 use tensor_traits::tensor::TensorCreator;
-use tensor_types::type_promote::{ FloatOut, NormalOut };
+use tensor_types::type_promote::{ FloatOutBinary, FloatOutUnary, NormalOut };
 use crate::tensor_base::_Tensor;
 
 /// Applies a unary function to a tensor, returning a tensor with float type elements.
@@ -187,27 +187,28 @@ fn uary_fn_with_out_simd<A, O, K, Q, F, F2>(
     Ok(ret)
 }
 
-pub(crate) type FloatType<T> = <T as FloatOut>::Output;
+pub(crate) type FloatUnaryType<T> = <T as FloatOutUnary>::Output;
+pub(crate) type FloatBinaryType<T> = <T as FloatOutBinary>::Output;
 
 #[cfg(feature = "simd")]
 impl<T> FloatUaryOps
     for _Tensor<T>
     where
-        T: FloatOut + CommonBounds,
-        FloatType<T>: CommonBounds,
-        f64: IntoScalar<FloatType<T>>,
-        _Tensor<<T as FloatOut>::Output>: TensorLike<
-            <T as FloatOut>::Output,
-            Output = _Tensor<<T as FloatOut>::Output>
+        T: FloatOutUnary + CommonBounds,
+        FloatUnaryType<T>: CommonBounds,
+        f64: IntoScalar<FloatUnaryType<T>>,
+        _Tensor<<T as FloatOutUnary>::Output>: TensorLike<
+            <T as FloatOutUnary>::Output,
+            Output = _Tensor<<T as FloatOutUnary>::Output>
         >,
-        <T as TypeCommon>::Vec: FloatOut<Output = <FloatType<T> as TypeCommon>::Vec>,
-        <FloatType<T> as TypeCommon>::Vec: Send + Copy + Sync
+        <T as TypeCommon>::Vec: FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec>,
+        <FloatUnaryType<T> as TypeCommon>::Vec: Send + Copy + Sync
 {
-    type Output = _Tensor<FloatType<T>>;
+    type Output = _Tensor<FloatUnaryType<T>>;
 
-    type InplaceOutput = _Tensor<FloatType<T>>;
+    type InplaceOutput = _Tensor<FloatUnaryType<T>>;
 
-    type OutputMeta = FloatType<T>;
+    type OutputMeta = FloatUnaryType<T>;
 
     fn sin(&self) -> anyhow::Result<Self::Output> {
         #[cfg(feature = "simd")]
@@ -631,8 +632,8 @@ impl<T> FloatUaryOps
     ) -> anyhow::Result<Self::Output> {
         let alpha = alpha.unwrap_or((1.67326319217681884765625).into_scalar());
         let gamma = gamma.unwrap_or((1.05070102214813232421875).into_scalar());
-        let alpha_splat = <FloatType<T> as TypeCommon>::Vec::splat(alpha);
-        let gamma_splat = <FloatType<T> as TypeCommon>::Vec::splat(gamma);
+        let alpha_splat = <FloatUnaryType<T> as TypeCommon>::Vec::splat(alpha);
+        let gamma_splat = <FloatUnaryType<T> as TypeCommon>::Vec::splat(gamma);
         uary_fn_simd(
             self,
             |x| x._selu(alpha_splat, gamma_splat),
@@ -731,12 +732,12 @@ impl<T> FloatUaryOps
 impl<T> FloatUaryOps
     for _Tensor<T>
     where
-        T: FloatOut + CommonBounds,
+        T: FloatOutUnary + CommonBounds,
         FloatType<T>: CommonBounds,
         f64: IntoScalar<FloatType<T>>,
-        _Tensor<<T as FloatOut>::Output>: TensorLike<
-            <T as FloatOut>::Output,
-            Output = _Tensor<<T as FloatOut>::Output>
+        _Tensor<<T as FloatOutUnary>::Output>: TensorLike<
+            <T as FloatOutUnary>::Output,
+            Output = _Tensor<<T as FloatOutUnary>::Output>
         >
 {
     type Output = _Tensor<FloatType<T>>;
@@ -1087,7 +1088,7 @@ pub(crate) type NormalType<T> = <T as NormalOut>::Output;
 impl<T> NormalUaryOps
     for _Tensor<T>
     where
-        T: NormalOut + CommonBounds + IntoScalar<T>,
+        T: NormalOut<Output = T> + CommonBounds + IntoScalar<T>,
         NormalType<T>: CommonBounds,
         _Tensor<NormalType<T>>: TensorLike<NormalType<T>, Output = _Tensor<NormalType<T>>>
 {

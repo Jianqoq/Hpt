@@ -393,6 +393,9 @@ impl Type {
     pub fn is_f16(&self) -> bool {
         matches!(self, Type::F16)
     }
+    pub fn is_bf16(&self) -> bool {
+        matches!(self, Type::BF16)
+    }
     pub fn is_f32(&self) -> bool {
         matches!(self, Type::F32)
     }

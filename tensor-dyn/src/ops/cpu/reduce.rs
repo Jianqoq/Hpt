@@ -22,12 +22,12 @@ use tensor_common::pointer::Pointer;
 use anyhow;
 use tensor_traits::tensor::CommonBounds;
 use tensor_types::convertion::FromScalar;
-use tensor_types::type_promote::{ Cmp, Eval, FloatOut, NormalOut };
+use tensor_types::type_promote::{ Cmp, Eval, FloatOutBinary, NormalOut };
 use std::sync::Arc;
 use std::sync::Barrier;
 use tensor_traits::shape_manipulate::ShapeManipulate;
 
-use super::unary::FloatType;
+use super::unary::FloatBinaryType;
 
 #[derive(Debug)]
 struct ReductionPreprocessor<T, U> {
@@ -2068,34 +2068,34 @@ impl<T> FloatReduce<T>
     where
         T: CommonBounds                                                                                 // prettier-ignore
         + NormalOut<T, Output = T>                                                                                  // prettier-ignore
-        + NormalOut<FloatType<T>, Output = FloatType<T>>                          // prettier-ignore
-        + FloatOut + Cmp + IntoScalar<T>
-        + IntoScalar<<T as FloatOut>::Output>, // prettier-ignore
-        FloatType<T>: CommonBounds                                                           // prettier-ignore
-        + NormalOut<T, Output = FloatType<T>>
-        + FloatOut<Output = FloatType<T>>
-        + NormalOut<FloatType<T>, Output = FloatType<T>> // prettier-ignore
-        + FromScalar<usize> + IntoScalar<FloatType<T>>, // prettier-ignore
+        + NormalOut<FloatBinaryType<T>, Output = FloatBinaryType<T>>                          // prettier-ignore
+        + FloatOutBinary + Cmp + IntoScalar<T>
+        + IntoScalar<<T as FloatOutBinary>::Output>, // prettier-ignore
+        FloatBinaryType<T>: CommonBounds                                                           // prettier-ignore
+        + NormalOut<T, Output = FloatBinaryType<T>>
+        + FloatOutBinary<Output = FloatBinaryType<T>>
+        + NormalOut<FloatBinaryType<T>, Output = FloatBinaryType<T>> // prettier-ignore
+        + FromScalar<usize> + IntoScalar<FloatBinaryType<T>>, // prettier-ignore
         f64: IntoScalar<<T as NormalOut>::Output>, // prettier-ignore
-        f64: IntoScalar<FloatType<T>>, // prettier-ignore
-        _Tensor<<T as FloatOut>::Output>: TensorLike<
-            <T as FloatOut>::Output,
-            Output = _Tensor<<T as FloatOut>::Output>
+        f64: IntoScalar<FloatBinaryType<T>>, // prettier-ignore
+        _Tensor<<T as FloatOutBinary>::Output>: TensorLike<
+            <T as FloatOutBinary>::Output,
+            Output = _Tensor<<T as FloatOutBinary>::Output>
         >,
-        <<T as FloatOut>::Output as TypeCommon>::Vec: 
-        NormalOut<Output = <FloatType<T> as TypeCommon>::Vec>
-        + FloatOut<Output = <FloatType<T> as TypeCommon>::Vec>
-        + IntoVec<<FloatType<T> as TypeCommon>::Vec> + Copy + Send + Sync, // prettier-ignore
-        <T as TypeCommon>::Vec: IntoVec<<FloatType<T> as TypeCommon>::Vec>,
+        <<T as FloatOutBinary>::Output as TypeCommon>::Vec: 
+        NormalOut<Output = <FloatBinaryType<T> as TypeCommon>::Vec>
+        + FloatOutBinary<Output = <FloatBinaryType<T> as TypeCommon>::Vec>
+        + IntoVec<<FloatBinaryType<T> as TypeCommon>::Vec> + Copy + Send + Sync, // prettier-ignore
+        <T as TypeCommon>::Vec: IntoVec<<FloatBinaryType<T> as TypeCommon>::Vec>,
         <T as TypeCommon>::Vec: std::marker::Copy
 {
-    type Output = _Tensor<FloatType<T>>;
+    type Output = _Tensor<FloatBinaryType<T>>;
     fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         // let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        // let reduce_size: FloatType<T> = (
+        // let reduce_size: FloatBinaryType<T> = (
         //     axes.iter().fold(1, |acc, &x| acc * (self.shape()[x] as usize)) as f64
         // ).into_scalar();
-        // let reduce_vec = <FloatType<T> as TypeCommon>::Vec::splat(reduce_size);
+        // let reduce_vec = <FloatBinaryType<T> as TypeCommon>::Vec::splat(reduce_size);
         // reduce3(
         //     self,
         //     |a, b| a._add(b),
@@ -2143,7 +2143,7 @@ impl<T> FloatReduce<T>
         //         let b = <<T as FloatOut>::Output as NormalOut>::_abs(b);
         //         a._add(b._pow(three))
         //     },
-        //     move |a, b| a._add(<FloatType<T> as NormalOut>::_abs(b)._pow(three)),
+        //     move |a, b| a._add(<FloatBinaryType<T> as NormalOut>::_abs(b)._pow(three)),
         //     move |a| a,
         //     move |a, b|
         //         a._add(<<<T as FloatOut>::Output as TypeCommon>::Vec>::_abs(b)._pow(three_vec)),

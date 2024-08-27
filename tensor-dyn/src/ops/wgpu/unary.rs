@@ -2,21 +2,21 @@ use std::borrow::Cow;
 
 use bytemuck::Pod;
 use tensor_traits::{ CommonBounds, TensorInfo };
-use tensor_types::{ dtype::TypeCommon, type_promote::FloatOut };
+use tensor_types::{ dtype::TypeCommon, type_promote::FloatOutUnary };
 
-use crate::{ backend::Wgpu, ops::cpu::unary::FloatType, tensor_base::_Tensor };
+use crate::{ backend::Wgpu, ops::cpu::unary::FloatUnaryType, tensor_base::_Tensor };
 
-pub(crate) async fn unary<A>(op: &str, a: &_Tensor<A, Wgpu>) -> _Tensor<<A as FloatOut>::Output, Wgpu>
+pub(crate) async fn unary<A>(op: &str, a: &_Tensor<A, Wgpu>) -> _Tensor<<A as FloatOutUnary>::Output, Wgpu>
     where
-        A: CommonBounds + FloatOut + bytemuck::Pod + TypeCommon,
-        <A as FloatOut>::Output: CommonBounds + bytemuck::Pod + TypeCommon
+        A: CommonBounds + FloatOutUnary + bytemuck::Pod + TypeCommon,
+        <A as FloatOutUnary>::Output: CommonBounds + bytemuck::Pod + TypeCommon
 {
     let grp_size_x = 16;
     let grp_size_y = 16;
     let num_grp_x = 1024;
     let num_grp_y = 1024;
 
-    let res = _Tensor::<<A as FloatOut>::Output, Wgpu>
+    let res = _Tensor::<<A as FloatOutUnary>::Output, Wgpu>
         ::empty(a.shape(), a.device())
         .expect("Failed to create tensor");
 
@@ -24,7 +24,7 @@ pub(crate) async fn unary<A>(op: &str, a: &_Tensor<A, Wgpu>) -> _Tensor<<A as Fl
 
     let kernel = include_str!("../../wgpu_kernels/unary.wgsl")
         .replace("a_ty", A::STR)
-        .replace("c_ty", <A as FloatOut>::Output::STR)
+        .replace("c_ty", <A as FloatOutUnary>::Output::STR)
         .replace("op_place_holder", op)
         .replace("GRP_SIZE_X", &grp_size_x.to_string())
         .replace("GRP_SIZE_Y", &grp_size_y.to_string())
@@ -186,333 +186,333 @@ pub(crate) async fn unary<A>(op: &str, a: &_Tensor<A, Wgpu>) -> _Tensor<<A as Fl
 }
 
 impl<T> _Tensor<T, Wgpu>
-    where T: FloatOut + CommonBounds + Pod, FloatType<T>: CommonBounds + Pod
+    where T: FloatOutUnary + CommonBounds + Pod, FloatUnaryType<T>: CommonBounds + Pod
 {
 
-    pub async fn sin(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn sin(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         Ok(unary("sin", self).await)
     }
 
-    pub async fn cos(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn cos(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         Ok(unary("cos", self).await)
     }
 
-    pub async fn tan(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn tan(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         Ok(unary("tan", self).await)
     }
 
-    pub async fn asin(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn asin(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         Ok(unary("asin", self).await)
     }
 
-    pub async fn acos(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn acos(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         Ok(unary("acos", self).await)
     }
 
-    pub async fn atan(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn atan(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         Ok(unary("atan", self).await)
     }
 
-    pub async fn sinh(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn sinh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         Ok(unary("sinh", self).await)
     }
 
-    pub async fn cosh(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn cosh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         Ok(unary("cosh", self).await)
     }
 
-    pub async fn tanh(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn tanh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         Ok(unary("tanh", self).await)
     }
 
-    pub async fn asinh(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn asinh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         Ok(unary("asinh", self).await)
     }
 
-    pub async fn acosh(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn acosh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         Ok(unary("acosh", self).await)
     }
 
-    pub async fn atanh(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn atanh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         Ok(unary("atanh", self).await)
     }
 
-    pub async fn sin_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn sin_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn cos_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn cos_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn tan_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn tan_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn asin_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn asin_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn acos_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn acos_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn atan_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn atan_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn sinh_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn sinh_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn cosh_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn cosh_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn tanh_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn tanh_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn asinh_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn asinh_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn acosh_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn acosh_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn atanh_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn atanh_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn exp(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn exp(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         Ok(unary("exp", self).await)
     }
 
-    pub async fn exp_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn exp_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn exp2(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn exp2(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         Ok(unary("exp2", self).await)
     }
 
-    pub async fn exp2_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn exp2_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn sqrt(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn sqrt(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         Ok(unary("sqrt", self).await)
     }
 
-    pub async fn sqrt_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn sqrt_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn recip(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn recip(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         Ok(unary(&format!("{}(1) / ", T::STR), self).await)
     }
 
-    pub async fn recip_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn recip_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn ln(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn ln(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         Ok(unary("ln", self).await)
     }
 
-    pub async fn ln_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn ln_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn log2(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn log2(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         Ok(unary("log2", self).await)
     }
 
-    pub async fn log2_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn log2_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn log10(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn log10(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         todo!()
     }
 
-    pub async fn log10_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn log10_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn celu(&self, _: FloatType<T>) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn celu(&self, _: FloatUnaryType<T>) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         todo!()
     }
 
-    pub async fn celu_<U>(&self, _: FloatType<T>, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn celu_<U>(&self, _: FloatUnaryType<T>, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn sigmoid(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn sigmoid(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         todo!()
     }
 
-    pub async fn sigmoid_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn sigmoid_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn elu(&self, _: FloatType<T>) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn elu(&self, _: FloatUnaryType<T>) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         todo!()
     }
 
-    pub async fn elu_<U>(&self, _: FloatType<T>, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn elu_<U>(&self, _: FloatUnaryType<T>, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn leaky_relu(&self, _: FloatType<T>) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn leaky_relu(&self, _: FloatUnaryType<T>) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         todo!()
     }
 
-    pub async fn leaky_relu_<U>(&self, _: FloatType<T>, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn leaky_relu_<U>(&self, _: FloatUnaryType<T>, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn gelu(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn gelu(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         todo!()
     }
 
-    pub async fn gelu_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn gelu_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
     pub async fn selu(
         &self,
-        _: Option<FloatType<T>>,
-        _: Option<FloatType<T>>
-    ) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+        _: Option<FloatUnaryType<T>>,
+        _: Option<FloatUnaryType<T>>
+    ) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         todo!()
     }
 
     pub async fn selu_<U>(
         &self,
-        _: Option<FloatType<T>>,
-        _: Option<FloatType<T>>,
+        _: Option<FloatUnaryType<T>>,
+        _: Option<FloatUnaryType<T>>,
         _: U
-    ) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    ) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
     pub async fn hard_sigmoid(
         &self,
-        _: Option<FloatType<T>>,
-        _: Option<FloatType<T>>
-    ) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+        _: Option<FloatUnaryType<T>>,
+        _: Option<FloatUnaryType<T>>
+    ) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         todo!()
     }
 
     pub async fn hard_sigmoid_<U>(
         &self,
-        _: Option<FloatType<T>>,
-        _: Option<FloatType<T>>,
+        _: Option<FloatUnaryType<T>>,
+        _: Option<FloatUnaryType<T>>,
         _: U
-    ) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    ) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn hard_swish(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn hard_swish(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         todo!()
     }
 
-    pub async fn hard_swish_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn hard_swish_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn relu6(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn relu6(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         todo!()
     }
 
-    pub async fn relu6_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn relu6_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn softplus(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn softplus(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         todo!()
     }
 
-    pub async fn softplus_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn softplus_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn softsign(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn softsign(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         todo!()
     }
 
-    pub async fn softsign_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn softsign_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }
 
-    pub async fn mish(&self) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>> {
+    pub async fn mish(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>> {
         todo!()
     }
 
-    pub async fn mish_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatType<T>, Wgpu>>
-        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatType<T>, Wgpu>>
+    pub async fn mish_<U>(&self, _: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>, Wgpu>>
+        where U: tensor_traits::BaseTensor<Output = _Tensor<FloatUnaryType<T>, Wgpu>>
     {
         todo!()
     }

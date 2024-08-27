@@ -22,12 +22,12 @@ use tensor_types::{
     convertion::{ Convertor, FromScalar },
     dtype::TypeCommon,
     into_scalar::IntoScalar,
-    type_promote::{ FloatOut, NormalOut },
+    type_promote::{ FloatOutUnary, NormalOut },
 };
 use anyhow::Result;
 use crate::{
     backend::{ BackendDevice, BackendTy, Cpu },
-    ops::cpu::{ concat::concat, unary::{ FloatType, NormalType } },
+    ops::cpu::{ concat::concat, unary::{ FloatUnaryType, NormalType } },
     tensor_base::_Tensor,
     DISPLAY_LR_ELEMENTS,
     DISPLAY_PRECISION,
@@ -565,15 +565,15 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self>
         where
             T: PartialOrd +
-                FloatOut<T> +
+                FloatOutUnary +
                 NormalOut<T, Output = T> +
-                FromScalar<FloatType<T>> +
+                FromScalar<FloatUnaryType<T>> +
                 std::ops::Neg<Output = T>,
-            FloatType<T>: Sub<Output = FloatType<T>> +
+            FloatUnaryType<T>: Sub<Output = FloatUnaryType<T>> +
                 FromScalar<usize> +
                 FromScalar<f64> +
-                Div<Output = FloatType<T>> +
-                NormalOut<Output = FloatType<T>> +
+                Div<Output = FloatUnaryType<T>> +
+                NormalOut<Output = FloatUnaryType<T>> +
                 CommonBounds
     {
         Ok(_Tensor::<T, Cpu>::geomspace(start, end, n, include_end)?.into())
@@ -859,18 +859,18 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
 impl<T> FloatUaryOps
     for Tensor<T>
     where
-        T: FloatOut + CommonBounds,
-        FloatType<T>: CommonBounds,
-        f64: IntoScalar<FloatType<T>>,
-        FloatType<T>: IntoScalar<FloatType<T>>,
-        <T as TypeCommon>::Vec: FloatOut<Output = <FloatType<T> as TypeCommon>::Vec>,
-        <FloatType<T> as TypeCommon>::Vec: Send + Copy + Sync
+        T: FloatOutUnary + CommonBounds,
+        FloatUnaryType<T>: CommonBounds,
+        f64: IntoScalar<FloatUnaryType<T>>,
+        FloatUnaryType<T>: IntoScalar<FloatUnaryType<T>>,
+        <T as TypeCommon>::Vec: FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec>,
+        <FloatUnaryType<T> as TypeCommon>::Vec: Send + Copy + Sync
 {
-    type Output = Tensor<FloatType<T>>;
+    type Output = Tensor<FloatUnaryType<T>>;
 
-    type InplaceOutput = _Tensor<FloatType<T>>;
+    type InplaceOutput = _Tensor<FloatUnaryType<T>>;
 
-    type OutputMeta = FloatType<T>;
+    type OutputMeta = FloatUnaryType<T>;
 
     fn sin(&self) -> Result<Self::Output> {
         Ok(_Tensor::<T, Cpu>::sin(self)?.into())
@@ -1204,7 +1204,7 @@ impl<T> FloatUaryOps
 impl<T> NormalUaryOps
     for Tensor<T>
     where
-        T: NormalOut + CommonBounds + IntoScalar<T>,
+        T: NormalOut<Output = T> + CommonBounds + IntoScalar<T>,
         NormalType<T>: CommonBounds,
         <T as NormalOut>::Output: IntoScalar<<T as NormalOut>::Output>
 {

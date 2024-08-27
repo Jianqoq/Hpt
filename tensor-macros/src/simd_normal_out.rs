@@ -25,14 +25,13 @@ pub fn impl_simd_normal_out() -> TokenStream {
         (format!("usizex{}", type_simd_lanes("usize")), "usize"),
     ];
 
-    for (lhs_simd_ty, lhs) in types.iter() {
-        for (rhs_simd_ty, rhs) in types.iter() {
+    for (_, lhs) in types.iter() {
+        for (_, rhs) in types.iter() {
             let lhs_lanes = type_simd_lanes(lhs);
             let rhs_lanes = type_simd_lanes(rhs);
             let lhs_type = TypeInfo::new(lhs);
             let rhs_type = TypeInfo::new(rhs);
             let lhs_dtype = lhs_type.dtype;
-            let rhs_dtype = rhs_type.dtype;
             let res_type = lhs_type.infer_normal_res_type(&rhs_type);
             let res_lanes = type_simd_lanes(&res_type.to_string());
             if lhs_lanes != rhs_lanes || lhs_lanes != res_lanes || rhs_lanes != res_lanes {
@@ -167,13 +166,13 @@ pub fn impl_simd_normal_out() -> TokenStream {
                 if lhs_dtype.is_f32() {
                     quote! {
                         fn _abs(self) -> Self {
-                            #lhs_simd(self.to_f32().0.abs())
+                            #lhs_simd(Sleef::abs(self.to_f32().0))
                         }
                     }
                 } else if lhs_dtype.is_f64() {
                     quote! {
                         fn _abs(self) -> Self {
-                            #lhs_simd(self.to_f64().0.abs())
+                            #lhs_simd(Sleef::abs(self.to_f64().0))
                         }
                     }
                 } else {

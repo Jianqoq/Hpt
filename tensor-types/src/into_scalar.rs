@@ -213,6 +213,20 @@ impl IntoScalar<bf16> for i64 {
     }
 }
 
+impl IntoScalar<bf16> for usize {
+    #[inline(always)]
+    fn into_scalar(self) -> bf16 {
+        bf16::from_f64(self as f64)
+    }
+}
+
+impl IntoScalar<bf16> for isize {
+    #[inline(always)]
+    fn into_scalar(self) -> bf16 {
+        bf16::from_f64(self as f64)
+    }
+}
+
 impl IntoScalar<bf16> for i32 {
     #[inline(always)]
     fn into_scalar(self) -> bf16 {

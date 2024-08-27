@@ -1,4 +1,12 @@
-use tensor_macros::{ impl_bitwise_out, impl_cmp, impl_eval, impl_float_out, impl_normal_out };
+use tensor_macros::{
+    float_out_binary,
+    impl_bitwise_out,
+    impl_cmp,
+    impl_eval,
+    impl_normal_out,
+    simd_float_out_unary,
+};
+use tensor_macros::float_out_unary;
 use half::f16;
 use crate::convertion::Convertor;
 use num_traits::float::Float;
@@ -11,51 +19,18 @@ use half::bf16;
 use crate::convertion::VecConvertor;
 use std::simd::num::SimdInt;
 use std::simd::num::SimdFloat;
-use std::simd::StdFloat;
+use crate::vectors::traits::Init;
 use std::simd::cmp::SimdOrd;
-
+use sleef::Sleef;
+use std::simd::cmp::SimdPartialOrd;
 /// this trait is used to perform type promotion in dynamic graph
-pub trait FloatOut<RHS = Self> {
+pub trait FloatOutBinary<RHS = Self> {
     type Output;
     fn _div(self, rhs: RHS) -> Self::Output;
-    fn _exp(self) -> Self::Output;
-    fn _exp2(self) -> Self::Output;
-    fn _ln(self) -> Self::Output;
     fn _log(self, base: RHS) -> Self::Output;
-    fn _celu(self, alpha: Self::Output) -> Self::Output;
-    fn _log2(self) -> Self::Output;
-    fn _log10(self) -> Self::Output;
-    fn _sqrt(self) -> Self::Output;
-    fn _sin(self) -> Self::Output;
-    fn _cos(self) -> Self::Output;
-    fn _tan(self) -> Self::Output;
-    fn _asin(self) -> Self::Output;
-    fn _acos(self) -> Self::Output;
-    fn _atan(self) -> Self::Output;
-    fn _sinh(self) -> Self::Output;
-    fn _cosh(self) -> Self::Output;
-    fn _tanh(self) -> Self::Output;
-    fn _asinh(self) -> Self::Output;
-    fn _acosh(self) -> Self::Output;
-    fn _atanh(self) -> Self::Output;
-    fn _recip(self) -> Self::Output;
-    fn _erf(self) -> Self::Output;
-    fn _sigmoid(self) -> Self::Output;
-    fn _elu(self, alpha: Self::Output) -> Self::Output;
-    fn _leaky_relu(self, alpha: Self::Output) -> Self::Output;
-    fn _relu(self) -> Self::Output;
-    fn _gelu(self) -> Self::Output;
-    fn _selu(self, alpha: Self::Output, scale: Self::Output) -> Self::Output;
-    fn _hard_sigmoid(self, alpha: Self::Output, beta: Self::Output) -> Self::Output;
-    fn _relu6(self) -> Self::Output;
-    fn _hard_swish(self) -> Self::Output;
-    fn _softplus(self) -> Self::Output;
-    fn _softsign(self) -> Self::Output;
-    fn _mish(self) -> Self::Output;
-    fn _cbrt(self) -> Self::Output;
 }
 
-impl_float_out!();
+float_out_binary!();
 
 pub trait NormalOut<RHS = Self> {
     type Output;
@@ -110,3 +85,46 @@ pub trait Eval {
 }
 
 impl_eval!();
+
+pub trait FloatOutUnary {
+    type Output;
+    type Base;
+    fn _exp(self) -> Self::Output;
+    fn _exp2(self) -> Self::Output;
+    fn _ln(self) -> Self::Output;
+    fn _celu(self, alpha: Self::Base) -> Self::Output;
+    fn _log2(self) -> Self::Output;
+    fn _log10(self) -> Self::Output;
+    fn _sqrt(self) -> Self::Output;
+    fn _sin(self) -> Self::Output;
+    fn _cos(self) -> Self::Output;
+    fn _tan(self) -> Self::Output;
+    fn _asin(self) -> Self::Output;
+    fn _acos(self) -> Self::Output;
+    fn _atan(self) -> Self::Output;
+    fn _sinh(self) -> Self::Output;
+    fn _cosh(self) -> Self::Output;
+    fn _tanh(self) -> Self::Output;
+    fn _asinh(self) -> Self::Output;
+    fn _acosh(self) -> Self::Output;
+    fn _atanh(self) -> Self::Output;
+    fn _recip(self) -> Self::Output;
+    fn _erf(self) -> Self::Output;
+    fn _sigmoid(self) -> Self::Output;
+    fn _elu(self, alpha: Self::Base) -> Self::Output;
+    fn _leaky_relu(self, alpha: Self::Base) -> Self::Output;
+    fn _relu(self) -> Self::Output;
+    fn _gelu(self) -> Self::Output;
+    fn _selu(self, alpha: Self::Base, scale: Self::Base) -> Self::Output;
+    fn _hard_sigmoid(self) -> Self::Output;
+    fn _relu6(self) -> Self::Output;
+    fn _hard_swish(self) -> Self::Output;
+    fn _softplus(self) -> Self::Output;
+    fn _softsign(self) -> Self::Output;
+    fn _mish(self) -> Self::Output;
+    fn _cbrt(self) -> Self::Output;
+}
+
+float_out_unary!();
+
+simd_float_out_unary!();

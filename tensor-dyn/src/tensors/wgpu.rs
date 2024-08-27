@@ -37,7 +37,7 @@ use tensor_types::{
     convertion::{ Convertor, FromScalar },
     dtype::Dtype,
     into_scalar::IntoScalar,
-    type_promote::{ FloatOut, NormalOut },
+    type_promote::{ FloatOutUnary, NormalOut },
 };
 use rayon::iter::{
     IndexedParallelIterator,
@@ -739,15 +739,15 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self>
         where
             T: PartialOrd +
-                FloatOut<T> +
+                FloatOutUnary +
                 NormalOut<T, Output = T> +
-                FromScalar<<T as FloatOut>::Output> +
+                FromScalar<<T as FloatOutUnary>::Output> +
                 std::ops::Neg<Output = T>,
-            <T as FloatOut>::Output: Sub<Output = <T as FloatOut>::Output> +
+            <T as FloatOutUnary>::Output: Sub<Output = <T as FloatOutUnary>::Output> +
                 FromScalar<usize> +
                 FromScalar<f64> +
-                Div<Output = <T as FloatOut>::Output> +
-                NormalOut<Output = <T as FloatOut>::Output> +
+                Div<Output = <T as FloatOutUnary>::Output> +
+                NormalOut<Output = <T as FloatOutUnary>::Output> +
                 CommonBounds
     {
         todo!()

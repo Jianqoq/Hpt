@@ -1,9 +1,6 @@
 use std::ops::{ Deref, DerefMut };
-use std::simd::cmp::SimdPartialOrd;
-use sleef::Sleef;
-use statrs::function::erf::erf;
 use std::simd::num::SimdFloat;
-use crate::{ into_vec::IntoVec, type_promote::{ Cmp, Eval, FloatOut, NormalOut } };
+use crate::into_vec::IntoVec ;
 use super::traits::{ Init, VecSize, VecTrait };
 
 #[allow(non_camel_case_types)]

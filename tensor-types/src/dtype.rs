@@ -5,7 +5,7 @@ use std::fmt::Display;
 use serde::{ Deserialize, Serialize };
 use crate::{
     into_vec::IntoVec,
-    type_promote::{ BitWiseOut, Eval, FloatOut, NormalOut },
+    type_promote::{ BitWiseOut, Eval, FloatOutBinary, FloatOutUnary, NormalOut },
     vectors::{
         bf16x16::bf16x16,
         boolx32::boolx32,
@@ -296,6 +296,7 @@ pub trait FloatConst {
     const SIX: Self;
     const TWOPI: Self;
     const FOURPI: Self;
+    const POINT_TWO: Self;
 }
 
 impl FloatConst for f32 {
@@ -306,6 +307,7 @@ impl FloatConst for f32 {
     const SIX: Self = 6.0;
     const TWOPI: Self = std::f32::consts::PI * 2.0;
     const FOURPI: Self = std::f32::consts::PI * 4.0;
+    const POINT_TWO: Self = 0.2;
 }
 
 impl FloatConst for f64 {
@@ -316,6 +318,7 @@ impl FloatConst for f64 {
     const SIX: Self = 6.0;
     const TWOPI: Self = std::f64::consts::PI * 2.0;
     const FOURPI: Self = std::f64::consts::PI * 4.0;
+    const POINT_TWO: Self = 0.2;
 }
 
 impl FloatConst for f16 {
@@ -326,6 +329,7 @@ impl FloatConst for f16 {
     const SIX: Self = f16::from_f32_const(6.0);
     const TWOPI: Self = f16::from_f32_const(std::f32::consts::PI * 2.0);
     const FOURPI: Self = f16::from_f32_const(std::f32::consts::PI * 4.0);
+    const POINT_TWO: Self = f16::from_f32_const(0.2);
 }
 
 impl FloatConst for bf16 {
@@ -336,6 +340,7 @@ impl FloatConst for bf16 {
     const SIX: Self = bf16::from_f32_const(6.0);
     const TWOPI: Self = bf16::from_f32_const(std::f32::consts::PI * 2.0);
     const FOURPI: Self = bf16::from_f32_const(std::f32::consts::PI * 4.0);
+    const POINT_TWO: Self = bf16::from_f32_const(0.2);
 }
 
 impl NormalOut for Dtype {
@@ -424,12 +429,9 @@ impl BitWiseOut for Dtype {
     }
 }
 
-impl FloatOut for Dtype {
+impl FloatOutUnary for Dtype {
     type Output = Dtype;
-
-    fn _div(self, rhs: Self) -> Self::Output {
-        infer_enum_type!(self, rhs, binary_float)
-    }
+    type Base = Self;
     fn _exp(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
@@ -438,9 +440,6 @@ impl FloatOut for Dtype {
     }
     fn _ln(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
-    }
-    fn _log(self, base: Self) -> Self::Output {
-        infer_enum_type!(self, base, binary_float)
     }
     fn _log2(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
@@ -514,7 +513,7 @@ impl FloatOut for Dtype {
     fn _selu(self, _: Self, _: Self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-    fn _hard_sigmoid(self, _: Self::Output, _: Self::Output) -> Self::Output {
+    fn _hard_sigmoid(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
     fn _relu6(self) -> Self::Output {
@@ -536,6 +535,17 @@ impl FloatOut for Dtype {
 
     fn _cbrt(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
+    }
+}
+
+impl FloatOutBinary for Dtype {
+    type Output = Dtype;
+
+    fn _div(self, rhs: Self) -> Self::Output {
+        infer_enum_type!(self, rhs, binary_float)
+    }
+    fn _log(self, base: Self) -> Self::Output {
+        infer_enum_type!(self, base, binary_float)
     }
 }
 

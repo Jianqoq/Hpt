@@ -12,7 +12,7 @@ fn main() -> anyhow::Result<()> {
     // let b = _Tensor::<f32>::randn(&[104, 104, 104, 104])?;
 
     let now = std::time::Instant::now();
-    black_box(for _ in 0..1 {
+    black_box(for _ in 0..100 {
         let _ = a.abs();
     });
     println!("hpt time: {:?}", now.elapsed() / 100);

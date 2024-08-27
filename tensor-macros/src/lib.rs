@@ -1,3 +1,5 @@
+use binary_float_out::impl_float_out_binary;
+use float_unary::impl_float_out_unary;
 use proc_macro::TokenStream;
 use simd_convert::__impl_simd_convert;
 use syn::{ parse, parse_macro_input, Expr, Ident, Token };
@@ -5,6 +7,9 @@ mod type_utils;
 mod list_enum;
 mod simd_normal_out;
 mod simd_convert;
+mod simd_float_out_unary;
+mod binary_float_out;
+mod float_unary;
 use quote::quote;
 use type_utils::TypeInfo;
 use proc_macro2::{ TokenStream as TokenStream2, TokenTree };
@@ -487,294 +492,18 @@ pub fn infer_cal_res_type(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
-pub fn impl_float_out(_: TokenStream) -> TokenStream {
-    let mut ret = proc_macro2::TokenStream::new();
+pub fn float_out_binary(_: TokenStream) -> TokenStream {
+    impl_float_out_binary()
+}
 
-    let types = [
-        "bool",
-        "f16",
-        "f32",
-        "f64",
-        "i8",
-        "i16",
-        "i32",
-        "i64",
-        "u8",
-        "u16",
-        "u32",
-        "u64",
-        "isize",
-        "usize",
-    ];
+#[proc_macro]
+pub fn float_out_unary(_: TokenStream) -> TokenStream {
+    impl_float_out_unary()
+}
 
-    for lhs in types.iter() {
-        for rhs in types.iter() {
-            let lhs_type = TypeInfo::new(lhs);
-            let rhs_type = TypeInfo::new(rhs);
-            let lhs_dtype = lhs_type.dtype;
-            let rhs_dtype = rhs_type.dtype;
-            let res_type = lhs_type.infer_float_res_type(&rhs_type);
-            let selu = if res_type.is_f16() && !lhs_dtype.is_f16() {
-                quote! {
-                    paste::paste! {
-                    let x = self.[<to_ #res_type>]();
-                    let alpha = alpha.[<to_ #res_type>]();
-                    let scale = scale.[<to_ #res_type>]();
-                    let positive_part = x.max(#res_type::ZERO);
-                    let negative_part = alpha * (x.exp() - #res_type::ONE) * (x <= #res_type::ZERO).[<to_ #res_type>]();
-                    scale * positive_part + negative_part
-                }
-            }
-            } else if res_type.is_f16() {
-                quote! {
-                        paste::paste! {
-                        let scale = scale.to_f32();
-                        if self.to_bits() > 0 {
-                            (self.to_f32() * scale).to_f16()
-                        } else {
-                            let alpha = alpha.to_f32();
-                            let x = self.to_f32();
-                            (alpha * (x.exp() - f32::ONE) * scale).to_f16()
-                        }
-                    }
-                }
-            } else if res_type.is_f32() || res_type.is_f64() {
-                quote! {
-                        paste::paste! {
-                        let x = self.[<to_ #res_type>]();
-                        let alpha = alpha.[<to_ #res_type>]();
-                        let scale = scale.[<to_ #res_type>]();
-                        let positive_part = x.max(#res_type::ZERO);
-                        let negative_part = alpha * (x.exp() - #res_type::ONE) * (x <= #res_type::ZERO).[<to_ #res_type>]();
-                        scale * positive_part + negative_part
-                    }
-                }
-            } else {
-                quote! {
-                    paste::paste! {
-                    let x = self.[<to_ #res_type>]();
-                    let alpha = alpha.[<to_ #res_type>]();
-                    let scale = scale.[<to_ #res_type>]();
-                    fn select(mask: #res_type, a: #res_type, b: #res_type) -> #res_type {
-                        (mask & a) | (!mask & b)
-                    }
-                    select((x > #res_type::ZERO).[<to_ #res_type>](), scale * x, alpha * (x.exp() - #res_type::ONE) * scale)
-                }
-            }
-            };
-            let res =
-                quote! {
-                impl FloatOut<#rhs_dtype> for #lhs_dtype {
-                    type Output = #res_type;
-                
-                    fn _div(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() / rhs.[<to_ #res_type>]()
-                        }
-                    }
-                    fn _exp(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().exp()
-                        }
-                    }
-                    fn _exp2(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().exp2()
-                        }
-                    }
-                    fn _ln(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().ln()
-                        }
-                    }
-                    fn _log(self, base: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().log(base.[<to_ #res_type>]())
-                        }
-                    }
-                    fn _log2(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().log2()
-                        }
-                    }
-                    fn _log10(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().log10()
-                        }
-                    }
-                    fn _sqrt(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().sqrt()
-                        }
-                    }
-                    fn _sin(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().sin()
-                        }
-                    }
-                    fn _cos(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().cos()
-                        }
-                    }
-                    fn _tan(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().tan()
-                        }
-                    }
-                    fn _asin(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().asin()
-                        }
-                    }
-                    fn _acos(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().acos()
-                        }
-                    }
-                    fn _atan(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().atan()
-                        }
-                    }
-                    fn _sinh(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().sinh()
-                        }
-                    }
-                    fn _cosh(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().cosh()
-                        }
-                    }
-                    fn _tanh(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().tanh()
-                        }
-                    }
-                    fn _asinh(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().asinh()
-                        }
-                    }
-                    fn _acosh(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().acosh()
-                        }
-                    }
-                    fn _atanh(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().atanh()
-                        }
-                    }
-                    fn _recip(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().recip()
-                        }
-                    }
-                    fn _erf(self) -> Self::Output {
-                        paste::paste! {
-                            erf(self.to_f64()).[<to_ #res_type>]()
-                        }
-                    }
-                    fn _celu(self, alpha: Self::Output) -> Self::Output {
-                        paste::paste! {
-                            let x = self.[<to_ #res_type>]();
-                            let alpha = alpha.[<to_ #res_type>]();
-                            x.max(#res_type::ZERO) + (alpha * (x / alpha).exp() - #res_type::ONE).min(#res_type::ZERO)
-                        }
-                    }
-                    fn _sigmoid(self) -> Self::Output {
-                        paste::paste! {
-                            #res_type::ONE / (#res_type::ONE + (-self.[<to_ #res_type>]()).exp())
-                        }
-                    }
-                    fn _elu(self, alpha: Self::Output) -> Self::Output {
-                        paste::paste! {
-                            let x = self.[<to_ #res_type>]();
-                            let alpha = alpha.[<to_ #res_type>]();
-                            if x >= #res_type::ZERO {
-                                x
-                            } else {
-                                alpha * (x.exp() - #res_type::ONE)
-                            }
-                        }
-                    }
-                    fn _leaky_relu(self, alpha: Self::Output) -> Self::Output {
-                        paste::paste! {
-                            let x = self.[<to_ #res_type>]();
-                            let alpha = alpha.[<to_ #res_type>]();
-                            if x >= #res_type::ZERO {
-                                x
-                            } else {
-                                alpha * x
-                            }
-                        }
-                    }
-                    fn _relu(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().max(#res_type::ZERO)
-                        }
-                    }
-                    fn _gelu(self) -> Self::Output {
-                        paste::paste! {
-                            let x = self.[<to_ #res_type>]();
-                            let sqrt2_over_2 = std::f64::consts::FRAC_1_SQRT_2;
-                            #res_type::HALF * x * (#res_type::ONE + erf(x.to_f64() * sqrt2_over_2).[<to_ #res_type>]())
-                        }
-                    }
-                    fn _selu(self, alpha: Self::Output, scale: Self::Output) -> Self::Output {
-                        #selu
-                    }
-                    fn _hard_sigmoid(self, alpha: Self::Output, beta: Self::Output) -> Self::Output {
-                        paste::paste! {
-                            let x = self.[<to_ #res_type>]();
-                            let alpha = alpha.[<to_ #res_type>]();
-                            let beta = beta.[<to_ #res_type>]();
-                            #res_type::ZERO.max(#res_type::ONE.min(alpha * x + beta))
-                        }
-                    }
-                    fn _relu6(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().max(#res_type::ZERO).min(#res_type::SIX)
-                        }
-                    }
-                    fn _hard_swish(self) -> Self::Output {
-                        paste::paste! {
-                            let x = self.[<to_ #res_type>]();
-                            x * ((x + #res_type::THREE).max(#res_type::ZERO).min(#res_type::SIX)) / #res_type::SIX
-                        }
-                    }
-                    fn _softplus(self) -> Self::Output {
-                        paste::paste! {
-                            let x = self.[<to_ #res_type>]();
-                            (#res_type::ONE + x.exp()).ln()
-                        }
-                    }
-                    fn _softsign(self) -> Self::Output {
-                        paste::paste! {
-                            let x = self.[<to_ #res_type>]();
-                            x / (#res_type::ONE + x.abs())
-                        }
-                    }
-                    fn _mish(self) -> Self::Output {
-                        paste::paste! {
-                            let x = self.[<to_ #res_type>]();
-                            x * (#res_type::ONE + x.exp()).ln().tanh()
-                        }
-                    }
-                    fn _cbrt(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().cbrt()
-                        }
-                    }
-                }
-            };
-            ret.extend(res);
-        }
-    }
-
-    ret.into()
+#[proc_macro]
+pub fn simd_float_out_unary(_: TokenStream) -> TokenStream {
+    crate::simd_float_out_unary::impl_float_out_unary()
 }
 
 #[proc_macro]
