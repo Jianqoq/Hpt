@@ -73,30 +73,38 @@ pub fn uary_fn_simd<A, F, O, F2>(inp: &_Tensor<A>, f: F, f2: F2) -> anyhow::Resu
 {
     let ret: _Tensor<O>;
     ret = _Tensor::<O, Cpu>::empty(inp.shape()).unwrap();
-    let remain = inp.size() % <A as TypeCommon>::Vec::SIZE;
-    let exect_size = inp.size() - remain;
+    let per_thread_len = ret.size() / rayon::current_num_threads();
+    let per_thread_remain = per_thread_len % <O as TypeCommon>::Vec::SIZE;
+    let total_remain = rayon::current_num_threads() * per_thread_remain;
+    let per_thread_real_len = per_thread_len - per_thread_remain;
     ret.as_raw_mut()
-        .par_chunks_exact_mut(<A as TypeCommon>::Vec::SIZE)
-        .zip(inp.as_raw().par_chunks_exact(<A as TypeCommon>::Vec::SIZE))
-        .for_each(|(a, b)| {
-            let b_ptr = b.as_ptr() as *const A;
-            let inp = unsafe { A::Vec::from_ptr(b_ptr) };
-            let res = f(inp);
-            let res_ptr = res.as_ptr() as *mut O;
-            unsafe {
-                std::ptr::copy_nonoverlapping(
-                    res_ptr,
-                    a.as_mut_ptr(),
-                    <A as TypeCommon>::Vec::SIZE
-                );
-            }
+        .par_chunks_exact_mut(per_thread_real_len)
+        .zip(inp.as_raw().par_chunks_exact(per_thread_real_len))
+        .for_each(|(ret, lhs)| {
+            assert_eq!(lhs.len() % <A as TypeCommon>::Vec::SIZE, 0);
+            assert_eq!(ret.len() % <O as TypeCommon>::Vec::SIZE, 0);
+            ret.chunks_exact_mut(<A as TypeCommon>::Vec::SIZE)
+                .zip(lhs.chunks_exact(<A as TypeCommon>::Vec::SIZE))
+                .for_each(|(ret, lhs)| {
+                    let a = unsafe { <A as TypeCommon>::Vec::from_ptr(lhs.as_ptr()) };
+                    let res = f(a);
+                    unsafe {
+                        std::ptr::copy_nonoverlapping(
+                            res.as_ptr(),
+                            ret.as_mut_ptr(),
+                            <O as TypeCommon>::Vec::SIZE
+                        );
+                    }
+                });
         });
-    ret.as_raw_mut()
-        [exect_size..].iter_mut()
-        .zip(inp.as_raw()[exect_size..].iter())
-        .for_each(|(a, &b)| {
-            *a = f2(b);
-        });
+    if total_remain > 0 {
+        ret.as_raw_mut()
+            [ret.size() - total_remain..].iter_mut()
+            .zip(inp.as_raw()[ret.size() - total_remain..].iter())
+            .for_each(|(a, &lhs)| {
+                *a = f2(lhs);
+            });
+    }
     Ok(ret)
 }
 

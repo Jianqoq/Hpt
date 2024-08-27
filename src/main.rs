@@ -12,8 +12,8 @@ fn main() -> anyhow::Result<()> {
     let b = _Tensor::<f32>::arange(0i64, 8 * 64 * 64 * 64 * 256)?.reshape(&[8, 64, 64, 64, 256])?;
 
     let now = std::time::Instant::now();
-    black_box(for _ in 0..100 {
-        let res = &a + &b;
+    black_box(for _ in 0..1 {
+        let res = a.sin()?;
     });
     println!("hpt time: {:?}", now.elapsed() /100);
 
@@ -21,8 +21,8 @@ fn main() -> anyhow::Result<()> {
     let b = Tensor::arange(8 * 64 * 64 * 64 * 256, (Kind::Float, Device::Cpu)).reshape(&[8, 64, 64, 64, 256]);
 
     let now = std::time::Instant::now();
-    black_box(for _ in 0..100 {
-        let res = &a + &b;
+    black_box(for _ in 0..1 {
+        let res = a.sin();
     });
     println!("torch time: {:?}", now.elapsed() / 100);
     Ok(())
