@@ -8,6 +8,7 @@ pub fn impl_float_out_binary() -> TokenStream {
     let types = [
         "bool",
         "f16",
+        "bf16",
         "f32",
         "f64",
         "i8",

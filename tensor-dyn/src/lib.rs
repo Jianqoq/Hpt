@@ -1,3 +1,5 @@
+
+
 pub mod tensor_base;
 pub mod ops {
     pub mod cpu {
@@ -31,6 +33,7 @@ pub mod ops {
         pub mod dropout;
         pub mod lp_norm;
         pub mod img2col;
+        pub mod common_reduce;
         pub mod convolutions {
             pub mod conv2d;
             pub mod conv2d_unroll;

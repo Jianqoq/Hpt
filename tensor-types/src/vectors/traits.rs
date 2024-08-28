@@ -14,3 +14,7 @@ pub trait Init<T> {
 pub trait VecSize {
     const SIZE: usize;
 }
+
+pub trait SimdSelect<T> {
+    fn select(&self, true_val: T, false_val: T) -> T;
+}

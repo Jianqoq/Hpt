@@ -2066,50 +2066,56 @@ impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> Normal
 impl<T> FloatReduce<T>
     for _Tensor<T>
     where
-        T: CommonBounds                                                                                 // prettier-ignore
-        + NormalOut<T, Output = T>                                                                                  // prettier-ignore
-        + NormalOut<FloatBinaryType<T>, Output = FloatBinaryType<T>>                          // prettier-ignore
-        + FloatOutBinary + Cmp + IntoScalar<T>
-        + IntoScalar<<T as FloatOutBinary>::Output>, // prettier-ignore
-        FloatBinaryType<T>: CommonBounds                                                           // prettier-ignore
-        + NormalOut<T, Output = FloatBinaryType<T>>
-        + FloatOutBinary<Output = FloatBinaryType<T>>
-        + NormalOut<FloatBinaryType<T>, Output = FloatBinaryType<T>> // prettier-ignore
-        + FromScalar<usize> + IntoScalar<FloatBinaryType<T>>, // prettier-ignore
-        f64: IntoScalar<<T as NormalOut>::Output>, // prettier-ignore
-        f64: IntoScalar<FloatBinaryType<T>>, // prettier-ignore
+        T: CommonBounds +
+            NormalOut<T, Output = T> +
+            NormalOut<FloatBinaryType<T>, Output = FloatBinaryType<T>> +
+            FloatOutBinary +
+            Cmp +
+            IntoScalar<T> +
+            IntoScalar<<T as FloatOutBinary>::Output>,
+        FloatBinaryType<T>: CommonBounds +
+            NormalOut<T, Output = FloatBinaryType<T>> +
+            FloatOutBinary<Output = FloatBinaryType<T>> +
+            NormalOut<FloatBinaryType<T>, Output = FloatBinaryType<T>> +
+            FromScalar<usize> +
+            IntoScalar<FloatBinaryType<T>>,
+        f64: IntoScalar<<T as NormalOut>::Output>,
+        f64: IntoScalar<FloatBinaryType<T>>,
         _Tensor<<T as FloatOutBinary>::Output>: TensorLike<
             <T as FloatOutBinary>::Output,
             Output = _Tensor<<T as FloatOutBinary>::Output>
         >,
-        <<T as FloatOutBinary>::Output as TypeCommon>::Vec: 
-        NormalOut<Output = <FloatBinaryType<T> as TypeCommon>::Vec>
-        + FloatOutBinary<Output = <FloatBinaryType<T> as TypeCommon>::Vec>
-        + IntoVec<<FloatBinaryType<T> as TypeCommon>::Vec> + Copy + Send + Sync, // prettier-ignore
-        <T as TypeCommon>::Vec: IntoVec<<FloatBinaryType<T> as TypeCommon>::Vec>,
-        <T as TypeCommon>::Vec: std::marker::Copy
+        <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<Output = <FloatBinaryType<T> as TypeCommon>::Vec> +
+            FloatOutBinary<Output = <FloatBinaryType<T> as TypeCommon>::Vec> +
+            IntoVec<<FloatBinaryType<T> as TypeCommon>::Vec> +
+            NormalOut<
+                <T as TypeCommon>::Vec,
+                Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
+            >,
+        <T as TypeCommon>::Vec: IntoVec<<FloatBinaryType<T> as TypeCommon>::Vec> +
+            Copy +
+            NormalOut<Output = <T as TypeCommon>::Vec>
 {
     type Output = _Tensor<FloatBinaryType<T>>;
     fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        // let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        // let reduce_size: FloatBinaryType<T> = (
-        //     axes.iter().fold(1, |acc, &x| acc * (self.shape()[x] as usize)) as f64
-        // ).into_scalar();
-        // let reduce_vec = <FloatBinaryType<T> as TypeCommon>::Vec::splat(reduce_size);
-        // reduce3(
-        //     self,
-        //     |a, b| a._add(b),
-        //     |a, b| a._add(b),
-        //     move |a| a._div(reduce_size),
-        //     |a, b| a._add(b),
-        //     move |a| a._div(reduce_vec),
-        //     &axes,
-        //     <T as FloatOut>::Output::ZERO,
-        //     keep_dims,
-        //     false,
-        //     None
-        // )
-        todo!()
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        let reduce_size: FloatBinaryType<T> = (
+            axes.iter().fold(1, |acc, &x| acc * (self.shape()[x] as usize)) as f64
+        ).into_scalar();
+        let reduce_vec = <FloatBinaryType<T> as TypeCommon>::Vec::splat(reduce_size);
+        reduce3(
+            self,
+            |a, b| a._add(b),
+            |a, b| a._add(b),
+            move |a| a._div(reduce_size),
+            |a, b| a._add(b),
+            move |a| a._div(reduce_vec),
+            &axes,
+            <T as FloatOutBinary>::Output::ZERO,
+            keep_dims,
+            false,
+            None
+        )
     }
 
     fn reducel2<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
@@ -2135,21 +2141,24 @@ impl<T> FloatReduce<T>
 
     fn reducel3<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         // let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        // let three: <T as FloatOut>::Output = (3.0).into_scalar();
-        // let three_vec = <<T as FloatOut>::Output as TypeCommon>::Vec::splat(three);
+        // let three: <T as FloatOutBinary>::Output = (3.0).into_scalar();
+        // let three_vec = <<T as FloatOutBinary>::Output as TypeCommon>::Vec::splat(three);
         // reduce3(
         //     self,
         //     move |a, b| {
-        //         let b = <<T as FloatOut>::Output as NormalOut>::_abs(b);
+        //         let b = b._abs();
         //         a._add(b._pow(three))
         //     },
         //     move |a, b| a._add(<FloatBinaryType<T> as NormalOut>::_abs(b)._pow(three)),
         //     move |a| a,
-        //     move |a, b|
-        //         a._add(<<<T as FloatOut>::Output as TypeCommon>::Vec>::_abs(b)._pow(three_vec)),
+        //     move |a, b| {
+        //         let abs = b._abs();
+        //         let pow = abs._pow(three_vec);
+        //         a._add(b._abs()._pow(three_vec))
+        //     },
         //     |a| a,
         //     &axes,
-        //     <T as FloatOut>::Output::ZERO,
+        //     <T as FloatOutBinary>::Output::ZERO,
         //     keep_dims,
         //     false,
         //     None
