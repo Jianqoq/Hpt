@@ -1,6 +1,7 @@
 use binary_float_out::impl_float_out_binary;
 use float_unary::impl_float_out_unary;
 use proc_macro::TokenStream;
+use simd_bitwise::impl_simd_bitwise_out;
 use simd_convert::__impl_simd_convert;
 use syn::{ parse, parse_macro_input, Expr, Ident, Token };
 mod type_utils;
@@ -10,6 +11,10 @@ mod simd_convert;
 mod simd_float_out_unary;
 mod binary_float_out;
 mod float_unary;
+mod simd_eval;
+mod simd_cmp;
+mod simd_bitwise;
+use crate::simd_cmp::impl_simd_cmp;
 use quote::quote;
 use type_utils::TypeInfo;
 use proc_macro2::{ TokenStream as TokenStream2, TokenTree };
@@ -507,6 +512,16 @@ pub fn simd_float_out_unary(_: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
+pub fn simd_eval(_: TokenStream) -> TokenStream {
+    crate::simd_eval::impl_simd_eval()
+}
+
+#[proc_macro]
+pub fn simd_bitwise(_: TokenStream) -> TokenStream {
+    impl_simd_bitwise_out()
+}
+
+#[proc_macro]
 pub fn impl_normal_out(_: TokenStream) -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
 
@@ -773,6 +788,11 @@ pub fn impl_normal_out_simd(_: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn impl_simd_convert(_: TokenStream) -> TokenStream {
     __impl_simd_convert()
+}
+
+#[proc_macro]
+pub fn simd_cmp(_: TokenStream) -> TokenStream {
+    impl_simd_cmp()
 }
 
 #[proc_macro]

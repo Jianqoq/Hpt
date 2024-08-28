@@ -55,7 +55,7 @@ pub mod par_strided_simd {
     };
 
     #[derive(Clone)]
-    pub struct ParStridedSimd<T: TypeCommon> {
+    pub struct ParStridedSimd<T: Send + Copy + Sync> {
         pub(crate) ptr: Pointer<T>,
         pub(crate) layout: Layout,
         pub(crate) prg: Vec<i64>,

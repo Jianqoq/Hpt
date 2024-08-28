@@ -23,7 +23,7 @@ pub mod strided_map_mut_simd {
         strided_zip::strided_zip_simd::StridedZipSimd,
     };
 
-    pub struct StridedMapMutSimd<'a, T> where T: Copy + tensor_types::dtype::TypeCommon {
+    pub struct StridedMapMutSimd<'a, T> where T: Copy + tensor_types::dtype::TypeCommon + Send + Sync{
         pub(crate) base: ParStridedMutSimd<'a, T>,
         pub(crate) phantom: std::marker::PhantomData<&'a ()>,
     }

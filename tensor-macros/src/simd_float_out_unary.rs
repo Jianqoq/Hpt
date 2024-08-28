@@ -462,13 +462,8 @@ pub fn impl_float_out_unary() -> TokenStream {
                     }
                     fn _selu(self, alpha: Self::Base, scale: Self::Base) -> Self::Output {
                         paste::paste! {
-                            let x = self.[<to_ #res_type>]();
-                            let alpha = #res_simd_ty::#res_simd_ty::splat(alpha);
                             let scale = #res_simd_ty::#res_simd_ty::splat(scale);
-                            let mask = x.simd_gt(#res_simd_ty::#res_simd_ty::splat(#res_type::ZERO).0);
-                            #res_simd_ty::#res_simd_ty(
-                                mask.select(scale.0 * x.0, scale.0 * alpha.0 * (x._exp().0 - #res_simd_ty::#res_simd_ty::splat(#res_type::ONE).0))
-                            )
+                            scale * self._elu(alpha)
                         }
                     }
                     fn _elu(self, alpha: Self::Base) -> Self::Output {
@@ -477,7 +472,7 @@ pub fn impl_float_out_unary() -> TokenStream {
                             let alpha = #res_simd_ty::#res_simd_ty::splat(alpha);
                             let mask = x.simd_gt(#res_simd_ty::#res_simd_ty::splat(#res_type::ZERO).0);
                             #res_simd_ty::#res_simd_ty(
-                                mask.select(x.0, (alpha * (x._exp() - #res_simd_ty::#res_simd_ty::splat(#res_type::ONE))).0)
+                                mask.select(x.0, alpha.0 * (x.exp_m1()))
                             )
                         }
                     }

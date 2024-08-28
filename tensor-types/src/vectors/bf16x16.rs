@@ -1,7 +1,7 @@
-use std::simd::{ cmp::SimdPartialOrd, num::{ SimdFloat, SimdUint } };
+use std::simd::{ cmp::{ SimdPartialEq, SimdPartialOrd }, num::{ SimdFloat, SimdUint }, Simd };
 
 use crate::into_vec::IntoVec;
-
+use crate::vectors::u16x16::u16x16;
 use super::{ f32x8::f32x8, traits::{ Init, VecSize, VecTrait } };
 
 #[allow(non_camel_case_types)]
@@ -105,6 +105,72 @@ impl bf16x16 {
             bm.select(b_nan_adjusted, b_bf16_values),
         ];
         unsafe { std::mem::transmute([a_res, b_res]) }
+    }
+
+    pub fn is_nan(&self) -> u16x16 {
+        let x = std::simd::u16x16::splat(0x7f80u16);
+        let y = std::simd::u16x16::splat(0x007fu16);
+        let i: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
+        let and = i & x;
+        let eq: Simd<u16, 16> = unsafe { std::mem::transmute(and.simd_eq(x)) };
+        let and2 = i & y;
+        let neq_zero: Simd<u16, 16> = unsafe {
+            std::mem::transmute(and2.simd_ne(std::simd::u16x16::splat(0)))
+        };
+        unsafe { std::mem::transmute(eq & neq_zero) }
+    }
+
+    pub fn is_infinite(&self) -> u16x16 {
+        let x = u16x16::splat(0x7f80u16);
+        let y = u16x16::splat(0x007fu16);
+        let i: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
+
+        let and = i & x.0;
+        let eq = and.simd_eq(x.0);
+
+        let and2 = i & y.0;
+        let eq_zero = and2.simd_eq(u16x16::splat(0).0);
+
+        let result = eq & eq_zero;
+
+        unsafe { std::mem::transmute(result) }
+    }
+
+    pub fn simd_eq(&self, other: Self) -> u16x16 {
+        let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
+        let y: Simd<u16, 16> = unsafe { std::mem::transmute(other.0) };
+        let eq = x.simd_eq(y);
+        unsafe { std::mem::transmute(eq) }
+    }
+    pub fn simd_ne(&self, other: Self) -> u16x16 {
+        let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
+        let y: Simd<u16, 16> = unsafe { std::mem::transmute(other.0) };
+        let ne = x.simd_ne(y);
+        unsafe { std::mem::transmute(ne) }
+    }
+    pub fn simd_lt(&self, other: Self) -> u16x16 {
+        let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
+        let y: Simd<u16, 16> = unsafe { std::mem::transmute(other.0) };
+        let lt = x.simd_lt(y);
+        unsafe { std::mem::transmute(lt) }
+    }
+    pub fn simd_le(&self, other: Self) -> u16x16 {
+        let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
+        let y: Simd<u16, 16> = unsafe { std::mem::transmute(other.0) };
+        let le = x.simd_le(y);
+        unsafe { std::mem::transmute(le) }
+    }
+    pub fn simd_gt(&self, other: Self) -> u16x16 {
+        let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
+        let y: Simd<u16, 16> = unsafe { std::mem::transmute(other.0) };
+        let gt = x.simd_gt(y);
+        unsafe { std::mem::transmute(gt) }
+    }
+    pub fn simd_ge(&self, other: Self) -> u16x16 {
+        let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
+        let y: Simd<u16, 16> = unsafe { std::mem::transmute(other.0) };
+        let ge = x.simd_ge(y);
+        unsafe { std::mem::transmute(ge) }
     }
 }
 

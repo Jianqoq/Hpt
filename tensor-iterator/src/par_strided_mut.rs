@@ -19,7 +19,7 @@ pub mod par_strided_map_mut_simd {
     use tensor_types::vectors::traits::VecSize;
     use crate::{iterator_traits::IterGetSetSimd, par_strided::par_strided_simd::ParStridedSimd, par_strided_zip::par_strided_zip_simd::ParStridedZipSimd};
 
-    pub struct ParStridedMutSimd<'a, T: TypeCommon> {
+    pub struct ParStridedMutSimd<'a, T: TypeCommon + Send + Copy + Sync> {
         pub(crate) base: ParStridedSimd<T>,
         pub(crate) vector: T::Vec,
         pub(crate) phantom: std::marker::PhantomData<&'a ()>,

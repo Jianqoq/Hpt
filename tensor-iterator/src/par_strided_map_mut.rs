@@ -21,7 +21,7 @@ pub mod par_strided_map_mut_simd {
     use crate::{iterator_traits::IterGetSetSimd, par_strided_mut::par_strided_map_mut_simd::ParStridedMutSimd, par_strided_zip::par_strided_zip_simd::ParStridedZipSimd};
 
     
-    pub struct ParStridedMapMutSimd<'a, T> where T: Copy + tensor_types::dtype::TypeCommon {
+    pub struct ParStridedMapMutSimd<'a, T> where T: tensor_types::dtype::TypeCommon + Send + Copy + Sync {
         pub(crate) base: ParStridedMutSimd<'a, T>,
         pub(crate) phantom: std::marker::PhantomData<&'a ()>,
     }

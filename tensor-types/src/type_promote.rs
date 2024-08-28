@@ -1,11 +1,16 @@
+use tensor_macros::simd_bitwise;
 use tensor_macros::{
     float_out_binary,
     impl_bitwise_out,
     impl_cmp,
     impl_eval,
     impl_normal_out,
+    simd_eval,
     simd_float_out_unary,
+    simd_cmp,
 };
+use std::simd::Simd;
+use std::simd::cmp::SimdPartialEq;
 use tensor_macros::float_out_unary;
 use half::f16;
 use crate::convertion::Convertor;
@@ -66,6 +71,8 @@ pub trait BitWiseOut<RHS = Self> {
 
 impl_bitwise_out!();
 
+simd_bitwise!();
+
 pub trait Cmp<RHS = Self> {
     fn _eq(self, rhs: RHS) -> bool;
     fn _ne(self, rhs: RHS) -> bool;
@@ -77,6 +84,18 @@ pub trait Cmp<RHS = Self> {
 
 impl_cmp!();
 
+pub trait SimdCmp<RHS = Self> {
+    type Output;
+    fn _eq(self, rhs: RHS) -> Self::Output;
+    fn _ne(self, rhs: RHS) -> Self::Output;
+    fn _lt(self, rhs: RHS) -> Self::Output;
+    fn _le(self, rhs: RHS) -> Self::Output;
+    fn _gt(self, rhs: RHS) -> Self::Output;
+    fn _ge(self, rhs: RHS) -> Self::Output;
+}
+
+simd_cmp!();
+
 pub trait Eval {
     type Output;
     fn _is_nan(&self) -> Self::Output;
@@ -85,6 +104,7 @@ pub trait Eval {
 }
 
 impl_eval!();
+simd_eval!();
 
 pub trait FloatOutUnary {
     type Output;

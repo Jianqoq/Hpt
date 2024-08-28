@@ -752,18 +752,36 @@ impl TypeInfo {
                     self.dtype
                 } else {
                     if self.is_signed || other.is_signed {
-                        if (self.level == 8 || other.level == 8) && (self.dtype as u8 == Type::Isize as u8 || other.dtype as u8 == Type::Isize as u8) {
+                        if
+                            (self.level == 8 || other.level == 8) &&
+                            ((self.dtype as u8) == (Type::Isize as u8) ||
+                                (other.dtype as u8) == (Type::Isize as u8))
+                        {
                             Type::Isize
-                        } else if (self.level == 8 || other.level == 8) && (self.dtype as u8 == Type::Usize as u8 || other.dtype as u8 == Type::Usize as u8) {
+                        } else if
+                            (self.level == 8 || other.level == 8) &&
+                            ((self.dtype as u8) == (Type::Usize as u8) ||
+                                (other.dtype as u8) == (Type::Usize as u8))
+                        {
                             Type::Isize
                         } else {
                             level_to_int(std::cmp::max(self.level, other.level))
                         }
                     } else {
-                        if (self.level == 8 || other.level == 8) && (self.dtype as u8 == Type::Isize as u8 || other.dtype as u8 == Type::Isize as u8) {
+                        if
+                            (self.level == 8 || other.level == 8) &&
+                            ((self.dtype as u8) == (Type::Isize as u8) ||
+                                (other.dtype as u8) == (Type::Isize as u8))
+                        {
                             Type::Usize
-                        } else if (self.level == 8 || other.level == 8) && (self.dtype as u8 == Type::Usize as u8 || other.dtype as u8 == Type::Usize as u8) {
+                        } else if
+                            (self.level == 8 || other.level == 8) &&
+                            ((self.dtype as u8) == (Type::Usize as u8) ||
+                                (other.dtype as u8) == (Type::Usize as u8))
+                        {
                             Type::Usize
+                        } else if self.level == other.level {
+                            self.dtype
                         } else {
                             level_to_uint(std::cmp::max(self.level, other.level))
                         }
