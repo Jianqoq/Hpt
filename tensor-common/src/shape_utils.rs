@@ -123,7 +123,11 @@ pub fn compare_and_pad_shapes(a_shape: &[i64], b_shape: &[i64]) -> (Vec<i64>, Ve
 /// let broadcasted_shape = predict_broadcast_shape(&shape1, &shape2).unwrap();
 /// assert_eq!(*broadcasted_shape, vec![2, 3]);
 /// ```
-pub fn predict_broadcast_shape(a_shape: &[i64], b_shape: &[i64], location: &'static Location<'static>) -> anyhow::Result<Shape> {
+pub fn predict_broadcast_shape(
+    a_shape: &[i64],
+    b_shape: &[i64],
+    location: &'static Location<'static>
+) -> anyhow::Result<Shape> {
     let (longer, shorter) = if a_shape.len() >= b_shape.len() {
         (a_shape, b_shape)
     } else {
@@ -139,7 +143,9 @@ pub fn predict_broadcast_shape(a_shape: &[i64], b_shape: &[i64], location: &'sta
         } else if longer_dim == 1 {
             shorter_dim
         } else {
-            return Err(ErrHandler::BroadcastError(a_shape.into(), b_shape.into(), i, location).into());
+            return Err(
+                ErrHandler::BroadcastError(a_shape.into(), b_shape.into(), i, location).into()
+            );
         };
     }
 
@@ -158,9 +164,11 @@ pub fn predict_broadcast_strides<T: Into<Layout>>(
     // if true, it is brocasted
     if brocasted_size > original_size {
         let shape = try_pad_shape(original_layout.shape(), brocasted_shape.len());
-        let axes_to_broadcast = get_broadcast_axes_from(&shape, brocasted_shape, Location::caller()).expect(
-            "Cannot broadcast shapes"
-        );
+        let axes_to_broadcast = get_broadcast_axes_from(
+            &shape,
+            brocasted_shape,
+            Location::caller()
+        ).expect("Cannot broadcast shapes");
 
         let mut new_strides = vec![0; brocasted_shape.len()];
         new_strides
@@ -191,7 +199,11 @@ pub fn predict_broadcast_strides<T: Into<Layout>>(
     }
 }
 
-pub fn get_broadcast_axes_from(a_shape: &[i64], res_shape: &[i64], location: &'static Location<'static>) -> anyhow::Result<Vec<usize>> {
+pub fn get_broadcast_axes_from(
+    a_shape: &[i64],
+    res_shape: &[i64],
+    location: &'static Location<'static>
+) -> anyhow::Result<Vec<usize>> {
     assert!(a_shape.len() <= res_shape.len());
 
     let padded_a = try_pad_shape(a_shape, res_shape.len());
@@ -206,7 +218,9 @@ pub fn get_broadcast_axes_from(a_shape: &[i64], res_shape: &[i64], location: &'s
         if a_dim == 1 && res_dim != 1 && !padded_axes.contains(&i) {
             axes.push(i);
         } else if res_dim == 1 && a_dim != 1 {
-            anyhow::bail!(ErrHandler::BroadcastError(a_shape.into(), res_shape.into(), i, location));
+            anyhow::bail!(
+                ErrHandler::BroadcastError(a_shape.into(), res_shape.into(), i, location)
+            );
         }
     }
 
@@ -484,19 +498,29 @@ pub fn mt_intervals(outer_loop_size: usize, num_threads: usize) -> Vec<(usize, u
     intervals
 }
 
-pub fn mt_intervals_simd(outer_loop_size: usize, num_threads: usize, vec_size: usize) -> Vec<(usize, usize)> {
+pub fn mt_intervals_simd(
+    outer_loop_size: usize,
+    num_threads: usize,
+    vec_size: usize
+) -> Vec<(usize, usize)> {
     let mut intervals = Vec::with_capacity(num_threads);
-    
-    let per_thread = (outer_loop_size / num_threads / vec_size) * vec_size;
-    for i in 0..num_threads - 1 {
-        let start_index = i * per_thread;
-        let end_index = start_index + per_thread;
+
+    let max_threads = outer_loop_size / vec_size;
+    let actual_threads = num_threads.min(max_threads);
+
+    let vec_block_size = vec_size;
+    let base_block_count = outer_loop_size / vec_block_size / actual_threads;
+    let remainder = outer_loop_size % (vec_block_size * actual_threads);
+
+    for i in 0..actual_threads {
+        let start_index = i * base_block_count * vec_block_size + vec_size.min(i * remainder);
+        let end_index = if i == actual_threads - 1 {
+            outer_loop_size
+        } else {
+            start_index + base_block_count * vec_block_size + vec_size.min(remainder)
+        };
         intervals.push((start_index, end_index));
     }
-    
-    let last_start_index = per_thread * (num_threads - 1);
-    intervals.push((last_start_index, outer_loop_size));
-    
     intervals
 }
 pub fn is_broadcast(a_shape: &[i64], b_shape: &[i64]) -> bool {

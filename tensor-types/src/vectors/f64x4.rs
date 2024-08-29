@@ -54,7 +54,7 @@ impl Init<f64> for f64x4 {
     }
 
     unsafe fn from_ptr(ptr: *const f64) -> Self {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_load_pd(ptr as *const _)) }
+        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_pd(ptr as *const _)) }
     }
 }
 impl IntoVec<f64x4> for f64x4 {

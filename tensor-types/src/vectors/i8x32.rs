@@ -54,7 +54,7 @@ impl Init<i8> for i8x32 {
     }
 
     unsafe fn from_ptr(ptr: *const i8) -> Self {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_load_si256(ptr as *const _)) }
+        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_si256(ptr as *const _)) }
     }
 }
 impl IntoVec<i8x32> for i8x32 {

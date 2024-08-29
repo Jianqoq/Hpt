@@ -34,6 +34,7 @@ impl<T> _Tensor<T>
             false,
             None
         )?;
+        #[cfg(feature = "simd")]
         let ret = self
             .par_iter_simd()
             .zip(max.par_iter_simd())
@@ -44,6 +45,16 @@ impl<T> _Tensor<T>
                 |(res, (a, b))| {
                     let one = <T as TypeCommon>::Vec::splat(T::ONE);
                     *res = a._eq(b)._mul(one);
+                }
+            )
+            .collect::<_Tensor<T>>();
+        #[cfg(not(feature = "simd"))]
+        let ret = self
+            .par_iter()
+            .zip(max.par_iter())
+            .strided_map(
+                |(a, b)| {
+                    a._eq(b)._mul(T::ONE)
                 }
             )
             .collect::<_Tensor<T>>();

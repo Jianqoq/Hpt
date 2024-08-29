@@ -1,3 +1,4 @@
+use crate::ops::cpu::kernels::reduce_kernels::{ fast_reduce_no_simd, fast_reduce_simd };
 use crate::slice::SliceOps;
 use crate::tensor_base::_Tensor;
 use crate::{ argmax_kernel, argmin_kernel };
@@ -23,14 +24,14 @@ use anyhow;
 use tensor_traits::tensor::CommonBounds;
 use tensor_types::convertion::FromScalar;
 use tensor_types::type_promote::{ Cmp, Eval, FloatOutBinary, NormalOut };
-use std::sync::Arc;
+use std::sync::{ Arc, Mutex };
 use std::sync::Barrier;
 use tensor_traits::shape_manipulate::ShapeManipulate;
 
 use super::unary::FloatBinaryType;
 
 #[derive(Debug)]
-struct ReductionPreprocessor<T, U> {
+pub(crate) struct ReductionPreprocessor<T, U> {
     pub ptrs: Pointer<T>,
     pub res_ptrs: Pointer<U>,
     pub strides: Vec<i64>,
@@ -913,7 +914,7 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
             Copy +
             std::marker::Send,
         F5: Fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec + Sync + Send + 'static + Copy,
-        <T as TypeCommon>::Vec: IntoVec<<O as TypeCommon>::Vec> + Copy,
+        <T as TypeCommon>::Vec: Copy,
         <O as TypeCommon>::Vec: Copy
 {
     use tensor_common::shape_utils::mt_intervals_simd;
@@ -1126,22 +1127,48 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                         let barrier_clone = barrier.clone();
                         pool.execute(move || {
                             #[cfg(feature = "simd")]
-                            res.iter_mut_simd()
-                                .zip(inp.iter_simd())
-                                .for_each(
-                                    |(x, y)| {
-                                        *x = op(*x, y);
-                                    },
-                                    |(x, y)| {
-                                        *x = vec_op(*x, y);
-                                    }
-                                );
+                            {
+                                let inner_loop_size = *res.shape().last().unwrap() as isize;
+                                let outer_loop_size = (inp.size() as isize) / inner_loop_size;
+                                let inp_ptr = inp.ptr();
+                                let res_ptr = res.ptr();
+                                if
+                                    *inp.strides().last().unwrap() == 1 &&
+                                    <O as TypeCommon>::Vec::SIZE == <T as TypeCommon>::Vec::SIZE
+                                {
+                                    fast_reduce_simd(
+                                        inner_loop_size,
+                                        outer_loop_size,
+                                        inp_ptr,
+                                        res_ptr,
+                                        inp.strides().inner(),
+                                        inp.shape().inner(),
+                                        <O as TypeCommon>::Vec::SIZE as isize,
+                                        op,
+                                        vec_op
+                                    );
+                                } else {
+                                    fast_reduce_no_simd(
+                                        inner_loop_size,
+                                        outer_loop_size,
+                                        inp_ptr,
+                                        res_ptr,
+                                        inp.strides().inner(),
+                                        inp.shape().inner(),
+                                        op
+                                    );
+                                }
+                            }
                             #[cfg(not(feature = "simd"))]
-                            res.iter_mut()
-                                .zip(inp.iter())
-                                .for_each(|(x, y)| {
-                                    *x = op(*x, y);
-                                });
+                            fast_reduce_no_simd(
+                                inner_loop_size,
+                                outer_loop_size,
+                                inp_ptr,
+                                res_ptr,
+                                inp.strides().inner(),
+                                inp.shape().inner(),
+                                op
+                            );
                             if let Some(op3) = op3 {
                                 #[cfg(feature = "simd")]
                                 res.iter_mut().for_each(|x| {
@@ -1441,7 +1468,7 @@ pub(crate) fn reduce2<T, F, F2, F3, O>(
             'static +
             Copy,
         O: CommonBounds,
-        <T as TypeCommon>::Vec: IntoVec<<O as TypeCommon>::Vec> + Copy,
+        <T as TypeCommon>::Vec: Copy,
         <O as TypeCommon>::Vec: Copy
 {
     _reduce::<T, F, F2, fn(O) -> O, _, fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec, O>(
@@ -1553,513 +1580,6 @@ impl<T: CommonBounds + NormalOut<Output = T> + Cmp> IndexReduce for _Tensor<T> {
     fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         argmin(self, axes, 0, keep_dims, None)
-    }
-}
-
-// #[cfg(not(feature = "simd"))]
-// impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> NormalReduce<T>
-// for _Tensor<T> {
-//     type Output = _Tensor<T>;
-
-//     type BoolOutput = _Tensor<bool>;
-
-//     fn sum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-//         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-//         reduce(self, |a, b| a._add(b), &axes, T::ZERO, keep_dims, false, None)
-//     }
-
-//     fn sum_<S: Into<Axis>>(
-//         &self,
-//         axes: S,
-//         keep_dims: bool,
-//         init_out: bool,
-//         out: Self::Output
-//     ) -> anyhow::Result<Self::Output> {
-//         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-//         reduce(self, |a, b| a._add(b), &axes, T::ZERO, keep_dims, init_out, Some(out))
-//     }
-
-//     fn sum_with_init<S: Into<Axis>>(
-//         &self,
-//         init_val: T,
-//         axes: S,
-//         keep_dims: bool
-//     ) -> anyhow::Result<Self::Output> {
-//         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-//         reduce(self, |a, b| a._add(b), &axes, init_val, keep_dims, false, None)
-//     }
-
-//     fn nansum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-//         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-//         reduce(
-//             self,
-//             |a, b| {
-//                 if b._is_nan() { a } else { b._add(a) }
-//             },
-//             &axes,
-//             T::ZERO,
-//             keep_dims,
-//             false,
-//             None
-//         )
-//     }
-
-//     fn nansum_with_init<S: Into<Axis>>(
-//         &self,
-//         init_val: T,
-//         axes: S,
-//         keep_dims: bool
-//     ) -> anyhow::Result<Self::Output> {
-//         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-//         reduce(
-//             self,
-//             |a, b| {
-//                 if b._is_nan() { a } else { b._add(a) }
-//             },
-//             &axes,
-//             init_val,
-//             keep_dims,
-//             false,
-//             None
-//         )
-//     }
-
-//     fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-//         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-//         reduce(self, |a, b| a._mul(b), &axes, T::ONE, keep_dims, false, None)
-//     }
-
-//     fn prod_with_init<S: Into<Axis>>(
-//         &self,
-//         init_val: T,
-//         axes: S,
-//         keep_dims: bool
-//     ) -> anyhow::Result<Self::Output> {
-//         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-//         reduce(self, |a, b| a._mul(b), &axes, init_val, keep_dims, false, None)
-//     }
-
-//     fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-//         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-//         reduce(
-//             self,
-//             |a, b| {
-//                 if b._is_nan() { a } else { b._mul(a) }
-//             },
-//             &axes,
-//             T::ONE,
-//             keep_dims,
-//             false,
-//             None
-//         )
-//     }
-
-//     fn nanprod_with_init<S: Into<Axis>>(
-//         &self,
-//         init_val: T,
-//         axes: S,
-//         keep_dims: bool
-//     ) -> anyhow::Result<Self::Output> {
-//         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-//         reduce(
-//             self,
-//             |a, b| {
-//                 if b._is_nan() { a } else { b._mul(a) }
-//             },
-//             &axes,
-//             init_val,
-//             keep_dims,
-//             false,
-//             None
-//         )
-//     }
-
-//     fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
-//         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-//         reduce(self, |a, b| a._min(b), &axes, T::INF, keep_dims, false, None)
-//     }
-
-//     fn min_with_init<S: Into<Axis>>(
-//         &self,
-//         init_val: T,
-//         axes: S,
-//         keep_dims: bool
-//     ) -> anyhow::Result<Self> {
-//         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-//         reduce(self, |a, b| a._min(b), &axes, init_val, keep_dims, false, None)
-//     }
-
-//     fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
-//         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-//         reduce(self, |a, b| a._max(b), &axes, T::NEG_INF, keep_dims, false, None)
-//     }
-
-//     fn max_with_init<S: Into<Axis>>(
-//         &self,
-//         init_val: T,
-//         axes: S,
-//         keep_dims: bool
-//     ) -> anyhow::Result<Self> {
-//         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-//         reduce(self, |a, b| a._max(b), &axes, init_val, keep_dims, false, None)
-//     }
-
-//     fn all<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
-//         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-//         reduce2(
-//             self,
-//             |a, b| b._is_true() & a,
-//             |a, b| b._is_true() & a,
-//             &axes,
-//             true,
-//             keep_dims,
-//             false,
-//             None
-//         )
-//     }
-
-//     fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
-//         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-//         reduce2(
-//             self,
-//             |a, b| b._is_true() | a,
-//             |a, b| b._is_true() | a,
-//             &axes,
-//             false,
-//             keep_dims,
-//             false,
-//             None
-//         )
-//     }
-
-//     fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-//         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-//         reduce(self, |a, b| a._add(b._abs()), &axes, T::ZERO, keep_dims, false, None)
-//     }
-
-//     fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-//         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-//         reduce(self, |a, b| a._add(b._square()), &axes, T::ZERO, keep_dims, false, None)
-//     }
-// }
-
-impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> NormalReduce<T>
-    for _Tensor<T>
-    where
-        <T as TypeCommon>::Vec: IntoVec<<T as TypeCommon>::Vec> +
-            Copy +
-            NormalOut<Output = <T as TypeCommon>::Vec> +
-            Eval<Output = bool> +
-            Cmp,
-        T: IntoScalar<T> + IntoScalar<bool>
-{
-    type Output = _Tensor<T>;
-
-    type BoolOutput = _Tensor<bool>;
-
-    fn sum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce(
-            self,
-            |a, b| a._add(b),
-            |a, b| a._add(b),
-            &axes,
-            T::ZERO,
-            keep_dims,
-            false,
-            None
-        )
-    }
-
-    fn sum_<S: Into<Axis>>(
-        &self,
-        axes: S,
-        keep_dims: bool,
-        init_out: bool,
-        out: Self::Output
-    ) -> anyhow::Result<Self::Output> {
-        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce(
-            self,
-            |a, b| a._add(b),
-            |a, b| a._add(b),
-            &axes,
-            T::ZERO,
-            keep_dims,
-            init_out,
-            Some(out)
-        )
-    }
-
-    fn sum_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool
-    ) -> anyhow::Result<Self::Output> {
-        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce(
-            self,
-            |a, b| a._add(b),
-            |a, b| a._add(b),
-            &axes,
-            init_val,
-            keep_dims,
-            false,
-            None
-        )
-    }
-
-    fn nansum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce(
-            self,
-            |a, b| {
-                if b._is_nan() { a } else { b._add(a) }
-            },
-            |a, b| {
-                if b._is_nan() { a } else { b._add(a) }
-            },
-            &axes,
-            T::ZERO,
-            keep_dims,
-            false,
-            None
-        )
-    }
-
-    fn nansum_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool
-    ) -> anyhow::Result<Self::Output> {
-        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce(
-            self,
-            |a, b| {
-                if b._is_nan() { a } else { b._add(a) }
-            },
-            |a, b| {
-                if b._is_nan() { a } else { b._add(a) }
-            },
-            &axes,
-            init_val,
-            keep_dims,
-            false,
-            None
-        )
-    }
-
-    fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce(
-            self,
-            |a, b| a._mul(b),
-            |a, b| a._mul(b),
-            &axes,
-            T::ONE,
-            keep_dims,
-            false,
-            None
-        )
-    }
-
-    fn prod_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool
-    ) -> anyhow::Result<Self::Output> {
-        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce(
-            self,
-            |a, b| a._mul(b),
-            |a, b| a._mul(b),
-            &axes,
-            init_val,
-            keep_dims,
-            false,
-            None
-        )
-    }
-
-    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce(
-            self,
-            |a, b| {
-                if b._is_nan() { a } else { b._mul(a) }
-            },
-            |a, b| {
-                if b._is_nan() { a } else { b._mul(a) }
-            },
-            &axes,
-            T::ONE,
-            keep_dims,
-            false,
-            None
-        )
-    }
-
-    fn nanprod_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool
-    ) -> anyhow::Result<Self::Output> {
-        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce(
-            self,
-            |a, b| {
-                if b._is_nan() { a } else { b._mul(a) }
-            },
-            |a, b| {
-                if b._is_nan() { a } else { b._mul(a) }
-            },
-            &axes,
-            init_val,
-            keep_dims,
-            false,
-            None
-        )
-    }
-
-    fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
-        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce(
-            self,
-            |a, b| a._min(b),
-            |a, b| a._min(b),
-            &axes,
-            T::INF,
-            keep_dims,
-            false,
-            None
-        )
-    }
-
-    fn min_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool
-    ) -> anyhow::Result<Self> {
-        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce(
-            self,
-            |a, b| a._min(b),
-            |a, b| a._min(b),
-            &axes,
-            init_val,
-            keep_dims,
-            false,
-            None
-        )
-    }
-
-    fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
-        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce(
-            self,
-            |a, b| a._max(b),
-            |a, b| a._max(b),
-            &axes,
-            T::NEG_INF,
-            keep_dims,
-            false,
-            None
-        )
-    }
-
-    fn max_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool
-    ) -> anyhow::Result<Self> {
-        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce(
-            self,
-            |a, b| a._max(b),
-            |a, b| a._max(b),
-            &axes,
-            init_val,
-            keep_dims,
-            false,
-            None
-        )
-    }
-
-    fn all<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
-        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        // reduce2(
-        //     self,
-        //     |a, b| b & a,
-        //     |a, b| b & a,
-        //     |a, b| {let mut res = [false; 32];
-        //         for i in 0..32 {
-        //             res[i] = b[i] & a[i];
-        //         }
-        //         res
-        //     },
-        //     &axes,
-        //     true,
-        //     keep_dims,
-        //     false,
-        //     None
-        // )
-        todo!()
-    }
-
-    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
-        // let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        // reduce2(
-        //     self,
-        //     |a, b| b | a,
-        //     |a, b| b | a,
-        //     |a, b| {
-        //         let mut res = [false; 32];
-        //         for i in 0..32 {
-        //             res[i] = b[i] | a[i];
-        //         }
-        //         res
-        //     },
-        //     &axes,
-        //     false,
-        //     keep_dims,
-        //     false,
-        //     None
-        // )
-        todo!()
-    }
-
-    fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce(
-            self,
-            |a, b| a._add(b._abs()),
-            |a, b| a._add(b._abs()),
-            &axes,
-            T::ZERO,
-            keep_dims,
-            false,
-            None
-        )
-    }
-
-    fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce(
-            self,
-            |a, b| a._add(b._square()),
-            |a, b| a._add(b._square()),
-            &axes,
-            T::ZERO,
-            keep_dims,
-            false,
-            None
-        )
     }
 }
 

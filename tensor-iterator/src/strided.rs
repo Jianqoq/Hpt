@@ -152,9 +152,9 @@ pub mod strided_simd {
                 }
             }
         }
-
+        #[inline(always)]
         fn inner_loop_next(&mut self, index: usize) -> Self::Item {
-            unsafe { *self.ptr.get_ptr().add(index * (self.last_stride as usize)) }
+            unsafe { *self.ptr.ptr.offset(index as isize * (self.last_stride as isize)) }
         }
 
         fn set_prg(&mut self, prg: Vec<i64>) {

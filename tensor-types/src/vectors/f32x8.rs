@@ -52,7 +52,7 @@ impl Init<f32> for f32x8 {
         f32x8(std::simd::f32x8::splat(val))
     }
     unsafe fn from_ptr(ptr: *const f32) -> Self {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_load_ps(ptr as *const _)) }
+        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_ps(ptr as *const _)) }
     }
 }
 impl IntoVec<f32x8> for f32x8 {
@@ -61,7 +61,7 @@ impl IntoVec<f32x8> for f32x8 {
     }
 }
 
-impl SimdSelect<f32x8> for std::simd::u32x8 {
+impl SimdSelect<f32x8> for crate::vectors::u32x8::u32x8 {
     fn select(&self, true_val: f32x8, false_val: f32x8) -> f32x8 {
         let mask: std::simd::mask32x8 = unsafe { std::mem::transmute(*self) };
         f32x8(mask.select(true_val.0, false_val.0))

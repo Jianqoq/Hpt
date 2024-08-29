@@ -54,7 +54,7 @@ impl Init<i16> for i16x16 {
     }
 
     unsafe fn from_ptr(ptr: *const i16) -> Self {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_load_si256(ptr as *const _)) }
+        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_si256(ptr as *const _)) }
     }
 }
 impl IntoVec<i16x16> for i16x16 {

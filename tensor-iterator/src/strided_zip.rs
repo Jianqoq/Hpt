@@ -73,6 +73,7 @@ pub mod strided_zip_simd {
             self.b.next();
         }
 
+        #[inline(always)]
         fn inner_loop_next(&mut self, index: usize) -> Self::Item {
             (self.a.inner_loop_next(index), self.b.inner_loop_next(index))
         }

@@ -1,5 +1,6 @@
 use binary_float_out::impl_float_out_binary;
 use float_unary::impl_float_out_unary;
+use kernel_gen_helper::__gen_fast_reduce_simd_helper;
 use proc_macro::TokenStream;
 use simd_bitwise::impl_simd_bitwise_out;
 use simd_convert::__impl_simd_convert;
@@ -14,6 +15,7 @@ mod float_unary;
 mod simd_eval;
 mod simd_cmp;
 mod simd_bitwise;
+mod kernel_gen_helper;
 use crate::simd_cmp::impl_simd_cmp;
 use quote::quote;
 use type_utils::TypeInfo;
@@ -980,26 +982,39 @@ pub fn impl_eval(_: TokenStream) -> TokenStream {
 
         let is_true = if lhs_dtype.is_bool() {
             quote! {
+                #[inline(always)]
                 fn _is_true(&self) -> bool {
                     *self
                 }
             }
         } else {
-            quote! {
-                fn _is_true(&self) -> bool {
-                    self == &#lhs_dtype::ZERO
+            if lhs_dtype.is_f32() {
+                quote! {
+                    #[inline(always)]
+                    fn _is_true(&self) -> bool {
+                        self.to_bits() & 0x7FFFFFFF != 0
+                    }
+                }
+            } else {
+                quote! {
+                    #[inline(always)]
+                    fn _is_true(&self) -> bool {
+                        self == &#lhs_dtype::ZERO
+                    }
                 }
             }
         };
 
         let is_inf = if lhs_dtype.is_float() {
             quote! {
+                #[inline(always)]
                 fn _is_inf(&self) -> bool {
                     self.is_infinite()
                 }
             }
         } else {
             quote! {
+                #[inline(always)]
                 fn _is_inf(&self) -> bool {
                     false
                 }
@@ -1160,4 +1175,9 @@ pub fn impl_tensor_slice_std_ops(_: TokenStream) -> TokenStream {
     }
 
     ret.into()
+}
+
+#[proc_macro]
+pub fn gen_fast_reduce_simd_helper(input: TokenStream) -> TokenStream {
+    __gen_fast_reduce_simd_helper(input)
 }

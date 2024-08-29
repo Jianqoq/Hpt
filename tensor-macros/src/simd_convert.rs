@@ -54,6 +54,7 @@ pub fn __impl_simd_convert() -> TokenStream {
                         }
                     }
                     } else if type_simd_is_arr(rhs) || type_simd_is_arr(lhs) {
+                        
                         let unroll = (0..lhs_lanes as usize).map(|i| {
                             quote! {
                             arr[#i] = self_arr[#i].#function_name();

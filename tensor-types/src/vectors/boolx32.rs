@@ -1,4 +1,4 @@
-use std::simd::{cmp::SimdPartialEq, Simd};
+use std::simd::{ cmp::SimdPartialEq, Simd };
 use std::simd::cmp::SimdPartialOrd;
 use crate::into_vec::IntoVec;
 
@@ -141,5 +141,23 @@ impl std::ops::Rem for boolx32 {
             ret.0[i] = self.0[i] ^ rhs.0[i];
         }
         ret
+    }
+}
+impl std::ops::BitOr for boolx32 {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        let mask: Simd<u8, 32> = unsafe { std::mem::transmute(self) };
+        let rhs: Simd<u8, 32> = unsafe { std::mem::transmute(rhs) };
+        boolx32(unsafe { std::mem::transmute(mask | rhs) })
+    }
+}
+impl std::ops::BitAnd for boolx32 {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        let mask: Simd<u8, 32> = unsafe { std::mem::transmute(self) };
+        let rhs: Simd<u8, 32> = unsafe { std::mem::transmute(rhs) };
+        boolx32(unsafe { std::mem::transmute(mask & rhs) })
     }
 }

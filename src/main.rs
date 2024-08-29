@@ -5,24 +5,24 @@ use tensor_dyn::*;
 
 fn main() -> anyhow::Result<()> {
     set_global_display_precision(7);
-    set_global_display_lr_elements(6);
+    set_global_display_lr_elements(3);
     set_num_threads(10);
     tch::set_num_threads(10);
-    let a = _Tensor::<f32>::randn(&[256, 256, 256])?;
-    let b = _Tensor::<f32>::arange(0i64, 256 * 256)?.reshape(&[256])?;
+    let a = _Tensor::<f32>::arange(0, 256 * 256 * 2024)?.reshape(&[256, 256, 2024])?;
 
     let now = std::time::Instant::now();
-    black_box(for _ in 0..100 {
-        let res = a.selu(None, None)?;
+    black_box(for _ in 0..1 {
+        let res = a.sum([0, 1], false)?;
+        println!("{:?}", res);
     });
-    println!("hpt time: {:?}", now.elapsed() /100);
+    println!("hpt time: {:?}", now.elapsed() / 100);
 
-    let a = Tensor::randn([256, 256, 256], (Kind::Float, Device::Cpu));
-    let b = Tensor::arange(1 * 256, (Kind::Float, Device::Cpu)).reshape(&[256]);
+    let a = Tensor::arange(256 * 256 * 2024, (Kind::Float, Device::Cpu)).reshape(&[256, 256, 2024]);
 
     let now = std::time::Instant::now();
-    black_box(for _ in 0..100 {
-        let res: Tensor = a.selu();
+    black_box(for _ in 0..1 {
+        let res = a.sum_dim_intlist(&[0, 1][..], false, Kind::Float);
+        println!("{}", res);
     });
     println!("torch time: {:?}", now.elapsed() / 100);
     Ok(())

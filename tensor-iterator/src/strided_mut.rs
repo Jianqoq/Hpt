@@ -23,13 +23,17 @@ pub mod simd_imports {
 
     pub struct StridedMutSimd<'a, T: TypeCommon> {
         pub(crate) base: StridedSimd<T>,
+        pub(crate) last_stride: i64,
         pub(crate) phantom: std::marker::PhantomData<&'a ()>,
     }
 
     impl<'a, T: CommonBounds> StridedMutSimd<'a, T> {
         pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
+            let base = StridedSimd::new(tensor);
+            let last_stride = base.last_stride;
             StridedMutSimd {
-                base: StridedSimd::new(tensor),
+                base,
+                last_stride,
                 phantom: std::marker::PhantomData,
             }
         }
@@ -132,14 +136,10 @@ pub mod simd_imports {
         fn next(&mut self) {
             self.base.next();
         }
-
+        #[inline(always)]
         fn inner_loop_next(&mut self, index: usize) -> Self::Item {
             unsafe {
-                self.base.ptr
-                    .get_ptr()
-                    .add(index * (self.base.last_stride as usize))
-                    .as_mut()
-                    .unwrap()
+                &mut *self.base.ptr.ptr.offset((index as isize) * (self.last_stride as isize))
             }
         }
 

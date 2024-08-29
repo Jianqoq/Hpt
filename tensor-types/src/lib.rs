@@ -4,7 +4,6 @@ pub extern crate half;
 pub mod type_promote;
 pub mod convertion;
 pub mod into_scalar;
-pub mod vector_convert;
 pub mod into_vec;
 pub mod vectors {
     pub mod f32x8;

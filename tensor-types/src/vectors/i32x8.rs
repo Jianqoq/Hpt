@@ -53,7 +53,7 @@ impl Init<i32> for i32x8 {
         i32x8(std::simd::i32x8::splat(val))
     }
     unsafe fn from_ptr(ptr: *const i32) -> Self {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_load_si256(ptr as *const _)) }
+        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_si256(ptr as *const _)) }
     }
 }
 impl IntoVec<i32x8> for i32x8 {

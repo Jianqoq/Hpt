@@ -39,6 +39,9 @@ pub mod ops {
             pub mod conv2d_unroll;
             pub mod conv2d_copy;
         }
+        pub mod kernels {
+            pub mod reduce_kernels;
+        }
     }
     pub mod wgpu {
         pub mod buffer_helper;
