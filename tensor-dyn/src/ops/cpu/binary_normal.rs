@@ -183,6 +183,7 @@ pub fn binary_fn_with_out<A, B, O, Q, K, F>(
     }
 }
 
+/// same function as `binary_fn_simd`, just the output tensor is passed as an argument
 #[cfg(feature = "simd")]
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
@@ -435,10 +436,15 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
 {
     use rayon::slice::{ ParallelSlice, ParallelSliceMut };
 
+    // for binary, case could be (scalar op tensor) or (tensor op scalar) or (tensor op tensor)
+    // scalr can be store in to the register to achieve better performance
     if lhs.size() == 1 {
         let val = lhs.as_raw()[0];
         let val_vec = <A as TypeCommon>::Vec::splat(val);
         let res = _Tensor::<K, Cpu>::empty(rhs.shape())?;
+
+        // simd is enabled only when all operands and output type have the same vector size.
+        // example: f32x4 + f32x4 = f32x4 or f32x8 + i32x8 = f32x8. f32x4 + f32x8 is not allowed.
         if
             <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE &&
             <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
@@ -492,6 +498,9 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
         let val = rhs.as_raw()[0];
         let val_vec = <B as TypeCommon>::Vec::splat(val);
         let res = _Tensor::<K, Cpu>::empty(lhs.shape())?;
+
+        // simd is enabled only when all operands and output type have the same vector size.
+        // example: f32x4 + f32x4 = f32x4 or f32x8 + i32x8 = f32x8. f32x4 + f32x8 is not allowed.
         if
             <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE &&
             <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
@@ -542,6 +551,7 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
         }
         Ok(res)
     } else {
+        // if both lhs and rhs are contiguous and have the same shape, we can directly convert both to 1D array and parrallelize the operation
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
             let ret;
             ret = _Tensor::<K, Cpu>::empty(rhs.shape())?;
@@ -549,6 +559,7 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
                 <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE &&
                 <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
             {
+                // chunk the array, the chunk size must be a multiple of the vector size
                 let per_thread_len = ret.size() / rayon::current_num_threads();
                 let per_thread_remain = per_thread_len % <K as TypeCommon>::Vec::SIZE;
                 let total_remain = rayon::current_num_threads() * per_thread_remain;
@@ -577,6 +588,7 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
                                 }
                             });
                     });
+                // handle the remaining elements
                 if total_remain > 0 {
                     ret.as_raw_mut()
                         [ret.size() - total_remain..].iter_mut()
@@ -600,6 +612,8 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
             }
             Ok(ret)
         } else {
+            // simd is enabled only when all operands and output type have the same vector size.
+            // example: f32x4 + f32x4 = f32x4 or f32x8 + i32x8 = f32x8. f32x4 + f32x8 is not allowed.
             if
                 <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE &&
                 <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
@@ -618,6 +632,7 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
                     .collect::<_Tensor<K>>();
                 Ok(ret)
             } else {
+                // because the computation can't be parallelized and opeands are not contiguous, we have to use parallel strided
                 let ret = lhs
                     .par_iter()
                     .zip(rhs.par_iter())
