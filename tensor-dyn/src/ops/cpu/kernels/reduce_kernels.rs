@@ -128,7 +128,7 @@ macro_rules! gen_kernel {
 
 // case when reduce along all axes except the fastest dimension, this case, inner loop stride is always 1
 #[inline]
-pub(crate) fn fast_reduce_simd<T, O, F, F2>(
+pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
     inner_loop_size: isize,
     outer_loop_size: isize,
     mut inp_ptr: tensor_common::pointer::Pointer<T>,
@@ -137,7 +137,9 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2>(
     inp_shape: &[i64],
     vec_size: isize,
     op: F,
-    vec_op: F2
+    vec_op: F2,
+    _: Option<F3>,
+    _: Option<F4>
 )
     where
         T: CommonBounds,
@@ -193,14 +195,15 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2>(
 }
 
 #[inline]
-pub(crate) fn fast_reduce_no_simd<T, O, F>(
+pub(crate) fn fast_reduce_no_simd<T, O, F, F2>(
     inner_loop_size: isize,
     outer_loop_size: isize,
     mut inp_ptr: tensor_common::pointer::Pointer<T>,
     mut res_ptr: tensor_common::pointer::Pointer<O>,
     inp_strides: &[i64],
     inp_shape: &[i64],
-    op: F
+    op: F,
+    _: Option<F2>
 )
     where T: CommonBounds, O: CommonBounds, F: Fn(O, T) -> O
 {

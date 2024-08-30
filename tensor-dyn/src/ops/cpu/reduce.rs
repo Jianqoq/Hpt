@@ -10,11 +10,10 @@ use crate::backend::Cpu;
 
 use tensor_common::slice::Slice;
 use tensor_common::axis::{ process_axes, Axis };
-use tensor_traits::TensorLike;
 use tensor_types::into_scalar::IntoScalar;
 use rayon::iter::IntoParallelRefIterator;
 use tensor_types::dtype::TypeCommon;
-use tensor_traits::tensor::{ FloatReduce, IndexReduce, TensorInfo };
+use tensor_traits::tensor::{ IndexReduce, TensorInfo };
 use rayon::iter::IntoParallelRefMutIterator;
 use rayon::iter::ParallelIterator;
 use std::borrow::BorrowMut;
@@ -24,13 +23,10 @@ use tensor_common::shape_utils::{ mt_intervals, predict_reduce_shape };
 use tensor_common::pointer::Pointer;
 use anyhow;
 use tensor_traits::tensor::CommonBounds;
-use tensor_types::convertion::FromScalar;
-use tensor_types::type_promote::{ Cmp, FloatOutBinary, NormalOut };
+use tensor_types::type_promote::{ Cmp, NormalOut };
 use std::sync::Arc;
 use std::sync::Barrier;
 use tensor_traits::shape_manipulate::ShapeManipulate;
-
-use super::unary::FloatBinaryType;
 
 #[derive(Debug)]
 pub(crate) struct ReductionPreprocessor<T, U> {
@@ -168,12 +164,6 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
             });
         }
         iterators
-    }
-
-    pub fn reset_prg(&mut self) {
-        self.prg.iter_mut().for_each(|x| {
-            *x = 0;
-        });
     }
 }
 
@@ -819,7 +809,9 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                                         inp.shape().inner(),
                                         <O as TypeCommon>::Vec::SIZE as isize,
                                         op,
-                                        vec_op
+                                        vec_op,
+                                        op3,
+                                        vec_post
                                     );
                                 } else {
                                     fast_reduce_no_simd(
@@ -829,7 +821,8 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                                         res_ptr,
                                         inp.strides().inner(),
                                         inp.shape().inner(),
-                                        op
+                                        op,
+                                        op3
                                     );
                                 }
                             }
@@ -1123,132 +1116,5 @@ impl<T: CommonBounds + NormalOut<Output = T> + Cmp> IndexReduce for _Tensor<T> {
     fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         argmin(self, axes, 0, keep_dims, None)
-    }
-}
-
-impl<T> FloatReduce<T>
-    for _Tensor<T>
-    where
-        T: CommonBounds +
-            NormalOut<T, Output = T> +
-            NormalOut<FloatBinaryType<T>, Output = FloatBinaryType<T>> +
-            FloatOutBinary +
-            Cmp +
-            IntoScalar<T> +
-            IntoScalar<<T as FloatOutBinary>::Output>,
-        FloatBinaryType<T>: CommonBounds +
-            NormalOut<T, Output = FloatBinaryType<T>> +
-            FloatOutBinary<Output = FloatBinaryType<T>> +
-            NormalOut<FloatBinaryType<T>, Output = FloatBinaryType<T>> +
-            FromScalar<usize> +
-            IntoScalar<FloatBinaryType<T>>,
-        f64: IntoScalar<<T as NormalOut>::Output>,
-        f64: IntoScalar<FloatBinaryType<T>>,
-        _Tensor<<T as FloatOutBinary>::Output>: TensorLike<
-            <T as FloatOutBinary>::Output,
-            Output = _Tensor<<T as FloatOutBinary>::Output>
-        >,
-        <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<Output = <FloatBinaryType<T> as TypeCommon>::Vec> +
-            FloatOutBinary<Output = <FloatBinaryType<T> as TypeCommon>::Vec> +
-            IntoVec<<FloatBinaryType<T> as TypeCommon>::Vec> +
-            NormalOut<
-                <T as TypeCommon>::Vec,
-                Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
-            >,
-        <T as TypeCommon>::Vec: IntoVec<<FloatBinaryType<T> as TypeCommon>::Vec> +
-            Copy +
-            NormalOut<Output = <T as TypeCommon>::Vec>
-{
-    type Output = _Tensor<FloatBinaryType<T>>;
-    fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        let reduce_size: FloatBinaryType<T> = (
-            axes.iter().fold(1, |acc, &x| acc * (self.shape()[x] as usize)) as f64
-        ).into_scalar();
-        let reduce_vec = <FloatBinaryType<T> as TypeCommon>::Vec::splat(reduce_size);
-        reduce3(
-            self,
-            |a, b| a._add(b),
-            |a, b| a._add(b),
-            move |a| a._div(reduce_size),
-            |a, b| a._add(b),
-            move |a| a._div(reduce_vec),
-            &axes,
-            <T as FloatOutBinary>::Output::ZERO,
-            keep_dims,
-            false,
-            None
-        )
-    }
-
-    fn reducel2<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        // let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        // reduce3(
-        //     self,
-        //     |a: <T as FloatOut>::Output, b| {
-        //         let b = <<T as FloatOut>::Output as NormalOut>::_square(b);
-        //         a._add(b)
-        //     },
-        //     |a, b| a._add(b),
-        //     move |a| a._sqrt(),
-        //     |a, b| a._add(b),
-        //     |a| a._sqrt(),
-        //     &axes,
-        //     <T as FloatOut>::Output::ZERO,
-        //     keep_dims,
-        //     false,
-        //     None
-        // )
-        todo!()
-    }
-
-    fn reducel3<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        // let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        // let three: <T as FloatOutBinary>::Output = (3.0).into_scalar();
-        // let three_vec = <<T as FloatOutBinary>::Output as TypeCommon>::Vec::splat(three);
-        // reduce3(
-        //     self,
-        //     move |a, b| {
-        //         let b = b._abs();
-        //         a._add(b._pow(three))
-        //     },
-        //     move |a, b| a._add(<FloatBinaryType<T> as NormalOut>::_abs(b)._pow(three)),
-        //     move |a| a,
-        //     move |a, b| {
-        //         let abs = b._abs();
-        //         let pow = abs._pow(three_vec);
-        //         a._add(b._abs()._pow(three_vec))
-        //     },
-        //     |a| a,
-        //     &axes,
-        //     <T as FloatOutBinary>::Output::ZERO,
-        //     keep_dims,
-        //     false,
-        //     None
-        // )
-        todo!()
-    }
-
-    fn logsumexp<S: Into<Axis>>(&self, _: S, _: bool) -> anyhow::Result<Self::Output> {
-        // let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        // let x_max = reduce(self, |a, b| a._max(b), &axes, T::NEG_INF, true, false, None)?;
-        // let sub = self - &x_max;
-        // let exp = sub.exp()?;
-        // let sum_exp = reduce(
-        //     &exp,
-        //     |a, b| a._add(b),
-        //     &axes,
-        //     <T as FloatOut>::Output::ZERO,
-        //     true,
-        //     false,
-        //     None
-        // )?;
-        // let add = x_max + sum_exp.ln()?;
-        // if keep_dims {
-        //     Ok(add)
-        // } else {
-        //     Ok(add.squeeze(axes)?)
-        // }
-        todo!()
     }
 }
