@@ -13,7 +13,7 @@ fn main() -> anyhow::Result<()> {
     // println!("{:?}", a);
     let now = std::time::Instant::now();
     black_box(for _ in 0..100 {
-        let res = a.mean(&[1], false);
+        let res = a.tensor_ge(&b);
     });
     println!("hpt time: {:?}", now.elapsed() / 100);
 

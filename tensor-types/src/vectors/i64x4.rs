@@ -1,7 +1,5 @@
 use std::ops::{ Deref, DerefMut };
 
-use crate::into_vec::IntoVec;
-
 use super::traits::{ Init, VecSize, VecTrait };
 
 #[allow(non_camel_case_types)]
@@ -56,11 +54,6 @@ impl Init<i64> for i64x4 {
 
     unsafe fn from_ptr(ptr: *const i64) -> Self {
         unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_si256(ptr as *const _)) }
-    }
-}
-impl IntoVec<i64x4> for i64x4 {
-    fn into_vec(self) -> i64x4 {
-        self
     }
 }
 impl std::ops::Add for i64x4 {

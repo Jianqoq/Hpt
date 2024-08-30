@@ -88,6 +88,56 @@ pub fn impl_float_out_unary() -> TokenStream {
                 }
             }
         };
+        let gelu = if res_type.is_bf16() {
+            quote! {
+                fn _gelu(self) -> Self::Output {
+                    let x = self.to_f32();
+                    let sqrt2_over_2 = std::f32::consts::FRAC_1_SQRT_2;
+                    (0.5 * x * (f32::ONE + (x * sqrt2_over_2).erf())).to_bf16()
+                }
+            }
+        } else if res_type.is_f16() {
+            quote! {
+                fn _gelu(self) -> Self::Output {
+                    let x = self.to_f32();
+                    let sqrt2_over_2 = std::f32::consts::FRAC_1_SQRT_2;
+                    (0.5 * x * (f32::ONE + (x * sqrt2_over_2).erf())).to_f16()
+                }
+            }
+        } else if res_type.is_f32() {
+            quote! {
+                fn _gelu(self) -> Self::Output {
+                    let x = self.to_f32();
+                    let sqrt2_over_2 = std::f32::consts::FRAC_1_SQRT_2;
+                    0.5 * x * (f32::ONE + (x * sqrt2_over_2).erf())
+                }
+            }
+        } else {
+            quote! {
+                fn _gelu(self) -> Self::Output {
+                    let x = self.to_f64();
+                    let sqrt2_over_2 = std::f64::consts::FRAC_1_SQRT_2;
+                    f64::HALF * x * (f64::ONE + (x * sqrt2_over_2).erf())
+                }
+            }
+        };
+        let erf = if res_type.is_bf16() || res_type.is_f16() {
+            quote! {
+                fn _erf(self) -> Self::Output {
+                    paste::paste! {
+                        self.to_f32().erf().[<to_ #res_type>]()
+                    }
+                }
+            }
+        } else {
+            quote! {
+                fn _erf(self) -> Self::Output {
+                    paste::paste! {
+                        self.[<to_ #res_type>]().erf()
+                    }
+                }
+            }
+        };
         let res =
             quote! {
                 impl FloatOutUnary for #lhs_dtype {
@@ -188,11 +238,7 @@ pub fn impl_float_out_unary() -> TokenStream {
                             self.[<to_ #res_type>]().recip()
                         }
                     }
-                    fn _erf(self) -> Self::Output {
-                        paste::paste! {
-                            erf(self.to_f64()).[<to_ #res_type>]()
-                        }
-                    }
+                    #erf
                     fn _celu(self, alpha: Self::Base) -> Self::Output {
                         paste::paste! {
                             let x = self.[<to_ #res_type>]();
@@ -232,13 +278,7 @@ pub fn impl_float_out_unary() -> TokenStream {
                             self.[<to_ #res_type>]().max(#res_type::ZERO)
                         }
                     }
-                    fn _gelu(self) -> Self::Output {
-                        paste::paste! {
-                            let x = self.[<to_ #res_type>]();
-                            let sqrt2_over_2 = std::f64::consts::FRAC_1_SQRT_2;
-                            #res_type::HALF * x * (#res_type::ONE + erf(x.to_f64() * sqrt2_over_2).[<to_ #res_type>]())
-                        }
-                    }
+                    #gelu
                     fn _selu(self, alpha: Self::Base, scale: Self::Base) -> Self::Output {
                         #selu
                     }

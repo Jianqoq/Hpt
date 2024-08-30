@@ -10,6 +10,4 @@ num-complex = "0.4"
 half = { version = "2.3.1", features = ["num-traits", "rand_distr"] }
 paste = "1.0.15"
 num-traits = "0.2.19"
-statrs = "0.17.1"
-wide = "0.7.28"
 sleef = "0.3.2"
