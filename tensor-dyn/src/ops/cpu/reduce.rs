@@ -1,4 +1,8 @@
-use crate::ops::cpu::kernels::reduce_kernels::{ fast_reduce_no_simd, fast_reduce_simd };
+use crate::ops::cpu::kernels::reduce_kernels::{
+    fast_reduce_no_simd,
+    fast_reduce_simd,
+    reduce_dim_not_include_simd,
+};
 use crate::slice::SliceOps;
 use crate::tensor_base::_Tensor;
 use crate::{ argmax_kernel, argmin_kernel };
@@ -6,13 +10,11 @@ use crate::backend::Cpu;
 
 use tensor_common::slice::Slice;
 use tensor_common::axis::{ process_axes, Axis };
-#[cfg(feature = "simd")]
-use tensor_iterator::iterator_traits::StridedIteratorSimd;
 use tensor_traits::TensorLike;
 use tensor_types::into_scalar::IntoScalar;
 use rayon::iter::IntoParallelRefIterator;
 use tensor_types::dtype::TypeCommon;
-use tensor_traits::tensor::{ FloatReduce, IndexReduce, NormalReduce, TensorInfo };
+use tensor_traits::tensor::{ FloatReduce, IndexReduce, TensorInfo };
 use rayon::iter::IntoParallelRefMutIterator;
 use rayon::iter::ParallelIterator;
 use std::borrow::BorrowMut;
@@ -23,8 +25,8 @@ use tensor_common::pointer::Pointer;
 use anyhow;
 use tensor_traits::tensor::CommonBounds;
 use tensor_types::convertion::FromScalar;
-use tensor_types::type_promote::{ Cmp, Eval, FloatOutBinary, NormalOut };
-use std::sync::{ Arc, Mutex };
+use tensor_types::type_promote::{ Cmp, FloatOutBinary, NormalOut };
+use std::sync::Arc;
 use std::sync::Barrier;
 use tensor_traits::shape_manipulate::ShapeManipulate;
 
@@ -132,7 +134,7 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
             let mut a_data_ptr_cpy = ptrs.clone();
             let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
 
-            for i in (0..=ndim - 2).rev() {
+            for i in (0..ndim - 1).rev() {
                 a_data_ptr_cpy.offset(
                     progress_init_a_data[i as usize] * transposed_strides[i as usize]
                 );
@@ -148,7 +150,7 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
             res_ptrs.add((intervals[id].1 - intervals[id].0) * inner_loop_size);
 
             let mut tmp = task_amout as i64;
-            for j in (0..=ndim - 2).rev() {
+            for j in (0..ndim - 1).rev() {
                 progress_init_a_data[j as usize] = tmp % res_shape[j as usize];
                 tmp /= res_shape[j as usize];
             }
@@ -1205,102 +1207,33 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                     );
                     let barrier = Arc::new(Barrier::new(num_threads + 1));
                     for _ in (0..num_threads).rev() {
-                        let mut iterator = iterators.pop().unwrap();
-                        let mut result_ptr_c = iterator.res_ptrs;
-                        let mut a_data_ptr = iterator.ptrs;
+                        let iterator = iterators.pop().unwrap();
+                        let result_ptr_c = iterator.res_ptrs;
+                        let a_data_ptr = iterator.ptrs;
                         let current_size = iterator.end - iterator.start;
                         let barrier_clone = Arc::clone(&barrier);
                         pool.execute(move || {
                             let shape_len = iterator.shape.len() as i64;
-
-                            let vec_size = <T as TypeCommon>::Vec::SIZE;
-
-                            let next1 = |
-                                iterator: &mut ReductionPreprocessor<T, O>,
-                                inp_ptr: &mut Pointer<T>
-                            | {
-                                for j in (shape_len..iterator.a_shape.len() as i64).rev() {
-                                    let j = j as usize;
-                                    if iterator.prg[j] < iterator.a_shape[j] {
-                                        iterator.prg[j] += 1;
-                                        inp_ptr.offset(iterator.strides[j]);
-                                        break;
-                                    } else {
-                                        iterator.prg[j] = 0;
-                                        inp_ptr.offset(-iterator.strides[j] * iterator.a_shape[j]);
-                                    }
-                                }
-                            };
-
-                            let next2 = |
-                                iterator: &mut ReductionPreprocessor<T, O>,
-                                inp_ptr: &mut Pointer<T>
-                            | {
-                                for j in (0..shape_len - 1).rev() {
-                                    let j = j as usize;
-                                    if iterator.a_prg[j] < iterator.a_shape[j] {
-                                        iterator.a_prg[j] += 1;
-                                        inp_ptr.offset(iterator.strides[j]);
-                                        break;
-                                    } else {
-                                        iterator.a_prg[j] = 0;
-                                        inp_ptr.offset(-iterator.strides[j] * iterator.a_shape[j]);
-                                    }
-                                }
-                            };
-
+                            assert_eq!(a_last_stride, 1);
                             #[cfg(feature = "simd")]
-                            if a_last_stride == 1 {
-                                let remain = inner_loop_size % vec_size;
-                                let inner = inner_loop_size - remain;
-                                for _i in 0..current_size {
-                                    for _ in 0..inner_loop_size_2 {
-                                        for i in 0..inner / vec_size {
-                                            let a_vec = unsafe {
-                                                <T as TypeCommon>::Vec::from_ptr(
-                                                    a_data_ptr.ptr.add(i * vec_size)
-                                                )
-                                            };
-                                            let result_vec = unsafe {
-                                                <O as TypeCommon>::Vec::from_ptr(
-                                                    result_ptr_c.ptr.add(i * vec_size)
-                                                )
-                                            };
-                                            let res = vec_op(result_vec, a_vec);
-                                            let ptr = res.as_ptr();
-                                            unsafe {
-                                                std::ptr::copy_nonoverlapping(
-                                                    ptr,
-                                                    result_ptr_c.ptr.add(i * vec_size),
-                                                    vec_size
-                                                );
-                                            }
-                                        }
-                                        for i in inner..inner + remain {
-                                            let a_val = a_data_ptr[i];
-                                            let result_val = result_ptr_c[i];
-                                            let mut_ref = unsafe {
-                                                &mut *result_ptr_c.ptr.offset(i as isize)
-                                            };
-                                            *mut_ref = op(result_val, a_val);
-                                        }
-                                        next1(&mut iterator, &mut a_data_ptr);
-                                    }
-                                    next2(&mut iterator, &mut a_data_ptr);
-                                    if let Some(op3) = op3 {
-                                        for i in 0..inner_loop_size as i64 {
-                                            let result_val = result_ptr_c[i];
-                                            let mut_ref = unsafe {
-                                                &mut *result_ptr_c.ptr.offset(i as isize)
-                                            };
-                                            *mut_ref = op3(result_val);
-                                        }
-                                    }
-                                    result_ptr_c.add(inner_loop_size);
-                                    iterator.reset_prg();
-                                }
-                            } else {
-                            }
+                            let inp_strides = &iterator.strides;
+                            let inp_shape = &iterator.a_shape;
+                            let mut prg1 = iterator.prg.clone();
+                            let mut prg2 = iterator.a_prg.clone();
+                            reduce_dim_not_include_simd(
+                                inner_loop_size as isize,
+                                current_size as isize,
+                                inner_loop_size_2 as isize,
+                                a_data_ptr,
+                                result_ptr_c,
+                                &inp_strides,
+                                &inp_shape,
+                                &mut prg1,
+                                &mut prg2,
+                                shape_len,
+                                op,
+                                vec_op
+                            );
 
                             #[cfg(not(feature = "simd"))]
                             for _i in 0..current_size {

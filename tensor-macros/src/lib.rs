@@ -1,6 +1,6 @@
 use binary_float_out::impl_float_out_binary;
 use float_unary::impl_float_out_unary;
-use kernel_gen_helper::__gen_fast_reduce_simd_helper;
+use kernel_gen_helper::{__gen_fast_reduce_simd_helper, __gen_reduce_dim_not_include_simd_helper};
 use proc_macro::TokenStream;
 use simd_bitwise::impl_simd_bitwise_out;
 use simd_convert::__impl_simd_convert;
@@ -1180,4 +1180,9 @@ pub fn impl_tensor_slice_std_ops(_: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn gen_fast_reduce_simd_helper(input: TokenStream) -> TokenStream {
     __gen_fast_reduce_simd_helper(input)
+}
+
+#[proc_macro]
+pub fn gen_reduce_dim_not_include_simd_helper(input: TokenStream) -> TokenStream {
+    __gen_reduce_dim_not_include_simd_helper(input)
 }

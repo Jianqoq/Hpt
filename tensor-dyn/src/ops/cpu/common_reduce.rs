@@ -316,6 +316,7 @@ impl<T> _Tensor<T>
         )
     }
 
+    #[allow(unused)]
     fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
@@ -329,7 +330,7 @@ impl<T> _Tensor<T>
             None
         )
     }
-
+    #[allow(unused)]
     fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
