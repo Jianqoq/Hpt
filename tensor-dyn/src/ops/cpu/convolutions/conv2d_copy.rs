@@ -1,8 +1,7 @@
-use tensor_types::vectors::*;
+use tensor_types::vectors::{f32x8::f32x8, i32x8::i32x8, traits::*};
 use crate::{ops::cpu::convolutions::conv2d_unroll::{calculate_valid_k_range, calculate_valid_n_range, micro_kernel_range, prepare_regs, prepare_regs2}, tensor_base::_Tensor};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tensor_traits::{TensorCreator, TensorInfo};
-use wide::f32x8;
 use tensor_types::dtype::TypeCommon;
 
 pub fn conv2d_ex_i32_enhanced(
@@ -12,7 +11,6 @@ pub fn conv2d_ex_i32_enhanced(
     padding: [(i64, i64); 2],
     dilation: [i64; 2]
 ) -> anyhow::Result<_Tensor<i32>> {
-    use wide::i32x8;
 
     let img_shape = img.shape();
     let img_height = img_shape[0];
@@ -77,7 +75,7 @@ pub fn conv2d_ex_i32_enhanced(
                             kernel_height
                         );
                         for kp in 0..ow_n {
-                            prepare_regs::<i32, wide::i32x8, 14, _>(
+                            prepare_regs::<i32, i32x8, 14, _>(
                                 8, 14, kp, &mut res_vectors, &mut res_ptrs, 
                                 |_k|&mut out[jp * 8i64 * os2 + _k * os1 + l * os0]
                             );
@@ -116,7 +114,7 @@ pub fn conv2d_ex_i32_enhanced(
                             }
                         }
                         for kp in ow_n..ow_n + 1 {
-                            prepare_regs::<i32, wide::i32x8, 14, _>(
+                            prepare_regs::<i32, i32x8, 14, _>(
                                 8, ow_r14, kp, &mut res_vectors_heap, res_ptrs_heap.as_mut_slice(), 
                                 |_k|&mut out[jp * 8i64 * os2 + _k * os1 + l * os0]
                             );
@@ -302,7 +300,7 @@ pub fn conv2d_ex_i32_enhanced(
                             kernel_height
                         );
                         for kp in 0..kp_end {
-                            prepare_regs::<i32, wide::i32x8, 14, _>(
+                            prepare_regs::<i32, i32x8, 14, _>(
                                 8, 14, kp, &mut res_vectors, res_ptrs.as_mut_slice(), 
                                 |_k|&mut out[jp * 8i64 * os2 + _k * os1 + l * os0]
                             );
@@ -438,7 +436,7 @@ pub fn conv2d_ex_i32_enhanced(
                             kernel_height
                         );
                         for kp in 0..kp_end {
-                            prepare_regs::<i32, wide::i32x8, 14, _>(
+                            prepare_regs::<i32, i32x8, 14, _>(
                                 8,
                                 14,
                                 kp,
@@ -481,7 +479,7 @@ pub fn conv2d_ex_i32_enhanced(
                             }
                         }
                         for kp in kp_end..kp_end + 1 {
-                            prepare_regs::<i32, wide::i32x8, 14, _>(
+                            prepare_regs::<i32, i32x8, 14, _>(
                                 8,
                                 ow_r14,
                                 kp,
@@ -545,7 +543,7 @@ pub fn conv2d_ex_i32_enhanced(
                             kernel_height
                         );
                         for kp in 0..kp_end {
-                            prepare_regs::<i32, wide::i32x8, 14, _>(
+                            prepare_regs::<i32, i32x8, 14, _>(
                                 8,
                                 14,
                                 kp,
@@ -670,7 +668,7 @@ pub fn conv2d_ex_f32_enhanced(
                             kernel_height
                         );
                         for kp in 0..ow_n {
-                            prepare_regs::<f32, wide::f32x8, 14, _>(
+                            prepare_regs::<f32, f32x8, 14, _>(
                                 8, 14, kp, &mut res_vectors, &mut res_ptrs, 
                                 |_k|&mut out[jp * 8i64 * os2 + _k * os1 + l * os0]
                             );
@@ -701,7 +699,7 @@ pub fn conv2d_ex_f32_enhanced(
                             }
                         }
                         for kp in ow_n..ow_n + 1 {
-                            prepare_regs::<f32, wide::f32x8, 14, _>(
+                            prepare_regs::<f32, f32x8, 14, _>(
                                 8, ow_r14, kp, &mut res_vectors_heap, res_ptrs_heap.as_mut_slice(), 
                                 |_k|&mut out[jp * 8i64 * os2 + _k * os1 + l * os0]
                             );
@@ -870,7 +868,7 @@ pub fn conv2d_ex_f32_enhanced(
                     for l in 0..out_height {
                         let (kh_start, kh_end) = calculate_valid_n_range(l, step_height, ph_start, dh, img_height, kernel_height); // prettier-ignore
                         for kp in 0..kp_end {
-                            prepare_regs::<f32, wide::f32x8, 14, _>(
+                            prepare_regs::<f32, f32x8, 14, _>(
                                 8, 14, kp, &mut res_vectors, res_ptrs.as_mut_slice(), 
                                 |_k|&mut out[jp * 8i64 * os2 + _k * os1 + l * os0]
                             );
@@ -976,7 +974,7 @@ pub fn conv2d_ex_f32_enhanced(
                     for l in 0..out_height {
                         let (kh_start, kh_end) = calculate_valid_n_range(l, step_height, ph_start, dh, img_height, kernel_height); // prettier-ignore
                         for kp in 0..kp_end {
-                            prepare_regs::<f32, wide::f32x8, 14, _>(
+                            prepare_regs::<f32, f32x8, 14, _>(
                                 8,
                                 14,
                                 kp,
@@ -1011,7 +1009,7 @@ pub fn conv2d_ex_f32_enhanced(
                             }
                         }
                         for kp in kp_end..kp_end + 1 {
-                            prepare_regs::<f32, wide::f32x8, 14, _>(
+                            prepare_regs::<f32, f32x8, 14, _>(
                                 8,
                                 ow_r14,
                                 kp,
@@ -1060,7 +1058,7 @@ pub fn conv2d_ex_f32_enhanced(
                     for l in 0..out_height {
                         let (kh_start, kh_end) = calculate_valid_n_range(l, step_height, ph_start, dh, img_height, kernel_height); // prettier-ignore
                         for kp in 0..kp_end {
-                            prepare_regs::<f32, wide::f32x8, 14, _>(
+                            prepare_regs::<f32, f32x8, 14, _>(
                                 8,
                                 14,
                                 kp,
@@ -1176,7 +1174,7 @@ pub fn conv2d_ex_f32_enhanced_block(
                             kernel_height
                         );
                         for kp in 0..ow_n {
-                            prepare_regs::<f32, wide::f32x8, 14, _>(
+                            prepare_regs::<f32, f32x8, 14, _>(
                                 8, 14, kp, &mut res_vectors, &mut res_ptrs, 
                                 |_k|&mut out[jp * 8i64 * os2 + _k * os1 + l * os0]
                             );
@@ -1207,7 +1205,7 @@ pub fn conv2d_ex_f32_enhanced_block(
                             }
                         }
                         for kp in ow_n..ow_n + 1 {
-                            prepare_regs::<f32, wide::f32x8, 14, _>(
+                            prepare_regs::<f32, f32x8, 14, _>(
                                 8, ow_r14, kp, &mut res_vectors_heap, res_ptrs_heap.as_mut_slice(), 
                                 |_k|&mut out[jp * 8i64 * os2 + _k * os1 + l * os0]
                             );
@@ -1376,7 +1374,7 @@ pub fn conv2d_ex_f32_enhanced_block(
                     for l in 0..out_height {
                         let (kh_start, kh_end) = calculate_valid_n_range(l, step_height, ph_start, dh, img_height, kernel_height); // prettier-ignore
                         for kp in 0..kp_end {
-                            prepare_regs::<f32, wide::f32x8, 14, _>(
+                            prepare_regs::<f32, f32x8, 14, _>(
                                 8, 14, kp, &mut res_vectors, res_ptrs.as_mut_slice(), 
                                 |_k|&mut out[jp * 8i64 * os2 + _k * os1 + l * os0]
                             );
@@ -1482,7 +1480,7 @@ pub fn conv2d_ex_f32_enhanced_block(
                     for l in 0..out_height {
                         let (kh_start, kh_end) = calculate_valid_n_range(l, step_height, ph_start, dh, img_height, kernel_height); // prettier-ignore
                         for kp in 0..kp_end {
-                            prepare_regs::<f32, wide::f32x8, 14, _>(
+                            prepare_regs::<f32, f32x8, 14, _>(
                                 8,
                                 14,
                                 kp,
@@ -1517,7 +1515,7 @@ pub fn conv2d_ex_f32_enhanced_block(
                             }
                         }
                         for kp in kp_end..kp_end + 1 {
-                            prepare_regs::<f32, wide::f32x8, 14, _>(
+                            prepare_regs::<f32, f32x8, 14, _>(
                                 8,
                                 ow_r14,
                                 kp,
@@ -1566,7 +1564,7 @@ pub fn conv2d_ex_f32_enhanced_block(
                     for l in 0..out_height {
                         let (kh_start, kh_end) = calculate_valid_n_range(l, step_height, ph_start, dh, img_height, kernel_height); // prettier-ignore
                         for kp in 0..kp_end {
-                            prepare_regs::<f32, wide::f32x8, 14, _>(
+                            prepare_regs::<f32, f32x8, 14, _>(
                                 8,
                                 14,
                                 kp,

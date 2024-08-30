@@ -233,6 +233,13 @@ impl<T: Display> Index<isize> for Pointer<T> {
     }
 }
 
+impl<T: Display> Index<usize> for Pointer<T> {
+    type Output = T;
+    fn index(&self, index: usize) -> &Self::Output {
+        unsafe { &*self.ptr.add(index) }
+    }
+}
+
 impl<T: Display> IndexMut<i64> for Pointer<T> {
     fn index_mut(&mut self, index: i64) -> &mut Self::Output {
         unsafe { &mut *self.ptr.offset(index as isize) }

@@ -7,21 +7,27 @@ use std::{
 use tensor_common::{ axis::Axis, layout::Layout, pointer::Pointer, shape::Shape };
 use tensor_display::display;
 use tensor_iterator::{ par_strided::ParStrided, par_strided_mut::ParStridedMut };
+#[cfg(feature = "simd")]
+use tensor_iterator::par_strided::par_strided_simd::ParStridedSimd;
+#[cfg(feature = "simd")]
+use tensor_iterator::par_strided_mut::par_strided_map_mut_simd::ParStridedMutSimd;
 use tensor_traits::{
     ops::uary::FloatUaryOps,
     shape_manipulate::ShapeManipulate,
-    tensor::{ CommonBounds, NormalReduce, TensorAlloc, TensorCreator, TensorInfo, TensorLike },
+    tensor::{ CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike },
     BaseTensor,
-    FloatReduce,
     NormalUaryOps,
 };
 use tensor_types::{
-    convertion::{ Convertor, FromScalar }, dtype::TypeCommon, into_scalar::IntoScalar, type_promote::{ Cmp, Eval, FloatOut, NormalOut }
+    convertion::{ Convertor, FromScalar },
+    dtype::TypeCommon,
+    into_scalar::IntoScalar,
+    type_promote::{ FloatOutUnary, NormalOut },
 };
 use anyhow::Result;
 use crate::{
     backend::{ BackendDevice, BackendTy, Cpu },
-    ops::cpu::{ concat::concat, unary::{ FloatType, NormalType } },
+    ops::cpu::{ concat::concat, unary::{ FloatUnaryType, NormalType } },
     tensor_base::_Tensor,
     DISPLAY_LR_ELEMENTS,
     DISPLAY_PRECISION,
@@ -224,6 +230,15 @@ impl<T: CommonBounds> Tensor<T> {
 
     pub fn iter_mut(&self) -> ParStridedMut<T> {
         ParStridedMut::new(self)
+    }
+
+    #[cfg(feature = "simd")]
+    pub fn iter_simd(&self) -> ParStridedSimd<T> {
+        ParStridedSimd::new(self)
+    }
+    #[cfg(feature = "simd")]
+    pub fn iter_mut_simd(&self) -> ParStridedMutSimd<T> {
+        ParStridedMutSimd::new(self)
     }
 
     /// Converts the tensor to a new type.
@@ -470,6 +485,9 @@ impl<T: CommonBounds> Tensor<T> {
 }
 
 impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
+    #[cfg(feature = "simd")]
+    type StridedIter = ParStridedSimd<T>;
+    #[cfg(not(feature = "simd"))]
     type StridedIter = ParStrided<T>;
 
     type Mask = Tensor<bool>;
@@ -509,7 +527,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     }
 
     fn arange<U>(start: U, end: U) -> Result<Self>
-        where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>
+        where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>, U: Convertor + IntoScalar<T> + Copy
     {
         Ok(_Tensor::<T, Cpu>::arange(start, end)?.into())
     }
@@ -547,15 +565,15 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self>
         where
             T: PartialOrd +
-                FloatOut<T> +
+                FloatOutUnary +
                 NormalOut<T, Output = T> +
-                FromScalar<FloatType<T>> +
+                FromScalar<FloatUnaryType<T>> +
                 std::ops::Neg<Output = T>,
-            FloatType<T>: Sub<Output = FloatType<T>> +
+            FloatUnaryType<T>: Sub<Output = FloatUnaryType<T>> +
                 FromScalar<usize> +
                 FromScalar<f64> +
-                Div<Output = FloatType<T>> +
-                NormalOut<Output = FloatType<T>> +
+                Div<Output = FloatUnaryType<T>> +
+                NormalOut<Output = FloatUnaryType<T>> +
                 CommonBounds
     {
         Ok(_Tensor::<T, Cpu>::geomspace(start, end, n, include_end)?.into())
@@ -565,11 +583,25 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
         Ok(_Tensor::<T, Cpu>::tri(n, m, k, low_triangle)?.into())
     }
 
-    fn tril(&self, k: i64) -> Result<Self> where T: NormalOut<bool, Output = T> + IntoScalar<T> {
+    fn tril(&self, k: i64) -> Result<Self>
+        where
+            T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
+            <T as TypeCommon>::Vec: NormalOut<
+                tensor_types::vectors::boolx32::boolx32,
+                Output = <T as TypeCommon>::Vec
+            >
+    {
         Ok(_Tensor::tril(self, k)?.into())
     }
 
-    fn triu(&self, k: i64) -> Result<Self> where T: NormalOut<bool, Output = T> + IntoScalar<T> {
+    fn triu(&self, k: i64) -> Result<Self>
+        where
+            T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
+            <T as TypeCommon>::Vec: NormalOut<
+                tensor_types::vectors::boolx32::boolx32,
+                Output = <T as TypeCommon>::Vec
+            >
+    {
         Ok(_Tensor::triu(self, k)?.into())
     }
 
@@ -689,156 +721,160 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     }
 }
 
-impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp> NormalReduce<T>
-for Tensor<T> {
-    type Output = Tensor<T>;
+// impl<T: CommonBounds + NormalOut<Output = T> + Eval<Output = bool> + Cmp + IntoScalar<T> + IntoScalar<bool>> NormalReduce<T>
+// for Tensor<T> {
+//     type Output = Tensor<T>;
 
-    type BoolOutput = Tensor<bool>;
+//     type BoolOutput = Tensor<bool>;
 
-    fn sum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output> {
-        Ok(_Tensor::sum(self, axis, keep_dims)?.into())
-    }
+//     fn sum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output> {
+//         Ok(_Tensor::sum(self, axis, keep_dims)?.into())
+//     }
 
-    fn sum_<S: Into<Axis>>(
-        &self,
-        axis: S,
-        keep_dims: bool,
-        init_out: bool,
-        out: Self::Output
-    ) -> Result<Self::Output> {
-        Ok(_Tensor::sum_(self, axis, keep_dims, init_out, out.inner.as_ref().clone())?.into())
-    }
+//     fn sum_<S: Into<Axis>>(
+//         &self,
+//         axis: S,
+//         keep_dims: bool,
+//         init_out: bool,
+//         out: Self::Output
+//     ) -> Result<Self::Output> {
+//         Ok(_Tensor::sum_(self, axis, keep_dims, init_out, out.inner.as_ref().clone())?.into())
+//     }
 
-    fn sum_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool
-    ) -> Result<Self::Output> {
-        Ok(_Tensor::sum_with_init(self, init_val, axes, keep_dims)?.into())
-    }
+//     fn sum_with_init<S: Into<Axis>>(
+//         &self,
+//         init_val: T,
+//         axes: S,
+//         keep_dims: bool
+//     ) -> Result<Self::Output> {
+//         Ok(_Tensor::sum_with_init(self, init_val, axes, keep_dims)?.into())
+//     }
 
-    fn nansum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output> {
-        Ok(_Tensor::nansum(self, axis, keep_dims)?.into())
-    }
+//     fn nansum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output> {
+//         Ok(_Tensor::nansum(self, axis, keep_dims)?.into())
+//     }
 
-    fn nansum_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool
-    ) -> Result<Self::Output> {
-        Ok(_Tensor::nansum_with_init(self, init_val, axes, keep_dims)?.into())
-    }
+//     fn nansum_with_init<S: Into<Axis>>(
+//         &self,
+//         init_val: T,
+//         axes: S,
+//         keep_dims: bool
+//     ) -> Result<Self::Output> {
+//         Ok(_Tensor::nansum_with_init(self, init_val, axes, keep_dims)?.into())
+//     }
 
-    fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output> {
-        Ok(_Tensor::prod(self, axis, keep_dims)?.into())
-    }
+//     fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output> {
+//         Ok(_Tensor::prod(self, axis, keep_dims)?.into())
+//     }
 
-    fn prod_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool
-    ) -> Result<Self::Output> {
-        Ok(_Tensor::prod_with_init(self, init_val, axes, keep_dims)?.into())
-    }
+//     fn prod_with_init<S: Into<Axis>>(
+//         &self,
+//         init_val: T,
+//         axes: S,
+//         keep_dims: bool
+//     ) -> Result<Self::Output> {
+//         Ok(_Tensor::prod_with_init(self, init_val, axes, keep_dims)?.into())
+//     }
 
-    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output> {
-        Ok(_Tensor::nanprod(self, axis, keep_dims)?.into())
-    }
+//     fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output> {
+//         Ok(_Tensor::nanprod(self, axis, keep_dims)?.into())
+//     }
 
-    fn nanprod_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool
-    ) -> Result<Self::Output> {
-        Ok(_Tensor::nanprod_with_init(self, init_val, axes, keep_dims)?.into())
-    }
+//     fn nanprod_with_init<S: Into<Axis>>(
+//         &self,
+//         init_val: T,
+//         axes: S,
+//         keep_dims: bool
+//     ) -> Result<Self::Output> {
+//         Ok(_Tensor::nanprod_with_init(self, init_val, axes, keep_dims)?.into())
+//     }
 
-    fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self> {
-        Ok(_Tensor::min(self, axis, keep_dims)?.into())
-    }
+//     fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self> {
+//         Ok(_Tensor::min(self, axis, keep_dims)?.into())
+//     }
 
-    fn min_with_init<S: Into<Axis>>(&self, init_val: T, axes: S, keep_dims: bool) -> Result<Self> {
-        Ok(_Tensor::min_with_init(self, init_val, axes, keep_dims)?.into())
-    }
+//     fn min_with_init<S: Into<Axis>>(&self, init_val: T, axes: S, keep_dims: bool) -> Result<Self> {
+//         Ok(_Tensor::min_with_init(self, init_val, axes, keep_dims)?.into())
+//     }
 
-    fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self> {
-        Ok(_Tensor::max(self, axis, keep_dims)?.into())
-    }
+//     fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self> {
+//         Ok(_Tensor::max(self, axis, keep_dims)?.into())
+//     }
 
-    fn max_with_init<S: Into<Axis>>(&self, init_val: T, axes: S, keep_dims: bool) -> Result<Self> {
-        Ok(_Tensor::max_with_init(self, init_val, axes, keep_dims)?.into())
-    }
+//     fn max_with_init<S: Into<Axis>>(&self, init_val: T, axes: S, keep_dims: bool) -> Result<Self> {
+//         Ok(_Tensor::max_with_init(self, init_val, axes, keep_dims)?.into())
+//     }
 
-    fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::BoolOutput> {
-        Ok(_Tensor::all(self, axis, keep_dims)?.into())
-    }
+//     fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::BoolOutput> {
+//         Ok(_Tensor::all(self, axis, keep_dims)?.into())
+//     }
 
-    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::BoolOutput> {
-        Ok(_Tensor::any(self, axis, keep_dims)?.into())
-    }
+//     fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::BoolOutput> {
+//         Ok(_Tensor::any(self, axis, keep_dims)?.into())
+//     }
 
-    fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        Ok(_Tensor::reducel1(self, axis, keep_dims)?.into())
-    }
+//     fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+//         Ok(_Tensor::reducel1(self, axis, keep_dims)?.into())
+//     }
 
-    fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        Ok(_Tensor::sum_square(self, axis, keep_dims)?.into())
-    }
-}
+//     fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+//         Ok(_Tensor::sum_square(self, axis, keep_dims)?.into())
+//     }
+// }
 
-impl<T> FloatReduce<T>
-    for Tensor<T>
-    where
-        T: CommonBounds                                                                                 // prettier-ignore
-        + NormalOut<T, Output = T>                                                                                  // prettier-ignore
-        + NormalOut<FloatType<T>, Output = FloatType<T>>                          // prettier-ignore
-        + FloatOut + Cmp + IntoScalar<T>, // prettier-ignore
-        FloatType<T>: CommonBounds                                                           // prettier-ignore
-        + NormalOut<T, Output = FloatType<T>>
-        + FloatOut<Output = FloatType<T>>
-        + NormalOut<FloatType<T>, Output = FloatType<T>> // prettier-ignore
-        + FromScalar<usize> + IntoScalar<FloatType<T>>, // prettier-ignore
-        f64: IntoScalar<<T as NormalOut>::Output>, // prettier-ignore
-        f64: IntoScalar<FloatType<T>>, // prettier-ignore
-        _Tensor<FloatType<T>>: TensorLike<
-        FloatType<T>,
-        Output = _Tensor<FloatType<T>>
-    > // prettier-ignore
-{
-    type Output = Tensor<FloatType<T>>;
-    fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        Ok(_Tensor::mean(self, axis, keep_dims)?.into())
-    }
-    fn reducel2<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        Ok(_Tensor::reducel2(self, axis, keep_dims)?.into())
-    }
-    fn reducel3<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        Ok(_Tensor::reducel3(self, axis, keep_dims)?.into())
-    }
-    fn logsumexp<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        Ok(_Tensor::logsumexp(self, axis, keep_dims)?.into())
-    }
-}
+// impl<T> FloatReduce<T>
+//     for Tensor<T>
+//     where
+//         T: CommonBounds                                                                                 // prettier-ignore
+//         + NormalOut<T, Output = T>                                                                                  // prettier-ignore
+//         + NormalOut<FloatType<T>, Output = FloatType<T>>                          // prettier-ignore
+//         + FloatOut + Cmp + IntoScalar<T>, // prettier-ignore
+//         FloatType<T>: CommonBounds                                                           // prettier-ignore
+//         + NormalOut<T, Output = FloatType<T>>
+//         + FloatOut<Output = FloatType<T>>
+//         + NormalOut<FloatType<T>, Output = FloatType<T>> // prettier-ignore
+//         + FromScalar<usize> + IntoScalar<FloatType<T>>, // prettier-ignore
+//         f64: IntoScalar<<T as NormalOut>::Output>, // prettier-ignore
+//         f64: IntoScalar<FloatType<T>>, // prettier-ignore
+//         _Tensor<FloatType<T>>: TensorLike<
+//         FloatType<T>,
+//         Output = _Tensor<FloatType<T>>
+//     > // prettier-ignore
+// {
+//     type Output = Tensor<FloatType<T>>;
+//     fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+//         Ok(_Tensor::mean(self, axis, keep_dims)?.into())
+//     }
+//     fn reducel2<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+//         Ok(_Tensor::reducel2(self, axis, keep_dims)?.into())
+//     }
+//     fn reducel3<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+//         Ok(_Tensor::reducel3(self, axis, keep_dims)?.into())
+//     }
+//     fn logsumexp<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+//         Ok(_Tensor::logsumexp(self, axis, keep_dims)?.into())
+//     }
+// }
 
 impl<T> FloatUaryOps
     for Tensor<T>
     where
-        T: FloatOut + CommonBounds,
-        FloatType<T>: CommonBounds,
-        f64: IntoScalar<FloatType<T>>,
-        FloatType<T>: IntoScalar<FloatType<T>>,
-        <T as TypeCommon>::Vec: FloatOut<Output = <FloatType<T> as TypeCommon>::Vec>,
-        <FloatType<T> as TypeCommon>::Vec: Send + Copy + Sync
+        T: FloatOutUnary + CommonBounds,
+        FloatUnaryType<T>: CommonBounds,
+        f64: IntoScalar<<T as FloatOutUnary>::Base>,
+        FloatUnaryType<T>: IntoScalar<FloatUnaryType<T>>,
+        <T as TypeCommon>::Vec: FloatOutUnary<
+            Output = <FloatUnaryType<T> as TypeCommon>::Vec,
+            Base = <T as FloatOutUnary>::Base
+        >,
+        <FloatUnaryType<T> as TypeCommon>::Vec: Send + Copy + Sync,
+        <T as FloatOutUnary>::Base: CommonBounds
 {
-    type Output = Tensor<FloatType<T>>;
+    type Output = Tensor<FloatUnaryType<T>>;
 
-    type InplaceOutput = _Tensor<FloatType<T>>;
+    type InplaceOutput = _Tensor<FloatUnaryType<T>>;
 
-    type OutputMeta = FloatType<T>;
+    type OutputMeta = <T as FloatOutUnary>::Base;
 
     fn sin(&self) -> Result<Self::Output> {
         Ok(_Tensor::<T, Cpu>::sin(self)?.into())
@@ -1099,23 +1135,14 @@ impl<T> FloatUaryOps
         Ok(_Tensor::<T, Cpu>::selu_(self, alpha, gamma, out.base().clone())?.into())
     }
 
-    fn hard_sigmoid(
-        &self,
-        alpha: Option<Self::OutputMeta>,
-        beta: Option<Self::OutputMeta>
-    ) -> anyhow::Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::hard_sigmoid(self, alpha, beta)?.into())
+    fn hard_sigmoid(&self) -> anyhow::Result<Self::Output> {
+        Ok(_Tensor::<T, Cpu>::hard_sigmoid(self)?.into())
     }
 
-    fn hard_sigmoid_<U>(
-        &self,
-        alpha: Option<Self::OutputMeta>,
-        beta: Option<Self::OutputMeta>,
-        out: U
-    ) -> anyhow::Result<Self::Output>
+    fn hard_sigmoid_<U>(&self, out: U) -> anyhow::Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
-        Ok(_Tensor::<T, Cpu>::hard_sigmoid_(self, alpha, beta, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::hard_sigmoid_(self, out.base().clone())?.into())
     }
 
     fn hard_swish(&self) -> anyhow::Result<Self::Output> {
@@ -1172,7 +1199,7 @@ impl<T> FloatUaryOps
 impl<T> NormalUaryOps
     for Tensor<T>
     where
-        T: NormalOut + CommonBounds + IntoScalar<T>,
+        T: NormalOut<Output = T> + CommonBounds + IntoScalar<T>,
         NormalType<T>: CommonBounds,
         <T as NormalOut>::Output: IntoScalar<<T as NormalOut>::Output>
 {
@@ -1270,7 +1297,7 @@ macro_rules! normal_ops_1 {
             type Output = Tensor<<T as NormalOut<U>>::Output>;
 
             fn $op2(self, rhs: Tensor<U>) -> Self::Output {
-                (self.inner.as_ref().$op2(rhs.inner.as_ref())).into()
+                (self.inner.as_ref().$op2(rhs.inner.as_ref().clone())).into()
             }
         }
     };
@@ -1289,7 +1316,7 @@ macro_rules! normal_ops_2 {
             type Output = Tensor<<T as NormalOut<U>>::Output>;
 
             fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
-                (self.inner.as_ref() + rhs.inner.as_ref()).into()
+                (self.inner.as_ref() + rhs.inner.as_ref().clone()).into()
             }
         }
     };
@@ -1308,7 +1335,7 @@ macro_rules! normal_ops_3 {
             type Output = Tensor<<T as NormalOut<U>>::Output>;
 
             fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
-                (self.inner.as_ref() + rhs.inner.as_ref()).into()
+                (self.inner.as_ref() + rhs.inner.as_ref().clone()).into()
             }
         }
     };
@@ -1327,7 +1354,7 @@ macro_rules! normal_ops_4 {
             type Output = Tensor<<T as NormalOut<U>>::Output>;
 
             fn $op2(self, rhs: Tensor<U>) -> Self::Output {
-                (self.inner.as_ref() + rhs.inner.as_ref()).into()
+                (self.inner.as_ref() + rhs.inner.as_ref().clone()).into()
             }
         }
     };

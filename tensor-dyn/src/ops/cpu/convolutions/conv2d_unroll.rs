@@ -1,4 +1,4 @@
-use tensor_types::vectors::*;
+use tensor_types::vectors::traits::*;
 use crate::tensor_base::_Tensor;
 use rayon::iter::{ IntoParallelIterator, ParallelIterator };
 use tensor_traits::CommonBounds;

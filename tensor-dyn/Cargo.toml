@@ -17,6 +17,7 @@ cudarc = { version = "0.11.6", features = ["cuda-12010"] }
 wgpu = { version = "22.1.0", features = ["naga-ir"] }
 rand = "0.8.5"
 threadpool = "1.8.1"
+paste = "1.0.15"
 anyhow = "1.0.75"
 rayon = "1.8.0"
 num = "0.4.1"
@@ -43,4 +44,4 @@ track_caller = [
     "tensor-common/track_caller",
     "tensor-iterator/track_caller",
 ]
-simd = []
+simd = ["tensor-iterator/simd"]

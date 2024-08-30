@@ -1,6 +1,7 @@
 #![allow(unused)]
 use std::{ fmt::{ Display, Debug }, ops::{ Div, Mul, Sub }, sync::Arc };
 use bytemuck::Pod;
+use tensor_iterator::{par_strided::ParStrided, par_strided_mut::ParStridedMut};
 use wgpu::util::DeviceExt;
 use rand_distr::{
     uniform::SampleUniform,
@@ -24,7 +25,6 @@ use tensor_common::{
 use tensor_display::display;
 use tensor_macros::match_selection;
 use tensor_common::slice;
-use tensor_iterator::{ par_strided::ParStrided, par_strided_mut::ParStridedMut };
 use tensor_traits::{
     random::Random,
     shape_manipulate::ShapeManipulate,
@@ -37,7 +37,7 @@ use tensor_types::{
     convertion::{ Convertor, FromScalar },
     dtype::Dtype,
     into_scalar::IntoScalar,
-    type_promote::{ FloatOut, NormalOut },
+    type_promote::{ FloatOutUnary, NormalOut },
 };
 use rayon::iter::{
     IndexedParallelIterator,
@@ -354,26 +354,7 @@ impl<T: CommonBounds> _Tensor<T, Wgpu> {
     pub fn allclose<U: CommonBounds>(&self, other: &_Tensor<U>) -> bool
         where T: Convertor, U: Convertor
     {
-        if self.shape() != other.shape() {
-            return false;
-        }
-        let folder = self
-            .iter()
-            .zip(other.par_iter())
-            .fold(
-                || true,
-                |acc, (a, b)| {
-                    let a_val: f64 = a.to_f64();
-                    let b_val: f64 = b.to_f64();
-                    let abs_diff: f64 = (a_val - b_val).abs();
-                    let torlerance: f64 = 1.0e-8 + 1.0e-5 * b_val.abs();
-                    acc && abs_diff <= torlerance
-                }
-            );
-        folder.reduce(
-            || true,
-            |a, b| a && b
-        )
+        todo!()
     }
 
     /// Create a contiguous copy of the tensor.
@@ -630,7 +611,7 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
     }
 
     pub async fn arange<'a, U>(start: U, end: U, device: &WgpuDevice) -> Result<Self>
-        where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>
+        where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>, U: Convertor + IntoScalar<T> + Copy
     {
         let arange = _Tensor::<T, Cpu>::arange(start, end)?;
         let layout = &arange.mem_layout;
@@ -758,15 +739,15 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self>
         where
             T: PartialOrd +
-                FloatOut<T> +
+                FloatOutUnary +
                 NormalOut<T, Output = T> +
-                FromScalar<<T as FloatOut>::Output> +
+                FromScalar<<T as FloatOutUnary>::Output> +
                 std::ops::Neg<Output = T>,
-            <T as FloatOut>::Output: Sub<Output = <T as FloatOut>::Output> +
+            <T as FloatOutUnary>::Output: Sub<Output = <T as FloatOutUnary>::Output> +
                 FromScalar<usize> +
                 FromScalar<f64> +
-                Div<Output = <T as FloatOut>::Output> +
-                NormalOut<Output = <T as FloatOut>::Output> +
+                Div<Output = <T as FloatOutUnary>::Output> +
+                NormalOut<Output = <T as FloatOutUnary>::Output> +
                 CommonBounds
     {
         todo!()

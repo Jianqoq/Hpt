@@ -3,120 +3,120 @@ use tensor_traits::CommonBounds;
 use tensor_types::{
     dtype::TypeCommon,
     into_scalar::IntoScalar,
-    type_promote::{ Cmp, FloatOut, NormalOut },
+    type_promote::{ Cmp, FloatOutBinary, FloatOutUnary, NormalOut },
 };
-
-use super::reduce::reduce;
 
 impl<T> _Tensor<T>
     where
-        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOut,
-        <T as FloatOut>::Output: CommonBounds + TypeCommon,
-        <T as FloatOut>::Output: NormalOut +
-            NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output> +
-            FloatOut,
-        <<T as FloatOut>::Output as FloatOut>::Output: IntoScalar<<<T as FloatOut>::Output as FloatOut>::Output> +
+        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOutUnary,
+        <T as FloatOutUnary>::Output: CommonBounds + TypeCommon,
+        <T as FloatOutUnary>::Output: NormalOut +
+            NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutUnary>::Output> +
+            FloatOutUnary,
+        <<T as FloatOutUnary>::Output as FloatOutUnary>::Output: IntoScalar<<<T as FloatOutUnary>::Output as FloatOutUnary>::Output> +
             CommonBounds
 {
-    pub fn softmax(
-        &self,
-        axis: i64
-    ) -> anyhow::Result<_Tensor<<<T as FloatOut>::Output as FloatOut>::Output>> {
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn softmax(&self, axis: i64) -> anyhow::Result<_Tensor<<T as FloatOutUnary>::Output>>
+        where
+            <T as TypeCommon>::Vec: NormalOut<Output = <T as TypeCommon>::Vec>,
+            <<T as FloatOutUnary>::Output as TypeCommon>::Vec: NormalOut<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
+            <T as FloatOutUnary>::Output: FloatOutBinary<Output = <T as FloatOutUnary>::Output>
+    {
         let axis = (if axis < 0 { (self.layout.ndim() as i64) + axis } else { axis }) as usize;
-        let max = reduce(self, |a, b| a._max(b), &[axis], T::NEG_INF, true, false, None)?;
+        let max = self.max(axis as i64, true)?;
         let exp = self
             .par_iter()
             .zip(max.par_iter())
             .strided_map(|(x, y)| { x._sub(y)._exp() })
-            .collect::<_Tensor<<T as FloatOut>::Output>>();
-        let sum = reduce(
-            &exp,
-            |a, b| a._add(b),
-            &[axis],
-            <T as FloatOut>::Output::ZERO,
-            true,
-            false,
-            None
-        )?;
+            .collect::<_Tensor<<T as FloatOutUnary>::Output>>();
+        let sum = exp.sum(axis as i64, false)?;
         Ok(exp / sum)
     }
 }
 
 impl<T> Tensor<T>
     where
-        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOut,
-        <T as FloatOut>::Output: CommonBounds + TypeCommon,
-        <T as FloatOut>::Output: NormalOut +
-            NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output> +
-            FloatOut,
-        <<T as FloatOut>::Output as FloatOut>::Output: IntoScalar<<<T as FloatOut>::Output as FloatOut>::Output> +
+        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOutUnary,
+        <T as FloatOutUnary>::Output: CommonBounds + TypeCommon,
+        <T as FloatOutUnary>::Output: NormalOut +
+            NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutUnary>::Output> +
+            FloatOutUnary,
+        <<T as FloatOutUnary>::Output as FloatOutUnary>::Output: IntoScalar<<<T as FloatOutUnary>::Output as FloatOutUnary>::Output> +
             CommonBounds
 {
-    pub fn softmax(
-        &self,
-        axis: i64
-    ) -> anyhow::Result<Tensor<<<T as FloatOut>::Output as FloatOut>::Output>> {
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn softmax(&self, axis: i64) -> anyhow::Result<Tensor<<T as FloatOutUnary>::Output>>
+        where
+            <T as TypeCommon>::Vec: NormalOut<Output = <T as TypeCommon>::Vec>,
+            <<T as FloatOutUnary>::Output as TypeCommon>::Vec: NormalOut<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
+            <T as FloatOutUnary>::Output: FloatOutBinary<Output = <T as FloatOutUnary>::Output>
+    {
         Ok(Tensor::from(_Tensor::softmax(self, axis)?.into()))
     }
 }
 
 impl<T> _Tensor<T>
     where
-        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOut,
-        <T as FloatOut>::Output: CommonBounds + TypeCommon,
-        <T as FloatOut>::Output: NormalOut +
-            NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output> +
-            FloatOut,
-        <<T as FloatOut>::Output as FloatOut>::Output: IntoScalar<<<T as FloatOut>::Output as FloatOut>::Output> +
+        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOutUnary,
+        <T as FloatOutUnary>::Output: CommonBounds + TypeCommon,
+        <T as FloatOutUnary>::Output: NormalOut +
+            NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutUnary>::Output> +
+            FloatOutUnary,
+        <<T as FloatOutUnary>::Output as FloatOutUnary>::Output: IntoScalar<<<T as FloatOutUnary>::Output as FloatOutUnary>::Output> +
             CommonBounds +
-            FloatOut,
-        <<<T as FloatOut>::Output as FloatOut>::Output as FloatOut>::Output: CommonBounds
+            FloatOutUnary,
+        <<<T as FloatOutUnary>::Output as FloatOutUnary>::Output as FloatOutUnary>::Output: CommonBounds
 {
     pub fn logsoftmax(
         &self,
         axis: i64
-    ) -> anyhow::Result<_Tensor<<<<T as FloatOut>::Output as FloatOut>::Output as FloatOut>::Output>> {
+    )
+        -> anyhow::Result<_Tensor<<<T as FloatOutUnary>::Output as FloatOutUnary>::Output>>
+        where
+            <T as TypeCommon>::Vec: NormalOut<Output = <T as TypeCommon>::Vec>,
+            <<T as FloatOutUnary>::Output as TypeCommon>::Vec: NormalOut<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
+            <T as FloatOutUnary>::Output: FloatOutBinary<Output = <T as FloatOutUnary>::Output>
+    {
         let axis = (if axis < 0 { (self.layout.ndim() as i64) + axis } else { axis }) as usize;
-        let max = reduce(self, |a, b| a._max(b), &[axis], T::NEG_INF, true, false, None)?;
+        let max = self.max(axis as i64, true)?;
         let exp = self
             .par_iter()
             .zip(max.par_iter())
             .strided_map(|(x, y)| { x._sub(y)._exp() })
-            .collect::<_Tensor<<T as FloatOut>::Output>>();
-        let sum = reduce(
-            &exp,
-            |a, b| a._add(b),
-            &[axis],
-            <T as FloatOut>::Output::ZERO,
-            true,
-            false,
-            None
-        )?;
+            .collect::<_Tensor<<T as FloatOutUnary>::Output>>();
+        let sum = exp.sum(axis as i64, false)?;
         let ret = exp
             .par_iter()
             .zip(sum.par_iter())
             .strided_map(|(x, y)| { x._div(y)._ln() })
-            .collect::<_Tensor<<<<T as FloatOut>::Output as FloatOut>::Output as FloatOut>::Output>>();
+            .collect::<_Tensor<<<T as FloatOutUnary>::Output as FloatOutUnary>::Output>>();
         Ok(ret)
     }
 }
 
 impl<T> Tensor<T>
     where
-        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOut,
-        <T as FloatOut>::Output: CommonBounds + TypeCommon,
-        <T as FloatOut>::Output: NormalOut +
-            NormalOut<<T as FloatOut>::Output, Output = <T as FloatOut>::Output> +
-            FloatOut,
-        <<T as FloatOut>::Output as FloatOut>::Output: IntoScalar<<<T as FloatOut>::Output as FloatOut>::Output> +
+        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOutUnary,
+        <T as FloatOutUnary>::Output: CommonBounds + TypeCommon,
+        <T as FloatOutUnary>::Output: NormalOut +
+            NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutUnary>::Output> +
+            FloatOutUnary,
+        <<T as FloatOutUnary>::Output as FloatOutUnary>::Output: IntoScalar<<<T as FloatOutUnary>::Output as FloatOutUnary>::Output> +
             CommonBounds +
-            FloatOut,
-        <<<T as FloatOut>::Output as FloatOut>::Output as FloatOut>::Output: CommonBounds
+            FloatOutUnary,
+        <<<T as FloatOutUnary>::Output as FloatOutUnary>::Output as FloatOutUnary>::Output: CommonBounds
 {
     pub fn logsoftmax(
         &self,
         axis: i64
-    ) -> anyhow::Result<Tensor<<<<T as FloatOut>::Output as FloatOut>::Output as FloatOut>::Output>> {
+    )
+        -> anyhow::Result<Tensor<<<T as FloatOutUnary>::Output as FloatOutUnary>::Output>>
+        where
+            <T as TypeCommon>::Vec: NormalOut<Output = <T as TypeCommon>::Vec>,
+            <<T as FloatOutUnary>::Output as TypeCommon>::Vec: NormalOut<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
+            <T as FloatOutUnary>::Output: FloatOutBinary<Output = <T as FloatOutUnary>::Output>
+    {
         Ok(Tensor::from(_Tensor::logsoftmax(self, axis)?.into()))
     }
 }

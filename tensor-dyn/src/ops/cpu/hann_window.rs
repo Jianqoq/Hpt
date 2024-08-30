@@ -1,4 +1,4 @@
-use std::ops::{ Div, Mul, Sub };
+use std::ops::{ Mul, Sub };
 
 use num::Float;
 use rayon::iter::{ IndexedParallelIterator, IntoParallelIterator, ParallelIterator };
@@ -7,7 +7,7 @@ use tensor_types::{
     convertion::{ Convertor, FromScalar },
     dtype::{ FloatConst, TypeCommon },
     into_scalar::IntoScalar,
-    type_promote::{ FloatOut, NormalOut },
+    type_promote::{ FloatOutBinary, FloatOutUnary, NormalOut },
 };
 
 use crate::{ backend::Cpu, tensor::Tensor, tensor_base::_Tensor };
@@ -22,24 +22,37 @@ impl<T> _Tensor<T>
             TypeCommon +
             FloatConst +
             Mul<Output = T> +
-            Div<Output = T> +
             Sub<Output = T> +
-            FloatOut<Output = T> +
-            Float,
+            FloatOutUnary +
+            Float +
+            FloatOutBinary +
+            FloatOutBinary<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output> +
+            NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>,
+        <T as FloatOutBinary>::Output: FloatOutUnary<Output = <T as FloatOutBinary>::Output> +
+            Mul<Output = <T as FloatOutBinary>::Output> +
+            Sub<Output = <T as FloatOutBinary>::Output> +
+            CommonBounds,
         usize: IntoScalar<T>,
         i64: IntoScalar<T>
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn hann_window(window_length: i64, periodic: bool) -> anyhow::Result<_Tensor<T>> {
+    pub fn hann_window(
+        window_length: i64,
+        periodic: bool
+    ) -> anyhow::Result<_Tensor<<T as FloatOutBinary>::Output>> {
         let length_i64 = (if periodic { window_length } else { window_length - 1 }) as i64;
         let length: T = length_i64.into_scalar();
-        let data = _Tensor::<T, Cpu>::empty(&[length_i64])?;
+        let data = _Tensor::<<T as FloatOutBinary>::Output, Cpu>::empty(&[length_i64])?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()
             .for_each(|(i, x)| {
                 let i = T::ZERO._add(i.into_scalar()._mul(T::ONE));
-                *x = T::HALF * (T::ONE - ((T::TWO * T::PI * i) / length)._cos());
+                *x = T::HALF._mul(
+                    T::ONE._sub(T::TWO * T::PI * i)
+                        ._div(length)
+                        ._cos()
+                );
             });
         Ok(data)
     }
@@ -55,15 +68,24 @@ impl<T> Tensor<T>
             TypeCommon +
             FloatConst +
             Mul<Output = T> +
-            Div<Output = T> +
             Sub<Output = T> +
-            FloatOut<Output = T> +
-            Float,
+            FloatOutUnary +
+            Float +
+            FloatOutBinary +
+            FloatOutBinary<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output> +
+            NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>,
+        <T as FloatOutBinary>::Output: FloatOutUnary<Output = <T as FloatOutBinary>::Output> +
+            Mul<Output = <T as FloatOutBinary>::Output> +
+            Sub<Output = <T as FloatOutBinary>::Output> +
+            CommonBounds,
         usize: IntoScalar<T>,
         i64: IntoScalar<T>
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn hann_window(window_length: i64, periodic: bool) -> anyhow::Result<Tensor<T>> {
+    pub fn hann_window(
+        window_length: i64,
+        periodic: bool
+    ) -> anyhow::Result<Tensor<<T as FloatOutBinary>::Output>> {
         Ok(Tensor::from(_Tensor::hann_window(window_length, periodic)?.into()))
     }
 }

@@ -19,6 +19,7 @@ impl<T> _Tensor<T>
 where
     T: CommonBounds + PartialOrd,
 {
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn topk(
         &self,
         k: i64,

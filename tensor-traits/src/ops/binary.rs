@@ -1,8 +1,9 @@
 use anyhow::Result;
+use tensor_types::dtype::TypeCommon;
 
 use crate::tensor::{ CommonBounds, TensorInfo, TensorLike };
 
-pub trait NormalBinOps<RHS = Self> {
+pub trait NormalBinOps<RHS = Self> where <<Self as NormalBinOps<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync {
     type Output;
     type OutputMeta: CommonBounds;
     type InplaceOutput;
@@ -82,7 +83,7 @@ pub trait NormalBinOps<RHS = Self> {
     fn convolve(&self, rhs: RHS) -> Result<Self::Output>;
 }
 
-pub trait Matmul<RHS = Self> {
+pub trait Matmul<RHS = Self> where <<Self as Matmul<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync {
     type Output;
     type OutputMeta: CommonBounds;
     type InplaceOutput;

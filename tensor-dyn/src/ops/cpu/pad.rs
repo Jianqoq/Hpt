@@ -6,6 +6,7 @@ use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
 use crate::{ tensor_base::_Tensor, THREAD_POOL };
 
 impl<T: CommonBounds> _Tensor<T> {
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn pad(&self, pads: &[(i64, i64)], val: T) -> anyhow::Result<_Tensor<T>> {
         let res_shape = self
             .shape()

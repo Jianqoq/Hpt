@@ -8,14 +8,15 @@ impl<T> _Tensor<T>
     where T: CommonBounds + PartialOrd + Sub<Output = T> + Neg<Output = T> + Add<Output = T>
 {
     pub fn shrink(&self, bias: T, lambda: T) -> anyhow::Result<_Tensor<T>> {
-        Ok(
-            self
-                .par_iter()
-                .strided_map(|x| {
-                    if x > lambda { x - bias } else if x < -lambda { x + bias } else { T::ZERO }
-                })
-                .collect()
-        )
+        // Ok(
+        //     self
+        //         .par_iter()
+        //         .strided_map(|x| {
+        //             if x > lambda { x - bias } else if x < -lambda { x + bias } else { T::ZERO }
+        //         })
+        //         .collect()
+        // )
+        todo!()
     }
 }
 

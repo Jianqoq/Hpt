@@ -1,3 +1,5 @@
+
+
 pub mod tensor_base;
 pub mod ops {
     pub mod cpu {
@@ -25,17 +27,20 @@ pub mod ops {
         pub mod shrink;
         pub mod gather_elements;
         pub mod gather;
-        pub mod conv;
         pub mod maxpool;
         pub mod avgpool;
         pub mod lp_pool;
         pub mod dropout;
         pub mod lp_norm;
         pub mod img2col;
+        pub mod common_reduce;
         pub mod convolutions {
             pub mod conv2d;
             pub mod conv2d_unroll;
             pub mod conv2d_copy;
+        }
+        pub mod kernels {
+            pub mod reduce_kernels;
         }
     }
     pub mod wgpu {
@@ -102,4 +107,4 @@ fn init() {
     });
 }
 
-static ALIGN: usize = 32;
+static ALIGN: usize = 64;

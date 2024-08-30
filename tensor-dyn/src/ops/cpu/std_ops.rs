@@ -18,11 +18,10 @@ use std::ops::{
     MulAssign,
     RemAssign,
 };
+use crate::ops::cpu::binary_normal::*;
 use tensor_types::dtype::TypeCommon;
 use tensor_types::type_promote::BitWiseOut;
-use tensor_types::type_promote::FloatOut;
-use crate::ops::cpu::binary_normal::binary_fn;
-use crate::ops::cpu::binary_normal::binary_fn_with_out;
+use tensor_types::type_promote::FloatOutBinary;
 use tensor_common::shape_utils::predict_broadcast_shape;
 use tensor_types::type_promote::NormalOut;
 use crate::tensor_base::_Tensor;
@@ -31,6 +30,7 @@ use std::panic::Location;
 macro_rules! normal_promote_ops_1 {
     ($([$op:ident, $op2:ident, $op3:ident]),*) => {
         $(
+            #[cfg(not(feature = "simd"))]
             impl<T, U> $op<_Tensor<U>> for _Tensor<T>
                 where
                 T: CommonBounds + NormalOut<U>,
@@ -102,6 +102,80 @@ macro_rules! normal_promote_ops_1 {
                     }
                 }
             }
+            #[cfg(feature = "simd")]
+            impl<T, U> $op<_Tensor<U>> for _Tensor<T>
+            where
+            T: CommonBounds + NormalOut<U>,
+            U: CommonBounds,
+            <T as NormalOut<U>>::Output: CommonBounds,
+            <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+            <T as TypeCommon>::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>
+        {
+            type Output = _Tensor<<T as NormalOut<U>>::Output>;
+
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
+                let res_shape = predict_broadcast_shape(
+                    self.shape(),
+                    rhs.shape(),
+                    Location::caller()
+                ).unwrap();
+                let res_size: usize = res_shape.size() as usize;
+                let lhs_size: usize = self.layout().real_size();
+                let rhs_size: usize = rhs.layout().real_size();
+                if lhs_size > rhs_size {
+                    if lhs_size == res_size && T::ID == <T as NormalOut<U>>::Output::ID {
+                        let out: _Tensor<T> = self.clone();
+                        let out: Self::Output = out.static_cast().unwrap();
+                        return binary_fn_with_out_simd(
+                            &self,
+                            &rhs,
+                            |x, y| x.$op3(y),
+                            |x, y| x.$op3(y),
+                            out,
+                        ).unwrap();
+                    } else {
+                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
+                    }
+                } else if lhs_size < rhs_size {
+                    if rhs_size == res_size && U::ID == <T as NormalOut<U>>::Output::ID {
+                        let out: _Tensor<U> = rhs.clone();
+                        let out: Self::Output = out.static_cast().unwrap();
+                        return binary_fn_with_out_simd(
+                            &self,
+                            &rhs,
+                            |x, y| x.$op3(y),
+                            |x, y| x.$op3(y),
+                            out
+                        ).unwrap();
+                    } else {
+                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
+                    }
+                } else {
+                    if T::ID == <T as NormalOut<U>>::Output::ID {
+                        let out: _Tensor<T> = self.clone();
+                        let out: Self::Output = out.static_cast().unwrap();
+                        return binary_fn_with_out(
+                            &self,
+                            &rhs,
+                            |x, y| x.$op3(y),
+                            out, Location::caller()
+                        ).unwrap();
+                    } else if U::ID == <T as NormalOut<U>>::Output::ID {
+                        let out: _Tensor<U> = rhs.clone();
+                        let out: Self::Output = out.static_cast().unwrap();
+                        return binary_fn_with_out(
+                            &self,
+                            &rhs,
+                            |x, y| x.$op3(y),
+                            out, Location::caller()
+                        ).unwrap();
+                    } else {
+                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
+                    }
+                }
+            }
+        }
         )*
     };
 }
@@ -147,6 +221,7 @@ macro_rules! normal_promote_ops_2 {
 macro_rules! normal_promote_ops_3 {
     ($([$op:ident, $op2:ident, $op3:ident]),*) => {
         $(
+            #[cfg(not(feature = "simd"))]
             impl<'a, T, U> $op<&'a _Tensor<U>> for &'a _Tensor<T>
                 where
                 T: CommonBounds + NormalOut<U>,
@@ -158,6 +233,21 @@ macro_rules! normal_promote_ops_3 {
                 #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
                     return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
+                }
+            }
+            #[cfg(feature = "simd")]
+            impl<'a, T, U> $op<&'a _Tensor<U>> for &'a _Tensor<T>
+                where
+                T: CommonBounds + NormalOut<U>,
+                U: CommonBounds,
+                <T as NormalOut<U>>::Output: CommonBounds,
+                <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+                <T as TypeCommon>::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>
+            {
+                type Output = _Tensor<<T as NormalOut<U>>::Output>;
+                #[cfg_attr(feature = "track_caller", track_caller)]
+                fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
+                    return binary_fn_simd(&self, &rhs, |x, y| x.$op3(y), |x, y| x.$op3(y)).unwrap();
                 }
             }
         )*
@@ -632,12 +722,12 @@ macro_rules! float_binary_promote_ops_1 {
         $(
             impl<T, U> $op<_Tensor<U>> for _Tensor<T>
                 where
-                T: CommonBounds + FloatOut<U>,
+                T: CommonBounds + FloatOutBinary<U>,
                 U: CommonBounds,
-                <T as FloatOut<U>>::Output: CommonBounds,
-                <T as FloatOut<U>>::Output: IntoScalar<<T as FloatOut<U>>::Output>
+                <T as FloatOutBinary<U>>::Output: CommonBounds,
+                <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>
             {
-                type Output = _Tensor<<T as FloatOut<U>>::Output>;
+                type Output = _Tensor<<T as FloatOutBinary<U>>::Output>;
                 #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
@@ -648,7 +738,7 @@ macro_rules! float_binary_promote_ops_1 {
                     let lhs_size: usize = self.layout().real_size();
                     let rhs_size: usize = rhs.layout().real_size();
                     if lhs_size > rhs_size {
-                        if lhs_size == res_size && T::ID == <T as FloatOut<U>>::Output::ID {
+                        if lhs_size == res_size && T::ID == <T as FloatOutBinary<U>>::Output::ID {
                             let out: _Tensor<T> = self.clone();
                             let out: Self::Output = out.static_cast().unwrap();
                             return binary_fn_with_out(
@@ -661,7 +751,7 @@ macro_rules! float_binary_promote_ops_1 {
                             return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                         }
                     } else if lhs_size < rhs_size {
-                        if rhs_size == res_size && U::ID == <T as FloatOut<U>>::Output::ID {
+                        if rhs_size == res_size && U::ID == <T as FloatOutBinary<U>>::Output::ID {
                             let out: _Tensor<U> = rhs.clone();
                             let out: Self::Output = out.static_cast().unwrap();
                             return binary_fn_with_out(
@@ -674,7 +764,7 @@ macro_rules! float_binary_promote_ops_1 {
                             return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                         }
                     } else {
-                        if T::ID == <T as FloatOut<U>>::Output::ID {
+                        if T::ID == <T as FloatOutBinary<U>>::Output::ID {
                             let out: _Tensor<T> = self.clone();
                             let out: Self::Output = out.static_cast().unwrap();
                             return binary_fn_with_out(
@@ -683,7 +773,7 @@ macro_rules! float_binary_promote_ops_1 {
                                 |x, y| x.$op3(y),
                                 out, Location::caller()
                             ).unwrap();
-                        } else if U::ID == <T as FloatOut<U>>::Output::ID {
+                        } else if U::ID == <T as FloatOutBinary<U>>::Output::ID {
                             let out: _Tensor<U> = rhs.clone();
                             let out: Self::Output = out.static_cast().unwrap();
                             return binary_fn_with_out(
@@ -707,12 +797,12 @@ macro_rules! float_binary_promote_ops_2 {
         $(
             impl<'a, T, U> $op<&'a _Tensor<U>> for _Tensor<T>
                 where
-                T: CommonBounds + FloatOut<U>,
+                T: CommonBounds + FloatOutBinary<U>,
                 U: CommonBounds,
-                <T as FloatOut<U>>::Output: CommonBounds,
-                <T as FloatOut<U>>::Output: IntoScalar<<T as FloatOut<U>>::Output>
+                <T as FloatOutBinary<U>>::Output: CommonBounds,
+                <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>
             {
-                type Output = _Tensor<<T as FloatOut<U>>::Output>;
+                type Output = _Tensor<<T as FloatOutBinary<U>>::Output>;
                 #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
@@ -721,7 +811,7 @@ macro_rules! float_binary_promote_ops_2 {
                     ).unwrap();
                     let res_size: usize = res_shape.size() as usize;
                     let lhs_size: usize = self.layout().real_size();
-                    if lhs_size == res_size && T::ID == <T as FloatOut<U>>::Output::ID {
+                    if lhs_size == res_size && T::ID == <T as FloatOutBinary<U>>::Output::ID {
                         let out: _Tensor<T> = self.clone();
                         let out: Self::Output = out.static_cast().unwrap();
                         return binary_fn_with_out(
@@ -744,12 +834,12 @@ macro_rules! float_binary_promote_ops_3 {
         $(
             impl<'a, T, U> $op<&'a _Tensor<U>> for &'a _Tensor<T>
                 where
-                T: CommonBounds + FloatOut<U>,
+                T: CommonBounds + FloatOutBinary<U>,
                 U: CommonBounds,
-                <T as FloatOut<U>>::Output: CommonBounds,
-                <T as FloatOut<U>>::Output: IntoScalar<<T as FloatOut<U>>::Output>
+                <T as FloatOutBinary<U>>::Output: CommonBounds,
+                <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>
             {
-                type Output = _Tensor<<T as FloatOut<U>>::Output>;
+                type Output = _Tensor<<T as FloatOutBinary<U>>::Output>;
                 fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
                     return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                 }
@@ -763,12 +853,12 @@ macro_rules! float_binary_promote_ops_4 {
         $(
             impl<'a, T, U> $op<_Tensor<U>> for &'a _Tensor<T>
                 where
-                T: CommonBounds + FloatOut<U>,
+                T: CommonBounds + FloatOutBinary<U>,
                 U: CommonBounds,
-                <T as FloatOut<U>>::Output: CommonBounds,
-                <T as FloatOut<U>>::Output: IntoScalar<<T as FloatOut<U>>::Output>
+                <T as FloatOutBinary<U>>::Output: CommonBounds,
+                <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>
             {
-                type Output = _Tensor<<T as FloatOut<U>>::Output>;
+                type Output = _Tensor<<T as FloatOutBinary<U>>::Output>;
                 #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
@@ -778,7 +868,7 @@ macro_rules! float_binary_promote_ops_4 {
                     ).unwrap();
                     let res_size: usize = res_shape.size() as usize;
                     let rhs_size: usize = rhs.layout().real_size();
-                    if res_size == rhs_size && U::ID == <T as FloatOut<U>>::Output::ID {
+                    if res_size == rhs_size && U::ID == <T as FloatOutBinary<U>>::Output::ID {
                         let out: _Tensor<U> = rhs.clone();
                         let out: Self::Output = out.static_cast().unwrap();
                         return binary_fn_with_out(
@@ -847,8 +937,8 @@ macro_rules! normal_scalar_rhs {
                 return binary_fn(&self, &rhs, |x, y| x._sub(y)).unwrap();
             }
         }
-        impl<T> Div<$type> for $($tokens)*_Tensor<T> where T: FloatOut<$type> + CommonBounds, <T as FloatOut<$type>>::Output: CommonBounds {
-            type Output = _Tensor<<T as FloatOut<$type>>::Output>;
+        impl<T> Div<$type> for $($tokens)*_Tensor<T> where T: FloatOutBinary<$type> + CommonBounds, <T as FloatOutBinary<$type>>::Output: CommonBounds {
+            type Output = _Tensor<<T as FloatOutBinary<$type>>::Output>;
             #[cfg_attr(feature = "track_caller", track_caller)]
             fn div(self, rhs: $type) -> Self::Output {
                 let rhs: _Tensor<$type> = rhs.into();
@@ -897,8 +987,8 @@ macro_rules! normal_scalar_lhs {
                 return binary_fn(&lhs, &rhs, |x, y| x._sub(y)).unwrap();
             }
         }
-        impl<T> Div<$($tokens)*_Tensor<T>> for $type where T: FloatOut<T> + CommonBounds, <$type as FloatOut<T>>::Output: CommonBounds, $type: FloatOut<T> {
-            type Output = _Tensor<<$type as FloatOut<T>>::Output>;
+        impl<T> Div<$($tokens)*_Tensor<T>> for $type where T: FloatOutBinary<T> + CommonBounds, <$type as FloatOutBinary<T>>::Output: CommonBounds, $type: FloatOutBinary<T> {
+            type Output = _Tensor<<$type as FloatOutBinary<T>>::Output>;
             #[cfg_attr(feature = "track_caller", track_caller)]
             fn div(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
                 let lhs: _Tensor<$type> = self.into();
