@@ -17,22 +17,23 @@ use tensor_traits::shape_manipulate::ShapeManipulate;
 macro_rules! impl_fftops {
     ($type:ident, $meta_type:ident) => {
         impl FFTOps for _Tensor<$type> {
+            #[cfg_attr(feature = "track_caller", track_caller)]
             fn fft(&self, axis: i64) -> anyhow::Result<Self> {
                 self.fftn(axis)
             }
-
+            #[cfg_attr(feature = "track_caller", track_caller)]
             fn ifft(&self, axis: i64) -> anyhow::Result<Self> {
                 self.ifftn(axis)
             }
-
+            #[cfg_attr(feature = "track_caller", track_caller)]
             fn fft2(&self, axis1: i64, axis2: i64) -> anyhow::Result<Self> {
                 self.fftn([axis1, axis2])
             }
-
+            #[cfg_attr(feature = "track_caller", track_caller)]
             fn ifft2(&self, axis1: i64, axis2: i64) -> anyhow::Result<Self> {
                 self.ifftn([axis1, axis2])
             }
-
+            #[cfg_attr(feature = "track_caller", track_caller)]
             fn fftn<A: Into<Axis>>(&self, axes: A) -> anyhow::Result<Self> {
                 // Process the axes and check for errors.
                 let axes = process_axes(axes, self.ndim())?;
@@ -164,7 +165,7 @@ macro_rules! impl_fftops {
                 }
                 Ok(res)
             }
-
+            #[cfg_attr(feature = "track_caller", track_caller)]
             fn ifftn<A: Into<Axis>>(&self, axes: A) -> anyhow::Result<Self> {
                 let axes = process_axes(axes, self.ndim())?;
                 let res = self.empty_like()?;
@@ -289,29 +290,30 @@ impl_fftops!(Complex32, f32);
 impl_fftops!(Complex64, f64);
 
 impl FFTOps for Tensor<Complex32> {
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn fft(&self, axis: i64) -> anyhow::Result<Self> {
         self.fftn(axis)
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn ifft(&self, axis: i64) -> anyhow::Result<Self> {
         self.ifftn(axis)
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn fft2(&self, axis1: i64, axis2: i64) -> anyhow::Result<Self> {
         self.fftn([axis1, axis2])
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn ifft2(&self, axis1: i64, axis2: i64) -> anyhow::Result<Self> {
         self.ifftn([axis1, axis2])
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn fftn<A: Into<Axis>>(&self, axes: A) -> anyhow::Result<Self> {
         let inner = self.inner.fftn(axes)?;
         Ok(Self {
             inner: Arc::new(inner),
         })
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn ifftn<A: Into<Axis>>(&self, axes: A) -> anyhow::Result<Self> {
         let inner = self.inner.ifftn(axes)?;
         Ok(Self {
@@ -321,29 +323,30 @@ impl FFTOps for Tensor<Complex32> {
 }
 
 impl FFTOps for Tensor<Complex64> {
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn fft(&self, axis: i64) -> anyhow::Result<Self> {
         self.fftn(axis)
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn ifft(&self, axis: i64) -> anyhow::Result<Self> {
         self.ifftn(axis)
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn fft2(&self, axis1: i64, axis2: i64) -> anyhow::Result<Self> {
         self.fftn([axis1, axis2])
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn ifft2(&self, axis1: i64, axis2: i64) -> anyhow::Result<Self> {
         self.ifftn([axis1, axis2])
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn fftn<A: Into<Axis>>(&self, axes: A) -> anyhow::Result<Self> {
         let inner = self.inner.fftn(axes)?;
         Ok(Self {
             inner: Arc::new(inner),
         })
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn ifftn<A: Into<Axis>>(&self, axes: A) -> anyhow::Result<Self> {
         let inner = self.inner.ifftn(axes)?;
         Ok(Self {
