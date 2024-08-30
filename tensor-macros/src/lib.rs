@@ -1,6 +1,6 @@
 use binary_float_out::impl_float_out_binary;
 use float_unary::impl_float_out_unary;
-use kernel_gen_helper::{__gen_fast_reduce_simd_helper, __gen_reduce_dim_not_include_simd_helper};
+use kernel_gen_helper::{ __gen_fast_reduce_simd_helper, __gen_reduce_dim_not_include_simd_helper };
 use proc_macro::TokenStream;
 use simd_bitwise::impl_simd_bitwise_out;
 use simd_convert::__impl_simd_convert;
@@ -24,18 +24,10 @@ use type_utils::TypeInfo;
 use proc_macro2::{ TokenStream as TokenStream2, TokenTree };
 use crate::simd_normal_out::impl_simd_normal_out;
 
-#[derive(Debug)]
 struct SelectionParser {
-    start: Option<i64>,
-    end: Option<i64>,
-    step: Option<i64>,
-    start_neg: bool,
-    start_ident: Option<Ident>,
-    end_neg: bool,
-    end_ident: Option<Ident>,
-    step_neg: bool,
-    step_ident: Option<Ident>,
-    only_scalar: bool,
+    start: Option<Expr>,
+    end: Option<Expr>,
+    step: Option<Expr>,
 }
 
 struct Selections {
@@ -44,23 +36,16 @@ struct Selections {
 
 impl parse::Parse for SelectionParser {
     fn parse(input: parse::ParseStream) -> syn::Result<Self> {
-        let mut start: Option<i64> = None;
-        let mut end: Option<i64> = None;
-        let mut step: Option<i64> = None;
-        let mut start_ident: Option<Ident> = None;
-        let mut end_ident: Option<Ident> = None;
-        let mut step_ident: Option<Ident> = None;
-        let mut start_neg = false;
-        let mut end_neg = false;
-        let mut step_neg = false;
-        if input.peek(syn::LitInt) {
-            start = Some(input.parse::<syn::LitInt>()?.base10_parse::<i64>()?);
-        } else if input.peek(Ident) {
-            start_ident = Some(input.parse::<Ident>()?);
-        } else if input.peek(Token![-]) && input.peek2(syn::Ident) {
-            let _ = input.parse::<Token![-]>()?;
-            start_ident = Some(input.parse::<Ident>()?);
-            start_neg = true;
+        let mut start: Option<Expr> = None;
+        let mut end: Option<Expr> = None;
+        let mut step: Option<Expr> = None;
+        if
+            input.peek(syn::Lit) ||
+            input.peek(syn::Ident) ||
+            input.peek(syn::token::Paren) ||
+            input.peek(Token![-])
+        {
+            start = Some(input.parse::<syn::Expr>()?);
         }
         if input.peek(Token![:]) {
             input.parse::<Token![:]>()?;
@@ -69,51 +54,35 @@ impl parse::Parse for SelectionParser {
                 start,
                 end,
                 step,
-                start_neg,
-                start_ident,
-                end_neg,
-                end_ident,
-                step_neg,
-                step_ident,
-                only_scalar: true,
             });
         } else {
             return Err(
                 syn::Error::new(input.span(), "unexpected token, expected `:`, Int or Ident")
             );
         }
-        if input.peek(syn::LitInt) {
-            end = Some(input.parse::<syn::LitInt>()?.base10_parse::<i64>()?);
-        } else if input.peek(Ident) {
-            end_ident = Some(input.parse::<Ident>()?);
-        } else if input.peek(Token![-]) && input.peek2(syn::Ident) {
-            let _ = input.parse::<Token![-]>()?;
-            end_ident = Some(input.parse::<Ident>()?);
-            end_neg = true;
+        if
+            input.peek(syn::Lit) ||
+            input.peek(syn::Ident) ||
+            input.peek(syn::token::Paren) ||
+            input.peek(Token![-])
+        {
+            end = Some(input.parse::<syn::Expr>()?);
         }
         if input.peek(Token![:]) {
             input.parse::<Token![:]>()?;
         }
-        if input.peek(syn::LitInt) {
-            step = Some(input.parse::<syn::LitInt>()?.base10_parse::<i64>()?);
-        } else if input.peek(Ident) {
-            step_ident = Some(input.parse::<Ident>()?);
-        } else if input.peek(Token![-]) && input.peek2(syn::Ident) {
-            let _ = input.parse::<Token![-]>()?;
-            step_ident = Some(input.parse::<Ident>()?);
-            step_neg = true;
+        if
+            input.peek(syn::Lit) ||
+            input.peek(syn::Ident) ||
+            input.peek(syn::token::Paren) ||
+            input.peek(Token![-])
+        {
+            step = Some(input.parse::<syn::Expr>()?);
         }
         Ok(Self {
             start,
             end,
             step,
-            start_neg,
-            start_ident,
-            end_neg,
-            end_ident,
-            step_neg,
-            step_ident,
-            only_scalar: false,
         })
     }
 }
@@ -148,217 +117,29 @@ pub fn match_selection(input: TokenStream) -> TokenStream {
     let mut ret_stream = TokenStream2::new();
     let len = slices.len();
     for (idx, x) in slices.into_iter().enumerate() {
-        if
-            (x.start.is_some() || x.start_ident.is_some()) &&
-            (x.end.is_some() || x.end_ident.is_some()) &&
-            (x.step.is_some() || x.step_ident.is_some())
-        {
-            // start:end:step
-            let start_token;
-            if x.start_ident.is_some() {
-                let start_ident = x.start_ident.unwrap();
-                if x.start_neg {
-                    start_token = quote!(-#start_ident);
-                } else {
-                    start_token = quote!(#start_ident);
-                }
-            } else {
-                let start = x.start.unwrap();
-                start_token = quote!(#start);
+        match (x.start, x.end, x.step) {
+            (None, None, None) => {
+                ret_stream.extend(quote!(Slice::Full));
             }
-            let end_token;
-            if x.end_ident.is_some() {
-                let end_ident = x.end_ident.unwrap();
-                if x.end_neg {
-                    end_token = quote!(-#end_ident);
-                } else {
-                    end_token = quote!(#end_ident);
-                }
-            } else {
-                let end = x.end.unwrap();
-                end_token = quote!(#end);
+            (None, None, Some(step)) => {
+                ret_stream.extend(quote!(Slice::StepByFullRange(#step)));
             }
-            let step_token;
-            if x.step_ident.is_some() {
-                let step_ident = x.step_ident.unwrap();
-                if x.step_neg {
-                    step_token = quote!(-#step_ident);
-                } else {
-                    step_token = quote!(#step_ident);
-                }
-            } else {
-                let step = x.step.unwrap();
-                step_token = quote!(#step);
+            (None, Some(end), None) => {
+                ret_stream.extend(quote!(Slice::RangeTo(#end)));
             }
-            ret_stream.extend(
-                quote!(Slice::StepByRangeFromTo((#start_token, #end_token, #step_token)))
-            );
-        } else if
-            x.start.is_none() &&
-            x.start_ident.is_none() &&
-            (x.end.is_some() || x.end_ident.is_some()) &&
-            (x.step.is_some() || x.step_ident.is_some())
-        {
-            // :end:step
-            let end_token;
-            if x.end_ident.is_some() {
-                let end_ident = x.end_ident.unwrap();
-                if x.end_neg {
-                    end_token = quote!(-#end_ident);
-                } else {
-                    end_token = quote!(#end_ident);
-                }
-            } else {
-                let end = x.end.unwrap();
-                end_token = quote!(#end);
+            (None, Some(end), Some(step)) => {
+                ret_stream.extend(quote!(Slice::StepByRangeTo((#end, #step))));
             }
-            let step_token;
-            if x.step_ident.is_some() {
-                let step_ident = x.step_ident.unwrap();
-                if x.step_neg {
-                    step_token = quote!(-#step_ident);
-                } else {
-                    step_token = quote!(#step_ident);
-                }
-            } else {
-                let step = x.step.unwrap();
-                step_token = quote!(#step);
+            (Some(start), None, None) => {
+                ret_stream.extend(quote!(Slice::From(#start)));
             }
-            ret_stream.extend(quote!(Slice::StepByRangeTo((#end_token, #step_token))));
-        } else if
-            (x.start.is_some() || x.start_ident.is_some()) &&
-            x.end.is_none() &&
-            x.end_ident.is_none() &&
-            (x.step.is_some() || x.step_ident.is_some())
-        {
-            // start::step
-            let start_token;
-            if x.start_ident.is_some() {
-                let start_ident = x.start_ident.unwrap();
-                if x.start_neg {
-                    start_token = quote!(-#start_ident);
-                } else {
-                    start_token = quote!(#start_ident);
-                }
-            } else {
-                let start = x.start.unwrap();
-                start_token = quote!(#start);
+            (Some(start), None, Some(step)) => {
+                ret_stream.extend(quote!(Slice::StepByRangeFrom((#start, #step))));
             }
-            let step_token;
-            if x.step_ident.is_some() {
-                let step_ident = x.step_ident.unwrap();
-                if x.step_neg {
-                    step_token = quote!(-#step_ident);
-                } else {
-                    step_token = quote!(#step_ident);
-                }
-            } else {
-                let step = x.step.unwrap();
-                step_token = quote!(#step);
-            }
-            ret_stream.extend(quote!(Slice::StepByRangeFrom((#start_token, #step_token))));
-        } else if
-            (x.start.is_some() || x.start_ident.is_some()) &&
-            (x.end.is_some() || x.end_ident.is_some()) &&
-            x.step.is_none() &&
-            x.step_ident.is_none()
-        {
-            // start:end:
-            let start_token;
-            if x.start_ident.is_some() {
-                let start_ident = x.start_ident.unwrap();
-                if x.start_neg {
-                    start_token = quote!(-#start_ident);
-                } else {
-                    start_token = quote!(#start_ident);
-                }
-            } else {
-                let start = x.start.unwrap();
-                start_token = quote!(#start);
-            }
-            let end_token;
-            if x.end_ident.is_some() {
-                let end_ident = x.end_ident.unwrap();
-                if x.end_neg {
-                    end_token = quote!(-#end_ident);
-                } else {
-                    end_token = quote!(#end_ident);
-                }
-            } else {
-                let end = x.end.unwrap();
-                end_token = quote!(#end);
-            }
-            ret_stream.extend(quote!(Slice::Range((#start_token, #end_token))));
-        } else if
-            x.start.is_none() &&
-            x.start_ident.is_none() &&
-            (x.end.is_some() || x.end_ident.is_some()) &&
-            x.step.is_none() &&
-            x.step_ident.is_none()
-        {
-            // :end:
-            let end_token;
-            if x.end_ident.is_some() {
-                let end_ident = x.end_ident.unwrap();
-                if x.end_neg {
-                    end_token = quote!(-#end_ident);
-                } else {
-                    end_token = quote!(#end_ident);
-                }
-            } else {
-                let end = x.end.unwrap();
-                end_token = quote!(#end);
-            }
-            ret_stream.extend(quote!(Slice::RangeTo(#end_token)));
-        } else if
-            (x.start.is_some() || x.start_ident.is_some()) &&
-            x.end.is_none() &&
-            x.end_ident.is_none() &&
-            x.step.is_none() &&
-            x.step_ident.is_none()
-        {
-            // start::
-            let start_token;
-            if x.start_ident.is_some() {
-                let start_ident = x.start_ident.unwrap();
-                if x.start_neg {
-                    start_token = quote!(-#start_ident);
-                } else {
-                    start_token = quote!(#start_ident);
-                }
-            } else {
-                let start = x.start.unwrap();
-                start_token = quote!(#start);
-            }
-            if x.only_scalar {
-                ret_stream.extend(quote!(Slice::From(#start_token)));
-            } else {
-                ret_stream.extend(quote!(Slice::RangeFrom(#start_token)));
-            }
-        } else if
-            x.start.is_none() &&
-            x.start_ident.is_none() &&
-            x.end.is_none() &&
-            x.end_ident.is_none() &&
-            (x.step.is_some() || x.step_ident.is_some())
-        {
-            // ::step
-            let step_token;
-            if x.step_ident.is_some() {
-                let step_ident = x.step_ident.unwrap();
-                if x.step_neg {
-                    step_token = quote!(-#step_ident);
-                } else {
-                    step_token = quote!(#step_ident);
-                }
-            } else {
-                let step = x.step.unwrap();
-                step_token = quote!(#step);
-            }
-            ret_stream.extend(quote!(Slice::StepByFullRange(#step_token)));
-        } else {
-            // ::
-            ret_stream.extend(quote!(Slice::Full));
+            (Some(start), Some(end), None) =>
+                ret_stream.extend(quote!(Slice::Range((#start, #end)))),
+            (Some(start), Some(end), Some(step)) =>
+                ret_stream.extend(quote!(Slice::StepByRangeFromTo((#start, #end, #step)))),
         }
         if idx != len - 1 {
             ret_stream.extend(quote!(,));
@@ -509,7 +290,6 @@ pub fn float_out_binary(_: TokenStream) -> TokenStream {
 pub fn float_out_binary_simd(_: TokenStream) -> TokenStream {
     impl_simd_binary_out_float()
 }
-
 
 #[proc_macro]
 pub fn float_out_unary(_: TokenStream) -> TokenStream {

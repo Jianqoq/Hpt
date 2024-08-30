@@ -2,18 +2,21 @@ use std::hint::black_box;
 use tch::{ Device, Kind, Tensor };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
+use tensor_common::slice;
+use tensor_dyn::slice::SliceOps;
+use tensor_common::slice::Slice;
 
 fn main() -> anyhow::Result<()> {
     set_global_display_precision(7);
     set_global_display_lr_elements(6);
     set_num_threads(10);
     tch::set_num_threads(10);
-    let a = _Tensor::<f32>::arange(0, 8 * 1 * 2048)?.reshape(&[8, 1, 2048])?;
+    let a = _Tensor::<i32>::arange(0, 8 * 1 * 2048)?.reshape(&[8, 1, 2048])?;
     let b = _Tensor::<f32>::arange(0, 8 * 8096 * 1)?.reshape(&[8, 8096, 1])?;
     // println!("{:?}", a);
     let now = std::time::Instant::now();
     black_box(for _ in 0..100 {
-        let _ = a.mean([1], false);
+        let res = a.mean([1], false);
     });
     println!("hpt time: {:?}", now.elapsed() / 100);
 
