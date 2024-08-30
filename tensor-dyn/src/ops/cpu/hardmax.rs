@@ -7,8 +7,6 @@ use tensor_types::{
 use tensor_types::vectors::traits::Init;
 use crate::{ tensor::Tensor, tensor_base::_Tensor };
 
-use super::reduce::reduce;
-
 impl<T> _Tensor<T>
     where
         T: CommonBounds + NormalOut<T, Output = T> + Cmp + tensor_types::into_scalar::IntoScalar<T>,
@@ -24,16 +22,7 @@ impl<T> _Tensor<T>
         where <T as TypeCommon>::Vec: IntoVec<<T as TypeCommon>::Vec>
     {
         let axis = (if axis < 0 { (self.layout.ndim() as i64) + axis } else { axis }) as usize;
-        let max = reduce(
-            self,
-            |a, b| a._max(b),
-            |a, b| { a._max(b) },
-            &[axis],
-            T::ZERO,
-            true,
-            false,
-            None
-        )?;
+        let max = self.max(axis as i64, true)?;
         #[cfg(feature = "simd")]
         let ret = self
             .par_iter_simd()
@@ -52,11 +41,7 @@ impl<T> _Tensor<T>
         let ret = self
             .par_iter()
             .zip(max.par_iter())
-            .strided_map(
-                |(a, b)| {
-                    a._eq(b)._mul(T::ONE)
-                }
-            )
+            .strided_map(|(a, b)| { a._eq(b)._mul(T::ONE) })
             .collect::<_Tensor<T>>();
         Ok(ret)
     }
