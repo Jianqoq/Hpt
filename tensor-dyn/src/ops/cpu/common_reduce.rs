@@ -5,18 +5,20 @@ use tensor_types::{
     dtype::TypeCommon,
     into_scalar::IntoScalar,
     into_vec::IntoVec,
-    type_promote::{ BitWiseOut, Eval, NormalOut },
+    type_promote::{ BitWiseOut, Eval, FloatOutBinary, FloatOutUnary, NormalOut },
     vectors::traits::SimdSelect,
 };
+use tensor_types::vectors::traits::Init;
 use crate::tensor_base::_Tensor;
 
-use super::reduce::{ reduce, reduce2 };
+use super::{ reduce::{ reduce, reduce2, reduce3 }, unary::FloatBinaryType };
 
 impl<T> _Tensor<T>
     where
         T: CommonBounds + NormalOut<T, Output = T>,
         <T as TypeCommon>::Vec: NormalOut<<T as TypeCommon>::Vec, Output = <T as TypeCommon>::Vec>
 {
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn sum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self> {
         let axes = process_axes(axes, self.ndim())?;
         reduce(
@@ -30,6 +32,7 @@ impl<T> _Tensor<T>
             None
         )
     }
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn sum_<S: Into<Axis>>(
         &self,
         axes: S,
@@ -49,6 +52,7 @@ impl<T> _Tensor<T>
             Some(out.clone())
         )
     }
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn sum_with_init<S: Into<Axis>>(
         &self,
         init_val: T,
@@ -67,6 +71,7 @@ impl<T> _Tensor<T>
             None
         )
     }
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn nansum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self>
         where
             T: Eval<Output = bool>,
@@ -90,6 +95,7 @@ impl<T> _Tensor<T>
             None
         )
     }
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn nansum_with_init<S: Into<Axis>>(
         &self,
         init_val: T,
@@ -119,6 +125,7 @@ impl<T> _Tensor<T>
             None
         )
     }
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
         let axes = process_axes(axis, self.ndim())?;
         reduce(
@@ -132,6 +139,7 @@ impl<T> _Tensor<T>
             None
         )
     }
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn prod_with_init<S: Into<Axis>>(
         &self,
         init_val: T,
@@ -150,6 +158,7 @@ impl<T> _Tensor<T>
             None
         )
     }
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self>
         where
             T: Eval<Output = bool>,
@@ -173,6 +182,7 @@ impl<T> _Tensor<T>
             None
         )
     }
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn nanprod_with_init<S: Into<Axis>>(
         &self,
         init_val: T,
@@ -202,7 +212,7 @@ impl<T> _Tensor<T>
             None
         )
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
@@ -216,7 +226,7 @@ impl<T> _Tensor<T>
             None
         )
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn min_with_init<S: Into<Axis>>(
         &self,
         init_val: T,
@@ -235,7 +245,7 @@ impl<T> _Tensor<T>
             None
         )
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
@@ -249,7 +259,7 @@ impl<T> _Tensor<T>
             None
         )
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn max_with_init<S: Into<Axis>>(
         &self,
         init_val: T,
@@ -268,7 +278,7 @@ impl<T> _Tensor<T>
             None
         )
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn all<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<_Tensor<bool>>
         where
             T: IntoScalar<bool> + Eval<Output = bool>,
@@ -292,6 +302,7 @@ impl<T> _Tensor<T>
         )
     }
 
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<_Tensor<bool>>
         where
             <T as TypeCommon>::Vec: IntoVec<tensor_types::vectors::boolx32::boolx32>,
@@ -317,6 +328,7 @@ impl<T> _Tensor<T>
     }
 
     #[allow(unused)]
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
@@ -331,6 +343,7 @@ impl<T> _Tensor<T>
         )
     }
     #[allow(unused)]
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
@@ -339,6 +352,99 @@ impl<T> _Tensor<T>
             |a, b| a._add(b._square()),
             &axes,
             T::ZERO,
+            keep_dims,
+            false,
+            None
+        )
+    }
+}
+
+impl<T> _Tensor<T>
+    where
+        T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output>,
+        <T as FloatOutBinary>::Output: TypeCommon,
+        <T as FloatOutBinary>::Output: CommonBounds +
+            NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output> +
+            FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
+        <T as TypeCommon>::Vec: IntoVec<<<T as FloatOutBinary>::Output as TypeCommon>::Vec>,
+        <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<
+            <T as TypeCommon>::Vec,
+            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
+        > +
+            FloatOutUnary<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
+{
+    #[allow(unused)]
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn reducel2<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool
+    )
+        -> anyhow::Result<_Tensor<FloatBinaryType<T>>>
+        where
+            T: NormalOut,
+            <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>
+    {
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        reduce3(
+            self,
+            |a, b| {
+                let b = b._square();
+                a._add(b)
+            },
+            |a, b| a._add(b),
+            move |a| a._sqrt(),
+            |a, b| a._add(b),
+            |a| a._sqrt(),
+            &axes,
+            <T as FloatOutBinary>::Output::ZERO,
+            keep_dims,
+            false,
+            None
+        )
+    }
+
+    #[allow(unused)]
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn reducel3<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool
+    )
+        -> anyhow::Result<_Tensor<FloatBinaryType<T>>>
+        where
+            f32: IntoScalar<<T as FloatOutBinary>::Output>,
+            T: NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>,
+            <T as FloatOutBinary>::Output: TypeCommon,
+            <T as TypeCommon>::Vec: NormalOut<
+                <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+                Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
+            >,
+            <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<
+                <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+                Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
+            >
+    {
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        let three: <T as FloatOutBinary>::Output = (3.0).into_scalar();
+        let three_vec = <<T as FloatOutBinary>::Output as TypeCommon>::Vec::splat(three);
+        reduce3(
+            self,
+            move |a, b| {
+                let b = b._abs();
+                let pow = b._pow(three);
+                a._add(pow)
+            },
+            move |a, b| a._add(<FloatBinaryType<T> as NormalOut>::_abs(b)._pow(three)),
+            move |a| a,
+            move |a, b| {
+                let abs = b._abs();
+                let pow = abs._pow(three_vec);
+                a._add(pow)
+            },
+            |a| a,
+            &axes,
+            <T as FloatOutBinary>::Output::ZERO,
             keep_dims,
             false,
             None
