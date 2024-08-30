@@ -2,9 +2,6 @@ use std::hint::black_box;
 use tch::{ Device, Kind, Tensor };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
-use tensor_common::slice;
-use tensor_dyn::slice::SliceOps;
-use tensor_common::slice::Slice;
 
 fn main() -> anyhow::Result<()> {
     set_global_display_precision(7);
@@ -16,7 +13,7 @@ fn main() -> anyhow::Result<()> {
     // println!("{:?}", a);
     let now = std::time::Instant::now();
     black_box(for _ in 0..100 {
-        let res = a.mean([1], false);
+        let res = a.mean(&[1], false);
     });
     println!("hpt time: {:?}", now.elapsed() / 100);
 
