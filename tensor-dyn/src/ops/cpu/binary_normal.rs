@@ -562,8 +562,8 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
                 // chunk the array, the chunk size must be a multiple of the vector size
                 let per_thread_len = ret.size() / rayon::current_num_threads();
                 let per_thread_remain = per_thread_len % <K as TypeCommon>::Vec::SIZE;
-                let total_remain = rayon::current_num_threads() * per_thread_remain;
                 let per_thread_real_len = per_thread_len - per_thread_remain;
+                let remain = ret.size() % per_thread_real_len;
                 ret.as_raw_mut()
                     .par_chunks_exact_mut(per_thread_real_len)
                     .zip(lhs.as_raw().par_chunks_exact(per_thread_real_len))
@@ -589,11 +589,11 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
                             });
                     });
                 // handle the remaining elements
-                if total_remain > 0 {
+                if remain > 0 {
                     ret.as_raw_mut()
-                        [ret.size() - total_remain..].iter_mut()
-                        .zip(lhs.as_raw()[ret.size() - total_remain..].iter())
-                        .zip(rhs.as_raw()[ret.size() - total_remain..].iter())
+                        [ret.size() - remain..].iter_mut()
+                        .zip(lhs.as_raw()[ret.size() - remain..].iter())
+                        .zip(rhs.as_raw()[ret.size() - remain..].iter())
                         .for_each(|((a, &lhs), &rhs)| {
                             *a = f(lhs, rhs);
                         });

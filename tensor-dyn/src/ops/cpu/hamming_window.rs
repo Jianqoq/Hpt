@@ -43,7 +43,7 @@ impl<T> _Tensor<T>
             .par_iter_mut()
             .enumerate()
             .for_each(|(idx, x)| {
-                *x = alpha - beta * (T::TWO * T::PI * idx.into_scalar())._div(length)._cos();
+                *x = alpha - beta * (T::TWOPI * idx.into_scalar())._div(length)._cos();
             });
         Ok(ret)
     }
