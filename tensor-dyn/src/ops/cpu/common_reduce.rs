@@ -372,6 +372,7 @@ impl<T> _Tensor<T>
         > +
             FloatOutUnary<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
 {
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn mean<S: Into<Axis>>(
         &self,
         axis: S,

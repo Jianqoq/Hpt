@@ -16,6 +16,7 @@ impl<T> _Tensor<T>
         <<T as FloatOutUnary>::Output as FloatOutUnary>::Output: IntoScalar<<<T as FloatOutUnary>::Output as FloatOutUnary>::Output> +
             CommonBounds
 {
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn softmax(&self, axis: i64) -> anyhow::Result<_Tensor<<T as FloatOutUnary>::Output>>
         where
             <T as TypeCommon>::Vec: NormalOut<Output = <T as TypeCommon>::Vec>,
@@ -44,6 +45,7 @@ impl<T> Tensor<T>
         <<T as FloatOutUnary>::Output as FloatOutUnary>::Output: IntoScalar<<<T as FloatOutUnary>::Output as FloatOutUnary>::Output> +
             CommonBounds
 {
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn softmax(&self, axis: i64) -> anyhow::Result<Tensor<<T as FloatOutUnary>::Output>>
         where
             <T as TypeCommon>::Vec: NormalOut<Output = <T as TypeCommon>::Vec>,
