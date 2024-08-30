@@ -366,7 +366,6 @@ impl<T> _Tensor<T>
         <T as FloatOutBinary>::Output: CommonBounds +
             NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output> +
             FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
-        <T as TypeCommon>::Vec: IntoVec<<<T as FloatOutBinary>::Output as TypeCommon>::Vec>,
         <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<
             <T as TypeCommon>::Vec,
             Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
@@ -491,7 +490,12 @@ impl<T> _Tensor<T>
 
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn logsumexp<S: Into<Axis>>(&self, _: S, _: bool) -> anyhow::Result<_Tensor<FloatBinaryType<T>>>
+    pub fn logsumexp<S: Into<Axis>>(
+        &self,
+        _: S,
+        _: bool
+    )
+        -> anyhow::Result<_Tensor<FloatBinaryType<T>>>
         where
             T: CommonBounds + NormalOut<T, Output = T>,
             <T as TypeCommon>::Vec: NormalOut<

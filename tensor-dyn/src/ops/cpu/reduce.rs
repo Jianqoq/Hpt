@@ -1073,7 +1073,6 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, O>(
             Copy,
         F5: Fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec + Sync + Send + 'static + Copy,
         O: CommonBounds,
-        <T as TypeCommon>::Vec: IntoVec<<O as TypeCommon>::Vec> + Copy,
         <O as TypeCommon>::Vec: Copy
 {
     _reduce::<T, F, F2, F3, F4, F5, O>(
