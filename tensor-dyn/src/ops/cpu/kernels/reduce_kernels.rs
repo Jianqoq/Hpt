@@ -162,6 +162,7 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
     let largest_num_vec = 8;
     let remain_vec = num_vecs % largest_num_vec;
     let num_largest_vecs = (num_vecs - remain_vec) / largest_num_vec;
+    #[cfg(target_feature = "avx2")]
     gen_kernel!(
         num_largest_vecs,
         16,
@@ -174,6 +175,37 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
         inp_shape,
         prg,
         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    );
+    #[cfg(target_feature = "avx512f")]
+    gen_kernel!(
+        num_largest_vecs,
+        32,
+        inp_ptr,
+        res_ptr,
+        vec_size,
+        outer_loop_size,
+        vec_op,
+        inp_strides,
+        inp_shape,
+        prg,
+        [
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+            25, 26, 27, 28, 29, 30, 31, 32,
+        ]
+    );
+    #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
+    gen_kernel!(
+        num_largest_vecs,
+        8,
+        inp_ptr,
+        res_ptr,
+        vec_size,
+        outer_loop_size,
+        vec_op,
+        inp_strides,
+        inp_shape,
+        prg,
+        [1, 2, 3, 4, 5, 6, 7, 8]
     );
     let remain_vec = remain_vec as u32;
     inp_ptr = origin; // reset inp_ptr
@@ -347,6 +379,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2>(
 
     if num_largest_vecs > 0 {
         for _ in 0..outer_loop_size {
+            #[cfg(target_feature = "avx2")]
             gen_kernel2!(
                 num_largest_vecs,
                 16,
@@ -360,6 +393,39 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2>(
                 prg1,
                 shape_len,
                 [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+            );
+            #[cfg(target_feature = "avx512f")]
+            gen_kernel2!(
+                num_largest_vecs,
+                32,
+                inp_ptr,
+                res_ptr,
+                <O as TypeCommon>::Vec::SIZE as isize,
+                intermediate_size,
+                vec_op,
+                inp_strides,
+                inp_shape,
+                prg1,
+                shape_len,
+                [
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
+                    23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+                ]
+            );
+            #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
+            gen_kernel2!(
+                num_largest_vecs,
+                8,
+                inp_ptr,
+                res_ptr,
+                <O as TypeCommon>::Vec::SIZE as isize,
+                intermediate_size,
+                vec_op,
+                inp_strides,
+                inp_shape,
+                prg1,
+                shape_len,
+                [1, 2, 3, 4, 5, 6, 7, 8]
             );
             update_prg3(prg2, shape_len, &mut inp_ptr, inp_strides, inp_shape);
             res_ptr.offset(inner_loop_size as i64);
