@@ -13,7 +13,7 @@ fn main() -> anyhow::Result<()> {
     // println!("{:?}", a);
     let now = std::time::Instant::now();
     black_box(for _ in 0..100 {
-        // let _ = a.mean([1], false);
+        let _ = a.mean([1], false);
     });
     println!("hpt time: {:?}", now.elapsed() / 100);
 

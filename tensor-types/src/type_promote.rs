@@ -1,4 +1,4 @@
-use tensor_macros::simd_bitwise;
+use tensor_macros::{ float_out_binary_simd, simd_bitwise };
 use tensor_macros::{
     float_out_binary,
     impl_bitwise_out,
@@ -36,6 +36,7 @@ pub trait FloatOutBinary<RHS = Self> {
 }
 
 float_out_binary!();
+float_out_binary_simd!();
 
 pub trait NormalOut<RHS = Self> {
     type Output;

@@ -4,6 +4,7 @@ use kernel_gen_helper::{__gen_fast_reduce_simd_helper, __gen_reduce_dim_not_incl
 use proc_macro::TokenStream;
 use simd_bitwise::impl_simd_bitwise_out;
 use simd_convert::__impl_simd_convert;
+use simd_float_out_binary::impl_simd_binary_out_float;
 use syn::{ parse, parse_macro_input, Expr, Ident, Token };
 mod type_utils;
 mod list_enum;
@@ -16,6 +17,7 @@ mod simd_eval;
 mod simd_cmp;
 mod simd_bitwise;
 mod kernel_gen_helper;
+mod simd_float_out_binary;
 use crate::simd_cmp::impl_simd_cmp;
 use quote::quote;
 use type_utils::TypeInfo;
@@ -502,6 +504,12 @@ pub fn infer_cal_res_type(input: TokenStream) -> TokenStream {
 pub fn float_out_binary(_: TokenStream) -> TokenStream {
     impl_float_out_binary()
 }
+
+#[proc_macro]
+pub fn float_out_binary_simd(_: TokenStream) -> TokenStream {
+    impl_simd_binary_out_float()
+}
+
 
 #[proc_macro]
 pub fn float_out_unary(_: TokenStream) -> TokenStream {
