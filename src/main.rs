@@ -19,7 +19,7 @@ fn main() -> anyhow::Result<()> {
         .permute([1, 2, 0])?
         .contiguous()?;
     let now = std::time::Instant::now();
-    for _ in 0..100 {
+    for _ in 0..1 {
         let res = conv2d_ex::<f32, 14, 8, f32x8>(
             &a,
             &kernel,
@@ -30,6 +30,7 @@ fn main() -> anyhow::Result<()> {
             ],
             [1, 1]
         )?.permute([2, 0, 1])?;
+        println!("{:?}", res);
     }
     println!("{:?}", now.elapsed() / 100);
     Ok(())
