@@ -25,3 +25,4 @@ pub mod vectors {
     pub mod cplx64x2;
     pub mod traits;
 }
+pub use vectors::*;

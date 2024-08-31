@@ -2,6 +2,7 @@ use std::ops::{ Deref, DerefMut };
 use std::simd::num::SimdFloat;
 use crate::into_vec::IntoVec;
 use super::traits::{ Init, SimdSelect, VecSize, VecTrait };
+use std::simd::StdFloat;
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq)]
@@ -28,8 +29,8 @@ impl VecTrait<f32> for f32x8 {
         self.as_array().as_ptr()
     }
     #[inline(always)]
-    fn _mul_add(self, _: Self, _: Self) -> Self {
-        todo!()
+    fn _mul_add(self, a: Self, b: Self) -> Self {
+        f32x8(self.0.mul_add(a.0, b.0))
     }
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut f32 {

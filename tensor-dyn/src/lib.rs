@@ -68,6 +68,7 @@ use ctor::ctor;
 pub use tensor_iterator::iterator_traits::*;
 pub use tensor_traits::*;
 pub use tensor_macros::match_selection;
+pub use tensor_types::vectors::*;
 
 use std::{ cell::RefCell, sync::atomic::AtomicUsize };
 thread_local! {
