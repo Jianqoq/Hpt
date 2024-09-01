@@ -300,6 +300,7 @@ pub fn conv2d_ex<
                 vec![[VEC::splat(T::ZERO); REGNUM]; num_wo_rb as usize * num_co_rb as usize];
             let mut remain_vectors =
                 vec![VEC::splat(T::ZERO); wo_b_remain as usize * num_co_rb as usize];
+            let mut kernel_vectors = vec![VEC::splat(T::ZERO); num_co_rb as usize];
             let b = idx / (num_co_b * num_ci_b * out_height);
             let t = (idx / (num_ci_b * out_height)) % num_co_b;
             let ip = (idx / out_height) % num_ci_b;
@@ -336,6 +337,10 @@ pub fn conv2d_ex<
                     for m in 0..kernel_width {
                         for i in 0..ci_b {
                             let i = ip * ci_b + i;
+                            for j in 0..num_co_rb {
+                                let kernel_vec = unsafe { VEC::from_ptr(&kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j * (VECSIZE as i64)]) }; // prettier-ignore
+                                *unsafe { kernel_vectors.get_unchecked_mut(j as usize) } = kernel_vec;
+                            }
                             for k in 0..num_wo_rb {
                                 let offset = b * isb + (l * step_height + n * dh) * ish + (kp * wo_b + k * (REGNUM as i64) * step_width + m * dw) * isw + ip * ci_b + i; // prettier-ignore
                                 let inp_vecs = load_inps::<T, REGNUM, VEC>(
@@ -349,7 +354,7 @@ pub fn conv2d_ex<
                                     let res_vectors = unsafe {
                                         res_vectors.get_unchecked_mut(idx as usize)
                                     };
-                                    let kernel_vec = unsafe { VEC::from_ptr(&kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j * (VECSIZE as i64)]) }; // prettier-ignore
+                                    let kernel_vec = *unsafe { kernel_vectors.get_unchecked(j as usize) };
 
                                     let out_vec = &mut res_vectors[0];
                                     *out_vec = inp_vecs[0]._mul_add(kernel_vec, *out_vec); // prettier-ignore
