@@ -322,10 +322,47 @@ pub fn conv2d_ex<
                             for k in 0..num_wo_rb {
                                 for j in 0..num_co_rb {
                                     let kernel_vec = unsafe { VEC::from_ptr(&kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j * (VECSIZE as i64)]) }; // prettier-ignore
-                                    for p in 0..REGNUM as i64 {
-                                        let out_vec = unsafe { res_vectors.get_unchecked_mut((k * (num_co_rb * REGNUM as i64) + j * (REGNUM as i64) + p) as usize) }; // prettier-ignore
-                                        let k = kp * wo_b + k * (REGNUM as i64) + p;
-                                        let inp_vec = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (k * step_width + m * dw) * isw + ip * ci_b + i]); // prettier-ignore
+                                    for h in 0..2 {
+                                        let v = h * (REGNUM as i64) / 2 + 0;
+                                        let out_vec = unsafe { res_vectors.get_unchecked_mut((k * (num_co_rb * REGNUM as i64) + j * (REGNUM as i64) + v) as usize) }; // prettier-ignore
+                                        let _k = kp * wo_b + k * (REGNUM as i64) + v;
+                                        let inp_vec = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (_k * step_width + m * dw) * isw + ip * ci_b + i]); // prettier-ignore
+                                        *out_vec = inp_vec._mul_add(kernel_vec, *out_vec); // prettier-ignore
+
+                                        let v = h * (REGNUM as i64) / 2 + 1;
+                                        let out_vec = unsafe { res_vectors.get_unchecked_mut((k * (num_co_rb * REGNUM as i64) + j * (REGNUM as i64) + v) as usize) }; // prettier-ignore
+                                        let _k = kp * wo_b + k * (REGNUM as i64) + v;
+                                        let inp_vec = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (_k * step_width + m * dw) * isw + ip * ci_b + i]); // prettier-ignore
+                                        *out_vec = inp_vec._mul_add(kernel_vec, *out_vec); // prettier-ignore
+
+                                        let v = h * (REGNUM as i64) / 2 + 2;
+                                        let out_vec = unsafe { res_vectors.get_unchecked_mut((k * (num_co_rb * REGNUM as i64) + j * (REGNUM as i64) + v) as usize) }; // prettier-ignore
+                                        let _k = kp * wo_b + k * (REGNUM as i64) + v;
+                                        let inp_vec = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (_k * step_width + m * dw) * isw + ip * ci_b + i]); // prettier-ignore
+                                        *out_vec = inp_vec._mul_add(kernel_vec, *out_vec); // prettier-ignore
+
+                                        let v = h * (REGNUM as i64) / 2 + 3;
+                                        let out_vec = unsafe { res_vectors.get_unchecked_mut((k * (num_co_rb * REGNUM as i64) + j * (REGNUM as i64) + v) as usize) }; // prettier-ignore
+                                        let _k = kp * wo_b + k * (REGNUM as i64) + v;
+                                        let inp_vec = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (_k * step_width + m * dw) * isw + ip * ci_b + i]); // prettier-ignore
+                                        *out_vec = inp_vec._mul_add(kernel_vec, *out_vec); // prettier-ignore
+
+                                        let v = h * (REGNUM as i64) / 2 + 4;
+                                        let out_vec = unsafe { res_vectors.get_unchecked_mut((k * (num_co_rb * REGNUM as i64) + j * (REGNUM as i64) + v) as usize) }; // prettier-ignore
+                                        let _k = kp * wo_b + k * (REGNUM as i64) + v;
+                                        let inp_vec = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (_k * step_width + m * dw) * isw + ip * ci_b + i]); // prettier-ignore
+                                        *out_vec = inp_vec._mul_add(kernel_vec, *out_vec); // prettier-ignore
+
+                                        let v = h * (REGNUM as i64) / 2 + 5;
+                                        let out_vec = unsafe { res_vectors.get_unchecked_mut((k * (num_co_rb * REGNUM as i64) + j * (REGNUM as i64) + v) as usize) }; // prettier-ignore
+                                        let _k = kp * wo_b + k * (REGNUM as i64) + v;
+                                        let inp_vec = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (_k * step_width + m * dw) * isw + ip * ci_b + i]); // prettier-ignore
+                                        *out_vec = inp_vec._mul_add(kernel_vec, *out_vec); // prettier-ignore
+
+                                        let v = h * (REGNUM as i64) / 2 + 6;
+                                        let out_vec = unsafe { res_vectors.get_unchecked_mut((k * (num_co_rb * REGNUM as i64) + j * (REGNUM as i64) + v) as usize) }; // prettier-ignore
+                                        let _k = kp * wo_b + k * (REGNUM as i64) + v;
+                                        let inp_vec = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (_k * step_width + m * dw) * isw + ip * ci_b + i]); // prettier-ignore
                                         *out_vec = inp_vec._mul_add(kernel_vec, *out_vec); // prettier-ignore
                                     }
                                 }
