@@ -1,4 +1,5 @@
-use ops::cpu::convolutions::conv2d_unroll::{ conv2d_ex, conv2d_intel, conv2d_intel_reg_blocking };
+
+use ops::cpu::convolutions::conv2d_unroll::conv2d_ex;
 // use tch::{ Device, Kind, Tensor };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
@@ -20,7 +21,7 @@ fn main() -> anyhow::Result<()> {
         .contiguous()?;
     let now = std::time::Instant::now();
     for _ in 0..1 {
-        let res = conv2d_intel_reg_blocking::<f32, 14, 8, f32x8>(
+        let res = conv2d_ex::<f32, 14, 8, f32x8>(
             &a,
             &kernel,
             [1, 1],
@@ -29,8 +30,8 @@ fn main() -> anyhow::Result<()> {
                 (0, 0),
             ],
             [1, 1]
-        )?;
-        println!("{:?}", res);
+        )?.permute([0, 3, 1, 2])?;
+        // println!("{:?}", res);
     }
     println!("{:?}", now.elapsed() / 100);
     Ok(())
