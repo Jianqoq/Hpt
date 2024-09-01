@@ -197,9 +197,8 @@ pub fn conv2d_ex<
     dilation: [i64; 2]
 )
     -> anyhow::Result<_Tensor<T>>
-    where VEC: VecTrait<T> + Copy + Init<T>, T: IntoScalar<T>
+    where VEC: VecTrait<T> + Copy + Init<T> + Send + Sync, T: IntoScalar<T>
 {
-
     let img_shape = img.shape();
     let batch = img_shape[0];
     let img_height = img_shape[1];
@@ -268,12 +267,16 @@ pub fn conv2d_ex<
     //     out_width,
     //     in_channels
     // );
-    let (co_b, wo_b, ci_b) = find_exact_combination(
-        l2_cache as i64,
-        out_channels as i64,
-        out_width as i64,
-        in_channels as i64
-    );
+    // let (co_b, wo_b, ci_b) = find_exact_combination(
+    //     l2_cache as i64,
+    //     out_channels as i64,
+    //     out_width as i64,
+    //     in_channels as i64
+    // );
+    // println!("co_b: {}, wo_b: {}, ci_b: {}", co_b, wo_b, ci_b);
+    let co_b = 80;
+    let wo_b = 1024;
+    let ci_b = 8;
     // co_b * vec_size * ci_b * 2 + ci_b * wo_b + wo_b * co_b * vec_size * 2 <= l2_cache
     let co_b_remain = co_b % (VECSIZE as i64);
     let co_b = co_b - co_b_remain;
@@ -288,95 +291,105 @@ pub fn conv2d_ex<
     assert_eq!(co_b_remain, 0);
     let num_co_rb = co_b / (VECSIZE as i64);
 
-    let mut res_vectors =
-        vec![VEC::splat(T::ZERO); num_wo_rb as usize * num_co_rb as usize * REGNUM];
-
-    for b in 0..batch {
-        for _ in 0..num_co_b {
-            for ip in 0..num_ci_b {
-                for l in 0..out_height {
-                    for kp in 0..num_wo_b {
-                        for k in 0..num_wo_rb {
-                            for j in 0..num_co_rb {
-                                for p in 0..REGNUM as i64 {
-                                    let idx = k * (num_co_rb * REGNUM as i64) + j * (REGNUM as i64) + p;
-                                    let k = kp * wo_b + k * (REGNUM as i64) + p;
-                                    let out_ptr = &mut out[b * osb + l * osh + k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                                    unsafe {
-                                        *res_vectors.get_unchecked_mut(idx as usize) =
-                                            VEC::from_ptr(out_ptr);
+    let outer = batch * num_co_b * num_ci_b * out_height;
+    (0..outer).into_par_iter().for_each_init(
+        || { (out, kernel, inp, vec![VEC::splat(T::ZERO); wo_b as usize * num_co_rb as usize]) },
+        |(out, kernel, inp, res_vectors), idx| {
+            let b = idx / (num_co_b * num_ci_b * out_height);
+            let t = (idx / (num_ci_b * out_height)) % num_co_b;
+            let ip = (idx / out_height) % num_ci_b;
+            let l = idx % out_height;
+            out.offset(t * co_b);
+            kernel.offset(t * co_b);
+            for kp in 0..num_wo_b {
+                for k in 0..num_wo_rb {
+                    for j in 0..num_co_rb {
+                        for p in 0..REGNUM as i64 {
+                            let idx = k * (num_co_rb * (REGNUM as i64)) + j * (REGNUM as i64) + p;
+                            let k = kp * wo_b + k * (REGNUM as i64) + p;
+                            let out_ptr = &mut out[b * osb + l * osh + k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+                            unsafe {
+                                *res_vectors.get_unchecked_mut(idx as usize) =
+                                    VEC::from_ptr(out_ptr);
+                            }
+                        }
+                    }
+                }
+                for n in 0..kernel_height {
+                    for m in 0..kernel_width {
+                        for i in 0..ci_b {
+                            let i = ip * ci_b + i;
+                            for k in 0..num_wo_rb {
+                                for j in 0..num_co_rb {
+                                    let kernel_vec = unsafe { VEC::from_ptr(&kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j * (VECSIZE as i64)]) }; // prettier-ignore
+                                    for p in 0..REGNUM as i64 {
+                                        let out_vec = unsafe { res_vectors.get_unchecked_mut((k * (num_co_rb * REGNUM as i64) + j * (REGNUM as i64) + p) as usize) }; // prettier-ignore
+                                        let k = kp * wo_b + k * (REGNUM as i64) + p;
+                                        let inp_vec = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (k * step_width + m * dw) * isw + ip * ci_b + i]); // prettier-ignore
+                                        *out_vec = inp_vec._mul_add(kernel_vec, *out_vec); // prettier-ignore
                                     }
                                 }
                             }
-                        }
-                        for n in 0..kernel_height {
-                            for m in 0..kernel_width {
-                                for i in 0..ci_b {
-                                    let i = ip * ci_b + i;
-                                    for k in 0..num_wo_rb {
-                                        for j in 0..num_co_rb {
-                                            let kernel_vec = unsafe { VEC::from_ptr(&kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j * (VECSIZE as i64)]) }; // prettier-ignore
-                                            for p in 0..REGNUM as i64 {
-                                                let out_vec = unsafe { res_vectors.get_unchecked_mut((k * (num_co_rb * REGNUM as i64) + j * (REGNUM as i64) + p) as usize) }; // prettier-ignore
-                                                let k = kp * wo_b + k * (REGNUM as i64) + p;
-                                                let inp_vec = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (k * step_width + m * dw) * isw + ip * ci_b + i]); // prettier-ignore
-                                                *out_vec = inp_vec._mul_add(kernel_vec, *out_vec); // prettier-ignore
-                                            }
-                                        }
-                                    }
-                                    for j in 0..num_co_rb {
-                                        for p in 0..wo_b_remain {
-                                            let k = kp * wo_b + num_wo_rb * (REGNUM as i64) + p;
-                                            for c in 0..VECSIZE {
-                                                let j = j * (VECSIZE as i64) + (c as i64);
-                                                out[b * osb + l * osh + k * osw + j] +=
+                            for j in 0..num_co_rb {
+                                for p in 0..wo_b_remain {
+                                    let k = kp * wo_b + num_wo_rb * (REGNUM as i64) + p;
+                                    for c in 0..VECSIZE {
+                                        let j = j * (VECSIZE as i64) + (c as i64);
+                                        out[b * osb + l * osh + k * osw + j] +=
                                                     inp[b * isb + (l * step_height + n * dh) * ish + (k * step_width + m * dw) * isw + ip * ci_b + i] *
                                                     kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j]; // prettier-ignore
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        for k in 0..num_wo_rb {
-                            for j in 0..num_co_rb {
-                                for p in 0..REGNUM as i64 {
-                                    let idx = k * (num_co_rb * REGNUM as i64) + j * (REGNUM as i64) + p;
-                                    let k = kp * wo_b + k * (REGNUM as i64) + p;
-                                    let out_ptr = &mut out[b * osb + l * osh + k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                                    unsafe {
-                                        std::ptr::copy_nonoverlapping(res_vectors.get_unchecked(idx as usize).as_ptr(), out_ptr, VECSIZE); // prettier-ignore
                                     }
                                 }
                             }
                         }
                     }
                 }
+                for k in 0..num_wo_rb {
+                    for j in 0..num_co_rb {
+                        for p in 0..REGNUM as i64 {
+                            let idx = k * (num_co_rb * (REGNUM as i64)) + j * (REGNUM as i64) + p;
+                            let k = kp * wo_b + k * (REGNUM as i64) + p;
+                            let out_ptr = &mut out[b * osb + l * osh + k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+                            unsafe {
+                                std::ptr::copy_nonoverlapping(res_vectors.get_unchecked(idx as usize).as_ptr(), out_ptr, VECSIZE); // prettier-ignore
+                            }
+                        }
+                    }
+                }
             }
-            out.offset(co_b);
-            kernel.offset(co_b);
         }
-    }
+    ); // end of par_iter
 
     // for b in 0..batch {
     //     for _ in 0..num_co_b {
     //         for ip in 0..num_ci_b {
     //             for l in 0..out_height {
     //                 for kp in 0..num_wo_b {
+    //                     for k in 0..num_wo_rb {
+    //                         for j in 0..num_co_rb {
+    //                             for p in 0..REGNUM as i64 {
+    //                                 let idx = k * (num_co_rb * REGNUM as i64) + j * (REGNUM as i64) + p;
+    //                                 let k = kp * wo_b + k * (REGNUM as i64) + p;
+    //                                 let out_ptr = &mut out[b * osb + l * osh + k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+    //                                 unsafe {
+    //                                     *res_vectors.get_unchecked_mut(idx as usize) =
+    //                                         VEC::from_ptr(out_ptr);
+    //                                 }
+    //                             }
+    //                         }
+    //                     }
     //                     for n in 0..kernel_height {
     //                         for m in 0..kernel_width {
     //                             for i in 0..ci_b {
     //                                 let i = ip * ci_b + i;
     //                                 for k in 0..num_wo_rb {
     //                                     for j in 0..num_co_rb {
+    //                                         let kernel_vec = unsafe { VEC::from_ptr(&kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j * (VECSIZE as i64)]) }; // prettier-ignore
     //                                         for p in 0..REGNUM as i64 {
+    //                                             let out_vec = unsafe { res_vectors.get_unchecked_mut((k * (num_co_rb * REGNUM as i64) + j * (REGNUM as i64) + p) as usize) }; // prettier-ignore
     //                                             let k = kp * wo_b + k * (REGNUM as i64) + p;
-    //                                             for c in 0..VECSIZE {
-    //                                                 let j = j * (VECSIZE as i64) + (c as i64);
-    //                                                 out[b * osb + l * osh + k * osw + j] = 
-    //                                                 inp[b * isb + (l * step_height + n * dh) * ish + (k * step_width + m * dw) * isw + ip * ci_b + i]
-    //                                                 .mul_add(kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j], out[b * osb + l * osh + k * osw + j]) // prettier-ignore
-    //                                             }
+    //                                             let inp_vec = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (k * step_width + m * dw) * isw + ip * ci_b + i]); // prettier-ignore
+    //                                             *out_vec = inp_vec._mul_add(kernel_vec, *out_vec); // prettier-ignore
     //                                         }
     //                                     }
     //                                 }
@@ -385,11 +398,23 @@ pub fn conv2d_ex<
     //                                         let k = kp * wo_b + num_wo_rb * (REGNUM as i64) + p;
     //                                         for c in 0..VECSIZE {
     //                                             let j = j * (VECSIZE as i64) + (c as i64);
-    //                                             out[b * osb + l * osh + k * osw + j] = 
-    //                                             inp[b * isb + (l * step_height + n * dh) * ish + (k * step_width + m * dw) * isw + ip * ci_b + i]
-    //                                             .mul_add(kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j], out[b * osb + l * osh + k * osw + j]) // prettier-ignore
+    //                                             out[b * osb + l * osh + k * osw + j] +=
+    //                                                 inp[b * isb + (l * step_height + n * dh) * ish + (k * step_width + m * dw) * isw + ip * ci_b + i] *
+    //                                                 kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j]; // prettier-ignore
     //                                         }
     //                                     }
+    //                                 }
+    //                             }
+    //                         }
+    //                     }
+    //                     for k in 0..num_wo_rb {
+    //                         for j in 0..num_co_rb {
+    //                             for p in 0..REGNUM as i64 {
+    //                                 let idx = k * (num_co_rb * REGNUM as i64) + j * (REGNUM as i64) + p;
+    //                                 let k = kp * wo_b + k * (REGNUM as i64) + p;
+    //                                 let out_ptr = &mut out[b * osb + l * osh + k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+    //                                 unsafe {
+    //                                     std::ptr::copy_nonoverlapping(res_vectors.get_unchecked(idx as usize).as_ptr(), out_ptr, VECSIZE); // prettier-ignore
     //                                 }
     //                             }
     //                         }
