@@ -337,12 +337,27 @@ pub fn conv2d_ex<
     //                         for m in 0..kernel_width {
     //                             for i in 0..ci_b {
     //                                 let i = ip * ci_b + i;
-    //                                 for k in 0..wo_b {
-    //                                     let k = kp * wo_b + k;
+    //                                 for k in 0..num_wo_rb {
+    //                                     for j in 0..num_co_rb {
+    //                                         for p in 0..REGNUM as i64 {
+    //                                             let k = kp * wo_b + k * (REGNUM as i64) + p;
+    //                                             for c in 0..VECSIZE {
+    //                                                 let j = j * (VECSIZE as i64) + (c as i64);
+    //                                                 out[b * osb + l * osh + k * osw + j] +=
+    //                                                 inp[b * isb + (l * step_height + n * dh) * ish + (k * step_width + m * dw) * isw + ip * ci_b + i] *
+    //                                                 kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j]; // prettier-ignore
+    //                                             }
+    //                                         }
+    //                                     }
+    //                                 }
+    //                                 for k in num_wo_rb..num_wo_rb + 1 {
     //                                     for j in 0..co_b {
-    //                                         out[b * osb + l * osh + k * osw + j] +=
-    //                                         inp[b * isb + (l * step_height + n * dh) * ish + (k * step_width + m * dw) * isw + ip * ci_b + i] *
-    //                                         kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j]; // prettier-ignore
+    //                                         for p in 0..wo_b_remain {
+    //                                             let k = kp * wo_b + k * (REGNUM as i64) + p;
+    //                                             out[b * osb + l * osh + k * osw + j] +=
+    //                                             inp[b * isb + (l * step_height + n * dh) * ish + (k * step_width + m * dw) * isw + ip * ci_b + i] *
+    //                                             kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j]; // prettier-ignore
+    //                                         }
     //                                     }
     //                                 }
     //                             }
