@@ -7,67 +7,6 @@ use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
 use tensor_types::into_scalar::IntoScalar;
 
-macro_rules! __kernel {
-    (
-        [$T:ident, $vec:ident, $vec_size:expr, $reg_num:expr],
-        [$kh:ident, $kw:ident, $ii:ident, $i:ident],
-        [$ks0:ident, $ks1:ident, $ks2:ident, $ks3:ident],
-        [$is0:ident, $is1:ident, $is2:ident],
-        [$jp:expr, $kp:expr, $l:ident, $step_width:ident, $step_height:ident, $dw:ident, $dh:ident],
-        [$kernel:ident, $kvec:ident, $rvec:ident, $inp:ident]
-    ) => {
-        for __ii in 0..$ii {
-            for n in 0..$kh {
-                for m in 0..$kw {
-                    for __i in 0..$i {
-                        let i = __ii * $i + __i;
-                        micro_kernel::<$T, $vec, _>(
-                            $vec_size,
-                            $reg_num,
-                            &$kernel[i * $ks2 + $jp * $ks3 + m * $ks1 + n * $ks0] as *const $T,
-                            &mut $kvec,
-                            &mut $rvec,
-                            |k| $inp[i * $is2 + (($kp + k) * $step_width + m * $dw) * $is1 + ($l * $step_height + n * $dh) * $is0]
-                        );
-                    }
-                }
-            }
-        }
-    };
-}
-
-macro_rules! flush {
-    ($vec_size:expr, $reg_num:expr, $rvec:ident, $res_ptrs:expr) => {
-        for k in 0..$reg_num {
-            unsafe {
-                std::ptr::copy(
-                    $rvec[k].as_ptr(),
-                    $res_ptrs[k],
-                    $vec_size,
-                );
-            }
-        }
-    };
-}
-
-macro_rules! prepare_regs {
-    (
-        $end:expr,
-        $vec_size:expr,
-        [$jp:expr, $kp:expr, $l:ident],
-        [$os0:ident, $os1:ident, $os2:ident],
-        [$out:ident, $res_vectors:ident, $res_ptrs:ident]
-    ) => {
-        for k in 0..$end {
-            let ptr = unsafe { $out.offset(($jp * $os2 + ($kp + k) * $os1 + $l * $os0) as isize) };
-            unsafe {
-                std::ptr::copy_nonoverlapping(ptr, $res_vectors[k as usize].as_mut_ptr(), 8);
-            }
-            $res_ptrs[k as usize] = ptr;
-        }
-    };
-}
-
 #[cfg(target_feature = "fma")]
 pub fn conv2d_ex_naive<
     T: CommonBounds + std::ops::Mul<Output = T> + std::ops::AddAssign,
@@ -200,8 +139,6 @@ pub fn conv2d_ex<
     -> anyhow::Result<_Tensor<T>>
     where VEC: VecTrait<T> + Copy + Init<T> + Send + Sync, T: IntoScalar<T>
 {
-    use std::arch::x86_64::_mm_prefetch;
-
     use aligned_vec::avec;
 
     let img_shape = img.shape();
@@ -240,9 +177,9 @@ pub fn conv2d_ex<
         img.clone()
     };
     let output = _Tensor::<T>::zeros([batch, out_height, out_width, out_channels])?;
-    let mut out = output.ptr();
+    let out = output.ptr();
     let inp = img.ptr();
-    let mut kernel = kernels.ptr();
+    let kernel = kernels.ptr();
 
     let osb = output.strides()[0]; // batch
     let osh = output.strides()[1]; // height
@@ -546,7 +483,7 @@ pub(crate) fn get_cache_set(
 ) -> usize {
     (address / cache_line_size) % num_cache_sets
 }
-
+#[allow(unused)]
 pub(crate) fn get_set_gap<T>(stride: i64, cache_line_size: usize, cache_set_num: usize) -> usize {
     let set1 = get_cache_set(0, cache_line_size, cache_set_num);
     let set2 = get_cache_set(
@@ -561,6 +498,7 @@ pub(crate) fn get_set_gap<T>(stride: i64, cache_line_size: usize, cache_set_num:
     }
 }
 
+#[allow(unused)]
 fn find_combination(max_cache_size: i64, max_x: i64, max_y: i64, max_z: i64) -> (i64, i64, i64) {
     let mut left = 1;
     let mut right = max_x;
