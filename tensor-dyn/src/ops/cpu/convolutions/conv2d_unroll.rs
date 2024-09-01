@@ -68,7 +68,7 @@ macro_rules! prepare_regs {
 }
 
 #[cfg(target_feature = "fma")]
-pub fn conv2d_ex<
+pub fn conv2d_ex_naive<
     T: CommonBounds + std::ops::Mul<Output = T> + std::ops::AddAssign,
     const REGNUM: usize,
     const VECSIZE: usize,
@@ -83,8 +83,6 @@ pub fn conv2d_ex<
     -> anyhow::Result<_Tensor<T>>
     where VEC: VecTrait<T> + Copy + Init<T>, T: IntoScalar<T>
 {
-    use cache_size::l2_cache_line_size;
-
     let img_shape = img.shape();
     let batch = img_shape[0];
     let img_height = img_shape[1];
@@ -122,7 +120,122 @@ pub fn conv2d_ex<
     };
     let output = _Tensor::<T>::zeros([batch, out_height, out_width, out_channels])?;
     let mut out = output.ptr();
-    let mut inp = img.ptr();
+    let inp = img.ptr();
+    let mut kernel = kernels.ptr();
+
+    let osb = output.strides()[0]; // batch
+    let osh = output.strides()[1]; // height
+    let osw = output.strides()[2]; // width
+
+    let isb = output.strides()[0]; // batch
+    let ish = img.strides()[1]; // height
+    let isw = img.strides()[2]; // width
+
+    let ks0 = kernels.strides()[0]; // kernel_height
+    let ks1 = kernels.strides()[1]; // kernel_width
+    let ks2 = kernels.strides()[2]; // in_channels
+
+    let l2_cache = cache_size::l2_cache_size().unwrap_or(256 * 1024) / std::mem::size_of::<T>();
+
+    let (co_b, wo_b, ci_b) = find_exact_combination(
+        l2_cache as i64,
+        out_channels as i64,
+        out_width as i64,
+        in_channels as i64
+    );
+    // co_b * vec_size * ci_b * 2 + ci_b * wo_b + wo_b * co_b * vec_size * 2 <= l2_cache
+    let co_b_remain = co_b % (VECSIZE as i64);
+    let co_b = co_b - co_b_remain;
+
+    let num_co_b = out_channels / co_b;
+    let num_wo_b = out_width / wo_b;
+    let num_ci_b = in_channels / ci_b;
+
+    for b in 0..batch {
+        for _ in 0..num_co_b {
+            for ip in 0..num_ci_b {
+                for l in 0..out_height {
+                    for kp in 0..num_wo_b {
+                        for n in 0..kernel_height {
+                            for m in 0..kernel_width {
+                                for i in 0..ci_b {
+                                    let i = ip * ci_b + i;
+                                    for k in 0..wo_b {
+                                        let k = kp * wo_b + k;
+                                        for j in 0..co_b {
+                                            out[b * osb + l * osh + k * osw + j] +=
+                                            inp[b * isb + (l * step_height + n * dh) * ish + (k * step_width + m * dw) * isw + ip * ci_b + i] *
+                                            kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j]; // prettier-ignore
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            out.offset(co_b);
+            kernel.offset(co_b);
+        }
+    }
+
+    Ok(output)
+}
+
+#[cfg(target_feature = "fma")]
+pub fn conv2d_ex<
+    T: CommonBounds + std::ops::Mul<Output = T> + std::ops::AddAssign,
+    const REGNUM: usize,
+    const VECSIZE: usize,
+    VEC
+    >(
+    img: &_Tensor<T>,
+    kernels: &_Tensor<T>,
+    steps: [i64; 2],
+    padding: [(i64, i64); 2],
+    dilation: [i64; 2]
+)
+    -> anyhow::Result<_Tensor<T>>
+    where VEC: VecTrait<T> + Copy + Init<T>, T: IntoScalar<T>
+{
+    let img_shape = img.shape();
+    let batch = img_shape[0];
+    let img_height = img_shape[1];
+    let img_width = img_shape[2];
+    let img_channels = img_shape[3];
+    let kernel_shape = kernels.shape();
+    let kernel_height = kernel_shape[0];
+    let kernel_width = kernel_shape[1];
+    let in_channels = kernel_shape[2];
+    let out_channels = kernel_shape[3];
+    if in_channels != img_channels {
+        panic!(
+            "The number of input channels in the image must be equal to the number of input channels in the kernel."
+        );
+    }
+    let (step_width, step_height) = (steps[0], steps[1]);
+    let ((ph_start, ph_end), (pw_start, pw_end)) = (padding[0], padding[1]);
+    let (dh, dw) = (dilation[0], dilation[1]);
+
+    let out_height =
+        (img_height + ph_start + ph_end - dh * (kernel_height - 1) - 1) / step_height + 1;
+    let out_width = (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1;
+    let img = if !padding.iter().all(|(a, b)| *a == 0 && *b == 0) {
+        img.pad(
+            &[
+                (0, 0),
+                (ph_start, ph_end),
+                (pw_start, pw_end),
+                (0, 0),
+            ],
+            T::ZERO
+        )?
+    } else {
+        img.clone()
+    };
+    let output = _Tensor::<T>::zeros([batch, out_height, out_width, out_channels])?;
+    let mut out = output.ptr();
+    let inp = img.ptr();
     let mut kernel = kernels.ptr();
 
     let osb = output.strides()[0]; // batch
@@ -167,15 +280,11 @@ pub fn conv2d_ex<
     let num_wo_b = out_width / wo_b;
     let num_ci_b = in_channels / ci_b;
 
-    let remain_o = out_channels % co_b;
-    let remain_w = out_width % wo_b;
-    let remain_c = in_channels % ci_b;
-    println!("co_b: {:?}", co_b);
-    println!("wo_b: {:?}", wo_b);
-    println!("ci_b: {:?}", ci_b);
-    println!("remain_o: {:?}", remain_o);
-    println!("remain_w: {:?}", remain_w);
-    println!("remain_c: {:?}", remain_c);
+    let wo_b_remain = wo_b % (REGNUM as i64);
+    let num_wo_rb = wo_b / (REGNUM as i64);
+    let co_b_remain = co_b % (VECSIZE as i64);
+    assert_eq!(co_b_remain, 0);
+    let num_co_rb = co_b / (VECSIZE as i64);
     for b in 0..batch {
         for _ in 0..num_co_b {
             for ip in 0..num_ci_b {
@@ -185,12 +294,27 @@ pub fn conv2d_ex<
                             for m in 0..kernel_width {
                                 for i in 0..ci_b {
                                     let i = ip * ci_b + i;
-                                    for k in 0..wo_b {
-                                        let k = kp * wo_b + k;
+                                    for k in 0..num_wo_rb {
+                                        for j in 0..num_co_rb {
+                                            for p in 0..REGNUM as i64 {
+                                                let k = kp * wo_b + k * (REGNUM as i64) + p;
+                                                for c in 0..VECSIZE {
+                                                    let j = j * (VECSIZE as i64) + (c as i64);
+                                                    out[b * osb + l * osh + k * osw + j] +=
+                                                    inp[b * isb + (l * step_height + n * dh) * ish + (k * step_width + m * dw) * isw + ip * ci_b + i] *
+                                                    kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j]; // prettier-ignore
+                                                }
+                                            }
+                                        }
+                                    }
+                                    for k in num_wo_rb..num_wo_rb + 1 {
                                         for j in 0..co_b {
-                                            // out[b * osb + l * osh + k * osw + j] += 
-                                            // inp[b * isb + (l * step_height + n * dh) * ish + (k * step_width + m * dw) * isw + ip * ci_b + i] * 
-                                            // kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j]; // prettier-ignore
+                                            for p in 0..wo_b_remain {
+                                                let k = kp * wo_b + k * (REGNUM as i64) + p;
+                                                out[b * osb + l * osh + k * osw + j] +=
+                                                inp[b * isb + (l * step_height + n * dh) * ish + (k * step_width + m * dw) * isw + ip * ci_b + i] *
+                                                kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j]; // prettier-ignore
+                                            }
                                         }
                                     }
                                 }
@@ -203,6 +327,34 @@ pub fn conv2d_ex<
             kernel.offset(co_b);
         }
     }
+
+    // for b in 0..batch {
+    //     for _ in 0..num_co_b {
+    //         for ip in 0..num_ci_b {
+    //             for l in 0..out_height {
+    //                 for kp in 0..num_wo_b {
+    //                     for n in 0..kernel_height {
+    //                         for m in 0..kernel_width {
+    //                             for i in 0..ci_b {
+    //                                 let i = ip * ci_b + i;
+    //                                 for k in 0..wo_b {
+    //                                     let k = kp * wo_b + k;
+    //                                     for j in 0..co_b {
+    //                                         out[b * osb + l * osh + k * osw + j] +=
+    //                                         inp[b * isb + (l * step_height + n * dh) * ish + (k * step_width + m * dw) * isw + ip * ci_b + i] *
+    //                                         kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j]; // prettier-ignore
+    //                                     }
+    //                                 }
+    //                             }
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //         out.offset(co_b);
+    //         kernel.offset(co_b);
+    //     }
+    // }
 
     Ok(output)
 }
