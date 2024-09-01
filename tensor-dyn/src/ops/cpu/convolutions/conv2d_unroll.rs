@@ -357,8 +357,30 @@ pub fn conv2d_ex<
                                 *(unsafe { kernel_vectors.get_unchecked_mut(j as usize) }) =
                                     kernel_vec;
                             }
+                            let inp_idx = (i * (REGNUM as i64)) as usize;
+                            let inp_vec0 = VEC::splat(unsafe {
+                                *inp_vectors.get_unchecked(inp_idx + 0)
+                            });
+                            let inp_vec1 = VEC::splat(unsafe {
+                                *inp_vectors.get_unchecked(inp_idx + 1)
+                            });
+                            let inp_vec2 = VEC::splat(unsafe {
+                                *inp_vectors.get_unchecked(inp_idx + 2)
+                            });
+                            let inp_vec3 = VEC::splat(unsafe {
+                                *inp_vectors.get_unchecked(inp_idx + 3)
+                            });
+                            let inp_vec4 = VEC::splat(unsafe {
+                                *inp_vectors.get_unchecked(inp_idx + 4)
+                            });
+                            let inp_vec5 = VEC::splat(unsafe {
+                                *inp_vectors.get_unchecked(inp_idx + 5)
+                            });
+                            let inp_vec6 = VEC::splat(unsafe {
+                                *inp_vectors.get_unchecked(inp_idx + 6)
+                            });
+
                             for k in 0..num_wo_rb {
-                                let inp_idx = (i * (REGNUM as i64)) as usize;
                                 for j in 0..num_co_rb {
                                     let idx = k * num_co_rb + j;
                                     let res_vectors = unsafe {
@@ -367,28 +389,26 @@ pub fn conv2d_ex<
                                     let kernel_vec = *(unsafe {
                                         kernel_vectors.get_unchecked(j as usize)
                                     });
-                                    unsafe {
-                                        let out_vec = &mut res_vectors[0];
-                                        *out_vec = VEC::splat(*inp_vectors.get_unchecked(inp_idx + 0))._mul_add(kernel_vec, *out_vec); // prettier-ignore
+                                    let out_vec = &mut res_vectors[0];
+                                    *out_vec = inp_vec0._mul_add(kernel_vec, *out_vec); // prettier-ignore
 
-                                        let out_vec = &mut res_vectors[1];
-                                        *out_vec = VEC::splat(*inp_vectors.get_unchecked(inp_idx + 1))._mul_add(kernel_vec, *out_vec); // prettier-ignore
+                                    let out_vec = &mut res_vectors[1];
+                                    *out_vec = inp_vec1._mul_add(kernel_vec, *out_vec); // prettier-ignore
 
-                                        let out_vec = &mut res_vectors[2];
-                                        *out_vec = VEC::splat(*inp_vectors.get_unchecked(inp_idx + 2))._mul_add(kernel_vec, *out_vec); // prettier-ignore
+                                    let out_vec = &mut res_vectors[2];
+                                    *out_vec = inp_vec2._mul_add(kernel_vec, *out_vec); // prettier-ignore
 
-                                        let out_vec = &mut res_vectors[3];
-                                        *out_vec = VEC::splat(*inp_vectors.get_unchecked(inp_idx + 3))._mul_add(kernel_vec, *out_vec); // prettier-ignore
+                                    let out_vec = &mut res_vectors[3];
+                                    *out_vec = inp_vec3._mul_add(kernel_vec, *out_vec); // prettier-ignore
 
-                                        let out_vec = &mut res_vectors[4];
-                                        *out_vec = VEC::splat(*inp_vectors.get_unchecked(inp_idx + 4))._mul_add(kernel_vec, *out_vec); // prettier-ignore
+                                    let out_vec = &mut res_vectors[4];
+                                    *out_vec = inp_vec4._mul_add(kernel_vec, *out_vec); // prettier-ignore
 
-                                        let out_vec = &mut res_vectors[5];
-                                        *out_vec = VEC::splat(*inp_vectors.get_unchecked(inp_idx + 5))._mul_add(kernel_vec, *out_vec); // prettier-ignore
+                                    let out_vec = &mut res_vectors[5];
+                                    *out_vec = inp_vec5._mul_add(kernel_vec, *out_vec); // prettier-ignore
 
-                                        let out_vec = &mut res_vectors[6];
-                                        *out_vec = VEC::splat(*inp_vectors.get_unchecked(inp_idx + 6))._mul_add(kernel_vec, *out_vec); // prettier-ignore
-                                    }
+                                    let out_vec = &mut res_vectors[6];
+                                    *out_vec = inp_vec6._mul_add(kernel_vec, *out_vec); // prettier-ignore
                                 }
                             }
                             let _k = kp * wo_b + num_co_rb * (REGNUM as i64) + 0;
