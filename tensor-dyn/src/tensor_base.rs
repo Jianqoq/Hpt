@@ -436,21 +436,21 @@ impl<T: CommonBounds> _Tensor<T> {
         if self.shape() != other.shape() {
             return false;
         }
+        // #[cfg(feature = "simd")]
+        // let folder = self
+        //     .par_iter_simd()
+        //     .zip(other.par_iter_simd())
+        //     .fold(
+        //         || true,
+        //         |acc, (a, b)| {
+        //             let a_val: f64 = a.to_f64();
+        //             let b_val: f64 = b.to_f64();
+        //             let abs_diff: f64 = (a_val - b_val).abs();
+        //             let torlerance: f64 = 1.0e-8 + 1.0e-5 * b_val.abs();
+        //             acc && abs_diff <= torlerance
+        //         }
+        //     );
         #[cfg(feature = "simd")]
-        let folder = self
-            .par_iter_simd()
-            .zip(other.par_iter_simd())
-            .fold(
-                || true,
-                |acc, (a, b)| {
-                    let a_val: f64 = a.to_f64();
-                    let b_val: f64 = b.to_f64();
-                    let abs_diff: f64 = (a_val - b_val).abs();
-                    let torlerance: f64 = 1.0e-8 + 1.0e-5 * b_val.abs();
-                    acc && abs_diff <= torlerance
-                }
-            );
-        #[cfg(not(feature = "simd"))]
         let folder = self
             .par_iter()
             .zip(other.par_iter())

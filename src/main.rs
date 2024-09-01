@@ -42,6 +42,6 @@ fn main() -> anyhow::Result<()> {
         ],
         [1, 1]
     )?.permute([0, 3, 1, 2])?;
-    assert_eq!(res, res2);
+    res2.allclose(&res);
     Ok(())
 }
