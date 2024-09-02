@@ -1,3 +1,6 @@
+use std::ops::AddAssign;
+use std::ops::Mul;
+
 use tensor_common::pointer::Pointer;
 use tensor_types::vectors::traits::*;
 use crate::tensor_base::_Tensor;
@@ -221,62 +224,41 @@ pub fn conv2d_ex<
         kernel_height as i64,
         kernel_width as i64
     );
-    // co_b * vec_size * ci_b * 2 + ci_b * wo_b + wo_b * co_b * vec_size * 2 <= l2_cache
-    let co_b_remain = co_b % (VECSIZE as i64);
-    let co_b = co_b - co_b_remain;
-
+    // println!(
+    //     "old cache size: {}",
+    //     co_b * (REGNUM as i64) + kernel_height * kernel_width * ci_b * ((REGNUM as i64) + co_b)
+    // );
     let num_co_b = out_channels / co_b;
     let num_wo_b = out_width / (REGNUM as i64);
     let num_ci_b = in_channels / ci_b;
-    // println!("num_co_b: {}, num_wo_b: {}, num_ci_b: {}", num_co_b, num_wo_b, num_ci_b);
 
-    let wo_b_remain = out_width % (REGNUM as i64); /* 3 */
-    let num_co_rb = co_b / (VECSIZE as i64); /* 8 */
+    let co_b_remain = out_channels % (VECSIZE as i64);
+    let wo_b_remain = out_width % (REGNUM as i64);
+    let num_co_rb = co_b / (VECSIZE as i64);
 
     let outer = batch * num_co_b * num_ci_b * out_height;
-    (0..outer).into_par_iter().for_each(|idx| {
-        let mut out = out;
-        let inp = inp;
-        let mut kernel = kernel;
-        let b = idx / (num_co_b * num_ci_b * out_height);
-        let t = (idx / (num_ci_b * out_height)) % num_co_b;
-        let ip = (idx / out_height) % num_ci_b;
-        let l = idx % out_height;
-        out.offset(t * co_b);
-        kernel.offset(t * co_b);
-        for kp in 0..num_wo_b {
-            for n in 0..kernel_height {
-                for m in 0..kernel_width {
-                    for ii in 0..ci_b {
-                        let i = ip * ci_b + ii;
-                        micro_kernel_regnum::<T, VEC, REGNUM, VECSIZE>(
-                            num_co_rb,
-                            kp,
-                            i,
-                            b * osb + l * osh + kp * REGNUM as i64 * osw, // prettier-ignore
-                            n * ks0 + m * ks1 + i * ks2,
-                            step_width,
-                            isw,
-                            osw,
-                            &inp,
-                            &mut out,
-                            &kernel
-                        );
-                    }
-                }
-            }
-        }
-        for kp in num_wo_b..num_wo_b + 1 {
-            for n in 0..kernel_height {
-                for m in 0..kernel_width {
-                    for ii in 0..ci_b {
-                        let i = ip * ci_b + ii;
-                        match wo_b_remain {
-                            2 =>
-                                micro_kernel_2::<T, VEC, REGNUM, VECSIZE>(
+
+    match (co_b_remain == 0, wo_b_remain == 0) {
+        (true, true) => {
+            (0..outer).into_par_iter().for_each(|idx| {
+                let mut out = out;
+                let inp = inp;
+                let kernel = kernel;
+                let b = idx / (num_co_b * num_ci_b * out_height);
+                let c = (idx / (num_ci_b * out_height)) % num_co_b;
+                let ip = (idx / out_height) % num_ci_b;
+                let l = idx % out_height;
+                for kp in 0..num_wo_b {
+                    for n in 0..kernel_height {
+                        for m in 0..kernel_width {
+                            for ii in 0..ci_b {
+                                let i = ip * ci_b + ii;
+                                micro_kernel_regnum::<T, VEC, REGNUM, VECSIZE>(
                                     num_co_rb,
                                     kp,
                                     i,
+                                    (l * step_height + n * dh) * ish,
+                                    c * co_b,
                                     b * osb + l * osh + kp * REGNUM as i64 * osw, // prettier-ignore
                                     n * ks0 + m * ks1 + i * ks2,
                                     step_width,
@@ -285,29 +267,282 @@ pub fn conv2d_ex<
                                     &inp,
                                     &mut out,
                                     &kernel
-                                ),
-                            4 =>
-                                micro_kernel_4::<T, VEC, REGNUM, VECSIZE>(
-                                    num_co_rb,
-                                    kp,
-                                    i,
-                                    b * osb + l * osh + kp * REGNUM as i64 * osw, // prettier-ignore
-                                    n * ks0 + m * ks1 + i * ks2,
-                                    step_width,
-                                    isw,
-                                    osw,
-                                    &inp,
-                                    &mut out,
-                                    &kernel
-                                ),
-                            _ => unimplemented!(),
+                                );
+                            }
                         }
                     }
                 }
-            }
+            });
         }
-    }); // end of par_iter
-
+        (true, false) => {
+            (0..outer).into_par_iter().for_each(|idx| {
+                let mut out = out;
+                let inp = inp;
+                let kernel = kernel;
+                let b = idx / (num_co_b * num_ci_b * out_height);
+                let c = (idx / (num_ci_b * out_height)) % num_co_b;
+                let ip = (idx / out_height) % num_ci_b;
+                let l = idx % out_height;
+                for kp in 0..num_wo_b {
+                    for n in 0..kernel_height {
+                        for m in 0..kernel_width {
+                            for ii in 0..ci_b {
+                                let i = ip * ci_b + ii;
+                                micro_kernel_regnum::<T, VEC, REGNUM, VECSIZE>(
+                                    num_co_rb,
+                                    kp,
+                                    i,
+                                    (l * step_height + n * dh) * ish,
+                                    c * co_b,
+                                    b * osb + l * osh + kp * REGNUM as i64 * osw, // prettier-ignore
+                                    n * ks0 + m * ks1 + i * ks2,
+                                    step_width,
+                                    isw,
+                                    osw,
+                                    &inp,
+                                    &mut out,
+                                    &kernel
+                                );
+                            }
+                        }
+                    }
+                }
+                for kp in num_wo_b..num_wo_b + 1 {
+                    for n in 0..kernel_height {
+                        for m in 0..kernel_width {
+                            for ii in 0..ci_b {
+                                let i = ip * ci_b + ii;
+                                match wo_b_remain {
+                                    2 =>
+                                        micro_kernel_2::<T, VEC, REGNUM, VECSIZE>(
+                                            num_co_rb,
+                                            kp,
+                                            i,
+                                            c * co_b,
+                                            b * osb + l * osh + kp * REGNUM as i64 * osw, // prettier-ignore
+                                            n * ks0 + m * ks1 + i * ks2,
+                                            step_width,
+                                            isw,
+                                            osw,
+                                            &inp,
+                                            &mut out,
+                                            &kernel
+                                        ),
+                                    4 =>
+                                        micro_kernel_4::<T, VEC, REGNUM, VECSIZE>(
+                                            num_co_rb,
+                                            kp,
+                                            i,
+                                            c * co_b,
+                                            b * osb + l * osh + kp * REGNUM as i64 * osw, // prettier-ignore
+                                            n * ks0 + m * ks1 + i * ks2,
+                                            step_width,
+                                            isw,
+                                            osw,
+                                            &inp,
+                                            &mut out,
+                                            &kernel
+                                        ),
+                                    _ => unimplemented!(),
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        (false, true) => todo!(),
+        (false, false) => {
+            (0..outer).into_par_iter().for_each(|idx| {
+                let mut out = out;
+                let inp = inp;
+                let kernel = kernel;
+                let b = idx / (num_co_b * num_ci_b * out_height);
+                let c = (idx / (num_ci_b * out_height)) % num_co_b;
+                let ip = (idx / out_height) % num_ci_b;
+                let l = idx % out_height;
+                if c < num_co_b - 1 {
+                    for kp in 0..num_wo_b {
+                        for n in 0..kernel_height {
+                            for m in 0..kernel_width {
+                                for ii in 0..ci_b {
+                                    let i = ip * ci_b + ii;
+                                    micro_kernel_regnum::<T, VEC, REGNUM, VECSIZE>(
+                                        num_co_rb,
+                                        kp,
+                                        i,
+                                        (l * step_height + n * dh) * ish,
+                                        c * co_b,
+                                        b * osb + l * osh + kp * REGNUM as i64 * osw, // prettier-ignore
+                                        n * ks0 + m * ks1 + i * ks2,
+                                        step_width,
+                                        isw,
+                                        osw,
+                                        &inp,
+                                        &mut out,
+                                        &kernel
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    for kp in num_wo_b..num_wo_b + 1 {
+                        for n in 0..kernel_height {
+                            for m in 0..kernel_width {
+                                for ii in 0..ci_b {
+                                    let i = ip * ci_b + ii;
+                                    match wo_b_remain {
+                                        2 =>
+                                            micro_kernel_2::<T, VEC, REGNUM, VECSIZE>(
+                                                num_co_rb,
+                                                kp,
+                                                i,
+                                                c * co_b,
+                                                b * osb + l * osh + kp * REGNUM as i64 * osw, // prettier-ignore
+                                                n * ks0 + m * ks1 + i * ks2,
+                                                step_width,
+                                                isw,
+                                                osw,
+                                                &inp,
+                                                &mut out,
+                                                &kernel
+                                            ),
+                                        4 =>
+                                            micro_kernel_4::<T, VEC, REGNUM, VECSIZE>(
+                                                num_co_rb,
+                                                kp,
+                                                i,
+                                                c * co_b,
+                                                b * osb + l * osh + kp * REGNUM as i64 * osw, // prettier-ignore
+                                                n * ks0 + m * ks1 + i * ks2,
+                                                step_width,
+                                                isw,
+                                                osw,
+                                                &inp,
+                                                &mut out,
+                                                &kernel
+                                            ),
+                                        _ => unimplemented!(),
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    for kp in 0..num_wo_b {
+                        for n in 0..kernel_height {
+                            for m in 0..kernel_width {
+                                for ii in 0..ci_b {
+                                    let i = ip * ci_b + ii;
+                                    micro_kernel_regnum::<T, VEC, REGNUM, VECSIZE>(
+                                        num_co_rb,
+                                        kp,
+                                        i,
+                                        (l * step_height + n * dh) * ish,
+                                        c * co_b,
+                                        b * osb + l * osh + kp * REGNUM as i64 * osw, // prettier-ignore
+                                        n * ks0 + m * ks1 + i * ks2,
+                                        step_width,
+                                        isw,
+                                        osw,
+                                        &inp,
+                                        &mut out,
+                                        &kernel
+                                    );
+                                    // micro_kernel_regnum_remain::<T, VEC, REGNUM, VECSIZE>(
+                                    //     kp,
+                                    //     i,
+                                    //     num_co_b * co_b,
+                                    //     b * osb + l * osh + kp * REGNUM as i64 * osw, // prettier-ignore
+                                    //     n * ks0 + m * ks1 + i * ks2,
+                                    //     step_width,
+                                    //     isw,
+                                    //     osw,
+                                    //     &inp,
+                                    //     &mut out,
+                                    //     &kernel,
+                                    //     co_b_remain
+                                    // );
+                                }
+                            }
+                        }
+                    }
+                    for kp in num_wo_b..num_wo_b + 1 {
+                        for n in 0..kernel_height {
+                            for m in 0..kernel_width {
+                                for ii in 0..ci_b {
+                                    let i = ip * ci_b + ii;
+                                    match wo_b_remain {
+                                        2 => {
+                                            micro_kernel_2::<T, VEC, REGNUM, VECSIZE>(
+                                                num_co_rb,
+                                                kp,
+                                                i,
+                                                c * co_b,
+                                                b * osb + l * osh + kp * REGNUM as i64 * osw, // prettier-ignore
+                                                n * ks0 + m * ks1 + i * ks2,
+                                                step_width,
+                                                isw,
+                                                osw,
+                                                &inp,
+                                                &mut out,
+                                                &kernel
+                                            );
+                                            // micro_kernel_2_remain::<T, VEC, REGNUM, VECSIZE>(
+                                            //     kp,
+                                            //     i,
+                                            //     num_co_b * co_b,
+                                            //     b * osb + l * osh + kp * REGNUM as i64 * osw, // prettier-ignore
+                                            //     n * ks0 + m * ks1 + i * ks2,
+                                            //     step_width,
+                                            //     isw,
+                                            //     osw,
+                                            //     &inp,
+                                            //     &mut out,
+                                            //     &kernel,
+                                            //     co_b_remain
+                                            // );
+                                        }
+                                        4 => {
+                                            micro_kernel_4::<T, VEC, REGNUM, VECSIZE>(
+                                                num_co_rb,
+                                                kp,
+                                                i,
+                                                c * co_b,
+                                                b * osb + l * osh + kp * REGNUM as i64 * osw, // prettier-ignore
+                                                n * ks0 + m * ks1 + i * ks2,
+                                                step_width,
+                                                isw,
+                                                osw,
+                                                &inp,
+                                                &mut out,
+                                                &kernel
+                                            );
+                                            // micro_kernel_4_remain::<T, VEC, REGNUM, VECSIZE>(
+                                            //     kp,
+                                            //     i,
+                                            //     num_co_b * co_b,
+                                            //     b * osb + l * osh + kp * REGNUM as i64 * osw, // prettier-ignore
+                                            //     n * ks0 + m * ks1 + i * ks2,
+                                            //     step_width,
+                                            //     isw,
+                                            //     osw,
+                                            //     &inp,
+                                            //     &mut out,
+                                            //     &kernel,
+                                            //     co_b_remain
+                                            // );
+                                        }
+                                        _ => unimplemented!(),
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
     Ok(output)
 }
 
@@ -391,8 +626,7 @@ fn find_exact_combination<const VECSIZE: usize, const REGNUM: usize>(
         for ci_b in (1..=max_ci_b).rev() {
             let product =
                 co_b * (REGNUM as i64) +
-                ci_b * (REGNUM as i64) * weight_size * height_size +
-                ci_b * co_b * weight_size * height_size;
+                weight_size * height_size * ci_b * ((REGNUM as i64) + co_b);
 
             if product <= max_cache_size {
                 if co_b > best_co_b || (co_b == best_co_b && ci_b > best_ci_b) {
@@ -410,6 +644,8 @@ fn micro_kernel_regnum<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
     num_co_rb: i64,
     kp: i64,
     i: i64,
+    inp_offset: i64,
+    co_offset: i64,
     out_offset: i64,
     kernel_offset: i64,
     step_width: i64,
@@ -422,50 +658,101 @@ fn micro_kernel_regnum<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
     where T: CommonBounds, VEC: VecTrait<T> + Copy + Init<T>
 {
     let _k = kp * (REGNUM as i64) + 0;
-    let inp_vec0 = VEC::splat(inp[_k * step_width * isw + i]); // prettier-ignore
+    let inp_vec0 = VEC::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
     let _k = kp * (REGNUM as i64) + 1;
-    let inp_vec1 = VEC::splat(inp[_k * step_width * isw + i]); // prettier-ignore
+    let inp_vec1 = VEC::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
     let _k = kp * (REGNUM as i64) + 2;
-    let inp_vec2 = VEC::splat(inp[_k * step_width * isw + i]); // prettier-ignore
+    let inp_vec2 = VEC::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
     let _k = kp * (REGNUM as i64) + 3;
-    let inp_vec3 = VEC::splat(inp[_k * step_width * isw + i]); // prettier-ignore
+    let inp_vec3 = VEC::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
     let _k = kp * (REGNUM as i64) + 4;
-    let inp_vec4 = VEC::splat(inp[_k * step_width * isw + i]); // prettier-ignore
+    let inp_vec4 = VEC::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
     let _k = kp * (REGNUM as i64) + 5;
-    let inp_vec5 = VEC::splat(inp[_k * step_width * isw + i]); // prettier-ignore
+    let inp_vec5 = VEC::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
     let _k = kp * (REGNUM as i64) + 6;
-    let inp_vec6 = VEC::splat(inp[_k * step_width * isw + i]); // prettier-ignore
+    let inp_vec6 = VEC::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
     for j in 0..num_co_rb {
         let ofs = out_offset + j * (VECSIZE as i64);
         unsafe {
-            let kernel_vec = *(
-                &kernel[kernel_offset + j * (VECSIZE as i64)] as *const _ as *const VEC
+            let kernel_vec = VEC::from_ptr(
+                &kernel[co_offset + kernel_offset + j * (VECSIZE as i64)] as *const _
             );
 
-            let out_vec0 = &mut out[ofs + 0 * osw] as *mut _ as *mut VEC; // prettier-ignore
-            let out_vec1 = &mut out[ofs + 1 * osw] as *mut _ as *mut VEC; // prettier-ignore
-            let out_vec2 = &mut out[ofs + 2 * osw] as *mut _ as *mut VEC; // prettier-ignore
-            let out_vec3 = &mut out[ofs + 3 * osw] as *mut _ as *mut VEC; // prettier-ignore
-            let out_vec4 = &mut out[ofs + 4 * osw] as *mut _ as *mut VEC; // prettier-ignore
-            let out_vec5 = &mut out[ofs + 5 * osw] as *mut _ as *mut VEC; // prettier-ignore
-            let out_vec6 = &mut out[ofs + 6 * osw] as *mut _ as *mut VEC; // prettier-ignore
+            let out_vec0 = &mut out[co_offset + ofs + 0 * osw] as *mut _ as *mut VEC; // prettier-ignore
+            let out_vec1 = &mut out[co_offset + ofs + 1 * osw] as *mut _ as *mut VEC; // prettier-ignore
+            let out_vec2 = &mut out[co_offset + ofs + 2 * osw] as *mut _ as *mut VEC; // prettier-ignore
+            let out_vec3 = &mut out[co_offset + ofs + 3 * osw] as *mut _ as *mut VEC; // prettier-ignore
+            let out_vec4 = &mut out[co_offset + ofs + 4 * osw] as *mut _ as *mut VEC; // prettier-ignore
+            let out_vec5 = &mut out[co_offset + ofs + 5 * osw] as *mut _ as *mut VEC; // prettier-ignore
+            let out_vec6 = &mut out[co_offset + ofs + 6 * osw] as *mut _ as *mut VEC; // prettier-ignore
 
-            let res0 = inp_vec0._mul_add(kernel_vec, out_vec0.read());
-            let res1 = inp_vec1._mul_add(kernel_vec, out_vec1.read());
-            let res2 = inp_vec2._mul_add(kernel_vec, out_vec2.read());
-            let res3 = inp_vec3._mul_add(kernel_vec, out_vec3.read());
-            let res4 = inp_vec4._mul_add(kernel_vec, out_vec4.read());
-            let res5 = inp_vec5._mul_add(kernel_vec, out_vec5.read());
-            let res6 = inp_vec6._mul_add(kernel_vec, out_vec6.read());
+            let res0 = inp_vec0._mul_add(kernel_vec, VEC::from_ptr(out_vec0 as *const _));
+            let res1 = inp_vec1._mul_add(kernel_vec, VEC::from_ptr(out_vec1 as *const _));
+            let res2 = inp_vec2._mul_add(kernel_vec, VEC::from_ptr(out_vec2 as *const _));
+            let res3 = inp_vec3._mul_add(kernel_vec, VEC::from_ptr(out_vec3 as *const _));
+            let res4 = inp_vec4._mul_add(kernel_vec, VEC::from_ptr(out_vec4 as *const _));
+            let res5 = inp_vec5._mul_add(kernel_vec, VEC::from_ptr(out_vec5 as *const _));
+            let res6 = inp_vec6._mul_add(kernel_vec, VEC::from_ptr(out_vec6 as *const _));
 
-            *out_vec0 = res0;
-            *out_vec1 = res1;
-            *out_vec2 = res2;
-            *out_vec3 = res3;
-            *out_vec4 = res4;
-            *out_vec5 = res5;
-            *out_vec6 = res6;
+            out_vec0.write_unaligned(res0);
+            out_vec1.write_unaligned(res1);
+            out_vec2.write_unaligned(res2);
+            out_vec3.write_unaligned(res3);
+            out_vec4.write_unaligned(res4);
+            out_vec5.write_unaligned(res5);
+            out_vec6.write_unaligned(res6);
         }
+    }
+}
+
+fn micro_kernel_regnum_remain<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
+    kp: i64,
+    i: i64,
+    co_offset: i64,
+    out_offset: i64,
+    kernel_offset: i64,
+    step_width: i64,
+    isw: i64,
+    osw: i64,
+    inp: &Pointer<T>,
+    out: &mut Pointer<T>,
+    kernel: &Pointer<T>,
+    end: i64
+)
+    where T: CommonBounds + Mul<Output = T> + AddAssign, VEC: VecTrait<T> + Copy + Init<T>
+{
+    let _k = kp * (REGNUM as i64) + 0;
+    let inp_val0 = inp[_k * step_width * isw + i]; // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 1;
+    let inp_val1 = inp[_k * step_width * isw + i]; // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 2;
+    let inp_val2 = inp[_k * step_width * isw + i]; // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 3;
+    let inp_val3 = inp[_k * step_width * isw + i]; // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 4;
+    let inp_val4 = inp[_k * step_width * isw + i]; // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 5;
+    let inp_val5 = inp[_k * step_width * isw + i]; // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 6;
+    let inp_val6 = inp[_k * step_width * isw + i]; // prettier-ignore
+    for j in 0..end {
+        let ofs = out_offset + j;
+        let kernel_val = kernel[co_offset + kernel_offset + j];
+
+        let out_val = &mut out[co_offset + ofs + 0 * osw]; // prettier-ignore
+        *out_val += inp_val0 * kernel_val;
+        let out_val = &mut out[co_offset + ofs + 1 * osw]; // prettier-ignore
+        *out_val += inp_val1 * kernel_val;
+        let out_val = &mut out[co_offset + ofs + 2 * osw]; // prettier-ignore
+        *out_val += inp_val2 * kernel_val;
+        let out_val = &mut out[co_offset + ofs + 3 * osw]; // prettier-ignore
+        *out_val += inp_val3 * kernel_val;
+        let out_val = &mut out[co_offset + ofs + 4 * osw]; // prettier-ignore
+        *out_val += inp_val4 * kernel_val;
+        let out_val = &mut out[co_offset + ofs + 5 * osw]; // prettier-ignore
+        *out_val += inp_val5 * kernel_val;
+        let out_val = &mut out[co_offset + ofs + 6 * osw]; // prettier-ignore
+        *out_val += inp_val6 * kernel_val;
     }
 }
 
@@ -473,6 +760,7 @@ fn micro_kernel_2<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
     num_co_rb: i64,
     kp: i64,
     i: i64,
+    co_offset: i64,
     out_offset: i64,
     kernel_offset: i64,
     step_width: i64,
@@ -491,18 +779,50 @@ fn micro_kernel_2<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
     for j in 0..num_co_rb {
         let ofs = out_offset + j * (VECSIZE as i64);
         unsafe {
-            let kernel_vec = *(
-                &kernel[kernel_offset + j * (VECSIZE as i64)] as *const _ as *const VEC
+            let kernel_vec = VEC::from_ptr(
+                &kernel[co_offset + kernel_offset + j * (VECSIZE as i64)] as *const _
             );
-            let out_vec0 = &mut out[ofs + 0 * osw] as *mut _ as *mut VEC; // prettier-ignore
-            let out_vec1 = &mut out[ofs + 1 * osw] as *mut _ as *mut VEC; // prettier-ignore
 
-            let res0 = inp_vec0._mul_add(kernel_vec, out_vec0.read());
-            let res1 = inp_vec1._mul_add(kernel_vec, out_vec1.read());
+            let out_vec0 = &mut out[co_offset + ofs + 0 * osw] as *mut _ as *mut VEC; // prettier-ignore
+            let out_vec1 = &mut out[co_offset + ofs + 1 * osw] as *mut _ as *mut VEC; // prettier-ignore
 
-            *out_vec0 = res0;
-            *out_vec1 = res1;
+            let res0 = inp_vec0._mul_add(kernel_vec, VEC::from_ptr(out_vec0 as *const _));
+            let res1 = inp_vec1._mul_add(kernel_vec, VEC::from_ptr(out_vec1 as *const _));
+
+            out_vec0.write_unaligned(res0);
+            out_vec1.write_unaligned(res1);
         }
+    }
+}
+
+fn micro_kernel_2_remain<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
+    kp: i64,
+    i: i64,
+    co_offset: i64,
+    out_offset: i64,
+    kernel_offset: i64,
+    step_width: i64,
+    isw: i64,
+    osw: i64,
+    inp: &Pointer<T>,
+    out: &mut Pointer<T>,
+    kernel: &Pointer<T>,
+    end: i64
+)
+    where T: CommonBounds + Mul<Output = T> + AddAssign, VEC: VecTrait<T> + Copy + Init<T>
+{
+    let _k = kp * (REGNUM as i64) + 0;
+    let inp_val0 = inp[_k * step_width * isw + i]; // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 1;
+    let inp_val1 = inp[_k * step_width * isw + i]; // prettier-ignore
+    for j in 0..end {
+        let ofs = out_offset + j;
+        let kernel_val = kernel[co_offset + kernel_offset + j];
+
+        let out_val = &mut out[co_offset + ofs + 0 * osw]; // prettier-ignore
+        *out_val += inp_val0 * kernel_val;
+        let out_val = &mut out[co_offset + ofs + 1 * osw]; // prettier-ignore
+        *out_val += inp_val1 * kernel_val;
     }
 }
 
@@ -510,6 +830,7 @@ fn micro_kernel_4<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
     num_co_rb: i64,
     kp: i64,
     i: i64,
+    co_offset: i64,
     out_offset: i64,
     kernel_offset: i64,
     step_width: i64,
@@ -532,24 +853,64 @@ fn micro_kernel_4<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
     for j in 0..num_co_rb {
         let ofs = out_offset + j * (VECSIZE as i64);
         unsafe {
-            let kernel_vec = *(
-                &kernel[kernel_offset + j * (VECSIZE as i64)] as *const _ as *const VEC
+            let kernel_vec = VEC::from_ptr(
+                &kernel[co_offset + kernel_offset + j * (VECSIZE as i64)] as *const _
             );
-            let out_vec0 = &mut out[ofs + 0 * osw] as *mut _ as *mut VEC; // prettier-ignore
-            let out_vec1 = &mut out[ofs + 1 * osw] as *mut _ as *mut VEC; // prettier-ignore
-            let out_vec2 = &mut out[ofs + 2 * osw] as *mut _ as *mut VEC; // prettier-ignore
-            let out_vec3 = &mut out[ofs + 3 * osw] as *mut _ as *mut VEC; // prettier-ignore
 
-            let res0 = inp_vec0._mul_add(kernel_vec, out_vec0.read());
-            let res1 = inp_vec1._mul_add(kernel_vec, out_vec1.read());
-            let res2 = inp_vec2._mul_add(kernel_vec, out_vec2.read());
-            let res3 = inp_vec3._mul_add(kernel_vec, out_vec3.read());
+            let out_vec0 = &mut out[co_offset + ofs + 0 * osw] as *mut _ as *mut VEC; // prettier-ignore
+            let out_vec1 = &mut out[co_offset + ofs + 1 * osw] as *mut _ as *mut VEC; // prettier-ignore
+            let out_vec2 = &mut out[co_offset + ofs + 2 * osw] as *mut _ as *mut VEC; // prettier-ignore
+            let out_vec3 = &mut out[co_offset + ofs + 3 * osw] as *mut _ as *mut VEC; // prettier-ignore
 
-            *out_vec0 = res0;
-            *out_vec1 = res1;
-            *out_vec2 = res2;
-            *out_vec3 = res3;
+            let res0 = inp_vec0._mul_add(kernel_vec, VEC::from_ptr(out_vec0 as *const _));
+            let res1 = inp_vec1._mul_add(kernel_vec, VEC::from_ptr(out_vec1 as *const _));
+            let res2 = inp_vec2._mul_add(kernel_vec, VEC::from_ptr(out_vec2 as *const _));
+            let res3 = inp_vec3._mul_add(kernel_vec, VEC::from_ptr(out_vec3 as *const _));
+
+            out_vec0.write_unaligned(res0);
+            out_vec1.write_unaligned(res1);
+            out_vec2.write_unaligned(res2);
+            out_vec3.write_unaligned(res3);
         }
+    }
+}
+
+fn micro_kernel_4_remain<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
+    kp: i64,
+    i: i64,
+    co_offset: i64,
+    out_offset: i64,
+    kernel_offset: i64,
+    step_width: i64,
+    isw: i64,
+    osw: i64,
+    inp: &Pointer<T>,
+    out: &mut Pointer<T>,
+    kernel: &Pointer<T>,
+    end: i64
+)
+    where T: CommonBounds + Mul<Output = T> + AddAssign, VEC: VecTrait<T> + Copy + Init<T>
+{
+    let _k = kp * (REGNUM as i64) + 0;
+    let inp_val0 = inp[_k * step_width * isw + i]; // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 1;
+    let inp_val1 = inp[_k * step_width * isw + i]; // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 2;
+    let inp_val2 = inp[_k * step_width * isw + i]; // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 3;
+    let inp_val3 = inp[_k * step_width * isw + i]; // prettier-ignore
+    for j in 0..end {
+        let ofs = out_offset + j;
+        let kernel_val = kernel[co_offset + kernel_offset + j];
+
+        let out_val = &mut out[co_offset + ofs + 0 * osw]; // prettier-ignore
+        *out_val += inp_val0 * kernel_val;
+        let out_val = &mut out[co_offset + ofs + 1 * osw]; // prettier-ignore
+        *out_val += inp_val1 * kernel_val;
+        let out_val = &mut out[co_offset + ofs + 2 * osw]; // prettier-ignore
+        *out_val += inp_val2 * kernel_val;
+        let out_val = &mut out[co_offset + ofs + 3 * osw]; // prettier-ignore
+        *out_val += inp_val3 * kernel_val;
     }
 }
 
