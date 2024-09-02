@@ -537,3 +537,71 @@ fn do_calculate<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
         }
     }
 }
+
+#[allow(unused)]
+fn do_calculate_v2<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
+    num_co_rb: i64,
+    k: i64,
+    i: i64,
+    k_offset: i64,
+    out_offset: i64,
+    kernel_offset: i64,
+    step_width: i64,
+    isw: i64,
+    osw: i64,
+    inp: &Pointer<T>,
+    out: &mut Pointer<T>,
+    kernel: &Pointer<T>
+)
+    where T: CommonBounds, VEC: VecTrait<T> + Copy + Init<T>
+{
+    let kernel_vec0 = unsafe { *(&kernel[kernel_offset + 0 * (VECSIZE as i64)] as *const _ as *const VEC) }; // prettier-ignore
+    let kernel_vec1 = unsafe { *(&kernel[kernel_offset + 1 * (VECSIZE as i64)] as *const _ as *const VEC) }; // prettier-ignore
+    let kernel_vec2 = unsafe { *(&kernel[kernel_offset + 2 * (VECSIZE as i64)] as *const _ as *const VEC) }; // prettier-ignore
+    let kernel_vec3 = unsafe { *(&kernel[kernel_offset + 3 * (VECSIZE as i64)] as *const _ as *const VEC) }; // prettier-ignore
+    let kernel_vec4 = unsafe { *(&kernel[kernel_offset + 4 * (VECSIZE as i64)] as *const _ as *const VEC) }; // prettier-ignore
+    let kernel_vec5 = unsafe { *(&kernel[kernel_offset + 5 * (VECSIZE as i64)] as *const _ as *const VEC) }; // prettier-ignore
+    let kernel_vec6 = unsafe { *(&kernel[kernel_offset + 6 * (VECSIZE as i64)] as *const _ as *const VEC) }; // prettier-ignore
+    let kernel_vec7 = unsafe { *(&kernel[kernel_offset + 7 * (VECSIZE as i64)] as *const _ as *const VEC) }; // prettier-ignore
+    let kernel_vec8 = unsafe { *(&kernel[kernel_offset + 8 * (VECSIZE as i64)] as *const _ as *const VEC) }; // prettier-ignore
+    let kernel_vec9 = unsafe { *(&kernel[kernel_offset + 9 * (VECSIZE as i64)] as *const _ as *const VEC) }; // prettier-ignore
+
+    for d in 0..REGNUM as i64 {
+        let ofs = out_offset + k * (REGNUM as i64) * osw + d * osw;
+        let inp_vec = VEC::splat(inp[(k_offset + k * (REGNUM as i64) + d) * step_width * isw + i]); // prettier-ignore
+        let out_vec0 = &mut out[ofs + 0 * (VECSIZE as i64)] as *mut _ as *mut VEC; // prettier-ignore
+        let out_vec1 = &mut out[ofs + 1 * (VECSIZE as i64)] as *mut _ as *mut VEC; // prettier-ignore
+        let out_vec2 = &mut out[ofs + 2 * (VECSIZE as i64)] as *mut _ as *mut VEC; // prettier-ignore
+        let out_vec3 = &mut out[ofs + 3 * (VECSIZE as i64)] as *mut _ as *mut VEC; // prettier-ignore
+        let out_vec4 = &mut out[ofs + 4 * (VECSIZE as i64)] as *mut _ as *mut VEC; // prettier-ignore
+        let out_vec5 = &mut out[ofs + 5 * (VECSIZE as i64)] as *mut _ as *mut VEC; // prettier-ignore
+        let out_vec6 = &mut out[ofs + 6 * (VECSIZE as i64)] as *mut _ as *mut VEC; // prettier-ignore
+        let out_vec7 = &mut out[ofs + 7 * (VECSIZE as i64)] as *mut _ as *mut VEC; // prettier-ignore
+        let out_vec8 = &mut out[ofs + 8 * (VECSIZE as i64)] as *mut _ as *mut VEC; // prettier-ignore
+        let out_vec9 = &mut out[ofs + 9 * (VECSIZE as i64)] as *mut _ as *mut VEC; // prettier-ignore
+
+        unsafe {
+            let res0 = inp_vec._mul_add(kernel_vec0, out_vec0.read());
+            let res1 = inp_vec._mul_add(kernel_vec1, out_vec1.read());
+            let res2 = inp_vec._mul_add(kernel_vec2, out_vec2.read());
+            let res3 = inp_vec._mul_add(kernel_vec3, out_vec3.read());
+            let res4 = inp_vec._mul_add(kernel_vec4, out_vec4.read());
+            let res5 = inp_vec._mul_add(kernel_vec5, out_vec5.read());
+            let res6 = inp_vec._mul_add(kernel_vec6, out_vec6.read());
+            let res7 = inp_vec._mul_add(kernel_vec7, out_vec7.read());
+            let res8 = inp_vec._mul_add(kernel_vec8, out_vec8.read());
+            let res9 = inp_vec._mul_add(kernel_vec9, out_vec9.read());
+
+            *out_vec0 = res0;
+            *out_vec1 = res1;
+            *out_vec2 = res2;
+            *out_vec3 = res3;
+            *out_vec4 = res4;
+            *out_vec5 = res5;
+            *out_vec6 = res6;
+            *out_vec7 = res7;
+            *out_vec8 = res8;
+            *out_vec9 = res9;
+        }
+    }
+}
