@@ -259,11 +259,11 @@ pub fn conv2d_ex<
             out.offset(t * co_b);
             kernel.offset(t * co_b);
             for kp in 0..num_wo_b {
-                for n in 0..kernel_height {
-                    for m in 0..kernel_width {
-                        for ii in 0..ci_b {
-                            let i = ip * ci_b + ii;
-                            for k in 0..num_wo_rb {
+                for k in 0..num_wo_rb {
+                    for n in 0..kernel_height {
+                        for m in 0..kernel_width {
+                            for ii in 0..ci_b {
+                                let i = ip * ci_b + ii;
                                 do_calculate::<T, VEC, REGNUM, VECSIZE>(
                                     num_co_rb,
                                     k,
@@ -279,23 +279,59 @@ pub fn conv2d_ex<
                                     &kernel
                                 );
                             }
-                            if wo_b_remain > 0 {
-                                let _k = kp * wo_b + num_co_rb * (REGNUM as i64) + 0;
-                                let inp_vec0 = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (_k * step_width + m * dw) * isw + i]); // prettier-ignore
+                        }
+                    }
+                }
+                if wo_b_remain > 0 {
+                    for k in num_wo_rb..num_wo_rb + 1 {
+                        for n in 0..kernel_height {
+                            for m in 0..kernel_width {
+                                for ii in 0..ci_b {
+                                    let i = ip * ci_b + ii;
+                                    {
+                                        let k_offset = kp * wo_b;
+                                        let out_offset = b * osb + l * osh + kp * wo_b * osw;
+                                        let kernel_offset = n * ks0 + m * ks1 + i * ks2;
+                                        let inp: &Pointer<T> = &inp;
+                                        let kernel: &Pointer<T> = &kernel;
+                                        let _k = k_offset + k * (REGNUM as i64) + 0;
+                                        let inp_vec0 = <VEC>::splat(inp[_k * step_width * isw + i]); // prettier-ignore
+                                        let _k = k_offset + k * (REGNUM as i64) + 1;
+                                        let inp_vec1 = <VEC>::splat(inp[_k * step_width * isw + i]); // prettier-ignore
+                                        for j in 0..num_co_rb {
+                                            let ofs = out_offset + k * (REGNUM as i64) * osw + j * (VECSIZE as i64);
+                                            unsafe {
+                                                let kernel_vec = *(
+                                                    &kernel[kernel_offset + j * (VECSIZE as i64)] as *const _ as *const VEC
+                                                );
 
-                                let _k = kp * wo_b + num_co_rb * (REGNUM as i64) + 1;
-                                let inp_vec1 = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (_k * step_width + m * dw) * isw + i]); // prettier-ignore
-                                for j in 0..num_co_rb {
-                                    let kernel_vec = unsafe { VEC::from_ptr(&kernel[n * ks0 + m * ks1 + i * ks2 + j * (VECSIZE as i64)]) }; // prettier-ignore
-                                    let out_vec0 = &mut out[b * osb + l * osh + (kp * wo_b + num_wo_rb * (REGNUM as i64) + 0) * osw + j * (VECSIZE as i64)] as *mut _ as *mut VEC; // prettier-ignore
-                                    unsafe { *out_vec0 = inp_vec0._mul_add(kernel_vec, *out_vec0) }; // prettier-ignore
+                                                let out_vec0 = &mut out[ofs + 0 * osw] as *mut _ as *mut VEC; // prettier-ignore
+                                                let out_vec1 = &mut out[ofs + 1 * osw] as *mut _ as *mut VEC; // prettier-ignore
 
-                                    let out_vec1 = &mut out[b * osb + l * osh + (kp * wo_b + num_wo_rb * (REGNUM as i64) + 1) * osw + j * (VECSIZE as i64)] as *mut _ as *mut VEC; // prettier-ignore
-                                    unsafe { *out_vec1 = inp_vec1._mul_add(kernel_vec, *out_vec1) }; // prettier-ignore
+                                                let res0 = inp_vec0._mul_add(kernel_vec, out_vec0.read());
+                                                let res1 = inp_vec1._mul_add(kernel_vec, out_vec1.read());
+
+                                                *out_vec0 = res0;
+                                                *out_vec1 = res1;
+                                            }
+                                        }
+                                    };
                                 }
                             }
                         }
                     }
+                    //     let inp_vec0 = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (_k * step_width + m * dw) * isw + i]); // prettier-ignore
+
+                    //     let _k = kp * wo_b + num_co_rb * (REGNUM as i64) + 1;
+                    //     let inp_vec1 = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (_k * step_width + m * dw) * isw + i]); // prettier-ignore
+                    //     for j in 0..num_co_rb {
+                    //         let kernel_vec = unsafe { VEC::from_ptr(&kernel[n * ks0 + m * ks1 + i * ks2 + j * (VECSIZE as i64)]) }; // prettier-ignore
+                    //         let out_vec0 = &mut out[b * osb + l * osh + (kp * wo_b + num_wo_rb * (REGNUM as i64) + 0) * osw + j * (VECSIZE as i64)] as *mut _ as *mut VEC; // prettier-ignore
+                    //         unsafe { *out_vec0 = inp_vec0._mul_add(kernel_vec, *out_vec0) }; // prettier-ignore
+
+                    //         let out_vec1 = &mut out[b * osb + l * osh + (kp * wo_b + num_wo_rb * (REGNUM as i64) + 1) * osw + j * (VECSIZE as i64)] as *mut _ as *mut VEC; // prettier-ignore
+                    //         unsafe { *out_vec1 = inp_vec1._mul_add(kernel_vec, *out_vec1) }; // prettier-ignore
+                    //     }
                 }
             }
         }
