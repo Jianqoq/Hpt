@@ -1,3 +1,5 @@
+use std::arch::x86_64::_mm_prefetch;
+
 use aligned_vec::AVec;
 use aligned_vec::ConstAlign;
 use tensor_common::pointer::Pointer;
@@ -634,10 +636,10 @@ fn pack_input<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
 )
     where T: CommonBounds
 {
-    for i in 0..ci_b {
-        for k in 0..num_wo_rb {
-            let offset = offset + k * (REGNUM as i64) * step_width * isw + i; // prettier-ignore
-            for r in 0..REGNUM as i64 {
+    for k in 0..num_wo_rb {
+        for r in 0..REGNUM as i64 {
+            for i in 0..ci_b {
+                let offset = offset + k * (REGNUM as i64) * step_width * isw + i; // prettier-ignore
                 let idx = i * num_wo_rb * (REGNUM as i64) + k * (REGNUM as i64) + r;
                 let inp_vec = unsafe { inp_vectors.get_unchecked_mut(idx as usize) };
                 *inp_vec = inp[offset + (r as i64) * step_width * isw];
@@ -689,29 +691,41 @@ fn do_calculate<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
 )
     where T: CommonBounds, VEC: VecTrait<T> + Copy
 {
+    use std::arch::x86_64::_MM_HINT_T0;
     assert_eq!(inp_vec.len(), 7);
     for j in 0..num_co_rb {
         let idx = k * num_co_rb + j;
         let kernel_idx = i * num_co_rb + j;
-        let res_vectors = unsafe { res_vectors.get_unchecked_mut(idx as usize) };
-        let kernel_vec = *(unsafe { kernel_vectors.get_unchecked(kernel_idx as usize) });
-        let out_vec0 = unsafe { res_vectors.get_unchecked_mut(0) as *mut VEC }; // prettier-ignore
-        let out_vec1 = unsafe { res_vectors.get_unchecked_mut(1) as *mut VEC }; // prettier-ignore
-        let out_vec2 = unsafe { res_vectors.get_unchecked_mut(2) as *mut VEC }; // prettier-ignore
-        let out_vec3 = unsafe { res_vectors.get_unchecked_mut(3) as *mut VEC }; // prettier-ignore
-        let out_vec4 = unsafe { res_vectors.get_unchecked_mut(4) as *mut VEC }; // prettier-ignore
-        let out_vec5 = unsafe { res_vectors.get_unchecked_mut(5) as *mut VEC }; // prettier-ignore
-        let out_vec6 = unsafe { res_vectors.get_unchecked_mut(6) as *mut VEC }; // prettier-ignore
-
-        let res0 = inp_vec[0]._mul_add(kernel_vec, unsafe { out_vec0.read() }); // prettier-ignore
-        let res1 = inp_vec[1]._mul_add(kernel_vec, unsafe { out_vec1.read() }); // prettier-ignore
-        let res2 = inp_vec[2]._mul_add(kernel_vec, unsafe { out_vec2.read() }); // prettier-ignore
-        let res3 = inp_vec[3]._mul_add(kernel_vec, unsafe { out_vec3.read() }); // prettier-ignore
-        let res4 = inp_vec[4]._mul_add(kernel_vec, unsafe { out_vec4.read() }); // prettier-ignore
-        let res5 = inp_vec[5]._mul_add(kernel_vec, unsafe { out_vec5.read() }); // prettier-ignore
-        let res6 = inp_vec[6]._mul_add(kernel_vec, unsafe { out_vec6.read() }); // prettier-ignore
-
         unsafe {
+            // if j + 1 < num_co_rb {
+            //     let next_res_vectors = res_vectors.get_unchecked_mut(idx as usize + 1);
+            //     _mm_prefetch::<_MM_HINT_T0>(next_res_vectors.get_unchecked(0) as *const _ as *const i8); // prettier-ignore
+            //     _mm_prefetch::<_MM_HINT_T0>(next_res_vectors.get_unchecked(1) as *const _ as *const i8); // prettier-ignore
+            //     _mm_prefetch::<_MM_HINT_T0>(next_res_vectors.get_unchecked(2) as *const _ as *const i8); // prettier-ignore
+            //     _mm_prefetch::<_MM_HINT_T0>(next_res_vectors.get_unchecked(3) as *const _ as *const i8); // prettier-ignore
+            //     _mm_prefetch::<_MM_HINT_T0>(next_res_vectors.get_unchecked(4) as *const _ as *const i8); // prettier-ignore
+            //     _mm_prefetch::<_MM_HINT_T0>(next_res_vectors.get_unchecked(5) as *const _ as *const i8); // prettier-ignore
+            //     _mm_prefetch::<_MM_HINT_T0>(next_res_vectors.get_unchecked(6) as *const _ as *const i8); // prettier-ignore
+            // }
+            let res_vectors = res_vectors.get_unchecked_mut(idx as usize);
+            let kernel_vec = *kernel_vectors.get_unchecked(kernel_idx as usize);
+
+            let out_vec0 = res_vectors.get_unchecked_mut(0) as *mut VEC ; // prettier-ignore
+            let out_vec1 = res_vectors.get_unchecked_mut(1) as *mut VEC ; // prettier-ignore
+            let out_vec2 = res_vectors.get_unchecked_mut(2) as *mut VEC ; // prettier-ignore
+            let out_vec3 =  res_vectors.get_unchecked_mut(3) as *mut VEC ; // prettier-ignore
+            let out_vec4 =  res_vectors.get_unchecked_mut(4) as *mut VEC ; // prettier-ignore
+            let out_vec5 = res_vectors.get_unchecked_mut(5) as *mut VEC ; // prettier-ignore
+            let out_vec6 =  res_vectors.get_unchecked_mut(6) as *mut VEC ; // prettier-ignore
+
+            let res0 = inp_vec[0]._mul_add(kernel_vec, out_vec0.read());
+            let res1 = inp_vec[1]._mul_add(kernel_vec, out_vec1.read());
+            let res2 = inp_vec[2]._mul_add(kernel_vec, out_vec2.read());
+            let res3 = inp_vec[3]._mul_add(kernel_vec, out_vec3.read());
+            let res4 = inp_vec[4]._mul_add(kernel_vec, out_vec4.read());
+            let res5 = inp_vec[5]._mul_add(kernel_vec, out_vec5.read());
+            let res6 = inp_vec[6]._mul_add(kernel_vec, out_vec6.read());
+
             *out_vec0 = res0;
             *out_vec1 = res1;
             *out_vec2 = res2;
