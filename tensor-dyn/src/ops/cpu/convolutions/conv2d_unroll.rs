@@ -1,11 +1,11 @@
 use tensor_common::pointer::Pointer;
 use tensor_types::vectors::traits::*;
 use crate::tensor_base::_Tensor;
-use rayon::iter::{ IntoParallelIterator, ParallelIterator };
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
 use tensor_types::into_scalar::IntoScalar;
+use rayon::prelude::*;
 
 #[cfg(target_feature = "fma")]
 pub fn conv2d_ex_naive<
@@ -139,7 +139,10 @@ pub fn conv2d_ex<
     -> anyhow::Result<_Tensor<T>>
     where VEC: VecTrait<T> + Copy + Init<T> + Send + Sync, T: IntoScalar<T>
 {
+    use std::{ arch::x86_64::_mm_prefetch, sync::Arc };
+
     use aligned_vec::avec;
+    use tensor_common::shape_utils::mt_intervals;
 
     let img_shape = img.shape();
     let batch = img_shape[0];
@@ -176,10 +179,10 @@ pub fn conv2d_ex<
     } else {
         img.clone()
     };
-    let output = _Tensor::<T>::zeros([batch, out_height, out_width, out_channels])?;
-    let out = output.ptr();
+    let output = _Tensor::<T>::empty([batch, out_height, out_width, out_channels])?;
+    let mut out = output.ptr();
     let inp = img.ptr();
-    let kernel = kernels.ptr();
+    let mut kernel = kernels.ptr();
 
     let osb = output.strides()[0]; // batch
     let osh = output.strides()[1]; // height
@@ -193,6 +196,7 @@ pub fn conv2d_ex<
     let ks1 = kernels.strides()[1]; // kernel_width
     let ks2 = kernels.strides()[2]; // in_channels
 
+    let l1_cache = cache_size::l1_cache_size().unwrap_or(32 * 1024) / std::mem::size_of::<T>();
     let l2_cache = cache_size::l2_cache_size().unwrap_or(256 * 1024) / std::mem::size_of::<T>();
     let cache_line = cache_size::cache_line_size(0, cache_size::CacheType::Data).unwrap_or(64);
     let num_cache_set = get_num_cache_set(
@@ -200,16 +204,23 @@ pub fn conv2d_ex<
         cache_line,
         8
     );
-    // let (co_b, wo_b, ci_b) = find_exact_combination(
-    //     (l2_cache as f64 * 0.5) as i64,
-    //     out_channels as i64,
-    //     out_width as i64,
-    //     in_channels as i64
-    // );
-    // println!("co_b: {}, wo_b: {}, ci_b: {}, cache: {}", co_b, wo_b, ci_b, l2_cache as f64 * 0.5);
+    let (co_b, wo_b, ci_b) = find_exact_combination(
+        l2_cache as i64,
+        out_channels as i64,
+        out_width as i64,
+        in_channels as i64
+    );
     let co_b = 80;
-    let wo_b = 1024;
-    let ci_b = 8;
+    let wo_b = 150;
+    let ci_b = 1;
+    // println!(
+    //     "co_b: {}, wo_b: {}, ci_b: {}, cache: {}, {}",
+    //     co_b,
+    //     wo_b,
+    //     ci_b,
+    //     l1_cache,
+    //     co_b * wo_b * ci_b
+    // );
     // co_b * vec_size * ci_b * 2 + ci_b * wo_b + wo_b * co_b * vec_size * 2 <= l2_cache
     let co_b_remain = co_b % (VECSIZE as i64);
     let co_b = co_b - co_b_remain;
@@ -217,23 +228,34 @@ pub fn conv2d_ex<
     let num_co_b = out_channels / co_b;
     let num_wo_b = out_width / wo_b;
     let num_ci_b = in_channels / ci_b;
+    // println!("num_co_b: {}, num_wo_b: {}, num_ci_b: {}", num_co_b, num_wo_b, num_ci_b);
 
-    let wo_b_remain = wo_b % (REGNUM as i64);
-    let num_wo_rb = wo_b / (REGNUM as i64);
-    let co_b_remain = co_b % (VECSIZE as i64);
-    assert_eq!(co_b_remain, 0);
-    let num_co_rb = co_b / (VECSIZE as i64);
+    let wo_b_remain = wo_b % (REGNUM as i64); /* 3 */
+    let num_wo_rb = wo_b / (REGNUM as i64); /* 6 */
+    let num_co_rb = co_b / (VECSIZE as i64); /* 8 */
+
+    // println!("num_wo_rb: {}, num_co_rb: {}", num_wo_rb, num_co_rb);
+    // println!("wo_b_remain: {}", wo_b_remain);
+    // println!("co_b_remain: {}", co_b_remain);
     // let mut res_vectors =
-    //     vec![[VEC::splat(T::ZERO); REGNUM]; num_wo_rb as usize * num_co_rb as usize];
+    //     vec![[VEC::splat(T::ZERO); REGNUM]; num_wo_rb as usize * num_co_rb as usize]; /* 11760 elements */ /* L1 = 12288 elements */
+    // let mut inp_vectors = avec![T::ZERO; REGNUM * ci_b as usize];
+    // let mut kernel_vectors = vec![VEC::splat(T::ZERO); num_co_rb as usize];
+    // let mut remain_vectors = vec![VEC::splat(T::ZERO); wo_b_remain as usize * num_co_rb as usize];
     // println!(
-    //     "total num: {}, cache: {}",
-    //     num_wo_rb * num_co_rb * (REGNUM as i64) * (VECSIZE as i64) +
-    //         wo_b_remain * num_co_rb * (VECSIZE as i64) +
-    //         num_co_rb * (VECSIZE as i64) +
-    //         (REGNUM as i64) * (VECSIZE as i64) * ci_b,
-    //     l2_cache
+    //     "buffers: {}",
+    //     res_vectors.len() * REGNUM * VECSIZE +
+    //         REGNUM * (ci_b as usize) +
+    //         (num_co_rb as usize) * VECSIZE +
+    //         (wo_b_remain as usize) * (num_co_rb as usize) * VECSIZE
     // );
+    // println!(
+    //     "buffer len: {}",
+    //     res_vectors.len() + inp_vectors.len() + kernel_vectors.len() + remain_vectors.len()
+    // );
+
     let outer = batch * num_co_b * num_ci_b * out_height;
+
     (0..outer).into_par_iter().for_each_init(
         || { (out, kernel, inp) },
         |(out, kernel, inp), idx| {
@@ -249,6 +271,7 @@ pub fn conv2d_ex<
             let l = idx % out_height;
             out.offset(t * co_b);
             kernel.offset(t * co_b);
+
             for kp in 0..num_wo_b {
                 for k in 0..num_wo_rb {
                     for j in 0..num_co_rb {
@@ -289,12 +312,15 @@ pub fn conv2d_ex<
                         }
                         for i in 0..ci_b {
                             let i = ip * ci_b + i;
+
                             for j in 0..num_co_rb {
                                 let kernel_vec = unsafe { VEC::from_ptr(&kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j * (VECSIZE as i64)]) }; // prettier-ignore
                                 *(unsafe { kernel_vectors.get_unchecked_mut(j as usize) }) =
                                     kernel_vec;
                             }
+
                             let inp_idx = (i * (REGNUM as i64)) as usize;
+
                             let inp_vec0 = VEC::splat(unsafe {
                                 *inp_vectors.get_unchecked(inp_idx + 0)
                             });
@@ -320,32 +346,32 @@ pub fn conv2d_ex<
                             for k in 0..num_wo_rb {
                                 for j in 0..num_co_rb {
                                     let idx = k * num_co_rb + j;
-                                    let res_vectors = unsafe {
-                                        res_vectors.get_unchecked_mut(idx as usize)
-                                    };
                                     let kernel_vec = *(unsafe {
                                         kernel_vectors.get_unchecked(j as usize)
                                     });
-                                    let out_vec = &mut res_vectors[0];
-                                    *out_vec = inp_vec0._mul_add(kernel_vec, *out_vec); // prettier-ignore
 
-                                    let out_vec = &mut res_vectors[1];
-                                    *out_vec = inp_vec1._mul_add(kernel_vec, *out_vec); // prettier-ignore
+                                    let out_vec = &mut res_vectors[idx as usize]; // prettier-ignore
 
-                                    let out_vec = &mut res_vectors[2];
-                                    *out_vec = inp_vec2._mul_add(kernel_vec, *out_vec); // prettier-ignore
+                                    let _k = kp * wo_b + k * (REGNUM as i64) + 0;
+                                    out_vec[0] = inp_vec0._mul_add(kernel_vec, out_vec[0]); // prettier-ignore
 
-                                    let out_vec = &mut res_vectors[3];
-                                    *out_vec = inp_vec3._mul_add(kernel_vec, *out_vec); // prettier-ignore
+                                    let _k = kp * wo_b + k * (REGNUM as i64) + 1;
+                                    out_vec[1] = inp_vec1._mul_add(kernel_vec, out_vec[1]); // prettier-ignore
 
-                                    let out_vec = &mut res_vectors[4];
-                                    *out_vec = inp_vec4._mul_add(kernel_vec, *out_vec); // prettier-ignore
+                                    let _k = kp * wo_b + k * (REGNUM as i64) + 2;
+                                    out_vec[2] = inp_vec2._mul_add(kernel_vec, out_vec[2]); // prettier-ignore
 
-                                    let out_vec = &mut res_vectors[5];
-                                    *out_vec = inp_vec5._mul_add(kernel_vec, *out_vec); // prettier-ignore
+                                    let _k = kp * wo_b + k * (REGNUM as i64) + 3;
+                                    out_vec[3] = inp_vec3._mul_add(kernel_vec, out_vec[3]); // prettier-ignore
 
-                                    let out_vec = &mut res_vectors[6];
-                                    *out_vec = inp_vec6._mul_add(kernel_vec, *out_vec); // prettier-ignore
+                                    let _k = kp * wo_b + k * (REGNUM as i64) + 4;
+                                    out_vec[4] = inp_vec4._mul_add(kernel_vec, out_vec[4]); // prettier-ignore
+
+                                    let _k = kp * wo_b + k * (REGNUM as i64) + 5;
+                                    out_vec[5] = inp_vec5._mul_add(kernel_vec, out_vec[5]); // prettier-ignore
+
+                                    let _k = kp * wo_b + k * (REGNUM as i64) + 6;
+                                    out_vec[6] = inp_vec6._mul_add(kernel_vec, out_vec[6]); // prettier-ignore
                                 }
                             }
                             let _k = kp * wo_b + num_co_rb * (REGNUM as i64) + 0;
@@ -353,6 +379,10 @@ pub fn conv2d_ex<
 
                             let _k = kp * wo_b + num_co_rb * (REGNUM as i64) + 1;
                             let inp_vec1 = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (_k * step_width + m * dw) * isw + ip * ci_b + i]); // prettier-ignore
+
+                            let _k = kp * wo_b + num_co_rb * (REGNUM as i64) + 2;
+                            let inp_vec2 = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (_k * step_width + m * dw) * isw + ip * ci_b + i]); // prettier-ignore
+
                             for j in 0..num_co_rb {
                                 let idx = j * wo_b_remain + 0;
                                 let kernel_vec = unsafe { VEC::from_ptr(&kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j * (VECSIZE as i64)]) }; // prettier-ignore
@@ -363,6 +393,10 @@ pub fn conv2d_ex<
                                 let idx = j * wo_b_remain + 1;
                                 let out_vec = unsafe { remain_vectors.get_unchecked_mut(idx as usize) }; // prettier-ignore
                                 *out_vec = inp_vec1._mul_add(kernel_vec, *out_vec); // prettier-ignore
+
+                                let idx = j * wo_b_remain + 2;
+                                let out_vec = unsafe { remain_vectors.get_unchecked_mut(idx as usize) }; // prettier-ignore
+                                *out_vec = inp_vec2._mul_add(kernel_vec, *out_vec); // prettier-ignore
                             }
                         }
                     }
@@ -380,19 +414,9 @@ pub fn conv2d_ex<
                         }
                     }
                 }
-                for j in 0..num_co_rb {
-                    for p in 0..wo_b_remain {
-                        let idx = j * wo_b_remain + p;
-                        let k = kp * wo_b + num_wo_rb * (REGNUM as i64) + p;
-                        let out_ptr = &mut out[b * osb + l * osh + k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                        unsafe {
-                            std::ptr::copy_nonoverlapping(remain_vectors.get_unchecked(idx as usize).as_ptr(), out_ptr, VECSIZE); // prettier-ignore
-                        }
-                    }
-                }
             }
         }
-    ); // end of par_iter
+    );
 
     // for b in 0..batch {
     //     for _ in 0..num_co_b {
