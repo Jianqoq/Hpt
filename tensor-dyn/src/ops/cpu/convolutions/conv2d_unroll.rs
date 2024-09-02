@@ -296,19 +296,6 @@ pub fn conv2d_ex<
                     );
                     for n in 0..kernel_height {
                         for m in 0..kernel_width {
-                            pack_input::<T, VEC, REGNUM, VECSIZE>(
-                                ci_b,
-                                num_wo_rb,
-                                b * isb +
-                                    (l * step_height + n * dh) * ish +
-                                    kp * wo_b * isw +
-                                    m * dw * isw +
-                                    ip * ci_b,
-                                step_width,
-                                isw,
-                                inp,
-                                &mut inp_vectors
-                            );
                             pack_kernel::<T, VEC, REGNUM, VECSIZE>(
                                 ci_b,
                                 ip,
@@ -321,17 +308,15 @@ pub fn conv2d_ex<
                             for ii in 0..ci_b {
                                 let i = ip * ci_b + ii;
                                 for k in 0..num_wo_rb {
-                                    let offset =
-                                        ii * num_wo_rb * (REGNUM as i64) + k * (REGNUM as i64);
-                                    let inp_vecs = get_inp_vectors::<T, VEC, REGNUM>(
-                                        offset as usize,
-                                        &inp_vectors
-                                    );
                                     do_calculate::<T, VEC, REGNUM, VECSIZE>(
                                         num_co_rb,
                                         k,
                                         i,
-                                        inp_vecs,
+                                        kp * wo_b,
+                                        b * isb + (l * step_height + n * dh) * ish  + m * dw * isw + ip * ci_b, // prettier-ignore
+                                        step_width,
+                                        isw,
+                                        &inp,
                                         &mut res_vectors,
                                         &kernel_vectors
                                     );
@@ -625,29 +610,6 @@ fn pack_remain_res<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
     }
 }
 
-fn pack_input<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
-    ci_b: i64,
-    num_wo_rb: i64,
-    offset: i64,
-    step_width: i64,
-    isw: i64,
-    inp: &Pointer<T>,
-    inp_vectors: &mut AVec<T, ConstAlign<128>>
-)
-    where T: CommonBounds
-{
-    for k in 0..num_wo_rb {
-        for r in 0..REGNUM as i64 {
-            for i in 0..ci_b {
-                let offset = offset + k * (REGNUM as i64) * step_width * isw + i; // prettier-ignore
-                let idx = i * num_wo_rb * (REGNUM as i64) + k * (REGNUM as i64) + r;
-                let inp_vec = unsafe { inp_vectors.get_unchecked_mut(idx as usize) };
-                *inp_vec = inp[offset + (r as i64) * step_width * isw];
-            }
-        }
-    }
-}
-
 fn pack_kernel<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
     ci_b: i64,
     ip: i64,
@@ -685,14 +647,31 @@ fn do_calculate<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
     num_co_rb: i64,
     k: i64,
     i: i64,
-    inp_vec: [VEC; REGNUM],
+    k_offset: i64,
+    inp_offset: i64,
+    step_width: i64,
+    isw: i64,
+    inp: &Pointer<T>,
     res_vectors: &mut aligned_vec::AVec<[VEC; REGNUM], aligned_vec::ConstAlign<128>>,
     kernel_vectors: &AVec<VEC, ConstAlign<128>>
 )
-    where T: CommonBounds, VEC: VecTrait<T> + Copy
+    where T: CommonBounds, VEC: VecTrait<T> + Copy + Init<T>
 {
-    use std::arch::x86_64::_MM_HINT_T0;
-    assert_eq!(inp_vec.len(), 7);
+    // use std::arch::x86_64::_MM_HINT_T0;
+    let _k = k_offset + k * (REGNUM as i64) + 0;
+    let inp_vec0 = VEC::splat(inp[_k * step_width * isw + i]); // prettier-ignore
+    let _k = k_offset + k * (REGNUM as i64) + 1;
+    let inp_vec1 = VEC::splat(inp[_k * step_width * isw + i]); // prettier-ignore
+    let _k = k_offset + k * (REGNUM as i64) + 2;
+    let inp_vec2 = VEC::splat(inp[_k * step_width * isw + i]); // prettier-ignore
+    let _k = k_offset + k * (REGNUM as i64) + 3;
+    let inp_vec3 = VEC::splat(inp[_k * step_width * isw + i]); // prettier-ignore
+    let _k = k_offset + k * (REGNUM as i64) + 4;
+    let inp_vec4 = VEC::splat(inp[_k * step_width * isw + i]); // prettier-ignore
+    let _k = k_offset + k * (REGNUM as i64) + 5;
+    let inp_vec5 = VEC::splat(inp[_k * step_width * isw + i]); // prettier-ignore
+    let _k = k_offset + k * (REGNUM as i64) + 6;
+    let inp_vec6 = VEC::splat(inp[_k * step_width * isw + i]); // prettier-ignore
     for j in 0..num_co_rb {
         let idx = k * num_co_rb + j;
         let kernel_idx = i * num_co_rb + j;
@@ -718,13 +697,13 @@ fn do_calculate<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
             let out_vec5 = res_vectors.get_unchecked_mut(5) as *mut VEC ; // prettier-ignore
             let out_vec6 =  res_vectors.get_unchecked_mut(6) as *mut VEC ; // prettier-ignore
 
-            let res0 = inp_vec[0]._mul_add(kernel_vec, out_vec0.read());
-            let res1 = inp_vec[1]._mul_add(kernel_vec, out_vec1.read());
-            let res2 = inp_vec[2]._mul_add(kernel_vec, out_vec2.read());
-            let res3 = inp_vec[3]._mul_add(kernel_vec, out_vec3.read());
-            let res4 = inp_vec[4]._mul_add(kernel_vec, out_vec4.read());
-            let res5 = inp_vec[5]._mul_add(kernel_vec, out_vec5.read());
-            let res6 = inp_vec[6]._mul_add(kernel_vec, out_vec6.read());
+            let res0 = inp_vec0._mul_add(kernel_vec, out_vec0.read());
+            let res1 = inp_vec1._mul_add(kernel_vec, out_vec1.read());
+            let res2 = inp_vec2._mul_add(kernel_vec, out_vec2.read());
+            let res3 = inp_vec3._mul_add(kernel_vec, out_vec3.read());
+            let res4 = inp_vec4._mul_add(kernel_vec, out_vec4.read());
+            let res5 = inp_vec5._mul_add(kernel_vec, out_vec5.read());
+            let res6 = inp_vec6._mul_add(kernel_vec, out_vec6.read());
 
             *out_vec0 = res0;
             *out_vec1 = res1;
