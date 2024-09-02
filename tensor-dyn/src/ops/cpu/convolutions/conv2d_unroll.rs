@@ -237,15 +237,15 @@ pub fn conv2d_ex<
     // println!("num_wo_rb: {}, num_co_rb: {}", num_wo_rb, num_co_rb);
     // println!("wo_b_remain: {}", wo_b_remain);
     // println!("co_b_remain: {}", co_b_remain);
-    // let mut res_vectors =
+    // let res_vectors =
     //     vec![[VEC::splat(T::ZERO); REGNUM]; num_wo_rb as usize * num_co_rb as usize]; /* 11760 elements */ /* L1 = 12288 elements */
-    // let mut inp_vectors = avec![T::ZERO; REGNUM * ci_b as usize];
-    // let mut kernel_vectors = vec![VEC::splat(T::ZERO); num_co_rb as usize];
-    // let mut remain_vectors = vec![VEC::splat(T::ZERO); wo_b_remain as usize * num_co_rb as usize];
+    // let inp_vectors = avec![T::ZERO; wo_b as usize * ci_b as usize];
+    // let kernel_vectors = vec![VEC::splat(T::ZERO); num_co_rb as usize];
+    // let remain_vectors = vec![VEC::splat(T::ZERO); wo_b_remain as usize * num_co_rb as usize];
     // println!(
     //     "buffers: {}",
     //     res_vectors.len() * REGNUM * VECSIZE +
-    //         REGNUM * (ci_b as usize) +
+    //         REGNUM * (ci_b as usize) * (wo_b as usize) +
     //         (num_co_rb as usize) * VECSIZE +
     //         (wo_b_remain as usize) * (num_co_rb as usize) * VECSIZE
     // );
@@ -259,11 +259,11 @@ pub fn conv2d_ex<
         || { (out, kernel, inp) },
         |(out, kernel, inp), idx| {
             let mut res_vectors =
-                vec![[VEC::splat(T::ZERO); REGNUM]; num_wo_rb as usize * num_co_rb as usize];
+                avec![[VEC::splat(T::ZERO); REGNUM]; num_wo_rb as usize * num_co_rb as usize];
             let mut remain_vectors =
-                vec![VEC::splat(T::ZERO); wo_b_remain as usize * num_co_rb as usize];
-            let mut kernel_vectors = vec![VEC::splat(T::ZERO); num_co_rb as usize];
-            let mut inp_vectors = avec![T::ZERO; REGNUM * ci_b as usize];
+                avec![VEC::splat(T::ZERO); wo_b_remain as usize * num_co_rb as usize];
+            let mut kernel_vectors = avec![VEC::splat(T::ZERO); num_co_rb as usize * ci_b as usize];
+            let mut inp_vectors = avec![T::ZERO; wo_b as usize * ci_b as usize];
             let b = idx / (num_co_b * num_ci_b * out_height);
             let t = (idx / (num_ci_b * out_height)) % num_co_b;
             let ip = (idx / out_height) % num_ci_b;
@@ -275,13 +275,43 @@ pub fn conv2d_ex<
                     for j in 0..num_co_rb {
                         let idx = k * num_co_rb + j;
                         let vectors = unsafe { res_vectors.get_unchecked_mut(idx as usize) };
-                        for p in 0..REGNUM as i64 {
-                            let k = kp * wo_b + k * (REGNUM as i64) + p;
-                            let out_ptr = &mut out[b * osb + l * osh + k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                            let vector = &mut vectors[p as usize];
-                            unsafe {
-                                *vector = VEC::from_ptr(out_ptr);
-                            }
+
+                        let _k = kp * wo_b + k * (REGNUM as i64) + 0;
+                        let out_ptr0 = & out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+                        let vector0 = &mut vectors[0] as *mut VEC;
+
+                        let _k = kp * wo_b + k * (REGNUM as i64) + 1;
+                        let out_ptr1 = & out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+                        let vector1 = &mut vectors[1] as *mut VEC;
+
+                        let _k = kp * wo_b + k * (REGNUM as i64) + 2;
+                        let out_ptr2 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+                        let vector2 = &mut vectors[2] as *mut VEC;
+
+                        let _k = kp * wo_b + k * (REGNUM as i64) + 3;
+                        let out_ptr3 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+                        let vector3 = &mut vectors[3] as *mut VEC;
+
+                        let _k = kp * wo_b + k * (REGNUM as i64) + 4;
+                        let out_ptr4 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+                        let vector4 = &mut vectors[4] as *mut VEC;
+
+                        let _k = kp * wo_b + k * (REGNUM as i64) + 5;
+                        let out_ptr5 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+                        let vector5 = &mut vectors[5] as *mut VEC;
+
+                        let _k = kp * wo_b + k * (REGNUM as i64) + 6;
+                        let out_ptr6 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+                        let vector6 = &mut vectors[6] as *mut VEC;
+
+                        unsafe {
+                            *vector0 = VEC::from_ptr(out_ptr0);
+                            *vector1 = VEC::from_ptr(out_ptr1);
+                            *vector2 = VEC::from_ptr(out_ptr2);
+                            *vector3 = VEC::from_ptr(out_ptr3);
+                            *vector4 = VEC::from_ptr(out_ptr4);
+                            *vector5 = VEC::from_ptr(out_ptr5);
+                            *vector6 = VEC::from_ptr(out_ptr6);
                         }
                     }
                 }
@@ -298,12 +328,15 @@ pub fn conv2d_ex<
                 }
                 for n in 0..kernel_height {
                     for m in 0..kernel_width {
-                        for k in 0..num_wo_rb {
-                            for i in 0..ci_b {
+                        for i in 0..ci_b {
+                            for k in 0..num_wo_rb {
                                 let offset = b * isb + (l * step_height + n * dh) * ish + (kp * wo_b + k * (REGNUM as i64) * step_width + m * dw) * isw + ip * ci_b + i; // prettier-ignore
                                 for r in 0..REGNUM as i64 {
-                                    let idx = i * (REGNUM as i64) + r;
-                                    let inp_vec = &mut inp_vectors[idx as usize];
+                                    let idx =
+                                        i * num_wo_rb * (REGNUM as i64) + k * (REGNUM as i64) + r;
+                                    let inp_vec = unsafe {
+                                        inp_vectors.get_unchecked_mut(idx as usize)
+                                    };
                                     *inp_vec = inp[offset + (r as i64) * step_width * isw];
                                 }
                             }
@@ -311,62 +344,72 @@ pub fn conv2d_ex<
                         for i in 0..ci_b {
                             let i = ip * ci_b + i;
                             for j in 0..num_co_rb {
+                                let idx = i * num_co_rb + j;
                                 let kernel_vec = unsafe { VEC::from_ptr(&kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j * (VECSIZE as i64)]) }; // prettier-ignore
-                                *(unsafe { kernel_vectors.get_unchecked_mut(j as usize) }) =
+                                *(unsafe { kernel_vectors.get_unchecked_mut(idx as usize) }) =
                                     kernel_vec;
                             }
-                            let inp_idx = (i * (REGNUM as i64)) as usize;
-                            let inp_vec0 = VEC::splat(unsafe {
-                                *inp_vectors.get_unchecked(inp_idx + 0)
-                            });
-                            let inp_vec1 = VEC::splat(unsafe {
-                                *inp_vectors.get_unchecked(inp_idx + 1)
-                            });
-                            let inp_vec2 = VEC::splat(unsafe {
-                                *inp_vectors.get_unchecked(inp_idx + 2)
-                            });
-                            let inp_vec3 = VEC::splat(unsafe {
-                                *inp_vectors.get_unchecked(inp_idx + 3)
-                            });
-                            let inp_vec4 = VEC::splat(unsafe {
-                                *inp_vectors.get_unchecked(inp_idx + 4)
-                            });
-                            let inp_vec5 = VEC::splat(unsafe {
-                                *inp_vectors.get_unchecked(inp_idx + 5)
-                            });
-                            let inp_vec6 = VEC::splat(unsafe {
-                                *inp_vectors.get_unchecked(inp_idx + 6)
-                            });
-
+                        }
+                        for ii in 0..ci_b {
+                            let i = ip * ci_b + ii;
                             for k in 0..num_wo_rb {
+                                let inp_idx = (ii * num_wo_rb * (REGNUM as i64) +
+                                    k * (REGNUM as i64)) as usize;
+                                let inp_vec0 = VEC::splat(unsafe {
+                                    *inp_vectors.get_unchecked(inp_idx + 0)
+                                });
+                                let inp_vec1 = VEC::splat(unsafe {
+                                    *inp_vectors.get_unchecked(inp_idx + 1)
+                                });
+                                let inp_vec2 = VEC::splat(unsafe {
+                                    *inp_vectors.get_unchecked(inp_idx + 2)
+                                });
+                                let inp_vec3 = VEC::splat(unsafe {
+                                    *inp_vectors.get_unchecked(inp_idx + 3)
+                                });
+                                let inp_vec4 = VEC::splat(unsafe {
+                                    *inp_vectors.get_unchecked(inp_idx + 4)
+                                });
+                                let inp_vec5 = VEC::splat(unsafe {
+                                    *inp_vectors.get_unchecked(inp_idx + 5)
+                                });
+                                let inp_vec6 = VEC::splat(unsafe {
+                                    *inp_vectors.get_unchecked(inp_idx + 6)
+                                });
                                 for j in 0..num_co_rb {
                                     let idx = k * num_co_rb + j;
+                                    let kernel_idx = i * num_co_rb + j;
                                     let res_vectors = unsafe {
                                         res_vectors.get_unchecked_mut(idx as usize)
                                     };
                                     let kernel_vec = *(unsafe {
-                                        kernel_vectors.get_unchecked(j as usize)
+                                        kernel_vectors.get_unchecked(kernel_idx as usize)
                                     });
-                                    let out_vec = unsafe { res_vectors.get_unchecked_mut(0) };
-                                    *out_vec = inp_vec0._mul_add(kernel_vec, *out_vec); // prettier-ignore
+                                    let out_vec0 = unsafe { res_vectors.get_unchecked_mut(0) as *mut VEC }; // prettier-ignore
+                                    let out_vec1 = unsafe { res_vectors.get_unchecked_mut(1) as *mut VEC }; // prettier-ignore
+                                    let out_vec2 = unsafe { res_vectors.get_unchecked_mut(2) as *mut VEC }; // prettier-ignore
+                                    let out_vec3 = unsafe { res_vectors.get_unchecked_mut(3) as *mut VEC }; // prettier-ignore
+                                    let out_vec4 = unsafe { res_vectors.get_unchecked_mut(4) as *mut VEC }; // prettier-ignore
+                                    let out_vec5 = unsafe { res_vectors.get_unchecked_mut(5) as *mut VEC }; // prettier-ignore
+                                    let out_vec6 = unsafe { res_vectors.get_unchecked_mut(6) as *mut VEC }; // prettier-ignore
 
-                                    let out_vec = unsafe { res_vectors.get_unchecked_mut(1) };
-                                    *out_vec = inp_vec1._mul_add(kernel_vec, *out_vec); // prettier-ignore
+                                    let res0 = inp_vec0._mul_add(kernel_vec, unsafe { out_vec0.read() }); // prettier-ignore
+                                    let res1 = inp_vec1._mul_add(kernel_vec, unsafe { out_vec1.read() }); // prettier-ignore
+                                    let res2 = inp_vec2._mul_add(kernel_vec, unsafe { out_vec2.read() }); // prettier-ignore
+                                    let res3 = inp_vec3._mul_add(kernel_vec, unsafe { out_vec3.read() }); // prettier-ignore
+                                    let res4 = inp_vec4._mul_add(kernel_vec, unsafe { out_vec4.read() }); // prettier-ignore
+                                    let res5 = inp_vec5._mul_add(kernel_vec, unsafe { out_vec5.read() }); // prettier-ignore
+                                    let res6 = inp_vec6._mul_add(kernel_vec, unsafe { out_vec6.read() }); // prettier-ignore
 
-                                    let out_vec = unsafe { res_vectors.get_unchecked_mut(2) };
-                                    *out_vec = inp_vec2._mul_add(kernel_vec, *out_vec); // prettier-ignore
-
-                                    let out_vec = unsafe { res_vectors.get_unchecked_mut(3) };
-                                    *out_vec = inp_vec3._mul_add(kernel_vec, *out_vec); // prettier-ignore
-
-                                    let out_vec = unsafe { res_vectors.get_unchecked_mut(4) };
-                                    *out_vec = inp_vec4._mul_add(kernel_vec, *out_vec); // prettier-ignore
-
-                                    let out_vec = unsafe { res_vectors.get_unchecked_mut(5) };
-                                    *out_vec = inp_vec5._mul_add(kernel_vec, *out_vec); // prettier-ignore
-
-                                    let out_vec = unsafe { res_vectors.get_unchecked_mut(6) };
-                                    *out_vec = inp_vec6._mul_add(kernel_vec, *out_vec); // prettier-ignore
+                                    unsafe {
+                                        *out_vec0 = res0;
+                                        *out_vec1 = res1;
+                                        *out_vec2 = res2;
+                                        *out_vec3 = res3;
+                                        *out_vec4 = res4;
+                                        *out_vec5 = res5;
+                                        *out_vec6 = res6;
+                                    }
                                 }
                             }
                             let _k = kp * wo_b + num_co_rb * (REGNUM as i64) + 0;
