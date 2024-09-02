@@ -276,37 +276,37 @@ pub fn conv2d_ex<
                     for k in 0..num_wo_rb {
                         for j in 0..num_co_rb {
                             let idx = k * num_co_rb + j;
-                            let vectors = unsafe { res_vectors.get_unchecked_mut(idx as usize) };
-
-                            let _k = kp * wo_b + k * (REGNUM as i64) + 0;
-                            let out_ptr0 = & out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                            let vector0 = &mut vectors[0] as *mut VEC;
-
-                            let _k = kp * wo_b + k * (REGNUM as i64) + 1;
-                            let out_ptr1 = & out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                            let vector1 = &mut vectors[1] as *mut VEC;
-
-                            let _k = kp * wo_b + k * (REGNUM as i64) + 2;
-                            let out_ptr2 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                            let vector2 = &mut vectors[2] as *mut VEC;
-
-                            let _k = kp * wo_b + k * (REGNUM as i64) + 3;
-                            let out_ptr3 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                            let vector3 = &mut vectors[3] as *mut VEC;
-
-                            let _k = kp * wo_b + k * (REGNUM as i64) + 4;
-                            let out_ptr4 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                            let vector4 = &mut vectors[4] as *mut VEC;
-
-                            let _k = kp * wo_b + k * (REGNUM as i64) + 5;
-                            let out_ptr5 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                            let vector5 = &mut vectors[5] as *mut VEC;
-
-                            let _k = kp * wo_b + k * (REGNUM as i64) + 6;
-                            let out_ptr6 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                            let vector6 = &mut vectors[6] as *mut VEC;
-
                             unsafe {
+                                let vectors = res_vectors.get_unchecked_mut(idx as usize);
+
+                                let _k = kp * wo_b + k * (REGNUM as i64) + 0;
+                                let out_ptr0 = & out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+                                let vector0 = vectors.get_unchecked_mut(0) as *mut VEC;
+
+                                let _k = kp * wo_b + k * (REGNUM as i64) + 1;
+                                let out_ptr1 = & out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+                                let vector1 = vectors.get_unchecked_mut(1) as *mut VEC;
+
+                                let _k = kp * wo_b + k * (REGNUM as i64) + 2;
+                                let out_ptr2 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+                                let vector2 = vectors.get_unchecked_mut(2) as *mut VEC;
+
+                                let _k = kp * wo_b + k * (REGNUM as i64) + 3;
+                                let out_ptr3 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+                                let vector3 = vectors.get_unchecked_mut(3) as *mut VEC;
+
+                                let _k = kp * wo_b + k * (REGNUM as i64) + 4;
+                                let out_ptr4 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+                                let vector4 = vectors.get_unchecked_mut(4) as *mut VEC;
+
+                                let _k = kp * wo_b + k * (REGNUM as i64) + 5;
+                                let out_ptr5 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+                                let vector5 = vectors.get_unchecked_mut(5) as *mut VEC;
+
+                                let _k = kp * wo_b + k * (REGNUM as i64) + 6;
+                                let out_ptr6 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+                                let vector6 = vectors.get_unchecked_mut(6) as *mut VEC;
+
                                 *vector0 = VEC::from_ptr(out_ptr0);
                                 *vector1 = VEC::from_ptr(out_ptr1);
                                 *vector2 = VEC::from_ptr(out_ptr2);
