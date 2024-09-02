@@ -14,12 +14,12 @@ fn main() -> anyhow::Result<()> {
         .permute([2, 3, 1, 0])?
         .contiguous()?;
     let a = _Tensor::<f32>
-        ::arange(0, 1 * 8 * 1027 * 1027)?
-        .reshape([1, 8, 1027, 1027])?
+        ::arange(0, 1 * 8 * 1260 * 1260)?
+        .reshape([1, 8, 1260, 1260])?
         .permute([0, 2, 3, 1])?
         .contiguous()?;
     let now = std::time::Instant::now();
-    for _ in 0..100 {
+    // for _ in 0..100 {
         let res = conv2d_ex::<f32, 7, 8, f32x8>(
             &a,
             &kernel,
@@ -30,20 +30,21 @@ fn main() -> anyhow::Result<()> {
             ],
             [1, 1]
         )?.permute([0, 3, 1, 2])?;
-    }
+        println!("{:?}", res);
+    // }
     // println!("{:?}", res);
     println!("{:?}", now.elapsed() / 100);
     // println!("{:?}", res.shape());
-    // let res2 = conv2d_ex_naive::<f32, 14, 8, f32x8>(
-    //     &a,
-    //     &kernel,
-    //     [1, 1],
-    //     [
-    //         (0, 0),
-    //         (0, 0),
-    //     ],
-    //     [1, 1]
-    // )?.permute([0, 3, 1, 2])?;
-    // res2.allclose(&res);
+    let res2 = conv2d_ex_naive::<f32, 14, 8, f32x8>(
+        &a,
+        &kernel,
+        [1, 1],
+        [
+            (0, 0),
+            (0, 0),
+        ],
+        [1, 1]
+    )?.permute([0, 3, 1, 2])?;
+    res2.allclose(&res);
     Ok(())
 }
