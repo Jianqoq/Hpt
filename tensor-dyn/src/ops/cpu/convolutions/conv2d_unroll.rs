@@ -1,3 +1,5 @@
+use aligned_vec::AVec;
+use aligned_vec::ConstAlign;
 use tensor_common::pointer::Pointer;
 use tensor_types::vectors::traits::*;
 use crate::tensor_base::_Tensor;
@@ -273,148 +275,64 @@ pub fn conv2d_ex<
                 out.offset(t * co_b);
                 kernel.offset(t * co_b);
                 for kp in 0..num_wo_b {
-                    for k in 0..num_wo_rb {
-                        for j in 0..num_co_rb {
-                            let idx = k * num_co_rb + j;
-                            unsafe {
-                                let vectors = res_vectors.get_unchecked_mut(idx as usize);
-
-                                let _k = kp * wo_b + k * (REGNUM as i64) + 0;
-                                let out_ptr0 = & out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                                let vector0 = vectors.get_unchecked_mut(0) as *mut VEC;
-
-                                let _k = kp * wo_b + k * (REGNUM as i64) + 1;
-                                let out_ptr1 = & out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                                let vector1 = vectors.get_unchecked_mut(1) as *mut VEC;
-
-                                let _k = kp * wo_b + k * (REGNUM as i64) + 2;
-                                let out_ptr2 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                                let vector2 = vectors.get_unchecked_mut(2) as *mut VEC;
-
-                                let _k = kp * wo_b + k * (REGNUM as i64) + 3;
-                                let out_ptr3 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                                let vector3 = vectors.get_unchecked_mut(3) as *mut VEC;
-
-                                let _k = kp * wo_b + k * (REGNUM as i64) + 4;
-                                let out_ptr4 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                                let vector4 = vectors.get_unchecked_mut(4) as *mut VEC;
-
-                                let _k = kp * wo_b + k * (REGNUM as i64) + 5;
-                                let out_ptr5 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                                let vector5 = vectors.get_unchecked_mut(5) as *mut VEC;
-
-                                let _k = kp * wo_b + k * (REGNUM as i64) + 6;
-                                let out_ptr6 = &out[b * osb + l * osh + _k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                                let vector6 = vectors.get_unchecked_mut(6) as *mut VEC;
-
-                                *vector0 = VEC::from_ptr(out_ptr0);
-                                *vector1 = VEC::from_ptr(out_ptr1);
-                                *vector2 = VEC::from_ptr(out_ptr2);
-                                *vector3 = VEC::from_ptr(out_ptr3);
-                                *vector4 = VEC::from_ptr(out_ptr4);
-                                *vector5 = VEC::from_ptr(out_ptr5);
-                                *vector6 = VEC::from_ptr(out_ptr6);
-                            }
-                        }
-                    }
-                    for j in 0..num_co_rb {
-                        for p in 0..wo_b_remain {
-                            let idx = j * wo_b_remain + p;
-                            let k = kp * wo_b + num_wo_rb * (REGNUM as i64) + p;
-                            let out_ptr = &mut out[b * osb + l * osh + k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                            unsafe {
-                                *remain_vectors.get_unchecked_mut(idx as usize) =
-                                    VEC::from_ptr(out_ptr);
-                            }
-                        }
-                    }
+                    pack_res::<T, VEC, REGNUM, VECSIZE>(
+                        num_wo_rb,
+                        num_co_rb,
+                        osw,
+                        b * osb + l * osh + kp * wo_b * osw,
+                        out,
+                        &mut res_vectors
+                    );
+                    pack_remain_res::<T, VEC, REGNUM, VECSIZE>(
+                        num_co_rb,
+                        wo_b_remain,
+                        osw,
+                        kp * wo_b + num_wo_rb * (REGNUM as i64),
+                        b * osb + l * osh,
+                        out,
+                        &mut remain_vectors
+                    );
                     for n in 0..kernel_height {
                         for m in 0..kernel_width {
-                            for i in 0..ci_b {
-                                for k in 0..num_wo_rb {
-                                    let offset = b * isb + (l * step_height + n * dh) * ish + (kp * wo_b + k * (REGNUM as i64) * step_width + m * dw) * isw + ip * ci_b + i; // prettier-ignore
-                                    for r in 0..REGNUM as i64 {
-                                        let idx =
-                                            i * num_wo_rb * (REGNUM as i64) +
-                                            k * (REGNUM as i64) +
-                                            r;
-                                        let inp_vec = unsafe {
-                                            inp_vectors.get_unchecked_mut(idx as usize)
-                                        };
-                                        *inp_vec = inp[offset + (r as i64) * step_width * isw];
-                                    }
-                                }
-                            }
-                            for i in 0..ci_b {
-                                let i = ip * ci_b + i;
-                                for j in 0..num_co_rb {
-                                    let idx = i * num_co_rb + j;
-                                    let kernel_vec = unsafe { VEC::from_ptr(&kernel[n * ks0 + m * ks1 + (ip * ci_b + i) * ks2 + j * (VECSIZE as i64)]) }; // prettier-ignore
-                                    *(unsafe { kernel_vectors.get_unchecked_mut(idx as usize) }) =
-                                        kernel_vec;
-                                }
-                            }
+                            pack_input::<T, VEC, REGNUM, VECSIZE>(
+                                ci_b,
+                                num_wo_rb,
+                                b * isb +
+                                    (l * step_height + n * dh) * ish +
+                                    kp * wo_b * isw +
+                                    m * dw * isw +
+                                    ip * ci_b,
+                                step_width,
+                                isw,
+                                inp,
+                                &mut inp_vectors
+                            );
+                            pack_kernel::<T, VEC, REGNUM, VECSIZE>(
+                                ci_b,
+                                ip,
+                                num_co_rb,
+                                n * ks0 + m * ks1,
+                                ks2,
+                                kernel,
+                                &mut kernel_vectors
+                            );
                             for ii in 0..ci_b {
                                 let i = ip * ci_b + ii;
                                 for k in 0..num_wo_rb {
-                                    let inp_idx = (ii * num_wo_rb * (REGNUM as i64) +
-                                        k * (REGNUM as i64)) as usize;
-                                    let inp_vec0 = VEC::splat(unsafe {
-                                        *inp_vectors.get_unchecked(inp_idx + 0)
-                                    });
-                                    let inp_vec1 = VEC::splat(unsafe {
-                                        *inp_vectors.get_unchecked(inp_idx + 1)
-                                    });
-                                    let inp_vec2 = VEC::splat(unsafe {
-                                        *inp_vectors.get_unchecked(inp_idx + 2)
-                                    });
-                                    let inp_vec3 = VEC::splat(unsafe {
-                                        *inp_vectors.get_unchecked(inp_idx + 3)
-                                    });
-                                    let inp_vec4 = VEC::splat(unsafe {
-                                        *inp_vectors.get_unchecked(inp_idx + 4)
-                                    });
-                                    let inp_vec5 = VEC::splat(unsafe {
-                                        *inp_vectors.get_unchecked(inp_idx + 5)
-                                    });
-                                    let inp_vec6 = VEC::splat(unsafe {
-                                        *inp_vectors.get_unchecked(inp_idx + 6)
-                                    });
-                                    for j in 0..num_co_rb {
-                                        let idx = k * num_co_rb + j;
-                                        let kernel_idx = i * num_co_rb + j;
-                                        let res_vectors = unsafe {
-                                            res_vectors.get_unchecked_mut(idx as usize)
-                                        };
-                                        let kernel_vec = *(unsafe {
-                                            kernel_vectors.get_unchecked(kernel_idx as usize)
-                                        });
-                                        let out_vec0 = unsafe { res_vectors.get_unchecked_mut(0) as *mut VEC }; // prettier-ignore
-                                        let out_vec1 = unsafe { res_vectors.get_unchecked_mut(1) as *mut VEC }; // prettier-ignore
-                                        let out_vec2 = unsafe { res_vectors.get_unchecked_mut(2) as *mut VEC }; // prettier-ignore
-                                        let out_vec3 = unsafe { res_vectors.get_unchecked_mut(3) as *mut VEC }; // prettier-ignore
-                                        let out_vec4 = unsafe { res_vectors.get_unchecked_mut(4) as *mut VEC }; // prettier-ignore
-                                        let out_vec5 = unsafe { res_vectors.get_unchecked_mut(5) as *mut VEC }; // prettier-ignore
-                                        let out_vec6 = unsafe { res_vectors.get_unchecked_mut(6) as *mut VEC }; // prettier-ignore
-
-                                        let res0 = inp_vec0._mul_add(kernel_vec, unsafe { out_vec0.read() }); // prettier-ignore
-                                        let res1 = inp_vec1._mul_add(kernel_vec, unsafe { out_vec1.read() }); // prettier-ignore
-                                        let res2 = inp_vec2._mul_add(kernel_vec, unsafe { out_vec2.read() }); // prettier-ignore
-                                        let res3 = inp_vec3._mul_add(kernel_vec, unsafe { out_vec3.read() }); // prettier-ignore
-                                        let res4 = inp_vec4._mul_add(kernel_vec, unsafe { out_vec4.read() }); // prettier-ignore
-                                        let res5 = inp_vec5._mul_add(kernel_vec, unsafe { out_vec5.read() }); // prettier-ignore
-                                        let res6 = inp_vec6._mul_add(kernel_vec, unsafe { out_vec6.read() }); // prettier-ignore
-
-                                        unsafe {
-                                            *out_vec0 = res0;
-                                            *out_vec1 = res1;
-                                            *out_vec2 = res2;
-                                            *out_vec3 = res3;
-                                            *out_vec4 = res4;
-                                            *out_vec5 = res5;
-                                            *out_vec6 = res6;
-                                        }
-                                    }
+                                    let offset =
+                                        ii * num_wo_rb * (REGNUM as i64) + k * (REGNUM as i64);
+                                    let inp_vecs = get_inp_vectors::<T, VEC, REGNUM>(
+                                        offset as usize,
+                                        &inp_vectors
+                                    );
+                                    do_calculate::<T, VEC, REGNUM, VECSIZE>(
+                                        num_co_rb,
+                                        k,
+                                        i,
+                                        inp_vecs,
+                                        &mut res_vectors,
+                                        &kernel_vectors
+                                    );
                                 }
                                 let _k = kp * wo_b + num_co_rb * (REGNUM as i64) + 0;
                                 let inp_vec0 = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (_k * step_width + m * dw) * isw + ip * ci_b + i]); // prettier-ignore
@@ -435,31 +353,25 @@ pub fn conv2d_ex<
                             }
                         }
                     }
-                    for k in 0..num_wo_rb {
-                        for j in 0..num_co_rb {
-                            let idx = k * num_co_rb + j;
-                            let res_vectors = unsafe {
-                                res_vectors.get_unchecked_mut(idx as usize)
-                            };
-                            for p in 0..REGNUM as i64 {
-                                let k = kp * wo_b + k * (REGNUM as i64) + p;
-                                let out_ptr = &mut out[b * osb + l * osh + k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                                unsafe {
-                                    std::ptr::copy_nonoverlapping(res_vectors[p as usize].as_ptr(), out_ptr, VECSIZE); // prettier-ignore
-                                }
-                            }
-                        }
-                    }
-                    for j in 0..num_co_rb {
-                        for p in 0..wo_b_remain {
-                            let idx = j * wo_b_remain + p;
-                            let k = kp * wo_b + num_wo_rb * (REGNUM as i64) + p;
-                            let out_ptr = &mut out[b * osb + l * osh + k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-                            unsafe {
-                                std::ptr::copy_nonoverlapping(remain_vectors.get_unchecked(idx as usize).as_ptr(), out_ptr, VECSIZE); // prettier-ignore
-                            }
-                        }
-                    }
+                    store_res::<T, VEC, REGNUM, VECSIZE>(
+                        num_wo_rb,
+                        num_co_rb,
+                        kp * wo_b,
+                        osw,
+                        b * osb + l * osh,
+                        out,
+                        &mut res_vectors
+                    );
+                    store_remain_res::<T, VEC, REGNUM, VECSIZE>(
+                        num_wo_rb,
+                        num_co_rb,
+                        wo_b_remain,
+                        kp * wo_b,
+                        osw,
+                        b * osb + l * osh,
+                        out,
+                        &mut remain_vectors
+                    );
                 }
             }
         }
@@ -638,8 +550,225 @@ fn find_exact_combination(
     (best_co_b, best_wo_b, best_ci_b)
 }
 
-fn load_inps<T, const N: usize, VEC>(offset: i64, inp: Pointer<T>, s: i64) -> [VEC; N]
-    where VEC: VecTrait<T> + Copy + Init<T>, T: CommonBounds
+fn pack_res<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
+    num_wo_rb: i64,
+    num_co_rb: i64,
+    osw: i64,
+    offset: i64,
+    out: &mut Pointer<T>,
+    res_vectors: &mut aligned_vec::AVec<[VEC; REGNUM], aligned_vec::ConstAlign<128>>
+)
+    where T: CommonBounds, VEC: Init<T>
 {
-    array_init::array_init(|i| { VEC::splat(inp[offset + (i as i64) * s]) })
+    for k in 0..num_wo_rb {
+        for j in 0..num_co_rb {
+            let idx = k * num_co_rb + j;
+            let offset = offset + k * (REGNUM as i64) * osw + j * (VECSIZE as i64);
+            unsafe {
+                let vectors = res_vectors.get_unchecked_mut(idx as usize);
+
+                let out_ptr0 = & out[offset + 0 * osw]; // prettier-ignore
+                let vector0 = vectors.get_unchecked_mut(0) as *mut VEC;
+
+                let out_ptr1 = & out[offset + 1 * osw]; // prettier-ignore
+                let vector1 = vectors.get_unchecked_mut(1) as *mut VEC;
+
+                let out_ptr2 = &out[offset + 2 * osw]; // prettier-ignore
+                let vector2 = vectors.get_unchecked_mut(2) as *mut VEC;
+
+                let out_ptr3 = &out[offset + 3 * osw]; // prettier-ignore
+                let vector3 = vectors.get_unchecked_mut(3) as *mut VEC;
+
+                let out_ptr4 = &out[offset + 4 * osw]; // prettier-ignore
+                let vector4 = vectors.get_unchecked_mut(4) as *mut VEC;
+
+                let out_ptr5 = &out[offset]; // prettier-ignore
+                let vector5 = vectors.get_unchecked_mut(5) as *mut VEC;
+
+                let out_ptr6 = &out[offset + 5 * osw]; // prettier-ignore
+                let vector6 = vectors.get_unchecked_mut(6) as *mut VEC;
+
+                *vector0 = VEC::from_ptr(out_ptr0);
+                *vector1 = VEC::from_ptr(out_ptr1);
+                *vector2 = VEC::from_ptr(out_ptr2);
+                *vector3 = VEC::from_ptr(out_ptr3);
+                *vector4 = VEC::from_ptr(out_ptr4);
+                *vector5 = VEC::from_ptr(out_ptr5);
+                *vector6 = VEC::from_ptr(out_ptr6);
+            }
+        }
+    }
+}
+
+fn pack_remain_res<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
+    num_co_rb: i64,
+    wo_b_remain: i64,
+    osw: i64,
+    k_offset: i64,
+    offset: i64,
+    out: &mut Pointer<T>,
+    remain_vectors: &mut AVec<VEC, ConstAlign<128>>
+)
+    where T: CommonBounds, VEC: Init<T>
+{
+    for j in 0..num_co_rb {
+        for p in 0..wo_b_remain {
+            let idx = j * wo_b_remain + p;
+            let k = k_offset + p;
+            let out_ptr = &mut out[offset + k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+            unsafe {
+                *remain_vectors.get_unchecked_mut(idx as usize) = VEC::from_ptr(out_ptr);
+            }
+        }
+    }
+}
+
+fn pack_input<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
+    ci_b: i64,
+    num_wo_rb: i64,
+    offset: i64,
+    step_width: i64,
+    isw: i64,
+    inp: &Pointer<T>,
+    inp_vectors: &mut AVec<T, ConstAlign<128>>
+)
+    where T: CommonBounds
+{
+    for i in 0..ci_b {
+        for k in 0..num_wo_rb {
+            let offset = offset + k * (REGNUM as i64) * step_width * isw + i; // prettier-ignore
+            for r in 0..REGNUM as i64 {
+                let idx = i * num_wo_rb * (REGNUM as i64) + k * (REGNUM as i64) + r;
+                let inp_vec = unsafe { inp_vectors.get_unchecked_mut(idx as usize) };
+                *inp_vec = inp[offset + (r as i64) * step_width * isw];
+            }
+        }
+    }
+}
+
+fn pack_kernel<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
+    ci_b: i64,
+    ip: i64,
+    num_co_rb: i64,
+    offset: i64,
+    ks2: i64,
+    kernel: &Pointer<T>,
+    kernel_vectors: &mut AVec<VEC, ConstAlign<128>>
+)
+    where T: CommonBounds, VEC: Init<T>
+{
+    for i in 0..ci_b {
+        let i = ip * ci_b + i;
+        for j in 0..num_co_rb {
+            let idx = i * num_co_rb + j;
+            let kernel_vec = unsafe { VEC::from_ptr(&kernel[offset + (ip * ci_b + i) * ks2 + j * (VECSIZE as i64)]) }; // prettier-ignore
+            *(unsafe { kernel_vectors.get_unchecked_mut(idx as usize) }) = kernel_vec;
+        }
+    }
+}
+
+fn get_inp_vectors<T, VEC, const REGNUM: usize>(
+    offset: usize,
+    inp_vectors: &AVec<T, ConstAlign<128>>
+)
+    -> [VEC; REGNUM]
+    where T: CommonBounds, VEC: Init<T>
+{
+    array_init::array_init(|idx| {
+        VEC::splat(unsafe { *inp_vectors.get_unchecked(offset + idx) })
+    })
+}
+
+fn do_calculate<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
+    num_co_rb: i64,
+    k: i64,
+    i: i64,
+    inp_vec: [VEC; REGNUM],
+    res_vectors: &mut aligned_vec::AVec<[VEC; REGNUM], aligned_vec::ConstAlign<128>>,
+    kernel_vectors: &AVec<VEC, ConstAlign<128>>
+)
+    where T: CommonBounds, VEC: VecTrait<T> + Copy
+{
+    assert_eq!(inp_vec.len(), 7);
+    for j in 0..num_co_rb {
+        let idx = k * num_co_rb + j;
+        let kernel_idx = i * num_co_rb + j;
+        let res_vectors = unsafe { res_vectors.get_unchecked_mut(idx as usize) };
+        let kernel_vec = *(unsafe { kernel_vectors.get_unchecked(kernel_idx as usize) });
+        let out_vec0 = unsafe { res_vectors.get_unchecked_mut(0) as *mut VEC }; // prettier-ignore
+        let out_vec1 = unsafe { res_vectors.get_unchecked_mut(1) as *mut VEC }; // prettier-ignore
+        let out_vec2 = unsafe { res_vectors.get_unchecked_mut(2) as *mut VEC }; // prettier-ignore
+        let out_vec3 = unsafe { res_vectors.get_unchecked_mut(3) as *mut VEC }; // prettier-ignore
+        let out_vec4 = unsafe { res_vectors.get_unchecked_mut(4) as *mut VEC }; // prettier-ignore
+        let out_vec5 = unsafe { res_vectors.get_unchecked_mut(5) as *mut VEC }; // prettier-ignore
+        let out_vec6 = unsafe { res_vectors.get_unchecked_mut(6) as *mut VEC }; // prettier-ignore
+
+        let res0 = inp_vec[0]._mul_add(kernel_vec, unsafe { out_vec0.read() }); // prettier-ignore
+        let res1 = inp_vec[1]._mul_add(kernel_vec, unsafe { out_vec1.read() }); // prettier-ignore
+        let res2 = inp_vec[2]._mul_add(kernel_vec, unsafe { out_vec2.read() }); // prettier-ignore
+        let res3 = inp_vec[3]._mul_add(kernel_vec, unsafe { out_vec3.read() }); // prettier-ignore
+        let res4 = inp_vec[4]._mul_add(kernel_vec, unsafe { out_vec4.read() }); // prettier-ignore
+        let res5 = inp_vec[5]._mul_add(kernel_vec, unsafe { out_vec5.read() }); // prettier-ignore
+        let res6 = inp_vec[6]._mul_add(kernel_vec, unsafe { out_vec6.read() }); // prettier-ignore
+
+        unsafe {
+            *out_vec0 = res0;
+            *out_vec1 = res1;
+            *out_vec2 = res2;
+            *out_vec3 = res3;
+            *out_vec4 = res4;
+            *out_vec5 = res5;
+            *out_vec6 = res6;
+        }
+    }
+}
+
+fn store_res<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
+    num_wo_rb: i64,
+    num_co_rb: i64,
+    k_offset: i64,
+    osw: i64,
+    offset: i64,
+    out: &mut Pointer<T>,
+    res_vectors: &mut aligned_vec::AVec<[VEC; REGNUM], aligned_vec::ConstAlign<128>>
+)
+    where T: CommonBounds, VEC: VecTrait<T> + Copy
+{
+    for k in 0..num_wo_rb {
+        for j in 0..num_co_rb {
+            let idx = k * num_co_rb + j;
+            let res_vectors = unsafe { res_vectors.get_unchecked_mut(idx as usize) };
+            for p in 0..REGNUM as i64 {
+                let k = k_offset + k * (REGNUM as i64) + p;
+                let out_ptr = &mut out[offset + k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+                unsafe {
+                    std::ptr::copy_nonoverlapping(res_vectors[p as usize].as_ptr(), out_ptr, VECSIZE); // prettier-ignore
+                }
+            }
+        }
+    }
+}
+
+fn store_remain_res<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
+    num_wo_rb: i64,
+    num_co_rb: i64,
+    wo_b_remain: i64,
+    k_offset: i64,
+    osw: i64,
+    offset: i64,
+    out: &mut Pointer<T>,
+    remain_vectors: &mut AVec<VEC, ConstAlign<128>>
+)
+    where T: CommonBounds, VEC: VecTrait<T> + Copy
+{
+    for j in 0..num_co_rb {
+        for p in 0..wo_b_remain {
+            let idx = j * wo_b_remain + p;
+            let k = k_offset + num_wo_rb * (REGNUM as i64) + p;
+            let out_ptr = &mut out[offset + k * osw + j * (VECSIZE as i64)]; // prettier-ignore
+            unsafe {
+                std::ptr::copy_nonoverlapping(remain_vectors.get_unchecked(idx as usize).as_ptr(), out_ptr, VECSIZE); // prettier-ignore
+            }
+        }
+    }
 }
