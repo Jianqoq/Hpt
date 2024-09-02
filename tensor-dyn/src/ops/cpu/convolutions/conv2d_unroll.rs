@@ -1,5 +1,3 @@
-use aligned_vec::AVec;
-use aligned_vec::ConstAlign;
 use tensor_common::pointer::Pointer;
 use tensor_types::vectors::traits::*;
 use crate::tensor_base::_Tensor;
@@ -141,11 +139,6 @@ pub fn conv2d_ex<
     -> anyhow::Result<_Tensor<T>>
     where VEC: VecTrait<T> + Copy + Init<T> + Send + Sync, T: IntoScalar<T>
 {
-    use std::sync::Arc;
-
-    use aligned_vec::avec;
-    use tensor_common::shape_utils::mt_intervals;
-
     let img_shape = img.shape();
     let batch = img_shape[0];
     let img_height = img_shape[1];
@@ -286,18 +279,20 @@ pub fn conv2d_ex<
                                     &kernel
                                 );
                             }
-                            let _k = kp * wo_b + num_co_rb * (REGNUM as i64) + 0;
-                            let inp_vec0 = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (_k * step_width + m * dw) * isw + i]); // prettier-ignore
+                            if wo_b_remain > 0 {
+                                let _k = kp * wo_b + num_co_rb * (REGNUM as i64) + 0;
+                                let inp_vec0 = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (_k * step_width + m * dw) * isw + i]); // prettier-ignore
 
-                            let _k = kp * wo_b + num_co_rb * (REGNUM as i64) + 1;
-                            let inp_vec1 = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (_k * step_width + m * dw) * isw + i]); // prettier-ignore
-                            for j in 0..num_co_rb {
-                                let kernel_vec = unsafe { VEC::from_ptr(&kernel[n * ks0 + m * ks1 + i * ks2 + j * (VECSIZE as i64)]) }; // prettier-ignore
-                                let out_vec0 = &mut out[b * osb + l * osh + (kp * wo_b + num_wo_rb * (REGNUM as i64) + 0) * osw + j * (VECSIZE as i64)] as *mut _ as *mut VEC;
-                                unsafe { *out_vec0 = inp_vec0._mul_add(kernel_vec, *out_vec0) }; // prettier-ignore
+                                let _k = kp * wo_b + num_co_rb * (REGNUM as i64) + 1;
+                                let inp_vec1 = VEC::splat(inp[b * isb + (l * step_height + n * dh) * ish + (_k * step_width + m * dw) * isw + i]); // prettier-ignore
+                                for j in 0..num_co_rb {
+                                    let kernel_vec = unsafe { VEC::from_ptr(&kernel[n * ks0 + m * ks1 + i * ks2 + j * (VECSIZE as i64)]) }; // prettier-ignore
+                                    let out_vec0 = &mut out[b * osb + l * osh + (kp * wo_b + num_wo_rb * (REGNUM as i64) + 0) * osw + j * (VECSIZE as i64)] as *mut _ as *mut VEC; // prettier-ignore
+                                    unsafe { *out_vec0 = inp_vec0._mul_add(kernel_vec, *out_vec0) }; // prettier-ignore
 
-                                let out_vec1 = &mut out[b * osb + l * osh + (kp * wo_b + num_wo_rb * (REGNUM as i64) + 1) * osw + j * (VECSIZE as i64)] as *mut _ as *mut VEC;
-                                unsafe { *out_vec1 = inp_vec1._mul_add(kernel_vec, *out_vec1) }; // prettier-ignore
+                                    let out_vec1 = &mut out[b * osb + l * osh + (kp * wo_b + num_wo_rb * (REGNUM as i64) + 1) * osw + j * (VECSIZE as i64)] as *mut _ as *mut VEC; // prettier-ignore
+                                    unsafe { *out_vec1 = inp_vec1._mul_add(kernel_vec, *out_vec1) }; // prettier-ignore
+                                }
                             }
                         }
                     }
@@ -479,29 +474,6 @@ fn find_exact_combination(
     (best_co_b, best_wo_b, best_ci_b)
 }
 
-fn pack_remain_res<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
-    num_co_rb: i64,
-    wo_b_remain: i64,
-    osw: i64,
-    k_offset: i64,
-    offset: i64,
-    out: &mut Pointer<T>,
-    remain_vectors: &mut AVec<VEC, ConstAlign<128>>
-)
-    where T: CommonBounds, VEC: Init<T>
-{
-    for j in 0..num_co_rb {
-        for p in 0..wo_b_remain {
-            let idx = j * wo_b_remain + p;
-            let k = k_offset + p;
-            let out_ptr = &mut out[offset + k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-            unsafe {
-                *remain_vectors.get_unchecked_mut(idx as usize) = VEC::from_ptr(out_ptr);
-            }
-        }
-    }
-}
-
 fn do_calculate<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
     num_co_rb: i64,
     k: i64,
@@ -518,7 +490,6 @@ fn do_calculate<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
 )
     where T: CommonBounds, VEC: VecTrait<T> + Copy + Init<T>
 {
-    // use std::arch::x86_64::_MM_HINT_T0;
     let _k = k_offset + k * (REGNUM as i64) + 0;
     let inp_vec0 = VEC::splat(inp[_k * step_width * isw + i]); // prettier-ignore
     let _k = k_offset + k * (REGNUM as i64) + 1;
@@ -534,28 +505,19 @@ fn do_calculate<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
     let _k = k_offset + k * (REGNUM as i64) + 6;
     let inp_vec6 = VEC::splat(inp[_k * step_width * isw + i]); // prettier-ignore
     for j in 0..num_co_rb {
+        let ofs = out_offset + k * (REGNUM as i64) * osw + j * (VECSIZE as i64);
         unsafe {
-            // if j + 1 < num_co_rb {
-            //     let next_res_vectors = res_vectors.get_unchecked_mut(idx as usize + 1);
-            //     _mm_prefetch::<_MM_HINT_T0>(next_res_vectors.get_unchecked(0) as *const _ as *const i8); // prettier-ignore
-            //     _mm_prefetch::<_MM_HINT_T0>(next_res_vectors.get_unchecked(1) as *const _ as *const i8); // prettier-ignore
-            //     _mm_prefetch::<_MM_HINT_T0>(next_res_vectors.get_unchecked(2) as *const _ as *const i8); // prettier-ignore
-            //     _mm_prefetch::<_MM_HINT_T0>(next_res_vectors.get_unchecked(3) as *const _ as *const i8); // prettier-ignore
-            //     _mm_prefetch::<_MM_HINT_T0>(next_res_vectors.get_unchecked(4) as *const _ as *const i8); // prettier-ignore
-            //     _mm_prefetch::<_MM_HINT_T0>(next_res_vectors.get_unchecked(5) as *const _ as *const i8); // prettier-ignore
-            //     _mm_prefetch::<_MM_HINT_T0>(next_res_vectors.get_unchecked(6) as *const _ as *const i8); // prettier-ignore
-            // }
             let kernel_vec = *(
                 &kernel[kernel_offset + j * (VECSIZE as i64)] as *const _ as *const VEC
             );
 
-            let out_vec0 = &mut out[out_offset + k * (REGNUM as i64) * osw + j * (VECSIZE as i64) + 0 * osw] as *mut _ as *mut VEC; // prettier-ignore
-            let out_vec1 = &mut out[out_offset + k * (REGNUM as i64) * osw + j * (VECSIZE as i64) + 1 * osw] as *mut _ as *mut VEC; // prettier-ignore
-            let out_vec2 = &mut out[out_offset + k * (REGNUM as i64) * osw + j * (VECSIZE as i64) + 2 * osw] as *mut _ as *mut VEC; // prettier-ignore
-            let out_vec3 = &mut out[out_offset + k * (REGNUM as i64) * osw + j * (VECSIZE as i64) + 3 * osw] as *mut _ as *mut VEC; // prettier-ignore
-            let out_vec4 = &mut out[out_offset + k * (REGNUM as i64) * osw + j * (VECSIZE as i64) + 4 * osw] as *mut _ as *mut VEC; // prettier-ignore
-            let out_vec5 = &mut out[out_offset + k * (REGNUM as i64) * osw + j * (VECSIZE as i64) + 5 * osw] as *mut _ as *mut VEC; // prettier-ignore
-            let out_vec6 = &mut out[out_offset + k * (REGNUM as i64) * osw + j * (VECSIZE as i64) + 6 * osw] as *mut _ as *mut VEC; // prettier-ignore
+            let out_vec0 = &mut out[ofs + 0 * osw] as *mut _ as *mut VEC; // prettier-ignore
+            let out_vec1 = &mut out[ofs + 1 * osw] as *mut _ as *mut VEC; // prettier-ignore
+            let out_vec2 = &mut out[ofs + 2 * osw] as *mut _ as *mut VEC; // prettier-ignore
+            let out_vec3 = &mut out[ofs + 3 * osw] as *mut _ as *mut VEC; // prettier-ignore
+            let out_vec4 = &mut out[ofs + 4 * osw] as *mut _ as *mut VEC; // prettier-ignore
+            let out_vec5 = &mut out[ofs + 5 * osw] as *mut _ as *mut VEC; // prettier-ignore
+            let out_vec6 = &mut out[ofs + 6 * osw] as *mut _ as *mut VEC; // prettier-ignore
 
             let res0 = inp_vec0._mul_add(kernel_vec, out_vec0.read());
             let res1 = inp_vec1._mul_add(kernel_vec, out_vec1.read());
@@ -572,30 +534,6 @@ fn do_calculate<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
             *out_vec4 = res4;
             *out_vec5 = res5;
             *out_vec6 = res6;
-        }
-    }
-}
-
-fn store_remain_res<T, VEC, const REGNUM: usize, const VECSIZE: usize>(
-    num_wo_rb: i64,
-    num_co_rb: i64,
-    wo_b_remain: i64,
-    k_offset: i64,
-    osw: i64,
-    offset: i64,
-    out: &mut Pointer<T>,
-    remain_vectors: &mut AVec<VEC, ConstAlign<128>>
-)
-    where T: CommonBounds, VEC: VecTrait<T> + Copy
-{
-    for j in 0..num_co_rb {
-        for p in 0..wo_b_remain {
-            let idx = j * wo_b_remain + p;
-            let k = k_offset + num_wo_rb * (REGNUM as i64) + p;
-            let out_ptr = &mut out[offset + k * osw + j * (VECSIZE as i64)]; // prettier-ignore
-            unsafe {
-                std::ptr::copy_nonoverlapping(remain_vectors.get_unchecked(idx as usize).as_ptr(), out_ptr, VECSIZE); // prettier-ignore
-            }
         }
     }
 }
