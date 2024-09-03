@@ -578,17 +578,14 @@ pub fn conv2d_naive<T>(
     let obs = output.strides()[0]; // batch
     let ohs = output.strides()[1]; // out_height
     let ows = output.strides()[2]; // out_width
-    let ocs = output.strides()[3]; // out_channels
 
     let ibs = img.strides()[0]; // batch
     let ihs = img.strides()[1]; // height
     let iws = img.strides()[2]; // width
-    let ics = img.strides()[3]; // channels
 
     let khs = kernels.strides()[0]; // kernel_height
     let kws = kernels.strides()[1]; // kernel_width
     let kis = kernels.strides()[2]; // in_channels
-    let kos = kernels.strides()[3]; // out_channels
 
     for b in 0..batch {
         for j in 0..out_channels {
@@ -597,11 +594,11 @@ pub fn conv2d_naive<T>(
                     for k in 0..out_width {
                         for n in 0..kernel_height {
                             for m in 0..kernel_width {
-                                let k_val = kernel[j * kos + i * kis + n * khs + m * kws];
-                                let i_val = inp[b * ibs + i * ics + (l * step_height + n) * ihs + (k * step_width + m) * iws]; // prettier-ignore
-                                out[b * obs + j * ocs + l * ohs + k * ows] = i_val.mul_add(
+                                let k_val = kernel[i * kis + n * khs + m * kws + j];
+                                let i_val = inp[b * ibs + (l * step_height + n) * ihs + (k * step_width + m) * iws + i]; // prettier-ignore
+                                out[b * obs + l * ohs + k * ows + j] = i_val.mul_add(
                                     k_val,
-                                    out[b * obs + j * ocs + l * ohs + k * ows]
+                                    out[b * obs + l * ohs + k * ows + j]
                                 );
                             }
                         }

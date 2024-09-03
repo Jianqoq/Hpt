@@ -10,8 +10,8 @@ fn main() -> anyhow::Result<()> {
     set_global_display_lr_elements(6);
     set_num_threads(10);
     let kernel = _Tensor::<f32>
-        ::arange(0, 8 * 79 * 4 * 4)?
-        .reshape([79, 8, 4, 4])?
+        ::arange(0, 8 * 80 * 4 * 4)?
+        .reshape([80, 8, 4, 4])?
         .permute([2, 3, 1, 0])?
         .contiguous()?;
     let a = _Tensor::<f32>
@@ -40,7 +40,8 @@ fn main() -> anyhow::Result<()> {
     //     &a,
     //     &kernel,
     //     [1, 1],
-    // )?.permute([0, 3, 1, 2])?;
-    // res2.allclose(&res);
+    // )?;
+    // println!("{:?}", res2);
+    // assert_eq!(res, res2);
     Ok(())
 }

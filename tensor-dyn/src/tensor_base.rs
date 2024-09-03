@@ -450,7 +450,7 @@ impl<T: CommonBounds> _Tensor<T> {
         //             acc && abs_diff <= torlerance
         //         }
         //     );
-        #[cfg(feature = "simd")]
+        // #[cfg(feature = "simd")]
         let folder = self
             .par_iter()
             .zip(other.par_iter())
