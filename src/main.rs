@@ -7,7 +7,7 @@ use tensor_dyn::f32x8::f32x8;
 
 fn main() -> anyhow::Result<()> {
     set_global_display_precision(7);
-    set_global_display_lr_elements(8);
+    set_global_display_lr_elements(6);
     set_num_threads(10);
     let kernel = _Tensor::<f32>
         ::arange(0, 8 * 79 * 4 * 4)?
