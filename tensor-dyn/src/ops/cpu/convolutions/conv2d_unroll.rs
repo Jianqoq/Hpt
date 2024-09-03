@@ -223,11 +223,6 @@ pub fn conv2d_ex<
         kernel_height as i64,
         kernel_width as i64
     );
-    // println!(
-    //     "old cache size: {}",
-    //     (co_b + 1) * (REGNUM as i64) +
-    //         kernel_height * kernel_width * ci_b * ((REGNUM as i64) + co_b)
-    // );
     let num_co_b = out_channels / co_b;
     let num_wo_b = out_width / (REGNUM as i64);
     let num_ci_b = in_channels / ci_b;
@@ -258,7 +253,7 @@ pub fn conv2d_ex<
                                     num_co_rb,
                                     kp,
                                     i,
-                                    (l * step_height + n * dh) * ish,
+                                    (l * step_height + n * dh) * ish + m * isw,
                                     c * co_b,
                                     b * osb + l * osh + kp * REGNUM as i64 * osw, // prettier-ignore
                                     n * ks0 + m * ks1 + i * ks2,
@@ -370,7 +365,7 @@ pub fn conv2d_ex<
                                         num_co_rb,
                                         kp,
                                         i,
-                                        b * isb + (l * step_height + n * dh) * ish,
+                                        (l * step_height + n * dh) * ish + m * isw,
                                         c * co_b,
                                         b * osb + l * osh + kp * REGNUM as i64 * osw, // prettier-ignore
                                         n * ks0 + m * ks1 + i * ks2,
