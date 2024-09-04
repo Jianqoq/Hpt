@@ -242,6 +242,7 @@ impl<T> _Tensor<T>
             c: i64,
             ip: i64,
             ci_b_remain: i64,
+            wo_b_remain: i64,
             pack_kernel: fn(i64, i64, i64, &Pointer<T>, &mut Vec<<T as TypeCommon>::Vec>),
             load_fn: fn(i64, i64, i64, i64, &mut Vec<Vec<<T as TypeCommon>::Vec>>, &mut Pointer<T>),
             store_fn: fn(
@@ -268,7 +269,7 @@ impl<T> _Tensor<T>
             let mut kernel_buffer =
                 vec![<T as TypeCommon>::Vec::splat(T::ZERO); num_co_rb as usize + 1];
             let mut remain_buffer =
-                vec![vec![<T as TypeCommon>::Vec::splat(T::ZERO); 2]; num_co_rb as usize + 1];
+                vec![vec![<T as TypeCommon>::Vec::splat(T::ZERO); wo_b_remain as usize]; num_co_rb as usize + 1];
             for kp in num_wo_b..num_wo_b + 1 {
                 load_fn(
                     num_co_rb,
@@ -323,6 +324,7 @@ impl<T> _Tensor<T>
                         c,
                         ip,
                         ci_b_remain,
+                        2,
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 2, true>,
                         load_store_res_buffer::<T, 2, false>,
@@ -337,6 +339,7 @@ impl<T> _Tensor<T>
                         c,
                         ip,
                         ci_b_remain,
+                        4,
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 4, true>,
                         load_store_res_buffer::<T, 4, false>,
@@ -351,6 +354,7 @@ impl<T> _Tensor<T>
                         c,
                         ip,
                         ci_b_remain,
+                        6,
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 6, true>,
                         load_store_res_buffer::<T, 6, false>,
