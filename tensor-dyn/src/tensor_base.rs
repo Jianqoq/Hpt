@@ -1538,7 +1538,7 @@ impl<T> RandomInt for Tensor<T> where T: CommonBounds + SampleUniform {
     }
 }
 
-impl<T> Display for _Tensor<T> where T: CommonBounds {
+impl<T> Display for _Tensor<T> where T: CommonBounds + Convertor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
         let lr_element_size = DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed);
@@ -1546,7 +1546,7 @@ impl<T> Display for _Tensor<T> where T: CommonBounds {
     }
 }
 
-impl<T> Debug for _Tensor<T> where T: CommonBounds {
+impl<T> Debug for _Tensor<T> where T: CommonBounds + Convertor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
         let lr_element_size = DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed);

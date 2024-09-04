@@ -1233,13 +1233,13 @@ impl<T> Random
     }
 }
 
-impl<T> Display for _Tensor<T, Wgpu> where T: CommonBounds + bytemuck::Pod + Debug {
+impl<T> Display for _Tensor<T, Wgpu> where T: CommonBounds + bytemuck::Pod + Debug + Convertor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.to_cpu())
     }
 }
 
-impl<T> Debug for _Tensor<T, Wgpu> where T: CommonBounds + bytemuck::Pod {
+impl<T> Debug for _Tensor<T, Wgpu> where T: CommonBounds + bytemuck::Pod + Convertor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let res_size = self.size() * std::mem::size_of::<T>();
         let read_buffer = self.device().create_buffer(

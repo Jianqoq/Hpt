@@ -1,46 +1,42 @@
 use tensor_traits::CommonBounds;
-use tensor_types::half::{ self, bf16 };
+use tensor_types::convertion::Convertor;
 
-pub(crate) fn format_float<T: CommonBounds>(val: T, precision: usize) -> String {
-    let mut val = val.to_string();
+pub(crate) fn format_float<T: CommonBounds + Convertor>(val: T, precision: usize) -> String {
     match T::ID {
         tensor_types::dtype::Dtype::BF16 => {
-            let tmp_val: bf16 = val.parse::<bf16>().expect("Failed to parse bf16");
-            let f64_val = tmp_val.to_f64();
+            let f64_val = val.to_f64();
             if f64_val - (f64_val as i64 as f64) != 0.0 {
-                val = format!("{:.prec$}", val, prec = precision);
+                format!("{:.prec$}", f64_val, prec = precision)
             } else {
-                val = format!("{}.", val);
+                format!("{:.0}.", f64_val)
             }
         }
         tensor_types::dtype::Dtype::F16 => {
-            let tmp_val: half::f16 = val.parse::<half::f16>().expect("Failed to parse f16");
-            let f64_val = tmp_val.to_f64();
+            let f64_val = val.to_f64();
             if f64_val - (f64_val as i64 as f64) != 0.0 {
-                val = format!("{:.prec$}", val, prec = precision);
+                format!("{:.prec$}", val, prec = precision)
             } else {
-                val = format!("{}.", val);
+                format!("{:.0}.", val)
             }
         }
         tensor_types::dtype::Dtype::F32 => {
-            let tmp_val: f32 = val.parse::<f32>().expect("Failed to parse f32");
-            if tmp_val - (tmp_val as i64 as f32) != 0.0 {
-                val = format!("{:.prec$}", val, prec = precision);
+            let tmp_val = val.to_f64();
+            if tmp_val - (tmp_val as i64 as f64) != 0.0 {
+                format!("{:.prec$}", val, prec = precision)
             } else {
-                val = format!("{}.", val);
+                format!("{:.0}.", val)
             }
         }
         tensor_types::dtype::Dtype::F64 => {
-            let tmp_val: f64 = val.parse::<f64>().expect("Failed to parse f64");
+            let tmp_val: f64 = val.to_f64();
             if tmp_val - (tmp_val as i64 as f64) != 0.0 {
-                val = format!("{:.prec$}", val, prec = precision);
+                format!("{:.prec$}", val, prec = precision)
             } else {
-                val = format!("{}.", val);
+                format!("{:.0}.", val)
             }
         }
         _ => panic!("{} is not a floating point type", T::ID),
     }
-    val
 }
 
 pub(crate) fn format_complex<T: CommonBounds>(val: T, precision: usize) -> String {
@@ -71,7 +67,7 @@ pub(crate) fn format_complex<T: CommonBounds>(val: T, precision: usize) -> Strin
     val
 }
 
-pub(crate) fn format_val<T: CommonBounds>(val: T, precision: usize) -> String {
+pub(crate) fn format_val<T: CommonBounds + Convertor>(val: T, precision: usize) -> String {
     match T::ID {
         | tensor_types::dtype::Dtype::BF16
         | tensor_types::dtype::Dtype::F16
