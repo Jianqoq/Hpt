@@ -1,5 +1,5 @@
 
-
+#![feature(portable_simd)]
 pub mod tensor_base;
 pub mod ops {
     pub mod cpu {

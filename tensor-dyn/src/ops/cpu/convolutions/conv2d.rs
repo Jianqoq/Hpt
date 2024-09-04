@@ -1,3 +1,5 @@
+use std::simd::StdFloat;
+
 use num::traits::MulAdd;
 use tensor_traits::{ CommonBounds, TensorInfo };
 use tensor_traits::TensorCreator;
@@ -537,9 +539,9 @@ pub fn conv2d_block_simd_parallel<T>(
     Ok(output)
 }
 
-/// img: `[channels, height, width]`
+/// img: `[batch, height, width, channels]`
 ///
-/// kernels: `[out_channels, in_channels, kernel_height, kernel_width]`
+/// kernels: `[kernel_height, kernel_width, in_channels, out_channels]`
 ///
 /// steps: `[step_width, step_height]`
 ///
@@ -552,14 +554,15 @@ pub fn conv2d_naive<T>(
     where T: CommonBounds + std::ops::Mul<Output = T> + std::ops::AddAssign<T> + MulAdd<Output = T>
 {
     let img_shape = img.shape();
-    let img_channels = img_shape[0];
+    let batch = img_shape[0];
     let img_height = img_shape[1];
     let img_width = img_shape[2];
+    let img_channels = img_shape[3];
     let kernel_shape = kernels.shape();
-    let out_channels = kernel_shape[0];
-    let in_channels = kernel_shape[1];
-    let kernel_height = kernel_shape[2];
-    let kernel_width = kernel_shape[3];
+    let kernel_height = kernel_shape[0];
+    let kernel_width = kernel_shape[1];
+    let in_channels = kernel_shape[2];
+    let out_channels = kernel_shape[3];
     if in_channels != img_channels {
         panic!(
             "The number of input channels in the image must be equal to the number of input channels in the kernel."
@@ -570,35 +573,124 @@ pub fn conv2d_naive<T>(
     let out_height =
         <i64 as NormalOut<i64>>::_floor((img_height - kernel_height) / step_height) + 1;
     let out_width = <i64 as NormalOut<i64>>::_floor((img_width - kernel_width) / step_width) + 1;
-    let output = _Tensor::<T>::zeros([out_channels, out_height, out_width])?;
+    let output = _Tensor::<T>::zeros([batch, out_height, out_width, out_channels])?;
     let mut out = output.ptr();
     let inp = img.ptr();
     let kernel = kernels.ptr();
-    let os0 = output.strides()[0]; // out_channels
-    let os1 = output.strides()[1]; // out_height
-    let os2 = output.strides()[2]; // out_width
+    let obs = output.strides()[0]; // batch
+    let ohs = output.strides()[1]; // out_height
+    let ows = output.strides()[2]; // out_width
 
-    let is0 = img.strides()[0]; // channels
-    let is1 = img.strides()[1]; // height
-    let is2 = img.strides()[2]; // width
+    let ibs = img.strides()[0]; // batch
+    let ihs = img.strides()[1]; // height
+    let iws = img.strides()[2]; // width
 
-    let ks0 = kernels.strides()[0]; // out_channels
-    let ks1 = kernels.strides()[1]; // in_channels
-    let ks2 = kernels.strides()[2]; // kernel_height
-    let ks3 = kernels.strides()[3]; // kernel_width
+    let khs = kernels.strides()[0]; // kernel_height
+    let kws = kernels.strides()[1]; // kernel_width
+    let kis = kernels.strides()[2]; // in_channels
 
-    for j in 0..out_channels {
+    for b in 0..batch {
+        for j in 0..out_channels {
+            for i in 0..in_channels {
+                for l in 0..out_height {
+                    for k in 0..out_width {
+                        for n in 0..kernel_height {
+                            for m in 0..kernel_width {
+                                let k_val = kernel[i * kis + n * khs + m * kws + j];
+                                let i_val = inp[b * ibs + (l * step_height + n) * ihs + (k * step_width + m) * iws + i]; // prettier-ignore
+                                out[b * obs + l * ohs + k * ows + j] = i_val.mul_add(
+                                    k_val,
+                                    out[b * obs + l * ohs + k * ows + j]
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(output)
+}
+
+pub fn conv2d_naive_f32(
+    img: &_Tensor<f32>,
+    kernels: &_Tensor<f32>,
+    steps: [i64; 2]
+) -> anyhow::Result<_Tensor<f32>> {
+    let img_shape = img.shape();
+    let batch = img_shape[0];
+    let img_height = img_shape[1];
+    let img_width = img_shape[2];
+    let img_channels = img_shape[3];
+    let kernel_shape = kernels.shape();
+    let kernel_height = kernel_shape[0];
+    let kernel_width = kernel_shape[1];
+    let in_channels = kernel_shape[2];
+    let out_channels = kernel_shape[3];
+    if in_channels != img_channels {
+        panic!(
+            "The number of input channels in the image must be equal to the number of input channels in the kernel."
+        );
+    }
+    let (step_width, step_height) = (steps[0], steps[1]);
+
+    let out_height =
+        <i64 as NormalOut<i64>>::_floor((img_height - kernel_height) / step_height) + 1;
+    let out_width = <i64 as NormalOut<i64>>::_floor((img_width - kernel_width) / step_width) + 1;
+    let output = _Tensor::<f32>::zeros([batch, out_height, out_width, out_channels])?;
+    let mut out = output.ptr();
+    let inp = img.ptr();
+    let kernel = kernels.ptr();
+    let obs = output.strides()[0]; // batch
+    let ohs = output.strides()[1]; // out_height
+    let ows = output.strides()[2]; // out_width
+
+    let ibs = img.strides()[0]; // batch
+    let ihs = img.strides()[1]; // height
+    let iws = img.strides()[2]; // width
+
+    let khs = kernels.strides()[0]; // kernel_height
+    let kws = kernels.strides()[1]; // kernel_width
+    let kis = kernels.strides()[2]; // in_channels
+
+    for b in 0..batch {
         for i in 0..in_channels {
             for l in 0..out_height {
                 for k in 0..out_width {
                     for n in 0..kernel_height {
                         for m in 0..kernel_width {
-                            let k_val = kernel[j * ks0 + i * ks1 + n * ks2 + m * ks3];
-                            let i_val = inp[i * is0 + (l * step_height + n) * is1 + (k * step_width + m) * is2]; // prettier-ignore
-                            out[j * os0 + l * os1 + k * os2] = i_val.mul_add(
-                                k_val,
-                                out[j * os0 + l * os1 + k * os2]
-                            );
+                            let remain = out_channels % 8;
+                            for j in (0..out_channels).step_by(8) {
+                                let k_vec = std::simd::f32x8::from_slice(unsafe {
+                                    std::slice::from_raw_parts(
+                                        &kernel[i * kis + n * khs + m * kws + j],
+                                        8
+                                    )
+                                });
+                                let i_vec = std::simd::f32x8::splat(inp[b * ibs + (l * step_height + n) * ihs + (k * step_width + m) * iws + i]); // prettier-ignore
+                                let out_vec = std::simd::f32x8::from_slice(unsafe {
+                                    std::slice::from_raw_parts_mut(
+                                        &mut out[b * obs + l * ohs + k * ows + j],
+                                        8
+                                    )
+                                });
+                                let res = k_vec.mul_add(i_vec, out_vec);
+                                unsafe {
+                                    std::ptr::copy_nonoverlapping(
+                                        res.as_array().as_ptr(),
+                                        &mut out[b * obs + l * ohs + k * ows + j],
+                                        8
+                                    );
+                                }
+                            }
+                            for j in out_channels - remain..out_channels {
+                                let k_val = kernel[i * kis + n * khs + m * kws + j];
+                                let i_val = inp[b * ibs + (l * step_height + n) * ihs + (k * step_width + m) * iws + i]; // prettier-ignore
+                                out[b * obs + l * ohs + k * ows + j] = i_val.mul_add(
+                                    k_val,
+                                    out[b * obs + l * ohs + k * ows + j]
+                                );
+                            }
                         }
                     }
                 }
