@@ -35,8 +35,8 @@ pub mod ops {
         pub mod img2col;
         pub mod common_reduce;
         pub mod convolutions {
+            pub mod conv2d_test;
             pub mod conv2d;
-            pub mod conv2d_unroll;
         }
         pub mod kernels {
             pub mod reduce_kernels;
