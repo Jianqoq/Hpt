@@ -317,6 +317,21 @@ impl<T> _Tensor<T>
 
         let case3 = move |b: i64, l: i64, c: i64, ip: i64, ci_b_remain: i64, out: Pointer<T>| {
             match wo_b_remain {
+                1 => {
+                    case3_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        1,
+                        pack_kernel::<T>,
+                        load_store_res_buffer::<T, 1, true>,
+                        load_store_res_buffer::<T, 1, false>,
+                        micro_kernel_1_with_buffer::<T, CONV_REGNUM, 1>,
+                        out
+                    );
+                }
                 2 => {
                     case3_helper(
                         b,
@@ -332,6 +347,21 @@ impl<T> _Tensor<T>
                         out
                     );
                 }
+                3 => {
+                    case3_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        3,
+                        pack_kernel::<T>,
+                        load_store_res_buffer::<T, 3, true>,
+                        load_store_res_buffer::<T, 3, false>,
+                        micro_kernel_3_with_buffer::<T, CONV_REGNUM, 3>,
+                        out
+                    );
+                }
                 4 => {
                     case3_helper(
                         b,
@@ -344,6 +374,21 @@ impl<T> _Tensor<T>
                         load_store_res_buffer::<T, 4, true>,
                         load_store_res_buffer::<T, 4, false>,
                         micro_kernel_4_with_buffer::<T, CONV_REGNUM, 4>,
+                        out
+                    );
+                }
+                5 => {
+                    case3_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        5,
+                        pack_kernel::<T>,
+                        load_store_res_buffer::<T, 5, true>,
+                        load_store_res_buffer::<T, 5, false>,
+                        micro_kernel_5_with_buffer::<T, CONV_REGNUM, 5>,
                         out
                     );
                 }
@@ -789,6 +834,36 @@ fn micro_kernel_2<T, const REGNUM: usize>(
     }
 }
 
+fn micro_kernel_1_with_buffer<T, const REGNUM: usize, const BUFFER_SIZE: usize>(
+    num_co_rb: i64,
+    kp: i64,
+    i: i64,
+    inp_offset: i64,
+    step_width: i64,
+    isw: i64,
+    inp: &Pointer<T>,
+    res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
+    kernel: &[<T as TypeCommon>::Vec]
+)
+    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T>
+{
+    let inp: &Pointer<T> = &inp;
+    let _k = kp * (REGNUM as i64) + 0;
+    let inp_vec0 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
+    for j in 0..num_co_rb + 1 {
+        unsafe {
+            let kernel_vec = *kernel.get_unchecked(j as usize);
+            let res_vectors = res_buffer.get_unchecked_mut(j as usize);
+
+            let out_vec0 = &mut res_vectors[0] as *mut _ as *mut <T as TypeCommon>::Vec;
+
+            let res0 = inp_vec0._mul_add(kernel_vec, *out_vec0);
+
+            *out_vec0 = res0;
+        }
+    }
+}
+
 fn micro_kernel_2_with_buffer<T, const REGNUM: usize, const BUFFER_SIZE: usize>(
     num_co_rb: i64,
     kp: i64,
@@ -820,6 +895,112 @@ fn micro_kernel_2_with_buffer<T, const REGNUM: usize, const BUFFER_SIZE: usize>(
 
             *out_vec0 = res0;
             *out_vec1 = res1;
+        }
+    }
+}
+
+fn micro_kernel_3_with_buffer<T, const REGNUM: usize, const BUFFER_SIZE: usize>(
+    num_co_rb: i64,
+    kp: i64,
+    i: i64,
+    inp_offset: i64,
+    step_width: i64,
+    isw: i64,
+    inp: &Pointer<T>,
+    res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
+    kernel: &[<T as TypeCommon>::Vec]
+)
+    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T>
+{
+    let inp: &Pointer<T> = &inp;
+    let _k = kp * (REGNUM as i64) + 0;
+    let inp_vec0 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 1;
+    let inp_vec1 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 2;
+    let inp_vec2 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
+    for j in 0..num_co_rb + 1 {
+        unsafe {
+            let kernel_vec = *kernel.get_unchecked(j as usize);
+            let res_vectors = res_buffer.get_unchecked_mut(j as usize);
+
+            let out_vec0 = &mut res_vectors.get_unchecked_mut(
+                0
+            ) as *mut _ as *mut <T as TypeCommon>::Vec;
+            let out_vec1 = &mut res_vectors.get_unchecked_mut(
+                1
+            ) as *mut _ as *mut <T as TypeCommon>::Vec;
+            let out_vec2 = &mut res_vectors.get_unchecked_mut(
+                2
+            ) as *mut _ as *mut <T as TypeCommon>::Vec;
+
+            let res0 = inp_vec0._mul_add(kernel_vec, *out_vec0);
+            let res1 = inp_vec1._mul_add(kernel_vec, *out_vec1);
+            let res2 = inp_vec2._mul_add(kernel_vec, *out_vec2);
+
+            *out_vec0 = res0;
+            *out_vec1 = res1;
+            *out_vec2 = res2;
+        }
+    }
+}
+
+fn micro_kernel_5_with_buffer<T, const REGNUM: usize, const BUFFER_SIZE: usize>(
+    num_co_rb: i64,
+    kp: i64,
+    i: i64,
+    inp_offset: i64,
+    step_width: i64,
+    isw: i64,
+    inp: &Pointer<T>,
+    res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
+    kernel: &[<T as TypeCommon>::Vec]
+)
+    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T>
+{
+    let inp: &Pointer<T> = &inp;
+    let _k = kp * (REGNUM as i64) + 0;
+    let inp_vec0 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 1;
+    let inp_vec1 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 2;
+    let inp_vec2 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 3;
+    let inp_vec3 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 4;
+    let inp_vec4 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
+    for j in 0..num_co_rb + 1 {
+        unsafe {
+            let kernel_vec = *kernel.get_unchecked(j as usize);
+            let res_vectors = res_buffer.get_unchecked_mut(j as usize);
+
+            let out_vec0 = &mut res_vectors.get_unchecked_mut(
+                0
+            ) as *mut _ as *mut <T as TypeCommon>::Vec;
+            let out_vec1 = &mut res_vectors.get_unchecked_mut(
+                1
+            ) as *mut _ as *mut <T as TypeCommon>::Vec;
+            let out_vec2 = &mut res_vectors.get_unchecked_mut(
+                2
+            ) as *mut _ as *mut <T as TypeCommon>::Vec;
+            let out_vec3 = &mut res_vectors.get_unchecked_mut(
+                3
+            ) as *mut _ as *mut <T as TypeCommon>::Vec;
+            let out_vec4 = &mut res_vectors.get_unchecked_mut(
+                4
+            ) as *mut _ as *mut <T as TypeCommon>::Vec;
+
+            let res0 = inp_vec0._mul_add(kernel_vec, *out_vec0);
+            let res1 = inp_vec1._mul_add(kernel_vec, *out_vec1);
+            let res2 = inp_vec2._mul_add(kernel_vec, *out_vec2);
+            let res3 = inp_vec3._mul_add(kernel_vec, *out_vec3);
+            let res4 = inp_vec4._mul_add(kernel_vec, *out_vec4);
+
+            *out_vec0 = res0;
+            *out_vec1 = res1;
+            *out_vec2 = res2;
+            *out_vec3 = res3;
+            *out_vec4 = res4;
         }
     }
 }
