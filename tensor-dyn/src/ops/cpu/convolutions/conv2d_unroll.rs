@@ -471,33 +471,30 @@ pub fn conv2d_ex<
             });
         }
         (false, false, false) => {
-            let intervals = mt_intervals(outer as usize, outer as usize);
-            intervals.into_par_iter().for_each(|(start, end)| {
-                for idx in start as i64..end as i64 {
-                    let b = idx / (num_co_b * num_ci_b * out_height);
-                    let c = (idx / (num_ci_b * out_height)) % num_co_b;
-                    let ip = (idx / out_height) % num_ci_b;
-                    let l = idx % out_height;
-                    if ip < num_ci_b - 1 {
-                        if c < num_co_b - 1 {
-                            case0(b, l, c, ip, ci_b, out);
-                            case1(b, l, c, ip, ci_b, out);
-                        } else {
-                            case2(b, l, c, ip, ci_b, out);
-                            case3(b, l, c, ip, ci_b, out);
-                        }
+            (0..outer).into_par_iter().for_each(|idx| {
+                let b = idx / (num_co_b * num_ci_b * out_height);
+                let c = (idx / (num_ci_b * out_height)) % num_co_b;
+                let ip = (idx / out_height) % num_ci_b;
+                let l = idx % out_height;
+                if ip < num_ci_b - 1 {
+                    if c < num_co_b - 1 {
+                        case0(b, l, c, ip, ci_b, out);
+                        case1(b, l, c, ip, ci_b, out);
                     } else {
-                        if c < num_co_b - 1 {
-                            case0(b, l, c, ip, ci_b, out);
-                            case1(b, l, c, ip, ci_b, out);
-                            case0(b, l, c, in_channels / ci_b, ci_b_remain, out);
-                            case1(b, l, c, in_channels / ci_b, ci_b_remain, out);
-                        } else {
-                            case2(b, l, c, ip, ci_b, out);
-                            case3(b, l, c, ip, ci_b, out);
-                            case2(b, l, c, in_channels / ci_b, ci_b_remain, out);
-                            case3(b, l, c, in_channels / ci_b, ci_b_remain, out);
-                        }
+                        case2(b, l, c, ip, ci_b, out);
+                        case3(b, l, c, ip, ci_b, out);
+                    }
+                } else {
+                    if c < num_co_b - 1 {
+                        case0(b, l, c, ip, ci_b, out);
+                        case1(b, l, c, ip, ci_b, out);
+                        case0(b, l, c, in_channels / ci_b, ci_b_remain, out);
+                        case1(b, l, c, in_channels / ci_b, ci_b_remain, out);
+                    } else {
+                        case2(b, l, c, ip, ci_b, out);
+                        case3(b, l, c, ip, ci_b, out);
+                        case2(b, l, c, in_channels / ci_b, ci_b_remain, out);
+                        case3(b, l, c, in_channels / ci_b, ci_b_remain, out);
                     }
                 }
             });
