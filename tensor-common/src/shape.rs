@@ -92,6 +92,9 @@ impl Shape {
         &self.inner
     }
 
+    /// directly calculate the strides based on the shape
+    /// # Return
+    /// - `Strides` - contiguous strides of the shape
     pub fn to_strides(&self) -> Strides {
         shape_to_strides(self)
     }

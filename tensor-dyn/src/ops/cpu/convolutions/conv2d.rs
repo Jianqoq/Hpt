@@ -674,7 +674,7 @@ pub fn conv2d_naive_f32(
                                         8
                                     )
                                 });
-                                let res = std::simd::f32x8::splat(1.0).mul_add(i_vec, out_vec);
+                                let res = k_vec.mul_add(i_vec, out_vec);
                                 unsafe {
                                     std::ptr::copy_nonoverlapping(
                                         res.as_array().as_ptr(),

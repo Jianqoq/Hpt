@@ -1,4 +1,4 @@
-use ops::cpu::convolutions::conv2d::{conv2d_naive, conv2d_naive_f32};
+use ops::cpu::convolutions::conv2d::{ conv2d_naive, conv2d_naive_f32 };
 use ops::cpu::convolutions::conv2d_unroll::{ conv2d_ex, conv2d_ex_naive };
 // use tch::{ Device, Kind, Tensor };
 use tensor_dyn::tensor_base::_Tensor;
@@ -10,8 +10,8 @@ fn main() -> anyhow::Result<()> {
     set_global_display_lr_elements(6);
     set_num_threads(10);
     let kernel = _Tensor::<f32>
-        ::arange(0, 8 * 79 * 4 * 4)?
-        .reshape([79, 8, 4, 4])?
+        ::arange(0, 8 * 74 * 4 * 4)?
+        .reshape([74, 8, 4, 4])?
         .permute([2, 3, 1, 0])?
         .contiguous()?;
     let a = _Tensor::<f32>
@@ -32,6 +32,9 @@ fn main() -> anyhow::Result<()> {
             [1, 1]
         )?;
     }
+    // println!("{:?}", res);
     println!("{:?}", now.elapsed() / 100);
+    // let res2 = conv2d_naive(&a, &kernel, [1, 1])?;
+    // println!("{:?}", res2);
     Ok(())
 }
