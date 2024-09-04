@@ -213,7 +213,8 @@ pub fn conv2d_ex<
     let ks1 = kernels.strides()[1]; // kernel_width
     let ks2 = kernels.strides()[2]; // in_channels
 
-    let l1_cache = 8889;
+    let l1_cache =
+        cache_size::l1_cache_size().unwrap_or(32 * 1024 /* 32 kb */) / std::mem::size_of::<T>();
 
     let (co_b, ci_b) = find_exact_combination::<VECSIZE, REGNUM>(
         l1_cache as i64,
@@ -222,8 +223,6 @@ pub fn conv2d_ex<
         kernel_height as i64,
         kernel_width as i64
     );
-    // println!("co_b: {}, ci_b: {}", co_b, ci_b);
-    // println!("l1_cache: {}", l1_cache);
     let num_co_b = out_channels / co_b;
     let num_wo_b = out_width / (REGNUM as i64);
     let num_ci_b = in_channels / ci_b;
@@ -309,7 +308,7 @@ pub fn conv2d_ex<
         }
     };
 
-    let case1 = move |b: i64, l: i64, c: i64, ip: i64, ci_b_remain: i64, mut out: Pointer<T>| {
+    let case1 = move |b: i64, l: i64, c: i64, ip: i64, ci_b_remain: i64, out: Pointer<T>| {
         match wo_b_remain {
             2 => {
                 case1_helper(
@@ -450,7 +449,7 @@ pub fn conv2d_ex<
         }
     };
 
-    let case3 = move |b: i64, l: i64, c: i64, ip: i64, ci_b_remain: i64, mut out: Pointer<T>| {
+    let case3 = move |b: i64, l: i64, c: i64, ip: i64, ci_b_remain: i64, out: Pointer<T>| {
         match wo_b_remain {
             2 => {
                 case3_helper(

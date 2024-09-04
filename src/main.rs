@@ -1,5 +1,5 @@
-use ops::cpu::convolutions::conv2d::{ conv2d_naive, conv2d_naive_f32 };
-use ops::cpu::convolutions::conv2d_unroll::{ conv2d_ex, conv2d_ex_naive };
+use ops::cpu::convolutions::conv2d::conv2d_naive;
+use ops::cpu::convolutions::conv2d_unroll::conv2d_ex;
 // use tch::{ Device, Kind, Tensor };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
@@ -20,7 +20,7 @@ fn main() -> anyhow::Result<()> {
         .permute([0, 2, 3, 1])?
         .contiguous()?;
     let now = std::time::Instant::now();
-    for _ in 0..1 {
+    for _ in 0..100 {
         let res = conv2d_ex::<f32, 7, 8, f32x8>(
             &a,
             &kernel,
@@ -31,11 +31,11 @@ fn main() -> anyhow::Result<()> {
             ],
             [1, 1]
         )?;
-        println!("{:?}", res);
+        // println!("{:?}", res);
     }
     // println!("{:?}", res);
     println!("{:?}", now.elapsed() / 100);
-    let res2 = conv2d_naive(&a, &kernel, [1, 1])?;
-    println!("{:?}", res2);
+    // let res2 = conv2d_naive(&a, &kernel, [1, 1])?;
+    // println!("{:?}", res2);
     Ok(())
 }
