@@ -61,7 +61,7 @@ pub fn conv2d_ex<
     } else {
         img.clone()
     };
-    let output = _Tensor::<T>::empty([batch, out_height, out_width, out_channels])?;
+    let output = _Tensor::<T>::zeros([batch, out_height, out_width, out_channels])?;
     let out = output.ptr();
     let inp = img.ptr();
     let kernel = kernels.ptr();
