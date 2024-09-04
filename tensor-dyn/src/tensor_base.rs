@@ -700,6 +700,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             ::from_size_align(size * std::mem::size_of::<T>(), ALIGN)
             .unwrap();
         let ptr = unsafe { CACHE.allocate(layout) };
+        assert!(ptr != std::ptr::null_mut());
         let slice = unsafe { std::slice::from_raw_parts_mut(ptr as *mut T, size) };
         let zero = [T::ZERO; 8];
         slice.par_chunks_exact_mut(8).for_each(|x| {
