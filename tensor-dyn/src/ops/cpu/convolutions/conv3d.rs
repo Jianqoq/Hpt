@@ -104,7 +104,7 @@ impl<T> _Tensor<T>
             in_channels as i64,
             kernel_height as i64,
             kernel_width as i64,
-            kernel_depth as i64,
+            kernel_depth as i64
         );
         let num_co_b = out_channels / co_b;
         let num_wo_b = out_width / (CONV_REGNUM as i64);
@@ -116,7 +116,6 @@ impl<T> _Tensor<T>
         let num_co_rb = co_b / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
 
         let outer = batch * num_co_b * num_ci_b * out_depth * out_height;
-
         let case0 = move |
             b: i64,
             l: i64,
@@ -137,12 +136,12 @@ impl<T> _Tensor<T>
                                     kp,
                                     i,
                                     b * isb +
-                                        (d * step_depth + p * dd) * isd +
                                         (l * step_height + n * dh) * ish +
-                                        m * isw,
+                                        (d * step_depth + p * dd) * isd +
+                                        m * dw * isw,
                                     c * co_b,
-                                    b * osb + l * osh + d * osd + kp * CONV_REGNUM as i64 * osw, // prettier-ignore
-                                    d * ksd + n * ks0 + m * ks1 + i * ks2,
+                                    b * osb + l * osh + kp * CONV_REGNUM as i64 * osw, // prettier-ignore
+                                    n * ks0 + m * ks1 + i * ks2 + p * ksd,
                                     step_width,
                                     isw,
                                     osw,
@@ -368,7 +367,7 @@ impl<T> _Tensor<T>
                             pack_kernel(
                                 num_co_rb,
                                 co_b_remain,
-                                c * co_b + n * ks0 + m * ks1 + i * ks2 + d * ksd,
+                                c * co_b + n * ks0 + m * ks1 + i * ks2 + p * ksd,
                                 &kernel,
                                 &mut kernel_buffer
                             );
