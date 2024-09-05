@@ -29,8 +29,8 @@ impl VecTrait<i16> for i16x16 {
         self.as_array().as_ptr()
     }
     #[inline(always)]
-    fn _mul_add(self, _: Self, _: Self) -> Self {
-        todo!()
+    fn _mul_add(self, a: Self, b: Self) -> Self {
+        Self(self.0 * a.0 + b.0)
     }
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut i16 {

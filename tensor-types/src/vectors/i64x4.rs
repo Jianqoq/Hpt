@@ -27,8 +27,8 @@ impl VecTrait<i64> for i64x4 {
         self.as_array().as_ptr()
     }
     #[inline(always)]
-    fn _mul_add(self, _: Self, _: Self) -> Self {
-        todo!()
+    fn _mul_add(self, a: Self, b: Self) -> Self {
+        Self(self.0 * a.0 + b.0)
     }
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut i64 {
@@ -42,7 +42,6 @@ impl VecTrait<i64> for i64x4 {
     fn sum(&self) -> i64 {
         self.as_array().iter().sum()
     }
-    
 }
 impl VecSize for i64x4 {
     const SIZE: usize = 4;

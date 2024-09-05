@@ -40,6 +40,7 @@ pub mod ops {
             pub mod conv3d;
         }
         pub mod kernels {
+            pub mod conv2d_kernels;
             pub mod reduce_kernels;
         }
     }
