@@ -113,7 +113,7 @@ impl<T> _Tensor<T>
                                 num_co_rb,
                                 kp,
                                 i,
-                                b * isb + (l * step_height + n * dh) * ish + m * isw,
+                                b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                                 c * co_b,
                                 b * osb + l * osh + kp * CONV_REGNUM as i64 * osw, // prettier-ignore
                                 n * ks0 + m * ks1 + i * ks2,
@@ -161,7 +161,7 @@ impl<T> _Tensor<T>
                             num_co_rb,
                             num_wo_b,
                             i,
-                            b * isb + (l * step_height + n * dh) * ish + m * isw,
+                            b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                             c * co_b,
                             b * osb + l * osh + num_wo_b * CONV_REGNUM as i64 * osw, // prettier-ignore
                             n * ks0 + m * ks1 + i * ks2,
@@ -179,11 +179,20 @@ impl<T> _Tensor<T>
 
         let case1 = move |b: i64, l: i64, c: i64, ip: i64, ci_b_remain: i64, out: Pointer<T>| {
             match wo_b_remain {
+                1 => {
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_1::<T, CONV_REGNUM>, out);
+                }
                 2 => {
                     case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_2::<T, CONV_REGNUM>, out);
                 }
+                3 => {
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_3::<T, CONV_REGNUM>, out);
+                }
                 4 => {
                     case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_4::<T, CONV_REGNUM>, out);
+                }
+                5 => {
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_5::<T, CONV_REGNUM>, out);
                 }
                 6 => {
                     case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_6::<T, CONV_REGNUM>, out);
@@ -213,7 +222,7 @@ impl<T> _Tensor<T>
                                 num_co_rb,
                                 kp,
                                 i,
-                                b * isb + (l * step_height + n * dh) * ish,
+                                b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                                 c * co_b,
                                 n * ks0 + m * ks1 + i * ks2,
                                 step_width,
@@ -294,7 +303,7 @@ impl<T> _Tensor<T>
                                 num_co_rb,
                                 kp,
                                 i,
-                                b * isb + (l * step_height + n * dh) * ish + m * isw,
+                                b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                                 step_width,
                                 isw,
                                 &inp,
@@ -781,6 +790,44 @@ fn micro_kernel_regnum_with_buffer<T, const REGNUM: usize>(
     }
 }
 
+fn micro_kernel_1<T, const REGNUM: usize>(
+    num_co_rb: i64,
+    kp: i64,
+    i: i64,
+    inp_offset: i64,
+    co_offset: i64,
+    out_offset: i64,
+    kernel_offset: i64,
+    step_width: i64,
+    isw: i64,
+    osw: i64,
+    inp: &Pointer<T>,
+    out: &mut Pointer<T>,
+    kernel: &Pointer<T>
+)
+    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
+{
+    let _k = kp * (REGNUM as i64) + 0;
+    let inp_vec0 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
+    for j in 0..num_co_rb {
+        let ofs = out_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
+        unsafe {
+            let kernel_vec = <T as TypeCommon>::Vec::from_ptr(
+                &kernel[co_offset + kernel_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *const _
+            ); // prettier-ignore
+
+            let out_vec0 = &mut out[co_offset + ofs + 0 * osw] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+
+            let res0 = inp_vec0._mul_add(
+                kernel_vec,
+                <T as TypeCommon>::Vec::from_ptr(out_vec0 as *const _)
+            );
+
+            out_vec0.write_unaligned(res0);
+        }
+    }
+}
+
 fn micro_kernel_2<T, const REGNUM: usize>(
     num_co_rb: i64,
     kp: i64,
@@ -830,6 +877,130 @@ fn micro_kernel_2<T, const REGNUM: usize>(
 
             out_vec0.write_unaligned(res0);
             out_vec1.write_unaligned(res1);
+        }
+    }
+}
+
+fn micro_kernel_3<T, const REGNUM: usize>(
+    num_co_rb: i64,
+    kp: i64,
+    i: i64,
+    inp_offset: i64,
+    co_offset: i64,
+    out_offset: i64,
+    kernel_offset: i64,
+    step_width: i64,
+    isw: i64,
+    osw: i64,
+    inp: &Pointer<T>,
+    out: &mut Pointer<T>,
+    kernel: &Pointer<T>
+)
+    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
+{
+    let _k = kp * (REGNUM as i64) + 0;
+    let inp_vec0 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 1;
+    let inp_vec1 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 2;
+    let inp_vec2 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
+    for j in 0..num_co_rb {
+        let ofs = out_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
+        unsafe {
+            let kernel_vec = <T as TypeCommon>::Vec::from_ptr(
+                &kernel[co_offset + kernel_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *const _
+            ); // prettier-ignore
+
+            let out_vec0 = &mut out[co_offset + ofs + 0 * osw] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+            let out_vec1 = &mut out[co_offset + ofs + 1 * osw] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+            let out_vec2 = &mut out[co_offset + ofs + 2 * osw] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+
+            let res0 = inp_vec0._mul_add(
+                kernel_vec,
+                <T as TypeCommon>::Vec::from_ptr(out_vec0 as *const _)
+            );
+            let res1 = inp_vec1._mul_add(
+                kernel_vec,
+                <T as TypeCommon>::Vec::from_ptr(out_vec1 as *const _)
+            );
+            let res2 = inp_vec2._mul_add(
+                kernel_vec,
+                <T as TypeCommon>::Vec::from_ptr(out_vec2 as *const _)
+            );
+
+            out_vec0.write_unaligned(res0);
+            out_vec1.write_unaligned(res1);
+            out_vec2.write_unaligned(res2);
+        }
+    }
+}
+
+fn micro_kernel_5<T, const REGNUM: usize>(
+    num_co_rb: i64,
+    kp: i64,
+    i: i64,
+    inp_offset: i64,
+    co_offset: i64,
+    out_offset: i64,
+    kernel_offset: i64,
+    step_width: i64,
+    isw: i64,
+    osw: i64,
+    inp: &Pointer<T>,
+    out: &mut Pointer<T>,
+    kernel: &Pointer<T>
+)
+    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
+{
+    let _k = kp * (REGNUM as i64) + 0;
+    let inp_vec0 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 1;
+    let inp_vec1 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 2;
+    let inp_vec2 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 3;
+    let inp_vec3 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
+    let _k = kp * (REGNUM as i64) + 4;
+    let inp_vec4 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]); // prettier-ignore
+    for j in 0..num_co_rb {
+        let ofs = out_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
+        unsafe {
+            let kernel_vec = <T as TypeCommon>::Vec::from_ptr(
+                &kernel[co_offset + kernel_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *const _
+            ); // prettier-ignore
+
+            let out_vec0 = &mut out[co_offset + ofs + 0 * osw] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+            let out_vec1 = &mut out[co_offset + ofs + 1 * osw] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+            let out_vec2 = &mut out[co_offset + ofs + 2 * osw] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+            let out_vec3 = &mut out[co_offset + ofs + 3 * osw] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+            let out_vec4 = &mut out[co_offset + ofs + 4 * osw] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+
+            let res0 = inp_vec0._mul_add(
+                kernel_vec,
+                <T as TypeCommon>::Vec::from_ptr(out_vec0 as *const _)
+            );
+            let res1 = inp_vec1._mul_add(
+                kernel_vec,
+                <T as TypeCommon>::Vec::from_ptr(out_vec1 as *const _)
+            );
+            let res2 = inp_vec2._mul_add(
+                kernel_vec,
+                <T as TypeCommon>::Vec::from_ptr(out_vec2 as *const _)
+            );
+            let res3 = inp_vec3._mul_add(
+                kernel_vec,
+                <T as TypeCommon>::Vec::from_ptr(out_vec3 as *const _)
+            );
+            let res4 = inp_vec4._mul_add(
+                kernel_vec,
+                <T as TypeCommon>::Vec::from_ptr(out_vec4 as *const _)
+            );
+
+            out_vec0.write_unaligned(res0);
+            out_vec1.write_unaligned(res1);
+            out_vec2.write_unaligned(res2);
+            out_vec3.write_unaligned(res3);
+            out_vec4.write_unaligned(res4);
         }
     }
 }

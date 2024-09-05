@@ -1,4 +1,4 @@
-use std::ops::{ Deref, DerefMut };
+use std::{ops::{ Deref, DerefMut }, simd::StdFloat};
 
 use crate::into_vec::IntoVec;
 
@@ -29,8 +29,8 @@ impl VecTrait<f64> for f64x4 {
         self.as_array().as_ptr()
     }
     #[inline(always)]
-    fn _mul_add(self, _: Self, _: Self) -> Self {
-        todo!()
+    fn _mul_add(self, a: Self, b: Self) -> Self {
+        Self(self.0.mul_add(a.0, b.0))
     }
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut f64 {
