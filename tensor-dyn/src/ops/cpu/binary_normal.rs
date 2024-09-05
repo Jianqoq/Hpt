@@ -12,6 +12,8 @@ use tensor_traits::tensor::TensorLike;
 use crate::tensor_base::_Tensor;
 use tensor_traits::tensor::TensorCreator;
 
+#[cfg(feature = "simd")]
+use tensor_types::dtype::TypeCommon;
 
 /// binary function that takes two tensors and a kernel function and returns a new tensor
 /// 
@@ -177,7 +179,7 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
             Copy
 {
     use rayon::slice::{ ParallelSlice, ParallelSliceMut };
-
+    use tensor_types::traits::*;
     if lhs.size() == 1 {
         let val = lhs.as_raw()[0];
         let val_vec = <A as TypeCommon>::Vec::splat(val);
@@ -407,7 +409,6 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
             Send +
             Copy
 {
-    use tensor_types::dtype::TypeCommon;
     use tensor_types::vectors::traits::*;
     use rayon::slice::{ ParallelSlice, ParallelSliceMut };
 

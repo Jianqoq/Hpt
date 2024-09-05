@@ -24,9 +24,6 @@ use std::sync::Arc;
 use std::sync::Barrier;
 use tensor_traits::shape_manipulate::ShapeManipulate;
 
-#[cfg(feature = "simd")]
-use crate::ops::cpu::kernels::reduce_kernels::{ reduce_dim_not_include_simd, reduce_dim_simd };
-
 #[derive(Debug)]
 pub(crate) struct ReductionPreprocessor<T, U> {
     pub ptrs: Pointer<T>,
@@ -799,6 +796,7 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                                     *inp.strides().last().unwrap() == 1 &&
                                     <O as TypeCommon>::Vec::SIZE == <T as TypeCommon>::Vec::SIZE
                                 {
+                                    use crate::ops::cpu::kernels::reduce_kernels::fast_reduce_simd;
                                     fast_reduce_simd(
                                         inner_loop_size,
                                         outer_loop_size,
@@ -820,8 +818,7 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                                         res_ptr,
                                         inp.strides().inner(),
                                         inp.shape().inner(),
-                                        op,
-                                        op3
+                                        op
                                     );
                                 }
                             }
@@ -871,9 +868,9 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                     );
                     let barrier = Arc::new(Barrier::new(num_threads + 1));
                     for _ in (0..num_threads).rev() {
-                        let mut iterator = iterators.pop().unwrap();
-                        let mut result_ptr_c = iterator.res_ptrs;
-                        let mut a_data_ptr = iterator.ptrs;
+                        let iterator = iterators.pop().unwrap();
+                        let result_ptr_c = iterator.res_ptrs;
+                        let a_data_ptr = iterator.ptrs;
                         let current_size = iterator.end - iterator.start;
                         let barrier_clone = Arc::clone(&barrier);
                         pool.execute(move || {
@@ -881,6 +878,7 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                             assert_eq!(a_last_stride, 1);
                             #[cfg(feature = "simd")]
                             {
+                                use crate::ops::cpu::kernels::reduce_kernels::reduce_dim_not_include_simd;
                                 let inp_strides = &iterator.strides;
                                 let inp_shape = &iterator.a_shape;
                                 let mut prg1 = iterator.prg.clone();
@@ -902,57 +900,68 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                             }
 
                             #[cfg(not(feature = "simd"))]
-                            for _i in 0..current_size {
-                                for _ in 0..inner_loop_size_2 {
-                                    for i in 0..inner_loop_size as i64 {
-                                        let a_val = a_data_ptr[i * a_last_stride];
-                                        let result_val = result_ptr_c[i];
-                                        let mut_ref = unsafe {
-                                            &mut *result_ptr_c.ptr.offset(i as isize)
-                                        };
-                                        *mut_ref = op(result_val, a_val);
+                            {
+                                let mut iterator = iterator;
+                                let mut result_ptr_c = result_ptr_c;
+                                let mut a_data_ptr = a_data_ptr;
+                                for _i in 0..current_size {
+                                    for _ in 0..inner_loop_size_2 {
+                                        for i in 0..inner_loop_size as i64 {
+                                            let a_val = a_data_ptr[i * a_last_stride];
+                                            let result_val = result_ptr_c[i];
+                                            let mut_ref = unsafe {
+                                                &mut *result_ptr_c.ptr.offset(i as isize)
+                                            };
+                                            *mut_ref = op(result_val, a_val);
+                                        }
+                                        for j in (shape_len..=(iterator.a_shape.len() as i64) -
+                                            1).rev() {
+                                            if
+                                                iterator.prg[j as usize] <
+                                                iterator.a_shape[j as usize]
+                                            {
+                                                iterator.prg[j as usize] += 1;
+                                                a_data_ptr.offset(iterator.strides[j as usize]);
+                                                break;
+                                            } else {
+                                                iterator.prg[j as usize] = 0;
+                                                a_data_ptr.offset(
+                                                    -iterator.strides[j as usize] *
+                                                        iterator.a_shape[j as usize]
+                                                );
+                                            }
+                                        }
                                     }
-                                    for j in (shape_len..=(iterator.a_shape.len() as i64) -
-                                        1).rev() {
-                                        if iterator.prg[j as usize] < iterator.a_shape[j as usize] {
-                                            iterator.prg[j as usize] += 1;
+                                    for j in (0..shape_len - 1).rev() {
+                                        if
+                                            iterator.a_prg[j as usize] <
+                                            iterator.a_shape[j as usize]
+                                        {
+                                            iterator.a_prg[j as usize] += 1;
                                             a_data_ptr.offset(iterator.strides[j as usize]);
                                             break;
                                         } else {
-                                            iterator.prg[j as usize] = 0;
+                                            iterator.a_prg[j as usize] = 0;
                                             a_data_ptr.offset(
                                                 -iterator.strides[j as usize] *
                                                     iterator.a_shape[j as usize]
                                             );
                                         }
                                     }
-                                }
-                                for j in (0..shape_len - 1).rev() {
-                                    if iterator.a_prg[j as usize] < iterator.a_shape[j as usize] {
-                                        iterator.a_prg[j as usize] += 1;
-                                        a_data_ptr.offset(iterator.strides[j as usize]);
-                                        break;
-                                    } else {
-                                        iterator.a_prg[j as usize] = 0;
-                                        a_data_ptr.offset(
-                                            -iterator.strides[j as usize] *
-                                                iterator.a_shape[j as usize]
-                                        );
+                                    if let Some(op3) = op3 {
+                                        for i in 0..inner_loop_size as i64 {
+                                            let result_val = result_ptr_c[i];
+                                            let mut_ref = unsafe {
+                                                &mut *result_ptr_c.ptr.offset(i as isize)
+                                            };
+                                            *mut_ref = op3(result_val);
+                                        }
                                     }
+                                    result_ptr_c.add(inner_loop_size);
+                                    iterator.prg.iter_mut().for_each(|x| {
+                                        *x = 0;
+                                    });
                                 }
-                                if let Some(op3) = op3 {
-                                    for i in 0..inner_loop_size as i64 {
-                                        let result_val = result_ptr_c[i];
-                                        let mut_ref = unsafe {
-                                            &mut *result_ptr_c.ptr.offset(i as isize)
-                                        };
-                                        *mut_ref = op3(result_val);
-                                    }
-                                }
-                                result_ptr_c.add(inner_loop_size);
-                                iterator.prg.iter_mut().for_each(|x| {
-                                    *x = 0;
-                                });
                             }
 
                             barrier_clone.wait();

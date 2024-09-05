@@ -37,6 +37,7 @@ pub mod ops {
         pub mod convolutions {
             pub mod conv2d_test;
             pub mod conv2d;
+            pub mod conv3d;
         }
         pub mod kernels {
             pub mod reduce_kernels;

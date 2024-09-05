@@ -11,9 +11,6 @@ use crate::{ backend::Cpu, tensor::Tensor, tensor_base::_Tensor };
 #[cfg(not(feature = "simd"))]
 use rayon::iter::IntoParallelIterator;
 
-#[cfg(feature = "simd")]
-use tensor_types::vectors::traits::*;
-
 impl<T> _Tensor<T>
     where
         f64: IntoScalar<T>,
@@ -49,6 +46,9 @@ impl<T> _Tensor<T>
 
         #[cfg(feature = "simd")]
         {
+            use tensor_traits::TensorInfo;
+            use tensor_types::vectors::traits::*;
+            use rayon::prelude::ParallelSliceMut;
             let per_thread_len = data.size() / rayon::current_num_threads();
             let per_thread_remain =
                 per_thread_len % <<T as FloatOutBinary>::Output as TypeCommon>::Vec::SIZE;
