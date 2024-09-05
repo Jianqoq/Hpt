@@ -103,7 +103,8 @@ impl<T> _Tensor<T>
             out_channels as i64,
             in_channels as i64,
             kernel_height as i64,
-            kernel_width as i64
+            kernel_width as i64,
+            kernel_depth as i64,
         );
         let num_co_b = out_channels / co_b;
         let num_wo_b = out_width / (CONV_REGNUM as i64);
@@ -664,21 +665,22 @@ fn find_exact_combination<T: CommonBounds, const REGNUM: usize>(
     max_co_b: i64,
     max_ci_b: i64,
     weight_size: i64,
-    height_size: i64
+    height_size: i64,
+    depth_size: i64
 ) -> (i64, i64)
     where <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
 {
     let mut best_co_b = 0;
     let mut best_ci_b = 0;
 
-    for co_b in (1..=max_co_b)
+    for co_b in (1..max_co_b + 1)
         .rev()
         .filter(|&co_b| co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0) {
         // 只遍历 wo_b 是 7 的倍数的情况
-        for ci_b in (1..=max_ci_b).rev() {
+        for ci_b in (1..max_ci_b + 1).rev() {
             let product =
                 co_b * (REGNUM as i64) +
-                weight_size * height_size * ci_b * ((REGNUM as i64) + co_b);
+                weight_size * height_size * depth_size * ci_b * ((REGNUM as i64) + co_b);
 
             if product <= max_cache_size {
                 if co_b > best_co_b || (co_b == best_co_b && ci_b > best_ci_b) {
