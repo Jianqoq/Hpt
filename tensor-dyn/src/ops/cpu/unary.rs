@@ -146,6 +146,7 @@ pub fn uary_fn_with_out<A, O, K, Q, F>(
     Ok(ret)
 }
 
+#[cfg(feature = "simd")]
 fn uary_fn_with_out_simd<A, O, K, Q, F, F2>(
     inp: &_Tensor<A, Cpu>,
     f: F,
@@ -213,6 +214,7 @@ impl<T> _Tensor<T>
         <FloatUnaryType<T> as TypeCommon>::Vec: Send + Copy + Sync,
         <T as FloatOutUnary>::Base: CommonBounds
 {
+    /// calculate `sin` for each element of the tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn sin(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
@@ -225,6 +227,8 @@ impl<T> _Tensor<T>
         let ret = uary_fn(self, |x| x._sin());
         ret
     }
+
+    /// calculate `cos` for each element of the tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn cos(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
@@ -237,6 +241,8 @@ impl<T> _Tensor<T>
         let ret = uary_fn(self, |x| x._cos());
         ret
     }
+
+    /// calculate `tan` for each element of the tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn tan(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
@@ -249,6 +255,8 @@ impl<T> _Tensor<T>
         let ret = uary_fn(self, |x| x._tan());
         ret
     }
+
+    /// calculate `asin` for each element of the tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn asin(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
@@ -261,6 +269,8 @@ impl<T> _Tensor<T>
         let ret = uary_fn(self, |x| x._asin());
         ret
     }
+
+    /// calculate `acos` for each element of the tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn acos(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
@@ -273,6 +283,8 @@ impl<T> _Tensor<T>
         let ret = uary_fn(self, |x| x._acos());
         ret
     }
+
+    /// calculate `atan` for each element of the tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn atan(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
@@ -285,6 +297,8 @@ impl<T> _Tensor<T>
         let ret = uary_fn(self, |x| x._atan());
         ret
     }
+
+    /// calculate `sinh` for each element of the tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn sinh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
@@ -297,6 +311,8 @@ impl<T> _Tensor<T>
         let ret = uary_fn(self, |x| x._sinh());
         ret
     }
+
+    /// calculate `cosh` for each element of the tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn cosh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
@@ -309,6 +325,8 @@ impl<T> _Tensor<T>
         let ret = uary_fn(self, |x| x._cosh());
         ret
     }
+
+    /// calculate `tanh` for each element of the tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn tanh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
@@ -321,6 +339,8 @@ impl<T> _Tensor<T>
         let ret = uary_fn(self, |x| x._tanh());
         ret
     }
+
+    /// calculate `asinh` for each element of the tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn asinh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
@@ -333,6 +353,8 @@ impl<T> _Tensor<T>
         let ret = uary_fn(self, |x| x._asinh());
         ret
     }
+
+    /// calculate `acosh` for each element of the tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn acosh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
@@ -345,6 +367,8 @@ impl<T> _Tensor<T>
         let ret = uary_fn(self, |x| x._acosh());
         ret
     }
+
+    /// calculate `atanh` for each element of the tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn atanh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
@@ -357,6 +381,8 @@ impl<T> _Tensor<T>
         let ret = uary_fn(self, |x| x._atanh());
         ret
     }
+
+    /// calculate `sin` for each element of the tensor and store the result in the output tensor`
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn sin_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
         where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
@@ -372,6 +398,8 @@ impl<T> _Tensor<T>
         let ret = uary_fn_with_out(self, |x| x._sin(), out.base().clone());
         ret
     }
+
+    /// calculate `cos` for each element of the tensor and store the result in the output tensor`
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn cos_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
         where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
@@ -387,6 +415,8 @@ impl<T> _Tensor<T>
         let ret = uary_fn_with_out(self, |x| x._cos(), out.base().clone());
         ret
     }
+
+    /// calculate `tan` for each element of the tensor and store the result in the output tensor`
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn tan_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
         where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>

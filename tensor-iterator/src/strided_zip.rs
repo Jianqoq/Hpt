@@ -1,4 +1,4 @@
-use std::{ panic::Location, sync::Arc };
+use std::sync::Arc;
 use tensor_common::{ shape::Shape, shape_utils::predict_broadcast_shape, strides::Strides };
 
 use crate::iterator_traits::{ IterGetSet, ShapeManipulator, StridedIterator };
@@ -8,7 +8,7 @@ pub mod strided_zip_simd {
     use tensor_common::{ shape::Shape, shape_utils::predict_broadcast_shape, strides::Strides };
 
     use crate::iterator_traits::{ IterGetSetSimd, ShapeManipulator, StridedIteratorSimd };
-    use std::{ panic::Location, sync::Arc };
+    use std::sync::Arc;
 
     #[derive(Clone)]
     pub struct StridedZipSimd<'a, A: 'a, B: 'a> {
@@ -124,11 +124,9 @@ pub mod strided_zip_simd {
                 <C as IterGetSetSimd>::Item: Send,
                 <Self as IterGetSetSimd>::Item: Send
         {
-            let new_shape = predict_broadcast_shape(
-                &self.shape(),
-                &other.shape(),
-                Location::caller()
-            ).expect("Cannot broadcast shapes");
+            let new_shape = predict_broadcast_shape(&self.shape(), &other.shape()).expect(
+                "Cannot broadcast shapes"
+            );
 
             let mut a = self.reshape(new_shape.clone());
             let mut b = other.reshape(new_shape.clone());
@@ -322,11 +320,9 @@ impl<'a, A, B> StridedZip<'a, A, B>
             <C as IterGetSet>::Item: Send,
             <Self as IterGetSet>::Item: Send
     {
-        let new_shape = predict_broadcast_shape(
-            &self.shape(),
-            &other.shape(),
-            Location::caller()
-        ).expect("Cannot broadcast shapes");
+        let new_shape = predict_broadcast_shape(&self.shape(), &other.shape()).expect(
+            "Cannot broadcast shapes"
+        );
 
         let mut a = self.reshape(new_shape.clone());
         let mut b = other.reshape(new_shape.clone());

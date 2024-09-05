@@ -23,7 +23,7 @@ pub(crate) fn binop<A, B>(
     let num_grp_x = 512;
     let num_grp_y = 512;
 
-    let res_shape = a.layout().broadcast(&b.layout(), location).expect("Failed to broadcast shapes");
+    let res_shape = a.layout().broadcast(&b.layout()).expect("Failed to broadcast shapes");
 
     let a_strides: Vec<i64> = preprocess_strides(
         &try_pad_shape(a.shape(), res_shape.ndim()),

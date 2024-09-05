@@ -4,7 +4,6 @@ use tensor_types::{
     into_vec::IntoVec,
     type_promote::{ Cmp, NormalOut, SimdCmp },
 };
-use tensor_types::vectors::traits::Init;
 use crate::{ tensor::Tensor, tensor_base::_Tensor };
 
 impl<T> _Tensor<T>
@@ -24,25 +23,27 @@ impl<T> _Tensor<T>
         let axis = (if axis < 0 { (self.layout.ndim() as i64) + axis } else { axis }) as usize;
         let max = self.max(axis as i64, true)?;
         #[cfg(feature = "simd")]
-        let ret = self
-            .par_iter_simd()
-            .zip(max.par_iter_simd())
-            .strided_map(
-                |(res, (a, b))| {
-                    *res = a._eq(b)._mul(T::ONE);
-                },
-                |(res, (a, b))| {
-                    let one = <T as TypeCommon>::Vec::splat(T::ONE);
-                    *res = a._eq(b)._mul(one);
-                }
-            )
-            .collect::<_Tensor<T>>();
+        let ret = {
+            self.par_iter_simd()
+                .zip(max.par_iter_simd())
+                .strided_map(
+                    |(res, (a, b))| {
+                        *res = a._eq(b)._mul(T::ONE);
+                    },
+                    |(res, (a, b))| {
+                        let one = <T as TypeCommon>::Vec::splat(T::ONE);
+                        *res = a._eq(b)._mul(one);
+                    }
+                )
+                .collect::<_Tensor<T>>()
+        };
         #[cfg(not(feature = "simd"))]
-        let ret = self
-            .par_iter()
-            .zip(max.par_iter())
-            .strided_map(|(a, b)| { a._eq(b)._mul(T::ONE) })
-            .collect::<_Tensor<T>>();
+        let ret = {
+            self.par_iter()
+                .zip(max.par_iter())
+                .strided_map(|(a, b)| { a._eq(b)._mul(T::ONE) })
+                .collect::<_Tensor<T>>()
+        };
         Ok(ret)
     }
 }

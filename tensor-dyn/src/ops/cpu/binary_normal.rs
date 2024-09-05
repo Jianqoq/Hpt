@@ -4,7 +4,6 @@ use rayon::iter::{
     IntoParallelRefMutIterator,
     ParallelIterator,
 };
-use std::panic::Location;
 use crate::backend::Cpu;
 use tensor_traits::tensor::CommonBounds;
 use tensor_common::shape_utils::predict_broadcast_shape;
@@ -13,7 +12,16 @@ use tensor_traits::tensor::TensorLike;
 use crate::tensor_base::_Tensor;
 use tensor_traits::tensor::TensorCreator;
 
-#[cfg(not(feature = "simd"))]
+
+/// binary function that takes two tensors and a kernel function and returns a new tensor
+/// 
+/// there are three cases:
+/// 
+/// - if one of the tensors has only one element, it will directly use the scalar value to perform the operation
+/// 
+/// - if both tensors have the same shape and are contiguous, it will directly convert both to 1D array and parallelize the operation
+/// 
+/// - otherwise, it will use the strided map to parallelize the operation
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub fn binary_fn<A, B, K, F>(lhs: &_Tensor<A>, rhs: &_Tensor<B>, f: F) -> anyhow::Result<_Tensor<K>>
     where A: CommonBounds, B: CommonBounds, K: CommonBounds, F: Fn(A, B) -> K + Sync + Send + Copy
@@ -40,7 +48,7 @@ pub fn binary_fn<A, B, K, F>(lhs: &_Tensor<A>, rhs: &_Tensor<B>, f: F) -> anyhow
         Ok(res)
     } else {
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
-            let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape(), Location::caller())?;
+            let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape())?;
             let ret;
             ret = _Tensor::<K, Cpu>::empty(res_shape)?;
             ret.as_raw_mut()
@@ -62,56 +70,14 @@ pub fn binary_fn<A, B, K, F>(lhs: &_Tensor<A>, rhs: &_Tensor<B>, f: F) -> anyhow
     }
 }
 
-#[cfg(feature = "simd")]
-#[cfg_attr(feature = "track_caller", track_caller)]
-pub fn binary_fn<A, B, K, F>(lhs: &_Tensor<A>, rhs: &_Tensor<B>, f: F) -> anyhow::Result<_Tensor<K>>
-    where A: CommonBounds, B: CommonBounds, K: CommonBounds, F: Fn(A, B) -> K + Sync + Send + Copy
-{
-    if lhs.size() == 1 {
-        let val = lhs.as_raw()[0];
-        let res = _Tensor::<K, Cpu>::empty(rhs.shape())?;
-        res.as_raw_mut()
-            .par_iter_mut()
-            .zip(rhs.as_raw().par_iter())
-            .for_each(|(a, &b)| {
-                *a = f(val, b);
-            });
-        Ok(res)
-    } else if rhs.size() == 1 {
-        let val = rhs.as_raw()[0];
-        let res = _Tensor::<K, Cpu>::empty(lhs.shape())?;
-        res.as_raw_mut()
-            .par_iter_mut()
-            .zip(lhs.as_raw().par_iter())
-            .for_each(|(a, &b)| {
-                *a = f(b, val);
-            });
-        Ok(res)
-    } else {
-        if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
-            let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape(), Location::caller())?;
-            let ret;
-            ret = _Tensor::<K, Cpu>::empty(res_shape)?;
-            ret.as_raw_mut()
-                .par_iter_mut()
-                .zip(lhs.as_raw().par_iter())
-                .zip(rhs.as_raw().par_iter())
-                .for_each(|((ret, &lhs), &rhs)| {
-                    *ret = f(lhs, rhs);
-                });
-            Ok(ret)
-        } else {
-            todo!();
-        }
-    }
-}
-
+/// same function as `binary_fn`, just the output tensor is passed as an argument
+/// 
+/// full documentation can be found in `binary_fn`
 pub fn binary_fn_with_out<A, B, O, Q, K, F>(
     lhs: &_Tensor<A>,
     rhs: &_Tensor<B>,
     f: F,
-    out: O,
-    location: &'static Location<'static>
+    out: O
 )
     -> anyhow::Result<_Tensor<K>>
     where
@@ -153,7 +119,7 @@ pub fn binary_fn_with_out<A, B, O, Q, K, F>(
             });
         Ok(ret)
     } else {
-        let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape(), location)?;
+        let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape())?;
         let ret;
         let ret_size: usize = res_shape.iter().product::<i64>() as usize;
         if out.size() * std::mem::size_of::<Q>() != ret_size * std::mem::size_of::<A>() {
@@ -184,6 +150,10 @@ pub fn binary_fn_with_out<A, B, O, Q, K, F>(
 }
 
 /// same function as `binary_fn_simd`, just the output tensor is passed as an argument
+/// 
+/// full documentation can be found in `binary_fn_simd`
+/// 
+/// simd will be enabled only when all operands and output type have the same vector size.
 #[cfg(feature = "simd")]
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
@@ -413,8 +383,11 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
     }
 }
 
-use tensor_types::dtype::TypeCommon;
-use tensor_types::vectors::traits::*;
+/// simd version of `binary_fn`
+/// 
+/// simd will be enabled only when all operands and output type have the same vector size.
+/// 
+/// full documentation can be found in `binary_fn`
 #[cfg(feature = "simd")]
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub fn binary_fn_simd<A, B, K, F, F2>(
@@ -434,6 +407,8 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
             Send +
             Copy
 {
+    use tensor_types::dtype::TypeCommon;
+    use tensor_types::vectors::traits::*;
     use rayon::slice::{ ParallelSlice, ParallelSliceMut };
 
     // for binary, case could be (scalar op tensor) or (tensor op scalar) or (tensor op tensor)

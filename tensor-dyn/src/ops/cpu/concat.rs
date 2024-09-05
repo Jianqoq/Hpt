@@ -8,6 +8,37 @@ use tensor_traits::{
 
 use crate::{ slice::SliceOps, tensor_base::_Tensor, THREAD_POOL };
 
+/// Concatenates the given sequence of tensors in the given dimension.
+///
+/// The tensors must have the same shape, except in the dimension to concatenate.
+///
+/// # Arguments
+///
+/// * `tensors` - A sequence of tensors to concatenate.
+///
+/// * `axis` - The axis along which the tensors will be concatenated.
+///
+/// * `keepdims` - If true, the resulting tensor will have the same number of dimensions as the input tensors.
+///
+/// # Returns
+///
+/// A tensor with the concatenated tensors.
+/// 
+/// # Example
+/// 
+/// ```
+/// use tensor_dyn::tensor_base::_Tensor;
+/// use tensor_dyn::*;
+/// 
+/// let a = _Tensor::<f32>::new(&[1.0, 2.0, 3.0]);
+/// 
+/// let b = _Tensor::<f32>::new(&[4.0, 5.0, 6.0]);
+/// 
+/// let c = _Tensor::<f32>::new(&[7.0, 8.0, 9.0]);
+/// 
+/// let res = concat(vec![&a, &b, &c], 0, false).unwrap();
+/// 
+/// assert_eq!(res, _Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]));
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn concat<T>(
     tensors: Vec<&_Tensor<T>>,

@@ -25,7 +25,6 @@ use tensor_types::type_promote::FloatOutBinary;
 use tensor_common::shape_utils::predict_broadcast_shape;
 use tensor_types::type_promote::NormalOut;
 use crate::tensor_base::_Tensor;
-use std::panic::Location;
 
 macro_rules! normal_promote_ops_1 {
     ($([$op:ident, $op2:ident, $op3:ident]),*) => {
@@ -44,8 +43,7 @@ macro_rules! normal_promote_ops_1 {
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
-                        rhs.shape(),
-                        Location::caller()
+                        rhs.shape()
                     ).unwrap();
                     let res_size: usize = res_shape.size() as usize;
                     let lhs_size: usize = self.layout().real_size();
@@ -58,8 +56,7 @@ macro_rules! normal_promote_ops_1 {
                                 &self,
                                 &rhs,
                                 |x, y| x.$op3(y),
-                                out,
-                                Location::caller()
+                                out
                             ).unwrap();
                         } else {
                             return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -72,7 +69,7 @@ macro_rules! normal_promote_ops_1 {
                                 &self,
                                 &rhs,
                                 |x, y| x.$op3(y),
-                                out, Location::caller()
+                                out
                             ).unwrap();
                         } else {
                             return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -85,7 +82,7 @@ macro_rules! normal_promote_ops_1 {
                                 &self,
                                 &rhs,
                                 |x, y| x.$op3(y),
-                                out, Location::caller()
+                                out
                             ).unwrap();
                         } else if U::ID == <T as NormalOut<U>>::Output::ID {
                             let out: _Tensor<U> = rhs.clone();
@@ -94,7 +91,7 @@ macro_rules! normal_promote_ops_1 {
                                 &self,
                                 &rhs,
                                 |x, y| x.$op3(y),
-                                out, Location::caller()
+                                out
                             ).unwrap();
                         } else {
                             return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -118,7 +115,6 @@ macro_rules! normal_promote_ops_1 {
                 let res_shape = predict_broadcast_shape(
                     self.shape(),
                     rhs.shape(),
-                    Location::caller()
                 ).unwrap();
                 let res_size: usize = res_shape.size() as usize;
                 let lhs_size: usize = self.layout().real_size();
@@ -159,7 +155,7 @@ macro_rules! normal_promote_ops_1 {
                             &self,
                             &rhs,
                             |x, y| x.$op3(y),
-                            out, Location::caller()
+                            out
                         ).unwrap();
                     } else if U::ID == <T as NormalOut<U>>::Output::ID {
                         let out: _Tensor<U> = rhs.clone();
@@ -168,7 +164,7 @@ macro_rules! normal_promote_ops_1 {
                             &self,
                             &rhs,
                             |x, y| x.$op3(y),
-                            out, Location::caller()
+                            out
                         ).unwrap();
                     } else {
                         return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -196,7 +192,7 @@ macro_rules! normal_promote_ops_2 {
                 fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
-                        rhs.shape(), Location::caller()
+                        rhs.shape()
                     ).unwrap();
                     let res_size: usize = res_shape.size() as usize;
                     let lhs_size: usize = self.layout().real_size();
@@ -207,7 +203,7 @@ macro_rules! normal_promote_ops_2 {
                             &self,
                             &rhs,
                             |x, y| x.$op3(y),
-                            out, Location::caller()
+                            out
                         ).unwrap();
                     } else {
                         return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -269,7 +265,7 @@ macro_rules! normal_promote_ops_4 {
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
-                        rhs.shape(), Location::caller()
+                        rhs.shape()
                     ).unwrap();
                     let res_size: usize = res_shape.size() as usize;
                     let rhs_size: usize = rhs.layout().real_size();
@@ -280,7 +276,7 @@ macro_rules! normal_promote_ops_4 {
                             &self,
                             &rhs,
                             |x, y| x.$op3(y),
-                            out, Location::caller()
+                            out
                         ).unwrap();
                     } else {
                         return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -365,7 +361,7 @@ macro_rules! bitwise_promote_ops_1 {
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
-                        rhs.shape(), Location::caller()
+                        rhs.shape()
                     ).unwrap();
                     let res_size: usize = res_shape.size() as usize;
                     let lhs_size: usize = self.layout().real_size();
@@ -378,7 +374,7 @@ macro_rules! bitwise_promote_ops_1 {
                                 &self,
                                 &rhs,
                                 |x, y| x.$op3(y),
-                                out, Location::caller()
+                                out
                             ).unwrap();
                         } else {
                             return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -391,7 +387,7 @@ macro_rules! bitwise_promote_ops_1 {
                                 &self,
                                 &rhs,
                                 |x, y| x.$op3(y),
-                                out, Location::caller()
+                                out
                             ).unwrap();
                         } else {
                             return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -404,7 +400,7 @@ macro_rules! bitwise_promote_ops_1 {
                                 &self,
                                 &rhs,
                                 |x, y| x.$op3(y),
-                                out, Location::caller()
+                                out
                             ).unwrap();
                         } else if U::ID == <T as BitWiseOut<U>>::Output::ID {
                             let out: _Tensor<U> = rhs.clone();
@@ -413,7 +409,7 @@ macro_rules! bitwise_promote_ops_1 {
                                 &self,
                                 &rhs,
                                 |x, y| x.$op3(y),
-                                out, Location::caller()
+                                out
                             ).unwrap();
                         } else {
                             return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -439,7 +435,7 @@ macro_rules! bitwise_promote_ops_2 {
                 fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
-                        rhs.shape(), Location::caller()
+                        rhs.shape()
                     ).unwrap();
                     let res_size: usize = res_shape.size() as usize;
                     let lhs_size: usize = self.layout().real_size();
@@ -450,7 +446,7 @@ macro_rules! bitwise_promote_ops_2 {
                             &self,
                             &rhs,
                             |x, y| x.$op3(y),
-                            out, Location::caller()
+                            out
                         ).unwrap();
                     } else {
                         return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -494,7 +490,7 @@ macro_rules! bitwise_promote_ops_4 {
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
-                        rhs.shape(), Location::caller()
+                        rhs.shape()
                     ).unwrap();
                     let res_size: usize = res_shape.size() as usize;
                     let rhs_size: usize = rhs.layout().real_size();
@@ -505,7 +501,7 @@ macro_rules! bitwise_promote_ops_4 {
                             &self,
                             &rhs,
                             |x, y| x.$op3(y),
-                            out, Location::caller()
+                            out
                         ).unwrap();
                     } else {
                         return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -556,7 +552,7 @@ macro_rules! shift_promote_ops_1 {
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
-                        rhs.shape(), Location::caller()
+                        rhs.shape()
                     ).unwrap();
                     let res_size: usize = res_shape.size() as usize;
                     let lhs_size: usize = self.layout().real_size();
@@ -569,7 +565,7 @@ macro_rules! shift_promote_ops_1 {
                                 &self,
                                 &rhs,
                                 |x, y| x.$op3(y),
-                                out, Location::caller()
+                                out
                             ).unwrap();
                         } else {
                             return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -582,7 +578,7 @@ macro_rules! shift_promote_ops_1 {
                                 &self,
                                 &rhs,
                                 |x, y| x.$op3(y),
-                                out, Location::caller()
+                                out
                             ).unwrap();
                         } else {
                             return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -595,7 +591,7 @@ macro_rules! shift_promote_ops_1 {
                                 &self,
                                 &rhs,
                                 |x, y| x.$op3(y),
-                                out, Location::caller()
+                                out
                             ).unwrap();
                         } else if U::ID == <T as BitWiseOut<U>>::Output::ID {
                             let out: _Tensor<U> = rhs.clone();
@@ -604,7 +600,7 @@ macro_rules! shift_promote_ops_1 {
                                 &self,
                                 &rhs,
                                 |x, y| x.$op3(y),
-                                out, Location::caller()
+                                out
                             ).unwrap();
                         } else {
                             return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -632,7 +628,7 @@ macro_rules! shift_promote_ops_2 {
                 fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
-                        rhs.shape(), Location::caller()
+                        rhs.shape()
                     ).unwrap();
                     let res_size: usize = res_shape.size() as usize;
                     let lhs_size: usize = self.layout().real_size();
@@ -643,7 +639,7 @@ macro_rules! shift_promote_ops_2 {
                             &self,
                             &rhs,
                             |x, y| x.$op3(y),
-                            out, Location::caller()
+                            out
                         ).unwrap();
                     } else {
                         return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -690,7 +686,7 @@ macro_rules! shift_promote_ops_4 {
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
-                        rhs.shape(), Location::caller()
+                        rhs.shape()
                     ).unwrap();
                     let res_size: usize = res_shape.size() as usize;
                     let rhs_size: usize = rhs.layout().real_size();
@@ -701,7 +697,7 @@ macro_rules! shift_promote_ops_4 {
                             &self,
                             &rhs,
                             |x, y| x.$op3(y),
-                            out, Location::caller()
+                            out
                         ).unwrap();
                     } else {
                         return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -732,7 +728,7 @@ macro_rules! float_binary_promote_ops_1 {
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
-                        rhs.shape(), Location::caller()
+                        rhs.shape()
                     ).unwrap();
                     let res_size: usize = res_shape.size() as usize;
                     let lhs_size: usize = self.layout().real_size();
@@ -745,7 +741,7 @@ macro_rules! float_binary_promote_ops_1 {
                                 &self,
                                 &rhs,
                                 |x, y| x.$op3(y),
-                                out, Location::caller()
+                                out
                             ).unwrap();
                         } else {
                             return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -758,7 +754,7 @@ macro_rules! float_binary_promote_ops_1 {
                                 &self,
                                 &rhs,
                                 |x, y| x.$op3(y),
-                                out, Location::caller()
+                                out
                             ).unwrap();
                         } else {
                             return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -771,7 +767,7 @@ macro_rules! float_binary_promote_ops_1 {
                                 &self,
                                 &rhs,
                                 |x, y| x.$op3(y),
-                                out, Location::caller()
+                                out
                             ).unwrap();
                         } else if U::ID == <T as FloatOutBinary<U>>::Output::ID {
                             let out: _Tensor<U> = rhs.clone();
@@ -780,7 +776,7 @@ macro_rules! float_binary_promote_ops_1 {
                                 &self,
                                 &rhs,
                                 |x, y| x.$op3(y),
-                                out, Location::caller()
+                                out
                             ).unwrap();
                         } else {
                             return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -807,7 +803,7 @@ macro_rules! float_binary_promote_ops_2 {
                 fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
-                        rhs.shape(), Location::caller()
+                        rhs.shape()
                     ).unwrap();
                     let res_size: usize = res_shape.size() as usize;
                     let lhs_size: usize = self.layout().real_size();
@@ -818,7 +814,7 @@ macro_rules! float_binary_promote_ops_2 {
                             &self,
                             &rhs,
                             |x, y| x.$op3(y),
-                            out, Location::caller()
+                            out
                         ).unwrap();
                     } else {
                         return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
@@ -863,8 +859,7 @@ macro_rules! float_binary_promote_ops_4 {
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
                     let res_shape = predict_broadcast_shape(
                         self.shape(),
-                        rhs.shape(),
-                        Location::caller()
+                        rhs.shape()
                     ).unwrap();
                     let res_size: usize = res_shape.size() as usize;
                     let rhs_size: usize = rhs.layout().real_size();
@@ -875,7 +870,7 @@ macro_rules! float_binary_promote_ops_4 {
                             &self,
                             &rhs,
                             |x, y| x.$op3(y),
-                            out, Location::caller()
+                            out
                         ).unwrap();
                     } else {
                         return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();

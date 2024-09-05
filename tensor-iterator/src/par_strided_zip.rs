@@ -1,4 +1,4 @@
-use std::{ panic::Location, sync::Arc };
+use std::sync::Arc;
 use rayon::iter::{
     plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
     ParallelIterator,
@@ -14,7 +14,7 @@ use crate::{ iterator_traits::{ IterGetSet, ShapeManipulator }, par_strided_map:
 
 #[cfg(feature = "simd")]
 pub mod par_strided_zip_simd {
-    use std::{ panic::Location, sync::Arc };
+    use std::sync::Arc;
 
     use rayon::iter::{
         plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
@@ -156,11 +156,9 @@ pub mod par_strided_zip_simd {
                 <C as IterGetSetSimd>::Item: Send,
                 <Self as IterGetSetSimd>::Item: Send
         {
-            let new_shape = predict_broadcast_shape(
-                &self.shape(),
-                &other.shape(),
-                Location::caller()
-            ).expect("Cannot broadcast shapes");
+            let new_shape = predict_broadcast_shape(&self.shape(), &other.shape()).expect(
+                "Cannot broadcast shapes"
+            );
 
             let inner_loop_size = new_shape[new_shape.len() - 1] as usize;
             let outer_loop_size = (new_shape.size() as usize) / inner_loop_size;
@@ -369,11 +367,9 @@ impl<'a, A, B> ParStridedZip<'a, A, B>
             <C as IterGetSet>::Item: Send,
             <Self as IterGetSet>::Item: Send
     {
-        let new_shape = predict_broadcast_shape(
-            &self.shape(),
-            &other.shape(),
-            Location::caller()
-        ).expect("Cannot broadcast shapes");
+        let new_shape = predict_broadcast_shape(&self.shape(), &other.shape()).expect(
+            "Cannot broadcast shapes"
+        );
 
         let inner_loop_size = new_shape[new_shape.len() - 1] as usize;
         let outer_loop_size = (new_shape.size() as usize) / inner_loop_size;

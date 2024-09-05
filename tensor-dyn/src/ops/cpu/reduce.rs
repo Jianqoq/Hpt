@@ -1,8 +1,4 @@
-use crate::ops::cpu::kernels::reduce_kernels::{
-    fast_reduce_no_simd,
-    fast_reduce_simd,
-    reduce_dim_not_include_simd,
-};
+use crate::ops::cpu::kernels::reduce_kernels::fast_reduce_no_simd;
 use crate::slice::SliceOps;
 use crate::tensor_base::_Tensor;
 use crate::{ argmax_kernel, argmin_kernel };
@@ -27,6 +23,9 @@ use tensor_types::type_promote::{ Cmp, NormalOut };
 use std::sync::Arc;
 use std::sync::Barrier;
 use tensor_traits::shape_manipulate::ShapeManipulate;
+
+#[cfg(feature = "simd")]
+use crate::ops::cpu::kernels::reduce_kernels::{ reduce_dim_not_include_simd, reduce_dim_simd };
 
 #[derive(Debug)]
 pub(crate) struct ReductionPreprocessor<T, U> {
@@ -790,12 +789,12 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                     for (inp, res) in sliced_tensors.into_iter().zip(sliced_res.into_iter()) {
                         let barrier_clone = barrier.clone();
                         pool.execute(move || {
+                            let inp_ptr = inp.ptr();
+                            let res_ptr = res.ptr();
                             #[cfg(feature = "simd")]
                             {
                                 let inner_loop_size = *res.shape().last().unwrap() as isize;
                                 let outer_loop_size = (inp.size() as isize) / inner_loop_size;
-                                let inp_ptr = inp.ptr();
-                                let res_ptr = res.ptr();
                                 if
                                     *inp.strides().last().unwrap() == 1 &&
                                     <O as TypeCommon>::Vec::SIZE == <T as TypeCommon>::Vec::SIZE
@@ -828,8 +827,8 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                             }
                             #[cfg(not(feature = "simd"))]
                             fast_reduce_no_simd(
-                                inner_loop_size,
-                                outer_loop_size,
+                                inner_loop_size as isize,
+                                outer_loop_size as isize,
                                 inp_ptr,
                                 res_ptr,
                                 inp.strides().inner(),
@@ -872,33 +871,35 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                     );
                     let barrier = Arc::new(Barrier::new(num_threads + 1));
                     for _ in (0..num_threads).rev() {
-                        let iterator = iterators.pop().unwrap();
-                        let result_ptr_c = iterator.res_ptrs;
-                        let a_data_ptr = iterator.ptrs;
+                        let mut iterator = iterators.pop().unwrap();
+                        let mut result_ptr_c = iterator.res_ptrs;
+                        let mut a_data_ptr = iterator.ptrs;
                         let current_size = iterator.end - iterator.start;
                         let barrier_clone = Arc::clone(&barrier);
                         pool.execute(move || {
                             let shape_len = iterator.shape.len() as i64;
                             assert_eq!(a_last_stride, 1);
                             #[cfg(feature = "simd")]
-                            let inp_strides = &iterator.strides;
-                            let inp_shape = &iterator.a_shape;
-                            let mut prg1 = iterator.prg.clone();
-                            let mut prg2 = iterator.a_prg.clone();
-                            reduce_dim_not_include_simd(
-                                inner_loop_size as isize,
-                                current_size as isize,
-                                inner_loop_size_2 as isize,
-                                a_data_ptr,
-                                result_ptr_c,
-                                &inp_strides,
-                                &inp_shape,
-                                &mut prg1,
-                                &mut prg2,
-                                shape_len,
-                                op,
-                                vec_op
-                            );
+                            {
+                                let inp_strides = &iterator.strides;
+                                let inp_shape = &iterator.a_shape;
+                                let mut prg1 = iterator.prg.clone();
+                                let mut prg2 = iterator.a_prg.clone();
+                                reduce_dim_not_include_simd(
+                                    inner_loop_size as isize,
+                                    current_size as isize,
+                                    inner_loop_size_2 as isize,
+                                    a_data_ptr,
+                                    result_ptr_c,
+                                    &inp_strides,
+                                    &inp_shape,
+                                    &mut prg1,
+                                    &mut prg2,
+                                    shape_len,
+                                    op,
+                                    vec_op
+                                );
+                            }
 
                             #[cfg(not(feature = "simd"))]
                             for _i in 0..current_size {
@@ -949,7 +950,9 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                                     }
                                 }
                                 result_ptr_c.add(inner_loop_size);
-                                iterator.reset_prg();
+                                iterator.prg.iter_mut().for_each(|x| {
+                                    *x = 0;
+                                });
                             }
 
                             barrier_clone.wait();

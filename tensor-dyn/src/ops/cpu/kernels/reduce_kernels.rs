@@ -1,11 +1,13 @@
-use tensor_macros::gen_fast_reduce_simd_helper;
-use tensor_macros::gen_reduce_dim_not_include_simd_helper;
 use tensor_traits::CommonBounds;
+
+#[cfg(feature = "simd")]
 use tensor_types::dtype::TypeCommon;
+#[cfg(feature = "simd")]
 use paste::paste;
-use tensor_types::vectors::traits::VecSize;
-use tensor_types::vectors::traits::Init;
-use tensor_types::vectors::traits::VecTrait;
+#[cfg(feature = "simd")]
+use tensor_types::vectors::traits::*;
+#[cfg(feature = "simd")]
+use tensor_macros::{ gen_fast_reduce_simd_helper, gen_reduce_dim_not_include_simd_helper };
 
 #[inline]
 fn update_prg<T>(
@@ -30,7 +32,8 @@ fn update_prg<T>(
     }
 }
 
-// used for updating prg and inp_ptr for case2, first next
+/// used for updating prg and inp_ptr for case2, first next
+#[cfg(feature = "simd")]
 #[inline]
 fn update_prg2<T>(
     prg: &mut [i64],
@@ -52,7 +55,8 @@ fn update_prg2<T>(
     }
 }
 
-// used for updating prg and inp_ptr for case2, second next
+/// used for updating prg and inp_ptr for case2, second next
+#[cfg(feature = "simd")]
 #[inline]
 fn update_prg3<T>(
     prg: &mut [i64],
@@ -74,6 +78,7 @@ fn update_prg3<T>(
     }
 }
 
+#[cfg(feature = "simd")]
 macro_rules! gen_kernel {
     (
         $num_largest_vecs:expr,
@@ -126,7 +131,8 @@ macro_rules! gen_kernel {
     };
 }
 
-// case when reduce along all axes except the fastest dimension, this case, inner loop stride is always 1
+/// case when reduce along all axes except the fastest dimension, this case, inner loop stride is always 1
+#[cfg(feature = "simd")]
 #[inline]
 pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
     inner_loop_size: isize,
@@ -227,15 +233,14 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
 }
 
 #[inline]
-pub(crate) fn fast_reduce_no_simd<T, O, F, F2>(
+pub(crate) fn fast_reduce_no_simd<T, O, F>(
     inner_loop_size: isize,
     outer_loop_size: isize,
     mut inp_ptr: tensor_common::pointer::Pointer<T>,
     mut res_ptr: tensor_common::pointer::Pointer<O>,
     inp_strides: &[i64],
     inp_shape: &[i64],
-    op: F,
-    _: Option<F2>
+    op: F
 )
     where T: CommonBounds, O: CommonBounds, F: Fn(O, T) -> O
 {
@@ -250,6 +255,7 @@ pub(crate) fn fast_reduce_no_simd<T, O, F, F2>(
     }
 }
 
+#[cfg(feature = "simd")]
 macro_rules! gen_kernel2 {
     (
         $num_largest_vecs:expr,
@@ -299,6 +305,7 @@ macro_rules! gen_kernel2 {
     };
 }
 
+#[cfg(feature = "simd")]
 macro_rules! gen_kernel3 {
     (
         $num_largest_vecs:expr,
@@ -342,6 +349,7 @@ macro_rules! gen_kernel3 {
 }
 
 // case when reduce doesn't contain fastest dim, inner loop stride is always 1
+#[cfg(feature = "simd")]
 #[inline]
 pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2>(
     inner_loop_size: isize,

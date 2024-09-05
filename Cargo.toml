@@ -17,7 +17,7 @@ members = [
 ]
 
 [dependencies]
-tensor-dyn = { path = "tensor-dyn", features = ["simd"]}
+tensor-dyn = { path = "tensor-dyn", features = []}
 tensor-common = { path = "tensor-common"}
 anyhow = "1.0.40"
 rayon = "1.8.0"

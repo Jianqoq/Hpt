@@ -108,8 +108,7 @@ pub(crate) fn matmul_no_out<A, B>(
         } else {
             let mut res_shape = predict_broadcast_shape(
                 &a_shape[..a_shape.len() - 2],
-                &b_shape[..b_shape.len() - 2],
-                Location::caller()
+                &b_shape[..b_shape.len() - 2]
             )?.to_vec();
             let mut iterate_shape: Vec<i64> = res_shape.clone();
             res_shape.push(a_shape[a_shape.len() - 2]);
@@ -327,8 +326,7 @@ pub(crate) fn matmul_with_out<A, B, O>(
         } else {
             let mut res_shape = predict_broadcast_shape(
                 &a_shape[..a_shape.len() - 2],
-                &b_shape[..b_shape.len() - 2],
-                Location::caller()
+                &b_shape[..b_shape.len() - 2]
             )?.to_vec();
             let mut iterate_shape = res_shape.clone();
             res_shape.push(a_shape[a_shape.len() - 2]);
@@ -541,8 +539,7 @@ pub(crate) fn matmul_no_out_concret<A, B, C>(
         } else {
             let mut res_shape = predict_broadcast_shape(
                 &a_shape[..a_shape.len() - 2],
-                &b_shape[..b_shape.len() - 2],
-                Location::caller()
+                &b_shape[..b_shape.len() - 2]
             )?.to_vec();
             let mut iterate_shape: Vec<i64> = res_shape.clone();
             res_shape.push(a_shape[a_shape.len() - 2]);
@@ -744,8 +741,7 @@ pub(crate) fn matmul_out_concret<A, B, C>(
         } else {
             let mut res_shape = predict_broadcast_shape(
                 &a_shape[..a_shape.len() - 2],
-                &b_shape[..b_shape.len() - 2],
-                Location::caller()
+                &b_shape[..b_shape.len() - 2]
             )?.to_vec();
             let mut iterate_shape: Vec<i64> = res_shape.clone();
             res_shape.push(a_shape[a_shape.len() - 2]);

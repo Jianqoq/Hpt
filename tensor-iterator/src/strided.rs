@@ -76,11 +76,9 @@ pub mod strided_simd {
                     rayon::iter::ParallelIterator,
                 <C as IterGetSetSimd>::Item: Send
         {
-            let new_shape = predict_broadcast_shape(
-                self.shape(),
-                other.shape(),
-                Location::caller()
-            ).expect("Cannot broadcast shapes");
+            let new_shape = predict_broadcast_shape(self.shape(), other.shape()).expect(
+                "Cannot broadcast shapes"
+            );
 
             other.broadcast_set_strides(&new_shape);
             self.broadcast_set_strides(&new_shape);
@@ -154,7 +152,7 @@ pub mod strided_simd {
         }
         #[inline(always)]
         fn inner_loop_next(&mut self, index: usize) -> Self::Item {
-            unsafe { *self.ptr.ptr.offset(index as isize * (self.last_stride as isize)) }
+            unsafe { *self.ptr.ptr.offset((index as isize) * (self.last_stride as isize)) }
         }
 
         fn set_prg(&mut self, prg: Vec<i64>) {
@@ -317,11 +315,9 @@ impl<T: CommonBounds> Strided<T> {
     pub fn zip<'a, C>(mut self, mut other: C) -> StridedZip<'a, Self, C>
         where C: 'a + IterGetSet, <C as IterGetSet>::Item: Send
     {
-        let new_shape = predict_broadcast_shape(
-            self.shape(),
-            other.shape(),
-            Location::caller()
-        ).expect("Cannot broadcast shapes");
+        let new_shape = predict_broadcast_shape(self.shape(), other.shape()).expect(
+            "Cannot broadcast shapes"
+        );
 
         other.broadcast_set_strides(&new_shape);
         self.broadcast_set_strides(&new_shape);

@@ -102,11 +102,9 @@ pub mod par_strided_simd {
                 <C as IterGetSetSimd>::Item: Send,
                 <T as TypeCommon>::Vec: Send
         {
-            let new_shape = predict_broadcast_shape(
-                self.shape(),
-                other.shape(),
-                Location::caller()
-            ).expect("Cannot broadcast shapes");
+            let new_shape = predict_broadcast_shape(self.shape(), other.shape()).expect(
+                "Cannot broadcast shapes"
+            );
 
             let inner_loop_size = new_shape[new_shape.len() - 1] as usize;
 
@@ -145,7 +143,10 @@ pub mod par_strided_simd {
             where
                 F: Fn((&mut T, <Self as IterGetSetSimd>::Item)) + Sync + Send + 'a,
                 <Self as IterGetSetSimd>::Item: Send,
-                F2: Send + Sync + Copy + Fn((&mut <T as TypeCommon>::Vec, <Self as IterGetSetSimd>::SimdItem))
+                F2: Send +
+                    Sync +
+                    Copy +
+                    Fn((&mut <T as TypeCommon>::Vec, <Self as IterGetSetSimd>::SimdItem))
         {
             {
                 ParStridedMapSimd {
@@ -485,11 +486,9 @@ impl<T: CommonBounds> ParStrided<T> {
             C: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
             <C as IterGetSet>::Item: Send
     {
-        let new_shape = predict_broadcast_shape(
-            self.shape(),
-            other.shape(),
-            Location::caller()
-        ).expect("Cannot broadcast shapes");
+        let new_shape = predict_broadcast_shape(self.shape(), other.shape()).expect(
+            "Cannot broadcast shapes"
+        );
 
         let inner_loop_size = new_shape[new_shape.len() - 1] as usize;
 

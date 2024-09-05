@@ -1,4 +1,4 @@
-use std::{ panic::Location, sync::Arc };
+use std::sync::Arc;
 use tensor_common::{ shape::Shape, shape_utils::predict_broadcast_shape };
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use crate::{
@@ -9,7 +9,6 @@ use crate::{
 
 #[cfg(feature = "simd")]
 pub mod simd_imports {
-    use std::panic::Location;
     use std::sync::Arc;
     use tensor_common::{ shape::Shape, shape_utils::predict_broadcast_shape };
     use tensor_traits::{ CommonBounds, TensorInfo };
@@ -42,11 +41,9 @@ pub mod simd_imports {
         pub fn zip<C>(mut self, mut other: C) -> StridedZipSimd<'a, Self, C>
             where C: 'a + IterGetSetSimd, <C as IterGetSetSimd>::Item: Send
         {
-            let new_shape = predict_broadcast_shape(
-                self.shape(),
-                other.shape(),
-                Location::caller()
-            ).expect("Cannot broadcast shapes");
+            let new_shape = predict_broadcast_shape(self.shape(), other.shape()).expect(
+                "Cannot broadcast shapes"
+            );
 
             other.broadcast_set_strides(&new_shape);
             self.broadcast_set_strides(&new_shape);
@@ -179,11 +176,9 @@ impl<'a, T: CommonBounds> StridedMut<'a, T> {
     pub fn zip<C>(mut self, mut other: C) -> StridedZip<'a, Self, C>
         where C: 'a + IterGetSet, <C as IterGetSet>::Item: Send
     {
-        let new_shape = predict_broadcast_shape(
-            self.shape(),
-            other.shape(),
-            Location::caller()
-        ).expect("Cannot broadcast shapes");
+        let new_shape = predict_broadcast_shape(self.shape(), other.shape()).expect(
+            "Cannot broadcast shapes"
+        );
 
         other.broadcast_set_strides(&new_shape);
         self.broadcast_set_strides(&new_shape);

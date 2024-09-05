@@ -1,14 +1,18 @@
-use tensor_types::vectors::traits::{ Init, VecTrait };
-use rayon::{ iter::{ IndexedParallelIterator, ParallelIterator }, slice::ParallelSliceMut };
-use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
+use rayon::iter::{ IndexedParallelIterator, ParallelIterator };
+use tensor_traits::{ CommonBounds, TensorCreator };
 use tensor_types::{
     convertion::{ Convertor, FromScalar },
     dtype::{ FloatConst, TypeCommon },
     into_scalar::IntoScalar,
     type_promote::{ FloatOutBinary, FloatOutUnary, NormalOut },
 };
-use tensor_types::vectors::traits::VecSize;
 use crate::{ backend::Cpu, tensor::Tensor, tensor_base::_Tensor };
+
+#[cfg(not(feature = "simd"))]
+use rayon::iter::IntoParallelIterator;
+
+#[cfg(feature = "simd")]
+use tensor_types::vectors::traits::*;
 
 impl<T> _Tensor<T>
     where

@@ -1,4 +1,4 @@
-use std::{ panic::Location, sync::Arc };
+use std::sync::Arc;
 use rayon::iter::{
     plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
     ParallelIterator,
@@ -10,7 +10,7 @@ use crate::{ iterator_traits::IterGetSet, par_strided::ParStrided, par_strided_z
 
 #[cfg(feature = "simd")]
 pub mod par_strided_map_mut_simd {
-    use std::{panic::Location, sync::Arc};
+    use std::sync::Arc;
     use tensor_types::vectors::traits::{Init, VecTrait};
     use rayon::iter::{plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer}, ParallelIterator};
     use tensor_common::{shape::Shape, shape_utils::{mt_intervals, predict_broadcast_shape}};
@@ -44,7 +44,6 @@ pub mod par_strided_map_mut_simd {
             let new_shape = predict_broadcast_shape(
                 self.shape(),
                 other.shape(),
-                Location::caller()
             ).expect("Cannot broadcast shapes");
     
             let inner_loop_size = new_shape[new_shape.len() - 1] as usize;
@@ -221,7 +220,6 @@ impl<'a, T: CommonBounds> ParStridedMut<'a, T> {
         let new_shape = predict_broadcast_shape(
             self.shape(),
             other.shape(),
-            Location::caller()
         ).expect("Cannot broadcast shapes");
 
         let inner_loop_size = new_shape[new_shape.len() - 1] as usize;

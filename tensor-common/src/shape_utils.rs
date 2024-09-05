@@ -123,10 +123,10 @@ pub fn compare_and_pad_shapes(a_shape: &[i64], b_shape: &[i64]) -> (Vec<i64>, Ve
 /// let broadcasted_shape = predict_broadcast_shape(&shape1, &shape2).unwrap();
 /// assert_eq!(*broadcasted_shape, vec![2, 3]);
 /// ```
+#[cfg_attr(feature = "track_caller", track_caller)]
 pub fn predict_broadcast_shape(
     a_shape: &[i64],
     b_shape: &[i64],
-    location: &'static Location<'static>
 ) -> anyhow::Result<Shape> {
     let (longer, shorter) = if a_shape.len() >= b_shape.len() {
         (a_shape, b_shape)
@@ -144,7 +144,7 @@ pub fn predict_broadcast_shape(
             shorter_dim
         } else {
             return Err(
-                ErrHandler::BroadcastError(a_shape.into(), b_shape.into(), i, location).into()
+                ErrHandler::BroadcastError(a_shape.into(), b_shape.into(), i, Location::caller()).into()
             );
         };
     }
@@ -152,6 +152,25 @@ pub fn predict_broadcast_shape(
     Ok(Shape::from(result_shape))
 }
 
+/// # Internal Function
+/// 
+/// Predicts the strides resulting from broadcasting two shapes.
+/// 
+/// Broadcasting allows operations to be performed on arrays of different shapes
+/// 
+/// # Arguments
+/// 
+/// - `brocasted_shape`: A slice of `i64` representing the shape after broadcasting.
+/// 
+/// - `original_layout`: The original layout of the tensor.
+/// 
+/// # Returns
+/// 
+/// A `Result<Strides>` representing the strides after broadcasting
+/// 
+/// # Panics
+/// 
+/// if the shapes cannot be broadcast together.
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub fn predict_broadcast_strides<T: Into<Layout>>(
     brocasted_shape: &[i64],

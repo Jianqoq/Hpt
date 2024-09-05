@@ -4,6 +4,31 @@ use anyhow::Result;
 
 use crate::err_handler::ErrHandler;
 
+/// Slice enum to hold the slice information
+///
+/// it stores the slice information the user wants to perform operations on
+///
+/// it is not being used directly by the user, but is used by the library internally
+///
+/// # Variants
+///
+/// - `From(i64)` - load the element at the index
+///
+/// - `Full` - load all the elements along the corresponding dimension
+///
+/// - `RangeFrom(i64)` - load from the first element to the end along the corresponding dimension
+///
+/// - `RangeTo(i64)` - load from the beginning to specified index along the corresponding dimension
+///
+/// - `Range((i64, i64))` - load from the start index to the end index along the corresponding dimension
+///
+/// - `StepByRangeFrom((i64, i64))` - load from the start index to the end index with step along the corresponding dimension
+///
+/// - `StepByFullRange(i64)` - load all the elements with step along the corresponding dimension
+///
+/// - `StepByRangeFromTo((i64, i64, i64))` - load from the start index to the end index with step along the corresponding dimension
+///
+/// - `StepByRangeTo((i64, i64))` - load from the start index to the end index with step along the corresponding dimension
 #[derive(Debug, Clone)]
 pub enum Slice {
     From(i64),

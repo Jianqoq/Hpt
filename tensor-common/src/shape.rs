@@ -134,6 +134,8 @@ impl DerefMut for Shape {
     }
 }
 
+// Implementing the From trait for the `Shape` struct, when the user pass any of the following types, it will be converted to `Shape` automatically
+
 impl From<&Shape> for Shape {
     fn from(v: &Shape) -> Self {
         Shape {

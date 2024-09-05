@@ -58,8 +58,25 @@ struct _Allocator {
 }
 
 impl _Allocator {
+    /// # Main Allocation Function
+    /// allocating and freeing memory is expensive, we are using `LRU`(least recently used) algorithm to reuse the memory
+    ///
+    /// allocate memory based on layout provided, if the layout is not found in the cache, allocate, otherwise pop from the cache
+    ///
+    /// this function internally checks if the cache is full, if it is full, it pops the least recently used layout and deallocates the memory
+    ///
+    /// if the cache is not full, it inserts the allocated memory into the cache, and increments the reference count in the storage
+    ///
+    /// # Safety
+    ///
+    /// This function checks `null` ptr internally, any memory allocated through this method, downstream don't need to check for `null` ptr
     fn allocate(&mut self, layout: Layout) -> *mut u8 {
-        let ptr = if let Some(ptr) = self.cache.get_mut(&layout) {
+        let ptr = if
+            let Some(ptr) = self.cache.get_mut(
+                &layout
+            ) /*check if we previously allocated same layout of memory */
+        {
+            // try pop the memory out, if it return None, there is no available cached memory, we need to allocate new memory
             if let Some(ptr) = ptr.pop() {
                 ptr
             } else {
@@ -78,6 +95,7 @@ impl _Allocator {
             self.allocated.insert(ptr);
             ptr
         };
+        // check if the cache is full, if it is full, pop the least recently used layout and deallocate the memory
         if self.cache.cap().get() == self.cache.len() {
             if let Some((layout, ptrs)) = self.cache.pop_lru() {
                 for ptr in ptrs {
@@ -87,7 +105,7 @@ impl _Allocator {
                 }
             }
         }
-        // println!("Allocating ptr {:p}", ptr);
+        // increment the reference count in the storage of the ptr allocated
         unsafe {
             if let Ok(mut storage) = CPU_STORAGE.lock() {
                 if let Some(cnt) = storage.get_mut(&ptr) {
@@ -100,6 +118,11 @@ impl _Allocator {
         ptr
     }
 
+    /// # Main Deallocation Function
+    ///
+    /// deallocate memory based on the ptr provided, if the ptr is found in the storage, decrement the reference count
+    ///
+    /// if the reference count is 0, remove the ptr from the storage, remove the ptr from the allocated set, and insert the ptr into the cache
     fn deallocate(&mut self, ptr: *mut u8, layout: &Layout) {
         unsafe {
             if let Ok(mut storage) = CPU_STORAGE.lock() {
@@ -121,6 +144,11 @@ impl _Allocator {
         }
     }
 
+    /// # Insert Pointer
+    /// 
+    /// insert the ptr into the allocated set, and increment the reference count in the storage
+    /// 
+    /// this function is used to insert the ptr into the allocated set, and increment the reference count in the storage
     fn insert_ptr(&mut self, ptr: *mut u8) {
         self.allocated.insert(ptr);
         // println!("Inserting ptr {:p}", ptr);

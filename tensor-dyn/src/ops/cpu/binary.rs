@@ -2,7 +2,6 @@ use tensor_traits::{
     ops::binary::{ Matmul, NormalBinOps },
     tensor::{ CommonBounds, TensorInfo, TensorLike },
 };
-use std::panic::Location;
 use tensor_types::{ into_scalar::IntoScalar, type_promote::NormalOut };
 
 use crate::{ tensor::Tensor, tensor_base::_Tensor };
@@ -31,7 +30,7 @@ macro_rules! impl_bin_ops {
                 U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                     TensorInfo<Self::OutputMeta>
         {
-            binary_fn_with_out(self, &rhs, |a, b| a._add(b), out, Location::caller())
+            binary_fn_with_out(self, &rhs, |a, b| a._add(b), out)
         }
         #[cfg_attr(feature = "track_caller", track_caller)]
         fn sub_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
@@ -39,7 +38,7 @@ macro_rules! impl_bin_ops {
                 U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                     TensorInfo<Self::OutputMeta>
         {
-            binary_fn_with_out(self, &rhs, |a, b| a._sub(b), out, Location::caller())
+            binary_fn_with_out(self, &rhs, |a, b| a._sub(b), out)
         }
         #[cfg_attr(feature = "track_caller", track_caller)]
         fn mul_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
@@ -47,7 +46,7 @@ macro_rules! impl_bin_ops {
                 U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                     TensorInfo<Self::OutputMeta>
         {
-            binary_fn_with_out(self, &rhs, |a, b| a._mul(b), out, Location::caller())
+            binary_fn_with_out(self, &rhs, |a, b| a._mul(b), out)
         }
         #[cfg_attr(feature = "track_caller", track_caller)]
         fn rem_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
@@ -55,7 +54,7 @@ macro_rules! impl_bin_ops {
                 U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                     TensorInfo<Self::OutputMeta>
         {
-            binary_fn_with_out(self, &rhs, |a, b| a._rem(b), out, Location::caller())
+            binary_fn_with_out(self, &rhs, |a, b| a._rem(b), out)
         }
         fn convolve(&self, _: $($rhs)*) -> anyhow::Result<Self::Output> {
             todo!()
@@ -88,7 +87,7 @@ macro_rules! impl_bin_ops_basic {
                 U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                     TensorInfo<Self::OutputMeta>
         {
-            Ok(binary_fn_with_out(self, &rhs, |a, b| a._add(b), out, Location::caller())?.into())
+            Ok(binary_fn_with_out(self, &rhs, |a, b| a._add(b), out)?.into())
         }
         #[cfg_attr(feature = "track_caller", track_caller)]
         fn sub_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
@@ -96,7 +95,7 @@ macro_rules! impl_bin_ops_basic {
                 U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                     TensorInfo<Self::OutputMeta>
         {
-            Ok(binary_fn_with_out(self, &rhs, |a, b| a._sub(b), out, Location::caller())?.into())
+            Ok(binary_fn_with_out(self, &rhs, |a, b| a._sub(b), out)?.into())
         }
         #[cfg_attr(feature = "track_caller", track_caller)]
         fn mul_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
@@ -104,7 +103,7 @@ macro_rules! impl_bin_ops_basic {
                 U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                     TensorInfo<Self::OutputMeta>
         {
-            Ok(binary_fn_with_out(self, &rhs, |a, b| a._mul(b), out, Location::caller())?.into())
+            Ok(binary_fn_with_out(self, &rhs, |a, b| a._mul(b), out)?.into())
         }
         #[cfg_attr(feature = "track_caller", track_caller)]
         fn rem_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
@@ -112,7 +111,7 @@ macro_rules! impl_bin_ops_basic {
                 U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                     TensorInfo<Self::OutputMeta>
         {
-            Ok(binary_fn_with_out(self, &rhs, |a, b| a._rem(b), out, Location::caller())?.into())
+            Ok(binary_fn_with_out(self, &rhs, |a, b| a._rem(b), out)?.into())
         }
         fn convolve(&self, _: $($rhs)*) -> anyhow::Result<Self::Output> {
             todo!()
