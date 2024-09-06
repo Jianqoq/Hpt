@@ -18,8 +18,13 @@ impl VecTrait<half::bf16> for bf16x16 {
         self.0.as_ptr()
     }
     #[inline(always)]
-    fn _mul_add(self, _: Self, _: Self) -> Self {
-        todo!()
+    fn _mul_add(self, a: Self, b: Self) -> Self {
+        let [x0, x1]: [f32x8; 2] = unsafe { std::mem::transmute(self.to_2_f32x8()) };
+        let [a0, a1]: [f32x8; 2] = unsafe { std::mem::transmute(a.to_2_f32x8()) };
+        let [b0, b1]: [f32x8; 2] = unsafe { std::mem::transmute(b.to_2_f32x8()) };
+        let res0 = x0._mul_add(a0, b0);
+        let res1 = x1._mul_add(a1, b1);
+        bf16x16::from_2_f32x8([res0, res1])
     }
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut half::bf16 {
@@ -33,7 +38,7 @@ impl VecTrait<half::bf16> for bf16x16 {
     fn sum(&self) -> half::bf16 {
         self.0.iter().sum()
     }
-    
+
     fn extract(self, idx: usize) -> half::bf16 {
         self.0[idx]
     }
