@@ -30,8 +30,6 @@ impl<T> _Tensor<T>
         dilation: [i64; 2],
         config: &Option<Conv2dConfig<T>>
     ) -> anyhow::Result<_Tensor<T>> {
-        use tensor_common::shape_utils::mt_intervals;
-
         use crate::CONV_REGNUM;
 
         let img_shape = self.shape();

@@ -1,4 +1,4 @@
-#![allow(unused_imports)]
+#![allow(unused)]
 use tensor_dyn::{ set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo };
 use tensor_dyn::ops::cpu::convolutions::conv_config::{ Conv2dConfig, KernelParamAlgo };
 use tensor_dyn::{ tensor_base::_Tensor, TensorCreator };
