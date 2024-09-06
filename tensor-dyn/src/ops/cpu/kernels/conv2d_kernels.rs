@@ -88,9 +88,8 @@ pub(crate) fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
             let out_ptr = &mut out[out_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) + r * osw];
             let buffer = &mut buffers[r as usize];
             if LOAD {
-                buffer.copy_from_slice(
-                    core::slice::from_raw_parts(out_ptr, co_b_remain as usize)
-                );
+                assert!(co_b_remain as usize <= <<T as TypeCommon>::Vec as VecSize>::SIZE);
+                core::ptr::copy_nonoverlapping(out_ptr, buffer.as_mut_ptr(), co_b_remain as usize);
             } else {
                 for i in 0..co_b_remain as i64 {
                     out[out_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) + r * osw + i] = buffer.extract(i as usize);

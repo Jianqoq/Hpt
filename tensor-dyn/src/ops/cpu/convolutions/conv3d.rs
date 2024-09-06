@@ -1,6 +1,8 @@
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::pointer::Pointer;
 use tensor_types::vectors::traits::*;
+use crate::ops::cpu::convolutions::conv_config::KernelParamAlgo;
+use crate::ops::cpu::kernels::conv2d_kernels::*;
 use crate::tensor_base::_Tensor;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
@@ -9,6 +11,8 @@ use tensor_types::into_scalar::IntoScalar;
 use rayon::prelude::*;
 use num::traits::MulAdd;
 use tensor_types::dtype::TypeCommon;
+
+use super::conv_config::Conv3dConfig;
 
 impl<T> _Tensor<T>
     where
@@ -24,7 +28,8 @@ impl<T> _Tensor<T>
         kernels: &_Tensor<T>,
         steps: [i64; 3],
         padding: [(i64, i64); 3],
-        dilation: [i64; 3]
+        dilation: [i64; 3],
+        config: &Option<Conv3dConfig<T>>
     ) -> anyhow::Result<_Tensor<T>> {
         use tensor_common::shape_utils::mt_intervals;
 
@@ -95,17 +100,20 @@ impl<T> _Tensor<T>
         let ks1 = kernels.strides()[2]; // kernel_width
         let ks2 = kernels.strides()[3]; // in_channels
 
-        let l1_cache =
-            cache_size::l1_cache_size().unwrap_or(32 * 1024 /* 32 kb */) / std::mem::size_of::<T>();
-
-        let (co_b, ci_b) = find_exact_combination::<T, CONV_REGNUM>(
-            l1_cache as i64,
-            out_channels as i64,
-            in_channels as i64,
-            kernel_height as i64,
-            kernel_width as i64,
-            kernel_depth as i64
-        );
+        let (ci_b, co_b) = match config {
+            Some(config) => (config.ci_block_size, config.co_block_size),
+            None => {
+                let config = {
+                    Conv3dConfig::<T>::new(
+                        out_channels,
+                        in_channels,
+                        [kernel_height, kernel_width, kernel_depth],
+                        KernelParamAlgo::Greedy
+                    )
+                };
+                (config.ci_block_size, config.co_block_size)
+            }
+        };
         let num_co_b = out_channels / co_b;
         let num_wo_b = out_width / (CONV_REGNUM as i64);
         let num_ci_b = in_channels / ci_b;
@@ -134,7 +142,7 @@ impl<T> _Tensor<T>
                         for m in 0..kernel_width {
                             for ii in 0..ci_b_remain {
                                 let i = ip * ci_b + ii;
-                                micro_kernel_regnum::<T, CONV_REGNUM>(
+                                micro_kernel_regnum::<T>(
                                     num_co_rb,
                                     kp,
                                     i,
@@ -225,40 +233,13 @@ impl<T> _Tensor<T>
         | {
             match wo_b_remain {
                 2 => {
-                    case1_helper(
-                        b,
-                        l,
-                        d,
-                        c,
-                        ip,
-                        ci_b_remain,
-                        micro_kernel_2::<T, CONV_REGNUM>,
-                        out
-                    );
+                    case1_helper(b, l, d, c, ip, ci_b_remain, micro_kernel_2::<T>, out);
                 }
                 4 => {
-                    case1_helper(
-                        b,
-                        l,
-                        d,
-                        c,
-                        ip,
-                        ci_b_remain,
-                        micro_kernel_4::<T, CONV_REGNUM>,
-                        out
-                    );
+                    case1_helper(b, l, d, c, ip, ci_b_remain, micro_kernel_4::<T>, out);
                 }
                 6 => {
-                    case1_helper(
-                        b,
-                        l,
-                        d,
-                        c,
-                        ip,
-                        ci_b_remain,
-                        micro_kernel_6::<T, CONV_REGNUM>,
-                        out
-                    );
+                    case1_helper(b, l, d, c, ip, ci_b_remain, micro_kernel_6::<T>, out);
                 }
                 _ => unimplemented!(),
             }
@@ -266,6 +247,7 @@ impl<T> _Tensor<T>
 
         let inp_cpy = inp_ptr.clone();
         let kernel_cpy = kernel.clone();
+        let case0 = &case0;
         let case2 = move |
             b: i64,
             l: i64,
@@ -275,51 +257,92 @@ impl<T> _Tensor<T>
             ci_b_remain: i64,
             mut out: Pointer<T>
         | {
-            let mut res_buffer =
-                vec![vec![<T as TypeCommon>::Vec::splat(T::ZERO); CONV_REGNUM]; num_co_rb as usize + 1];
-            for kp in 0..num_wo_b {
-                load_store_res_buffer::<T, CONV_REGNUM, true>(
-                    num_co_rb,
-                    co_b_remain,
-                    osw,
-                    c * co_b + b * osb + l * osh + d * osd + kp * (CONV_REGNUM as i64) * osw,
-                    &mut res_buffer,
-                    &mut out
-                );
-                for p in 0..kernel_depth {
-                    for n in 0..kernel_height {
-                        for m in 0..kernel_width {
-                            for ii in 0..ci_b_remain {
-                                let i = ip * ci_b + ii;
-                                // need either packing or minimize the cost of cache miss
-                                micro_kernel_regnum_with_buffer::<T, CONV_REGNUM>(
-                                    num_co_rb,
-                                    kp,
-                                    i,
-                                    b * isb +
-                                        (l * step_height + n * dh) * ish +
-                                        (d * step_depth + p * dd) * isd +
-                                        m * dw * isw,
-                                    c * co_b,
-                                    n * ks0 + m * ks1 + i * ks2 + p * ksd,
-                                    step_width,
-                                    isw,
-                                    &inp_cpy,
-                                    &mut res_buffer,
-                                    &kernel_cpy
-                                );
+            let num_vec_size = co_b_remain / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
+            let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
+            if remain == 0 {
+                case0(b, l, d, c, ip, ci_b, out.clone());
+                for kp in 0..num_wo_b {
+                    for p in 0..kernel_depth {
+                        for n in 0..kernel_height {
+                            for m in 0..kernel_width {
+                                for ii in 0..ci_b_remain {
+                                    let i = ip * ci_b + ii;
+                                    micro_kernel_regnum::<T>(
+                                        num_vec_size,
+                                        kp,
+                                        i,
+                                        b * isb +
+                                            (l * step_height + n * dh) * ish +
+                                            (d * step_depth + p * dd) * isd +
+                                            m * dw * isw,
+                                        num_co_b * co_b,
+                                        b * osb + l * osh + kp * CONV_REGNUM as i64 * osw, // prettier-ignore
+                                        n * ks0 + m * ks1 + i * ks2,
+                                        step_width,
+                                        isw,
+                                        osw,
+                                        &inp_cpy,
+                                        &mut out,
+                                        &kernel_cpy
+                                    );
+                                }
                             }
                         }
                     }
                 }
-                load_store_res_buffer::<T, CONV_REGNUM, false>(
-                    num_co_rb,
-                    co_b_remain,
-                    osw,
-                    c * co_b + b * osb + l * osh + d * osd + kp * (CONV_REGNUM as i64) * osw,
-                    &mut res_buffer,
-                    &mut out
-                );
+            } else {
+                let mut res_buffer =
+                    vec![vec![<T as TypeCommon>::Vec::splat(T::ZERO); CONV_REGNUM]; num_co_rb as usize + 1];
+                let mut kernel_buffer =
+                    vec![<T as TypeCommon>::Vec::splat(T::ZERO); num_vec_size as usize + 1];
+                for kp in 0..num_wo_b {
+                    load_store_res_buffer::<T, CONV_REGNUM, true>(
+                        num_co_rb,
+                        co_b_remain,
+                        osw,
+                        c * co_b + b * osb + l * osh + d * osd + kp * (CONV_REGNUM as i64) * osw,
+                        &mut res_buffer,
+                        &mut out
+                    );
+                    for p in 0..kernel_depth {
+                        for n in 0..kernel_height {
+                            for m in 0..kernel_width {
+                                for ii in 0..ci_b_remain {
+                                    let i = ip * ci_b + ii;
+                                    pack_kernel(
+                                        num_vec_size,
+                                        remain,
+                                        c * co_b + n * ks0 + m * ks1 + i * ks2 + p * ksd,
+                                        &kernel_cpy,
+                                        &mut kernel_buffer
+                                    );
+                                    micro_kernel_regnum_with_buffer::<T>(
+                                        num_vec_size,
+                                        kp,
+                                        i,
+                                        b * isb +
+                                            (d * step_depth + p * dd) * isd +
+                                            (l * step_height + n * dh) * ish +
+                                            m * dw * isw,
+                                        step_width,
+                                        isw,
+                                        &inp_cpy,
+                                        &mut res_buffer,
+                                        &kernel_buffer
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    load_store_res_buffer::<T, CONV_REGNUM, false>(
+                        num_co_rb,
+                        co_b_remain,
+                        osw,
+                        c * co_b + b * osb + l * osh + d * osd + kp * (CONV_REGNUM as i64) * osw,
+                        &mut res_buffer,
+                        &mut out
+                    );
+                }
             }
         };
 
@@ -428,7 +451,7 @@ impl<T> _Tensor<T>
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 1, true>,
                         load_store_res_buffer::<T, 1, false>,
-                        micro_kernel_1_with_buffer::<T, CONV_REGNUM, 1>,
+                        micro_kernel_1_with_buffer::<T>,
                         out
                     );
                 }
@@ -444,7 +467,7 @@ impl<T> _Tensor<T>
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 2, true>,
                         load_store_res_buffer::<T, 2, false>,
-                        micro_kernel_2_with_buffer::<T, CONV_REGNUM, 2>,
+                        micro_kernel_2_with_buffer::<T>,
                         out
                     );
                 }
@@ -460,7 +483,7 @@ impl<T> _Tensor<T>
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 3, true>,
                         load_store_res_buffer::<T, 3, false>,
-                        micro_kernel_3_with_buffer::<T, CONV_REGNUM, 3>,
+                        micro_kernel_3_with_buffer::<T>,
                         out
                     );
                 }
@@ -476,7 +499,7 @@ impl<T> _Tensor<T>
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 4, true>,
                         load_store_res_buffer::<T, 4, false>,
-                        micro_kernel_4_with_buffer::<T, CONV_REGNUM, 4>,
+                        micro_kernel_4_with_buffer::<T>,
                         out
                     );
                 }
@@ -492,7 +515,7 @@ impl<T> _Tensor<T>
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 5, true>,
                         load_store_res_buffer::<T, 5, false>,
-                        micro_kernel_5_with_buffer::<T, CONV_REGNUM, 5>,
+                        micro_kernel_5_with_buffer::<T>,
                         out
                     );
                 }
@@ -508,7 +531,7 @@ impl<T> _Tensor<T>
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 6, true>,
                         load_store_res_buffer::<T, 6, false>,
-                        micro_kernel_6_with_buffer::<T, CONV_REGNUM, 6>,
+                        micro_kernel_6_with_buffer::<T>,
                         out
                     );
                 }
@@ -663,658 +686,5 @@ impl<T> _Tensor<T>
             }
         }
         Ok(output)
-    }
-}
-
-fn find_exact_combination<T: CommonBounds, const REGNUM: usize>(
-    max_cache_size: i64,
-    max_co_b: i64,
-    max_ci_b: i64,
-    weight_size: i64,
-    height_size: i64,
-    depth_size: i64
-) -> (i64, i64)
-    where <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
-{
-    let mut best_co_b = 0;
-    let mut best_ci_b = 0;
-
-    for co_b in (1..max_co_b + 1)
-        .rev()
-        .filter(|&co_b| co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0) {
-        // 只遍历 wo_b 是 7 的倍数的情况
-        for ci_b in (1..max_ci_b + 1).rev() {
-            let product =
-                co_b * (REGNUM as i64) +
-                weight_size * height_size * depth_size * ci_b * ((REGNUM as i64) + co_b);
-
-            if product <= max_cache_size {
-                if co_b > best_co_b || (co_b == best_co_b && ci_b > best_ci_b) {
-                    best_co_b = co_b;
-                    best_ci_b = ci_b;
-                }
-            }
-        }
-    }
-
-    (best_co_b, best_ci_b)
-}
-
-#[rustfmt::skip]
-fn micro_kernel_regnum<T, const REGNUM: usize>(
-    num_co_rb: i64,
-    kp: i64,
-    i: i64,
-    inp_offset: i64,
-    co_offset: i64,
-    out_offset: i64,
-    kernel_offset: i64,
-    step_width: i64,
-    isw: i64,
-    osw: i64,
-    inp: &Pointer<T>,
-    out: &mut Pointer<T>,
-    kernel: &Pointer<T>
-)
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
-{
-    let _k = kp * (REGNUM as i64) + 0;
-    let inp_vec0 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 1;
-    let inp_vec1 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 2;
-    let inp_vec2 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 3;
-    let inp_vec3 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 4;
-    let inp_vec4 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 5;
-    let inp_vec5 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 6;
-    let inp_vec6 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    for j in 0..num_co_rb {
-        let ofs = out_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
-        unsafe {
-            let kernel_vec = <T as TypeCommon>::Vec::from_ptr(
-                &kernel[kernel_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *const _
-            );
-
-            let out_vec0 = &mut out[co_offset + ofs + 0 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec1 = &mut out[co_offset + ofs + 1 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec2 = &mut out[co_offset + ofs + 2 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec3 = &mut out[co_offset + ofs + 3 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec4 = &mut out[co_offset + ofs + 4 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec5 = &mut out[co_offset + ofs + 5 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec6 = &mut out[co_offset + ofs + 6 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-
-            let res0 = inp_vec0._mul_add(kernel_vec, out_vec0.read_unaligned());
-            let res1 = inp_vec1._mul_add(kernel_vec, out_vec1.read_unaligned());
-            let res2 = inp_vec2._mul_add(kernel_vec, out_vec2.read_unaligned());
-            let res3 = inp_vec3._mul_add(kernel_vec, out_vec3.read_unaligned());
-            let res4 = inp_vec4._mul_add(kernel_vec, out_vec4.read_unaligned());
-            let res5 = inp_vec5._mul_add(kernel_vec, out_vec5.read_unaligned());
-            let res6 = inp_vec6._mul_add(kernel_vec, out_vec6.read_unaligned());
-
-            out_vec0.write_unaligned(res0);
-            out_vec1.write_unaligned(res1);
-            out_vec2.write_unaligned(res2);
-            out_vec3.write_unaligned(res3);
-            out_vec4.write_unaligned(res4);
-            out_vec5.write_unaligned(res5);
-            out_vec6.write_unaligned(res6);
-        }
-    }
-}
-
-#[rustfmt::skip]
-fn micro_kernel_regnum_with_buffer<T, const REGNUM: usize>(
-    num_co_rb: i64,
-    kp: i64,
-    i: i64,
-    inp_offset: i64,
-    co_offset: i64,
-    kernel_offset: i64,
-    step_width: i64,
-    isw: i64,
-    inp: &Pointer<T>,
-    res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
-    kernel: &Pointer<T>
-)
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
-{
-    let inp: &Pointer<T> = &inp;
-    let kernel: &Pointer<T> = &kernel;
-    let _k = kp * (REGNUM as i64) + 0;
-    let inp_vec0 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 1;
-    let inp_vec1 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 2;
-    let inp_vec2 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 3;
-    let inp_vec3 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 4;
-    let inp_vec4 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 5;
-    let inp_vec5 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 6;
-    let inp_vec6 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    for j in 0..num_co_rb + 1 {
-        unsafe {
-            let kernel_vec = <T as TypeCommon>::Vec::from_ptr(&kernel[co_offset + kernel_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *const _);
-            let res_vectors = res_buffer.get_unchecked_mut(j as usize);
-
-            let out_vec0 = res_vectors.get_unchecked_mut(0) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec1 = res_vectors.get_unchecked_mut(1) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec2 = res_vectors.get_unchecked_mut(2) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec3 = res_vectors.get_unchecked_mut(3) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec4 = res_vectors.get_unchecked_mut(4) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec5 = res_vectors.get_unchecked_mut(5) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec6 = res_vectors.get_unchecked_mut(6) as *mut _ as *mut <T as TypeCommon>::Vec;
-
-            let res0 = inp_vec0._mul_add(kernel_vec, out_vec0.read_unaligned());
-            let res1 = inp_vec1._mul_add(kernel_vec, out_vec1.read_unaligned());
-            let res2 = inp_vec2._mul_add(kernel_vec, out_vec2.read_unaligned());
-            let res3 = inp_vec3._mul_add(kernel_vec, out_vec3.read_unaligned());
-            let res4 = inp_vec4._mul_add(kernel_vec, out_vec4.read_unaligned());
-            let res5 = inp_vec5._mul_add(kernel_vec, out_vec5.read_unaligned());
-            let res6 = inp_vec6._mul_add(kernel_vec, out_vec6.read_unaligned());
-
-            *out_vec0 = res0;
-            *out_vec1 = res1;
-            *out_vec2 = res2;
-            *out_vec3 = res3;
-            *out_vec4 = res4;
-            *out_vec5 = res5;
-            *out_vec6 = res6;
-        }
-    }
-}
-
-#[rustfmt::skip]
-fn micro_kernel_2<T, const REGNUM: usize>(
-    num_co_rb: i64,
-    kp: i64,
-    i: i64,
-    inp_offset: i64,
-    co_offset: i64,
-    out_offset: i64,
-    kernel_offset: i64,
-    step_width: i64,
-    isw: i64,
-    osw: i64,
-    inp: &Pointer<T>,
-    out: &mut Pointer<T>,
-    kernel: &Pointer<T>
-)
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
-{
-    let _k = kp * (REGNUM as i64) + 0;
-    let inp_vec0 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 1;
-    let inp_vec1 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    for j in 0..num_co_rb {
-        let ofs = out_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
-        unsafe {
-            let kernel_vec = <T as TypeCommon>::Vec::from_ptr(
-                &kernel[co_offset + kernel_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *const _
-            );
-
-            let out_vec0 = &mut out[co_offset + ofs + 0 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec1 = &mut out[co_offset + ofs + 1 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-
-            let res0 = inp_vec0._mul_add(kernel_vec, out_vec0.read_unaligned());
-            let res1 = inp_vec1._mul_add(kernel_vec, out_vec1.read_unaligned());
-
-            out_vec0.write_unaligned(res0);
-            out_vec1.write_unaligned(res1);
-        }
-    }
-}
-
-#[rustfmt::skip]
-fn micro_kernel_1_with_buffer<T, const REGNUM: usize, const BUFFER_SIZE: usize>(
-    num_co_rb: i64,
-    kp: i64,
-    i: i64,
-    inp_offset: i64,
-    step_width: i64,
-    isw: i64,
-    inp: &Pointer<T>,
-    res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
-    kernel: &[<T as TypeCommon>::Vec]
-)
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T>
-{
-    let inp: &Pointer<T> = &inp;
-    let _k = kp * (REGNUM as i64) + 0;
-    let inp_vec0 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    for j in 0..num_co_rb + 1 {
-        unsafe {
-            let kernel_vec = *kernel.get_unchecked(j as usize);
-            let res_vectors = res_buffer.get_unchecked_mut(j as usize);
-
-            let out_vec0 = &mut res_vectors.get_unchecked_mut(0) as *mut _ as *mut <T as TypeCommon>::Vec;
-
-            let res0 = inp_vec0._mul_add(kernel_vec, out_vec0.read_unaligned());
-
-            *out_vec0 = res0;
-        }
-    }
-}
-
-#[rustfmt::skip]
-fn micro_kernel_2_with_buffer<T, const REGNUM: usize, const BUFFER_SIZE: usize>(
-    num_co_rb: i64,
-    kp: i64,
-    i: i64,
-    inp_offset: i64,
-    step_width: i64,
-    isw: i64,
-    inp: &Pointer<T>,
-    res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
-    kernel: &[<T as TypeCommon>::Vec]
-)
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T>
-{
-    let inp: &Pointer<T> = &inp;
-    let _k = kp * (REGNUM as i64) + 0;
-    let inp_vec0 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 1;
-    let inp_vec1 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    for j in 0..num_co_rb + 1 {
-        unsafe {
-            let kernel_vec = *kernel.get_unchecked(j as usize);
-            let res_vectors = res_buffer.get_unchecked_mut(j as usize);
-
-            let out_vec0 = &mut res_vectors.get_unchecked_mut(0) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec1 = &mut res_vectors.get_unchecked_mut(1) as *mut _ as *mut <T as TypeCommon>::Vec;
-
-            let res0 = inp_vec0._mul_add(kernel_vec, out_vec0.read_unaligned());
-            let res1 = inp_vec1._mul_add(kernel_vec, out_vec1.read_unaligned());
-
-            *out_vec0 = res0;
-            *out_vec1 = res1;
-        }
-    }
-}
-
-#[rustfmt::skip]
-fn micro_kernel_3_with_buffer<T, const REGNUM: usize, const BUFFER_SIZE: usize>(
-    num_co_rb: i64,
-    kp: i64,
-    i: i64,
-    inp_offset: i64,
-    step_width: i64,
-    isw: i64,
-    inp: &Pointer<T>,
-    res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
-    kernel: &[<T as TypeCommon>::Vec]
-)
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T>
-{
-    let inp: &Pointer<T> = &inp;
-    let _k = kp * (REGNUM as i64) + 0;
-    let inp_vec0 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 1;
-    let inp_vec1 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 2;
-    let inp_vec2 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    for j in 0..num_co_rb + 1 {
-        unsafe {
-            let kernel_vec = *kernel.get_unchecked(j as usize);
-            let res_vectors = res_buffer.get_unchecked_mut(j as usize);
-
-            let out_vec0 = &mut res_vectors.get_unchecked_mut(0) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec1 = &mut res_vectors.get_unchecked_mut(1) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec2 = &mut res_vectors.get_unchecked_mut(2) as *mut _ as *mut <T as TypeCommon>::Vec;
-
-            let res0 = inp_vec0._mul_add(kernel_vec, out_vec0.read_unaligned());
-            let res1 = inp_vec1._mul_add(kernel_vec, out_vec1.read_unaligned());
-            let res2 = inp_vec2._mul_add(kernel_vec, out_vec2.read_unaligned());
-
-            *out_vec0 = res0;
-            *out_vec1 = res1;
-            *out_vec2 = res2;
-        }
-    }
-}
-
-#[rustfmt::skip]
-fn micro_kernel_5_with_buffer<T, const REGNUM: usize, const BUFFER_SIZE: usize>(
-    num_co_rb: i64,
-    kp: i64,
-    i: i64,
-    inp_offset: i64,
-    step_width: i64,
-    isw: i64,
-    inp: &Pointer<T>,
-    res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
-    kernel: &[<T as TypeCommon>::Vec]
-)
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T>
-{
-    let inp: &Pointer<T> = &inp;
-    let _k = kp * (REGNUM as i64) + 0;
-    let inp_vec0 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 1;
-    let inp_vec1 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 2;
-    let inp_vec2 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 3;
-    let inp_vec3 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 4;
-    let inp_vec4 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    for j in 0..num_co_rb + 1 {
-        unsafe {
-            let kernel_vec = *kernel.get_unchecked(j as usize);
-            let res_vectors = res_buffer.get_unchecked_mut(j as usize);
-
-            let out_vec0 = &mut res_vectors.get_unchecked_mut(0) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec1 = &mut res_vectors.get_unchecked_mut(1) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec2 = &mut res_vectors.get_unchecked_mut(2) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec3 = &mut res_vectors.get_unchecked_mut(3) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec4 = &mut res_vectors.get_unchecked_mut(4) as *mut _ as *mut <T as TypeCommon>::Vec;
-
-            let res0 = inp_vec0._mul_add(kernel_vec, out_vec0.read_unaligned());
-            let res1 = inp_vec1._mul_add(kernel_vec, out_vec1.read_unaligned());
-            let res2 = inp_vec2._mul_add(kernel_vec, out_vec2.read_unaligned());
-            let res3 = inp_vec3._mul_add(kernel_vec, out_vec3.read_unaligned());
-            let res4 = inp_vec4._mul_add(kernel_vec, out_vec4.read_unaligned());
-
-            *out_vec0 = res0;
-            *out_vec1 = res1;
-            *out_vec2 = res2;
-            *out_vec3 = res3;
-            *out_vec4 = res4;
-        }
-    }
-}
-
-#[rustfmt::skip]
-fn micro_kernel_6<T, const REGNUM: usize>(
-    num_co_rb: i64,
-    kp: i64,
-    i: i64,
-    inp_offset: i64,
-    co_offset: i64,
-    out_offset: i64,
-    kernel_offset: i64,
-    step_width: i64,
-    isw: i64,
-    osw: i64,
-    inp: &Pointer<T>,
-    out: &mut Pointer<T>,
-    kernel: &Pointer<T>
-)
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
-{
-    let _k = kp * (REGNUM as i64) + 0;
-    let inp_vec0 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 1;
-    let inp_vec1 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 2;
-    let inp_vec2 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 3;
-    let inp_vec3 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 4;
-    let inp_vec4 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 5;
-    let inp_vec5 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    for j in 0..num_co_rb {
-        let ofs = out_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
-        unsafe {
-            let kernel_vec = <T as TypeCommon>::Vec::from_ptr(
-                &kernel[co_offset + kernel_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *const _
-            );
-
-            let out_vec0 = &mut out[co_offset + ofs + 0 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec1 = &mut out[co_offset + ofs + 1 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec2 = &mut out[co_offset + ofs + 2 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec3 = &mut out[co_offset + ofs + 3 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec4 = &mut out[co_offset + ofs + 4 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec5 = &mut out[co_offset + ofs + 5 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-
-            let res0 = inp_vec0._mul_add(kernel_vec, out_vec0.read_unaligned());
-            let res1 = inp_vec1._mul_add(kernel_vec, out_vec1.read_unaligned());
-            let res2 = inp_vec2._mul_add(kernel_vec, out_vec2.read_unaligned());
-            let res3 = inp_vec3._mul_add(kernel_vec, out_vec3.read_unaligned());
-            let res4 = inp_vec4._mul_add(kernel_vec, out_vec4.read_unaligned());
-            let res5 = inp_vec5._mul_add(kernel_vec, out_vec5.read_unaligned());
-
-            out_vec0.write_unaligned(res0);
-            out_vec1.write_unaligned(res1);
-            out_vec2.write_unaligned(res2);
-            out_vec3.write_unaligned(res3);
-            out_vec4.write_unaligned(res4);
-            out_vec5.write_unaligned(res5);
-        }
-    }
-}
-
-#[rustfmt::skip]
-fn micro_kernel_6_with_buffer<T, const REGNUM: usize, const BUFFER_SIZE: usize>(
-    num_co_rb: i64,
-    kp: i64,
-    i: i64,
-    inp_offset: i64,
-    step_width: i64,
-    isw: i64,
-    inp: &Pointer<T>,
-    res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
-    kernel: &[<T as TypeCommon>::Vec]
-)
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T>
-{
-    let inp: &Pointer<T> = &inp;
-    let _k = kp * (REGNUM as i64) + 0;
-    let inp_vec0 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 1;
-    let inp_vec1 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 2;
-    let inp_vec2 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 3;
-    let inp_vec3 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 4;
-    let inp_vec4 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 5;
-    let inp_vec5 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    for j in 0..num_co_rb + 1 {
-        unsafe {
-            let kernel_vec = *kernel.get_unchecked(j as usize);
-            let res_vectors = res_buffer.get_unchecked_mut(j as usize);
-
-            let out_vec0 = res_vectors.get_unchecked_mut(0) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec1 = res_vectors.get_unchecked_mut(1) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec2 = res_vectors.get_unchecked_mut(2) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec3 = res_vectors.get_unchecked_mut(3) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec4 = res_vectors.get_unchecked_mut(4) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec5 = res_vectors.get_unchecked_mut(5) as *mut _ as *mut <T as TypeCommon>::Vec;
-
-            let res0 = inp_vec0._mul_add(kernel_vec, out_vec0.read_unaligned());
-            let res1 = inp_vec1._mul_add(kernel_vec, out_vec1.read_unaligned());
-            let res2 = inp_vec2._mul_add(kernel_vec, out_vec2.read_unaligned());
-            let res3 = inp_vec3._mul_add(kernel_vec, out_vec3.read_unaligned());
-            let res4 = inp_vec4._mul_add(kernel_vec, out_vec4.read_unaligned());
-            let res5 = inp_vec5._mul_add(kernel_vec, out_vec5.read_unaligned());
-
-            *out_vec0 = res0;
-            *out_vec1 = res1;
-            *out_vec2 = res2;
-            *out_vec3 = res3;
-            *out_vec4 = res4;
-            *out_vec5 = res5;
-        }
-    }
-}
-
-#[rustfmt::skip]
-fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
-    num_co_rb: i64,
-    co_b_remain: i64,
-    osw: i64,
-    out_offset: i64,
-    res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
-    out: &mut Pointer<T>
-)
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
-{
-    for j in 0..num_co_rb {
-        let buffers = unsafe { res_buffer.get_unchecked_mut(j as usize) };
-        for r in 0..REGNUM as i64 {
-            unsafe {
-                let out_ptr = &mut out[out_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) + r * osw] as *mut _ as *mut T; // prettier-ignore
-                let buffer = buffers.get_unchecked_mut(r as usize) as *mut _ as *mut T; // prettier-ignore
-                if LOAD {
-                    std::ptr::copy_nonoverlapping(
-                        out_ptr,
-                        buffer,
-                        <<T as TypeCommon>::Vec as VecSize>::SIZE
-                    );
-                } else {
-                    std::ptr::copy_nonoverlapping(
-                        buffer,
-                        out_ptr,
-                        <<T as TypeCommon>::Vec as VecSize>::SIZE
-                    );
-                }
-            }
-        }
-    }
-    let buffers = unsafe { res_buffer.get_unchecked_mut(num_co_rb as usize) };
-    for r in 0..REGNUM as i64 {
-        unsafe {
-            let out_ptr = &mut out[out_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) + r * osw] as *mut _ as *mut T; // prettier-ignore
-            let buffer = buffers.get_unchecked_mut(r as usize) as *mut _ as *mut T; // prettier-ignore
-            if LOAD {
-                std::ptr::copy_nonoverlapping(out_ptr, buffer, co_b_remain as usize);
-            } else {
-                std::ptr::copy_nonoverlapping(buffer, out_ptr, co_b_remain as usize);
-            }
-        }
-    }
-}
-
-#[rustfmt::skip]
-fn pack_kernel<T>(
-    num_co_rb: i64,
-    co_b_remain: i64,
-    kernel_offset: i64,
-    kernel: &Pointer<T>,
-    kernel_buffer: &mut Vec<<T as TypeCommon>::Vec>
-)
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecSize
-{
-    for j in 0..num_co_rb {
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                &kernel[kernel_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *const _ as *const T,
-                kernel_buffer.get_unchecked_mut(j as usize) as *mut _ as *mut T,
-                <<T as TypeCommon>::Vec as VecSize>::SIZE
-            );
-        }
-    }
-    unsafe {
-        std::ptr::copy_nonoverlapping(
-            &kernel[kernel_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *const _ as *const T,
-            kernel_buffer.get_unchecked_mut(num_co_rb as usize) as *mut _ as *mut T,
-            co_b_remain as usize
-        );
-    }
-}
-
-#[rustfmt::skip]
-fn micro_kernel_4<T, const REGNUM: usize>(
-    num_co_rb: i64,
-    kp: i64,
-    i: i64,
-    inp_offset: i64,
-    co_offset: i64,
-    out_offset: i64,
-    kernel_offset: i64,
-    step_width: i64,
-    isw: i64,
-    osw: i64,
-    inp: &Pointer<T>,
-    out: &mut Pointer<T>,
-    kernel: &Pointer<T>
-)
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
-{
-    let _k = kp * (REGNUM as i64) + 0;
-    let inp_vec0 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 1;
-    let inp_vec1 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 2;
-    let inp_vec2 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 3;
-    let inp_vec3 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    for j in 0..num_co_rb {
-        let ofs = out_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
-        unsafe {
-            let kernel_vec = <T as TypeCommon>::Vec::from_ptr(
-                &kernel[co_offset + kernel_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *const _
-            );
-
-            let out_vec0 = &mut out[co_offset + ofs + 0 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec1 = &mut out[co_offset + ofs + 1 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec2 = &mut out[co_offset + ofs + 2 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec3 = &mut out[co_offset + ofs + 3 * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-
-            let res0 = inp_vec0._mul_add(kernel_vec, out_vec0.read_unaligned());
-            let res1 = inp_vec1._mul_add(kernel_vec, out_vec1.read_unaligned());
-            let res2 = inp_vec2._mul_add(kernel_vec, out_vec2.read_unaligned());
-            let res3 = inp_vec3._mul_add(kernel_vec, out_vec3.read_unaligned());
-
-            out_vec0.write_unaligned(res0);
-            out_vec1.write_unaligned(res1);
-            out_vec2.write_unaligned(res2);
-            out_vec3.write_unaligned(res3);
-        }
-    }
-}
-
-#[rustfmt::skip]
-fn micro_kernel_4_with_buffer<T, const REGNUM: usize, const BUFFER_SIZE: usize>(
-    num_co_rb: i64,
-    kp: i64,
-    i: i64,
-    inp_offset: i64,
-    step_width: i64,
-    isw: i64,
-    inp: &Pointer<T>,
-    res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
-    kernel: &[<T as TypeCommon>::Vec]
-)
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T>
-{
-    let inp: &Pointer<T> = &inp;
-    let _k = kp * (REGNUM as i64) + 0;
-    let inp_vec0 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 1;
-    let inp_vec1 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 2;
-    let inp_vec2 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    let _k = kp * (REGNUM as i64) + 3;
-    let inp_vec3 = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-    for j in 0..num_co_rb + 1 {
-        unsafe {
-            let kernel_vec = *kernel.get_unchecked(j as usize);
-            let res_vectors = res_buffer.get_unchecked_mut(j as usize);
-
-            let out_vec0 = res_vectors.get_unchecked_mut(0) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec1 = res_vectors.get_unchecked_mut(1) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec2 = res_vectors.get_unchecked_mut(2) as *mut _ as *mut <T as TypeCommon>::Vec;
-            let out_vec3 = res_vectors.get_unchecked_mut(3) as *mut _ as *mut <T as TypeCommon>::Vec;
-
-            let res0 = inp_vec0._mul_add(kernel_vec, *out_vec0);
-            let res1 = inp_vec1._mul_add(kernel_vec, *out_vec1);
-            let res2 = inp_vec2._mul_add(kernel_vec, *out_vec2);
-            let res3 = inp_vec3._mul_add(kernel_vec, *out_vec3);
-
-            *out_vec0 = res0;
-            *out_vec1 = res1;
-            *out_vec2 = res2;
-            *out_vec3 = res3;
-        }
     }
 }

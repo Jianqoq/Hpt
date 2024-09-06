@@ -101,7 +101,6 @@ impl<T> _Tensor<T>
                 (config.ci_block_size, config.co_block_size)
             }
         };
-        assert!(co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0);
 
         let num_co_b = out_channels / co_b;
         let num_wo_b = out_width / (CONV_REGNUM as i64);
@@ -111,6 +110,7 @@ impl<T> _Tensor<T>
         let wo_b_remain = out_width % (CONV_REGNUM as i64);
         let ci_b_remain = in_channels % ci_b;
         let num_co_rb = co_b / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
+        assert_eq!(co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64), 0);
 
         let outer = batch * num_co_b * num_ci_b * out_height;
 
@@ -251,56 +251,90 @@ impl<T> _Tensor<T>
         let inp_cpy = inp.clone();
         let kernel_cpy = kernel.clone();
 
+        let case0 = &case0;
         let case2 = move |b: i64, l: i64, c: i64, ip: i64, ci_b_remain: i64, mut out: Pointer<T>| {
-            let mut kernel_buffer =
-                vec![<T as TypeCommon>::Vec::splat(T::ZERO); num_co_rb as usize + 1];
-            let mut res_buffer =
-                vec![vec![<T as TypeCommon>::Vec::splat(T::ZERO); CONV_REGNUM]; num_co_rb as usize + 1];
-            for kp in 0..num_wo_b {
-                load_store_res_buffer::<T, CONV_REGNUM, true>(
-                    num_co_rb,
-                    co_b_remain,
-                    osw,
-                    c * co_b + b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
-                    &mut res_buffer,
-                    &mut out
-                );
-                for n in 0..kernel_height {
-                    for m in 0..kernel_width {
-                        for ii in 0..ci_b_remain {
-                            let i = ip * ci_b + ii;
-                            pack_kernel(
-                                num_co_rb,
-                                co_b_remain,
-                                c * co_b + n * ks0 + m * ks1 + i * ks2,
-                                &kernel_cpy,
-                                &mut kernel_buffer
-                            );
-                            micro_kernel_regnum_with_buffer::<T>(
-                                num_co_rb,
-                                kp,
-                                i,
-                                b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                                step_width,
-                                isw,
-                                &inp_cpy,
-                                &mut res_buffer,
-                                &kernel_buffer
-                            );
+            let num_vec_size = co_b_remain / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
+            let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
+            if remain == 0 {
+                case0(b, l, c, ip, ci_b, out.clone());
+                for kp in 0..num_wo_b {
+                    for n in 0..kernel_height {
+                        for m in 0..kernel_width {
+                            for ii in 0..ci_b_remain {
+                                let i = ip * ci_b + ii;
+                                micro_kernel_regnum::<T>(
+                                    num_vec_size,
+                                    kp,
+                                    i,
+                                    b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
+                                    num_co_b * co_b,
+                                    b * osb + l * osh + kp * CONV_REGNUM as i64 * osw, // prettier-ignore
+                                    n * ks0 + m * ks1 + i * ks2,
+                                    step_width,
+                                    isw,
+                                    osw,
+                                    &inp_cpy,
+                                    &mut out,
+                                    &kernel_cpy
+                                );
+                            }
                         }
                     }
                 }
-                load_store_res_buffer::<T, CONV_REGNUM, false>(
-                    num_co_rb,
-                    co_b_remain,
-                    osw,
-                    c * co_b + b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
-                    &mut res_buffer,
-                    &mut out
-                );
+            } else {
+                let mut kernel_buffer =
+                    vec![<T as TypeCommon>::Vec::splat(T::ZERO); num_vec_size as usize + 1];
+                let mut res_buffer =
+                    vec![vec![<T as TypeCommon>::Vec::splat(T::ZERO); CONV_REGNUM]; num_vec_size as usize + 1];
+                for kp in 0..num_wo_b {
+                    load_store_res_buffer::<T, CONV_REGNUM, true>(
+                        num_vec_size,
+                        remain,
+                        osw,
+                        c * co_b + b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
+                        &mut res_buffer,
+                        &mut out
+                    );
+                    for n in 0..kernel_height {
+                        for m in 0..kernel_width {
+                            for ii in 0..ci_b_remain {
+                                let i = ip * ci_b + ii;
+                                pack_kernel(
+                                    num_vec_size,
+                                    remain,
+                                    c * co_b + n * ks0 + m * ks1 + i * ks2,
+                                    &kernel_cpy,
+                                    &mut kernel_buffer
+                                );
+                                micro_kernel_regnum_with_buffer::<T>(
+                                    num_vec_size,
+                                    kp,
+                                    i,
+                                    b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
+                                    step_width,
+                                    isw,
+                                    &inp_cpy,
+                                    &mut res_buffer,
+                                    &kernel_buffer
+                                );
+                            }
+                        }
+                    }
+                    load_store_res_buffer::<T, CONV_REGNUM, false>(
+                        num_vec_size,
+                        remain,
+                        osw,
+                        c * co_b + b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
+                        &mut res_buffer,
+                        &mut out
+                    );
+                }
             }
         };
-        
+
+        let inp_cpy = inp.clone();
+        let kernel_cpy = kernel.clone();
+        let case1 = &case1;
         let case3_helper = move |
             b: i64,
             l: i64,
@@ -329,53 +363,95 @@ impl<T> _Tensor<T>
                 &mut Vec<Vec<<T as TypeCommon>::Vec>>,
                 &[<T as TypeCommon>::Vec]
             ),
+            fast_micro_kernel: fn(
+                i64,
+                i64,
+                i64,
+                i64,
+                i64,
+                i64,
+                i64,
+                i64,
+                i64,
+                i64,
+                &Pointer<T>,
+                &mut Pointer<T>,
+                &Pointer<T>
+            ),
             mut out: Pointer<T>
         | {
-            let mut kernel_buffer =
-                vec![<T as TypeCommon>::Vec::splat(T::ZERO); num_co_rb as usize + 1];
-            let mut remain_buffer =
-                vec![vec![<T as TypeCommon>::Vec::splat(T::ZERO); wo_b_remain as usize]; num_co_rb as usize + 1];
-            load_fn(
-                num_co_rb,
-                co_b_remain,
-                osw,
-                c * co_b + b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
-                &mut remain_buffer,
-                &mut out
-            );
-            for n in 0..kernel_height {
-                for m in 0..kernel_width {
-                    for ii in 0..ci_b_remain {
-                        let i = ip * ci_b + ii;
-                        pack_kernel(
-                            num_co_rb,
-                            co_b_remain,
-                            c * co_b + n * ks0 + m * ks1 + i * ks2,
-                            &kernel,
-                            &mut kernel_buffer
-                        );
-                        micro_kernel(
-                            num_co_rb,
-                            num_wo_b,
-                            i,
-                            b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                            step_width,
-                            isw,
-                            &inp,
-                            &mut remain_buffer,
-                            &kernel_buffer
-                        );
+            let num_vec_size = co_b_remain / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
+            let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
+            if remain == 0 {
+                for n in 0..kernel_height {
+                    for m in 0..kernel_width {
+                        for ii in 0..ci_b_remain {
+                            let i = ip * ci_b + ii;
+                            fast_micro_kernel(
+                                num_vec_size,
+                                num_wo_b,
+                                i,
+                                b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
+                                c * co_b,
+                                b * osb + l * osh + num_wo_b * CONV_REGNUM as i64 * osw, // prettier-ignore
+                                n * ks0 + m * ks1 + i * ks2,
+                                step_width,
+                                isw,
+                                osw,
+                                &inp_cpy,
+                                &mut out,
+                                &kernel_cpy
+                            );
+                        }
                     }
                 }
+            } else {
+                let mut kernel_buffer =
+                    vec![<T as TypeCommon>::Vec::splat(T::ZERO); num_vec_size as usize + 1];
+                let mut remain_buffer =
+                    vec![vec![<T as TypeCommon>::Vec::splat(T::ZERO); wo_b_remain as usize]; num_vec_size as usize + 1];
+                load_fn(
+                    num_vec_size,
+                    remain,
+                    osw,
+                    c * co_b + b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
+                    &mut remain_buffer,
+                    &mut out
+                );
+                for n in 0..kernel_height {
+                    for m in 0..kernel_width {
+                        for ii in 0..ci_b_remain {
+                            let i = ip * ci_b + ii;
+                            pack_kernel(
+                                num_vec_size,
+                                remain,
+                                c * co_b + n * ks0 + m * ks1 + i * ks2,
+                                &kernel,
+                                &mut kernel_buffer
+                            );
+                            micro_kernel(
+                                num_vec_size,
+                                num_wo_b,
+                                i,
+                                b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
+                                step_width,
+                                isw,
+                                &inp,
+                                &mut remain_buffer,
+                                &kernel_buffer
+                            );
+                        }
+                    }
+                }
+                store_fn(
+                    num_vec_size,
+                    remain,
+                    osw,
+                    c * co_b + b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
+                    &mut remain_buffer,
+                    &mut out
+                );
             }
-            store_fn(
-                num_co_rb,
-                co_b_remain,
-                osw,
-                c * co_b + b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
-                &mut remain_buffer,
-                &mut out
-            );
         };
 
         let case3 = move |b: i64, l: i64, c: i64, ip: i64, ci_b_remain: i64, out: Pointer<T>| {
@@ -392,7 +468,8 @@ impl<T> _Tensor<T>
                         load_store_res_buffer::<T, 1, true>,
                         load_store_res_buffer::<T, 1, false>,
                         micro_kernel_1_with_buffer::<T>,
-                        out
+                        micro_kernel_1::<T>,
+                        out,
                     );
                 }
                 2 => {
@@ -407,6 +484,7 @@ impl<T> _Tensor<T>
                         load_store_res_buffer::<T, 2, true>,
                         load_store_res_buffer::<T, 2, false>,
                         micro_kernel_2_with_buffer::<T>,
+                        micro_kernel_2::<T>,
                         out
                     );
                 }
@@ -422,6 +500,7 @@ impl<T> _Tensor<T>
                         load_store_res_buffer::<T, 3, true>,
                         load_store_res_buffer::<T, 3, false>,
                         micro_kernel_3_with_buffer::<T>,
+                        micro_kernel_3::<T>,
                         out
                     );
                 }
@@ -437,6 +516,7 @@ impl<T> _Tensor<T>
                         load_store_res_buffer::<T, 4, true>,
                         load_store_res_buffer::<T, 4, false>,
                         micro_kernel_4_with_buffer::<T>,
+                        micro_kernel_4::<T>,
                         out
                     );
                 }
@@ -452,6 +532,7 @@ impl<T> _Tensor<T>
                         load_store_res_buffer::<T, 5, true>,
                         load_store_res_buffer::<T, 5, false>,
                         micro_kernel_5_with_buffer::<T>,
+                        micro_kernel_5::<T>,
                         out
                     );
                 }
@@ -467,6 +548,7 @@ impl<T> _Tensor<T>
                         load_store_res_buffer::<T, 6, true>,
                         load_store_res_buffer::<T, 6, false>,
                         micro_kernel_6_with_buffer::<T>,
+                        micro_kernel_6::<T>,
                         out
                     );
                 }
@@ -483,6 +565,7 @@ impl<T> _Tensor<T>
                         load_store_res_buffer::<T, 7, true>,
                         load_store_res_buffer::<T, 7, false>,
                         micro_kernel_7_with_buffer::<T>,
+                        micro_kernel_7::<T>,
                         out
                     );
                 }
@@ -499,6 +582,7 @@ impl<T> _Tensor<T>
                         load_store_res_buffer::<T, 8, true>,
                         load_store_res_buffer::<T, 8, false>,
                         micro_kernel_8_with_buffer::<T>,
+                        micro_kernel_8::<T>,
                         out
                     );
                 }
@@ -515,6 +599,7 @@ impl<T> _Tensor<T>
                         load_store_res_buffer::<T, 9, true>,
                         load_store_res_buffer::<T, 9, false>,
                         micro_kernel_9_with_buffer::<T>,
+                        micro_kernel_9::<T>,
                         out
                     );
                 }
@@ -531,6 +616,7 @@ impl<T> _Tensor<T>
                         load_store_res_buffer::<T, 10, true>,
                         load_store_res_buffer::<T, 10, false>,
                         micro_kernel_10_with_buffer::<T>,
+                        micro_kernel_10::<T>,
                         out
                     );
                 }
@@ -547,6 +633,7 @@ impl<T> _Tensor<T>
                         load_store_res_buffer::<T, 11, true>,
                         load_store_res_buffer::<T, 11, false>,
                         micro_kernel_11_with_buffer::<T>,
+                        micro_kernel_11::<T>,
                         out
                     );
                 }
@@ -563,6 +650,7 @@ impl<T> _Tensor<T>
                         load_store_res_buffer::<T, 12, true>,
                         load_store_res_buffer::<T, 12, false>,
                         micro_kernel_12_with_buffer::<T>,
+                        micro_kernel_12::<T>,
                         out
                     );
                 }
@@ -579,6 +667,7 @@ impl<T> _Tensor<T>
                         load_store_res_buffer::<T, 13, true>,
                         load_store_res_buffer::<T, 13, false>,
                         micro_kernel_13_with_buffer::<T>,
+                        micro_kernel_13::<T>,
                         out
                     );
                 }
@@ -595,86 +684,21 @@ impl<T> _Tensor<T>
                         load_store_res_buffer::<T, 14, true>,
                         load_store_res_buffer::<T, 14, false>,
                         micro_kernel_14_with_buffer::<T>,
+                        micro_kernel_14::<T>,
                         out
                     );
                 }
                 _ => unimplemented!(),
             }
         };
-
-        match (co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0) {
-            (true, true, true) => {
-                println!("case 0");
-                (0..outer).into_par_iter().for_each(|idx| {
-                    let b = idx / (num_co_b * num_ci_b * out_height);
-                    let c = (idx / (num_ci_b * out_height)) % num_co_b;
-                    let ip = (idx / out_height) % num_ci_b;
-                    let l = idx % out_height;
-                    case0(b, l, c, ip, ci_b, out.clone());
-                });
-            }
-            (true, false, true) => {
-                println!("case 1");
-                (0..outer).into_par_iter().for_each(|idx| {
-                    let b = idx / (num_co_b * num_ci_b * out_height);
-                    let c = (idx / (num_ci_b * out_height)) % num_co_b;
-                    let ip = (idx / out_height) % num_ci_b;
-                    let l = idx % out_height;
-                    case0(b, l, c, ip, ci_b, out.clone());
-                    case1(b, l, c, ip, ci_b, out.clone());
-                });
-            }
-            (false, true, true) => {
-                println!("case 2");
-                for idx in 0..outer {
-                    let b = idx / (num_co_b * num_ci_b * out_height);
-                    let c = (idx / (num_ci_b * out_height)) % num_co_b;
-                    let ip = (idx / out_height) % num_ci_b;
-                    let l = idx % out_height;
-                    if c < num_co_b - 1 {
-                        case0(b, l, c, ip, ci_b, out.clone());
-                    } else {
-                        case2(b, l, c, ip, ci_b, out.clone());
-                    } 
-                }
-                // (0..outer).for_each(|idx| {
-                //     let b = idx / (num_co_b * num_ci_b * out_height);
-                //     let c = (idx / (num_ci_b * out_height)) % num_co_b;
-                //     let ip = (idx / out_height) % num_ci_b;
-                //     let l = idx % out_height;
-                //     if c < num_co_b - 1 {
-                //         case0(b, l, c, ip, ci_b, out.clone());
-                //     } else {
-                //         case2(b, l, c, ip, ci_b, out.clone());
-                //     }
-                // });
-            }
-            (false, false, true) => {
-                println!("case 3");
-                let intervals = mt_intervals(outer as usize, outer as usize);
-                intervals.into_par_iter().for_each(|(start, end)| {
-                    for idx in start as i64..end as i64 {
-                        let b = idx / (num_co_b * num_ci_b * out_height);
-                        let c = (idx / (num_ci_b * out_height)) % num_co_b;
-                        let ip = (idx / out_height) % num_ci_b;
-                        let l = idx % out_height;
-                        if c < num_co_b - 1 {
-                            case0(b, l, c, ip, ci_b, out.clone());
-                            case1(b, l, c, ip, ci_b, out.clone());
-                        } else {
-                            case2(b, l, c, ip, ci_b, out.clone());
-                            case3(b, l, c, ip, ci_b, out.clone());
-                        }
-                    }
-                });
-            }
-            (true, true, false) => {
-                println!("case 4");
-                (0..outer).into_par_iter().for_each(|idx| {
-                    let b = idx / (num_co_b * num_ci_b * out_height);
-                    let c = (idx / (num_ci_b * out_height)) % num_co_b;
-                    let ip = (idx / out_height) % num_ci_b;
-                    let l = idx % out_height;
+        (0..outer).into_par_iter().for_each(|idx| {
+            let b = idx / (num_co_b * num_ci_b * out_height);
+            let c = (idx / (num_ci_b * out_height)) % num_co_b;
+            let ip = (idx / out_height) % num_ci_b;
+            let l = idx % out_height;
+            match (co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0) {
+                (true, true, true) => case0(b, l, c, ip, ci_b, out.clone()),
+                (true, true, false) => {
                     if ip < num_ci_b - 1 {
                         case0(b, l, c, ip, ci_b, out.clone());
                     } else {
@@ -682,15 +706,12 @@ impl<T> _Tensor<T>
                         case0(b, l, c, ip, ci_b, out.clone());
                         case0(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
                     }
-                });
-            }
-            (true, false, false) => {
-                println!("case 5");
-                (0..outer).into_par_iter().for_each(|idx| {
-                    let b = idx / (num_co_b * num_ci_b * out_height);
-                    let c = (idx / (num_ci_b * out_height)) % num_co_b;
-                    let ip = (idx / out_height) % num_ci_b;
-                    let l = idx % out_height;
+                },
+                (true, false, true) => {
+                    case0(b, l, c, ip, ci_b, out.clone());
+                    case1(b, l, c, ip, ci_b, out.clone());
+                },
+                (true, false, false) => {
                     if ip < num_ci_b - 1 {
                         case0(b, l, c, ip, ci_b, out.clone());
                         case1(b, l, c, ip, ci_b, out.clone());
@@ -701,15 +722,16 @@ impl<T> _Tensor<T>
                         case0(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
                         case1(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
                     }
-                });
-            }
-            (false, true, false) => {
-                println!("case 6");
-                (0..outer).into_par_iter().for_each(|idx| {
-                    let b = idx / (num_co_b * num_ci_b * out_height);
-                    let c = (idx / (num_ci_b * out_height)) % num_co_b;
-                    let ip = (idx / out_height) % num_ci_b;
-                    let l = idx % out_height;
+                },
+                (false, true, true) => {
+                    if c < num_co_b - 1 {
+                        case0(b, l, c, ip, ci_b, out.clone());
+                    } else {
+                        case0(b, l, num_co_b, ip, ci_b, out.clone());
+                        case2(b, l, num_co_b, ip, ci_b, out.clone());
+                    }
+                },
+                (false, true, false) => {
                     if ip < num_ci_b - 1 {
                         if c < num_co_b - 1 {
                             case0(b, l, c, ip, ci_b, out.clone());
@@ -726,22 +748,28 @@ impl<T> _Tensor<T>
                             case2(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
                         }
                     }
-                });
-            }
-            (false, false, false) => {
-                println!("case 7");
-                (0..outer).into_par_iter().for_each(|idx| {
-                    let b = idx / (num_co_b * num_ci_b * out_height);
-                    let c = (idx / (num_ci_b * out_height)) % num_co_b;
-                    let ip = (idx / out_height) % num_ci_b;
-                    let l = idx % out_height;
+                },
+                (false, false, true) => {
+                    if c < num_co_b - 1 {
+                        case0(b, l, c, ip, ci_b, out.clone());
+                        case1(b, l, c, ip, ci_b, out.clone());
+                    } else {
+                        case0(b, l, c, ip, ci_b, out.clone());
+                        case1(b, l, c, ip, ci_b, out.clone());
+                        case2(b, l, num_co_b, ip, ci_b, out.clone());
+                        case3(b, l, num_co_b, ip, ci_b, out.clone());
+                    }
+                },
+                (false, false, false) => {
                     if ip < num_ci_b - 1 {
                         if c < num_co_b - 1 {
                             case0(b, l, c, ip, ci_b, out.clone());
                             case1(b, l, c, ip, ci_b, out.clone());
                         } else {
-                            case2(b, l, c, ip, ci_b, out.clone());
-                            case3(b, l, c, ip, ci_b, out.clone());
+                            case0(b, l, c, ip, ci_b, out.clone());
+                            case1(b, l, c, ip, ci_b, out.clone());
+                            case2(b, l, num_co_b, ip, ci_b, out.clone());
+                            case3(b, l, num_co_b, ip, ci_b, out.clone());
                         }
                     } else {
                         if c < num_co_b - 1 {
@@ -750,15 +778,21 @@ impl<T> _Tensor<T>
                             case0(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
                             case1(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
                         } else {
-                            case2(b, l, c, ip, ci_b, out.clone());
-                            case3(b, l, c, ip, ci_b, out.clone());
-                            case2(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
-                            case3(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
+                            case0(b, l, c, ip, ci_b, out.clone());
+                            case1(b, l, c, ip, ci_b, out.clone());
+                            case2(b, l, num_co_b, ip, ci_b, out.clone());
+                            case3(b, l, num_co_b, ip, ci_b, out.clone());
+
+                            case0(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
+                            case1(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
+                            case2(b, l, num_co_b, in_channels / ci_b, ci_b_remain, out.clone());
+                            case3(b, l, num_co_b, in_channels / ci_b, ci_b_remain, out.clone());
                         }
                     }
-                });
+                },
             }
-        }
+        });
+        
         Ok(output)
     }
 }
