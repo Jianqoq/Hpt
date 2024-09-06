@@ -33,10 +33,7 @@ fn main() -> anyhow::Result<()> {
     }
     println!("{:?}", now.elapsed() / 100);
     let tch_kernel = tch::Tensor
-        ::arange(3 * 128 * 3 * 3, (
-            tch::Kind::Double,
-            tch::Device::Cpu,
-        ))
+        ::arange(3 * 128 * 3 * 3, (tch::Kind::Double, tch::Device::Cpu))
         .reshape(&[128, 3, 3, 3]);
     let tch_a = tch::Tensor
         ::arange(1 * 3 * 128 * 128, (tch::Kind::Double, tch::Device::Cpu))

@@ -8,18 +8,13 @@ use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
 use tensor_types::into_scalar::IntoScalar;
 use rayon::prelude::*;
-use num::traits::MulAdd;
 use tensor_types::dtype::TypeCommon;
 
 use super::conv_config::Conv2dConfig;
 
 impl<T> _Tensor<T>
     where
-        T: CommonBounds +
-            std::ops::Mul<Output = T> +
-            std::ops::AddAssign +
-            MulAdd<Output = T> +
-            IntoScalar<T>,
+        T: CommonBounds + IntoScalar<T>,
         <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecSize
 {
     pub fn conv2d(
