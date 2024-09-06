@@ -18,7 +18,7 @@ members = [
 ]
 
 [dependencies]
-tensor-dyn = { path = "tensor-dyn", features = ["simd", "track_caller", "bound_check"]}
+tensor-dyn = { path = "tensor-dyn", features = ["simd", "track_caller"]}
 tensor-common = { path = "tensor-common"}
 anyhow = "1.0.40"
 rayon = "1.8.0"
@@ -32,15 +32,15 @@ path = "src/main.rs"
 
 
 [profile.dev]
-opt-level = 0
+opt-level = 3
 incremental = false
 debug = true
-# lto = "fat"
-# codegen-units = 1
+lto = "fat"
+codegen-units = 1
 
 [profile.release]
-opt-level = 0
+opt-level = 3
 incremental = false
 debug = true
-# lto = "fat"
-# codegen-units = 1
+lto = "fat"
+codegen-units = 1

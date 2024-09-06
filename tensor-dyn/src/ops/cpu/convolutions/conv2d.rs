@@ -815,39 +815,3 @@ pub(crate) fn get_set_gap<T>(stride: i64, cache_line_size: usize, cache_set_num:
         set1 + cache_set_num - set2
     }
 }
-
-#[allow(unused)]
-fn find_combination(max_cache_size: i64, max_x: i64, max_y: i64, max_z: i64) -> (i64, i64, i64) {
-    let mut left = 1;
-    let mut right = max_x;
-    let mut best_x = 0;
-    let mut best_y = 0;
-    let mut best_z = 0;
-
-    while left <= right {
-        let mid_x = left + (right - left) / 2;
-        let x_size = mid_x;
-
-        if x_size > max_cache_size {
-            right = mid_x - 1;
-        } else {
-            let remaining_cache_after_x = max_cache_size - x_size;
-            let y = max_y.min(remaining_cache_after_x);
-            let y_size = y;
-
-            let remaining_cache_after_xy = remaining_cache_after_x - y_size;
-            let z = max_z.min(remaining_cache_after_xy);
-
-            if mid_x * y * z <= max_cache_size {
-                best_x = mid_x;
-                best_y = y;
-                best_z = z;
-                left = mid_x + 1;
-            } else {
-                right = mid_x - 1;
-            }
-        }
-    }
-
-    (best_x, best_y, best_z)
-}
