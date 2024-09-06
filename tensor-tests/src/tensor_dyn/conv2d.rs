@@ -287,3 +287,35 @@ fn test_case6() -> anyhow::Result<()> {
         });
     Ok(())
 }
+
+#[test]
+fn test_case7() -> anyhow::Result<()> {
+    set_num_threads(1);
+    let (kernel, a, tch_kernel, tch_a) = common_input([1, 130, 3, 3, 3, 128, 128])?;
+    let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
+    config.set_ci_block_size(2);
+    config.set_co_block_size(120);
+    let res = a
+        .conv2d(
+            &kernel,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            Some(&config)
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let res2 = tch_a.conv2d(&tch_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
+    let res_slice = res.as_raw();
+    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert!(a == b);
+        });
+    Ok(())
+}
