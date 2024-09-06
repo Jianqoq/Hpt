@@ -28,7 +28,7 @@ impl<T> _Tensor<T>
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        config: &Option<Conv2dConfig<T>>
+        config: Option<&Conv2dConfig<T>>
     ) -> anyhow::Result<_Tensor<T>> {
         use crate::CONV_REGNUM;
 
@@ -110,7 +110,7 @@ impl<T> _Tensor<T>
         let num_co_rb = co_b / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
         assert_eq!(co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64), 0);
 
-        let outer = batch * num_co_b * num_ci_b * out_height;
+        let outer = batch * num_co_b * out_height;
 
         let inp_cpy = inp.clone();
         let kernel_cpy = kernel.clone();
@@ -254,7 +254,6 @@ impl<T> _Tensor<T>
             let num_vec_size = co_b_remain / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
             let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
             if remain == 0 {
-                case0(b, l, c, ip, ci_b, out.clone());
                 for kp in 0..num_wo_b {
                     for n in 0..kernel_height {
                         for m in 0..kernel_width {
@@ -467,7 +466,7 @@ impl<T> _Tensor<T>
                         load_store_res_buffer::<T, 1, false>,
                         micro_kernel_1_with_buffer::<T>,
                         micro_kernel_1::<T>,
-                        out,
+                        out
                     );
                 }
                 2 => {
@@ -690,45 +689,48 @@ impl<T> _Tensor<T>
             }
         };
         (0..outer).into_par_iter().for_each(|idx| {
-            let b = idx / (num_co_b * num_ci_b * out_height);
-            let c = (idx / (num_ci_b * out_height)) % num_co_b;
-            let ip = (idx / out_height) % num_ci_b;
+            let b = idx / (num_co_b * out_height);
+            let c = (idx / out_height) % num_co_b;
+            let ip = 2;
             let l = idx % out_height;
             match (co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0) {
-                (true, true, true) => case0(b, l, c, ip, ci_b, out.clone()),
+                (true, true, true) => {
+                    for ip in 0..num_ci_b {
+                        case0(b, l, c, ip, ci_b, out.clone());
+                    }
+                }
                 (true, true, false) => {
-                    if ip < num_ci_b - 1 {
+                    for ip in 0..num_ci_b {
                         case0(b, l, c, ip, ci_b, out.clone());
-                    } else {
-                        // when ip == num_ci_b - 1, we first need to process not remain part, then remain part
-                        case0(b, l, c, ip, ci_b, out.clone());
-                        case0(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
                     }
-                },
+                    case0(b, l, c, num_ci_b, ci_b_remain, out.clone());
+                }
                 (true, false, true) => {
-                    case0(b, l, c, ip, ci_b, out.clone());
-                    case1(b, l, c, ip, ci_b, out.clone());
-                },
-                (true, false, false) => {
-                    if ip < num_ci_b - 1 {
+                    for ip in 0..num_ci_b {
                         case0(b, l, c, ip, ci_b, out.clone());
                         case1(b, l, c, ip, ci_b, out.clone());
-                    } else {
-                        // when ip == num_ci_b - 1, we first need to process not remain part, then remain part
-                        case0(b, l, c, ip, ci_b, out.clone());
-                        case1(b, l, c, ip, ci_b, out.clone());
-                        case0(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
-                        case1(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
                     }
-                },
+                }
+                (true, false, false) => {
+                    for ip in 0..num_ci_b {
+                        case0(b, l, c, ip, ci_b, out.clone());
+                        case1(b, l, c, ip, ci_b, out.clone());
+                    }
+                    case0(b, l, c, num_ci_b, ci_b_remain, out.clone());
+                    case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
+                }
                 (false, true, true) => {
                     if c < num_co_b - 1 {
-                        case0(b, l, c, ip, ci_b, out.clone());
+                        for ip in 0..num_ci_b {
+                            case0(b, l, c, ip, ci_b, out.clone());
+                        }
                     } else {
-                        case0(b, l, num_co_b, ip, ci_b, out.clone());
-                        case2(b, l, num_co_b, ip, ci_b, out.clone());
+                        for ip in 0..num_ci_b {
+                            case0(b, l, c, ip, ci_b, out.clone());
+                            case2(b, l, num_co_b, ip, ci_b, out.clone());
+                        }
                     }
-                },
+                }
                 (false, true, false) => {
                     if ip < num_ci_b - 1 {
                         if c < num_co_b - 1 {
@@ -740,26 +742,30 @@ impl<T> _Tensor<T>
                         // when ip == num_ci_b - 1, we first need to process not remain part, then remain part
                         if c < num_co_b - 1 {
                             case0(b, l, c, ip, ci_b, out.clone());
-                            case0(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
+                            case0(b, l, c, num_ci_b, ci_b_remain, out.clone());
                         } else {
                             case2(b, l, c, ip, ci_b, out.clone());
-                            case2(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
+                            case2(b, l, c, num_ci_b, ci_b_remain, out.clone());
                         }
                     }
-                },
+                }
                 (false, false, true) => {
                     if c < num_co_b - 1 {
-                        case0(b, l, c, ip, ci_b, out.clone());
-                        case1(b, l, c, ip, ci_b, out.clone());
+                        for ip in 0..num_ci_b {
+                            case0(b, l, c, ip, ci_b, out.clone());
+                            case1(b, l, c, ip, ci_b, out.clone());
+                        }
                     } else {
-                        case0(b, l, c, ip, ci_b, out.clone());
-                        case1(b, l, c, ip, ci_b, out.clone());
-                        case2(b, l, num_co_b, ip, ci_b, out.clone());
-                        case3(b, l, num_co_b, ip, ci_b, out.clone());
+                        for ip in 0..num_ci_b {
+                            case0(b, l, c, ip, ci_b, out.clone());
+                            case1(b, l, c, ip, ci_b, out.clone());
+                            case2(b, l, num_co_b, ip, ci_b, out.clone());
+                            case3(b, l, num_co_b, ip, ci_b, out.clone());
+                        }
                     }
-                },
+                }
                 (false, false, false) => {
-                    if ip < num_ci_b - 1 {
+                    for ip in 0..num_ci_b {
                         if c < num_co_b - 1 {
                             case0(b, l, c, ip, ci_b, out.clone());
                             case1(b, l, c, ip, ci_b, out.clone());
@@ -768,29 +774,23 @@ impl<T> _Tensor<T>
                             case1(b, l, c, ip, ci_b, out.clone());
                             case2(b, l, num_co_b, ip, ci_b, out.clone());
                             case3(b, l, num_co_b, ip, ci_b, out.clone());
-                        }
-                    } else {
-                        if c < num_co_b - 1 {
-                            case0(b, l, c, ip, ci_b, out.clone());
-                            case1(b, l, c, ip, ci_b, out.clone());
-                            case0(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
-                            case1(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
-                        } else {
-                            case0(b, l, c, ip, ci_b, out.clone());
-                            case1(b, l, c, ip, ci_b, out.clone());
-                            case2(b, l, num_co_b, ip, ci_b, out.clone());
-                            case3(b, l, num_co_b, ip, ci_b, out.clone());
-
-                            case0(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
-                            case1(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
-                            case2(b, l, num_co_b, in_channels / ci_b, ci_b_remain, out.clone());
-                            case3(b, l, num_co_b, in_channels / ci_b, ci_b_remain, out.clone());
                         }
                     }
-                },
+                    if c < num_co_b - 1 {
+                        case0(b, l, c, num_ci_b, ci_b, out.clone());
+                        case1(b, l, c, num_ci_b, ci_b, out.clone());
+                        case0(b, l, c, num_ci_b, ci_b_remain, out.clone());
+                        case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
+                    } else {
+                        case0(b, l, c, num_ci_b, ci_b_remain, out.clone());
+                        case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
+                        case2(b, l, num_co_b, num_ci_b, ci_b_remain, out.clone());
+                        case3(b, l, num_co_b, num_ci_b, ci_b_remain, out.clone());
+                    }
+                }
             }
         });
-        
+
         Ok(output)
     }
 }
