@@ -44,6 +44,10 @@ impl VecTrait<u64> for u64x4 {
     fn sum(&self) -> u64 {
         self.as_array().iter().sum()
     }
+    
+    fn extract(self, idx: usize) -> u64 {
+        self.as_array()[idx]
+    }
 }
 impl VecSize for u64x4 {
     const SIZE: usize = 4;

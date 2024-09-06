@@ -55,6 +55,10 @@ impl VecTrait<usize> for usizex4 {
     fn sum(&self) -> usize {
         self.as_array().iter().sum::<usize>()
     }
+    
+    fn extract(self, idx: usize) -> usize {
+        self.as_array()[idx]
+    }
 }
 
 impl VecSize for usizex4 {

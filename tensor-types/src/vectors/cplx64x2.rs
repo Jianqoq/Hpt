@@ -33,6 +33,10 @@ impl VecTrait<Complex64> for cplx64x2 {
     fn sum(&self) -> Complex64 {
         self.0.iter().sum()
     }
+    
+    fn extract(self, idx: usize) -> Complex64 {
+        self.0[idx]
+    }
 }
 impl VecSize for cplx64x2 {
     const SIZE: usize = 2;

@@ -4,6 +4,7 @@ use tensor_types::{ dtype::TypeCommon, traits::{ Init, VecSize, VecTrait } };
 
 use crate::CONV_REGNUM;
 
+#[cfg(not(feature = "bound_check"))]
 #[rustfmt::skip]
 pub(crate) fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
     num_co_rb: i64,
@@ -51,6 +52,54 @@ pub(crate) fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
     }
 }
 
+#[cfg(feature = "bound_check")]
+#[rustfmt::skip]
+pub(crate) fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
+    num_co_rb: i64,
+    co_b_remain: i64,
+    osw: i64,
+    out_offset: i64,
+    res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
+    out: &mut Pointer<T>
+)
+    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
+{
+    for j in 0..num_co_rb {
+        let buffers = &mut res_buffer[j as usize];
+        for r in 0..REGNUM as i64 {
+            unsafe {
+                let out_ptr = &mut out[out_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) + r * osw] as *mut _ as *mut T;
+                let buffer = &mut buffers[r as usize];
+                if LOAD {
+                    buffer.copy_from_slice(
+                        core::slice::from_raw_parts(out_ptr, <<T as TypeCommon>::Vec as VecSize>::SIZE)
+                    );
+                } else {
+                    for i in 0..<<T as TypeCommon>::Vec as VecSize>::SIZE as i64 {
+                        out[out_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) + r * osw + i] = buffer.extract(i as usize);
+                    }
+                }
+            }
+        }
+    }
+    let buffers = &mut res_buffer[num_co_rb as usize];
+    for r in 0..REGNUM as i64 {
+        unsafe {
+            let out_ptr = &mut out[out_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) + r * osw];
+            let buffer = &mut buffers[r as usize];
+            if LOAD {
+                buffer.copy_from_slice(
+                    core::slice::from_raw_parts(out_ptr, co_b_remain as usize)
+                );
+            } else {
+                for i in 0..co_b_remain as i64 {
+                    out[out_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) + r * osw + i] = buffer.extract(i as usize);
+                }
+            }
+        }
+    }
+}
+
 #[rustfmt::skip]
 pub(crate) fn pack_kernel<T>(
     num_co_rb: i64,
@@ -62,10 +111,14 @@ pub(crate) fn pack_kernel<T>(
     where T: CommonBounds, <T as TypeCommon>::Vec: VecSize
 {
     for j in 0..num_co_rb {
+        #[cfg(not(feature = "bound_check"))]
+        let kernel_buffer = unsafe { kernel_buffer.get_unchecked_mut(j as usize) };
+        #[cfg(feature = "bound_check")]
+        let kernel_buffer = &mut kernel_buffer[j as usize];
         unsafe {
             std::ptr::copy_nonoverlapping(
                 &kernel[kernel_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *const _ as *const T,
-                kernel_buffer.get_unchecked_mut(j as usize) as *mut _ as *mut T,
+                kernel_buffer as *mut _ as *mut T,
                 <<T as TypeCommon>::Vec as VecSize>::SIZE
             );
         }
@@ -79,9 +132,8 @@ pub(crate) fn pack_kernel<T>(
     }
 }
 
-
 macro_rules! micro_kernel {
-    ($num: tt, [$($idx:expr),*]) => {
+    ($num:tt, [$($idx:expr),*]) => {
         paste::paste! {
             #[rustfmt::skip]
             pub(crate) fn [<micro_kernel_ $num>]<T>(
@@ -128,7 +180,7 @@ macro_rules! micro_kernel {
 }
 
 macro_rules! micro_kernel_with_buffer {
-    ($num: tt, [$($idx:expr),*]) => {
+    ($num:tt, [$($idx:expr),*]) => {
         paste::paste! {
             #[rustfmt::skip]
             pub(crate) fn [<micro_kernel_ $num _with_buffer>]<T>(
@@ -151,11 +203,20 @@ macro_rules! micro_kernel_with_buffer {
                 )*
                 for j in 0..num_co_rb + 1 {
                     unsafe {
+                        #[cfg(not(feature = "bound_check"))]
                         let kernel_vec = *kernel.get_unchecked(j as usize);
+                        #[cfg(feature = "bound_check")]
+                        let kernel_vec = *kernel.get(j as usize).unwrap();
+                        #[cfg(not(feature = "bound_check"))]
                         let res_vectors = res_buffer.get_unchecked_mut(j as usize);
+                        #[cfg(feature = "bound_check")]
+                        let res_vectors = res_buffer.get_mut(j as usize).unwrap();
                         
                         $(
+                            #[cfg(not(feature = "bound_check"))]
                             let [<out_vec $idx>] = res_vectors.get_unchecked_mut($idx) as *mut _ as *mut <T as TypeCommon>::Vec;
+                            #[cfg(feature = "bound_check")]
+                            let [<out_vec $idx>] = res_vectors.get_mut($idx).unwrap() as *mut _ as *mut <T as TypeCommon>::Vec;
                         )*
                         $(
                             let [<res $idx>] = [<inp_vec $idx>]._mul_add(kernel_vec, [<out_vec $idx>].read_unaligned());

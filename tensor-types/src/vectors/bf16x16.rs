@@ -33,6 +33,10 @@ impl VecTrait<half::bf16> for bf16x16 {
     fn sum(&self) -> half::bf16 {
         self.0.iter().sum()
     }
+    
+    fn extract(self, idx: usize) -> half::bf16 {
+        self.0[idx]
+    }
 }
 impl VecSize for bf16x16 {
     const SIZE: usize = 16;

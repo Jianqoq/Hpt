@@ -64,6 +64,10 @@ impl VecTrait<isize> for isizex4 {
     fn as_array<N>(&self) -> &[isize; 8] {
         self.0.as_array()
     }
+    
+    fn extract(self, idx: usize) -> isize {
+        self.as_array()[idx]
+    }
 }
 
 impl VecSize for isizex4 {

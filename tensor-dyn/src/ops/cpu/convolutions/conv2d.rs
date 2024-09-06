@@ -626,7 +626,7 @@ impl<T> _Tensor<T>
             }
             (false, true, true) => {
                 println!("case 2");
-                (0..outer).for_each(|idx| {
+                for idx in 0..outer {
                     let b = idx / (num_co_b * num_ci_b * out_height);
                     let c = (idx / (num_ci_b * out_height)) % num_co_b;
                     let ip = (idx / out_height) % num_ci_b;
@@ -635,8 +635,19 @@ impl<T> _Tensor<T>
                         case0(b, l, c, ip, ci_b, out.clone());
                     } else {
                         case2(b, l, c, ip, ci_b, out.clone());
-                    }
-                });
+                    } 
+                }
+                // (0..outer).for_each(|idx| {
+                //     let b = idx / (num_co_b * num_ci_b * out_height);
+                //     let c = (idx / (num_ci_b * out_height)) % num_co_b;
+                //     let ip = (idx / out_height) % num_ci_b;
+                //     let l = idx % out_height;
+                //     if c < num_co_b - 1 {
+                //         case0(b, l, c, ip, ci_b, out.clone());
+                //     } else {
+                //         case2(b, l, c, ip, ci_b, out.clone());
+                //     }
+                // });
             }
             (false, false, true) => {
                 println!("case 3");

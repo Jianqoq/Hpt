@@ -33,6 +33,10 @@ impl VecTrait<Complex32> for cplx32x4 {
     fn sum(&self) -> Complex32 {
         self.0.iter().sum()
     }
+    
+    fn extract(self, idx: usize) -> Complex32 {
+        self.0[idx]
+    }
 }
 impl VecSize for cplx32x4 {
     const SIZE: usize = 4;

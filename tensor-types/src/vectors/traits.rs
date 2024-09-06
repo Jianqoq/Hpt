@@ -5,6 +5,7 @@ pub trait VecTrait<T> {
     fn as_ptr(&self) -> *const T;
     fn as_mut_ptr(&mut self) -> *mut T;
     fn as_mut_ptr_uncheck(&self) -> *mut T;
+    fn extract(self, idx: usize) -> T;
     fn sum(&self) -> T;
 }
 pub trait Init<T> {

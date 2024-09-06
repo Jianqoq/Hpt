@@ -36,6 +36,10 @@ impl VecTrait<bool> for boolx32 {
             .map(|&x| x as u8)
             .sum::<u8>() > 0
     }
+    
+    fn extract(self, idx: usize) -> bool {
+        self.0[idx]
+    }
 }
 impl VecSize for boolx32 {
     const SIZE: usize = 32;
