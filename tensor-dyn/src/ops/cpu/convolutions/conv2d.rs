@@ -691,7 +691,6 @@ impl<T> _Tensor<T>
         (0..outer).into_par_iter().for_each(|idx| {
             let b = idx / (num_co_b * out_height);
             let c = (idx / out_height) % num_co_b;
-            let ip = 2;
             let l = idx % out_height;
             match (co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0) {
                 (true, true, true) => {
@@ -732,21 +731,16 @@ impl<T> _Tensor<T>
                     }
                 }
                 (false, true, false) => {
-                    if ip < num_ci_b - 1 {
-                        if c < num_co_b - 1 {
+                    if c < num_co_b - 1 {
+                        for ip in 0..num_ci_b {
                             case0(b, l, c, ip, ci_b, out.clone());
-                        } else {
-                            case2(b, l, c, ip, ci_b, out.clone());
                         }
+                        case0(b, l, c, num_ci_b, ci_b_remain, out.clone());
                     } else {
-                        // when ip == num_ci_b - 1, we first need to process not remain part, then remain part
-                        if c < num_co_b - 1 {
-                            case0(b, l, c, ip, ci_b, out.clone());
-                            case0(b, l, c, num_ci_b, ci_b_remain, out.clone());
-                        } else {
+                        for ip in 0..num_ci_b {
                             case2(b, l, c, ip, ci_b, out.clone());
-                            case2(b, l, c, num_ci_b, ci_b_remain, out.clone());
                         }
+                        case2(b, l, c, num_ci_b, ci_b_remain, out.clone());
                     }
                 }
                 (false, false, true) => {
