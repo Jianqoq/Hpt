@@ -90,9 +90,7 @@ fn test_case0() -> anyhow::Result<()> {
         .iter()
         .zip(res2.iter())
         .for_each(|(a, b)| {
-            if a != b {
-                println!("{} != {}", a, b);
-            }
+            assert!(a == b);
         });
     Ok(())
 }
@@ -119,6 +117,29 @@ fn test_case1() -> anyhow::Result<()> {
     let res2 = tch_a.conv2d(&tch_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert!(a == b);
+        });
+
+    config.set_ci_block_size(1);
+    config.set_co_block_size(16);
+    let res = a
+        .conv2d(
+            &kernel,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            Some(&config)
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let res_slice = res.as_raw();
     res_slice
         .iter()
         .zip(res2.iter())
@@ -157,6 +178,29 @@ fn test_case2() -> anyhow::Result<()> {
         .for_each(|(a, b)| {
             assert!(a == b);
         });
+
+    config.set_ci_block_size(1);
+    config.set_co_block_size(16);
+    let res = a
+        .conv2d(
+            &kernel,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            Some(&config)
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let res_slice = res.as_raw();
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert!(a == b);
+        });
     Ok(())
 }
 
@@ -183,6 +227,29 @@ fn test_case3() -> anyhow::Result<()> {
     let res2 = tch_a.conv2d(&tch_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert!(a == b);
+        });
+
+    config.set_ci_block_size(1);
+    config.set_co_block_size(16);
+    let res = a
+        .conv2d(
+            &kernel,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            Some(&config)
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let res_slice = res.as_raw();
     res_slice
         .iter()
         .zip(res2.iter())
@@ -221,6 +288,29 @@ fn test_case4() -> anyhow::Result<()> {
         .for_each(|(a, b)| {
             assert!(a == b);
         });
+
+    config.set_ci_block_size(1);
+    config.set_co_block_size(16);
+    let res = a
+        .conv2d(
+            &kernel,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            Some(&config)
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let res_slice = res.as_raw();
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert!(a == b);
+        });
     Ok(())
 }
 
@@ -247,6 +337,28 @@ fn test_case5() -> anyhow::Result<()> {
     let res2 = tch_a.conv2d(&tch_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert!(a == b);
+        });
+    config.set_ci_block_size(1);
+    config.set_co_block_size(16);
+    let res = a
+        .conv2d(
+            &kernel,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            Some(&config)
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let res_slice = res.as_raw();
     res_slice
         .iter()
         .zip(res2.iter())
@@ -285,6 +397,29 @@ fn test_case6() -> anyhow::Result<()> {
         .for_each(|(a, b)| {
             assert!(a == b);
         });
+
+    config.set_ci_block_size(1);
+    config.set_co_block_size(16);
+    let res = a
+        .conv2d(
+            &kernel,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            Some(&config)
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let res_slice = res.as_raw();
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert!(a == b);
+        });
     Ok(())
 }
 
@@ -311,6 +446,29 @@ fn test_case7() -> anyhow::Result<()> {
     let res2 = tch_a.conv2d(&tch_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert!(a == b);
+        });
+
+    config.set_ci_block_size(1);
+    config.set_co_block_size(16);
+    let res = a
+        .conv2d(
+            &kernel,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            Some(&config)
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let res_slice = res.as_raw();
     res_slice
         .iter()
         .zip(res2.iter())
