@@ -765,23 +765,22 @@ impl<T> _Tensor<T>
                     }
                 }
                 (false, false, false) => {
-                    for ip in 0..num_ci_b {
-                        if c < num_co_b - 1 {
-                            case0(b, l, c, ip, ci_b, out.clone());
-                            case1(b, l, c, ip, ci_b, out.clone());
-                        } else {
-                            case0(b, l, c, ip, ci_b, out.clone());
-                            case1(b, l, c, ip, ci_b, out.clone());
-                            case2(b, l, num_co_b, ip, ci_b, out.clone());
-                            case3(b, l, num_co_b, ip, ci_b, out.clone());
-                        }
-                    }
                     if c < num_co_b - 1 {
+                        for ip in 0..num_ci_b {
+                            case0(b, l, c, ip, ci_b, out.clone());
+                            case1(b, l, c, ip, ci_b, out.clone());
+                        }
                         case0(b, l, c, num_ci_b, ci_b, out.clone());
                         case1(b, l, c, num_ci_b, ci_b, out.clone());
                         case0(b, l, c, num_ci_b, ci_b_remain, out.clone());
                         case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
                     } else {
+                        for ip in 0..num_ci_b {
+                            case0(b, l, c, ip, ci_b, out.clone());
+                            case1(b, l, c, ip, ci_b, out.clone());
+                            case2(b, l, num_co_b, ip, ci_b, out.clone());
+                            case3(b, l, num_co_b, ip, ci_b, out.clone());
+                        }
                         case0(b, l, c, num_ci_b, ci_b_remain, out.clone());
                         case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
                         case2(b, l, num_co_b, num_ci_b, ci_b_remain, out.clone());
