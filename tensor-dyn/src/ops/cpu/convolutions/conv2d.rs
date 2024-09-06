@@ -1,5 +1,6 @@
 use tensor_common::pointer::Pointer;
 use tensor_types::vectors::traits::*;
+use crate::ops::cpu::convolutions::conv_config::KernelParamAlgo;
 use crate::ops::cpu::kernels::conv2d_kernels::*;
 use crate::tensor_base::_Tensor;
 use tensor_traits::CommonBounds;
@@ -9,6 +10,8 @@ use tensor_types::into_scalar::IntoScalar;
 use rayon::prelude::*;
 use num::traits::MulAdd;
 use tensor_types::dtype::TypeCommon;
+
+use super::conv_config::Conv2dConfig;
 
 impl<T> _Tensor<T>
     where
@@ -24,7 +27,8 @@ impl<T> _Tensor<T>
         kernels: &_Tensor<T>,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
-        dilation: [i64; 2]
+        dilation: [i64; 2],
+        config: &Option<Conv2dConfig<T>>
     ) -> anyhow::Result<_Tensor<T>> {
         use tensor_common::shape_utils::mt_intervals;
 
@@ -83,27 +87,35 @@ impl<T> _Tensor<T>
         let ks1 = kernels.strides()[1]; // kernel_width
         let ks2 = kernels.strides()[2]; // in_channels
 
-        let l1_cache =
-            cache_size::l1_cache_size().unwrap_or(32 * 1024 /* 32 kb */) / std::mem::size_of::<T>();
+        let (ci_b, co_b) = match config {
+            Some(config) => (config.ci_block_size, config.co_block_size),
+            None => {
+                let config = {
+                    Conv2dConfig::<T>::new(
+                        out_channels,
+                        in_channels,
+                        [kernel_height, kernel_width],
+                        KernelParamAlgo::Greedy
+                    )
+                };
+                (config.ci_block_size, config.co_block_size)
+            }
+        };
+        assert!(co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0);
 
-        let (co_b, ci_b) = find_exact_combination::<T, CONV_REGNUM>(
-            l1_cache as i64,
-            out_channels as i64,
-            in_channels as i64,
-            kernel_height as i64,
-            kernel_width as i64
-        );
         let num_co_b = out_channels / co_b;
         let num_wo_b = out_width / (CONV_REGNUM as i64);
         let num_ci_b = in_channels / ci_b;
 
-        let co_b_remain = out_channels % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
+        let co_b_remain = out_channels % co_b;
         let wo_b_remain = out_width % (CONV_REGNUM as i64);
         let ci_b_remain = in_channels % ci_b;
         let num_co_rb = co_b / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
 
         let outer = batch * num_co_b * num_ci_b * out_height;
 
+        let inp_cpy = inp.clone();
+        let kernel_cpy = kernel.clone();
         let case0 = move |b: i64, l: i64, c: i64, ip: i64, ci_b_remain: i64, mut out: Pointer<T>| {
             for kp in 0..num_wo_b {
                 for n in 0..kernel_height {
@@ -121,9 +133,9 @@ impl<T> _Tensor<T>
                                 step_width,
                                 isw,
                                 osw,
-                                &inp,
+                                &inp_cpy,
                                 &mut out,
-                                &kernel
+                                &kernel_cpy
                             );
                         }
                     }
@@ -131,6 +143,8 @@ impl<T> _Tensor<T>
             }
         };
 
+        let inp_cpy = inp.clone();
+        let kernel_cpy = kernel.clone();
         let case1_helper = move |
             b: i64,
             l: i64,
@@ -169,9 +183,9 @@ impl<T> _Tensor<T>
                             step_width,
                             isw,
                             osw,
-                            &inp,
+                            &inp_cpy,
                             &mut out,
-                            &kernel
+                            &kernel_cpy
                         );
                     }
                 }
@@ -234,6 +248,9 @@ impl<T> _Tensor<T>
             }
         };
 
+        let inp_cpy = inp.clone();
+        let kernel_cpy = kernel.clone();
+
         let case2 = move |b: i64, l: i64, c: i64, ip: i64, ci_b_remain: i64, mut out: Pointer<T>| {
             let mut kernel_buffer =
                 vec![<T as TypeCommon>::Vec::splat(T::ZERO); num_co_rb as usize + 1];
@@ -256,7 +273,7 @@ impl<T> _Tensor<T>
                                 num_co_rb,
                                 co_b_remain,
                                 c * co_b + n * ks0 + m * ks1 + i * ks2,
-                                &kernel,
+                                &kernel_cpy,
                                 &mut kernel_buffer
                             );
                             micro_kernel_regnum_with_buffer::<T>(
@@ -266,7 +283,7 @@ impl<T> _Tensor<T>
                                 b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                                 step_width,
                                 isw,
-                                &inp,
+                                &inp_cpy,
                                 &mut res_buffer,
                                 &kernel_buffer
                             );
@@ -283,7 +300,7 @@ impl<T> _Tensor<T>
                 );
             }
         };
-
+        
         let case3_helper = move |
             b: i64,
             l: i64,
@@ -587,38 +604,42 @@ impl<T> _Tensor<T>
 
         match (co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0) {
             (true, true, true) => {
+                println!("case 0");
                 (0..outer).into_par_iter().for_each(|idx| {
                     let b = idx / (num_co_b * num_ci_b * out_height);
                     let c = (idx / (num_ci_b * out_height)) % num_co_b;
                     let ip = (idx / out_height) % num_ci_b;
                     let l = idx % out_height;
-                    case0(b, l, c, ip, ci_b, out);
+                    case0(b, l, c, ip, ci_b, out.clone());
                 });
             }
             (true, false, true) => {
+                println!("case 1");
                 (0..outer).into_par_iter().for_each(|idx| {
                     let b = idx / (num_co_b * num_ci_b * out_height);
                     let c = (idx / (num_ci_b * out_height)) % num_co_b;
                     let ip = (idx / out_height) % num_ci_b;
                     let l = idx % out_height;
-                    case0(b, l, c, ip, ci_b, out);
-                    case1(b, l, c, ip, ci_b, out);
+                    case0(b, l, c, ip, ci_b, out.clone());
+                    case1(b, l, c, ip, ci_b, out.clone());
                 });
             }
             (false, true, true) => {
-                (0..outer).into_par_iter().for_each(|idx| {
+                println!("case 2");
+                (0..outer).for_each(|idx| {
                     let b = idx / (num_co_b * num_ci_b * out_height);
                     let c = (idx / (num_ci_b * out_height)) % num_co_b;
                     let ip = (idx / out_height) % num_ci_b;
                     let l = idx % out_height;
                     if c < num_co_b - 1 {
-                        case0(b, l, c, ip, ci_b, out);
+                        case0(b, l, c, ip, ci_b, out.clone());
                     } else {
-                        case2(b, l, c, ip, ci_b, out);
+                        case2(b, l, c, ip, ci_b, out.clone());
                     }
                 });
             }
             (false, false, true) => {
+                println!("case 3");
                 let intervals = mt_intervals(outer as usize, outer as usize);
                 intervals.into_par_iter().for_each(|(start, end)| {
                     for idx in start as i64..end as i64 {
@@ -627,49 +648,52 @@ impl<T> _Tensor<T>
                         let ip = (idx / out_height) % num_ci_b;
                         let l = idx % out_height;
                         if c < num_co_b - 1 {
-                            case0(b, l, c, ip, ci_b, out);
-                            case1(b, l, c, ip, ci_b, out);
+                            case0(b, l, c, ip, ci_b, out.clone());
+                            case1(b, l, c, ip, ci_b, out.clone());
                         } else {
-                            case2(b, l, c, ip, ci_b, out);
-                            case3(b, l, c, ip, ci_b, out);
+                            case2(b, l, c, ip, ci_b, out.clone());
+                            case3(b, l, c, ip, ci_b, out.clone());
                         }
                     }
                 });
             }
             (true, true, false) => {
+                println!("case 4");
                 (0..outer).into_par_iter().for_each(|idx| {
                     let b = idx / (num_co_b * num_ci_b * out_height);
                     let c = (idx / (num_ci_b * out_height)) % num_co_b;
                     let ip = (idx / out_height) % num_ci_b;
                     let l = idx % out_height;
                     if ip < num_ci_b - 1 {
-                        case0(b, l, c, ip, ci_b, out);
+                        case0(b, l, c, ip, ci_b, out.clone());
                     } else {
                         // when ip == num_ci_b - 1, we first need to process not remain part, then remain part
-                        case0(b, l, c, ip, ci_b, out);
-                        case0(b, l, c, in_channels / ci_b, ci_b_remain, out);
+                        case0(b, l, c, ip, ci_b, out.clone());
+                        case0(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
                     }
                 });
             }
             (true, false, false) => {
+                println!("case 5");
                 (0..outer).into_par_iter().for_each(|idx| {
                     let b = idx / (num_co_b * num_ci_b * out_height);
                     let c = (idx / (num_ci_b * out_height)) % num_co_b;
                     let ip = (idx / out_height) % num_ci_b;
                     let l = idx % out_height;
                     if ip < num_ci_b - 1 {
-                        case0(b, l, c, ip, ci_b, out);
-                        case1(b, l, c, ip, ci_b, out);
+                        case0(b, l, c, ip, ci_b, out.clone());
+                        case1(b, l, c, ip, ci_b, out.clone());
                     } else {
                         // when ip == num_ci_b - 1, we first need to process not remain part, then remain part
-                        case0(b, l, c, ip, ci_b, out);
-                        case1(b, l, c, ip, ci_b, out);
-                        case0(b, l, c, in_channels / ci_b, ci_b_remain, out);
-                        case1(b, l, c, in_channels / ci_b, ci_b_remain, out);
+                        case0(b, l, c, ip, ci_b, out.clone());
+                        case1(b, l, c, ip, ci_b, out.clone());
+                        case0(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
+                        case1(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
                     }
                 });
             }
             (false, true, false) => {
+                println!("case 6");
                 (0..outer).into_par_iter().for_each(|idx| {
                     let b = idx / (num_co_b * num_ci_b * out_height);
                     let c = (idx / (num_ci_b * out_height)) % num_co_b;
@@ -677,23 +701,24 @@ impl<T> _Tensor<T>
                     let l = idx % out_height;
                     if ip < num_ci_b - 1 {
                         if c < num_co_b - 1 {
-                            case0(b, l, c, ip, ci_b, out);
+                            case0(b, l, c, ip, ci_b, out.clone());
                         } else {
-                            case2(b, l, c, ip, ci_b, out);
+                            case2(b, l, c, ip, ci_b, out.clone());
                         }
                     } else {
                         // when ip == num_ci_b - 1, we first need to process not remain part, then remain part
                         if c < num_co_b - 1 {
-                            case0(b, l, c, ip, ci_b, out);
-                            case0(b, l, c, in_channels / ci_b, ci_b_remain, out);
+                            case0(b, l, c, ip, ci_b, out.clone());
+                            case0(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
                         } else {
-                            case2(b, l, c, ip, ci_b, out);
-                            case2(b, l, c, in_channels / ci_b, ci_b_remain, out);
+                            case2(b, l, c, ip, ci_b, out.clone());
+                            case2(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
                         }
                     }
                 });
             }
             (false, false, false) => {
+                println!("case 7");
                 (0..outer).into_par_iter().for_each(|idx| {
                     let b = idx / (num_co_b * num_ci_b * out_height);
                     let c = (idx / (num_ci_b * out_height)) % num_co_b;
@@ -701,23 +726,23 @@ impl<T> _Tensor<T>
                     let l = idx % out_height;
                     if ip < num_ci_b - 1 {
                         if c < num_co_b - 1 {
-                            case0(b, l, c, ip, ci_b, out);
-                            case1(b, l, c, ip, ci_b, out);
+                            case0(b, l, c, ip, ci_b, out.clone());
+                            case1(b, l, c, ip, ci_b, out.clone());
                         } else {
-                            case2(b, l, c, ip, ci_b, out);
-                            case3(b, l, c, ip, ci_b, out);
+                            case2(b, l, c, ip, ci_b, out.clone());
+                            case3(b, l, c, ip, ci_b, out.clone());
                         }
                     } else {
                         if c < num_co_b - 1 {
-                            case0(b, l, c, ip, ci_b, out);
-                            case1(b, l, c, ip, ci_b, out);
-                            case0(b, l, c, in_channels / ci_b, ci_b_remain, out);
-                            case1(b, l, c, in_channels / ci_b, ci_b_remain, out);
+                            case0(b, l, c, ip, ci_b, out.clone());
+                            case1(b, l, c, ip, ci_b, out.clone());
+                            case0(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
+                            case1(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
                         } else {
-                            case2(b, l, c, ip, ci_b, out);
-                            case3(b, l, c, ip, ci_b, out);
-                            case2(b, l, c, in_channels / ci_b, ci_b_remain, out);
-                            case3(b, l, c, in_channels / ci_b, ci_b_remain, out);
+                            case2(b, l, c, ip, ci_b, out.clone());
+                            case3(b, l, c, ip, ci_b, out.clone());
+                            case2(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
+                            case3(b, l, c, in_channels / ci_b, ci_b_remain, out.clone());
                         }
                     }
                 });
@@ -787,111 +812,4 @@ fn find_combination(max_cache_size: i64, max_x: i64, max_y: i64, max_z: i64) -> 
     }
 
     (best_x, best_y, best_z)
-}
-
-fn find_exact_combination<T: CommonBounds, const REGNUM: usize>(
-    max_cache_size: i64,
-    max_co_b: i64,
-    max_ci_b: i64,
-    weight_size: i64,
-    height_size: i64
-) -> (i64, i64)
-    where <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
-{
-    let mut best_co_b = 0;
-    let mut best_ci_b = 0;
-
-    for co_b in (1..=max_co_b)
-        .rev()
-        .filter(|&co_b| co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0) {
-        for ci_b in (1..=max_ci_b).rev() {
-            let product =
-                co_b * (REGNUM as i64) +
-                weight_size * height_size * ci_b * ((REGNUM as i64) + co_b);
-
-            if product <= max_cache_size {
-                if co_b > best_co_b || (co_b == best_co_b && ci_b > best_ci_b) {
-                    best_co_b = co_b;
-                    best_ci_b = ci_b;
-                }
-            }
-        }
-    }
-
-    (best_co_b, best_ci_b)
-}
-
-#[rustfmt::skip]
-fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
-    num_co_rb: i64,
-    co_b_remain: i64,
-    osw: i64,
-    out_offset: i64,
-    res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
-    out: &mut Pointer<T>
-)
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
-{
-    for j in 0..num_co_rb {
-        let buffers = unsafe { res_buffer.get_unchecked_mut(j as usize) };
-        for r in 0..REGNUM as i64 {
-            unsafe {
-                let out_ptr = &mut out[out_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) + r * osw] as *mut _ as *mut T;
-                let buffer = buffers.get_unchecked_mut(r as usize) as *mut _ as *mut T;
-                if LOAD {
-                    std::ptr::copy_nonoverlapping(
-                        out_ptr,
-                        buffer,
-                        <<T as TypeCommon>::Vec as VecSize>::SIZE
-                    );
-                } else {
-                    std::ptr::copy_nonoverlapping(
-                        buffer,
-                        out_ptr,
-                        <<T as TypeCommon>::Vec as VecSize>::SIZE
-                    );
-                }
-            }
-        }
-    }
-    let buffers = unsafe { res_buffer.get_unchecked_mut(num_co_rb as usize) };
-    for r in 0..REGNUM as i64 {
-        unsafe {
-            let out_ptr = &mut out[out_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) + r * osw] as *mut _ as *mut T;
-            let buffer = buffers.get_unchecked_mut(r as usize) as *mut _ as *mut T;
-            if LOAD {
-                std::ptr::copy_nonoverlapping(out_ptr, buffer, co_b_remain as usize);
-            } else {
-                std::ptr::copy_nonoverlapping(buffer, out_ptr, co_b_remain as usize);
-            }
-        }
-    }
-}
-
-#[rustfmt::skip]
-fn pack_kernel<T>(
-    num_co_rb: i64,
-    co_b_remain: i64,
-    kernel_offset: i64,
-    kernel: &Pointer<T>,
-    kernel_buffer: &mut Vec<<T as TypeCommon>::Vec>
-)
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecSize
-{
-    for j in 0..num_co_rb {
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                &kernel[kernel_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *const _ as *const T,
-                kernel_buffer.get_unchecked_mut(j as usize) as *mut _ as *mut T,
-                <<T as TypeCommon>::Vec as VecSize>::SIZE
-            );
-        }
-    }
-    unsafe {
-        std::ptr::copy_nonoverlapping(
-            &kernel[kernel_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *const _ as *const T,
-            kernel_buffer.get_unchecked_mut(num_co_rb as usize) as *mut _ as *mut T,
-            co_b_remain as usize
-        );
-    }
 }

@@ -54,10 +54,14 @@ macro_rules! impl_type_num {
                             std::ptr::copy_nonoverlapping(data.as_ptr(), ptr, data.len());
                         }
                     }
+                    let ly = tensor_common::layout::Layout::new(res_shape, vec![1]);
                     return _Tensor {
+                        #[cfg(not(feature = "bound_check"))]
                         data: Pointer::new(ptr),
+                        #[cfg(feature = "bound_check")]
+                        data: Pointer::new(ptr, ly.clone()),
                         parent: None,
-                        layout: tensor_common::layout::Layout::new(res_shape, vec![1]),
+                        layout: ly,
                         mem_layout: Arc::new(layout),
                         _backend: Backend::new(ptr as u64),
                     };
@@ -87,11 +91,14 @@ macro_rules! impl_type_num {
                         }
                     }
                     let strides = shape_to_strides(&shape);
-    
+                    let ly = tensor_common::layout::Layout::new(shape, strides);
                     return _Tensor {
+                        #[cfg(not(feature = "bound_check"))]
                         data: Pointer::new(ptr),
+                        #[cfg(feature = "bound_check")]
+                        data: Pointer::new(ptr, ly.clone()),
                         parent: None,
-                        layout: tensor_common::layout::Layout::new(shape, strides),
+                        layout: ly,
                         mem_layout: Arc::new(layout),
                         _backend: Backend::new(ptr as u64),
                     };
@@ -122,10 +129,14 @@ macro_rules! impl_type_num {
                 }
                 let strides = shape_to_strides(&shape);
 
+                let ly = tensor_common::layout::Layout::new(shape, strides);
                 return _Tensor {
+                    #[cfg(not(feature = "bound_check"))]
                     data: Pointer::new(ptr),
+                    #[cfg(feature = "bound_check")]
+                    data: Pointer::new(ptr, ly.clone()),
                     parent: None,
-                    layout: tensor_common::layout::Layout::new(shape, strides),
+                    layout: ly,
                     mem_layout: Arc::new(layout),
                     _backend: Backend::new(ptr as u64),
                 };
@@ -163,10 +174,14 @@ macro_rules! impl_type_num {
                 }
                 let strides = shape_to_strides(&shape);
 
+                let ly = tensor_common::layout::Layout::new(shape.into(), strides);
                 return _Tensor {
+                    #[cfg(not(feature = "bound_check"))]
                     data: Pointer::new(ptr),
+                    #[cfg(feature = "bound_check")]
+                    data: Pointer::new(ptr, ly.clone()),
                     parent: None,
-                    layout: tensor_common::layout::Layout::new(shape.into(), strides),
+                    layout: ly,
                     mem_layout: Arc::new(layout),
                 };
             }
@@ -195,10 +210,15 @@ macro_rules! impl_type_num {
                 }
             }
             let strides = shape_to_strides(&shape);
+
+            let ly = tensor_common::layout::Layout::new(shape, strides);
             return _Tensor {
+                #[cfg(not(feature = "bound_check"))]
                 data: Pointer::new(ptr),
+                #[cfg(feature = "bound_check")]
+                data: Pointer::new(ptr, ly.clone()),
                 parent: None,
-                layout: tensor_common::layout::Layout::new(shape, strides),
+                layout: ly,
                 mem_layout: Arc::new(layout),
                 _backend: Backend::new(ptr as u64),
             };
@@ -229,10 +249,14 @@ macro_rules! impl_type_num {
                 }
                 let strides = shape_to_strides(&shape);
 
+                let ly = tensor_common::layout::Layout::new(shape, strides);
                 return _Tensor {
+                    #[cfg(not(feature = "bound_check"))]
                     data: Pointer::new(ptr),
+                    #[cfg(feature = "bound_check")]
+                    data: Pointer::new(ptr, ly.clone()),
                     parent: None,
-                    layout: tensor_common::layout::Layout::new(shape, strides),
+                    layout: ly,
                     mem_layout: Arc::new(layout),
                     _backend: Backend::new(ptr as u64),
                 };
@@ -263,10 +287,14 @@ macro_rules! impl_type_num {
                 }
                 let strides = shape_to_strides(&shape);
 
+                let ly = tensor_common::layout::Layout::new(shape, strides);
                 return _Tensor {
+                    #[cfg(not(feature = "bound_check"))]
                     data: Pointer::new(ptr),
+                    #[cfg(feature = "bound_check")]
+                    data: Pointer::new(ptr, ly.clone()),
                     parent: None,
-                    layout: tensor_common::layout::Layout::new(shape, strides),
+                    layout: ly,
                     mem_layout: Arc::new(layout),
                     _backend: Backend::new(ptr as u64),
                 };

@@ -4,6 +4,82 @@ use tensor_types::{ dtype::TypeCommon, traits::{ Init, VecSize, VecTrait } };
 
 use crate::CONV_REGNUM;
 
+#[rustfmt::skip]
+pub(crate) fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
+    num_co_rb: i64,
+    co_b_remain: i64,
+    osw: i64,
+    out_offset: i64,
+    res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
+    out: &mut Pointer<T>
+)
+    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
+{
+    for j in 0..num_co_rb {
+        let buffers = unsafe { res_buffer.get_unchecked_mut(j as usize) };
+        for r in 0..REGNUM as i64 {
+            unsafe {
+                let out_ptr = &mut out[out_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) + r * osw] as *mut _ as *mut T;
+                let buffer = buffers.get_unchecked_mut(r as usize) as *mut _ as *mut T;
+                if LOAD {
+                    std::ptr::copy_nonoverlapping(
+                        out_ptr,
+                        buffer,
+                        <<T as TypeCommon>::Vec as VecSize>::SIZE
+                    );
+                } else {
+                    std::ptr::copy_nonoverlapping(
+                        buffer,
+                        out_ptr,
+                        <<T as TypeCommon>::Vec as VecSize>::SIZE
+                    );
+                }
+            }
+        }
+    }
+    let buffers = unsafe { res_buffer.get_unchecked_mut(num_co_rb as usize) };
+    for r in 0..REGNUM as i64 {
+        unsafe {
+            let out_ptr = &mut out[out_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) + r * osw] as *mut _ as *mut T;
+            let buffer = buffers.get_unchecked_mut(r as usize) as *mut _ as *mut T;
+            if LOAD {
+                std::ptr::copy_nonoverlapping(out_ptr, buffer, co_b_remain as usize);
+            } else {
+                std::ptr::copy_nonoverlapping(buffer, out_ptr, co_b_remain as usize);
+            }
+        }
+    }
+}
+
+#[rustfmt::skip]
+pub(crate) fn pack_kernel<T>(
+    num_co_rb: i64,
+    co_b_remain: i64,
+    kernel_offset: i64,
+    kernel: &Pointer<T>,
+    kernel_buffer: &mut Vec<<T as TypeCommon>::Vec>
+)
+    where T: CommonBounds, <T as TypeCommon>::Vec: VecSize
+{
+    for j in 0..num_co_rb {
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                &kernel[kernel_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *const _ as *const T,
+                kernel_buffer.get_unchecked_mut(j as usize) as *mut _ as *mut T,
+                <<T as TypeCommon>::Vec as VecSize>::SIZE
+            );
+        }
+    }
+    unsafe {
+        std::ptr::copy_nonoverlapping(
+            &kernel[kernel_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *const _ as *const T,
+            kernel_buffer.get_unchecked_mut(num_co_rb as usize) as *mut _ as *mut T,
+            co_b_remain as usize
+        );
+    }
+}
+
+
 macro_rules! micro_kernel {
     ($num: tt, [$($idx:expr),*]) => {
         paste::paste! {

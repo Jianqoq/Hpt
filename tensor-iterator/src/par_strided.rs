@@ -289,7 +289,7 @@ pub mod par_strided_simd {
             let right = _left_interval.len() / 2 + (_left_interval.len() % 2);
             (
                 ParStridedSimd {
-                    ptr: self.ptr,
+                    ptr: self.ptr.clone(),
                     layout: self.layout.clone(),
                     prg: vec![],
                     intervals: self.intervals.clone(),
@@ -298,7 +298,7 @@ pub mod par_strided_simd {
                     last_stride: self.last_stride,
                 },
                 Some(ParStridedSimd {
-                    ptr: self.ptr,
+                    ptr: self.ptr.clone(),
                     layout: self.layout.clone(),
                     prg: vec![],
                     intervals: self.intervals.clone(),
@@ -634,7 +634,7 @@ impl<T> UnindexedProducer for ParStrided<T> where T: CommonBounds, <T as TypeCom
         let right = _left_interval.len() / 2 + (_left_interval.len() % 2);
         (
             ParStrided {
-                ptr: self.ptr,
+                ptr: self.ptr.clone(),
                 layout: self.layout.clone(),
                 prg: vec![],
                 intervals: self.intervals.clone(),
@@ -643,7 +643,7 @@ impl<T> UnindexedProducer for ParStrided<T> where T: CommonBounds, <T as TypeCom
                 last_stride: self.last_stride,
             },
             Some(ParStrided {
-                ptr: self.ptr,
+                ptr: self.ptr.clone(),
                 layout: self.layout.clone(),
                 prg: vec![],
                 intervals: self.intervals.clone(),

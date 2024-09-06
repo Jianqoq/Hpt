@@ -126,9 +126,9 @@ pub(crate) fn matmul_no_out<A, B>(
             iterate_shape.iter_mut().for_each(|x| {
                 *x -= 1;
             });
-            let mut a_ptr: Pointer<<A as NormalOut<B>>::Output> = new_a.data;
-            let mut b_ptr: Pointer<<A as NormalOut<B>>::Output> = new_b.data;
-            let mut res_ptr: Pointer<<A as NormalOut<B>>::Output> = res.data;
+            let mut a_ptr: Pointer<<A as NormalOut<B>>::Output> = new_a.data.clone();
+            let mut b_ptr: Pointer<<A as NormalOut<B>>::Output> = new_b.data.clone();
+            let mut res_ptr: Pointer<<A as NormalOut<B>>::Output> = res.data.clone();
             let num_threads: usize = if len < rayon::current_num_threads() {
                 len
             } else {
@@ -150,7 +150,7 @@ pub(crate) fn matmul_no_out<A, B>(
             let mut amount = 0;
             for i in 0..num_threads {
                 let (start, end) = intervals[i];
-                res_ptrs.push(res_ptr);
+                res_ptrs.push(res_ptr.clone());
                 res_ptr.add((end - start) * res_inner_matrix_size);
                 let mut prg = vec![0;
                 iterate_shape.len()];
@@ -164,8 +164,8 @@ pub(crate) fn matmul_no_out<A, B>(
                 amount += end - start;
                 a_ptrs.push(a_ptr);
                 b_ptrs.push(b_ptr);
-                a_ptr = new_a.data;
-                b_ptr = new_b.data;
+                a_ptr = new_a.data.clone();
+                b_ptr = new_b.data.clone();
                 prgs.push(prg);
             }
             let lhs_cs = lhs.strides()[lhs.strides().len() - 1];
@@ -354,9 +354,9 @@ pub(crate) fn matmul_with_out<A, B, O>(
             iterate_shape.iter_mut().for_each(|x| {
                 *x -= 1;
             });
-            let mut a_ptr = new_a.data;
-            let mut b_ptr = new_b.data;
-            let mut res_ptr = res.data;
+            let mut a_ptr = new_a.data.clone();
+            let mut b_ptr = new_b.data.clone();
+            let mut res_ptr = res.data.clone();
             let num_threads = if len < rayon::current_num_threads() {
                 len
             } else {
@@ -379,7 +379,7 @@ pub(crate) fn matmul_with_out<A, B, O>(
             let mut amount = 0;
             for i in 0..num_threads {
                 let (start, end) = intervals[i];
-                res_ptrs.push(res_ptr);
+                res_ptrs.push(res_ptr.clone());
                 res_ptr.add((end - start) * res_inner_matrix_size);
                 let mut prg: Vec<i64> = vec![0;
                 iterate_shape.len()];
@@ -393,8 +393,8 @@ pub(crate) fn matmul_with_out<A, B, O>(
                 amount += end - start;
                 a_ptrs.push(a_ptr);
                 b_ptrs.push(b_ptr);
-                a_ptr = new_a.data;
-                b_ptr = new_b.data;
+                a_ptr = new_a.data.clone();
+                b_ptr = new_b.data.clone();
                 prgs.push(prg);
             }
             let lhs_cs = lhs.strides()[lhs.strides().len() - 1];
@@ -557,9 +557,9 @@ pub(crate) fn matmul_no_out_concret<A, B, C>(
             iterate_shape.iter_mut().for_each(|x| {
                 *x -= 1;
             });
-            let mut a_ptr = new_a.data;
-            let mut b_ptr = new_b.data;
-            let mut res_ptr = res.data;
+            let mut a_ptr = new_a.data.clone();
+            let mut b_ptr = new_b.data.clone();
+            let mut res_ptr = res.data.clone();
             let num_threads: usize = if len < rayon::current_num_threads() {
                 len
             } else {
@@ -581,7 +581,7 @@ pub(crate) fn matmul_no_out_concret<A, B, C>(
             let mut amount: usize = 0;
             for i in 0..num_threads {
                 let (start, end) = intervals[i];
-                res_ptrs.push(res_ptr);
+                res_ptrs.push(res_ptr.clone());
                 res_ptr.add((end - start) * res_inner_matrix_size);
                 let mut prg: Vec<i64> = vec![0; iterate_shape.len()];
                 let mut amount_cpy = amount as i64;
@@ -594,8 +594,8 @@ pub(crate) fn matmul_no_out_concret<A, B, C>(
                 amount += end - start;
                 a_ptrs.push(a_ptr);
                 b_ptrs.push(b_ptr);
-                a_ptr = new_a.data;
-                b_ptr = new_b.data;
+                a_ptr = new_a.data.clone();
+                b_ptr = new_b.data.clone();
                 prgs.push(prg);
             }
             let lhs_cs: i64 = lhs.strides()[lhs.strides().len() - 1];
@@ -759,9 +759,9 @@ pub(crate) fn matmul_out_concret<A, B, C>(
             iterate_shape.iter_mut().for_each(|x| {
                 *x -= 1;
             });
-            let mut a_ptr = new_a.data;
-            let mut b_ptr = new_b.data;
-            let mut res_ptr = res.data;
+            let mut a_ptr = new_a.data.clone();
+            let mut b_ptr = new_b.data.clone();
+            let mut res_ptr = res.data.clone();
             let num_threads: usize = if len < rayon::current_num_threads() {
                 len
             } else {
@@ -783,7 +783,7 @@ pub(crate) fn matmul_out_concret<A, B, C>(
             let mut amount: usize = 0;
             for i in 0..num_threads {
                 let (start, end) = intervals[i];
-                res_ptrs.push(res_ptr);
+                res_ptrs.push(res_ptr.clone());
                 res_ptr.add((end - start) * res_inner_matrix_size);
                 let mut prg: Vec<i64> = vec![0; iterate_shape.len()];
                 let mut amount_cpy = amount as i64;
@@ -796,8 +796,8 @@ pub(crate) fn matmul_out_concret<A, B, C>(
                 amount += end - start;
                 a_ptrs.push(a_ptr);
                 b_ptrs.push(b_ptr);
-                a_ptr = new_a.data;
-                b_ptr = new_b.data;
+                a_ptr = new_a.data.clone();
+                b_ptr = new_b.data.clone();
                 prgs.push(prg);
             }
             let lhs_cs: i64 = lhs.strides()[lhs.strides().len() - 1];

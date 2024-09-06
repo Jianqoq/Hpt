@@ -12,3 +12,4 @@ thiserror = "1.0.63"
 
 [features]
 track_caller = []
+bound_check = []

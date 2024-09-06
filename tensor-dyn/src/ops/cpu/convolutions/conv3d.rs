@@ -116,6 +116,9 @@ impl<T> _Tensor<T>
         let num_co_rb = co_b / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
 
         let outer = batch * num_co_b * num_ci_b * out_depth * out_height;
+
+        let inp_cpy = inp_ptr.clone();
+        let kernel_cpy = kernel.clone();
         let case0 = move |
             b: i64,
             l: i64,
@@ -145,9 +148,9 @@ impl<T> _Tensor<T>
                                     step_width,
                                     isw,
                                     osw,
-                                    &inp_ptr,
+                                    &inp_cpy,
                                     &mut out,
-                                    &kernel
+                                    &kernel_cpy
                                 );
                             }
                         }
@@ -156,6 +159,8 @@ impl<T> _Tensor<T>
             }
         };
 
+        let inp_cpy = inp_ptr.clone();
+        let kernel_cpy = kernel.clone();
         let case1_helper = move |
             b: i64,
             l: i64,
@@ -199,9 +204,9 @@ impl<T> _Tensor<T>
                                 step_width,
                                 isw,
                                 osw,
-                                &inp_ptr,
+                                &inp_cpy,
                                 &mut out,
-                                &kernel
+                                &kernel_cpy
                             );
                         }
                     }
@@ -259,6 +264,8 @@ impl<T> _Tensor<T>
             }
         };
 
+        let inp_cpy = inp_ptr.clone();
+        let kernel_cpy = kernel.clone();
         let case2 = move |
             b: i64,
             l: i64,
@@ -297,9 +304,9 @@ impl<T> _Tensor<T>
                                     n * ks0 + m * ks1 + i * ks2 + p * ksd,
                                     step_width,
                                     isw,
-                                    &inp_ptr,
+                                    &inp_cpy,
                                     &mut res_buffer,
-                                    &kernel
+                                    &kernel_cpy
                                 );
                             }
                         }
@@ -517,7 +524,7 @@ impl<T> _Tensor<T>
                     let ip = (idx / (out_depth * out_height)) % num_ci_b;
                     let d = (idx / out_height) % out_depth;
                     let l = idx % out_height;
-                    case0(b, l, d, c, ip, ci_b, out);
+                    case0(b, l, d, c, ip, ci_b, out.clone());
                 });
             }
             (true, false, true) => {
@@ -527,8 +534,8 @@ impl<T> _Tensor<T>
                     let ip = (idx / (out_depth * out_height)) % num_ci_b;
                     let d = (idx / out_height) % out_depth;
                     let l = idx % out_height;
-                    case0(b, l, d, c, ip, ci_b, out);
-                    case1(b, l, d, c, ip, ci_b, out);
+                    case0(b, l, d, c, ip, ci_b, out.clone());
+                    case1(b, l, d, c, ip, ci_b, out.clone());
                 });
             }
             (false, true, true) => {
@@ -539,9 +546,9 @@ impl<T> _Tensor<T>
                     let d = (idx / out_height) % out_depth;
                     let l = idx % out_height;
                     if c < num_co_b - 1 {
-                        case0(b, l, d, c, ip, ci_b, out);
+                        case0(b, l, d, c, ip, ci_b, out.clone());
                     } else {
-                        case2(b, l, d, c, ip, ci_b, out);
+                        case2(b, l, d, c, ip, ci_b, out.clone());
                     }
                 });
             }
@@ -555,11 +562,11 @@ impl<T> _Tensor<T>
                         let d = (idx / out_height) % out_depth;
                         let l = idx % out_height;
                         if c < num_co_b - 1 {
-                            case0(b, l, d, c, ip, ci_b, out);
-                            case1(b, l, d, c, ip, ci_b, out);
+                            case0(b, l, d, c, ip, ci_b, out.clone());
+                            case1(b, l, d, c, ip, ci_b, out.clone());
                         } else {
-                            case2(b, l, d, c, ip, ci_b, out);
-                            case3(b, l, d, c, ip, ci_b, out);
+                            case2(b, l, d, c, ip, ci_b, out.clone());
+                            case3(b, l, d, c, ip, ci_b, out.clone());
                         }
                     }
                 });
@@ -572,11 +579,11 @@ impl<T> _Tensor<T>
                     let d = (idx / out_height) % out_depth;
                     let l = idx % out_height;
                     if ip < num_ci_b - 1 {
-                        case0(b, l, d, c, ip, ci_b, out);
+                        case0(b, l, d, c, ip, ci_b, out.clone());
                     } else {
                         // when ip == num_ci_b - 1, we first need to process not remain part, then remain part
-                        case0(b, l, d, c, ip, ci_b, out);
-                        case0(b, l, d, c, in_channels / ci_b, ci_b_remain, out);
+                        case0(b, l, d, c, ip, ci_b, out.clone());
+                        case0(b, l, d, c, in_channels / ci_b, ci_b_remain, out.clone());
                     }
                 });
             }
@@ -588,14 +595,14 @@ impl<T> _Tensor<T>
                     let d = (idx / out_height) % out_depth;
                     let l = idx % out_height;
                     if ip < num_ci_b - 1 {
-                        case0(b, l, d, c, ip, ci_b, out);
-                        case1(b, l, d, c, ip, ci_b, out);
+                        case0(b, l, d, c, ip, ci_b, out.clone());
+                        case1(b, l, d, c, ip, ci_b, out.clone());
                     } else {
                         // when ip == num_ci_b - 1, we first need to process not remain part, then remain part
-                        case0(b, l, d, c, ip, ci_b, out);
-                        case1(b, l, d, c, ip, ci_b, out);
-                        case0(b, l, d, c, in_channels / ci_b, ci_b_remain, out);
-                        case1(b, l, d, c, in_channels / ci_b, ci_b_remain, out);
+                        case0(b, l, d, c, ip, ci_b, out.clone());
+                        case1(b, l, d, c, ip, ci_b, out.clone());
+                        case0(b, l, d, c, in_channels / ci_b, ci_b_remain, out.clone());
+                        case1(b, l, d, c, in_channels / ci_b, ci_b_remain, out.clone());
                     }
                 });
             }
@@ -608,18 +615,18 @@ impl<T> _Tensor<T>
                     let l = idx % out_height;
                     if ip < num_ci_b - 1 {
                         if c < num_co_b - 1 {
-                            case0(b, l, d, c, ip, ci_b, out);
+                            case0(b, l, d, c, ip, ci_b, out.clone());
                         } else {
-                            case2(b, l, d, c, ip, ci_b, out);
+                            case2(b, l, d, c, ip, ci_b, out.clone());
                         }
                     } else {
                         // when ip == num_ci_b - 1, we first need to process not remain part, then remain part
                         if c < num_co_b - 1 {
-                            case0(b, l, d, c, ip, ci_b, out);
-                            case0(b, l, d, c, in_channels / ci_b, ci_b_remain, out);
+                            case0(b, l, d, c, ip, ci_b, out.clone());
+                            case0(b, l, d, c, in_channels / ci_b, ci_b_remain, out.clone());
                         } else {
-                            case2(b, l, d, c, ip, ci_b, out);
-                            case2(b, l, d, c, in_channels / ci_b, ci_b_remain, out);
+                            case2(b, l, d, c, ip, ci_b, out.clone());
+                            case2(b, l, d, c, in_channels / ci_b, ci_b_remain, out.clone());
                         }
                     }
                 });
@@ -633,23 +640,23 @@ impl<T> _Tensor<T>
                     let l = idx % out_height;
                     if ip < num_ci_b - 1 {
                         if c < num_co_b - 1 {
-                            case0(b, l, d, c, ip, ci_b, out);
-                            case1(b, l, d, c, ip, ci_b, out);
+                            case0(b, l, d, c, ip, ci_b, out.clone());
+                            case1(b, l, d, c, ip, ci_b, out.clone());
                         } else {
-                            case2(b, l, d, c, ip, ci_b, out);
-                            case3(b, l, d, c, ip, ci_b, out);
+                            case2(b, l, d, c, ip, ci_b, out.clone());
+                            case3(b, l, d, c, ip, ci_b, out.clone());
                         }
                     } else {
                         if c < num_co_b - 1 {
-                            case0(b, l, d, c, ip, ci_b, out);
-                            case1(b, l, d, c, ip, ci_b, out);
-                            case0(b, l, d, c, in_channels / ci_b, ci_b_remain, out);
-                            case1(b, l, d, c, in_channels / ci_b, ci_b_remain, out);
+                            case0(b, l, d, c, ip, ci_b, out.clone());
+                            case1(b, l, d, c, ip, ci_b, out.clone());
+                            case0(b, l, d, c, in_channels / ci_b, ci_b_remain, out.clone());
+                            case1(b, l, d, c, in_channels / ci_b, ci_b_remain, out.clone());
                         } else {
-                            case2(b, l, d, c, ip, ci_b, out);
-                            case3(b, l, d, c, ip, ci_b, out);
-                            case2(b, l, d, c, in_channels / ci_b, ci_b_remain, out);
-                            case3(b, l, d, c, in_channels / ci_b, ci_b_remain, out);
+                            case2(b, l, d, c, ip, ci_b, out.clone());
+                            case3(b, l, d, c, ip, ci_b, out.clone());
+                            case2(b, l, d, c, in_channels / ci_b, ci_b_remain, out.clone());
+                            case3(b, l, d, c, in_channels / ci_b, ci_b_remain, out.clone());
                         }
                     }
                 });

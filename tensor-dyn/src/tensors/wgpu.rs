@@ -77,7 +77,7 @@ impl<T> TensorInfo<T> for _Tensor<T, Wgpu> where T: CommonBounds {
     }
 
     fn parent(&self) -> Option<Pointer<T>> {
-        self.parent
+        self.parent.clone()
     }
 
     fn ndim(&self) -> usize {
@@ -111,7 +111,7 @@ impl<T> TensorInfo<T> for &_Tensor<T, Wgpu> where T: CommonBounds {
     }
 
     fn parent(&self) -> Option<Pointer<T>> {
-        self.parent
+        self.parent.clone()
     }
 
     fn ndim(&self) -> usize {
@@ -308,11 +308,17 @@ impl<T: CommonBounds> _Tensor<T, Wgpu> {
     /// ```
     pub fn static_cast<U>(&self) -> Result<_Tensor<U, Wgpu>> where U: CommonBounds {
         assert_eq!(U::ID, T::ID);
-        match self.parent {
+        match self.parent.clone() {
             Some(parent) => {
+                #[cfg(feature = "bound_check")]
+                let new_parent = Pointer::new(parent.ptr as *mut U, parent.layout.clone());
+                #[cfg(not(feature = "bound_check"))]
                 let new_parent = Pointer::new(parent.ptr as *mut U);
                 Ok(_Tensor {
+                    #[cfg(not(feature = "bound_check"))]
                     data: Pointer::new(self.data.ptr as *mut U),
+                    #[cfg(feature = "bound_check")]
+                    data: Pointer::new(self.data.ptr as *mut U, self.layout.clone()),
                     parent: Some(new_parent),
                     mem_layout: self.mem_layout.clone(),
                     layout: self.layout.clone(),
@@ -320,9 +326,15 @@ impl<T: CommonBounds> _Tensor<T, Wgpu> {
                 })
             }
             None => {
+                #[cfg(feature = "bound_check")]
+                let new_parent = Pointer::new(self.data.ptr as *mut U, self.layout.clone());
+                #[cfg(not(feature = "bound_check"))]
                 let new_parent = Pointer::new(self.data.ptr as *mut U);
                 Ok(_Tensor {
+                    #[cfg(not(feature = "bound_check"))]
                     data: Pointer::new(self.data.ptr as *mut U),
+                    #[cfg(feature = "bound_check")]
+                    data: Pointer::new(self.data.ptr as *mut U, self.layout.clone()),
                     parent: Some(new_parent),
                     mem_layout: self.mem_layout.clone(),
                     layout: self.layout.clone(),
@@ -504,7 +516,10 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
             },
         };
         Ok(_Tensor {
+            #[cfg(not(feature = "bound_check"))]
             data: Pointer::new(std::ptr::null_mut()),
+            #[cfg(feature = "bound_check")]
+            data: Pointer::new(std::ptr::null_mut(), Layout::new(res_shape.clone(), strides.clone())),
             parent: None,
             mem_layout: layout.into(),
             layout: Layout::new(res_shape, strides),
@@ -543,7 +558,10 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
             },
         };
         Ok(_Tensor {
+            #[cfg(not(feature = "bound_check"))]
             data: Pointer::new(std::ptr::null_mut()),
+            #[cfg(feature = "bound_check")]
+            data: Pointer::new(std::ptr::null_mut(), zeros.layout.clone()),
             parent: None,
             mem_layout: zeros.mem_layout.clone(),
             layout: zeros.layout.clone(),
@@ -582,7 +600,10 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
             },
         };
         Ok(_Tensor {
+            #[cfg(not(feature = "bound_check"))]
             data: Pointer::new(std::ptr::null_mut()),
+            #[cfg(feature = "bound_check")]
+            data: Pointer::new(std::ptr::null_mut(), ones.layout.clone()),
             parent: None,
             mem_layout: layout.clone(),
             layout: ones.layout.clone(),
@@ -626,7 +647,10 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
             },
         };
         Ok(_Tensor {
+            #[cfg(not(feature = "bound_check"))]
             data: Pointer::new(std::ptr::null_mut()),
+            #[cfg(feature = "bound_check")]
+            data: Pointer::new(std::ptr::null_mut(), arange.layout.clone()),
             parent: None,
             mem_layout: arange.mem_layout.clone(),
             layout: arange.layout.clone(),
@@ -667,7 +691,10 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
             },
         };
         Ok(_Tensor {
+            #[cfg(not(feature = "bound_check"))]
             data: Pointer::new(std::ptr::null_mut()),
+            #[cfg(feature = "bound_check")]
+            data: Pointer::new(std::ptr::null_mut(), arange.layout.clone()),
             parent: None,
             mem_layout: arange.mem_layout.clone(),
             layout: arange.layout.clone(),
@@ -708,7 +735,10 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
             },
         };
         Ok(_Tensor {
+            #[cfg(not(feature = "bound_check"))]
             data: Pointer::new(std::ptr::null_mut()),
+            #[cfg(feature = "bound_check")]
+            data: Pointer::new(std::ptr::null_mut(), eye.layout.clone()),
             parent: None,
             mem_layout: eye.mem_layout.clone(),
             layout: eye.layout.clone(),
@@ -786,7 +816,10 @@ impl<T: CommonBounds + Pod> _Tensor<T, Wgpu> {
             },
         };
         Ok(_Tensor {
+            #[cfg(not(feature = "bound_check"))]
             data: Pointer::new(std::ptr::null_mut()),
+            #[cfg(feature = "bound_check")]
+            data: Pointer::new(std::ptr::null_mut(), tri.layout.clone()),
             parent: None,
             mem_layout: tri.mem_layout.clone(),
             layout: tri.layout.clone(),

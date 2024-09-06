@@ -38,6 +38,7 @@ pub mod ops {
             pub mod conv2d_test;
             pub mod conv2d;
             pub mod conv3d;
+            pub mod conv_config;
         }
         pub mod kernels {
             pub mod conv2d_kernels;

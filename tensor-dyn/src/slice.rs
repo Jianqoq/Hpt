@@ -37,20 +37,28 @@ impl<T> _Tensor<T> where T: CommonBounds {
             (shape, strides)
         };
         if self.parent.is_none() {
+            let layout = Layout::new(shape, strides);
             Self {
+                #[cfg(feature = "bound_check")]
+                data: Pointer::new(ptr, layout.clone()),
+                #[cfg(not(feature = "bound_check"))]
                 data: Pointer::new(ptr),
-                parent: Some(self.data),
+                parent: Some(self.data.clone()),
                 mem_layout: self.mem_layout.clone(),
-                layout: Layout::new(shape, strides),
+                layout,
                 _backend: Backend::new(self.data.ptr as u64),
             }
         } else {
+            let layout = Layout::new(shape, strides);
             Self {
+                #[cfg(feature = "bound_check")]
+                data: Pointer::new(ptr, layout.clone()),
+                #[cfg(not(feature = "bound_check"))]
                 data: Pointer::new(ptr),
-                parent: self.parent,
+                parent: self.parent.clone(),
                 mem_layout: self.mem_layout.clone(),
-                layout: Layout::new(shape, strides),
-                _backend: Backend::new(self.parent.unwrap().ptr as u64),
+                layout,
+                _backend: Backend::new(self.parent.clone().unwrap().ptr as u64),
             }
         }
     }

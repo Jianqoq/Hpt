@@ -12,7 +12,7 @@ use tensor_iterator::strided::strided_simd::StridedSimd;
 use tensor_iterator::par_strided_mut::par_strided_map_mut_simd::ParStridedMutSimd;
 #[cfg(feature = "simd")]
 use tensor_iterator::strided_mut::simd_imports::StridedMutSimd;
-use tensor_types::{dtype::TypeCommon, type_promote::FloatOutUnary};
+use tensor_types::{ dtype::TypeCommon, type_promote::FloatOutUnary };
 use rand_distr::{
     uniform::SampleUniform,
     Distribution,
@@ -118,7 +118,7 @@ impl<T, U> TensorLike<T, U, _Tensor<U>>
 
 impl<T> TensorInfo<T> for _Tensor<T> where T: CommonBounds {
     fn ptr(&self) -> Pointer<T> {
-        self.data
+        self.data.clone()
     }
 
     fn size(&self) -> usize {
@@ -138,7 +138,7 @@ impl<T> TensorInfo<T> for _Tensor<T> where T: CommonBounds {
     }
 
     fn parent(&self) -> Option<Pointer<T>> {
-        self.parent
+        self.parent.clone()
     }
 
     fn ndim(&self) -> usize {
@@ -152,7 +152,7 @@ impl<T> TensorInfo<T> for _Tensor<T> where T: CommonBounds {
 
 impl<T> TensorInfo<T> for &_Tensor<T> where T: CommonBounds {
     fn ptr(&self) -> Pointer<T> {
-        self.data
+        self.data.clone()
     }
 
     fn size(&self) -> usize {
@@ -172,7 +172,7 @@ impl<T> TensorInfo<T> for &_Tensor<T> where T: CommonBounds {
     }
 
     fn parent(&self) -> Option<Pointer<T>> {
-        self.parent
+        self.parent.clone()
     }
 
     fn ndim(&self) -> usize {
@@ -388,10 +388,16 @@ impl<T: CommonBounds> _Tensor<T> {
     /// ```
     pub fn static_cast<U>(&self) -> Result<_Tensor<U>> where U: CommonBounds {
         assert_eq!(U::ID, T::ID);
-        match self.parent {
+        match self.parent.clone() {
             Some(parent) => {
+                #[cfg(feature = "bound_check")]
+                let new_parent = Pointer::new(parent.ptr as *mut U, parent.layout.clone());
+                #[cfg(not(feature = "bound_check"))]
                 let new_parent = Pointer::new(parent.ptr as *mut U);
                 return Ok(_Tensor {
+                    #[cfg(feature = "bound_check")]
+                    data: Pointer::new(self.data.ptr as *mut U, self.layout.clone()),
+                    #[cfg(not(feature = "bound_check"))]
                     data: Pointer::new(self.data.ptr as *mut U),
                     parent: Some(new_parent),
                     mem_layout: self.mem_layout.clone(),
@@ -401,6 +407,9 @@ impl<T: CommonBounds> _Tensor<T> {
             }
             None => {
                 Ok(_Tensor {
+                    #[cfg(feature = "bound_check")]
+                    data: Pointer::new(self.data.ptr as *mut U, self.layout.clone()),
+                    #[cfg(not(feature = "bound_check"))]
                     data: Pointer::new(self.data.ptr as *mut U),
                     parent: None,
                     mem_layout: self.mem_layout.clone(),
@@ -500,10 +509,12 @@ impl<T: CommonBounds> _Tensor<T> {
         let res = self
             .par_iter_simd()
             .strided_map_simd(
-                |(res, x)| { *res = x },
-                |(res, x)| { 
+                |(res, x)| {
                     *res = x;
-                 }
+                },
+                |(res, x)| {
+                    *res = x;
+                }
             )
             .collect();
         Ok(res)
@@ -677,10 +688,14 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             ::from_size_align(size * std::mem::size_of::<T>(), ALIGN)
             .unwrap();
         let ptr = unsafe { CACHE.allocate(layout) };
+        let ly = Layout::new(res_shape.clone(), strides.clone());
         Ok(_Tensor {
+            #[cfg(feature = "bound_check")]
+            data: Pointer::new(ptr as *mut T, ly.clone()),
+            #[cfg(not(feature = "bound_check"))]
             data: Pointer::new(ptr as *mut T),
             parent: None,
-            layout: Layout::new(res_shape, strides),
+            layout: ly,
             mem_layout: Arc::new(layout),
             _backend: Backend::new(ptr as u64),
         })
@@ -709,10 +724,14 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         slice[size - (size % 8)..size].iter_mut().for_each(|x| {
             *x = T::ZERO;
         });
+        let ly = Layout::new(res_shape.clone(), strides.clone());
         Ok(_Tensor {
+            #[cfg(feature = "bound_check")]
+            data: Pointer::new(ptr as *mut T, ly.clone()),
+            #[cfg(not(feature = "bound_check"))]
             data: Pointer::new(ptr as *mut T),
             parent: None,
-            layout: Layout::new(res_shape, strides),
+            layout: ly,
             mem_layout: Arc::new(layout),
             _backend: Backend::new(ptr as u64),
         })
@@ -769,7 +788,10 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
     }
 
     fn arange<U>(start: U, end: U) -> Result<Self>
-        where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>, U: Convertor + IntoScalar<T> + Copy
+        where
+            T: Convertor + FromScalar<U> + NormalOut<T, Output = T>,
+            usize: IntoScalar<T>,
+            U: Convertor + IntoScalar<T> + Copy
     {
         let size: i64 = end.to_i64() - start.to_i64();
         let start = start.into_scalar();
@@ -869,7 +891,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self>
         where
             T: PartialOrd +
-            FloatOutUnary +
+                FloatOutUnary +
                 NormalOut<T, Output = T> +
                 FromScalar<<T as FloatOutUnary>::Output> +
                 std::ops::Neg<Output = T>,
@@ -884,7 +906,8 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let float_n = <T as FloatOutUnary>::Output::__from(n);
         let step = if include_end {
             if start > T::ZERO && end > T::ZERO {
-                (end._log10() - start._log10()) / (float_n - <T as FloatOutUnary>::Output::__from(1f64))
+                (end._log10() - start._log10()) /
+                    (float_n - <T as FloatOutUnary>::Output::__from(1f64))
             } else if start < T::ZERO && end < T::ZERO {
                 (end._abs()._log10() - start._abs()._log10()) /
                     (float_n - <T as FloatOutUnary>::Output::__from(1.0))
@@ -929,7 +952,9 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                 .into_par_iter()
                 .enumerate()
                 .for_each(|(i, x)| {
-                    let val = ten._pow(start._add(<T as FloatOutUnary>::Output::__from(i)._mul(step)));
+                    let val = ten._pow(
+                        start._add(<T as FloatOutUnary>::Output::__from(i)._mul(step))
+                    );
                     *x = -T::__from(val);
                 });
         } else {
@@ -937,7 +962,9 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                 .into_par_iter()
                 .enumerate()
                 .for_each(|(i, x)| {
-                    let val = ten._pow(start._add(<T as FloatOutUnary>::Output::__from(i)._mul(step)));
+                    let val = ten._pow(
+                        start._add(<T as FloatOutUnary>::Output::__from(i)._mul(step))
+                    );
                     *x = T::__from(val);
                 });
         }
@@ -1116,12 +1143,13 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         }
     }
 
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn permute<A: Into<Axis>>(&self, axes: A) -> Result<_Tensor<T>> {
         let permuted_layout = self.layout.permute(axes)?;
         Ok(_Tensor {
             data: self.data.clone(),
             layout: permuted_layout,
-            parent: self.parent,
+            parent: self.parent.clone(),
             mem_layout: self.mem_layout.clone(),
             _backend: self._backend.clone(),
         })
@@ -1163,7 +1191,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         if self.parent.is_none() {
             Ok(Self {
                 data: ptr,
-                parent: Some(self.data),
+                parent: Some(self.data.clone()),
                 mem_layout: self.mem_layout.clone(),
                 layout: Layout::new(self.shape().clone(), new_strides),
                 _backend: Backend::new(self.data.ptr as u64),
@@ -1374,7 +1402,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         Ok(_Tensor {
             data: self.data.clone(),
             layout: permuted_layout,
-            parent: self.parent,
+            parent: self.parent.clone(),
             mem_layout: self.mem_layout.clone(),
             _backend: self._backend.clone(),
         })
@@ -1565,8 +1593,8 @@ impl<T> Into<Tensor<T>> for _Tensor<T> {
 impl<T> Into<_Tensor<T>> for &_Tensor<T> where T: CommonBounds {
     fn into(self) -> _Tensor<T> {
         _Tensor {
-            data: self.data,
-            parent: self.parent,
+            data: self.data.clone(),
+            parent: self.parent.clone(),
             layout: self.layout.clone(),
             mem_layout: self.mem_layout.clone(),
             _backend: Backend::new(self.data.ptr as u64),
@@ -1593,6 +1621,9 @@ impl<'a, T> Into<_Tensor<T>> for &'a [T] {
             std::ptr::copy_nonoverlapping(self.as_ptr(), ptr as *mut T, self.len());
         }
         _Tensor {
+            #[cfg(feature = "bound_check")]
+            data: Pointer::new(ptr as *mut T, layout.clone()),
+            #[cfg(not(feature = "bound_check"))]
             data: Pointer::new(ptr as *mut T),
             parent: None,
             layout,

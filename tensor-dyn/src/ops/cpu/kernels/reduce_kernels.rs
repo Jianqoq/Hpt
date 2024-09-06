@@ -93,9 +93,9 @@ macro_rules! gen_kernel {
         $prg:ident,
         [$($idx:expr),*]
     ) => {
-        let origin_ptr = $inp_ptr;
+        let origin_ptr = $inp_ptr.clone();
         for i in 0..$num_largest_vecs {
-            $inp_ptr = origin_ptr;
+            $inp_ptr = origin_ptr.clone();
             $inp_ptr.offset(i as i64 * ($unroll_num * $vec_size) as i64);
                 paste! {
                     $(
@@ -153,8 +153,8 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
         F: Fn(O, T) -> O,
         F2: Fn(<O as TypeCommon>::Vec, <T as TypeCommon>::Vec) -> <O as TypeCommon>::Vec
 {
-    let origin = inp_ptr; // save original inp_ptr
-    let origin_res = res_ptr; // save original res_ptr
+    let origin = inp_ptr.clone(); // save original inp_ptr
+    let origin_res = res_ptr.clone(); // save original res_ptr
     let ndim = inp_strides.len();
     let mut prg = vec![0; ndim]; // intialize loop progress
     let remain = inner_loop_size % vec_size; // get inner loop size remainder
@@ -214,8 +214,8 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
         [1, 2, 3, 4, 5, 6, 7, 8]
     );
     let remain_vec = remain_vec as u32;
-    inp_ptr = origin; // reset inp_ptr
-    res_ptr = origin_res; // reset res_ptr
+    inp_ptr = origin.clone(); // reset inp_ptr
+    res_ptr = origin_res.clone(); // reset res_ptr
     inp_ptr.offset((num_largest_vecs as i64) * (largest_num_vec as i64) * (vec_size as i64));
     res_ptr.offset((num_largest_vecs as i64) * (largest_num_vec as i64) * (vec_size as i64));
     gen_fast_reduce_simd_helper!(remain_vec);
@@ -271,10 +271,10 @@ macro_rules! gen_kernel2 {
         $shape_len:ident,
         [$($idx:expr),*]
     ) => {
-        let origin_ptr = $inp_ptr;
+        let origin_ptr = $inp_ptr.clone();
         unsafe {
             for i in 0..$num_largest_vecs {
-                $inp_ptr = origin_ptr;
+                $inp_ptr = origin_ptr.clone();
                 $inp_ptr.offset(i as i64 * ($unroll_num * $vec_size) as i64);
                     paste! {
                         $(
@@ -371,8 +371,8 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2>(
         F: Fn(O, T) -> O,
         F2: Fn(<O as TypeCommon>::Vec, <T as TypeCommon>::Vec) -> <O as TypeCommon>::Vec
 {
-    let origin = inp_ptr; // save original inp_ptr
-    let origin_res = res_ptr; // save original res_ptr
+    let origin = inp_ptr.clone(); // save original inp_ptr
+    let origin_res = res_ptr.clone(); // save original res_ptr
     let remain = inner_loop_size % (<O as TypeCommon>::Vec::SIZE as isize); // get inner loop size remainder
     let inner = inner_loop_size - remain; // get inner loop size that is multiple of vec_size
     let num_vecs = inner / (<O as TypeCommon>::Vec::SIZE as isize); // get number of vectors
@@ -443,8 +443,8 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2>(
         }
     }
     let remain_vec = remain_vec as u32;
-    inp_ptr = origin; // reset inp_ptr
-    res_ptr = origin_res; // reset res_ptr
+    inp_ptr = origin.clone(); // reset inp_ptr
+    res_ptr = origin_res.clone(); // reset res_ptr
     inp_ptr.offset(
         (num_largest_vecs as i64) * (largest_num_vec as i64) * (<O as TypeCommon>::Vec::SIZE as i64)
     );

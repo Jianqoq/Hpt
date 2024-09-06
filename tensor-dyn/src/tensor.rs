@@ -71,7 +71,7 @@ impl<T, U> TensorLike<T, U, Tensor<U>>
 
 impl<T> TensorInfo<T> for Tensor<T> where T: CommonBounds {
     fn ptr(&self) -> Pointer<T> {
-        self.data
+        self.data.clone()
     }
 
     fn size(&self) -> usize {
@@ -91,7 +91,7 @@ impl<T> TensorInfo<T> for Tensor<T> where T: CommonBounds {
     }
 
     fn parent(&self) -> Option<Pointer<T>> {
-        self.parent
+        self.parent.clone()
     }
 
     fn ndim(&self) -> usize {
@@ -105,7 +105,7 @@ impl<T> TensorInfo<T> for Tensor<T> where T: CommonBounds {
 
 impl<T> TensorInfo<T> for &Tensor<T> where T: CommonBounds {
     fn ptr(&self) -> Pointer<T> {
-        self.data
+        self.data.clone()
     }
 
     fn size(&self) -> usize {
@@ -125,7 +125,7 @@ impl<T> TensorInfo<T> for &Tensor<T> where T: CommonBounds {
     }
 
     fn parent(&self) -> Option<Pointer<T>> {
-        self.parent
+        self.parent.clone()
     }
 
     fn ndim(&self) -> usize {

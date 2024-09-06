@@ -1,5 +1,9 @@
 use serde::ser::SerializeStruct;
-use std::{ alloc::Layout, fmt::{ Debug, Display, Formatter }, ops::{ Deref, DerefMut, Index, IndexMut } };
+use std::{
+    alloc::Layout,
+    fmt::{ Debug, Display, Formatter },
+    ops::{ Deref, DerefMut, Index, IndexMut },
+};
 
 use serde::Serialize;
 
@@ -7,9 +11,17 @@ use serde::Serialize;
 /// This is for wrapping raw pointers to make them safe for multithreading
 ///
 /// This is for internal use only
+#[cfg(not(feature = "bound_check"))]
 #[derive(Debug, Copy, Clone)]
 pub struct Pointer<T> {
     pub ptr: *mut T,
+}
+
+#[cfg(feature = "bound_check")]
+#[derive(Debug, Clone)]
+pub struct Pointer<T> {
+    pub ptr: *mut T,
+    pub layout: crate::layout::Layout,
 }
 
 impl<T> Pointer<T> {
@@ -46,9 +58,16 @@ impl<T> Pointer<T> {
     /// let a = Pointer::<i32>::new(_a as *mut i32);
     /// assert_eq!(a.read(), 10);
     /// ```
+    #[cfg(not(feature = "bound_check"))]
     #[inline(always)]
     pub fn new(ptr: *mut T) -> Self {
         Self { ptr }
+    }
+
+    #[cfg(feature = "bound_check")]
+    #[inline(always)]
+    pub fn new(ptr: *mut T, layout: crate::layout::Layout) -> Self {
+        Self { ptr, layout }
     }
 
     /// return the address of the pointer
@@ -222,6 +241,9 @@ unsafe impl<T> Send for Pointer<T> {}
 impl<T: Display> Index<i64> for Pointer<T> {
     type Output = T;
     fn index(&self, index: i64) -> &Self::Output {
+        #[cfg(feature = "bound_check")]
+        {
+        }
         unsafe { &*self.ptr.offset(index as isize) }
     }
 }
@@ -229,6 +251,21 @@ impl<T: Display> Index<i64> for Pointer<T> {
 impl<T: Display> Index<isize> for Pointer<T> {
     type Output = T;
     fn index(&self, index: isize) -> &Self::Output {
+        #[cfg(feature = "bound_check")]
+        {
+            let mut idx = index as i64;
+            for i in 0..self.layout.ndim() {
+                let prg = (idx as i64) / self.layout.strides()[i];
+                if prg < 0 || prg >= (self.layout.shape()[i] as i64) {
+                    panic!(
+                        "index out of bounds. index: {}, corresponding dim: {}",
+                        index,
+                        self.layout.shape()[i]
+                    );
+                }
+                idx = idx % self.layout.strides()[i];
+            }
+        }
         unsafe { &*self.ptr.offset(index) }
     }
 }
@@ -236,18 +273,63 @@ impl<T: Display> Index<isize> for Pointer<T> {
 impl<T: Display> Index<usize> for Pointer<T> {
     type Output = T;
     fn index(&self, index: usize) -> &Self::Output {
+        #[cfg(feature = "bound_check")]
+        {
+            let mut idx = index as i64;
+            for i in 0..self.layout.ndim() {
+                let prg = (idx as i64) / self.layout.strides()[i];
+                if prg < 0 || prg >= (self.layout.shape()[i] as i64) {
+                    panic!(
+                        "index out of bounds. index: {}, corresponding dim: {}",
+                        index,
+                        self.layout.shape()[i]
+                    );
+                }
+                idx = idx % self.layout.strides()[i];
+            }
+        }
         unsafe { &*self.ptr.add(index) }
     }
 }
 
 impl<T: Display> IndexMut<i64> for Pointer<T> {
     fn index_mut(&mut self, index: i64) -> &mut Self::Output {
+        #[cfg(feature = "bound_check")]
+        {
+            let mut idx = index;
+            for i in 0..self.layout.ndim() {
+                let prg = idx / self.layout.strides()[i];
+                if prg < 0 || prg >= (self.layout.shape()[i] as i64) {
+                    panic!(
+                        "index out of bounds. index: {}, corresponding dim: {}",
+                        index,
+                        self.layout.shape()[i]
+                    );
+                }
+                idx = idx % self.layout.strides()[i];
+            }
+        }
         unsafe { &mut *self.ptr.offset(index as isize) }
     }
 }
 
 impl<T: Display> IndexMut<isize> for Pointer<T> {
     fn index_mut(&mut self, index: isize) -> &mut Self::Output {
+        #[cfg(feature = "bound_check")]
+        {
+            let mut idx = index as i64;
+            for i in 0..self.layout.ndim() {
+                let prg = (idx as i64) / self.layout.strides()[i];
+                if prg < 0 || prg >= (self.layout.shape()[i] as i64) {
+                    panic!(
+                        "index out of bounds. index: {}, corresponding dim: {}",
+                        index,
+                        self.layout.shape()[i]
+                    );
+                }
+                idx = idx % self.layout.strides()[i];
+            }
+        }
         unsafe { &mut *self.ptr.offset(index) }
     }
 }
