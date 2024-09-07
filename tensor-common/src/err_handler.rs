@@ -74,8 +74,14 @@ pub enum ErrHandler {
     SqueezeError(usize, Shape, &'static Location<'static>),
 
     /// used when the dimension is less than 0
-    #[error("invalide input shape, result dim can't less than 0, got {0}")]
-    InvalidInputShape(i64),
+    #[error("invalide input shape, result dim can't less than 0, got {0}, at {1}")]
+    InvalidInputShape(i64, &'static Location<'static>),
+
+    /// currently only used for conv, max_pool, avg_pool, etc.
+    #[error(
+        "internal error: invalide cache param, {0} must be less than {1} and multiple of {2} or equal to 1, but got {3}, at {4}"
+    )]
+    InvalidCacheParam(&'static str, i64, i64, i64, &'static Location<'static>),
 }
 
 impl ErrHandler {

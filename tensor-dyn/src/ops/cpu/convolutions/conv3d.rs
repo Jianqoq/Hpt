@@ -6,6 +6,7 @@ use tensor_types::{
     into_scalar::IntoScalar,
     traits::{ Init, VecSize, VecTrait },
 };
+use tensor_common::err_handler::ErrHandler::InvalidCacheParam;
 use tensor_common::err_handler::ErrHandler::InvalidInputShape;
 use tensor_traits::TensorCreator;
 use crate::{
@@ -23,6 +24,7 @@ impl<T> _Tensor<T>
         T: CommonBounds + IntoScalar<T>,
         <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecSize
 {
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn conv3d(
         &self,
         kernels: &_Tensor<T>,
@@ -80,11 +82,11 @@ impl<T> _Tensor<T>
         };
         if out_height <= 0 || out_width <= 0 || out_depth <= 0 {
             if out_height <= 0 {
-                return Err(InvalidInputShape(out_height).into());
+                return Err(InvalidInputShape(out_height, core::panic::Location::caller()).into());
             } else if out_width <= 0 {
-                return Err(InvalidInputShape(out_width).into());
+                return Err(InvalidInputShape(out_width, core::panic::Location::caller()).into());
             } else {
-                return Err(InvalidInputShape(out_depth).into());
+                return Err(InvalidInputShape(out_depth, core::panic::Location::caller()).into());
             }
         }
         let output = _Tensor::<T>::zeros([batch, out_depth, out_height, out_width, out_channels])?;
@@ -130,7 +132,17 @@ impl<T> _Tensor<T>
         let wo_b_remain = out_width % (CONV_REGNUM as i64);
         let ci_b_remain = in_channels % ci_b;
         let num_co_rb = co_b / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
-        assert_eq!(co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64), 0);
+        if !(co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0 || co_b == 1) || co_b > out_channels {
+            return Err(
+                InvalidCacheParam(
+                    "co_b",
+                    out_channels,
+                    <<T as TypeCommon>::Vec as VecSize>::SIZE as i64,
+                    co_b,
+                    core::panic::Location::caller()
+                ).into()
+            );
+        }
 
         let outer = batch * num_co_b * out_height * out_depth;
 

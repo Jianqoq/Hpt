@@ -11,6 +11,7 @@ use tensor_types::into_scalar::IntoScalar;
 use rayon::prelude::*;
 use tensor_types::dtype::TypeCommon;
 use tensor_common::err_handler::ErrHandler::InvalidInputShape;
+use tensor_common::err_handler::ErrHandler::InvalidCacheParam;
 use super::conv_config::Conv2dConfig;
 
 impl<T> _Tensor<T>
@@ -18,6 +19,7 @@ impl<T> _Tensor<T>
         T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
         <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecSize
 {
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn conv2d(
         &self,
         kernels: &_Tensor<T>,
@@ -66,9 +68,9 @@ impl<T> _Tensor<T>
         };
         if out_height <= 0 || out_width <= 0 {
             if out_height <= 0 {
-                return Err(InvalidInputShape(out_height).into());
+                return Err(InvalidInputShape(out_height, core::panic::Location::caller()).into());
             } else {
-                return Err(InvalidInputShape(out_width).into());
+                return Err(InvalidInputShape(out_width, core::panic::Location::caller()).into());
             }
         }
         let output = _Tensor::<T>::zeros([batch, out_height, out_width, out_channels])?;
@@ -111,7 +113,17 @@ impl<T> _Tensor<T>
         let wo_b_remain = out_width % (CONV_REGNUM as i64);
         let ci_b_remain = in_channels % ci_b;
         let num_co_rb = co_b / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
-        assert!(co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0 || co_b == 1);
+        if !(co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0 || co_b == 1) || co_b > out_channels {
+            return Err(
+                InvalidCacheParam(
+                    "co_b",
+                    out_channels,
+                    <<T as TypeCommon>::Vec as VecSize>::SIZE as i64,
+                    co_b,
+                    core::panic::Location::caller()
+                ).into()
+            );
+        }
         let num_vec_size = co_b_remain / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
         let outer = batch * num_co_b * out_height;
 

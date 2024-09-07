@@ -12,6 +12,7 @@ use tensor_traits::TensorInfo;
 use tensor_types::into_scalar::IntoScalar;
 use rayon::prelude::*;
 use tensor_common::err_handler::ErrHandler::InvalidInputShape;
+use tensor_common::err_handler::ErrHandler::InvalidCacheParam;
 use tensor_types::dtype::TypeCommon;
 
 impl<T> _Tensor<T>
@@ -25,6 +26,7 @@ impl<T> _Tensor<T>
             VecSize +
             NormalOut<Output = <T as TypeCommon>::Vec>
 {
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn max_pool2d<S: Into<Shape>>(
         &self,
         kernel_shape: S,
@@ -65,9 +67,9 @@ impl<T> _Tensor<T>
         };
         if out_height <= 0 || out_width <= 0 {
             if out_height <= 0 {
-                return Err(InvalidInputShape(out_height).into());
+                return Err(InvalidInputShape(out_height, core::panic::Location::caller()).into());
             } else {
-                return Err(InvalidInputShape(out_width).into());
+                return Err(InvalidInputShape(out_width, core::panic::Location::caller()).into());
             }
         }
         let output = _Tensor::<T>::full(T::NEG_INF, [batch, out_height, out_width, out_channels])?;
@@ -97,7 +99,17 @@ impl<T> _Tensor<T>
             }
         };
 
-        assert!(co_b <= out_channels);
+        if !(co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0 || co_b == 1) || co_b > out_channels {
+            return Err(
+                InvalidCacheParam(
+                    "co_b",
+                    out_channels,
+                    <<T as TypeCommon>::Vec as VecSize>::SIZE as i64,
+                    co_b,
+                    core::panic::Location::caller()
+                ).into()
+            );
+        }
         let num_co_b = out_channels / co_b;
         let num_wo_b = out_width / (CONV_REGNUM as i64);
 

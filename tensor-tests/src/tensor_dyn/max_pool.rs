@@ -66,6 +66,16 @@ fn test_case0() -> anyhow::Result<()> {
     assert_eq(&a, &tch_a, 4, [3, 3], &mut config)?;
     assert_eq(&a, &tch_a, 16, [3, 3], &mut config)?;
     assert_eq(&a, &tch_a, 1, [3, 3], &mut config)?;
+
+    let (a, tch_a) = common_input([1, 128, 3, 3, 5, 5])?;
+    let mut config = Conv2dConfig::<i64>::new(3, 3, [3, 3], KernelParamAlgo::Greedy);
+    assert_eq(&a, &tch_a, 4, [3, 3], &mut config)?;
+    assert_eq(&a, &tch_a, 16, [3, 3], &mut config)?;
+    assert_eq(&a, &tch_a, 1, [3, 3], &mut config)?;
+
+    let (a, tch_a) = common_input([1, 2, 3, 3, 5, 5])?;
+    let mut config = Conv2dConfig::<i64>::new(3, 2, [3, 3], KernelParamAlgo::Greedy);
+    assert_eq(&a, &tch_a, 1, [3, 3], &mut config)?;
     Ok(())
 }
 
