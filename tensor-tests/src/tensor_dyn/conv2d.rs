@@ -41,15 +41,19 @@ fn common_input<T>([batch, out_channel, in_channel, kernel_height, kernel_width,
     Ok((kernel, a, tch_kernel, tch_a))
 }
 
-#[test]
-fn test_case0() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 128, 3, 3, 3, 128, 128])?;
-    let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
-    config.set_ci_block_size(3);
-    config.set_co_block_size(128);
+fn assert_eq(
+    a: &_Tensor<i64>,
+    a_kernel: &_Tensor<i64>,
+    b: &tch::Tensor,
+    b_kernel: &tch::Tensor,
+    block_size: [i64; 2],
+    config: &mut Conv2dConfig<i64>
+) -> anyhow::Result<()> {
+    config.set_ci_block_size(block_size[0]);
+    config.set_co_block_size(block_size[1]);
     let res = a
         .conv2d(
-            &kernel,
+            &a_kernel,
             [1, 1],
             [
                 (0, 0),
@@ -60,7 +64,7 @@ fn test_case0() -> anyhow::Result<()> {
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
-    let res2 = tch_a.conv2d(&tch_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
+    let res2 = b.conv2d(&b_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
     res_slice
@@ -69,52 +73,16 @@ fn test_case0() -> anyhow::Result<()> {
         .for_each(|(a, b)| {
             assert!(a == b);
         });
+    Ok(())
+}
 
-    config.set_ci_block_size(1);
-    config.set_co_block_size(16);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res_slice = res.as_raw();
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
-
-    config.set_ci_block_size(1);
-    config.set_co_block_size(1);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res_slice = res.as_raw();
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
+#[test]
+fn test_case0() -> anyhow::Result<()> {
+    let (kernel, a, tch_kernel, tch_a) = common_input([1, 128, 3, 3, 3, 128, 128])?;
+    let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 128], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1], &mut config)?;
     Ok(())
 }
 
@@ -122,76 +90,9 @@ fn test_case0() -> anyhow::Result<()> {
 fn test_case1() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 128, 3, 3, 3, 130, 130])?;
     let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
-    config.set_ci_block_size(3);
-    config.set_co_block_size(128);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res2 = tch_a.conv2d(&tch_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
-    let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
-
-    config.set_ci_block_size(1);
-    config.set_co_block_size(16);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res_slice = res.as_raw();
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
-
-    config.set_ci_block_size(1);
-    config.set_co_block_size(1);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res_slice = res.as_raw();
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 128], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1], &mut config)?;
     Ok(())
 }
 
@@ -199,76 +100,9 @@ fn test_case1() -> anyhow::Result<()> {
 fn test_case2() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 128, 3, 3, 3, 128, 128])?;
     let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
-    config.set_ci_block_size(3);
-    config.set_co_block_size(120);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res2 = tch_a.conv2d(&tch_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
-    let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
-
-    config.set_ci_block_size(1);
-    config.set_co_block_size(16);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res_slice = res.as_raw();
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
-
-    config.set_ci_block_size(1);
-    config.set_co_block_size(1);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res_slice = res.as_raw();
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 120], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1], &mut config)?;
     Ok(())
 }
 
@@ -276,76 +110,9 @@ fn test_case2() -> anyhow::Result<()> {
 fn test_case3() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 130, 3, 3, 3, 130, 130])?;
     let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
-    config.set_ci_block_size(3);
-    config.set_co_block_size(120);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res2 = tch_a.conv2d(&tch_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
-    let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
-
-    config.set_ci_block_size(1);
-    config.set_co_block_size(16);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res_slice = res.as_raw();
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
-
-    config.set_ci_block_size(1);
-    config.set_co_block_size(1);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res_slice = res.as_raw();
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 120], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1], &mut config)?;
     Ok(())
 }
 
@@ -353,76 +120,9 @@ fn test_case3() -> anyhow::Result<()> {
 fn test_case4() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 128, 3, 3, 3, 128, 128])?;
     let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
-    config.set_ci_block_size(2);
-    config.set_co_block_size(128);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res2 = tch_a.conv2d(&tch_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
-    let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
-
-    config.set_ci_block_size(1);
-    config.set_co_block_size(16);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res_slice = res.as_raw();
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
-
-    config.set_ci_block_size(1);
-    config.set_co_block_size(1);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res_slice = res.as_raw();
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [2, 128], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1], &mut config)?;
     Ok(())
 }
 
@@ -430,75 +130,9 @@ fn test_case4() -> anyhow::Result<()> {
 fn test_case5() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 128, 3, 3, 3, 127, 127])?;
     let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
-    config.set_ci_block_size(2);
-    config.set_co_block_size(128);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res2 = tch_a.conv2d(&tch_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
-    let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
-    config.set_ci_block_size(1);
-    config.set_co_block_size(16);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res_slice = res.as_raw();
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
-
-    config.set_ci_block_size(1);
-    config.set_co_block_size(1);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res_slice = res.as_raw();
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [2, 128], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1], &mut config)?;
     Ok(())
 }
 
@@ -506,76 +140,9 @@ fn test_case5() -> anyhow::Result<()> {
 fn test_case6() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 130, 3, 3, 3, 130, 130])?;
     let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
-    config.set_ci_block_size(2);
-    config.set_co_block_size(120);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res2 = tch_a.conv2d(&tch_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
-    let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
-
-    config.set_ci_block_size(1);
-    config.set_co_block_size(16);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res_slice = res.as_raw();
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
-
-    config.set_ci_block_size(1);
-    config.set_co_block_size(1);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res_slice = res.as_raw();
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [2, 120], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1], &mut config)?;
     Ok(())
 }
 
@@ -583,75 +150,8 @@ fn test_case6() -> anyhow::Result<()> {
 fn test_case7() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 130, 3, 3, 3, 128, 128])?;
     let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
-    config.set_ci_block_size(2);
-    config.set_co_block_size(120);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res2 = tch_a.conv2d(&tch_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
-    let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
-
-    config.set_ci_block_size(1);
-    config.set_co_block_size(16);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res_slice = res.as_raw();
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
-
-    config.set_ci_block_size(1);
-    config.set_co_block_size(1);
-    let res = a
-        .conv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?
-        .permute([0, 3, 1, 2])?
-        .contiguous()?;
-    let res_slice = res.as_raw();
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            assert!(a == b);
-        });
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [2, 120], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1], &mut config)?;
     Ok(())
 }

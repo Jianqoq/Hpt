@@ -89,16 +89,14 @@ impl<T> _Tensor<T>
             }
         };
 
+        assert!(co_b <= out_channels);
         let num_co_b = out_channels / co_b;
         let num_wo_b = out_width / (CONV_REGNUM as i64);
 
         let co_b_remain = out_channels % co_b;
         let wo_b_remain = out_width % (CONV_REGNUM as i64);
         let num_co_rb = co_b / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
-        assert!(
-            co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0 ||
-                co_b < (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)
-        );
+        assert!(co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0 || co_b == 1);
 
         let outer = batch * num_co_b * out_height;
 
@@ -117,9 +115,9 @@ impl<T> _Tensor<T>
                         kernel_fn(
                             inner_size,
                             kp,
-                            b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
+                            c * co_b + b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                             c * co_b,
-                            b * osb + l * osh + kp * CONV_REGNUM as i64 * osw, // prettier-ignore
+                            b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
                             step_width,
                             isw,
                             osw,
@@ -145,7 +143,7 @@ impl<T> _Tensor<T>
                     micro_kernel(
                         remain,
                         num_wo_b,
-                        b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
+                        c * co_b + b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                         c * co_b,
                         b * osb + l * osh + num_wo_b * CONV_REGNUM as i64 * osw, // prettier-ignore
                         step_width,
@@ -288,7 +286,7 @@ impl<T> _Tensor<T>
                             micro_kernel_regnum::<T>(
                                 num_vec_size,
                                 kp,
-                                b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
+                                num_co_b * co_b + b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                                 num_co_b * co_b,
                                 b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
                                 step_width,
@@ -317,7 +315,7 @@ impl<T> _Tensor<T>
                             micro_kernel_regnum_with_buffer::<T>(
                                 num_vec_size,
                                 kp,
-                                b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
+                                c * co_b + b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                                 step_width,
                                 isw,
                                 &inp_cpy,
@@ -384,7 +382,7 @@ impl<T> _Tensor<T>
                         fast_micro_kernel(
                             num_vec_size,
                             num_wo_b,
-                            b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
+                            c * co_b + b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                             c * co_b,
                             b * osb + l * osh + num_wo_b * CONV_REGNUM as i64 * osw, // prettier-ignore
                             step_width,
@@ -411,7 +409,7 @@ impl<T> _Tensor<T>
                         micro_kernel(
                             num_vec_size,
                             num_wo_b,
-                            b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
+                            c * co_b + b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                             step_width,
                             isw,
                             &inp,
@@ -641,7 +639,7 @@ impl<T> _Tensor<T>
                 _ => unimplemented!(),
             }
         };
-        (0..outer).into_par_iter().for_each(|idx| {
+        (0..outer).into_iter().for_each(|idx| {
             let b = idx / (num_co_b * out_height);
             let c = (idx / out_height) % num_co_b;
             let l = idx % out_height;

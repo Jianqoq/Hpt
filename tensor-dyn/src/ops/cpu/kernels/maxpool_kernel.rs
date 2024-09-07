@@ -138,7 +138,7 @@ macro_rules! micro_kernel {
                     unsafe {
                         $(
                             let _k = kp * (CONV_REGNUM as i64) + $idx;
-                            let [<inp_vec $idx>] = &inp[inp_offset + _k * step_width * isw] as *const _ as *const <T as TypeCommon>::Vec;
+                            let [<inp_vec $idx>] = &inp[inp_offset + _k * step_width * isw + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *const _ as *const <T as TypeCommon>::Vec;
                         )*
                         $(
                             let [<out_vec $idx>] = &mut out[co_offset + ofs + $idx * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
@@ -231,8 +231,49 @@ macro_rules! micro_kernel_with_buffer {
     };
 }
 
-#[cfg(target_feature = "avx2")]
-micro_kernel!(regnum, [0, 1, 2, 3, 4, 5, 6]);
+#[rustfmt::skip]
+pub(crate)fn micro_kernel_regnum<T>(num_co_rb:i64,kp:i64,inp_offset:i64,co_offset:i64,out_offset:i64,step_width:i64,isw:i64,osw:i64,inp: &Pointer<T>,out: &mut Pointer<T>,)where T:CommonBounds, <T as TypeCommon>::Vec:VecTrait<T> +Copy+Init<T> +VecSize+NormalOut<Output =  <T as TypeCommon>::Vec>{
+    for j in 0..num_co_rb {
+        let ofs = out_offset+j*(<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
+        unsafe {
+            let _k = kp*(CONV_REGNUM as i64)+0;
+            let inp_vec0 =  &inp[inp_offset+_k*step_width*isw+j*(<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)]as *const _ as *const <T as TypeCommon>::Vec;
+            let _k = kp*(CONV_REGNUM as i64)+1;
+            let inp_vec1 =  &inp[inp_offset+_k*step_width*isw+j*(<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)]as *const _ as *const <T as TypeCommon>::Vec;
+            let _k = kp*(CONV_REGNUM as i64)+2;
+            let inp_vec2 =  &inp[inp_offset+_k*step_width*isw+j*(<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)]as *const _ as *const <T as TypeCommon>::Vec;
+            let _k = kp*(CONV_REGNUM as i64)+3;
+            let inp_vec3 =  &inp[inp_offset+_k*step_width*isw+j*(<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)]as *const _ as *const <T as TypeCommon>::Vec;
+            let _k = kp*(CONV_REGNUM as i64)+4;
+            let inp_vec4 =  &inp[inp_offset+_k*step_width*isw+j*(<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)]as *const _ as *const <T as TypeCommon>::Vec;
+            let _k = kp*(CONV_REGNUM as i64)+5;
+            let inp_vec5 =  &inp[inp_offset+_k*step_width*isw+j*(<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)]as *const _ as *const <T as TypeCommon>::Vec;
+            let _k = kp*(CONV_REGNUM as i64)+6;
+            let inp_vec6 =  &inp[inp_offset+_k*step_width*isw+j*(<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)]as *const _ as *const <T as TypeCommon>::Vec;
+            let out_vec0 =  &mut out[co_offset+ofs+0*osw]as *mut _ as *mut <T as TypeCommon>::Vec;
+            let out_vec1 =  &mut out[co_offset+ofs+1*osw]as *mut _ as *mut <T as TypeCommon>::Vec;
+            let out_vec2 =  &mut out[co_offset+ofs+2*osw]as *mut _ as *mut <T as TypeCommon>::Vec;
+            let out_vec3 =  &mut out[co_offset+ofs+3*osw]as *mut _ as *mut <T as TypeCommon>::Vec;
+            let out_vec4 =  &mut out[co_offset+ofs+4*osw]as *mut _ as *mut <T as TypeCommon>::Vec;
+            let out_vec5 =  &mut out[co_offset+ofs+5*osw]as *mut _ as *mut <T as TypeCommon>::Vec;
+            let out_vec6 =  &mut out[co_offset+ofs+6*osw]as *mut _ as *mut <T as TypeCommon>::Vec;
+            let res0 = inp_vec0.read_unaligned()._max(out_vec0.read_unaligned());
+            let res1 = inp_vec1.read_unaligned()._max(out_vec1.read_unaligned());
+            let res2 = inp_vec2.read_unaligned()._max(out_vec2.read_unaligned());
+            let res3 = inp_vec3.read_unaligned()._max(out_vec3.read_unaligned());
+            let res4 = inp_vec4.read_unaligned()._max(out_vec4.read_unaligned());
+            let res5 = inp_vec5.read_unaligned()._max(out_vec5.read_unaligned());
+            let res6 = inp_vec6.read_unaligned()._max(out_vec6.read_unaligned());
+            out_vec0.write_unaligned(res0);
+            out_vec1.write_unaligned(res1);
+            out_vec2.write_unaligned(res2);
+            out_vec3.write_unaligned(res3);
+            out_vec4.write_unaligned(res4);
+            out_vec5.write_unaligned(res5);
+            out_vec6.write_unaligned(res6);
+        }
+    }
+}
 #[cfg(target_feature = "avx512f")]
 micro_kernel!(regnum, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
 #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]

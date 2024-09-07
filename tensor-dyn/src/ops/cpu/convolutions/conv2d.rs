@@ -104,10 +104,7 @@ impl<T> _Tensor<T>
         let wo_b_remain = out_width % (CONV_REGNUM as i64);
         let ci_b_remain = in_channels % ci_b;
         let num_co_rb = co_b / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
-        assert!(
-            co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0 ||
-                co_b < (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)
-        );
+        assert!(co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0 || co_b == 1);
         let num_vec_size = co_b_remain / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
         let outer = batch * num_co_b * out_height;
 
@@ -148,7 +145,7 @@ impl<T> _Tensor<T>
                                 i,
                                 b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                                 c * co_b,
-                                b * osb + l * osh + kp * CONV_REGNUM as i64 * osw, // prettier-ignore
+                                b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
                                 n * ks0 + m * ks1 + i * ks2,
                                 step_width,
                                 isw,
