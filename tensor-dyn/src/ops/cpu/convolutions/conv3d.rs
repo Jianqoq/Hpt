@@ -10,11 +10,11 @@ use tensor_traits::TensorCreator;
 use crate::{
     ops::cpu::{
         convolutions::conv_config::KernelParamAlgo,
-        kernels::conv2d_kernels::micro_kernel_regnum,
+        kernels::conv_kernels::micro_kernel_regnum,
     },
     tensor_base::_Tensor,
 };
-use crate::ops::cpu::kernels::conv2d_kernels::*;
+use crate::ops::cpu::kernels::conv_kernels::*;
 use super::conv_config::Conv3dConfig;
 
 impl<T> _Tensor<T>

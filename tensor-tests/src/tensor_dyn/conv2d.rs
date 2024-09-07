@@ -92,6 +92,29 @@ fn test_case0() -> anyhow::Result<()> {
         .for_each(|(a, b)| {
             assert!(a == b);
         });
+
+    config.set_ci_block_size(1);
+    config.set_co_block_size(1);
+    let res = a
+        .conv2d(
+            &kernel,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            Some(&config)
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let res_slice = res.as_raw();
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert!(a == b);
+        });
     Ok(())
 }
 
@@ -146,12 +169,34 @@ fn test_case1() -> anyhow::Result<()> {
         .for_each(|(a, b)| {
             assert!(a == b);
         });
+
+    config.set_ci_block_size(1);
+    config.set_co_block_size(1);
+    let res = a
+        .conv2d(
+            &kernel,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            Some(&config)
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let res_slice = res.as_raw();
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert!(a == b);
+        });
     Ok(())
 }
 
 #[test]
 fn test_case2() -> anyhow::Result<()> {
-    set_num_threads(1);
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 128, 3, 3, 3, 128, 128])?;
     let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
     config.set_ci_block_size(3);
@@ -201,12 +246,34 @@ fn test_case2() -> anyhow::Result<()> {
         .for_each(|(a, b)| {
             assert!(a == b);
         });
+
+    config.set_ci_block_size(1);
+    config.set_co_block_size(1);
+    let res = a
+        .conv2d(
+            &kernel,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            Some(&config)
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let res_slice = res.as_raw();
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert!(a == b);
+        });
     Ok(())
 }
 
 #[test]
 fn test_case3() -> anyhow::Result<()> {
-    set_num_threads(1);
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 130, 3, 3, 3, 130, 130])?;
     let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
     config.set_ci_block_size(3);
@@ -256,12 +323,34 @@ fn test_case3() -> anyhow::Result<()> {
         .for_each(|(a, b)| {
             assert!(a == b);
         });
+
+    config.set_ci_block_size(1);
+    config.set_co_block_size(1);
+    let res = a
+        .conv2d(
+            &kernel,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            Some(&config)
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let res_slice = res.as_raw();
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert!(a == b);
+        });
     Ok(())
 }
 
 #[test]
 fn test_case4() -> anyhow::Result<()> {
-    set_num_threads(10);
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 128, 3, 3, 3, 128, 128])?;
     let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
     config.set_ci_block_size(2);
@@ -311,12 +400,34 @@ fn test_case4() -> anyhow::Result<()> {
         .for_each(|(a, b)| {
             assert!(a == b);
         });
+
+    config.set_ci_block_size(1);
+    config.set_co_block_size(1);
+    let res = a
+        .conv2d(
+            &kernel,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            Some(&config)
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let res_slice = res.as_raw();
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert!(a == b);
+        });
     Ok(())
 }
 
 #[test]
 fn test_case5() -> anyhow::Result<()> {
-    set_num_threads(1);
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 128, 3, 3, 3, 127, 127])?;
     let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
     config.set_ci_block_size(2);
@@ -365,12 +476,34 @@ fn test_case5() -> anyhow::Result<()> {
         .for_each(|(a, b)| {
             assert!(a == b);
         });
+
+    config.set_ci_block_size(1);
+    config.set_co_block_size(1);
+    let res = a
+        .conv2d(
+            &kernel,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            Some(&config)
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let res_slice = res.as_raw();
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert!(a == b);
+        });
     Ok(())
 }
 
 #[test]
 fn test_case6() -> anyhow::Result<()> {
-    set_num_threads(1);
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 130, 3, 3, 3, 130, 130])?;
     let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
     config.set_ci_block_size(2);
@@ -420,12 +553,34 @@ fn test_case6() -> anyhow::Result<()> {
         .for_each(|(a, b)| {
             assert!(a == b);
         });
+
+    config.set_ci_block_size(1);
+    config.set_co_block_size(1);
+    let res = a
+        .conv2d(
+            &kernel,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            Some(&config)
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let res_slice = res.as_raw();
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert!(a == b);
+        });
     Ok(())
 }
 
 #[test]
 fn test_case7() -> anyhow::Result<()> {
-    set_num_threads(1);
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 130, 3, 3, 3, 128, 128])?;
     let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
     config.set_ci_block_size(2);
@@ -455,6 +610,29 @@ fn test_case7() -> anyhow::Result<()> {
 
     config.set_ci_block_size(1);
     config.set_co_block_size(16);
+    let res = a
+        .conv2d(
+            &kernel,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            Some(&config)
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let res_slice = res.as_raw();
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert!(a == b);
+        });
+
+    config.set_ci_block_size(1);
+    config.set_co_block_size(1);
     let res = a
         .conv2d(
             &kernel,

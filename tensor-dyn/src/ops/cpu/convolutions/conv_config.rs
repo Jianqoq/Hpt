@@ -99,8 +99,8 @@ fn find_exact_combination<T: CommonBounds, const REGNUM: usize>(
 ) -> (i64, i64)
     where <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
 {
-    let mut best_co_b = 0;
-    let mut best_ci_b = 0;
+    let mut best_co_b = 1;
+    let mut best_ci_b = 1;
 
     for co_b in (1..=max_co_b)
         .rev()
@@ -110,7 +110,7 @@ fn find_exact_combination<T: CommonBounds, const REGNUM: usize>(
                 co_b * (REGNUM as i64) +
                 weight_size * height_size * ci_b * ((REGNUM as i64) + co_b);
 
-            if product <= max_cache_size {
+            if product <= max_cache_size && co_b <= max_co_b && ci_b <= max_ci_b {
                 if co_b > best_co_b || (co_b == best_co_b && ci_b > best_ci_b) {
                     best_co_b = co_b;
                     best_ci_b = ci_b;

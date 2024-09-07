@@ -27,9 +27,6 @@ pub mod ops {
         pub mod shrink;
         pub mod gather_elements;
         pub mod gather;
-        pub mod maxpool;
-        pub mod avgpool;
-        pub mod lp_pool;
         pub mod dropout;
         pub mod lp_norm;
         pub mod img2col;
@@ -40,8 +37,12 @@ pub mod ops {
             pub mod conv_config;
         }
         pub mod kernels {
-            pub mod conv2d_kernels;
+            pub mod conv_kernels;
             pub mod reduce_kernels;
+            pub mod maxpool_kernel;
+        }
+        pub mod maxpool {
+            pub mod maxpool2d;
         }
     }
     pub mod wgpu {
