@@ -72,6 +72,10 @@ pub enum ErrHandler {
         "cannot select an axis to squeeze out which has size != 1, found error for index {0} in {1}, at {2}"
     )]
     SqueezeError(usize, Shape, &'static Location<'static>),
+
+    /// used when the dimension is less than 0
+    #[error("invalide input shape, result dim can't less than 0, got {0}")]
+    InvalidInputShape(i64),
 }
 
 impl ErrHandler {

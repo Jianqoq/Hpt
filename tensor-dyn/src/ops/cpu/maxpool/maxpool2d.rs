@@ -11,6 +11,7 @@ use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
 use tensor_types::into_scalar::IntoScalar;
 use rayon::prelude::*;
+use tensor_common::err_handler::ErrHandler::InvalidInputShape;
 use tensor_types::dtype::TypeCommon;
 
 impl<T> _Tensor<T>
@@ -62,6 +63,13 @@ impl<T> _Tensor<T>
         } else {
             self.clone()
         };
+        if out_height <= 0 || out_width <= 0 {
+            if out_height <= 0 {
+                return Err(InvalidInputShape(out_height).into());
+            } else {
+                return Err(InvalidInputShape(out_width).into());
+            }
+        }
         let output = _Tensor::<T>::full(T::NEG_INF, [batch, out_height, out_width, out_channels])?;
         let out = output.ptr();
         let inp = img.ptr();
@@ -639,7 +647,7 @@ impl<T> _Tensor<T>
                 _ => unimplemented!(),
             }
         };
-        (0..outer).into_iter().for_each(|idx| {
+        (0..outer).into_par_iter().for_each(|idx| {
             let b = idx / (num_co_b * out_height);
             let c = (idx / out_height) % num_co_b;
             let l = idx % out_height;

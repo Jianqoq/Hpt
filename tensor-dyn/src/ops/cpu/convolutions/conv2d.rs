@@ -10,7 +10,7 @@ use tensor_traits::TensorInfo;
 use tensor_types::into_scalar::IntoScalar;
 use rayon::prelude::*;
 use tensor_types::dtype::TypeCommon;
-
+use tensor_common::err_handler::ErrHandler::InvalidInputShape;
 use super::conv_config::Conv2dConfig;
 
 impl<T> _Tensor<T>
@@ -64,6 +64,13 @@ impl<T> _Tensor<T>
         } else {
             self.clone()
         };
+        if out_height <= 0 || out_width <= 0 {
+            if out_height <= 0 {
+                return Err(InvalidInputShape(out_height).into());
+            } else {
+                return Err(InvalidInputShape(out_width).into());
+            }
+        }
         let output = _Tensor::<T>::zeros([batch, out_height, out_width, out_channels])?;
         let out = output.ptr();
         let inp = img.ptr();

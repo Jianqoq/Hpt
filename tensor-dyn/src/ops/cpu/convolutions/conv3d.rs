@@ -6,6 +6,7 @@ use tensor_types::{
     into_scalar::IntoScalar,
     traits::{ Init, VecSize, VecTrait },
 };
+use tensor_common::err_handler::ErrHandler::InvalidInputShape;
 use tensor_traits::TensorCreator;
 use crate::{
     ops::cpu::{
@@ -77,6 +78,15 @@ impl<T> _Tensor<T>
         } else {
             self.clone()
         };
+        if out_height <= 0 || out_width <= 0 || out_depth <= 0 {
+            if out_height <= 0 {
+                return Err(InvalidInputShape(out_height).into());
+            } else if out_width <= 0 {
+                return Err(InvalidInputShape(out_width).into());
+            } else {
+                return Err(InvalidInputShape(out_depth).into());
+            }
+        }
         let output = _Tensor::<T>::zeros([batch, out_depth, out_height, out_width, out_channels])?;
         let out = output.ptr();
         let inp = img.ptr();
