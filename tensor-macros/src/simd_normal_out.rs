@@ -50,6 +50,62 @@ pub fn impl_simd_normal_out() -> TokenStream {
                 &format!("{}x{}", res_type.to_string(), type_simd_lanes(&res_type.to_string())),
                 proc_macro2::Span::call_site()
             );
+
+            let neg_method = if lhs_dtype.is_float() {
+                if lhs_dtype.is_f32() {
+                    quote! {
+                        fn _neg(self) -> Self {
+                            #lhs_simd(self.to_f32().0.neg())
+                        }
+                    }
+                } else if lhs_dtype.is_f64() {
+                    quote! {
+                        fn _neg(self) -> Self {
+                            #lhs_simd(self.to_f64().0.neg())
+                        }
+                    }
+                } else {
+                    array_cal_single(
+                        lhs,
+                        lhs_dtype,
+                        lhs_lanes,
+                        lhs_simd,
+                        Ident::new("_neg", proc_macro2::Span::call_site())
+                    )
+                }
+            } else {
+                if !type_simd_is_arr(lhs) && lhs_type.is_signed {
+                    quote! {
+                        fn _neg(self) -> Self {
+                            #lhs_simd(self.0.neg())
+                        }
+                    }
+                } else if !type_simd_is_arr(lhs) && !lhs_type.is_signed {
+                    quote! {
+                        fn _neg(self) -> Self {
+                            Self(self.wrapping_neg())
+                        }
+                    }
+                } else {
+                    if lhs_type.is_signed {
+                        quote! {
+                            fn _neg(self) -> Self {
+                                let mut arr = [#lhs_dtype::ZERO; #lhs_lanes as usize];
+                                for i in 0..#lhs_lanes as usize {
+                                    arr[i] = self.0[i].neg();
+                                }
+                                #res_simd_ty::#res_simd_ty(arr.into())
+                            }
+                        }
+                    } else {
+                        quote! {
+                            fn _neg(self) -> Self {
+                                self
+                            }
+                        }
+                    }
+                }
+            };
             let pow_method = if res_type.is_float() {
                 if res_type.is_f32() {
                     quote! {
@@ -351,6 +407,7 @@ pub fn impl_simd_normal_out() -> TokenStream {
                     fn _clip(self, min: Self::Output, max: Self::Output) -> Self::Output {
                         todo!()
                     }
+                    #neg_method
                     #abs_method
                     #unary_no_change_ty_method
                     #sign_method
@@ -367,6 +424,9 @@ fn impl_unreachable(lhs_dtype: SimdType, rhs_simd: SimdType, res_type: SimdType)
     quote! {
         impl NormalOut<#rhs_simd> for #lhs_dtype {
             type Output = #res_type;
+            fn _neg(self) -> Self {
+                unreachable!()
+            }
             fn _add(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }

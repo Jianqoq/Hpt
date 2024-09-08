@@ -9,6 +9,7 @@ use tensor_macros::{
     simd_float_out_unary,
     simd_cmp,
 };
+use std::simd::num::SimdUint;
 use std::simd::Simd;
 use std::simd::cmp::SimdPartialEq;
 use tensor_macros::float_out_unary;
@@ -27,6 +28,7 @@ use crate::vectors::traits::Init;
 use std::simd::cmp::SimdOrd;
 use sleef::Sleef;
 use std::simd::cmp::SimdPartialOrd;
+use std::ops::Neg;
 /// this trait is used to perform type promotion in dynamic graph
 pub trait FloatOutBinary<RHS = Self> {
     type Output;
@@ -48,6 +50,7 @@ pub trait NormalOut<RHS = Self> {
     fn _abs(self) -> Self;
     fn _ceil(self) -> Self;
     fn _floor(self) -> Self;
+    fn _neg(self) -> Self;
     fn _sign(self) -> Self::Output;
     fn _max(self, rhs: RHS) -> Self::Output;
     fn _min(self, rhs: RHS) -> Self::Output;

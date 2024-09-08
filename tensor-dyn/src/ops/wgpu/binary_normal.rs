@@ -1,4 +1,4 @@
-use std::{borrow::Cow, panic::Location};
+use std::borrow::Cow;
 use wgpu::util::DeviceExt;
 use tensor_common::{ shape_utils::try_pad_shape, strides_utils::preprocess_strides };
 use tensor_traits::{ CommonBounds, TensorInfo };
@@ -10,7 +10,6 @@ pub(crate) fn binop<A, B>(
     op: &str,
     a: &_Tensor<A, Wgpu>,
     b: &_Tensor<B, Wgpu>,
-    location: &'static Location<'static>
 )
     -> _Tensor<<A as NormalOut<B>>::Output, Wgpu>
     where

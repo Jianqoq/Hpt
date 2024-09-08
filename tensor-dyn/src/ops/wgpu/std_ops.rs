@@ -1,10 +1,9 @@
 use tensor_traits::CommonBounds;
 use tensor_types::type_promote::NormalOut;
-use std::panic::Location;
 use crate::{ backend::Wgpu, ops::wgpu::binary_normal::binop, tensor_base::_Tensor };
 
 macro_rules! impl_std_ops {
-    ($trait: ident, $op_name: ident, $op_str: expr) => {
+    ($trait:ident, $op_name:ident, $op_str:expr) => {
         impl<T, U> std::ops::$trait<_Tensor<U, Wgpu>>
             for _Tensor<T, Wgpu>
             where
@@ -15,7 +14,7 @@ macro_rules! impl_std_ops {
                     type Output = _Tensor<<T as NormalOut<U>>::Output, Wgpu>;
                     #[track_caller]
                     fn $op_name(self, rhs: _Tensor<U, Wgpu>) -> Self::Output {
-                        binop($op_str, &self, &rhs, Location::caller())
+                        binop($op_str, &self, &rhs)
                     }
                 }
 
@@ -29,7 +28,7 @@ macro_rules! impl_std_ops {
                     type Output = _Tensor<<T as NormalOut<U>>::Output, Wgpu>;
                     #[track_caller]
                     fn $op_name(self, rhs: &_Tensor<U, Wgpu>) -> Self::Output {
-                        binop($op_str, &self, &rhs, Location::caller())
+                        binop($op_str, &self, &rhs)
                     }
                 }
 
@@ -43,7 +42,7 @@ macro_rules! impl_std_ops {
                     type Output = _Tensor<<T as NormalOut<U>>::Output, Wgpu>;
                     #[track_caller]
                     fn $op_name(self, rhs: _Tensor<U, Wgpu>) -> Self::Output {
-                        binop($op_str, &self, &rhs, Location::caller())
+                        binop($op_str, &self, &rhs)
                     }
                 }
 
@@ -57,10 +56,10 @@ macro_rules! impl_std_ops {
                     type Output = _Tensor<<T as NormalOut<U>>::Output, Wgpu>;
                     #[track_caller]
                     fn $op_name(self, rhs: &_Tensor<U, Wgpu>) -> Self::Output {
-                        binop($op_str, &self, &rhs, Location::caller())
+                        binop($op_str, &self, &rhs)
                     }
                 }
-            };
+    };
 }
 
 impl_std_ops!(Add, add, "+");
@@ -73,4 +72,3 @@ impl_std_ops!(BitOr, bitor, "|");
 impl_std_ops!(BitXor, bitxor, "^");
 impl_std_ops!(Shl, shl, "<<");
 impl_std_ops!(Shr, shr, ">>");
-

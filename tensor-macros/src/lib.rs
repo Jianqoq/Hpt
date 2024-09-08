@@ -341,6 +341,36 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
             let rhs_dtype = rhs_type.dtype;
             let res_type = lhs_type.infer_normal_res_type(&rhs_type);
 
+            let neg_method = if lhs_dtype.is_float() {
+                quote! {
+                    #[inline(always)]
+                    fn _neg(self) -> Self {
+                        -self
+                    }
+                }
+            } else if lhs_dtype.is_bool() {
+                quote! {
+                    #[inline(always)]
+                    fn _neg(self) -> Self {
+                        !self
+                    }
+                }
+            } else if lhs_dtype.is_unsigned() {
+                quote! {
+                    #[inline(always)]
+                    fn _neg(self) -> Self {
+                        !self + 1
+                    }
+                }
+            } else {
+                quote! {
+                    #[inline(always)]
+                    fn _neg(self) -> Self {
+                        -self
+                    }
+                }
+            };
+
             let pow_method = if res_type.is_float() {
                 quote! {
                     #[inline(always)]
@@ -554,6 +584,7 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                             if a < min { min } else if a > max { max } else { a }
                         }
                     }
+                    #neg_method
                     #std_ops
                     #abs_method
                     #ceil_method

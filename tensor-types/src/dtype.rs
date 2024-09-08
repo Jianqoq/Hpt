@@ -399,6 +399,10 @@ impl NormalOut for Dtype {
     fn _round(self) -> Self::Output {
         self
     }
+    
+    fn _neg(self) -> Self {
+        self
+    }
 }
 
 impl BitWiseOut for Dtype {
