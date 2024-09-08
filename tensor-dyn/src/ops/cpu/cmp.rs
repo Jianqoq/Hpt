@@ -5,7 +5,7 @@ use tensor_types::{
     dtype::TypeCommon,
     into_vec::IntoVec,
     type_promote::{ Cmp, SimdCmp },
-    vectors::boolx32::boolx32,
+    vectors::_256bit::boolx32::boolx32,
 };
 use anyhow::Result;
 use crate::{ tensor::Tensor, tensor_base::_Tensor };

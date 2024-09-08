@@ -1,31 +1,29 @@
 use std::ops::{ Deref, DerefMut };
 
-use crate::into_vec::IntoVec;
-
-use super::traits::{ Init, VecSize, VecTrait };
+use crate::vectors::traits::{ Init, VecSize, VecTrait };
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq)]
-pub struct i8x32(pub(crate) std::simd::i8x32);
+pub struct u32x8(pub(crate) std::simd::u32x8);
 
-impl Deref for i8x32 {
-    type Target = std::simd::i8x32;
+impl Deref for u32x8 {
+    type Target = std::simd::u32x8;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
-impl DerefMut for i8x32 {
+impl DerefMut for u32x8 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
-impl VecTrait<i8> for i8x32 {
+impl VecTrait<u32> for u32x8 {
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[i8]) {
+    fn copy_from_slice(&mut self, slice: &[u32]) {
         self.as_mut_array().copy_from_slice(slice);
     }
     #[inline(always)]
-    fn as_ptr(&self) -> *const i8 {
+    fn as_ptr(&self) -> *const u32 {
         self.as_array().as_ptr()
     }
     #[inline(always)]
@@ -33,66 +31,63 @@ impl VecTrait<i8> for i8x32 {
         Self(self.0 * a.0 + b.0)
     }
     #[inline(always)]
-    fn as_mut_ptr(&mut self) -> *mut i8 {
+    fn as_mut_ptr(&mut self) -> *mut u32 {
         self.as_mut_array().as_mut_ptr()
     }
     #[inline(always)]
-    fn as_mut_ptr_uncheck(&self) -> *mut i8 {
+    fn as_mut_ptr_uncheck(&self) -> *mut u32 {
         self.as_array().as_ptr() as *mut _
     }
     #[inline(always)]
-    fn sum(&self) -> i8 {
+    fn sum(&self) -> u32 {
         self.as_array().iter().sum()
     }
     
-    fn extract(self, idx: usize) -> i8 {
+    fn extract(self, idx: usize) -> u32 {
         self.as_array()[idx]
     }
 }
-impl VecSize for i8x32 {
-    const SIZE: usize = 32;
+impl VecSize for u32x8 {
+    const SIZE: usize = 8;
 }
-impl Init<i8> for i8x32 {
-    fn splat(val: i8) -> i8x32 {
-        i8x32(std::simd::i8x32::splat(val))
+impl Init<u32> for u32x8 {
+    fn splat(val: u32) -> u32x8 {
+        u32x8(std::simd::u32x8::splat(val))
     }
 
-    unsafe fn from_ptr(ptr: *const i8) -> Self {
+    unsafe fn from_ptr(ptr: *const u32) -> Self {
         unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_si256(ptr as *const _)) }
     }
 }
-impl IntoVec<i8x32> for i8x32 {
-    fn into_vec(self) -> i8x32 {
-        self
-    }
-}
-impl std::ops::Add for i8x32 {
+impl std::ops::Add for u32x8 {
     type Output = Self;
+
     fn add(self, rhs: Self) -> Self::Output {
-        i8x32(self.0 + rhs.0)
+        u32x8(self.0 + rhs.0)
     }
 }
-impl std::ops::Sub for i8x32 {
+impl std::ops::Sub for u32x8 {
     type Output = Self;
+
     fn sub(self, rhs: Self) -> Self::Output {
-        i8x32(self.0 - rhs.0)
+        u32x8(self.0 - rhs.0)
     }
 }
-impl std::ops::Mul for i8x32 {
+impl std::ops::Mul for u32x8 {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self::Output {
-        i8x32(self.0 * rhs.0)
+        u32x8(self.0 * rhs.0)
     }
 }
-impl std::ops::Div for i8x32 {
+impl std::ops::Div for u32x8 {
     type Output = Self;
     fn div(self, rhs: Self) -> Self::Output {
-        i8x32(self.0 / rhs.0)
+        u32x8(self.0 / rhs.0)
     }
 }
-impl std::ops::Rem for i8x32 {
+impl std::ops::Rem for u32x8 {
     type Output = Self;
     fn rem(self, rhs: Self) -> Self::Output {
-        i8x32(self.0 % rhs.0)
+        u32x8(self.0 % rhs.0)
     }
 }

@@ -2,7 +2,7 @@ use std::ops::{ Deref, DerefMut };
 
 use crate::into_vec::IntoVec;
 
-use super::traits::{ Init, VecSize, VecTrait };
+use crate::vectors::traits::{ Init, VecSize, VecTrait };
 
 #[cfg(target_pointer_width = "64")]
 #[allow(non_camel_case_types)]

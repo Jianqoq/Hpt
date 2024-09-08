@@ -6,7 +6,7 @@ use serde::{ Deserialize, Serialize };
 use crate::{
     into_vec::IntoVec,
     type_promote::{ BitWiseOut, Eval, FloatOutBinary, FloatOutUnary, NormalOut },
-    vectors::{
+    vectors::_256bit::{
         bf16x16::bf16x16,
         boolx32::boolx32,
         cplx32x4::cplx32x4,
@@ -18,20 +18,20 @@ use crate::{
         i32x8::i32x8,
         i64x4::i64x4,
         i8x32::i8x32,
-        traits::{ Init, VecSize, VecTrait },
         u16x16::u16x16,
         u32x8::u32x8,
         u64x4::u64x4,
         u8x32::u8x32,
     },
+    vectors::traits::{ Init, VecSize, VecTrait },
 };
 #[cfg(target_pointer_width = "64")]
-use crate::vectors::usizex4::usizex4;
+use crate::vectors::_256bit::usizex4::usizex4;
 #[cfg(target_pointer_width = "32")]
 use crate::vectors::usizex8::usizex8;
 
 #[cfg(target_pointer_width = "64")]
-use crate::vectors::isizex4::isizex4;
+use crate::vectors::_256bit::isizex4::isizex4;
 #[cfg(target_pointer_width = "32")]
 use crate::vectors::isizex8::isizex8;
 
@@ -399,7 +399,7 @@ impl NormalOut for Dtype {
     fn _round(self) -> Self::Output {
         self
     }
-    
+
     fn _neg(self) -> Self {
         self
     }

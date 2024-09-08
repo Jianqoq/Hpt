@@ -3,7 +3,7 @@ use half::bf16;
 use num_complex::{ Complex64, Complex32 };
 use tensor_macros::impl_simd_convert;
 use std::simd::num::SimdFloat;
-use crate::vectors::*;
+use crate::vectors::_256bit::*;
 use crate::dtype::TypeCommon;
 use std::simd::num::SimdInt;
 use std::simd::num::SimdUint;

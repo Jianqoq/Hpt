@@ -1026,7 +1026,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         where
             T: NormalOut<bool, Output = T> + IntoScalar<T>,
             <T as TypeCommon>::Vec: NormalOut<
-                tensor_types::vectors::boolx32::boolx32,
+                tensor_types::vectors::_256bit::boolx32::boolx32,
                 Output = <T as TypeCommon>::Vec
             >
     {
@@ -1047,7 +1047,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         where
             T: NormalOut<bool, Output = T> + IntoScalar<T>,
             <T as TypeCommon>::Vec: NormalOut<
-                tensor_types::vectors::boolx32::boolx32,
+                tensor_types::vectors::_256bit::boolx32::boolx32,
                 Output = <T as TypeCommon>::Vec
             >
     {

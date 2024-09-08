@@ -305,7 +305,7 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<_Tensor<bool>>
         where
-            <T as TypeCommon>::Vec: IntoVec<tensor_types::vectors::boolx32::boolx32>,
+            <T as TypeCommon>::Vec: IntoVec<tensor_types::vectors::_256bit::boolx32::boolx32>,
             T: IntoScalar<bool> + Eval<Output = bool>,
             <T as TypeCommon>::Vec: Eval + BitWiseOut + VecConvertor,
             <<T as TypeCommon>::Vec as Eval>::Output: SimdSelect<<T as TypeCommon>::Vec>

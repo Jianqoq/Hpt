@@ -1,8 +1,8 @@
 use std::simd::{ cmp::{ SimdPartialEq, SimdPartialOrd }, num::{ SimdFloat, SimdUint }, Simd };
 
 use crate::into_vec::IntoVec;
-use crate::vectors::u16x16::u16x16;
-use super::{ f32x8::f32x8, traits::{ Init, VecSize, VecTrait } };
+use crate::vectors::_256bit::u16x16::u16x16;
+use crate::vectors::{ _256bit::f32x8::f32x8, traits::{ Init, VecSize, VecTrait } };
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq)]

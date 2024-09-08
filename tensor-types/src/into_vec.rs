@@ -1,6 +1,6 @@
-use crate::vectors::*;
+use crate::vectors::_256bit::*;
 
-use crate::vectors::boolx32::boolx32;
+use crate::vectors::_256bit::boolx32::boolx32;
 
 pub trait IntoVec<T> {
     fn into_vec(self) -> T;

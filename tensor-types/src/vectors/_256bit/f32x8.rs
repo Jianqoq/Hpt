@@ -1,7 +1,7 @@
 use std::ops::{ Deref, DerefMut };
 use std::simd::num::SimdFloat;
 use crate::into_vec::IntoVec;
-use super::traits::{ Init, SimdSelect, VecSize, VecTrait };
+use crate::vectors::traits::{ Init, SimdSelect, VecSize, VecTrait };
 use std::simd::StdFloat;
 
 #[allow(non_camel_case_types)]
@@ -66,7 +66,7 @@ impl IntoVec<f32x8> for f32x8 {
     }
 }
 
-impl SimdSelect<f32x8> for crate::vectors::u32x8::u32x8 {
+impl SimdSelect<f32x8> for crate::vectors::_256bit::u32x8::u32x8 {
     fn select(&self, true_val: f32x8, false_val: f32x8) -> f32x8 {
         let mask: std::simd::mask32x8 = unsafe { std::mem::transmute(*self) };
         f32x8(mask.select(true_val.0, false_val.0))

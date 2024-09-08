@@ -19,7 +19,7 @@ use num_traits::float::Float;
 use crate::dtype::TypeCommon;
 use crate::dtype::FloatConst;
 use tensor_macros::impl_normal_out_simd;
-use crate::vectors::*;
+use crate::vectors::_256bit::*;
 use half::bf16;
 use crate::convertion::VecConvertor;
 use std::simd::num::SimdInt;
