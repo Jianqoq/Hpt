@@ -51,6 +51,47 @@ pub fn impl_simd_normal_out() -> TokenStream {
                 proc_macro2::Span::call_site()
             );
 
+            let mul_add_method = if res_type.is_float() {
+                quote! {
+                        fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
+                            paste::paste! {
+                                self.[<to_ #res_type>]()._mul_add(a.[<to_ #res_type>](), b.[<to_ #res_type>]())
+                            }
+                        }
+                    }
+            } else if res_type.is_bool() {
+                quote! {
+                        fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
+                            paste::paste! {
+                                self.[<to_ #res_type>]() | (a.[<to_ #res_type>]() & b.[<to_ #res_type>]())
+                            }
+                        }
+                    }
+            } else if !type_simd_is_arr(lhs) && !type_simd_is_arr(rhs) {
+                quote! {
+                        fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
+                            paste::paste! {
+                                self.[<to_ #res_type>]() + a.[<to_ #res_type>]() * b.[<to_ #res_type>]()
+                            }
+                        }
+                    }
+            } else {
+                quote! {
+                    fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
+                        let lhs_arr = self.0;
+                        let a_arr = a.0;
+                        let b_arr = b.0;
+                        let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
+                        for i in 0..#lhs_lanes as usize {
+                            paste::paste! {
+                                arr[i] = lhs_arr[i].[<to_ #res_type>]() * a_arr[i].[<to_ #res_type>]() + b_arr[i].[<to_ #res_type>]();
+                            }
+                        }
+                        #res_simd_ty::#res_simd_ty(arr.into())
+                    }
+                }
+            };
+
             let neg_method = if lhs_dtype.is_float() {
                 if lhs_dtype.is_f32() {
                     quote! {
@@ -407,6 +448,7 @@ pub fn impl_simd_normal_out() -> TokenStream {
                     fn _clip(self, min: Self::Output, max: Self::Output) -> Self::Output {
                         todo!()
                     }
+                    #mul_add_method
                     #neg_method
                     #abs_method
                     #unary_no_change_ty_method
@@ -424,6 +466,9 @@ fn impl_unreachable(lhs_dtype: SimdType, rhs_simd: SimdType, res_type: SimdType)
     quote! {
         impl NormalOut<#rhs_simd> for #lhs_dtype {
             type Output = #res_type;
+            fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
+                unreachable!()
+            }
             fn _neg(self) -> Self {
                 unreachable!()
             }

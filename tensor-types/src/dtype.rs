@@ -403,6 +403,10 @@ impl NormalOut for Dtype {
     fn _neg(self) -> Self {
         self
     }
+    
+    fn _mul_add(self, a: Self, _: Self) -> Self::Output {
+        infer_enum_type!(self, a, normal)
+    }
 }
 
 impl BitWiseOut for Dtype {

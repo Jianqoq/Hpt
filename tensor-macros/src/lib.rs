@@ -341,6 +341,33 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
             let rhs_dtype = rhs_type.dtype;
             let res_type = lhs_type.infer_normal_res_type(&rhs_type);
 
+            let mul_add_method = if res_type.is_float() {
+                quote! {
+                    #[inline(always)]
+                    fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]() * a.[<to_ #res_type>]() + b.[<to_ #res_type>]()
+                        }
+                    }
+                }
+            } else if res_type.is_bool() {
+                quote! {
+                    #[inline(always)]
+                    fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
+                        self || a && b
+                    }
+                }
+            } else {
+                quote! {
+                    #[inline(always)]
+                    fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
+                        paste::paste! {
+                            self.[<to_ #res_type>]().wrapping_mul(a.[<to_ #res_type>]()) + b.[<to_ #res_type>]()
+                        }
+                    }
+                }
+            };
+
             let neg_method = if lhs_dtype.is_float() {
                 quote! {
                     #[inline(always)]
@@ -584,6 +611,7 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                             if a < min { min } else if a > max { max } else { a }
                         }
                     }
+                    #mul_add_method
                     #neg_method
                     #std_ops
                     #abs_method

@@ -43,6 +43,7 @@ pub trait NormalOut<RHS = Self> {
     type Output;
     fn _add(self, rhs: RHS) -> Self::Output;
     fn _sub(self, rhs: RHS) -> Self::Output;
+    fn _mul_add(self, a: RHS, b: RHS) -> Self::Output;
     fn _mul(self, rhs: RHS) -> Self::Output;
     fn _pow(self, rhs: RHS) -> Self::Output;
     fn _rem(self, rhs: RHS) -> Self::Output;
