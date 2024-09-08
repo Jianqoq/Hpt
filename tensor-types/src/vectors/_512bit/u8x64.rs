@@ -6,20 +6,20 @@ use crate::vectors::traits::{ Init, VecSize, VecTrait };
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq)]
-pub struct u8x32(pub(crate) std::simd::u8x32);
+pub struct u8x64(pub(crate) std::simd::u8x64);
 
-impl Deref for u8x32 {
-    type Target = std::simd::u8x32;
+impl Deref for u8x64 {
+    type Target = std::simd::u8x64;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
-impl DerefMut for u8x32 {
+impl DerefMut for u8x64 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
-impl VecTrait<u8> for u8x32 {
+impl VecTrait<u8> for u8x64 {
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[u8]) {
         self.as_mut_array().copy_from_slice(slice);
@@ -44,55 +44,57 @@ impl VecTrait<u8> for u8x32 {
     fn sum(&self) -> u8 {
         self.as_array().iter().sum()
     }
-    
+
     fn extract(self, idx: usize) -> u8 {
         self.as_array()[idx]
     }
 }
-impl VecSize for u8x32 {
-    const SIZE: usize = 32;
+impl VecSize for u8x64 {
+    const SIZE: usize = 64;
 }
-impl Init<u8> for u8x32 {
-    fn splat(val: u8) -> u8x32 {
-        u8x32(std::simd::u8x32::splat(val))
+impl Init<u8> for u8x64 {
+    fn splat(val: u8) -> u8x64 {
+        u8x64(std::simd::u8x64::splat(val))
     }
 
     unsafe fn from_ptr(ptr: *const u8) -> Self {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_si256(ptr as *const _)) }
+        unsafe {
+            std::mem::transmute(std::simd::u8x64::from_slice(std::slice::from_raw_parts(ptr, 64)))
+        }
     }
 }
-impl IntoVec<u8x32> for u8x32 {
-    fn into_vec(self) -> u8x32 {
+impl IntoVec<u8x64> for u8x64 {
+    fn into_vec(self) -> u8x64 {
         self
     }
 }
-impl std::ops::Add for u8x32 {
+impl std::ops::Add for u8x64 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
-        u8x32(self.0 + rhs.0)
+        u8x64(self.0 + rhs.0)
     }
 }
-impl std::ops::Sub for u8x32 {
+impl std::ops::Sub for u8x64 {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self {
-        u8x32(self.0 - rhs.0)
+        u8x64(self.0 - rhs.0)
     }
 }
-impl std::ops::Mul for u8x32 {
+impl std::ops::Mul for u8x64 {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self {
-        u8x32(self.0 * rhs.0)
+        u8x64(self.0 * rhs.0)
     }
 }
-impl std::ops::Div for u8x32 {
+impl std::ops::Div for u8x64 {
     type Output = Self;
     fn div(self, rhs: Self) -> Self {
-        u8x32(self.0 / rhs.0)
+        u8x64(self.0 / rhs.0)
     }
 }
-impl std::ops::Rem for u8x32 {
+impl std::ops::Rem for u8x64 {
     type Output = Self;
     fn rem(self, rhs: Self) -> Self {
-        u8x32(self.0 % rhs.0)
+        u8x64(self.0 % rhs.0)
     }
 }

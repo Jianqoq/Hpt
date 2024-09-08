@@ -42,6 +42,25 @@ pub mod vectors {
         pub mod cplx32x4;
         pub mod cplx64x2;
     }
+    pub mod _512bit {
+        pub mod f32x16;
+        pub mod f64x8;
+        pub mod i32x16;
+        pub mod i64x8;
+        pub mod i16x32;
+        pub mod i8x64;
+        pub mod boolx64;
+        pub mod u8x64;
+        pub mod u16x32;
+        pub mod u32x16;
+        pub mod u64x8;
+        pub mod isizex8;
+        pub mod usizex8;
+        pub mod f16x32;
+        pub mod bf16x32;
+        pub mod cplx32x8;
+        pub mod cplx64x4;
+    }
     pub mod traits;
 }
 pub use vectors::*;
