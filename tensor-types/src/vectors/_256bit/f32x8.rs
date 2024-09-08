@@ -56,6 +56,9 @@ impl Init<f32> for f32x8 {
     fn splat(val: f32) -> f32x8 {
         f32x8(std::simd::f32x8::splat(val))
     }
+    unsafe fn from_ptr(ptr: *const f32) -> Self where Self: Sized {
+        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_ps(ptr as *const _)) }
+    }
 }
 impl IntoVec<f32x8> for f32x8 {
     fn into_vec(self) -> f32x8 {

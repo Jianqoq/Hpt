@@ -329,7 +329,6 @@ impl<T: Display> IndexMut<isize> for Pointer<T> {
     fn index_mut(&mut self, index: isize) -> &mut Self::Output {
         #[cfg(feature = "bound_check")]
         {
-            println!("index: {}", index);
             let mut idx = index as i64;
             for i in 0..self.layout.ndim() {
                 let prg = (idx as i64) / self.layout.strides()[i];

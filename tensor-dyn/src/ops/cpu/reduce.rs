@@ -163,186 +163,6 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
     }
 }
 
-#[allow(unused_macros)]
-macro_rules! register_stack {
-    ($name:ident) => {
-        #[cfg_attr(feature = "track_caller", track_caller)]
-        pub(crate) fn $name<T>(
-            tensors: Vec<&_Tensor<T>>,
-            axis: usize,
-            keepdims: bool,
-        ) -> anyhow::Result<_Tensor<T>>
-        where
-            T: CommonBounds,
-        {
-            let length = tensors.len();
-            let mut all_same_shape = true;
-            for i in tensors.iter() {
-                tensors[0]
-                    .shape()
-                    .iter()
-                    .enumerate()
-                    .try_for_each(|(idx, x)| {
-                        if idx != axis
-                            && i.shape().len() == tensors[0].shape().len()
-                            && *x != i.shape()[idx]
-                        {
-                            return Err(anyhow::Error::msg(
-                                "Shapes except the axis to stack must be the same",
-                            ));
-                        } else if i.shape().len() != tensors[0].shape().len() {
-                            return Err(anyhow::Error::msg(
-                                "Shape length mismatch when trying to stack tensors",
-                            ));
-                        } else if idx == axis && *x != i.shape()[idx] {
-                            all_same_shape = false;
-                        }
-                        return Ok(());
-                    })?;
-            }
-            let mut new_shape: Vec<usize> = vec![0; tensors[0].ndim() as usize];
-            tensors.iter().for_each(|x| {
-                new_shape[axis] += x.shape()[axis];
-            });
-            tensors[0].shape().iter().enumerate().for_each(|(i, x)| {
-                if i != axis {
-                    new_shape[i] = *x;
-                }
-            });
-            let new_tensor: _Tensor<T> = _Tensor::empty(&new_shape)?;
-            let mut res_ptr;
-            let mut res_ptr_cpy = new_tensor.ptr();
-
-            // total size to handle the tensors for each slot
-            //_Tensor([[[ 0  2]
-            //         [ 1  3]
-            //         [ 0  2]
-            //         [ 1  3]]
-            //        [[ 4  6]
-            //         [ 5  7]
-            //         [ 4  6]
-            //         [ 5  7]]])
-            // here [0 2 1 3] is one slo for one tensor, since we have 2 tensors, we need 2 slots, total size is 8
-            let mut total = 0;
-            for tensor in &tensors {
-                let mut jump = 1;
-                for i in axis..new_shape.len() {
-                    jump *= tensor.shape()[i];
-                }
-                total += jump;
-            }
-            for tensor in tensors {
-                res_ptr = res_ptr_cpy.clone();
-                let a_data = tensor.ptr();
-                let a_strides = tensor.strides().as_ref().clone();
-                let a_last_stride = a_strides[(tensor.ndim() - 1) as usize];
-                let mut a_shape_cpy = tensor.shape().as_ref().clone();
-                let mut offset = Vec::with_capacity(tensor.ndim() as usize);
-
-                // calculate slot size for current tensor
-                let mut current_slot_size = 1;
-                for i in axis..tensor.shape().len() {
-                    current_slot_size *= tensor.shape()[i];
-                }
-                let inner_loop_size = tensor.shape()[(tensor.ndim() - 1) as usize];
-                let outer_loop_size = tensor.size() / inner_loop_size;
-                for i in 0..tensor.ndim() as usize {
-                    a_shape_cpy[i] -= 1;
-                    offset.push(a_shape_cpy[i] * a_strides[i]);
-                }
-                let t = tensor.shape()[tensor.shape().len() - 1];
-                let a_shape_arc = Arc::new(tensor.shape().as_ref().clone());
-                let num_threads;
-                unsafe {
-                    if outer_loop_size < THREAD_POOL.max_count() {
-                        num_threads = outer_loop_size;
-                    } else {
-                        num_threads = THREAD_POOL.max_count();
-                    }
-                }
-                let mut iterators = StackPreprocessor::stack_new(
-                    num_threads,
-                    outer_loop_size,
-                    inner_loop_size,
-                    current_slot_size,
-                    total,
-                    t,
-                    vec![a_data],
-                    vec![res_ptr],
-                    vec![a_strides],
-                    vec![offset],
-                    a_shape_arc.clone(),
-                );
-                let barrier = Arc::new(Barrier::new(num_threads + 1));
-
-                THREAD_POOL.with(|pool| {
-                    for _ in 0..num_threads {
-                        let tmp = iterators.pop().unwrap();
-                        let mut iterator = tmp.0;
-                        let mut res_ptrs = iterator.res_ptrs[0];
-                        let mut a_ptr = iterator.ptrs[0];
-                        let current_size = iterator.end - iterator.start;
-                        let barrier_clone = Arc::clone(&barrier);
-                        let mut res_prg = tmp.1;
-                        unsafe {
-                            pool.execute(move || {
-                                let a_strides = &iterator.strides[0];
-                                let a_indices_cache = &iterator.offsets[0];
-                                for _ in 0..current_size {
-                                    for i in 0..inner_loop_size {
-                                        let value = a_ptr[i * a_last_stride];
-                                        res_ptrs.modify(i, value);
-                                    }
-                                    if res_prg + t < current_slot_size {
-                                        res_ptrs.add(t);
-                                        res_prg += t;
-                                    } else {
-                                        res_ptrs.add(total + t - current_slot_size);
-                                        res_prg = 0;
-                                    }
-                                    for j in (0..=iterator.shape.len() as i64 - 2).rev() {
-                                        if iterator.prg[j as usize] < iterator.shape[j as usize] - 1
-                                        {
-                                            iterator.prg[j as usize] += 1;
-                                            a_ptr.add(a_strides[j as usize]);
-                                            break;
-                                        } else {
-                                            iterator.prg[j as usize] = 0;
-                                            a_ptr.sub(a_indices_cache[j as usize]);
-                                        }
-                                    }
-                                }
-                                barrier_clone.wait();
-                            });
-                        }
-                    }
-                });
-                barrier.wait();
-                res_ptr_cpy.add(current_slot_size);
-            }
-            if keepdims {
-                if !all_same_shape {
-                    return Err(anyhow::Error::msg(
-                        "keepdims is not supported for different shapes",
-                    ));
-                }
-                let mut res_shape = Vec::with_capacity(new_shape.len() + 1);
-                for (idx, i) in new_shape.iter().enumerate() {
-                    if idx == axis {
-                        res_shape.push(length);
-                        res_shape.push(*i / length);
-                    } else {
-                        res_shape.push(*i);
-                    }
-                }
-                return new_tensor.reshape(res_shape);
-            } else {
-                return Ok(new_tensor);
-            }
-        }
-    };
-}
-
 macro_rules! init_arr {
     (
         $result:ident,
@@ -543,6 +363,90 @@ macro_rules! register_reduction_one_axis {
             body_one_axis!(axes, a, init_val, keepdims, c, $kernel_name, $generic_a, $($specific_type)*);
         }
     };
+}
+
+pub(crate) fn prepare_reduce<T, O>(
+    a: &_Tensor<T>,
+    axes: &[usize],
+    keepdims: bool,
+    init_out: bool,
+    init_val: O,
+    out: Option<_Tensor<O>>
+)
+    -> anyhow::Result<(_Tensor<O>, bool, _Tensor<T>)>
+    where T: CommonBounds + IntoScalar<O>, O: CommonBounds
+{
+    let mut is_left = true;
+    for axis in axes.iter() {
+        if axis == &((a.ndim() as usize) - 1) {
+            is_left = false;
+            break;
+        }
+    }
+    let a_: &_Tensor<T> = &a;
+    let a_shape = a_.shape();
+    let a_shape_tmp = a_shape.clone();
+    let (a_shape_cpy, res_shape) = predict_reduce_shape(&a_shape_tmp, &axes);
+    let mut j = a_.ndim() - axes.len();
+    let mut k = 0;
+    let mut track_idx = 0;
+    let mut transposed_axis = vec![0; a_.ndim()];
+    for i in 0..a_.ndim() {
+        if a_shape_cpy[i] != 0 {
+            transposed_axis[k] = i;
+            k += 1;
+        } else {
+            transposed_axis[j] = axes[track_idx];
+            j += 1;
+            track_idx += 1;
+        }
+    }
+    transposed_axis[a.ndim() - axes.len()..].sort();
+    transposed_axis[..a.ndim() - axes.len()].sort();
+    let transposed_tensor = a_.permute(transposed_axis)?;
+    let mut new_shape: Option<Vec<i64>> = None;
+    let result;
+    if keepdims {
+        let mut shape_tmp = Vec::with_capacity(a_.ndim());
+        a_shape_cpy.iter().for_each(|x| {
+            if *x != 0 {
+                shape_tmp.push(*x);
+            } else {
+                shape_tmp.push(1);
+            }
+        });
+        new_shape = Some(shape_tmp);
+    }
+    let res_shape = Arc::new(res_shape);
+    if let Some(out) = out {
+        if let Some(s) = &new_shape {
+            if s != out.shape().inner() {
+                return Err(anyhow::Error::msg(format!("Output array has incorrect shape")));
+            }
+        } else {
+            if res_shape.as_ref() != out.shape().inner() {
+                return Err(anyhow::Error::msg(format!("Output array has incorrect shape")));
+            }
+        }
+        result = out;
+        if init_out {
+            result
+                .as_raw_mut()
+                .par_iter_mut()
+                .for_each(|x| {
+                    *x = init_val;
+                });
+        }
+    } else {
+        result = _Tensor::<O, Cpu>::empty(res_shape.clone())?;
+        result
+            .as_raw_mut()
+            .par_iter_mut()
+            .for_each(|x| {
+                *x = init_val;
+            });
+    }
+    Ok((result, is_left, transposed_tensor))
 }
 
 use tensor_types::into_vec::IntoVec;

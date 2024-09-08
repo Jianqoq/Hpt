@@ -1,3 +1,5 @@
+use std::arch::x86_64::_mm_prefetch;
+
 use tensor_common::pointer::Pointer;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
@@ -17,7 +19,13 @@ use super::conv_config::Conv2dConfig;
 impl<T> _Tensor<T>
     where
         T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
-        <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecSize
+        <T as TypeCommon>::Vec: VecTrait<T> +
+            Copy +
+            Init<T> +
+            Send +
+            Sync +
+            VecSize +
+            NormalOut<Output = <T as TypeCommon>::Vec>
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn conv2d(
@@ -73,7 +81,7 @@ impl<T> _Tensor<T>
                 return Err(InvalidInputShape(out_width, core::panic::Location::caller()).into());
             }
         }
-        let output = _Tensor::<T>::zeros([batch, out_height, out_width, out_channels])?;
+        let output = _Tensor::<T>::empty([batch, out_height, out_width, out_channels])?;
         let out = output.ptr();
         let inp = img.ptr();
         let kernel = kernels.ptr();
@@ -113,7 +121,10 @@ impl<T> _Tensor<T>
         let wo_b_remain = out_width % (CONV_REGNUM as i64);
         let ci_b_remain = in_channels % ci_b;
         let num_co_rb = co_b / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
-        if !(co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0 || co_b == 1) || co_b > out_channels {
+        if
+            !(co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0 || co_b == 1) ||
+            co_b > out_channels
+        {
             return Err(
                 InvalidCacheParam(
                     "co_b",
@@ -151,10 +162,45 @@ impl<T> _Tensor<T>
                 &mut Pointer<T>,
                 &Pointer<T>
             ),
+            micro_kernel_fn_init: fn(
+                i64,
+                i64,
+                i64,
+                i64,
+                i64,
+                i64,
+                i64,
+                i64,
+                i64,
+                i64,
+                &Pointer<T>,
+                &mut Pointer<T>,
+                &Pointer<T>
+            ),
             mut out: Pointer<T>
         | {
             for kp in 0..num_wo_b {
-                for n in 0..kernel_height {
+                for m in 0..kernel_width {
+                    for ii in 0..ci_b_remain {
+                        let i = ip * ci_b + ii;
+                        micro_kernel_fn_init(
+                            inner_size,
+                            kp,
+                            i,
+                            b * isb + (l * step_height + 0 * dh) * ish + m * dw * isw,
+                            c * co_b,
+                            b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
+                            0 * ks0 + m * ks1 + i * ks2,
+                            step_width,
+                            isw,
+                            osw,
+                            &inp_cpy,
+                            &mut out,
+                            &kernel_cpy
+                        );
+                    }
+                }
+                for n in 1..kernel_height {
                     for m in 0..kernel_width {
                         for ii in 0..ci_b_remain {
                             let i = ip * ci_b + ii;
@@ -202,9 +248,44 @@ impl<T> _Tensor<T>
                 &mut Pointer<T>,
                 &Pointer<T>
             ),
+            micro_kernel_fn_init: fn(
+                i64,
+                i64,
+                i64,
+                i64,
+                i64,
+                i64,
+                i64,
+                i64,
+                i64,
+                i64,
+                &Pointer<T>,
+                &mut Pointer<T>,
+                &Pointer<T>
+            ),
             mut out: Pointer<T>
         | {
-            for n in 0..kernel_height {
+            for m in 0..kernel_width {
+                for ii in 0..ci_b_remain {
+                    let i = ip * ci_b + ii;
+                    micro_kernel_fn_init(
+                        num_co_rb,
+                        num_wo_b,
+                        i,
+                        b * isb + (l * step_height + 0 * dh) * ish + m * dw * isw,
+                        c * co_b,
+                        b * osb + l * osh + num_wo_b * CONV_REGNUM as i64 * osw, // prettier-ignore
+                        0 * ks0 + m * ks1 + i * ks2,
+                        step_width,
+                        isw,
+                        osw,
+                        &inp_cpy,
+                        &mut out,
+                        &kernel_cpy
+                    );
+                }
+            }
+            for n in 1..kernel_height {
                 for m in 0..kernel_width {
                     for ii in 0..ci_b_remain {
                         let i = ip * ci_b + ii;
@@ -231,54 +312,54 @@ impl<T> _Tensor<T>
         let case1 = move |b: i64, l: i64, c: i64, ip: i64, ci_b_remain: i64, out: Pointer<T>| {
             match wo_b_remain {
                 1 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_1::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_1::<T>, micro_kernel_1_init::<T>, out);
                 }
                 2 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_2::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_2::<T>, micro_kernel_2_init::<T>, out);
                 }
                 3 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_3::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_3::<T>, micro_kernel_3_init::<T>, out);
                 }
                 4 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_4::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_4::<T>, micro_kernel_4_init::<T>, out);
                 }
                 5 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_5::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_5::<T>, micro_kernel_5_init::<T>, out);
                 }
                 6 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_6::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_6::<T>, micro_kernel_6_init::<T>, out);
                 }
                 #[cfg(target_feature = "avx512f")]
                 7 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_7::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_7::<T>, micro_kernel_7_init::<T>, out);
                 }
                 #[cfg(target_feature = "avx512f")]
                 8 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_8::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_8::<T>, micro_kernel_8_init::<T>, out);
                 }
                 #[cfg(target_feature = "avx512f")]
                 9 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_9::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_9::<T>, micro_kernel_9_init::<T>, out);
                 }
                 #[cfg(target_feature = "avx512f")]
                 10 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_10::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_10::<T>, micro_kernel_10_init::<T>, out);
                 }
                 #[cfg(target_feature = "avx512f")]
                 11 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_11::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_11::<T>, micro_kernel_11_init::<T>, out);
                 }
                 #[cfg(target_feature = "avx512f")]
                 12 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_12::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_12::<T>, micro_kernel_12_init::<T>, out);
                 }
                 #[cfg(target_feature = "avx512f")]
                 13 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_13::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_13::<T>, micro_kernel_13_init::<T>, out);
                 }
                 #[cfg(target_feature = "avx512f")]
                 14 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_14::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_14::<T>, micro_kernel_14_init::<T>, out);
                 }
                 _ => unimplemented!(),
             }
@@ -294,54 +375,54 @@ impl<T> _Tensor<T>
         | {
             match wo_b_remain {
                 1 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_1_1::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_1_1::<T>, micro_kernel_1_1_init::<T>, out);
                 }
                 2 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_2_1::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_2_1::<T>, micro_kernel_2_1_init::<T>, out);
                 }
                 3 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_3_1::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_3_1::<T>, micro_kernel_3_1_init::<T>, out);
                 }
                 4 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_4_1::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_4_1::<T>, micro_kernel_4_1_init::<T>, out);
                 }
                 5 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_5_1::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_5_1::<T>, micro_kernel_5_1_init::<T>, out);
                 }
                 6 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_6_1::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_6_1::<T>, micro_kernel_6_1_init::<T>, out);
                 }
                 #[cfg(target_feature = "avx512f")]
                 7 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_7_1::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_7_1::<T>, micro_kernel_7_1_init::<T>, out);
                 }
                 #[cfg(target_feature = "avx512f")]
                 8 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_8_1::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_8_1::<T>, micro_kernel_8_1_init::<T>, out);
                 }
                 #[cfg(target_feature = "avx512f")]
                 9 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_9_1::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_9_1::<T>, micro_kernel_9_1_init::<T>, out);
                 }
                 #[cfg(target_feature = "avx512f")]
                 10 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_10_1::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_10_1::<T>, micro_kernel_10_1_init::<T>, out);
                 }
                 #[cfg(target_feature = "avx512f")]
                 11 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_11_1::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_11_1::<T>, micro_kernel_11_1_init::<T>, out);
                 }
                 #[cfg(target_feature = "avx512f")]
                 12 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_12_1::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_12_1::<T>, micro_kernel_12_1_init::<T>, out);
                 }
                 #[cfg(target_feature = "avx512f")]
                 13 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_13_1::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_13_1::<T>, micro_kernel_13_1_init::<T>, out);
                 }
                 #[cfg(target_feature = "avx512f")]
                 14 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_14_1::<T>, out);
+                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_14_1::<T>, micro_kernel_14_1_init::<T>, out);
                 }
                 _ => unimplemented!(),
             }
@@ -778,38 +859,38 @@ impl<T> _Tensor<T>
                 (true, true, true) => {
                     if co_b > 1 {
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                         }
                     } else {
                         assert_eq!(co_b, 1);
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, 1, micro_kernel_regnum_1::<T>, out.clone());
+                            case0(b, l, c, ip, ci_b, 1, micro_kernel_regnum_1::<T>, micro_kernel_regnum_init::<T>, out.clone());
                         }
                     }
                 }
                 (true, true, false) => {
                     if co_b > 1 {
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                         }
-                        case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                        case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                     } else {
                         assert_eq!(co_b, 1);
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, 1, micro_kernel_regnum_1::<T>, out.clone());
+                            case0(b, l, c, ip, ci_b, 1, micro_kernel_regnum_1::<T>, micro_kernel_regnum_init::<T>, out.clone());
                         }
-                        case0(b, l, c, num_ci_b, ci_b_remain, 1, micro_kernel_regnum_1::<T>, out.clone());
+                        case0(b, l, c, num_ci_b, ci_b_remain, 1, micro_kernel_regnum_1::<T>, micro_kernel_regnum_init::<T>, out.clone());
                     }
                 }
                 (true, false, true) => {
                     if co_b > 1 {
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                             case1(b, l, c, ip, ci_b, out.clone());
                         }
                     } else {
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, 1, micro_kernel_regnum_1::<T>, out.clone());
+                            case0(b, l, c, ip, ci_b, 1, micro_kernel_regnum_1::<T>, micro_kernel_regnum_init::<T>, out.clone());
                             case1_remain1(b, l, c, ip, ci_b, out.clone());
                         }
                     }
@@ -817,17 +898,17 @@ impl<T> _Tensor<T>
                 (true, false, false) => {
                     if co_b > 1 {
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                             case1(b, l, c, ip, ci_b, out.clone());
                         }
-                        case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                        case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                         case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
                     } else {
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, 1, micro_kernel_regnum_1::<T>, out.clone());
+                            case0(b, l, c, ip, ci_b, 1, micro_kernel_regnum_1::<T>, micro_kernel_regnum_init::<T>, out.clone());
                             case1_remain1(b, l, c, ip, ci_b, out.clone());
                         }
-                        case0(b, l, c, num_ci_b, ci_b_remain, 1, micro_kernel_regnum_1::<T>, out.clone());
+                        case0(b, l, c, num_ci_b, ci_b_remain, 1, micro_kernel_regnum_1::<T>, micro_kernel_regnum_init::<T>, out.clone());
                         case1_remain1(b, l, c, num_ci_b, ci_b_remain, out.clone());
                     }
                 }
@@ -836,18 +917,18 @@ impl<T> _Tensor<T>
                     assert!(co_b > 1);
                     if c < num_co_b - 1 {
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                         }
                     } else {
                         let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
                         if remain == 0 {
                             for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
-                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T>, out.clone());
+                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
+                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                             }
                         } else {
                             for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                                 case2(b, l, num_co_b, ip, num_vec_size, remain, ci_b, out.clone());
                             }
                         }
@@ -858,24 +939,24 @@ impl<T> _Tensor<T>
                     assert!(co_b > 1);
                     if c < num_co_b - 1 {
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                         }
-                        case0(b, l, c, num_ci_b, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                        case0(b, l, c, num_ci_b, ci_b, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                     } else {
                         let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
                         if remain == 0 {
                             for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
-                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T>, out.clone());
+                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
+                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                             }
-                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>, out.clone());
-                            case0(b, l, num_co_b, num_ci_b, ci_b_remain, num_vec_size, micro_kernel_regnum::<T>, out.clone());
+                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
+                            case0(b, l, num_co_b, num_ci_b, ci_b_remain, num_vec_size, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                         } else {
                             for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                                 case2(b, l, num_co_b, ip, num_vec_size, remain, ci_b, out.clone());
                             }
-                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                             case2(b, l, num_co_b, num_ci_b, num_vec_size, remain, ci_b_remain, out.clone());
                         }
                     }
@@ -885,21 +966,21 @@ impl<T> _Tensor<T>
                     assert!(co_b > 1);
                     if c < num_co_b - 1 {
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                             case1(b, l, c, ip, ci_b, out.clone());
                         }
                     } else {
                         let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
                         if remain == 0 {
                             for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                                 case1(b, l, c, ip, ci_b, out.clone());
-                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T>, out.clone());
+                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                                 case3(b, l, num_co_b, ip, ci_b, out.clone());
                             }
                         } else {
                             for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                                 case1(b, l, c, ip, ci_b, out.clone());
                                 case2(b, l, num_co_b, ip, num_vec_size, remain, ci_b, out.clone());
                                 case3(b, l, num_co_b, ip, ci_b, out.clone());
@@ -912,34 +993,34 @@ impl<T> _Tensor<T>
                     assert!(co_b > 1);
                     if c < num_co_b - 1 {
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                             case1(b, l, c, ip, ci_b, out.clone());
                         }
-                        case0(b, l, c, num_ci_b, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                        case0(b, l, c, num_ci_b, ci_b, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                         case1(b, l, c, num_ci_b, ci_b, out.clone());
-                        case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                        case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                         case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
                     } else {
                         let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
                         if remain == 0 {
                             for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                                 case1(b, l, c, ip, ci_b, out.clone());
-                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T>, out.clone());
+                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                                 case3(b, l, num_co_b, ip, ci_b, out.clone());
                             }
-                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                             case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
-                            case0(b, l, num_co_b, num_ci_b, ci_b_remain, num_vec_size, micro_kernel_regnum::<T>, out.clone());
+                            case0(b, l, num_co_b, num_ci_b, ci_b_remain, num_vec_size, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                             case3(b, l, num_co_b, num_ci_b, ci_b_remain, out.clone());
                         } else {
                             for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                                 case1(b, l, c, ip, ci_b, out.clone());
                                 case2(b, l, num_co_b, ip, num_vec_size, remain, ci_b, out.clone());
                                 case3(b, l, num_co_b, ip, ci_b, out.clone());
                             }
-                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>, micro_kernel_regnum_init::<T>, out.clone());
                             case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
                             case2(b, l, num_co_b, num_ci_b, num_vec_size, remain, ci_b_remain, out.clone());
                             case3(b, l, num_co_b, num_ci_b, ci_b_remain, out.clone());

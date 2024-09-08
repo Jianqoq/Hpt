@@ -6,7 +6,10 @@ use tensor_types::vectors::traits::*;
 use crate::ops::cpu::convolutions::conv_config::Conv2dConfig;
 use crate::ops::cpu::convolutions::conv_config::KernelParamAlgo;
 use crate::ops::cpu::kernels::avgpool_kernels::*;
+#[cfg(feature = "simd")]
 use crate::ops::cpu::unary::uary_fn_with_out_simd;
+#[cfg(not(feature = "simd"))]
+use crate::ops::cpu::unary::uary_fn_with_out;
 use crate::tensor_base::_Tensor;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
@@ -731,12 +734,21 @@ impl<T> _Tensor<T>
 
         let div: T = (kernel_height * kernel_width).into_scalar();
         let div_vec = <T as TypeCommon>::Vec::splat(div);
+        #[cfg(feature = "simd")]
         uary_fn_with_out_simd(
             &output,
             |x| x._div(div_vec),
             |x| x._div(div),
             output.clone()
         )?;
+        #[cfg(not(feature = "simd"))]
+        {
+            uary_fn_with_out(
+                &output,
+                |x| x._div(div),
+                output.clone()
+            )?;
+        }
         Ok(output)
     }
 }

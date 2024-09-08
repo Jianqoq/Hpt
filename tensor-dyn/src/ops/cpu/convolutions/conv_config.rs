@@ -102,10 +102,10 @@ fn find_exact_combination<T: CommonBounds, const REGNUM: usize>(
     let mut best_co_b = 1;
     let mut best_ci_b = 1;
 
-    for co_b in (1..=max_co_b)
+    for co_b in (1..max_co_b + 1)
         .rev()
         .filter(|&co_b| co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0) {
-        for ci_b in (1..=max_ci_b).rev() {
+        for ci_b in (1..max_ci_b + 1).rev() {
             let product =
                 co_b * (REGNUM as i64) +
                 weight_size * height_size * ci_b * ((REGNUM as i64) + co_b);

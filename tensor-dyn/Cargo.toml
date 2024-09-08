@@ -34,6 +34,9 @@ pollster = "0.3.0"
 num_cpus = "1.16.0"
 thiserror = "1.0.63"
 
+[dev-dependencies]
+tch = "0.17.0"
+
 [features]
 default = ["track_caller"]
 track_caller = [
