@@ -1,28 +1,26 @@
 use std::ops::{ Deref, DerefMut };
 
-use crate::into_vec::IntoVec;
-
-use super::traits::{ Init, VecSize, VecTrait };
+use crate::{into_vec::IntoVec, traits::{Init, VecSize, VecTrait}};
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq)]
-pub struct isizex4(pub(crate) std::simd::isizex4);
+pub struct isizex2(pub(crate) std::simd::isizex2);
 
-impl Deref for isizex4 {
-    #[cfg(target_pointer_width = "64")]
-    type Target = std::simd::isizex4;
+impl Deref for isizex2 {
+    type Target = std::simd::isizex2;
+
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl DerefMut for isizex4 {
+impl DerefMut for isizex2 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl VecTrait<isize> for isizex4 {
+impl VecTrait<isize> for isizex2 {
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[isize]) {
         self.as_mut_array().copy_from_slice(unsafe { std::mem::transmute(slice) });
@@ -46,61 +44,61 @@ impl VecTrait<isize> for isizex4 {
     #[inline(always)]
     fn sum(&self) -> isize {
         let ret = self.as_array().iter().sum::<isize>();
-        ret as isize
+        ret
     }
-
+    
     fn extract(self, idx: usize) -> isize {
         self.as_array()[idx]
     }
 }
 
-impl VecSize for isizex4 {
+impl VecSize for isizex2 {
     const SIZE: usize = 4;
 }
 
-impl Init<isize> for isizex4 {
-    fn splat(val: isize) -> isizex4 {
-        let ret = isizex4(std::simd::isizex4::splat(val));
+impl Init<isize> for isizex2 {
+    fn splat(val: isize) -> isizex2 {
+        let ret = isizex2(std::simd::isizex2::splat(val));
         ret
     }
 
     unsafe fn from_ptr(ptr: *const isize) -> Self {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_si256(ptr as *const _)) }
+        unsafe { std::mem::transmute(std::arch::x86_64::_mm_loadu_si128(ptr as *const _)) }
     }
 }
 
-impl IntoVec<isizex4> for isizex4 {
-    fn into_vec(self) -> isizex4 {
+impl IntoVec<isizex2> for isizex2 {
+    fn into_vec(self) -> isizex2 {
         self
     }
 }
-impl std::ops::Add for isizex4 {
+impl std::ops::Add for isizex2 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
-        isizex4(self.0 + rhs.0)
+        isizex2(self.0 + rhs.0)
     }
 }
-impl std::ops::Sub for isizex4 {
+impl std::ops::Sub for isizex2 {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self {
-        isizex4(self.0 - rhs.0)
+        isizex2(self.0 - rhs.0)
     }
 }
-impl std::ops::Mul for isizex4 {
+impl std::ops::Mul for isizex2 {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self {
-        isizex4(self.0 * rhs.0)
+        isizex2(self.0 * rhs.0)
     }
 }
-impl std::ops::Div for isizex4 {
+impl std::ops::Div for isizex2 {
     type Output = Self;
     fn div(self, rhs: Self) -> Self {
-        isizex4(self.0 / rhs.0)
+        isizex2(self.0 / rhs.0)
     }
 }
-impl std::ops::Rem for isizex4 {
+impl std::ops::Rem for isizex2 {
     type Output = Self;
     fn rem(self, rhs: Self) -> Self {
-        isizex4(self.0 % rhs.0)
+        isizex2(self.0 % rhs.0)
     }
 }
