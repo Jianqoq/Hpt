@@ -178,52 +178,6 @@ macro_rules! micro_kernel {
     };
 }
 
-macro_rules! micro_kernel_t {
-    ($num:tt, [$($idx:expr),*]) => {
-        paste::paste! {
-            pub(crate) fn [<micro_kernel_ $num>]<T>(
-                num_co_rb: i64,
-                kp: i64,
-                i: i64,
-                inp_offset: i64,
-                co_offset: i64,
-                out_offset: i64,
-                kernel_offset: i64,
-                step_width: i64,
-                isw: i64,
-                osw: i64,
-                inp: &Pointer<T>,
-                out: &mut Pointer<T>,
-                kernel: &Pointer<T>
-            )
-                where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
-            {
-                $(
-                    let _k = kp * (CONV_REGNUM as i64) + $idx;
-                    let [<inp_vec $idx>] = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-                )*
-                for j in 0..num_co_rb {
-                    let ofs = out_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
-                    unsafe {
-                        let kernel_vec = <T as TypeCommon>::Vec::from_ptr(
-                            &kernel[co_offset + kernel_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *const _
-                        );
-                        $(
-                            let [<out_vec $idx>] = &mut out[co_offset + ofs + $idx * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
-                        )*
-                        $(
-                            let [<res $idx>] = [<inp_vec $idx>]._mul_add(kernel_vec, [<out_vec $idx>].read_unaligned());
-                        )*
-                        $(
-                            [<out_vec $idx>].write_unaligned([<res $idx>]);
-                        )*
-                    }
-                }
-            }
-        }
-    };
-}
-
 macro_rules! micro_kernel_init {
     ($num:tt, [$($idx:expr),*]) => {
         paste::paste! {
@@ -259,7 +213,10 @@ macro_rules! micro_kernel_init {
                             let [<out_vec $idx>] = &mut out[co_offset + ofs + $idx * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
                         )*
                         $(
-                            [<out_vec $idx>].write_unaligned([<inp_vec $idx>]._mul(kernel_vec));
+                            let [<res $idx>] = [<inp_vec $idx>]._mul(kernel_vec);
+                        )*
+                        $(
+                            [<out_vec $idx>].write_unaligned([<res $idx>]);
                         )*
                     }
                 }
@@ -306,7 +263,7 @@ macro_rules! micro_kernel_1_init {
     ($num:tt, [$($idx:expr),*]) => {
         paste::paste! {
             #[rustfmt::skip]
-            pub(crate) fn [<micro_kernel_ $num _1_init>]<T>(
+            pub(crate) fn [<micro_kernel_ $num _1 _init>]<T>(
                 _: i64,
                 kp: i64,
                 i: i64,
@@ -390,7 +347,6 @@ macro_rules! micro_kernel_with_buffer {
 
 #[cfg(target_feature = "avx2")]
 micro_kernel!(regnum, [0, 1, 2, 3, 4, 5, 6]);
-#[cfg(target_feature = "avx2")]
 micro_kernel_init!(regnum, [0, 1, 2, 3, 4, 5, 6]);
 #[cfg(target_feature = "avx512f")]
 micro_kernel!(regnum, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
@@ -402,6 +358,12 @@ micro_kernel!(3, [0, 1, 2]);
 micro_kernel!(4, [0, 1, 2, 3]);
 micro_kernel!(5, [0, 1, 2, 3, 4]);
 micro_kernel!(6, [0, 1, 2, 3, 4, 5]);
+micro_kernel_init!(1, [0]);
+micro_kernel_init!(2, [0, 1]);
+micro_kernel_init!(3, [0, 1, 2]);
+micro_kernel_init!(4, [0, 1, 2, 3]);
+micro_kernel_init!(5, [0, 1, 2, 3, 4]);
+micro_kernel_init!(6, [0, 1, 2, 3, 4, 5]);
 #[cfg(target_feature = "avx512f")]
 micro_kernel!(7, [0, 1, 2, 3, 4, 5, 6]);
 #[cfg(target_feature = "avx512f")]
@@ -418,13 +380,6 @@ micro_kernel!(12, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
 micro_kernel!(13, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
 #[cfg(target_feature = "avx512f")]
 micro_kernel!(14, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
-
-micro_kernel_init!(1, [0]);
-micro_kernel_init!(2, [0, 1]);
-micro_kernel_init!(3, [0, 1, 2]);
-micro_kernel_init!(4, [0, 1, 2, 3]);
-micro_kernel_init!(5, [0, 1, 2, 3, 4]);
-micro_kernel_init!(6, [0, 1, 2, 3, 4, 5]);
 
 #[cfg(target_feature = "avx2")]
 micro_kernel_with_buffer!(regnum, [0, 1, 2, 3, 4, 5, 6]);
@@ -462,8 +417,6 @@ micro_kernel_1!(3, [0, 1, 2]);
 micro_kernel_1!(4, [0, 1, 2, 3]);
 micro_kernel_1!(5, [0, 1, 2, 3, 4]);
 micro_kernel_1!(6, [0, 1, 2, 3, 4, 5]);
-
-micro_kernel_1_init!(regnum, [0, 1, 2, 3, 4, 5, 6]);
 micro_kernel_1_init!(1, [0]);
 micro_kernel_1_init!(2, [0, 1]);
 micro_kernel_1_init!(3, [0, 1, 2]);

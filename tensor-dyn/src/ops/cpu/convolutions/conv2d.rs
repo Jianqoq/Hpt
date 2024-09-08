@@ -312,54 +312,180 @@ impl<T> _Tensor<T>
         let case1 = move |b: i64, l: i64, c: i64, ip: i64, ci_b_remain: i64, out: Pointer<T>| {
             match wo_b_remain {
                 1 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_1::<T>, micro_kernel_1_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_1::<T>,
+                        micro_kernel_1_init::<T>,
+                        out
+                    );
                 }
                 2 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_2::<T>, micro_kernel_2_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_2::<T>,
+                        micro_kernel_2_init::<T>,
+                        out
+                    );
                 }
                 3 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_3::<T>, micro_kernel_3_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_3::<T>,
+                        micro_kernel_3_init::<T>,
+                        out
+                    );
                 }
                 4 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_4::<T>, micro_kernel_4_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_4::<T>,
+                        micro_kernel_4_init::<T>,
+                        out
+                    );
                 }
                 5 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_5::<T>, micro_kernel_5_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_5::<T>,
+                        micro_kernel_5_init::<T>,
+                        out
+                    );
                 }
                 6 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_6::<T>, micro_kernel_6_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_6::<T>,
+                        micro_kernel_6_init::<T>,
+                        out
+                    );
                 }
                 #[cfg(target_feature = "avx512f")]
                 7 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_7::<T>, micro_kernel_7_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_7::<T>,
+                        micro_kernel_7_init::<T>,
+                        out
+                    );
                 }
                 #[cfg(target_feature = "avx512f")]
                 8 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_8::<T>, micro_kernel_8_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_8::<T>,
+                        micro_kernel_8_init::<T>,
+                        out
+                    );
                 }
                 #[cfg(target_feature = "avx512f")]
                 9 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_9::<T>, micro_kernel_9_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_9::<T>,
+                        micro_kernel_9_init::<T>,
+                        out
+                    );
                 }
                 #[cfg(target_feature = "avx512f")]
                 10 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_10::<T>, micro_kernel_10_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_10::<T>,
+                        micro_kernel_10_init::<T>,
+                        out
+                    );
                 }
                 #[cfg(target_feature = "avx512f")]
                 11 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_11::<T>, micro_kernel_11_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_11::<T>,
+                        micro_kernel_11_init::<T>,
+                        out
+                    );
                 }
                 #[cfg(target_feature = "avx512f")]
                 12 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_12::<T>, micro_kernel_12_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_12::<T>,
+                        micro_kernel_12_init::<T>,
+                        out
+                    );
                 }
                 #[cfg(target_feature = "avx512f")]
                 13 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_13::<T>, micro_kernel_13_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_13::<T>,
+                        micro_kernel_13_init::<T>,
+                        out
+                    );
                 }
                 #[cfg(target_feature = "avx512f")]
                 14 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_14::<T>, micro_kernel_14_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_14::<T>,
+                        micro_kernel_14_init::<T>,
+                        out
+                    );
                 }
                 _ => unimplemented!(),
             }
@@ -375,54 +501,180 @@ impl<T> _Tensor<T>
         | {
             match wo_b_remain {
                 1 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_1_1::<T>, micro_kernel_1_1_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_1_1::<T>,
+                        micro_kernel_1_1_init::<T>,
+                        out
+                    );
                 }
                 2 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_2_1::<T>, micro_kernel_2_1_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_2_1::<T>,
+                        micro_kernel_2_1_init::<T>,
+                        out
+                    );
                 }
                 3 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_3_1::<T>, micro_kernel_3_1_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_3_1::<T>,
+                        micro_kernel_3_1_init::<T>,
+                        out
+                    );
                 }
                 4 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_4_1::<T>, micro_kernel_4_1_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_4_1::<T>,
+                        micro_kernel_4_1_init::<T>,
+                        out
+                    );
                 }
                 5 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_5_1::<T>, micro_kernel_5_1_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_5_1::<T>,
+                        micro_kernel_5_1_init::<T>,
+                        out
+                    );
                 }
                 6 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_6_1::<T>, micro_kernel_6_1_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_6_1::<T>,
+                        micro_kernel_6_1_init::<T>,
+                        out
+                    );
                 }
                 #[cfg(target_feature = "avx512f")]
                 7 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_7_1::<T>, micro_kernel_7_1_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_7_1::<T>,
+                        micro_kernel_7_1_init::<T>,
+                        out
+                    );
                 }
                 #[cfg(target_feature = "avx512f")]
                 8 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_8_1::<T>, micro_kernel_8_1_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_8_1::<T>,
+                        micro_kernel_8_1_init::<T>,
+                        out
+                    );
                 }
                 #[cfg(target_feature = "avx512f")]
                 9 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_9_1::<T>, micro_kernel_9_1_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_9_1::<T>,
+                        micro_kernel_9_1_init::<T>,
+                        out
+                    );
                 }
                 #[cfg(target_feature = "avx512f")]
                 10 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_10_1::<T>, micro_kernel_10_1_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_10_1::<T>,
+                        micro_kernel_10_1_init::<T>,
+                        out
+                    );
                 }
                 #[cfg(target_feature = "avx512f")]
                 11 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_11_1::<T>, micro_kernel_11_1_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_11_1::<T>,
+                        micro_kernel_11_1_init::<T>,
+                        out
+                    );
                 }
                 #[cfg(target_feature = "avx512f")]
                 12 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_12_1::<T>, micro_kernel_12_1_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_12_1::<T>,
+                        micro_kernel_12_1_init::<T>,
+                        out
+                    );
                 }
                 #[cfg(target_feature = "avx512f")]
                 13 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_13_1::<T>, micro_kernel_13_1_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_13_1::<T>,
+                        micro_kernel_13_1_init::<T>,
+                        out
+                    );
                 }
                 #[cfg(target_feature = "avx512f")]
                 14 => {
-                    case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_14_1::<T>, micro_kernel_14_1_init::<T>, out);
+                    case1_helper(
+                        b,
+                        l,
+                        c,
+                        ip,
+                        ci_b_remain,
+                        micro_kernel_14_1::<T>,
+                        micro_kernel_14_1_init::<T>,
+                        out
+                    );
                 }
                 _ => unimplemented!(),
             }
