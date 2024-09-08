@@ -40,9 +40,13 @@ pub mod ops {
             pub mod conv_kernels;
             pub mod reduce_kernels;
             pub mod maxpool_kernel;
+            pub mod avgpool_kernels;
         }
         pub mod maxpool {
             pub mod maxpool2d;
+        }
+        pub mod avgpool {
+            pub mod avg_pool2d;
         }
     }
     pub mod wgpu {

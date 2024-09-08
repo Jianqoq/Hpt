@@ -1,10 +1,12 @@
 use tensor_common::pointer::Pointer;
 use tensor_common::shape::Shape;
+use tensor_types::type_promote::FloatOutBinary;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
 use crate::ops::cpu::convolutions::conv_config::Conv2dConfig;
 use crate::ops::cpu::convolutions::conv_config::KernelParamAlgo;
-use crate::ops::cpu::kernels::maxpool_kernel::*;
+use crate::ops::cpu::kernels::avgpool_kernels::*;
+use crate::ops::cpu::unary::uary_fn_with_out_simd;
 use crate::tensor_base::_Tensor;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
@@ -17,17 +19,19 @@ use tensor_types::dtype::TypeCommon;
 
 impl<T> _Tensor<T>
     where
-        T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
+        T: CommonBounds + IntoScalar<T> + NormalOut<Output = T> + FloatOutBinary<Output = T>,
         <T as TypeCommon>::Vec: VecTrait<T> +
             Copy +
             Init<T> +
             Send +
             Sync +
             VecSize +
-            NormalOut<Output = <T as TypeCommon>::Vec>
+            NormalOut<Output = <T as TypeCommon>::Vec> +
+            FloatOutBinary<Output = <T as TypeCommon>::Vec>,
+        i64: IntoScalar<T>
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn max_pool2d<S: Into<Shape>>(
+    pub fn avg_pool2d<S: Into<Shape>>(
         &self,
         kernel_shape: S,
         steps: [i64; 2],
@@ -725,33 +729,14 @@ impl<T> _Tensor<T>
             }
         });
 
+        let div: T = (kernel_height * kernel_width).into_scalar();
+        let div_vec = <T as TypeCommon>::Vec::splat(div);
+        uary_fn_with_out_simd(
+            &output,
+            |x| x._div(div_vec),
+            |x| x._div(div),
+            output.clone()
+        )?;
         Ok(output)
-    }
-}
-
-pub fn get_num_cache_set(cache_size: usize, cache_line_size: usize, associativity: usize) -> usize {
-    cache_size / (cache_line_size * associativity)
-}
-
-#[allow(unused)]
-pub(crate) fn get_cache_set(
-    address: usize,
-    cache_line_size: usize,
-    num_cache_sets: usize
-) -> usize {
-    (address / cache_line_size) % num_cache_sets
-}
-#[allow(unused)]
-pub(crate) fn get_set_gap<T>(stride: i64, cache_line_size: usize, cache_set_num: usize) -> usize {
-    let set1 = get_cache_set(0, cache_line_size, cache_set_num);
-    let set2 = get_cache_set(
-        ((stride as usize) * std::mem::size_of::<T>()) as usize,
-        cache_line_size,
-        cache_set_num
-    );
-    if set2 > set1 {
-        set2 - set1
-    } else {
-        set1 + cache_set_num - set2
     }
 }

@@ -147,7 +147,7 @@ pub fn uary_fn_with_out<A, O, K, Q, F>(
 }
 
 #[cfg(feature = "simd")]
-fn uary_fn_with_out_simd<A, O, K, Q, F, F2>(
+pub(crate) fn uary_fn_with_out_simd<A, O, K, Q, F, F2>(
     inp: &_Tensor<A, Cpu>,
     f: F,
     f2: F2,

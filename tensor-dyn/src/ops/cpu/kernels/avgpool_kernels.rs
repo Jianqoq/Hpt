@@ -11,7 +11,7 @@ macro_rules! _maxpool {
                 for m in 0..kernel_width {
                     for k in 0..out_width {
                         for j in 0..out_channels {
-                            out[l][k][j] = out[l][k][j].max(inp[l * stride_height + n][k * stride_width + m][j]);
+                            out[l][k][j] = out[l][k][j] + inp[l * stride_height + n][k * stride_width + m][j];
                         }
                     }
                 }
@@ -144,7 +144,7 @@ macro_rules! micro_kernel {
                             let [<out_vec $idx>] = &mut out[co_offset + ofs + $idx * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
                         )*
                         $(
-                            let [<res $idx>] = [<inp_vec $idx>].read_unaligned()._max([<out_vec $idx>].read_unaligned());
+                            let [<res $idx>] = [<inp_vec $idx>].read_unaligned()._add([<out_vec $idx>].read_unaligned());
                         )*
                         $(
                             [<out_vec $idx>].write_unaligned([<res $idx>]);
@@ -179,7 +179,7 @@ macro_rules! micro_kernel_1 {
                     let [<inp_vec $idx>] = inp[inp_offset + _k * step_width * isw];
                 )*
                 $(
-                    out[co_offset + out_offset + $idx * osw] = [<inp_vec $idx>]._max(out[co_offset + out_offset + $idx * osw]);
+                    out[co_offset + out_offset + $idx * osw] = [<inp_vec $idx>]._add(out[co_offset + out_offset + $idx * osw]);
                 )*
             }
         }
@@ -219,7 +219,7 @@ macro_rules! micro_kernel_with_buffer {
                             let [<out_vec $idx>] = res_vectors.get_mut($idx).unwrap() as *mut _ as *mut <T as TypeCommon>::Vec;
                         )*
                         $(
-                            let [<res $idx>] = [<inp_vec $idx>].read_unaligned()._max([<out_vec $idx>].read_unaligned());
+                            let [<res $idx>] = [<inp_vec $idx>].read_unaligned()._add([<out_vec $idx>].read_unaligned());
                         )*
                         $(
                             [<out_vec $idx>].write_unaligned([<res $idx>]);

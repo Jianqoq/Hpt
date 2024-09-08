@@ -1,3 +1,5 @@
+use std::ffi::CStr;
+
 use half::bf16;
 use ops::cpu::convolutions::conv_config::{ Conv2dConfig, KernelParamAlgo };
 use tensor_dyn::tensor_base::_Tensor;
@@ -23,7 +25,7 @@ fn main() -> anyhow::Result<()> {
     let now = std::time::Instant::now();
     for _ in 0..100 {
         let res = a
-            .max_pool2d(
+            .avg_pool2d(
                 [3, 3],
                 [1, 1],
                 [
@@ -45,7 +47,7 @@ fn main() -> anyhow::Result<()> {
         .reshape(&[100, 3, 128, 128]);
     let now = std::time::Instant::now();
     for _ in 0..100 {
-        let res2 = tch_a.max_pool2d(&[3, 3], &[1, 1], &[0, 0], &[1, 1], false);
+        let res2 = tch_a.avg_pool2d(&[3, 3], &[1, 1], &[0, 0], false, true, None);
         // println!("{}", res2);
     }
     println!("{:?}", now.elapsed() / 100);
