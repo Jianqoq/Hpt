@@ -45,10 +45,6 @@ impl Init<Complex32> for cplx32x4 {
     fn splat(val: Complex32) -> cplx32x4 {
         cplx32x4([val; 4])
     }
-
-    unsafe fn from_ptr(ptr: *const Complex32) -> Self {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_pd(ptr as *const _)) }
-    }
 }
 impl IntoVec<cplx32x4> for cplx32x4 {
     fn into_vec(self) -> cplx32x4 {

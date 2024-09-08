@@ -48,14 +48,6 @@ impl Init<bool> for boolx64 {
     fn splat(val: bool) -> boolx64 {
         boolx64([val; 64])
     }
-
-    unsafe fn from_ptr(ptr: *const bool) -> Self {
-        let mut tmp = core::mem::MaybeUninit::<Self>::uninit();
-        unsafe {
-            core::ptr::copy_nonoverlapping(ptr, tmp.as_mut_ptr().cast(), 1);
-            tmp.assume_init()
-        }
-    }
 }
 impl IntoVec<boolx64> for boolx64 {
     fn into_vec(self) -> boolx64 {

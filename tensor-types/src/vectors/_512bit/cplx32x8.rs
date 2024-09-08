@@ -45,14 +45,6 @@ impl Init<Complex32> for cplx32x8 {
     fn splat(val: Complex32) -> cplx32x8 {
         cplx32x8([val; 8])
     }
-
-    unsafe fn from_ptr(ptr: *const Complex32) -> Self {
-        let mut tmp = core::mem::MaybeUninit::<Self>::uninit();
-        unsafe {
-            core::ptr::copy_nonoverlapping(ptr, tmp.as_mut_ptr().cast(), 1);
-            tmp.assume_init()
-        }
-    }
 }
 impl IntoVec<cplx32x8> for cplx32x8 {
     fn into_vec(self) -> cplx32x8 {

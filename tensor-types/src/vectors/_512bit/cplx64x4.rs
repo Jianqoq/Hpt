@@ -45,14 +45,6 @@ impl Init<Complex64> for cplx64x4 {
     fn splat(val: Complex64) -> cplx64x4 {
         cplx64x4([val; 4])
     }
-
-    unsafe fn from_ptr(ptr: *const Complex64) -> Self {
-        let mut tmp = core::mem::MaybeUninit::<Self>::uninit();
-        unsafe {
-            core::ptr::copy_nonoverlapping(ptr, tmp.as_mut_ptr().cast(), 1);
-            tmp.assume_init()
-        }
-    }
 }
 impl IntoVec<cplx64x4> for cplx64x4 {
     fn into_vec(self) -> cplx64x4 {

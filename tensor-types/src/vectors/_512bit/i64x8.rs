@@ -54,12 +54,6 @@ impl Init<i64> for i64x8 {
     fn splat(val: i64) -> i64x8 {
         i64x8(std::simd::i64x8::splat(val))
     }
-
-    unsafe fn from_ptr(ptr: *const i64) -> Self {
-        unsafe { std::mem::transmute(
-            std::simd::i64x8::from_slice(std::slice::from_raw_parts(ptr, 8))
-        ) }
-    }
 }
 impl std::ops::Add for i64x8 {
     type Output = i64x8;

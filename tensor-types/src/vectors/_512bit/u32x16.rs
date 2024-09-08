@@ -54,12 +54,6 @@ impl Init<u32> for u32x16 {
     fn splat(val: u32) -> u32x16 {
         u32x16(std::simd::u32x16::splat(val))
     }
-
-    unsafe fn from_ptr(ptr: *const u32) -> Self {
-        unsafe {
-            std::mem::transmute(std::simd::u32x16::from_slice(std::slice::from_raw_parts(ptr, 16)))
-        }
-    }
 }
 impl std::ops::Add for u32x16 {
     type Output = Self;

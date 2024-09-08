@@ -10,7 +10,13 @@ pub trait VecTrait<T> {
 }
 pub trait Init<T> {
     fn splat(val: T) -> Self;
-    unsafe fn from_ptr(ptr: *const T) -> Self;
+    unsafe fn from_ptr(ptr: *const T) -> Self where Self: Sized {
+        let mut tmp = core::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            core::ptr::copy_nonoverlapping(ptr, tmp.as_mut_ptr().cast(), 1);
+            tmp.assume_init()
+        }
+    }
 }
 pub trait VecSize {
     const SIZE: usize;

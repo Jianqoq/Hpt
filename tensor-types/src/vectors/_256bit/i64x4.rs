@@ -54,10 +54,6 @@ impl Init<i64> for i64x4 {
     fn splat(val: i64) -> i64x4 {
         i64x4(std::simd::i64x4::splat(val))
     }
-
-    unsafe fn from_ptr(ptr: *const i64) -> Self {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_si256(ptr as *const _)) }
-    }
 }
 impl std::ops::Add for i64x4 {
     type Output = i64x4;

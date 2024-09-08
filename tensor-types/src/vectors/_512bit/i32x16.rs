@@ -56,11 +56,6 @@ impl Init<i32> for i32x16 {
     fn splat(val: i32) -> i32x16 {
         i32x16(std::simd::i32x16::splat(val))
     }
-    unsafe fn from_ptr(ptr: *const i32) -> Self {
-        unsafe { std::mem::transmute(
-            std::simd::i32x16::from_slice(std::slice::from_raw_parts(ptr, 16))
-        ) }
-    }
 }
 impl IntoVec<i32x16> for i32x16 {
     fn into_vec(self) -> i32x16 {

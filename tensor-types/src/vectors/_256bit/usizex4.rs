@@ -76,10 +76,6 @@ impl Init<usize> for usizex4 {
         let ret = usizex8(std::simd::usizex8::splat(val));
         ret
     }
-
-    unsafe fn from_ptr(ptr: *const usize) -> Self {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_si256(ptr as *const _)) }
-    }
 }
 
 impl IntoVec<usizex4> for usizex4 {

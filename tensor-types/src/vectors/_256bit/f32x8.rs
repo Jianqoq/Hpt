@@ -44,7 +44,7 @@ impl VecTrait<f32> for f32x8 {
     fn sum(&self) -> f32 {
         self.reduce_sum()
     }
-    
+
     fn extract(self, idx: usize) -> f32 {
         self.as_array()[idx]
     }
@@ -55,9 +55,6 @@ impl VecSize for f32x8 {
 impl Init<f32> for f32x8 {
     fn splat(val: f32) -> f32x8 {
         f32x8(std::simd::f32x8::splat(val))
-    }
-    unsafe fn from_ptr(ptr: *const f32) -> Self {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_ps(ptr as *const _)) }
     }
 }
 impl IntoVec<f32x8> for f32x8 {

@@ -50,12 +50,6 @@ impl Init<half::bf16> for bf16x16 {
     fn splat(val: half::bf16) -> bf16x16 {
         bf16x16([val; 16])
     }
-
-    unsafe fn from_ptr(ptr: *const half::bf16) -> Self {
-        let mut arr = [half::bf16::default(); 16];
-        arr.copy_from_slice(std::slice::from_raw_parts(ptr, 16));
-        bf16x16(arr)
-    }
 }
 impl IntoVec<bf16x16> for bf16x16 {
     fn into_vec(self) -> bf16x16 {

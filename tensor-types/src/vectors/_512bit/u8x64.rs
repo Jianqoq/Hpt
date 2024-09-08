@@ -56,12 +56,6 @@ impl Init<u8> for u8x64 {
     fn splat(val: u8) -> u8x64 {
         u8x64(std::simd::u8x64::splat(val))
     }
-
-    unsafe fn from_ptr(ptr: *const u8) -> Self {
-        unsafe {
-            std::mem::transmute(std::simd::u8x64::from_slice(std::slice::from_raw_parts(ptr, 64)))
-        }
-    }
 }
 impl IntoVec<u8x64> for u8x64 {
     fn into_vec(self) -> u8x64 {

@@ -47,10 +47,6 @@ impl Init<bool> for boolx16 {
     fn splat(val: bool) -> boolx16 {
         boolx16([val; 16])
     }
-
-    unsafe fn from_ptr(ptr: *const bool) -> Self {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm_load_si128(ptr as *const _)) }
-    }
 }
 impl IntoVec<boolx16> for boolx16 {
     fn into_vec(self) -> boolx16 {

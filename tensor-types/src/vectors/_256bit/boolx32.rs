@@ -48,10 +48,6 @@ impl Init<bool> for boolx32 {
     fn splat(val: bool) -> boolx32 {
         boolx32([val; 32])
     }
-
-    unsafe fn from_ptr(ptr: *const bool) -> Self {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_load_si256(ptr as *const _)) }
-    }
 }
 impl IntoVec<boolx32> for boolx32 {
     fn into_vec(self) -> boolx32 {

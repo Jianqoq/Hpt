@@ -63,10 +63,6 @@ impl Init<isize> for isizex4 {
         let ret = isizex4(std::simd::isizex4::splat(val));
         ret
     }
-
-    unsafe fn from_ptr(ptr: *const isize) -> Self {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_si256(ptr as *const _)) }
-    }
 }
 
 impl IntoVec<isizex4> for isizex4 {

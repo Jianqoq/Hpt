@@ -62,12 +62,6 @@ impl Init<usize> for usizex8 {
         let ret = usizex8(std::simd::usizex8::splat(val));
         ret
     }
-
-    unsafe fn from_ptr(ptr: *const usize) -> Self {
-        unsafe {
-            std::mem::transmute(std::simd::usizex8::from_slice(std::slice::from_raw_parts(ptr, 8)))
-        }
-    }
 }
 
 impl IntoVec<usizex8> for usizex8 {

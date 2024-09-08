@@ -63,12 +63,6 @@ impl Init<isize> for isizex8 {
         let ret = isizex8(std::simd::isizex8::splat(val));
         ret
     }
-
-    unsafe fn from_ptr(ptr: *const isize) -> Self {
-        unsafe { std::mem::transmute(
-            std::simd::isizex8::from_slice(std::slice::from_raw_parts(ptr, 8))
-        ) }
-    }
 }
 
 impl IntoVec<isizex8> for isizex8 {

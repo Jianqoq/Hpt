@@ -60,10 +60,6 @@ impl Init<usize> for usizex2 {
         let ret = usizex2(std::simd::usizex2::splat(val));
         ret
     }
-
-    unsafe fn from_ptr(ptr: *const usize) -> Self {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm_loadu_si128(ptr as *const _)) }
-    }
 }
 
 impl IntoVec<usizex2> for usizex2 {

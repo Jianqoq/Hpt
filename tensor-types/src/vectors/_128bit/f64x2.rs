@@ -54,10 +54,6 @@ impl Init<f64> for f64x2 {
     fn splat(val: f64) -> f64x2 {
         f64x2(std::simd::f64x2::splat(val))
     }
-
-    unsafe fn from_ptr(ptr: *const f64) -> Self {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm_loadu_pd(ptr as *const _)) }
-    }
 }
 impl IntoVec<f64x2> for f64x2 {
     fn into_vec(self) -> f64x2 {

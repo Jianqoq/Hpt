@@ -54,10 +54,6 @@ impl Init<u32> for u32x4 {
     fn splat(val: u32) -> u32x4 {
         u32x4(std::simd::u32x4::splat(val))
     }
-
-    unsafe fn from_ptr(ptr: *const u32) -> Self {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm_loadu_si128(ptr as *const _)) }
-    }
 }
 impl std::ops::Add for u32x4 {
     type Output = Self;

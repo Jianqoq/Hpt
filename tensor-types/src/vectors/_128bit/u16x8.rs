@@ -54,10 +54,6 @@ impl Init<u16> for u16x8 {
     fn splat(val: u16) -> u16x8 {
         u16x8(std::simd::u16x8::splat(val))
     }
-
-    unsafe fn from_ptr(ptr: *const u16) -> Self {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm_loadu_si128(ptr as *const _)) }
-    }
 }
 impl IntoVec<u16x8> for u16x8 {
     fn into_vec(self) -> u16x8 {
