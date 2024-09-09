@@ -26,15 +26,20 @@ num_cpus = "1.13.0"
 # path = "benches/binary/add_f16.rs"
 # harness = false
 
-[[bench]]
-name = "add_broadcast_f16"
-path = "benches/binary/add_broadcast_f16.rs"
-harness = false
+# [[bench]]
+# name = "add_broadcast_f16"
+# path = "benches/binary/add_broadcast_f16.rs"
+# harness = false
 
 # [[bench]]
 # name = "matmul_f32"
 # path = "benches/binary/matmul_f32.rs"
 # harness = false
+
+[[bench]]
+name = "sum"
+path = "benches/reduction/sum.rs"
+harness = false
 
 [profile.dev]
 opt-level = 3
