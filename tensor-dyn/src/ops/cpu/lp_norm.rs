@@ -1,7 +1,6 @@
 use tensor_traits::{ CommonBounds, TensorInfo };
 use tensor_types::{
-    into_scalar::IntoScalar,
-    type_promote::{ FloatOutBinary, FloatOutUnary, NormalOut },
+    convertion::Convertor, into_scalar::IntoScalar, type_promote::{ FloatOutBinary, FloatOutUnary, NormalOut }
 };
 
 use crate::{ backend::Cpu, tensor_base::_Tensor };
@@ -15,7 +14,7 @@ impl<T> _Tensor<T, Cpu> {
             T: CommonBounds +
                 NormalOut<T, Output = T> +
                 FloatOutBinary +
-                IntoScalar<<T as FloatOutBinary>::Output>,
+                IntoScalar<<T as FloatOutBinary>::Output> + Convertor,
             <T as TypeCommon>::Vec: NormalOut<
                 <T as TypeCommon>::Vec,
                 Output = <T as TypeCommon>::Vec

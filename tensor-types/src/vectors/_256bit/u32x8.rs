@@ -3,7 +3,7 @@ use std::ops::{ Deref, DerefMut };
 use crate::vectors::traits::{ Init, VecSize, VecTrait };
 
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct u32x8(pub(crate) std::simd::u32x8);
 
 impl Deref for u32x8 {

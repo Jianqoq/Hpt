@@ -363,15 +363,15 @@ pub fn impl_float_out_unary() -> TokenStream {
                     }
                 }
             };
-            let sin = trig("_sin", "sin_u35");
-            let cos = trig("_cos", "cos_u35");
-            let tan = trig("_tan", "tan_u35");
-            let asin = trig("_asin", "asin_u35");
-            let acos = trig("_acos", "acos_u35");
-            let atan = trig("_atan", "atan_u35");
-            let sinh = trig("_sinh", "sinh_u35");
-            let cosh = trig("_cosh", "cosh_u35");
-            let tanh = trig("_tanh", "tanh_u35");
+            let sin = trig("_sin", "sin_u10");
+            let cos = trig("_cos", "cos_u10");
+            let tan = trig("_tan", "tan_u10");
+            let asin = trig("_asin", "asin_u10");
+            let acos = trig("_acos", "acos_u10");
+            let atan = trig("_atan", "atan_u10");
+            let sinh = trig("_sinh", "sinh_u10");
+            let cosh = trig("_cosh", "cosh_u10");
+            let tanh = trig("_tanh", "tanh_u10");
             let asinh = trig("_asinh", "asinh_u10");
             let acosh = trig("_acosh", "acosh_u10");
             let atanh = trig("_atanh", "atanh_u10");

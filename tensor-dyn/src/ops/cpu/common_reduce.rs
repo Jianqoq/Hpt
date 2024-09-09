@@ -1,7 +1,7 @@
 use tensor_common::axis::{ process_axes, Axis };
 use tensor_traits::{ CommonBounds, TensorInfo };
 use tensor_types::{
-    convertion::VecConvertor,
+    convertion::{Convertor, VecConvertor},
     dtype::TypeCommon,
     into_scalar::IntoScalar,
     into_vec::IntoVec,
@@ -15,7 +15,7 @@ use super::{ reduce::{ reduce, reduce2, reduce3 }, unary::FloatBinaryType };
 
 impl<T> _Tensor<T>
     where
-        T: CommonBounds + NormalOut<T, Output = T>,
+        T: CommonBounds + NormalOut<T, Output = T> + Convertor,
         <T as TypeCommon>::Vec: NormalOut<<T as TypeCommon>::Vec, Output = <T as TypeCommon>::Vec>
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -281,7 +281,7 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn all<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<_Tensor<bool>>
         where
-            T: IntoScalar<bool> + Eval<Output = bool>,
+            T: IntoScalar<bool> + Eval<Output = bool> + Convertor,
             <T as TypeCommon>::Vec: Eval + VecConvertor,
             <<T as TypeCommon>::Vec as Eval>::Output: SimdSelect<<T as TypeCommon>::Vec>
     {
@@ -306,7 +306,7 @@ impl<T> _Tensor<T>
     pub fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<_Tensor<bool>>
         where
             <T as TypeCommon>::Vec: IntoVec<tensor_types::vectors::_256bit::boolx32::boolx32>,
-            T: IntoScalar<bool> + Eval<Output = bool>,
+            T: IntoScalar<bool> + Eval<Output = bool> + Convertor,
             <T as TypeCommon>::Vec: Eval + BitWiseOut + VecConvertor,
             <<T as TypeCommon>::Vec as Eval>::Output: SimdSelect<<T as TypeCommon>::Vec>
     {
@@ -361,7 +361,7 @@ impl<T> _Tensor<T>
 
 impl<T> _Tensor<T>
     where
-        T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output>,
+        T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output> + Convertor,
         <T as FloatOutBinary>::Output: TypeCommon,
         <T as FloatOutBinary>::Output: CommonBounds +
             NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output> +

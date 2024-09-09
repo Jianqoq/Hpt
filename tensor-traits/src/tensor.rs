@@ -775,8 +775,8 @@ pub trait FloatReduce<T> where Self: Sized {
 }
 
 pub trait CommonBounds
-    : Sync + Send + Clone + Copy + TypeCommon + 'static + Display + IntoScalar<Self>
+    : Sync + Send + Clone + Copy + TypeCommon + 'static + Display + IntoScalar<Self> + Convertor
     where <Self as TypeCommon>::Vec: Send + Sync + Copy {}
-impl<T: Sync + Send + Clone + Copy + TypeCommon + 'static + Display + IntoScalar<Self>> CommonBounds
+impl<T: Sync + Send + Clone + Copy + TypeCommon + 'static + Display + IntoScalar<Self> + Convertor> CommonBounds
     for T
     where <Self as TypeCommon>::Vec: Send + Sync + Copy {}

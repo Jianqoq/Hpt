@@ -5,7 +5,7 @@ use crate::into_vec::IntoVec;
 use crate::vectors::traits::{ Init, VecSize, VecTrait };
 
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct f64x4(pub(crate) std::simd::f64x4);
 
 impl Deref for f64x4 {
@@ -55,6 +55,9 @@ impl VecSize for f64x4 {
 impl Init<f64> for f64x4 {
     fn splat(val: f64) -> f64x4 {
         f64x4(std::simd::f64x4::splat(val))
+    }
+    unsafe fn from_ptr(ptr: *const f64) -> Self where Self: Sized {
+        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_pd(ptr as *const _)) }
     }
 }
 impl IntoVec<f64x4> for f64x4 {

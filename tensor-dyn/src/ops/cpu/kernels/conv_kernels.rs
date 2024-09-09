@@ -148,7 +148,7 @@ macro_rules! micro_kernel {
                 osw: i64,
                 inp: &Pointer<T>,
                 out: &mut Pointer<T>,
-                kernel: &Pointer<T>
+                kernel: &Pointer<T>,
             )
                 where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
             {
@@ -164,9 +164,13 @@ macro_rules! micro_kernel {
                         );
                         $(
                             let [<out_vec $idx>] = &mut out[co_offset + ofs + $idx * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
+                            let [<out_vec $idx _val>] = [<out_vec $idx>].read_unaligned();
                         )*
                         $(
-                            [<out_vec $idx>].write_unaligned([<inp_vec $idx>]._mul_add(kernel_vec, [<out_vec $idx>].read_unaligned()));
+                            let [<res $idx>] = [<inp_vec $idx>]._mul_add(kernel_vec, [<out_vec $idx _val>]);
+                        )*
+                        $(
+                            [<out_vec $idx>].write_unaligned([<res $idx>]);
                         )*
                     }
                 }

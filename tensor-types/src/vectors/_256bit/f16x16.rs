@@ -8,7 +8,7 @@ use crate::vectors::_256bit::f32x8::f32x8;
 use crate::vectors::{ traits::{ Init, VecSize, VecTrait }, _256bit::u16x16::u16x16 };
 
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct f16x16(pub(crate) [half::f16; 16]);
 
 impl VecTrait<half::f16> for f16x16 {

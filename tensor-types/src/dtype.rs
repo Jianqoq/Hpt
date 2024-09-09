@@ -1,7 +1,7 @@
 use half::{ bf16, f16 };
 use num_complex::{ Complex32, Complex64 };
 use tensor_macros::infer_enum_type;
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 use serde::{ Deserialize, Serialize };
 use crate::{
     into_vec::IntoVec,
@@ -135,7 +135,7 @@ pub trait TypeCommon where Self: Sized {
     const NEG_INF: Self;
     const TWO: Self;
     const STR: &'static str;
-    type Vec: VecTrait<Self> + Init<Self> + VecSize + Send + Copy + IntoVec<Self::Vec> + Sync;
+    type Vec: VecTrait<Self> + Init<Self> + VecSize + Send + Copy + IntoVec<Self::Vec> + Sync + Debug;
 }
 
 macro_rules! impl_type_common {

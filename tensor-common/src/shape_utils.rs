@@ -532,12 +532,10 @@ pub fn mt_intervals_simd(
     let remainder = outer_loop_size % (vec_block_size * actual_threads);
 
     for i in 0..actual_threads {
-        let start_index = i * base_block_count * vec_block_size + vec_size.min(i * remainder);
-        let end_index = if i == actual_threads - 1 {
-            outer_loop_size
-        } else {
-            start_index + base_block_count * vec_block_size + vec_size.min(remainder)
-        };
+        let extra = if i < remainder { vec_block_size } else { 0 };
+
+        let start_index = i * base_block_count * vec_block_size + i.min(remainder) * vec_block_size;
+        let end_index = start_index + base_block_count * vec_block_size + extra;
         intervals.push((start_index, end_index));
     }
     intervals

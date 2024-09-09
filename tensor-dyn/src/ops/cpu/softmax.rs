@@ -1,14 +1,12 @@
 use crate::{ tensor::Tensor, tensor_base::_Tensor };
 use tensor_traits::CommonBounds;
 use tensor_types::{
-    dtype::TypeCommon,
-    into_scalar::IntoScalar,
-    type_promote::{ Cmp, FloatOutBinary, FloatOutUnary, NormalOut },
+    convertion::Convertor, dtype::TypeCommon, into_scalar::IntoScalar, type_promote::{ Cmp, FloatOutBinary, FloatOutUnary, NormalOut }
 };
 
 impl<T> _Tensor<T>
     where
-        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOutUnary,
+        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOutUnary + Convertor,
         <T as FloatOutUnary>::Output: CommonBounds + TypeCommon,
         <T as FloatOutUnary>::Output: NormalOut +
             NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutUnary>::Output> +
@@ -21,7 +19,7 @@ impl<T> _Tensor<T>
         where
             <T as TypeCommon>::Vec: NormalOut<Output = <T as TypeCommon>::Vec>,
             <<T as FloatOutUnary>::Output as TypeCommon>::Vec: NormalOut<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
-            <T as FloatOutUnary>::Output: FloatOutBinary<Output = <T as FloatOutUnary>::Output>
+            <T as FloatOutUnary>::Output: FloatOutBinary<Output = <T as FloatOutUnary>::Output> + Convertor
     {
         let axis = (if axis < 0 { (self.layout.ndim() as i64) + axis } else { axis }) as usize;
         let max = self.max(axis as i64, true)?;
@@ -37,7 +35,7 @@ impl<T> _Tensor<T>
 
 impl<T> Tensor<T>
     where
-        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOutUnary,
+        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOutUnary + Convertor,
         <T as FloatOutUnary>::Output: CommonBounds + TypeCommon,
         <T as FloatOutUnary>::Output: NormalOut +
             NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutUnary>::Output> +
@@ -50,7 +48,7 @@ impl<T> Tensor<T>
         where
             <T as TypeCommon>::Vec: NormalOut<Output = <T as TypeCommon>::Vec>,
             <<T as FloatOutUnary>::Output as TypeCommon>::Vec: NormalOut<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
-            <T as FloatOutUnary>::Output: FloatOutBinary<Output = <T as FloatOutUnary>::Output>
+            <T as FloatOutUnary>::Output: FloatOutBinary<Output = <T as FloatOutUnary>::Output> + Convertor
     {
         Ok(Tensor::from(_Tensor::softmax(self, axis)?.into()))
     }
@@ -58,7 +56,7 @@ impl<T> Tensor<T>
 
 impl<T> _Tensor<T>
     where
-        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOutUnary,
+        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOutUnary + Convertor,
         <T as FloatOutUnary>::Output: CommonBounds + TypeCommon,
         <T as FloatOutUnary>::Output: NormalOut +
             NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutUnary>::Output> +
@@ -76,7 +74,7 @@ impl<T> _Tensor<T>
         where
             <T as TypeCommon>::Vec: NormalOut<Output = <T as TypeCommon>::Vec>,
             <<T as FloatOutUnary>::Output as TypeCommon>::Vec: NormalOut<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
-            <T as FloatOutUnary>::Output: FloatOutBinary<Output = <T as FloatOutUnary>::Output>
+            <T as FloatOutUnary>::Output: FloatOutBinary<Output = <T as FloatOutUnary>::Output> + Convertor
     {
         let axis = (if axis < 0 { (self.layout.ndim() as i64) + axis } else { axis }) as usize;
         let max = self.max(axis as i64, true)?;
@@ -97,7 +95,7 @@ impl<T> _Tensor<T>
 
 impl<T> Tensor<T>
     where
-        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOutUnary,
+        T: CommonBounds + NormalOut<T, Output = T> + Cmp + FloatOutUnary + Convertor,
         <T as FloatOutUnary>::Output: CommonBounds + TypeCommon,
         <T as FloatOutUnary>::Output: NormalOut +
             NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutUnary>::Output> +
@@ -115,7 +113,7 @@ impl<T> Tensor<T>
         where
             <T as TypeCommon>::Vec: NormalOut<Output = <T as TypeCommon>::Vec>,
             <<T as FloatOutUnary>::Output as TypeCommon>::Vec: NormalOut<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
-            <T as FloatOutUnary>::Output: FloatOutBinary<Output = <T as FloatOutUnary>::Output>
+            <T as FloatOutUnary>::Output: FloatOutBinary<Output = <T as FloatOutUnary>::Output> + Convertor
     {
         Ok(Tensor::from(_Tensor::logsoftmax(self, axis)?.into()))
     }

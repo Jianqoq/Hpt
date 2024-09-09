@@ -6,6 +6,7 @@ use crate::backend::Cpu;
 
 use tensor_common::slice::Slice;
 use tensor_common::axis::{ process_axes, Axis };
+use tensor_types::convertion::Convertor;
 use tensor_types::into_scalar::IntoScalar;
 use rayon::iter::IntoParallelRefIterator;
 use tensor_types::dtype::TypeCommon;
@@ -468,7 +469,7 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
 )
     -> anyhow::Result<_Tensor<O>>
     where
-        T: CommonBounds + IntoScalar<O>,
+        T: CommonBounds + IntoScalar<O> + tensor_types::convertion::Convertor,
         O: CommonBounds,
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
         F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
@@ -557,13 +558,7 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                 });
         }
     } else {
-        result = _Tensor::<O, Cpu>::empty(res_shape.clone())?;
-        result
-            .as_raw_mut()
-            .par_iter_mut()
-            .for_each(|x| {
-                *x = init_val;
-            });
+        result = _Tensor::<O, Cpu>::full(init_val, res_shape.clone())?;
         result_size = result.size();
     }
     let mut result_data = result.ptr();
@@ -727,15 +722,13 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                                 }
                             }
                             #[cfg(not(feature = "simd"))]
-                            fast_reduce_no_simd(
-                                inner_loop_size as isize,
-                                outer_loop_size as isize,
-                                inp_ptr,
-                                res_ptr,
-                                inp.strides().inner(),
-                                inp.shape().inner(),
-                                op
-                            );
+                            {
+                                res.iter_mut()
+                                    .zip(inp.iter())
+                                    .for_each(|(x, y)| {
+                                        *x = op(*x, y);
+                                    });
+                            }
                             if let Some(op3) = op3 {
                                 #[cfg(feature = "simd")]
                                 res.iter_mut().for_each(|x| {
@@ -772,6 +765,9 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                     );
                     let barrier = Arc::new(Barrier::new(num_threads + 1));
                     for _ in (0..num_threads).rev() {
+                        #[cfg(not(feature = "simd"))]
+                        let mut iterator = iterators.pop().unwrap();
+                        #[cfg(feature = "simd")]
                         let iterator = iterators.pop().unwrap();
                         let result_ptr_c = iterator.res_ptrs;
                         let a_data_ptr = iterator.ptrs;
@@ -805,7 +801,6 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
 
                             #[cfg(not(feature = "simd"))]
                             {
-                                let mut iterator = iterator;
                                 let mut result_ptr_c = result_ptr_c;
                                 let mut a_data_ptr = a_data_ptr;
                                 for _i in 0..current_size {
@@ -897,7 +892,7 @@ pub(crate) fn reduce<T, F, F2>(
 )
     -> anyhow::Result<_Tensor<T>>
     where
-        T: CommonBounds + tensor_types::into_scalar::IntoScalar<T>,
+        T: CommonBounds + tensor_types::into_scalar::IntoScalar<T> + Convertor,
         F: Fn(T, T) -> T + Sync + Send + 'static + Copy,
         F2: Fn(<T as TypeCommon>::Vec, <T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec +
             Sync +
@@ -935,7 +930,7 @@ pub(crate) fn reduce2<T, F, F2, F3, O>(
 )
     -> anyhow::Result<_Tensor<O>>
     where
-        T: CommonBounds + IntoScalar<O>,
+        T: CommonBounds + IntoScalar<O> + tensor_types::convertion::Convertor,
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
         F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
         F3: Fn(<O as TypeCommon>::Vec, <T as TypeCommon>::Vec) -> <O as TypeCommon>::Vec +
@@ -978,7 +973,7 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, O>(
 )
     -> anyhow::Result<_Tensor<O>>
     where
-        T: CommonBounds + IntoScalar<O>,
+        T: CommonBounds + IntoScalar<O> + Convertor,
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
         F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
         F3: Fn(O) -> O + Sync + Send + 'static + Copy,

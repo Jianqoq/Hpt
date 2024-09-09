@@ -6,7 +6,7 @@ use crate::vectors::traits::{ Init, VecSize, VecTrait };
 
 #[cfg(target_pointer_width = "64")]
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct usizex4(pub(crate) std::simd::usizex4);
 #[cfg(target_pointer_width = "32")]
 #[allow(non_camel_case_types)]

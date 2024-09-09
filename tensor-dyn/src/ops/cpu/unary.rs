@@ -72,9 +72,18 @@ pub fn uary_fn_simd<A, F, O, F2>(inp: &_Tensor<A>, f: F, f2: F2) -> anyhow::Resu
 {
     let ret: _Tensor<O>;
     ret = _Tensor::<O, Cpu>::empty(inp.shape()).unwrap();
+    if !inp.is_contiguous() {
+        ret.par_iter_mut_simd()
+            .zip(inp.par_iter_simd())
+            .for_each(|(a, b)| {
+                *a = f2(b);
+            });
+    }
     let per_thread_len = ret.size() / rayon::current_num_threads();
     let per_thread_remain = per_thread_len % <O as TypeCommon>::Vec::SIZE;
-    let total_remain = rayon::current_num_threads() * per_thread_remain;
+    let total_remain =
+        rayon::current_num_threads() * per_thread_remain +
+        (ret.size() % rayon::current_num_threads());
     let per_thread_real_len = per_thread_len - per_thread_remain;
     ret.as_raw_mut()
         .par_chunks_exact_mut(per_thread_real_len)
@@ -1243,9 +1252,9 @@ impl<T> _Tensor<T> where T: CommonBounds {
                 THREAD_POOL.with_borrow_mut(|pool: &mut ThreadPool| {
                     let num_threads;
                     if outer_loop < pool.max_count() {
-                        num_threads = outer_loop;
+                        num_threads = 1;
                     } else {
-                        num_threads = pool.max_count();
+                        num_threads = 1;
                     }
                     let mut intervals = mt_intervals(outer_loop, num_threads);
 

@@ -5,7 +5,7 @@ use crate::into_vec::IntoVec;
 use crate::vectors::traits::{ Init, VecSize, VecTrait };
 
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct i8x32(pub(crate) std::simd::i8x32);
 
 impl Deref for i8x32 {
@@ -44,7 +44,7 @@ impl VecTrait<i8> for i8x32 {
     fn sum(&self) -> i8 {
         self.as_array().iter().sum()
     }
-    
+
     fn extract(self, idx: usize) -> i8 {
         self.as_array()[idx]
     }
@@ -55,6 +55,9 @@ impl VecSize for i8x32 {
 impl Init<i8> for i8x32 {
     fn splat(val: i8) -> i8x32 {
         i8x32(std::simd::i8x32::splat(val))
+    }
+    unsafe fn from_ptr(ptr: *const i8) -> Self where Self: Sized {
+        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_si256(ptr as *const _)) }
     }
 }
 impl IntoVec<i8x32> for i8x32 {

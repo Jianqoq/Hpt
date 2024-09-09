@@ -5,7 +5,7 @@ use crate::vectors::_256bit::u16x16::u16x16;
 use crate::vectors::{ _256bit::f32x8::f32x8, traits::{ Init, VecSize, VecTrait } };
 
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct bf16x16(pub(crate) [half::bf16; 16]);
 
 impl VecTrait<half::bf16> for bf16x16 {
@@ -49,6 +49,15 @@ impl VecSize for bf16x16 {
 impl Init<half::bf16> for bf16x16 {
     fn splat(val: half::bf16) -> bf16x16 {
         bf16x16([val; 16])
+    }
+    unsafe fn from_ptr(ptr: *const half::bf16) -> Self where Self: Sized {
+        let mut dst = [half::bf16::ZERO; 16];
+        std::ptr::copy_nonoverlapping(
+            ptr as *const u8,
+            std::ptr::addr_of_mut!(dst) as *mut u8,
+            std::mem::size_of::<Self>(),
+        );
+        bf16x16(dst)
     }
 }
 impl IntoVec<bf16x16> for bf16x16 {

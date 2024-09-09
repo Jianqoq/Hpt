@@ -1,14 +1,12 @@
 use tensor_traits::CommonBounds;
 use tensor_types::{
-    dtype::TypeCommon,
-    into_vec::IntoVec,
-    type_promote::{ Cmp, NormalOut, SimdCmp },
+    convertion::Convertor, dtype::TypeCommon, into_vec::IntoVec, type_promote::{ Cmp, NormalOut, SimdCmp }
 };
 use crate::{ tensor::Tensor, tensor_base::_Tensor };
 
 impl<T> _Tensor<T>
     where
-        T: CommonBounds + NormalOut<T, Output = T> + Cmp + tensor_types::into_scalar::IntoScalar<T>,
+        T: CommonBounds + NormalOut<T, Output = T> + Cmp + tensor_types::into_scalar::IntoScalar<T> + Convertor,
         bool: NormalOut<T, Output = T>,
         <T as TypeCommon>::Vec: SimdCmp + NormalOut<Output = <T as TypeCommon>::Vec>,
         <<T as TypeCommon>::Vec as SimdCmp>::Output: NormalOut<
@@ -51,7 +49,7 @@ impl<T> _Tensor<T>
 
 impl<T> Tensor<T>
     where
-        T: CommonBounds + NormalOut<T, Output = T> + Cmp + tensor_types::into_scalar::IntoScalar<T>,
+        T: CommonBounds + NormalOut<T, Output = T> + Cmp + tensor_types::into_scalar::IntoScalar<T> + Convertor,
         bool: NormalOut<T, Output = T>,
         <T as TypeCommon>::Vec: SimdCmp + NormalOut<Output = <T as TypeCommon>::Vec>,
         <<T as TypeCommon>::Vec as SimdCmp>::Output: NormalOut<

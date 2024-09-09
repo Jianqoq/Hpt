@@ -5,7 +5,7 @@ use crate::into_vec::IntoVec;
 use crate::vectors::traits::{ Init, VecSize, VecTrait };
 
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct i16x16(pub(crate) std::simd::i16x16);
 
 impl Deref for i16x16 {

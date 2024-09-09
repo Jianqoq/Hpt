@@ -5,7 +5,7 @@ use crate::into_vec::IntoVec;
 use crate::vectors::traits::{ Init, VecSize, VecTrait };
 
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct cplx32x4(pub(crate) [Complex32; 4]);
 
 impl VecTrait<Complex32> for cplx32x4 {

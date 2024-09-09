@@ -5,7 +5,7 @@ use crate::into_vec::IntoVec;
 use crate::vectors::traits::{ Init, VecSize, VecTrait };
 
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct isizex4(pub(crate) std::simd::isizex4);
 
 impl Deref for isizex4 {

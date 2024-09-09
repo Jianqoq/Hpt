@@ -127,7 +127,7 @@ where
                             })
                         };
                         if sorted {
-                            before.sort_unstable_by(|(a, _), (b, _)| b.partial_cmp(a).unwrap());
+                            before.sort_by(|(a, _), (b, _)| b.partial_cmp(a).unwrap());
                         }
                         for i in 0..res_inner_loop {
                             let (val, idx) = before[i as usize];

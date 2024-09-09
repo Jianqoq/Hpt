@@ -174,7 +174,7 @@ impl<T> _Tensor<T>
                 i64,
                 &Pointer<T>,
                 &mut Pointer<T>,
-                &Pointer<T>
+                &Pointer<T>,
             ),
             mut out: Pointer<T>
         | {
@@ -195,7 +195,7 @@ impl<T> _Tensor<T>
                             osw,
                             &inp_cpy,
                             &mut out,
-                            &kernel_cpy
+                            &kernel_cpy,
                         );
                     }
                 }
@@ -1104,8 +1104,8 @@ impl<T> _Tensor<T>
         #[rustfmt::skip]
         (0..outer).into_par_iter().for_each(|idx| {
             let b = idx / (num_co_b * out_height);
-            let c = (idx / out_height) % num_co_b;
-            let l = idx % out_height;
+            let l = (idx / num_co_b) % out_height;
+            let c = idx % num_co_b;
             match (co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0) {
                 (true, true, true) => {
                     if co_b > 1 {

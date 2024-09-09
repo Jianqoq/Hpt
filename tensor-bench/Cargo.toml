@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 tch = "0.17.0"
-tensor-dyn = { path = "../tensor-dyn" }
+tensor-dyn = { path = "../tensor-dyn", features = ["simd"]}
 criterion = { version = "0.5.1", features = ["html_reports"] }
 half = "2.4.1"
 gnuplot = "0.0.43"
@@ -22,13 +22,23 @@ num_cpus = "1.13.0"
 # harness = false
 
 # [[bench]]
-# name = "add_f16"
-# path = "benches/binary/add_f16.rs"
+# name = "add_f32"
+# path = "benches/binary/add_f32.rs"
 # harness = false
 
 # [[bench]]
-# name = "add_broadcast_f16"
-# path = "benches/binary/add_broadcast_f16.rs"
+# name = "add_bf16"
+# path = "benches/binary/add_bf16.rs"
+# harness = false
+
+# [[bench]]
+# name = "add_broadcast_f32"
+# path = "benches/binary/add_broadcast_f32.rs"
+# harness = false
+
+# [[bench]]
+# name = "matmul_f16"
+# path = "benches/binary/matmul_f16.rs"
 # harness = false
 
 # [[bench]]
@@ -36,9 +46,49 @@ num_cpus = "1.13.0"
 # path = "benches/binary/matmul_f32.rs"
 # harness = false
 
+# [[bench]]
+# name = "sum"
+# path = "benches/reduction/sum.rs"
+# harness = false
+
+# [[bench]]
+# name = "sum"
+# path = "benches/reduction/sum.rs"
+# harness = false
+
+# [[bench]]
+# name = "topk"
+# path = "benches/topk.rs"
+# harness = false
+
+# [[bench]]
+# name = "hamming_window"
+# path = "benches/hamming_window.rs"
+# harness = false
+
+# [[bench]]
+# name = "hann_window"
+# path = "benches/hann_window.rs"
+# harness = false
+
+# [[bench]]
+# name = "cumsum"
+# path = "benches/cumsum.rs"
+# harness = false
+
+# [[bench]]
+# name = "softmax"
+# path = "benches/softmax.rs"
+# harness = false
+
+# [[bench]]
+# name = "selu"
+# path = "benches/selu.rs"
+# harness = false
+
 [[bench]]
-name = "sum"
-path = "benches/reduction/sum.rs"
+name = "sin"
+path = "benches/sin.rs"
 harness = false
 
 [profile.dev]
