@@ -166,10 +166,7 @@ macro_rules! micro_kernel {
                             let [<out_vec $idx>] = &mut out[co_offset + ofs + $idx * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
                         )*
                         $(
-                            let [<res $idx>] = [<inp_vec $idx>]._mul_add(kernel_vec, [<out_vec $idx>].read_unaligned());
-                        )*
-                        $(
-                            [<out_vec $idx>].write_unaligned([<res $idx>]);
+                            [<out_vec $idx>].write_unaligned([<inp_vec $idx>]._mul_add(kernel_vec, [<out_vec $idx>].read_unaligned()));
                         )*
                     }
                 }
@@ -213,10 +210,7 @@ macro_rules! micro_kernel_init {
                             let [<out_vec $idx>] = &mut out[co_offset + ofs + $idx * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
                         )*
                         $(
-                            let [<res $idx>] = [<inp_vec $idx>]._mul(kernel_vec);
-                        )*
-                        $(
-                            [<out_vec $idx>].write_unaligned([<res $idx>]);
+                            [<out_vec $idx>].write_unaligned([<inp_vec $idx>]._mul(kernel_vec));
                         )*
                     }
                 }

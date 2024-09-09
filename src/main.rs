@@ -19,6 +19,12 @@ fn main() -> anyhow::Result<()> {
         .reshape([1, 8, 1260, 1260])?
         .permute([0, 2, 3, 1])?
         .contiguous()?;
+    let config = Conv2dConfig::<f32>::new(
+        80,
+        8,
+        [4, 4],
+        KernelParamAlgo::Greedy
+    );
     let now = std::time::Instant::now();
     for _ in 0..100 {
         let res = a.conv2d(
@@ -29,7 +35,7 @@ fn main() -> anyhow::Result<()> {
                 (0, 0),
             ],
             [1, 1],
-            None
+            Some(&config)
         )?;
     }
     // println!("{:?}", res);
