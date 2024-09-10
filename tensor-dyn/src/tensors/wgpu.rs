@@ -1344,25 +1344,3 @@ impl<'a, T> Into<_Tensor<T, Wgpu>> for &'a [T] {
         todo!()
     }
 }
-
-impl<T, B> Drop for _Tensor<T, B> where B: BackendTy + BackendDevice {
-    fn drop(&mut self) {
-        match B::ID {
-            0 => {
-                unsafe {
-                    CACHE.deallocate(self._backend._backend.ptr() as *mut u8, &self.mem_layout)
-                }
-            }
-            2 => {
-                unsafe {
-                    WGPU_CACHE.deallocate(
-                        self._backend._backend.wgpu_device(),
-                        self._backend._backend.buffer(),
-                        &self.mem_layout
-                    )
-                }
-            }
-            _ => { panic!("Invalid Backend ID") }
-        }
-    }
-}

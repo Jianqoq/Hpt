@@ -40,4 +40,3 @@ fn add_f16_benchmark(c: &mut Criterion) {
 }
 
 criterion_group!(benches, add_f16_benchmark);
-criterion_main!(benches);

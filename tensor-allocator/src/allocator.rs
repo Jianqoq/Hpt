@@ -7,8 +7,8 @@ use wgpu::{ Buffer, BufferUsages, Device };
 
 use crate::{ strorage::CPU_STORAGE, WGPU_STORAGE };
 
-pub static mut CACHE: Lazy<Allocator> = Lazy::new(|| Allocator::new(1000));
-pub static mut WGPU_CACHE: Lazy<WgpuAllocator> = Lazy::new(|| WgpuAllocator::new(1000));
+pub static mut CACHE: Lazy<Allocator> = Lazy::new(|| Allocator::new(100));
+pub static mut WGPU_CACHE: Lazy<WgpuAllocator> = Lazy::new(|| WgpuAllocator::new(100));
 
 pub struct Allocator {
     allocator: Mutex<_Allocator>,
@@ -109,7 +109,7 @@ impl _Allocator {
         unsafe {
             if let Ok(mut storage) = CPU_STORAGE.lock() {
                 if let Some(cnt) = storage.get_mut(&ptr) {
-                    *cnt += 1;
+                    *cnt = cnt.checked_sub(1).expect("Reference count underflow");
                 } else {
                     storage.insert(ptr, 1);
                 }
@@ -127,10 +127,10 @@ impl _Allocator {
         unsafe {
             if let Ok(mut storage) = CPU_STORAGE.lock() {
                 if let Some(cnt) = storage.get_mut(&ptr) {
-                    // println!("Deallocating ptr {:p}", ptr);
-                    *cnt -= 1;
+                    *cnt = cnt.checked_sub(1).expect("Reference count underflow");
                     if *cnt == 0 {
                         self.allocated.remove(&ptr);
+                        storage.remove(&ptr);
                         if let Some(ptrs) = self.cache.get_mut(layout) {
                             ptrs.push(ptr);
                         } else {
@@ -376,6 +376,18 @@ impl _WgpuAllocatorHelper {
                 } else {
                     panic!("Buffer not found in storage");
                 }
+            }
+        }
+    }
+}
+
+pub fn clone_storage(ptr: *mut u8) {
+    unsafe {
+        if let Ok(mut storage) = CPU_STORAGE.lock() {
+            if let Some(cnt) = storage.get_mut(&ptr) {
+                *cnt += 1;
+            } else {
+                panic!("Pointer not found in CPU_STORAGE");
             }
         }
     }

@@ -1123,6 +1123,33 @@ impl<T> _Tensor<T>
         let ret = uary_fn_with_out(self, |x| x._mish(), out.base().clone());
         ret
     }
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn relu(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
+            self,
+            |x| x._relu(),
+            |x| x._relu()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._mish());
+        ret
+    }
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn relu_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    {
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_with_out_simd(
+            self,
+            |x| x._relu(),
+            |x| x._relu(),
+            out.base().clone()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn_with_out(self, |x| x._mish(), out.base().clone());
+        ret
+    }
 }
 
 pub(crate) type NormalType<T> = <T as NormalOut>::Output;

@@ -201,3 +201,9 @@ impl From<i64> for Axis {
         Axis { axes: vec![axes] }
     }
 }
+
+impl From<&i64> for Axis {
+    fn from(axes: &i64) -> Self {
+        Axis { axes: vec![*axes] }
+    }
+}

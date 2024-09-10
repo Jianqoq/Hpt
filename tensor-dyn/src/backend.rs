@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use tensor_allocator::{ BufferWrapper, CPU_STORAGE, WGPU_STORAGE };
+use tensor_allocator::{ clone_storage, BufferWrapper, CPU_STORAGE, WGPU_STORAGE };
 use wgpu::Buffer;
 
 use crate::ops::wgpu::buffer_helper::WgpuDevice;
@@ -35,17 +35,7 @@ pub struct Backend<B> {
 
 impl Clone for Cpu {
     fn clone(&self) -> Self {
-        unsafe {
-            if
-                let Some(cnt) = CPU_STORAGE.lock()
-                    .unwrap()
-                    .get_mut(&(self.ptr as *mut u8))
-            {
-                *cnt += 1;
-            } else {
-                panic!("Pointer not found in CPU_STORAGE");
-            }
-        }
+        clone_storage(self.ptr as *mut u8);
         Cpu {
             ptr: self.ptr,
         }

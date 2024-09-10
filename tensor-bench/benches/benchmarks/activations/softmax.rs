@@ -6,15 +6,7 @@ use tensor_dyn::{ tensor_base::_Tensor, Random };
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorInfo;
 
-fn assert_eq(a: &Tensor, b: &_Tensor<i64>) {
-    let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const i64, b.size()) };
-    let b_raw = b.as_raw();
-    for i in 0..b.size() {
-        assert_eq!(a_raw[i], b_raw[i]);
-    }
-}
-
-fn softmax_benchmark(c: &mut Criterion) {
+pub(crate) fn softmax_benchmark(c: &mut Criterion) {
     tensor_dyn::set_num_threads(num_cpus::get_physical());
     tch::set_num_threads(num_cpus::get_physical() as i32);
     let shapes = [
@@ -54,4 +46,3 @@ fn softmax_benchmark(c: &mut Criterion) {
 }
 
 criterion_group!(benches, softmax_benchmark);
-criterion_main!(benches);

@@ -22,7 +22,7 @@ use rand_distr::{
     Standard,
     StandardNormal,
 };
-use tensor_allocator::CACHE;
+use tensor_allocator::{CACHE, WGPU_CACHE};
 use tensor_common::{
     axis::{ process_axes, Axis },
     err_handler::ErrHandler,
@@ -96,6 +96,28 @@ pub struct _Tensor<T, B = Cpu> where B: BackendTy + BackendDevice {
     pub(crate) layout: Layout,
     pub(crate) mem_layout: Arc<std::alloc::Layout>,
     pub(crate) _backend: Backend<B>,
+}
+
+impl<T, B> Drop for _Tensor<T, B> where B: BackendTy + BackendDevice {
+    fn drop(&mut self) {
+        match B::ID {
+            0 => {
+                unsafe {
+                    CACHE.deallocate(self._backend._backend.ptr() as *mut u8, &self.mem_layout)
+                }
+            }
+            2 => {
+                unsafe {
+                    WGPU_CACHE.deallocate(
+                        self._backend._backend.wgpu_device(),
+                        self._backend._backend.buffer(),
+                        &self.mem_layout
+                    )
+                }
+            }
+            _ => { panic!("Invalid Backend ID") }
+        }
+    }
 }
 
 impl<T, U> TensorLike<T, U, _Tensor<U>>

@@ -17,16 +17,12 @@ fn assert_eq(a: &Tensor, b: &_Tensor<i64>) {
     }
 }
 fn main() -> anyhow::Result<()> {
-    let a = Tensor::arange([8096, 2048, 8].iter().product::<i64>(), (Kind::Int64, Device::Cpu))
-        .reshape([8096, 2048, 8])
-        .cumsum(0, Kind::Int64);
-    let a2 = _Tensor::<i64>
-        ::arange(0, [8, 2048, 2048].iter().product::<i64>())
-        .unwrap()
-        .reshape([8, 2048, 2048])
-        .unwrap()
-        .cumsum(Some(1))
-        .unwrap();
+    let a = black_box(_Tensor::<f32>::randn([64, 64, 64]).unwrap());
+    let a1 = black_box(_Tensor::<f32>::randn([64, 64, 64]).unwrap());
+    let a2 = black_box(_Tensor::<f32>::randn([64, 64, 64]).unwrap());
+    for i in 0..1 {
+        _Tensor::<f32>::stack(vec![&a, &a1, &a2], 0 as usize, false).unwrap();
+    }
     println!("{:?}", a2);
     // set_global_display_precision(7);
     // set_global_display_lr_elements(6);

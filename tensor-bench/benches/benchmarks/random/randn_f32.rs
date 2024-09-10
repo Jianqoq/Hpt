@@ -28,4 +28,3 @@ fn random_f32_benchmark(c: &mut Criterion) {
 }
 
 criterion_group!(benches, random_f32_benchmark);
-criterion_main!(benches);
