@@ -47,7 +47,34 @@ hard_sigmoid = []
 swish = []
 mish = []
 sum = []
+relu6 = []
+gelu = []
+celu = []
+log10 = []
+log2 = []
+exp2 = []
+sqrt = []
+neg = []
+square = []
+abs = []
+ceil = []
+sign = []
+clip = []
+recip = []
 default = [
+    "recip",
+    "clip",
+    "sign",
+    "ceil",
+    "abs",
+    "square",
+    "neg",
+    "sqrt",
+    "exp2",
+    "log2",
+    "log10",
+    "celu",
+    "gelu",
     "unary",
     "matmul",
     "conv",

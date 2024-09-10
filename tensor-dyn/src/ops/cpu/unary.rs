@@ -1239,13 +1239,13 @@ impl<T> _Tensor<T>
 {
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn neg(&self) -> anyhow::Result<_Tensor<NegType<T>>> {
+    pub fn neg(&self) -> anyhow::Result<_Tensor<NegType<T>>> {
         uary_fn(self, |x| -x)
     }
 
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn neg_<U>(&self, out: U) -> anyhow::Result<_Tensor<NegType<T>>>
+    pub fn neg_<U>(&self, out: U) -> anyhow::Result<_Tensor<NegType<T>>>
         where U: BaseTensor<Output = _Tensor<NegType<T>>>
     {
         uary_fn_with_out(self, |x| -x, out.base().clone())

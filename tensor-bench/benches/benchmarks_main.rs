@@ -37,6 +37,43 @@ fn main() {
     benchmarks::unary::unary_benches::relu_benches();
     #[cfg(any(feature = "mish", feature = "unary"))]
     benchmarks::unary::unary_benches::mish_benches();
+    #[cfg(any(feature = "softplus", feature = "unary"))]
+    benchmarks::unary::unary_benches::softplus_benches();
+    #[cfg(any(feature = "relu6", feature = "unary"))]
+    benchmarks::unary::unary_benches::relu6_benches();
+    #[cfg(any(feature = "hard_sigmoid", feature = "unary"))]
+    benchmarks::unary::unary_benches::hard_sigmoid_benches();
+    #[cfg(any(feature = "gelu", feature = "unary"))]
+    benchmarks::unary::unary_benches::gelu_benches();
+    #[cfg(any(feature = "leaky_relu", feature = "unary"))]
+    benchmarks::unary::unary_benches::leaky_relu_benches();
+    #[cfg(any(feature = "elu", feature = "unary"))]
+    benchmarks::unary::unary_benches::elu_benches();
+    #[cfg(any(feature = "celu", feature = "unary"))]
+    benchmarks::unary::unary_benches::celu_benches();
+    #[cfg(any(feature = "log10", feature = "unary"))]
+    benchmarks::unary::unary_benches::log10_benches();
+    #[cfg(any(feature = "log2", feature = "unary"))]
+    benchmarks::unary::unary_benches::log2_benches();
+    #[cfg(any(feature = "recip", feature = "unary"))]
+    benchmarks::unary::unary_benches::recip_benches();
+    #[cfg(any(feature = "exp2", feature = "unary"))]
+    benchmarks::unary::unary_benches::exp2_benches();
+    #[cfg(any(feature = "sqrt", feature = "unary"))]
+    benchmarks::unary::unary_benches::sqrt_benches();
+    #[cfg(any(feature = "neg", feature = "unary"))]
+    benchmarks::unary::unary_benches::neg_benches();
+    #[cfg(any(feature = "square", feature = "unary"))]
+    benchmarks::unary::unary_benches::square_benches();
+    #[cfg(any(feature = "abs", feature = "unary"))]
+    benchmarks::unary::unary_benches::abs_benches();
+    #[cfg(any(feature = "ceil", feature = "unary"))]
+    benchmarks::unary::unary_benches::ceil_benches();
+    #[cfg(any(feature = "sign", feature = "unary"))]
+    benchmarks::unary::unary_benches::sign_benches();
+    #[cfg(any(feature = "clip", feature = "unary"))]
+    benchmarks::unary::unary_benches::clip_benches();
+
     #[cfg(feature = "cat")]
     benchmarks::shape_manipulate::concat::cat_benches();
     #[cfg(any(feature = "sum", feature = "reduction"))]
