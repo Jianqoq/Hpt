@@ -139,14 +139,14 @@ fn test_case3() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 130, 3, 3, 3, 130, 130])?;
     let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
     assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 120], &mut config)?;
-    // assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16], &mut config)?;
-    // assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1], &mut config)?;
 
-    // let (kernel, a, tch_kernel, tch_a) = common_input([1, 128, 3, 3, 3, 5, 5])?;
-    // let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
-    // assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 128], &mut config)?;
-    // assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16], &mut config)?;
-    // assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1], &mut config)?;
+    let (kernel, a, tch_kernel, tch_a) = common_input([1, 128, 3, 3, 3, 5, 5])?;
+    let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 128], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1], &mut config)?;
     Ok(())
 }
 

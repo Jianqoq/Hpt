@@ -312,7 +312,7 @@ fn case1_remain1_helper<T, const REGNUM: usize>(
     }
 }
 
-fn case3_helper<T>(
+fn case3_helper<T, const REGNUM: usize>(
     [kh, kw, ci_b_remain]: [i64; 3],
     [ip, b, l, c]: [i64; 4],
     [isb, ish, isw]: [i64; 3],
@@ -361,30 +361,74 @@ fn case3_helper<T>(
     let num_vec_size = co_b_remain / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
     let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
     if remain == 0 {
-        let mut res_buffer = vec![<T as TypeCommon>::Vec::splat(T::ZERO); num_vec_size as usize];
-        for j in 0..num_vec_size {
-            res_buffer.iter_mut().for_each(|x| {
-                *x = <T as TypeCommon>::Vec::splat(T::ZERO);
-            });
-            for n in 0..kh {
-                for m in 0..kw {
-                    for ii in 0..ci_b_remain {
-                        let i = ip * ci_b + ii;
-                        fast_micro_kernel(
-                            j,
-                            num_wo_b,
-                            i,
-                            b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                            c * co_b,
-                            b * osb + l * osh + num_wo_b * CONV_REGNUM as i64 * osw, // prettier-ignore
-                            n * ks0 + m * ks1 + i * ks2,
-                            step_width,
-                            isw,
-                            osw,
-                            &inp,
-                            &mut res_buffer,
-                            &kernel
-                        );
+        if ip == 0 {
+            for j in 0..num_vec_size {
+                let mut res_buffer = [<T as TypeCommon>::Vec::splat(T::ZERO); REGNUM];
+                for n in 0..kh {
+                    for m in 0..kw {
+                        for ii in 0..ci_b_remain {
+                            let i = ip * ci_b + ii;
+                            fast_micro_kernel(
+                                j,
+                                num_wo_b,
+                                i,
+                                b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
+                                c * co_b,
+                                b * osb + l * osh + num_wo_b * CONV_REGNUM as i64 * osw, // prettier-ignore
+                                n * ks0 + m * ks1 + i * ks2,
+                                step_width,
+                                isw,
+                                osw,
+                                &inp,
+                                &mut res_buffer,
+                                &kernel
+                            );
+                        }
+                    }
+                }
+                for h in 0..REGNUM as i64 {
+                    let out_vec = &mut out
+                        [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                    unsafe {
+                        *out_vec = res_buffer[h as usize];
+                    }
+                }
+            }
+        } else {
+            let mut res_buffer = [<T as TypeCommon>::Vec::splat(T::ZERO); REGNUM];
+            for j in 0..num_vec_size {
+                for h in 0..REGNUM as i64 {
+                    let out_vec = &mut out
+                        [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                    res_buffer[h as usize] = unsafe { out_vec.read_unaligned() };
+                }
+                for n in 0..kh {
+                    for m in 0..kw {
+                        for ii in 0..ci_b_remain {
+                            let i = ip * ci_b + ii;
+                            fast_micro_kernel(
+                                j,
+                                num_wo_b,
+                                i,
+                                b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
+                                c * co_b,
+                                b * osb + l * osh + num_wo_b * CONV_REGNUM as i64 * osw, // prettier-ignore
+                                n * ks0 + m * ks1 + i * ks2,
+                                step_width,
+                                isw,
+                                osw,
+                                &inp,
+                                &mut res_buffer,
+                                &kernel
+                            );
+                        }
+                    }
+                }
+                for h in 0..REGNUM as i64 {
+                    let out_vec = &mut out
+                        [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                    unsafe {
+                        *out_vec = res_buffer[h as usize];
                     }
                 }
             }
@@ -394,14 +438,16 @@ fn case3_helper<T>(
             vec![<T as TypeCommon>::Vec::splat(T::ZERO); num_vec_size as usize + 1];
         let mut remain_buffer =
             vec![vec![<T as TypeCommon>::Vec::splat(T::ZERO); wo_b_remain as usize]; num_vec_size as usize + 1];
-        load_fn(
-            num_vec_size,
-            remain,
-            osw,
-            c * co_b + b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
-            &mut remain_buffer,
-            &mut out
-        );
+        if ip > 0 {
+            load_fn(
+                num_vec_size,
+                remain,
+                osw,
+                c * co_b + b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
+                &mut remain_buffer,
+                &mut out
+            );
+        }
         for n in 0..kh {
             for m in 0..kw {
                 for ii in 0..ci_b_remain {
@@ -1099,14 +1145,22 @@ impl<T> _Tensor<T>
             let mut res_buffer =
                 vec![vec![<T as TypeCommon>::Vec::splat(T::ZERO); CONV_REGNUM]; num_vec_size as usize + 1];
             for kp in 0..num_wo_b {
-                load_store_res_buffer::<T, CONV_REGNUM, true>(
-                    num_vec_size,
-                    remain,
-                    osw,
-                    c * co_b + b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
-                    &mut res_buffer,
-                    &mut out
-                );
+                if ip > 0 {
+                    load_store_res_buffer::<T, CONV_REGNUM, true>(
+                        num_vec_size,
+                        remain,
+                        osw,
+                        c * co_b + b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
+                        &mut res_buffer,
+                        &mut out
+                    );
+                } else {
+                    res_buffer.iter_mut().for_each(|x|
+                        x.iter_mut().for_each(|y| {
+                            *y = <T as TypeCommon>::Vec::splat(T::ZERO);
+                        })
+                    );
+                }
                 for n in 0..kernel_height {
                     for m in 0..kernel_width {
                         for ii in 0..ci_b_remain {
@@ -1149,9 +1203,9 @@ impl<T> _Tensor<T>
         let case3 = move |b: i64, l: i64, c: i64, ip: i64, ci_b_remain: i64, mut out: Pointer<T>| {
             match wo_b_remain {
                 1 => {
-                    case3_helper::<T>(
+                    case3_helper::<T, 1>(
                         [kernel_height, kernel_width, ci_b_remain],
-                        [b, l, c, ip],
+                        [ip, b, l, c],
                         [isb, ish, isw],
                         [osb, osh, osw],
                         [ks0, ks1, ks2],
@@ -1165,15 +1219,15 @@ impl<T> _Tensor<T>
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 1, true>,
                         load_store_res_buffer::<T, 1, false>,
-                        micro_kernel_1_dyn::<T>,
+                        micro_kernel_1_dyn::<T, 1>,
                         micro_kernel_1_with_buffer::<T>,
                         &mut out
                     );
                 }
                 2 => {
-                    case3_helper::<T>(
+                    case3_helper::<T, 2>(
                         [kernel_height, kernel_width, ci_b_remain],
-                        [b, l, c, ip],
+                        [ip, b, l, c],
                         [isb, ish, isw],
                         [osb, osh, osw],
                         [ks0, ks1, ks2],
@@ -1187,15 +1241,15 @@ impl<T> _Tensor<T>
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 2, true>,
                         load_store_res_buffer::<T, 2, false>,
-                        micro_kernel_2_dyn::<T>,
+                        micro_kernel_2_dyn::<T, 2>,
                         micro_kernel_2_with_buffer::<T>,
                         &mut out
                     );
                 }
                 3 => {
-                    case3_helper(
+                    case3_helper::<T, 3>(
                         [kernel_height, kernel_width, ci_b_remain],
-                        [b, l, c, ip],
+                        [ip, b, l, c],
                         [isb, ish, isw],
                         [osb, osh, osw],
                         [ks0, ks1, ks2],
@@ -1209,15 +1263,15 @@ impl<T> _Tensor<T>
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 3, true>,
                         load_store_res_buffer::<T, 3, false>,
-                        micro_kernel_3_dyn::<T>,
+                        micro_kernel_3_dyn::<T, 3>,
                         micro_kernel_3_with_buffer::<T>,
                         &mut out
                     );
                 }
                 4 => {
-                    case3_helper(
+                    case3_helper::<T, 4>(
                         [kernel_height, kernel_width, ci_b_remain],
-                        [b, l, c, ip],
+                        [ip, b, l, c],
                         [isb, ish, isw],
                         [osb, osh, osw],
                         [ks0, ks1, ks2],
@@ -1231,15 +1285,15 @@ impl<T> _Tensor<T>
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 4, true>,
                         load_store_res_buffer::<T, 4, false>,
-                        micro_kernel_4_dyn::<T>,
+                        micro_kernel_4_dyn::<T, 4>,
                         micro_kernel_4_with_buffer::<T>,
                         &mut out
                     );
                 }
                 5 => {
-                    case3_helper(
+                    case3_helper::<T, 5>(
                         [kernel_height, kernel_width, ci_b_remain],
-                        [b, l, c, ip],
+                        [ip, b, l, c],
                         [isb, ish, isw],
                         [osb, osh, osw],
                         [ks0, ks1, ks2],
@@ -1253,15 +1307,15 @@ impl<T> _Tensor<T>
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 5, true>,
                         load_store_res_buffer::<T, 5, false>,
-                        micro_kernel_5_dyn::<T>,
+                        micro_kernel_5_dyn::<T, 5>,
                         micro_kernel_5_with_buffer::<T>,
                         &mut out
                     );
                 }
                 6 => {
-                    case3_helper(
+                    case3_helper::<T, 6>(
                         [kernel_height, kernel_width, ci_b_remain],
-                        [b, l, c, ip],
+                        [ip, b, l, c],
                         [isb, ish, isw],
                         [osb, osh, osw],
                         [ks0, ks1, ks2],
@@ -1275,7 +1329,7 @@ impl<T> _Tensor<T>
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 6, true>,
                         load_store_res_buffer::<T, 6, false>,
-                        micro_kernel_6_dyn::<T>,
+                        micro_kernel_6_dyn::<T, 6>,
                         micro_kernel_6_with_buffer::<T>,
                         &mut out
                     );

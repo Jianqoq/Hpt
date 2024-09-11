@@ -173,7 +173,7 @@ macro_rules! micro_kernel_dynamic_regnum {
     ($num:tt, [$($idx:expr),*]) => {
         paste::paste! {
             #[rustfmt::skip]
-            pub(crate) fn [<micro_kernel_ $num _dyn>]<T>(
+            pub(crate) fn [<micro_kernel_ $num _dyn>]<T, const REGNUM: usize>(
                 j: i64,
                 kp: i64,
                 i: i64,
