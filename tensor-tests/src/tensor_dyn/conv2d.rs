@@ -1,5 +1,5 @@
 #![allow(unused)]
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{ IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator };
 use tensor_dyn::{ set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo };
 use tensor_dyn::ops::cpu::convolutions::conv_config::{ Conv2dConfig, KernelParamAlgo };
 use tensor_dyn::{ tensor_base::_Tensor, TensorCreator };
@@ -73,8 +73,7 @@ fn assert_eq(
         .zip(res2.par_iter())
         .for_each(|(a, b)| {
             if a != b {
-                println!("{} != {}", a, b);
-                // assert_eq!(a, b);
+                assert_eq!(a, b);
             }
         });
     Ok(())
