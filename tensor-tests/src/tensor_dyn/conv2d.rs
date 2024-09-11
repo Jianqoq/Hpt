@@ -1,4 +1,5 @@
 #![allow(unused)]
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use tensor_dyn::{ set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo };
 use tensor_dyn::ops::cpu::convolutions::conv_config::{ Conv2dConfig, KernelParamAlgo };
 use tensor_dyn::{ tensor_base::_Tensor, TensorCreator };
@@ -52,7 +53,7 @@ fn assert_eq(
     config.set_ci_block_size(block_size[0]);
     config.set_co_block_size(block_size[1]);
     let res = a
-        .conv2d(
+        .conv2d_ex(
             &a_kernel,
             [1, 1],
             [
@@ -68,8 +69,8 @@ fn assert_eq(
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
     res_slice
-        .iter()
-        .zip(res2.iter())
+        .par_iter()
+        .zip(res2.par_iter())
         .for_each(|(a, b)| {
             if a != b {
                 println!("{} != {}", a, b);
@@ -80,17 +81,16 @@ fn assert_eq(
 
 #[test]
 fn test_case0() -> anyhow::Result<()> {
-    set_num_threads(1);
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 128, 3, 3, 3, 128, 128])?;
     let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
-    // assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 128], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 128], &mut config)?;
     assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16], &mut config)?;
-    // assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1], &mut config)?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1], &mut config)?;
 
-    // // test when outwidth is less than regnum
-    // let (kernel, a, tch_kernel, tch_a) = common_input([1, 128, 3, 3, 3, 5, 5])?;
-    // let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
-    // assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 128], &mut config)?;
+    // test when outwidth is less than regnum
+    let (kernel, a, tch_kernel, tch_a) = common_input([1, 128, 3, 3, 3, 5, 5])?;
+    let mut config = Conv2dConfig::<i64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 128], &mut config)?;
     // assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16], &mut config)?;
     // assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1], &mut config)?;
 

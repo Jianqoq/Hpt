@@ -36,7 +36,7 @@ fn main() -> anyhow::Result<()> {
     let mut res = _Tensor::<f32>::new([0.0]);
     for _ in 0..100 {
         res = a
-            .conv2d(
+            .conv2d_ex(
                 &kernel,
                 [1, 1],
                 [

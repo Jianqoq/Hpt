@@ -233,7 +233,7 @@ macro_rules! micro_kernel_1 {
                 )*
                 let kernel_val = kernel[co_offset + kernel_offset];
                 $(
-                    out[(co_offset + out_offset + $idx * osw) as usize] = [<inp $idx>]._mul(kernel_val)._add(out[(co_offset + out_offset + $idx * osw) as usize]);
+                    out[$idx] = [<inp $idx>]._mul(kernel_val)._add(out[$idx]);
                 )*
             }
         }
