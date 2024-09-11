@@ -33,10 +33,12 @@ pub mod ops {
         pub mod common_reduce;
         pub mod convolutions {
             pub mod conv2d;
+            pub mod conv2d_ex;
             pub mod conv3d;
             pub mod conv_config;
         }
         pub mod kernels {
+            pub mod conv_kernels_ex;
             pub mod conv_kernels;
             pub mod reduce_kernels;
             pub mod maxpool_kernel;

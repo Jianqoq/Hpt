@@ -1,4 +1,3 @@
-use std::arch::x86_64::_mm_prefetch;
 
 use tensor_common::pointer::Pointer;
 use tensor_types::type_promote::NormalOut;
@@ -179,27 +178,7 @@ impl<T> _Tensor<T>
             mut out: Pointer<T>
         | {
             for kp in 0..num_wo_b {
-                for m in 0..kernel_width {
-                    for ii in 0..ci_b_remain {
-                        let i = ip * ci_b + ii;
-                        micro_kernel_fn_init(
-                            inner_size,
-                            kp,
-                            i,
-                            b * isb + (l * step_height + 0 * dh) * ish + m * dw * isw,
-                            c * co_b,
-                            b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
-                            0 * ks0 + m * ks1 + i * ks2,
-                            step_width,
-                            isw,
-                            osw,
-                            &inp_cpy,
-                            &mut out,
-                            &kernel_cpy,
-                        );
-                    }
-                }
-                for n in 1..kernel_height {
+                for n in 0..kernel_height {
                     for m in 0..kernel_width {
                         for ii in 0..ci_b_remain {
                             let i = ip * ci_b + ii;
