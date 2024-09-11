@@ -15,103 +15,6 @@ use tensor_common::err_handler::ErrHandler::InvalidInputShape;
 use tensor_common::err_handler::ErrHandler::InvalidCacheParam;
 use super::conv_config::Conv2dConfig;
 
-fn case0_remain1_helper<T, const REGNUM: usize>(
-    [kh, kw, ci_b_remain]: [i64; 3],
-    [ip, b, l, c]: [i64; 4],
-    [isb, ish, isw]: [i64; 3],
-    [osb, osh, osw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
-    [step_width, step_height]: [i64; 2],
-    [dh, dw]: [i64; 2],
-    [ci_b, co_b]: [i64; 2],
-    num_wo_b: i64,
-    [inp_cpy, kernel_cpy]: [&Pointer<T>; 2],
-    out: &mut Pointer<T>,
-    micro_kernel: fn(
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        &Pointer<T>,
-        &mut [T; REGNUM],
-        &Pointer<T>
-    )
-)
-    where T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>
-{
-    if ip == 0 {
-        for kp in 0..num_wo_b {
-            let mut res_buffer = [T::ZERO; REGNUM];
-            for n in 0..kh {
-                for m in 0..kw {
-                    for ii in 0..ci_b_remain {
-                        let i = ip * ci_b + ii;
-                        micro_kernel(
-                            kp,
-                            i,
-                            b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                            c * co_b,
-                            b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
-                            n * ks0 + m * ks1 + i * ks2,
-                            step_width,
-                            isw,
-                            osw,
-                            &inp_cpy,
-                            &mut res_buffer,
-                            &kernel_cpy
-                        );
-                    }
-                }
-            }
-            for h in 0..REGNUM as i64 {
-                let out_vec =
-                    &mut out[c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw];
-                *out_vec = res_buffer[h as usize];
-            }
-        }
-    } else {
-        let mut res_buffer = [T::ZERO; REGNUM];
-        for kp in 0..num_wo_b {
-            for h in 0..REGNUM as i64 {
-                let out_vec =
-                    &mut out[c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw];
-                res_buffer[h as usize] = *out_vec;
-            }
-            for n in 0..kh {
-                for m in 0..kw {
-                    for ii in 0..ci_b_remain {
-                        let i = ip * ci_b + ii;
-                        micro_kernel(
-                            kp,
-                            i,
-                            b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                            c * co_b,
-                            b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
-                            n * ks0 + m * ks1 + i * ks2,
-                            step_width,
-                            isw,
-                            osw,
-                            &inp_cpy,
-                            &mut res_buffer,
-                            &kernel_cpy
-                        );
-                    }
-                }
-            }
-            for h in 0..REGNUM as i64 {
-                let out_vec =
-                    &mut out[c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw];
-                *out_vec = res_buffer[h as usize];
-            }
-        }
-    }
-}
-
 fn case1_helper<T, const REGNUM: usize>(
     [kh, kw, ci_b_remain]: [i64; 3],
     [ip, b, l, c]: [i64; 4],
@@ -125,8 +28,6 @@ fn case1_helper<T, const REGNUM: usize>(
     [inp_cpy, kernel_cpy]: [&Pointer<T>; 2],
     out: &mut Pointer<T>,
     micro_kernel: fn(
-        i64,
-        i64,
         i64,
         i64,
         i64,
@@ -155,11 +56,9 @@ fn case1_helper<T, const REGNUM: usize>(
                             i,
                             b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                             c * co_b,
-                            b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
                             n * ks0 + m * ks1 + i * ks2,
                             step_width,
                             isw,
-                            osw,
                             &inp_cpy,
                             &mut res_buffer,
                             &kernel_cpy
@@ -193,11 +92,9 @@ fn case1_helper<T, const REGNUM: usize>(
                             i,
                             b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                             c * co_b,
-                            b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
                             n * ks0 + m * ks1 + i * ks2,
                             step_width,
                             isw,
-                            osw,
                             &inp_cpy,
                             &mut res_buffer,
                             &kernel_cpy
@@ -236,8 +133,6 @@ fn case1_remain1_helper<T, const REGNUM: usize>(
         i64,
         i64,
         i64,
-        i64,
-        i64,
         &Pointer<T>,
         &mut [T; REGNUM],
         &Pointer<T>
@@ -256,11 +151,9 @@ fn case1_remain1_helper<T, const REGNUM: usize>(
                         i,
                         b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                         c * co_b,
-                        b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
                         n * ks0 + m * ks1 + i * ks2,
                         step_width,
                         isw,
-                        osw,
                         &inp_cpy,
                         &mut res_buffer,
                         &kernel_cpy
@@ -291,11 +184,9 @@ fn case1_remain1_helper<T, const REGNUM: usize>(
                         i,
                         b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                         c * co_b,
-                        b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
                         n * ks0 + m * ks1 + i * ks2,
                         step_width,
                         isw,
-                        osw,
                         &inp_cpy,
                         &mut res_buffer,
                         &kernel_cpy
@@ -624,8 +515,6 @@ impl<T> _Tensor<T>
                 i64,
                 i64,
                 i64,
-                i64,
-                i64,
                 &Pointer<T>,
                 &mut [<T as TypeCommon>::Vec; CONV_REGNUM],
                 &Pointer<T>
@@ -645,11 +534,9 @@ impl<T> _Tensor<T>
                                     i,
                                     b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                                     c * co_b,
-                                    b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
                                     n * ks0 + m * ks1 + i * ks2,
                                     step_width,
                                     isw,
-                                    osw,
                                     &inp_cpy,
                                     &mut res_buffer,
                                     &kernel_cpy
@@ -686,8 +573,6 @@ impl<T> _Tensor<T>
                 i64,
                 i64,
                 i64,
-                i64,
-                i64,
                 &Pointer<T>,
                 &mut [<T as TypeCommon>::Vec; CONV_REGNUM],
                 &Pointer<T>
@@ -714,11 +599,9 @@ impl<T> _Tensor<T>
                                     i,
                                     b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                                     c * co_b,
-                                    b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
                                     n * ks0 + m * ks1 + i * ks2,
                                     step_width,
                                     isw,
-                                    osw,
                                     &inp_cpy,
                                     &mut res_buffer,
                                     &kernel_cpy
@@ -745,8 +628,6 @@ impl<T> _Tensor<T>
             ci_b_remain: i64,
             inner_size: i64,
             micro_kernel_fn: fn(
-                i64,
-                i64,
                 i64,
                 i64,
                 i64,
@@ -790,11 +671,9 @@ impl<T> _Tensor<T>
                                     i,
                                     b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                                     c * co_b,
-                                    b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
                                     n * ks0 + m * ks1 + i * ks2,
                                     step_width,
                                     isw,
-                                    osw,
                                     &inp_cpy,
                                     &mut res_buffer,
                                     &kernel_cpy
@@ -825,11 +704,9 @@ impl<T> _Tensor<T>
                                     i,
                                     b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                                     c * co_b,
-                                    b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
                                     n * ks0 + m * ks1 + i * ks2,
                                     step_width,
                                     isw,
-                                    osw,
                                     &inp_cpy,
                                     &mut res_buffer,
                                     &kernel_cpy

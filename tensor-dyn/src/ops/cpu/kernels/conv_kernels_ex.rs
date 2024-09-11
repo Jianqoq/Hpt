@@ -141,11 +141,9 @@ macro_rules! micro_kernel {
                 i: i64,
                 inp_offset: i64,
                 co_offset: i64,
-                out_offset: i64,
                 kernel_offset: i64,
                 step_width: i64,
                 isw: i64,
-                osw: i64,
                 inp: &Pointer<T>,
                 outs: &mut [<T as TypeCommon>::Vec; REGNUM],
                 kernel: &Pointer<T>,
@@ -216,11 +214,9 @@ macro_rules! micro_kernel_1 {
                 i: i64,
                 inp_offset: i64,
                 co_offset: i64,
-                out_offset: i64,
                 kernel_offset: i64,
                 step_width: i64,
                 isw: i64,
-                osw: i64,
                 inp: &Pointer<T>,
                 out: &mut [T; $number],
                 kernel: &Pointer<T>
@@ -234,40 +230,6 @@ macro_rules! micro_kernel_1 {
                 let kernel_val = kernel[co_offset + kernel_offset];
                 $(
                     out[$idx] = [<inp $idx>]._mul(kernel_val)._add(out[$idx]);
-                )*
-            }
-        }
-    };
-}
-
-macro_rules! micro_kernel_1_init {
-    ($num:tt, [$($idx:expr),*]) => {
-        paste::paste! {
-            #[rustfmt::skip]
-            pub(crate) fn [<micro_kernel_ $num _1 _init>]<T>(
-                _: i64,
-                kp: i64,
-                i: i64,
-                inp_offset: i64,
-                co_offset: i64,
-                out_offset: i64,
-                kernel_offset: i64,
-                step_width: i64,
-                isw: i64,
-                osw: i64,
-                inp: &Pointer<T>,
-                out: &mut Pointer<T>,
-                kernel: &Pointer<T>
-            )
-                where T: CommonBounds + NormalOut<Output = T>, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
-            {
-                $(
-                    let _k = kp * (CONV_REGNUM as i64) + $idx;
-                    let [<inp $idx>] = inp[inp_offset + _k * step_width * isw + i];
-                )*
-                let kernel_val = kernel[co_offset + kernel_offset];
-                $(
-                    out[co_offset + out_offset + $idx * osw] = [<inp $idx>]._mul(kernel_val);
                 )*
             }
         }
@@ -338,7 +300,6 @@ micro_kernel!(3, [0, 1, 2]);
 micro_kernel!(4, [0, 1, 2, 3]);
 micro_kernel!(5, [0, 1, 2, 3, 4]);
 micro_kernel!(6, [0, 1, 2, 3, 4, 5]);
-micro_kernel_dynamic_regnum!(regnum, [0, 1, 2, 3, 4, 5, 6]);
 micro_kernel_dynamic_regnum!(1, [0]);
 micro_kernel_dynamic_regnum!(2, [0, 1]);
 micro_kernel_dynamic_regnum!(3, [0, 1, 2]);
@@ -399,9 +360,3 @@ micro_kernel_1!(3, 3, [0, 1, 2]);
 micro_kernel_1!(4, 4, [0, 1, 2, 3]);
 micro_kernel_1!(5, 5, [0, 1, 2, 3, 4]);
 micro_kernel_1!(6, 6, [0, 1, 2, 3, 4, 5]);
-micro_kernel_1_init!(1, [0]);
-micro_kernel_1_init!(2, [0, 1]);
-micro_kernel_1_init!(3, [0, 1, 2]);
-micro_kernel_1_init!(4, [0, 1, 2, 3]);
-micro_kernel_1_init!(5, [0, 1, 2, 3, 4]);
-micro_kernel_1_init!(6, [0, 1, 2, 3, 4, 5]);
