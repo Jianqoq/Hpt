@@ -321,7 +321,7 @@ fn case3_helper<T>(
     [step_width, step_height]: [i64; 2],
     [dh, dw]: [i64; 2],
     [ci_b, co_b]: [i64; 2],
-    [num_wo_b, num_co_rb]: [i64; 2],
+    num_wo_b: i64,
     co_b_remain: i64,
     wo_b_remain: i64,
     [inp, kernel]: [&Pointer<T>; 2],
@@ -1158,7 +1158,7 @@ impl<T> _Tensor<T>
                         [step_width, step_height],
                         [dh, dw],
                         [ci_b, co_b],
-                        [num_co_rb, num_co_b],
+                        num_wo_b,
                         co_b_remain,
                         wo_b_remain,
                         [&inp_cpy, &kernel_cpy],
@@ -1180,7 +1180,7 @@ impl<T> _Tensor<T>
                         [step_width, step_height],
                         [dh, dw],
                         [ci_b, co_b],
-                        [num_co_rb, num_co_b],
+                        num_wo_b,
                         co_b_remain,
                         wo_b_remain,
                         [&inp_cpy, &kernel_cpy],
@@ -1202,7 +1202,7 @@ impl<T> _Tensor<T>
                         [step_width, step_height],
                         [dh, dw],
                         [ci_b, co_b],
-                        [num_co_rb, num_co_b],
+                        num_wo_b,
                         co_b_remain,
                         wo_b_remain,
                         [&inp_cpy, &kernel_cpy],
@@ -1224,7 +1224,7 @@ impl<T> _Tensor<T>
                         [step_width, step_height],
                         [dh, dw],
                         [ci_b, co_b],
-                        [num_co_rb, num_co_b],
+                        num_wo_b,
                         co_b_remain,
                         wo_b_remain,
                         [&inp_cpy, &kernel_cpy],
@@ -1246,7 +1246,7 @@ impl<T> _Tensor<T>
                         [step_width, step_height],
                         [dh, dw],
                         [ci_b, co_b],
-                        [num_co_rb, num_co_b],
+                        num_wo_b,
                         co_b_remain,
                         wo_b_remain,
                         [&inp_cpy, &kernel_cpy],
@@ -1268,7 +1268,7 @@ impl<T> _Tensor<T>
                         [step_width, step_height],
                         [dh, dw],
                         [ci_b, co_b],
-                        [num_co_rb, num_co_b],
+                        num_wo_b,
                         co_b_remain,
                         wo_b_remain,
                         [&inp_cpy, &kernel_cpy],
@@ -1424,7 +1424,7 @@ impl<T> _Tensor<T>
             let b = idx / (num_co_b * out_height);
             let l = (idx / num_co_b) % out_height;
             let c = idx % num_co_b;
-            println!("co_b_remain == 0: {}, wo_b_remain == 0: {}, ci_b_remain == 0: {}", co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0);
+            // println!("co_b_remain == 0: {}, wo_b_remain == 0: {}, ci_b_remain == 0: {}", co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0);
             match (co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0) {
                 (true, true, true) => {
                     if co_b > 1 {

@@ -9,6 +9,7 @@ tensor-common = { path = "../tensor-common" }
 tensor-dyn = { path = "../tensor-dyn", features = [
     "simd",
     "track_caller",
+    "bound_check",
 ] }
 tensor-types = { path = "../tensor-types" }
 serde_json = "1"
