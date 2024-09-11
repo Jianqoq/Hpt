@@ -142,35 +142,75 @@ fn case1_helper<T, const REGNUM: usize>(
 )
     where T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>
 {
-    for j in 0..num_co_rb {
-        let mut res_buffer = [<T as TypeCommon>::Vec::splat(T::ZERO); REGNUM];
-        for n in 0..kh {
-            for m in 0..kw {
-                for ii in 0..ci_b_remain {
-                    let i = ip * ci_b + ii;
-                    micro_kernel(
-                        j,
-                        num_wo_b,
-                        i,
-                        b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                        c * co_b,
-                        b * osb + l * osh + num_wo_b * CONV_REGNUM as i64 * osw, // prettier-ignore
-                        n * ks0 + m * ks1 + i * ks2,
-                        step_width,
-                        isw,
-                        osw,
-                        &inp_cpy,
-                        &mut res_buffer,
-                        &kernel_cpy
-                    );
+    if ip == 0 {
+        for j in 0..num_co_rb {
+            let mut res_buffer = [<T as TypeCommon>::Vec::splat(T::ZERO); REGNUM];
+            for n in 0..kh {
+                for m in 0..kw {
+                    for ii in 0..ci_b_remain {
+                        let i = ip * ci_b + ii;
+                        micro_kernel(
+                            j,
+                            num_wo_b,
+                            i,
+                            b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
+                            c * co_b,
+                            b * osb + l * osh + num_wo_b * CONV_REGNUM as i64 * osw, // prettier-ignore
+                            n * ks0 + m * ks1 + i * ks2,
+                            step_width,
+                            isw,
+                            osw,
+                            &inp_cpy,
+                            &mut res_buffer,
+                            &kernel_cpy
+                        );
+                    }
+                }
+            }
+            for h in 0..REGNUM as i64 {
+                let out_vec =
+                    &mut out[c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                unsafe {
+                    out_vec.write_unaligned(res_buffer[h as usize]);
                 }
             }
         }
-        for h in 0..REGNUM as i64 {
-            let out_vec =
-                &mut out[c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
-            unsafe {
-                out_vec.write_unaligned(res_buffer[h as usize]);
+    } else {
+        let mut res_buffer = [<T as TypeCommon>::Vec::splat(T::ZERO); REGNUM];
+        for j in 0..num_co_rb {
+            for h in 0..REGNUM as i64 {
+                let out_vec =
+                    &mut out[c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                res_buffer[h as usize] = unsafe { out_vec.read_unaligned() };
+            }
+            for n in 0..kh {
+                for m in 0..kw {
+                    for ii in 0..ci_b_remain {
+                        let i = ip * ci_b + ii;
+                        micro_kernel(
+                            j,
+                            num_wo_b,
+                            i,
+                            b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
+                            c * co_b,
+                            b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
+                            n * ks0 + m * ks1 + i * ks2,
+                            step_width,
+                            isw,
+                            osw,
+                            &inp_cpy,
+                            &mut res_buffer,
+                            &kernel_cpy
+                        );
+                    }
+                }
+            }
+            for h in 0..REGNUM as i64 {
+                let out_vec =
+                    &mut out[c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                unsafe {
+                    out_vec.write_unaligned(res_buffer[h as usize]);
+                }
             }
         }
     }
@@ -680,7 +720,15 @@ impl<T> _Tensor<T>
                     }
                     for h in 0..CONV_REGNUM as i64 {
                         let out_vec =
-                            &mut out[c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw];
+                            &mut out
+                                [
+
+                                        c * co_b +
+                                        b * osb +
+                                        l * osh +
+                                        (kp * (CONV_REGNUM as i64) + h) * osw
+
+                                ];
                         *out_vec = res_buffer[h as usize];
                     }
                 }
@@ -689,7 +737,15 @@ impl<T> _Tensor<T>
                 for kp in 0..num_wo_b {
                     for h in 0..CONV_REGNUM as i64 {
                         let out_vec =
-                            &mut out[c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw];
+                            &mut out
+                                [
+
+                                        c * co_b +
+                                        b * osb +
+                                        l * osh +
+                                        (kp * (CONV_REGNUM as i64) + h) * osw
+
+                                ];
                         res_buffer[h as usize] = *out_vec;
                     }
                     for n in 0..kernel_height {
@@ -715,11 +771,19 @@ impl<T> _Tensor<T>
                     }
                     for h in 0..CONV_REGNUM as i64 {
                         let out_vec =
-                            &mut out[c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw];
+                            &mut out
+                                [
+
+                                        c * co_b +
+                                        b * osb +
+                                        l * osh +
+                                        (kp * (CONV_REGNUM as i64) + h) * osw
+
+                                ];
                         *out_vec = res_buffer[h as usize];
                     }
                 }
-            };
+            }
         };
 
         let inp_cpy = inp.clone();
@@ -1345,6 +1409,7 @@ impl<T> _Tensor<T>
             let b = idx / (num_co_b * out_height);
             let l = (idx / num_co_b) % out_height;
             let c = idx % num_co_b;
+            println!("co_b_remain == 0: {}, wo_b_remain == 0: {}, ci_b_remain == 0: {}", co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0);
             match (co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0) {
                 (true, true, true) => {
                     if co_b > 1 {
