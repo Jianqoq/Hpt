@@ -135,19 +135,19 @@ macro_rules! micro_kernel {
     ($num:tt, [$($idx:expr),*]) => {
         paste::paste! {
             #[rustfmt::skip]
-            pub(crate) fn [<micro_kernel_ $num>]<T>(
+            pub(crate) fn [<micro_kernel_ $num>]<T, const REGNUM: usize>(
                 j: i64,
                 kp: i64,
                 i: i64,
                 inp_offset: i64,
                 co_offset: i64,
-                _: i64,
+                out_offset: i64,
                 kernel_offset: i64,
                 step_width: i64,
                 isw: i64,
-                _: i64,
+                osw: i64,
                 inp: &Pointer<T>,
-                outs: &mut [<T as TypeCommon>::Vec; CONV_REGNUM],
+                outs: &mut [<T as TypeCommon>::Vec; REGNUM],
                 kernel: &Pointer<T>,
             )
                 where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize

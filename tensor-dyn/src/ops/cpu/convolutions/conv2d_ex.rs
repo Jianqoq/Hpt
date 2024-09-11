@@ -155,7 +155,7 @@ fn case1_helper<T, const REGNUM: usize>(
                             i,
                             b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                             c * co_b,
-                            b * osb + l * osh + num_wo_b * CONV_REGNUM as i64 * osw, // prettier-ignore
+                            b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
                             n * ks0 + m * ks1 + i * ks2,
                             step_width,
                             isw,
@@ -180,7 +180,7 @@ fn case1_helper<T, const REGNUM: usize>(
         for j in 0..num_co_rb {
             for h in 0..REGNUM as i64 {
                 let out_vec =
-                    &mut out[c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                    &mut out[c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
                 res_buffer[h as usize] = unsafe { out_vec.read_unaligned() };
             }
             for n in 0..kh {
@@ -225,7 +225,7 @@ fn case1_remain1_helper<T, const REGNUM: usize>(
     [step_width, step_height]: [i64; 2],
     [dh, dw]: [i64; 2],
     [ci_b, co_b]: [i64; 2],
-    [num_wo_b, num_co_rb]: [i64; 2],
+    num_wo_b: i64,
     [inp_cpy, kernel_cpy]: [&Pointer<T>; 2],
     out: &mut Pointer<T>,
     micro_kernel: fn(
@@ -245,32 +245,70 @@ fn case1_remain1_helper<T, const REGNUM: usize>(
 )
     where T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>
 {
-    let mut res_buffer = [T::ZERO; REGNUM];
-    for n in 0..kh {
-        for m in 0..kw {
-            for ii in 0..ci_b_remain {
-                let i = ip * ci_b + ii;
-                micro_kernel(
-                    num_wo_b,
-                    i,
-                    b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                    c * co_b,
-                    b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
-                    n * ks0 + m * ks1 + i * ks2,
-                    step_width,
-                    isw,
-                    osw,
-                    &inp_cpy,
-                    &mut res_buffer,
-                    &kernel_cpy
-                );
+    if ip == 0 {
+        let mut res_buffer = [T::ZERO; REGNUM];
+        for n in 0..kh {
+            for m in 0..kw {
+                for ii in 0..ci_b_remain {
+                    let i = ip * ci_b + ii;
+                    micro_kernel(
+                        num_wo_b,
+                        i,
+                        b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
+                        c * co_b,
+                        b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
+                        n * ks0 + m * ks1 + i * ks2,
+                        step_width,
+                        isw,
+                        osw,
+                        &inp_cpy,
+                        &mut res_buffer,
+                        &kernel_cpy
+                    );
+                }
             }
         }
-    }
-    for h in 0..REGNUM as i64 {
-        let out_vec =
-            &mut out[c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw];
-        *out_vec = res_buffer[h as usize];
+        for h in 0..REGNUM as i64 {
+            let out_vec =
+                &mut out
+                    [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw];
+            *out_vec = res_buffer[h as usize];
+        }
+    } else {
+        let mut res_buffer = [T::ZERO; REGNUM];
+        for h in 0..REGNUM as i64 {
+            let out_vec =
+                &mut out
+                    [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw];
+            res_buffer[h as usize] = *out_vec;
+        }
+        for n in 0..kh {
+            for m in 0..kw {
+                for ii in 0..ci_b_remain {
+                    let i = ip * ci_b + ii;
+                    micro_kernel(
+                        num_wo_b,
+                        i,
+                        b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
+                        c * co_b,
+                        b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
+                        n * ks0 + m * ks1 + i * ks2,
+                        step_width,
+                        isw,
+                        osw,
+                        &inp_cpy,
+                        &mut res_buffer,
+                        &kernel_cpy
+                    );
+                }
+            }
+        }
+        for h in 0..REGNUM as i64 {
+            let out_vec =
+                &mut out
+                    [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw];
+            *out_vec = res_buffer[h as usize];
+        }
     }
 }
 
@@ -721,14 +759,7 @@ impl<T> _Tensor<T>
                     for h in 0..CONV_REGNUM as i64 {
                         let out_vec =
                             &mut out
-                                [
-
-                                        c * co_b +
-                                        b * osb +
-                                        l * osh +
-                                        (kp * (CONV_REGNUM as i64) + h) * osw
-
-                                ];
+                                [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw]; // prettier-ignore
                         *out_vec = res_buffer[h as usize];
                     }
                 }
@@ -736,16 +767,7 @@ impl<T> _Tensor<T>
                 let mut res_buffer = [<T>::ZERO; CONV_REGNUM];
                 for kp in 0..num_wo_b {
                     for h in 0..CONV_REGNUM as i64 {
-                        let out_vec =
-                            &mut out
-                                [
-
-                                        c * co_b +
-                                        b * osb +
-                                        l * osh +
-                                        (kp * (CONV_REGNUM as i64) + h) * osw
-
-                                ];
+                        let out_vec = &out[c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw]; // prettier-ignore
                         res_buffer[h as usize] = *out_vec;
                     }
                     for n in 0..kernel_height {
@@ -772,14 +794,7 @@ impl<T> _Tensor<T>
                     for h in 0..CONV_REGNUM as i64 {
                         let out_vec =
                             &mut out
-                                [
-
-                                        c * co_b +
-                                        b * osb +
-                                        l * osh +
-                                        (kp * (CONV_REGNUM as i64) + h) * osw
-
-                                ];
+                                [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw]; // prettier-ignore
                         *out_vec = res_buffer[h as usize];
                     }
                 }
@@ -800,10 +815,10 @@ impl<T> _Tensor<T>
                         [step_width, step_height],
                         [dh, dw],
                         [ci_b, co_b],
-                        [num_co_rb, num_co_b],
+                        [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
-                        micro_kernel_1::<T>
+                        micro_kernel_1::<T, 1>
                     );
                 }
                 2 => {
@@ -816,10 +831,10 @@ impl<T> _Tensor<T>
                         [step_width, step_height],
                         [dh, dw],
                         [ci_b, co_b],
-                        [num_co_rb, num_co_b],
+                        [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
-                        micro_kernel_2::<T>
+                        micro_kernel_2::<T, 2>
                     );
                 }
                 3 => {
@@ -832,10 +847,10 @@ impl<T> _Tensor<T>
                         [step_width, step_height],
                         [dh, dw],
                         [ci_b, co_b],
-                        [num_co_rb, num_co_b],
+                        [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
-                        micro_kernel_3::<T>
+                        micro_kernel_3::<T, 3>
                     );
                 }
                 4 => {
@@ -848,10 +863,10 @@ impl<T> _Tensor<T>
                         [step_width, step_height],
                         [dh, dw],
                         [ci_b, co_b],
-                        [num_co_rb, num_co_b],
+                        [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
-                        micro_kernel_4::<T>
+                        micro_kernel_4::<T, 4>
                     );
                 }
                 5 => {
@@ -864,10 +879,10 @@ impl<T> _Tensor<T>
                         [step_width, step_height],
                         [dh, dw],
                         [ci_b, co_b],
-                        [num_co_rb, num_co_b],
+                        [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
-                        micro_kernel_5::<T>
+                        micro_kernel_5::<T, 5>
                     );
                 }
                 6 => {
@@ -880,10 +895,10 @@ impl<T> _Tensor<T>
                         [step_width, step_height],
                         [dh, dw],
                         [ci_b, co_b],
-                        [num_co_rb, num_co_b],
+                        [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
-                        micro_kernel_6::<T>
+                        micro_kernel_6::<T, 6>
                     );
                 }
                 #[cfg(target_feature = "avx512f")]
@@ -943,7 +958,7 @@ impl<T> _Tensor<T>
                         [step_width, step_height],
                         [dh, dw],
                         [ci_b, co_b],
-                        [num_co_rb, num_co_b],
+                        num_wo_b,
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
                         micro_kernel_1_1::<T>
@@ -959,7 +974,7 @@ impl<T> _Tensor<T>
                         [step_width, step_height],
                         [dh, dw],
                         [ci_b, co_b],
-                        [num_co_rb, num_co_b],
+                        num_wo_b,
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
                         micro_kernel_2_1::<T>
@@ -975,7 +990,7 @@ impl<T> _Tensor<T>
                         [step_width, step_height],
                         [dh, dw],
                         [ci_b, co_b],
-                        [num_co_rb, num_co_b],
+                        num_wo_b,
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
                         micro_kernel_3_1::<T>
@@ -991,7 +1006,7 @@ impl<T> _Tensor<T>
                         [step_width, step_height],
                         [dh, dw],
                         [ci_b, co_b],
-                        [num_co_rb, num_co_b],
+                        num_wo_b,
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
                         micro_kernel_4_1::<T>
@@ -1007,7 +1022,7 @@ impl<T> _Tensor<T>
                         [step_width, step_height],
                         [dh, dw],
                         [ci_b, co_b],
-                        [num_co_rb, num_co_b],
+                        num_wo_b,
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
                         micro_kernel_5_1::<T>
@@ -1023,7 +1038,7 @@ impl<T> _Tensor<T>
                         [step_width, step_height],
                         [dh, dw],
                         [ci_b, co_b],
-                        [num_co_rb, num_co_b],
+                        num_wo_b,
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
                         micro_kernel_6_1::<T>
@@ -1414,7 +1429,7 @@ impl<T> _Tensor<T>
                 (true, true, true) => {
                     if co_b > 1 {
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>,  out.clone());
+                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                         }
                     } else {
                         assert_eq!(co_b, 1);
@@ -1426,9 +1441,9 @@ impl<T> _Tensor<T>
                 (true, true, false) => {
                     if co_b > 1 {
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
                         }
-                        case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>,  out.clone());
+                        case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                     } else {
                         assert_eq!(co_b, 1);
                         for ip in 0..num_ci_b {
@@ -1440,7 +1455,7 @@ impl<T> _Tensor<T>
                 (true, false, true) => {
                     if co_b > 1 {
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>,  out.clone());
+                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                             case1(b, l, c, ip, ci_b, out.clone());
                         }
                     } else {
@@ -1453,10 +1468,10 @@ impl<T> _Tensor<T>
                 (true, false, false) => {
                     if co_b > 1 {
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>,  out.clone());
+                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                             case1(b, l, c, ip, ci_b, out.clone());
                         }
-                        case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>,  out.clone());
+                        case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                         case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
                     } else {
                         for ip in 0..num_ci_b {
@@ -1472,18 +1487,18 @@ impl<T> _Tensor<T>
                     assert!(co_b > 1);
                     if c < num_co_b - 1 {
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
                         }
                     } else {
                         let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
                         if remain == 0 {
                             for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
-                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T>, out.clone());
+                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
+                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
                             }
                         } else {
                             for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
                                 case2(b, l, num_co_b, ip, num_vec_size, remain, ci_b, out.clone());
                             }
                         }
@@ -1494,24 +1509,24 @@ impl<T> _Tensor<T>
                     assert!(co_b > 1);
                     if c < num_co_b - 1 {
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
                         }
-                        case0(b, l, c, num_ci_b, ci_b, num_co_rb, micro_kernel_regnum::<T>,  out.clone());
+                        case0(b, l, c, num_ci_b, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                     } else {
                         let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
                         if remain == 0 {
                             for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
-                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T>, out.clone());
+                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
+                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
                             }
-                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>, out.clone());
-                            case0(b, l, num_co_b, num_ci_b, ci_b_remain, num_vec_size, micro_kernel_regnum::<T>,  out.clone());
+                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
+                            case0(b, l, num_co_b, num_ci_b, ci_b_remain, num_vec_size, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                         } else {
                             for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
                                 case2(b, l, num_co_b, ip, num_vec_size, remain, ci_b, out.clone());
                             }
-                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>,  out.clone());
+                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                             case2(b, l, num_co_b, num_ci_b, num_vec_size, remain, ci_b_remain, out.clone());
                         }
                     }
@@ -1521,21 +1536,21 @@ impl<T> _Tensor<T>
                     assert!(co_b > 1);
                     if c < num_co_b - 1 {
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>,  out.clone());
+                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                             case1(b, l, c, ip, ci_b, out.clone());
                         }
                     } else {
                         let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
                         if remain == 0 {
                             for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>, out.clone());
+                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
                                 case1(b, l, c, ip, ci_b, out.clone());
-                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T>,  out.clone());
+                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                                 case3(b, l, num_co_b, ip, ci_b, out.clone());
                             }
                         } else {
                             for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>,  out.clone());
+                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                                 case1(b, l, c, ip, ci_b, out.clone());
                                 case2(b, l, num_co_b, ip, num_vec_size, remain, ci_b, out.clone());
                                 case3(b, l, num_co_b, ip, ci_b, out.clone());
@@ -1548,34 +1563,34 @@ impl<T> _Tensor<T>
                     assert!(co_b > 1);
                     if c < num_co_b - 1 {
                         for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>,  out.clone());
+                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                             case1(b, l, c, ip, ci_b, out.clone());
                         }
-                        case0(b, l, c, num_ci_b, ci_b, num_co_rb, micro_kernel_regnum::<T>,  out.clone());
+                        case0(b, l, c, num_ci_b, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                         case1(b, l, c, num_ci_b, ci_b, out.clone());
-                        case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>,  out.clone());
+                        case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                         case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
                     } else {
                         let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
                         if remain == 0 {
                             for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>,  out.clone());
+                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                                 case1(b, l, c, ip, ci_b, out.clone());
-                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T>,  out.clone());
+                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                                 case3(b, l, num_co_b, ip, ci_b, out.clone());
                             }
-                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>,  out.clone());
+                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                             case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
-                            case0(b, l, num_co_b, num_ci_b, ci_b_remain, num_vec_size, micro_kernel_regnum::<T>,  out.clone());
+                            case0(b, l, num_co_b, num_ci_b, ci_b_remain, num_vec_size, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                             case3(b, l, num_co_b, num_ci_b, ci_b_remain, out.clone());
                         } else {
                             for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T>,  out.clone());
+                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                                 case1(b, l, c, ip, ci_b, out.clone());
                                 case2(b, l, num_co_b, ip, num_vec_size, remain, ci_b, out.clone());
                                 case3(b, l, num_co_b, ip, ci_b, out.clone());
                             }
-                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T>,  out.clone());
+                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                             case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
                             case2(b, l, num_co_b, num_ci_b, num_vec_size, remain, ci_b_remain, out.clone());
                             case3(b, l, num_co_b, num_ci_b, ci_b_remain, out.clone());

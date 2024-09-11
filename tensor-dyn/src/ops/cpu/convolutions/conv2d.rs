@@ -1,4 +1,3 @@
-
 use tensor_common::pointer::Pointer;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
@@ -80,7 +79,7 @@ impl<T> _Tensor<T>
                 return Err(InvalidInputShape(out_width, core::panic::Location::caller()).into());
             }
         }
-        let output = _Tensor::<T>::empty([batch, out_height, out_width, out_channels])?;
+        let output = _Tensor::<T>::zeros([batch, out_height, out_width, out_channels])?;
         let out = output.ptr();
         let inp = img.ptr();
         let kernel = kernels.ptr();
@@ -173,7 +172,7 @@ impl<T> _Tensor<T>
                 i64,
                 &Pointer<T>,
                 &mut Pointer<T>,
-                &Pointer<T>,
+                &Pointer<T>
             ),
             mut out: Pointer<T>
         | {
@@ -243,37 +242,32 @@ impl<T> _Tensor<T>
             ),
             mut out: Pointer<T>
         | {
-            for m in 0..kernel_width {
-                for ii in 0..ci_b_remain {
-                    let i = ip * ci_b + ii;
-                    micro_kernel_fn_init(
-                        num_co_rb,
-                        num_wo_b,
-                        i,
-                        b * isb + (l * step_height + 0 * dh) * ish + m * dw * isw,
-                        c * co_b,
-                        b * osb + l * osh + num_wo_b * CONV_REGNUM as i64 * osw, // prettier-ignore
-                        0 * ks0 + m * ks1 + i * ks2,
-                        step_width,
-                        isw,
-                        osw,
-                        &inp_cpy,
-                        &mut out,
-                        &kernel_cpy
-                    );
-                }
-            }
-            for n in 1..kernel_height {
+            for n in 0..kernel_height {
                 for m in 0..kernel_width {
                     for ii in 0..ci_b_remain {
                         let i = ip * ci_b + ii;
+                        micro_kernel_3(
+                            num_co_rb,
+                            num_wo_b,
+                            i,
+                            b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
+                            c * co_b,
+                            b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
+                            n * ks0 + m * ks1 + i * ks2,
+                            step_width,
+                            isw,
+                            osw,
+                            &inp_cpy,
+                            &mut out,
+                            &kernel_cpy
+                        );
                         micro_kernel(
                             num_co_rb,
                             num_wo_b,
                             i,
                             b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
                             c * co_b,
-                            b * osb + l * osh + num_wo_b * CONV_REGNUM as i64 * osw, // prettier-ignore
+                            b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
                             n * ks0 + m * ks1 + i * ks2,
                             step_width,
                             isw,

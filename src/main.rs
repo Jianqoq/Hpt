@@ -21,21 +21,20 @@ fn main() -> anyhow::Result<()> {
     set_global_display_lr_elements(6);
     set_num_threads(16);
     let kernel = _Tensor::<f32>
-        ::arange(0, 8 * 80 * 4 * 4)?
-        .reshape([80, 8, 4, 4])?
+        ::arange(0, 16 * 16 * 3 * 3)?
+        .reshape([16, 16, 3, 3])?
         .permute([2, 3, 1, 0])?
         .contiguous()?;
     let a = _Tensor::<f32>
-        ::arange(0, 1 * 8 * 1260 * 1260)?
-        .reshape([1, 8, 1260, 1260])?
+        ::arange(0, 16 * 16 * 512 * 512)?
+        .reshape([16, 16, 512, 512])?
         .permute([0, 2, 3, 1])?
         .contiguous()?;
-    let config = Conv2dConfig::<f32>::new(80, 8, [4, 4], KernelParamAlgo::Greedy);
+    let config = Conv2dConfig::<f32>::new(16, 16, [3, 3], KernelParamAlgo::Greedy);
     println!("config: {:?}", config);
     let now = std::time::Instant::now();
-    let mut res = _Tensor::<f32>::new([0.0]);
     for _ in 0..100 {
-        res = a
+        a
             .conv2d_ex(
                 &kernel,
                 [1, 1],
