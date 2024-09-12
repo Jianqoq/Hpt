@@ -1,3 +1,4 @@
+use std::arch::x86_64::{ _mm_cvtph_ps, _mm_loadu_si64 };
 use std::simd::num::{ SimdFloat, SimdInt, SimdUint };
 use std::simd::u16x4;
 use std::simd::{ cmp::SimdPartialEq, Simd };
@@ -129,14 +130,14 @@ impl f16x8 {
         let ge = x.simd_ge(y);
         unsafe { std::mem::transmute(ge) }
     }
+
     pub fn to_2_f32x4(self) -> [f32x4; 2] {
-        let [a0, a1] = unsafe {
-            let a: [std::simd::u16x4; 2] = std::mem::transmute(self.0);
-            a
-        };
-        let a0 = u16_to_f16(a0);
-        let a1 = u16_to_f16(a1);
-        unsafe { std::mem::transmute([a0, a1]) }
+        unsafe {
+            let raw_f16: [u16; 8] = std::mem::transmute(self.0);
+            let f32x4_1 = _mm_cvtph_ps(_mm_loadu_si64(raw_f16.as_ptr() as *const _));
+            let f32x4_2 = _mm_cvtph_ps(_mm_loadu_si64(raw_f16.as_ptr().add(4) as *const _));
+            std::mem::transmute([f32x4_1, f32x4_2])
+        }
     }
 }
 

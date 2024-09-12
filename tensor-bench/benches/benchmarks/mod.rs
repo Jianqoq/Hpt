@@ -8,3 +8,7 @@ pub mod shape_manipulate {
 pub mod reduction {
     pub mod reduction_benches;
 }
+pub mod conv {
+    #[cfg(any(feature = "f32", feature = "conv2d"))]
+    pub mod conv2d;
+}

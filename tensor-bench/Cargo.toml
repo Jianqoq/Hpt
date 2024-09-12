@@ -61,7 +61,11 @@ ceil = []
 sign = []
 clip = []
 recip = []
+conv2d = []
+f32 = []
 default = [
+    "f32",
+    "conv2d",
     "recip",
     "clip",
     "sign",
@@ -119,13 +123,13 @@ harness = false
 [profile.dev]
 opt-level = 3
 incremental = true
-debug = true
+debug = false
 lto = "fat"
 codegen-units = 1
 
 [profile.release]
 opt-level = 3
 incremental = true
-debug = true
+debug = false
 lto = "fat"
 codegen-units = 1

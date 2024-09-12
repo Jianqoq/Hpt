@@ -1,3 +1,4 @@
+use std::arch::x86_64::{ __m128i, _mm256_cvtph_ps, _mm256_cvtps_ph, _mm_loadu_si128 };
 use std::simd::num::{ SimdFloat, SimdInt, SimdUint };
 use std::simd::u16x8;
 use std::simd::{ cmp::SimdPartialEq, Simd };
@@ -130,14 +131,25 @@ impl f16x16 {
         unsafe { std::mem::transmute(ge) }
     }
     pub fn to_2_f32x8(self) -> [f32x8; 2] {
-        let [a0, a1] = unsafe {
-            let a: [std::simd::u16x8; 2] = std::mem::transmute(self.0);
-            a
-        };
-        let a0 = u16_to_f16(a0);
-        let a1 = u16_to_f16(a1);
-        unsafe { std::mem::transmute([a0, a1]) }
+        unsafe {
+            let raw_f16: [u16; 16] = std::mem::transmute(self.0);
+            let f32x8_1 = _mm256_cvtph_ps(_mm_loadu_si128(raw_f16.as_ptr() as *const __m128i));
+            let f32x8_2 = _mm256_cvtph_ps(
+                _mm_loadu_si128(raw_f16.as_ptr().add(8) as *const __m128i)
+            );
+
+            std::mem::transmute([(f32x8_1, f32x8_2)])
+        }
     }
+    // pub fn to_2_f32x8(self) -> [f32x8; 2] {
+    //     let [a0, a1] = unsafe {
+    //         let a: [std::simd::u16x8; 2] = std::mem::transmute(self.0);
+    //         a
+    //     };
+    //     let a0 = u16_to_f16(a0);
+    //     let a1 = u16_to_f16(a1);
+    //     unsafe { std::mem::transmute([a0, a1]) }
+    // }
 }
 
 impl std::ops::Add for f16x16 {
@@ -257,82 +269,90 @@ pub fn u16_to_f16(val: u16x8) -> std::simd::f32x8 {
 
 #[inline]
 pub(crate) fn f32x8_to_f16x8(values: f32x8) -> u16x8 {
-    // Convert to raw bytes
-    let x: std::simd::u32x8 = values.to_bits();
-
-    // Extract IEEE754 components
-    let sign = x & std::simd::u32x8::splat(0x8000_0000);
-    let exp = x & std::simd::u32x8::splat(0x7f80_0000);
-    let man = x & std::simd::u32x8::splat(0x007f_ffff);
-
-    // Check for all exponent bits being set, which is Infinity or NaN
-    let infinity_or_nan_mask = exp.simd_eq(std::simd::u32x8::splat(0x7f80_0000));
-    let nan_bit = man
-        .simd_ne(std::simd::u32x8::splat(0))
-        .select(std::simd::u32x8::splat(0x0200), std::simd::u32x8::splat(0));
-    let inf_nan_result = (sign >> 16) | std::simd::u32x8::splat(0x7c00) | nan_bit | (man >> 13);
-
-    // The number is normalized, start assembling half precision version
-    let half_sign = sign >> 16;
-    // Unbias the exponent, then bias for half precision
-    let unbiased_exp = (
-        (exp >> 23).cast::<i32>() - std::simd::u32x8::splat(127).cast::<i32>()
-    ).cast::<u32>();
-    let half_exp = unbiased_exp + std::simd::u32x8::splat(15);
-
-    // Check for exponent overflow, return +infinity
-    let overflow_mask = half_exp.simd_ge(std::simd::u32x8::splat(0x1f));
-    let overflow_result = half_sign | std::simd::u32x8::splat(0x7c00);
-
-    // Check for underflow
-    let underflow_mask = half_exp.simd_le(std::simd::u32x8::splat(0));
-    let no_rounding_possibility_mask = (std::simd::u32x8::splat(14) - half_exp).simd_gt(
-        std::simd::u32x8::splat(24)
-    );
-    let signed_zero_result = half_sign;
-
-    // Subnormal handling
-    let man_with_hidden_bit = man | std::simd::u32x8::splat(0x0080_0000);
-    let mut half_man = man_with_hidden_bit >> (std::simd::u32x8::splat(14) - half_exp);
-    let round_bit_subnormal =
-        std::simd::u32x8::splat(1) << (std::simd::u32x8::splat(13) - half_exp);
-    let round_mask_subnormal =
-        (man_with_hidden_bit & round_bit_subnormal).simd_ne(std::simd::u32x8::splat(0)) &
-        (
-            man_with_hidden_bit &
-            (std::simd::u32x8::splat(3) * round_bit_subnormal - std::simd::u32x8::splat(1))
-        ).simd_ne(std::simd::u32x8::splat(0));
-    half_man += round_mask_subnormal.select(std::simd::u32x8::splat(1), std::simd::u32x8::splat(0));
-    let subnormal_result = half_sign | half_man;
-
-    // Normal result calculation
-    let half_exp_normal = half_exp << 10;
-    let half_man_normal = man >> 13;
-    let round_bit_normal = std::simd::u32x8::splat(0x0000_1000);
-    let round_mask_normal =
-        (man & round_bit_normal).simd_ne(std::simd::u32x8::splat(0)) &
-        (
-            man &
-            (std::simd::u32x8::splat(3) * round_bit_normal - std::simd::u32x8::splat(1))
-        ).simd_ne(std::simd::u32x8::splat(0));
-    let normal_result = half_sign | half_exp_normal | half_man_normal;
-    let normal_rounded_result = round_mask_normal.select(
-        normal_result + std::simd::u32x8::splat(1),
-        normal_result
-    );
-
-    // Combine results for different cases
-    let result = infinity_or_nan_mask.select(
-        inf_nan_result,
-        overflow_mask.select(
-            overflow_result,
-            underflow_mask.select(
-                no_rounding_possibility_mask.select(signed_zero_result, subnormal_result),
-                normal_rounded_result
-            )
-        )
-    );
-
-    // Cast to u16x8 and return the final result
-    result.cast::<u16>()
+    unsafe {
+        let f16_values = _mm256_cvtps_ph::<0>(std::mem::transmute(values));
+        std::mem::transmute(f16_values)
+    }
 }
+
+// #[inline]
+// pub(crate) fn f32x8_to_f16x8(values: f32x8) -> u16x8 {
+//     // Convert to raw bytes
+//     let x: std::simd::u32x8 = values.to_bits();
+
+//     // Extract IEEE754 components
+//     let sign = x & std::simd::u32x8::splat(0x8000_0000);
+//     let exp = x & std::simd::u32x8::splat(0x7f80_0000);
+//     let man = x & std::simd::u32x8::splat(0x007f_ffff);
+
+//     // Check for all exponent bits being set, which is Infinity or NaN
+//     let infinity_or_nan_mask = exp.simd_eq(std::simd::u32x8::splat(0x7f80_0000));
+//     let nan_bit = man
+//         .simd_ne(std::simd::u32x8::splat(0))
+//         .select(std::simd::u32x8::splat(0x0200), std::simd::u32x8::splat(0));
+//     let inf_nan_result = (sign >> 16) | std::simd::u32x8::splat(0x7c00) | nan_bit | (man >> 13);
+
+//     // The number is normalized, start assembling half precision version
+//     let half_sign = sign >> 16;
+//     // Unbias the exponent, then bias for half precision
+//     let unbiased_exp = (
+//         (exp >> 23).cast::<i32>() - std::simd::u32x8::splat(127).cast::<i32>()
+//     ).cast::<u32>();
+//     let half_exp = unbiased_exp + std::simd::u32x8::splat(15);
+
+//     // Check for exponent overflow, return +infinity
+//     let overflow_mask = half_exp.simd_ge(std::simd::u32x8::splat(0x1f));
+//     let overflow_result = half_sign | std::simd::u32x8::splat(0x7c00);
+
+//     // Check for underflow
+//     let underflow_mask = half_exp.simd_le(std::simd::u32x8::splat(0));
+//     let no_rounding_possibility_mask = (std::simd::u32x8::splat(14) - half_exp).simd_gt(
+//         std::simd::u32x8::splat(24)
+//     );
+//     let signed_zero_result = half_sign;
+
+//     // Subnormal handling
+//     let man_with_hidden_bit = man | std::simd::u32x8::splat(0x0080_0000);
+//     let mut half_man = man_with_hidden_bit >> (std::simd::u32x8::splat(14) - half_exp);
+//     let round_bit_subnormal =
+//         std::simd::u32x8::splat(1) << (std::simd::u32x8::splat(13) - half_exp);
+//     let round_mask_subnormal =
+//         (man_with_hidden_bit & round_bit_subnormal).simd_ne(std::simd::u32x8::splat(0)) &
+//         (
+//             man_with_hidden_bit &
+//             (std::simd::u32x8::splat(3) * round_bit_subnormal - std::simd::u32x8::splat(1))
+//         ).simd_ne(std::simd::u32x8::splat(0));
+//     half_man += round_mask_subnormal.select(std::simd::u32x8::splat(1), std::simd::u32x8::splat(0));
+//     let subnormal_result = half_sign | half_man;
+
+//     // Normal result calculation
+//     let half_exp_normal = half_exp << 10;
+//     let half_man_normal = man >> 13;
+//     let round_bit_normal = std::simd::u32x8::splat(0x0000_1000);
+//     let round_mask_normal =
+//         (man & round_bit_normal).simd_ne(std::simd::u32x8::splat(0)) &
+//         (
+//             man &
+//             (std::simd::u32x8::splat(3) * round_bit_normal - std::simd::u32x8::splat(1))
+//         ).simd_ne(std::simd::u32x8::splat(0));
+//     let normal_result = half_sign | half_exp_normal | half_man_normal;
+//     let normal_rounded_result = round_mask_normal.select(
+//         normal_result + std::simd::u32x8::splat(1),
+//         normal_result
+//     );
+
+//     // Combine results for different cases
+//     let result = infinity_or_nan_mask.select(
+//         inf_nan_result,
+//         overflow_mask.select(
+//             overflow_result,
+//             underflow_mask.select(
+//                 no_rounding_possibility_mask.select(signed_zero_result, subnormal_result),
+//                 normal_rounded_result
+//             )
+//         )
+//     );
+
+//     // Cast to u16x8 and return the final result
+//     result.cast::<u16>()
+// }

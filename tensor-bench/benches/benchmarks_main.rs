@@ -81,5 +81,8 @@ fn main() {
     #[cfg(any(feature = "prod", feature = "reduction"))]
     benchmarks::reduction::reduction_benches::prod_benches();
 
+    #[cfg(all(feature = "f32", feature = "conv2d"))]
+    benchmarks::conv::conv2d::conv2d_benches();
+
     Criterion::default().configure_from_args().final_summary();
 }
