@@ -44,7 +44,7 @@ impl<T> Conv2dConfig<T> where T: CommonBounds {
         let (co_block_size, ci_block_size) = match algo {
             KernelParamAlgo::Heuristic => todo!(),
             KernelParamAlgo::Greedy => {
-                find_exact_combination::<T, CONV_REGNUM>(
+                find_exact_combination2::<T, CONV_REGNUM>(
                     cache_size as i64,
                     out_channels as i64,
                     in_channels as i64,
@@ -112,6 +112,38 @@ fn find_exact_combination<T: CommonBounds, const REGNUM: usize>(
 
             if product <= max_cache_size && co_b <= max_co_b && ci_b <= max_ci_b {
                 if co_b > best_co_b || (co_b == best_co_b && ci_b > best_ci_b) {
+                    best_co_b = co_b;
+                    best_ci_b = ci_b;
+                }
+            }
+        }
+    }
+
+    (best_co_b, best_ci_b)
+}
+
+fn find_exact_combination2<T: CommonBounds, const REGNUM: usize>(
+    max_cache_size: i64,
+    max_co_b: i64,
+    max_ci_b: i64,
+    weight_size: i64,
+    height_size: i64
+) -> (i64, i64)
+    where <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
+{
+    let mut best_co_b = 1;
+    let mut best_ci_b = 1;
+
+    for ci_b in (1..max_ci_b + 1).rev() {
+        for co_b in (1..max_co_b + 1)
+            .rev()
+            .filter(|&co_b| co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0) {
+            let product =
+                co_b * (REGNUM as i64) +
+                weight_size * height_size * ci_b * ((REGNUM as i64) + co_b);
+
+            if product <= max_cache_size && co_b <= max_co_b && ci_b <= max_ci_b {
+                if ci_b > best_ci_b || (ci_b == best_ci_b && co_b > best_co_b) {
                     best_co_b = co_b;
                     best_ci_b = ci_b;
                 }

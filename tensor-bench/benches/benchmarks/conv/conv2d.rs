@@ -17,10 +17,13 @@ fn conv2d_benchmark(c: &mut Criterion) {
     tensor_dyn::set_num_threads(num_cpus::get_physical());
     tch::set_num_threads(num_cpus::get_physical() as i32);
     let shapes = [
+        // ([1, 64, 256, 256], [64, 128]),
+        // ([1, 128, 256, 256], [128, 256]),
+        ([1, 256, 256, 256], [256, 512]),
         // ([1, 64, 56, 56], [64, 128]),
         // ([1, 128, 28, 28], [128, 256]),
         // ([1, 256, 14, 14], [256, 512]),
-        ([1, 512, 7, 7], [512, 512]),
+        // ([1, 512, 7, 7], [512, 512]),
     ];
     let mut group = c.benchmark_group(concat!("sum", " Benchmarks"));
     group.warm_up_time(Duration::new(1, 0)).measurement_time(Duration::new(3, 0)).sample_size(10);
@@ -42,6 +45,7 @@ fn conv2d_benchmark(c: &mut Criterion) {
             [3, 3],
             KernelParamAlgo::Greedy
         );
+        println!("config: {:?}", config);
         group.bench_with_input(
             BenchmarkId::new("torch", format!("tch {}", idx)),
             &shapes[idx],
@@ -80,47 +84,47 @@ fn conv2d_benchmark(c: &mut Criterion) {
                 3,
             ])
         );
-        let a2 = black_box(
-            _Tensor::<i64>
-                ::arange(0, inp_shape.iter().product::<i64>())
-                .unwrap()
-                .reshape(inp_shape)
-                .unwrap()
-                .permute([0, 2, 3, 1])
-                .unwrap()
-                .contiguous()
-                .unwrap()
-        );
-        let a2_kernel = black_box(
-            _Tensor::<i64>
-                ::arange(0, out_channels * in_channels * 3 * 3)
-                .unwrap()
-                .reshape([out_channels, in_channels, 3, 3])
-                .unwrap()
-                .permute([2, 3, 1, 0])
-                .unwrap()
-                .contiguous()
-                .unwrap()
-        );
-        let res = a.conv2d(&a_kernel, None::<Tensor>, [1, 1], [0, 0], [1, 1], 1);
-        let res2 = a2
-            .conv2d_ex(
-                &a2_kernel,
-                [1, 1],
-                [
-                    (0, 0),
-                    (0, 0),
-                ],
-                [1, 1],
-                None
-            )
-            .unwrap()
-            .permute([0, 3, 1, 2])
-            .unwrap()
-            .contiguous()
-            .unwrap();
-        println!("{}", res);
-        println!("{}", res2);
+        // let a2 = black_box(
+        //     _Tensor::<i64>
+        //         ::arange(0, inp_shape.iter().product::<i64>())
+        //         .unwrap()
+        //         .reshape(inp_shape)
+        //         .unwrap()
+        //         .permute([0, 2, 3, 1])
+        //         .unwrap()
+        //         .contiguous()
+        //         .unwrap()
+        // );
+        // let a2_kernel = black_box(
+        //     _Tensor::<i64>
+        //         ::arange(0, out_channels * in_channels * 3 * 3)
+        //         .unwrap()
+        //         .reshape([out_channels, in_channels, 3, 3])
+        //         .unwrap()
+        //         .permute([2, 3, 1, 0])
+        //         .unwrap()
+        //         .contiguous()
+        //         .unwrap()
+        // );
+        // let res = a.conv2d(&a_kernel, None::<Tensor>, [1, 1], [0, 0], [1, 1], 1);
+        // let res2 = a2
+        //     .conv2d_ex(
+        //         &a2_kernel,
+        //         [1, 1],
+        //         [
+        //             (0, 0),
+        //             (0, 0),
+        //         ],
+        //         [1, 1],
+        //         None
+        //     )
+        //     .unwrap()
+        //     .permute([0, 3, 1, 2])
+        //     .unwrap()
+        //     .contiguous()
+        //     .unwrap();
+        // println!("{}", res);
+        // println!("{}", res2);
         // assert_eq_i64(&res, &res2);
     }
     group.finish();
