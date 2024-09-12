@@ -473,8 +473,8 @@ impl<T> _Tensor<T>
                 (config.ci_block_size, config.co_block_size)
             }
         };
-        // let ci_b = 60;
-        // let co_b = 24;
+        let ci_b = 16;
+        let co_b = 32;
         let num_co_b = out_channels / co_b;
         let num_wo_b = out_width / (CONV_REGNUM as i64);
         let num_ci_b = in_channels / ci_b;
