@@ -1,3 +1,5 @@
+use std::arch::x86_64::_mm_prefetch;
+
 use tensor_common::pointer::Pointer;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
@@ -471,8 +473,8 @@ impl<T> _Tensor<T>
                 (config.ci_block_size, config.co_block_size)
             }
         };
-        let ci_b = 45;
-        let co_b = 8;
+        // let ci_b = 60;
+        // let co_b = 24;
         let num_co_b = out_channels / co_b;
         let num_wo_b = out_width / (CONV_REGNUM as i64);
         let num_ci_b = in_channels / ci_b;
@@ -1499,8 +1501,6 @@ impl<T> _Tensor<T>
                             case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                             case1(b, l, c, ip, ci_b, out.clone());
                         }
-                        case0(b, l, c, num_ci_b, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                        case1(b, l, c, num_ci_b, ci_b, out.clone());
                         case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                         case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
                     } else {

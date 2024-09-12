@@ -50,13 +50,13 @@ fn main() -> anyhow::Result<()> {
     }
     println!("{:?}", now.elapsed() / 10);
     // // println!("{:?}", res);
-    // let tch_a = Tensor::arange(16 * 16 * 512 * 512, (Kind::Int64, Device::Cpu)).reshape(
-    //     &[16, 16, 512, 512]
+    // let tch_a = Tensor::arange(1 * 256 * 256 * 256, (Kind::Int64, Device::Cpu)).reshape(
+    //     &[1, 256, 256, 256]
     // );
-    // let tch_kernel = Tensor::arange(16 * 16 * 3 * 3, (Kind::Int64, Device::Cpu)).reshape(
-    //     &[16, 16, 3, 3]
+    // let tch_kernel = Tensor::arange(256 * 512 * 3 * 3, (Kind::Int64, Device::Cpu)).reshape(
+    //     &[512, 256, 3, 3]
     // );
-    // let res = tch_a.conv2d(&tch_kernel, None::<Tensor>, &[5, 5], &[0, 0], &[5, 5], 1);
+    // let res = tch_a.conv2d(&tch_kernel, None::<Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
     // println!("{}", res);
     Ok(())
 }
