@@ -8,6 +8,7 @@ use tensor_dyn::{ tensor_base::_Tensor, Random };
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorInfo;
 
+#[allow(unused)]
 fn assert_eq_i64(a: &Tensor, b: &_Tensor<i64>) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const i64, b.size()) };
     let b_raw = b.as_raw();

@@ -51,20 +51,9 @@ pub mod ops {
             pub mod avg_pool2d;
         }
     }
-    pub mod wgpu {
-        pub mod buffer_helper;
-        pub mod binary;
-        pub mod binary_normal;
-        pub mod std_ops;
-        pub mod unary;
-    }
 }
 
 pub mod wgpu_kernels {}
-
-pub mod tensors {
-    pub mod wgpu;
-}
 
 pub mod backend;
 pub mod tensor;

@@ -26,7 +26,7 @@ use tensor_types::{
 };
 use anyhow::Result;
 use crate::{
-    backend::{ BackendDevice, BackendTy, Cpu },
+    backend::{ BackendTy, Buffer, Cpu },
     ops::cpu::{ concat::concat, unary::{ FloatUnaryType, NormalType } },
     tensor_base::_Tensor,
     DISPLAY_LR_ELEMENTS,
@@ -39,11 +39,11 @@ use crate::{
 /// # Properties
 /// - `basic`: The pointer of `Tensor`.
 #[derive(Clone)]
-pub struct Tensor<T, B = Cpu> where B: BackendTy + BackendDevice {
+pub struct Tensor<T, B = Cpu> where B: BackendTy + Buffer {
     pub(crate) inner: Arc<_Tensor<T, B>>,
 }
 
-impl<T, B> Deref for Tensor<T, B> where B: BackendTy + BackendDevice {
+impl<T, B> Deref for Tensor<T, B> where B: BackendTy + Buffer {
     type Target = _Tensor<T, B>;
 
     fn deref(&self) -> &Self::Target {

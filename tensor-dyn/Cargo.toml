@@ -13,24 +13,18 @@ tensor-macros = { path = "../tensor-macros" }
 tensor-display = { path = "../tensor-display" }
 rand_distr = "0.4.3"
 rustfft = "6.1.0"
-cudarc = { version = "0.11.6", features = ["cuda-12010"] }
-wgpu = { version = "22.1.0", features = ["naga-ir"] }
 rand = "0.8.5"
 threadpool = "1.8.1"
 paste = "1.0.15"
 anyhow = "1.0.75"
 rayon = "1.8.0"
 num = "0.4.1"
-bytemuck = "1.16.3"
-flume = "0.11.0"
 ctor = "0.2.8"
 wide = "0.7.28"
 cpuid = "0.1.1"
 cache-size = "0.7.0"
 half = { version = "2.3.1", features = ["num-traits", "rand_distr"] }
 gemm = { version = "0.18.0", features = ["rayon"] }
-hashbrown = "0.14.5"
-pollster = "0.3.0"
 num_cpus = "1.16.0"
 thiserror = "1.0.63"
 

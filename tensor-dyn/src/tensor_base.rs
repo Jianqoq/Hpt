@@ -22,7 +22,7 @@ use rand_distr::{
     Standard,
     StandardNormal,
 };
-use tensor_allocator::{CACHE, WGPU_CACHE};
+use tensor_allocator::CACHE;
 use tensor_common::{
     axis::{ process_axes, Axis },
     err_handler::ErrHandler,
@@ -68,7 +68,7 @@ use rayon::{
 };
 
 use crate::{
-    backend::{ Backend, BackendDevice, BackendTy, Cpu },
+    backend::{ Backend, BackendTy, Buffer, Cpu },
     ops::cpu::concat::concat,
     slice::SliceOps,
     tensor::Tensor,
@@ -90,7 +90,7 @@ use crate::{
 ///  If the tensor is a view of another tensor, the parent tensor will be the original tensor.
 /// - `mem_layout`: std::alloc::layout, use for deallocate the memory.
 #[derive(Clone)]
-pub struct _Tensor<T, B = Cpu> where B: BackendTy + BackendDevice {
+pub struct _Tensor<T, B = Cpu> where B: BackendTy + Buffer {
     pub(crate) data: Pointer<T>,
     pub(crate) parent: Option<Pointer<T>>,
     pub(crate) layout: Layout,
@@ -98,21 +98,12 @@ pub struct _Tensor<T, B = Cpu> where B: BackendTy + BackendDevice {
     pub(crate) _backend: Backend<B>,
 }
 
-impl<T, B> Drop for _Tensor<T, B> where B: BackendTy + BackendDevice {
+impl<T, B> Drop for _Tensor<T, B> where B: BackendTy + Buffer {
     fn drop(&mut self) {
         match B::ID {
             0 => {
                 unsafe {
-                    CACHE.deallocate(self._backend._backend.ptr() as *mut u8, &self.mem_layout)
-                }
-            }
-            2 => {
-                unsafe {
-                    WGPU_CACHE.deallocate(
-                        self._backend._backend.wgpu_device(),
-                        self._backend._backend.buffer(),
-                        &self.mem_layout
-                    )
+                    CACHE.deallocate(self._backend._backend.get_ptr() as *mut u8, &self.mem_layout)
                 }
             }
             _ => { panic!("Invalid Backend ID") }

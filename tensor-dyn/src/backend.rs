@@ -2,10 +2,7 @@
 
 use std::sync::Arc;
 
-use tensor_allocator::{ clone_storage, BufferWrapper, CPU_STORAGE, WGPU_STORAGE };
-use wgpu::Buffer;
-
-use crate::ops::wgpu::buffer_helper::WgpuDevice;
+use tensor_allocator::{ clone_storage, CPU_STORAGE };
 
 pub struct Cpu {
     pub(crate) ptr: u64,
@@ -14,19 +11,7 @@ pub struct Cpu {
 #[derive(Clone)]
 pub struct Cuda;
 
-pub struct Wgpu {
-    pub(crate) buffer: BufferWrapper,
-    pub(crate) device: WgpuDevice,
-}
-
-impl Wgpu {
-    pub fn device(&self) -> &wgpu::Device {
-        &self.device.device.device
-    }
-    pub fn queue(&self) -> &wgpu::Queue {
-        &self.device.queue
-    }
-}
+pub struct Wgpu;
 
 #[derive(Clone)]
 pub struct Backend<B> {
@@ -52,79 +37,13 @@ impl Backend<Cpu> {
     }
 }
 
-impl Backend<Cuda> {
-    pub fn wgpu_new(id: u64, device: Arc<wgpu::Device>) -> Self {
-        todo!()
-    }
+pub trait Buffer {
+    fn get_ptr(&self) -> u64;
 }
 
-impl Clone for Wgpu {
-    fn clone(&self) -> Self {
-        unsafe {
-            WGPU_STORAGE.lock()
-                .unwrap()
-                .entry(self.buffer.buffer.global_id())
-                .and_modify(|v| {
-                    *v += 1;
-                });
-        }
-        Wgpu {
-            buffer: self.buffer.clone(),
-            device: self.device.clone(),
-        }
-    }
-}
-
-impl Backend<Wgpu> {
-    pub fn wgpu_new(id: u64, device: &WgpuDevice, buffer: BufferWrapper) -> Self {
-        Backend {
-            _backend: Wgpu {
-                buffer,
-                device: device.clone(),
-            },
-        }
-    }
-}
-
-pub trait BackendDevice {
-    fn wgpu_device(&self) -> &WgpuDevice;
-    fn buffer(&self) -> &BufferWrapper;
-    fn ptr(&self) -> u64;
-}
-
-impl BackendDevice for Cpu {
-    fn wgpu_device(&self) -> &WgpuDevice {
-        panic!("Cpu backend does not have a device")
-    }
-    fn buffer(&self) -> &BufferWrapper {
-        panic!("Cpu backend does not have a buffer")
-    }
-    fn ptr(&self) -> u64 {
+impl Buffer for Cpu {
+    fn get_ptr(&self) -> u64 {
         self.ptr
-    }
-}
-
-impl BackendDevice for Cuda {
-    fn wgpu_device(&self) -> &WgpuDevice {
-        panic!("Cuda backend does not have a device")
-    }
-    fn buffer(&self) -> &BufferWrapper {
-        panic!("Cuda backend does not have a buffer")
-    }
-    fn ptr(&self) -> u64 {
-        panic!("Cuda backend does not have a pointer")
-    }
-}
-
-impl BackendDevice for Wgpu {
-    fn wgpu_device(&self) -> &WgpuDevice {
-        &self.device
-    }
-    fn buffer(&self) -> &BufferWrapper {
-        &self.buffer
-    }
-    fn ptr(&self) -> u64 {
-        panic!("Wgpu backend does not have a pointer")
     }
 }
 

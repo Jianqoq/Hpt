@@ -44,7 +44,7 @@ impl<T> Conv2dConfig<T> where T: CommonBounds {
         let (co_block_size, ci_block_size) = match algo {
             KernelParamAlgo::Heuristic => todo!(),
             KernelParamAlgo::Greedy => {
-                find_exact_combination2::<T, CONV_REGNUM>(
+                find_exact_combination::<T, CONV_REGNUM>(
                     cache_size as i64,
                     out_channels as i64,
                     in_channels as i64,
@@ -90,6 +90,7 @@ impl<T> Conv2dConfig<T> where T: CommonBounds {
     }
 }
 
+#[allow(unused)]
 fn find_exact_combination<T: CommonBounds, const REGNUM: usize>(
     max_cache_size: i64,
     max_co_b: i64,
@@ -135,6 +136,7 @@ fn find_exact_combination<T: CommonBounds, const REGNUM: usize>(
     (best_co_b, best_ci_b)
 }
 
+#[allow(unused)]
 fn find_exact_combination2<T: CommonBounds, const REGNUM: usize>(
     max_cache_size: i64,
     max_co_b: i64,
