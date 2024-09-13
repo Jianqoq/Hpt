@@ -24,6 +24,7 @@ impl IntoVec<u32x8::u32x8> for u32x8::u32x8 {
     }
 }
 
+
 impl IntoVec<i64x4::i64x4> for i64x4::i64x4 {
     fn into_vec(self) -> i64x4::i64x4 {
         self

@@ -1,28 +1,14 @@
 use half::{ bf16, f16 };
-use num_complex::{ Complex32, Complex64 };
 use tensor_macros::infer_enum_type;
-use std::fmt::{Debug, Display};
+use std::fmt::{ Debug, Display };
 use serde::{ Deserialize, Serialize };
 use crate::{
     into_vec::IntoVec,
     type_promote::{ BitWiseOut, Eval, FloatOutBinary, FloatOutUnary, NormalOut },
     vectors::traits::{ Init, VecCommon, VecTrait },
 };
-#[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
-use crate::vectors::_128bit::*;
-#[cfg(target_feature = "avx2")]
-use crate::vectors::_256bit::*;
 #[cfg(target_feature = "avx512f")]
 use crate::vectors::_512bit::*;
-#[cfg(target_pointer_width = "64")]
-use crate::vectors::_256bit::usizex4::usizex4;
-#[cfg(target_pointer_width = "32")]
-use crate::vectors::usizex8::usizex8;
-
-#[cfg(target_pointer_width = "64")]
-use crate::vectors::_256bit::isizex4::isizex4;
-#[cfg(target_pointer_width = "32")]
-use crate::vectors::isizex8::isizex8;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub enum Dtype {
@@ -124,7 +110,14 @@ pub trait TypeCommon where Self: Sized {
     const NEG_INF: Self;
     const TWO: Self;
     const STR: &'static str;
-    type Vec: VecTrait<Self> + Init<Self> + VecCommon + Send + Copy + IntoVec<Self::Vec> + Sync + Debug;
+    type Vec: VecTrait<Self> +
+        Init<Self> +
+        VecCommon +
+        Send +
+        Copy +
+        IntoVec<Self::Vec> +
+        Sync +
+        Debug;
 }
 
 macro_rules! impl_type_common {
@@ -156,126 +149,480 @@ macro_rules! impl_type_common {
     };
 }
 
-// Implement TypeCommon for primitive types, this trait will be used when we use generic type
-impl_type_common!(bool, Bool, true, false, false, true, true, false, false, "bool", boolx32);
-impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, "i8", i8x32);
-impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, "u8", u8x32);
-impl_type_common!(i16, I16, i16::MAX, i16::MIN, 0, 1, i16::MAX, i16::MIN, 2, "i16", i16x16);
-impl_type_common!(u16, U16, u16::MAX, u16::MIN, 0, 1, u16::MAX, u16::MIN, 2, "u16", u16x16);
-impl_type_common!(i32, I32, i32::MAX, i32::MIN, 0, 1, i32::MAX, i32::MIN, 2, "i32", i32x8);
-impl_type_common!(u32, U32, u32::MAX, u32::MIN, 0, 1, u32::MAX, u32::MIN, 2, "u32", u32x8);
-impl_type_common!(i64, I64, i64::MAX, i64::MIN, 0, 1, i64::MAX, i64::MIN, 2, "i64", i64x4);
-impl_type_common!(u64, U64, u64::MAX, u64::MIN, 0, 1, u64::MAX, u64::MIN, 2, "u64", u64x4);
-impl_type_common!(
-    f32,
-    F32,
-    f32::MAX,
-    f32::MIN,
-    0.0,
-    1.0,
-    f32::INFINITY,
-    f32::NEG_INFINITY,
-    2.0,
-    "f32",
-    f32x8
-);
-impl_type_common!(
-    f64,
-    F64,
-    f64::MAX,
-    f64::MIN,
-    0.0,
-    1.0,
-    f64::INFINITY,
-    f64::NEG_INFINITY,
-    2.0,
-    "f64",
-    f64x4
-);
-#[cfg(target_pointer_width = "64")]
-impl_type_common!(
-    isize,
-    Isize,
-    isize::MAX,
-    isize::MIN,
-    0,
-    1,
-    isize::MAX,
-    isize::MIN,
-    2,
-    "isize",
-    isizex4
-);
-#[cfg(target_pointer_width = "32")]
-impl_type_common!(
-    isize,
-    Isize,
-    isize::MAX,
-    isize::MIN,
-    0,
-    1,
-    isize::MAX,
-    isize::MIN,
-    2,
-    "isize",
-    isizex8
-);
-#[cfg(target_pointer_width = "64")]
-impl_type_common!(
-    usize,
-    Usize,
-    usize::MAX,
-    usize::MIN,
-    0,
-    1,
-    usize::MAX,
-    usize::MIN,
-    2,
-    "usize",
-    usizex4
-);
-#[cfg(target_pointer_width = "32")]
-impl_type_common!(
-    usize,
-    Usize,
-    usize::MAX,
-    usize::MIN,
-    0,
-    1,
-    usize::MAX,
-    usize::MIN,
-    2,
-    "usize",
-    usizex8
-);
-impl_type_common!(f16, F16, f16::MAX, f16::MIN, f16::ZERO, f16::ONE, f16::INFINITY, f16::NEG_INFINITY, f16::from_f32_const(2.0), "f16", f16x16); // prettier-ignore
-impl_type_common!(bf16, BF16, bf16::MAX, bf16::MIN, bf16::ZERO, bf16::ONE, bf16::INFINITY, bf16::NEG_INFINITY, bf16::from_f32_const(2.0), "bf16", bf16x16); // prettier-ignore
-impl_type_common!(
-    Complex32,
-    C32,
-    Complex32::new(f32::MAX, f32::MAX),
-    Complex32::new(f32::MIN, f32::MIN),
-    Complex32::new(0.0, 0.0),
-    Complex32::new(1.0, 0.0),
-    Complex32::new(f32::INFINITY, f32::INFINITY),
-    Complex32::new(f32::NEG_INFINITY, f32::NEG_INFINITY),
-    Complex32::new(2.0, 0.0),
-    "c32",
-    cplx32x4
-);
-impl_type_common!(
-    Complex64,
-    C64,
-    Complex64::new(f64::MAX, f64::MAX),
-    Complex64::new(f64::MIN, f64::MIN),
-    Complex64::new(0.0, 0.0),
-    Complex64::new(1.0, 0.0),
-    Complex64::new(f64::INFINITY, f64::INFINITY),
-    Complex64::new(f64::NEG_INFINITY, f64::NEG_INFINITY),
-    Complex64::new(2.0, 0.0),
-    "c64",
-    cplx64x2
-);
+#[cfg(target_feature = "avx2")]
+mod type_impl {
+    use crate::vectors::_256bit::*;
+    use half::*;
+    use num_complex::{ Complex32, Complex64 };
+    use super::{ TypeCommon, Dtype };
+
+    use crate::vectors::_256bit::*;
+    impl_type_common!(
+        bool,
+        Bool,
+        true,
+        false,
+        false,
+        true,
+        true,
+        false,
+        false,
+        "bool",
+        boolx32::boolx32
+    );
+    impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, "i8", i8x32::i8x32);
+    impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, "u8", u8x32::u8x32);
+    impl_type_common!(
+        i16,
+        I16,
+        i16::MAX,
+        i16::MIN,
+        0,
+        1,
+        i16::MAX,
+        i16::MIN,
+        2,
+        "i16",
+        i16x16::i16x16
+    );
+    impl_type_common!(
+        u16,
+        U16,
+        u16::MAX,
+        u16::MIN,
+        0,
+        1,
+        u16::MAX,
+        u16::MIN,
+        2,
+        "u16",
+        u16x16::u16x16
+    );
+    impl_type_common!(
+        i32,
+        I32,
+        i32::MAX,
+        i32::MIN,
+        0,
+        1,
+        i32::MAX,
+        i32::MIN,
+        2,
+        "i32",
+        i32x8::i32x8
+    );
+    impl_type_common!(
+        u32,
+        U32,
+        u32::MAX,
+        u32::MIN,
+        0,
+        1,
+        u32::MAX,
+        u32::MIN,
+        2,
+        "u32",
+        u32x8::u32x8
+    );
+    impl_type_common!(
+        i64,
+        I64,
+        i64::MAX,
+        i64::MIN,
+        0,
+        1,
+        i64::MAX,
+        i64::MIN,
+        2,
+        "i64",
+        i64x4::i64x4
+    );
+    impl_type_common!(
+        u64,
+        U64,
+        u64::MAX,
+        u64::MIN,
+        0,
+        1,
+        u64::MAX,
+        u64::MIN,
+        2,
+        "u64",
+        u64x4::u64x4
+    );
+    impl_type_common!(
+        f32,
+        F32,
+        f32::MAX,
+        f32::MIN,
+        0.0,
+        1.0,
+        f32::INFINITY,
+        f32::NEG_INFINITY,
+        2.0,
+        "f32",
+        f32x8::f32x8
+    );
+    impl_type_common!(
+        f64,
+        F64,
+        f64::MAX,
+        f64::MIN,
+        0.0,
+        1.0,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        2.0,
+        "f64",
+        f64x4::f64x4
+    );
+    #[cfg(target_pointer_width = "64")]
+    impl_type_common!(
+        isize,
+        Isize,
+        isize::MAX,
+        isize::MIN,
+        0,
+        1,
+        isize::MAX,
+        isize::MIN,
+        2,
+        "isize",
+        isizex4::isizex4
+    );
+    #[cfg(target_pointer_width = "32")]
+    impl_type_common!(
+        isize,
+        Isize,
+        isize::MAX,
+        isize::MIN,
+        0,
+        1,
+        isize::MAX,
+        isize::MIN,
+        2,
+        "isize",
+        isizex8::isizex8
+    );
+    #[cfg(target_pointer_width = "64")]
+    impl_type_common!(
+        usize,
+        Usize,
+        usize::MAX,
+        usize::MIN,
+        0,
+        1,
+        usize::MAX,
+        usize::MIN,
+        2,
+        "usize",
+        usizex4::usizex4
+    );
+    #[cfg(target_pointer_width = "32")]
+    impl_type_common!(
+        usize,
+        Usize,
+        usize::MAX,
+        usize::MIN,
+        0,
+        1,
+        usize::MAX,
+        usize::MIN,
+        2,
+        "usize",
+        usizex8::usizex8
+    );
+    impl_type_common!(
+        f16,
+        F16,
+        f16::MAX,
+        f16::MIN,
+        f16::ZERO,
+        f16::ONE,
+        f16::INFINITY,
+        f16::NEG_INFINITY,
+        f16::from_f32_const(2.0),
+        "f16",
+        f16x16::f16x16
+    );
+    impl_type_common!(
+        bf16,
+        BF16,
+        bf16::MAX,
+        bf16::MIN,
+        bf16::ZERO,
+        bf16::ONE,
+        bf16::INFINITY,
+        bf16::NEG_INFINITY,
+        bf16::from_f32_const(2.0),
+        "bf16",
+        bf16x16::bf16x16
+    );
+    impl_type_common!(
+        Complex32,
+        C32,
+        Complex32::new(f32::MAX, f32::MAX),
+        Complex32::new(f32::MIN, f32::MIN),
+        Complex32::new(0.0, 0.0),
+        Complex32::new(1.0, 0.0),
+        Complex32::new(f32::INFINITY, f32::INFINITY),
+        Complex32::new(f32::NEG_INFINITY, f32::NEG_INFINITY),
+        Complex32::new(2.0, 0.0),
+        "c32",
+        cplx32x4::cplx32x4
+    );
+    impl_type_common!(
+        Complex64,
+        C64,
+        Complex64::new(f64::MAX, f64::MAX),
+        Complex64::new(f64::MIN, f64::MIN),
+        Complex64::new(0.0, 0.0),
+        Complex64::new(1.0, 0.0),
+        Complex64::new(f64::INFINITY, f64::INFINITY),
+        Complex64::new(f64::NEG_INFINITY, f64::NEG_INFINITY),
+        Complex64::new(2.0, 0.0),
+        "c64",
+        cplx64x2::cplx64x2
+    );
+}
+
+#[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
+mod type_impl {
+    use crate::vectors::_128bit::*;
+    use half::*;
+    use num_complex::{ Complex32, Complex64 };
+    use super::{ TypeCommon, Dtype };
+
+    use crate::vectors::_256bit::*;
+    impl_type_common!(
+        bool,
+        Bool,
+        true,
+        false,
+        false,
+        true,
+        true,
+        false,
+        false,
+        "bool",
+        boolx32::boolx32
+    );
+    impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, "i8", i8x32::i8x32);
+    impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, "u8", u8x32::u8x32);
+    impl_type_common!(
+        i16,
+        I16,
+        i16::MAX,
+        i16::MIN,
+        0,
+        1,
+        i16::MAX,
+        i16::MIN,
+        2,
+        "i16",
+        i16x16::i16x16
+    );
+    impl_type_common!(
+        u16,
+        U16,
+        u16::MAX,
+        u16::MIN,
+        0,
+        1,
+        u16::MAX,
+        u16::MIN,
+        2,
+        "u16",
+        u16x16::u16x16
+    );
+    impl_type_common!(
+        i32,
+        I32,
+        i32::MAX,
+        i32::MIN,
+        0,
+        1,
+        i32::MAX,
+        i32::MIN,
+        2,
+        "i32",
+        i32x8::i32x8
+    );
+    impl_type_common!(
+        u32,
+        U32,
+        u32::MAX,
+        u32::MIN,
+        0,
+        1,
+        u32::MAX,
+        u32::MIN,
+        2,
+        "u32",
+        u32x8::u32x8
+    );
+    impl_type_common!(
+        i64,
+        I64,
+        i64::MAX,
+        i64::MIN,
+        0,
+        1,
+        i64::MAX,
+        i64::MIN,
+        2,
+        "i64",
+        i64x4::i64x4
+    );
+    impl_type_common!(
+        u64,
+        U64,
+        u64::MAX,
+        u64::MIN,
+        0,
+        1,
+        u64::MAX,
+        u64::MIN,
+        2,
+        "u64",
+        u64x4::u64x4
+    );
+    impl_type_common!(
+        f32,
+        F32,
+        f32::MAX,
+        f32::MIN,
+        0.0,
+        1.0,
+        f32::INFINITY,
+        f32::NEG_INFINITY,
+        2.0,
+        "f32",
+        f32x8::f32x8
+    );
+    impl_type_common!(
+        f64,
+        F64,
+        f64::MAX,
+        f64::MIN,
+        0.0,
+        1.0,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        2.0,
+        "f64",
+        f64x4::f64x4
+    );
+    #[cfg(target_pointer_width = "64")]
+    impl_type_common!(
+        isize,
+        Isize,
+        isize::MAX,
+        isize::MIN,
+        0,
+        1,
+        isize::MAX,
+        isize::MIN,
+        2,
+        "isize",
+        isizex4::isizex4
+    );
+    #[cfg(target_pointer_width = "32")]
+    impl_type_common!(
+        isize,
+        Isize,
+        isize::MAX,
+        isize::MIN,
+        0,
+        1,
+        isize::MAX,
+        isize::MIN,
+        2,
+        "isize",
+        isizex8::isizex8
+    );
+    #[cfg(target_pointer_width = "64")]
+    impl_type_common!(
+        usize,
+        Usize,
+        usize::MAX,
+        usize::MIN,
+        0,
+        1,
+        usize::MAX,
+        usize::MIN,
+        2,
+        "usize",
+        usizex4::usizex4
+    );
+    #[cfg(target_pointer_width = "32")]
+    impl_type_common!(
+        usize,
+        Usize,
+        usize::MAX,
+        usize::MIN,
+        0,
+        1,
+        usize::MAX,
+        usize::MIN,
+        2,
+        "usize",
+        usizex8::usizex8
+    );
+    impl_type_common!(
+        f16,
+        F16,
+        f16::MAX,
+        f16::MIN,
+        f16::ZERO,
+        f16::ONE,
+        f16::INFINITY,
+        f16::NEG_INFINITY,
+        f16::from_f32_const(2.0),
+        "f16",
+        f16x16::f16x16
+    );
+    impl_type_common!(
+        bf16,
+        BF16,
+        bf16::MAX,
+        bf16::MIN,
+        bf16::ZERO,
+        bf16::ONE,
+        bf16::INFINITY,
+        bf16::NEG_INFINITY,
+        bf16::from_f32_const(2.0),
+        "bf16",
+        bf16x16::bf16x16
+    );
+    impl_type_common!(
+        Complex32,
+        C32,
+        Complex32::new(f32::MAX, f32::MAX),
+        Complex32::new(f32::MIN, f32::MIN),
+        Complex32::new(0.0, 0.0),
+        Complex32::new(1.0, 0.0),
+        Complex32::new(f32::INFINITY, f32::INFINITY),
+        Complex32::new(f32::NEG_INFINITY, f32::NEG_INFINITY),
+        Complex32::new(2.0, 0.0),
+        "c32",
+        cplx32x4::cplx32x4
+    );
+    impl_type_common!(
+        Complex64,
+        C64,
+        Complex64::new(f64::MAX, f64::MAX),
+        Complex64::new(f64::MIN, f64::MIN),
+        Complex64::new(0.0, 0.0),
+        Complex64::new(1.0, 0.0),
+        Complex64::new(f64::INFINITY, f64::INFINITY),
+        Complex64::new(f64::NEG_INFINITY, f64::NEG_INFINITY),
+        Complex64::new(2.0, 0.0),
+        "c64",
+        cplx64x2::cplx64x2
+    );
+}
+
 
 pub trait FloatConst {
     const HALF: Self;
@@ -392,7 +739,7 @@ impl NormalOut for Dtype {
     fn _neg(self) -> Self {
         self
     }
-    
+
     fn _mul_add(self, a: Self, _: Self) -> Self::Output {
         infer_enum_type!(self, a, normal)
     }
