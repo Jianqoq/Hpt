@@ -62,6 +62,11 @@ impl Init<f64> for f64x2 {
             use std::arch::aarch64::vld1q_f64;
             f64x2(std::mem::transmute(vld1q_f64(ptr)))
         }
+        #[cfg(target_feature = "sse")]
+        {
+            use std::arch::x86_64::_mm_loadu_pd;
+            f64x2(std::mem::transmute(_mm_loadu_pd(ptr)))
+        }
     }
 }
 impl std::ops::Add for f64x2 {
