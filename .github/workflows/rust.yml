@@ -27,8 +27,9 @@ jobs:
         wget https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-2.4.0%2Bcpu.zip
         unzip libtorch-shared-with-deps-2.4.0+cpu.zip -d ~/libtorch
         export LIBTORCH=~/libtorch/libtorch
-        export LIBTORCH_INCLUDE=~/libtorch/libtorch
-        export LIBTORCH_LIB=~/libtorch/libtorch
+        export LIBTORCH_INCLUDE=$LIBTORCH/include
+        export LIBTORCH_LIB=$LIBTORCH/lib
+        export LD_LIBRARY_PATH=$LIBTORCH_LIB:$LD_LIBRARY_PATH
     - name: Build
       run: |
         cd tensor-tests
