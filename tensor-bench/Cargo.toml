@@ -122,15 +122,15 @@ path = "benches/benchmarks_main.rs"
 harness = false
 
 [profile.dev]
-opt-level = 2
+opt-level = 3
 incremental = true
-debug = true
-# lto = "fat"
-# codegen-units = 1
+debug = false
+lto = "fat"
+codegen-units = 1
 
 [profile.release]
-opt-level = 2
+opt-level = 3
 incremental = true
-debug = true
-# lto = "fat"
-# codegen-units = 1
+debug = false
+lto = "fat"
+codegen-units = 1

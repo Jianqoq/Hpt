@@ -131,8 +131,6 @@ fn conv2d_benchmark(c: &mut Criterion) {
             .unwrap()
             .contiguous()
             .unwrap();
-        println!("{}", res);
-        println!("{}", res2);
         assert_eq_i64(&res, &res2);
     }
     group.finish();
