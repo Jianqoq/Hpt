@@ -13,7 +13,7 @@ pub mod simd_imports {
     use tensor_common::{ shape::Shape, shape_utils::predict_broadcast_shape };
     use tensor_traits::{ CommonBounds, TensorInfo };
     use tensor_types::dtype::TypeCommon;
-    use tensor_types::vectors::traits::VecSize;
+    use tensor_types::vectors::traits::VecCommon;
     use crate::{
         iterator_traits::{ IterGetSetSimd, StridedIteratorSimd },
         strided::strided_simd::StridedSimd,

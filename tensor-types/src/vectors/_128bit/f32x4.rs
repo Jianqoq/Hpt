@@ -1,7 +1,7 @@
 use std::ops::{ Deref, DerefMut };
 use std::simd::num::SimdFloat;
 use crate::into_vec::IntoVec;
-use crate::traits::{ Init, SimdSelect, VecSize, VecTrait };
+use crate::traits::{ Init, SimdSelect, VecCommon, VecTrait };
 use std::simd::StdFloat;
 use crate::vectors::_128bit::u32x4::u32x4;
 
@@ -50,8 +50,10 @@ impl VecTrait<f32> for f32x4 {
         self.as_array()[idx]
     }
 }
-impl VecSize for f32x4 {
+impl VecCommon for f32x4 {
     const SIZE: usize = 4;
+    
+    type Base = f32;
 }
 impl Init<f32> for f32x4 {
     fn splat(val: f32) -> f32x4 {

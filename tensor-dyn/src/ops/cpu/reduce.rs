@@ -366,7 +366,6 @@ macro_rules! register_reduction_one_axis {
     };
 }
 
-use tensor_types::into_vec::IntoVec;
 use tensor_types::vectors::traits::*;
 
 #[cfg_attr(feature = "track_caller", track_caller)]
@@ -815,7 +814,7 @@ pub(crate) fn reduce<T, F, F2>(
             Send +
             'static +
             Copy,
-        <T as TypeCommon>::Vec: Copy + IntoVec<<T as TypeCommon>::Vec>
+        <T as TypeCommon>::Vec: Copy
 {
     _reduce::<_, _, _, fn(T) -> T, _, fn(<T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec, T>(
         a,

@@ -4,7 +4,7 @@ use std::simd::u16x4;
 use std::simd::{ cmp::SimdPartialEq, Simd };
 use std::simd::cmp::SimdPartialOrd;
 use crate::into_vec::IntoVec;
-use crate::traits::{ Init, VecSize, VecTrait };
+use crate::traits::{ Init, VecCommon, VecTrait };
 use crate::_128bit::u16x8::u16x8;
 use crate::_128bit::f32x4::f32x4;
 
@@ -49,8 +49,10 @@ impl VecTrait<half::f16> for f16x8 {
         self.0[idx]
     }
 }
-impl VecSize for f16x8 {
+impl VecCommon for f16x8 {
     const SIZE: usize = 8;
+    
+    type Base = half::f16;
 }
 impl Init<half::f16> for f16x8 {
     fn splat(val: half::f16) -> f16x8 {

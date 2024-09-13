@@ -2,7 +2,7 @@ use std::ops::{ Deref, DerefMut };
 
 use crate::into_vec::IntoVec;
 
-use crate::vectors::traits::{ Init, VecSize, VecTrait };
+use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq)]
@@ -49,8 +49,10 @@ impl VecTrait<u16> for u16x32 {
         self.as_array()[idx]
     }
 }
-impl VecSize for u16x32 {
+impl VecCommon for u16x32 {
     const SIZE: usize = 16;
+    
+    type Base = u16;
 }
 impl Init<u16> for u16x32 {
     fn splat(val: u16) -> u16x32 {

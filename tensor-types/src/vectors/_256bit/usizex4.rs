@@ -2,22 +2,14 @@ use std::ops::{ Deref, DerefMut };
 
 use crate::into_vec::IntoVec;
 
-use crate::vectors::traits::{ Init, VecSize, VecTrait };
+use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
-#[cfg(target_pointer_width = "64")]
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct usizex4(pub(crate) std::simd::usizex4);
-#[cfg(target_pointer_width = "32")]
-#[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
-pub struct usizex2(std::simd::usizex8);
 
 impl Deref for usizex4 {
-    #[cfg(target_pointer_width = "64")]
     type Target = std::simd::usizex4;
-    #[cfg(target_pointer_width = "32")]
-    type Target = std::simd::usizex8;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -55,17 +47,15 @@ impl VecTrait<usize> for usizex4 {
     fn sum(&self) -> usize {
         self.as_array().iter().sum::<usize>()
     }
-    
+
     fn extract(self, idx: usize) -> usize {
         self.as_array()[idx]
     }
 }
 
-impl VecSize for usizex4 {
-    #[cfg(target_pointer_width = "64")]
+impl VecCommon for usizex4 {
     const SIZE: usize = 4;
-    #[cfg(target_pointer_width = "32")]
-    const SIZE: usize = 8;
+    type Base = usize;
 }
 
 impl Init<usize> for usizex4 {

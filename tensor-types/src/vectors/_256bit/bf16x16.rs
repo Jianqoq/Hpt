@@ -2,7 +2,7 @@ use std::simd::{ cmp::{ SimdPartialEq, SimdPartialOrd }, num::{ SimdFloat, SimdU
 
 use crate::into_vec::IntoVec;
 use crate::vectors::_256bit::u16x16::u16x16;
-use crate::vectors::{ _256bit::f32x8::f32x8, traits::{ Init, VecSize, VecTrait } };
+use crate::vectors::{ _256bit::f32x8::f32x8, traits::{ Init, VecCommon, VecTrait } };
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
@@ -43,8 +43,10 @@ impl VecTrait<half::bf16> for bf16x16 {
         self.0[idx]
     }
 }
-impl VecSize for bf16x16 {
+impl VecCommon for bf16x16 {
     const SIZE: usize = 16;
+    
+    type Base = half::bf16;
 }
 impl Init<half::bf16> for bf16x16 {
     fn splat(val: half::bf16) -> bf16x16 {

@@ -1,6 +1,6 @@
 use tensor_traits::CommonBounds;
 use tensor_types::{
-    convertion::Convertor, dtype::TypeCommon, into_vec::IntoVec, type_promote::{ Cmp, NormalOut, SimdCmp }
+    convertion::Convertor, dtype::TypeCommon, type_promote::{ Cmp, NormalOut, SimdCmp }
 };
 use crate::{ tensor::Tensor, tensor_base::_Tensor };
 
@@ -16,7 +16,6 @@ impl<T> _Tensor<T>
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn hardmax(&self, axis: i64) -> anyhow::Result<_Tensor<T>>
-        where <T as TypeCommon>::Vec: IntoVec<<T as TypeCommon>::Vec>
     {
         let axis = (if axis < 0 { (self.layout.ndim() as i64) + axis } else { axis }) as usize;
         let max = self.max(axis as i64, true)?;

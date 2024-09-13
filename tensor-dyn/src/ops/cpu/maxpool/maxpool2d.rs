@@ -23,7 +23,7 @@ impl<T> _Tensor<T>
             Init<T> +
             Send +
             Sync +
-            VecSize +
+            VecCommon +
             NormalOut<Output = <T as TypeCommon>::Vec>
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -103,14 +103,14 @@ impl<T> _Tensor<T>
         };
 
         if
-            !(co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0 || co_b == 1) ||
+            !(co_b % (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) == 0 || co_b == 1) ||
             co_b > out_channels
         {
             return Err(
                 InvalidCacheParam(
                     "co_b",
                     out_channels,
-                    <<T as TypeCommon>::Vec as VecSize>::SIZE as i64,
+                    <<T as TypeCommon>::Vec as VecCommon>::SIZE as i64,
                     co_b,
                     core::panic::Location::caller()
                 ).into()
@@ -121,8 +121,8 @@ impl<T> _Tensor<T>
 
         let co_b_remain = out_channels % co_b;
         let wo_b_remain = out_width % (CONV_REGNUM as i64);
-        let num_co_rb = co_b / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
-        assert!(co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0 || co_b == 1);
+        let num_co_rb = co_b / (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64);
+        assert!(co_b % (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) == 0 || co_b == 1);
 
         let outer = batch * num_co_b * out_height;
 
@@ -303,8 +303,8 @@ impl<T> _Tensor<T>
 
         // case2 is used to handle remain part of out channels
         let case2 = move |b: i64, l: i64, c: i64, mut out: Pointer<T>| {
-            let num_vec_size = co_b_remain / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
-            let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
+            let num_vec_size = co_b_remain / (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64);
+            let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64);
             if remain == 0 {
                 for kp in 0..num_wo_b {
                     for n in 0..kernel_height {
@@ -406,8 +406,8 @@ impl<T> _Tensor<T>
             ),
             mut out: Pointer<T>
         | {
-            let num_vec_size = co_b_remain / (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
-            let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
+            let num_vec_size = co_b_remain / (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64);
+            let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64);
             if remain == 0 {
                 for n in 0..kernel_height {
                     for m in 0..kernel_width {

@@ -2,7 +2,7 @@ use num_complex::Complex64;
 
 use crate::into_vec::IntoVec;
 
-use crate::vectors::traits::{ Init, VecSize, VecTrait };
+use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
@@ -38,8 +38,10 @@ impl VecTrait<Complex64> for cplx64x2 {
         self.0[idx]
     }
 }
-impl VecSize for cplx64x2 {
+impl VecCommon for cplx64x2 {
     const SIZE: usize = 2;
+    
+    type Base = Complex64;
 }
 impl Init<Complex64> for cplx64x2 {
     fn splat(val: Complex64) -> cplx64x2 {

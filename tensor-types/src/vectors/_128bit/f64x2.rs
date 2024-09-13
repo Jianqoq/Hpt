@@ -1,6 +1,6 @@
 use std::{ ops::{ Deref, DerefMut }, simd::StdFloat };
 
-use crate::{ into_vec::IntoVec, traits::{ Init, VecSize, VecTrait } };
+use crate::{ into_vec::IntoVec, traits::{ Init, VecCommon, VecTrait } };
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq)]
@@ -47,8 +47,10 @@ impl VecTrait<f64> for f64x2 {
         self.as_array()[idx]
     }
 }
-impl VecSize for f64x2 {
+impl VecCommon for f64x2 {
     const SIZE: usize = 2;
+    
+    type Base = f64;
 }
 impl Init<f64> for f64x2 {
     fn splat(val: f64) -> f64x2 {

@@ -2,7 +2,7 @@ use std::simd::{ cmp::SimdPartialEq, Simd };
 use std::simd::cmp::SimdPartialOrd;
 use crate::into_vec::IntoVec;
 
-use crate::vectors::traits::{ Init, VecSize, VecTrait };
+use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
@@ -41,8 +41,10 @@ impl VecTrait<bool> for boolx32 {
         self.0[idx]
     }
 }
-impl VecSize for boolx32 {
+impl VecCommon for boolx32 {
     const SIZE: usize = 32;
+    
+    type Base = bool;
 }
 impl Init<bool> for boolx32 {
     fn splat(val: bool) -> boolx32 {

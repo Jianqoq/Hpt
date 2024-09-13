@@ -17,7 +17,7 @@ use crate::{ iterator_traits::{ IterGetSet, ShapeManipulator }, strided_zip::Str
 pub mod strided_simd {
     use tensor_types::vectors::traits::Init;
     use std::{ panic::Location, sync::Arc };
-    use tensor_types::vectors::traits::VecSize;
+    use tensor_types::vectors::traits::VecCommon;
     use tensor_common::{
         axis::{ process_axes, Axis },
         err_handler::ErrHandler,

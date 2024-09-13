@@ -1,6 +1,6 @@
 use tensor_common::pointer::Pointer;
 use tensor_traits::CommonBounds;
-use tensor_types::{ dtype::TypeCommon, traits::{ Init, VecSize, VecTrait } };
+use tensor_types::{ dtype::TypeCommon, traits::{ Init, VecCommon, VecTrait } };
 use tensor_types::type_promote::NormalOut;
 use crate::CONV_REGNUM;
 
@@ -30,25 +30,25 @@ pub(crate) fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
     res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
     out: &mut Pointer<T>
 )
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
+    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
 {
     for j in 0..num_co_rb {
         let buffers = unsafe { res_buffer.get_unchecked_mut(j as usize) };
         for r in 0..REGNUM as i64 {
             unsafe {
-                let out_ptr = &mut out[out_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) + r * osw] as *mut _ as *mut T;
+                let out_ptr = &mut out[out_offset + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) + r * osw] as *mut _ as *mut T;
                 let buffer = buffers.get_unchecked_mut(r as usize) as *mut _ as *mut T;
                 if LOAD {
                     std::ptr::copy_nonoverlapping(
                         out_ptr,
                         buffer,
-                        <<T as TypeCommon>::Vec as VecSize>::SIZE
+                        <<T as TypeCommon>::Vec as VecCommon>::SIZE
                     );
                 } else {
                     std::ptr::copy_nonoverlapping(
                         buffer,
                         out_ptr,
-                        <<T as TypeCommon>::Vec as VecSize>::SIZE
+                        <<T as TypeCommon>::Vec as VecCommon>::SIZE
                     );
                 }
             }
@@ -57,7 +57,7 @@ pub(crate) fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
     let buffers = unsafe { res_buffer.get_unchecked_mut(num_co_rb as usize) };
     for r in 0..REGNUM as i64 {
         unsafe {
-            let out_ptr = &mut out[out_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) + r * osw] as *mut _ as *mut T;
+            let out_ptr = &mut out[out_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) + r * osw] as *mut _ as *mut T;
             let buffer = buffers.get_unchecked_mut(r as usize) as *mut _ as *mut T;
             if LOAD {
                 std::ptr::copy_nonoverlapping(out_ptr, buffer, co_b_remain as usize);
@@ -78,21 +78,21 @@ pub(crate) fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
     res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
     out: &mut Pointer<T>
 )
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
+    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
 {
     for j in 0..num_co_rb {
         let buffers = &mut res_buffer[j as usize];
         for r in 0..REGNUM as i64 {
             unsafe {
-                let out_ptr = &mut out[out_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) + r * osw] as *mut _ as *mut T;
+                let out_ptr = &mut out[out_offset + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) + r * osw] as *mut _ as *mut T;
                 let buffer = &mut buffers[r as usize];
                 if LOAD {
                     buffer.copy_from_slice(
-                        core::slice::from_raw_parts(out_ptr, <<T as TypeCommon>::Vec as VecSize>::SIZE)
+                        core::slice::from_raw_parts(out_ptr, <<T as TypeCommon>::Vec as VecCommon>::SIZE)
                     );
                 } else {
-                    for i in 0..<<T as TypeCommon>::Vec as VecSize>::SIZE as i64 {
-                        out[out_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) + r * osw + i] = buffer.extract(i as usize);
+                    for i in 0..<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64 {
+                        out[out_offset + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) + r * osw + i] = buffer.extract(i as usize);
                     }
                 }
             }
@@ -101,14 +101,14 @@ pub(crate) fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
     let buffers = &mut res_buffer[num_co_rb as usize];
     for r in 0..REGNUM as i64 {
         unsafe {
-            let out_ptr = &mut out[out_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) + r * osw];
+            let out_ptr = &mut out[out_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) + r * osw];
             let buffer = &mut buffers[r as usize];
             if LOAD {
-                assert!(co_b_remain as usize <= <<T as TypeCommon>::Vec as VecSize>::SIZE);
+                assert!(co_b_remain as usize <= <<T as TypeCommon>::Vec as VecCommon>::SIZE);
                 core::ptr::copy_nonoverlapping(out_ptr, buffer.as_mut_ptr(), co_b_remain as usize);
             } else {
                 for i in 0..co_b_remain as i64 {
-                    out[out_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) + r * osw + i] = buffer.extract(i as usize);
+                    out[out_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) + r * osw + i] = buffer.extract(i as usize);
                 }
             }
         }
@@ -131,14 +131,14 @@ macro_rules! micro_kernel {
                 inp: &Pointer<T>,
                 out: &mut Pointer<T>,
             )
-                where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize + NormalOut<Output=<T as TypeCommon>::Vec>
+                where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecCommon + NormalOut<Output=<T as TypeCommon>::Vec>
             {
                 for j in 0..num_co_rb {
-                    let ofs = out_offset + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64);
+                    let ofs = out_offset + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64);
                     unsafe {
                         $(
                             let _k = kp * (CONV_REGNUM as i64) + $idx;
-                            let [<inp_vec $idx>] = &inp[inp_offset + _k * step_width * isw + j * (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)] as *const _ as *const <T as TypeCommon>::Vec;
+                            let [<inp_vec $idx>] = &inp[inp_offset + _k * step_width * isw + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64)] as *const _ as *const <T as TypeCommon>::Vec;
                         )*
                         $(
                             let [<out_vec $idx>] = &mut out[co_offset + ofs + $idx * osw] as *mut _ as *mut <T as TypeCommon>::Vec;
@@ -172,7 +172,7 @@ macro_rules! micro_kernel_1 {
                 inp: &Pointer<T>,
                 out: &mut Pointer<T>,
             )
-                where T: CommonBounds + NormalOut<Output = T>, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize + NormalOut<Output = <T as TypeCommon>::Vec>
+                where T: CommonBounds + NormalOut<Output = T>, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecCommon + NormalOut<Output = <T as TypeCommon>::Vec>
             {
                 $(
                     let _k = kp * (CONV_REGNUM as i64) + $idx;
@@ -199,7 +199,7 @@ macro_rules! micro_kernel_with_buffer {
                 inp: &Pointer<T>,
                 res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
             )
-                where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize + NormalOut<Output=<T as TypeCommon>::Vec>
+                where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecCommon + NormalOut<Output=<T as TypeCommon>::Vec>
             {
                 for j in 0..num_co_rb + 1 {
                     unsafe {

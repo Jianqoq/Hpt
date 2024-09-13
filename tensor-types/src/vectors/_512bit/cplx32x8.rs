@@ -2,7 +2,7 @@ use num_complex::Complex32;
 
 use crate::into_vec::IntoVec;
 
-use crate::vectors::traits::{ Init, VecSize, VecTrait };
+use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq)]
@@ -38,8 +38,10 @@ impl VecTrait<Complex32> for cplx32x8 {
         self.0[idx]
     }
 }
-impl VecSize for cplx32x8 {
+impl VecCommon for cplx32x8 {
     const SIZE: usize = 8;
+    
+    type Base = Complex32;
 }
 impl Init<Complex32> for cplx32x8 {
     fn splat(val: Complex32) -> cplx32x8 {

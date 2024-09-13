@@ -16,7 +16,7 @@ pub mod par_strided_map_mut_simd {
     use tensor_common::{shape::Shape, shape_utils::{mt_intervals, predict_broadcast_shape}};
     use tensor_traits::{CommonBounds, TensorInfo};
     use tensor_types::dtype::TypeCommon;
-    use tensor_types::vectors::traits::VecSize;
+    use tensor_types::vectors::traits::VecCommon;
     use crate::{iterator_traits::IterGetSetSimd, par_strided::par_strided_simd::ParStridedSimd, par_strided_zip::par_strided_zip_simd::ParStridedZipSimd};
 
     pub struct ParStridedMutSimd<'a, T: TypeCommon + Send + Copy + Sync> {

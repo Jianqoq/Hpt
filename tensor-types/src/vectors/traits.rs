@@ -1,3 +1,5 @@
+use crate::dtype::TypeCommon;
+
 
 pub trait VecTrait<T> {
     fn _mul_add(self, a: Self, b: Self) -> Self;
@@ -18,8 +20,9 @@ pub trait Init<T> {
         }
     }
 }
-pub trait VecSize {
+pub trait VecCommon {
     const SIZE: usize;
+    type Base: TypeCommon;
 }
 
 pub trait SimdSelect<T> {

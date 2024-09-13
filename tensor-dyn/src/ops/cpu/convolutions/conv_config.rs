@@ -1,5 +1,5 @@
 use tensor_traits::CommonBounds;
-use tensor_types::{ dtype::TypeCommon, traits::{ Init, VecSize, VecTrait } };
+use tensor_types::{ dtype::TypeCommon, traits::{ Init, VecCommon, VecTrait } };
 use crate::CONV_REGNUM;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -97,7 +97,7 @@ fn find_exact_combination<T: CommonBounds, const REGNUM: usize>(
     weight_size: i64,
     height_size: i64
 ) -> (i64, i64)
-    where <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
+    where <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
 {
     let mut best_co_b = 1;
     let mut best_ci_b = 1;
@@ -105,7 +105,7 @@ fn find_exact_combination<T: CommonBounds, const REGNUM: usize>(
     for ci_b in (1..max_ci_b + 1).rev() {
         for co_b in (1..max_co_b + 1)
             .rev()
-            .filter(|&co_b| (co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64)) * 2 == 0) {
+            .filter(|&co_b| (co_b % (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64)) * 2 == 0) {
             let product =
                 co_b * (REGNUM as i64) +
                 weight_size * height_size * ci_b * ((REGNUM as i64) + co_b);
@@ -223,14 +223,14 @@ fn find_exact_combination_3d<T: CommonBounds, const REGNUM: usize>(
     height_size: i64,
     depth_size: i64
 ) -> (i64, i64)
-    where <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecSize
+    where <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
 {
     let mut best_co_b = 0;
     let mut best_ci_b = 0;
 
     for co_b in (1..=max_co_b)
         .rev()
-        .filter(|&co_b| co_b % (<<T as TypeCommon>::Vec as VecSize>::SIZE as i64) == 0) {
+        .filter(|&co_b| co_b % (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) == 0) {
         for ci_b in (1..=max_ci_b).rev() {
             let product =
                 co_b * (REGNUM as i64) +

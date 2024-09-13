@@ -23,7 +23,7 @@ use crate::{
         u64x4::u64x4,
         u8x32::u8x32,
     },
-    vectors::traits::{ Init, VecSize, VecTrait },
+    vectors::traits::{ Init, VecCommon, VecTrait },
 };
 #[cfg(target_pointer_width = "64")]
 use crate::vectors::_256bit::usizex4::usizex4;
@@ -135,7 +135,7 @@ pub trait TypeCommon where Self: Sized {
     const NEG_INF: Self;
     const TWO: Self;
     const STR: &'static str;
-    type Vec: VecTrait<Self> + Init<Self> + VecSize + Send + Copy + IntoVec<Self::Vec> + Sync + Debug;
+    type Vec: VecTrait<Self> + Init<Self> + VecCommon + Send + Copy + IntoVec<Self::Vec> + Sync + Debug;
 }
 
 macro_rules! impl_type_common {

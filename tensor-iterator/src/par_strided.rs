@@ -233,12 +233,12 @@ pub mod par_strided_simd {
         }
 
         fn lanes(&self) -> Option<usize> {
-            use tensor_types::vectors::traits::VecSize;
+            use tensor_types::vectors::traits::VecCommon;
             Some(T::Vec::SIZE)
         }
 
         fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
-            use tensor_types::vectors::traits::VecSize;
+            use tensor_types::vectors::traits::VecCommon;
             use tensor_types::vectors::traits::Init;
             unsafe { T::Vec::from_ptr(self.ptr.get_ptr().add(index * T::Vec::SIZE)) }
         }

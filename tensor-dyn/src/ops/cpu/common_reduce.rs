@@ -4,7 +4,6 @@ use tensor_types::{
     convertion::{Convertor, VecConvertor},
     dtype::TypeCommon,
     into_scalar::IntoScalar,
-    into_vec::IntoVec,
     type_promote::{ BitWiseOut, Eval, FloatOutBinary, FloatOutUnary, NormalOut },
     vectors::traits::SimdSelect,
 };
@@ -305,7 +304,6 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<_Tensor<bool>>
         where
-            <T as TypeCommon>::Vec: IntoVec<tensor_types::vectors::_256bit::boolx32::boolx32>,
             T: IntoScalar<bool> + Eval<Output = bool> + Convertor,
             <T as TypeCommon>::Vec: Eval + BitWiseOut + VecConvertor,
             <<T as TypeCommon>::Vec as Eval>::Output: SimdSelect<<T as TypeCommon>::Vec>
