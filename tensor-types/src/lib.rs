@@ -6,6 +6,7 @@ pub mod convertion;
 pub mod into_scalar;
 pub mod into_vec;
 pub mod vectors {
+    #[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
     pub mod _128bit {
         pub mod f32x4;
         pub mod u32x4;
@@ -23,6 +24,7 @@ pub mod vectors {
         pub mod isizex2;
         pub mod f16x8;
     }
+    #[cfg(target_feature = "avx2")]
     pub mod _256bit {
         pub mod f32x8;
         pub mod f64x4;
@@ -42,6 +44,7 @@ pub mod vectors {
         pub mod cplx32x4;
         pub mod cplx64x2;
     }
+    #[cfg(target_feature = "avx512f")]
     pub mod _512bit {
         pub mod f32x16;
         pub mod f64x8;

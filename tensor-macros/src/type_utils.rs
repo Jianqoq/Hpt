@@ -28,9 +28,7 @@ pub fn type_level(list: &str) -> u8 {
 }
 
 pub fn type_simd_lanes(list: &str) -> u8 {
-    #[cfg(
-        all(target_feature = "sse", not(target_feature = "avx2"), not(target_feature = "avx512f"))
-    )]
+    #[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
     match list.to_lowercase().as_str() {
         "bool" => 16,
         "i8" => 16,
@@ -130,9 +128,7 @@ pub fn type_simd_lanes(list: &str) -> u8 {
 }
 
 pub fn type_simd_is_arr(list: &str) -> bool {
-    #[cfg(
-        all(target_feature = "sse", not(target_feature = "avx2"), not(target_feature = "avx512f"))
-    )]
+    #[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
     match list.to_lowercase().as_str() {
         "bool" => true,
         "i8" => false,
@@ -531,13 +527,7 @@ impl ToTokens for SimdType {
             SimdType::Complex32 => quote!(cplx32x4::cplx32x4),
             SimdType::Complex64 => quote!(cplx64x2::cplx64x2),
         };
-        #[cfg(
-            all(
-                target_feature = "sse2",
-                not(target_feature = "avx2"),
-                not(target_feature = "avx512f")
-            )
-        )]
+        #[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
         let token = match self {
             SimdType::Bool => quote!(boolx16::boolx16),
             SimdType::I8 => quote!(i8x16::i8x16),

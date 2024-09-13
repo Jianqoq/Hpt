@@ -6,25 +6,14 @@ use serde::{ Deserialize, Serialize };
 use crate::{
     into_vec::IntoVec,
     type_promote::{ BitWiseOut, Eval, FloatOutBinary, FloatOutUnary, NormalOut },
-    vectors::_256bit::{
-        bf16x16::bf16x16,
-        boolx32::boolx32,
-        cplx32x4::cplx32x4,
-        cplx64x2::cplx64x2,
-        f16x16::f16x16,
-        f32x8::f32x8,
-        f64x4::f64x4,
-        i16x16::i16x16,
-        i32x8::i32x8,
-        i64x4::i64x4,
-        i8x32::i8x32,
-        u16x16::u16x16,
-        u32x8::u32x8,
-        u64x4::u64x4,
-        u8x32::u8x32,
-    },
     vectors::traits::{ Init, VecCommon, VecTrait },
 };
+#[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
+use crate::vectors::_128bit::*;
+#[cfg(target_feature = "avx2")]
+use crate::vectors::_256bit::*;
+#[cfg(target_feature = "avx512f")]
+use crate::vectors::_512bit::*;
 #[cfg(target_pointer_width = "64")]
 use crate::vectors::_256bit::usizex4::usizex4;
 #[cfg(target_pointer_width = "32")]

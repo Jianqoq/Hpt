@@ -8,7 +8,7 @@ pub fn __gen_fast_reduce_simd_helper(stream: TokenStream) -> TokenStream {
 
     #[cfg(target_feature = "avx2")]
     let num_registers = 16;
-    #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
+    #[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
     let num_registers = 8;
     #[cfg(target_feature = "avx512f")]
     let num_registers = 32;
@@ -43,7 +43,7 @@ pub fn __gen_reduce_dim_not_include_simd_helper(stream: TokenStream) -> TokenStr
 
     #[cfg(target_feature = "avx2")]
     let num_registers = 16;
-    #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
+    #[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
     let num_registers = 8;
     #[cfg(target_feature = "avx512f")]
     let num_registers = 32;
