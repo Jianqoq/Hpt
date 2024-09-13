@@ -1,5 +1,3 @@
-use std::arch::x86_64::_mm_prefetch;
-
 use tensor_common::pointer::Pointer;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
@@ -127,18 +125,7 @@ fn case1_remain1_helper<T, const REGNUM: usize>(
     num_wo_b: i64,
     [inp_cpy, kernel_cpy]: [&Pointer<T>; 2],
     out: &mut Pointer<T>,
-    micro_kernel: fn(
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        &Pointer<T>,
-        &mut [T; REGNUM],
-        &Pointer<T>
-    )
+    micro_kernel: fn(i64, i64, i64, i64, i64, i64, i64, &Pointer<T>, &mut [T; REGNUM], &Pointer<T>)
 )
     where T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>
 {
@@ -473,8 +460,6 @@ impl<T> _Tensor<T>
                 (config.ci_block_size, config.co_block_size)
             }
         };
-        let ci_b = 16;
-        let co_b = 32;
         let num_co_b = out_channels / co_b;
         let num_wo_b = out_width / (CONV_REGNUM as i64);
         let num_ci_b = in_channels / ci_b;

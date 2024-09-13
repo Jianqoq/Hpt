@@ -3,7 +3,7 @@
 
 // use half::bf16;
 use ops::cpu::convolutions::conv_config::{ Conv2dConfig, KernelParamAlgo };
-// use tch::{ Device, Kind, Tensor };
+use tch::{ Device, Kind, Tensor };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
@@ -21,16 +21,16 @@ fn main() -> anyhow::Result<()> {
     set_global_display_lr_elements(6);
     set_num_threads(16);
     let kernel = _Tensor::<f32>
-        ::arange(0, 256 * 512 * 3 * 3)?
-        .reshape([512, 256, 3, 3])?
+        ::arange(0, 16 * 1024 * 3 * 3)?
+        .reshape([16, 1024, 3, 3])?
         .permute([2, 3, 1, 0])?
         .contiguous()?;
     let a = _Tensor::<f32>
-        ::arange(0, 1 * 256 * 256 * 256)?
-        .reshape([1, 256, 256, 256])?
+        ::arange(0, 16 * 1024 * 256 * 256)?
+        .reshape([16, 1024, 256, 256])?
         .permute([0, 2, 3, 1])?
         .contiguous()?;
-    let config = Conv2dConfig::<f32>::new(512, 256, [3, 3], KernelParamAlgo::Greedy);
+    let config = Conv2dConfig::<f32>::new(16, 1024, [3, 3], KernelParamAlgo::Greedy);
     println!("config: {:?}", config);
     let now = std::time::Instant::now();
     for _ in 0..10 {
@@ -50,13 +50,5 @@ fn main() -> anyhow::Result<()> {
     }
     println!("{:?}", now.elapsed() / 10);
     // // println!("{:?}", res);
-    // let tch_a = Tensor::arange(1 * 256 * 256 * 256, (Kind::Int64, Device::Cpu)).reshape(
-    //     &[1, 256, 256, 256]
-    // );
-    // let tch_kernel = Tensor::arange(256 * 512 * 3 * 3, (Kind::Int64, Device::Cpu)).reshape(
-    //     &[512, 256, 3, 3]
-    // );
-    // let res = tch_a.conv2d(&tch_kernel, None::<Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
-    // println!("{}", res);
     Ok(())
 }
