@@ -8,6 +8,11 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  LIBTORCH: ~/libtorch/libtorch
+  LIBTORCH_INCLUDE: $LIBTORCH/include
+  LIBTORCH_LIB: $LIBTORCH/lib
+  LD_LIBRARY_PATH: $LIBTORCH_LIB:$LD_LIBRARY_PATH
+  CMAKE_PREFIX_PATH: $LIBTORCH
 
 jobs:
   build:
@@ -34,7 +39,19 @@ jobs:
       run: |
         cd tensor-tests
         cargo build --verbose
+      env:
+        LIBTORCH: ~/libtorch/libtorch
+        LIBTORCH_INCLUDE: $LIBTORCH/include
+        LIBTORCH_LIB: $LIBTORCH/lib
+        LD_LIBRARY_PATH: $LIBTORCH_LIB:$LD_LIBRARY_PATH
+        CMAKE_PREFIX_PATH: $LIBTORCH
     - name: Run tests
       run: |
         cd tensor-tests
         cargo test --verbose
+      env:
+        LIBTORCH: ~/libtorch/libtorch
+        LIBTORCH_INCLUDE: $LIBTORCH/include
+        LIBTORCH_LIB: $LIBTORCH/lib
+        LD_LIBRARY_PATH: $LIBTORCH_LIB:$LD_LIBRARY_PATH
+        CMAKE_PREFIX_PATH: $LIBTORCH
