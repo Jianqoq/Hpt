@@ -827,7 +827,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
-                        micro_kernel_6::<T, 7>
+                        micro_kernel_7::<T, 7>
                     );
                 }
                 #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
@@ -844,7 +844,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
-                        micro_kernel_6::<T, 8>
+                        micro_kernel_8::<T, 8>
                     );
                 }
                 #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
@@ -861,7 +861,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
-                        micro_kernel_6::<T, 9>
+                        micro_kernel_9::<T, 9>
                     );
                 }
                 #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
@@ -878,7 +878,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
-                        micro_kernel_6::<T, 10>
+                        micro_kernel_10::<T, 10>
                     );
                 }
                 #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
@@ -895,7 +895,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
-                        micro_kernel_6::<T, 11>
+                        micro_kernel_11::<T, 11>
                     );
                 }
                 #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
@@ -912,7 +912,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
-                        micro_kernel_6::<T, 12>
+                        micro_kernel_12::<T, 12>
                     );
                 }
                 #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
@@ -929,7 +929,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
-                        micro_kernel_6::<T, 13>
+                        micro_kernel_13::<T, 13>
                     );
                 }
                 #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
@@ -946,7 +946,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         &mut out,
-                        micro_kernel_6::<T, 14>
+                        micro_kernel_14::<T, 14>
                     );
                 }
                 _ => unimplemented!(),
@@ -1062,7 +1062,7 @@ impl<T> _Tensor<T>
                 }
                 #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
                 7 => {
-                    case1_remain1_helper::<T, 6>(
+                    case1_remain1_helper::<T, 7>(
                         [kernel_height, kernel_width, ci_b_remain],
                         [ip, b, l, c],
                         [isb, ish, isw],
@@ -1079,7 +1079,7 @@ impl<T> _Tensor<T>
                 }
                 #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
                 8 => {
-                    case1_remain1_helper::<T, 6>(
+                    case1_remain1_helper::<T, 8>(
                         [kernel_height, kernel_width, ci_b_remain],
                         [ip, b, l, c],
                         [isb, ish, isw],
@@ -1096,7 +1096,7 @@ impl<T> _Tensor<T>
                 }
                 #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
                 9 => {
-                    case1_remain1_helper::<T, 6>(
+                    case1_remain1_helper::<T, 9>(
                         [kernel_height, kernel_width, ci_b_remain],
                         [ip, b, l, c],
                         [isb, ish, isw],
@@ -1113,7 +1113,7 @@ impl<T> _Tensor<T>
                 }
                 #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
                 10 => {
-                    case1_remain1_helper::<T, 6>(
+                    case1_remain1_helper::<T, 10>(
                         [kernel_height, kernel_width, ci_b_remain],
                         [ip, b, l, c],
                         [isb, ish, isw],
@@ -1130,7 +1130,7 @@ impl<T> _Tensor<T>
                 }
                 #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
                 11 => {
-                    case1_remain1_helper::<T, 6>(
+                    case1_remain1_helper::<T, 11>(
                         [kernel_height, kernel_width, ci_b_remain],
                         [ip, b, l, c],
                         [isb, ish, isw],
@@ -1147,7 +1147,7 @@ impl<T> _Tensor<T>
                 }
                 #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
                 12 => {
-                    case1_remain1_helper::<T, 6>(
+                    case1_remain1_helper::<T, 12>(
                         [kernel_height, kernel_width, ci_b_remain],
                         [ip, b, l, c],
                         [isb, ish, isw],
@@ -1164,7 +1164,7 @@ impl<T> _Tensor<T>
                 }
                 #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
                 13 => {
-                    case1_remain1_helper::<T, 6>(
+                    case1_remain1_helper::<T, 13>(
                         [kernel_height, kernel_width, ci_b_remain],
                         [ip, b, l, c],
                         [isb, ish, isw],
@@ -1181,7 +1181,7 @@ impl<T> _Tensor<T>
                 }
                 #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
                 14 => {
-                    case1_remain1_helper::<T, 6>(
+                    case1_remain1_helper::<T, 14>(
                         [kernel_height, kernel_width, ci_b_remain],
                         [ip, b, l, c],
                         [isb, ish, isw],
@@ -1408,140 +1408,188 @@ impl<T> _Tensor<T>
                         &mut out
                     );
                 }
-                #[cfg(target_feature = "avx512f")]
+                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
                 7 => {
-                    case3_helper(
-                        b,
-                        l,
-                        c,
-                        ip,
-                        ci_b_remain,
-                        7,
+                    case3_helper::<T, 7>(
+                        [kernel_height, kernel_width, ci_b_remain],
+                        [ip, b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [ks0, ks1, ks2],
+                        [step_width, step_height],
+                        [dh, dw],
+                        [ci_b, co_b],
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        [&inp_cpy, &kernel_cpy],
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 7, true>,
                         load_store_res_buffer::<T, 7, false>,
+                        micro_kernel_7_dyn::<T, 7>,
                         micro_kernel_7_with_buffer::<T>,
-                        micro_kernel_7::<T>,
-                        out
+                        &mut out
                     );
                 }
-                #[cfg(target_feature = "avx512f")]
+                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
                 8 => {
-                    case3_helper(
-                        b,
-                        l,
-                        c,
-                        ip,
-                        ci_b_remain,
-                        8,
+                    case3_helper::<T, 8>(
+                        [kernel_height, kernel_width, ci_b_remain],
+                        [ip, b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [ks0, ks1, ks2],
+                        [step_width, step_height],
+                        [dh, dw],
+                        [ci_b, co_b],
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        [&inp_cpy, &kernel_cpy],
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 8, true>,
                         load_store_res_buffer::<T, 8, false>,
+                        micro_kernel_8_dyn::<T, 8>,
                         micro_kernel_8_with_buffer::<T>,
-                        micro_kernel_8::<T>,
-                        out
+                        &mut out
                     );
                 }
-                #[cfg(target_feature = "avx512f")]
+                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
                 9 => {
-                    case3_helper(
-                        b,
-                        l,
-                        c,
-                        ip,
-                        ci_b_remain,
-                        9,
+                    case3_helper::<T, 9>(
+                        [kernel_height, kernel_width, ci_b_remain],
+                        [ip, b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [ks0, ks1, ks2],
+                        [step_width, step_height],
+                        [dh, dw],
+                        [ci_b, co_b],
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        [&inp_cpy, &kernel_cpy],
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 9, true>,
                         load_store_res_buffer::<T, 9, false>,
+                        micro_kernel_9_dyn::<T, 9>,
                         micro_kernel_9_with_buffer::<T>,
-                        micro_kernel_9::<T>,
-                        out
+                        &mut out
                     );
                 }
-                #[cfg(target_feature = "avx512f")]
+                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
                 10 => {
-                    case3_helper(
-                        b,
-                        l,
-                        c,
-                        ip,
-                        ci_b_remain,
-                        10,
+                    case3_helper::<T, 10>(
+                        [kernel_height, kernel_width, ci_b_remain],
+                        [ip, b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [ks0, ks1, ks2],
+                        [step_width, step_height],
+                        [dh, dw],
+                        [ci_b, co_b],
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        [&inp_cpy, &kernel_cpy],
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 10, true>,
                         load_store_res_buffer::<T, 10, false>,
+                        micro_kernel_10_dyn::<T, 10>,
                         micro_kernel_10_with_buffer::<T>,
-                        micro_kernel_10::<T>,
-                        out
+                        &mut out
                     );
                 }
-                #[cfg(target_feature = "avx512f")]
+                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
                 11 => {
-                    case3_helper(
-                        b,
-                        l,
-                        c,
-                        ip,
-                        ci_b_remain,
-                        11,
+                    case3_helper::<T, 11>(
+                        [kernel_height, kernel_width, ci_b_remain],
+                        [ip, b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [ks0, ks1, ks2],
+                        [step_width, step_height],
+                        [dh, dw],
+                        [ci_b, co_b],
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        [&inp_cpy, &kernel_cpy],
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 11, true>,
                         load_store_res_buffer::<T, 11, false>,
+                        micro_kernel_11_dyn::<T, 11>,
                         micro_kernel_11_with_buffer::<T>,
-                        micro_kernel_11::<T>,
-                        out
+                        &mut out
                     );
                 }
-                #[cfg(target_feature = "avx512f")]
+                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
                 12 => {
-                    case3_helper(
-                        b,
-                        l,
-                        c,
-                        ip,
-                        ci_b_remain,
-                        12,
+                    case3_helper::<T, 12>(
+                        [kernel_height, kernel_width, ci_b_remain],
+                        [ip, b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [ks0, ks1, ks2],
+                        [step_width, step_height],
+                        [dh, dw],
+                        [ci_b, co_b],
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        [&inp_cpy, &kernel_cpy],
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 12, true>,
                         load_store_res_buffer::<T, 12, false>,
+                        micro_kernel_12_dyn::<T, 12>,
                         micro_kernel_12_with_buffer::<T>,
-                        micro_kernel_12::<T>,
-                        out
+                        &mut out
                     );
                 }
-                #[cfg(target_feature = "avx512f")]
+                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
                 13 => {
-                    case3_helper(
-                        b,
-                        l,
-                        c,
-                        ip,
-                        ci_b_remain,
-                        13,
+                    case3_helper::<T, 13>(
+                        [kernel_height, kernel_width, ci_b_remain],
+                        [ip, b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [ks0, ks1, ks2],
+                        [step_width, step_height],
+                        [dh, dw],
+                        [ci_b, co_b],
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        [&inp_cpy, &kernel_cpy],
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 13, true>,
                         load_store_res_buffer::<T, 13, false>,
+                        micro_kernel_13_dyn::<T, 13>,
                         micro_kernel_13_with_buffer::<T>,
-                        micro_kernel_13::<T>,
-                        out
+                        &mut out
                     );
                 }
-                #[cfg(target_feature = "avx512f")]
+                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
                 14 => {
-                    case3_helper(
-                        b,
-                        l,
-                        c,
-                        ip,
-                        ci_b_remain,
-                        14,
+                    case3_helper::<T, 14>(
+                        [kernel_height, kernel_width, ci_b_remain],
+                        [ip, b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [ks0, ks1, ks2],
+                        [step_width, step_height],
+                        [dh, dw],
+                        [ci_b, co_b],
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        [&inp_cpy, &kernel_cpy],
                         pack_kernel::<T>,
                         load_store_res_buffer::<T, 14, true>,
                         load_store_res_buffer::<T, 14, false>,
+                        micro_kernel_14_dyn::<T, 14>,
                         micro_kernel_14_with_buffer::<T>,
-                        micro_kernel_14::<T>,
-                        out
+                        &mut out
                     );
                 }
                 _ => unimplemented!(),

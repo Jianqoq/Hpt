@@ -306,29 +306,45 @@ micro_kernel_dynamic_regnum!(3, [0, 1, 2]);
 micro_kernel_dynamic_regnum!(4, [0, 1, 2, 3]);
 micro_kernel_dynamic_regnum!(5, [0, 1, 2, 3, 4]);
 micro_kernel_dynamic_regnum!(6, [0, 1, 2, 3, 4, 5]);
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+micro_kernel_dynamic_regnum!(7, [0, 1, 2, 3, 4, 5, 6]);
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+micro_kernel_dynamic_regnum!(8, [0, 1, 2, 3, 4, 5, 6, 7]);
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+micro_kernel_dynamic_regnum!(9, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+micro_kernel_dynamic_regnum!(10, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+micro_kernel_dynamic_regnum!(11, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+micro_kernel_dynamic_regnum!(12, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+micro_kernel_dynamic_regnum!(13, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+micro_kernel_dynamic_regnum!(14, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
 
-#[cfg(target_feature = "avx512f")]
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
 micro_kernel!(7, [0, 1, 2, 3, 4, 5, 6]);
-#[cfg(target_feature = "avx512f")]
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
 micro_kernel!(8, [0, 1, 2, 3, 4, 5, 6, 7]);
-#[cfg(target_feature = "avx512f")]
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
 micro_kernel!(9, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
-#[cfg(target_feature = "avx512f")]
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
 micro_kernel!(10, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-#[cfg(target_feature = "avx512f")]
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
 micro_kernel!(11, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-#[cfg(target_feature = "avx512f")]
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
 micro_kernel!(12, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-#[cfg(target_feature = "avx512f")]
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
 micro_kernel!(13, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-#[cfg(target_feature = "avx512f")]
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
 micro_kernel!(14, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
 
 #[cfg(target_feature = "avx2")]
 micro_kernel_with_buffer!(regnum, [0, 1, 2, 3, 4, 5, 6]);
-#[cfg(target_feature = "avx512f")]
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
 micro_kernel_with_buffer!(regnum, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
-#[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
+#[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
 micro_kernel_with_buffer!(regnum, [0, 1, 2]);
 micro_kernel_with_buffer!(1, [0]);
 micro_kernel_with_buffer!(2, [0, 1]);
@@ -365,3 +381,19 @@ micro_kernel_1!(3, 3, [0, 1, 2]);
 micro_kernel_1!(4, 4, [0, 1, 2, 3]);
 micro_kernel_1!(5, 5, [0, 1, 2, 3, 4]);
 micro_kernel_1!(6, 6, [0, 1, 2, 3, 4, 5]);
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+micro_kernel_1!(7, 7, [0, 1, 2, 3, 4, 5, 6]);
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+micro_kernel_1!(8, 8, [0, 1, 2, 3, 4, 5, 6, 7]);
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+micro_kernel_1!(9, 9, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+micro_kernel_1!(10, 10, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+micro_kernel_1!(11, 11, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+micro_kernel_1!(12, 12, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+micro_kernel_1!(13, 13, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+micro_kernel_1!(14, 14, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
