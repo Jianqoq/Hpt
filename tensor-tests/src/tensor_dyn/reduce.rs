@@ -21,7 +21,6 @@ fn common_input<const N: usize>(
 
 #[test]
 fn test_sum() -> anyhow::Result<()> {
-    set_num_threads(1);
     let (a, tch_a) = common_input(8 * 8096 * 2048, [8, 8096, 2048])?;
     let sum = a.sum(0, false)?;
     let tch_sum = tch_a.sum_dim_intlist(0, false, tch::Kind::Int64);
