@@ -9,8 +9,8 @@ on:
 env:
   CARGO_TERM_COLOR: always
   LIBTORCH: ~/libtorch/libtorch
-  LIBTORCH_INCLUDE: $LIBTORCH/include
-  LIBTORCH_LIB: $LIBTORCH/lib
+  LIBTORCH_INCLUDE: $LIBTORCH
+  LIBTORCH_LIB: $LIBTORCH
   LD_LIBRARY_PATH: $LIBTORCH_LIB:$LD_LIBRARY_PATH
   CMAKE_PREFIX_PATH: $LIBTORCH
 
@@ -41,8 +41,8 @@ jobs:
         cargo build --verbose
       env:
         LIBTORCH: ~/libtorch/libtorch
-        LIBTORCH_INCLUDE: $LIBTORCH/include
-        LIBTORCH_LIB: $LIBTORCH/lib
+        LIBTORCH_INCLUDE: $LIBTORCH
+        LIBTORCH_LIB: $LIBTORCH
         LD_LIBRARY_PATH: $LIBTORCH_LIB:$LD_LIBRARY_PATH
         CMAKE_PREFIX_PATH: $LIBTORCH
     - name: Run tests
@@ -51,7 +51,7 @@ jobs:
         cargo test --verbose
       env:
         LIBTORCH: ~/libtorch/libtorch
-        LIBTORCH_INCLUDE: $LIBTORCH/include
-        LIBTORCH_LIB: $LIBTORCH/lib
+        LIBTORCH_INCLUDE: $LIBTORCH
+        LIBTORCH_LIB: $LIBTORCH
         LD_LIBRARY_PATH: $LIBTORCH_LIB:$LD_LIBRARY_PATH
         CMAKE_PREFIX_PATH: $LIBTORCH
