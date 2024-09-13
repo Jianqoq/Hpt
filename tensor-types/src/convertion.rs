@@ -3,7 +3,12 @@ use half::bf16;
 use num_complex::{ Complex64, Complex32 };
 use tensor_macros::impl_simd_convert;
 use std::simd::num::SimdFloat;
+#[cfg(target_feature = "avx2")]
 use crate::vectors::_256bit::*;
+#[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
+use crate::vectors::_128bit::*;
+#[cfg(target_feature = "avx512f")]
+use crate::vectors::_512bit::*;
 use crate::dtype::TypeCommon;
 use std::simd::num::SimdInt;
 use std::simd::num::SimdUint;

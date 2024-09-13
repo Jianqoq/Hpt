@@ -1,14 +1,14 @@
-use half::{ bf16, f16 };
-use tensor_macros::infer_enum_type;
-use std::fmt::{ Debug, Display };
-use serde::{ Deserialize, Serialize };
-use crate::{
-    into_vec::IntoVec,
-    type_promote::{ BitWiseOut, Eval, FloatOutBinary, FloatOutUnary, NormalOut },
-    vectors::traits::{ Init, VecCommon, VecTrait },
-};
 #[cfg(target_feature = "avx512f")]
 use crate::vectors::_512bit::*;
+use crate::{
+    into_vec::IntoVec,
+    type_promote::{BitWiseOut, Eval, FloatOutBinary, FloatOutUnary, NormalOut},
+    vectors::traits::{Init, VecCommon, VecTrait},
+};
+use half::{bf16, f16};
+use serde::{Deserialize, Serialize};
+use std::fmt::{Debug, Display};
+use tensor_macros::infer_enum_type;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub enum Dtype {
@@ -100,7 +100,10 @@ impl Dtype {
     }
 }
 
-pub trait TypeCommon where Self: Sized {
+pub trait TypeCommon
+where
+    Self: Sized,
+{
     const ID: Dtype;
     const MAX: Self;
     const MIN: Self;
@@ -110,14 +113,14 @@ pub trait TypeCommon where Self: Sized {
     const NEG_INF: Self;
     const TWO: Self;
     const STR: &'static str;
-    type Vec: VecTrait<Self> +
-        Init<Self> +
-        VecCommon +
-        Send +
-        Copy +
-        IntoVec<Self::Vec> +
-        Sync +
-        Debug;
+    type Vec: VecTrait<Self>
+        + Init<Self>
+        + VecCommon
+        + Send
+        + Copy
+        + IntoVec<Self::Vec>
+        + Sync
+        + Debug;
 }
 
 macro_rules! impl_type_common {
@@ -151,10 +154,10 @@ macro_rules! impl_type_common {
 
 #[cfg(target_feature = "avx2")]
 mod type_impl {
+    use super::{Dtype, TypeCommon};
     use crate::vectors::_256bit::*;
     use half::*;
-    use num_complex::{ Complex32, Complex64 };
-    use super::{ TypeCommon, Dtype };
+    use num_complex::{Complex32, Complex64};
 
     use crate::vectors::_256bit::*;
     impl_type_common!(
@@ -170,8 +173,32 @@ mod type_impl {
         "bool",
         boolx32::boolx32
     );
-    impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, "i8", i8x32::i8x32);
-    impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, "u8", u8x32::u8x32);
+    impl_type_common!(
+        i8,
+        I8,
+        i8::MAX,
+        i8::MIN,
+        0,
+        1,
+        i8::MAX,
+        i8::MIN,
+        2,
+        "i8",
+        i8x32::i8x32
+    );
+    impl_type_common!(
+        u8,
+        U8,
+        u8::MAX,
+        u8::MIN,
+        0,
+        1,
+        u8::MAX,
+        u8::MIN,
+        2,
+        "u8",
+        u8x32::u8x32
+    );
     impl_type_common!(
         i16,
         I16,
@@ -386,14 +413,15 @@ mod type_impl {
     );
 }
 
-#[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
+#[cfg(all(
+    any(target_feature = "sse", target_feature = "neon"),
+    not(target_feature = "avx2")
+))]
 mod type_impl {
+    use super::{Dtype, TypeCommon};
     use crate::vectors::_128bit::*;
     use half::*;
-    use num_complex::{ Complex32, Complex64 };
-    use super::{ TypeCommon, Dtype };
-
-    use crate::vectors::_256bit::*;
+    use num_complex::{Complex32, Complex64};
     impl_type_common!(
         bool,
         Bool,
@@ -405,10 +433,34 @@ mod type_impl {
         false,
         false,
         "bool",
-        boolx32::boolx32
+        boolx16::boolx16
     );
-    impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, "i8", i8x32::i8x32);
-    impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, "u8", u8x32::u8x32);
+    impl_type_common!(
+        i8,
+        I8,
+        i8::MAX,
+        i8::MIN,
+        0,
+        1,
+        i8::MAX,
+        i8::MIN,
+        2,
+        "i8",
+        i8x16::i8x16
+    );
+    impl_type_common!(
+        u8,
+        U8,
+        u8::MAX,
+        u8::MIN,
+        0,
+        1,
+        u8::MAX,
+        u8::MIN,
+        2,
+        "u8",
+        u8x16::u8x16
+    );
     impl_type_common!(
         i16,
         I16,
@@ -420,7 +472,7 @@ mod type_impl {
         i16::MIN,
         2,
         "i16",
-        i16x16::i16x16
+        i16x8::i16x8
     );
     impl_type_common!(
         u16,
@@ -433,7 +485,7 @@ mod type_impl {
         u16::MIN,
         2,
         "u16",
-        u16x16::u16x16
+        u16x8::u16x8
     );
     impl_type_common!(
         i32,
@@ -446,7 +498,7 @@ mod type_impl {
         i32::MIN,
         2,
         "i32",
-        i32x8::i32x8
+        i32x4::i32x4
     );
     impl_type_common!(
         u32,
@@ -459,7 +511,7 @@ mod type_impl {
         u32::MIN,
         2,
         "u32",
-        u32x8::u32x8
+        u32x4::u32x4
     );
     impl_type_common!(
         i64,
@@ -472,7 +524,7 @@ mod type_impl {
         i64::MIN,
         2,
         "i64",
-        i64x4::i64x4
+        i64x2::i64x2
     );
     impl_type_common!(
         u64,
@@ -485,7 +537,7 @@ mod type_impl {
         u64::MIN,
         2,
         "u64",
-        u64x4::u64x4
+        u64x2::u64x2
     );
     impl_type_common!(
         f32,
@@ -498,7 +550,7 @@ mod type_impl {
         f32::NEG_INFINITY,
         2.0,
         "f32",
-        f32x8::f32x8
+        f32x4::f32x4
     );
     impl_type_common!(
         f64,
@@ -511,9 +563,23 @@ mod type_impl {
         f64::NEG_INFINITY,
         2.0,
         "f64",
-        f64x4::f64x4
+        f64x2::f64x2
     );
     #[cfg(target_pointer_width = "64")]
+    impl_type_common!(
+        isize,
+        Isize,
+        isize::MAX,
+        isize::MIN,
+        0,
+        1,
+        isize::MAX,
+        isize::MIN,
+        2,
+        "isize",
+        isizex2::isizex2
+    );
+    #[cfg(target_pointer_width = "32")]
     impl_type_common!(
         isize,
         Isize,
@@ -527,21 +593,21 @@ mod type_impl {
         "isize",
         isizex4::isizex4
     );
-    #[cfg(target_pointer_width = "32")]
+    #[cfg(target_pointer_width = "64")]
     impl_type_common!(
-        isize,
-        Isize,
-        isize::MAX,
-        isize::MIN,
+        usize,
+        Usize,
+        usize::MAX,
+        usize::MIN,
         0,
         1,
-        isize::MAX,
-        isize::MIN,
+        usize::MAX,
+        usize::MIN,
         2,
-        "isize",
-        isizex8::isizex8
+        "usize",
+        usizex2::usizex2
     );
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(target_pointer_width = "32")]
     impl_type_common!(
         usize,
         Usize,
@@ -555,20 +621,6 @@ mod type_impl {
         "usize",
         usizex4::usizex4
     );
-    #[cfg(target_pointer_width = "32")]
-    impl_type_common!(
-        usize,
-        Usize,
-        usize::MAX,
-        usize::MIN,
-        0,
-        1,
-        usize::MAX,
-        usize::MIN,
-        2,
-        "usize",
-        usizex8::usizex8
-    );
     impl_type_common!(
         f16,
         F16,
@@ -580,7 +632,7 @@ mod type_impl {
         f16::NEG_INFINITY,
         f16::from_f32_const(2.0),
         "f16",
-        f16x16::f16x16
+        f16x8::f16x8
     );
     impl_type_common!(
         bf16,
@@ -593,7 +645,7 @@ mod type_impl {
         bf16::NEG_INFINITY,
         bf16::from_f32_const(2.0),
         "bf16",
-        bf16x16::bf16x16
+        bf16x8::bf16x8
     );
     impl_type_common!(
         Complex32,
@@ -606,7 +658,7 @@ mod type_impl {
         Complex32::new(f32::NEG_INFINITY, f32::NEG_INFINITY),
         Complex32::new(2.0, 0.0),
         "c32",
-        cplx32x4::cplx32x4
+        cplx32x2::cplx32x2
     );
     impl_type_common!(
         Complex64,
@@ -619,10 +671,9 @@ mod type_impl {
         Complex64::new(f64::NEG_INFINITY, f64::NEG_INFINITY),
         Complex64::new(2.0, 0.0),
         "c64",
-        cplx64x2::cplx64x2
+        cplx64x1::cplx64x1
     );
 }
-
 
 pub trait FloatConst {
     const HALF: Self;
