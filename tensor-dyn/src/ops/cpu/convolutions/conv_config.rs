@@ -105,7 +105,9 @@ fn find_exact_combination<T: CommonBounds, const REGNUM: usize>(
     for ci_b in (1..max_ci_b + 1).rev() {
         for co_b in (1..max_co_b + 1)
             .rev()
-            .filter(|&co_b| (co_b % (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64)) * 2 == 0) {
+            .filter(
+                |&co_b| (co_b % (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64)) * 2 == 0
+            ) {
             let product =
                 co_b * (REGNUM as i64) +
                 weight_size * height_size * ci_b * ((REGNUM as i64) + co_b);
@@ -120,7 +122,7 @@ fn find_exact_combination<T: CommonBounds, const REGNUM: usize>(
     }
     let cache_line_size = (cache_size
         ::cache_line_size(1, cache_size::CacheType::Data)
-        .unwrap_or(128) / std::mem::size_of::<T>()) as i64;
+        .unwrap_or(64) / std::mem::size_of::<T>()) as i64;
     if max_co_b >= cache_line_size && best_co_b < cache_line_size {
         best_co_b = cache_line_size;
         if best_ci_b / 2 != 0 {
