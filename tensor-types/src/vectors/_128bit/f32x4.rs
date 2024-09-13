@@ -6,7 +6,7 @@ use std::simd::StdFloat;
 use crate::vectors::_128bit::u32x4::u32x4;
 
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct f32x4(pub(crate) std::simd::f32x4);
 
 impl Deref for f32x4 {

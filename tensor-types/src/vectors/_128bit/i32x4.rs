@@ -3,7 +3,7 @@ use std::ops::{ Deref, DerefMut };
 use crate::{into_vec::IntoVec, traits::{Init, VecCommon, VecTrait}};
 
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct i32x4(pub(crate) std::simd::i32x4);
 
 impl Deref for i32x4 {

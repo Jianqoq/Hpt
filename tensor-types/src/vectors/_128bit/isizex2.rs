@@ -3,7 +3,7 @@ use std::ops::{ Deref, DerefMut };
 use crate::{into_vec::IntoVec, traits::{Init, VecCommon, VecTrait}};
 
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct isizex2(pub(crate) std::simd::isizex2);
 
 impl Deref for isizex2 {

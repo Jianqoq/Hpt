@@ -4,7 +4,7 @@ use crate::into_vec::IntoVec;
 use crate::_128bit::u16x8::u16x8;
 
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct bf16x8(pub(crate) [half::bf16; 8]);
 
 impl VecTrait<half::bf16> for bf16x8 {

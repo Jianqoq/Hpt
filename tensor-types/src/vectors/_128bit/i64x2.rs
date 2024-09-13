@@ -3,7 +3,7 @@ use std::ops::{ Deref, DerefMut };
 use crate::traits::{ Init, VecCommon, VecTrait };
 
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct i64x2(pub(crate) std::simd::i64x2);
 
 impl Deref for i64x2 {

@@ -5,7 +5,7 @@ use crate::vectors::traits::{ Init, SimdSelect, VecCommon, VecTrait };
 use std::simd::StdFloat;
 
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct f32x16(pub(crate) std::simd::f32x16);
 
 impl Deref for f32x16 {

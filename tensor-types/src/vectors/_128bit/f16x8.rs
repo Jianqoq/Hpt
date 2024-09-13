@@ -9,7 +9,7 @@ use crate::_128bit::u16x8::u16x8;
 use crate::_128bit::f32x4::f32x4;
 
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct f16x8(pub(crate) [half::f16; 8]);
 
 impl VecTrait<half::f16> for f16x8 {

@@ -4,7 +4,7 @@ use crate::into_vec::IntoVec;
 use crate::traits::{ Init, VecCommon, VecTrait };
 
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct boolx16(pub(crate) [bool; 16]);
 
 impl VecTrait<bool> for boolx16 {

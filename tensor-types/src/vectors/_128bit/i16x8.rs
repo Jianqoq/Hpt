@@ -3,7 +3,7 @@ use std::ops::{ Deref, DerefMut };
 use crate::{into_vec::IntoVec, traits::{Init, VecCommon, VecTrait}};
 
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct i16x8(pub(crate) std::simd::i16x8);
 
 impl Deref for i16x8 {

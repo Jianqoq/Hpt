@@ -5,7 +5,7 @@ use crate::vectors::_512bit::u16x32::u16x32;
 use crate::vectors::{ _512bit::f32x16::f32x16, traits::{ Init, VecCommon, VecTrait } };
 
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct bf16x32(pub(crate) [half::bf16; 32]);
 
 impl VecTrait<half::bf16> for bf16x32 {

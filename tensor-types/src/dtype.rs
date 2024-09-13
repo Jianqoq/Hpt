@@ -158,8 +158,6 @@ mod type_impl {
     use crate::vectors::_256bit::*;
     use half::*;
     use num_complex::{Complex32, Complex64};
-
-    use crate::vectors::_256bit::*;
     impl_type_common!(
         bool,
         Bool,
