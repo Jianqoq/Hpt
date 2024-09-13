@@ -56,6 +56,13 @@ impl Init<f64> for f64x2 {
     fn splat(val: f64) -> f64x2 {
         f64x2(std::simd::f64x2::splat(val))
     }
+    unsafe fn from_ptr(ptr: *const f64) -> Self where Self: Sized {
+        #[cfg(target_feature = "neon")]
+        {
+            use std::arch::aarch64::vld1q_f64;
+            f64x2(std::mem::transmute(vld1q_f64(ptr)))
+        }
+    }
 }
 impl std::ops::Add for f64x2 {
     type Output = Self;

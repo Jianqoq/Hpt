@@ -30,14 +30,14 @@ path = "src/main.rs"
 
 
 [profile.dev]
-opt-level = 2
+opt-level = 3
 incremental = false
 debug = "full"
 lto = "fat"
 codegen-units = 1
 
 [profile.release]
-opt-level = 2
+opt-level = 3
 incremental = false
 debug = "full"
 lto = "fat"

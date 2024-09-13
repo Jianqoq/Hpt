@@ -40,7 +40,7 @@ impl<T> Conv2dConfig<T> where T: CommonBounds {
         algo: KernelParamAlgo
     ) -> Self {
         let cache_size =
-            cache_size::l1_cache_size().unwrap_or(32 * 1024) / std::mem::size_of::<T>();
+            cache_size::l1_cache_size().unwrap_or(128 * 1024) / std::mem::size_of::<T>();
         let (co_block_size, ci_block_size) = match algo {
             KernelParamAlgo::Heuristic => todo!(),
             KernelParamAlgo::Greedy => {
@@ -120,7 +120,7 @@ fn find_exact_combination<T: CommonBounds, const REGNUM: usize>(
     }
     let cache_line_size = (cache_size
         ::cache_line_size(1, cache_size::CacheType::Data)
-        .unwrap_or(64) / std::mem::size_of::<T>()) as i64;
+        .unwrap_or(128) / std::mem::size_of::<T>()) as i64;
     if max_co_b >= cache_line_size && best_co_b < cache_line_size {
         best_co_b = cache_line_size;
         if best_ci_b / 2 != 0 {

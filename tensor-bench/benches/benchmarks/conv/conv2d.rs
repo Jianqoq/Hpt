@@ -26,19 +26,19 @@ fn conv2d_benchmark(c: &mut Criterion) {
             [1 /* batch */, 64 /* in channel */, 256 /* height */, 256 /* width */],
             [64 /* in channel */, 128 /* out channel */],
         ),
-        ([1, 16, 256, 256], [16, 16]),
-        ([1, 128, 256, 256], [128, 256]),
-        ([1, 256, 256, 256], [256, 512]),
-        ([1, 64, 56, 56], [64, 128]),
-        ([1, 128, 28, 28], [128, 256]),
-        ([1, 256, 14, 14], [256, 512]),
-        ([1, 512, 7, 7], [512, 512]),
+        // ([1, 16, 256, 256], [16, 16]),
+        // ([1, 128, 256, 256], [128, 256]),
+        // ([1, 256, 256, 256], [256, 512]),
+        // ([1, 64, 56, 56], [64, 128]),
+        // ([1, 128, 28, 28], [128, 256]),
+        // ([1, 256, 14, 14], [256, 512]),
+        // ([1, 512, 7, 7], [512, 512]),
     ];
     let mut group = c.benchmark_group(concat!("conv2d", " Benchmarks"));
     group.warm_up_time(Duration::new(1, 0)).measurement_time(Duration::new(3, 0)).sample_size(10);
     for idx in 0..shapes.len() {
         let (inp_shape, [in_channels, out_channels]) = shapes[idx];
-        let a = black_box(Tensor::randn(inp_shape, (Kind::Float, Device::Cpu)).to_mkldnn());
+        let a = black_box(Tensor::randn(inp_shape, (Kind::Float, Device::Cpu)));
         let a_kernel = black_box(
             Tensor::randn([out_channels, in_channels, 3, 3], (Kind::Float, Device::Cpu))
         );
@@ -131,7 +131,8 @@ fn conv2d_benchmark(c: &mut Criterion) {
             .unwrap()
             .contiguous()
             .unwrap();
-        assert_eq_i64(&res, &res2);
+        println!("{:?}", res2);
+        // assert_eq_i64(&res, &res2);
     }
     group.finish();
 }

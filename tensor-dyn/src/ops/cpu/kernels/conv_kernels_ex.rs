@@ -1,8 +1,11 @@
+use crate::CONV_REGNUM;
 use tensor_common::pointer::Pointer;
 use tensor_traits::CommonBounds;
-use tensor_types::{ dtype::TypeCommon, traits::{ Init, VecCommon, VecTrait } };
 use tensor_types::type_promote::NormalOut;
-use crate::CONV_REGNUM;
+use tensor_types::{
+    dtype::TypeCommon,
+    traits::{Init, VecCommon, VecTrait},
+};
 
 #[cfg(not(feature = "bound_check"))]
 #[rustfmt::skip]
@@ -268,7 +271,7 @@ macro_rules! micro_kernel_with_buffer {
                         let res_vectors = res_buffer.get_unchecked_mut(j as usize);
                         #[cfg(feature = "bound_check")]
                         let res_vectors = res_buffer.get_mut(j as usize).unwrap();
-                        
+
                         $(
                             #[cfg(not(feature = "bound_check"))]
                             let [<out_vec $idx>] = res_vectors.get_unchecked_mut($idx) as *mut _ as *mut <T as TypeCommon>::Vec;
@@ -290,9 +293,9 @@ macro_rules! micro_kernel_with_buffer {
 
 #[cfg(target_feature = "avx2")]
 micro_kernel!(regnum, [0, 1, 2, 3, 4, 5, 6]);
-#[cfg(target_feature = "avx512f")]
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
 micro_kernel!(regnum, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
-#[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
+#[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
 micro_kernel!(regnum, [0, 1, 2]);
 micro_kernel!(1, [0]);
 micro_kernel!(2, [0, 1]);
@@ -374,7 +377,11 @@ micro_kernel_1!(7, regnum, [0, 1, 2, 3, 4, 5, 6]);
 #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
 micro_kernel_1!(3, regnum, [0, 1, 2]);
 #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
-micro_kernel_1!(15, regnum, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+micro_kernel_1!(
+    15,
+    regnum,
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+);
 micro_kernel_1!(1, 1, [0]);
 micro_kernel_1!(2, 2, [0, 1]);
 micro_kernel_1!(3, 3, [0, 1, 2]);

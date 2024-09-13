@@ -1,8 +1,8 @@
-use std::ops::{ Deref, DerefMut };
-use std::simd::num::SimdFloat;
-use crate::traits::{ Init, SimdSelect, VecCommon, VecTrait };
-use std::simd::StdFloat;
+use crate::traits::{Init, SimdSelect, VecCommon, VecTrait};
 use crate::vectors::_128bit::u32x4::u32x4;
+use std::ops::{Deref, DerefMut};
+use std::simd::num::SimdFloat;
+use std::simd::StdFloat;
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
@@ -51,12 +51,22 @@ impl VecTrait<f32> for f32x4 {
 }
 impl VecCommon for f32x4 {
     const SIZE: usize = 4;
-    
+
     type Base = f32;
 }
 impl Init<f32> for f32x4 {
     fn splat(val: f32) -> f32x4 {
         f32x4(std::simd::f32x4::splat(val))
+    }
+    unsafe fn from_ptr(ptr: *const f32) -> Self
+    where
+        Self: Sized,
+    {
+        #[cfg(target_feature = "neon")]
+        {
+            use std::arch::aarch64::vld1q_f32;
+            f32x4(std::mem::transmute(vld1q_f32(ptr)))
+        }
     }
 }
 impl SimdSelect<f32x4> for u32x4 {
