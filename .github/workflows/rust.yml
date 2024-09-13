@@ -16,6 +16,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Install Rust nightly
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        override: true  # Use nightly for the entire workflow
+        components: clippy, rustfmt  # Optional: add useful components
     - name: Build
       run: |
         cd tensor-tests
