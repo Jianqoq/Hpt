@@ -7,7 +7,7 @@ use tensor_types::{
     type_promote::{Cmp, SimdCmp},
 };
 
-#[cfg(any(target_feature = "sse", target_feature = "neon"))]
+#[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
 use tensor_types::vectors::_128bit::boolx16::boolx16;
 #[cfg(target_feature = "avx2")]
 use tensor_types::vectors::_256bit::boolx32::boolx32;
