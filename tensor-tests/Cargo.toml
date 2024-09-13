@@ -18,15 +18,11 @@ anyhow = "1.0.75"
 rayon = { version = "1.10.0", default-features = false }
 
 [profile.dev]
-opt-level = 0
+opt-level = 3
 incremental = false
 debug = true
-# lto = "fat"
-# codegen-units = 1
 
 [profile.release]
-opt-level = 0
+opt-level = 3
 incremental = false
 debug = true
-# lto = "fat"
-# codegen-units = 1

@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use backend::Cpu;
 use tensor_base::_Tensor;
 use tensor_dyn::*;

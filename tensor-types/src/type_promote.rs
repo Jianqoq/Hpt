@@ -19,7 +19,12 @@ use num_traits::float::Float;
 use crate::dtype::TypeCommon;
 use crate::dtype::FloatConst;
 use tensor_macros::impl_normal_out_simd;
+#[cfg(target_feature = "avx2")]
 use crate::vectors::_256bit::*;
+#[cfg(target_feature = "avx512f")]
+use crate::vectors::_512bit::*;
+#[cfg(all(target_feature = "sse2", not(target_feature = "avx2")))]
+use crate::vectors::_128bit::*;
 use half::bf16;
 use crate::convertion::VecConvertor;
 use std::simd::num::SimdInt;
