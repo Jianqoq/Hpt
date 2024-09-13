@@ -23,6 +23,8 @@ pub mod vectors {
         pub mod usizex2;
         pub mod isizex2;
         pub mod f16x8;
+        pub mod cplx32x2;
+        pub mod cplx64x1;
     }
     #[cfg(target_feature = "avx2")]
     pub mod _256bit {

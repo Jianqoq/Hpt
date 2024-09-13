@@ -35,6 +35,7 @@ pub trait Convertor {
     fn to_complex64(self) -> Complex64;
 }
 
+#[cfg(target_feature = "avx2")]
 pub trait VecConvertor {
     fn to_bool(self) -> boolx32::boolx32;
     fn to_u8(self) -> u8x32::u8x32;
@@ -53,6 +54,27 @@ pub trait VecConvertor {
     fn to_bf16(self) -> bf16x16::bf16x16;
     fn to_complex32(self) -> cplx32x4::cplx32x4;
     fn to_complex64(self) -> cplx64x2::cplx64x2;
+}
+
+#[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
+pub trait VecConvertor {
+    fn to_bool(self) -> boolx16::boolx16;
+    fn to_u8(self) -> u8x16::u8x16;
+    fn to_u16(self) -> u16x8::u16x8;
+    fn to_u32(self) -> u32x4::u32x4;
+    fn to_u64(self) -> u64x2::u64x2;
+    fn to_usize(self) -> usizex2::usizex2;
+    fn to_i8(self) -> i8x16::i8x16;
+    fn to_i16(self) -> i16x8::i16x8;
+    fn to_i32(self) -> i32x4::i32x4;
+    fn to_i64(self) -> i64x2::i64x2;
+    fn to_isize(self) -> isizex2::isizex2;
+    fn to_f32(self) -> f32x4::f32x4;
+    fn to_f64(self) -> f64x2::f64x2;
+    fn to_f16(self) -> f16x8::f16x8;
+    fn to_bf16(self) -> bf16x8::bf16x8;
+    fn to_complex32(self) -> cplx32x2::cplx32x2;
+    fn to_complex64(self) -> cplx64x1::cplx64x1;
 }
 
 impl_simd_convert!();
