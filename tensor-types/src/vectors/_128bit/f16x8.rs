@@ -153,6 +153,11 @@ impl f16x8 {
 
                 std::mem::transmute([low_f32x4, high_f32x4])
             }
+            #[cfg(not(any(target_feature = "f16c", all(target_feature = "neon", target_arch = "aarch64"))))]
+            {
+                let [high, low]: [u16x4; 2] = unsafe { std::mem::transmute(self.0) };
+                std::mem::transmute([u16_to_f32(high), u16_to_f32(low)])
+            }
         }
     }
 }
@@ -216,7 +221,7 @@ impl std::ops::Rem for f16x8 {
     }
 }
 
-pub fn u16_to_f16(val: u16x4) -> std::simd::f32x4 {
+pub fn u16_to_f32(val: u16x4) -> std::simd::f32x4 {
     let sign_mask = std::simd::u16x4::splat(0x8000);
     let exp_mask = u16x4::splat(0x7c00);
     let man_mask = u16x4::splat(0x03ff);

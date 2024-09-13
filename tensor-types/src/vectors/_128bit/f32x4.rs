@@ -67,7 +67,9 @@ impl Init<f32> for f32x4 {
         #[cfg(target_feature = "sse")]
         {
             use std::arch::x86_64::_mm_loadu_ps;
-            f32x4(_mm_loadu_ps(ptr))
+            f32x4(
+                std::mem::transmute(_mm_loadu_ps(ptr))
+            )
         }
     }
 }
