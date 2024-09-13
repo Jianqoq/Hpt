@@ -1,6 +1,6 @@
 use std::ops::{ Deref, DerefMut };
 
-use crate::traits::{Init, VecCommon, VecTrait};
+use crate::traits::{ Init, VecCommon, VecTrait };
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
@@ -42,46 +42,56 @@ impl VecTrait<i32> for i32x4 {
     fn sum(&self) -> i32 {
         self.as_array().iter().sum()
     }
-    
+
     fn extract(self, idx: usize) -> i32 {
         self.as_array()[idx]
     }
 }
 impl VecCommon for i32x4 {
     const SIZE: usize = 4;
-    
+
     type Base = i32;
 }
 impl Init<i32> for i32x4 {
     fn splat(val: i32) -> i32x4 {
         i32x4(std::simd::i32x4::splat(val))
     }
+    unsafe fn from_ptr(ptr: *const i32) -> Self where Self: Sized {
+        #[cfg(target_feature = "neon")]
+        {
+            unsafe { std::mem::transmute(std::arch::aarch64::_simd_loadu_si128(ptr as *const _)) }
+        }
+        #[cfg(not(target_feature = "neon"))]
+        {
+            unsafe { std::mem::transmute(std::arch::x86_64::_mm_loadu_si128(ptr as *const _)) }
+        }
+    }
 }
-impl std::ops::Add  for i32x4 {
+impl std::ops::Add for i32x4 {
     type Output = i32x4;
     fn add(self, rhs: Self) -> Self::Output {
         i32x4(self.0 + rhs.0)
     }
 }
-impl std::ops::Sub  for i32x4 {
+impl std::ops::Sub for i32x4 {
     type Output = i32x4;
     fn sub(self, rhs: Self) -> Self::Output {
         i32x4(self.0 - rhs.0)
     }
 }
-impl std::ops::Mul  for i32x4 {
+impl std::ops::Mul for i32x4 {
     type Output = i32x4;
     fn mul(self, rhs: Self) -> Self::Output {
         i32x4(self.0 * rhs.0)
     }
 }
-impl std::ops::Div  for i32x4 {
+impl std::ops::Div for i32x4 {
     type Output = i32x4;
     fn div(self, rhs: Self) -> Self::Output {
         i32x4(self.0 / rhs.0)
     }
 }
-impl std::ops::Rem  for i32x4 {
+impl std::ops::Rem for i32x4 {
     type Output = i32x4;
     fn rem(self, rhs: Self) -> Self::Output {
         i32x4(self.0 % rhs.0)

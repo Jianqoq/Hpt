@@ -56,6 +56,16 @@ impl Init<u64> for u64x2 {
     fn splat(val: u64) -> u64x2 {
         u64x2(std::simd::u64x2::splat(val))
     }
+    unsafe fn from_ptr(ptr: *const u64) -> Self where Self: Sized {
+        #[cfg(target_feature = "neon")]
+        {
+            unsafe { std::mem::transmute(std::arch::aarch64::_simd_loadu_si128(ptr as *const _)) }
+        }
+        #[cfg(not(target_feature = "neon"))]
+        {
+            unsafe { std::mem::transmute(std::arch::x86_64::_mm_loadu_si128(ptr as *const _)) }
+        }
+    }
 }
 impl std::ops::Add for u64x2 {
     type Output = Self;

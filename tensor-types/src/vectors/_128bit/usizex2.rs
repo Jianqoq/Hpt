@@ -62,6 +62,16 @@ impl Init<usize> for usizex2 {
         let ret = usizex2(std::simd::usizex2::splat(val));
         ret
     }
+    unsafe fn from_ptr(ptr: *const usize) -> Self where Self: Sized {
+        #[cfg(target_feature = "neon")]
+        {
+            unsafe { std::mem::transmute(std::arch::aarch64::_simd_loadu_si128(ptr as *const _)) }
+        }
+        #[cfg(not(target_feature = "neon"))]
+        {
+            unsafe { std::mem::transmute(std::arch::x86_64::_mm_loadu_si128(ptr as *const _)) }
+        }
+    }
 }
 
 impl IntoVec<usizex2> for usizex2 {
