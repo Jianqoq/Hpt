@@ -23,7 +23,7 @@ impl VecTrait<half::bf16> for bf16x8 {
         let [b0, b1]: [f32x4; 2] = unsafe { std::mem::transmute(b.to_2_f32x4()) };
         let res0 = x0._mul_add(a0, b0);
         let res1 = x1._mul_add(a1, b1);
-        bf16x8::from_2_f32x8([res0, res1])
+        bf16x8::from_2_f32x4([res0, res1])
     }
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut half::bf16 {
@@ -59,7 +59,7 @@ impl IntoVec<bf16x8> for bf16x8 {
 }
 
 impl bf16x8 {
-    #[cfg(target_feature = "avx2")]
+
     pub fn to_2_f32x4(&self) -> [f32x4; 2] {
         let [ai, bi]: [std::simd::u16x4; 2] = unsafe { std::mem::transmute(self.0) };
 
@@ -76,8 +76,8 @@ impl bf16x8 {
         let [a_res, b_res] = [am.select(an_adjusted, a_normal), bm.select(bn_adjusted, b_normal)];
         unsafe { std::mem::transmute([a_res, b_res]) }
     }
-    #[cfg(target_feature = "avx2")]
-    pub fn from_2_f32x8(inp: [f32x4; 2]) -> Self {
+
+    pub fn from_2_f32x4(inp: [f32x4; 2]) -> Self {
         use std::simd::num::SimdInt;
         use std::simd::Simd;
         use std::simd::cmp::SimdPartialEq;

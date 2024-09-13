@@ -292,7 +292,7 @@ macro_rules! micro_kernel_with_buffer {
 micro_kernel!(regnum, [0, 1, 2, 3, 4, 5, 6]);
 #[cfg(target_feature = "avx512f")]
 micro_kernel!(regnum, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
-#[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
+#[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
 micro_kernel!(regnum, [0, 1, 2]);
 micro_kernel!(1, [0]);
 micro_kernel!(2, [0, 1]);
@@ -328,7 +328,7 @@ micro_kernel!(14, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
 micro_kernel_with_buffer!(regnum, [0, 1, 2, 3, 4, 5, 6]);
 #[cfg(target_feature = "avx512f")]
 micro_kernel_with_buffer!(regnum, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
-#[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
+#[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
 micro_kernel_with_buffer!(regnum, [0, 1, 2]);
 micro_kernel_with_buffer!(1, [0]);
 micro_kernel_with_buffer!(2, [0, 1]);
@@ -353,7 +353,12 @@ micro_kernel_with_buffer!(13, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
 #[cfg(target_feature = "avx512f")]
 micro_kernel_with_buffer!(14, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
 
+#[cfg(target_feature = "avx2")]
 micro_kernel_1!(7, regnum, [0, 1, 2, 3, 4, 5, 6]);
+#[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
+micro_kernel_1!(3, regnum, [0, 1, 2]);
+#[cfg(target_feature = "avx512f")]
+micro_kernel_1!(15, regnum, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
 micro_kernel_1!(1, 1, [0]);
 micro_kernel_1!(2, 2, [0, 1]);
 micro_kernel_1!(3, 3, [0, 1, 2]);

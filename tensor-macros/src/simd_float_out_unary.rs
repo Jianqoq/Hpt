@@ -556,11 +556,22 @@ fn gen_func_arr(
             quote! {
                 fn #method(self) -> Self::Output {
                     paste::paste! {
+                        #[cfg(target_feature = "avx2")]
                         let mut casted = self.to_2_f32x8();
+                        #[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
+                        let mut casted = self.to_2_f32x4();
+                        #[cfg(target_feature = "avx512f")]
+                        let mut casted = self.to_2_f32x16();
                         for i in 0..2 {
                             casted[i] = casted[i].#method();
                         }
-                        bf16x16::bf16x16::from_2_f32x8(casted)
+                        #[cfg(target_feature = "avx2")]
+                        let ret = bf16x16::bf16x16::from_2_f32x8(casted);
+                        #[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
+                        let ret = bf16x8::bf16x8::from_2_f32x4(casted);
+                        #[cfg(target_feature = "avx512f")]
+                        let ret = bf16x32::bf16x32::from_2_f32x16(casted);
+                        ret
                     }
                 }
             }

@@ -164,7 +164,7 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
     let largest_num_vec = 16;
     #[cfg(target_feature = "avx512f")]
     let largest_num_vec = 32;
-    #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
+    #[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
     let largest_num_vec = 8;
     let remain_vec = num_vecs % largest_num_vec;
     let num_largest_vecs = (num_vecs - remain_vec) / largest_num_vec;
@@ -380,7 +380,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2>(
     let largest_num_vec = 16;
     #[cfg(target_feature = "avx512f")]
     let largest_num_vec = 32;
-    #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
+    #[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
     let largest_num_vec = 8;
     let remain_vec = num_vecs % largest_num_vec;
     let num_largest_vecs = (num_vecs - remain_vec) / largest_num_vec;

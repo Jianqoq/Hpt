@@ -1,6 +1,5 @@
 use std::ops::{ Deref, DerefMut };
 use std::simd::num::SimdFloat;
-use crate::into_vec::IntoVec;
 use crate::traits::{ Init, SimdSelect, VecCommon, VecTrait };
 use std::simd::StdFloat;
 use crate::vectors::_128bit::u32x4::u32x4;
@@ -60,12 +59,6 @@ impl Init<f32> for f32x4 {
         f32x4(std::simd::f32x4::splat(val))
     }
 }
-impl IntoVec<f32x4> for f32x4 {
-    fn into_vec(self) -> f32x4 {
-        self
-    }
-}
-
 impl SimdSelect<f32x4> for u32x4 {
     fn select(&self, true_val: f32x4, false_val: f32x4) -> f32x4 {
         let mask: std::simd::mask32x4 = unsafe { std::mem::transmute(*self) };

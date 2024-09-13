@@ -1,6 +1,5 @@
 use std::simd::{ cmp::SimdPartialEq, Simd };
 use std::simd::cmp::SimdPartialOrd;
-use crate::into_vec::IntoVec;
 use crate::traits::{ Init, VecCommon, VecTrait };
 
 #[allow(non_camel_case_types)]
@@ -50,12 +49,6 @@ impl Init<bool> for boolx16 {
         boolx16([val; 16])
     }
 }
-impl IntoVec<boolx16> for boolx16 {
-    fn into_vec(self) -> boolx16 {
-        self
-    }
-}
-
 impl boolx16 {
     pub fn simd_eq(self, rhs: Self) -> Self {
         let lhs: Simd<u8, 16> = unsafe { std::mem::transmute(self) };

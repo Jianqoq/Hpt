@@ -1,11 +1,14 @@
-use std::{ fmt::Display, ops::{ Div, Sub } };
+use std::{
+    fmt::Display,
+    ops::{Div, Sub},
+};
 
-use tensor_common::{ axis::Axis, layout::Layout, pointer::Pointer, shape::Shape, strides::Strides };
+use tensor_common::{axis::Axis, layout::Layout, pointer::Pointer, shape::Shape, strides::Strides};
 use tensor_types::{
-    convertion::{ Convertor, FromScalar },
+    convertion::{Convertor, FromScalar},
     dtype::TypeCommon,
     into_scalar::IntoScalar,
-    type_promote::{ FloatOutUnary, NormalOut },
+    type_promote::{FloatOutUnary, NormalOut},
 };
 
 pub trait TensorInfo<T> {
@@ -46,7 +49,10 @@ pub trait BaseTensor {
     fn base(&self) -> &Self::Output;
 }
 
-pub trait TensorCreator<T, Output = Self> where Self: Sized {
+pub trait TensorCreator<T, Output = Self>
+where
+    Self: Sized,
+{
     type StridedIter;
     type Mask;
     type Basic;
@@ -101,7 +107,9 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// let ones_tensor = YourType::ones([2, 3]); // Creates a 2x3 tensor filled with ones
     /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn ones<S: Into<Shape>>(shape: S) -> anyhow::Result<Output> where u8: IntoScalar<T>;
+    fn ones<S: Into<Shape>>(shape: S) -> anyhow::Result<Output>
+    where
+        u8: IntoScalar<T>;
 
     /// Creates a tensor with the same shape as the caller tensor, but empty.
     ///
@@ -146,7 +154,9 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// let ones_tensor = original_tensor.ones_like(); // New tensor with the same shape, filled with ones
     /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn ones_like(&self) -> anyhow::Result<Output> where u8: IntoScalar<T>;
+    fn ones_like(&self) -> anyhow::Result<Output>
+    where
+        u8: IntoScalar<T>;
 
     /// Creates a tensor filled entirely with a specified value.
     ///
@@ -209,7 +219,10 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn arange<U>(start: U, end: U) -> anyhow::Result<Output>
-        where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>, U: Convertor + IntoScalar<T> + Copy;
+    where
+        T: Convertor + FromScalar<U> + NormalOut<T, Output = T>,
+        usize: IntoScalar<T>,
+        U: Convertor + IntoScalar<T> + Copy;
 
     /// Creates a tensor with a range of values from `start` to `end` (exclusive), using a specified step.
     ///
@@ -230,7 +243,8 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn arange_step(start: T, end: T, step: T) -> anyhow::Result<Output>
-        where T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>;
+    where
+        T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>;
 
     /// Creates an identity matrix of size `n` x `m`, with ones on the k-th diagonal and zeros elsewhere.
     ///
@@ -248,7 +262,9 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// let eye_matrix = Tensor::<i32>::eye(3, 3, 0); // Creates a 3x3 identity matrix
     /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn eye(n: usize, m: usize, k: usize) -> anyhow::Result<Output> where u8: IntoScalar<T>;
+    fn eye(n: usize, m: usize, k: usize) -> anyhow::Result<Output>
+    where
+        u8: IntoScalar<T>;
 
     /// Returns evenly spaced numbers over a specified interval.
     ///
@@ -271,10 +287,10 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn linspace(start: T, end: T, num: usize, include_end: bool) -> anyhow::Result<Output>
-        where
-            T: Convertor + num::Float + NormalOut<T, Output = T>,
-            usize: IntoScalar<T>,
-            f64: IntoScalar<T>;
+    where
+        T: Convertor + num::Float + NormalOut<T, Output = T>,
+        usize: IntoScalar<T>,
+        f64: IntoScalar<T>;
 
     /// Returns numbers spaced evenly on a log scale.
     ///
@@ -298,12 +314,8 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> anyhow::Result<Output>
-        where
-            T: Convertor +
-                num::Float +
-                FromScalar<usize> +
-                FromScalar<f64> +
-                NormalOut<T, Output = T>;
+    where
+        T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64> + NormalOut<T, Output = T>;
 
     /// Returns numbers spaced evenly on a geometric scale.
     ///
@@ -329,19 +341,19 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> anyhow::Result<Output>
-        where
-            T: PartialOrd +
-                FloatOutUnary +
-                NormalOut<T, Output = T> +
-                FromScalar<<T as FloatOutUnary>::Output> +
-                std::ops::Neg<Output = T>,
-            <T as FloatOutUnary>::Output: Sub<Output = <T as FloatOutUnary>::Output> +
-                FromScalar<usize> +
-                FromScalar<f64> +
-                Div<Output = <T as FloatOutUnary>::Output> +
-                NormalOut<Output = <T as FloatOutUnary>::Output> +
-                CommonBounds,
-            <<T as FloatOutUnary>::Output as TypeCommon>::Vec: Send + Sync;
+    where
+        T: PartialOrd
+            + FloatOutUnary
+            + NormalOut<T, Output = T>
+            + FromScalar<<T as FloatOutUnary>::Output>
+            + std::ops::Neg<Output = T>,
+        <T as FloatOutUnary>::Output: Sub<Output = <T as FloatOutUnary>::Output>
+            + FromScalar<usize>
+            + FromScalar<f64>
+            + Div<Output = <T as FloatOutUnary>::Output>
+            + NormalOut<Output = <T as FloatOutUnary>::Output>
+            + CommonBounds,
+        <<T as FloatOutUnary>::Output as TypeCommon>::Vec: Send + Sync;
 
     /// Creates a triangular matrix with dimensions `n` x `m`.
     ///
@@ -363,7 +375,8 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> anyhow::Result<Output>
-        where u8: IntoScalar<T>;
+    where
+        u8: IntoScalar<T>;
 
     /// Creates a lower triangular matrix from the existing tensor.
     ///
@@ -381,13 +394,25 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// let lower_tri_matrix = tensor.tril(0); // Creates a lower triangular matrix from tensor
     /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
+    #[cfg(target_feature = "avx2")]
     fn tril(&self, k: i64) -> anyhow::Result<Self>
-        where
-            T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
-            <T as TypeCommon>::Vec: NormalOut<
-                tensor_types::vectors::_256bit::boolx32::boolx32,
-                Output = <T as TypeCommon>::Vec
-            >;
+    where
+        T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
+        <T as TypeCommon>::Vec: NormalOut<
+            tensor_types::vectors::_256bit::boolx32::boolx32,
+            Output = <T as TypeCommon>::Vec,
+        >;
+    #[cfg(all(
+        any(target_feature = "sse", target_feature = "neon"),
+        not(target_feature = "avx2")
+    ))]
+    fn tril(&self, k: i64) -> anyhow::Result<Self>
+    where
+        T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
+        <T as TypeCommon>::Vec: NormalOut<
+            tensor_types::vectors::_128bit::boolx16::boolx16,
+            Output = <T as TypeCommon>::Vec,
+        >;
 
     /// Creates an upper triangular matrix from the existing tensor.
     ///
@@ -408,13 +433,25 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// let upper_tri_matrix = tensor.triu(0); // Creates an upper triangular matrix from tensor
     /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
+    #[cfg(target_feature = "avx2")]
     fn triu(&self, k: i64) -> anyhow::Result<Self>
-        where
-            T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
-            <T as TypeCommon>::Vec: NormalOut<
-                tensor_types::vectors::_256bit::boolx32::boolx32,
-                Output = <T as TypeCommon>::Vec
-            >;
+    where
+        T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
+        <T as TypeCommon>::Vec: NormalOut<
+            tensor_types::vectors::_256bit::boolx32::boolx32,
+            Output = <T as TypeCommon>::Vec,
+        >;
+    #[cfg(all(
+        any(target_feature = "sse", target_feature = "neon"),
+        not(target_feature = "avx2")
+    ))]
+    fn triu(&self, k: i64) -> anyhow::Result<Self>
+    where
+        T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
+        <T as TypeCommon>::Vec: NormalOut<
+            tensor_types::vectors::_128bit::boolx16::boolx16,
+            Output = <T as TypeCommon>::Vec,
+        >;
 
     /// Creates an identity matrix of size `n` x `n`.
     ///
@@ -431,16 +468,23 @@ pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// let identity_matrix = YourType::identity(3); // Creates a 3x3 identity matrix
     /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn identity(n: usize) -> anyhow::Result<Output> where u8: IntoScalar<T>;
+    fn identity(n: usize) -> anyhow::Result<Output>
+    where
+        u8: IntoScalar<T>;
 }
 
 pub trait TensorAlloc<Output = Self> {
     type Meta;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn _empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Output> where Self: Sized;
+    fn _empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Output>
+    where
+        Self: Sized;
 }
 
-pub trait IndexReduce where Self: Sized {
+pub trait IndexReduce
+where
+    Self: Sized,
+{
     type Output;
 
     /// find the index of the max value along a specific axis
@@ -476,7 +520,10 @@ pub trait IndexReduce where Self: Sized {
     fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }
 
-pub trait NormalReduce<T> where Self: Sized {
+pub trait NormalReduce<T>
+where
+    Self: Sized,
+{
     type Output;
     type BoolOutput;
 
@@ -502,7 +549,7 @@ pub trait NormalReduce<T> where Self: Sized {
         axis: S,
         keep_dims: bool,
         init_out: bool,
-        out: Self::Output
+        out: Self::Output,
     ) -> anyhow::Result<Self::Output>;
 
     /// sum along a specific axis or a set of axis, with initial value
@@ -523,7 +570,7 @@ pub trait NormalReduce<T> where Self: Sized {
         &self,
         init_val: T,
         axes: S,
-        keep_dims: bool
+        keep_dims: bool,
     ) -> anyhow::Result<Self::Output>;
 
     /// sum along a specific axis, NaN will be treated as 0
@@ -560,7 +607,7 @@ pub trait NormalReduce<T> where Self: Sized {
         &self,
         init_val: T,
         axes: S,
-        keep_dims: bool
+        keep_dims: bool,
     ) -> anyhow::Result<Self::Output>;
 
     /// product along a specific axis
@@ -597,7 +644,7 @@ pub trait NormalReduce<T> where Self: Sized {
         &self,
         init_val: T,
         axes: S,
-        keep_dims: bool
+        keep_dims: bool,
     ) -> anyhow::Result<Self::Output>;
 
     /// product along a specific axis, NaN will be treated as 0
@@ -634,7 +681,7 @@ pub trait NormalReduce<T> where Self: Sized {
         &self,
         init_val: T,
         axes: S,
-        keep_dims: bool
+        keep_dims: bool,
     ) -> anyhow::Result<Self::Output>;
 
     /// find the min value along a specific axis or a set of axis
@@ -671,7 +718,7 @@ pub trait NormalReduce<T> where Self: Sized {
         &self,
         init_val: T,
         axes: S,
-        keep_dims: bool
+        keep_dims: bool,
     ) -> anyhow::Result<Self>;
 
     /// find the max value along a specific axis or a set of axis
@@ -708,7 +755,7 @@ pub trait NormalReduce<T> where Self: Sized {
         &self,
         init_val: T,
         axes: S,
-        keep_dims: bool
+        keep_dims: bool,
     ) -> anyhow::Result<Self>;
 
     /// check if all values are true along a specific axis or a set of axis
@@ -748,7 +795,10 @@ pub trait NormalReduce<T> where Self: Sized {
     fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }
 
-pub trait FloatReduce<T> where Self: Sized {
+pub trait FloatReduce<T>
+where
+    Self: Sized,
+{
     type Output;
 
     /// calculate average value along a specific axis or a set of axis
@@ -774,9 +824,16 @@ pub trait FloatReduce<T> where Self: Sized {
     fn logsumexp<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }
 
-pub trait CommonBounds
-    : Sync + Send + Clone + Copy + TypeCommon + 'static + Display + IntoScalar<Self> + Convertor
-    where <Self as TypeCommon>::Vec: Send + Sync + Copy {}
-impl<T: Sync + Send + Clone + Copy + TypeCommon + 'static + Display + IntoScalar<Self> + Convertor> CommonBounds
-    for T
-    where <Self as TypeCommon>::Vec: Send + Sync + Copy {}
+pub trait CommonBounds:
+    Sync + Send + Clone + Copy + TypeCommon + 'static + Display + IntoScalar<Self> + Convertor
+where
+    <Self as TypeCommon>::Vec: Send + Sync + Copy,
+{
+}
+impl<
+        T: Sync + Send + Clone + Copy + TypeCommon + 'static + Display + IntoScalar<Self> + Convertor,
+    > CommonBounds for T
+where
+    <Self as TypeCommon>::Vec: Send + Sync + Copy,
+{
+}

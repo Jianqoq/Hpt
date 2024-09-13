@@ -1,7 +1,5 @@
 use num_complex::Complex32;
 
-use crate::into_vec::IntoVec;
-
 use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
 #[allow(non_camel_case_types)]
@@ -46,11 +44,6 @@ impl VecCommon for cplx32x2 {
 impl Init<Complex32> for cplx32x2 {
     fn splat(val: Complex32) -> cplx32x2 {
         cplx32x2([val; 2])
-    }
-}
-impl IntoVec<cplx32x2> for cplx32x2 {
-    fn into_vec(self) -> cplx32x2 {
-        self
     }
 }
 impl std::ops::Add for cplx32x2 {

@@ -1,5 +1,3 @@
-
-
 pub trait IntoVec<T> {
     fn into_vec(self) -> T;
 }
@@ -25,11 +23,14 @@ mod into_vec {
     }
 }
 
-#[cfg(all(any(target_feature = "sse2", target_feature = "neon"), not(target_feature = "avx2")))]
+#[cfg(all(
+    any(target_feature = "sse2", target_feature = "neon"),
+    not(target_feature = "avx2")
+))]
 mod into_vec {
     use super::IntoVec;
     use crate::vectors::_128bit::*;
-    impl IntoVec<boolx16::boolx16> for u32x8::u32x8 {
+    impl IntoVec<boolx16::boolx16> for boolx16::boolx16 {
         fn into_vec(self) -> boolx16::boolx16 {
             unreachable!()
         }
@@ -65,7 +66,7 @@ mod into_vec {
         }
     }
     impl IntoVec<i64x2::i64x2> for i64x2::i64x2 {
-        fn into_vec(self) -> i64x4::i64x2 {
+        fn into_vec(self) -> i64x2::i64x2 {
             self
         }
     }

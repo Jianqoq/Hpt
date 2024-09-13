@@ -1,6 +1,6 @@
 use std::ops::{ Deref, DerefMut };
 
-use crate::{ into_vec::IntoVec, traits::{ Init, VecCommon, VecTrait } };
+use crate:: traits::{ Init, VecCommon, VecTrait } ;
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
@@ -55,11 +55,6 @@ impl VecCommon for i8x16 {
 impl Init<i8> for i8x16 {
     fn splat(val: i8) -> i8x16 {
         i8x16(std::simd::i8x16::splat(val))
-    }
-}
-impl IntoVec<i8x16> for i8x16 {
-    fn into_vec(self) -> i8x16 {
-        self
     }
 }
 impl std::ops::Add for i8x16 {

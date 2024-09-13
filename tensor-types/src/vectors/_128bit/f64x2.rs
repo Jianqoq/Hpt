@@ -1,6 +1,6 @@
 use std::{ ops::{ Deref, DerefMut }, simd::StdFloat };
 
-use crate::{ into_vec::IntoVec, traits::{ Init, VecCommon, VecTrait } };
+use crate::traits::{ Init, VecCommon, VecTrait };
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
@@ -57,12 +57,6 @@ impl Init<f64> for f64x2 {
         f64x2(std::simd::f64x2::splat(val))
     }
 }
-impl IntoVec<f64x2> for f64x2 {
-    fn into_vec(self) -> f64x2 {
-        self
-    }
-}
-
 impl std::ops::Add for f64x2 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {

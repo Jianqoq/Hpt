@@ -71,14 +71,30 @@ pub fn impl_simd_eval() -> TokenStream {
             if lhs_dtype.is_bf16() {
                 quote! {
                     fn _is_true(&self) -> #mask_ty::#mask_ty {
+                        #[cfg(target_feature = "avx2")]
                         let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
+                        #[cfg(all(
+                            any(target_feature = "sse2", target_feature = "neon"),
+                            not(target_feature = "avx2")
+                        ))]
+                        let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
+                        #[cfg(target_feature = "avx512f")]
+                        let x: Simd<u16, 32> = unsafe { std::mem::transmute(self.0) };
                         #mask_ty::#mask_ty(unsafe { std::mem::transmute(x.simd_ne(#mask_ty::#mask_ty::splat(#mask_meta_ty::ZERO).0)) })
                     }
                 }
             } else if lhs_dtype.is_f16() {
                 quote! {
                     fn _is_true(&self) -> #mask_ty::#mask_ty {
+                        #[cfg(target_feature = "avx2")]
                         let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
+                        #[cfg(all(
+                            any(target_feature = "sse2", target_feature = "neon"),
+                            not(target_feature = "avx2")
+                        ))]
+                        let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
+                        #[cfg(target_feature = "avx512f")]
+                        let x: Simd<u16, 32> = unsafe { std::mem::transmute(self.0) };
                         #mask_ty::#mask_ty(unsafe { std::mem::transmute(x.simd_ne(#mask_ty::#mask_ty::splat(#mask_meta_ty::ZERO).0)) })
                     }
                 }

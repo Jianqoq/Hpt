@@ -1043,7 +1043,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(res)
     }
 
-    #[cfg(feature = "simd")]
+    #[cfg(target_feature = "avx2")]
     fn tril(&self, k: i64) -> Result<Self>
         where
             T: NormalOut<bool, Output = T> + IntoScalar<T>,
@@ -1065,11 +1065,57 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(res)
     }
 
+    #[cfg(feature = "simd")]
+    #[cfg(all(not(target_feature = "avx2"), any(target_feature = "sse", target_feature = "neon")))]
+    fn tril(&self, k: i64) -> Result<Self>
+        where
+            T: NormalOut<bool, Output = T> + IntoScalar<T>,
+            <T as TypeCommon>::Vec: NormalOut<
+                tensor_types::vectors::_128bit::boolx16::boolx16,
+                Output = <T as TypeCommon>::Vec
+            >
+    {
+        if self.shape().len() < 2 {
+            return Err(ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into());
+        }
+        let mask: _Tensor<bool> = _Tensor::<bool>::tri(
+            self.shape()[self.shape().len() - 2] as usize,
+            self.shape()[self.shape().len() - 1] as usize,
+            k,
+            true
+        )?;
+        let res: _Tensor<T> = self.clone() * mask;
+        Ok(res)
+    }
+
+    #[cfg(target_feature = "avx2")]
     fn triu(&self, k: i64) -> Result<Self>
         where
             T: NormalOut<bool, Output = T> + IntoScalar<T>,
             <T as TypeCommon>::Vec: NormalOut<
                 tensor_types::vectors::_256bit::boolx32::boolx32,
+                Output = <T as TypeCommon>::Vec
+            >
+    {
+        if self.shape().len() < 2 {
+            return Err(ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into());
+        }
+        let mask: _Tensor<bool> = _Tensor::<bool>::tri(
+            self.shape()[self.shape().len() - 2] as usize,
+            self.shape()[self.shape().len() - 1] as usize,
+            k,
+            false
+        )?;
+        let res = self.clone() * mask;
+        Ok(res)
+    }
+
+    #[cfg(all(not(target_feature = "avx2"), any(target_feature = "sse", target_feature = "neon")))]
+    fn triu(&self, k: i64) -> Result<Self>
+        where
+            T: NormalOut<bool, Output = T> + IntoScalar<T>,
+            <T as TypeCommon>::Vec: NormalOut<
+                tensor_types::vectors::_128bit::boolx16::boolx16,
                 Output = <T as TypeCommon>::Vec
             >
     {

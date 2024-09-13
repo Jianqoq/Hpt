@@ -583,6 +583,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
         Ok(_Tensor::<T, Cpu>::tri(n, m, k, low_triangle)?.into())
     }
 
+    #[cfg(target_feature = "avx2")]
     fn tril(&self, k: i64) -> Result<Self>
         where
             T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
@@ -594,6 +595,31 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
         Ok(_Tensor::tril(self, k)?.into())
     }
 
+    #[cfg(all(not(target_feature = "avx2"), any(target_feature = "sse", target_feature = "neon")))]
+    fn tril(&self, k: i64) -> Result<Self>
+        where
+            T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
+            <T as TypeCommon>::Vec: NormalOut<
+                tensor_types::vectors::_128bit::boolx16::boolx16,
+                Output = <T as TypeCommon>::Vec
+            >
+    {
+        Ok(_Tensor::tril(self, k)?.into())
+    }
+
+    #[cfg(all(not(target_feature = "avx2"), any(target_feature = "sse", target_feature = "neon")))]
+    fn triu(&self, k: i64) -> Result<Self>
+        where
+            T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
+            <T as TypeCommon>::Vec: NormalOut<
+                tensor_types::vectors::_128bit::boolx16::boolx16,
+                Output = <T as TypeCommon>::Vec
+            >
+    {
+        Ok(_Tensor::triu(self, k)?.into())
+    }
+
+    #[cfg(target_feature = "avx2")]
     fn triu(&self, k: i64) -> Result<Self>
         where
             T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,

@@ -1,39 +1,36 @@
-use tensor_macros::{ float_out_binary_simd, simd_bitwise };
-use tensor_macros::{
-    float_out_binary,
-    impl_bitwise_out,
-    impl_cmp,
-    impl_eval,
-    impl_normal_out,
-    simd_eval,
-    simd_float_out_unary,
-    simd_cmp,
-};
-use std::simd::num::SimdUint;
-use std::simd::Simd;
-use std::simd::cmp::SimdPartialEq;
-use tensor_macros::float_out_unary;
-use half::f16;
 use crate::convertion::Convertor;
-use num_traits::float::Float;
-use crate::dtype::TypeCommon;
+use crate::convertion::VecConvertor;
 use crate::dtype::FloatConst;
-use tensor_macros::impl_normal_out_simd;
+use crate::dtype::TypeCommon;
+#[cfg(all(
+    any(target_feature = "sse2", target_feature = "neon"),
+    not(target_feature = "avx2")
+))]
+use crate::vectors::_128bit::*;
 #[cfg(target_feature = "avx2")]
 use crate::vectors::_256bit::*;
 #[cfg(target_feature = "avx512f")]
 use crate::vectors::_512bit::*;
-#[cfg(all(target_feature = "sse2", not(target_feature = "avx2")))]
-use crate::vectors::_128bit::*;
-use half::bf16;
-use crate::convertion::VecConvertor;
-use std::simd::num::SimdInt;
-use std::simd::num::SimdFloat;
 use crate::vectors::traits::Init;
-use std::simd::cmp::SimdOrd;
+use half::bf16;
+use half::f16;
+use num_traits::float::Float;
 use sleef::Sleef;
-use std::simd::cmp::SimdPartialOrd;
 use std::ops::Neg;
+use std::simd::cmp::SimdOrd;
+use std::simd::cmp::SimdPartialEq;
+use std::simd::cmp::SimdPartialOrd;
+use std::simd::num::SimdFloat;
+use std::simd::num::SimdInt;
+use std::simd::num::SimdUint;
+use std::simd::Simd;
+use tensor_macros::float_out_unary;
+use tensor_macros::impl_normal_out_simd;
+use tensor_macros::{
+    float_out_binary, impl_bitwise_out, impl_cmp, impl_eval, impl_normal_out, simd_cmp, simd_eval,
+    simd_float_out_unary,
+};
+use tensor_macros::{float_out_binary_simd, simd_bitwise};
 /// this trait is used to perform type promotion in dynamic graph
 pub trait FloatOutBinary<RHS = Self> {
     type Output;

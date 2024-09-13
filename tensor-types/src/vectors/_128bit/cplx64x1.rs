@@ -1,7 +1,4 @@
 use num_complex::Complex64;
-
-use crate::into_vec::IntoVec;
-
 use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
 #[allow(non_camel_case_types)]
@@ -46,11 +43,6 @@ impl VecCommon for cplx64x1 {
 impl Init<Complex64> for cplx64x1 {
     fn splat(val: Complex64) -> cplx64x1 {
         cplx64x1([val; 1])
-    }
-}
-impl IntoVec<cplx64x1> for cplx64x1 {
-    fn into_vec(self) -> cplx64x1 {
-        self
     }
 }
 impl std::ops::Add for cplx64x1 {
