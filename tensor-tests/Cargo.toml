@@ -13,7 +13,7 @@ tensor-dyn = { path = "../tensor-dyn", features = [
 ] }
 tensor-types = { path = "../tensor-types" }
 serde_json = "1"
-tch = "0.17.0"
+tch = {version = "0.17.0", features = ["download-libtorch"]}
 anyhow = "1.0.75"
 rayon = { version = "1.10.0", default-features = false }
 
