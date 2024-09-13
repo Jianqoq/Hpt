@@ -26,12 +26,9 @@ jobs:
       run: |
         wget https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-2.4.0%2Bcpu.zip
         unzip libtorch-shared-with-deps-2.4.0+cpu.zip -d ~/libtorch
-        export LIBTORCH_HOME=~/libtorch/libtorch
-        export LD_LIBRARY_PATH=$LIBTORCH_HOME/lib:$LD_LIBRARY_PATH
-        export CMAKE_PREFIX_PATH=$LIBTORCH_HOME:$CMAKE_PREFIX_PATH
-        echo "LIBTORCH_HOME: $LIBTORCH_HOME"
-        echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
-        echo "CMAKE_PREFIX_PATH: $CMAKE_PREFIX_PATH"
+        export LIBTORCH=~/libtorch/libtorch
+        export LIBTORCH_INCLUDE=~/libtorch/libtorch
+        export LIBTORCH_LIB=~/libtorch/libtorch
     - name: Build
       run: |
         cd tensor-tests
