@@ -813,7 +813,7 @@ impl<T> _Tensor<T>
                         micro_kernel_6::<T, 6>
                     );
                 }
-                #[cfg(target_feature = "avx512f")]
+                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
                 7 => {
                     case1_helper(b, l, c, ip, ci_b_remain, micro_kernel_7::<T>, out);
                 }

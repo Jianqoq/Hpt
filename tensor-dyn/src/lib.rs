@@ -119,7 +119,7 @@ fn init() {
 static ALIGN: usize = 64;
 #[cfg(target_feature = "avx2")]
 pub(crate) const CONV_REGNUM: usize = 7;
-#[cfg(all(not(target_feature = "avx2"), any(target_feature = "sse", target_feature = "neon")))]
+#[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
 pub(crate) const CONV_REGNUM: usize = 3;
-#[cfg(target_feature = "avx512f")]
+#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
 pub(crate) const CONV_REGNUM: usize = 15;
