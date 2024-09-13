@@ -22,6 +22,16 @@ jobs:
         toolchain: nightly
         override: true  # Use nightly for the entire workflow
         components: clippy, rustfmt  # Optional: add useful components
+    - name: build torch
+      run: |
+        wget https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-2.4.0%2Bcpu.zip
+        unzip ibtorch-shared-with-deps-2.4.0+cpu.zip -d ~/libtorch
+        export LIBTORCH_HOME=~/libtorch/libtorch
+        export LD_LIBRARY_PATH=$LIBTORCH_HOME/lib:$LD_LIBRARY_PATH
+        export CMAKE_PREFIX_PATH=$LIBTORCH_HOME:$CMAKE_PREFIX_PATH
+        echo "LIBTORCH_HOME: $LIBTORCH_HOME"
+        echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
+        echo "CMAKE_PREFIX_PATH: $CMAKE_PREFIX_PATH"
     - name: Build
       run: |
         cd tensor-tests
