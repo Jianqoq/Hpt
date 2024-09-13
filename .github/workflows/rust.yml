@@ -9,10 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   LIBTORCH: ~/libtorch/libtorch
-  LIBTORCH_INCLUDE: $LIBTORCH
-  LIBTORCH_LIB: $LIBTORCH
-  LD_LIBRARY_PATH: $LIBTORCH_LIB:$LD_LIBRARY_PATH
-  CMAKE_PREFIX_PATH: $LIBTORCH
+  DYLD_LIBRARY_PATH: ~/libtorch/libtorch
 
 jobs:
   build:
@@ -32,26 +29,18 @@ jobs:
         wget https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-2.4.0%2Bcpu.zip
         unzip libtorch-shared-with-deps-2.4.0+cpu.zip -d ~/libtorch
         export LIBTORCH=~/libtorch/libtorch
-        export LIBTORCH_INCLUDE=$LIBTORCH
-        export LIBTORCH_LIB=$LIBTORCH
-        export LD_LIBRARY_PATH=$LIBTORCH_LIB:$LD_LIBRARY_PATH
+        export DYLD_LIBRARY_PATH=~/libtorch/libtorch/lib:$DYLD_LIBRARY_PATH
     - name: Build
       run: |
         cd tensor-tests
         cargo build --verbose
       env:
         LIBTORCH: ~/libtorch/libtorch
-        LIBTORCH_INCLUDE: $LIBTORCH
-        LIBTORCH_LIB: $LIBTORCH
-        LD_LIBRARY_PATH: $LIBTORCH_LIB:$LD_LIBRARY_PATH
-        CMAKE_PREFIX_PATH: $LIBTORCH
+        DYLD_LIBRARY_PATH: ~/libtorch/libtorch
     - name: Run tests
       run: |
         cd tensor-tests
         cargo test --verbose
       env:
         LIBTORCH: ~/libtorch/libtorch
-        LIBTORCH_INCLUDE: $LIBTORCH
-        LIBTORCH_LIB: $LIBTORCH
-        LD_LIBRARY_PATH: $LIBTORCH_LIB:$LD_LIBRARY_PATH
-        CMAKE_PREFIX_PATH: $LIBTORCH
+        DYLD_LIBRARY_PATH: ~/libtorch/libtorch
