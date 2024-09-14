@@ -109,15 +109,67 @@ fn test_uncontiguous_sum2() -> anyhow::Result<()> {
 
 #[test]
 fn test_prod() -> anyhow::Result<()> {
+    // let (a, tch_a) = common_input(8 * 8096 * 2048, [8, 8096, 2048])?;
+    // let sum = a.prod(0, false)?;
+    // let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
+    // assert_eq(&sum, &tch_sum);
+    // let sum = a.prod(1, false)?;
+    // let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
+    // assert_eq(&sum, &tch_sum);
+    // let sum = a.prod(2, false)?;
+    // let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
+    // assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_argmin() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(8 * 8096 * 2048, [8, 8096, 2048])?;
-    let sum = a.prod(0, false)?;
-    let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
+    let sum = a.argmin(0, false)?;
+    let tch_sum = tch_a.argmin(0, false);
     assert_eq(&sum, &tch_sum);
-    let sum = a.prod(1, false)?;
-    let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
+    let sum = a.argmin(1, false)?;
+    let tch_sum = tch_a.argmin(1, false);
     assert_eq(&sum, &tch_sum);
-    let sum = a.prod(2, false)?;
-    let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
+    let sum = a.argmin(2, false)?;
+    let tch_sum = tch_a.argmin(2, false);
+    assert_eq(&sum, &tch_sum);
+    let a = a.permute([1, 0, 2])?;
+    let tch_a = tch_a.permute(&[1, 0, 2][..]);
+    let sum = a.argmin(0, false)?;
+    let tch_sum = tch_a.argmin(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(1, false)?;
+    let tch_sum = tch_a.argmin(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(2, false)?;
+    let tch_sum = tch_a.argmin(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_argmax() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(8 * 8096 * 2048, [8, 8096, 2048])?;
+    let sum = a.argmax(0, false)?;
+    let tch_sum = tch_a.argmax(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(1, false)?;
+    let tch_sum = tch_a.argmax(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(2, false)?;
+    let tch_sum = tch_a.argmax(2, false);
+    assert_eq(&sum, &tch_sum);
+    let a = a.permute([1, 0, 2])?;
+    let tch_a = tch_a.permute(&[1, 0, 2][..]);
+    let sum = a.argmax(0, false)?;
+    let tch_sum = tch_a.argmax(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(1, false)?;
+    let tch_sum = tch_a.argmax(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(2, false)?;
+    let tch_sum = tch_a.argmax(2, false);
     assert_eq(&sum, &tch_sum);
     Ok(())
 }

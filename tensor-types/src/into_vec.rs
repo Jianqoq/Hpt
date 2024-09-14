@@ -21,12 +21,24 @@ mod into_vec {
             self
         }
     }
+    impl IntoVec<boolx32::boolx32> for i32x8::i32x8 {
+        fn into_vec(self) -> boolx32::boolx32 {
+            unreachable!()
+        }
+    }
+    impl IntoVec<boolx32::boolx32> for i64x4::i64x4 {
+        fn into_vec(self) -> boolx32::boolx32 {
+            unreachable!()
+        }
+    }
+    impl IntoVec<boolx32::boolx32> for u64x4::u64x4 {
+        fn into_vec(self) -> boolx32::boolx32 {
+            unreachable!()
+        }
+    }
 }
 
-#[cfg(all(
-    any(target_feature = "sse2", target_feature = "neon"),
-    not(target_feature = "avx2")
-))]
+#[cfg(all(any(target_feature = "sse2", target_feature = "neon"), not(target_feature = "avx2")))]
 mod into_vec {
     use super::IntoVec;
     use crate::vectors::_128bit::*;

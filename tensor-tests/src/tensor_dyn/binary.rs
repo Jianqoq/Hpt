@@ -44,6 +44,16 @@ fn assert_eq_i64(b: &_Tensor<i64>, a: &Tensor) {
 }
 
 #[allow(unused)]
+fn assert_eq_bool(b: &_Tensor<bool>, a: &Tensor) {
+    let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const bool, b.size()) };
+    let b_raw = b.as_raw();
+    a_raw
+        .par_iter()
+        .zip(b_raw.par_iter())
+        .for_each(|(a, b)| assert_eq!(a, b));
+}
+
+#[allow(unused)]
 fn no_assert_i64(b: &_Tensor<i64>, a: &Tensor) {}
 
 #[allow(unused)]
@@ -93,12 +103,18 @@ fn common_input_i64<const N: usize, const M: usize>(
 }
 
 macro_rules! test_binarys {
-    ($name:ident, $tch_op:ident, $hpt_op:ident, $input_method:ident, $assert_method:ident) => {
+    (
+        $name:ident,
+        $tch_op:ident,
+        $hpt_op:ident,
+        $input_method:ident,
+        $assert_method:ident $(, $try:tt)*
+    ) => {
         paste::paste! {
             #[test]
             fn [<test _ $name>]() -> anyhow::Result<()> {
                 let ((tch_a, tch_b), (a, b)) = $input_method([10, 10], [10, 10])?;
-                let c = a.$hpt_op(&b);
+                let c = a.$hpt_op(&b)$($try)*;
                 let tch_c = tch_a.$tch_op(&tch_b);
                 $assert_method(&c, &tch_c);
                 Ok(())
@@ -107,12 +123,12 @@ macro_rules! test_binarys {
             #[test]
             fn [<test_ $name _broadcast>]() -> anyhow::Result<()> {
                 let ((tch_a, tch_b), (a, b)) = $input_method([10, 10], [10, 1])?;
-                let c = a.$hpt_op(&b);
+                let c = a.$hpt_op(&b)$($try)*;
                 let tch_c = tch_a.$tch_op(&tch_b);
                 $assert_method(&c, &tch_c);
     
                 let ((tch_a, tch_b), (a, b)) = $input_method([1, 10], [10, 1])?;
-                let c = a.$hpt_op(&b);
+                let c = a.$hpt_op(&b)$($try)*;
                 let tch_c = tch_a.$tch_op(&tch_b);
                 $assert_method(&c, &tch_c);
                 Ok(())
@@ -125,7 +141,7 @@ macro_rules! test_binarys {
                 let a = slice!(a[2:6:1, 2:6:1])?;
                 let tch_b = tch_b.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
                 let b = slice!(b[2:6:1, 2:6:1])?;
-                let c = a.$hpt_op(&b);
+                let c = a.$hpt_op(&b)$($try)*;
                 let tch_c = tch_a.$tch_op(&tch_b);
                 $assert_method(&c, &tch_c);
                 Ok(())
@@ -138,7 +154,7 @@ macro_rules! test_binarys {
                 let a = a.permute([1, 0])?;
                 let tch_b = tch_b.permute(&[1, 0][..]);
                 let b = b.permute([1, 0])?;
-                let c = a.$hpt_op(&b);
+                let c = a.$hpt_op(&b)$($try)*;
                 let tch_c = tch_a.$tch_op(&tch_b).contiguous(); // torch will keep the layout, so we need contiguous
                 $assert_method(&c, &tch_c);
                 Ok(())
@@ -155,7 +171,7 @@ macro_rules! test_binarys {
                 let a = a.permute([1, 0])?;
                 let tch_b = tch_b.permute(&[1, 0][..]);
                 let b = b.permute([1, 0])?;
-                let c = a.$hpt_op(&b);
+                let c = a.$hpt_op(&b)$($try)*;
                 let tch_c = tch_a.$tch_op(&tch_b).contiguous(); // torch will keep the layout, so we need contiguous
                 $assert_method(&c, &tch_c);
                 Ok(())
@@ -173,3 +189,9 @@ test_binarys!(bitor, bitwise_or_tensor, bitor, common_input_i64, assert_eq_i64);
 test_binarys!(bitxor, bitwise_xor_tensor, bitxor, common_input_i64, assert_eq_i64);
 test_binarys!(shl, bitwise_left_shift, shl, common_input_i64, no_assert_i64);
 test_binarys!(shr, bitwise_right_shift, shr, common_input_i64, no_assert_i64);
+test_binarys!(eq, eq_tensor, tensor_eq, common_input, assert_eq_bool, ?);
+test_binarys!(ne, ne_tensor, tensor_neq, common_input, assert_eq_bool, ?);
+test_binarys!(lt, lt_tensor, tensor_lt, common_input, assert_eq_bool, ?);
+test_binarys!(le, le_tensor, tensor_le, common_input, assert_eq_bool, ?);
+test_binarys!(gt, gt_tensor, tensor_gt, common_input, assert_eq_bool, ?);
+test_binarys!(ge, ge_tensor, tensor_ge, common_input, assert_eq_bool, ?);
