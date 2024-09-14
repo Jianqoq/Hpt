@@ -327,5 +327,5 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn swap_axes(&self, axis1: i64, axis2: i64) -> Result<Output>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn flatten<A>(&self, axis: A) -> Result<Output> where A: Into<Option<usize>>;
+    fn flatten<A>(&self, start: A, end: A) -> Result<Output> where A: Into<Option<usize>>;
 }

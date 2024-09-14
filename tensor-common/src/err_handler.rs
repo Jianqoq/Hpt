@@ -32,7 +32,7 @@ pub enum ErrHandler {
     NdimExceed(usize, usize, &'static Location<'static>),
 
     /// used when the axis is out of range
-    #[error("tensor ndim is {0} but got index {1} => {2}, at {3}")]
+    #[error("tensor ndim is {0} but got converted index `{2}` from `{1}`, at {3}")]
     IndexOutOfRange(usize, i64, i64, &'static Location<'static>),
 
     /// used when the axis provided is not unique, for example, sum([1, 1]) is not allowed

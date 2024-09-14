@@ -1222,7 +1222,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             parent: self.parent.clone(),
             mem_layout: self.mem_layout.clone(),
             layout: Layout::new(res_shape, res_strides),
-            _backend: Backend::new(self.data.ptr as u64),
+            _backend: self._backend.clone(),
         })
     }
 
@@ -1253,7 +1253,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
                 parent: Some(self.data.clone()),
                 mem_layout: self.mem_layout.clone(),
                 layout: Layout::new(self.shape().clone(), new_strides),
-                _backend: Backend::new(self.data.ptr as u64),
+                _backend: self._backend.clone(),
             })
         } else {
             Ok(Self {
@@ -1261,7 +1261,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
                 parent: self.parent.clone(),
                 mem_layout: self.mem_layout.clone(),
                 layout: Layout::new(self.shape().clone(), new_strides),
-                _backend: Backend::new(self.data.ptr as u64),
+                _backend: self._backend.clone(),
             })
         }
     }
@@ -1421,39 +1421,36 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             layout,
             parent: self.parent.clone(),
             mem_layout: self.mem_layout.clone(),
-            _backend: Backend::new(self.data.ptr as u64),
+            _backend: self._backend.clone(),
         })
     }
 
-    fn flatten<A>(&self, axis: A) -> Result<Self> where A: Into<Option<usize>> {
-        let axis = axis.into().unwrap_or(1);
-        let mut new_shape = vec![];
-        let mut new_strides = vec![];
-        let mut acc = 1;
-        for (idx, (dim, stride)) in self.layout
-            .shape()
-            .iter()
-            .zip(self.layout.strides().iter())
-            .enumerate() {
-            if idx == axis {
-                acc *= dim;
-                new_shape.push(acc);
-                new_strides.push(*stride);
-            } else if idx < axis {
-                acc *= dim;
-            } else {
-                new_shape.push(*dim);
-                new_strides.push(*stride);
+    fn flatten<A>(&self, start_dim: A, end_dim: A) -> Result<Self> where A: Into<Option<usize>> {
+        let start = start_dim.into().unwrap_or(1);
+        let end = end_dim.into().unwrap_or(self.ndim() as usize);
+        let shape = self.shape();
+        if start >= self.ndim() || end >= self.ndim() {
+            return Err(
+                ErrHandler::IndexOutOfRange(
+                    self.ndim(),
+                    start as i64,
+                    start as i64,
+                    Location::caller()
+                ).into()
+            );
+        }
+        let flattened_dim = shape[start..=end].iter().product::<i64>();
+        let mut new_shape = Vec::new();
+        for (i, &dim) in shape.iter().enumerate() {
+            if i < start {
+                new_shape.push(dim);
+            } else if i == start {
+                new_shape.push(flattened_dim);
+            } else if i > end {
+                new_shape.push(dim);
             }
         }
-        let layout = Layout::new(new_shape, new_strides);
-        Ok(Self {
-            data: self.data.clone(),
-            layout,
-            parent: self.parent.clone(),
-            mem_layout: self.mem_layout.clone(),
-            _backend: Backend::new(self.data.ptr as u64),
-        })
+        self.reshape(new_shape)
     }
 
     fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
@@ -1656,7 +1653,7 @@ impl<T> Into<_Tensor<T>> for &_Tensor<T> where T: CommonBounds {
             parent: self.parent.clone(),
             layout: self.layout.clone(),
             mem_layout: self.mem_layout.clone(),
-            _backend: Backend::new(self.data.ptr as u64),
+            _backend: self._backend.clone(),
         }
     }
 }

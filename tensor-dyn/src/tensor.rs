@@ -741,8 +741,8 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
         Ok(_Tensor::swap_axes(self, axis1, axis2)?.into())
     }
 
-    fn flatten<A>(&self, axis: A) -> Result<Self> where A: Into<Option<usize>> {
-        Ok(_Tensor::flatten(self, axis)?.into())
+    fn flatten<A>(&self, start: A, end: A) -> Result<Self> where A: Into<Option<usize>> {
+        Ok(_Tensor::flatten(self, start, end)?.into())
     }
 
     fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
