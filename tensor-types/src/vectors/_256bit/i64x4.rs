@@ -1,4 +1,4 @@
-use std::ops::{ Deref, DerefMut };
+use std::ops::{ Deref, DerefMut, Index, IndexMut };
 
 use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
@@ -58,6 +58,17 @@ impl Init<i64> for i64x4 {
     }
     unsafe fn from_ptr(ptr: *const i64) -> Self where Self: Sized {
         unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_si256(ptr as *const _)) }
+    }
+}
+impl Index<usize> for i64x4 {
+    type Output = i64;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.as_array()[index]
+    }
+}
+impl IndexMut<usize> for i64x4 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.as_mut_array()[index]
     }
 }
 impl std::ops::Add for i64x4 {

@@ -84,5 +84,8 @@ fn main() {
     #[cfg(all(feature = "f32", feature = "conv2d"))]
     benchmarks::conv::conv2d::conv2d_benches();
 
+    #[cfg(feature = "hamming")]
+    benchmarks::signals::hamming_window::benches();
+
     Criterion::default().configure_from_args().final_summary();
 }

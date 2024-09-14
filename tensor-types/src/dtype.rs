@@ -7,7 +7,7 @@ use crate::{
 };
 use half::{bf16, f16};
 use serde::{Deserialize, Serialize};
-use std::fmt::{Debug, Display};
+use std::{fmt::{Debug, Display}, ops::{Index, IndexMut}};
 use tensor_macros::infer_enum_type;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
@@ -120,7 +120,7 @@ where
         + Copy
         + IntoVec<Self::Vec>
         + Sync
-        + Debug;
+        + Debug + Index<usize, Output = Self> + IndexMut<usize, Output = Self>;
 }
 
 macro_rules! impl_type_common {

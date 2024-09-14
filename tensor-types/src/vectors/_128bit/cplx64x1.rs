@@ -1,3 +1,5 @@
+use std::ops::{Index, IndexMut};
+
 use num_complex::Complex64;
 use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
@@ -43,6 +45,18 @@ impl VecCommon for cplx64x1 {
 impl Init<Complex64> for cplx64x1 {
     fn splat(val: Complex64) -> cplx64x1 {
         cplx64x1([val; 1])
+    }
+}
+impl Index<usize> for cplx64x1 {
+    type Output = Complex64;
+
+    fn index(&self, idx: usize) -> &Self::Output {
+        &self.0[idx]
+    }
+}
+impl IndexMut<usize> for cplx64x1 {
+    fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
+        &mut self.0[idx]
     }
 }
 impl std::ops::Add for cplx64x1 {

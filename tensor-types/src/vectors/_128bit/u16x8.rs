@@ -1,4 +1,4 @@
-use std::ops::{ Deref, DerefMut };
+use std::ops::{ Deref, DerefMut, Index, IndexMut };
 
 use crate::traits::{ Init, VecCommon, VecTrait };
 
@@ -65,6 +65,17 @@ impl Init<u16> for u16x8 {
         {
             unsafe { std::mem::transmute(std::arch::x86_64::_mm_loadu_si128(ptr as *const _)) }
         }
+    }
+}
+impl Index<usize> for u16x8 {
+    type Output = u16;
+    fn index(&self, idx: usize) -> &Self::Output {
+        &self.as_array()[idx]
+    }
+}
+impl IndexMut<usize> for u16x8 {
+    fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
+        &mut self.as_mut_array()[idx]
     }
 }
 impl std::ops::Add for u16x8 {

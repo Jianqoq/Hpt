@@ -1,4 +1,5 @@
 use std::arch::x86_64::{ __m128i, _mm256_cvtph_ps, _mm256_cvtps_ph, _mm_loadu_si128 };
+use std::ops::{Index, IndexMut};
 use std::simd::num::{ SimdFloat, SimdInt, SimdUint };
 use std::simd::u16x8;
 use std::simd::{ cmp::SimdPartialEq, Simd };
@@ -62,6 +63,18 @@ impl Init<half::f16> for f16x16 {
 impl IntoVec<f16x16> for f16x16 {
     fn into_vec(self) -> f16x16 {
         self
+    }
+}
+impl Index<usize> for f16x16 {
+    type Output = half::f16;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+impl IndexMut<usize> for f16x16 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
     }
 }
 

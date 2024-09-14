@@ -1,3 +1,5 @@
+use std::ops::{ Index, IndexMut };
+
 use num_complex::Complex32;
 
 use crate::into_vec::IntoVec;
@@ -33,14 +35,14 @@ impl VecTrait<Complex32> for cplx32x4 {
     fn sum(&self) -> Complex32 {
         self.0.iter().sum()
     }
-    
+
     fn extract(self, idx: usize) -> Complex32 {
         self.0[idx]
     }
 }
 impl VecCommon for cplx32x4 {
     const SIZE: usize = 4;
-    
+
     type Base = Complex32;
 }
 impl Init<Complex32> for cplx32x4 {
@@ -51,6 +53,19 @@ impl Init<Complex32> for cplx32x4 {
 impl IntoVec<cplx32x4> for cplx32x4 {
     fn into_vec(self) -> cplx32x4 {
         self
+    }
+}
+impl Index<usize> for cplx32x4 {
+    type Output = Complex32;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl IndexMut<usize> for cplx32x4 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
     }
 }
 impl std::ops::Add for cplx32x4 {

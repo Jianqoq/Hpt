@@ -1,4 +1,4 @@
-use std::{ops::{ Deref, DerefMut }, simd::StdFloat};
+use std::{ops::{ Deref, DerefMut, Index, IndexMut }, simd::StdFloat};
 
 use crate::into_vec::IntoVec;
 
@@ -65,6 +65,19 @@ impl Init<f64> for f64x4 {
 impl IntoVec<f64x4> for f64x4 {
     fn into_vec(self) -> f64x4 {
         self
+    }
+}
+impl Index<usize> for f64x4 {
+    type Output = f64;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.as_array()[index]
+    }
+}
+
+impl IndexMut<usize> for f64x4 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.as_mut_array()[index]
     }
 }
 

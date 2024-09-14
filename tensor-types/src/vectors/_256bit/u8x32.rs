@@ -1,4 +1,4 @@
-use std::ops::{ Deref, DerefMut };
+use std::ops::{ Deref, DerefMut, Index, IndexMut };
 
 use crate::into_vec::IntoVec;
 
@@ -44,14 +44,14 @@ impl VecTrait<u8> for u8x32 {
     fn sum(&self) -> u8 {
         self.as_array().iter().sum()
     }
-    
+
     fn extract(self, idx: usize) -> u8 {
         self.as_array()[idx]
     }
 }
 impl VecCommon for u8x32 {
     const SIZE: usize = 32;
-    
+
     type Base = u8;
 }
 impl Init<u8> for u8x32 {
@@ -62,6 +62,17 @@ impl Init<u8> for u8x32 {
 impl IntoVec<u8x32> for u8x32 {
     fn into_vec(self) -> u8x32 {
         self
+    }
+}
+impl Index<usize> for u8x32 {
+    type Output = u8;
+    fn index(&self, idx: usize) -> &Self::Output {
+        &self.as_array()[idx]
+    }
+}
+impl IndexMut<usize> for u8x32 {
+    fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
+        &mut self.as_mut_array()[idx]
     }
 }
 impl std::ops::Add for u8x32 {

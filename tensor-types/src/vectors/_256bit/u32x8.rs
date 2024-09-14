@@ -1,4 +1,4 @@
-use std::ops::{ Deref, DerefMut };
+use std::ops::{ Deref, DerefMut, Index, IndexMut };
 
 use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
@@ -55,6 +55,18 @@ impl VecCommon for u32x8 {
 impl Init<u32> for u32x8 {
     fn splat(val: u32) -> u32x8 {
         u32x8(std::simd::u32x8::splat(val))
+    }
+}
+impl Index<usize> for u32x8 {
+    type Output = u32;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.as_array()[index]
+    }
+}
+impl IndexMut<usize> for u32x8 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.as_mut_array()[index]
     }
 }
 impl std::ops::Add for u32x8 {

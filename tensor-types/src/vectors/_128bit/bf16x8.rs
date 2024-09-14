@@ -1,4 +1,4 @@
-use std::simd::{ cmp::{ SimdPartialEq, SimdPartialOrd }, num::{ SimdFloat, SimdUint }, Simd };
+use std::{ops::{Index, IndexMut}, simd::{ cmp::{ SimdPartialEq, SimdPartialOrd }, num::{ SimdFloat, SimdUint }, Simd }};
 use crate::{ vectors::_128bit::f32x4::f32x4, traits::{ Init, VecCommon, VecTrait } };
 use crate::into_vec::IntoVec;
 use crate::_128bit::u16x8::u16x8;
@@ -55,6 +55,20 @@ impl Init<half::bf16> for bf16x8 {
 impl IntoVec<bf16x8> for bf16x8 {
     fn into_vec(self) -> bf16x8 {
         self
+    }
+}
+
+impl Index<usize> for bf16x8 {
+    type Output = half::bf16;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl IndexMut<usize> for bf16x8 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
     }
 }
 

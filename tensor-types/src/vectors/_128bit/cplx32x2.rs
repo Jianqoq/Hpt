@@ -1,3 +1,5 @@
+use std::ops::{Index, IndexMut};
+
 use num_complex::Complex32;
 
 use crate::vectors::traits::{ Init, VecCommon, VecTrait };
@@ -44,6 +46,18 @@ impl VecCommon for cplx32x2 {
 impl Init<Complex32> for cplx32x2 {
     fn splat(val: Complex32) -> cplx32x2 {
         cplx32x2([val; 2])
+    }
+}
+impl Index<usize> for cplx32x2 {
+    type Output = Complex32;
+
+    fn index(&self, idx: usize) -> &Self::Output {
+        &self.0[idx]
+    }
+}
+impl IndexMut<usize> for cplx32x2 {
+    fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
+        &mut self.0[idx]
     }
 }
 impl std::ops::Add for cplx32x2 {

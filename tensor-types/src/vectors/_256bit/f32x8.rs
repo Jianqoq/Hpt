@@ -1,4 +1,4 @@
-use std::ops::{ Deref, DerefMut };
+use std::ops::{ Deref, DerefMut, Index, IndexMut };
 use std::simd::num::SimdFloat;
 use crate::into_vec::IntoVec;
 use crate::vectors::traits::{ Init, SimdSelect, VecCommon, VecTrait };
@@ -65,6 +65,18 @@ impl Init<f32> for f32x8 {
 impl IntoVec<f32x8> for f32x8 {
     fn into_vec(self) -> f32x8 {
         self
+    }
+}
+impl Index<usize> for f32x8 {
+    type Output = f32;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+impl IndexMut<usize> for f32x8 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
     }
 }
 

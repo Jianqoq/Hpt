@@ -1,4 +1,4 @@
-use std::ops::{ Deref, DerefMut };
+use std::ops::{ Deref, DerefMut, Index, IndexMut };
 
 use crate::into_vec::IntoVec;
 
@@ -62,6 +62,17 @@ impl Init<u64> for u64x4 {
 impl IntoVec<u64x4> for u64x4 {
     fn into_vec(self) -> u64x4 {
         self
+    }
+}
+impl Index<usize> for u64x4 {
+    type Output = u64;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.as_array()[index]
+    }
+}
+impl IndexMut<usize> for u64x4 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.as_mut_array()[index]
     }
 }
 impl std::ops::Add for u64x4 {

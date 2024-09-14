@@ -1,3 +1,4 @@
+use std::ops::{Index, IndexMut};
 use std::simd::{ cmp::SimdPartialEq, Simd };
 use std::simd::cmp::SimdPartialOrd;
 use crate::traits::{ Init, VecCommon, VecTrait };
@@ -57,6 +58,18 @@ impl Init<bool> for boolx16 {
         {
             unsafe { std::mem::transmute(std::arch::x86_64::_mm_loadu_si128(ptr as *const _)) }
         }
+    }
+}
+impl Index<usize> for boolx16 {
+    type Output = bool;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+impl IndexMut<usize> for boolx16 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
     }
 }
 impl boolx16 {

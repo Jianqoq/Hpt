@@ -1,3 +1,4 @@
+use std::ops::{Index, IndexMut};
 use std::simd::{ cmp::SimdPartialEq, Simd };
 use std::simd::cmp::SimdPartialOrd;
 use crate::into_vec::IntoVec;
@@ -54,6 +55,20 @@ impl Init<bool> for boolx32 {
 impl IntoVec<boolx32> for boolx32 {
     fn into_vec(self) -> boolx32 {
         self
+    }
+}
+
+impl Index<usize> for boolx32 {
+    type Output = bool;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl IndexMut<usize> for boolx32 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
     }
 }
 

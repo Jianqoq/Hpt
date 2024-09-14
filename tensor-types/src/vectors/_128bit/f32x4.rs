@@ -1,6 +1,6 @@
 use crate::traits::{ Init, SimdSelect, VecCommon, VecTrait };
 use crate::vectors::_128bit::u32x4::u32x4;
-use std::ops::{ Deref, DerefMut };
+use std::ops::{ Deref, DerefMut, Index, IndexMut };
 use std::simd::num::SimdFloat;
 use std::simd::StdFloat;
 
@@ -79,7 +79,19 @@ impl SimdSelect<f32x4> for u32x4 {
         f32x4(mask.select(true_val.0, false_val.0))
     }
 }
+impl Index<usize> for f32x4 {
+    type Output = f32;
 
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.as_array()[index]
+    }
+}
+
+impl IndexMut<usize> for f32x4 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.as_mut_array()[index]
+    }
+}
 impl std::ops::Add for f32x4 {
     type Output = Self;
 

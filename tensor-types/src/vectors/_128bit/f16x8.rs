@@ -1,6 +1,7 @@
 use crate::_128bit::f32x4::f32x4;
 use crate::_128bit::u16x8::u16x8;
 use crate::traits::{ Init, VecCommon, VecTrait };
+use std::ops::{Index, IndexMut};
 use std::simd::cmp::SimdPartialOrd;
 use std::simd::num::{ SimdFloat, SimdInt, SimdUint };
 use std::simd::u16x4;
@@ -166,6 +167,19 @@ impl f16x8 {
                 std::mem::transmute([u16_to_f32(high), u16_to_f32(low)])
             }
         }
+    }
+}
+
+impl Index<usize> for f16x8 {
+    type Output = half::f16;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+impl IndexMut<usize> for f16x8 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
     }
 }
 

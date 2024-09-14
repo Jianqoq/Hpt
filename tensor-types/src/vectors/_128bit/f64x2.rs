@@ -1,4 +1,4 @@
-use std::{ ops::{ Deref, DerefMut }, simd::StdFloat };
+use std::{ ops::{ Deref, DerefMut, Index, IndexMut }, simd::StdFloat };
 
 use crate::traits::{ Init, VecCommon, VecTrait };
 
@@ -67,6 +67,18 @@ impl Init<f64> for f64x2 {
             use std::arch::x86_64::_mm_loadu_pd;
             f64x2(std::mem::transmute(_mm_loadu_pd(ptr)))
         }
+    }
+}
+impl Index<usize> for f64x2 {
+    type Output = f64;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.as_array()[index]
+    }
+}
+impl IndexMut<usize> for f64x2 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.as_mut_array()[index]
     }
 }
 impl std::ops::Add for f64x2 {
