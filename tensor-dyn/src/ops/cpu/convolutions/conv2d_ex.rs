@@ -240,6 +240,7 @@ fn case3_helper<T, const REGNUM: usize>(
 {
     let num_vec_size = co_b_remain / (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64);
     let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64);
+    println!("num_vec_size: {}, remain: {}, ip: {}", num_vec_size, remain, ip);
     if remain == 0 {
         if ip == 0 {
             for j in 0..num_vec_size {
@@ -268,7 +269,7 @@ fn case3_helper<T, const REGNUM: usize>(
                 }
                 for h in 0..REGNUM as i64 {
                     let out_vec = &mut out
-                        [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                        [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * <<T as TypeCommon>::Vec as VecCommon>::SIZE as i64] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
                     unsafe {
                         *out_vec = res_buffer[h as usize];
                     }
@@ -279,7 +280,7 @@ fn case3_helper<T, const REGNUM: usize>(
             for j in 0..num_vec_size {
                 for h in 0..REGNUM as i64 {
                     let out_vec = &mut out
-                        [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                        [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * <<T as TypeCommon>::Vec as VecCommon>::SIZE as i64] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
                     res_buffer[h as usize] = unsafe { out_vec.read_unaligned() };
                 }
                 for n in 0..kh {
@@ -306,7 +307,7 @@ fn case3_helper<T, const REGNUM: usize>(
                 }
                 for h in 0..REGNUM as i64 {
                     let out_vec = &mut out
-                        [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                        [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * <<T as TypeCommon>::Vec as VecCommon>::SIZE as i64] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
                     unsafe {
                         *out_vec = res_buffer[h as usize];
                     }
@@ -1600,7 +1601,7 @@ impl<T> _Tensor<T>
             let b = idx / (num_co_b * out_height);
             let l = (idx / num_co_b) % out_height;
             let c = idx % num_co_b;
-            // println!("co_b_remain == 0: {}, wo_b_remain == 0: {}, ci_b_remain == 0: {}", co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0);
+            println!("co_b_remain == 0: {}, wo_b_remain == 0: {}, ci_b_remain == 0: {}", co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0);
             match (co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0) {
                 (true, true, true) => {
                     if co_b > 1 {

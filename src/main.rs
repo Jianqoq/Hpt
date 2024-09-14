@@ -20,8 +20,8 @@ fn main() -> anyhow::Result<()> {
     set_global_display_precision(7);
     set_global_display_lr_elements(6);
     let kernel = _Tensor::<f32>
-        ::arange(0, 16 * 1024 * 8 * 8)?
-        .reshape([16, 1024, 8, 8])?
+        ::arange(0, 16 * 1024 * 3 * 3)?
+        .reshape([16, 1024, 3, 3])?
         .permute([2, 3, 1, 0])?
         .contiguous()?;
     let a = _Tensor::<f32>
@@ -29,7 +29,7 @@ fn main() -> anyhow::Result<()> {
         .reshape([16, 1024, 256, 256])?
         .permute([0, 2, 3, 1])?
         .contiguous()?;
-    let config = Conv2dConfig::<f32>::new(16, 1024, [8, 8], KernelParamAlgo::Greedy);
+    let config = Conv2dConfig::<f32>::new(16, 1024, [3, 3], KernelParamAlgo::Greedy);
     println!("config: {:?}", config);
     let now = std::time::Instant::now();
     for _ in 0..2 {

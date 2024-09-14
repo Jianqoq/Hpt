@@ -59,7 +59,7 @@ impl Init<i16> for i16x8 {
     unsafe fn from_ptr(ptr: *const i16) -> Self where Self: Sized {
         #[cfg(target_feature = "neon")]
         {
-            unsafe { std::mem::transmute(std::arch::aarch64::_simd_loadu_si128(ptr as *const _)) }
+            unsafe { std::mem::transmute(std::arch::aarch64::vld1q_s16(ptr as *const _)) }
         }
         #[cfg(not(target_feature = "neon"))]
         {

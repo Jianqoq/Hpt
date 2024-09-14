@@ -65,7 +65,10 @@ impl Init<usize> for usizex2 {
     unsafe fn from_ptr(ptr: *const usize) -> Self where Self: Sized {
         #[cfg(target_feature = "neon")]
         {
-            unsafe { std::mem::transmute(std::arch::aarch64::_simd_loadu_si128(ptr as *const _)) }
+            #[cfg(target_pointer_width = "64")]
+            unsafe { std::mem::transmute(std::arch::aarch64::vld1q_u64(ptr as *const _)) }
+            #[cfg(target_pointer_width = "32")]
+            unsafe { std::mem::transmute(std::arch::aarch64::vld1q_u32(ptr as *const _)) }
         }
         #[cfg(not(target_feature = "neon"))]
         {
