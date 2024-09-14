@@ -33,6 +33,20 @@ fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
     }
 }
 
+#[allow(unused)]
+fn assert_eq_i64(b: &_Tensor<i64>, a: &Tensor) {
+    let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const i64, b.size()) };
+    let b_raw = b.as_raw();
+    a_raw
+        .par_iter()
+        .zip(b_raw.par_iter())
+        .for_each(|(a, b)| assert_eq!(a, b));
+}
+
+#[allow(unused)]
+fn no_assert_i64(b: &_Tensor<i64>, a: &Tensor) {}
+
+#[allow(unused)]
 fn common_input<const N: usize, const M: usize>(
     lhs_shape: [i64; N],
     rhs_shape: [i64; M]
@@ -52,38 +66,110 @@ fn common_input<const N: usize, const M: usize>(
     Ok(((tch_a, tch_b), (a, b)))
 }
 
-#[test]
-fn test_add() -> anyhow::Result<()> {
-    let ((tch_a, tch_b), (a, b)) = common_input([10, 10], [10, 10])?;
-    let c = a.add(&b);
-    let tch_c = tch_a.add(&tch_b);
-    assert_eq(&c, &tch_c);
-    Ok(())
+#[allow(unused)]
+fn common_input_i64<const N: usize, const M: usize>(
+    lhs_shape: [i64; N],
+    rhs_shape: [i64; M]
+) -> anyhow::Result<((Tensor, Tensor), (_Tensor<i64>, _Tensor<i64>))> {
+    let tch_a = Tensor::arange(lhs_shape.iter().product::<i64>(), (
+        tch::Kind::Int64,
+        tch::Device::Cpu,
+    )).reshape(&lhs_shape);
+    let a = _Tensor::<i64>::empty(&lhs_shape)?;
+    a.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_a.data_ptr() as *const i64, a.size())
+    });
+
+    let tch_b = Tensor::arange(rhs_shape.iter().product::<i64>(), (
+        tch::Kind::Int64,
+        tch::Device::Cpu,
+    )).reshape(&rhs_shape);
+    let b = _Tensor::<i64>::empty(&rhs_shape)?;
+    b.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_b.data_ptr() as *const i64, b.size())
+    });
+
+    Ok(((tch_a, tch_b), (a, b)))
 }
 
-#[test]
-fn test_add_broadcast() -> anyhow::Result<()> {
-    let ((tch_a, tch_b), (a, b)) = common_input([10, 10], [10, 1])?;
-    let c = a.add(&b);
-    let tch_c = tch_a.add(&tch_b);
-    assert_eq(&c, &tch_c);
-
-    let ((tch_a, tch_b), (a, b)) = common_input([1, 10], [10, 1])?;
-    let c = a.add(&b);
-    let tch_c = tch_a.add(&tch_b);
-    assert_eq(&c, &tch_c);
-    Ok(())
+macro_rules! test_binarys {
+    ($name:ident, $tch_op:ident, $hpt_op:ident, $input_method:ident, $assert_method:ident) => {
+        paste::paste! {
+            #[test]
+            fn [<test _ $name>]() -> anyhow::Result<()> {
+                let ((tch_a, tch_b), (a, b)) = $input_method([10, 10], [10, 10])?;
+                let c = a.$hpt_op(&b);
+                let tch_c = tch_a.$tch_op(&tch_b);
+                $assert_method(&c, &tch_c);
+                Ok(())
+            }
+    
+            #[test]
+            fn [<test_ $name _broadcast>]() -> anyhow::Result<()> {
+                let ((tch_a, tch_b), (a, b)) = $input_method([10, 10], [10, 1])?;
+                let c = a.$hpt_op(&b);
+                let tch_c = tch_a.$tch_op(&tch_b);
+                $assert_method(&c, &tch_c);
+    
+                let ((tch_a, tch_b), (a, b)) = $input_method([1, 10], [10, 1])?;
+                let c = a.$hpt_op(&b);
+                let tch_c = tch_a.$tch_op(&tch_b);
+                $assert_method(&c, &tch_c);
+                Ok(())
+            }
+    
+            #[test]
+            fn [<test_ $name _sub_tensors>]() -> anyhow::Result<()> {
+                let ((tch_a, tch_b), (a, b)) = $input_method([10, 10], [10, 10])?;
+                let tch_a = tch_a.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
+                let a = slice!(a[2:6:1, 2:6:1])?;
+                let tch_b = tch_b.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
+                let b = slice!(b[2:6:1, 2:6:1])?;
+                let c = a.$hpt_op(&b);
+                let tch_c = tch_a.$tch_op(&tch_b);
+                $assert_method(&c, &tch_c);
+                Ok(())
+            }
+    
+            #[test]
+            fn [<test_ $name _uncontiguous>]() -> anyhow::Result<()> {
+                let ((tch_a, tch_b), (a, b)) = $input_method([10, 10], [10, 10])?;
+                let tch_a = tch_a.permute(&[1, 0][..]);
+                let a = a.permute([1, 0])?;
+                let tch_b = tch_b.permute(&[1, 0][..]);
+                let b = b.permute([1, 0])?;
+                let c = a.$hpt_op(&b);
+                let tch_c = tch_a.$tch_op(&tch_b).contiguous(); // torch will keep the layout, so we need contiguous
+                $assert_method(&c, &tch_c);
+                Ok(())
+            }
+    
+            #[test]
+            fn [<test_ $name _uncontiguous_sub_tensors>]() -> anyhow::Result<()> {
+                let ((tch_a, tch_b), (a, b)) = $input_method([10, 10], [10, 10])?;
+                let tch_a = tch_a.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
+                let a = slice!(a[2:6:1, 2:6:1])?;
+                let tch_b = tch_b.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
+                let b = slice!(b[2:6:1, 2:6:1])?;
+                let tch_a = tch_a.permute(&[1, 0][..]);
+                let a = a.permute([1, 0])?;
+                let tch_b = tch_b.permute(&[1, 0][..]);
+                let b = b.permute([1, 0])?;
+                let c = a.$hpt_op(&b);
+                let tch_c = tch_a.$tch_op(&tch_b).contiguous(); // torch will keep the layout, so we need contiguous
+                $assert_method(&c, &tch_c);
+                Ok(())
+            }
+        }
+    };
 }
 
-#[test]
-fn test_add_sub_tensors() -> anyhow::Result<()> {
-    let ((tch_a, tch_b), (a, b)) = common_input([10, 10], [10, 10])?;
-    let tch_a = tch_a.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
-    let a = slice!(a[2:6:1, 2:6:1])?;
-    let tch_b = tch_b.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
-    let b = slice!(b[2:6:1, 2:6:1])?;
-    let c = a.add(&b);
-    let tch_c = tch_a.add(&tch_b);
-    assert_eq(&c, &tch_c);
-    Ok(())
-}
+test_binarys!(add, add, add, common_input, assert_eq);
+test_binarys!(sub, sub, sub, common_input, assert_eq);
+test_binarys!(mul, mul, mul, common_input, assert_eq);
+test_binarys!(div, div, div, common_input, assert_eq);
+test_binarys!(bitand, bitwise_and_tensor, bitand, common_input_i64, assert_eq_i64);
+test_binarys!(bitor, bitwise_or_tensor, bitor, common_input_i64, assert_eq_i64);
+test_binarys!(bitxor, bitwise_xor_tensor, bitxor, common_input_i64, assert_eq_i64);
+test_binarys!(shl, bitwise_left_shift, shl, common_input_i64, no_assert_i64);
+test_binarys!(shr, bitwise_right_shift, shr, common_input_i64, no_assert_i64);

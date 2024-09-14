@@ -190,24 +190,7 @@ macro_rules! normal_promote_ops_2 {
 
                 #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
-                    let res_shape = predict_broadcast_shape(
-                        self.shape(),
-                        rhs.shape()
-                    ).unwrap();
-                    let res_size: usize = res_shape.size() as usize;
-                    let lhs_size: usize = self.layout().real_size();
-                    if lhs_size == res_size && T::ID == <T as NormalOut<U>>::Output::ID {
-                        let out: _Tensor<T> = self.clone();
-                        let out: Self::Output = out.static_cast().unwrap();
-                        return binary_fn_with_out(
-                            &self,
-                            &rhs,
-                            |x, y| x.$op3(y),
-                            out
-                        ).unwrap();
-                    } else {
-                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
-                    }
+                    return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                 }
             }
         )*
@@ -359,62 +342,7 @@ macro_rules! bitwise_promote_ops_1 {
                 type Output = _Tensor<<T as BitWiseOut<U>>::Output>;
                 #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
-                    let res_shape = predict_broadcast_shape(
-                        self.shape(),
-                        rhs.shape()
-                    ).unwrap();
-                    let res_size: usize = res_shape.size() as usize;
-                    let lhs_size: usize = self.layout().real_size();
-                    let rhs_size: usize = rhs.layout().real_size();
-                    if lhs_size > rhs_size {
-                        if lhs_size == res_size && T::ID == <T as BitWiseOut<U>>::Output::ID {
-                            let out: _Tensor<T> = self.clone();
-                            let out: Self::Output = out.static_cast().unwrap();
-                            return binary_fn_with_out(
-                                &self,
-                                &rhs,
-                                |x, y| x.$op3(y),
-                                out
-                            ).unwrap();
-                        } else {
-                            return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
-                        }
-                    } else if lhs_size < rhs_size {
-                        if rhs_size == res_size && U::ID == <T as BitWiseOut<U>>::Output::ID {
-                            let out: _Tensor<U> = rhs.clone();
-                            let out: Self::Output = out.static_cast().unwrap();
-                            return binary_fn_with_out(
-                                &self,
-                                &rhs,
-                                |x, y| x.$op3(y),
-                                out
-                            ).unwrap();
-                        } else {
-                            return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
-                        }
-                    } else {
-                        if T::ID == <T as BitWiseOut<U>>::Output::ID {
-                            let out: _Tensor<T> = self.clone();
-                            let out: Self::Output = out.static_cast().unwrap();
-                            return binary_fn_with_out(
-                                &self,
-                                &rhs,
-                                |x, y| x.$op3(y),
-                                out
-                            ).unwrap();
-                        } else if U::ID == <T as BitWiseOut<U>>::Output::ID {
-                            let out: _Tensor<U> = rhs.clone();
-                            let out: Self::Output = out.static_cast().unwrap();
-                            return binary_fn_with_out(
-                                &self,
-                                &rhs,
-                                |x, y| x.$op3(y),
-                                out
-                            ).unwrap();
-                        } else {
-                            return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
-                        }
-                    }
+                    return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                 }
             }
         )*
@@ -433,24 +361,7 @@ macro_rules! bitwise_promote_ops_2 {
             {
                 type Output = _Tensor<<T as BitWiseOut<U>>::Output>;
                 fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
-                    let res_shape = predict_broadcast_shape(
-                        self.shape(),
-                        rhs.shape()
-                    ).unwrap();
-                    let res_size: usize = res_shape.size() as usize;
-                    let lhs_size: usize = self.layout().real_size();
-                    if lhs_size == res_size && T::ID == <T as BitWiseOut<U>>::Output::ID {
-                        let out: _Tensor<T> = self.clone();
-                        let out: Self::Output = out.static_cast().unwrap();
-                        return binary_fn_with_out(
-                            &self,
-                            &rhs,
-                            |x, y| x.$op3(y),
-                            out
-                        ).unwrap();
-                    } else {
-                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
-                    }
+                    return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                 }
             }
         )*
@@ -488,24 +399,7 @@ macro_rules! bitwise_promote_ops_4 {
             {
                 type Output = _Tensor<<T as BitWiseOut<U>>::Output>;
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
-                    let res_shape = predict_broadcast_shape(
-                        self.shape(),
-                        rhs.shape()
-                    ).unwrap();
-                    let res_size: usize = res_shape.size() as usize;
-                    let rhs_size: usize = rhs.layout().real_size();
-                    if rhs_size == res_size && U::ID == <T as BitWiseOut<U>>::Output::ID {
-                        let out: _Tensor<U> = rhs.clone();
-                        let out: Self::Output = out.static_cast().unwrap();
-                        return binary_fn_with_out(
-                            &self,
-                            &rhs,
-                            |x, y| x.$op3(y),
-                            out
-                        ).unwrap();
-                    } else {
-                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
-                    }
+                    return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                 }
             }
         )*
@@ -550,62 +444,7 @@ macro_rules! shift_promote_ops_1 {
 
                 #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
-                    let res_shape = predict_broadcast_shape(
-                        self.shape(),
-                        rhs.shape()
-                    ).unwrap();
-                    let res_size: usize = res_shape.size() as usize;
-                    let lhs_size: usize = self.layout().real_size();
-                    let rhs_size: usize = rhs.layout().real_size();
-                    if lhs_size > rhs_size {
-                        if lhs_size == res_size && T::ID == <T as BitWiseOut<U>>::Output::ID {
-                            let out: _Tensor<T> = self.clone();
-                            let out: Self::Output = out.static_cast().unwrap();
-                            return binary_fn_with_out(
-                                &self,
-                                &rhs,
-                                |x, y| x.$op3(y),
-                                out
-                            ).unwrap();
-                        } else {
-                            return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
-                        }
-                    } else if lhs_size < rhs_size {
-                        if rhs_size == res_size && U::ID == <T as BitWiseOut<U>>::Output::ID {
-                            let out: _Tensor<U> = rhs.clone();
-                            let out: Self::Output = out.static_cast().unwrap();
-                            return binary_fn_with_out(
-                                &self,
-                                &rhs,
-                                |x, y| x.$op3(y),
-                                out
-                            ).unwrap();
-                        } else {
-                            return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
-                        }
-                    } else {
-                        if T::ID == <T as BitWiseOut<U>>::Output::ID {
-                            let out: _Tensor<T> = self.clone();
-                            let out: Self::Output = out.static_cast().unwrap();
-                            return binary_fn_with_out(
-                                &self,
-                                &rhs,
-                                |x, y| x.$op3(y),
-                                out
-                            ).unwrap();
-                        } else if U::ID == <T as BitWiseOut<U>>::Output::ID {
-                            let out: _Tensor<U> = rhs.clone();
-                            let out: Self::Output = out.static_cast().unwrap();
-                            return binary_fn_with_out(
-                                &self,
-                                &rhs,
-                                |x, y| x.$op3(y),
-                                out
-                            ).unwrap();
-                        } else {
-                            return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
-                        }
-                    }
+                    return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                 }
             }
         )*
@@ -626,24 +465,7 @@ macro_rules! shift_promote_ops_2 {
 
                 #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
-                    let res_shape = predict_broadcast_shape(
-                        self.shape(),
-                        rhs.shape()
-                    ).unwrap();
-                    let res_size: usize = res_shape.size() as usize;
-                    let lhs_size: usize = self.layout().real_size();
-                    if lhs_size == res_size && T::ID == <T as BitWiseOut<U>>::Output::ID {
-                        let out: _Tensor<T> = self.clone();
-                        let out: Self::Output = out.static_cast().unwrap();
-                        return binary_fn_with_out(
-                            &self,
-                            &rhs,
-                            |x, y| x.$op3(y),
-                            out
-                        ).unwrap();
-                    } else {
-                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
-                    }
+                    return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                 }
             }
         )*
@@ -684,24 +506,7 @@ macro_rules! shift_promote_ops_4 {
                 type Output = _Tensor<<T as BitWiseOut<U>>::Output>;
                 #[cfg_attr(feature = "track_caller", track_caller)]
                 fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
-                    let res_shape = predict_broadcast_shape(
-                        self.shape(),
-                        rhs.shape()
-                    ).unwrap();
-                    let res_size: usize = res_shape.size() as usize;
-                    let rhs_size: usize = rhs.layout().real_size();
-                    if res_size == rhs_size && U::ID == <T as BitWiseOut<U>>::Output::ID {
-                        let out: _Tensor<U> = rhs.clone();
-                        let out: Self::Output = out.static_cast().unwrap();
-                        return binary_fn_with_out(
-                            &self,
-                            &rhs,
-                            |x, y| x.$op3(y),
-                            out
-                        ).unwrap();
-                    } else {
-                        return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
-                    }
+                    return binary_fn(&self, &rhs, |x, y| x.$op3(y)).unwrap();
                 }
             }
         )*

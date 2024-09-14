@@ -20,13 +20,13 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
         toolchain: nightly
-        override: true  # Use nightly for the entire workflow
-        components: clippy, rustfmt  # Optional: add useful components
+        override: true
+        components: clippy, rustfmt 
     - name: Build
       run: |
         cd tensor-tests
-        cargo build --verbose
+        cargo build --verbose --release
     - name: Run tests
       run: |
         cd tensor-tests
-        cargo test --verbose
+        cargo test --verbose --release
