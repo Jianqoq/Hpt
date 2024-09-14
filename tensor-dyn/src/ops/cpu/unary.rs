@@ -16,7 +16,7 @@ use crate::backend::Cpu;
 use crate::THREAD_POOL;
 use tensor_traits::tensor::{ CommonBounds, TensorInfo, TensorLike };
 use tensor_traits::tensor::TensorCreator;
-use tensor_types::type_promote::{ FloatOutBinary, FloatOutUnary, NormalOut };
+use tensor_types::type_promote::{ Eval, FloatOutBinary, FloatOutUnary, NormalOut };
 use crate::tensor_base::_Tensor;
 
 /// Applies a unary function to a tensor, returning a tensor with float type elements.
@@ -72,12 +72,13 @@ pub fn uary_fn_simd<A, F, O, F2>(inp: &_Tensor<A>, f: F, f2: F2) -> anyhow::Resu
 {
     let ret: _Tensor<O>;
     ret = _Tensor::<O, Cpu>::empty(inp.shape()).unwrap();
-    if !inp.is_contiguous() {
+    if inp.parent().is_some() {
         ret.par_iter_mut_simd()
             .zip(inp.par_iter_simd())
             .for_each(|(a, b)| {
                 *a = f2(b);
             });
+        return Ok(ret);
     }
     let per_thread_len = ret.size() / rayon::current_num_threads();
     let per_thread_remain = per_thread_len % <O as TypeCommon>::Vec::SIZE;
@@ -85,26 +86,28 @@ pub fn uary_fn_simd<A, F, O, F2>(inp: &_Tensor<A>, f: F, f2: F2) -> anyhow::Resu
         rayon::current_num_threads() * per_thread_remain +
         (ret.size() % rayon::current_num_threads());
     let per_thread_real_len = per_thread_len - per_thread_remain;
-    ret.as_raw_mut()
-        .par_chunks_exact_mut(per_thread_real_len)
-        .zip(inp.as_raw().par_chunks_exact(per_thread_real_len))
-        .for_each(|(ret, lhs)| {
-            assert_eq!(lhs.len() % <A as TypeCommon>::Vec::SIZE, 0);
-            assert_eq!(ret.len() % <O as TypeCommon>::Vec::SIZE, 0);
-            ret.chunks_exact_mut(<A as TypeCommon>::Vec::SIZE)
-                .zip(lhs.chunks_exact(<A as TypeCommon>::Vec::SIZE))
-                .for_each(|(ret, lhs)| {
-                    let a = unsafe { <A as TypeCommon>::Vec::from_ptr(lhs.as_ptr()) };
-                    let res = f(a);
-                    unsafe {
-                        std::ptr::copy_nonoverlapping(
-                            res.as_ptr(),
-                            ret.as_mut_ptr(),
-                            <O as TypeCommon>::Vec::SIZE
-                        );
-                    }
-                });
-        });
+    if per_thread_real_len > 0 {
+        ret.as_raw_mut()
+            .par_chunks_exact_mut(per_thread_real_len)
+            .zip(inp.as_raw().par_chunks_exact(per_thread_real_len))
+            .for_each(|(ret, lhs)| {
+                assert_eq!(lhs.len() % <A as TypeCommon>::Vec::SIZE, 0);
+                assert_eq!(ret.len() % <O as TypeCommon>::Vec::SIZE, 0);
+                ret.chunks_exact_mut(<A as TypeCommon>::Vec::SIZE)
+                    .zip(lhs.chunks_exact(<A as TypeCommon>::Vec::SIZE))
+                    .for_each(|(ret, lhs)| {
+                        let a = unsafe { <A as TypeCommon>::Vec::from_ptr(lhs.as_ptr()) };
+                        let res = f(a);
+                        unsafe {
+                            std::ptr::copy_nonoverlapping(
+                                res.as_ptr(),
+                                ret.as_mut_ptr(),
+                                <O as TypeCommon>::Vec::SIZE
+                            );
+                        }
+                    });
+            });
+    }
     if total_remain > 0 {
         ret.as_raw_mut()
             [ret.size() - total_remain..].iter_mut()
@@ -332,6 +335,20 @@ impl<T> _Tensor<T>
         );
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._cosh());
+        ret
+    }
+
+    /// calculate `erf` for each element of the tensor
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn erf(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
+            self,
+            |x| x._erf(),
+            |x| x._erf()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._erf());
         ret
     }
 
@@ -1158,8 +1175,23 @@ impl<T> _Tensor<T>
     where
         T: NormalOut<Output = T> + CommonBounds + IntoScalar<T>,
         NormalType<T>: CommonBounds,
-        _Tensor<NormalType<T>>: TensorLike<NormalType<T>, Output = _Tensor<NormalType<T>>>
+        _Tensor<NormalType<T>>: TensorLike<NormalType<T>, Output = _Tensor<NormalType<T>>>,
+        <T as TypeCommon>::Vec: NormalOut<Output = <T as TypeCommon>::Vec>
 {
+    /// calculate `floor` for each element of the tensor
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn floor(&self) -> anyhow::Result<_Tensor<NormalType<T>>> {
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
+            self,
+            |x| x._floor(),
+            |x| x._floor()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._floor());
+        ret
+    }
+
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn square(&self) -> anyhow::Result<_Tensor<NormalType<T>>> {
         uary_fn(self, |x| x._square())
@@ -1249,6 +1281,15 @@ impl<T> _Tensor<T>
         where U: BaseTensor<Output = _Tensor<NegType<T>>>
     {
         uary_fn_with_out(self, |x| -x, out.base().clone())
+    }
+}
+
+impl<T> _Tensor<T> where T: CommonBounds + Eval, <T as Eval>::Output: CommonBounds {
+    pub fn is_inf(&self) -> anyhow::Result<_Tensor<<T as Eval>::Output>> {
+        uary_fn(self, |x| x._is_inf())
+    }
+    pub fn is_nan(&self) -> anyhow::Result<_Tensor<<T as Eval>::Output>> {
+        uary_fn(self, |x| x._is_nan())
     }
 }
 

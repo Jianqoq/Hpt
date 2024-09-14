@@ -527,7 +527,10 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     }
 
     fn arange<U>(start: U, end: U) -> Result<Self>
-        where T: Convertor + FromScalar<U> + NormalOut<T, Output = T>, usize: IntoScalar<T>, U: Convertor + IntoScalar<T> + Copy
+        where
+            T: Convertor + FromScalar<U> + NormalOut<T, Output = T>,
+            usize: IntoScalar<T>,
+            U: Convertor + IntoScalar<T> + Copy
     {
         Ok(_Tensor::<T, Cpu>::arange(start, end)?.into())
     }
@@ -1227,7 +1230,8 @@ impl<T> NormalUaryOps
     where
         T: NormalOut<Output = T> + CommonBounds + IntoScalar<T>,
         NormalType<T>: CommonBounds,
-        <T as NormalOut>::Output: IntoScalar<<T as NormalOut>::Output>
+        <T as NormalOut>::Output: IntoScalar<<T as NormalOut>::Output>,
+        <T as TypeCommon>::Vec: NormalOut<Output = <T as TypeCommon>::Vec>
 {
     type Output = Tensor<NormalType<T>>;
 
