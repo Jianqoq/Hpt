@@ -122,3 +122,44 @@ fn test_flatten() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_split() -> anyhow::Result<()> {
+    let tch_a = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let a = _Tensor::<f64>::empty(&[10, 10, 10])?;
+    a.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a.size())
+    });
+    let b = a.split(&[2, 5], 1)?;
+    let tch_b = tch_a.split_with_sizes(&[2, 3, 5], 1);
+    b.iter().zip(tch_b.iter()).for_each(|(b, tch_b)| assert_eq(b, tch_b));
+    Ok(())
+}
+
+// #[test]
+// fn test_tile() -> anyhow::Result<()> {
+//     let tch_a = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+//     let a = _Tensor::<f64>::empty(&[10, 10, 10])?;
+//     a.as_raw_mut().copy_from_slice(unsafe {
+//         std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a.size())
+//     });
+//     let b = a.tile(&[2, 3, 4])?;
+//     let tch_b = tch_a.tile(&[2, 3, 4]);
+//     assert_eq(&b, &tch_b);
+//     assert_eq!(&tch_b.size(), b.shape().inner());
+//     Ok(())
+// }
+
+#[test]
+fn test_reshape() -> anyhow::Result<()> {
+    let tch_a = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let a = _Tensor::<f64>::empty(&[10, 10, 10])?;
+    a.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a.size())
+    });
+    let b = a.reshape(&[10, 100])?;
+    let tch_b = tch_a.reshape(&[10, 100]);
+    assert_eq(&b, &tch_b);
+    assert_eq!(&tch_b.size(), b.shape().inner());
+    Ok(())
+}

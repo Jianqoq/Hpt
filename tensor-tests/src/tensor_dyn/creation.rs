@@ -113,3 +113,11 @@ fn test_tril() -> anyhow::Result<()> {
     assert(2)?;
     Ok(())
 }
+
+#[test]
+fn test_identity() -> anyhow::Result<()> {
+    let tch_a = tch::Tensor::eye(10, (tch::Kind::Double, tch::Device::Cpu));
+    let a = _Tensor::<f64>::identity(10)?;
+    assert_eq(&a, &tch_a);
+    Ok(())
+}

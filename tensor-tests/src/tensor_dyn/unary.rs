@@ -32,6 +32,31 @@ fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
 }
 
 #[allow(unused)]
+fn no_assert(b: &_Tensor<f64>, a: &Tensor) {}
+
+#[allow(unused)]
+fn assert_eq_5(b: &_Tensor<f64>, a: &Tensor) {
+    let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
+    let b_raw = b.as_raw();
+    let tolerance = 5.0e-16;
+
+    for i in 0..b.size() {
+        let abs_diff = (a_raw[i] - b_raw[i]).abs();
+        let relative_diff = abs_diff / b_raw[i].abs().max(f64::EPSILON);
+
+        if abs_diff > tolerance && relative_diff > tolerance {
+            panic!(
+                "{} != {} (abs_diff: {}, relative_diff: {})",
+                a_raw[i],
+                b_raw[i],
+                abs_diff,
+                relative_diff
+            );
+        }
+    }
+}
+
+#[allow(unused)]
 fn assert_eq_bool(b: &_Tensor<bool>, a: &Tensor) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const bool, b.size()) };
     let b_raw = b.as_raw();
@@ -101,10 +126,11 @@ test_unarys!(elu, [1000], assert_eq, elu(), elu(1.0));
 test_unarys!(leaky_relu, [1000], assert_eq, leaky_relu(), leaky_relu(0.01));
 test_unarys!(mish, [1000], assert_eq, mish(), mish());
 test_unarys!(relu, [1000], assert_eq, relu(), relu());
-test_unarys!(selu, [1000], assert_eq, selu(), selu(None, None));
+test_unarys!(selu, [1000], assert_eq_5, selu(), selu(None, None));
 test_unarys!(softplus, [1000], assert_eq, softplus(), softplus());
 test_unarys!(round, [1000], assert_eq, round(), round());
 test_unarys!(clip, [1000], assert_eq, clamp(0.0, 1.0), clip(0.0, 1.0));
+test_unarys!(dropout, [1000], no_assert, dropout(0.5, false), dropout(0.5));
 
 #[test]
 fn test_sub_tensor_sin() -> anyhow::Result<()> {

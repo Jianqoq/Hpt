@@ -376,13 +376,13 @@ pub fn impl_float_out_unary() -> TokenStream {
             let acosh = trig("_acosh", "acosh_u10");
             let atanh = trig("_atanh", "atanh_u10");
             let erf = trig("_erf", "erf_u10");
-            let ln = trig("_ln", "log_u35");
+            let ln = trig("_ln", "log_u10");
             let exp = trig("_exp", "exp_u10");
-            let exp2 = trig("_exp2", "exp2_u35");
-            let log2 = trig("_log2", "log2_u35");
+            let exp2 = trig("_exp2", "exp2_u10");
+            let log2 = trig("_log2", "log2_u10");
             let log10 = trig("_log10", "log10_u10");
             let sqrt = trig("_sqrt", "sqrt_u35");
-            let cbrt = trig("_cbrt", "cbrt_u35");
+            let cbrt = trig("_cbrt", "cbrt_u10");
             let res =
                 quote! {
                 impl FloatOutUnary for #lhs_simd {

@@ -1130,6 +1130,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
 
 impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
     type Meta = T;
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn squeeze<A: Into<Axis>>(&self, axes: A) -> Result<_Tensor<T>> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
         for i in 0..axes.len() {
@@ -1152,7 +1153,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             .collect();
         self.reshape(new_shape)
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn unsqueeze<A: Into<Axis>>(&self, axes: A) -> Result<_Tensor<T>> {
         let mut res_shape: Vec<i64> = self.shape().to_vec();
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
@@ -1161,7 +1162,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         });
         self.reshape(res_shape)
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn reshape<S: Into<Shape>>(&self, shape: S) -> Result<_Tensor<T>> {
         let shape: Shape = shape.into();
         if shape.size() != (self.size() as i64) {
@@ -1187,7 +1188,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             self.contiguous()?.reshape(shape)
         }
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn transpose(&self, axis1: i64, axis2: i64) -> Result<_Tensor<T>> {
         if self.ndim() < 2 {
             Err(
@@ -1213,7 +1214,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             _backend: self._backend.clone(),
         })
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn expand<S: Into<Shape>>(&self, shape: S) -> Result<_Tensor<T>> {
         let res_shape = Shape::from(shape.into());
         let res_strides = self.layout.expand_strides(&res_shape);
@@ -1225,7 +1226,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             _backend: self._backend.clone(),
         })
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn t(&self) -> Result<Self> {
         if self.ndim() > 2 {
             let mut axes = (0..self.ndim() as i64).collect::<Vec<i64>>();
@@ -1238,7 +1239,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
     fn mt(&self) -> Result<Self> {
         self.permute((0..self.ndim() as i64).rev().collect::<Vec<i64>>())
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn flip<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
         let axes = process_axes(axes, self.ndim())?;
         let mut new_strides = self.strides().to_vec();
@@ -1265,21 +1266,21 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             })
         }
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn fliplr(&self) -> Result<Self> {
         if self.ndim() < 2 {
             return Err(ErrHandler::NdimNotEnough(2, self.ndim(), Location::caller()).into());
         }
         self.flip(1)
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn flipud(&self) -> Result<Self> {
         if self.ndim() < 1 {
             return Err(ErrHandler::NdimNotEnough(1, self.ndim(), Location::caller()).into());
         }
         self.flip(0)
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn tile<S: Into<Axis>>(&self, repeats: S) -> Result<Self> {
         let repeats: Vec<usize> = process_axes(repeats, self.ndim())?;
         let repeats: Vec<i64> = repeats
@@ -1310,7 +1311,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         }
         res.reshape(final_shape)
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn trim_zeros(&self, trim: &str) -> Result<Self> where Self::Meta: PartialEq {
         if !(trim == "fb" || trim == "f" || trim == "b") {
             return Err(anyhow::Error::msg("trim must be one of 'fb', 'f', 'b'"));
@@ -1349,7 +1350,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         }
         slice!(self[left_len:right_len])
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn repeat(&self, repeats: usize, axes: i16) -> Result<_Tensor<T>> {
         let mut val: usize = axes as usize;
         if axes < 0 {
@@ -1363,7 +1364,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         new_shape[val] *= repeats as i64;
         Ok(new_tensor.contiguous()?.reshape(new_shape)?)
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn split(&self, indices_or_sections: &[i64], axis: i64) -> Result<Vec<Self>> {
         let mut new_axis = axis;
         if axis < 0 {
@@ -1382,32 +1383,33 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             reses.push(self.slice(&tmp)?);
         }
         let last = *indices_or_sections.last().unwrap();
-        let remain = self.slice([Slice::RangeFrom(last)])?;
+        tmp[axis as usize] = Slice::Range((last, self.shape()[axis as usize]));
+        let remain = self.slice(&tmp)?;
         reses.push(remain);
         Ok(reses)
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn dsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
         if self.shape().len() < 3 {
             return Err(ErrHandler::NdimNotEnough(3, self.shape().len(), Location::caller()).into());
         }
         self.split(indices, 2)
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn hsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
         if self.shape().len() < 2 {
             return Err(ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into());
         }
         self.split(indices, 1)
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn vsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
         if self.shape().len() < 1 {
             return Err(ErrHandler::NdimNotEnough(1, self.shape().len(), Location::caller()).into());
         }
         self.split(indices, 0)
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn swap_axes(&self, mut axis1: i64, mut axis2: i64) -> Result<Self> {
         ErrHandler::check_index_in_range_mut(self.ndim(), &mut axis1)?;
         ErrHandler::check_index_in_range_mut(self.ndim(), &mut axis2)?;
@@ -1425,6 +1427,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         })
     }
 
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn flatten<A>(&self, start_dim: A, end_dim: A) -> Result<Self> where A: Into<Option<usize>> {
         let start = start_dim.into().unwrap_or(1);
         let end = end_dim.into().unwrap_or(self.ndim() as usize);
@@ -1452,7 +1455,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         }
         self.reshape(new_shape)
     }
-
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
         let permuted_layout = self.layout.permute_inv(axes)?;
         Ok(_Tensor {

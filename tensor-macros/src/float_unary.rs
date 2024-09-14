@@ -70,9 +70,7 @@ pub fn impl_float_out_unary() -> TokenStream {
                         let x = self.[<to_ #res_type>]();
                         let alpha = alpha.[<to_ #res_type>]();
                         let scale = scale.[<to_ #res_type>]();
-                        let positive_part = x.max(#res_type::ZERO);
-                        let negative_part = alpha * (x.exp() - #res_type::ONE) * (x <= #res_type::ZERO).[<to_ #res_type>]();
-                        scale * positive_part + negative_part
+                        scale * x._elu(alpha)
                     }
                 }
         } else {
@@ -255,10 +253,10 @@ pub fn impl_float_out_unary() -> TokenStream {
                         paste::paste! {
                             let x = self.[<to_ #res_type>]();
                             let alpha = alpha.[<to_ #res_type>]();
-                            if x >= #res_type::ZERO {
+                            if x > #res_type::ZERO {
                                 x
                             } else {
-                                alpha * (x.exp() - #res_type::ONE)
+                                alpha * (x.exp_m1())
                             }
                         }
                     }

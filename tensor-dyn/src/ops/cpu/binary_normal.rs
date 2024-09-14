@@ -16,13 +16,13 @@ use tensor_traits::tensor::TensorCreator;
 use tensor_types::dtype::TypeCommon;
 
 /// binary function that takes two tensors and a kernel function and returns a new tensor
-/// 
+///
 /// there are three cases:
-/// 
+///
 /// - if one of the tensors has only one element, it will directly use the scalar value to perform the operation
-/// 
+///
 /// - if both tensors have the same shape and are contiguous, it will directly convert both to 1D array and parallelize the operation
-/// 
+///
 /// - otherwise, it will use the strided map to parallelize the operation
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub fn binary_fn<A, B, K, F>(lhs: &_Tensor<A>, rhs: &_Tensor<B>, f: F) -> anyhow::Result<_Tensor<K>>
@@ -31,25 +31,47 @@ pub fn binary_fn<A, B, K, F>(lhs: &_Tensor<A>, rhs: &_Tensor<B>, f: F) -> anyhow
     if lhs.size() == 1 {
         let val = lhs.as_raw()[0];
         let res = _Tensor::<K, Cpu>::empty(rhs.shape())?;
-        res.as_raw_mut()
-            .par_iter_mut()
-            .zip(rhs.as_raw().par_iter())
-            .for_each(|(a, &b)| {
-                *a = f(val, b);
-            });
+        if rhs.parent().is_some() {
+            res.par_iter_mut()
+                .zip(rhs.par_iter())
+                .for_each(|(a, b)| {
+                    *a = f(val, b);
+                });
+        } else {
+            res.as_raw_mut()
+                .par_iter_mut()
+                .zip(rhs.as_raw().par_iter())
+                .for_each(|(a, &b)| {
+                    *a = f(val, b);
+                });
+        }
         Ok(res)
     } else if rhs.size() == 1 {
         let val = rhs.as_raw()[0];
         let res = _Tensor::<K, Cpu>::empty(lhs.shape())?;
-        res.as_raw_mut()
-            .par_iter_mut()
-            .zip(lhs.as_raw().par_iter())
-            .for_each(|(a, &b)| {
-                *a = f(b, val);
-            });
+        if lhs.parent().is_some() {
+            res.par_iter_mut()
+                .zip(lhs.par_iter())
+                .for_each(|(a, b)| {
+                    *a = f(b, val);
+                });
+        } else {
+            res.as_raw_mut()
+                .par_iter_mut()
+                .zip(lhs.as_raw().par_iter())
+                .for_each(|(a, &b)| {
+                    *a = f(b, val);
+                });
+        }
         Ok(res)
     } else {
-        if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
+        if
+            rhs.parent().is_none() &&
+            lhs.parent().is_none() &&
+            rhs.is_contiguous() &&
+            lhs.is_contiguous() &&
+            rhs.shape() == lhs.shape()
+        {
             let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape())?;
             let ret;
             ret = _Tensor::<K, Cpu>::empty(res_shape)?;
@@ -73,7 +95,7 @@ pub fn binary_fn<A, B, K, F>(lhs: &_Tensor<A>, rhs: &_Tensor<B>, f: F) -> anyhow
 }
 
 /// same function as `binary_fn`, just the output tensor is passed as an argument
-/// 
+///
 /// full documentation can be found in `binary_fn`
 pub fn binary_fn_with_out<A, B, O, Q, K, F>(
     lhs: &_Tensor<A>,
@@ -152,9 +174,9 @@ pub fn binary_fn_with_out<A, B, O, Q, K, F>(
 }
 
 /// same function as `binary_fn_simd`, just the output tensor is passed as an argument
-/// 
+///
 /// full documentation can be found in `binary_fn_simd`
-/// 
+///
 /// simd will be enabled only when all operands and output type have the same vector size.
 #[cfg(feature = "simd")]
 #[cfg_attr(feature = "track_caller", track_caller)]
@@ -386,9 +408,9 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
 }
 
 /// simd version of `binary_fn`
-/// 
+///
 /// simd will be enabled only when all operands and output type have the same vector size.
-/// 
+///
 /// full documentation can be found in `binary_fn`
 #[cfg(feature = "simd")]
 #[cfg_attr(feature = "track_caller", track_caller)]

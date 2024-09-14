@@ -5,4 +5,5 @@ pub mod tensor_dyn {
     pub mod unary;
     pub mod creation;
     pub mod shape_manipulate;
+    pub mod binary;
 }
