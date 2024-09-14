@@ -82,9 +82,13 @@ fn test_uncontiguous_sum() -> anyhow::Result<()> {
 fn test_uncontiguous_sum2() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(10 * 10 * 10, [10, 10, 10])?;
     let a = a.permute([1, 2, 0])?;
-    // let tch_a = tch_a.permute(&[1, 2, 0][..]);
-    // let sum = a.sum(0, false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(0, false, tch::Kind::Int64);
+    println!("{}", a);
+    println!("{}", a.permute([2, 1, 0])?);
+    let tch_a = tch_a.permute(&[1, 2, 0][..]);
+    let sum = a.sum(0, false)?;
+    let tch_sum = tch_a.sum_dim_intlist(0, false, tch::Kind::Int64);
+    println!("{}", sum);
+    println!("{}", tch_sum);
     // assert_eq(&sum, &tch_sum);
     // let sum = a.sum(1, false)?;
     // let tch_sum = tch_a.sum_dim_intlist(1, false, tch::Kind::Int64);

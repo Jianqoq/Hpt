@@ -409,7 +409,6 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
     }
     let a_: &_Tensor<T> = &a;
     let a_shape = a_.shape();
-    let a_last_stride = a_.strides()[a_.ndim() - 1];
     let a_shape_tmp = a_shape.clone();
     let (a_shape_cpy, res_shape) = predict_reduce_shape(&a_shape_tmp, &axes);
     let mut j = a_.ndim() - axes.len();
@@ -426,9 +425,18 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
             track_idx += 1;
         }
     }
-    transposed_axis[a.ndim() - axes.len()..].sort();
-    transposed_axis[..a.ndim() - axes.len()].sort();
+    transposed_axis[a.ndim() - axes.len()..].sort_by(|a, b| {
+        a_.strides()[*b].cmp(&a_.strides()[*a])
+    });
+    transposed_axis[..a.ndim() - axes.len()].sort_by(|a, b| {
+        a_.strides()[*b].cmp(&a_.strides()[*a])
+    });
     let transposed_tensor = a_.permute(transposed_axis)?;
+    let a_last_stride = if is_left {
+        transposed_tensor.strides()[a.ndim() - axes.len() - 1]
+    } else {
+        transposed_tensor.strides()[a_.ndim() - 1]
+    };
     let transposed_strides = transposed_tensor.strides().inner();
     let transposed_strides_cpy = transposed_strides.clone();
     let transposed_shape = transposed_tensor.shape().to_vec();
