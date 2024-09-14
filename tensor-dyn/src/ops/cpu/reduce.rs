@@ -368,6 +368,8 @@ macro_rules! register_reduction_one_axis {
 
 use tensor_types::vectors::traits::*;
 
+use super::uncontiguous_reduce;
+
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
     a: &_Tensor<T>,
@@ -824,19 +826,31 @@ pub(crate) fn reduce<T, F, F2>(
             Copy,
         <T as TypeCommon>::Vec: Copy
 {
-    _reduce::<_, _, _, fn(T) -> T, _, fn(<T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec, T>(
-        a,
-        op,
-        op,
-        None,
-        vec_op,
-        None,
-        &axes,
-        init_val,
-        keepdims,
-        init_out,
-        c
-    )
+    if a.is_contiguous() {
+        _reduce::<_, _, _, fn(T) -> T, _, fn(<T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec, T>(
+            a,
+            op,
+            op,
+            None,
+            vec_op,
+            None,
+            &axes,
+            init_val,
+            keepdims,
+            init_out,
+            c
+        )
+    } else {
+        uncontiguous_reduce::_reduce::<
+            _,
+            _,
+            _,
+            fn(T) -> T,
+            _,
+            fn(<T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec,
+            T
+        >(a, op, op, None, vec_op, None, &axes, init_val, keepdims, init_out, c)
+    }
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]

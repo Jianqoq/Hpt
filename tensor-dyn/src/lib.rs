@@ -30,6 +30,7 @@ pub mod ops {
         pub mod lp_norm;
         pub mod img2col;
         pub mod common_reduce;
+        pub mod uncontiguous_reduce;
         pub mod convolutions {
             pub mod conv2d;
             pub mod conv2d_ex;
