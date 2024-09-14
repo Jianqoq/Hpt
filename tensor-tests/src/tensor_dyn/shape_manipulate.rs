@@ -163,3 +163,45 @@ fn test_reshape() -> anyhow::Result<()> {
     assert_eq!(&tch_b.size(), b.shape().inner());
     Ok(())
 }
+
+#[test]
+fn test_concat() -> anyhow::Result<()> {
+    let tch_a = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let tch_b = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let a = _Tensor::<f64>::empty(&[10, 10, 10])?;
+    a.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a.size())
+    });
+    let b = _Tensor::<f64>::empty(&[10, 10, 10])?;
+    b.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_b.data_ptr() as *const f64, b.size())
+    });
+    let c = _Tensor::<f64>::concat(vec![&a, &b], 1, false)?;
+    let tch_c = Tensor::cat(&[&tch_a, &tch_b], 1);
+    assert_eq(&c, &tch_c);
+    assert_eq!(&tch_c.size(), c.shape().inner());
+    Ok(())
+}
+
+#[test]
+fn test_uncontiguous_concat() -> anyhow::Result<()> {
+    let tch_a = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let tch_b = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let a = _Tensor::<f64>::empty(&[10, 10, 10])?;
+    a.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a.size())
+    });
+    let b = _Tensor::<f64>::empty(&[10, 10, 10])?;
+    b.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_b.data_ptr() as *const f64, b.size())
+    });
+    let a = a.permute([1, 0, 2])?;
+    let tch_a = tch_a.permute(&[1, 0, 2][..]);
+    let b = b.permute([1, 0, 2])?;
+    let tch_b = tch_b.permute(&[1, 0, 2][..]);
+    let c = _Tensor::<f64>::concat(vec![&a, &b], 1, false)?;
+    let tch_c = Tensor::cat(&[&tch_a, &tch_b], 1);
+    assert_eq(&c, &tch_c);
+    assert_eq!(&tch_c.size(), c.shape().inner());
+    Ok(())
+}

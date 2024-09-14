@@ -23,7 +23,7 @@ fn concat_benchmark(c: &mut Criterion) {
         let a1 = black_box(_Tensor::<f32>::randn([128, 128, 128]).unwrap());
         let a2 = black_box(_Tensor::<f32>::randn([128, 128, 128]).unwrap());
         group.bench_function(BenchmarkId::new("hpt", format!("hpt {}", i)), |b| {
-            b.iter(|| { _Tensor::<f32>::stack(vec![&a, &a1, &a2], *axis as usize, false) });
+            b.iter(|| { _Tensor::<f32>::concat(vec![&a, &a1, &a2], *axis as usize, false) });
         });
         let tch_a = black_box(Tensor::randn([128, 128, 128], (Kind::Float, Device::Cpu)));
         let tch_a1 = black_box(Tensor::randn([128, 128, 128], (Kind::Float, Device::Cpu)));
@@ -38,7 +38,7 @@ fn concat_benchmark(c: &mut Criterion) {
         a2.as_raw_mut().copy_from_slice(
             unsafe { std::slice::from_raw_parts(tch_a2.data_ptr() as *const f32, a2.size()) }
         );
-        let concat = _Tensor::<f32>::stack(vec![&a, &a1, &a2], *axis as usize, false).unwrap();
+        let concat = _Tensor::<f32>::concat(vec![&a, &a1, &a2], *axis as usize, false).unwrap();
         let raw = concat.as_raw();
         let tch_raw = unsafe { std::slice::from_raw_parts(tch_concat.data_ptr() as *const f32, concat.size()) };
         if raw != tch_raw {
