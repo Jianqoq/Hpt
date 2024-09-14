@@ -240,7 +240,6 @@ fn case3_helper<T, const REGNUM: usize>(
 {
     let num_vec_size = co_b_remain / (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64);
     let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64);
-    println!("num_vec_size: {}, remain: {}, ip: {}", num_vec_size, remain, ip);
     if remain == 0 {
         if ip == 0 {
             for j in 0..num_vec_size {
@@ -1601,7 +1600,7 @@ impl<T> _Tensor<T>
             let b = idx / (num_co_b * out_height);
             let l = (idx / num_co_b) % out_height;
             let c = idx % num_co_b;
-            println!("co_b_remain == 0: {}, wo_b_remain == 0: {}, ci_b_remain == 0: {}", co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0);
+            // println!("co_b_remain == 0: {}, wo_b_remain == 0: {}, ci_b_remain == 0: {}", co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0);
             match (co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0) {
                 (true, true, true) => {
                     if co_b > 1 {
