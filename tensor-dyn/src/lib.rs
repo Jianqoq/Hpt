@@ -16,8 +16,7 @@ pub mod ops {
         pub mod concat;
         pub mod softmax;
         pub mod unique;
-        pub mod hamming_window;
-        pub mod hann_window;
+        pub mod windows;
         pub mod hardmax;
         pub mod blackman_window;
         pub mod onehot;

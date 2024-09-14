@@ -26,7 +26,12 @@ impl<T> _Tensor<T>
             FloatOutUnary<Output = <T as FloatOutBinary>::Output> +
             Mul<Output = <T as FloatOutBinary>::Output> +
             Sub<Output = <T as FloatOutBinary>::Output>,
-        usize: IntoScalar<T>,
+        <T as FloatOutBinary>::Output: std::ops::Neg<Output = <T as FloatOutBinary>::Output>,
+        <T as FloatOutBinary>::Output: NormalOut<
+            <T as FloatOutBinary>::Output,
+            Output = <T as FloatOutBinary>::Output
+        >,
+        usize: IntoScalar<<T as FloatOutBinary>::Output>,
         i64: IntoScalar<T>
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -34,8 +39,24 @@ impl<T> _Tensor<T>
         window_length: i64,
         periodic: bool
     ) -> anyhow::Result<_Tensor<<T as FloatOutBinary>::Output>> {
-        let alpha: <T as FloatOutBinary>::Output = (0.54).into_scalar();
-        let beta: <T as FloatOutBinary>::Output = (0.46).into_scalar();
+        Self::__hamming_window(window_length, (0.54).into_scalar(), (0.46).into_scalar(), periodic)
+    }
+
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn hann_window(
+        window_length: i64,
+        periodic: bool
+    ) -> anyhow::Result<_Tensor<<T as FloatOutBinary>::Output>> {
+        Self::__hamming_window(window_length, (0.5).into_scalar(), (0.5).into_scalar(), periodic)
+    }
+
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn __hamming_window(
+        window_length: i64,
+        alpha: <T as FloatOutBinary>::Output,
+        beta: <T as FloatOutBinary>::Output,
+        periodic: bool
+    ) -> anyhow::Result<_Tensor<<T as FloatOutBinary>::Output>> {
         let length_usize = (if periodic { window_length } else { window_length - 1 }) as i64;
         let length: T = length_usize.into_scalar();
         let ret = _Tensor::<<T as FloatOutBinary>::Output>::empty(&[length_usize])?;
@@ -43,7 +64,8 @@ impl<T> _Tensor<T>
             .par_iter_mut()
             .enumerate()
             .for_each(|(idx, x)| {
-                *x = alpha - beta * (T::TWOPI * idx.into_scalar())._div(length)._cos();
+                let idx: <T as FloatOutBinary>::Output = idx.into_scalar();
+                *x = idx._mul(T::TWOPI._div(length))._cos()._mul_add(-beta, alpha);
             });
         Ok(ret)
     }
@@ -64,7 +86,12 @@ impl<T> Tensor<T>
             FloatOutUnary<Output = <T as FloatOutBinary>::Output> +
             Mul<Output = <T as FloatOutBinary>::Output> +
             Sub<Output = <T as FloatOutBinary>::Output>,
-        usize: IntoScalar<T>,
+        <T as FloatOutBinary>::Output: std::ops::Neg<Output = <T as FloatOutBinary>::Output>,
+        <T as FloatOutBinary>::Output: NormalOut<
+            <T as FloatOutBinary>::Output,
+            Output = <T as FloatOutBinary>::Output
+        >,
+        usize: IntoScalar<<T as FloatOutBinary>::Output>,
         i64: IntoScalar<T>
 {
     #[cfg_attr(feature = "track_caller", track_caller)]

@@ -104,6 +104,7 @@ test_unarys!(relu, [1000], assert_eq, relu(), relu());
 test_unarys!(selu, [1000], assert_eq, selu(), selu(None, None));
 test_unarys!(softplus, [1000], assert_eq, softplus(), softplus());
 test_unarys!(round, [1000], assert_eq, round(), round());
+test_unarys!(clip, [1000], assert_eq, clamp(0.0, 1.0), clip(0.0, 1.0));
 
 #[test]
 fn test_sub_tensor_sin() -> anyhow::Result<()> {
