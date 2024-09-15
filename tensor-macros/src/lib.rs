@@ -676,9 +676,11 @@ pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
 
             let shift = if res_type.is_bool() {
                 quote! {
+                    #[inline(always)]
                     fn _shl(self, rhs: #rhs_dtype) -> Self::Output {
                         self || rhs
                     }
+                    #[inline(always)]
                     fn _shr(self, rhs: #rhs_dtype) -> Self::Output {
                         self && !rhs
                     }

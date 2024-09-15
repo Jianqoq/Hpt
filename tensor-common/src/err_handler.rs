@@ -79,7 +79,7 @@ pub enum ErrHandler {
 
     /// currently only used for conv, max_pool, avg_pool, etc.
     #[error(
-        "internal error: invalide cache param, {0} must be less than {1} and multiple of {2} or equal to 1, but got {3}, at {4}"
+        "internal error: invalid cache param, {0} must be less than {1} and multiple of {2} or equal to 1, but got {3}, at {4}"
     )]
     InvalidCacheParam(&'static str, i64, i64, i64, &'static Location<'static>),
 }

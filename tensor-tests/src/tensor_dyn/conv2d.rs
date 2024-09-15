@@ -53,7 +53,7 @@ fn assert_eq(
     config.set_ci_block_size(block_size[0]);
     config.set_co_block_size(block_size[1]);
     let res = a
-        .conv2d_ex(
+        .conv2d(
             &a_kernel,
             [1, 1],
             [
