@@ -56,16 +56,6 @@ impl Init<u32> for u32x4 {
     fn splat(val: u32) -> u32x4 {
         u32x4(std::simd::u32x4::splat(val))
     }
-    unsafe fn from_ptr(ptr: *const u32) -> Self where Self: Sized {
-        #[cfg(target_feature = "neon")]
-        {
-            unsafe { std::mem::transmute(std::arch::aarch64::vld1q_u32(ptr as *const _)) }
-        }
-        #[cfg(not(target_feature = "neon"))]
-        {
-            unsafe { std::mem::transmute(std::arch::x86_64::_mm_loadu_si128(ptr as *const _)) }
-        }
-    }
 }
 impl Index<usize> for u32x4 {
     type Output = u32;

@@ -49,16 +49,6 @@ impl Init<bool> for boolx16 {
     fn splat(val: bool) -> boolx16 {
         boolx16([val; 16])
     }
-    unsafe fn from_ptr(ptr: *const bool) -> Self where Self: Sized {
-        #[cfg(target_feature = "neon")]
-        {
-            unsafe { std::mem::transmute(std::arch::aarch64::vld1q_u8(ptr as *const _)) }
-        }
-        #[cfg(not(target_feature = "neon"))]
-        {
-            unsafe { std::mem::transmute(std::arch::x86_64::_mm_loadu_si128(ptr as *const _)) }
-        }
-    }
 }
 impl Index<usize> for boolx16 {
     type Output = bool;
