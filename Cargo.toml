@@ -44,4 +44,3 @@ debug = false
 opt-level = 3
 incremental = false
 debug = false
-lto = "thin"
