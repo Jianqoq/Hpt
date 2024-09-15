@@ -11,7 +11,6 @@ use crate::{ iterator_traits::IterGetSet, par_strided::ParStrided, par_strided_z
 #[cfg(feature = "simd")]
 pub mod par_strided_map_mut_simd {
     use std::sync::Arc;
-    use tensor_types::vectors::traits::{Init, VecTrait};
     use rayon::iter::{plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer}, ParallelIterator};
     use tensor_common::{shape::Shape, shape_utils::{mt_intervals, predict_broadcast_shape}};
     use tensor_traits::{CommonBounds, TensorInfo};
@@ -21,7 +20,6 @@ pub mod par_strided_map_mut_simd {
 
     pub struct ParStridedMutSimd<'a, T: TypeCommon + Send + Copy + Sync> {
         pub(crate) base: ParStridedSimd<T>,
-        pub(crate) vector: T::Vec,
         pub(crate) phantom: std::marker::PhantomData<&'a ()>,
     }
 
@@ -29,7 +27,6 @@ pub mod par_strided_map_mut_simd {
         pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
             ParStridedMutSimd {
                 base: ParStridedSimd::new(tensor),
-                vector: T::Vec::splat(T::ZERO),
                 phantom: std::marker::PhantomData,
             }
         }
@@ -97,12 +94,10 @@ pub mod par_strided_map_mut_simd {
                 ParStridedMutSimd {
                     base: a,
                     phantom: std::marker::PhantomData,
-                    vector: T::Vec::splat(T::ZERO),
                 },
                 b.map(|x| ParStridedMutSimd {
                     base: x,
                     phantom: std::marker::PhantomData,
-                    vector: T::Vec::splat(T::ZERO),
                 }),
             )
         }
@@ -184,9 +179,8 @@ pub mod par_strided_map_mut_simd {
         }
     
         fn inner_loop_next_simd(& self, index: usize) -> Self::SimdItem {
-            unsafe { 
-                std::ptr::copy_nonoverlapping(self.base.ptr.get_ptr().add(index * T::Vec::SIZE), self.vector.as_mut_ptr_uncheck(), T::Vec::SIZE);
-                std::mem::transmute(self.vector.as_mut_ptr_uncheck().as_mut().unwrap())
+            unsafe {
+                std::mem::transmute(self.base.ptr.get_ptr().add(index * T::Vec::SIZE).as_mut().unwrap())
             }
         }
     

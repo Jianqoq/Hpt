@@ -56,6 +56,9 @@ impl Init<i32> for i32x8 {
     fn splat(val: i32) -> i32x8 {
         i32x8(std::simd::i32x8::splat(val))
     }
+    unsafe fn from_ptr(ptr: *const i32) -> Self where Self: Sized {
+        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_si256(ptr as *const _)) }
+    }
 }
 impl Index<usize> for i32x8 {
     type Output = i32;

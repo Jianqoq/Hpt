@@ -991,6 +991,18 @@ impl<T> _Tensor<T>
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn fast_hard_sigmoid(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+        #[cfg(feature = "simd")]
+        let ret = uary_fn_simd(
+            self,
+            |x| x._fast_hard_sigmoid(),
+            |x| x._fast_hard_sigmoid()
+        );
+        #[cfg(not(feature = "simd"))]
+        let ret = uary_fn(self, |x| x._hard_sigmoid());
+        ret
+    }
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn hard_sigmoid_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
         where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
     {

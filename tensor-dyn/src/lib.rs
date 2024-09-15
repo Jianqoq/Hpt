@@ -28,25 +28,19 @@ pub mod ops {
         pub mod gather;
         pub mod dropout;
         pub mod lp_norm;
-        pub mod img2col;
         pub mod common_reduce;
         pub mod uncontiguous_reduce;
-        pub mod convolutions {
-            pub mod conv2d;
-            pub mod conv3d;
-            pub mod conv_config;
-        }
+        pub mod avg_pool2d;
+        pub mod maxpool2d;
+        pub mod conv2d;
+        pub mod conv_config;
+        pub mod lp_pool2d;
         pub mod kernels {
+            pub mod lp_pool_kernels;
             pub mod conv_kernels;
             pub mod reduce_kernels;
-            pub mod maxpool_kernel;
+            pub mod maxpool_kernels;
             pub mod avgpool_kernels;
-        }
-        pub mod maxpool {
-            pub mod maxpool2d;
-        }
-        pub mod avgpool {
-            pub mod avg_pool2d;
         }
     }
 }

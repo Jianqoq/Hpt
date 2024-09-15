@@ -330,6 +330,23 @@ pub fn impl_float_out_unary() -> TokenStream {
                     }
                 }
             };
+            let fast_hard_sigmoid = {
+                let unroll = (0..lhs_lanes as usize).map(|i| {
+                    quote! {
+                        arr[#i] = self_arr[#i]._fast_hard_sigmoid();
+                    }
+                });
+                quote! {
+                    fn _fast_hard_sigmoid(self) -> Self::Output {
+                        paste::paste! {
+                            let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
+                            let self_arr = self.0;
+                            #(#unroll)*
+                            #res_simd_ty::#res_simd_ty(arr.into())
+                        }
+                    }
+                }
+            };
             let res =
                 quote! {
                 impl FloatOutUnary for #lhs_simd {
@@ -337,7 +354,7 @@ pub fn impl_float_out_unary() -> TokenStream {
                     type Base = #res_type;
                     #exp #exp2 #ln #log2 #log10 #sqrt #sin #cos #tan #asin #acos #atan #sinh #cosh #tanh #asinh #acosh
                     #atanh #recip #erf #sigmoid #relu #gelu #relu6 #_hard_swish #soft_plus #softsign #mish #cbrt
-                    #celu #selu #elu #leaky_relu #hard_sigmoid
+                    #celu #selu #elu #leaky_relu #hard_sigmoid #fast_hard_sigmoid
                 }
             };
             ret.extend(res);
@@ -521,11 +538,19 @@ pub fn impl_float_out_unary() -> TokenStream {
                             let one = #res_simd_ty::#res_simd_ty::splat(#res_type::ONE);
                             let zero = #res_simd_ty::#res_simd_ty::splat(#res_type::ZERO);
                             let add = point_two * x + half;
-                            let mask = add.simd_gt(zero.0);
-                            let select = mask.select(add.0, zero.0);
-                            let min_mask = select.simd_lt(one.0);
-                            let min_select = min_mask.select(select, one.0);
-                            #res_simd_ty::#res_simd_ty(min_select)
+                            #res_simd_ty::#res_simd_ty(add.simd_min(one.0).simd_max(zero.0))
+                        }
+                    }
+                    #[inline(always)]
+                    fn _fast_hard_sigmoid(self) -> Self::Output {
+                        paste::paste! {
+                            let x = self.[<to_ #res_type>]();
+                            let sixth = #res_simd_ty::#res_simd_ty::splat(#res_type::ONE / #res_type::SIX);
+                            let half = #res_simd_ty::#res_simd_ty::splat(#res_type::HALF);
+                            let one = #res_simd_ty::#res_simd_ty::splat(#res_type::ONE);
+                            let zero = #res_simd_ty::#res_simd_ty::splat(#res_type::ZERO);
+                            let result = x * sixth + half;
+                            #res_simd_ty::#res_simd_ty(result.simd_clamp(zero.0, one.0))
                         }
                     }
                 }
@@ -647,6 +672,7 @@ fn unreachable_impl(
             fn _gelu(self) -> Self::Output {unreachable!()}
             fn _selu(self, alpha: Self::Base, scale: Self::Base) -> Self::Output {unreachable!()}
             fn _hard_sigmoid(self) -> Self::Output {unreachable!()}
+            fn _fast_hard_sigmoid(self) -> Self::Output {unreachable!()}
             fn _relu6(self) -> Self::Output {unreachable!()}
             fn _hard_swish(self) -> Self::Output {unreachable!()}
             fn _softplus(self) -> Self::Output {unreachable!()}

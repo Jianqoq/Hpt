@@ -143,6 +143,7 @@ pub trait FloatOutUnary {
     fn _gelu(self) -> Self::Output;
     fn _selu(self, alpha: Self::Base, scale: Self::Base) -> Self::Output;
     fn _hard_sigmoid(self) -> Self::Output;
+    fn _fast_hard_sigmoid(self) -> Self::Output;
     fn _relu6(self) -> Self::Output;
     fn _hard_swish(self) -> Self::Output;
     fn _softplus(self) -> Self::Output;

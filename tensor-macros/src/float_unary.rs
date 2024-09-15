@@ -279,7 +279,19 @@ pub fn impl_float_out_unary() -> TokenStream {
                     fn _hard_sigmoid(self) -> Self::Output {
                         paste::paste! {
                             let x = self.[<to_ #res_type>]();
-                            #res_type::ONE.min(#res_type::ZERO.max(#res_type::POINT_TWO * x + #res_type::HALF))
+                            #res_type::ZERO.max(#res_type::ONE.min(#res_type::POINT_TWO * x + #res_type::HALF))
+                        }
+                    }
+                    fn _fast_hard_sigmoid(self) -> Self::Output {
+                        paste::paste! {
+                            let x = self.[<to_ #res_type>]();
+                            if x <= -#res_type::THREE {
+                                #res_type::ZERO
+                            } else if x >= #res_type::THREE {
+                                #res_type::ONE
+                            } else {
+                                (x / #res_type::SIX) + #res_type::HALF
+                            }
                         }
                     }
                     fn _relu6(self) -> Self::Output {

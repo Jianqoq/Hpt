@@ -519,6 +519,8 @@ impl<T: CommonBounds> _Tensor<T> {
     }
     #[cfg(feature = "simd")]
     pub fn contiguous(&self) -> Result<Self> {
+        use tensor_types::traits::VecTrait;
+
         let res = self
             .par_iter_simd()
             .strided_map_simd(
@@ -526,7 +528,7 @@ impl<T: CommonBounds> _Tensor<T> {
                     *res = x;
                 },
                 |(res, x)| {
-                    *res = x;
+                    res.write_unaligned(x);
                 }
             )
             .collect();

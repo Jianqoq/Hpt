@@ -1,6 +1,5 @@
 use crate::dtype::TypeCommon;
 
-
 pub trait VecTrait<T> {
     fn _mul_add(self, a: Self, b: Self) -> Self;
     fn copy_from_slice(&mut self, slice: &[T]);
@@ -9,6 +8,10 @@ pub trait VecTrait<T> {
     fn as_mut_ptr_uncheck(&self) -> *mut T;
     fn extract(self, idx: usize) -> T;
     fn sum(&self) -> T;
+    fn write_unaligned(&mut self, vec: Self) where Self: Sized {
+        let ptr = self.as_mut_ptr() as *mut Self;
+        unsafe { ptr.write_unaligned(vec) }
+    }
 }
 pub trait Init<T> {
     fn splat(val: T) -> Self;

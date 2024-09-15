@@ -1,4 +1,7 @@
-use std::{ops::{Index, IndexMut}, simd::{ cmp::{ SimdPartialEq, SimdPartialOrd }, num::{ SimdFloat, SimdUint }, Simd }};
+use std::{
+    ops::{ Index, IndexMut },
+    simd::{ cmp::{ SimdPartialEq, SimdPartialOrd }, num::{ SimdFloat, SimdUint }, Simd },
+};
 
 use crate::vectors::_256bit::u16x16::u16x16;
 use crate::vectors::{ _256bit::f32x8::f32x8, traits::{ Init, VecCommon, VecTrait } };
@@ -44,7 +47,7 @@ impl VecTrait<half::bf16> for bf16x16 {
 }
 impl VecCommon for bf16x16 {
     const SIZE: usize = 16;
-    
+
     type Base = half::bf16;
 }
 impl Init<half::bf16> for bf16x16 {
@@ -56,7 +59,7 @@ impl Init<half::bf16> for bf16x16 {
         std::ptr::copy_nonoverlapping(
             ptr as *const u8,
             std::ptr::addr_of_mut!(dst) as *mut u8,
-            std::mem::size_of::<Self>(),
+            std::mem::size_of::<Self>()
         );
         bf16x16(dst)
     }
