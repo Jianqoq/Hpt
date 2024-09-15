@@ -688,13 +688,13 @@ pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
                     #[inline(always)]
                     fn _shl(self, rhs: #rhs_dtype) -> Self::Output {
                         paste::paste! {
-                            self.[<to_ #res_type>]().wrapping_shl(rhs.[<to_ #res_type>]())
+                            self.[<to_ #res_type>]().wrapping_shl(rhs.to_u32())
                         }
                     }
                     #[inline(always)]
                     fn _shr(self, rhs: #rhs_dtype) -> Self::Output {
                         paste::paste! {
-                            self.[<to_ #res_type>]().wrapping_shr(rhs.[<to_ #res_type>]())
+                            self.[<to_ #res_type>]().wrapping_shr(rhs.to_u32())
                         }
                     }
                 }
@@ -704,21 +704,25 @@ pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
                 quote! {
                 impl BitWiseOut<#rhs_dtype> for #lhs_dtype {
                     type Output = #res_type;
+                    #[inline(always)]
                     fn _bitand(self, rhs: #rhs_dtype) -> Self::Output {
                         paste::paste! {
                             self.[<to_ #res_type>]() & rhs.[<to_ #res_type>]()
                         }
                     }
+                    #[inline(always)]
                     fn _bitor(self, rhs: #rhs_dtype) -> Self::Output {
                         paste::paste! {
                             self.[<to_ #res_type>]() | rhs.[<to_ #res_type>]()
                         }
                     }
+                    #[inline(always)]
                     fn _bitxor(self, rhs: #rhs_dtype) -> Self::Output {
                         paste::paste! {
                             self.[<to_ #res_type>]() ^ rhs.[<to_ #res_type>]()
                         }
                     }
+                    #[inline(always)]
                     fn _not(self) -> Self::Output {
                         paste::paste! {
                             !self.[<to_ #res_type>]()
