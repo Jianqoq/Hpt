@@ -1,7 +1,7 @@
 use tensor_common::pointer::Pointer;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
-use crate::ops::cpu::convolutions::conv_config::KernelParamAlgo;
+use crate::ops::cpu::conv_config::KernelParamAlgo;
 use crate::ops::cpu::kernels::conv_kernels::*;
 use crate::tensor_base::_Tensor;
 use crate::CONV_REGNUM;

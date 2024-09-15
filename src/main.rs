@@ -4,7 +4,7 @@
 use backend::Cpu;
 use convertion::{Convertor, FromScalar};
 use into_scalar::IntoScalar;
-use ops::cpu::convolutions::conv_config::{Conv2dConfig, KernelParamAlgo};
+use ops::cpu::conv_config::{Conv2dConfig, KernelParamAlgo};
 // use half::bf16;
 // use tch::{ Device, Kind, Tensor };
 use tensor_dyn::tensor_base::_Tensor;
