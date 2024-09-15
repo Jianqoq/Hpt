@@ -24,7 +24,7 @@ pub fn __gen_fast_reduce_simd_helper(stream: TokenStream) -> TokenStream {
         body.extend(
             quote! {
             #i_u32 => {
-                gen_kernel!(1, #i, inp_ptr, res_ptr, vec_size, outer_loop_size, vec_op, inp_strides, inp_shape, prg, #arr);
+                gen_kernel!(1, #i, inp_ptr, res_ptr, vec_size, outer_loop_size, vec_op, inp_strides, inp_shape, prg, vec_op_post, #arr);
             }
         }
         );

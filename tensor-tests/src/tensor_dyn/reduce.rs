@@ -13,6 +13,14 @@ fn assert_eq(a: &_Tensor<i64>, b: &tch::Tensor) {
         .for_each(|(a, b)| assert_eq!(a, b));
 }
 
+fn assert_eq_f64(a: &_Tensor<f64>, b: &tch::Tensor) {
+    let raw = a.as_raw();
+    let tch_raw = unsafe { core::slice::from_raw_parts(b.data_ptr() as *const f64, a.size()) };
+    raw.par_iter()
+        .zip(tch_raw.par_iter())
+        .for_each(|(a, b)| assert_eq!(a, b));
+}
+
 fn common_input<const N: usize>(
     end: i64,
     shape: [i64; N]
@@ -51,7 +59,7 @@ fn test_sum() -> anyhow::Result<()> {
 
 #[test]
 fn test_uncontiguous_sum() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 5 * 10, [2 * 5 * 10])?;
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 0, 2])?;
     let tch_a = tch_a.permute(&[1, 0, 2][..]);
     let sum = a.sum(0, false)?;
@@ -119,6 +127,125 @@ fn test_prod() -> anyhow::Result<()> {
     let sum = a.prod(2, false)?;
     let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
     assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_uncontiguous_prod() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 0, 2])?;
+    let tch_a = tch_a.permute(&[1, 0, 2][..]);
+    let sum = a.prod(0, false)?;
+    let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(1, false)?;
+    let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(2, false)?;
+    let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_uncontiguous_prod2() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 2, 0])?;
+    let tch_a = tch_a.permute(&[1, 2, 0][..]);
+    let sum = a.prod(0, false)?;
+    let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(1, false)?;
+    let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(2, false)?;
+    let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_mean() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let mean = a.mean(0, false)?;
+    let tch_mean = tch_a.mean_dim(0, false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean(1, false)?;
+    let tch_mean = tch_a.mean_dim(1, false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean(2, false)?;
+    let tch_mean = tch_a.mean_dim(2, false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([0, 1], false)?;
+    let tch_mean = tch_a.mean_dim(&[0, 1][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([0, 2], false)?;
+    let tch_mean = tch_a.mean_dim(&[0, 2][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([1, 2], false)?;
+    let tch_mean = tch_a.mean_dim(&[1, 2][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([0, 1, 2], false)?;
+    let tch_mean = tch_a.mean_dim(&[0, 1, 2][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    Ok(())
+}
+
+#[test]
+fn test_uncontiguous_mean() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 0, 2])?;
+    let tch_a = tch_a.permute(&[1, 0, 2][..]);
+    let mean = a.mean(0, false)?;
+    let tch_mean = tch_a.mean_dim(0, false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean(1, false)?;
+    let tch_mean = tch_a.mean_dim(1, false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean(2, false)?;
+    let tch_mean = tch_a.mean_dim(2, false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([0, 1], false)?;
+    let tch_mean = tch_a.mean_dim(&[0, 1][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([0, 2], false)?;
+    let tch_mean = tch_a.mean_dim(&[0, 2][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([1, 2], false)?;
+    let tch_mean = tch_a.mean_dim(&[1, 2][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([0, 1, 2], false)?;
+    let tch_mean = tch_a.mean_dim(&[0, 1, 2][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    Ok(())
+}
+
+#[test]
+fn test_uncontiguous_mean2() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 2, 0])?;
+    let tch_a = tch_a.permute(&[1, 2, 0][..]);
+    let mean = a.mean(0, false)?;
+    let tch_mean = tch_a.mean_dim(0, false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean(1, false)?;
+    let tch_mean = tch_a.mean_dim(1, false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean(2, false)?;
+    let tch_mean = tch_a.mean_dim(2, false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([0, 1], false)?;
+    let tch_mean = tch_a.mean_dim(&[0, 1][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([0, 2], false)?;
+    let tch_mean = tch_a.mean_dim(&[0, 2][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([1, 2], false)?;
+    let tch_mean = tch_a.mean_dim(&[1, 2][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([0, 1, 2], false)?;
+    let tch_mean = tch_a.mean_dim(&[0, 1, 2][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
     Ok(())
 }
 

@@ -642,7 +642,8 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                                         res_ptr,
                                         inp.strides().inner(),
                                         inp.shape().inner(),
-                                        op
+                                        op,
+                                        op3
                                     );
                                 }
                             }
@@ -653,16 +654,7 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                                     .for_each(|(x, y)| {
                                         *x = op(*x, y);
                                     });
-                            }
-                            if let Some(op3) = op3 {
-                                #[cfg(feature = "simd")]
-                                res.iter_mut().for_each(|x| {
-                                    *x = op3(*x);
-                                });
-
-                                #[cfg(not(feature = "simd"))]
-                                {
-                                    let op5 = vec_post.unwrap();
+                                if let Some(op3) = op3 {
                                     res.iter_mut().for_each(|x| {
                                         *x = op3(*x);
                                     });
@@ -720,7 +712,9 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                                     &mut prg2,
                                     shape_len,
                                     op,
-                                    vec_op
+                                    op3,
+                                    vec_op,
+                                    vec_post
                                 );
                             }
 
@@ -923,19 +917,35 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, O>(
         O: CommonBounds,
         <O as TypeCommon>::Vec: Copy
 {
-    _reduce::<T, F, F2, F3, F4, F5, O>(
-        a,
-        op,
-        op2,
-        Some(op3),
-        op4,
-        Some(op5),
-        &axes,
-        init_val,
-        keepdims,
-        init_out,
-        c
-    )
+    if a.is_contiguous() {
+        _reduce::<T, F, F2, F3, F4, F5, O>(
+            a,
+            op,
+            op2,
+            Some(op3),
+            op4,
+            Some(op5),
+            &axes,
+            init_val,
+            keepdims,
+            init_out,
+            c
+        )
+    } else {
+        uncontiguous_reduce::_reduce::<T, F, F2, F3, F4, F5, O>(
+            a,
+            op,
+            op2,
+            Some(op3),
+            op4,
+            Some(op5),
+            &axes,
+            init_val,
+            keepdims,
+            init_out,
+            c
+        )
+    }
 }
 
 register_reduction_one_axis!(

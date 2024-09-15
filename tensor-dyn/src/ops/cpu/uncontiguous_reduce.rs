@@ -393,9 +393,7 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                                 }
                             }
                             if let Some(op3) = op3 {
-                                let tmp = result_ptr_c[0isize];
-                                let tmp = op3(tmp);
-                                result_ptr_c[0isize] = tmp;
+                                result_ptr_c[0isize] = op3(result_ptr_c[0isize]);
                             }
                             for j in (0..res_shape.len()).rev() {
                                 if iterator.res_prg[j] < res_shape[j] - 1 {
@@ -535,11 +533,9 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                                 }
                                 if let Some(op3) = op3 {
                                     for i in 0..inner_loop_size as i64 {
-                                        let result_val = result_ptr_c[i];
-                                        let mut_ref = unsafe {
-                                            &mut *result_ptr_c.ptr.offset(i as isize)
-                                        };
-                                        *mut_ref = op3(result_val);
+                                        result_ptr_c[i * res_last_strides] = op3(
+                                            result_ptr_c[i * res_last_strides]
+                                        );
                                     }
                                 }
                                 for j in (0..res_shape.len() - 1).rev() {
