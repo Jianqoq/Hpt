@@ -10,7 +10,6 @@ use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
 use tensor_types::into_scalar::IntoScalar;
 use rayon::prelude::*;
-use tensor_types::dtype::TypeCommon;
 use tensor_common::err_handler::ErrHandler::InvalidInputShape;
 use tensor_common::err_handler::ErrHandler::InvalidCacheParam;
 use super::conv_config::Conv2dConfig;
@@ -37,7 +36,7 @@ fn case1_helper<T, const REGNUM: usize>(
         i64,
         i64,
         &Pointer<T>,
-        &mut [<T as TypeCommon>::Vec; REGNUM],
+        &mut [T::Vec; REGNUM],
         &Pointer<T>
     )
 )
@@ -45,7 +44,7 @@ fn case1_helper<T, const REGNUM: usize>(
 {
     if ip == 0 {
         for j in 0..num_co_rb {
-            let mut res_buffer = [<T as TypeCommon>::Vec::splat(T::ZERO); REGNUM];
+            let mut res_buffer = [T::Vec::splat(T::ZERO); REGNUM];
             for n in 0..kh {
                 for m in 0..kw {
                     for ii in 0..ci_b_remain {
@@ -68,18 +67,18 @@ fn case1_helper<T, const REGNUM: usize>(
             }
             for h in 0..REGNUM as i64 {
                 let out_vec =
-                    &mut out[c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64)] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                    &mut out[c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * (T::Vec::SIZE as i64)] as *mut _ as *mut T::Vec; // prettier-ignore
                 unsafe {
                     out_vec.write_unaligned(res_buffer[h as usize]);
                 }
             }
         }
     } else {
-        let mut res_buffer = [<T as TypeCommon>::Vec::splat(T::ZERO); REGNUM];
+        let mut res_buffer = [T::Vec::splat(T::ZERO); REGNUM];
         for j in 0..num_co_rb {
             for h in 0..REGNUM as i64 {
                 let out_vec =
-                    &mut out[c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64)] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                    &mut out[c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * (T::Vec::SIZE as i64)] as *mut _ as *mut T::Vec; // prettier-ignore
                 res_buffer[h as usize] = unsafe { out_vec.read_unaligned() };
             }
             for n in 0..kh {
@@ -104,7 +103,7 @@ fn case1_helper<T, const REGNUM: usize>(
             }
             for h in 0..REGNUM as i64 {
                 let out_vec =
-                    &mut out[c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64)] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                    &mut out[c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * (T::Vec::SIZE as i64)] as *mut _ as *mut T::Vec; // prettier-ignore
                 unsafe {
                     out_vec.write_unaligned(res_buffer[h as usize]);
                 }
@@ -205,9 +204,9 @@ fn case3_helper<T, const REGNUM: usize>(
     co_b_remain: i64,
     wo_b_remain: i64,
     [inp, kernel]: [&Pointer<T>; 2],
-    pack_kernel: fn(i64, i64, i64, &Pointer<T>, &mut Vec<<T as TypeCommon>::Vec>),
-    load_fn: fn(i64, i64, i64, i64, &mut Vec<Vec<<T as TypeCommon>::Vec>>, &mut Pointer<T>),
-    store_fn: fn(i64, i64, i64, i64, &mut Vec<Vec<<T as TypeCommon>::Vec>>, &mut Pointer<T>),
+    pack_kernel: fn(i64, i64, i64, &Pointer<T>, &mut Vec<T::Vec>),
+    load_fn: fn(i64, i64, i64, i64, &mut Vec<Vec<T::Vec>>, &mut Pointer<T>),
+    store_fn: fn(i64, i64, i64, i64, &mut Vec<Vec<T::Vec>>, &mut Pointer<T>),
     fast_micro_kernel: fn(
         i64,
         i64,
@@ -220,7 +219,7 @@ fn case3_helper<T, const REGNUM: usize>(
         i64,
         i64,
         &Pointer<T>,
-        &mut [<T as TypeCommon>::Vec],
+        &mut [T::Vec],
         &Pointer<T>
     ),
     micro_kernel: fn(
@@ -231,19 +230,19 @@ fn case3_helper<T, const REGNUM: usize>(
         i64,
         i64,
         &Pointer<T>,
-        &mut Vec<Vec<<T as TypeCommon>::Vec>>,
-        &[<T as TypeCommon>::Vec]
+        &mut Vec<Vec<T::Vec>>,
+        &[T::Vec]
     ),
     mut out: &mut Pointer<T>
 )
     where T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>
 {
-    let num_vec_size = co_b_remain / (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64);
-    let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64);
+    let num_vec_size = co_b_remain / (T::Vec::SIZE as i64);
+    let remain = co_b_remain % (T::Vec::SIZE as i64);
     if remain == 0 {
         if ip == 0 {
             for j in 0..num_vec_size {
-                let mut res_buffer = [<T as TypeCommon>::Vec::splat(T::ZERO); REGNUM];
+                let mut res_buffer = [T::Vec::splat(T::ZERO); REGNUM];
                 for n in 0..kh {
                     for m in 0..kw {
                         for ii in 0..ci_b_remain {
@@ -268,18 +267,18 @@ fn case3_helper<T, const REGNUM: usize>(
                 }
                 for h in 0..REGNUM as i64 {
                     let out_vec = &mut out
-                        [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * <<T as TypeCommon>::Vec as VecCommon>::SIZE as i64] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                        [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * T::Vec::SIZE as i64] as *mut _ as *mut T::Vec; // prettier-ignore
                     unsafe {
                         *out_vec = res_buffer[h as usize];
                     }
                 }
             }
         } else {
-            let mut res_buffer = [<T as TypeCommon>::Vec::splat(T::ZERO); REGNUM];
+            let mut res_buffer = [T::Vec::splat(T::ZERO); REGNUM];
             for j in 0..num_vec_size {
                 for h in 0..REGNUM as i64 {
                     let out_vec = &mut out
-                        [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * <<T as TypeCommon>::Vec as VecCommon>::SIZE as i64] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                        [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * T::Vec::SIZE as i64] as *mut _ as *mut T::Vec; // prettier-ignore
                     res_buffer[h as usize] = unsafe { out_vec.read_unaligned() };
                 }
                 for n in 0..kh {
@@ -306,7 +305,7 @@ fn case3_helper<T, const REGNUM: usize>(
                 }
                 for h in 0..REGNUM as i64 {
                     let out_vec = &mut out
-                        [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * <<T as TypeCommon>::Vec as VecCommon>::SIZE as i64] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                        [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * T::Vec::SIZE as i64] as *mut _ as *mut T::Vec; // prettier-ignore
                     unsafe {
                         *out_vec = res_buffer[h as usize];
                     }
@@ -315,9 +314,9 @@ fn case3_helper<T, const REGNUM: usize>(
         }
     } else {
         let mut kernel_buffer =
-            vec![<T as TypeCommon>::Vec::splat(T::ZERO); num_vec_size as usize + 1];
+            vec![T::Vec::splat(T::ZERO); num_vec_size as usize + 1];
         let mut remain_buffer =
-            vec![vec![<T as TypeCommon>::Vec::splat(T::ZERO); wo_b_remain as usize]; num_vec_size as usize + 1];
+            vec![vec![T::Vec::splat(T::ZERO); wo_b_remain as usize]; num_vec_size as usize + 1];
         if ip > 0 {
             load_fn(
                 num_vec_size,
@@ -367,13 +366,13 @@ fn case3_helper<T, const REGNUM: usize>(
 impl<T> _Tensor<T>
     where
         T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
-        <T as TypeCommon>::Vec: VecTrait<T> +
+        T::Vec: VecTrait<T> +
             Copy +
             Init<T> +
             Send +
             Sync +
             VecCommon +
-            NormalOut<Output = <T as TypeCommon>::Vec>
+            NormalOut<Output = T::Vec>
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn conv2d(
@@ -467,22 +466,22 @@ impl<T> _Tensor<T>
         let co_b_remain = out_channels % co_b;
         let wo_b_remain = out_width % (CONV_REGNUM as i64);
         let ci_b_remain = in_channels % ci_b;
-        let num_co_rb = co_b / (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64);
+        let num_co_rb = co_b / (T::Vec::SIZE as i64);
         if
-            !(co_b % (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) == 0 || co_b == 1) ||
+            !(co_b % (T::Vec::SIZE as i64) == 0 || co_b == 1) ||
             co_b > out_channels
         {
             return Err(
                 InvalidCacheParam(
                     "co_b",
                     out_channels,
-                    <<T as TypeCommon>::Vec as VecCommon>::SIZE as i64,
+                    T::Vec::SIZE as i64,
                     co_b,
                     core::panic::Location::caller()
                 ).into()
             );
         }
-        let num_vec_size = co_b_remain / (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64);
+        let num_vec_size = co_b_remain / (T::Vec::SIZE as i64);
         let outer = batch * num_co_b * out_height;
 
         let inp_cpy = inp.clone();
@@ -505,14 +504,14 @@ impl<T> _Tensor<T>
                 i64,
                 i64,
                 &Pointer<T>,
-                &mut [<T as TypeCommon>::Vec; CONV_REGNUM],
+                &mut [T::Vec; CONV_REGNUM],
                 &Pointer<T>
             ),
             mut out: Pointer<T>
         | {
             for kp in 0..num_wo_b {
                 for j in 0..inner_size {
-                    let mut res_buffer = [<T as TypeCommon>::Vec::splat(T::ZERO); CONV_REGNUM];
+                    let mut res_buffer = [T::Vec::splat(T::ZERO); CONV_REGNUM];
                     for n in 0..kernel_height {
                         for m in 0..kernel_width {
                             for ii in 0..ci_b_remain {
@@ -536,7 +535,7 @@ impl<T> _Tensor<T>
                     for h in 0..CONV_REGNUM as i64 {
                         unsafe {
                             let out_vec = &mut out
-                                [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64)] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                                [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw + j * (T::Vec::SIZE as i64)] as *mut _ as *mut T::Vec; // prettier-ignore
                             out_vec.write_unaligned(res_buffer[h as usize]);
                         }
                     }
@@ -563,18 +562,18 @@ impl<T> _Tensor<T>
                 i64,
                 i64,
                 &Pointer<T>,
-                &mut [<T as TypeCommon>::Vec; CONV_REGNUM],
+                &mut [T::Vec; CONV_REGNUM],
                 &Pointer<T>
             ),
             mut out: Pointer<T>
         | {
-            let mut res_buffer = [<T as TypeCommon>::Vec::splat(T::ZERO); CONV_REGNUM];
+            let mut res_buffer = [T::Vec::splat(T::ZERO); CONV_REGNUM];
             for kp in 0..num_wo_b {
                 for j in 0..inner_size {
                     for h in 0..CONV_REGNUM as i64 {
                         unsafe {
                             let out_vec = &mut out
-                            [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64)] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                            [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw + j * (T::Vec::SIZE as i64)] as *mut _ as *mut T::Vec; // prettier-ignore
                             res_buffer[h as usize] = out_vec.read_unaligned();
                         }
                     }
@@ -601,7 +600,7 @@ impl<T> _Tensor<T>
                     for h in 0..CONV_REGNUM as i64 {
                         unsafe {
                             let out_vec = &mut out
-                            [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64)] as *mut _ as *mut <T as TypeCommon>::Vec; // prettier-ignore
+                            [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw + j * (T::Vec::SIZE as i64)] as *mut _ as *mut T::Vec; // prettier-ignore
                             out_vec.write_unaligned(res_buffer[h as usize]);
                         }
                     }
@@ -626,7 +625,7 @@ impl<T> _Tensor<T>
                 i64,
                 i64,
                 &Pointer<T>,
-                &mut [<T as TypeCommon>::Vec; CONV_REGNUM],
+                &mut [T::Vec; CONV_REGNUM],
                 &Pointer<T>
             ),
             out: Pointer<T>
@@ -1215,9 +1214,9 @@ impl<T> _Tensor<T>
             mut out: Pointer<T>
         | {
             let mut kernel_buffer =
-                vec![<T as TypeCommon>::Vec::splat(T::ZERO); num_vec_size as usize + 1];
+                vec![T::Vec::splat(T::ZERO); num_vec_size as usize + 1];
             let mut res_buffer =
-                vec![vec![<T as TypeCommon>::Vec::splat(T::ZERO); CONV_REGNUM]; num_vec_size as usize + 1];
+                vec![vec![T::Vec::splat(T::ZERO); CONV_REGNUM]; num_vec_size as usize + 1];
             for kp in 0..num_wo_b {
                 if ip > 0 {
                     load_store_res_buffer::<T, CONV_REGNUM, true>(
@@ -1231,7 +1230,7 @@ impl<T> _Tensor<T>
                 } else {
                     res_buffer.iter_mut().for_each(|x|
                         x.iter_mut().for_each(|y| {
-                            *y = <T as TypeCommon>::Vec::splat(T::ZERO);
+                            *y = T::Vec::splat(T::ZERO);
                         })
                     );
                 }
@@ -1666,7 +1665,7 @@ impl<T> _Tensor<T>
                             case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
                         }
                     } else {
-                        let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64);
+                        let remain = co_b_remain % (T::Vec::SIZE as i64);
                         if remain == 0 {
                             for ip in 0..num_ci_b {
                                 case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
@@ -1689,7 +1688,7 @@ impl<T> _Tensor<T>
                         }
                         case0(b, l, c, num_ci_b, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                     } else {
-                        let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64);
+                        let remain = co_b_remain % (T::Vec::SIZE as i64);
                         if remain == 0 {
                             for ip in 0..num_ci_b {
                                 case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
@@ -1716,7 +1715,7 @@ impl<T> _Tensor<T>
                             case1(b, l, c, ip, ci_b, out.clone());
                         }
                     } else {
-                        let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64);
+                        let remain = co_b_remain % (T::Vec::SIZE as i64);
                         if remain == 0 {
                             for ip in 0..num_ci_b {
                                 case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
@@ -1745,7 +1744,7 @@ impl<T> _Tensor<T>
                         case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
                         case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
                     } else {
-                        let remain = co_b_remain % (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64);
+                        let remain = co_b_remain % (T::Vec::SIZE as i64);
                         if remain == 0 {
                             for ip in 0..num_ci_b {
                                 case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
