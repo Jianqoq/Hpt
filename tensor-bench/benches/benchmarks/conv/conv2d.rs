@@ -1,6 +1,6 @@
 use std::time::Duration;
 use rayon::iter::{ IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator };
-use tensor_dyn::ops::cpu::convolutions::conv_config::{ Conv2dConfig, KernelParamAlgo };
+use tensor_dyn::ops::cpu::conv_config::{ Conv2dConfig, KernelParamAlgo };
 use tensor_dyn::TensorCreator;
 use criterion::{ black_box, criterion_group, BenchmarkId, Criterion };
 use tch::{ Tensor, Kind, Device };
@@ -132,8 +132,7 @@ fn conv2d_benchmark(c: &mut Criterion) {
             .unwrap()
             .contiguous()
             .unwrap();
-        println!("{:?}", res2);
-        // assert_eq_i64(&res, &res2);
+        assert_eq_i64(&res, &res2);
     }
     group.finish();
 }
