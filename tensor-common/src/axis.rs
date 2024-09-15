@@ -196,6 +196,17 @@ impl From<Vec<usize>> for Axis {
     }
 }
 
+impl<'a> From<&'a Vec<usize>> for Axis {
+    fn from(axes: &'a Vec<usize>) -> Self {
+        Axis {
+            axes: axes
+                .iter()
+                .map(|x| *x as i64)
+                .collect(),
+        }
+    }
+}
+
 impl From<i64> for Axis {
     fn from(axes: i64) -> Self {
         Axis { axes: vec![axes] }

@@ -1,53 +1,29 @@
 // use std::ffi::CStr;
 // use std::hint::black_box;
 
+use backend::Cpu;
 // use half::bf16;
 use ops::cpu::convolutions::conv_config::{ Conv2dConfig, KernelParamAlgo };
 // use tch::{ Device, Kind, Tensor };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
-// fn assert_eq(a: &Tensor, b: &_Tensor<i64>) {
-//     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const i64, b.size()) };
-//     let b_raw = b.as_raw();
-//     for i in 0..b.size() {
-//         if a_raw[i] != b_raw[i] {
-//             println!("{} != {}", a_raw[i], b_raw[i]);
-//         }
-//     }
-// }
+fn common_input<const N: usize>(
+    end: i64,
+    shape: [i64; N]
+) -> anyhow::Result<(_Tensor<i64, Cpu>, tch::Tensor)> {
+    let a = _Tensor::<i64, Cpu>::arange(0, end)?.reshape(&shape)?;
+    let tch_a = tch::Tensor::arange(end, (tch::Kind::Int64, tch::Device::Cpu)).reshape(&shape);
+    Ok((a, tch_a))
+}
 fn main() -> anyhow::Result<()> {
-    set_global_display_precision(7);
-    set_global_display_lr_elements(6);
-    let kernel = _Tensor::<f32>
-        ::arange(0, 512 * 256 * 3 * 3)?
-        .reshape([512, 256, 3, 3])?
-        .permute([2, 3, 1, 0])?
-        .contiguous()?;
-    let a = _Tensor::<f32>
-        ::arange(0, 1 * 256 * 256 * 256)?
-        .reshape([1, 256, 256, 256])?
-        .permute([0, 2, 3, 1])?
-        .contiguous()?;
-    let config = Conv2dConfig::<f32>::new(512, 256, [3, 3], KernelParamAlgo::Greedy);
-    println!("config: {:?}", config);
-    let now = std::time::Instant::now();
-    for _ in 0..10 {
-        let res = a
-            .conv2d_ex(
-                &kernel,
-                [1, 1],
-                [
-                    (0, 0),
-                    (0, 0),
-                ],
-                [1, 1],
-                Some(&config)
-            )?
-            .permute([0, 3, 1, 2])?;
-        // println!("{:?}", res);
-    }
-    println!("{:?}", now.elapsed() / 10);
-    // println!("{:?}", res);
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 2, 0])?;
+    println!("{}", a);
+    let tch_a = tch_a.permute(&[1, 2, 0][..]);
+    let sum = a.sum(2, false)?;
+    let tch_sum = tch_a.sum_dim_intlist(2, false, tch::Kind::Int64);
+    println!("{}", sum);
+    println!("{}", tch_sum);
     Ok(())
 }

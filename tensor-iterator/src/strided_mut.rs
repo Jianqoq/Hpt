@@ -176,9 +176,12 @@ impl<'a, T: CommonBounds> StridedMut<'a, T> {
     pub fn zip<C>(mut self, mut other: C) -> StridedZip<'a, Self, C>
         where C: 'a + IterGetSet, <C as IterGetSet>::Item: Send
     {
-        let new_shape = predict_broadcast_shape(self.shape(), other.shape()).expect(
-            "Cannot broadcast shapes"
-        );
+        let new_shape = match predict_broadcast_shape(self.shape(), other.shape()) {
+            Ok(s) => s,
+            Err(err) => {
+                panic!("{}", err);
+            }
+        };
 
         other.broadcast_set_strides(&new_shape);
         self.broadcast_set_strides(&new_shape);

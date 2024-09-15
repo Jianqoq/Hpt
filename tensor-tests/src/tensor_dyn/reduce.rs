@@ -24,7 +24,7 @@ fn common_input<const N: usize>(
 
 #[test]
 fn test_sum() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(8 * 8096 * 2048, [8, 8096, 2048])?;
+    let (a, tch_a) = common_input(2 * 5 * 10, [2 * 5 * 10])?;
     let sum = a.sum(0, false)?;
     let tch_sum = tch_a.sum_dim_intlist(0, false, tch::Kind::Int64);
     assert_eq(&sum, &tch_sum);
@@ -51,7 +51,7 @@ fn test_sum() -> anyhow::Result<()> {
 
 #[test]
 fn test_uncontiguous_sum() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(8 * 8096 * 2048, [8, 8096, 2048])?;
+    let (a, tch_a) = common_input(2 * 5 * 10, [2 * 5 * 10])?;
     let a = a.permute([1, 0, 2])?;
     let tch_a = tch_a.permute(&[1, 0, 2][..]);
     let sum = a.sum(0, false)?;
@@ -80,49 +80,45 @@ fn test_uncontiguous_sum() -> anyhow::Result<()> {
 
 #[test]
 fn test_uncontiguous_sum2() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(10 * 10 * 10, [10, 10, 10])?;
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 2, 0])?;
-    println!("{}", a);
-    println!("{}", a.permute([2, 1, 0])?);
     let tch_a = tch_a.permute(&[1, 2, 0][..]);
     let sum = a.sum(0, false)?;
     let tch_sum = tch_a.sum_dim_intlist(0, false, tch::Kind::Int64);
-    println!("{}", sum);
-    println!("{}", tch_sum);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum(1, false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(1, false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum(2, false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(2, false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum([0, 1], false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(&[0, 1][..], false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum([0, 2], false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(&[0, 2][..], false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum([1, 2], false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(&[1, 2][..], false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum([0, 1, 2], false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(&[0, 1, 2][..], false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum(1, false)?;
+    let tch_sum = tch_a.sum_dim_intlist(1, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum(2, false)?;
+    let tch_sum = tch_a.sum_dim_intlist(2, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum([0, 1], false)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[0, 1][..], false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum([0, 2], false)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[0, 2][..], false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum([1, 2], false)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[1, 2][..], false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum([0, 1, 2], false)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[0, 1, 2][..], false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
     Ok(())
 }
 
 #[test]
 fn test_prod() -> anyhow::Result<()> {
-    // let (a, tch_a) = common_input(8 * 8096 * 2048, [8, 8096, 2048])?;
-    // let sum = a.prod(0, false)?;
-    // let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.prod(1, false)?;
-    // let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.prod(2, false)?;
-    // let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
+    let (a, tch_a) = common_input(8 * 8096 * 2048, [8, 8096, 2048])?;
+    let sum = a.prod(0, false)?;
+    let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(1, false)?;
+    let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(2, false)?;
+    let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
     Ok(())
 }
 
