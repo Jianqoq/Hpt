@@ -141,6 +141,7 @@ impl f16x8 {
             {
                 use std::arch::aarch64::{float32x4_t, uint16x4_t};
                 use std::arch::asm;
+                use std::mem::MaybeUninit;
                 let mut low_f32x4 = MaybeUninit::<uint16x4_t>::uninit();
                 let mut high_f32x4 = MaybeUninit::<uint16x4_t>::uninit();
                 std::ptr::copy_nonoverlapping(
