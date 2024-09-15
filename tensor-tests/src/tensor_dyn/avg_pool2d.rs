@@ -67,17 +67,23 @@ fn assert_eq(
 
 #[test]
 fn test_case0() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input([1, 128, 4, 4, 64, 64])?;
-    let kernel = [4, 4];
-    let mut config = Conv2dConfig::<f64>::new(3, 1, [4, 4], KernelParamAlgo::Greedy);
-    assert_eq(&a, kernel, &tch_a, [3, 1], &mut config)?;
-    assert_eq(&a, kernel, &tch_a, [2, 1], &mut config)?;
+    let kernel = [3, 3];
+    let (a, tch_a) = common_input([1, 128, 3, 3, 64, 64])?;
+    let mut config = Conv2dConfig::<f64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
+    assert_eq(&a, kernel, &tch_a, [3, 128], &mut config)?;
+    assert_eq(&a, kernel, &tch_a, [1, 16], &mut config)?;
     assert_eq(&a, kernel, &tch_a, [1, 1], &mut config)?;
 
     // test when outwidth is less than regnum
-    let (a, tch_a) = common_input([1, 128, 4, 4, 5, 5])?;
-    let mut config = Conv2dConfig::<f64>::new(128, 3, [4, 4], KernelParamAlgo::Greedy);
-    assert_eq(&a, kernel, &tch_a, [1, 4], &mut config)?;
+    let (a, tch_a) = common_input([1, 128, 3, 3, 5, 5])?;
+    let mut config = Conv2dConfig::<f64>::new(128, 3, [3, 3], KernelParamAlgo::Greedy);
+    assert_eq(&a, kernel, &tch_a, [3, 128], &mut config)?;
+    assert_eq(&a, kernel, &tch_a, [1, 16], &mut config)?;
+    assert_eq(&a,kernel, &tch_a, [1, 1], &mut config)?;
+
+    let (a, tch_a) = common_input([1, 2, 3, 3, 5, 5])?;
+    let mut config = Conv2dConfig::<f64>::new(128, 2, [3, 3], KernelParamAlgo::Greedy);
+    assert_eq(&a, kernel, &tch_a, [3, 1], &mut config)?;
     assert_eq(&a, kernel, &tch_a, [1, 1], &mut config)?;
 
     Ok(())
