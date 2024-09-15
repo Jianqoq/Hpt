@@ -22,11 +22,7 @@ jobs:
         toolchain: nightly
         override: true
         components: clippy, rustfmt 
-    - name: Build
-      run: |
-        cd tensor-tests
-        cargo build --verbose --release
     - name: Run tests
       run: |
         cd tensor-tests
-        cargo test --verbose --release
+        cargo test --verbose
