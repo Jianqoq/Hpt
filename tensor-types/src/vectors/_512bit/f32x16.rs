@@ -59,12 +59,6 @@ impl Init<f32> for f32x16 {
         f32x16(std::simd::f32x16::splat(val))
     }
 }
-impl IntoVec<f32x16> for f32x16 {
-    fn into_vec(self) -> f32x16 {
-        self
-    }
-}
-
 impl SimdSelect<f32x16> for crate::vectors::_512bit::u32x16::u32x16 {
     fn select(&self, true_val: f32x16, false_val: f32x16) -> f32x16 {
         let mask: std::simd::mask32x16 = unsafe { std::mem::transmute(*self) };

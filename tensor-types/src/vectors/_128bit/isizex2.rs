@@ -1,6 +1,6 @@
 use std::ops::{ Deref, DerefMut, Index, IndexMut };
 
-use crate::{into_vec::IntoVec, traits::{Init, VecCommon, VecTrait}};
+use crate::traits::{Init, VecCommon, VecTrait};
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
@@ -79,12 +79,6 @@ impl Init<isize> for isizex2 {
         {
             unsafe { std::mem::transmute(std::arch::x86_64::_mm_loadu_si128(ptr as *const _)) }
         }
-    }
-}
-
-impl IntoVec<isizex2> for isizex2 {
-    fn into_vec(self) -> isizex2 {
-        self
     }
 }
 impl Index<usize> for isizex2 {

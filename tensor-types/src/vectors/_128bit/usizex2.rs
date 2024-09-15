@@ -1,6 +1,6 @@
 use std::ops::{ Deref, DerefMut, Index, IndexMut };
 
-use crate::{ into_vec::IntoVec, traits::{ Init, VecCommon, VecTrait } };
+use crate::traits::{ Init, VecCommon, VecTrait };
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
@@ -53,7 +53,7 @@ impl VecTrait<usize> for usizex2 {
 
 impl VecCommon for usizex2 {
     const SIZE: usize = 2;
-    
+
     type Base = usize;
 }
 
@@ -66,9 +66,13 @@ impl Init<usize> for usizex2 {
         #[cfg(target_feature = "neon")]
         {
             #[cfg(target_pointer_width = "64")]
-            unsafe { std::mem::transmute(std::arch::aarch64::vld1q_u64(ptr as *const _)) }
+            unsafe {
+                std::mem::transmute(std::arch::aarch64::vld1q_u64(ptr as *const _))
+            }
             #[cfg(target_pointer_width = "32")]
-            unsafe { std::mem::transmute(std::arch::aarch64::vld1q_u32(ptr as *const _)) }
+            unsafe {
+                std::mem::transmute(std::arch::aarch64::vld1q_u32(ptr as *const _))
+            }
         }
         #[cfg(not(target_feature = "neon"))]
         {
@@ -77,11 +81,6 @@ impl Init<usize> for usizex2 {
     }
 }
 
-impl IntoVec<usizex2> for usizex2 {
-    fn into_vec(self) -> usizex2 {
-        self
-    }
-}
 impl Index<usize> for usizex2 {
     type Output = usize;
 

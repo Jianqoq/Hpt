@@ -65,12 +65,6 @@ impl Init<usize> for usizex8 {
         ret
     }
 }
-
-impl IntoVec<usizex8> for usizex8 {
-    fn into_vec(self) -> usizex8 {
-        self
-    }
-}
 impl std::ops::Add for usizex8 {
     type Output = Self;
 

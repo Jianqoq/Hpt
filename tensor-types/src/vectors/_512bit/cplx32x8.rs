@@ -48,11 +48,6 @@ impl Init<Complex32> for cplx32x8 {
         cplx32x8([val; 8])
     }
 }
-impl IntoVec<cplx32x8> for cplx32x8 {
-    fn into_vec(self) -> cplx32x8 {
-        self
-    }
-}
 impl std::ops::Add for cplx32x8 {
     type Output = Self;
 
