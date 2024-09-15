@@ -425,7 +425,11 @@ pub fn impl_float_out_unary() -> TokenStream {
                     fn _gelu(self) -> Self::Output {
                         paste::paste! {
                             let x = self.[<to_ #res_type>]();
-                            x * x._softplus()._tanh()
+                            let erf = (x * #res_simd_ty::#res_simd_ty::splat(#res_type::FRAC_1_SQRT_2))._erf() + #res_simd_ty::#res_simd_ty::splat(#res_type::ONE);
+                            let half = #res_simd_ty::#res_simd_ty::splat(#res_type::HALF);
+                            #res_simd_ty::#res_simd_ty(
+                                half.0 * x.0 * erf.0
+                            )
                         }
                     }
                     #[inline(always)]

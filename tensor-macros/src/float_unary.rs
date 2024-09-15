@@ -104,14 +104,14 @@ pub fn impl_float_out_unary() -> TokenStream {
             quote! {
                 fn _gelu(self) -> Self::Output {
                     let x = self.to_f32();
-                    x * x._softplus()._tanh()
+                    0.5 * x * (1.0 + Sleef::erf(f32::FRAC_1_SQRT_2 * x))
                 }
             }
         } else {
             quote! {
                 fn _gelu(self) -> Self::Output {
                     let x = self.to_f64();
-                    x * x._softplus()._tanh()
+                    0.5 * x * (1.0 + Sleef::erf(f64::FRAC_1_SQRT_2 * x))
                 }
             }
         };

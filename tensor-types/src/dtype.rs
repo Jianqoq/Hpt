@@ -7,6 +7,7 @@ use crate::{
 };
 use half::{bf16, f16};
 use serde::{Deserialize, Serialize};
+use core::f32;
 use std::{fmt::{Debug, Display}, ops::{Index, IndexMut}};
 use tensor_macros::infer_enum_type;
 
@@ -672,7 +673,6 @@ mod type_impl {
         cplx64x1::cplx64x1
     );
 }
-
 pub trait FloatConst {
     const HALF: Self;
     const E: Self;
@@ -682,6 +682,7 @@ pub trait FloatConst {
     const TWOPI: Self;
     const FOURPI: Self;
     const POINT_TWO: Self;
+    const FRAC_1_SQRT_2: Self;
 }
 
 impl FloatConst for f32 {
@@ -693,6 +694,7 @@ impl FloatConst for f32 {
     const TWOPI: Self = std::f32::consts::PI * 2.0;
     const FOURPI: Self = std::f32::consts::PI * 4.0;
     const POINT_TWO: Self = 0.2;
+    const FRAC_1_SQRT_2: Self = f32::consts::FRAC_1_SQRT_2;
 }
 
 impl FloatConst for f64 {
@@ -704,6 +706,7 @@ impl FloatConst for f64 {
     const TWOPI: Self = std::f64::consts::PI * 2.0;
     const FOURPI: Self = std::f64::consts::PI * 4.0;
     const POINT_TWO: Self = 0.2;
+    const FRAC_1_SQRT_2: Self = std::f64::consts::FRAC_1_SQRT_2;
 }
 
 impl FloatConst for f16 {
@@ -715,6 +718,7 @@ impl FloatConst for f16 {
     const TWOPI: Self = f16::from_f32_const(std::f32::consts::PI * 2.0);
     const FOURPI: Self = f16::from_f32_const(std::f32::consts::PI * 4.0);
     const POINT_TWO: Self = f16::from_f32_const(0.2);
+    const FRAC_1_SQRT_2: Self = f16::from_f32_const(f32::consts::FRAC_1_SQRT_2);
 }
 
 impl FloatConst for bf16 {
@@ -726,6 +730,7 @@ impl FloatConst for bf16 {
     const TWOPI: Self = bf16::from_f32_const(std::f32::consts::PI * 2.0);
     const FOURPI: Self = bf16::from_f32_const(std::f32::consts::PI * 4.0);
     const POINT_TWO: Self = bf16::from_f32_const(0.2);
+    const FRAC_1_SQRT_2: Self = bf16::from_f32_const(f32::consts::FRAC_1_SQRT_2);
 }
 
 impl NormalOut for Dtype {
