@@ -400,7 +400,6 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
         <O as TypeCommon>::Vec: Copy
 {
     use tensor_common::shape_utils::mt_intervals_simd;
-    use tensor_iterator::iterator_traits::StridedIterator;
 
     let mut is_left = true;
     for axis in axes.iter() {
