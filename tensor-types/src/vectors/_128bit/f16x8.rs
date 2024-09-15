@@ -1,6 +1,7 @@
 use crate::_128bit::f32x4::f32x4;
 use crate::_128bit::u16x8::u16x8;
 use crate::traits::{ Init, VecCommon, VecTrait };
+use std::mem::MaybeUninit;
 use std::ops::{Index, IndexMut};
 use std::simd::cmp::SimdPartialOrd;
 use std::simd::num::{ SimdFloat, SimdInt, SimdUint };
@@ -139,20 +140,36 @@ impl f16x8 {
             }
             #[cfg(all(target_feature = "neon", target_arch = "aarch64"))]
             {
-                use std::arch::aarch64::float32x4_t;
+                use std::arch::aarch64::{float32x4_t, uint16x4_t};
                 use std::arch::asm;
-                let low_f32x4: float32x4_t;
-                let high_f32x4: float32x4_t;
-
+                let mut low_f32x4 = MaybeUninit::<uint16x4_t>::uninit();
+                let mut high_f32x4 = MaybeUninit::<uint16x4_t>::uninit();
+                std::ptr::copy_nonoverlapping(
+                    self.0.as_ptr(),
+                    low_f32x4.as_mut_ptr().cast(),
+                    4
+                );
+                std::ptr::copy_nonoverlapping(
+                    self.0.as_ptr().add(4),
+                    high_f32x4.as_mut_ptr().cast(),
+                    4
+                );
+                let res0: float32x4_t;
+                let res1: float32x4_t;
                 asm!(
-                    "fcvtl {low_f32x4:q}, {input:v}.4h",
-                    "fcvtl2 {high_f32x4:q}, {input:v}.8h",
-                    input = in(vreg) self.0.as_ptr(),
-                    low_f32x4 = out(vreg) low_f32x4,
-                    high_f32x4 = out(vreg) high_f32x4,
+                    "fcvtl {0:v}.4s, {1:v}.4h",
+                    out(vreg) res0,
+                    in(vreg) low_f32x4.assume_init(),
+                    options(pure, nomem, nostack)
+                );
+                asm!(
+                    "fcvtl {0:v}.4s, {1:v}.4h",
+                    out(vreg) res1,
+                    in(vreg) high_f32x4.assume_init(),
+                    options(pure, nomem, nostack)
                 );
 
-                std::mem::transmute([low_f32x4, high_f32x4])
+                std::mem::transmute([res0, res1])
             }
             #[cfg(
                 not(

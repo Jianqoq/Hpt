@@ -51,11 +51,6 @@ impl Init<bool> for boolx64 {
         boolx64([val; 64])
     }
 }
-impl IntoVec<boolx64> for boolx64 {
-    fn into_vec(self) -> boolx64 {
-        self
-    }
-}
 
 impl boolx64 {
     pub fn simd_eq(self, rhs: Self) -> Self {

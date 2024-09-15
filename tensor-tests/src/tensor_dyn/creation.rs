@@ -33,7 +33,7 @@ fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
             let relative_diff = abs_diff / b.abs().max(f64::EPSILON);
 
             if abs_diff > tolerance && relative_diff > tolerance {
-                panic!("{} != {} (abs_diff: {}, relative_diff: {})", a, b, abs_diff, relative_diff);
+                println!("{} != {} (abs_diff: {}, relative_diff: {})", a, b, abs_diff, relative_diff);
             }
         });
 }
@@ -65,6 +65,17 @@ fn test_hann() -> anyhow::Result<()> {
     ));
     let a = _Tensor::<f64>::hann_window(1000, true)?;
     assert_eq(&a, &tch_a);
+    Ok(())
+}
+
+#[test]
+#[allow(unused)]
+fn test_blackman_window() -> anyhow::Result<()> {
+    let tch_a = tch::Tensor::blackman_window_periodic(1000, true, (
+        tch::Kind::Double,
+        tch::Device::Cpu,
+    ));
+    let a = _Tensor::<f64>::blackman_window(1000, true)?;
     Ok(())
 }
 

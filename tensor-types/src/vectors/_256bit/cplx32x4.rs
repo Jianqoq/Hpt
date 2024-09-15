@@ -2,7 +2,6 @@ use std::ops::{ Index, IndexMut };
 
 use num_complex::Complex32;
 
-use crate::into_vec::IntoVec;
 
 use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
@@ -48,11 +47,6 @@ impl VecCommon for cplx32x4 {
 impl Init<Complex32> for cplx32x4 {
     fn splat(val: Complex32) -> cplx32x4 {
         cplx32x4([val; 4])
-    }
-}
-impl IntoVec<cplx32x4> for cplx32x4 {
-    fn into_vec(self) -> cplx32x4 {
-        self
     }
 }
 impl Index<usize> for cplx32x4 {

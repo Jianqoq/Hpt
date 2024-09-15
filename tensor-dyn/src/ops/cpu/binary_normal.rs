@@ -440,7 +440,14 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
         let val = lhs.as_raw()[0];
         let val_vec = <A as TypeCommon>::Vec::splat(val);
         let res = _Tensor::<K, Cpu>::empty(rhs.shape())?;
-
+        if rhs.parent().is_some() {
+            res.par_iter_mut()
+                .zip(rhs.par_iter())
+                .for_each(|(a, b)| {
+                    *a = f(val, b);
+                });
+            return Ok(res);
+        }
         // simd is enabled only when all operands and output type have the same vector size.
         // example: f32x4 + f32x4 = f32x4 or f32x8 + i32x8 = f32x8. f32x4 + f32x8 is not allowed.
         if
@@ -496,7 +503,14 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
         let val = rhs.as_raw()[0];
         let val_vec = <B as TypeCommon>::Vec::splat(val);
         let res = _Tensor::<K, Cpu>::empty(lhs.shape())?;
-
+        if lhs.parent().is_some() {
+            res.par_iter_mut()
+                .zip(lhs.par_iter())
+                .for_each(|(a, b)| {
+                    *a = f(b, val);
+                });
+            return Ok(res);
+        }
         // simd is enabled only when all operands and output type have the same vector size.
         // example: f32x4 + f32x4 = f32x4 or f32x8 + i32x8 = f32x8. f32x4 + f32x8 is not allowed.
         if
@@ -550,7 +564,13 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
         Ok(res)
     } else {
         // if both lhs and rhs are contiguous and have the same shape, we can directly convert both to 1D array and parrallelize the operation
-        if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
+        if
+            rhs.is_contiguous() &&
+            lhs.is_contiguous() &&
+            rhs.parent().is_none() &&
+            lhs.parent().is_none() &&
+            rhs.shape() == lhs.shape()
+        {
             let ret;
             ret = _Tensor::<K, Cpu>::empty(rhs.shape())?;
             if
@@ -567,9 +587,6 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
                     .zip(lhs.as_raw().par_chunks_exact(per_thread_real_len))
                     .zip(rhs.as_raw().par_chunks_exact(per_thread_real_len))
                     .for_each(|((ret, lhs), rhs)| {
-                        assert_eq!(ret.len() % <K as TypeCommon>::Vec::SIZE, 0);
-                        assert_eq!(lhs.len() % <A as TypeCommon>::Vec::SIZE, 0);
-                        assert_eq!(rhs.len() % <B as TypeCommon>::Vec::SIZE, 0);
                         ret.chunks_exact_mut(<A as TypeCommon>::Vec::SIZE)
                             .zip(lhs.chunks_exact(<A as TypeCommon>::Vec::SIZE))
                             .zip(rhs.chunks_exact(<A as TypeCommon>::Vec::SIZE))

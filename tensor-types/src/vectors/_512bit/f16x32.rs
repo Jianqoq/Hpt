@@ -60,12 +60,6 @@ impl Init<half::f16> for f16x32 {
         f16x32([val; 32])
     }
 }
-impl IntoVec<f16x32> for f16x32 {
-    fn into_vec(self) -> f16x32 {
-        self
-    }
-}
-
 impl f16x32 {
     pub fn is_nan(&self) -> u16x32 {
         let x = u16x32::splat(0x7c00u16);

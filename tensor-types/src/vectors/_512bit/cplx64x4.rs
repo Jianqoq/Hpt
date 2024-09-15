@@ -48,11 +48,6 @@ impl Init<Complex64> for cplx64x4 {
         cplx64x4([val; 4])
     }
 }
-impl IntoVec<cplx64x4> for cplx64x4 {
-    fn into_vec(self) -> cplx64x4 {
-        self
-    }
-}
 impl std::ops::Add for cplx64x4 {
     type Output = Self;
 

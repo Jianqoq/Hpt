@@ -555,7 +555,7 @@ impl<T: CommonBounds> _Tensor<T> {
     /// assert!(stacked_tensor.allclose(&_Tensor::<f64>::new([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])));
     /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn stack(tensors: Vec<&_Tensor<T>>, axis: usize, keepdims: bool) -> Result<Self>
+    pub fn concat(tensors: Vec<&_Tensor<T>>, axis: usize, keepdims: bool) -> Result<Self>
         where T: 'static
     {
         concat(tensors, axis, keepdims)

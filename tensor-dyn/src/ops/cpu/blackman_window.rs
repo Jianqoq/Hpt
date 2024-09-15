@@ -42,8 +42,8 @@ impl<T> _Tensor<T>
             .enumerate()
             .for_each(|(idx, x)| {
                 let idx: <T as FloatOutBinary>::Output = idx.into_scalar();
-                let a = a1._mul(T::TWOPI._mul(idx)._div(length))._cos();
-                let b = a2._mul(T::FOURPI._mul(idx)._div(length))._cos();
+                let a = a1._mul(T::TWOPI._mul(idx)._div(length)._cos());
+                let b = a2._mul(T::FOURPI._mul(idx)._div(length)._cos());
                 *x = a0._sub(a)._add(b);
             });
         Ok(ret)

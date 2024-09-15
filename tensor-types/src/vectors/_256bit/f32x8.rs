@@ -1,6 +1,5 @@
 use std::ops::{ Deref, DerefMut, Index, IndexMut };
 use std::simd::num::SimdFloat;
-use crate::into_vec::IntoVec;
 use crate::vectors::traits::{ Init, SimdSelect, VecCommon, VecTrait };
 use std::simd::StdFloat;
 
@@ -60,11 +59,6 @@ impl Init<f32> for f32x8 {
     }
     unsafe fn from_ptr(ptr: *const f32) -> Self where Self: Sized {
         unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_ps(ptr as *const _)) }
-    }
-}
-impl IntoVec<f32x8> for f32x8 {
-    fn into_vec(self) -> f32x8 {
-        self
     }
 }
 impl Index<usize> for f32x8 {

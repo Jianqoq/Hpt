@@ -1,7 +1,5 @@
 use std::ops::{ Deref, DerefMut, Index, IndexMut };
 
-use crate::into_vec::IntoVec;
-
 use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
 #[allow(non_camel_case_types)]
@@ -60,11 +58,6 @@ impl Init<i8> for i8x32 {
     }
     unsafe fn from_ptr(ptr: *const i8) -> Self where Self: Sized {
         unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_si256(ptr as *const _)) }
-    }
-}
-impl IntoVec<i8x32> for i8x32 {
-    fn into_vec(self) -> i8x32 {
-        self
     }
 }
 impl Index<usize> for i8x32 {

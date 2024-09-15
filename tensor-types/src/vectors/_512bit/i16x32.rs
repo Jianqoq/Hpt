@@ -59,11 +59,6 @@ impl Init<i16> for i16x32 {
         i16x32(std::simd::i16x32::splat(val))
     }
 }
-impl IntoVec<i16x32> for i16x32 {
-    fn into_vec(self) -> i16x32 {
-        self
-    }
-}
 impl std::ops::Add for i16x32 {
     type Output = Self;
 

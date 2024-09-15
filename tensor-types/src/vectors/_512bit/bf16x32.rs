@@ -53,11 +53,6 @@ impl Init<half::bf16> for bf16x32 {
         bf16x32([val; 32])
     }
 }
-impl IntoVec<bf16x32> for bf16x32 {
-    fn into_vec(self) -> bf16x32 {
-        self
-    }
-}
 
 impl bf16x32 {
     #[cfg(target_feature = "avx2")]

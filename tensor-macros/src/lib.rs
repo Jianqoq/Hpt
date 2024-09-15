@@ -18,6 +18,7 @@ mod simd_cmp;
 mod simd_bitwise;
 mod kernel_gen_helper;
 mod simd_float_out_binary;
+mod into_vec;
 use crate::simd_cmp::impl_simd_cmp;
 use quote::quote;
 use type_utils::TypeInfo;
@@ -565,31 +566,41 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                     }
                 }
             } else {
+                let op = |
+                    method: &str,
+                    op: TokenStream2,
+                    std_op: &str
+                | {
+                    let method = Ident::new(method, proc_macro2::Span::call_site());
+                    let std_op = Ident::new(std_op, proc_macro2::Span::call_site());
+                    if res_type.is_float() {
+                    quote! {
+                        #[inline(always)]
+                        fn #method(self, rhs: #rhs_dtype) -> Self::Output {
+                            paste::paste! {
+                                self.[<to_ #res_type>]() #op rhs.[<to_ #res_type>]()
+                            }
+                        }
+                    }
+                } else {
+                    quote! {
+                        #[inline(always)]
+                        fn #method(self, rhs: #rhs_dtype) -> Self::Output {
+                            paste::paste! {
+                                self.[<to_ #res_type>]().#std_op(rhs.[<to_ #res_type>]())
+                            }
+                        }
+                    }
+                }};
+                let add = op("_add", quote!(+), "wrapping_add");
+                let mul = op("_mul", quote!(*), "wrapping_mul");
+                let sub = op("_sub", quote!(-), "wrapping_sub");
+                let rem = op("_rem", quote!(%), "wrapping_rem");
                 quote! {
-                #[inline(always)]
-                fn _add(self, rhs: #rhs_dtype) -> Self::Output {
-                    paste::paste! {
-                        self.[<to_ #res_type>]() + rhs.[<to_ #res_type>]()
-                    }
-                }
-                #[inline(always)]
-                fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
-                    paste::paste! {
-                        self.[<to_ #res_type>]() - rhs.[<to_ #res_type>]()
-                    }
-                }
-                #[inline(always)]
-                fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
-                    paste::paste! {
-                        self.[<to_ #res_type>]() * rhs.[<to_ #res_type>]()
-                    }
-                }
-                #[inline(always)]
-                fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
-                    paste::paste! {
-                        self.[<to_ #res_type>]() % rhs.[<to_ #res_type>]()
-                    }
-                }
+                #add
+                #sub
+                #mul
+                #rem
             }
             };
 
@@ -642,6 +653,11 @@ pub fn impl_simd_convert(_: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn simd_cmp(_: TokenStream) -> TokenStream {
     impl_simd_cmp()
+}
+
+#[proc_macro]
+pub fn impl_into_vec(_: TokenStream) -> TokenStream {
+    into_vec::into_vec()
 }
 
 #[proc_macro]

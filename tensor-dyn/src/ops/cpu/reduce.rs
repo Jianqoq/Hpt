@@ -368,6 +368,8 @@ macro_rules! register_reduction_one_axis {
 
 use tensor_types::vectors::traits::*;
 
+use super::uncontiguous_reduce;
+
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
     a: &_Tensor<T>,
@@ -398,7 +400,6 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
         <O as TypeCommon>::Vec: Copy
 {
     use tensor_common::shape_utils::mt_intervals_simd;
-    use tensor_iterator::iterator_traits::StridedIterator;
 
     let mut is_left = true;
     for axis in axes.iter() {
@@ -409,7 +410,6 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
     }
     let a_: &_Tensor<T> = &a;
     let a_shape = a_.shape();
-    let a_last_stride = a_.strides()[a_.ndim() - 1];
     let a_shape_tmp = a_shape.clone();
     let (a_shape_cpy, res_shape) = predict_reduce_shape(&a_shape_tmp, &axes);
     let mut j = a_.ndim() - axes.len();
@@ -426,9 +426,18 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
             track_idx += 1;
         }
     }
-    transposed_axis[a.ndim() - axes.len()..].sort();
-    transposed_axis[..a.ndim() - axes.len()].sort();
+    transposed_axis[a.ndim() - axes.len()..].sort_by(|a, b| {
+        a_.strides()[*b].cmp(&a_.strides()[*a])
+    });
+    transposed_axis[..a.ndim() - axes.len()].sort_by(|a, b| {
+        a_.strides()[*b].cmp(&a_.strides()[*a])
+    });
     let transposed_tensor = a_.permute(transposed_axis)?;
+    let a_last_stride = if is_left {
+        transposed_tensor.strides()[a.ndim() - axes.len() - 1]
+    } else {
+        transposed_tensor.strides()[a_.ndim() - 1]
+    };
     let transposed_strides = transposed_tensor.strides().inner();
     let transposed_strides_cpy = transposed_strides.clone();
     let transposed_shape = transposed_tensor.shape().to_vec();
@@ -632,7 +641,8 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                                         res_ptr,
                                         inp.strides().inner(),
                                         inp.shape().inner(),
-                                        op
+                                        op,
+                                        op3
                                     );
                                 }
                             }
@@ -643,16 +653,7 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                                     .for_each(|(x, y)| {
                                         *x = op(*x, y);
                                     });
-                            }
-                            if let Some(op3) = op3 {
-                                #[cfg(feature = "simd")]
-                                res.iter_mut().for_each(|x| {
-                                    *x = op3(*x);
-                                });
-
-                                #[cfg(not(feature = "simd"))]
-                                {
-                                    let op5 = vec_post.unwrap();
+                                if let Some(op3) = op3 {
                                     res.iter_mut().for_each(|x| {
                                         *x = op3(*x);
                                     });
@@ -710,7 +711,9 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                                     &mut prg2,
                                     shape_len,
                                     op,
-                                    vec_op
+                                    op3,
+                                    vec_op,
+                                    vec_post
                                 );
                             }
 
@@ -816,19 +819,31 @@ pub(crate) fn reduce<T, F, F2>(
             Copy,
         <T as TypeCommon>::Vec: Copy
 {
-    _reduce::<_, _, _, fn(T) -> T, _, fn(<T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec, T>(
-        a,
-        op,
-        op,
-        None,
-        vec_op,
-        None,
-        &axes,
-        init_val,
-        keepdims,
-        init_out,
-        c
-    )
+    if a.is_contiguous() {
+        _reduce::<_, _, _, fn(T) -> T, _, fn(<T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec, T>(
+            a,
+            op,
+            op,
+            None,
+            vec_op,
+            None,
+            &axes,
+            init_val,
+            keepdims,
+            init_out,
+            c
+        )
+    } else {
+        uncontiguous_reduce::_reduce::<
+            _,
+            _,
+            _,
+            fn(T) -> T,
+            _,
+            fn(<T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec,
+            T
+        >(a, op, op, None, vec_op, None, &axes, init_val, keepdims, init_out, c)
+    }
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]
@@ -901,19 +916,35 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, O>(
         O: CommonBounds,
         <O as TypeCommon>::Vec: Copy
 {
-    _reduce::<T, F, F2, F3, F4, F5, O>(
-        a,
-        op,
-        op2,
-        Some(op3),
-        op4,
-        Some(op5),
-        &axes,
-        init_val,
-        keepdims,
-        init_out,
-        c
-    )
+    if a.is_contiguous() {
+        _reduce::<T, F, F2, F3, F4, F5, O>(
+            a,
+            op,
+            op2,
+            Some(op3),
+            op4,
+            Some(op5),
+            &axes,
+            init_val,
+            keepdims,
+            init_out,
+            c
+        )
+    } else {
+        uncontiguous_reduce::_reduce::<T, F, F2, F3, F4, F5, O>(
+            a,
+            op,
+            op2,
+            Some(op3),
+            op4,
+            Some(op5),
+            &axes,
+            init_val,
+            keepdims,
+            init_out,
+            c
+        )
+    }
 }
 
 register_reduction_one_axis!(

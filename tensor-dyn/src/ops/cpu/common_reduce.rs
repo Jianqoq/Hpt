@@ -1,7 +1,7 @@
 use tensor_common::axis::{ process_axes, Axis };
 use tensor_traits::{ CommonBounds, TensorInfo };
 use tensor_types::{
-    convertion::{Convertor, VecConvertor},
+    convertion::{ Convertor, VecConvertor },
     dtype::TypeCommon,
     into_scalar::IntoScalar,
     type_promote::{ BitWiseOut, Eval, FloatOutBinary, FloatOutUnary, NormalOut },
@@ -368,7 +368,16 @@ impl<T> _Tensor<T>
             <T as TypeCommon>::Vec,
             Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
         > +
-            FloatOutUnary<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
+            FloatOutUnary<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec> +
+            NormalOut<
+                <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+                Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
+            >,
+        <T as TypeCommon>::Vec: NormalOut<
+            <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
+        > +
+            NormalOut<<T as TypeCommon>::Vec, Output = <T as TypeCommon>::Vec>
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn mean<S: Into<Axis>>(
@@ -428,9 +437,9 @@ impl<T> _Tensor<T>
                 let b = b._square();
                 a._add(b)
             },
-            |a, b| a._add(b),
+            |a, b| a._add(b._mul(b)),
             move |a| a._sqrt(),
-            |a, b| a._add(b),
+            |a, b| { a._add(b._mul(b)) },
             |a| a._sqrt(),
             &axes,
             <T as FloatOutBinary>::Output::ZERO,
@@ -474,7 +483,7 @@ impl<T> _Tensor<T>
             move |a, b| a._add(<FloatBinaryType<T> as NormalOut>::_abs(b)._pow(three)),
             move |a| a,
             move |a, b| {
-                let abs = b._abs();
+                let abs = <<T as TypeCommon>::Vec as NormalOut>::_abs(b);
                 let pow = abs._pow(three_vec);
                 a._add(pow)
             },

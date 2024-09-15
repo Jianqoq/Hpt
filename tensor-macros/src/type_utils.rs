@@ -123,6 +123,8 @@ pub fn type_simd_lanes(list: &str) -> u8 {
         "complex64" => 4,
         #[cfg(target_pointer_width = "32")]
         "complex32" => 16,
+        #[cfg(target_pointer_width = "32")]
+        "complex64" => 8,
         _ => 0,
     }
 }

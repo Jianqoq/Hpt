@@ -59,11 +59,6 @@ impl Init<i8> for i8x64 {
         i8x64(std::simd::i8x64::splat(val))
     }
 }
-impl IntoVec<i8x64> for i8x64 {
-    fn into_vec(self) -> i8x64 {
-        self
-    }
-}
 impl std::ops::Add for i8x64 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {

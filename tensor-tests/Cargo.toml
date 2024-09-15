@@ -19,15 +19,11 @@ rayon = { version = "1.10.0", default-features = false }
 paste = "1.0.15"
 
 [profile.dev]
-opt-level = 0
+opt-level = 3
 incremental = false
 debug = true
-lto = "fat"
-codegen-units = 1
 
 [profile.release]
-opt-level = 0
+opt-level = 3
 incremental = false
 debug = true
-lto = "fat"
-codegen-units = 1

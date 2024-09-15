@@ -381,7 +381,7 @@ pub fn impl_float_out_unary() -> TokenStream {
             let exp2 = trig("_exp2", "exp2_u10");
             let log2 = trig("_log2", "log2_u10");
             let log10 = trig("_log10", "log10_u10");
-            let sqrt = trig("_sqrt", "sqrt_u35");
+            let sqrt = trig("_sqrt", "sqrt_u05");
             let cbrt = trig("_cbrt", "cbrt_u10");
             let res =
                 quote! {
