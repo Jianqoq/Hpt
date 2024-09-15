@@ -209,10 +209,10 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
         inp_strides,
         inp_shape,
         prg,
-        vec_post,
+        vec_op_post,
         [
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-            25, 26, 27, 28, 29, 30, 31, 32,
+            25, 26, 27, 28, 29, 30, 31, 32
         ]
     );
     #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
@@ -227,7 +227,7 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
         inp_strides,
         inp_shape,
         prg,
-        vec_post,
+        vec_op_post,
         [1, 2, 3, 4, 5, 6, 7, 8]
     );
     let remain_vec = remain_vec as u32;
