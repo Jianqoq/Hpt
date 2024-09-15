@@ -566,31 +566,41 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
                     }
                 }
             } else {
+                let op = |
+                    method: &str,
+                    op: TokenStream2,
+                    std_op: &str
+                | {
+                    let method = Ident::new(method, proc_macro2::Span::call_site());
+                    let std_op = Ident::new(std_op, proc_macro2::Span::call_site());
+                    if res_type.is_float() {
+                    quote! {
+                        #[inline(always)]
+                        fn #method(self, rhs: #rhs_dtype) -> Self::Output {
+                            paste::paste! {
+                                self.[<to_ #res_type>]() #op rhs.[<to_ #res_type>]()
+                            }
+                        }
+                    }
+                } else {
+                    quote! {
+                        #[inline(always)]
+                        fn #method(self, rhs: #rhs_dtype) -> Self::Output {
+                            paste::paste! {
+                                self.[<to_ #res_type>]().#std_op(rhs.[<to_ #res_type>]())
+                            }
+                        }
+                    }
+                }};
+                let add = op("_add", quote!(+), "wrapping_add");
+                let mul = op("_mul", quote!(*), "wrapping_mul");
+                let sub = op("_sub", quote!(-), "wrapping_sub");
+                let rem = op("_rem", quote!(%), "wrapping_rem");
                 quote! {
-                #[inline(always)]
-                fn _add(self, rhs: #rhs_dtype) -> Self::Output {
-                    paste::paste! {
-                        self.[<to_ #res_type>]() + rhs.[<to_ #res_type>]()
-                    }
-                }
-                #[inline(always)]
-                fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
-                    paste::paste! {
-                        self.[<to_ #res_type>]() - rhs.[<to_ #res_type>]()
-                    }
-                }
-                #[inline(always)]
-                fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
-                    paste::paste! {
-                        self.[<to_ #res_type>]() * rhs.[<to_ #res_type>]()
-                    }
-                }
-                #[inline(always)]
-                fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
-                    paste::paste! {
-                        self.[<to_ #res_type>]() % rhs.[<to_ #res_type>]()
-                    }
-                }
+                #add
+                #sub
+                #mul
+                #rem
             }
             };
 

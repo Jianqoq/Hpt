@@ -16,13 +16,7 @@ fn common_input<const N: usize>(
     Ok((a, tch_a))
 }
 fn main() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-    let a = a.permute([1, 2, 0])?;
-    println!("{}", a);
-    let tch_a = tch_a.permute(&[1, 2, 0][..]);
-    let sum = a.sum(2, false)?;
-    let tch_sum = tch_a.sum_dim_intlist(2, false, tch::Kind::Int64);
-    println!("{}", sum);
-    println!("{}", tch_sum);
+    let (a, tch_a) = common_input(8 * 8 * 8, [8, 8, 8])?;
+    let sum = a.prod(2, false)?;
     Ok(())
 }
