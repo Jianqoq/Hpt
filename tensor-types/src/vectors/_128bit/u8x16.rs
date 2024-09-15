@@ -56,16 +56,6 @@ impl Init<u8> for u8x16 {
     fn splat(val: u8) -> u8x16 {
         u8x16(std::simd::u8x16::splat(val))
     }
-    unsafe fn from_ptr(ptr: *const u8) -> Self where Self: Sized {
-        #[cfg(target_feature = "neon")]
-        {
-            unsafe { std::mem::transmute(std::arch::aarch64::vld1q_u8(ptr as *const _)) }
-        }
-        #[cfg(not(target_feature = "neon"))]
-        {
-            unsafe { std::mem::transmute(std::arch::x86_64::_mm_loadu_si128(ptr as *const _)) }
-        }
-    }
 }
 impl Index<usize> for u8x16 {
     type Output = u8;

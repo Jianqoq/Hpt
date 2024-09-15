@@ -63,23 +63,6 @@ impl Init<isize> for isizex2 {
         let ret = isizex2(std::simd::isizex2::splat(val));
         ret
     }
-    unsafe fn from_ptr(ptr: *const isize) -> Self where Self: Sized {
-        #[cfg(target_feature = "neon")]
-        {
-            #[cfg(target_pointer_width = "64")]
-            {
-                unsafe { std::mem::transmute(std::arch::aarch64::vld1q_s64(ptr as *const _)) }
-            }
-            #[cfg(target_pointer_width = "32")]
-            {
-                unsafe { std::mem::transmute(std::arch::aarch64::vld1q_s32(ptr as *const _)) }
-            }
-        }
-        #[cfg(not(target_feature = "neon"))]
-        {
-            unsafe { std::mem::transmute(std::arch::x86_64::_mm_loadu_si128(ptr as *const _)) }
-        }
-    }
 }
 impl Index<usize> for isizex2 {
     type Output = isize;

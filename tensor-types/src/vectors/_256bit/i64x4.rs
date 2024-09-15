@@ -56,9 +56,6 @@ impl Init<i64> for i64x4 {
     fn splat(val: i64) -> i64x4 {
         i64x4(std::simd::i64x4::splat(val))
     }
-    unsafe fn from_ptr(ptr: *const i64) -> Self where Self: Sized {
-        unsafe { std::mem::transmute(std::arch::x86_64::_mm256_loadu_si256(ptr as *const _)) }
-    }
 }
 impl Index<usize> for i64x4 {
     type Output = i64;

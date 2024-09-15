@@ -58,20 +58,6 @@ impl Init<f32> for f32x4 {
     fn splat(val: f32) -> f32x4 {
         f32x4(std::simd::f32x4::splat(val))
     }
-    unsafe fn from_ptr(ptr: *const f32) -> Self where Self: Sized {
-        #[cfg(target_feature = "neon")]
-        {
-            use std::arch::aarch64::vld1q_f32;
-            f32x4(std::mem::transmute(vld1q_f32(ptr)))
-        }
-        #[cfg(target_feature = "sse")]
-        {
-            use std::arch::x86_64::_mm_loadu_ps;
-            f32x4(
-                std::mem::transmute(_mm_loadu_ps(ptr))
-            )
-        }
-    }
 }
 impl SimdSelect<f32x4> for u32x4 {
     fn select(&self, true_val: f32x4, false_val: f32x4) -> f32x4 {
