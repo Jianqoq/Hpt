@@ -38,3 +38,9 @@ debug = false
 opt-level = 0
 incremental = false
 debug = false
+
+[profile.test]
+opt-level = 3
+incremental = false
+debug = false
+lto = "thin"
