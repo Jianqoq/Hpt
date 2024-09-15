@@ -1,7 +1,5 @@
 use std::ops::{ Deref, DerefMut, Index, IndexMut };
 
-use crate::into_vec::IntoVec;
-
 use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
 #[allow(non_camel_case_types)]
@@ -57,11 +55,6 @@ impl VecCommon for u8x32 {
 impl Init<u8> for u8x32 {
     fn splat(val: u8) -> u8x32 {
         u8x32(std::simd::u8x32::splat(val))
-    }
-}
-impl IntoVec<u8x32> for u8x32 {
-    fn into_vec(self) -> u8x32 {
-        self
     }
 }
 impl Index<usize> for u8x32 {

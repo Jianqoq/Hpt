@@ -1,7 +1,6 @@
 use std::ops::{Index, IndexMut};
 use std::simd::{ cmp::SimdPartialEq, Simd };
 use std::simd::cmp::SimdPartialOrd;
-use crate::into_vec::IntoVec;
 
 use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
@@ -50,11 +49,6 @@ impl VecCommon for boolx32 {
 impl Init<bool> for boolx32 {
     fn splat(val: bool) -> boolx32 {
         boolx32([val; 32])
-    }
-}
-impl IntoVec<boolx32> for boolx32 {
-    fn into_vec(self) -> boolx32 {
-        self
     }
 }
 

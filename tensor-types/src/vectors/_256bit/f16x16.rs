@@ -4,7 +4,6 @@ use std::simd::num::{ SimdFloat, SimdInt, SimdUint };
 use std::simd::u16x8;
 use std::simd::{ cmp::SimdPartialEq, Simd };
 use std::simd::cmp::SimdPartialOrd;
-use crate::into_vec::IntoVec;
 
 use crate::vectors::_256bit::f32x8::f32x8;
 use crate::vectors::{ traits::{ Init, VecCommon, VecTrait }, _256bit::u16x16::u16x16 };
@@ -58,11 +57,6 @@ impl VecCommon for f16x16 {
 impl Init<half::f16> for f16x16 {
     fn splat(val: half::f16) -> f16x16 {
         f16x16([val; 16])
-    }
-}
-impl IntoVec<f16x16> for f16x16 {
-    fn into_vec(self) -> f16x16 {
-        self
     }
 }
 impl Index<usize> for f16x16 {

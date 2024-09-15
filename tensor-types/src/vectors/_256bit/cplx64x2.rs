@@ -2,8 +2,6 @@ use std::ops::{Index, IndexMut};
 
 use num_complex::Complex64;
 
-use crate::into_vec::IntoVec;
-
 use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
 #[allow(non_camel_case_types)]
@@ -48,11 +46,6 @@ impl VecCommon for cplx64x2 {
 impl Init<Complex64> for cplx64x2 {
     fn splat(val: Complex64) -> cplx64x2 {
         cplx64x2([val; 2])
-    }
-}
-impl IntoVec<cplx64x2> for cplx64x2 {
-    fn into_vec(self) -> cplx64x2 {
-        self
     }
 }
 impl Index<usize> for cplx64x2 {

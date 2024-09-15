@@ -3,7 +3,6 @@
 
 use backend::Cpu;
 // use half::bf16;
-use ops::cpu::convolutions::conv_config::{ Conv2dConfig, KernelParamAlgo };
 // use tch::{ Device, Kind, Tensor };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;

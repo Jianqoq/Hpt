@@ -18,6 +18,7 @@ mod simd_cmp;
 mod simd_bitwise;
 mod kernel_gen_helper;
 mod simd_float_out_binary;
+mod into_vec;
 use crate::simd_cmp::impl_simd_cmp;
 use quote::quote;
 use type_utils::TypeInfo;
@@ -642,6 +643,11 @@ pub fn impl_simd_convert(_: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn simd_cmp(_: TokenStream) -> TokenStream {
     impl_simd_cmp()
+}
+
+#[proc_macro]
+pub fn impl_into_vec(_: TokenStream) -> TokenStream {
+    into_vec::into_vec()
 }
 
 #[proc_macro]
