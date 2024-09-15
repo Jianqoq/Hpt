@@ -914,6 +914,9 @@ impl FloatOutUnary for Dtype {
     fn _hard_sigmoid(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
+    fn _fast_hard_sigmoid(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
     fn _relu6(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }

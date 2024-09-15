@@ -131,6 +131,8 @@ test_unarys!(softplus, [1000], assert_eq, softplus(), softplus());
 test_unarys!(round, [1000], assert_eq, round(), round());
 test_unarys!(clip, [1000], assert_eq, clamp(0.0, 1.0), clip(0.0, 1.0));
 test_unarys!(dropout, [1000], no_assert, dropout(0.5, false), dropout(0.5));
+test_unarys!(hard_sigmoid, [1000], assert_eq, hardsigmoid(), fast_hard_sigmoid());
+test_unarys!(hard_swish, [1000], assert_eq, hardswish(), hard_swish());
 
 #[test]
 fn test_sub_tensor_sin() -> anyhow::Result<()> {
