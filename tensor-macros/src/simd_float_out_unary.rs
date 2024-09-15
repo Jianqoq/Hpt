@@ -347,6 +347,7 @@ pub fn impl_float_out_unary() -> TokenStream {
                 let sleef_func = Ident::new(sleef_func, proc_macro2::Span::call_site());
                 if res_type.is_f32() {
                     quote! {
+                    #[inline(always)]
                     fn #func_name(self) -> Self::Output {
                         paste::paste! {
                             #res_simd_ty::#res_simd_ty(sleef::f32x::#sleef_func(self.[<to_ #res_type>]().0))
@@ -355,6 +356,7 @@ pub fn impl_float_out_unary() -> TokenStream {
                 }
                 } else {
                     quote! {
+                        #[inline(always)]
                         fn #func_name(self) -> Self::Output {
                             paste::paste! {
                                 #res_simd_ty::#res_simd_ty(sleef::f64x::#sleef_func(self.[<to_ #res_type>]().0))
@@ -390,11 +392,13 @@ pub fn impl_float_out_unary() -> TokenStream {
                     type Base = #res_type;
                     #sin #cos #tan #asin #acos #atan #sinh #cosh #tanh #asinh #acosh #atanh #erf #ln #exp #exp2 #log2 #log10 #sqrt
                     #cbrt
+                    #[inline(always)]
                     fn _recip(self) -> Self::Output {
                         paste::paste! {
                             #res_simd_ty::#res_simd_ty(self.[<to_ #res_type>]().recip())
                         }
                     }
+                    #[inline(always)]
                     fn _sigmoid(self) -> Self::Output {
                         paste::paste! {
                             #res_simd_ty::#res_simd_ty(
@@ -405,6 +409,7 @@ pub fn impl_float_out_unary() -> TokenStream {
                             )
                         }
                     }
+                    #[inline(always)]
                     fn _relu(self) -> Self::Output {
                         paste::paste! {
                             let x = self.[<to_ #res_type>]().0;
@@ -416,13 +421,14 @@ pub fn impl_float_out_unary() -> TokenStream {
                             ))
                         }
                     }
+                    #[inline(always)]
                     fn _gelu(self) -> Self::Output {
                         paste::paste! {
-                            let frac_1_sqrt_2 = #res_simd_ty::#res_simd_ty::splat(core::#res_type::consts::FRAC_1_SQRT_2);
-                            let erf = (self.[<to_ #res_type>]() * frac_1_sqrt_2)._erf().0 + #res_simd_ty::#res_simd_ty::splat(#res_type::ONE).0;
-                            #res_simd_ty::#res_simd_ty(#res_simd_ty::#res_simd_ty::splat(#res_type::HALF).0 * erf)
+                            let x = self.[<to_ #res_type>]();
+                            x * x._softplus()._tanh()
                         }
                     }
+                    #[inline(always)]
                     fn _relu6(self) -> Self::Output {
                         let relu = self._relu();
                         let six = #res_simd_ty::#res_simd_ty::splat(#res_type::SIX);
@@ -431,22 +437,26 @@ pub fn impl_float_out_unary() -> TokenStream {
                             min_mask.select(six.0, relu.0)
                         )
                     }
+                    #[inline(always)]
                     fn _softplus(self) -> Self::Output {
                         let one = #res_simd_ty::#res_simd_ty::splat(#res_type::ONE);
                         (one + self._exp())._ln()
                     }
+                    #[inline(always)]
                     fn _softsign(self) -> Self::Output {
                         paste::paste! {
                             let x = self.[<to_ #res_type>]().0;
                             #res_simd_ty::#res_simd_ty(x / (#res_simd_ty::#res_simd_ty::splat(#res_type::ONE).0 + Sleef::abs(x)))
                         }
                     }
+                    #[inline(always)]
                     fn _mish(self) -> Self::Output {
                         paste::paste! {
                             let x = self.[<to_ #res_type>]();
-                            x * (#res_simd_ty::#res_simd_ty::splat(#res_type::ONE) + x._exp())._ln()._tanh()
+                            x * x._softplus()._tanh()
                         }
                     }
+                    #[inline(always)]
                     fn _celu(self, alpha: Self::Base) -> Self::Output {
                         paste::paste! {
                             let x = self.[<to_ #res_type>]();
@@ -460,12 +470,14 @@ pub fn impl_float_out_unary() -> TokenStream {
                             )
                         }
                     }
+                    #[inline(always)]
                     fn _selu(self, alpha: Self::Base, scale: Self::Base) -> Self::Output {
                         paste::paste! {
                             let scale = #res_simd_ty::#res_simd_ty::splat(scale);
                             scale * self._elu(alpha)
                         }
                     }
+                    #[inline(always)]
                     fn _elu(self, alpha: Self::Base) -> Self::Output {
                         paste::paste! {
                             let x = self.[<to_ #res_type>]();
@@ -476,6 +488,7 @@ pub fn impl_float_out_unary() -> TokenStream {
                             )
                         }
                     }
+                    #[inline(always)]
                     fn _leaky_relu(self, alpha: Self::Base) -> Self::Output {
                         paste::paste! {
                             let x = self.[<to_ #res_type>]();
@@ -486,6 +499,7 @@ pub fn impl_float_out_unary() -> TokenStream {
                             )
                         }
                     }
+                    #[inline(always)]
                     fn _hard_swish(self) -> Self::Output {
                         paste::paste! {
                             let x = self.[<to_ #res_type>]();
@@ -494,6 +508,7 @@ pub fn impl_float_out_unary() -> TokenStream {
                             x * (x + three)._relu6() / six
                         }
                     }
+                    #[inline(always)]
                     fn _hard_sigmoid(self) -> Self::Output {
                         paste::paste! {
                             let x = self.[<to_ #res_type>]();

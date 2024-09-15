@@ -90,32 +90,28 @@ pub fn impl_float_out_unary() -> TokenStream {
             quote! {
                 fn _gelu(self) -> Self::Output {
                     let x = self.to_f32();
-                    let sqrt2_over_2 = std::f32::consts::FRAC_1_SQRT_2;
-                    (0.5 * x * (f32::ONE + (x * sqrt2_over_2).erf())).to_bf16()
+                    x._gelu().to_bf16()
                 }
             }
         } else if res_type.is_f16() {
             quote! {
                 fn _gelu(self) -> Self::Output {
                     let x = self.to_f32();
-                    let sqrt2_over_2 = std::f32::consts::FRAC_1_SQRT_2;
-                    (0.5 * x * (f32::ONE + (x * sqrt2_over_2).erf())).to_f16()
+                    x._gelu().to_f16()
                 }
             }
         } else if res_type.is_f32() {
             quote! {
                 fn _gelu(self) -> Self::Output {
                     let x = self.to_f32();
-                    let sqrt2_over_2 = std::f32::consts::FRAC_1_SQRT_2;
-                    0.5 * x * (f32::ONE + (x * sqrt2_over_2).erf())
+                    x * x._softplus()._tanh()
                 }
             }
         } else {
             quote! {
                 fn _gelu(self) -> Self::Output {
                     let x = self.to_f64();
-                    let sqrt2_over_2 = std::f64::consts::FRAC_1_SQRT_2;
-                    f64::HALF * x * (f64::ONE + (x * sqrt2_over_2).erf())
+                    x * x._softplus()._tanh()
                 }
             }
         };
