@@ -449,7 +449,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
                 shape_len,
                 [
                     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-                    23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+                    23, 24, 25, 26, 27, 28, 29, 30, 31, 32
                 ]
             );
             #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
