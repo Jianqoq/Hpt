@@ -1,7 +1,6 @@
 use crate::_128bit::f32x4::f32x4;
 use crate::_128bit::u16x8::u16x8;
 use crate::traits::{ Init, VecCommon, VecTrait };
-use std::mem::MaybeUninit;
 use std::ops::{Index, IndexMut};
 use std::simd::cmp::SimdPartialOrd;
 use std::simd::num::{ SimdFloat, SimdInt, SimdUint };
