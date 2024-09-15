@@ -685,14 +685,16 @@ pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
                 }
             } else {
                 quote! {
+                    #[inline(always)]
                     fn _shl(self, rhs: #rhs_dtype) -> Self::Output {
                         paste::paste! {
-                            self.[<to_ #res_type>]() << rhs.[<to_ #res_type>]()
+                            self.[<to_ #res_type>]().wrapping_shl(rhs.[<to_ #res_type>]())
                         }
                     }
+                    #[inline(always)]
                     fn _shr(self, rhs: #rhs_dtype) -> Self::Output {
                         paste::paste! {
-                            self.[<to_ #res_type>]() >> rhs.[<to_ #res_type>]()
+                            self.[<to_ #res_type>]().wrapping_shr(rhs.[<to_ #res_type>]())
                         }
                     }
                 }
