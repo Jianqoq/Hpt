@@ -33,12 +33,10 @@ pub mod ops {
         pub mod uncontiguous_reduce;
         pub mod convolutions {
             pub mod conv2d;
-            pub mod conv2d_ex;
             pub mod conv3d;
             pub mod conv_config;
         }
         pub mod kernels {
-            pub mod conv_kernels_ex;
             pub mod conv_kernels;
             pub mod reduce_kernels;
             pub mod maxpool_kernel;
@@ -66,6 +64,7 @@ pub use tensor_iterator::iterator_traits::*;
 pub use tensor_traits::*;
 pub use tensor_macros::match_selection;
 pub use tensor_types::vectors::*;
+pub use tensor_types::*;
 
 use std::{ cell::RefCell, sync::atomic::AtomicUsize };
 thread_local! {

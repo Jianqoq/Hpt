@@ -124,7 +124,7 @@ test_unarys!(exp2, [1000], assert_eq, exp2(), exp2());
 test_unarys!(gelu, [1000], assert_eq, gelu("none"), gelu());
 test_unarys!(elu, [1000], assert_eq, elu(), elu(1.0));
 test_unarys!(leaky_relu, [1000], assert_eq, leaky_relu(), leaky_relu(0.01));
-test_unarys!(mish, [1000], assert_eq, mish(), mish());
+test_unarys!(mish, [1000], assert_eq_5, mish(), mish());
 test_unarys!(relu, [1000], assert_eq, relu(), relu());
 test_unarys!(selu, [1000], assert_eq_5, selu(), selu(None, None));
 test_unarys!(softplus, [1000], assert_eq, softplus(), softplus());

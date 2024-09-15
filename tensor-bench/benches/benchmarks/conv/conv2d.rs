@@ -67,7 +67,7 @@ fn conv2d_benchmark(c: &mut Criterion) {
             &shapes[idx],
             |b, _| {
                 b.iter(|| {
-                    a2.conv2d_ex(
+                    a2.conv2d(
                         &a2_kernel,
                         [1, 1],
                         [
@@ -117,7 +117,7 @@ fn conv2d_benchmark(c: &mut Criterion) {
         );
         let res = a.conv2d(&a_kernel, None::<Tensor>, [1, 1], [0, 0], [1, 1], 1);
         let res2 = a2
-            .conv2d_ex(
+            .conv2d(
                 &a2_kernel,
                 [1, 1],
                 [
