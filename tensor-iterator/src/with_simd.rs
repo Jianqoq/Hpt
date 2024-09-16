@@ -44,8 +44,10 @@ impl<I, F> UnindexedProducer
                 let inner = inner_loop_size - remain;
                 let n = inner / vec_size;
                 let unroll = n % 4;
+                println!("n: {}, unroll: {}, remain: {}", n, unroll, remain);
                 if remain > 0 {
                     if unroll == 0 {
+                        println!("inner: {}, inner_loop_size: {}", inner, inner_loop_size);
                         for _ in 0..outer_loop_size {
                             for idx in 0..n / 4 {
                                 vec_op(self.inner_loop_next_simd(idx * 4));
