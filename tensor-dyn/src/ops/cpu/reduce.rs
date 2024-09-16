@@ -5,20 +5,17 @@ use crate::slice::SliceOps;
 use crate::tensor_base::_Tensor;
 use crate::{argmax_kernel, argmin_kernel};
 
+use crate::ops::cpu::reduce_utils::{ReductionPreprocessor, UCReductionPreprocessor};
 use crate::THREAD_POOL;
 use anyhow;
 use rayon::iter::ParallelIterator;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator};
 use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator};
-use std::borrow::BorrowMut;
 use std::sync::Arc;
 use std::sync::Barrier;
 use tensor_common::axis::{process_axes, Axis};
-use tensor_common::pointer::Pointer;
-use tensor_common::shape::Shape;
-use tensor_common::shape_utils::{mt_intervals, mt_intervals_simd};
+use tensor_common::shape_utils::mt_intervals_simd;
 use tensor_common::slice::Slice;
-use tensor_common::strides::Strides;
 use tensor_iterator::iterator_traits::StridedIterator;
 use tensor_traits::shape_manipulate::ShapeManipulate;
 use tensor_traits::tensor::CommonBounds;
@@ -28,154 +25,6 @@ use tensor_types::convertion::Convertor;
 use tensor_types::dtype::TypeCommon;
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::{Cmp, NormalOut};
-
-#[derive(Debug, Clone)]
-pub(crate) struct ReductionPreprocessor<T, U> {
-    pub ptrs: Pointer<T>,
-    pub res_ptrs: Pointer<U>,
-    pub strides: Strides,
-    pub start: usize,
-    pub end: usize,
-    pub prg: Vec<i64>,
-    pub a_prg: Vec<i64>,
-    pub shape: Shape,
-    pub a_shape: Shape,
-}
-
-impl<T, U> ReductionPreprocessor<T, U>
-where
-    T: Clone,
-    U: Clone,
-{
-    pub fn new(
-        num_threads: usize,
-        loop_size: usize,
-        inner_loop_size: usize,
-        ptrs: Pointer<T>,
-        mut res_ptrs: Pointer<U>,
-        strides: Strides,
-        a_shape: Shape,
-        transposed_shape: Shape,
-        res_shape: Shape,
-    ) -> Vec<ReductionPreprocessor<T, U>> {
-        let intervals: Vec<(usize, usize)> = mt_intervals(loop_size, num_threads);
-        let mut task_amout = 0;
-        let mut iterators: Vec<ReductionPreprocessor<T, U>> = Vec::with_capacity(num_threads);
-        let mut progress_init_a_data = vec![0; res_shape.len()];
-        let res_ptrs = res_ptrs.borrow_mut();
-        for id in 0..num_threads {
-            let mut a_data_ptr_cpy = ptrs.clone();
-            let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
-
-            /*traverse the whole result shape and increment the input data ptr based on current thread id*/
-            for i in (0..=res_shape.len() - 1).rev() {
-                a_data_ptr_cpy.offset(progress_init_a_data[i] * strides[i]);
-            }
-            // calculate the total task amount so far based on current thread id,
-            // we are splitting the whole tensor into two axes
-            // [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]               thread 0
-            // [10, 11, 12, 13, 14, 15, 16, 17, 18, 19]     thread 1
-            // [20, 21, 22, 23, 24, 25, 26, 27, 28, 29]     thread 2
-            // [30, 31, 32, 33, 34, 35, 36, 37, 38, 39]     thread 3
-            // [40, 41, 42, 43, 44, 45, 46, 47, 48, 49]     thread 4
-            // where the first axis is where we are splitting the tensor
-            let mut tmp1 = (task_amout * inner_loop_size) as i64;
-            let mut prg = vec![0; a_shape.len() - 1]; /* -1 because we want to escape the last axis */
-
-            // since the axis we want to reduce include the most inner axis, we will skip the iteration of the last axis
-            // so we use (0..=a_shape.len() - 2).rev()
-            for i in (0..=a_shape.len() - 2).rev() {
-                prg[i] = tmp1 % transposed_shape[i];
-                tmp1 /= transposed_shape[i];
-            }
-
-            // increment the res ptr based on the current thread task amount for next thread (next iteration)
-            task_amout += intervals[id].1 - intervals[id].0;
-            let res_ptr_cpy = res_ptrs.clone();
-            res_ptrs.add(intervals[id].1 - intervals[id].0);
-
-            let mut tmp2 = task_amout as i64;
-            for j in (0..=res_shape.len() - 1).rev() {
-                progress_init_a_data[j] = tmp2 % res_shape[j];
-                tmp2 /= res_shape[j];
-            }
-            iterators.push(ReductionPreprocessor {
-                ptrs: a_data_ptr_cpy.clone(),
-                res_ptrs: res_ptr_cpy,
-                strides: strides.clone(),
-                start: intervals[id].0,
-                end: intervals[id].1,
-                prg,
-                a_prg: vec![],
-                shape: res_shape.clone(),
-                a_shape: a_shape.clone(),
-            });
-        }
-        iterators
-    }
-
-    pub fn new2(
-        num_threads: usize,
-        loop_size: usize,
-        inner_loop_size: usize,
-        ptrs: Pointer<T>,
-        mut res_ptrs: Pointer<U>,
-        transposed_strides: Strides,
-        transposed_shape: Shape,
-        res_shape: Shape,
-    ) -> Vec<ReductionPreprocessor<T, U>> {
-        let intervals: Vec<(usize, usize)> = mt_intervals(loop_size, num_threads);
-        let mut task_amout = 0;
-        let mut iterators = Vec::with_capacity(num_threads);
-        let mut progress_init_a_data = vec![0; res_shape.len()];
-        let res_ptrs = res_ptrs.borrow_mut();
-        let ndim = res_shape.len() as i64;
-
-        // [0, 6, 12, 18, 24, 30] res0    thread 0
-        // [1, 7, 13, 19, 25, 31] res1    thread 1
-        // [2, 8, 14, 20, 26, 32] res0    thread 0
-        // [3, 9, 15, 21, 27, 33] res1    thread 1
-        // [4, 10, 16, 22, 28, 34] res0   thread 0
-        // [5, 11, 17, 23, 29, 35] res1   thread 1
-        for id in 0..num_threads {
-            let mut a_data_ptr_cpy = ptrs.clone();
-            let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
-
-            for i in (0..ndim - 1).rev() {
-                a_data_ptr_cpy
-                    .offset(progress_init_a_data[i as usize] * transposed_strides[i as usize]);
-            }
-
-            let progress_init_a_data_cpy = progress_init_a_data.clone();
-
-            task_amout += intervals[id].1 - intervals[id].0;
-
-            let prg = vec![0; transposed_shape.len()];
-
-            let res_ptr_cpy = res_ptrs.clone();
-            res_ptrs.add((intervals[id].1 - intervals[id].0) * inner_loop_size);
-
-            let mut tmp = task_amout as i64;
-            for j in (0..ndim - 1).rev() {
-                progress_init_a_data[j as usize] = tmp % res_shape[j as usize];
-                tmp /= res_shape[j as usize];
-            }
-
-            iterators.push(ReductionPreprocessor {
-                ptrs: a_data_ptr_cpy.clone(),
-                res_ptrs: res_ptr_cpy,
-                strides: transposed_strides.clone(),
-                start: intervals[id].0,
-                end: intervals[id].1,
-                prg,
-                a_prg: progress_init_a_data_cpy,
-                shape: res_shape.clone(),
-                a_shape: transposed_shape.clone(),
-            });
-        }
-        iterators
-    }
-}
 
 macro_rules! init_arr {
     (
@@ -380,7 +229,6 @@ macro_rules! register_reduction_one_axis {
 use tensor_types::vectors::traits::*;
 
 use super::reduce_template::uncontiguos_reduce_template;
-use super::uncontiguous_reduce;
 
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn reduce<T, F, F2>(
@@ -879,7 +727,7 @@ where
         },
         move |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
             let a_last_stride = transposed_tensor.strides()[a.ndim() - 1];
-            let iterators = uncontiguous_reduce::ReductionPreprocessor::new(
+            let iterators = UCReductionPreprocessor::new(
                 num_threads,
                 result.size(),
                 inner_loop_size_2,
@@ -968,7 +816,7 @@ where
         },
         move |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
             let outer_loop_size = result.size() / inner_loop_size;
-            let iterators = uncontiguous_reduce::ReductionPreprocessor::new2(
+            let iterators = UCReductionPreprocessor::new2(
                 num_threads,
                 outer_loop_size,
                 inner_loop_size,

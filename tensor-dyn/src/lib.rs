@@ -29,7 +29,6 @@ pub mod ops {
         pub mod dropout;
         pub mod lp_norm;
         pub mod common_reduce;
-        pub mod uncontiguous_reduce;
         pub mod avg_pool2d;
         pub mod maxpool2d;
         pub mod conv2d;

@@ -7,7 +7,7 @@ impl<T> _Tensor<T>
 where
     T: CommonBounds,
 {
-    pub fn onehot(&self, depth: usize, mut axis: i64, true_val: T, false_val: T) -> anyhow::Result<Self> {
+    pub fn onehot(&self, depth: usize, mut axis: i64, _true_val: T, false_val: T) -> anyhow::Result<Self> {
         let mut new_shape = self.shape().inner().clone();
         ErrHandler::check_index_in_range_mut(self.ndim(), &mut axis)?;
         new_shape.insert(axis as usize, depth as i64);
