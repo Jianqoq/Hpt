@@ -1,7 +1,9 @@
 use std::borrow::BorrowMut;
 use std::sync::Arc;
 use std::sync::Barrier;
+use tensor_common::shape::Shape;
 use tensor_common::shape_utils::mt_intervals;
+use tensor_common::strides::Strides;
 use tensor_types::traits::VecCommon;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::IntoParallelRefMutIterator;
@@ -19,17 +21,17 @@ use crate::THREAD_POOL;
 use tensor_traits::TensorInfo;
 use tensor_traits::ShapeManipulate;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct ReductionPreprocessor<T, U> {
     pub ptrs: Pointer<T>,
     pub res_ptrs: Pointer<U>,
-    pub strides: Vec<i64>,
+    pub strides: Strides,
     pub start: usize,
     pub end: usize,
     pub prg: Vec<i64>,
     pub a_prg: Vec<i64>,
-    pub shape: Arc<Vec<i64>>,
-    pub a_shape: Arc<Vec<i64>>,
+    pub shape: Shape,
+    pub a_shape: Shape,
     pub res_prg: Vec<i64>,
 }
 
@@ -40,10 +42,10 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
         inner_loop_size: usize,
         ptrs: Pointer<T>,
         mut res_ptrs: Pointer<U>,
-        strides: Vec<i64>,
-        a_shape: Arc<Vec<i64>>,
-        transposed_shape: Arc<Vec<i64>>,
-        res_shape: Arc<Vec<i64>>,
+        strides: Strides,
+        a_shape: Shape,
+        transposed_shape: Shape,
+        res_shape: Shape,
         res_strides: &[i64]
     ) -> Vec<ReductionPreprocessor<T, U>> {
         let intervals: Vec<(usize, usize)> = mt_intervals(loop_size, num_threads);
@@ -117,9 +119,9 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
         inner_loop_size: usize,
         ptrs: Pointer<T>,
         mut res_ptrs: Pointer<U>,
-        transposed_strides: Vec<i64>,
-        transposed_shape: Arc<Vec<i64>>,
-        res_shape: Arc<Vec<i64>>,
+        transposed_strides: Strides,
+        transposed_shape: Shape,
+        res_shape: Shape,
         res_strides: &[i64]
     ) -> Vec<ReductionPreprocessor<T, U>> {
         let intervals: Vec<(usize, usize)> = mt_intervals(loop_size, num_threads);
@@ -177,7 +179,7 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
     }
 }
 
-fn rearrange_array(ndim: usize, to_reduce: &[usize]) -> Vec<usize> {
+pub(crate) fn rearrange_array(ndim: usize, to_reduce: &[usize]) -> Vec<usize> {
     let mut origin_order = (0..ndim).collect::<Vec<usize>>();
     let mut to_reduce = to_reduce.to_vec();
     // sort the reduce axes
@@ -353,10 +355,10 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                     inner_loop_size_2,
                     a_data_ptr,
                     result_data,
-                    transposed_strides_cpy,
-                    Arc::new(transposed_shape_cpy),
-                    transposed_shape.clone(),
-                    res_shape.clone(),
+                    transposed_strides_cpy.into(),
+                    transposed_shape_cpy.into(),
+                    transposed_shape.clone().into(),
+                    res_shape.clone().into(),
                     result.strides().inner()
                 );
                 let barrier = Arc::new(Barrier::new(num_threads + 1));
@@ -477,9 +479,9 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                         inner_loop_size,
                         a_data_ptr,
                         result_data,
-                        transposed_strides_cpy,
-                        Arc::new(transposed_shape_cpy),
-                        res_shape.clone(),
+                        transposed_strides_cpy.into(),
+                        transposed_shape_cpy.into(),
+                        res_shape.clone().into(),
                         result.strides().inner()
                     );
                     let barrier = Arc::new(Barrier::new(num_threads + 1));

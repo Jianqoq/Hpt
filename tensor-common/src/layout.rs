@@ -388,7 +388,8 @@ impl Layout {
             strides: new_strides,
         })
     }
-
+    
+    #[inline(always)]
     pub fn size(&self) -> i64 {
         self.shape.iter().product::<i64>()
     }

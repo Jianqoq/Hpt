@@ -129,34 +129,36 @@ impl<T> TensorInfo<T> for _Tensor<T>
 where
     T: CommonBounds,
 {
+    #[inline(always)]
     fn ptr(&self) -> Pointer<T> {
         self.data.clone()
     }
 
+    #[inline(always)]
     fn size(&self) -> usize {
         self.layout.size() as usize
     }
-
+    #[inline(always)]
     fn shape(&self) -> &Shape {
         self.layout.shape()
     }
-
+    #[inline(always)]
     fn strides(&self) -> &tensor_common::strides::Strides {
         self.layout.strides()
     }
-
+    #[inline(always)]
     fn layout(&self) -> &Layout {
         &self.layout
     }
-
+    #[inline(always)]
     fn parent(&self) -> Option<Pointer<T>> {
         self.parent.clone()
     }
-
+    #[inline(always)]
     fn ndim(&self) -> usize {
         self.layout.ndim()
     }
-
+    #[inline(always)]
     fn is_contiguous(&self) -> bool {
         self.layout.is_contiguous()
     }

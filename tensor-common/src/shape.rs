@@ -1,8 +1,12 @@
-use std::{ fmt::Display, ops::{ Deref, DerefMut }, sync::Arc };
+use std::{
+    fmt::Display,
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
-use serde::{ Deserialize, Serialize };
+use crate::{strides::Strides, strides_utils::shape_to_strides};
 use serde::ser::SerializeStruct;
-use crate::{ strides::Strides, strides_utils::shape_to_strides };
+use serde::{Deserialize, Serialize};
 
 /// Represents the shape of a multi-dimensional structure, such as a tensor or an array.
 ///
@@ -63,7 +67,10 @@ pub struct Shape {
 }
 
 impl Serialize for Shape {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
         let mut state = serializer.serialize_struct("Shape", 1)?;
         state.serialize_field("inner", self.inner.as_ref())?;
         state.end()
@@ -97,6 +104,10 @@ impl Shape {
     /// - `Strides` - contiguous strides of the shape
     pub fn to_strides(&self) -> Strides {
         shape_to_strides(self)
+    }
+
+    pub fn sub_one(&self) -> Shape {
+        self.iter().map(|x| *x - 1).collect::<Vec<i64>>().into()
     }
 }
 
