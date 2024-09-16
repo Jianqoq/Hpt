@@ -47,8 +47,8 @@ fn test_slice() -> anyhow::Result<()> {
     println!("{:?}", a);
     let con = a.contiguous()?;
     println!("{:?}", con);
-    // let tch_a = tch_a.slice(1, 2, 9, 1).slice(0, 2, 9, 1).contiguous();
-    // assert_eq(&a, &tch_a);
+    let tch_a = tch_a.slice(1, 2, 9, 1).slice(0, 2, 9, 1).contiguous();
+    assert_eq(&a, &tch_a);
     Ok(())
 }
 
