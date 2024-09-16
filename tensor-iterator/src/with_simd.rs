@@ -44,7 +44,6 @@ impl<I, F> UnindexedProducer
                 let inner = inner_loop_size - remain;
                 let n = inner / vec_size;
                 let unroll = n % 4;
-                println!("remain: {}, inner: {}, n: {}, unroll: {}", remain, inner, n, unroll);
                 if remain > 0 {
                     if unroll == 0 {
                         for _ in 0..outer_loop_size {
