@@ -13,7 +13,7 @@ mod into_vec {
 }
 
 #[cfg(all(
-    any(target_feature = "sse2", target_feature = "neon"),
+    any(target_feature = "sse", target_feature = "neon"),
     not(target_feature = "avx2")
 ))]
 mod into_vec {
