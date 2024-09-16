@@ -10,12 +10,35 @@ use tensor_dyn::Random;
 use tensor_macros::match_selection;
 use tensor_common::slice::Slice;
 use tensor_dyn::slice::SliceOps;
+use tensor_dyn::Matmul;
 
 #[allow(unused)]
 fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
     let b_raw = b.as_raw();
     let tolerance = 2.5e-16;
+
+    for i in 0..b.size() {
+        let abs_diff = (a_raw[i] - b_raw[i]).abs();
+        let relative_diff = abs_diff / b_raw[i].abs().max(f64::EPSILON);
+
+        if abs_diff > tolerance && relative_diff > tolerance {
+            panic!(
+                "{} != {} (abs_diff: {}, relative_diff: {})",
+                a_raw[i],
+                b_raw[i],
+                abs_diff,
+                relative_diff
+            );
+        }
+    }
+}
+
+#[allow(unused)]
+fn assert_eq_10(b: &_Tensor<f64>, a: &Tensor) {
+    let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
+    let b_raw = b.as_raw();
+    let tolerance = 10e-16;
 
     for i in 0..b.size() {
         let abs_diff = (a_raw[i] - b_raw[i]).abs();
@@ -195,3 +218,4 @@ test_binarys!(lt, lt_tensor, tensor_lt, common_input, assert_eq_bool, ?);
 test_binarys!(le, le_tensor, tensor_le, common_input, assert_eq_bool, ?);
 test_binarys!(gt, gt_tensor, tensor_gt, common_input, assert_eq_bool, ?);
 test_binarys!(ge, ge_tensor, tensor_ge, common_input, assert_eq_bool, ?);
+test_binarys!(matmul, matmul, matmul, common_input, assert_eq_10, ?);
