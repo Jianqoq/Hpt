@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-serde = { version = "1.0.203", features = ["derive"] }
 tensor-macros = { path = "../tensor-macros" }
 num-complex = "0.4"
 half = { version = "2.3.1", features = ["num-traits", "rand_distr"] }

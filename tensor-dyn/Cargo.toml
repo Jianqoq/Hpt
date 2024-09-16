@@ -20,7 +20,6 @@ anyhow = "1.0.75"
 rayon = "1.8.0"
 num = "0.4.1"
 ctor = "0.2.8"
-wide = "0.7.28"
 cpuid = "0.1.1"
 cache-size = "0.7.0"
 half = { version = "2.3.1", features = ["num-traits", "rand_distr"] }

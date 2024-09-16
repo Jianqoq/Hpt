@@ -6,12 +6,11 @@ use crate::{
     vectors::traits::{Init, VecCommon, VecTrait},
 };
 use half::{bf16, f16};
-use serde::{Deserialize, Serialize};
 use core::f32;
 use std::{fmt::{Debug, Display}, ops::{Index, IndexMut}};
 use tensor_macros::infer_enum_type;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Dtype {
     Bool,
     I8,

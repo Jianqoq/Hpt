@@ -35,6 +35,7 @@ pub mod ops {
         pub mod conv2d;
         pub mod conv_config;
         pub mod lp_pool2d;
+        pub mod max_roi_pool;
         pub mod kernels {
             pub mod lp_pool_kernels;
             pub mod conv_kernels;
