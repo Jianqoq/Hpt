@@ -59,15 +59,15 @@ impl<I, F> UnindexedProducer
                             self.next();
                         }
                     } else {
-                        for _ in 0..outer_loop_size {
-                            for idx in 0..n {
-                                vec_op(self.inner_loop_next_simd(idx));
-                            }
-                            for idx in n * vec_size..inner_loop_size {
-                                folder = folder.consume(self.inner_loop_next(idx));
-                            }
-                            self.next();
-                        }
+                        // for _ in 0..outer_loop_size {
+                        //     for idx in 0..n {
+                        //         vec_op(self.inner_loop_next_simd(idx));
+                        //     }
+                        //     for idx in n * vec_size..inner_loop_size {
+                        //         folder = folder.consume(self.inner_loop_next(idx));
+                        //     }
+                        //     self.next();
+                        // }
                     }
                 } else {
                     if unroll == 0 {
