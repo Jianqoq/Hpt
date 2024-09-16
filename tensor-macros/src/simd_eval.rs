@@ -26,7 +26,7 @@ pub fn impl_simd_eval() -> TokenStream {
     ];
 
     for (simd_ty, lhs) in types.iter() {
-        let simd_ty = syn::Ident::new(&simd_ty, proc_macro2::Span::call_site());
+        let simd_ty = Ident::new(&simd_ty, proc_macro2::Span::call_site());
         let (mask_ty, mask_meta_ty) = map_mask(lhs);
         let lhs_type = TypeInfo::new(lhs);
         let lhs_dtype = lhs_type.dtype;

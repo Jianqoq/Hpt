@@ -251,7 +251,7 @@ impl<T> Random
     }
 
     fn poisson_like(&self, lambda: Self::Meta) -> Result<Self> {
-        return _Tensor::poisson(lambda, self.shape().clone());
+        _Tensor::poisson(lambda, self.shape().clone())
     }
 
     fn weibull<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self> {
@@ -266,11 +266,11 @@ impl<T> Random
                     *x = weibull.sample(rng);
                 }
             );
-        return Ok(ret);
+        Ok(ret)
     }
 
     fn weibull_like(&self, a: Self::Meta, b: Self::Meta) -> Result<Self> {
-        return _Tensor::weibull(a, b, self.shape().clone());
+        _Tensor::weibull(a, b, self.shape().clone())
     }
 
     fn zipf<S: Into<Shape>>(n: u64, a: Self::Meta, shape: S) -> Result<Self> {
@@ -285,11 +285,11 @@ impl<T> Random
                     *x = zipf.sample(rng);
                 }
             );
-        return Ok(ret);
+        Ok(ret)
     }
 
     fn zipf_like(&self, n: u64, a: Self::Meta) -> Result<Self> {
-        return _Tensor::zipf(n, a, self.shape().clone());
+        _Tensor::zipf(n, a, self.shape().clone())
     }
 
     fn triangular<S: Into<Shape>>(

@@ -111,6 +111,10 @@ pub mod strided_simd {
             self.layout.set_shape(shape);
         }
 
+        fn set_prg(&mut self, prg: Vec<i64>) {
+            self.prg = prg;
+        }
+
         fn intervals(&self) -> &Arc<Vec<(usize, usize)>> {
             panic!("single thread iterator does not support intervals");
         }
@@ -136,7 +140,6 @@ pub mod strided_simd {
         fn inner_loop_size(&self) -> usize {
             self.shape().last().unwrap().clone() as usize
         }
-
         fn next(&mut self) {
             for j in (0..(self.shape().len() as i64) - 1).rev() {
                 let j = j as usize;
@@ -150,25 +153,22 @@ pub mod strided_simd {
                 }
             }
         }
+
+        fn next_simd(&mut self) {
+            todo!()
+        }
         #[inline(always)]
         fn inner_loop_next(&mut self, index: usize) -> Self::Item {
             unsafe { *self.ptr.ptr.offset((index as isize) * (self.last_stride as isize)) }
         }
-
-        fn set_prg(&mut self, prg: Vec<i64>) {
-            self.prg = prg;
+        fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
+            unsafe { Self::SimdItem::from_ptr(self.ptr.get_ptr().add(index * T::Vec::SIZE)) }
         }
         fn all_last_stride_one(&self) -> bool {
             self.last_stride == 1
         }
         fn lanes(&self) -> Option<usize> {
             Some(T::Vec::SIZE)
-        }
-        fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
-            unsafe { Self::SimdItem::from_ptr(self.ptr.get_ptr().add(index * T::Vec::SIZE)) }
-        }
-        fn next_simd(&mut self) {
-            todo!()
         }
     }
 
@@ -348,6 +348,10 @@ impl<T: CommonBounds> IterGetSet for Strided<T> {
         self.layout.set_shape(shape);
     }
 
+    fn set_prg(&mut self, prg: Vec<i64>) {
+        self.prg = prg;
+    }
+
     fn intervals(&self) -> &Arc<Vec<(usize, usize)>> {
         panic!("single thread iterator does not support intervals");
     }
@@ -390,10 +394,6 @@ impl<T: CommonBounds> IterGetSet for Strided<T> {
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         unsafe { *self.ptr.get_ptr().add(index * (self.last_stride as usize)) }
-    }
-
-    fn set_prg(&mut self, prg: Vec<i64>) {
-        self.prg = prg;
     }
 }
 

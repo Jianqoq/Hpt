@@ -243,10 +243,10 @@ impl<T: Display> Index<i64> for Pointer<T> {
     fn index(&self, index: i64) -> &Self::Output {
         #[cfg(feature = "bound_check")]
         {
-            let mut idx = index as i64;
+            let mut idx = index;
             for i in 0..self.layout.ndim() {
-                let prg = (idx as i64) / self.layout.strides()[i];
-                if prg < 0 || prg >= (self.layout.shape()[i] as i64) {
+                let prg = (idx) / self.layout.strides()[i];
+                if prg < 0 || prg >= (self.layout.shape()[i]) {
                     panic!(
                         "index out of bounds. index: {}, corresponding dim: {}",
                         index,
@@ -267,8 +267,8 @@ impl<T: Display> Index<isize> for Pointer<T> {
         {
             let mut idx = index as i64;
             for i in 0..self.layout.ndim() {
-                let prg = (idx as i64) / self.layout.strides()[i];
-                if prg < 0 || prg >= (self.layout.shape()[i] as i64) {
+                let prg = (idx) / self.layout.strides()[i];
+                if prg < 0 || prg >= (self.layout.shape()[i]) {
                     panic!(
                         "index out of bounds. index: {}, corresponding dim: {}",
                         index,
@@ -289,8 +289,8 @@ impl<T: Display> Index<usize> for Pointer<T> {
         {
             let mut idx = index as i64;
             for i in 0..self.layout.ndim() {
-                let prg = (idx as i64) / self.layout.strides()[i];
-                if prg < 0 || prg >= (self.layout.shape()[i] as i64) {
+                let prg = (idx) / self.layout.strides()[i];
+                if prg < 0 || prg >= (self.layout.shape()[i]) {
                     panic!(
                         "index out of bounds. index: {}, corresponding dim: {}",
                         index,
@@ -311,7 +311,7 @@ impl<T: Display> IndexMut<i64> for Pointer<T> {
             let mut idx = index;
             for i in 0..self.layout.ndim() {
                 let prg = idx / self.layout.strides()[i];
-                if prg < 0 || prg >= (self.layout.shape()[i] as i64) {
+                if prg < 0 || prg >= (self.layout.shape()[i]) {
                     panic!(
                         "index out of bounds. index: {}, corresponding dim: {}",
                         index,
@@ -331,8 +331,8 @@ impl<T: Display> IndexMut<isize> for Pointer<T> {
         {
             let mut idx = index as i64;
             for i in 0..self.layout.ndim() {
-                let prg = (idx as i64) / self.layout.strides()[i];
-                if prg < 0 || prg >= (self.layout.shape()[i] as i64) {
+                let prg = (idx) / self.layout.strides()[i];
+                if prg < 0 || prg >= (self.layout.shape()[i]) {
                     panic!(
                         "index out of bounds. index: {}, corresponding dim: {}",
                         index,

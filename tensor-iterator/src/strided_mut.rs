@@ -106,6 +106,10 @@ pub mod simd_imports {
             self.base.set_shape(shape);
         }
 
+        fn set_prg(&mut self, prg: Vec<i64>) {
+            self.base.set_prg(prg);
+        }
+
         fn intervals(&self) -> &Arc<Vec<(usize, usize)>> {
             self.base.intervals()
         }
@@ -129,9 +133,12 @@ pub mod simd_imports {
         fn inner_loop_size(&self) -> usize {
             self.base.inner_loop_size()
         }
-
         fn next(&mut self) {
             self.base.next();
+        }
+
+        fn next_simd(&mut self) {
+            todo!()
         }
         #[inline(always)]
         fn inner_loop_next(&mut self, index: usize) -> Self::Item {
@@ -139,22 +146,15 @@ pub mod simd_imports {
                 &mut *self.base.ptr.ptr.offset((index as isize) * (self.last_stride as isize))
             }
         }
-
-        fn set_prg(&mut self, prg: Vec<i64>) {
-            self.base.set_prg(prg);
+        fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
+            let vector = unsafe { self.base.ptr.ptr.add(index * T::Vec::SIZE) };
+            unsafe { std::mem::transmute(vector) }
         }
         fn all_last_stride_one(&self) -> bool {
             self.base.all_last_stride_one()
         }
         fn lanes(&self) -> Option<usize> {
             self.base.lanes()
-        }
-        fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
-            let vector = unsafe { self.base.ptr.ptr.add(index * T::Vec::SIZE) };
-            unsafe { std::mem::transmute(vector) }
-        }
-        fn next_simd(&mut self) {
-            todo!()
         }
     }
 }
@@ -241,6 +241,10 @@ impl<'a, T: 'a> IterGetSet for StridedMut<'a, T> where T: CommonBounds {
         self.base.set_shape(shape);
     }
 
+    fn set_prg(&mut self, prg: Vec<i64>) {
+        self.base.set_prg(prg);
+    }
+
     fn intervals(&self) -> &Arc<Vec<(usize, usize)>> {
         self.base.intervals()
     }
@@ -277,9 +281,5 @@ impl<'a, T: 'a> IterGetSet for StridedMut<'a, T> where T: CommonBounds {
                 .as_mut()
                 .unwrap()
         }
-    }
-
-    fn set_prg(&mut self, prg: Vec<i64>) {
-        self.base.set_prg(prg);
     }
 }

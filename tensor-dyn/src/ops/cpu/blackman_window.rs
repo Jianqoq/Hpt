@@ -31,10 +31,10 @@ impl<T> _Tensor<T>
         window_length: i64,
         periodic: bool
     ) -> anyhow::Result<_Tensor<<T as FloatOutBinary>::Output>> {
-        let a0: <T as FloatOutBinary>::Output = (0.42).into_scalar();
-        let a1: <T as FloatOutBinary>::Output = (0.5).into_scalar();
-        let a2: <T as FloatOutBinary>::Output = (0.08).into_scalar();
-        let length_usize = (if periodic { window_length } else { window_length - 1 }) as i64;
+        let a0: <T as FloatOutBinary>::Output = 0.42.into_scalar();
+        let a1: <T as FloatOutBinary>::Output = 0.5.into_scalar();
+        let a2: <T as FloatOutBinary>::Output = 0.08.into_scalar();
+        let length_usize = if periodic { window_length } else { window_length - 1 };
         let length: <T as FloatOutBinary>::Output = length_usize.into_scalar();
         let ret = _Tensor::<<T as FloatOutBinary>::Output>::empty(&[length_usize])?;
         ret.as_raw_mut()

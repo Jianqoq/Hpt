@@ -152,7 +152,7 @@ fn test_sub_tensor_sin() -> anyhow::Result<()> {
     let slice = slice!(a[3:8, 3:8])?;
     let b = slice.sin()?;
     let tch_a =
-        tch::Tensor::arange(100, (tch::Kind::Double, tch::Device::Cpu)).reshape(&[10, 10][..]);
+        Tensor::arange(100, (tch::Kind::Double, tch::Device::Cpu)).reshape(&[10, 10][..]);
     let tch_slice = tch_a.slice(0, 3, 8, 1).slice(1, 3, 8, 1);
     let tch_b = tch_slice.sin();
     assert_eq(&b, &tch_b);
@@ -164,7 +164,7 @@ fn test_cast() -> anyhow::Result<()> {
     let a = _Tensor::<f64>::arange(0, 100)?.reshape([10, 10])?;
     let b = a.astype::<bool>()?;
     let tch_a =
-        tch::Tensor::arange(100, (tch::Kind::Double, tch::Device::Cpu)).reshape(&[10, 10][..]);
+        Tensor::arange(100, (tch::Kind::Double, tch::Device::Cpu)).reshape(&[10, 10][..]);
     let tch_b = tch_a.to_kind(tch::Kind::Bool);
     assert_eq_bool(&b, &tch_b);
     Ok(())

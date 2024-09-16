@@ -224,7 +224,7 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
         F4: Fn(<O as TypeCommon>::Vec, <T as TypeCommon>::Vec) -> <O as TypeCommon>::Vec +
             'static +
             Copy +
-            std::marker::Send,
+            Send,
         F5: Fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec + Sync + Send + 'static + Copy,
         <T as TypeCommon>::Vec: Copy,
         <O as TypeCommon>::Vec: Copy
@@ -287,11 +287,11 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
     if let Some(out) = c {
         if let Some(s) = &new_shape {
             if s != out.shape().inner() {
-                return Err(anyhow::Error::msg(format!("Output array has incorrect shape")));
+                return Err(anyhow::Error::msg("Output array has incorrect shape".to_string()));
             }
         } else {
             if res_shape.as_ref() != out.shape().inner() {
-                return Err(anyhow::Error::msg(format!("Output array has incorrect shape")));
+                return Err(anyhow::Error::msg("Output array has incorrect shape".to_string()));
             }
         }
         result = out;
@@ -428,8 +428,8 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                         num_threads,
                         <O as TypeCommon>::Vec::SIZE
                     );
-                    let mut slices = vec![Slice::Full; _a.ndim() as usize];
-                    let mut slices_res = vec![Slice::Full; result.ndim() as usize];
+                    let mut slices = vec![Slice::Full; _a.ndim()];
+                    let mut slices_res = vec![Slice::Full; result.ndim()];
                     let mut sliced_tensors = Vec::with_capacity(num_threads);
                     let mut sliced_res = Vec::with_capacity(num_threads);
                     let mut num_threads = 0;
@@ -439,8 +439,8 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                             continue;
                         }
                         num_threads += 1;
-                        slices[(_a.ndim() as usize) - 1] = Slice::Range((start as i64, end as i64));
-                        slices_res[(result.ndim() as usize) - 1] = Slice::Range((
+                        slices[(_a.ndim()) - 1] = Slice::Range((start as i64, end as i64));
+                        slices_res[(result.ndim()) - 1] = Slice::Range((
                             start as i64,
                             end as i64,
                         ));

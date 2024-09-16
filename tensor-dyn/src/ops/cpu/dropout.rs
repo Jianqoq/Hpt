@@ -12,7 +12,7 @@ impl<T> _Tensor<T, Cpu>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn dropout(&self, rate: f64) -> anyhow::Result<_Tensor<T>> {
         let ret = _Tensor::<T>::empty(self.shape())?;
-        let bernoli = rand::distributions::Bernoulli::new(rate).unwrap();
+        let bernoli = rand::distributions::Bernoulli::new(rate)?;
         let scale: T = (1.0 / (1.0 - rate)).into_scalar();
         #[cfg(feature = "simd")]
         ret.par_iter_mut_simd()

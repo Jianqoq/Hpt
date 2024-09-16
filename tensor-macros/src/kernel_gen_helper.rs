@@ -29,13 +29,13 @@ pub fn __gen_fast_reduce_simd_helper(stream: TokenStream) -> TokenStream {
         }
         );
     }
-    (quote! {
+    quote! {
         match #input {
             #body
             0 => {}
             _ => unreachable!()
         }
-    }).into()
+    }.into()
 }
 
 pub fn __gen_reduce_dim_not_include_simd_helper(stream: TokenStream) -> TokenStream {
@@ -80,11 +80,11 @@ pub fn __gen_reduce_dim_not_include_simd_helper(stream: TokenStream) -> TokenStr
         }
         );
     }
-    (quote! {
+    quote! {
         match #input {
             #body,
             0 => {}
             _ => unreachable!()
         }
-    }).into()
+    }.into()
 }

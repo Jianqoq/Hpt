@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use quote::ToTokens;
 use quote::quote;
 use syn::parse_quote;
@@ -429,9 +430,9 @@ impl ToTokens for Type {
     }
 }
 
-impl ToString for Type {
-    fn to_string(&self) -> String {
-        match self {
+impl Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
             Type::Bool => "bool".to_string(),
             Type::I8 => "i8".to_string(),
             Type::U8 => "u8".to_string(),
@@ -451,7 +452,8 @@ impl ToString for Type {
             Type::Usize => "usize".to_string(),
             Type::Complex32 => "complex32".to_string(),
             Type::Complex64 => "complex64".to_string(),
-        }
+        };
+        write!(f, "{}", str)
     }
 }
 

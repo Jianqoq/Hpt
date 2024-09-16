@@ -235,10 +235,10 @@ impl<T> _Tensor<T>
             self.clone()
         };
         if out_height <= 0 || out_width <= 0 {
-            if out_height <= 0 {
-                return Err(InvalidInputShape(out_height, core::panic::Location::caller()).into());
+            return if out_height <= 0 {
+                Err(InvalidInputShape(out_height, core::panic::Location::caller()).into())
             } else {
-                return Err(InvalidInputShape(out_width, core::panic::Location::caller()).into());
+                Err(InvalidInputShape(out_width, core::panic::Location::caller()).into())
             }
         }
         let output = _Tensor::<T>::empty([batch, out_height, out_width, out_channels])?;
@@ -1302,7 +1302,7 @@ pub(crate) fn get_cache_set(
 pub(crate) fn get_set_gap<T>(stride: i64, cache_line_size: usize, cache_set_num: usize) -> usize {
     let set1 = get_cache_set(0, cache_line_size, cache_set_num);
     let set2 = get_cache_set(
-        ((stride as usize) * std::mem::size_of::<T>()) as usize,
+        ((stride as usize) * size_of::<T>()),
         cache_line_size,
         cache_set_num
     );

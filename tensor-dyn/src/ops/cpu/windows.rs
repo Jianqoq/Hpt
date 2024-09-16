@@ -33,12 +33,12 @@ impl<T> _Tensor<T>
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn hamming_window(window_length: i64, periodic: bool) -> anyhow::Result<_Tensor<FBO<T>>> {
-        Self::__hamming_window(window_length, (0.54).into_scalar(), (0.46).into_scalar(), periodic)
+        Self::__hamming_window(window_length, 0.54.into_scalar(), 0.46.into_scalar(), periodic)
     }
 
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn hann_window(window_length: i64, periodic: bool) -> anyhow::Result<_Tensor<FBO<T>>> {
-        Self::__hamming_window(window_length, (0.5).into_scalar(), (0.5).into_scalar(), periodic)
+        Self::__hamming_window(window_length, 0.5.into_scalar(), 0.5.into_scalar(), periodic)
     }
 
     #[cfg_attr(feature = "track_caller", track_caller)]

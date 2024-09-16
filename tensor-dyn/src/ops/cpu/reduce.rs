@@ -123,6 +123,13 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
         let mut progress_init_a_data = vec![0; res_shape.len()];
         let res_ptrs = res_ptrs.borrow_mut();
         let ndim = res_shape.len() as i64;
+
+        // [0, 6, 12, 18, 24, 30] res0    thread 0
+        // [1, 7, 13, 19, 25, 31] res1    thread 1
+        // [2, 8, 14, 20, 26, 32] res0    thread 0
+        // [3, 9, 15, 21, 27, 33] res1    thread 1
+        // [4, 10, 16, 22, 28, 34] res0   thread 0
+        // [5, 11, 17, 23, 29, 35] res1   thread 1
         for id in 0..num_threads {
             let mut a_data_ptr_cpy = ptrs.clone();
             let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
@@ -386,7 +393,7 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
 )
     -> anyhow::Result<_Tensor<O>>
     where
-        T: CommonBounds + IntoScalar<O> + tensor_types::convertion::Convertor,
+        T: CommonBounds + IntoScalar<O> + Convertor,
         O: CommonBounds,
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
         F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
@@ -394,7 +401,7 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
         F4: Fn(<O as TypeCommon>::Vec, <T as TypeCommon>::Vec) -> <O as TypeCommon>::Vec +
             'static +
             Copy +
-            std::marker::Send,
+            Send,
         F5: Fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec + Sync + Send + 'static + Copy,
         <T as TypeCommon>::Vec: Copy,
         <O as TypeCommon>::Vec: Copy
@@ -464,11 +471,11 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
     if let Some(out) = c {
         if let Some(s) = &new_shape {
             if s != out.shape().inner() {
-                return Err(anyhow::Error::msg(format!("Output array has incorrect shape")));
+                return Err(anyhow::Error::msg("Output array has incorrect shape".to_string()));
             }
         } else {
             if res_shape.as_ref() != out.shape().inner() {
-                return Err(anyhow::Error::msg(format!("Output array has incorrect shape")));
+                return Err(anyhow::Error::msg("Output array has incorrect shape".to_string()));
             }
         }
         result = out;
@@ -586,8 +593,8 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                         num_threads,
                         <O as TypeCommon>::Vec::SIZE
                     );
-                    let mut slices = vec![Slice::Full; a.ndim() as usize];
-                    let mut slices_res = vec![Slice::Full; result.ndim() as usize];
+                    let mut slices = vec![Slice::Full; a.ndim()];
+                    let mut slices_res = vec![Slice::Full; result.ndim()];
                     let mut sliced_tensors = Vec::with_capacity(num_threads);
                     let mut sliced_res = Vec::with_capacity(num_threads);
                     let mut num_threads = 0;
@@ -597,8 +604,8 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                             continue;
                         }
                         num_threads += 1;
-                        slices[(a.ndim() as usize) - 1] = Slice::Range((start as i64, end as i64));
-                        slices_res[(result.ndim() as usize) - 1] = Slice::Range((
+                        slices[(a.ndim()) - 1] = Slice::Range((start as i64, end as i64));
+                        slices_res[(result.ndim()) - 1] = Slice::Range((
                             start as i64,
                             end as i64,
                         ));
@@ -810,7 +817,7 @@ pub(crate) fn reduce<T, F, F2>(
 )
     -> anyhow::Result<_Tensor<T>>
     where
-        T: CommonBounds + tensor_types::into_scalar::IntoScalar<T> + Convertor,
+        T: CommonBounds + IntoScalar<T> + Convertor,
         F: Fn(T, T) -> T + Sync + Send + 'static + Copy,
         F2: Fn(<T as TypeCommon>::Vec, <T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec +
             Sync +
@@ -860,7 +867,7 @@ pub(crate) fn reduce2<T, F, F2, F3, O>(
 )
     -> anyhow::Result<_Tensor<O>>
     where
-        T: CommonBounds + IntoScalar<O> + tensor_types::convertion::Convertor,
+        T: CommonBounds + IntoScalar<O> + Convertor,
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
         F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
         F3: Fn(<O as TypeCommon>::Vec, <T as TypeCommon>::Vec) -> <O as TypeCommon>::Vec +

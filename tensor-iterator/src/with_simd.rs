@@ -143,6 +143,10 @@ impl<I, F> IterGetSetSimd
         self.base.set_shape(shape);
     }
 
+    fn set_prg(&mut self, prg: Vec<i64>) {
+        self.base.set_prg(prg);
+    }
+
     fn intervals(&self) -> &Arc<Vec<(usize, usize)>> {
         panic!("single thread strided zip does not support intervals");
     }
@@ -171,23 +175,19 @@ impl<I, F> IterGetSetSimd
         self.base.next();
     }
 
+    fn next_simd(&mut self) {
+        todo!()
+    }
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         self.base.inner_loop_next(index)
     }
-
-    fn set_prg(&mut self, prg: Vec<i64>) {
-        self.base.set_prg(prg);
+    fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
+        self.base.inner_loop_next_simd(index)
     }
     fn all_last_stride_one(&self) -> bool {
         self.base.all_last_stride_one()
     }
     fn lanes(&self) -> Option<usize> {
         self.base.lanes()
-    }
-    fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
-        self.base.inner_loop_next_simd(index)
-    }
-    fn next_simd(&mut self) {
-        todo!()
     }
 }

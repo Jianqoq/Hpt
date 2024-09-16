@@ -46,7 +46,7 @@ impl parse::Parse for SelectionParser {
             input.peek(syn::token::Paren) ||
             input.peek(Token![-])
         {
-            start = Some(input.parse::<syn::Expr>()?);
+            start = Some(input.parse::<Expr>()?);
         }
         if input.peek(Token![:]) {
             input.parse::<Token![:]>()?;
@@ -67,7 +67,7 @@ impl parse::Parse for SelectionParser {
             input.peek(syn::token::Paren) ||
             input.peek(Token![-])
         {
-            end = Some(input.parse::<syn::Expr>()?);
+            end = Some(input.parse::<Expr>()?);
         }
         if input.peek(Token![:]) {
             input.parse::<Token![:]>()?;
@@ -78,7 +78,7 @@ impl parse::Parse for SelectionParser {
             input.peek(syn::token::Paren) ||
             input.peek(Token![-])
         {
-            step = Some(input.parse::<syn::Expr>()?);
+            step = Some(input.parse::<Expr>()?);
         }
         Ok(Self {
             start,
@@ -299,12 +299,12 @@ pub fn float_out_unary(_: TokenStream) -> TokenStream {
 
 #[proc_macro]
 pub fn simd_float_out_unary(_: TokenStream) -> TokenStream {
-    crate::simd_float_out_unary::impl_float_out_unary()
+    simd_float_out_unary::impl_float_out_unary()
 }
 
 #[proc_macro]
 pub fn simd_eval(_: TokenStream) -> TokenStream {
-    crate::simd_eval::impl_simd_eval()
+    simd_eval::impl_simd_eval()
 }
 
 #[proc_macro]

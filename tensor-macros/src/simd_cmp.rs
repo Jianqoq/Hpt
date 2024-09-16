@@ -28,15 +28,15 @@ pub fn impl_simd_cmp() -> TokenStream {
 
     for (lhs_simd_ty, lhs) in types.iter() {
         for (rhs_simd_ty, rhs) in types.iter() {
-            let lhs_simd_ty = syn::Ident::new(&lhs_simd_ty, proc_macro2::Span::call_site());
-            let rhs_simd_ty = syn::Ident::new(&rhs_simd_ty, proc_macro2::Span::call_site());
+            let lhs_simd_ty = Ident::new(&lhs_simd_ty, proc_macro2::Span::call_site());
+            let rhs_simd_ty = Ident::new(&rhs_simd_ty, proc_macro2::Span::call_site());
             let lhs_type = TypeInfo::new(lhs);
             let rhs_type = TypeInfo::new(rhs);
             let res_type = lhs_type.infer_normal_res_type(&rhs_type);
             let lhs_lanes = type_simd_lanes(lhs);
             let rhs_lanes = type_simd_lanes(rhs);
             let res_lanes = type_simd_lanes(&res_type.to_string());
-            let res_simd_ty = syn::Ident::new(&format!("{}x{}", res_type.to_string(), res_lanes), proc_macro2::Span::call_site());
+            let res_simd_ty = Ident::new(&format!("{}x{}", res_type.to_string(), res_lanes), proc_macro2::Span::call_site());
             if lhs_lanes != rhs_lanes || lhs_lanes != res_lanes || rhs_lanes != res_lanes {
                 ret.extend(
                     impl_unreachable(

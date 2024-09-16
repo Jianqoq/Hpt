@@ -19,16 +19,16 @@ impl DerefMut for i16x16 {
 }
 impl VecTrait<i16> for i16x16 {
     #[inline(always)]
+    fn _mul_add(self, a: Self, b: Self) -> Self {
+        Self(self.0 * a.0 + b.0)
+    }
+    #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[i16]) {
         self.as_mut_array().copy_from_slice(slice);
     }
     #[inline(always)]
     fn as_ptr(&self) -> *const i16 {
         self.as_array().as_ptr()
-    }
-    #[inline(always)]
-    fn _mul_add(self, a: Self, b: Self) -> Self {
-        Self(self.0 * a.0 + b.0)
     }
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut i16 {
@@ -38,13 +38,13 @@ impl VecTrait<i16> for i16x16 {
     fn as_mut_ptr_uncheck(&self) -> *mut i16 {
         self.as_array().as_ptr() as *mut _
     }
+    fn extract(self, idx: usize) -> i16 {
+        self.as_array()[idx]
+    }
+
     #[inline(always)]
     fn sum(&self) -> i16 {
         self.as_array().iter().sum()
-    }
-    
-    fn extract(self, idx: usize) -> i16 {
-        self.as_array()[idx]
     }
 }
 impl VecCommon for i16x16 {

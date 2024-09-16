@@ -6,7 +6,7 @@ use tch::Tensor;
 use tensor_base::_Tensor;
 use tensor_dyn::*;
 
-fn assert_eq(a: &_Tensor<i64>, b: &tch::Tensor) {
+fn assert_eq(a: &_Tensor<i64>, b: &Tensor) {
     let raw = a.as_raw();
     let tch_raw = unsafe { core::slice::from_raw_parts(b.data_ptr() as *const i64, a.size()) };
     raw.par_iter()
@@ -46,17 +46,17 @@ fn assert_eq_f64(b: &_Tensor<f64>, a: &Tensor) {
 fn common_input<const N: usize>(
     end: i64,
     shape: [i64; N]
-) -> anyhow::Result<(_Tensor<i64, Cpu>, tch::Tensor)> {
+) -> anyhow::Result<(_Tensor<i64, Cpu>, Tensor)> {
     let a = _Tensor::<i64, Cpu>::arange(0, end)?.reshape(&shape)?;
-    let tch_a = tch::Tensor::arange(end, (tch::Kind::Int64, tch::Device::Cpu)).reshape(&shape);
+    let tch_a = Tensor::arange(end, (tch::Kind::Int64, tch::Device::Cpu)).reshape(&shape);
     Ok((a, tch_a))
 }
 
 fn common_input_f64<const N: usize>(
     end: i64,
     shape: [i64; N]
-) -> anyhow::Result<(_Tensor<f64, Cpu>, tch::Tensor)> {
-    let tch_a = tch::Tensor::randn(&shape, (tch::Kind::Double, tch::Device::Cpu)).reshape(&shape);
+) -> anyhow::Result<(_Tensor<f64, Cpu>, Tensor)> {
+    let tch_a = Tensor::randn(&shape, (tch::Kind::Double, tch::Device::Cpu)).reshape(&shape);
     let a = _Tensor::<f64, Cpu>::empty(&shape)?;
     let raw_mut = a.as_raw_mut();
     let tch_raw = unsafe { core::slice::from_raw_parts_mut(tch_a.data_ptr() as *mut f64, a.size()) };

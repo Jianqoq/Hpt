@@ -427,7 +427,7 @@ impl<T: CommonBounds> _Tensor<T> {
                 let new_parent = Pointer::new(parent.ptr as *mut U, parent.layout.clone());
                 #[cfg(not(feature = "bound_check"))]
                 let new_parent = Pointer::new(parent.ptr as *mut U);
-                return Ok(_Tensor {
+                Ok(_Tensor {
                     #[cfg(feature = "bound_check")]
                     data: Pointer::new(self.data.ptr as *mut U, self.layout.clone()),
                     #[cfg(not(feature = "bound_check"))]
@@ -436,7 +436,7 @@ impl<T: CommonBounds> _Tensor<T> {
                     mem_layout: self.mem_layout.clone(),
                     layout: self.layout.clone(),
                     _backend: self._backend.clone(),
-                });
+                })
             }
             None => Ok(_Tensor {
                 #[cfg(feature = "bound_check")]
@@ -720,7 +720,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             size *= tmp as usize;
         }
         let layout =
-            std::alloc::Layout::from_size_align(size * std::mem::size_of::<T>(), ALIGN).unwrap();
+            std::alloc::Layout::from_size_align(size * size_of::<T>(), ALIGN)?;
         let ptr = unsafe { CACHE.allocate(layout) };
         let ly = Layout::new(res_shape.clone(), strides.clone());
         Ok(_Tensor {
@@ -746,9 +746,9 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             size *= tmp;
         }
         let layout =
-            std::alloc::Layout::from_size_align(size * std::mem::size_of::<T>(), ALIGN).unwrap();
+            std::alloc::Layout::from_size_align(size * size_of::<T>(), ALIGN)?;
         let ptr = unsafe { CACHE.allocate(layout) };
-        assert!(ptr != std::ptr::null_mut());
+        assert_ne!(ptr, std::ptr::null_mut());
         let slice = unsafe { std::slice::from_raw_parts_mut(ptr as *mut T, size) };
         let zero = [T::ZERO; 8];
         slice.par_chunks_exact_mut(8).for_each(|x| {
@@ -1265,6 +1265,17 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         })
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
+    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
+        let permuted_layout = self.layout.permute_inv(axes)?;
+        Ok(_Tensor {
+            data: self.data.clone(),
+            layout: permuted_layout,
+            parent: self.parent.clone(),
+            mem_layout: self.mem_layout.clone(),
+            _backend: self._backend.clone(),
+        })
+    }
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn expand<S: Into<Shape>>(&self, shape: S) -> Result<_Tensor<T>> {
         let res_shape = Shape::from(shape.into());
         let res_strides = self.layout.expand_strides(&res_shape);
@@ -1276,6 +1287,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             _backend: self._backend.clone(),
         })
     }
+
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn t(&self) -> Result<Self> {
         if self.ndim() > 2 {
@@ -1285,7 +1297,6 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         }
         self.transpose(1, 0)
     }
-
     fn mt(&self) -> Result<Self> {
         self.permute((0..self.ndim() as i64).rev().collect::<Vec<i64>>())
     }
@@ -1465,6 +1476,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         }
         self.split(indices, 0)
     }
+
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn swap_axes(&self, mut axis1: i64, mut axis2: i64) -> Result<Self> {
         ErrHandler::check_index_in_range_mut(self.ndim(), &mut axis1)?;
@@ -1482,14 +1494,13 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             _backend: self._backend.clone(),
         })
     }
-
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn flatten<A>(&self, start_dim: A, end_dim: A) -> Result<Self>
     where
         A: Into<Option<usize>>,
     {
         let start = start_dim.into().unwrap_or(1);
-        let end = end_dim.into().unwrap_or(self.ndim() as usize);
+        let end = end_dim.into().unwrap_or(self.ndim());
         let shape = self.shape();
         if start >= self.ndim() || end >= self.ndim() {
             return Err(ErrHandler::IndexOutOfRange(
@@ -1512,17 +1523,6 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             }
         }
         self.reshape(new_shape)
-    }
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
-        let permuted_layout = self.layout.permute_inv(axes)?;
-        Ok(_Tensor {
-            data: self.data.clone(),
-            layout: permuted_layout,
-            parent: self.parent.clone(),
-            mem_layout: self.mem_layout.clone(),
-            _backend: self._backend.clone(),
-        })
     }
 }
 
@@ -1746,7 +1746,7 @@ impl<'a, T> Into<_Tensor<T>> for &'a [T] {
         let strides = vec![1];
         let layout = Layout::new(shape, strides);
         let mem_layout =
-            std::alloc::Layout::from_size_align(self.len() * std::mem::size_of::<T>(), ALIGN)
+            std::alloc::Layout::from_size_align(self.len() * size_of::<T>(), ALIGN)
                 .unwrap();
         let ptr = unsafe { CACHE.allocate(mem_layout.clone()) };
         unsafe {

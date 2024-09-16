@@ -22,16 +22,16 @@ impl DerefMut for isizex4 {
 
 impl VecTrait<isize> for isizex4 {
     #[inline(always)]
+    fn _mul_add(self, a: Self, b: Self) -> Self {
+        Self(self.0 * a.0 + b.0)
+    }
+    #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[isize]) {
         self.as_mut_array().copy_from_slice(unsafe { std::mem::transmute(slice) });
     }
     #[inline(always)]
     fn as_ptr(&self) -> *const isize {
         self.as_array().as_ptr() as *const _
-    }
-    #[inline(always)]
-    fn _mul_add(self, a: Self, b: Self) -> Self {
-        Self(self.0 * a.0 + b.0)
     }
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut isize {
@@ -41,14 +41,14 @@ impl VecTrait<isize> for isizex4 {
     fn as_mut_ptr_uncheck(&self) -> *mut isize {
         self.as_array().as_ptr() as *mut _
     }
+    fn extract(self, idx: usize) -> isize {
+        self.as_array()[idx]
+    }
+
     #[inline(always)]
     fn sum(&self) -> isize {
         let ret = self.as_array().iter().sum::<isize>();
-        ret as isize
-    }
-
-    fn extract(self, idx: usize) -> isize {
-        self.as_array()[idx]
+        ret
     }
 }
 

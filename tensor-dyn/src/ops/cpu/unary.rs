@@ -36,7 +36,7 @@ pub fn uary_fn<A, F, O>(inp: &_Tensor<A>, f: F) -> anyhow::Result<_Tensor<O>>
     where A: CommonBounds, O: CommonBounds, F: Fn(A) -> O + Sync + Send
 {
     let ret: _Tensor<O>;
-    ret = _Tensor::<O, Cpu>::empty(inp.shape()).unwrap();
+    ret = _Tensor::<O, Cpu>::empty(inp.shape())?;
     let new_f = &f;
     let remain = inp.size() % 8;
     let exect_size = inp.size() - remain;
@@ -71,7 +71,7 @@ pub fn uary_fn_simd<A, F, O, F2>(inp: &_Tensor<A>, f: F, f2: F2) -> anyhow::Resu
         F2: Fn(A) -> O + Sync + Send
 {
     let ret: _Tensor<O>;
-    ret = _Tensor::<O, Cpu>::empty(inp.shape()).unwrap();
+    ret = _Tensor::<O, Cpu>::empty(inp.shape())?;
     if inp.parent().is_some() {
         ret.par_iter_mut_simd()
             .zip(inp.par_iter_simd())
@@ -144,7 +144,7 @@ pub fn uary_fn_with_out<A, O, K, Q, F>(
         F: Fn(A) -> K + Sync + Send
 {
     let ret_size: usize = inp.size();
-    let ret = if out.size() * std::mem::size_of::<Q>() != ret_size * std::mem::size_of::<K>() {
+    let ret = if out.size() * size_of::<Q>() != ret_size * size_of::<K>() {
         _Tensor::<K, Cpu>::empty(inp.shape())?
     } else {
         _Tensor::<K, Cpu>::empty(inp.shape())?
@@ -175,7 +175,7 @@ pub(crate) fn uary_fn_with_out_simd<A, O, K, Q, F, F2>(
         F2: Fn(A) -> K + Sync + Send
 {
     let ret_size: usize = inp.size();
-    let ret = if out.size() * std::mem::size_of::<Q>() != ret_size * std::mem::size_of::<K>() {
+    let ret = if out.size() * size_of::<Q>() != ret_size * size_of::<K>() {
         _Tensor::<K, Cpu>::empty(inp.shape())?
     } else {
         _Tensor::<K, Cpu>::empty(inp.shape())?
@@ -186,7 +186,7 @@ pub(crate) fn uary_fn_with_out_simd<A, O, K, Q, F, F2>(
         .par_chunks_exact_mut(<A as TypeCommon>::Vec::SIZE)
         .zip(inp.as_raw().par_chunks_exact(<A as TypeCommon>::Vec::SIZE))
         .for_each(|(a, b)| {
-            let b_ptr = b.as_ptr() as *const A;
+            let b_ptr = b.as_ptr();
             let inp = unsafe { A::Vec::from_ptr(b_ptr) };
             let res = f(inp);
             let res_ptr = res.as_ptr() as *mut K;
@@ -944,8 +944,8 @@ impl<T> _Tensor<T>
         alpha: Option<<T as FloatOutUnary>::Base>,
         gamma: Option<<T as FloatOutUnary>::Base>
     ) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
-        let alpha = alpha.unwrap_or((1.6732632423543772848170429916717).into_scalar());
-        let gamma = gamma.unwrap_or((1.0507009873554804934193349852946).into_scalar());
+        let alpha = alpha.unwrap_or(1.6732632423543772848170429916717.into_scalar());
+        let gamma = gamma.unwrap_or(1.0507009873554804934193349852946.into_scalar());
         #[cfg(feature = "simd")]
         let ret = uary_fn_simd(
             self,
@@ -965,8 +965,8 @@ impl<T> _Tensor<T>
     ) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
         where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
     {
-        let alpha = alpha.unwrap_or((1.67326319217681884765625).into_scalar());
-        let gamma = gamma.unwrap_or((1.05070102214813232421875).into_scalar());
+        let alpha = alpha.unwrap_or(1.67326319217681884765625.into_scalar());
+        let gamma = gamma.unwrap_or(1.05070102214813232421875.into_scalar());
         #[cfg(feature = "simd")]
         let ret = uary_fn_with_out_simd(
             self,

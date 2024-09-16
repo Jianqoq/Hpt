@@ -21,7 +21,7 @@ pub mod par_strided_map_mut_simd {
     use crate::{iterator_traits::IterGetSetSimd, par_strided_mut::par_strided_map_mut_simd::ParStridedMutSimd, par_strided_zip::par_strided_zip_simd::ParStridedZipSimd};
 
     
-    pub struct ParStridedMapMutSimd<'a, T> where T: tensor_types::dtype::TypeCommon + Send + Copy + Sync {
+    pub struct ParStridedMapMutSimd<'a, T> where T: TypeCommon + Send + Copy + Sync {
         pub(crate) base: ParStridedMutSimd<'a, T>,
         pub(crate) phantom: std::marker::PhantomData<&'a ()>,
     }
@@ -90,57 +90,57 @@ pub mod par_strided_map_mut_simd {
         fn set_shape(&mut self, shape: Shape) {
             self.base.set_shape(shape);
         }
-    
-        fn intervals(&self) -> &Arc<Vec<(usize, usize)>> {
-            self.base.intervals()
-        }
-    
-        fn strides(&self) -> &Strides {
-            self.base.strides()
-        }
-    
-        fn shape(&self) -> &Shape {
-            self.base.shape()
-        }
-    
-        fn broadcast_set_strides(&mut self, shape: &Shape) {
-            self.base.broadcast_set_strides(shape);
-        }
-    
-        fn outer_loop_size(&self) -> usize {
-            self.base.outer_loop_size()
-        }
-    
-        fn inner_loop_size(&self) -> usize {
-            self.base.inner_loop_size()
-        }
-    
-        fn next(&mut self) {
-            self.base.next();
-        }
-    
-        fn inner_loop_next(&mut self, index: usize) -> Self::Item {
-            self.base.inner_loop_next(index)
-        }
-        
+
         fn set_prg(&mut self, prg: Vec<i64>) {
             self.base.set_prg(prg);
         }
-        
-        fn all_last_stride_one(&self) -> bool {
-            self.base.all_last_stride_one()
+
+        fn intervals(&self) -> &Arc<Vec<(usize, usize)>> {
+            self.base.intervals()
         }
-    
-        fn lanes(&self) -> Option<usize> {
-            self.base.lanes()
+
+        fn strides(&self) -> &Strides {
+            self.base.strides()
         }
-    
+
+        fn shape(&self) -> &Shape {
+            self.base.shape()
+        }
+
+        fn broadcast_set_strides(&mut self, shape: &Shape) {
+            self.base.broadcast_set_strides(shape);
+        }
+
+        fn outer_loop_size(&self) -> usize {
+            self.base.outer_loop_size()
+        }
+
+        fn inner_loop_size(&self) -> usize {
+            self.base.inner_loop_size()
+        }
+
+        fn next(&mut self) {
+            self.base.next();
+        }
+
+        fn next_simd(&mut self) {
+            self.base.next_simd();
+        }
+
+        fn inner_loop_next(&mut self, index: usize) -> Self::Item {
+            self.base.inner_loop_next(index)
+        }
+
         fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
             self.base.inner_loop_next_simd(index)
         }
-    
-        fn next_simd(&mut self) {
-            self.base.next_simd();
+
+        fn all_last_stride_one(&self) -> bool {
+            self.base.all_last_stride_one()
+        }
+
+        fn lanes(&self) -> Option<usize> {
+            self.base.lanes()
         }
     }
 }
@@ -210,6 +210,10 @@ impl<'a, T: 'a + CommonBounds> IterGetSet for ParStridedMapMut<'a, T> {
         self.base.set_shape(shape);
     }
 
+    fn set_prg(&mut self, prg: Vec<i64>) {
+        self.base.set_prg(prg);
+    }
+
     fn intervals(&self) -> &Arc<Vec<(usize, usize)>> {
         self.base.intervals()
     }
@@ -240,9 +244,5 @@ impl<'a, T: 'a + CommonBounds> IterGetSet for ParStridedMapMut<'a, T> {
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         self.base.inner_loop_next(index)
-    }
-    
-    fn set_prg(&mut self, prg: Vec<i64>) {
-        self.base.set_prg(prg);
     }
 }

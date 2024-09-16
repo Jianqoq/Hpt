@@ -32,7 +32,7 @@ fn assert_eq(b: &_Tensor<i32>, a: &Tensor) {
 
 #[test]
 fn test_slice() -> anyhow::Result<()> {
-    let tch_a = tch::Tensor::arange(100, (tch::Kind::Int, tch::Device::Cpu)).reshape(&[10, 10]);
+    let tch_a = Tensor::arange(100, (tch::Kind::Int, tch::Device::Cpu)).reshape(&[10, 10]);
     let a = _Tensor::<i32>::arange(0, 100)?.reshape(&[10, 10])?;
     let a = slice!(a[1:9, 1:9])?.contiguous()?;
     let tch_a = tch_a.slice(1, 1, 9, 1).slice(0, 1, 9, 1).contiguous();
@@ -46,7 +46,7 @@ fn test_slice() -> anyhow::Result<()> {
 
 #[test]
 fn test_uncontinuous_slice() -> anyhow::Result<()> {
-    let tch_a = tch::Tensor::arange(100, (tch::Kind::Int, tch::Device::Cpu)).reshape(&[10, 10]);
+    let tch_a = Tensor::arange(100, (tch::Kind::Int, tch::Device::Cpu)).reshape(&[10, 10]);
     let a = _Tensor::<i32>::arange(0, 100)?.reshape(&[10, 10])?;
     let tch_a = tch_a.permute(&[1, 0]);
     let a = a.permute(&[1, 0])?;

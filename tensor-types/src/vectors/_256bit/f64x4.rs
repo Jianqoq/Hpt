@@ -19,16 +19,16 @@ impl DerefMut for f64x4 {
 }
 impl VecTrait<f64> for f64x4 {
     #[inline(always)]
+    fn _mul_add(self, a: Self, b: Self) -> Self {
+        Self(self.0.mul_add(a.0, b.0))
+    }
+    #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[f64]) {
         self.as_mut_array().copy_from_slice(slice);
     }
     #[inline(always)]
     fn as_ptr(&self) -> *const f64 {
         self.as_array().as_ptr()
-    }
-    #[inline(always)]
-    fn _mul_add(self, a: Self, b: Self) -> Self {
-        Self(self.0.mul_add(a.0, b.0))
     }
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut f64 {
@@ -38,13 +38,13 @@ impl VecTrait<f64> for f64x4 {
     fn as_mut_ptr_uncheck(&self) -> *mut f64 {
         self.as_array().as_ptr() as *mut _
     }
+    fn extract(self, idx: usize) -> f64 {
+        self.as_array()[idx]
+    }
+
     #[inline(always)]
     fn sum(&self) -> f64 {
         self.as_array().iter().sum()
-    }
-    
-    fn extract(self, idx: usize) -> f64 {
-        self.as_array()[idx]
     }
 }
 impl VecCommon for f64x4 {

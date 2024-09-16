@@ -14,14 +14,6 @@ pub struct f16x16(pub(crate) [half::f16; 16]);
 
 impl VecTrait<half::f16> for f16x16 {
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[half::f16]) {
-        self.0.copy_from_slice(slice);
-    }
-    #[inline(always)]
-    fn as_ptr(&self) -> *const half::f16 {
-        self.0.as_ptr()
-    }
-    #[inline(always)]
     fn _mul_add(self, a: Self, b: Self) -> Self {
         let [x0, x1]: [f32x8; 2] = unsafe { std::mem::transmute(self.to_2_f32x8()) };
         let [a0, a1]: [f32x8; 2] = unsafe { std::mem::transmute(a.to_2_f32x8()) };
@@ -33,6 +25,14 @@ impl VecTrait<half::f16> for f16x16 {
         unsafe { std::mem::transmute([res0, res1]) }
     }
     #[inline(always)]
+    fn copy_from_slice(&mut self, slice: &[half::f16]) {
+        self.0.copy_from_slice(slice);
+    }
+    #[inline(always)]
+    fn as_ptr(&self) -> *const half::f16 {
+        self.0.as_ptr()
+    }
+    #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut half::f16 {
         self.0.as_mut_ptr()
     }
@@ -40,13 +40,13 @@ impl VecTrait<half::f16> for f16x16 {
     fn as_mut_ptr_uncheck(&self) -> *mut half::f16 {
         self.0.as_ptr() as *mut _
     }
+    fn extract(self, idx: usize) -> half::f16 {
+        self.0[idx]
+    }
+
     #[inline(always)]
     fn sum(&self) -> half::f16 {
         self.0.iter().sum()
-    }
-
-    fn extract(self, idx: usize) -> half::f16 {
-        self.0[idx]
     }
 }
 impl VecCommon for f16x16 {
@@ -221,7 +221,7 @@ impl std::ops::Rem for f16x16 {
 }
 
 pub fn u16_to_f16(val: u16x8) -> std::simd::f32x8 {
-    let sign_mask = std::simd::u16x8::splat(0x8000);
+    let sign_mask = u16x8::splat(0x8000);
     let exp_mask = u16x8::splat(0x7c00);
     let man_mask = u16x8::splat(0x03ff);
     let zero_mask = u16x8::splat(0x7fff);

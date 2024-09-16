@@ -20,16 +20,16 @@ impl DerefMut for f32x8 {
 }
 impl VecTrait<f32> for f32x8 {
     #[inline(always)]
+    fn _mul_add(self, a: Self, b: Self) -> Self {
+        f32x8(self.0.mul_add(a.0, b.0))
+    }
+    #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[f32]) {
         self.as_mut_array().copy_from_slice(slice)
     }
     #[inline(always)]
     fn as_ptr(&self) -> *const f32 {
         self.as_array().as_ptr()
-    }
-    #[inline(always)]
-    fn _mul_add(self, a: Self, b: Self) -> Self {
-        f32x8(self.0.mul_add(a.0, b.0))
     }
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut f32 {
@@ -39,13 +39,13 @@ impl VecTrait<f32> for f32x8 {
     fn as_mut_ptr_uncheck(&self) -> *mut f32 {
         self.as_array().as_ptr() as *mut _
     }
+    fn extract(self, idx: usize) -> f32 {
+        self.as_array()[idx]
+    }
+
     #[inline(always)]
     fn sum(&self) -> f32 {
         self.reduce_sum()
-    }
-
-    fn extract(self, idx: usize) -> f32 {
-        self.as_array()[idx]
     }
 }
 impl VecCommon for f32x8 {

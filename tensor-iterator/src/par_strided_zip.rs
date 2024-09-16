@@ -68,6 +68,11 @@ pub mod par_strided_zip_simd {
             self.b.set_shape(shape);
         }
 
+        fn set_prg(&mut self, prg: Vec<i64>) {
+            self.a.set_prg(prg.clone());
+            self.b.set_prg(prg);
+        }
+
         fn intervals(&self) -> &Arc<Vec<(usize, usize)>> {
             self.a.intervals()
         }
@@ -98,13 +103,17 @@ pub mod par_strided_zip_simd {
             self.b.next();
         }
 
+        fn next_simd(&mut self) {
+            self.a.next_simd();
+            self.b.next_simd();
+        }
+
         fn inner_loop_next(&mut self, index: usize) -> Self::Item {
             (self.a.inner_loop_next(index), self.b.inner_loop_next(index))
         }
 
-        fn set_prg(&mut self, prg: Vec<i64>) {
-            self.a.set_prg(prg.clone());
-            self.b.set_prg(prg);
+        fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
+            (self.a.inner_loop_next_simd(index), self.b.inner_loop_next_simd(index))
         }
 
         fn all_last_stride_one(&self) -> bool {
@@ -118,15 +127,6 @@ pub mod par_strided_zip_simd {
                 }
                 _ => None,
             }
-        }
-
-        fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
-            (self.a.inner_loop_next_simd(index), self.b.inner_loop_next_simd(index))
-        }
-
-        fn next_simd(&mut self) {
-            self.a.next_simd();
-            self.b.next_simd();
         }
     }
     impl<'a, A, B> ParStridedZipSimd<'a, A, B>
@@ -304,6 +304,11 @@ impl<'a, A, B> IterGetSet for ParStridedZip<'a, A, B> where A: IterGetSet, B: It
         self.b.set_shape(shape);
     }
 
+    fn set_prg(&mut self, prg: Vec<i64>) {
+        self.a.set_prg(prg.clone());
+        self.b.set_prg(prg);
+    }
+
     fn intervals(&self) -> &Arc<Vec<(usize, usize)>> {
         self.a.intervals()
     }
@@ -336,11 +341,6 @@ impl<'a, A, B> IterGetSet for ParStridedZip<'a, A, B> where A: IterGetSet, B: It
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         (self.a.inner_loop_next(index), self.b.inner_loop_next(index))
-    }
-
-    fn set_prg(&mut self, prg: Vec<i64>) {
-        self.a.set_prg(prg.clone());
-        self.b.set_prg(prg);
     }
 }
 

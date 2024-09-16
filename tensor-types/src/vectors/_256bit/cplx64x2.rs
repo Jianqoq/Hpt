@@ -10,16 +10,16 @@ pub struct cplx64x2(pub(crate) [Complex64; 2]);
 
 impl VecTrait<Complex64> for cplx64x2 {
     #[inline(always)]
+    fn _mul_add(self, _: Self, _: Self) -> Self {
+        todo!()
+    }
+    #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[Complex64]) {
         self.0.copy_from_slice(slice);
     }
     #[inline(always)]
     fn as_ptr(&self) -> *const Complex64 {
         self.0.as_ptr()
-    }
-    #[inline(always)]
-    fn _mul_add(self, _: Self, _: Self) -> Self {
-        todo!()
     }
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut Complex64 {
@@ -29,13 +29,13 @@ impl VecTrait<Complex64> for cplx64x2 {
     fn as_mut_ptr_uncheck(&self) -> *mut Complex64 {
         self.0.as_ptr() as *mut _
     }
+    fn extract(self, idx: usize) -> Complex64 {
+        self.0[idx]
+    }
+
     #[inline(always)]
     fn sum(&self) -> Complex64 {
         self.0.iter().sum()
-    }
-    
-    fn extract(self, idx: usize) -> Complex64 {
-        self.0[idx]
     }
 }
 impl VecCommon for cplx64x2 {

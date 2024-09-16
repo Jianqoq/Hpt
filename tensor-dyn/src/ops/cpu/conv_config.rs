@@ -22,7 +22,7 @@ pub struct Conv2dConfig<T> {
 
 impl<T> Conv2dConfig<T> where T: CommonBounds {
     pub fn set_l1_cache_size(&mut self, l1_cache_size: usize) -> &mut Self {
-        self.l1_cache_size = l1_cache_size / std::mem::size_of::<T>();
+        self.l1_cache_size = l1_cache_size / size_of::<T>();
         self
     }
     pub fn set_co_block_size(&mut self, co_block_size: i64) -> &mut Self {
@@ -40,22 +40,22 @@ impl<T> Conv2dConfig<T> where T: CommonBounds {
         algo: KernelParamAlgo
     ) -> Self {
         let cache_size =
-            cache_size::l1_cache_size().unwrap_or(128 * 1024) / std::mem::size_of::<T>();
+            cache_size::l1_cache_size().unwrap_or(128 * 1024) / size_of::<T>();
         let (co_block_size, ci_block_size) = match algo {
             KernelParamAlgo::Heuristic => todo!(),
             KernelParamAlgo::Greedy => {
                 find_exact_combination::<T, CONV_REGNUM>(
                     cache_size as i64,
-                    out_channels as i64,
-                    in_channels as i64,
-                    kernel_size[1] as i64,
-                    kernel_size[0] as i64
+                    out_channels,
+                    in_channels,
+                    kernel_size[1],
+                    kernel_size[0]
                 )
             }
         };
         Self {
             l1_cache_size: cache_size::l1_cache_size().unwrap_or(32 * 1024) /
-            std::mem::size_of::<T>(),
+            size_of::<T>(),
             out_channels,
             in_channels,
             kernel_size,
@@ -65,7 +65,7 @@ impl<T> Conv2dConfig<T> where T: CommonBounds {
         }
     }
     pub fn l1_cache_size(&self) -> usize {
-        self.l1_cache_size * std::mem::size_of::<T>()
+        self.l1_cache_size * size_of::<T>()
     }
     pub fn out_channels(&self) -> i64 {
         self.out_channels
@@ -123,7 +123,7 @@ fn find_exact_combination<T: CommonBounds, const REGNUM: usize>(
     }
     let cache_line_size = (cache_size
         ::cache_line_size(1, cache_size::CacheType::Data)
-        .unwrap_or(64) / std::mem::size_of::<T>()) as i64;
+        .unwrap_or(64) / size_of::<T>()) as i64;
     if max_co_b >= cache_line_size && best_co_b < cache_line_size {
         best_co_b = cache_line_size;
         if best_ci_b / 2 != 0 {
@@ -167,7 +167,7 @@ fn find_exact_combination2<T: CommonBounds, const REGNUM: usize>(
     }
     let cache_line_size = (cache_size
         ::cache_line_size(1, cache_size::CacheType::Data)
-        .unwrap_or(64) / std::mem::size_of::<T>()) as i64;
+        .unwrap_or(64) / size_of::<T>()) as i64;
     if max_co_b >= cache_line_size && best_co_b < cache_line_size {
         best_co_b = cache_line_size;
         if best_ci_b / 2 != 0 {
@@ -193,7 +193,7 @@ pub struct Conv3dConfig<T> {
 
 impl<T> Conv3dConfig<T> where T: CommonBounds {
     pub fn set_l1_cache_size(&mut self, l1_cache_size: usize) -> &mut Self {
-        self.l1_cache_size = l1_cache_size / std::mem::size_of::<T>();
+        self.l1_cache_size = l1_cache_size / size_of::<T>();
         self
     }
     pub fn set_co_block_size(&mut self, co_block_size: i64) -> &mut Self {
@@ -211,7 +211,7 @@ impl<T> Conv3dConfig<T> where T: CommonBounds {
         algo: KernelParamAlgo
     ) -> Self {
         let cache_size =
-            cache_size::l1_cache_size().unwrap_or(32 * 1024) / std::mem::size_of::<T>();
+            cache_size::l1_cache_size().unwrap_or(32 * 1024) / size_of::<T>();
         let (co_block_size, ci_block_size) = match algo {
             KernelParamAlgo::Heuristic => todo!(),
             KernelParamAlgo::Greedy => {
@@ -227,7 +227,7 @@ impl<T> Conv3dConfig<T> where T: CommonBounds {
         };
         Self {
             l1_cache_size: cache_size::l1_cache_size().unwrap_or(32 * 1024) /
-            std::mem::size_of::<T>(),
+            size_of::<T>(),
             out_channels,
             in_channels,
             kernel_size,
@@ -237,7 +237,7 @@ impl<T> Conv3dConfig<T> where T: CommonBounds {
         }
     }
     pub fn l1_cache_size(&self) -> usize {
-        self.l1_cache_size * std::mem::size_of::<T>()
+        self.l1_cache_size * size_of::<T>()
     }
     pub fn out_channels(&self) -> i64 {
         self.out_channels

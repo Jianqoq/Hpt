@@ -21,7 +21,7 @@ pub trait TensorInfo<T> {
     fn ndim(&self) -> usize;
     fn is_contiguous(&self) -> bool;
     fn elsize() -> usize {
-        std::mem::size_of::<T>()
+        size_of::<T>()
     }
 }
 
@@ -39,7 +39,7 @@ pub trait TensorLike<T, OutputMeta = T, Output = Self> {
     fn to_raw(&self) -> &[T];
     fn to_raw_mut(&mut self) -> &mut [T];
     fn elsize() -> usize {
-        std::mem::size_of::<T>()
+        size_of::<T>()
     }
     fn static_cast(&self) -> anyhow::Result<Self::Output>;
 }

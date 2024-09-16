@@ -74,7 +74,7 @@ impl<T: CommonBounds> _Tensor<T> {
                             res_ptr[i] = ptr[i * inp_last_stride];
                         }
                         for j in (0..ndim - 1).rev() {
-                            let j = j as usize;
+                            let j = j;
                             if inp_prg[j] < tsp[j] - 1 {
                                 inp_prg[j] += 1;
                                 ptr.offset(ts[j]);

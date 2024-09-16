@@ -40,7 +40,7 @@ fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
 
 #[test]
 fn test_arange() -> anyhow::Result<()> {
-    let tch_a = tch::Tensor::arange(100, (tch::Kind::Double, tch::Device::Cpu));
+    let tch_a = Tensor::arange(100, (tch::Kind::Double, tch::Device::Cpu));
     let a = _Tensor::<f64>::arange(0, 100)?;
     assert_eq(&a, &tch_a);
     Ok(())
@@ -48,7 +48,7 @@ fn test_arange() -> anyhow::Result<()> {
 
 #[test]
 fn test_hamming() -> anyhow::Result<()> {
-    let tch_a = tch::Tensor::hamming_window_periodic(1000, true, (
+    let tch_a = Tensor::hamming_window_periodic(1000, true, (
         tch::Kind::Double,
         tch::Device::Cpu,
     ));
@@ -59,7 +59,7 @@ fn test_hamming() -> anyhow::Result<()> {
 
 #[test]
 fn test_hann() -> anyhow::Result<()> {
-    let tch_a = tch::Tensor::hann_window_periodic(1000, true, (
+    let tch_a = Tensor::hann_window_periodic(1000, true, (
         tch::Kind::Double,
         tch::Device::Cpu,
     ));
@@ -71,7 +71,7 @@ fn test_hann() -> anyhow::Result<()> {
 #[test]
 #[allow(unused)]
 fn test_blackman_window() -> anyhow::Result<()> {
-    let tch_a = tch::Tensor::blackman_window_periodic(1000, true, (
+    let tch_a = Tensor::blackman_window_periodic(1000, true, (
         tch::Kind::Double,
         tch::Device::Cpu,
     ));
@@ -81,7 +81,7 @@ fn test_blackman_window() -> anyhow::Result<()> {
 
 #[test]
 fn test_zeros() -> anyhow::Result<()> {
-    let tch_a = tch::Tensor::zeros(&[1000], (tch::Kind::Double, tch::Device::Cpu));
+    let tch_a = Tensor::zeros(&[1000], (tch::Kind::Double, tch::Device::Cpu));
     let a = _Tensor::<f64>::zeros(&[1000])?;
     assert_eq(&a, &tch_a);
     Ok(())
@@ -89,7 +89,7 @@ fn test_zeros() -> anyhow::Result<()> {
 
 #[test]
 fn test_full() -> anyhow::Result<()> {
-    let tch_a = tch::Tensor::full(&[1000], 1.0, (tch::Kind::Double, tch::Device::Cpu));
+    let tch_a = Tensor::full(&[1000], 1.0, (tch::Kind::Double, tch::Device::Cpu));
     let a = _Tensor::<f64>::full(1.0, &[1000])?;
     assert_eq(&a, &tch_a);
     Ok(())
@@ -97,7 +97,7 @@ fn test_full() -> anyhow::Result<()> {
 
 #[test]
 fn test_eye() -> anyhow::Result<()> {
-    let tch_a = tch::Tensor::eye(10, (tch::Kind::Double, tch::Device::Cpu));
+    let tch_a = Tensor::eye(10, (tch::Kind::Double, tch::Device::Cpu));
     let a = _Tensor::<f64>::eye(10, 10, 0)?;
     assert_eq(&a, &tch_a);
     Ok(())
@@ -106,7 +106,7 @@ fn test_eye() -> anyhow::Result<()> {
 #[test]
 fn test_tril() -> anyhow::Result<()> {
     fn assert(diagnal: i64) -> anyhow::Result<()> {
-        let tch_a = tch::Tensor
+        let tch_a = Tensor
             ::randn(&[10, 10], (tch::Kind::Double, tch::Device::Cpu))
             .tril(diagnal);
         let a = _Tensor::<f64>::empty(&[10, 10])?;
@@ -127,7 +127,7 @@ fn test_tril() -> anyhow::Result<()> {
 
 #[test]
 fn test_identity() -> anyhow::Result<()> {
-    let tch_a = tch::Tensor::eye(10, (tch::Kind::Double, tch::Device::Cpu));
+    let tch_a = Tensor::eye(10, (tch::Kind::Double, tch::Device::Cpu));
     let a = _Tensor::<f64>::identity(10)?;
     assert_eq(&a, &tch_a);
     Ok(())

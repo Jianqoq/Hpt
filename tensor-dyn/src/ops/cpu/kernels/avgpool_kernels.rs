@@ -84,7 +84,7 @@ pub(crate) fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
         let buffers = &mut res_buffer[j as usize];
         for r in 0..REGNUM as i64 {
             unsafe {
-                let out_ptr = &mut out[out_offset + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) + r * osw] as *mut _ as *mut T;
+                let out_ptr = &mut out[out_offset + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) + r * osw] as *mut _;
                 let buffer = &mut buffers[r as usize];
                 if LOAD {
                     buffer.copy_from_slice(
@@ -107,7 +107,7 @@ pub(crate) fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
                 assert!(co_b_remain as usize <= <<T as TypeCommon>::Vec as VecCommon>::SIZE);
                 core::ptr::copy_nonoverlapping(out_ptr, buffer.as_mut_ptr(), co_b_remain as usize);
             } else {
-                for i in 0..co_b_remain as i64 {
+                for i in 0..co_b_remain {
                     out[out_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) + r * osw + i] = buffer.extract(i as usize);
                 }
             }

@@ -505,7 +505,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
             for _ in 0..intermediate_size {
                 for i in inner..inner_loop_size {
                     let a_val = inp_ptr[i];
-                    let mut_ref = unsafe { &mut *res_ptr.ptr.offset(i as isize) };
+                    let mut_ref = unsafe { &mut *res_ptr.ptr.offset(i) };
                     *mut_ref = op(*mut_ref, a_val);
                 }
                 update_prg2(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
@@ -513,7 +513,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
             update_prg3(prg2, shape_len, &mut inp_ptr, inp_strides, inp_shape);
             if let Some(op_post) = &op_post {
                 for i in 0..inner_loop_size {
-                    let mut_ref = unsafe { &mut *res_ptr.ptr.offset(i as isize) };
+                    let mut_ref = unsafe { &mut *res_ptr.ptr.offset(i) };
                     *mut_ref = op_post(*mut_ref);
                 }
             }

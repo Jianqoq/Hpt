@@ -180,6 +180,10 @@ pub mod par_strided_simd {
             self.layout.set_shape(shape);
         }
 
+        fn set_prg(&mut self, prg: Vec<i64>) {
+            self.prg = prg;
+        }
+
         fn intervals(&self) -> &Arc<Vec<(usize, usize)>> {
             &self.intervals
         }
@@ -220,12 +224,16 @@ pub mod par_strided_simd {
             }
         }
 
+        fn next_simd(&mut self) {}
+
         fn inner_loop_next(&mut self, index: usize) -> Self::Item {
             unsafe { *self.ptr.get_ptr().add(index * (self.last_stride as usize)) }
         }
 
-        fn set_prg(&mut self, prg: Vec<i64>) {
-            self.prg = prg;
+        fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
+            use tensor_types::vectors::traits::VecCommon;
+            use tensor_types::vectors::traits::Init;
+            unsafe { T::Vec::from_ptr(self.ptr.get_ptr().add(index * T::Vec::SIZE)) }
         }
 
         fn all_last_stride_one(&self) -> bool {
@@ -236,14 +244,6 @@ pub mod par_strided_simd {
             use tensor_types::vectors::traits::VecCommon;
             Some(T::Vec::SIZE)
         }
-
-        fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
-            use tensor_types::vectors::traits::VecCommon;
-            use tensor_types::vectors::traits::Init;
-            unsafe { T::Vec::from_ptr(self.ptr.get_ptr().add(index * T::Vec::SIZE)) }
-        }
-
-        fn next_simd(&mut self) {}
     }
 
     impl<T> ParallelIterator
@@ -548,6 +548,10 @@ impl<T: CommonBounds> IterGetSet for ParStrided<T> {
         self.layout.set_shape(shape);
     }
 
+    fn set_prg(&mut self, prg: Vec<i64>) {
+        self.prg = prg;
+    }
+
     fn intervals(&self) -> &Arc<Vec<(usize, usize)>> {
         &self.intervals
     }
@@ -590,10 +594,6 @@ impl<T: CommonBounds> IterGetSet for ParStrided<T> {
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         unsafe { *self.ptr.get_ptr().add(index * (self.last_stride as usize)) }
-    }
-
-    fn set_prg(&mut self, prg: Vec<i64>) {
-        self.prg = prg;
     }
 }
 

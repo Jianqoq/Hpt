@@ -461,9 +461,9 @@ pub trait FloatUaryOps {
     fn log10_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn celu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output>;
+    fn celu(&self, alpha: Self::OutputMeta) -> Result<Self::Output>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn celu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
+    fn celu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sigmoid(&self) -> Result<Self::Output>;
@@ -471,63 +471,63 @@ pub trait FloatUaryOps {
     fn sigmoid_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn elu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output>;
+    fn elu(&self, alpha: Self::OutputMeta) -> Result<Self::Output>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn elu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
+    fn elu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn leaky_relu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output>;
+    fn leaky_relu(&self, alpha: Self::OutputMeta) -> Result<Self::Output>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
+    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn gelu(&self) -> anyhow::Result<Self::Output>;
+    fn gelu(&self) -> Result<Self::Output>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn gelu_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    fn gelu_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn selu(
         &self,
         alpha: Option<Self::OutputMeta>,
         gamma: Option<Self::OutputMeta>
-    ) -> anyhow::Result<Self::Output>;
+    ) -> Result<Self::Output>;
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn selu_<U>(
         &self,
         alpha: Option<Self::OutputMeta>,
         gamma: Option<Self::OutputMeta>,
         out: U
-    ) -> anyhow::Result<Self::Output>
+    ) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn hard_sigmoid(&self) -> anyhow::Result<Self::Output>;
+    fn hard_sigmoid(&self) -> Result<Self::Output>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn hard_sigmoid_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    fn hard_sigmoid_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn hard_swish(&self) -> anyhow::Result<Self::Output>;
+    fn hard_swish(&self) -> Result<Self::Output>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn hard_swish_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    fn hard_swish_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn relu6(&self) -> anyhow::Result<Self::Output>;
+    fn relu6(&self) -> Result<Self::Output>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn relu6_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    fn relu6_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn softplus(&self) -> anyhow::Result<Self::Output>;
+    fn softplus(&self) -> Result<Self::Output>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn softplus_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    fn softplus_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn softsign(&self) -> anyhow::Result<Self::Output>;
+    fn softsign(&self) -> Result<Self::Output>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn softsign_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    fn softsign_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn mish(&self) -> anyhow::Result<Self::Output>;
+    fn mish(&self) -> Result<Self::Output>;
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn mish_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    fn mish_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>;
 }
 

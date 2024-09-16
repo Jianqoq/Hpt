@@ -10,16 +10,16 @@ pub struct boolx32(pub(crate) [bool; 32]);
 
 impl VecTrait<bool> for boolx32 {
     #[inline(always)]
+    fn _mul_add(self, _: Self, _: Self) -> Self {
+        todo!()
+    }
+    #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[bool]) {
         self.0.copy_from_slice(slice);
     }
     #[inline(always)]
     fn as_ptr(&self) -> *const bool {
         self.0.as_ptr()
-    }
-    #[inline(always)]
-    fn _mul_add(self, _: Self, _: Self) -> Self {
-        todo!()
     }
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut bool {
@@ -29,16 +29,16 @@ impl VecTrait<bool> for boolx32 {
     fn as_mut_ptr_uncheck(&self) -> *mut bool {
         self.0.as_ptr() as *mut _
     }
+    fn extract(self, idx: usize) -> bool {
+        self.0[idx]
+    }
+
     #[inline(always)]
     fn sum(&self) -> bool {
         self.0
             .iter()
             .map(|&x| x as u8)
             .sum::<u8>() > 0
-    }
-    
-    fn extract(self, idx: usize) -> bool {
-        self.0[idx]
     }
 }
 impl VecCommon for boolx32 {

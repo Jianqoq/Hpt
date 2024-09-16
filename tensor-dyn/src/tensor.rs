@@ -661,6 +661,10 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
         Ok(_Tensor::permute(self, axes)?.into())
     }
 
+    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
+        Ok(_Tensor::permute_inv(self, axes)?.into())
+    }
+
     fn expand<S: Into<Shape>>(&self, shape: S) -> Result<Tensor<T>> {
         Ok(_Tensor::expand(self, shape)?.into())
     }
@@ -743,10 +747,6 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
 
     fn flatten<A>(&self, start: A, end: A) -> Result<Self> where A: Into<Option<usize>> {
         Ok(_Tensor::flatten(self, start, end)?.into())
-    }
-
-    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
-        Ok(_Tensor::permute_inv(self, axes)?.into())
     }
 }
 
@@ -1095,11 +1095,11 @@ impl<T> FloatUaryOps
         Ok(_Tensor::<T, Cpu>::log10_(self, out.base().clone())?.into())
     }
 
-    fn celu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
+    fn celu(&self, alpha: Self::OutputMeta) -> Result<Self::Output> {
         Ok(_Tensor::<T, Cpu>::celu(self, alpha)?.into())
     }
 
-    fn celu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
+    fn celu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
         Ok(_Tensor::<T, Cpu>::celu_(self, alpha, out.base().clone())?.into())
@@ -1115,31 +1115,31 @@ impl<T> FloatUaryOps
         Ok(_Tensor::<T, Cpu>::sigmoid_(self, out.base().clone())?.into())
     }
 
-    fn elu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
+    fn elu(&self, alpha: Self::OutputMeta) -> Result<Self::Output> {
         Ok(_Tensor::<T, Cpu>::elu(self, alpha)?.into())
     }
 
-    fn elu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
+    fn elu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
         Ok(_Tensor::<T, Cpu>::elu_(self, alpha, out.base().clone())?.into())
     }
 
-    fn leaky_relu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
+    fn leaky_relu(&self, alpha: Self::OutputMeta) -> Result<Self::Output> {
         Ok(_Tensor::<T, Cpu>::leaky_relu(self, alpha)?.into())
     }
 
-    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
+    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
         Ok(_Tensor::<T, Cpu>::leaky_relu_(self, alpha, out.base().clone())?.into())
     }
 
-    fn gelu(&self) -> anyhow::Result<Self::Output> {
+    fn gelu(&self) -> Result<Self::Output> {
         Ok(_Tensor::<T, Cpu>::gelu(self)?.into())
     }
 
-    fn gelu_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    fn gelu_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
         Ok(_Tensor::<T, Cpu>::gelu_(self, out.base().clone())?.into())
@@ -1149,7 +1149,7 @@ impl<T> FloatUaryOps
         &self,
         alpha: Option<Self::OutputMeta>,
         gamma: Option<Self::OutputMeta>
-    ) -> anyhow::Result<Self::Output> {
+    ) -> Result<Self::Output> {
         Ok(_Tensor::<T, Cpu>::selu(self, alpha, gamma)?.into())
     }
 
@@ -1158,67 +1158,67 @@ impl<T> FloatUaryOps
         alpha: Option<Self::OutputMeta>,
         gamma: Option<Self::OutputMeta>,
         out: U
-    ) -> anyhow::Result<Self::Output>
+    ) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
         Ok(_Tensor::<T, Cpu>::selu_(self, alpha, gamma, out.base().clone())?.into())
     }
 
-    fn hard_sigmoid(&self) -> anyhow::Result<Self::Output> {
+    fn hard_sigmoid(&self) -> Result<Self::Output> {
         Ok(_Tensor::<T, Cpu>::hard_sigmoid(self)?.into())
     }
 
-    fn hard_sigmoid_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    fn hard_sigmoid_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
         Ok(_Tensor::<T, Cpu>::hard_sigmoid_(self, out.base().clone())?.into())
     }
 
-    fn hard_swish(&self) -> anyhow::Result<Self::Output> {
+    fn hard_swish(&self) -> Result<Self::Output> {
         Ok(_Tensor::<T, Cpu>::hard_swish(self)?.into())
     }
 
-    fn hard_swish_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    fn hard_swish_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
         Ok(_Tensor::<T, Cpu>::hard_swish_(self, out.base().clone())?.into())
     }
 
-    fn relu6(&self) -> anyhow::Result<Self::Output> {
+    fn relu6(&self) -> Result<Self::Output> {
         Ok(_Tensor::<T, Cpu>::relu6(self)?.into())
     }
 
-    fn relu6_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    fn relu6_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
         Ok(_Tensor::<T, Cpu>::relu6_(self, out.base().clone())?.into())
     }
 
-    fn softplus(&self) -> anyhow::Result<Self::Output> {
+    fn softplus(&self) -> Result<Self::Output> {
         Ok(_Tensor::<T, Cpu>::softplus(self)?.into())
     }
 
-    fn softplus_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    fn softplus_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
         Ok(_Tensor::<T, Cpu>::softplus_(self, out.base().clone())?.into())
     }
 
-    fn softsign(&self) -> anyhow::Result<Self::Output> {
+    fn softsign(&self) -> Result<Self::Output> {
         Ok(_Tensor::<T, Cpu>::softsign(self)?.into())
     }
 
-    fn softsign_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    fn softsign_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
         Ok(_Tensor::<T, Cpu>::softsign_(self, out.base().clone())?.into())
     }
 
-    fn mish(&self) -> anyhow::Result<Self::Output> {
+    fn mish(&self) -> Result<Self::Output> {
         Ok(_Tensor::<T, Cpu>::mish(self)?.into())
     }
 
-    fn mish_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    fn mish_<U>(&self, out: U) -> Result<Self::Output>
         where U: BaseTensor<Output = Self::InplaceOutput>
     {
         Ok(_Tensor::<T, Cpu>::mish_(self, out.base().clone())?.into())

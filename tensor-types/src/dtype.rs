@@ -58,23 +58,23 @@ impl Display for Dtype {
 impl Dtype {
     pub const fn size(&self) -> usize {
         match self {
-            Dtype::Bool => std::mem::size_of::<bool>(),
-            Dtype::I8 => std::mem::size_of::<i8>(),
-            Dtype::U8 => std::mem::size_of::<u8>(),
-            Dtype::I16 => std::mem::size_of::<i16>(),
-            Dtype::U16 => std::mem::size_of::<u16>(),
-            Dtype::I32 => std::mem::size_of::<i32>(),
-            Dtype::U32 => std::mem::size_of::<u32>(),
-            Dtype::I64 => std::mem::size_of::<i64>(),
-            Dtype::U64 => std::mem::size_of::<u64>(),
-            Dtype::BF16 => std::mem::size_of::<u16>(),
-            Dtype::F16 => std::mem::size_of::<u16>(),
-            Dtype::F32 => std::mem::size_of::<f32>(),
-            Dtype::F64 => std::mem::size_of::<f64>(),
-            Dtype::C32 => std::mem::size_of::<f32>() * 2,
-            Dtype::C64 => std::mem::size_of::<f64>() * 2,
-            Dtype::Isize => std::mem::size_of::<isize>(),
-            Dtype::Usize => std::mem::size_of::<usize>(),
+            Dtype::Bool => size_of::<bool>(),
+            Dtype::I8 => size_of::<i8>(),
+            Dtype::U8 => size_of::<u8>(),
+            Dtype::I16 => size_of::<i16>(),
+            Dtype::U16 => size_of::<u16>(),
+            Dtype::I32 => size_of::<i32>(),
+            Dtype::U32 => size_of::<u32>(),
+            Dtype::I64 => size_of::<i64>(),
+            Dtype::U64 => size_of::<u64>(),
+            Dtype::BF16 => size_of::<u16>(),
+            Dtype::F16 => size_of::<u16>(),
+            Dtype::F32 => size_of::<f32>(),
+            Dtype::F64 => size_of::<f64>(),
+            Dtype::C32 => size_of::<f32>() * 2,
+            Dtype::C64 => size_of::<f64>() * 2,
+            Dtype::Isize => size_of::<isize>(),
+            Dtype::Usize => size_of::<usize>(),
         }
     }
     pub const fn bits(&self) -> usize {
@@ -686,12 +686,12 @@ pub trait FloatConst {
 
 impl FloatConst for f32 {
     const HALF: Self = 0.5;
-    const E: Self = std::f32::consts::E;
-    const PI: Self = std::f32::consts::PI;
+    const E: Self = f32::consts::E;
+    const PI: Self = f32::consts::PI;
     const THREE: Self = 3.0;
     const SIX: Self = 6.0;
-    const TWOPI: Self = std::f32::consts::PI * 2.0;
-    const FOURPI: Self = std::f32::consts::PI * 4.0;
+    const TWOPI: Self = f32::consts::PI * 2.0;
+    const FOURPI: Self = f32::consts::PI * 4.0;
     const POINT_TWO: Self = 0.2;
     const FRAC_1_SQRT_2: Self = f32::consts::FRAC_1_SQRT_2;
 }
@@ -710,24 +710,24 @@ impl FloatConst for f64 {
 
 impl FloatConst for f16 {
     const HALF: Self = f16::from_f32_const(0.5);
-    const E: Self = f16::from_f32_const(std::f32::consts::E);
-    const PI: Self = f16::from_f32_const(std::f32::consts::PI);
+    const E: Self = f16::from_f32_const(f32::consts::E);
+    const PI: Self = f16::from_f32_const(f32::consts::PI);
     const THREE: Self = f16::from_f32_const(3.0);
     const SIX: Self = f16::from_f32_const(6.0);
-    const TWOPI: Self = f16::from_f32_const(std::f32::consts::PI * 2.0);
-    const FOURPI: Self = f16::from_f32_const(std::f32::consts::PI * 4.0);
+    const TWOPI: Self = f16::from_f32_const(f32::consts::PI * 2.0);
+    const FOURPI: Self = f16::from_f32_const(f32::consts::PI * 4.0);
     const POINT_TWO: Self = f16::from_f32_const(0.2);
     const FRAC_1_SQRT_2: Self = f16::from_f32_const(f32::consts::FRAC_1_SQRT_2);
 }
 
 impl FloatConst for bf16 {
     const HALF: Self = bf16::from_f32_const(0.5);
-    const E: Self = bf16::from_f32_const(std::f32::consts::E);
-    const PI: Self = bf16::from_f32_const(std::f32::consts::PI);
+    const E: Self = bf16::from_f32_const(f32::consts::E);
+    const PI: Self = bf16::from_f32_const(f32::consts::PI);
     const THREE: Self = bf16::from_f32_const(3.0);
     const SIX: Self = bf16::from_f32_const(6.0);
-    const TWOPI: Self = bf16::from_f32_const(std::f32::consts::PI * 2.0);
-    const FOURPI: Self = bf16::from_f32_const(std::f32::consts::PI * 4.0);
+    const TWOPI: Self = bf16::from_f32_const(f32::consts::PI * 2.0);
+    const FOURPI: Self = bf16::from_f32_const(f32::consts::PI * 4.0);
     const POINT_TWO: Self = bf16::from_f32_const(0.2);
     const FRAC_1_SQRT_2: Self = bf16::from_f32_const(f32::consts::FRAC_1_SQRT_2);
 }
@@ -743,6 +743,10 @@ impl NormalOut for Dtype {
         infer_enum_type!(self, rhs, normal)
     }
 
+    fn _mul_add(self, a: Self, _: Self) -> Self::Output {
+        infer_enum_type!(self, a, normal)
+    }
+
     fn _mul(self, rhs: Self) -> Dtype {
         infer_enum_type!(self, rhs, normal)
     }
@@ -755,6 +759,28 @@ impl NormalOut for Dtype {
         infer_enum_type!(self, rhs, normal)
     }
 
+    fn _square(self) -> Self::Output {
+        self
+    }
+
+    fn _abs(self) -> Self::Output {
+        self
+    }
+
+    fn _ceil(self) -> Self::Output {
+        self
+    }
+    fn _floor(self) -> Self::Output {
+        self
+    }
+    fn _neg(self) -> Self {
+        self
+    }
+
+    fn _sign(self) -> Self::Output {
+        self
+    }
+
     fn _max(self, rhs: Self) -> Self::Output {
         infer_enum_type!(self, rhs, normal)
     }
@@ -763,38 +789,12 @@ impl NormalOut for Dtype {
         infer_enum_type!(self, rhs, normal)
     }
 
-    fn _square(self) -> Self::Output {
-        self
-    }
-
-    fn _abs(self) -> Self::Output {
-        self
-    }
-    fn _ceil(self) -> Self::Output {
-        self
-    }
-    fn _floor(self) -> Self::Output {
-        self
-    }
-
-    fn _sign(self) -> Self::Output {
-        self
-    }
-
     fn _clip(self, min: Self::Output, _: Self::Output) -> Self::Output {
         infer_enum_type!(self, min, normal)
     }
 
     fn _round(self) -> Self::Output {
         self
-    }
-
-    fn _neg(self) -> Self {
-        self
-    }
-
-    fn _mul_add(self, a: Self, _: Self) -> Self::Output {
-        infer_enum_type!(self, a, normal)
     }
 }
 
@@ -836,6 +836,9 @@ impl FloatOutUnary for Dtype {
         infer_enum_type!(self, null, uary_float)
     }
     fn _ln(self) -> Self::Output {
+        infer_enum_type!(self, null, uary_float)
+    }
+    fn _celu(self, _: Self::Output) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
     fn _log2(self) -> Self::Output {
@@ -887,9 +890,6 @@ impl FloatOutUnary for Dtype {
         infer_enum_type!(self, null, uary_float)
     }
     fn _erf(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _celu(self, _: Self::Output) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
     fn _sigmoid(self) -> Self::Output {

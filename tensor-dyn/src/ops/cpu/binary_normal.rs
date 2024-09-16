@@ -115,7 +115,7 @@ pub fn binary_fn_with_out<A, B, O, Q, K, F>(
     if lhs.size() == 1 {
         let val = lhs.as_raw()[0];
         let ret;
-        if out.size() * std::mem::size_of::<Q>() != rhs.size() * std::mem::size_of::<B>() {
+        if out.size() * size_of::<Q>() != rhs.size() * size_of::<B>() {
             ret = _Tensor::<K, Cpu>::empty(rhs.shape())?;
         } else {
             ret = _Tensor::<K, Cpu>::empty(rhs.shape())?;
@@ -130,7 +130,7 @@ pub fn binary_fn_with_out<A, B, O, Q, K, F>(
     } else if rhs.size() == 1 {
         let val = rhs.as_raw()[0];
         let ret;
-        if out.size() * std::mem::size_of::<Q>() != lhs.size() * std::mem::size_of::<A>() {
+        if out.size() * size_of::<Q>() != lhs.size() * size_of::<A>() {
             ret = _Tensor::<K, Cpu>::empty(lhs.shape())?;
         } else {
             ret = _Tensor::<K, Cpu>::empty(lhs.shape())?;
@@ -146,7 +146,7 @@ pub fn binary_fn_with_out<A, B, O, Q, K, F>(
         let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape())?;
         let ret;
         let ret_size: usize = res_shape.iter().product::<i64>() as usize;
-        if out.size() * std::mem::size_of::<Q>() != ret_size * std::mem::size_of::<A>() {
+        if out.size() * size_of::<Q>() != ret_size * size_of::<A>() {
             ret = _Tensor::<K, Cpu>::empty(res_shape)?;
         } else {
             ret = _Tensor::<K, Cpu>::empty(res_shape)?;
@@ -205,7 +205,7 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
     if lhs.size() == 1 {
         let val = lhs.as_raw()[0];
         let val_vec = <A as TypeCommon>::Vec::splat(val);
-        let res = if out.size() * std::mem::size_of::<Q>() != rhs.size() * std::mem::size_of::<B>() {
+        let res = if out.size() * size_of::<Q>() != rhs.size() * size_of::<B>() {
             _Tensor::<K, Cpu>::empty(rhs.shape())?
         } else {
             _Tensor::<K, Cpu>::empty(rhs.shape())?
@@ -262,7 +262,7 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
     } else if rhs.size() == 1 {
         let val = rhs.as_raw()[0];
         let val_vec = <B as TypeCommon>::Vec::splat(val);
-        let res = if out.size() * std::mem::size_of::<Q>() != lhs.size() * std::mem::size_of::<B>() {
+        let res = if out.size() * size_of::<Q>() != lhs.size() * size_of::<B>() {
             _Tensor::<K, Cpu>::empty(lhs.shape())?
         } else {
             _Tensor::<K, Cpu>::empty(lhs.shape())?
@@ -319,7 +319,7 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
     } else {
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
             let ret = if
-                out.size() * std::mem::size_of::<Q>() != rhs.size() * std::mem::size_of::<B>()
+                out.size() * size_of::<Q>() != rhs.size() * size_of::<B>()
             {
                 _Tensor::<K, Cpu>::empty(rhs.shape())?
             } else {

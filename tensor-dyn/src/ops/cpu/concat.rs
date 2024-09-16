@@ -50,8 +50,8 @@ pub(crate) fn concat<T>(
                 } else if i.shape().len() != tensors[0].shape().len() {
                     return Err(
                         ErrHandler::NdimMismatched(
-                            tensors[0].ndim() as usize,
-                            i.ndim() as usize,
+                            tensors[0].ndim(),
+                            i.ndim(),
                             Location::caller()
                         ).into()
                     );
@@ -62,7 +62,7 @@ pub(crate) fn concat<T>(
             })?;
     }
     let mut new_shape: Vec<i64> = vec![0;
-    tensors[0].ndim()as usize];
+                                       tensors[0].ndim()];
     tensors.iter().for_each(|x| {
         new_shape[axis] += x.shape()[axis];
     });
@@ -110,7 +110,7 @@ pub(crate) fn concat<T>(
                     let a_last_stride = *input.strides().last().unwrap();
                     let inner_loop_size = *input.shape().last().unwrap();
                     let outer_loop_size = input.size() / (inner_loop_size as usize);
-                    let mut prg = vec![0; input.ndim() as usize];
+                    let mut prg = vec![0; input.ndim()];
                     for _ in 0..outer_loop_size {
                         for i in 0..inner_loop_size {
                             let a_val = a_data[i * a_last_stride];

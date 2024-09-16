@@ -23,7 +23,7 @@ pub mod strided_map_mut_simd {
         strided_zip::strided_zip_simd::StridedZipSimd,
     };
 
-    pub struct StridedMapMutSimd<'a, T> where T: Copy + tensor_types::dtype::TypeCommon + Send + Sync{
+    pub struct StridedMapMutSimd<'a, T> where T: Copy + TypeCommon + Send + Sync{
         pub(crate) base: ParStridedMutSimd<'a, T>,
         pub(crate) phantom: std::marker::PhantomData<&'a ()>,
     }
@@ -79,6 +79,10 @@ pub mod strided_map_mut_simd {
             self.base.set_shape(shape);
         }
 
+        fn set_prg(&mut self, prg: Vec<i64>) {
+            self.base.set_prg(prg);
+        }
+
         fn intervals(&self) -> &Arc<Vec<(usize, usize)>> {
             self.base.intervals()
         }
@@ -107,16 +111,12 @@ pub mod strided_map_mut_simd {
             self.base.next();
         }
 
-        fn inner_loop_next(&mut self, index: usize) -> Self::Item {
-            self.base.inner_loop_next(index)
-        }
-
-        fn set_prg(&mut self, prg: Vec<i64>) {
-            self.base.set_prg(prg);
-        }
-
         fn next_simd(&mut self) {
             todo!()
+        }
+
+        fn inner_loop_next(&mut self, index: usize) -> Self::Item {
+            self.base.inner_loop_next(index)
         }
 
         fn inner_loop_next_simd(&self, _: usize) -> Self::SimdItem {
@@ -133,7 +133,7 @@ pub mod strided_map_mut_simd {
     }
 }
 
-pub struct StridedMapMut<'a, T> where T: Copy + tensor_types::dtype::TypeCommon {
+pub struct StridedMapMut<'a, T> where T: Copy + TypeCommon {
     pub(crate) base: ParStridedMut<'a, T>,
     pub(crate) phantom: std::marker::PhantomData<&'a ()>,
 }
@@ -188,6 +188,10 @@ impl<'a, T: 'a + CommonBounds> IterGetSet
         self.base.set_shape(shape);
     }
 
+    fn set_prg(&mut self, prg: Vec<i64>) {
+        self.base.set_prg(prg);
+    }
+
     fn intervals(&self) -> &Arc<Vec<(usize, usize)>> {
         self.base.intervals()
     }
@@ -218,9 +222,5 @@ impl<'a, T: 'a + CommonBounds> IterGetSet
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         self.base.inner_loop_next(index)
-    }
-
-    fn set_prg(&mut self, prg: Vec<i64>) {
-        self.base.set_prg(prg);
     }
 }
