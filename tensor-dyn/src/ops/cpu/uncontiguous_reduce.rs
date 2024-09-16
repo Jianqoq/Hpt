@@ -307,6 +307,7 @@ pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
                 });
         }
     } else {
+        println!("res permute axes: {:?}", res_permute_axes);
         result = _Tensor::<O, Cpu>::full(init_val, res_shape.clone())?.permute(&res_permute_axes)?;
         result_size = result.size();
     }

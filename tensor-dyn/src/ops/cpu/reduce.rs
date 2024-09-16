@@ -1,7 +1,6 @@
 use crate::backend::Cpu;
 use crate::ops::cpu::kernels::reduce_kernels::fast_reduce_no_simd;
 use crate::ops::cpu::reduce_template::reduce_template;
-use crate::ops::cpu::uncontiguous_reduce::rearrange_array;
 use crate::slice::SliceOps;
 use crate::tensor_base::_Tensor;
 use crate::{argmax_kernel, argmin_kernel};
@@ -17,7 +16,7 @@ use std::sync::Barrier;
 use tensor_common::axis::{process_axes, Axis};
 use tensor_common::pointer::Pointer;
 use tensor_common::shape::Shape;
-use tensor_common::shape_utils::{mt_intervals, mt_intervals_simd, predict_reduce_shape};
+use tensor_common::shape_utils::{mt_intervals, mt_intervals_simd};
 use tensor_common::slice::Slice;
 use tensor_common::strides::Strides;
 use tensor_iterator::iterator_traits::StridedIterator;
@@ -380,390 +379,8 @@ macro_rules! register_reduction_one_axis {
 
 use tensor_types::vectors::traits::*;
 
+use super::reduce_template::uncontiguos_reduce_template;
 use super::uncontiguous_reduce;
-
-#[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn _reduce<T, F, F2, F3, F4, F5, O>(
-    a: &_Tensor<T>,
-    op: F,
-    op2: F2,
-    op3: Option<F3>,
-    vec_op: F4,
-    vec_post: Option<F5>,
-    axes: &[usize],
-    init_val: O,
-    keepdims: bool,
-    init_out: bool,
-    c: Option<_Tensor<O>>,
-) -> anyhow::Result<_Tensor<O>>
-where
-    T: CommonBounds + IntoScalar<O> + Convertor,
-    O: CommonBounds,
-    F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
-    F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-    F3: Fn(O) -> O + Sync + Send + 'static + Copy,
-    F4: Fn(<O as TypeCommon>::Vec, <T as TypeCommon>::Vec) -> <O as TypeCommon>::Vec
-        + 'static
-        + Copy
-        + Send,
-    F5: Fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec + Sync + Send + 'static + Copy,
-    <T as TypeCommon>::Vec: Copy,
-    <O as TypeCommon>::Vec: Copy,
-{
-    use tensor_common::shape_utils::mt_intervals_simd;
-
-    let mut is_left = true;
-    for axis in axes.iter() {
-        if a.strides()[*axis] == 1 {
-            is_left = false;
-            break;
-        }
-    }
-    let a_: &_Tensor<T> = &a;
-    let a_shape = a_.shape();
-    let a_shape_tmp = a_shape.clone();
-    let (a_shape_cpy, res_shape) = predict_reduce_shape(&a_shape_tmp, &axes);
-    let mut transposed_axis = rearrange_array(a_.ndim(), axes);
-    transposed_axis[a.ndim() - axes.len()..]
-        .sort_by(|a, b| a_.strides()[*b].cmp(&a_.strides()[*a]));
-    transposed_axis[..a.ndim() - axes.len()]
-        .sort_by(|a, b| a_.strides()[*b].cmp(&a_.strides()[*a]));
-    let transposed_tensor = a_.permute(transposed_axis)?;
-    let a_last_stride = if is_left {
-        transposed_tensor.strides()[a.ndim() - axes.len() - 1]
-    } else {
-        transposed_tensor.strides()[a_.ndim() - 1]
-    };
-    let transposed_strides = transposed_tensor.strides().clone();
-    let transposed_shape = transposed_tensor.shape().to_vec();
-    let mut transposed_shape_cpy = transposed_shape.clone();
-    transposed_shape_cpy.iter_mut().for_each(|x| {
-        *x -= 1;
-    });
-    let a_data: Pointer<T> = a_.ptr();
-    let result;
-    let result_size: usize;
-    let new_shape = if keepdims {
-        let mut shape_tmp = Vec::with_capacity(a_.ndim());
-        a_shape_cpy.iter().for_each(|x| {
-            if *x != 0 {
-                shape_tmp.push(*x);
-            } else {
-                shape_tmp.push(1);
-            }
-        });
-        shape_tmp
-    } else {
-        res_shape.clone()
-    };
-    let res_shape = Arc::new(res_shape);
-    if let Some(out) = c {
-        if &new_shape != out.shape().inner() {
-            return Err(anyhow::Error::msg(
-                "Output array has incorrect shape".to_string(),
-            ));
-        }
-        result = out;
-        result_size = result.size();
-        if init_out {
-            result.as_raw_mut().par_iter_mut().for_each(|x| {
-                *x = init_val;
-            });
-        }
-    } else {
-        result = _Tensor::<O, Cpu>::full(init_val, res_shape.clone())?;
-        result_size = result.size();
-    }
-    let mut result_data = result.ptr();
-    let transposed_shape: Arc<Vec<i64>> = Arc::new(transposed_shape);
-    if a_.ndim() == axes.len() {
-        let val = a_
-            .as_raw_mut()
-            .par_iter()
-            .fold(|| init_val, |acc, &x| op(acc, x))
-            .reduce(|| init_val, |a, b| op2(a, b));
-        if let Some(op3) = op3 {
-            result_data.write(op3(op2(val, result_data.read())));
-        } else {
-            result_data.write(op2(val, result_data.read()));
-        }
-    } else {
-        let a_last_index: usize = a_.ndim() - 1;
-        let inner_loop_size: usize = a_.shape()[a_last_index] as usize;
-        let a_size: usize = a_.size();
-        let a_data_ptr: Pointer<T> = a_data.clone();
-        THREAD_POOL.with_borrow_mut(|pool| {
-            if !is_left {
-                let outer_loop_size = a_size / inner_loop_size;
-                let inner_loop_size_2 = outer_loop_size / result_size;
-                let num_threads;
-                if result_size < pool.max_count() {
-                    num_threads = result_size;
-                } else {
-                    num_threads = pool.max_count();
-                }
-                let mut iterators = ReductionPreprocessor::new(
-                    num_threads,
-                    result_size,
-                    inner_loop_size_2,
-                    a_data_ptr,
-                    result_data,
-                    transposed_strides,
-                    transposed_shape_cpy.into(),
-                    transposed_shape.into(),
-                    res_shape.into()
-                );
-                for _ in 0..num_threads {
-                    let mut iterator = iterators.pop().unwrap();
-                    let mut result_ptr_c = iterator.res_ptrs;
-                    let mut a_data_ptr = iterator.ptrs;
-                    let current_size = iterator.end - iterator.start;
-                    pool.execute(move || {
-                        let shape_len = iterator.a_shape.len() as i64;
-                        for _ in 0..current_size {
-                            for _ in 0..inner_loop_size_2 {
-                                let mut tmp = result_ptr_c[0isize];
-                                for i in 0..inner_loop_size as i64 {
-                                    let a_val = a_data_ptr[i * a_last_stride];
-                                    tmp = op(tmp, a_val);
-                                }
-                                result_ptr_c[0isize] = tmp;
-                                for j in (0..shape_len - 1).rev() {
-                                    if iterator.prg[j as usize] < iterator.a_shape[j as usize] {
-                                        iterator.prg[j as usize] += 1;
-                                        a_data_ptr.offset(iterator.strides[j as usize]);
-                                        break;
-                                    } else {
-                                        iterator.prg[j as usize] = 0;
-                                        a_data_ptr.offset(
-                                            -iterator.strides[j as usize] *
-                                                iterator.a_shape[j as usize]
-                                        );
-                                    }
-                                }
-                            }
-                            if let Some(op3) = op3 {
-                                let tmp = result_ptr_c[0isize];
-                                let tmp = op3(tmp);
-                                result_ptr_c[0isize] = tmp;
-                            }
-                            result_ptr_c.add(1);
-                        }
-                    });
-                }
-                pool.join();
-            } else {
-                let outer_loop_size = result_size / inner_loop_size;
-                let inner_loop_size_2 = a.size() / result_size;
-                if outer_loop_size == 1 {
-                    let num_threads = if inner_loop_size < pool.max_count() {
-                        inner_loop_size
-                    } else {
-                        pool.max_count()
-                    };
-                    let intervals = mt_intervals_simd(
-                        inner_loop_size,
-                        num_threads,
-                        <O as TypeCommon>::Vec::SIZE
-                    );
-                    let mut slices = vec![Slice::Full; a.ndim()];
-                    let mut slices_res = vec![Slice::Full; result.ndim()];
-                    let mut sliced_tensors = Vec::with_capacity(num_threads);
-                    let mut sliced_res = Vec::with_capacity(num_threads);
-                    let mut num_threads = 0;
-                    assert_eq!(inner_loop_size, result_size);
-                    for (start, end) in intervals.into_iter() {
-                        if end - start == 0 {
-                            continue;
-                        }
-                        num_threads += 1;
-                        slices[(a.ndim()) - 1] = Slice::Range((start as i64, end as i64));
-                        slices_res[(result.ndim()) - 1] = Slice::Range((
-                            start as i64,
-                            end as i64,
-                        ));
-                        sliced_tensors.push(a.slice(&slices).expect("Slice failed"));
-                        sliced_res.push(result.slice(&slices_res).expect("Slice failed"));
-                    }
-                    for (inp, res) in sliced_tensors.into_iter().zip(sliced_res.into_iter()) {
-                        pool.execute(move || {
-                            let inp_ptr = inp.ptr();
-                            let res_ptr = res.ptr();
-                            #[cfg(feature = "simd")]
-                            {
-                                let inner_loop_size = *res.shape().last().unwrap() as isize;
-                                let outer_loop_size = (inp.size() as isize) / inner_loop_size;
-                                if
-                                    *inp.strides().last().unwrap() == 1 &&
-                                    <O as TypeCommon>::Vec::SIZE == <T as TypeCommon>::Vec::SIZE
-                                {
-                                    use crate::ops::cpu::kernels::reduce_kernels::fast_reduce_simd;
-                                    fast_reduce_simd(
-                                        inner_loop_size,
-                                        outer_loop_size,
-                                        inp_ptr,
-                                        res_ptr,
-                                        inp.strides().inner(),
-                                        inp.shape().inner(),
-                                        <O as TypeCommon>::Vec::SIZE as isize,
-                                        op,
-                                        vec_op,
-                                        op3,
-                                        vec_post
-                                    );
-                                } else {
-                                    fast_reduce_no_simd(
-                                        inner_loop_size,
-                                        outer_loop_size,
-                                        inp_ptr,
-                                        res_ptr,
-                                        inp.strides().inner(),
-                                        inp.shape().inner(),
-                                        op,
-                                        op3
-                                    );
-                                }
-                            }
-                            #[cfg(not(feature = "simd"))]
-                            {
-                                res.iter_mut()
-                                    .zip(inp.iter())
-                                    .for_each(|(x, y)| {
-                                        *x = op(*x, y);
-                                    });
-                                if let Some(op3) = op3 {
-                                    res.iter_mut().for_each(|x| {
-                                        *x = op3(*x);
-                                    });
-                                }
-                            }
-                        });
-                    }
-                    pool.join();
-                } else {
-                    let num_threads = if outer_loop_size < pool.max_count() {
-                        outer_loop_size
-                    } else {
-                        pool.max_count()
-                    };
-                    let mut iterators = ReductionPreprocessor::new2(
-                        num_threads,
-                        outer_loop_size,
-                        inner_loop_size,
-                        a_data_ptr,
-                        result_data,
-                        transposed_strides,
-                        transposed_shape_cpy.into(),
-                        res_shape.into()
-                    );
-                    for _ in (0..num_threads).rev() {
-                        #[cfg(not(feature = "simd"))]
-                        let mut iterator = iterators.pop().unwrap();
-                        #[cfg(feature = "simd")]
-                        let iterator = iterators.pop().unwrap();
-                        let result_ptr_c = iterator.res_ptrs;
-                        let a_data_ptr = iterator.ptrs;
-                        let current_size = iterator.end - iterator.start;
-                        pool.execute(move || {
-                            let shape_len = iterator.shape.len() as i64;
-                            assert_eq!(a_last_stride, 1);
-                            #[cfg(feature = "simd")]
-                            {
-                                use crate::ops::cpu::kernels::reduce_kernels::reduce_dim_not_include_simd;
-                                let inp_strides = &iterator.strides;
-                                let inp_shape = &iterator.a_shape;
-                                let mut prg1 = iterator.prg.clone();
-                                let mut prg2 = iterator.a_prg.clone();
-                                reduce_dim_not_include_simd(
-                                    inner_loop_size as isize,
-                                    current_size as isize,
-                                    inner_loop_size_2 as isize,
-                                    a_data_ptr,
-                                    result_ptr_c,
-                                    &inp_strides,
-                                    &inp_shape,
-                                    &mut prg1,
-                                    &mut prg2,
-                                    shape_len,
-                                    op,
-                                    op3,
-                                    vec_op,
-                                    vec_post
-                                );
-                            }
-
-                            #[cfg(not(feature = "simd"))]
-                            {
-                                let mut result_ptr_c = result_ptr_c;
-                                let mut a_data_ptr = a_data_ptr;
-                                for _i in 0..current_size {
-                                    for _ in 0..inner_loop_size_2 {
-                                        for i in 0..inner_loop_size as i64 {
-                                            let a_val = a_data_ptr[i * a_last_stride];
-                                            let result_val = result_ptr_c[i];
-                                            let mut_ref = unsafe {
-                                                &mut *result_ptr_c.ptr.offset(i as isize)
-                                            };
-                                            *mut_ref = op(result_val, a_val);
-                                        }
-                                        for j in (shape_len..=(iterator.a_shape.len() as i64) -
-                                            1).rev() {
-                                            if
-                                                iterator.prg[j as usize] <
-                                                iterator.a_shape[j as usize]
-                                            {
-                                                iterator.prg[j as usize] += 1;
-                                                a_data_ptr.offset(iterator.strides[j as usize]);
-                                                break;
-                                            } else {
-                                                iterator.prg[j as usize] = 0;
-                                                a_data_ptr.offset(
-                                                    -iterator.strides[j as usize] *
-                                                        iterator.a_shape[j as usize]
-                                                );
-                                            }
-                                        }
-                                    }
-                                    for j in (0..shape_len - 1).rev() {
-                                        if
-                                            iterator.a_prg[j as usize] <
-                                            iterator.a_shape[j as usize]
-                                        {
-                                            iterator.a_prg[j as usize] += 1;
-                                            a_data_ptr.offset(iterator.strides[j as usize]);
-                                            break;
-                                        } else {
-                                            iterator.a_prg[j as usize] = 0;
-                                            a_data_ptr.offset(
-                                                -iterator.strides[j as usize] *
-                                                    iterator.a_shape[j as usize]
-                                            );
-                                        }
-                                    }
-                                    if let Some(op3) = op3 {
-                                        for i in 0..inner_loop_size as i64 {
-                                            let result_val = result_ptr_c[i];
-                                            let mut_ref = unsafe {
-                                                &mut *result_ptr_c.ptr.offset(i as isize)
-                                            };
-                                            *mut_ref = op3(result_val);
-                                        }
-                                    }
-                                    result_ptr_c.add(inner_loop_size);
-                                    iterator.prg.iter_mut().for_each(|x| {
-                                        *x = 0;
-                                    });
-                                }
-                            }
-                        });
-                    }
-                    pool.join();
-                }
-            }
-        });
-    }
-    result.reshape(new_shape)
-}
 
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn reduce<T, F, F2>(
@@ -1001,7 +618,7 @@ where
             }
         },
         move |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
-            let mut iterators = ReductionPreprocessor::new(
+            let iterators = ReductionPreprocessor::new(
                 num_threads,
                 result.size(),
                 inner_loop_size_2,
@@ -1012,44 +629,40 @@ where
                 transposed_tensor.shape().clone(),
                 result.shape().clone(),
             );
-            (0..num_threads).into_par_iter().for_each_with(
-                iterators.pop().unwrap(),
-                |iterator, _| {
-                    let mut result_ptr_c = iterator.res_ptrs.clone();
-                    let mut a_data_ptr = iterator.ptrs.clone();
-                    let current_size = iterator.end - iterator.start;
-                    let shape_len = iterator.a_shape.len() as i64;
-                    for _ in 0..current_size {
-                        for _ in 0..inner_loop_size_2 {
-                            let mut tmp = result_ptr_c[0isize];
-                            for i in 0..inner_loop_size as i64 {
-                                let a_val = a_data_ptr[i];
-                                tmp = op(tmp, a_val);
-                            }
-                            result_ptr_c[0isize] = tmp;
-                            for j in (0..shape_len - 1).rev() {
-                                if iterator.prg[j as usize] < iterator.a_shape[j as usize] {
-                                    iterator.prg[j as usize] += 1;
-                                    a_data_ptr.offset(iterator.strides[j as usize]);
-                                    break;
-                                } else {
-                                    iterator.prg[j as usize] = 0;
-                                    a_data_ptr.offset(
-                                        -iterator.strides[j as usize]
-                                            * iterator.a_shape[j as usize],
-                                    );
-                                }
+            iterators.into_par_iter().for_each(|mut iterator| {
+                let mut result_ptr_c = iterator.res_ptrs.clone();
+                let mut a_data_ptr = iterator.ptrs.clone();
+                let current_size = iterator.end - iterator.start;
+                let shape_len = iterator.a_shape.len() as i64;
+                for _ in 0..current_size {
+                    for _ in 0..inner_loop_size_2 {
+                        let mut tmp = result_ptr_c[0isize];
+                        for i in 0..inner_loop_size as i64 {
+                            let a_val = a_data_ptr[i];
+                            tmp = op(tmp, a_val);
+                        }
+                        result_ptr_c[0isize] = tmp;
+                        for j in (0..shape_len - 1).rev() {
+                            if iterator.prg[j as usize] < iterator.a_shape[j as usize] {
+                                iterator.prg[j as usize] += 1;
+                                a_data_ptr.offset(iterator.strides[j as usize]);
+                                break;
+                            } else {
+                                iterator.prg[j as usize] = 0;
+                                a_data_ptr.offset(
+                                    -iterator.strides[j as usize] * iterator.a_shape[j as usize],
+                                );
                             }
                         }
-                        if let Some(op3) = op3 {
-                            let tmp = result_ptr_c[0isize];
-                            let tmp = op3(tmp);
-                            result_ptr_c[0isize] = tmp;
-                        }
-                        result_ptr_c.add(1);
                     }
-                },
-            );
+                    if let Some(op3) = op3 {
+                        let tmp = result_ptr_c[0isize];
+                        let tmp = op3(tmp);
+                        result_ptr_c[0isize] = tmp;
+                    }
+                    result_ptr_c.add(1);
+                }
+            });
         },
         move |num_threads, inner_loop_size, result| {
             let intervals = mt_intervals_simd(inner_loop_size, num_threads, O::Vec::SIZE);
@@ -1120,7 +733,7 @@ where
         },
         move |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
             let outer_loop_size = result.size() / inner_loop_size;
-            let mut iterators = ReductionPreprocessor::new2(
+            let iterators = ReductionPreprocessor::new2(
                 num_threads,
                 outer_loop_size,
                 inner_loop_size,
@@ -1130,94 +743,88 @@ where
                 transposed_tensor.shape().sub_one(),
                 result.shape().clone(),
             );
-            (0..num_threads).into_par_iter().for_each_with(
-                iterators.pop().unwrap(),
-                |iterator, _| {
-                    let result_ptr_c = iterator.res_ptrs.clone();
-                    let a_data_ptr = iterator.ptrs.clone();
-                    let current_size = iterator.end - iterator.start;
-                    let shape_len = iterator.shape.len() as i64;
-                    #[cfg(feature = "simd")]
-                    {
-                        use crate::ops::cpu::kernels::reduce_kernels::reduce_dim_not_include_simd;
-                        let inp_strides = &iterator.strides;
-                        let inp_shape = &iterator.a_shape;
-                        let mut prg1 = iterator.prg.clone();
-                        let mut prg2 = iterator.a_prg.clone();
-                        reduce_dim_not_include_simd(
-                            inner_loop_size as isize,
-                            current_size as isize,
-                            inner_loop_size_2 as isize,
-                            a_data_ptr,
-                            result_ptr_c,
-                            &inp_strides,
-                            &inp_shape,
-                            &mut prg1,
-                            &mut prg2,
-                            shape_len,
-                            op,
-                            op3,
-                            vec_op,
-                            vec_post,
-                        );
-                    }
+            iterators.into_par_iter().for_each(|iterator| {
+                let result_ptr_c = iterator.res_ptrs.clone();
+                let a_data_ptr = iterator.ptrs.clone();
+                let current_size = iterator.end - iterator.start;
+                let shape_len = iterator.shape.len() as i64;
+                #[cfg(feature = "simd")]
+                {
+                    use crate::ops::cpu::kernels::reduce_kernels::reduce_dim_not_include_simd;
+                    let inp_strides = &iterator.strides;
+                    let inp_shape = &iterator.a_shape;
+                    let mut prg1 = iterator.prg.clone();
+                    let mut prg2 = iterator.a_prg.clone();
+                    reduce_dim_not_include_simd(
+                        inner_loop_size as isize,
+                        current_size as isize,
+                        inner_loop_size_2 as isize,
+                        a_data_ptr,
+                        result_ptr_c,
+                        &inp_strides,
+                        &inp_shape,
+                        &mut prg1,
+                        &mut prg2,
+                        shape_len,
+                        op,
+                        op3,
+                        vec_op,
+                        vec_post,
+                    );
+                }
 
-                    #[cfg(not(feature = "simd"))]
-                    {
-                        let mut result_ptr_c = result_ptr_c;
-                        let mut a_data_ptr = a_data_ptr;
-                        for _i in 0..current_size {
-                            for _ in 0..inner_loop_size_2 {
-                                for i in 0..inner_loop_size as i64 {
-                                    let a_val = a_data_ptr[i];
-                                    let result_val = result_ptr_c[i];
-                                    let mut_ref =
-                                        unsafe { &mut *result_ptr_c.ptr.offset(i as isize) };
-                                    *mut_ref = op(result_val, a_val);
-                                }
-                                for j in (shape_len..=(iterator.a_shape.len() as i64) - 1).rev() {
-                                    if iterator.prg[j as usize] < iterator.a_shape[j as usize] {
-                                        iterator.prg[j as usize] += 1;
-                                        a_data_ptr.offset(iterator.strides[j as usize]);
-                                        break;
-                                    } else {
-                                        iterator.prg[j as usize] = 0;
-                                        a_data_ptr.offset(
-                                            -iterator.strides[j as usize]
-                                                * iterator.a_shape[j as usize],
-                                        );
-                                    }
-                                }
+                #[cfg(not(feature = "simd"))]
+                {
+                    let mut result_ptr_c = result_ptr_c;
+                    let mut a_data_ptr = a_data_ptr;
+                    for _i in 0..current_size {
+                        for _ in 0..inner_loop_size_2 {
+                            for i in 0..inner_loop_size as i64 {
+                                let a_val = a_data_ptr[i];
+                                let result_val = result_ptr_c[i];
+                                let mut_ref = unsafe { &mut *result_ptr_c.ptr.offset(i as isize) };
+                                *mut_ref = op(result_val, a_val);
                             }
-                            for j in (0..shape_len - 1).rev() {
-                                if iterator.a_prg[j as usize] < iterator.a_shape[j as usize] {
-                                    iterator.a_prg[j as usize] += 1;
+                            for j in (shape_len..=(iterator.a_shape.len() as i64) - 1).rev() {
+                                if iterator.prg[j as usize] < iterator.a_shape[j as usize] {
+                                    iterator.prg[j as usize] += 1;
                                     a_data_ptr.offset(iterator.strides[j as usize]);
                                     break;
                                 } else {
-                                    iterator.a_prg[j as usize] = 0;
+                                    iterator.prg[j as usize] = 0;
                                     a_data_ptr.offset(
                                         -iterator.strides[j as usize]
                                             * iterator.a_shape[j as usize],
                                     );
                                 }
                             }
-                            if let Some(op3) = op3 {
-                                for i in 0..inner_loop_size as i64 {
-                                    let result_val = result_ptr_c[i];
-                                    let mut_ref =
-                                        unsafe { &mut *result_ptr_c.ptr.offset(i as isize) };
-                                    *mut_ref = op3(result_val);
-                                }
-                            }
-                            result_ptr_c.add(inner_loop_size);
-                            iterator.prg.iter_mut().for_each(|x| {
-                                *x = 0;
-                            });
                         }
+                        for j in (0..shape_len - 1).rev() {
+                            if iterator.a_prg[j as usize] < iterator.a_shape[j as usize] {
+                                iterator.a_prg[j as usize] += 1;
+                                a_data_ptr.offset(iterator.strides[j as usize]);
+                                break;
+                            } else {
+                                iterator.a_prg[j as usize] = 0;
+                                a_data_ptr.offset(
+                                    -iterator.strides[j as usize] * iterator.a_shape[j as usize],
+                                );
+                            }
+                        }
+                        if let Some(op3) = op3 {
+                            for i in 0..inner_loop_size as i64 {
+                                let result_val = result_ptr_c[i];
+                                let mut_ref = unsafe { &mut *result_ptr_c.ptr.offset(i as isize) };
+                                *mut_ref = op3(result_val);
+                            }
+                        }
+                        result_ptr_c.add(inner_loop_size);
+                        iterator.prg.iter_mut().for_each(|x| {
+                            *x = 0;
+                        });
                     }
-                },
-            );
+                }
+            });
         },
     )
 }
@@ -1251,7 +858,7 @@ where
     <T as TypeCommon>::Vec: Copy,
     <O as TypeCommon>::Vec: Copy,
 {
-    reduce_template(
+    uncontiguos_reduce_template(
         a,
         axes,
         init_val,
@@ -1272,7 +879,7 @@ where
         },
         move |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
             let a_last_stride = transposed_tensor.strides()[a.ndim() - 1];
-            let mut iterators = uncontiguous_reduce::ReductionPreprocessor::new(
+            let iterators = uncontiguous_reduce::ReductionPreprocessor::new(
                 num_threads,
                 result.size(),
                 inner_loop_size_2,
@@ -1285,57 +892,53 @@ where
                 result.strides().inner(),
             );
             let res_shape = result.shape().clone();
-            (0..num_threads).into_par_iter().for_each_with(
-                iterators.pop().unwrap(),
-                |iterator, _| {
-                    let mut result_ptr_c = iterator.res_ptrs.clone();
-                    let mut a_data_ptr = iterator.ptrs.clone();
-                    let current_size = iterator.end - iterator.start;
-                    let res_shape = res_shape.clone();
-                    let res_strides = result.strides().clone();
-                    let shape_len = iterator.a_shape.len() as i64;
-                    for _ in 0..current_size {
-                        for _ in 0..inner_loop_size_2 {
-                            let mut tmp = result_ptr_c[0isize];
-                            for i in 0..inner_loop_size as i64 {
-                                let a_val = a_data_ptr[i * a_last_stride];
-                                tmp = op(tmp, a_val);
-                            }
-                            result_ptr_c[0isize] = tmp;
-                            for j in (0..shape_len - 1).rev() {
-                                if iterator.prg[j as usize] < iterator.a_shape[j as usize] {
-                                    iterator.prg[j as usize] += 1;
-                                    a_data_ptr.offset(iterator.strides[j as usize]);
-                                    break;
-                                } else {
-                                    iterator.prg[j as usize] = 0;
-                                    a_data_ptr.offset(
-                                        -iterator.strides[j as usize]
-                                            * iterator.a_shape[j as usize],
-                                    );
-                                }
-                            }
+            iterators.into_par_iter().for_each(|mut iterator| {
+                let mut result_ptr_c = iterator.res_ptrs;
+                let mut a_data_ptr = iterator.ptrs;
+                let current_size = iterator.end - iterator.start;
+                let res_shape = res_shape.clone();
+                let res_strides = result.strides().clone();
+                let shape_len = iterator.a_shape.len() as i64;
+                for _ in 0..current_size {
+                    for _ in 0..inner_loop_size_2 {
+                        let mut tmp = result_ptr_c[0isize];
+                        for i in 0..inner_loop_size as i64 {
+                            let a_val = a_data_ptr[i * a_last_stride];
+                            tmp = op(tmp, a_val);
                         }
-                        if let Some(op3) = op3 {
-                            result_ptr_c[0isize] = op3(result_ptr_c[0isize]);
-                        }
-                        for j in (0..res_shape.len()).rev() {
-                            if iterator.res_prg[j] < res_shape[j] - 1 {
-                                iterator.res_prg[j] += 1;
-                                result_ptr_c.offset(res_strides[j]);
+                        result_ptr_c[0isize] = tmp;
+                        for j in (0..shape_len - 1).rev() {
+                            if iterator.prg[j as usize] < iterator.a_shape[j as usize] {
+                                iterator.prg[j as usize] += 1;
+                                a_data_ptr.offset(iterator.strides[j as usize]);
                                 break;
                             } else {
-                                iterator.res_prg[j] = 0;
-                                result_ptr_c.offset(-res_strides[j] * (res_shape[j] - 1));
+                                iterator.prg[j as usize] = 0;
+                                a_data_ptr.offset(
+                                    -iterator.strides[j as usize] * iterator.a_shape[j as usize],
+                                );
                             }
                         }
                     }
-                },
-            );
+                    if let Some(op3) = op3 {
+                        result_ptr_c[0isize] = op3(result_ptr_c[0isize]);
+                    }
+                    for j in (0..res_shape.len()).rev() {
+                        if iterator.res_prg[j] < res_shape[j] - 1 {
+                            iterator.res_prg[j] += 1;
+                            result_ptr_c.offset(res_strides[j]);
+                            break;
+                        } else {
+                            iterator.res_prg[j] = 0;
+                            result_ptr_c.offset(-res_strides[j] * (res_shape[j] - 1));
+                        }
+                    }
+                }
+            });
         },
-        move |num_threads, inner_loop_size, result| {
+        move |num_threads, inner_loop_size, ap, result| {
             let intervals = mt_intervals_simd(inner_loop_size, num_threads, O::Vec::SIZE);
-            let mut slices = vec![Slice::Full; a.ndim()];
+            let mut slices = vec![Slice::Full; ap.ndim()];
             let mut slices_res = vec![Slice::Full; result.ndim()];
             let mut sliced_tensors = Vec::with_capacity(num_threads);
             let mut sliced_res = Vec::with_capacity(num_threads);
@@ -1344,9 +947,9 @@ where
                 if end - start == 0 {
                     continue;
                 }
-                slices[(a.ndim()) - 1] = Slice::Range((start as i64, end as i64));
+                slices[(ap.ndim()) - 1] = Slice::Range((start as i64, end as i64));
                 slices_res[(result.ndim()) - 1] = Slice::Range((start as i64, end as i64));
-                sliced_tensors.push(a.slice(&slices).expect("Slice failed"));
+                sliced_tensors.push(ap.slice(&slices).expect("Slice failed"));
                 sliced_res.push(result.slice(&slices_res).expect("Slice failed"));
             }
             sliced_tensors
@@ -1365,7 +968,7 @@ where
         },
         move |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
             let outer_loop_size = result.size() / inner_loop_size;
-            let mut iterators = uncontiguous_reduce::ReductionPreprocessor::new2(
+            let iterators = uncontiguous_reduce::ReductionPreprocessor::new2(
                 num_threads,
                 outer_loop_size,
                 inner_loop_size,
@@ -1377,70 +980,66 @@ where
                 result.strides().inner(),
             );
             let res_shape = result.shape().clone();
-            (0..num_threads).into_par_iter().for_each_with(
-                iterators.pop().unwrap(),
-                |iterator, _| {
-                    let mut result_ptr_c = iterator.res_ptrs.clone();
-                    let mut a_data_ptr = iterator.ptrs.clone();
-                    let current_size = iterator.end - iterator.start;
-                    let res_last_strides = *result.strides().inner().last().unwrap();
-                    let res_strides = result.strides().clone();
-                    let res_shape = res_shape.clone();
-                    let shape_len = iterator.shape.len() as i64;
-                    for _i in 0..current_size {
-                        for _ in 0..inner_loop_size_2 {
-                            for i in 0..inner_loop_size as i64 {
-                                result_ptr_c[i * res_last_strides] =
-                                    op(result_ptr_c[i * res_last_strides], a_data_ptr[i]);
-                            }
-                            for j in (shape_len..iterator.a_shape.len() as i64).rev() {
-                                if iterator.prg[j as usize] < iterator.a_shape[j as usize] {
-                                    iterator.prg[j as usize] += 1;
-                                    a_data_ptr.offset(iterator.strides[j as usize]);
-                                    break;
-                                } else {
-                                    iterator.prg[j as usize] = 0;
-                                    a_data_ptr.offset(
-                                        -iterator.strides[j as usize]
-                                            * iterator.a_shape[j as usize],
-                                    );
-                                }
-                            }
+            iterators.into_par_iter().for_each(|mut iterator| {
+                let mut result_ptr_c = iterator.res_ptrs.clone();
+                let mut a_data_ptr = iterator.ptrs.clone();
+                let current_size = iterator.end - iterator.start;
+                let res_last_strides = *result.strides().inner().last().unwrap();
+                let res_strides = result.strides().clone();
+                let res_shape = res_shape.clone();
+                let shape_len = iterator.shape.len() as i64;
+                for _i in 0..current_size {
+                    for _ in 0..inner_loop_size_2 {
+                        for i in 0..inner_loop_size as i64 {
+                            result_ptr_c[i * res_last_strides] =
+                                op(result_ptr_c[i * res_last_strides], a_data_ptr[i]);
                         }
-                        for j in (0..shape_len - 1).rev() {
-                            if iterator.a_prg[j as usize] < iterator.a_shape[j as usize] {
-                                iterator.a_prg[j as usize] += 1;
+                        for j in (shape_len..iterator.a_shape.len() as i64).rev() {
+                            if iterator.prg[j as usize] < iterator.a_shape[j as usize] {
+                                iterator.prg[j as usize] += 1;
                                 a_data_ptr.offset(iterator.strides[j as usize]);
                                 break;
                             } else {
-                                iterator.a_prg[j as usize] = 0;
+                                iterator.prg[j as usize] = 0;
                                 a_data_ptr.offset(
                                     -iterator.strides[j as usize] * iterator.a_shape[j as usize],
                                 );
                             }
                         }
-                        if let Some(op3) = op3 {
-                            for i in 0..inner_loop_size as i64 {
-                                result_ptr_c[i * res_last_strides] =
-                                    op3(result_ptr_c[i * res_last_strides]);
-                            }
-                        }
-                        for j in (0..res_shape.len() - 1).rev() {
-                            if iterator.res_prg[j] < res_shape[j] - 1 {
-                                iterator.res_prg[j] += 1;
-                                result_ptr_c.offset(res_strides[j]);
-                                break;
-                            } else {
-                                iterator.res_prg[j] = 0;
-                                result_ptr_c.offset(-res_strides[j] * (res_shape[j] - 1));
-                            }
-                        }
-                        iterator.prg.iter_mut().for_each(|x| {
-                            *x = 0;
-                        });
                     }
-                },
-            );
+                    for j in (0..shape_len - 1).rev() {
+                        if iterator.a_prg[j as usize] < iterator.a_shape[j as usize] {
+                            iterator.a_prg[j as usize] += 1;
+                            a_data_ptr.offset(iterator.strides[j as usize]);
+                            break;
+                        } else {
+                            iterator.a_prg[j as usize] = 0;
+                            a_data_ptr.offset(
+                                -iterator.strides[j as usize] * iterator.a_shape[j as usize],
+                            );
+                        }
+                    }
+                    if let Some(op3) = op3 {
+                        for i in 0..inner_loop_size as i64 {
+                            result_ptr_c[i * res_last_strides] =
+                                op3(result_ptr_c[i * res_last_strides]);
+                        }
+                    }
+                    for j in (0..res_shape.len() - 1).rev() {
+                        if iterator.res_prg[j] < res_shape[j] - 1 {
+                            iterator.res_prg[j] += 1;
+                            result_ptr_c.offset(res_strides[j]);
+                            break;
+                        } else {
+                            iterator.res_prg[j] = 0;
+                            result_ptr_c.offset(-res_strides[j] * (res_shape[j] - 1));
+                        }
+                    }
+                    iterator.prg.iter_mut().for_each(|x| {
+                        *x = 0;
+                    });
+                }
+            });
         },
     )
 }

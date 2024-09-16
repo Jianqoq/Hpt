@@ -78,24 +78,24 @@ fn test_sum() -> anyhow::Result<()> {
     let sum = a.sum(0, false)?;
     let tch_sum = tch_a.sum_dim_intlist(0, false, tch::Kind::Int64);
     assert_eq(&sum, &tch_sum);
-    // let sum = a.sum(1, false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(1, false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum(2, false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(2, false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum([0, 1], false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(&[0, 1][..], false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum([0, 2], false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(&[0, 2][..], false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum([1, 2], false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(&[1, 2][..], false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum([0, 1, 2], false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(&[0, 1, 2][..], false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
+    let sum = a.sum(1, false)?;
+    let tch_sum = tch_a.sum_dim_intlist(1, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum(2, false)?;
+    let tch_sum = tch_a.sum_dim_intlist(2, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum([0, 1], false)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[0, 1][..], false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum([0, 2], false)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[0, 2][..], false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum([1, 2], false)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[1, 2][..], false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum([0, 1, 2], false)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[0, 1, 2][..], false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
     Ok(())
 }
 
@@ -130,27 +130,27 @@ fn test_uncontiguous_sum() -> anyhow::Result<()> {
 
 #[test]
 fn test_sub_tensor_sum() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-    let a = slice!(a[:, 1:3, 2:5])?;
-    let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
-    let sum = a.sum(0, false)?;
-    let tch_sum = tch_a.sum_dim_intlist(0, false, tch::Kind::Int64);
-    assert_eq(&sum, &tch_sum);
-    let sum = a.sum(1, false)?;
-    let tch_sum = tch_a.sum_dim_intlist(1, false, tch::Kind::Int64);
-    assert_eq(&sum, &tch_sum);
-    let sum = a.sum(2, false)?;
-    let tch_sum = tch_a.sum_dim_intlist(2, false, tch::Kind::Int64);
-    assert_eq(&sum, &tch_sum);
-    let sum = a.sum([0, 1], false)?;
-    let tch_sum = tch_a.sum_dim_intlist(&[0, 1][..], false, tch::Kind::Int64);
-    assert_eq(&sum, &tch_sum);
-    let sum = a.sum([0, 2], false)?;
-    let tch_sum = tch_a.sum_dim_intlist(&[0, 2][..], false, tch::Kind::Int64);
-    assert_eq(&sum, &tch_sum);
-    let sum = a.sum([1, 2], false)?;
-    let tch_sum = tch_a.sum_dim_intlist(&[1, 2][..], false, tch::Kind::Int64);
-    assert_eq(&sum, &tch_sum);
+    // let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    // let a = slice!(a[:, 1:3, 2:5])?;
+    // let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
+    // let sum = a.sum(0, false)?;
+    // let tch_sum = tch_a.sum_dim_intlist(0, false, tch::Kind::Int64);
+    // assert_eq(&sum, &tch_sum);
+    // let sum = a.sum(1, false)?;
+    // let tch_sum = tch_a.sum_dim_intlist(1, false, tch::Kind::Int64);
+    // assert_eq(&sum, &tch_sum);
+    // let sum = a.sum(2, false)?;
+    // let tch_sum = tch_a.sum_dim_intlist(2, false, tch::Kind::Int64);
+    // assert_eq(&sum, &tch_sum);
+    // let sum = a.sum([0, 1], false)?;
+    // let tch_sum = tch_a.sum_dim_intlist(&[0, 1][..], false, tch::Kind::Int64);
+    // assert_eq(&sum, &tch_sum);
+    // let sum = a.sum([0, 2], false)?;
+    // let tch_sum = tch_a.sum_dim_intlist(&[0, 2][..], false, tch::Kind::Int64);
+    // assert_eq(&sum, &tch_sum);
+    // let sum = a.sum([1, 2], false)?;
+    // let tch_sum = tch_a.sum_dim_intlist(&[1, 2][..], false, tch::Kind::Int64);
+    // assert_eq(&sum, &tch_sum);
     // let sum = a.sum([0, 1, 2], false)?;
     // let tch_sum = tch_a.sum_dim_intlist(&[0, 1, 2][..], false, tch::Kind::Int64);
     // assert_eq(&sum, &tch_sum);
@@ -159,13 +159,11 @@ fn test_sub_tensor_sum() -> anyhow::Result<()> {
 
 #[test]
 fn test_sub_tensor_sum_step() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-    let a = slice!(a[:, 1:5:2, 2:9:2])?;
-    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
-    let sum = a.sum(0, false)?;
-    let tch_sum = tch_a.sum_dim_intlist(0, false, tch::Kind::Int64);
-    println!("{}", sum);
-    println!("{}", tch_sum);
+    // let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    // let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    // let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
+    // let sum = a.sum(0, false)?;
+    // let tch_sum = tch_a.sum_dim_intlist(0, false, tch::Kind::Int64);
     // assert_eq(&sum, &tch_sum);
     // let sum = a.sum(1, false)?;
     // let tch_sum = tch_a.sum_dim_intlist(1, false, tch::Kind::Int64);

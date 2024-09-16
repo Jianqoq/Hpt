@@ -35,11 +35,6 @@ where
         transposed_tensor.strides()[a.ndim() - 1]
     };
     assert_eq!(a_last_stride, 1);
-    let mut transposed_shape_sub_1 = transposed_tensor.shape().inner().clone();
-    transposed_shape_sub_1.iter_mut().for_each(|x| {
-        *x -= 1;
-    });
-
     let result_data = result.ptr();
     if a.ndim() == axes.len() {
         full_reduce(unsafe { result_data.get_ptr().as_mut().unwrap() });
@@ -108,10 +103,10 @@ where
     O: CommonBounds,
     F1: Fn(&mut O),
     F2: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>),
-    F3: Fn(usize, usize, &_Tensor<O>),
+    F3: Fn(usize, usize, _Tensor<T>, &_Tensor<O>),
     F4: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>),
 {
-    let (keep_fast_dim, transposed_tensor, result) =
+    let (keep_fast_dim, transposed_tensor, result, res_perm) =
         uncontiguous_reduce_prepare(a, axes, init_val, init_out, c)?;
 
     let a_last_stride = if keep_fast_dim {
@@ -129,7 +124,11 @@ where
     if a.ndim() == axes.len() {
         full_reduce(unsafe { result_data.get_ptr().as_mut().unwrap() });
     } else {
-        let inner_loop_size = *a.shape().last().unwrap() as usize;
+        let inner_loop_size = (if keep_fast_dim {
+            transposed_tensor.shape()[a.ndim() - axes.len() - 1]
+        } else {
+            transposed_tensor.shape()[a.ndim() - 1]
+        }) as usize;
         let a_size = a.size();
         if !keep_fast_dim {
             let outer_loop_size = a_size / inner_loop_size;
@@ -155,7 +154,11 @@ where
                 } else {
                     rayon::current_num_threads()
                 };
-                kdo1(num_threads, inner_loop_size, &result)
+                let mut p = (0..a.ndim()).collect::<Vec<usize>>();
+                let front = p.remove(0);
+                p.push(front);
+                let _a = transposed_tensor.permute(&p).unwrap();
+                kdo1(num_threads, inner_loop_size, _a, &result)
             } else {
                 let num_threads = if outer_loop_size < rayon::current_num_threads() {
                     outer_loop_size
@@ -172,5 +175,5 @@ where
             }
         }
     }
-    result.reshape(a.layout.reduce(axes, keepdims)?.shape())
+    result.permute_inv(res_perm)?.reshape(a.layout.reduce(axes, keepdims)?.shape())
 }

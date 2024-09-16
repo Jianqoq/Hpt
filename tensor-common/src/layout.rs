@@ -1,15 +1,15 @@
 use std::panic::Location;
 
-use serde::Serialize;
-use serde::ser::SerializeStruct;
 use crate::{
-    axis::{ process_axes, Axis },
+    axis::{process_axes, Axis},
     err_handler::ErrHandler,
     shape::Shape,
-    shape_utils::{ is_reshape_possible, predict_broadcast_shape },
+    shape_utils::{is_reshape_possible, predict_broadcast_shape},
     strides::Strides,
-    strides_utils::{ shape_to_strides, strides_is_contiguous },
+    strides_utils::{shape_to_strides, strides_is_contiguous},
 };
+use serde::ser::SerializeStruct;
+use serde::Serialize;
 
 /// `Layout` stores the `shape` and `strides` of a tensor
 ///
@@ -40,7 +40,10 @@ pub struct Layout {
 }
 
 impl Serialize for Layout {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
         let mut state = serializer.serialize_struct("Layout", 2)?;
         state.serialize_field("shape", &self.shape.inner())?;
         state.serialize_field("strides", &self.strides.inner())?;
@@ -275,14 +278,13 @@ impl Layout {
                 strides: new_strides,
             })
         } else {
-            Err(
-                ErrHandler::IterInplaceReshapeError(
-                    shape.clone(),
-                    self.shape.clone(),
-                    self.strides.clone(),
-                    Location::caller()
-                ).into()
+            Err(ErrHandler::IterInplaceReshapeError(
+                shape.clone(),
+                self.shape.clone(),
+                self.strides.clone(),
+                Location::caller(),
             )
+            .into())
         }
     }
 
@@ -382,13 +384,20 @@ impl Layout {
             }
             vec
         };
-        let new_strides = shape_to_strides(&new_shape);
-        Ok(Layout {
-            shape: new_shape.into(),
-            strides: new_strides,
-        })
+        if new_shape.len() > 0 {
+            let new_strides = shape_to_strides(&new_shape);
+            Ok(Layout {
+                shape: new_shape.into(),
+                strides: new_strides,
+            })
+        } else {
+            Ok(Layout {
+                shape: vec![1].into(),
+                strides: vec![1].into(),
+            })
+        }
     }
-    
+
     #[inline(always)]
     pub fn size(&self) -> i64 {
         self.shape.iter().product::<i64>()
@@ -429,7 +438,10 @@ impl From<Shape> for Layout {
 impl From<&Shape> for Layout {
     fn from(shape: &Shape) -> Self {
         let strides = shape_to_strides(shape);
-        Layout { shape: shape.clone(), strides }
+        Layout {
+            shape: shape.clone(),
+            strides,
+        }
     }
 }
 
@@ -441,36 +453,54 @@ impl From<(Shape, Strides)> for Layout {
 
 impl From<(Shape, Vec<i64>)> for Layout {
     fn from((shape, strides): (Shape, Vec<i64>)) -> Self {
-        Layout { shape, strides: strides.into() }
+        Layout {
+            shape,
+            strides: strides.into(),
+        }
     }
 }
 
 impl From<(&Shape, Vec<i64>)> for Layout {
     fn from((shape, strides): (&Shape, Vec<i64>)) -> Self {
-        Layout { shape: shape.into(), strides: strides.into() }
+        Layout {
+            shape: shape.into(),
+            strides: strides.into(),
+        }
     }
 }
 
 impl From<(&Shape, &[i64])> for Layout {
     fn from((shape, strides): (&Shape, &[i64])) -> Self {
-        Layout { shape: shape.into(), strides: strides.into() }
+        Layout {
+            shape: shape.into(),
+            strides: strides.into(),
+        }
     }
 }
 
 impl From<&(Shape, Strides)> for Layout {
     fn from((shape, strides): &(Shape, Strides)) -> Self {
-        Layout { shape: shape.clone(), strides: strides.clone() }
+        Layout {
+            shape: shape.clone(),
+            strides: strides.clone(),
+        }
     }
 }
 
 impl From<&Layout> for Layout {
     fn from(layout: &Layout) -> Self {
-        Layout { shape: layout.shape.clone(), strides: layout.strides.clone() }
+        Layout {
+            shape: layout.shape.clone(),
+            strides: layout.strides.clone(),
+        }
     }
 }
 
 impl From<(&Shape, &Strides)> for Layout {
     fn from((shape, strides): (&Shape, &Strides)) -> Self {
-        Layout { shape: shape.clone(), strides: strides.clone() }
+        Layout {
+            shape: shape.clone(),
+            strides: strides.clone(),
+        }
     }
 }

@@ -64,11 +64,7 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds>(
         }
         Ok(out)
     } else {
-        if init_out {
-            _Tensor::<O, Cpu>::full(init_val, res_layout.shape())
-        } else {
-            _Tensor::<O, Cpu>::empty(res_layout.shape())
-        }
+        _Tensor::<O, Cpu>::full(init_val, res_layout.shape())
     };
     Ok((keep_fast_dim, a.permute(transposed_axis)?, res?))
 }
@@ -79,7 +75,7 @@ pub(crate) fn uncontiguous_reduce_prepare<T: CommonBounds, O: CommonBounds>(
     init_val: O,
     init_out: bool,
     c: Option<_Tensor<O>>,
-) -> anyhow::Result<(bool, _Tensor<T>, _Tensor<O>)> {
+) -> anyhow::Result<(bool, _Tensor<T>, _Tensor<O>, Vec<usize>)> {
     let mut keep_fast_dim = true;
     for axis in axes.iter() {
         if a.strides()[*axis] == 1 {
@@ -114,45 +110,7 @@ pub(crate) fn uncontiguous_reduce_prepare<T: CommonBounds, O: CommonBounds>(
         }
         Ok(out)
     } else {
-        if init_out {
-            _Tensor::<O, Cpu>::full(init_val, res_layout.shape())?.permute(&res_permute_axes)
-        } else {
-            _Tensor::<O, Cpu>::empty(res_layout.shape())?.permute(&res_permute_axes)
-        }
+        _Tensor::<O, Cpu>::full(init_val, res_layout.shape())?.permute(&res_permute_axes)
     };
-    Ok((keep_fast_dim, a.permute(transposed_axis)?, res?))
-}
-
-pub(crate) fn uncontiguous_create_res<T: CommonBounds, O: CommonBounds>(
-    a: &_Tensor<T>,
-    axes: &[usize],
-    transposed_axis: &[usize],
-    init_val: O,
-    init_out: bool,
-    c: Option<_Tensor<O>>,
-) -> anyhow::Result<_Tensor<O>> {
-    let res_layout = a.layout.reduce(axes, false)?;
-    let mut res_permute_axes = (0..res_layout.ndim()).collect::<Vec<usize>>();
-    res_permute_axes.sort_by(|a, b| transposed_axis[*a].cmp(&transposed_axis[*b]));
-    if let Some(out) = c {
-        // we need a better logic to verify the out is valid.
-        // we need to get the real size and compare the real size with the res_shape
-        if res_layout.shape().inner() != out.shape().inner() {
-            return Err(anyhow::Error::msg(
-                "Output array has incorrect shape".to_string(),
-            ));
-        }
-        if init_out {
-            out.as_raw_mut().par_iter_mut().for_each(|x| {
-                *x = init_val;
-            });
-        }
-        Ok(out)
-    } else {
-        if init_out {
-            _Tensor::<O, Cpu>::full(init_val, res_layout.shape())?.permute(&res_permute_axes)
-        } else {
-            _Tensor::<O, Cpu>::empty(res_layout.shape())?.permute(&res_permute_axes)
-        }
-    }
+    Ok((keep_fast_dim, a.permute(transposed_axis)?, res?, res_permute_axes))
 }
