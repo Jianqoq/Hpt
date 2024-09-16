@@ -38,7 +38,6 @@ impl<I, F> UnindexedProducer
         let outer_loop_size = self.outer_loop_size();
         let inner_loop_size = self.inner_loop_size() + 1;
         let vec_op = self.vec_op;
-        println!("lanes: {:?}", self.lanes());
         match (self.all_last_stride_one(), self.lanes()) {
             (true, Some(vec_size)) => {
                 let remain = inner_loop_size % vec_size;

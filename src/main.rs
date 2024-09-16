@@ -1,10 +1,10 @@
 use tensor_common::slice;
-use tensor_dyn::ShapeManipulate;
-use tensor_dyn::match_selection;
-use tensor_dyn::tensor_base::_Tensor;
-use tensor_dyn::{ TensorCreator, TensorInfo };
 use tensor_common::slice::Slice;
+use tensor_dyn::match_selection;
 use tensor_dyn::slice::SliceOps;
+use tensor_dyn::tensor_base::_Tensor;
+use tensor_dyn::ShapeManipulate;
+use tensor_dyn::TensorCreator;
 
 fn main() -> anyhow::Result<()> {
     let tch_a = tch::Tensor::arange(100, (tch::Kind::Int, tch::Device::Cpu)).reshape(&[10, 10]);

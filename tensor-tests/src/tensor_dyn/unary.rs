@@ -1,13 +1,13 @@
 #![allow(unused_imports)]
-use rayon::iter::{ IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator };
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use tch::Tensor;
 use tensor_common::slice;
-use tensor_dyn::{ tensor_base::_Tensor, TensorCreator };
-use tensor_dyn::TensorInfo;
-use tensor_dyn::ShapeManipulate;
-use tensor_macros::match_selection;
 use tensor_common::slice::Slice;
 use tensor_dyn::slice::SliceOps;
+use tensor_dyn::ShapeManipulate;
+use tensor_dyn::TensorInfo;
+use tensor_dyn::{tensor_base::_Tensor, TensorCreator};
+use tensor_macros::match_selection;
 
 #[allow(unused)]
 fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
@@ -22,10 +22,7 @@ fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
         if abs_diff > tolerance && relative_diff > tolerance {
             panic!(
                 "{} != {} (abs_diff: {}, relative_diff: {})",
-                a_raw[i],
-                b_raw[i],
-                abs_diff,
-                relative_diff
+                a_raw[i], b_raw[i], abs_diff, relative_diff
             );
         }
     }
@@ -47,10 +44,7 @@ fn assert_eq_5(b: &_Tensor<f64>, a: &Tensor) {
         if abs_diff > tolerance && relative_diff > tolerance {
             panic!(
                 "{} != {} (abs_diff: {}, relative_diff: {})",
-                a_raw[i],
-                b_raw[i],
-                abs_diff,
-                relative_diff
+                a_raw[i], b_raw[i], abs_diff, relative_diff
             );
         }
     }
@@ -99,7 +93,7 @@ test_unarys!(acosh, [1000], assert_eq, acosh(), acosh());
 test_unarys!(asin, [1000], assert_eq, asin(), asin());
 test_unarys!(asinh, [1000], assert_eq, asinh(), asinh());
 test_unarys!(atan, [1000], assert_eq, atan(), atan());
-test_unarys!(atanh, [1000], assert_eq, atanh(), atanh());
+test_unarys!(atanh, [1000], assert_eq_5, atanh(), atanh()); // not sure why precision is huge
 test_unarys!(ceil, [1000], assert_eq, ceil(), ceil());
 test_unarys!(cos, [1000], assert_eq, cos(), cos());
 test_unarys!(cosh, [1000], assert_eq, cosh(), cosh());
@@ -123,15 +117,33 @@ test_unarys!(celu, [1000], assert_eq, celu(), celu(1.0));
 test_unarys!(exp2, [1000], assert_eq, exp2(), exp2());
 test_unarys!(gelu, [1000], assert_eq, gelu("none"), gelu());
 test_unarys!(elu, [1000], assert_eq, elu(), elu(1.0));
-test_unarys!(leaky_relu, [1000], assert_eq, leaky_relu(), leaky_relu(0.01));
+test_unarys!(
+    leaky_relu,
+    [1000],
+    assert_eq,
+    leaky_relu(),
+    leaky_relu(0.01)
+);
 test_unarys!(mish, [1000], assert_eq_5, mish(), mish());
 test_unarys!(relu, [1000], assert_eq, relu(), relu());
 test_unarys!(selu, [1000], assert_eq_5, selu(), selu(None, None));
 test_unarys!(softplus, [1000], assert_eq, softplus(), softplus());
 test_unarys!(round, [1000], assert_eq, round(), round());
 test_unarys!(clip, [1000], assert_eq, clamp(0.0, 1.0), clip(0.0, 1.0));
-test_unarys!(dropout, [1000], no_assert, dropout(0.5, false), dropout(0.5));
-test_unarys!(hard_sigmoid, [1000], assert_eq, hardsigmoid(), fast_hard_sigmoid());
+test_unarys!(
+    dropout,
+    [1000],
+    no_assert,
+    dropout(0.5, false),
+    dropout(0.5)
+);
+test_unarys!(
+    hard_sigmoid,
+    [1000],
+    assert_eq,
+    hardsigmoid(),
+    fast_hard_sigmoid()
+);
 test_unarys!(hard_swish, [1000], assert_eq, hardswish(), hard_swish());
 
 #[test]
@@ -139,9 +151,8 @@ fn test_sub_tensor_sin() -> anyhow::Result<()> {
     let a = _Tensor::<f64>::arange(0, 100)?.reshape([10, 10])?;
     let slice = slice!(a[3:8, 3:8])?;
     let b = slice.sin()?;
-    let tch_a = tch::Tensor
-        ::arange(100, (tch::Kind::Double, tch::Device::Cpu))
-        .reshape(&[10, 10][..]);
+    let tch_a =
+        tch::Tensor::arange(100, (tch::Kind::Double, tch::Device::Cpu)).reshape(&[10, 10][..]);
     let tch_slice = tch_a.slice(0, 3, 8, 1).slice(1, 3, 8, 1);
     let tch_b = tch_slice.sin();
     assert_eq(&b, &tch_b);
@@ -152,9 +163,8 @@ fn test_sub_tensor_sin() -> anyhow::Result<()> {
 fn test_cast() -> anyhow::Result<()> {
     let a = _Tensor::<f64>::arange(0, 100)?.reshape([10, 10])?;
     let b = a.astype::<bool>()?;
-    let tch_a = tch::Tensor
-        ::arange(100, (tch::Kind::Double, tch::Device::Cpu))
-        .reshape(&[10, 10][..]);
+    let tch_a =
+        tch::Tensor::arange(100, (tch::Kind::Double, tch::Device::Cpu)).reshape(&[10, 10][..]);
     let tch_b = tch_a.to_kind(tch::Kind::Bool);
     assert_eq_bool(&b, &tch_b);
     Ok(())

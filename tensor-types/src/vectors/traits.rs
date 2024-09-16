@@ -8,8 +8,9 @@ pub trait VecTrait<T> {
     fn as_mut_ptr_uncheck(&self) -> *mut T;
     fn extract(self, idx: usize) -> T;
     fn sum(&self) -> T;
-    fn write_unaligned(&mut self, vec: Self) where Self: Sized {
-        let ptr = self.as_mut_ptr() as *mut Self;
+    #[inline(always)]
+    fn write_unaligned(&mut self, vec: T::Vec) where T: TypeCommon {
+        let ptr = self.as_mut_ptr() as *mut T::Vec;
         unsafe { ptr.write_unaligned(vec) }
     }
 }
