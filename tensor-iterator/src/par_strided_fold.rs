@@ -66,9 +66,9 @@ where
         for _ in 0..outer_loop_size {
             for i in 0..inner_loop_size {
                 let item = self.iter.inner_loop_next(i);
-                println!("{}", item);
                 folder = folder.consume((self.fold_op)(init, item));
             }
+            self.iter.next();
         }
         folder
     }

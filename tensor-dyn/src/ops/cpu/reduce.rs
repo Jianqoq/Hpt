@@ -845,8 +845,10 @@ where
                 for _i in 0..current_size {
                     for _ in 0..inner_loop_size_2 {
                         for i in 0..inner_loop_size as i64 {
-                            result_ptr_c[i * res_last_strides] =
-                                op(result_ptr_c[i * res_last_strides], a_data_ptr[i * a_last_stride]);
+                            result_ptr_c[i * res_last_strides] = op(
+                                result_ptr_c[i * res_last_strides],
+                                a_data_ptr[i * a_last_stride],
+                            );
                         }
                         for j in (shape_len..iterator.a_shape.len() as i64).rev() {
                             if iterator.prg[j as usize] < iterator.a_shape[j as usize] {
