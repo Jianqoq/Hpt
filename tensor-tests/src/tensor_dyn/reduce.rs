@@ -10,12 +10,17 @@ use tensor_common::slice::Slice;
 use tensor_dyn::slice::SliceOps;
 use tensor_dyn::*;
 
+#[track_caller]
 fn assert_eq(a: &_Tensor<i64>, b: &Tensor) {
     let raw = a.as_raw();
     let tch_raw = unsafe { core::slice::from_raw_parts(b.data_ptr() as *const i64, a.size()) };
     raw.par_iter()
         .zip(tch_raw.par_iter())
-        .for_each(|(a, b)| assert_eq!(a, b));
+        .for_each(|(a, b)| {
+            if a != b {
+                panic!("{} != {}, at {}", a, b, core::panic::Location::caller())
+            }
+        });
 }
 
 #[allow(unused)]
