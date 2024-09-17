@@ -1,3 +1,4 @@
+use tensor_common::pointer::Pointer;
 use tensor_traits::CommonBounds;
 
 #[cfg(feature = "simd")]
@@ -10,12 +11,7 @@ use tensor_types::dtype::TypeCommon;
 use tensor_types::vectors::traits::*;
 
 #[inline]
-fn update_prg<T>(
-    prg: &mut [i64],
-    inp_ptr: &mut tensor_common::pointer::Pointer<T>,
-    strides: &[i64],
-    shape: &[i64],
-) {
+fn update_prg<T>(prg: &mut [i64], inp_ptr: &mut Pointer<T>, strides: &[i64], shape: &[i64]) {
     for j in (0..strides.len() - 1).rev() {
         if prg[j] < shape[j] - 1
         /*we need to subtract one because we didn't subtract it before we execute the kernel*/
@@ -59,7 +55,7 @@ fn update_prg2<T>(
 fn update_prg3<T>(
     prg: &mut [i64],
     shape_len: i64,
-    inp_ptr: &mut tensor_common::pointer::Pointer<T>,
+    inp_ptr: &mut Pointer<T>,
     strides: &[i64],
     shape: &[i64],
 ) {
@@ -536,5 +532,97 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
                 *x = 0;
             });
         }
+    }
+}
+
+// #[cfg(not(feature = "simd"))]
+#[inline]
+pub(crate) fn reduce_dim_not_include<T, O, F, F2>(
+    inner_loop_size: isize,
+    outer_loop_size: isize,
+    intermediate_size: isize,
+    mut inp_ptr: tensor_common::pointer::Pointer<T>,
+    mut res_ptr: tensor_common::pointer::Pointer<O>,
+    inp_strides: &[i64],
+    inp_shape: &[i64],
+    prg1: &mut [i64],
+    prg2: &mut [i64],
+    shape_len: i64,
+    op: F,
+    op_post: Option<F2>,
+) where
+    T: CommonBounds,
+    O: CommonBounds,
+    F: Fn(O, T) -> O,
+    F2: Fn(O) -> O,
+{
+    for _i in 0..outer_loop_size {
+        for _ in 0..intermediate_size {
+            for i in 0..inner_loop_size as i64 {
+                let a_val = inp_ptr[i];
+                let result_val = res_ptr[i];
+                let mut_ref = unsafe { &mut *res_ptr.ptr.offset(i as isize) };
+                *mut_ref = op(result_val, a_val);
+            }
+            update_prg2(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
+        }
+        update_prg3(prg2, shape_len, &mut inp_ptr, inp_strides, inp_shape);
+        if let Some(op_post) = &op_post {
+            for i in 0..inner_loop_size {
+                let mut_ref = unsafe { &mut *res_ptr.ptr.offset(i) };
+                *mut_ref = op_post(*mut_ref);
+            }
+        }
+        res_ptr += inner_loop_size as usize;
+        prg1.iter_mut().for_each(|x| {
+            *x = 0;
+        });
+    }
+}
+
+#[inline]
+pub(crate) fn uncontiguous_reduce_dim_not_include<T, O, F, F2>(
+    inner_loop_size: isize,
+    outer_loop_size: isize,
+    intermediate_size: isize,
+    mut inp_ptr: tensor_common::pointer::Pointer<T>,
+    mut res_ptr: tensor_common::pointer::Pointer<O>,
+    inp_strides: &[i64],
+    inp_shape: &[i64],
+    prg1: &mut [i64],
+    prg2: &mut [i64],
+    prg3: &mut [i64],
+    res_strides: &[i64],
+    res_shape: &[i64],
+    shape_len: i64,
+    inp_last_stride: isize,
+    res_last_strides: isize,
+    op: F,
+    op_post: Option<F2>,
+) where
+    T: CommonBounds,
+    O: CommonBounds,
+    F: Fn(O, T) -> O,
+    F2: Fn(O) -> O,
+{
+    for _ in 0..outer_loop_size {
+        for _ in 0..intermediate_size {
+            for i in 0..inner_loop_size {
+                res_ptr[i * res_last_strides] =
+                    op(res_ptr[i * res_last_strides], inp_ptr[i * inp_last_stride]);
+            }
+            update_prg2(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
+        }
+        update_prg3(prg2, shape_len, &mut inp_ptr, inp_strides, inp_shape);
+        if let Some(op_post) = &op_post {
+            for i in 0..inner_loop_size {
+                let mut_ref = unsafe { &mut *res_ptr.ptr.offset(i * res_last_strides) };
+                *mut_ref = op_post(*mut_ref);
+            }
+        }
+        update_prg(prg3, &mut res_ptr, res_strides, res_shape);
+        prg1.iter_mut().for_each(|x| {
+            *x = 0;
+        });
     }
 }

@@ -98,6 +98,12 @@ fn init() {
     });
 }
 
+#[cfg(feature = "simd")]
+const SIMD_ENABLED: bool = true;
+
+#[cfg(not(feature = "simd"))]
+const SIMD_ENABLED: bool = false;
+
 static ALIGN: usize = 64;
 #[cfg(target_feature = "avx2")]
 pub(crate) const CONV_REGNUM: usize = 7;

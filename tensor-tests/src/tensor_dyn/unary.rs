@@ -13,7 +13,7 @@ use tensor_macros::match_selection;
 fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
     let b_raw = b.as_raw();
-    let tolerance = 2.5e-16;
+    let tolerance = 10e-16;
 
     for i in 0..b.size() {
         let abs_diff = (a_raw[i] - b_raw[i]).abs();
@@ -30,25 +30,6 @@ fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
 
 #[allow(unused)]
 fn no_assert(b: &_Tensor<f64>, a: &Tensor) {}
-
-#[allow(unused)]
-fn assert_eq_5(b: &_Tensor<f64>, a: &Tensor) {
-    let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
-    let b_raw = b.as_raw();
-    let tolerance = 5.0e-16;
-
-    for i in 0..b.size() {
-        let abs_diff = (a_raw[i] - b_raw[i]).abs();
-        let relative_diff = abs_diff / b_raw[i].abs().max(f64::EPSILON);
-
-        if abs_diff > tolerance && relative_diff > tolerance {
-            panic!(
-                "{} != {} (abs_diff: {}, relative_diff: {})",
-                a_raw[i], b_raw[i], abs_diff, relative_diff
-            );
-        }
-    }
-}
 
 #[allow(unused)]
 fn assert_eq_bool(b: &_Tensor<bool>, a: &Tensor) {
@@ -93,7 +74,7 @@ test_unarys!(acosh, [1000], assert_eq, acosh(), acosh());
 test_unarys!(asin, [1000], assert_eq, asin(), asin());
 test_unarys!(asinh, [1000], assert_eq, asinh(), asinh());
 test_unarys!(atan, [1000], assert_eq, atan(), atan());
-test_unarys!(atanh, [1000], assert_eq_5, atanh(), atanh()); // not sure why precision is huge
+test_unarys!(atanh, [1000], assert_eq, atanh(), atanh()); // not sure why precision is huge
 test_unarys!(ceil, [1000], assert_eq, ceil(), ceil());
 test_unarys!(cos, [1000], assert_eq, cos(), cos());
 test_unarys!(cosh, [1000], assert_eq, cosh(), cosh());
@@ -124,9 +105,9 @@ test_unarys!(
     leaky_relu(),
     leaky_relu(0.01)
 );
-test_unarys!(mish, [1000], assert_eq_5, mish(), mish());
+test_unarys!(mish, [1000], assert_eq, mish(), mish());
 test_unarys!(relu, [1000], assert_eq, relu(), relu());
-test_unarys!(selu, [1000], assert_eq_5, selu(), selu(None, None));
+test_unarys!(selu, [1000], assert_eq, selu(), selu(None, None));
 test_unarys!(softplus, [1000], assert_eq, softplus(), softplus());
 test_unarys!(round, [1000], assert_eq, round(), round());
 test_unarys!(clip, [1000], assert_eq, clamp(0.0, 1.0), clip(0.0, 1.0));

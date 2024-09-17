@@ -1,9 +1,9 @@
-use proc_macro::TokenStream;
-use quote::quote;
-use crate::type_utils::{ type_simd_lanes, SimdType, TypeInfo };
 use crate::type_utils::type_simd_is_arr;
 use crate::type_utils::Type;
+use crate::type_utils::{type_simd_lanes, SimdType, TypeInfo};
+use proc_macro::TokenStream;
 use proc_macro2::Ident;
+use quote::quote;
 
 pub fn impl_float_out_unary() -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
@@ -32,8 +32,12 @@ pub fn impl_float_out_unary() -> TokenStream {
         let lhs_lanes = type_simd_lanes(lhs);
         let lhs_simd: SimdType = (*lhs).into();
         let res_simd_ty = Ident::new(
-            &format!("{}x{}", res_type.to_string(), type_simd_lanes(&res_type.to_string())),
-            proc_macro2::Span::call_site()
+            &format!(
+                "{}x{}",
+                res_type.to_string(),
+                type_simd_lanes(&res_type.to_string())
+            ),
+            proc_macro2::Span::call_site(),
         );
         let res_lanes = type_simd_lanes(&res_type.to_string());
         if res_lanes != lhs_lanes {
@@ -47,203 +51,203 @@ pub fn impl_float_out_unary() -> TokenStream {
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_sin", proc_macro2::Span::call_site())
+                Ident::new("_sin", proc_macro2::Span::call_site()),
             );
             let cos = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_cos", proc_macro2::Span::call_site())
+                Ident::new("_cos", proc_macro2::Span::call_site()),
             );
             let tan = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_tan", proc_macro2::Span::call_site())
+                Ident::new("_tan", proc_macro2::Span::call_site()),
             );
             let asin = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_asin", proc_macro2::Span::call_site())
+                Ident::new("_asin", proc_macro2::Span::call_site()),
             );
             let acos = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_acos", proc_macro2::Span::call_site())
+                Ident::new("_acos", proc_macro2::Span::call_site()),
             );
             let atan = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_atan", proc_macro2::Span::call_site())
+                Ident::new("_atan", proc_macro2::Span::call_site()),
             );
             let sinh = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_sinh", proc_macro2::Span::call_site())
+                Ident::new("_sinh", proc_macro2::Span::call_site()),
             );
             let cosh = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_cosh", proc_macro2::Span::call_site())
+                Ident::new("_cosh", proc_macro2::Span::call_site()),
             );
             let tanh = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_tanh", proc_macro2::Span::call_site())
+                Ident::new("_tanh", proc_macro2::Span::call_site()),
             );
             let asinh = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_asinh", proc_macro2::Span::call_site())
+                Ident::new("_asinh", proc_macro2::Span::call_site()),
             );
             let acosh = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_acosh", proc_macro2::Span::call_site())
+                Ident::new("_acosh", proc_macro2::Span::call_site()),
             );
             let atanh = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_atanh", proc_macro2::Span::call_site())
+                Ident::new("_atanh", proc_macro2::Span::call_site()),
             );
             let recip = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_recip", proc_macro2::Span::call_site())
+                Ident::new("_recip", proc_macro2::Span::call_site()),
             );
             let erf = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_erf", proc_macro2::Span::call_site())
+                Ident::new("_erf", proc_macro2::Span::call_site()),
             );
             let sigmoid = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_sigmoid", proc_macro2::Span::call_site())
+                Ident::new("_sigmoid", proc_macro2::Span::call_site()),
             );
             let ln = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_ln", proc_macro2::Span::call_site())
+                Ident::new("_ln", proc_macro2::Span::call_site()),
             );
             let exp = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_exp", proc_macro2::Span::call_site())
+                Ident::new("_exp", proc_macro2::Span::call_site()),
             );
             let exp2 = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_exp2", proc_macro2::Span::call_site())
+                Ident::new("_exp2", proc_macro2::Span::call_site()),
             );
             let log2 = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_log2", proc_macro2::Span::call_site())
+                Ident::new("_log2", proc_macro2::Span::call_site()),
             );
             let log10 = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_log10", proc_macro2::Span::call_site())
+                Ident::new("_log10", proc_macro2::Span::call_site()),
             );
             let sqrt = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_sqrt", proc_macro2::Span::call_site())
+                Ident::new("_sqrt", proc_macro2::Span::call_site()),
             );
             let relu = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_relu", proc_macro2::Span::call_site())
+                Ident::new("_relu", proc_macro2::Span::call_site()),
             );
             let gelu = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_gelu", proc_macro2::Span::call_site())
+                Ident::new("_gelu", proc_macro2::Span::call_site()),
             );
             let relu6 = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_relu6", proc_macro2::Span::call_site())
+                Ident::new("_relu6", proc_macro2::Span::call_site()),
             );
             let _hard_swish = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_hard_swish", proc_macro2::Span::call_site())
+                Ident::new("_hard_swish", proc_macro2::Span::call_site()),
             );
             let soft_plus = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_softplus", proc_macro2::Span::call_site())
+                Ident::new("_softplus", proc_macro2::Span::call_site()),
             );
             let softsign = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_softsign", proc_macro2::Span::call_site())
+                Ident::new("_softsign", proc_macro2::Span::call_site()),
             );
             let mish = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_mish", proc_macro2::Span::call_site())
+                Ident::new("_mish", proc_macro2::Span::call_site()),
             );
             let cbrt = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
-                Ident::new("_cbrt", proc_macro2::Span::call_site())
+                Ident::new("_cbrt", proc_macro2::Span::call_site()),
             );
             let celu = {
                 let unroll = (0..lhs_lanes as usize).map(|i| {
@@ -347,8 +351,7 @@ pub fn impl_float_out_unary() -> TokenStream {
                     }
                 }
             };
-            let res =
-                quote! {
+            let res = quote! {
                 impl FloatOutUnary for #lhs_simd {
                     type Output = #res_simd_ty::#res_simd_ty;
                     type Base = #res_type;
@@ -359,18 +362,18 @@ pub fn impl_float_out_unary() -> TokenStream {
             };
             ret.extend(res);
         } else {
-            let trig = |func_name: &str, sleef_func: &str| {
+            let sleef = |func_name: &str, sleef_func: &str| {
                 let func_name = Ident::new(func_name, proc_macro2::Span::call_site());
                 let sleef_func = Ident::new(sleef_func, proc_macro2::Span::call_site());
                 if res_type.is_f32() {
                     quote! {
-                    #[inline(always)]
-                    fn #func_name(self) -> Self::Output {
-                        paste::paste! {
-                            #res_simd_ty::#res_simd_ty(sleef::f32x::#sleef_func(self.[<to_ #res_type>]().0))
+                        #[inline(always)]
+                        fn #func_name(self) -> Self::Output {
+                            paste::paste! {
+                                #res_simd_ty::#res_simd_ty(sleef::f32x::#sleef_func(self.[<to_ #res_type>]().0))
+                            }
                         }
                     }
-                }
                 } else {
                     quote! {
                         #[inline(always)]
@@ -382,33 +385,44 @@ pub fn impl_float_out_unary() -> TokenStream {
                     }
                 }
             };
-            let sin = trig("_sin", "sin_u10");
-            let cos = trig("_cos", "cos_u10");
-            let tan = trig("_tan", "tan_u10");
-            let asin = trig("_asin", "asin_u10");
-            let acos = trig("_acos", "acos_u10");
-            let atan = trig("_atan", "atan_u10");
-            let sinh = trig("_sinh", "sinh_u10");
-            let cosh = trig("_cosh", "cosh_u10");
-            let tanh = trig("_tanh", "tanh_u10");
-            let asinh = trig("_asinh", "asinh_u10");
-            let acosh = trig("_acosh", "acosh_u10");
-            let atanh = trig("_atanh", "atanh_u10");
-            let erf = trig("_erf", "erf_u10");
-            let ln = trig("_ln", "log_u10");
-            let exp = trig("_exp", "exp_u10");
-            let exp2 = trig("_exp2", "exp2_u10");
-            let log2 = trig("_log2", "log2_u10");
-            let log10 = trig("_log10", "log10_u10");
-            let sqrt = trig("_sqrt", "sqrt_u05");
-            let cbrt = trig("_cbrt", "cbrt_u10");
-            let res =
+            let std_unary = |func_name: &str, func: &str| {
+                let func_name = Ident::new(func_name, proc_macro2::Span::call_site());
+                let func = Ident::new(func, proc_macro2::Span::call_site());
                 quote! {
+                    #[inline(always)]
+                    fn #func_name(self) -> Self::Output {
+                        paste::paste! {
+                            #res_simd_ty::#res_simd_ty(self.[<to_ #res_type>]().0.#func())
+                        }
+                    }
+                }
+            };
+            let sin = std_unary("_sin", "sin");
+            let cos = std_unary("_cos", "cos");
+            let tan = std_unary("_tan", "tan");
+            let asin = std_unary("_asin", "asin");
+            let acos = std_unary("_acos", "acos");
+            let atan = std_unary("_atan", "atan");
+            let sinh = std_unary("_sinh", "sinh");
+            let cosh = std_unary("_cosh", "cosh");
+            let tanh = std_unary("_tanh", "tanh");
+            let asinh = std_unary("_asinh", "asinh");
+            let atanh = std_unary("_atanh", "atanh");
+            let acosh = std_unary("_acosh", "acosh");
+            let ln = std_unary("_ln", "ln");
+            let exp = std_unary("_exp", "exp");
+            let exp2 = std_unary("_exp2", "exp2");
+            let log2 = std_unary("_log2", "log2");
+            let log10 = std_unary("_log10", "log10");
+            let sqrt = std_unary("_sqrt", "sqrt");
+            let cbrt = std_unary("_cbrt", "cbrt");
+            let erf = sleef("_erf", "erf_u10");
+            let res = quote! {
                 impl FloatOutUnary for #lhs_simd {
                     type Output = #res_simd_ty::#res_simd_ty;
                     type Base = #res_type;
-                    #sin #cos #tan #asin #acos #atan #sinh #cosh #tanh #asinh #acosh #atanh #erf #ln #exp #exp2 #log2 #log10 #sqrt
-                    #cbrt
+                    #sin #cos #tan #asin #acos #atan #sinh #cosh #tanh #asinh #erf #ln #exp #log2 #log10 #sqrt
+                    #cbrt #atanh #acosh #exp2
                     #[inline(always)]
                     fn _recip(self) -> Self::Output {
                         paste::paste! {
@@ -433,7 +447,7 @@ pub fn impl_float_out_unary() -> TokenStream {
                             let mask = x.simd_gt(#res_simd_ty::#res_simd_ty::splat(#res_type::ZERO).0);
                             #res_simd_ty::#res_simd_ty(
                                 mask.select(
-                                    x, 
+                                    x,
                                     #res_simd_ty::#res_simd_ty::splat(#res_type::ZERO).0
                             ))
                         }
@@ -485,7 +499,7 @@ pub fn impl_float_out_unary() -> TokenStream {
                             let gt_mask = x.simd_gt(#res_simd_ty::#res_simd_ty::splat(#res_type::ZERO).0);
                             #res_simd_ty::#res_simd_ty(
                                 gt_mask.select(
-                                    x.0, 
+                                    x.0,
                                     (scale * (x._exp() - #res_simd_ty::#res_simd_ty::splat(#res_type::ONE))).0
                                 )
                             )
@@ -567,7 +581,7 @@ fn gen_func_arr(
     lhs_lanes: u8,
     res_type: Type,
     res_simd_ty: Ident,
-    method: Ident
+    method: Ident,
 ) -> proc_macro2::TokenStream {
     let unroll = (0..lhs_lanes as usize).map(|i| {
         quote! {
@@ -576,7 +590,10 @@ fn gen_func_arr(
     });
     let func = if lhs_dtype.dtype.is_f16() || lhs_dtype.dtype.is_bf16() {
         let f32_lanes = type_simd_lanes("f32");
-        let ident = Ident::new(&format!("f32x{}", f32_lanes), proc_macro2::Span::call_site());
+        let ident = Ident::new(
+            &format!("f32x{}", f32_lanes),
+            proc_macro2::Span::call_site(),
+        );
         if lhs_dtype.dtype.is_f16() {
             quote! {
                 fn #method(self) -> Self::Output {
@@ -638,7 +655,7 @@ fn gen_func_arr(
 fn unreachable_impl(
     lhs_simd: SimdType,
     res_ty: Type,
-    res_simd_ty: Ident
+    res_simd_ty: Ident,
 ) -> proc_macro2::TokenStream {
     quote! {
         impl FloatOutUnary for #lhs_simd {
