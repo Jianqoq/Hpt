@@ -74,6 +74,7 @@ pub fn __gen_reduce_dim_not_include_simd_helper(stream: TokenStream) -> TokenStr
                     prg2,
                     shape_len,
                     inner_loop_size,
+                    vec_post,
                     #arr
                 );
             }

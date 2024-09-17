@@ -297,6 +297,7 @@ macro_rules! gen_kernel2 {
         $inp_shape:ident,
         $prg:ident,
         $shape_len:ident,
+        $vec_post:expr,
         [$($idx:expr),*]
     ) => {
         let origin_ptr = $inp_ptr.clone();
@@ -318,14 +319,23 @@ macro_rules! gen_kernel2 {
                         }
                     update_prg2($prg, $shape_len, &mut $inp_ptr, $inp_strides, $inp_shape);
                 }
-                paste! {
-                    $(
-                        core::ptr::copy_nonoverlapping(
-                            [<res_vec $idx>].as_ptr(),
-                            $res_ptr.ptr.offset((i * $unroll_num + ($idx - 1)) * <O as TypeCommon>::Vec::SIZE as isize),
-                            <O as TypeCommon>::Vec::SIZE
-                        );
-                    )*
+                if let Some(vec_post) = &$vec_post {
+                    paste! {
+                        $(
+                            let mut_ref = $res_ptr.ptr.offset((i * $unroll_num + ($idx - 1)) * <O as TypeCommon>::Vec::SIZE as isize) as *mut <O as TypeCommon>::Vec;
+                            mut_ref.write_unaligned(vec_post([<res_vec $idx>]));
+                        )*
+                    }
+                } else {
+                    paste! {
+                        $(
+                            core::ptr::copy_nonoverlapping(
+                                [<res_vec $idx>].as_ptr(),
+                                $res_ptr.ptr.offset((i * $unroll_num + ($idx - 1)) * <O as TypeCommon>::Vec::SIZE as isize),
+                                <O as TypeCommon>::Vec::SIZE
+                            );
+                        )*
+                    }
                 }
             }
         }
@@ -350,6 +360,7 @@ macro_rules! gen_kernel3 {
         $prg2:ident,
         $shape_len:ident,
         $inner_loop_size:expr,
+        $vec_post:expr,
         [$($idx:expr),*]
     ) => {
         for _ in 0..$outer_loop_size {
@@ -365,6 +376,7 @@ macro_rules! gen_kernel3 {
                 $inp_shape,
                 $prg1,
                 $shape_len,
+                $vec_post,
                 [$($idx),*]
             );
             update_prg3($prg2, $shape_len, &mut $inp_ptr, $inp_strides, $inp_shape);
@@ -431,6 +443,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
                 inp_shape,
                 prg1,
                 shape_len,
+                vec_post,
                 [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
             );
             #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
@@ -446,6 +459,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
                 inp_shape,
                 prg1,
                 shape_len,
+                vec_post,
                 [
                     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
                     23, 24, 25, 26, 27, 28, 29, 30, 31, 32
@@ -464,6 +478,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
                 inp_shape,
                 prg1,
                 shape_len,
+                vec_post,
                 [1, 2, 3, 4, 5, 6, 7, 8]
             );
             update_prg3(prg2, shape_len, &mut inp_ptr, inp_strides, inp_shape);
@@ -522,7 +537,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
             }
             update_prg3(prg2, shape_len, &mut inp_ptr, inp_strides, inp_shape);
             if let Some(op_post) = &op_post {
-                for i in 0..inner_loop_size {
+                for i in inner..inner_loop_size {
                     let mut_ref = unsafe { &mut *res_ptr.ptr.offset(i) };
                     *mut_ref = op_post(*mut_ref);
                 }
