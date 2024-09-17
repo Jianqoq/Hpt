@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use rayon::iter::{
     plumbing::{bridge_unindexed, UnindexedConsumer, UnindexedProducer},
     ParallelIterator,
@@ -17,6 +19,7 @@ where
     I: ParallelIterator + UnindexedProducer + IterGetSet,
     F: Fn(ID, <I as IterGetSet>::Item) -> ID + Sync + Send + Copy,
     ID: CommonBounds,
+    <I as IterGetSet>::Item: Display
 {
     type Item = ID;
 
@@ -33,6 +36,7 @@ where
     I: ParallelIterator + UnindexedProducer + IterGetSet,
     F: Fn(ID, <I as IterGetSet>::Item) -> ID + Sync + Send + Copy,
     ID: CommonBounds,
+    <I as IterGetSet>::Item: Display
 {
     type Item = ID;
 
@@ -62,6 +66,7 @@ where
         for _ in 0..outer_loop_size {
             for i in 0..inner_loop_size {
                 let item = self.iter.inner_loop_next(i);
+                println!("{}", item);
                 folder = folder.consume((self.fold_op)(init, item));
             }
         }

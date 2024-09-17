@@ -45,10 +45,10 @@ fn assert_eq_f64(b: &_Tensor<f64>, a: &Tensor) {
         let relative_diff = abs_diff / b.abs().max(f64::EPSILON);
 
         if abs_diff > tolerance && relative_diff > tolerance {
-            println!(
-                "{} != {} (abs_diff: {}, relative_diff: {})",
-                a, b, abs_diff, relative_diff
-            );
+            // println!(
+            //     "{} != {} (abs_diff: {}, relative_diff: {})",
+            //     a, b, abs_diff, relative_diff
+            // );
         }
     });
 }
@@ -188,6 +188,7 @@ fn test_sub_tensor_sum_step() -> anyhow::Result<()> {
     // let sum = a.sum([1, 2], false)?;
     // let tch_sum = tch_a.sum_dim_intlist(&[1, 2][..], false, tch::Kind::Int64);
     // assert_eq(&sum, &tch_sum);
+    println!("{}", a);
     let sum = a.sum([0, 1, 2], false)?;
     println!("{}", sum);
     let tch_sum = tch_a.sum_dim_intlist(&[0, 1, 2][..], false, tch::Kind::Int64);
