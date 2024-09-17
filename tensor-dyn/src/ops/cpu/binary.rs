@@ -56,9 +56,6 @@ macro_rules! impl_bin_ops {
         {
             binary_fn_with_out(self, &rhs, |a, b| a._rem(b), out)
         }
-        fn convolve(&self, _: $($rhs)*) -> anyhow::Result<Self::Output> {
-            todo!()
-        }
     }
     };
 }
@@ -112,9 +109,6 @@ macro_rules! impl_bin_ops_basic {
                     TensorInfo<Self::OutputMeta>
         {
             Ok(binary_fn_with_out(self, &rhs, |a, b| a._rem(b), out)?.into())
-        }
-        fn convolve(&self, _: $($rhs)*) -> anyhow::Result<Self::Output> {
-            todo!()
         }
     }
     };

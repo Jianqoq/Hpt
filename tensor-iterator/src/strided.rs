@@ -93,7 +93,7 @@ pub mod strided_simd {
     #[cfg(feature = "simd")]
     impl<T: CommonBounds> IterGetSetSimd for StridedSimd<T> {
         type Item = T;
-        type SimdItem = <T as TypeCommon>::Vec;
+        type SimdItem = T::Vec;
 
         fn set_end_index(&mut self, _: usize) {
             panic!("single thread iterator does not support set_end_index");

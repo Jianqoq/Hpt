@@ -27,7 +27,7 @@ pub mod strided_map_mut_simd {
         pub(crate) base: ParStridedMutSimd<'a, T>,
         pub(crate) phantom: std::marker::PhantomData<&'a ()>,
     }
-    impl<'a, T> StridedMapMutSimd<'a, T> where T: CommonBounds, <T as TypeCommon>::Vec: Send {
+    impl<'a, T> StridedMapMutSimd<'a, T> where T: CommonBounds, T::Vec: Send {
         pub fn new<U: TensorInfo<T>>(res_tensor: U) -> Self {
             StridedMapMutSimd {
                 base: ParStridedMutSimd::new(res_tensor),
@@ -43,11 +43,11 @@ pub mod strided_map_mut_simd {
     }
     impl<'a, T> StridedIteratorSimd
         for StridedMapMutSimd<'a, T>
-        where T: 'a + CommonBounds, <T as TypeCommon>::Vec: Send
+        where T: 'a + CommonBounds, T::Vec: Send
     {
         type Item = &'a mut T;
 
-        type SimdItem = &'a mut <T as TypeCommon>::Vec;
+        type SimdItem = &'a mut T::Vec;
 
         #[cfg(feature = "simd")]
         fn for_each<F, F2>(self, _: F, _: F2) where F: Fn(Self::Item) {
@@ -62,10 +62,10 @@ pub mod strided_map_mut_simd {
     }
     impl<'a, T: 'a + CommonBounds> IterGetSetSimd
         for StridedMapMutSimd<'a, T>
-        where <T as TypeCommon>::Vec: Send
+        where T::Vec: Send
     {
         type Item = &'a mut T;
-        type SimdItem = &'a mut <T as TypeCommon>::Vec;
+        type SimdItem = &'a mut T::Vec;
 
         fn set_end_index(&mut self, _: usize) {}
 
@@ -138,7 +138,7 @@ pub struct StridedMapMut<'a, T> where T: Copy + TypeCommon {
     pub(crate) phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl<'a, T> StridedMapMut<'a, T> where T: CommonBounds, <T as TypeCommon>::Vec: Send {
+impl<'a, T> StridedMapMut<'a, T> where T: CommonBounds, T::Vec: Send {
     pub fn new<U: TensorInfo<T>>(res_tensor: U) -> Self {
         StridedMapMut {
             base: ParStridedMut::new(res_tensor),
@@ -155,7 +155,7 @@ impl<'a, T> StridedMapMut<'a, T> where T: CommonBounds, <T as TypeCommon>::Vec: 
 
 impl<'a, T> StridedIterator
     for StridedMapMut<'a, T>
-    where T: 'a + CommonBounds, <T as TypeCommon>::Vec: Send
+    where T: 'a + CommonBounds, T::Vec: Send
 {
     type Item = &'a mut T;
 
@@ -172,7 +172,7 @@ impl<'a, T> StridedIterator
 
 impl<'a, T: 'a + CommonBounds> IterGetSet
     for StridedMapMut<'a, T>
-    where <T as TypeCommon>::Vec: Send
+    where T::Vec: Send
 {
     type Item = &'a mut T;
 

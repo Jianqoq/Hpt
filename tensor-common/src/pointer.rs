@@ -1,8 +1,8 @@
 use serde::ser::SerializeStruct;
 use std::{
     alloc::Layout,
-    fmt::{ Debug, Display, Formatter },
-    ops::{ Deref, DerefMut, Index, IndexMut },
+    fmt::{Debug, Display, Formatter},
+    ops::{AddAssign, Deref, DerefMut, Index, IndexMut, SubAssign},
 };
 
 use serde::Serialize;
@@ -346,6 +346,42 @@ impl<T: Display> IndexMut<isize> for Pointer<T> {
     }
 }
 
+impl<T> AddAssign<usize> for Pointer<T> {
+    fn add_assign(&mut self, rhs: usize) {
+        self.add(rhs);
+    }
+}
+
+impl<T> AddAssign<isize> for Pointer<T> {
+    fn add_assign(&mut self, rhs: isize) {
+        self.offset(rhs as i64);
+    }
+}
+
+impl<T> AddAssign<i64> for Pointer<T> {
+    fn add_assign(&mut self, rhs: i64) {
+        self.offset(rhs);
+    }
+}
+
+impl<T> SubAssign<usize> for Pointer<T> {
+    fn sub_assign(&mut self, rhs: usize) {
+        self.add(rhs);
+    }
+}
+
+impl<T> SubAssign<isize> for Pointer<T> {
+    fn sub_assign(&mut self, rhs: isize) {
+        self.offset(rhs as i64);
+    }
+}
+
+impl<T> SubAssign<i64> for Pointer<T> {
+    fn sub_assign(&mut self, rhs: i64) {
+        self.offset(rhs);
+    }
+}
+
 impl<T> Deref for Pointer<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
@@ -363,7 +399,12 @@ unsafe impl<T> Sync for Pointer<T> {}
 
 impl<T: Display> Display for Pointer<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Pointer( ptr: {}, val: {} )", self.ptr as usize, unsafe { self.ptr.read() })
+        write!(
+            f,
+            "Pointer( ptr: {}, val: {} )",
+            self.ptr as usize,
+            unsafe { self.ptr.read() }
+        )
     }
 }
 
@@ -374,7 +415,10 @@ pub struct VoidPointer {
 }
 
 impl Serialize for VoidPointer {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
         let mut state = serializer.serialize_struct("VoidPointer", 2)?;
         state.serialize_field("ptr", &(self.ptr as usize))?;
         state.serialize_field("align", &self.layout.align())?;

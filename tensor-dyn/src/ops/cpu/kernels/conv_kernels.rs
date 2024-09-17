@@ -1,11 +1,10 @@
 use crate::CONV_REGNUM;
+use std::ops::Index;
+use std::ops::IndexMut;
 use tensor_common::pointer::Pointer;
 use tensor_traits::CommonBounds;
+use tensor_types::traits::{Init, VecCommon, VecTrait};
 use tensor_types::type_promote::NormalOut;
-use tensor_types::{
-    dtype::TypeCommon,
-    traits::{Init, VecCommon, VecTrait},
-};
 
 #[cfg(not(feature = "bound_check"))]
 #[rustfmt::skip]
@@ -14,28 +13,28 @@ pub(crate) fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
     co_b_remain: i64,
     osw: i64,
     out_offset: i64,
-    res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
+    res_buffer: &mut Vec<Vec<T::Vec>>,
     out: &mut Pointer<T>
 )
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
+    where T: CommonBounds, T::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
 {
     for j in 0..num_co_rb {
         let buffers = unsafe { res_buffer.get_unchecked_mut(j as usize) };
         for r in 0..REGNUM as i64 {
             unsafe {
-                let out_ptr = &mut out[out_offset + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) + r * osw] as *mut _ as *mut T;
+                let out_ptr = &mut out[out_offset + j * (T::Vec::SIZE as i64) + r * osw] as *mut _ as *mut T;
                 let buffer = buffers.get_unchecked_mut(r as usize) as *mut _ as *mut T;
                 if LOAD {
                     std::ptr::copy_nonoverlapping(
                         out_ptr,
                         buffer,
-                        <<T as TypeCommon>::Vec as VecCommon>::SIZE
+                        T::Vec::SIZE
                     );
                 } else {
                     std::ptr::copy_nonoverlapping(
                         buffer,
                         out_ptr,
-                        <<T as TypeCommon>::Vec as VecCommon>::SIZE
+                        T::Vec::SIZE
                     );
                 }
             }
@@ -44,7 +43,7 @@ pub(crate) fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
     let buffers = unsafe { res_buffer.get_unchecked_mut(num_co_rb as usize) };
     for r in 0..REGNUM as i64 {
         unsafe {
-            let out_ptr = &mut out[out_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) + r * osw] as *mut _ as *mut T;
+            let out_ptr = &mut out[out_offset + num_co_rb * (T::Vec::SIZE as i64) + r * osw] as *mut _ as *mut T;
             let buffer = buffers.get_unchecked_mut(r as usize) as *mut _ as *mut T;
             if LOAD {
                 std::ptr::copy_nonoverlapping(out_ptr, buffer, co_b_remain as usize);
@@ -62,24 +61,24 @@ pub(crate) fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
     co_b_remain: i64,
     osw: i64,
     out_offset: i64,
-    res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
+    res_buffer: &mut Vec<Vec<T::Vec>>,
     out: &mut Pointer<T>
 )
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
+    where T: CommonBounds, T::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
 {
     for j in 0..num_co_rb {
         let buffers = &mut res_buffer[j as usize];
         for r in 0..REGNUM as i64 {
             unsafe {
-                let out_ptr = &mut out[out_offset + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) + r * osw] as *mut _;
+                let out_ptr = &mut out[out_offset + j * (T::Vec::SIZE as i64) + r * osw] as *mut _;
                 let buffer = &mut buffers[r as usize];
                 if LOAD {
                     buffer.copy_from_slice(
-                        core::slice::from_raw_parts(out_ptr, <<T as TypeCommon>::Vec as VecCommon>::SIZE)
+                        core::slice::from_raw_parts(out_ptr, T::Vec::SIZE)
                     );
                 } else {
-                    for i in 0..<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64 {
-                        out[out_offset + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) + r * osw + i] = buffer.extract(i as usize);
+                    for i in 0..T::Vec::SIZE as i64 {
+                        out[out_offset + j * (T::Vec::SIZE as i64) + r * osw + i] = buffer.extract(i as usize);
                     }
                 }
             }
@@ -88,14 +87,14 @@ pub(crate) fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
     let buffers = &mut res_buffer[num_co_rb as usize];
     for r in 0..REGNUM as i64 {
         unsafe {
-            let out_ptr = &mut out[out_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) + r * osw];
+            let out_ptr = &mut out[out_offset + num_co_rb * (T::Vec::SIZE as i64) + r * osw];
             let buffer = &mut buffers[r as usize];
             if LOAD {
-                assert!(co_b_remain as usize <= <<T as TypeCommon>::Vec as VecCommon>::SIZE);
+                assert!(co_b_remain as usize <= T::Vec::SIZE);
                 core::ptr::copy_nonoverlapping(out_ptr, buffer.as_mut_ptr(), co_b_remain as usize);
             } else {
                 for i in 0..co_b_remain {
-                    out[out_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64) + r * osw + i] = buffer.extract(i as usize);
+                    out[out_offset + num_co_rb * (T::Vec::SIZE as i64) + r * osw + i] = buffer.extract(i as usize);
                 }
             }
         }
@@ -108,26 +107,26 @@ pub(crate) fn pack_kernel<T>(
     co_b_remain: i64,
     kernel_offset: i64,
     kernel: &Pointer<T>,
-    kernel_buffer: &mut Vec<<T as TypeCommon>::Vec>
+    kernel_buffer: &mut Vec<T::Vec>
 )
-    where T: CommonBounds, <T as TypeCommon>::Vec: VecCommon
+    where T: CommonBounds, T::Vec: VecCommon
 {
     for j in 0..num_co_rb {
         #[cfg(not(feature = "bound_check"))]
         let kernel_buffer = unsafe { kernel_buffer.get_unchecked_mut(j as usize) };
         #[cfg(feature = "bound_check")]
-        let kernel_buffer = &mut kernel_buffer[j as usize];
+        let kernel_buffer = kernel_buffer.index_mut(j as usize);
         unsafe {
             std::ptr::copy_nonoverlapping(
-                &kernel[kernel_offset + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64)] as *const _,
+                kernel.index(kernel_offset + j * (T::Vec::SIZE as i64)) as *const _,
                 kernel_buffer as *mut _ as *mut T,
-                <<T as TypeCommon>::Vec as VecCommon>::SIZE
+                T::Vec::SIZE
             );
         }
     }
     unsafe {
         std::ptr::copy_nonoverlapping(
-            &kernel[kernel_offset + num_co_rb * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64)] as *const _,
+            kernel.index(kernel_offset + num_co_rb * (T::Vec::SIZE as i64)) as *const _,
             kernel_buffer.get_unchecked_mut(num_co_rb as usize) as *mut _ as *mut T,
             co_b_remain as usize
         );
@@ -148,18 +147,18 @@ macro_rules! micro_kernel {
                 step_width: i64,
                 isw: i64,
                 inp: &Pointer<T>,
-                outs: &mut [<T as TypeCommon>::Vec; REGNUM],
+                outs: &mut [T::Vec; REGNUM],
                 kernel: &Pointer<T>,
             )
-                where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
+                where T: CommonBounds, T::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
             {
                 $(
                     let _k = kp * (CONV_REGNUM as i64) + $idx;
-                    let [<inp_vec $idx>] = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
+                    let [<inp_vec $idx>] = T::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
                 )*
                 unsafe {
-                    let kernel_vec = <T as TypeCommon>::Vec::from_ptr(
-                        &kernel[co_offset + kernel_offset + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64)] as *const _
+                    let kernel_vec = T::Vec::from_ptr(
+                        &kernel[co_offset + kernel_offset + j * (T::Vec::SIZE as i64)] as *const _
                     );
                     $(
                         outs[$idx] = [<inp_vec $idx>]._mul_add(kernel_vec, outs[$idx]);
@@ -186,18 +185,18 @@ macro_rules! micro_kernel_dynamic_regnum {
                 isw: i64,
                 _: i64,
                 inp: &Pointer<T>,
-                outs: &mut [<T as TypeCommon>::Vec],
+                outs: &mut [T::Vec],
                 kernel: &Pointer<T>,
             )
-                where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
+                where T: CommonBounds, T::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
             {
                 $(
                     let _k = kp * (CONV_REGNUM as i64) + $idx;
-                    let [<inp_vec $idx>] = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
+                    let [<inp_vec $idx>] = T::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
                 )*
                 unsafe {
-                    let kernel_vec = <T as TypeCommon>::Vec::from_ptr(
-                        &kernel[co_offset + kernel_offset + j * (<<T as TypeCommon>::Vec as VecCommon>::SIZE as i64)] as *const _
+                    let kernel_vec = T::Vec::from_ptr(
+                        &kernel[co_offset + kernel_offset + j * (T::Vec::SIZE as i64)] as *const _
                     );
                     $(
                         outs[$idx] = [<inp_vec $idx>]._mul_add(kernel_vec, outs[$idx]);
@@ -224,7 +223,7 @@ macro_rules! micro_kernel_1 {
                 out: &mut [T; $number],
                 kernel: &Pointer<T>
             )
-                where T: CommonBounds + NormalOut<Output = T>, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
+                where T: CommonBounds + NormalOut<Output = T>, T::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
             {
                 $(
                     let _k = kp * (CONV_REGNUM as i64) + $idx;
@@ -251,15 +250,15 @@ macro_rules! micro_kernel_with_buffer {
                 step_width: i64,
                 isw: i64,
                 inp: &Pointer<T>,
-                res_buffer: &mut Vec<Vec<<T as TypeCommon>::Vec>>,
-                kernel: &[<T as TypeCommon>::Vec]
+                res_buffer: &mut Vec<Vec<T::Vec>>,
+                kernel: &[T::Vec]
             )
-                where T: CommonBounds, <T as TypeCommon>::Vec: VecTrait<T> + Copy + Init<T>
+                where T: CommonBounds, T::Vec: VecTrait<T> + Copy + Init<T>
             {
                 let inp: &Pointer<T> = &inp;
                 $(
                     let _k = kp * (CONV_REGNUM as i64) + $idx;
-                    let [<inp_vec $idx>] = <T as TypeCommon>::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
+                    let [<inp_vec $idx>] = T::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
                 )*
                 for j in 0..num_co_rb + 1 {
                     unsafe {
@@ -274,9 +273,9 @@ macro_rules! micro_kernel_with_buffer {
 
                         $(
                             #[cfg(not(feature = "bound_check"))]
-                            let [<out_vec $idx>] = res_vectors.get_unchecked_mut($idx) as *mut _ as *mut <T as TypeCommon>::Vec;
+                            let [<out_vec $idx>] = res_vectors.get_unchecked_mut($idx) as *mut _ as *mut T::Vec;
                             #[cfg(feature = "bound_check")]
-                            let [<out_vec $idx>] = res_vectors.get_mut($idx).unwrap() as *mut _ as *mut <T as TypeCommon>::Vec;
+                            let [<out_vec $idx>] = res_vectors.get_mut($idx).unwrap() as *mut _ as *mut T::Vec;
                         )*
                         $(
                             let [<res $idx>] = [<inp_vec $idx>]._mul_add(kernel_vec, [<out_vec $idx>].read_unaligned());
@@ -293,7 +292,7 @@ macro_rules! micro_kernel_with_buffer {
 
 #[cfg(target_feature = "avx2")]
 micro_kernel!(regnum, [0, 1, 2, 3, 4, 5, 6]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel!(regnum, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
 #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
 micro_kernel!(regnum, [0, 1, 2]);
@@ -309,43 +308,43 @@ micro_kernel_dynamic_regnum!(3, [0, 1, 2]);
 micro_kernel_dynamic_regnum!(4, [0, 1, 2, 3]);
 micro_kernel_dynamic_regnum!(5, [0, 1, 2, 3, 4]);
 micro_kernel_dynamic_regnum!(6, [0, 1, 2, 3, 4, 5]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_dynamic_regnum!(7, [0, 1, 2, 3, 4, 5, 6]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_dynamic_regnum!(8, [0, 1, 2, 3, 4, 5, 6, 7]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_dynamic_regnum!(9, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_dynamic_regnum!(10, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_dynamic_regnum!(11, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_dynamic_regnum!(12, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_dynamic_regnum!(13, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_dynamic_regnum!(14, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
 
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel!(7, [0, 1, 2, 3, 4, 5, 6]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel!(8, [0, 1, 2, 3, 4, 5, 6, 7]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel!(9, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel!(10, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel!(11, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel!(12, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel!(13, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel!(14, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
 
 #[cfg(target_feature = "avx2")]
 micro_kernel_with_buffer!(regnum, [0, 1, 2, 3, 4, 5, 6]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_with_buffer!(regnum, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
 #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
 micro_kernel_with_buffer!(regnum, [0, 1, 2]);
@@ -355,28 +354,28 @@ micro_kernel_with_buffer!(3, [0, 1, 2]);
 micro_kernel_with_buffer!(4, [0, 1, 2, 3]);
 micro_kernel_with_buffer!(5, [0, 1, 2, 3, 4]);
 micro_kernel_with_buffer!(6, [0, 1, 2, 3, 4, 5]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_with_buffer!(7, [0, 1, 2, 3, 4, 5, 6]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_with_buffer!(8, [0, 1, 2, 3, 4, 5, 6, 7]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_with_buffer!(9, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_with_buffer!(10, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_with_buffer!(11, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_with_buffer!(12, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_with_buffer!(13, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_with_buffer!(14, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
 
 #[cfg(target_feature = "avx2")]
 micro_kernel_1!(7, regnum, [0, 1, 2, 3, 4, 5, 6]);
 #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
 micro_kernel_1!(3, regnum, [0, 1, 2]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_1!(
     15,
     regnum,
@@ -388,19 +387,19 @@ micro_kernel_1!(3, 3, [0, 1, 2]);
 micro_kernel_1!(4, 4, [0, 1, 2, 3]);
 micro_kernel_1!(5, 5, [0, 1, 2, 3, 4]);
 micro_kernel_1!(6, 6, [0, 1, 2, 3, 4, 5]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_1!(7, 7, [0, 1, 2, 3, 4, 5, 6]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_1!(8, 8, [0, 1, 2, 3, 4, 5, 6, 7]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_1!(9, 9, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_1!(10, 10, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_1!(11, 11, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_1!(12, 12, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_1!(13, 13, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-#[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 micro_kernel_1!(14, 14, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);

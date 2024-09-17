@@ -5,7 +5,10 @@ use tensor_macros::impl_simd_convert;
 use std::simd::num::SimdFloat;
 #[cfg(target_feature = "avx2")]
 use crate::vectors::_256bit::*;
-#[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
+#[cfg(all(
+    any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
+    not(target_feature = "avx2")
+))]
 use crate::vectors::_128bit::*;
 #[cfg(target_feature = "avx512f")]
 use crate::vectors::_512bit::*;
@@ -56,7 +59,10 @@ pub trait VecConvertor {
     fn to_complex64(self) -> cplx64x2::cplx64x2;
 }
 
-#[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
+#[cfg(all(
+    any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
+    not(target_feature = "avx2")
+))]
 pub trait VecConvertor {
     fn to_bool(self) -> boolx16::boolx16;
     fn to_u8(self) -> u8x16::u8x16;

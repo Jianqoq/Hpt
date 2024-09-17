@@ -244,35 +244,15 @@ pub(crate) fn reduce<T, F, F2>(
 where
     T: CommonBounds + IntoScalar<T> + Convertor,
     F: Fn(T, T) -> T + Sync + Send + 'static + Copy,
-    F2: Fn(<T as TypeCommon>::Vec, <T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec
-        + Sync
-        + Send
-        + 'static
-        + Copy,
-    <T as TypeCommon>::Vec: Copy,
+    F2: Fn(T::Vec, T::Vec) -> T::Vec + Sync + Send + 'static + Copy,
+    T::Vec: Copy,
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<
-            _,
-            _,
-            _,
-            fn(T) -> T,
-            _,
-            fn(<T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec,
-            T,
-        >(
+        contiguous_reduce::<_, _, _, fn(T) -> T, _, fn(T::Vec) -> T::Vec, T>(
             a, op, op, None, vec_op, None, &axes, init_val, keepdims, init_out, c,
         )
     } else {
-        uncontiguous_reduce::<
-            _,
-            _,
-            _,
-            fn(T) -> T,
-            _,
-            fn(<T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec,
-            T,
-        >(
+        uncontiguous_reduce::<_, _, _, fn(T) -> T, _, fn(T::Vec) -> T::Vec, T>(
             a, op, op, None, vec_op, None, &axes, init_val, keepdims, init_out, c,
         )
     }
@@ -294,13 +274,9 @@ where
     T: CommonBounds + IntoScalar<O> + Convertor,
     F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
     F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-    F3: Fn(<O as TypeCommon>::Vec, <T as TypeCommon>::Vec) -> <O as TypeCommon>::Vec
-        + Sync
-        + Send
-        + 'static
-        + Copy,
+    F3: Fn(<O as TypeCommon>::Vec, T::Vec) -> <O as TypeCommon>::Vec + Sync + Send + 'static + Copy,
     O: CommonBounds,
-    <T as TypeCommon>::Vec: Copy,
+    T::Vec: Copy,
     <O as TypeCommon>::Vec: Copy,
 {
     if a.is_contiguous() {
@@ -349,11 +325,7 @@ where
     F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
     F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
     F3: Fn(O) -> O + Sync + Send + 'static + Copy,
-    F4: Fn(<O as TypeCommon>::Vec, <T as TypeCommon>::Vec) -> <O as TypeCommon>::Vec
-        + Sync
-        + Send
-        + 'static
-        + Copy,
+    F4: Fn(<O as TypeCommon>::Vec, T::Vec) -> <O as TypeCommon>::Vec + Sync + Send + 'static + Copy,
     F5: Fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec + Sync + Send + 'static + Copy,
     O: CommonBounds,
     <O as TypeCommon>::Vec: Copy,
@@ -437,13 +409,13 @@ where
     F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
     F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
     F3: Fn(O) -> O + Sync + Send + 'static + Copy,
-    F4: Fn(<O as TypeCommon>::Vec, <T as TypeCommon>::Vec) -> <O as TypeCommon>::Vec
+    F4: Fn(<O as TypeCommon>::Vec, T::Vec) -> <O as TypeCommon>::Vec
         + 'static
         + Copy
         + Send
         + std::marker::Sync,
     F5: Fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec + Sync + Send + 'static + Copy,
-    <T as TypeCommon>::Vec: Copy,
+    T::Vec: Copy,
     <O as TypeCommon>::Vec: Copy,
 {
     reduce_template(
@@ -697,13 +669,13 @@ where
     F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
     F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
     F3: Fn(O) -> O + Sync + Send + 'static + Copy,
-    F4: Fn(<O as TypeCommon>::Vec, <T as TypeCommon>::Vec) -> <O as TypeCommon>::Vec
+    F4: Fn(<O as TypeCommon>::Vec, T::Vec) -> <O as TypeCommon>::Vec
         + 'static
         + Copy
         + Send
         + std::marker::Sync,
     F5: Fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec + Sync + Send + 'static + Copy,
-    <T as TypeCommon>::Vec: Copy,
+    T::Vec: Copy,
     <O as TypeCommon>::Vec: Copy,
 {
     uncontiguos_reduce_template(

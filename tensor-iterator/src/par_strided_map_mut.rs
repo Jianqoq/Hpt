@@ -26,7 +26,7 @@ pub mod par_strided_map_mut_simd {
         pub(crate) phantom: std::marker::PhantomData<&'a ()>,
     }
     
-    impl<'a, T> ParStridedMapMutSimd<'a, T> where T: CommonBounds, <T as TypeCommon>::Vec: Send {
+    impl<'a, T> ParStridedMapMutSimd<'a, T> where T: CommonBounds, T::Vec: Send {
         pub fn new<U: TensorInfo<T>>(res_tensor: U) -> Self {
             ParStridedMapMutSimd {
                 base: ParStridedMutSimd::new(res_tensor),
@@ -37,14 +37,14 @@ pub mod par_strided_map_mut_simd {
         pub fn zip<C>(self, other: C) -> ParStridedZipSimd<'a, Self, C>
             where
                 C: UnindexedProducer + 'a + IterGetSetSimd + ParallelIterator,
-                <C as IterGetSetSimd>::Item: Send, <T as TypeCommon>::Vec: Send
+                <C as IterGetSetSimd>::Item: Send, T::Vec: Send
         {
             ParStridedZipSimd::new(self, other)
         }
     }
     
     #[cfg(feature = "simd")]
-    impl<'a, T> ParallelIterator for ParStridedMapMutSimd<'a, T> where T: 'a + CommonBounds, <T as TypeCommon>::Vec: Send {
+    impl<'a, T> ParallelIterator for ParStridedMapMutSimd<'a, T> where T: 'a + CommonBounds, T::Vec: Send {
         type Item = &'a mut T;
     
         fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item> {
@@ -53,7 +53,7 @@ pub mod par_strided_map_mut_simd {
     }
     
     #[cfg(feature = "simd")]
-    impl<'a, T> UnindexedProducer for ParStridedMapMutSimd<'a, T> where T: 'a + CommonBounds, <T as TypeCommon>::Vec: Send {
+    impl<'a, T> UnindexedProducer for ParStridedMapMutSimd<'a, T> where T: 'a + CommonBounds, T::Vec: Send {
         type Item = &'a mut T;
     
         fn split(self) -> (Self, Option<Self>) {
@@ -70,10 +70,10 @@ pub mod par_strided_map_mut_simd {
     }
     
     #[cfg(feature = "simd")]
-    impl<'a, T: 'a + CommonBounds> IterGetSetSimd for ParStridedMapMutSimd<'a, T> where <T as TypeCommon>::Vec: Send {
+    impl<'a, T: 'a + CommonBounds> IterGetSetSimd for ParStridedMapMutSimd<'a, T> where T::Vec: Send {
         type Item = &'a mut T;
     
-        type SimdItem = &'a mut <T as TypeCommon>::Vec;
+        type SimdItem = &'a mut T::Vec;
     
         fn set_end_index(&mut self, end_index: usize) {
             self.base.set_end_index(end_index);

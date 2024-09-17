@@ -56,17 +56,12 @@ use tensor_types::{
 use tensor_types::{dtype::TypeCommon, type_promote::FloatOutUnary};
 
 use crate::{
-    backend::{Backend, BackendTy, Buffer, Cpu},
-    ops::cpu::concat::concat,
-    slice::SliceOps,
-    tensor::Tensor,
-    ALIGN, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION,
+    backend::{Backend, BackendTy, Buffer, Cpu}, ops::cpu::concat::concat, slice::SliceOps, tensor::Tensor, BoolVector, ALIGN, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION
 };
+
 /// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
 ///
 /// All the operations are happen on this struct.
-///
-/// The `DiffTensors` and `BasicTensors` are just call `_Tensor` methods and add extra logic.
 ///
 /// # Properties
 /// - `data`: The pointer to the data.
@@ -74,7 +69,7 @@ use crate::{
 /// - `parent`: The parent tensor of the tensor.
 ///
 ///  If the tensor is a view of another tensor, the parent tensor will be the original tensor.
-/// - `mem_layout`: std::alloc::layout, use for deallocate the memory.
+/// - `mem_layout`: std::alloc::layout, use for deallocate the memory and find cache in the allocator.
 #[derive(Clone)]
 pub struct _Tensor<T, B = Cpu>
 where
@@ -540,9 +535,9 @@ impl<T: CommonBounds> _Tensor<T> {
                     *res = x;
                 },
                 |(res, x)| {
-                    // possibily a rust bug when we use sse vector, 
+                    // possibily a rust bug when we use sse vector,
                     // so we have to use ptr directly or hope rust is able to inline the `write_unaligned`
-                    
+
                     // let ptr = res.as_mut_ptr() as *mut T::Vec;
                     // unsafe {
                     //     ptr.write_unaligned(x);
@@ -721,8 +716,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             strides[i] = size as i64;
             size *= tmp as usize;
         }
-        let layout =
-            std::alloc::Layout::from_size_align(size * size_of::<T>(), ALIGN)?;
+        let layout = std::alloc::Layout::from_size_align(size * size_of::<T>(), ALIGN)?;
         let ptr = unsafe { CACHE.allocate(layout) };
         let ly = Layout::new(res_shape.clone(), strides.clone());
         Ok(_Tensor {
@@ -747,8 +741,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             strides[i] = size as i64;
             size *= tmp;
         }
-        let layout =
-            std::alloc::Layout::from_size_align(size * size_of::<T>(), ALIGN)?;
+        let layout = std::alloc::Layout::from_size_align(size * size_of::<T>(), ALIGN)?;
         let ptr = unsafe { CACHE.allocate(layout) };
         assert_ne!(ptr, std::ptr::null_mut());
         let slice = unsafe { std::slice::from_raw_parts_mut(ptr as *mut T, size) };
@@ -1052,36 +1045,10 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(res)
     }
 
-    #[cfg(not(feature = "simd"))]
     fn tril(&self, k: i64) -> Result<Self>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T>,
-    {
-        use std::ops::Mul;
-
-        if self.shape().len() < 2 {
-            return Err(
-                ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into(),
-            );
-        }
-        let mask: _Tensor<bool> = _Tensor::<bool>::tri(
-            self.shape()[self.shape().len() - 2] as usize,
-            self.shape()[self.shape().len() - 1] as usize,
-            k,
-            true,
-        )?;
-        let res: <_Tensor<T> as Mul<_Tensor<bool>>>::Output = self.clone() * mask;
-        Ok(res)
-    }
-
-    #[cfg(target_feature = "avx2")]
-    fn tril(&self, k: i64) -> Result<Self>
-    where
-        T: NormalOut<bool, Output = T> + IntoScalar<T>,
-        <T as TypeCommon>::Vec: NormalOut<
-            tensor_types::vectors::_256bit::boolx32::boolx32,
-            Output = <T as TypeCommon>::Vec,
-        >,
+        <T as TypeCommon>::Vec: NormalOut<BoolVector, Output = <T as TypeCommon>::Vec>,
     {
         if self.shape().len() < 2 {
             return Err(
@@ -1098,69 +1065,10 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(res)
     }
 
-    #[cfg(feature = "simd")]
-    #[cfg(all(
-        not(target_feature = "avx2"),
-        any(target_feature = "sse", target_feature = "neon")
-    ))]
-    fn tril(&self, k: i64) -> Result<Self>
-    where
-        T: NormalOut<bool, Output = T> + IntoScalar<T>,
-        <T as TypeCommon>::Vec: NormalOut<
-            tensor_types::vectors::_128bit::boolx16::boolx16,
-            Output = <T as TypeCommon>::Vec,
-        >,
-    {
-        if self.shape().len() < 2 {
-            return Err(
-                ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into(),
-            );
-        }
-        let mask: _Tensor<bool> = _Tensor::<bool>::tri(
-            self.shape()[self.shape().len() - 2] as usize,
-            self.shape()[self.shape().len() - 1] as usize,
-            k,
-            true,
-        )?;
-        let res: _Tensor<T> = self.clone() * mask;
-        Ok(res)
-    }
-
-    #[cfg(target_feature = "avx2")]
     fn triu(&self, k: i64) -> Result<Self>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T>,
-        <T as TypeCommon>::Vec: NormalOut<
-            tensor_types::vectors::_256bit::boolx32::boolx32,
-            Output = <T as TypeCommon>::Vec,
-        >,
-    {
-        if self.shape().len() < 2 {
-            return Err(
-                ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into(),
-            );
-        }
-        let mask: _Tensor<bool> = _Tensor::<bool>::tri(
-            self.shape()[self.shape().len() - 2] as usize,
-            self.shape()[self.shape().len() - 1] as usize,
-            k,
-            false,
-        )?;
-        let res = self.clone() * mask;
-        Ok(res)
-    }
-
-    #[cfg(all(
-        not(target_feature = "avx2"),
-        any(target_feature = "sse", target_feature = "neon")
-    ))]
-    fn triu(&self, k: i64) -> Result<Self>
-    where
-        T: NormalOut<bool, Output = T> + IntoScalar<T>,
-        <T as TypeCommon>::Vec: NormalOut<
-            tensor_types::vectors::_128bit::boolx16::boolx16,
-            Output = <T as TypeCommon>::Vec,
-        >,
+        <T as TypeCommon>::Vec: NormalOut<BoolVector, Output = <T as TypeCommon>::Vec>,
     {
         if self.shape().len() < 2 {
             return Err(
@@ -1748,8 +1656,7 @@ impl<'a, T> Into<_Tensor<T>> for &'a [T] {
         let strides = vec![1];
         let layout = Layout::new(shape, strides);
         let mem_layout =
-            std::alloc::Layout::from_size_align(self.len() * size_of::<T>(), ALIGN)
-                .unwrap();
+            std::alloc::Layout::from_size_align(self.len() * size_of::<T>(), ALIGN).unwrap();
         let ptr = unsafe { CACHE.allocate(mem_layout.clone()) };
         unsafe {
             std::ptr::copy_nonoverlapping(self.as_ptr(), ptr as *mut T, self.len());

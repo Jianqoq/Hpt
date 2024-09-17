@@ -1,3 +1,4 @@
+use tensor_common::pointer::Pointer;
 use tensor_common::slice;
 use tensor_common::slice::Slice;
 use tensor_dyn::match_selection;

@@ -17,7 +17,7 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn softmax(&self, axis: i64) -> anyhow::Result<_Tensor<<T as FloatOutUnary>::Output>>
         where
-            <T as TypeCommon>::Vec: NormalOut<Output = <T as TypeCommon>::Vec>,
+            T::Vec: NormalOut<Output = T::Vec>,
             <<T as FloatOutUnary>::Output as TypeCommon>::Vec: NormalOut<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
             <T as FloatOutUnary>::Output: FloatOutBinary<Output = <T as FloatOutUnary>::Output> + Convertor
     {
@@ -46,7 +46,7 @@ impl<T> Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn softmax(&self, axis: i64) -> anyhow::Result<Tensor<<T as FloatOutUnary>::Output>>
         where
-            <T as TypeCommon>::Vec: NormalOut<Output = <T as TypeCommon>::Vec>,
+            T::Vec: NormalOut<Output = T::Vec>,
             <<T as FloatOutUnary>::Output as TypeCommon>::Vec: NormalOut<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
             <T as FloatOutUnary>::Output: FloatOutBinary<Output = <T as FloatOutUnary>::Output> + Convertor
     {
@@ -72,7 +72,7 @@ impl<T> _Tensor<T>
     )
         -> anyhow::Result<_Tensor<<<T as FloatOutUnary>::Output as FloatOutUnary>::Output>>
         where
-            <T as TypeCommon>::Vec: NormalOut<Output = <T as TypeCommon>::Vec>,
+            T::Vec: NormalOut<Output = T::Vec>,
             <<T as FloatOutUnary>::Output as TypeCommon>::Vec: NormalOut<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
             <T as FloatOutUnary>::Output: FloatOutBinary<Output = <T as FloatOutUnary>::Output> + Convertor
     {
@@ -111,7 +111,7 @@ impl<T> Tensor<T>
     )
         -> anyhow::Result<Tensor<<<T as FloatOutUnary>::Output as FloatOutUnary>::Output>>
         where
-            <T as TypeCommon>::Vec: NormalOut<Output = <T as TypeCommon>::Vec>,
+            T::Vec: NormalOut<Output = T::Vec>,
             <<T as FloatOutUnary>::Output as TypeCommon>::Vec: NormalOut<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
             <T as FloatOutUnary>::Output: FloatOutBinary<Output = <T as FloatOutUnary>::Output> + Convertor
     {

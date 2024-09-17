@@ -58,7 +58,7 @@ pub mod simd_imports {
     #[cfg(feature = "simd")]
     impl<'a, T> StridedIteratorSimd for StridedMutSimd<'a, T> where T: CommonBounds {
         type Item = &'a mut T;
-        type SimdItem = &'a mut <T as TypeCommon>::Vec;
+        type SimdItem = &'a mut T::Vec;
 
         fn for_each<F, F2>(mut self, func: F, _: F2) where F: Fn(Self::Item), F2: Fn(Self::SimdItem) {
             let outer_loop_size = self.outer_loop_size();
@@ -88,7 +88,7 @@ pub mod simd_imports {
 
     impl<'a, T: 'a> IterGetSetSimd for StridedMutSimd<'a, T> where T: CommonBounds {
         type Item = &'a mut T;
-        type SimdItem = &'a mut <T as TypeCommon>::Vec;
+        type SimdItem = &'a mut T::Vec;
 
         fn set_end_index(&mut self, end_index: usize) {
             self.base.set_end_index(end_index);

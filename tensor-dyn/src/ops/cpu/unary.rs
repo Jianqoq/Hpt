@@ -1,23 +1,20 @@
+use crate::backend::Cpu;
+use crate::tensor_base::_Tensor;
+use crate::THREAD_POOL;
 use rayon::iter::{
-    IndexedParallelIterator,
-    IntoParallelRefIterator,
-    IntoParallelRefMutIterator,
-    ParallelIterator,
+    IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
-use tensor_types::vectors::traits::*;
-use rayon::slice::{ ParallelSlice, ParallelSliceMut };
+use rayon::slice::{ParallelSlice, ParallelSliceMut};
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::shape_utils::mt_intervals;
+use tensor_traits::tensor::TensorCreator;
+use tensor_traits::tensor::{CommonBounds, TensorInfo, TensorLike};
 use tensor_traits::BaseTensor;
 use tensor_types::dtype::TypeCommon;
 use tensor_types::into_scalar::IntoScalar;
+use tensor_types::type_promote::{Eval, FloatOutBinary, FloatOutUnary, NormalOut};
+use tensor_types::vectors::traits::*;
 use threadpool::ThreadPool;
-use crate::backend::Cpu;
-use crate::THREAD_POOL;
-use tensor_traits::tensor::{ CommonBounds, TensorInfo, TensorLike };
-use tensor_traits::tensor::TensorCreator;
-use tensor_types::type_promote::{ Eval, FloatOutBinary, FloatOutUnary, NormalOut };
-use crate::tensor_base::_Tensor;
 
 /// Applies a unary function to a tensor, returning a tensor with float type elements.
 ///
@@ -33,7 +30,10 @@ use crate::tensor_base::_Tensor;
 
 #[inline(always)]
 pub fn uary_fn<A, F, O>(inp: &_Tensor<A>, f: F) -> anyhow::Result<_Tensor<O>>
-    where A: CommonBounds, O: CommonBounds, F: Fn(A) -> O + Sync + Send
+where
+    A: CommonBounds,
+    O: CommonBounds,
+    F: Fn(A) -> O + Sync + Send,
 {
     let ret: _Tensor<O>;
     ret = _Tensor::<O, Cpu>::empty(inp.shape())?;
@@ -53,8 +53,8 @@ pub fn uary_fn<A, F, O>(inp: &_Tensor<A>, f: F) -> anyhow::Result<_Tensor<O>>
             a[6] = new_f(b[6]);
             a[7] = new_f(b[7]);
         });
-    ret.as_raw_mut()
-        [exect_size..].iter_mut()
+    ret.as_raw_mut()[exect_size..]
+        .iter_mut()
         .zip(inp.as_raw()[exect_size..].iter())
         .for_each(|(a, &b)| {
             *a = f(b);
@@ -64,11 +64,11 @@ pub fn uary_fn<A, F, O>(inp: &_Tensor<A>, f: F) -> anyhow::Result<_Tensor<O>>
 
 #[inline(always)]
 pub fn uary_fn_simd<A, F, O, F2>(inp: &_Tensor<A>, f: F, f2: F2) -> anyhow::Result<_Tensor<O>>
-    where
-        A: CommonBounds,
-        O: CommonBounds,
-        F: Fn(<A as TypeCommon>::Vec) -> <O as TypeCommon>::Vec + Sync + Send,
-        F2: Fn(A) -> O + Sync + Send
+where
+    A: CommonBounds,
+    O: CommonBounds,
+    F: Fn(<A as TypeCommon>::Vec) -> <O as TypeCommon>::Vec + Sync + Send,
+    F2: Fn(A) -> O + Sync + Send,
 {
     let ret: _Tensor<O>;
     ret = _Tensor::<O, Cpu>::empty(inp.shape())?;
@@ -82,9 +82,8 @@ pub fn uary_fn_simd<A, F, O, F2>(inp: &_Tensor<A>, f: F, f2: F2) -> anyhow::Resu
     }
     let per_thread_len = ret.size() / rayon::current_num_threads();
     let per_thread_remain = per_thread_len % <O as TypeCommon>::Vec::SIZE;
-    let total_remain =
-        rayon::current_num_threads() * per_thread_remain +
-        (ret.size() % rayon::current_num_threads());
+    let total_remain = rayon::current_num_threads() * per_thread_remain
+        + (ret.size() % rayon::current_num_threads());
     let per_thread_real_len = per_thread_len - per_thread_remain;
     if per_thread_real_len > 0 {
         ret.as_raw_mut()
@@ -102,15 +101,15 @@ pub fn uary_fn_simd<A, F, O, F2>(inp: &_Tensor<A>, f: F, f2: F2) -> anyhow::Resu
                             std::ptr::copy_nonoverlapping(
                                 res.as_ptr(),
                                 ret.as_mut_ptr(),
-                                <O as TypeCommon>::Vec::SIZE
+                                <O as TypeCommon>::Vec::SIZE,
                             );
                         }
                     });
             });
     }
     if total_remain > 0 {
-        ret.as_raw_mut()
-            [ret.size() - total_remain..].iter_mut()
+        ret.as_raw_mut()[ret.size() - total_remain..]
+            .iter_mut()
             .zip(inp.as_raw()[ret.size() - total_remain..].iter())
             .for_each(|(a, &lhs)| {
                 *a = f2(lhs);
@@ -133,15 +132,14 @@ pub fn uary_fn_simd<A, F, O, F2>(inp: &_Tensor<A>, f: F, f2: F2) -> anyhow::Resu
 pub fn uary_fn_with_out<A, O, K, Q, F>(
     inp: &_Tensor<A, Cpu>,
     f: F,
-    out: O
-)
-    -> anyhow::Result<_Tensor<K, Cpu>>
-    where
-        A: CommonBounds,
-        O: TensorLike<Q, Output = _Tensor<K, Cpu>> + TensorInfo<Q>,
-        K: CommonBounds,
-        Q: CommonBounds,
-        F: Fn(A) -> K + Sync + Send
+    out: O,
+) -> anyhow::Result<_Tensor<K, Cpu>>
+where
+    A: CommonBounds,
+    O: TensorLike<Q, Output = _Tensor<K, Cpu>> + TensorInfo<Q>,
+    K: CommonBounds,
+    Q: CommonBounds,
+    F: Fn(A) -> K + Sync + Send,
 {
     let ret_size: usize = inp.size();
     let ret = if out.size() * size_of::<Q>() != ret_size * size_of::<K>() {
@@ -163,16 +161,15 @@ pub(crate) fn uary_fn_with_out_simd<A, O, K, Q, F, F2>(
     inp: &_Tensor<A, Cpu>,
     f: F,
     f2: F2,
-    out: O
-)
-    -> anyhow::Result<_Tensor<K, Cpu>>
-    where
-        A: CommonBounds,
-        O: TensorLike<Q, Output = _Tensor<K, Cpu>> + TensorInfo<Q>,
-        K: CommonBounds,
-        Q: CommonBounds,
-        F: Fn(<A as TypeCommon>::Vec) -> <K as TypeCommon>::Vec + Sync + Send,
-        F2: Fn(A) -> K + Sync + Send
+    out: O,
+) -> anyhow::Result<_Tensor<K, Cpu>>
+where
+    A: CommonBounds,
+    O: TensorLike<Q, Output = _Tensor<K, Cpu>> + TensorInfo<Q>,
+    K: CommonBounds,
+    Q: CommonBounds,
+    F: Fn(<A as TypeCommon>::Vec) -> <K as TypeCommon>::Vec + Sync + Send,
+    F2: Fn(A) -> K + Sync + Send,
 {
     let ret_size: usize = inp.size();
     let ret = if out.size() * size_of::<Q>() != ret_size * size_of::<K>() {
@@ -194,12 +191,12 @@ pub(crate) fn uary_fn_with_out_simd<A, O, K, Q, F, F2>(
                 std::ptr::copy_nonoverlapping(
                     res_ptr,
                     a.as_mut_ptr(),
-                    <A as TypeCommon>::Vec::SIZE
+                    <A as TypeCommon>::Vec::SIZE,
                 );
             }
         });
-    ret.as_raw_mut()
-        [exect_size..].iter_mut()
+    ret.as_raw_mut()[exect_size..]
+        .iter_mut()
         .zip(inp.as_raw()[exect_size..].iter())
         .for_each(|(a, &b)| {
             *a = f2(b);
@@ -211,30 +208,24 @@ pub(crate) type FloatUnaryType<T> = <T as FloatOutUnary>::Output;
 pub(crate) type FloatBinaryType<T> = <T as FloatOutBinary>::Output;
 
 impl<T> _Tensor<T>
-    where
-        T: FloatOutUnary + CommonBounds,
-        FloatUnaryType<T>: CommonBounds,
-        f64: IntoScalar<<T as FloatOutUnary>::Base>,
-        _Tensor<<T as FloatOutUnary>::Output>: TensorLike<
-            <T as FloatOutUnary>::Output,
-            Output = _Tensor<<T as FloatOutUnary>::Output>
-        >,
-        <T as TypeCommon>::Vec: FloatOutUnary<
-            Output = <FloatUnaryType<T> as TypeCommon>::Vec,
-            Base = <T as FloatOutUnary>::Base
-        >,
-        <FloatUnaryType<T> as TypeCommon>::Vec: Send + Copy + Sync,
-        <T as FloatOutUnary>::Base: CommonBounds
+where
+    T: FloatOutUnary + CommonBounds,
+    FloatUnaryType<T>: CommonBounds,
+    f64: IntoScalar<<T as FloatOutUnary>::Base>,
+    _Tensor<<T as FloatOutUnary>::Output>:
+        TensorLike<<T as FloatOutUnary>::Output, Output = _Tensor<<T as FloatOutUnary>::Output>>,
+    T::Vec: FloatOutUnary<
+        Output = <FloatUnaryType<T> as TypeCommon>::Vec,
+        Base = <T as FloatOutUnary>::Base,
+    >,
+    <FloatUnaryType<T> as TypeCommon>::Vec: Send + Copy + Sync,
+    <T as FloatOutUnary>::Base: CommonBounds,
 {
     /// calculate `sin` for each element of the tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn sin(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._sin(),
-            |x| x._sin()
-        );
+        let ret = uary_fn_simd(self, |x| x._sin(), |x| x._sin());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._sin());
         ret
@@ -244,11 +235,7 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn cos(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._cos(),
-            |x| x._cos()
-        );
+        let ret = uary_fn_simd(self, |x| x._cos(), |x| x._cos());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._cos());
         ret
@@ -258,11 +245,7 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn tan(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._tan(),
-            |x| x._tan()
-        );
+        let ret = uary_fn_simd(self, |x| x._tan(), |x| x._tan());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._tan());
         ret
@@ -272,11 +255,7 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn asin(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._asin(),
-            |x| x._asin()
-        );
+        let ret = uary_fn_simd(self, |x| x._asin(), |x| x._asin());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._asin());
         ret
@@ -286,11 +265,7 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn acos(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._acos(),
-            |x| x._acos()
-        );
+        let ret = uary_fn_simd(self, |x| x._acos(), |x| x._acos());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._acos());
         ret
@@ -300,11 +275,7 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn atan(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._atan(),
-            |x| x._atan()
-        );
+        let ret = uary_fn_simd(self, |x| x._atan(), |x| x._atan());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._atan());
         ret
@@ -314,11 +285,7 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn sinh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._sinh(),
-            |x| x._sinh()
-        );
+        let ret = uary_fn_simd(self, |x| x._sinh(), |x| x._sinh());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._sinh());
         ret
@@ -328,11 +295,7 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn cosh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._cosh(),
-            |x| x._cosh()
-        );
+        let ret = uary_fn_simd(self, |x| x._cosh(), |x| x._cosh());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._cosh());
         ret
@@ -342,11 +305,7 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn erf(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._erf(),
-            |x| x._erf()
-        );
+        let ret = uary_fn_simd(self, |x| x._erf(), |x| x._erf());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._erf());
         ret
@@ -356,11 +315,7 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn tanh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._tanh(),
-            |x| x._tanh()
-        );
+        let ret = uary_fn_simd(self, |x| x._tanh(), |x| x._tanh());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._tanh());
         ret
@@ -370,11 +325,7 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn asinh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._asinh(),
-            |x| x._asinh()
-        );
+        let ret = uary_fn_simd(self, |x| x._asinh(), |x| x._asinh());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._asinh());
         ret
@@ -384,11 +335,7 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn acosh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._acosh(),
-            |x| x._acosh()
-        );
+        let ret = uary_fn_simd(self, |x| x._acosh(), |x| x._acosh());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._acosh());
         ret
@@ -398,11 +345,7 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn atanh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._atanh(),
-            |x| x._atanh()
-        );
+        let ret = uary_fn_simd(self, |x| x._atanh(), |x| x._atanh());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._atanh());
         ret
@@ -411,15 +354,11 @@ impl<T> _Tensor<T>
     /// calculate `sin` for each element of the tensor and store the result in the output tensor`
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn sin_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._sin(),
-            |x| x._sin(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._sin(), |x| x._sin(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._sin(), out.base().clone());
         ret
@@ -428,15 +367,11 @@ impl<T> _Tensor<T>
     /// calculate `cos` for each element of the tensor and store the result in the output tensor`
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn cos_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._cos(),
-            |x| x._cos(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._cos(), |x| x._cos(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._cos(), out.base().clone());
         ret
@@ -445,150 +380,110 @@ impl<T> _Tensor<T>
     /// calculate `tan` for each element of the tensor and store the result in the output tensor`
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn tan_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._tan(),
-            |x| x._tan(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._tan(), |x| x._tan(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._tan(), out.base().clone());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn asin_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._asin(),
-            |x| x._asin(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._asin(), |x| x._asin(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._asin(), out.base().clone());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn acos_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._acos(),
-            |x| x._acos(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._acos(), |x| x._acos(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._acos(), out.base().clone());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn atan_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._atan(),
-            |x| x._atan(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._atan(), |x| x._atan(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._atan(), out.base().clone());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn sinh_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._sinh(),
-            |x| x._sinh(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._sinh(), |x| x._sinh(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._sinh(), out.base().clone());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn cosh_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._cosh(),
-            |x| x._cosh(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._cosh(), |x| x._cosh(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._cosh(), out.base().clone());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn tanh_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._tanh(),
-            |x| x._tanh(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._tanh(), |x| x._tanh(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._tanh(), out.base().clone());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn asinh_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._asinh(),
-            |x| x._asinh(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._asinh(), |x| x._asinh(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._asinh(), out.base().clone());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn acosh_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._acosh(),
-            |x| x._acosh(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._acosh(), |x| x._acosh(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._acosh(), out.base().clone());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn atanh_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._atanh(),
-            |x| x._atanh(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._atanh(), |x| x._atanh(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._atanh(), out.base().clone());
         ret
@@ -596,26 +491,18 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn exp(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._exp(),
-            |x| x._exp()
-        );
+        let ret = uary_fn_simd(self, |x| x._exp(), |x| x._exp());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._exp());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn exp_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._exp(),
-            |x| x._exp(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._exp(), |x| x._exp(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._exp(), out.base().clone());
         ret
@@ -623,26 +510,18 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn exp2(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._exp2(),
-            |x| x._exp2()
-        );
+        let ret = uary_fn_simd(self, |x| x._exp2(), |x| x._exp2());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._exp2());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn exp2_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._exp2(),
-            |x| x._exp2(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._exp2(), |x| x._exp2(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._exp2(), out.base().clone());
         ret
@@ -650,26 +529,18 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn sqrt(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._sqrt(),
-            |x| x._sqrt()
-        );
+        let ret = uary_fn_simd(self, |x| x._sqrt(), |x| x._sqrt());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._sqrt());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn sqrt_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._sqrt(),
-            |x| x._sqrt(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._sqrt(), |x| x._sqrt(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._sqrt(), out.base().clone());
         ret
@@ -677,26 +548,18 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn recip(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._recip(),
-            |x| x._recip()
-        );
+        let ret = uary_fn_simd(self, |x| x._recip(), |x| x._recip());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._recip());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn recip_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._recip(),
-            |x| x._recip(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._recip(), |x| x._recip(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._recip(), out.base().clone());
         ret
@@ -704,26 +567,18 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn ln(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._ln(),
-            |x| x._ln()
-        );
+        let ret = uary_fn_simd(self, |x| x._ln(), |x| x._ln());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._ln());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn ln_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._ln(),
-            |x| x._ln(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._ln(), |x| x._ln(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._ln(), out.base().clone());
         ret
@@ -731,26 +586,18 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn log2(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._log2(),
-            |x| x._log2()
-        );
+        let ret = uary_fn_simd(self, |x| x._log2(), |x| x._log2());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._log2());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn log2_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._log2(),
-            |x| x._log2(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._log2(), |x| x._log2(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._log2(), out.base().clone());
         ret
@@ -758,26 +605,18 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn log10(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._log10(),
-            |x| x._log10()
-        );
+        let ret = uary_fn_simd(self, |x| x._log10(), |x| x._log10());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._log10());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn log10_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._log10(),
-            |x| x._log10(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._log10(), |x| x._log10(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._log10(), out.base().clone());
         ret
@@ -785,14 +624,10 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn celu(
         &self,
-        alpha: <T as FloatOutUnary>::Base
+        alpha: <T as FloatOutUnary>::Base,
     ) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._celu(alpha),
-            |x| x._celu(alpha)
-        );
+        let ret = uary_fn_simd(self, |x| x._celu(alpha), |x| x._celu(alpha));
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._celu(alpha));
         ret
@@ -801,16 +636,17 @@ impl<T> _Tensor<T>
     pub fn celu_<U>(
         &self,
         alpha: <T as FloatOutUnary>::Base,
-        out: U
+        out: U,
     ) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
         let ret = uary_fn_with_out_simd(
             self,
             |x| x._celu(alpha),
             |x| x._celu(alpha),
-            out.base().clone()
+            out.base().clone(),
         );
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._celu(alpha), out.base().clone());
@@ -819,26 +655,19 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn sigmoid(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._sigmoid(),
-            |x| x._sigmoid()
-        );
+        let ret = uary_fn_simd(self, |x| x._sigmoid(), |x| x._sigmoid());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._sigmoid());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn sigmoid_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._sigmoid(),
-            |x| x._sigmoid(),
-            out.base().clone()
-        );
+        let ret =
+            uary_fn_with_out_simd(self, |x| x._sigmoid(), |x| x._sigmoid(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._sigmoid(), out.base().clone());
         ret
@@ -846,14 +675,10 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn elu(
         &self,
-        alpha: <T as FloatOutUnary>::Base
+        alpha: <T as FloatOutUnary>::Base,
     ) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._elu(alpha),
-            |x| x._elu(alpha)
-        );
+        let ret = uary_fn_simd(self, |x| x._elu(alpha), |x| x._elu(alpha));
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._elu(alpha));
         ret
@@ -862,16 +687,17 @@ impl<T> _Tensor<T>
     pub fn elu_<U>(
         &self,
         alpha: <T as FloatOutUnary>::Base,
-        out: U
+        out: U,
     ) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
         let ret = uary_fn_with_out_simd(
             self,
             |x| x._elu(alpha),
             |x| x._elu(alpha),
-            out.base().clone()
+            out.base().clone(),
         );
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._elu(alpha), out.base().clone());
@@ -880,14 +706,10 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn leaky_relu(
         &self,
-        alpha: <T as FloatOutUnary>::Base
+        alpha: <T as FloatOutUnary>::Base,
     ) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._leaky_relu(alpha),
-            |x| x._leaky_relu(alpha)
-        );
+        let ret = uary_fn_simd(self, |x| x._leaky_relu(alpha), |x| x._leaky_relu(alpha));
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._leaky_relu(alpha));
         ret
@@ -896,16 +718,17 @@ impl<T> _Tensor<T>
     pub fn leaky_relu_<U>(
         &self,
         alpha: <T as FloatOutUnary>::Base,
-        out: U
+        out: U,
     ) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
         let ret = uary_fn_with_out_simd(
             self,
             |x| x._leaky_relu(alpha),
             |x| x._leaky_relu(alpha),
-            out.base().clone()
+            out.base().clone(),
         );
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._leaky_relu(alpha), out.base().clone());
@@ -914,26 +737,18 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn gelu(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._gelu(),
-            |x| x._gelu()
-        );
+        let ret = uary_fn_simd(self, |x| x._gelu(), |x| x._gelu());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._gelu());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn gelu_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._gelu(),
-            |x| x._gelu(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._gelu(), |x| x._gelu(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._gelu(), out.base().clone());
         ret
@@ -942,7 +757,7 @@ impl<T> _Tensor<T>
     pub fn selu(
         &self,
         alpha: Option<<T as FloatOutUnary>::Base>,
-        gamma: Option<<T as FloatOutUnary>::Base>
+        gamma: Option<<T as FloatOutUnary>::Base>,
     ) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         let alpha = alpha.unwrap_or(1.6732632423543772848170429916717.into_scalar());
         let gamma = gamma.unwrap_or(1.0507009873554804934193349852946.into_scalar());
@@ -950,7 +765,7 @@ impl<T> _Tensor<T>
         let ret = uary_fn_simd(
             self,
             |x| x._selu(alpha, gamma),
-            move |x| x._selu(alpha, gamma)
+            move |x| x._selu(alpha, gamma),
         );
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._selu(alpha, gamma));
@@ -961,9 +776,10 @@ impl<T> _Tensor<T>
         &self,
         alpha: Option<<T as FloatOutUnary>::Base>,
         gamma: Option<<T as FloatOutUnary>::Base>,
-        out: U
+        out: U,
     ) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         let alpha = alpha.unwrap_or(1.67326319217681884765625.into_scalar());
         let gamma = gamma.unwrap_or(1.05070102214813232421875.into_scalar());
@@ -972,7 +788,7 @@ impl<T> _Tensor<T>
             self,
             |x| x._selu(alpha, gamma),
             |x| x._selu(alpha, gamma),
-            out.base().clone()
+            out.base().clone(),
         );
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._selu(alpha, gamma), out.base().clone());
@@ -981,11 +797,7 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn hard_sigmoid(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._hard_sigmoid(),
-            |x| x._hard_sigmoid()
-        );
+        let ret = uary_fn_simd(self, |x| x._hard_sigmoid(), |x| x._hard_sigmoid());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._hard_sigmoid());
         ret
@@ -993,25 +805,22 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn fast_hard_sigmoid(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._fast_hard_sigmoid(),
-            |x| x._fast_hard_sigmoid()
-        );
+        let ret = uary_fn_simd(self, |x| x._fast_hard_sigmoid(), |x| x._fast_hard_sigmoid());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._hard_sigmoid());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn hard_sigmoid_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
         let ret = uary_fn_with_out_simd(
             self,
             |x| x._hard_sigmoid(),
             |x| x._hard_sigmoid(),
-            out.base().clone()
+            out.base().clone(),
         );
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._hard_sigmoid(), out.base().clone());
@@ -1020,25 +829,22 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn hard_swish(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._hard_swish(),
-            |x| x._hard_swish()
-        );
+        let ret = uary_fn_simd(self, |x| x._hard_swish(), |x| x._hard_swish());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._hard_swish());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn hard_swish_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
         let ret = uary_fn_with_out_simd(
             self,
             |x| x._hard_swish(),
             |x| x._hard_swish(),
-            out.base().clone()
+            out.base().clone(),
         );
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._hard_swish(), out.base().clone());
@@ -1047,26 +853,18 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn relu6(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._relu6(),
-            |x| x._relu6()
-        );
+        let ret = uary_fn_simd(self, |x| x._relu6(), |x| x._relu6());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._relu6());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn relu6_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._relu6(),
-            |x| x._relu6(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._relu6(), |x| x._relu6(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._relu6(), out.base().clone());
         ret
@@ -1074,25 +872,22 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn softplus(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._softplus(),
-            |x| x._softplus()
-        );
+        let ret = uary_fn_simd(self, |x| x._softplus(), |x| x._softplus());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._softplus());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn softplus_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
         let ret = uary_fn_with_out_simd(
             self,
             |x| x._softplus(),
             |x| x._softplus(),
-            out.base().clone()
+            out.base().clone(),
         );
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._softplus(), out.base().clone());
@@ -1101,25 +896,22 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn softsign(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._softsign(),
-            |x| x._softsign()
-        );
+        let ret = uary_fn_simd(self, |x| x._softsign(), |x| x._softsign());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._softsign());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn softsign_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
         let ret = uary_fn_with_out_simd(
             self,
             |x| x._softsign(),
             |x| x._softsign(),
-            out.base().clone()
+            out.base().clone(),
         );
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._softsign(), out.base().clone());
@@ -1128,26 +920,18 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn mish(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._mish(),
-            |x| x._mish()
-        );
+        let ret = uary_fn_simd(self, |x| x._mish(), |x| x._mish());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._mish());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn mish_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._mish(),
-            |x| x._mish(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._mish(), |x| x._mish(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._mish(), out.base().clone());
         ret
@@ -1155,26 +939,18 @@ impl<T> _Tensor<T>
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn relu(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._relu(),
-            |x| x._relu()
-        );
+        let ret = uary_fn_simd(self, |x| x._relu(), |x| x._relu());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._mish());
         ret
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn relu_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<FloatUnaryType<T>>>,
     {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_with_out_simd(
-            self,
-            |x| x._relu(),
-            |x| x._relu(),
-            out.base().clone()
-        );
+        let ret = uary_fn_with_out_simd(self, |x| x._relu(), |x| x._relu(), out.base().clone());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn_with_out(self, |x| x._mish(), out.base().clone());
         ret
@@ -1184,21 +960,17 @@ impl<T> _Tensor<T>
 pub(crate) type NormalType<T> = <T as NormalOut>::Output;
 
 impl<T> _Tensor<T>
-    where
-        T: NormalOut<Output = T> + CommonBounds + IntoScalar<T>,
-        NormalType<T>: CommonBounds,
-        _Tensor<NormalType<T>>: TensorLike<NormalType<T>, Output = _Tensor<NormalType<T>>>,
-        <T as TypeCommon>::Vec: NormalOut<Output = <T as TypeCommon>::Vec>
+where
+    T: NormalOut<Output = T> + CommonBounds + IntoScalar<T>,
+    NormalType<T>: CommonBounds,
+    _Tensor<NormalType<T>>: TensorLike<NormalType<T>, Output = _Tensor<NormalType<T>>>,
+    T::Vec: NormalOut<Output = T::Vec>,
 {
     /// calculate `floor` for each element of the tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn floor(&self) -> anyhow::Result<_Tensor<NormalType<T>>> {
         #[cfg(feature = "simd")]
-        let ret = uary_fn_simd(
-            self,
-            |x| x._floor(),
-            |x| x._floor()
-        );
+        let ret = uary_fn_simd(self, |x| x._floor(), |x| x._floor());
         #[cfg(not(feature = "simd"))]
         let ret = uary_fn(self, |x| x._floor());
         ret
@@ -1210,7 +982,8 @@ impl<T> _Tensor<T>
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn square_<U>(&self, out: U) -> anyhow::Result<_Tensor<NormalType<T>>>
-        where U: BaseTensor<Output = _Tensor<NormalType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<NormalType<T>>>,
     {
         uary_fn_with_out(self, |x| x._square(), out.base().clone())
     }
@@ -1219,7 +992,10 @@ impl<T> _Tensor<T>
         uary_fn(self, |x| x._abs())
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn abs_<U>(&self, out: U) -> anyhow::Result<Self> where U: BaseTensor<Output = Self> {
+    pub fn abs_<U>(&self, out: U) -> anyhow::Result<Self>
+    where
+        U: BaseTensor<Output = Self>,
+    {
         uary_fn_with_out(self, |x| x._abs(), out.base().clone())
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1228,7 +1004,8 @@ impl<T> _Tensor<T>
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn ceil_<U>(&self, out: U) -> anyhow::Result<_Tensor<NormalType<T>>>
-        where U: BaseTensor<Output = _Tensor<NormalType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<NormalType<T>>>,
     {
         uary_fn_with_out(self, |x| x._ceil(), out.base().clone())
     }
@@ -1238,7 +1015,8 @@ impl<T> _Tensor<T>
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn sign_<U>(&self, out: U) -> anyhow::Result<_Tensor<NormalType<T>>>
-        where U: BaseTensor<Output = _Tensor<NormalType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<NormalType<T>>>,
     {
         uary_fn_with_out(self, |x| x._sign(), out.base().clone())
     }
@@ -1246,7 +1024,7 @@ impl<T> _Tensor<T>
     pub fn clip(
         &self,
         min: NormalType<T>,
-        max: NormalType<T>
+        max: NormalType<T>,
     ) -> anyhow::Result<_Tensor<NormalType<T>>> {
         uary_fn(self, |x| x._clip(min, max))
     }
@@ -1255,9 +1033,10 @@ impl<T> _Tensor<T>
         &self,
         min: NormalType<T>,
         max: NormalType<T>,
-        out: U
+        out: U,
     ) -> anyhow::Result<_Tensor<NormalType<T>>>
-        where U: BaseTensor<Output = _Tensor<NormalType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<NormalType<T>>>,
     {
         uary_fn_with_out(self, |x| x._clip(min, max), out.base().clone())
     }
@@ -1267,7 +1046,8 @@ impl<T> _Tensor<T>
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn round_<U>(&self, out: U) -> anyhow::Result<_Tensor<NormalType<T>>>
-        where U: BaseTensor<Output = _Tensor<NormalType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<NormalType<T>>>,
     {
         uary_fn_with_out(self, |x| x._round(), out.base().clone())
     }
@@ -1276,10 +1056,10 @@ impl<T> _Tensor<T>
 type NegType<T> = <T as std::ops::Neg>::Output;
 
 impl<T> _Tensor<T>
-    where
-        T: std::ops::Neg + CommonBounds,
-        NegType<T>: CommonBounds,
-        _Tensor<NegType<T>>: TensorLike<NegType<T>, Output = _Tensor<NegType<T>>>
+where
+    T: std::ops::Neg + CommonBounds,
+    NegType<T>: CommonBounds,
+    _Tensor<NegType<T>>: TensorLike<NegType<T>, Output = _Tensor<NegType<T>>>,
 {
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1290,13 +1070,18 @@ impl<T> _Tensor<T>
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn neg_<U>(&self, out: U) -> anyhow::Result<_Tensor<NegType<T>>>
-        where U: BaseTensor<Output = _Tensor<NegType<T>>>
+    where
+        U: BaseTensor<Output = _Tensor<NegType<T>>>,
     {
         uary_fn_with_out(self, |x| -x, out.base().clone())
     }
 }
 
-impl<T> _Tensor<T> where T: CommonBounds + Eval, <T as Eval>::Output: CommonBounds {
+impl<T> _Tensor<T>
+where
+    T: CommonBounds + Eval,
+    <T as Eval>::Output: CommonBounds,
+{
     pub fn is_inf(&self) -> anyhow::Result<_Tensor<<T as Eval>::Output>> {
         uary_fn(self, |x| x._is_inf())
     }
@@ -1305,11 +1090,15 @@ impl<T> _Tensor<T> where T: CommonBounds + Eval, <T as Eval>::Output: CommonBoun
     }
 }
 
-impl<T> _Tensor<T> where T: CommonBounds {
+impl<T> _Tensor<T>
+where
+    T: CommonBounds,
+{
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn cumsum(&self, axis: Option<i64>) -> anyhow::Result<Self>
-        where T: NormalOut<T, Output = T>
+    where
+        T: NormalOut<T, Output = T>,
     {
         match axis {
             Some(axis) => {
@@ -1430,7 +1219,8 @@ impl<T> _Tensor<T> where T: CommonBounds {
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn cumprod(&self, axis: Option<i64>) -> anyhow::Result<Self>
-        where T: NormalOut<T, Output = T>
+    where
+        T: NormalOut<T, Output = T>,
     {
         match axis {
             Some(axis) => {

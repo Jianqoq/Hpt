@@ -79,8 +79,6 @@ pub trait NormalBinOps<RHS = Self> where <<Self as NormalBinOps<RHS>>::OutputMet
         where
             U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
                 TensorInfo<Self::OutputMeta>;
-
-    fn convolve(&self, rhs: RHS) -> Result<Self::Output>;
 }
 
 pub trait Matmul<RHS = Self> where <<Self as Matmul<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync {

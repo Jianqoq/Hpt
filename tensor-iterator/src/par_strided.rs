@@ -15,7 +15,6 @@ use tensor_common::{
 };
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use tensor_common::shape_utils::predict_broadcast_shape;
-use tensor_types::dtype::TypeCommon;
 use crate::{
     iterator_traits::{ IterGetSet, ShapeManipulator }, par_strided_fold::ParStridedFold, par_strided_map::ParStridedMap, par_strided_zip::ParStridedZip
 };
@@ -44,7 +43,6 @@ pub mod par_strided_simd {
         strides_utils::preprocess_strides,
     };
     use tensor_traits::{ CommonBounds, TensorInfo };
-    use tensor_types::dtype::TypeCommon;
 
     use crate::{
         iterator_traits::{ IterGetSetSimd, ShapeManipulator },
@@ -98,7 +96,7 @@ pub mod par_strided_simd {
             where
                 C: UnindexedProducer + 'a + IterGetSetSimd + ParallelIterator,
                 <C as IterGetSetSimd>::Item: Send,
-                <T as TypeCommon>::Vec: Send
+                T::Vec: Send
         {
             let new_shape = predict_broadcast_shape(self.shape(), other.shape()).expect(
                 "Cannot broadcast shapes"
@@ -144,7 +142,7 @@ pub mod par_strided_simd {
                 F2: Send +
                     Sync +
                     Copy +
-                    Fn((&mut <T as TypeCommon>::Vec, <Self as IterGetSetSimd>::SimdItem))
+                    Fn((&mut T::Vec, <Self as IterGetSetSimd>::SimdItem))
         {
             {
                 ParStridedMapSimd {
@@ -157,10 +155,10 @@ pub mod par_strided_simd {
         }
     }
 
-    impl<T: CommonBounds> IterGetSetSimd for ParStridedSimd<T> where <T as TypeCommon>::Vec: Send {
+    impl<T: CommonBounds> IterGetSetSimd for ParStridedSimd<T> where T::Vec: Send {
         type Item = T;
 
-        type SimdItem = <T as TypeCommon>::Vec;
+        type SimdItem = T::Vec;
 
         fn set_end_index(&mut self, end_index: usize) {
             self.end_index = end_index;
@@ -246,7 +244,7 @@ pub mod par_strided_simd {
 
     impl<T> ParallelIterator
         for ParStridedSimd<T>
-        where T: CommonBounds, <T as TypeCommon>::Vec: Send
+        where T: CommonBounds, T::Vec: Send
     {
         type Item = T;
 
@@ -257,7 +255,7 @@ pub mod par_strided_simd {
 
     impl<T> UnindexedProducer
         for ParStridedSimd<T>
-        where T: CommonBounds, <T as TypeCommon>::Vec: Send
+        where T: CommonBounds, T::Vec: Send
     {
         type Item = T;
 
@@ -312,7 +310,7 @@ pub mod par_strided_simd {
         }
     }
     #[cfg(feature = "simd")]
-    impl<T: CommonBounds> ShapeManipulator for ParStridedSimd<T> where <T as TypeCommon>::Vec: Send {
+    impl<T: CommonBounds> ShapeManipulator for ParStridedSimd<T> where T::Vec: Send {
         #[cfg_attr(feature = "track_caller", track_caller)]
         fn reshape<S: Into<Shape>>(mut self, shape: S) -> Self {
             let tmp = shape.into();
@@ -605,7 +603,7 @@ impl<T: CommonBounds> IterGetSet for ParStrided<T> {
     }
 }
 
-impl<T> ParallelIterator for ParStrided<T> where T: CommonBounds, <T as TypeCommon>::Vec: Send {
+impl<T> ParallelIterator for ParStrided<T> where T: CommonBounds, T::Vec: Send {
     type Item = T;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item> {
@@ -613,7 +611,7 @@ impl<T> ParallelIterator for ParStrided<T> where T: CommonBounds, <T as TypeComm
     }
 }
 
-impl<T> UnindexedProducer for ParStrided<T> where T: CommonBounds, <T as TypeCommon>::Vec: Send {
+impl<T> UnindexedProducer for ParStrided<T> where T: CommonBounds, T::Vec: Send {
     type Item = T;
 
     fn split(mut self) -> (Self, Option<Self>) {
@@ -667,7 +665,7 @@ impl<T> UnindexedProducer for ParStrided<T> where T: CommonBounds, <T as TypeCom
     }
 }
 
-impl<T: CommonBounds> ShapeManipulator for ParStrided<T> where <T as TypeCommon>::Vec: Send {
+impl<T: CommonBounds> ShapeManipulator for ParStrided<T> where T::Vec: Send {
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn reshape<S: Into<Shape>>(mut self, shape: S) -> Self {
         let tmp = shape.into();

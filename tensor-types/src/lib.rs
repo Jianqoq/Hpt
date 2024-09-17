@@ -6,7 +6,10 @@ pub mod convertion;
 pub mod into_scalar;
 pub mod into_vec;
 pub mod vectors {
-    #[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
+    #[cfg(all(
+        any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
+        not(target_feature = "avx2")
+    ))]
     pub mod _128bit {
         pub mod f32x4;
         pub mod u32x4;

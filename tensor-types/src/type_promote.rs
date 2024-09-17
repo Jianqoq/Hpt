@@ -3,7 +3,7 @@ use crate::convertion::VecConvertor;
 use crate::dtype::FloatConst;
 use crate::dtype::TypeCommon;
 #[cfg(all(
-    any(target_feature = "sse2", target_feature = "neon"),
+    any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
     not(target_feature = "avx2")
 ))]
 use crate::vectors::_128bit::*;

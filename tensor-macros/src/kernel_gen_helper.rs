@@ -3,14 +3,16 @@ use syn::parse_macro_input;
 use quote::quote;
 use syn::Ident;
 
+use crate::NUM_REG;
+
 pub fn __gen_fast_reduce_simd_helper(stream: TokenStream) -> TokenStream {
     let input = parse_macro_input!(stream as Ident);
 
     #[cfg(target_feature = "avx2")]
     let num_registers = 16;
-    #[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
+    #[cfg(all(any(target_feature = "sse", target_arch = "arm"), not(target_feature = "avx2")))]
     let num_registers = 8;
-    #[cfg(target_feature = "avx512f")]
+    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
     let num_registers = 32;
 
     let mut body = proc_macro2::TokenStream::new();
@@ -41,15 +43,8 @@ pub fn __gen_fast_reduce_simd_helper(stream: TokenStream) -> TokenStream {
 pub fn __gen_reduce_dim_not_include_simd_helper(stream: TokenStream) -> TokenStream {
     let input = parse_macro_input!(stream as Ident);
 
-    #[cfg(target_feature = "avx2")]
-    let num_registers = 16;
-    #[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
-    let num_registers = 8;
-    #[cfg(target_feature = "avx512f")]
-    let num_registers = 32;
-
     let mut body = proc_macro2::TokenStream::new();
-    for i in 0..num_registers as isize {
+    for i in 0..NUM_REG as isize {
         let i = i + 1;
         let elements = 1..=i;
         let arr = quote! {

@@ -26,7 +26,6 @@ pub mod par_strided_zip_simd {
         strides::Strides,
     };
     use tensor_traits::CommonBounds;
-    use tensor_types::dtype::TypeCommon;
 
     use crate::{
         iterator_traits::{ IterGetSetSimd, ShapeManipulator },
@@ -191,14 +190,14 @@ pub mod par_strided_zip_simd {
             -> ParStridedMapSimd<'a, Self, <Self as IterGetSetSimd>::Item, F, F2>
             where
                 F: Fn((&mut T, <Self as IterGetSetSimd>::Item)) + Sync + Send + 'a,
-                F2: Fn((&mut <T as TypeCommon>::Vec, <Self as IterGetSetSimd>::SimdItem)) +
+                F2: Fn((&mut T::Vec, <Self as IterGetSetSimd>::SimdItem)) +
                     Sync +
                     Send +
                     'a,
                 T: CommonBounds,
                 <A as IterGetSetSimd>::Item: Send,
                 <B as IterGetSetSimd>::Item: Send,
-                <T as TypeCommon>::Vec: Send
+                T::Vec: Send
         {
             ParStridedMapSimd {
                 iter: self,

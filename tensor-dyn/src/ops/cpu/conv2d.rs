@@ -812,7 +812,7 @@ impl<T> _Tensor<T>
                         micro_kernel_6::<T, 6>
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 7 => {
                     case1_helper(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -829,7 +829,7 @@ impl<T> _Tensor<T>
                         micro_kernel_7::<T, 7>
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 8 => {
                     case1_helper(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -846,7 +846,7 @@ impl<T> _Tensor<T>
                         micro_kernel_8::<T, 8>
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 9 => {
                     case1_helper(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -863,7 +863,7 @@ impl<T> _Tensor<T>
                         micro_kernel_9::<T, 9>
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 10 => {
                     case1_helper(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -880,7 +880,7 @@ impl<T> _Tensor<T>
                         micro_kernel_10::<T, 10>
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 11 => {
                     case1_helper(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -897,7 +897,7 @@ impl<T> _Tensor<T>
                         micro_kernel_11::<T, 11>
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 12 => {
                     case1_helper(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -914,7 +914,7 @@ impl<T> _Tensor<T>
                         micro_kernel_12::<T, 12>
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 13 => {
                     case1_helper(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -931,7 +931,7 @@ impl<T> _Tensor<T>
                         micro_kernel_13::<T, 13>
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 14 => {
                     case1_helper(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -1059,7 +1059,7 @@ impl<T> _Tensor<T>
                         micro_kernel_6_1::<T>
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 7 => {
                     case1_remain1_helper::<T, 7>(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -1076,7 +1076,7 @@ impl<T> _Tensor<T>
                         micro_kernel_7_1::<T>
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 8 => {
                     case1_remain1_helper::<T, 8>(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -1093,7 +1093,7 @@ impl<T> _Tensor<T>
                         micro_kernel_8_1::<T>
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 9 => {
                     case1_remain1_helper::<T, 9>(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -1110,7 +1110,7 @@ impl<T> _Tensor<T>
                         micro_kernel_9_1::<T>
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 10 => {
                     case1_remain1_helper::<T, 10>(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -1127,7 +1127,7 @@ impl<T> _Tensor<T>
                         micro_kernel_10_1::<T>
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 11 => {
                     case1_remain1_helper::<T, 11>(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -1144,7 +1144,7 @@ impl<T> _Tensor<T>
                         micro_kernel_11_1::<T>
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 12 => {
                     case1_remain1_helper::<T, 12>(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -1161,7 +1161,7 @@ impl<T> _Tensor<T>
                         micro_kernel_12_1::<T>
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 13 => {
                     case1_remain1_helper::<T, 13>(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -1178,7 +1178,7 @@ impl<T> _Tensor<T>
                         micro_kernel_13_1::<T>
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 14 => {
                     case1_remain1_helper::<T, 14>(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -1407,7 +1407,7 @@ impl<T> _Tensor<T>
                         &mut out
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 7 => {
                     case3_helper::<T, 7>(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -1430,7 +1430,7 @@ impl<T> _Tensor<T>
                         &mut out
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 8 => {
                     case3_helper::<T, 8>(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -1453,7 +1453,7 @@ impl<T> _Tensor<T>
                         &mut out
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 9 => {
                     case3_helper::<T, 9>(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -1476,7 +1476,7 @@ impl<T> _Tensor<T>
                         &mut out
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 10 => {
                     case3_helper::<T, 10>(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -1499,7 +1499,7 @@ impl<T> _Tensor<T>
                         &mut out
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 11 => {
                     case3_helper::<T, 11>(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -1522,7 +1522,7 @@ impl<T> _Tensor<T>
                         &mut out
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 12 => {
                     case3_helper::<T, 12>(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -1545,7 +1545,7 @@ impl<T> _Tensor<T>
                         &mut out
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 13 => {
                     case3_helper::<T, 13>(
                         [kernel_height, kernel_width, ci_b_remain],
@@ -1568,7 +1568,7 @@ impl<T> _Tensor<T>
                         &mut out
                     );
                 }
-                #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
                 14 => {
                     case3_helper::<T, 14>(
                         [kernel_height, kernel_width, ci_b_remain],

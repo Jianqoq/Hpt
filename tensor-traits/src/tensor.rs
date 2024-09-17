@@ -11,6 +11,17 @@ use tensor_types::{
     type_promote::{FloatOutUnary, NormalOut},
 };
 
+#[cfg(target_feature = "avx2")]
+type BoolVector = tensor_types::_256bit::boolx32::boolx32;
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+type BoolVector = tensor_types::_512bit::boolx64::boolx64;
+#[cfg(any(all(
+    not(target_feature = "avx2"),
+    target_feature = "sse",
+    target_arch = "arm"
+)))]
+type BoolVector = tensor_types::_128bit::boolx16::boolx16;
+
 pub trait TensorInfo<T> {
     fn ptr(&self) -> Pointer<T>;
     fn size(&self) -> usize;
@@ -394,25 +405,10 @@ where
     /// let lower_tri_matrix = tensor.tril(0); // Creates a lower triangular matrix from tensor
     /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
-    #[cfg(target_feature = "avx2")]
     fn tril(&self, k: i64) -> anyhow::Result<Self>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
-        <T as TypeCommon>::Vec: NormalOut<
-            tensor_types::vectors::_256bit::boolx32::boolx32,
-            Output = <T as TypeCommon>::Vec,
-        >;
-    #[cfg(all(
-        any(target_feature = "sse", target_feature = "neon"),
-        not(target_feature = "avx2")
-    ))]
-    fn tril(&self, k: i64) -> anyhow::Result<Self>
-    where
-        T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
-        <T as TypeCommon>::Vec: NormalOut<
-            tensor_types::vectors::_128bit::boolx16::boolx16,
-            Output = <T as TypeCommon>::Vec,
-        >;
+        <T as TypeCommon>::Vec: NormalOut<BoolVector, Output = <T as TypeCommon>::Vec>;
 
     /// Creates an upper triangular matrix from the existing tensor.
     ///
@@ -433,25 +429,10 @@ where
     /// let upper_tri_matrix = tensor.triu(0); // Creates an upper triangular matrix from tensor
     /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
-    #[cfg(target_feature = "avx2")]
     fn triu(&self, k: i64) -> anyhow::Result<Self>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
-        <T as TypeCommon>::Vec: NormalOut<
-            tensor_types::vectors::_256bit::boolx32::boolx32,
-            Output = <T as TypeCommon>::Vec,
-        >;
-    #[cfg(all(
-        any(target_feature = "sse", target_feature = "neon"),
-        not(target_feature = "avx2")
-    ))]
-    fn triu(&self, k: i64) -> anyhow::Result<Self>
-    where
-        T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
-        <T as TypeCommon>::Vec: NormalOut<
-            tensor_types::vectors::_128bit::boolx16::boolx16,
-            Output = <T as TypeCommon>::Vec,
-        >;
+        <T as TypeCommon>::Vec: NormalOut<BoolVector, Output = <T as TypeCommon>::Vec>;
 
     /// Creates an identity matrix of size `n` x `n`.
     ///

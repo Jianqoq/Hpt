@@ -106,7 +106,7 @@ macro_rules! normal_promote_ops_1 {
             U: CommonBounds,
             <T as NormalOut<U>>::Output: CommonBounds,
             <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
-            <T as TypeCommon>::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>
+            T::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>
         {
             type Output = _Tensor<<T as NormalOut<U>>::Output>;
 
@@ -221,7 +221,7 @@ macro_rules! normal_promote_ops_3 {
                 U: CommonBounds,
                 <T as NormalOut<U>>::Output: CommonBounds,
                 <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
-                <T as TypeCommon>::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>
+                T::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>
             {
                 type Output = _Tensor<<T as NormalOut<U>>::Output>;
                 #[cfg_attr(feature = "track_caller", track_caller)]

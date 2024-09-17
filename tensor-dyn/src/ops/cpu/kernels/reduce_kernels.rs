@@ -106,7 +106,7 @@ macro_rules! gen_kernel {
             for _ in 0..$outer_loop_size {
                 paste! {
                     $(
-                        let [<inp_vec $idx>] = unsafe { <T as TypeCommon>::Vec::from_ptr($inp_ptr.ptr.offset(($idx - 1) * <O as TypeCommon>::Vec::SIZE as isize)) };
+                        let [<inp_vec $idx>] = unsafe { T::Vec::from_ptr($inp_ptr.ptr.offset(($idx - 1) * <O as TypeCommon>::Vec::SIZE as isize)) };
                         [<res_vec $idx>] = $vec_op([<res_vec $idx>], [<inp_vec $idx>]);
                     )*
                 }
@@ -160,10 +160,12 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
     T: CommonBounds,
     O: CommonBounds,
     F: Fn(O, T) -> O,
-    F2: Fn(<O as TypeCommon>::Vec, <T as TypeCommon>::Vec) -> <O as TypeCommon>::Vec,
+    F2: Fn(<O as TypeCommon>::Vec, T::Vec) -> <O as TypeCommon>::Vec,
     F3: Fn(O) -> O,
     F4: Fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec,
 {
+    use crate::REGNUM;
+
     let origin = inp_ptr.clone(); // save original inp_ptr
     let origin_res = res_ptr.clone(); // save original res_ptr
     let ndim = inp_strides.len();
@@ -171,18 +173,12 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
     let remain = inner_loop_size % vec_size; // get inner loop size remainder
     let inner = inner_loop_size - remain; // get inner loop size that is multiple of vec_size
     let num_vecs = inner / vec_size; // get number of vectors
-    #[cfg(target_feature = "avx2")]
-    let largest_num_vec = 16;
-    #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
-    let largest_num_vec = 32;
-    #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
-    let largest_num_vec = 8;
-    let remain_vec = num_vecs % largest_num_vec;
-    let num_largest_vecs = (num_vecs - remain_vec) / largest_num_vec;
+    let remain_vec = num_vecs % REGNUM as isize;
+    let num_largest_vecs = (num_vecs - remain_vec) / REGNUM as isize;
     #[cfg(target_feature = "avx2")]
     gen_kernel!(
         num_largest_vecs,
-        16,
+        REGNUM as isize,
         inp_ptr,
         res_ptr,
         vec_size,
@@ -194,10 +190,10 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
         vec_op_post,
         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     );
-    #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
     gen_kernel!(
         num_largest_vecs,
-        32,
+        REGNUM as isize,
         inp_ptr,
         res_ptr,
         vec_size,
@@ -215,7 +211,7 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
     #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
     gen_kernel!(
         num_largest_vecs,
-        8,
+        REGNUM as isize,
         inp_ptr,
         res_ptr,
         vec_size,
@@ -230,8 +226,8 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
     let remain_vec = remain_vec as u32;
     inp_ptr = origin.clone(); // reset inp_ptr
     res_ptr = origin_res.clone(); // reset res_ptr
-    inp_ptr.offset((num_largest_vecs as i64) * (largest_num_vec as i64) * (vec_size as i64));
-    res_ptr.offset((num_largest_vecs as i64) * (largest_num_vec as i64) * (vec_size as i64));
+    inp_ptr.offset((num_largest_vecs as i64) * (REGNUM as i64) * (vec_size as i64));
+    res_ptr.offset((num_largest_vecs as i64) * (REGNUM as i64) * (vec_size as i64));
     gen_fast_reduce_simd_helper!(remain_vec);
     if remain > 0 {
         inp_ptr = origin; // reset inp_ptr
@@ -313,7 +309,7 @@ macro_rules! gen_kernel2 {
                 for _ in 0..$intermediate_size {
                         paste! {
                             $(
-                                let [<inp_vec $idx>] = <T as TypeCommon>::Vec::from_ptr($inp_ptr.ptr.offset(($idx - 1) * <O as TypeCommon>::Vec::SIZE as isize));
+                                let [<inp_vec $idx>] = T::Vec::from_ptr($inp_ptr.ptr.offset(($idx - 1) * <O as TypeCommon>::Vec::SIZE as isize));
                                 [<res_vec $idx>] = $vec_op([<res_vec $idx>], [<inp_vec $idx>]);
                             )*
                         }
@@ -410,23 +406,21 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
     T: CommonBounds,
     O: CommonBounds,
     F: Fn(O, T) -> O,
-    F2: Fn(<O as TypeCommon>::Vec, <T as TypeCommon>::Vec) -> <O as TypeCommon>::Vec,
+    F2: Fn(<O as TypeCommon>::Vec, T::Vec) -> <O as TypeCommon>::Vec,
     F3: Fn(O) -> O,
     F4: Fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec,
 {
+    use std::ops::IndexMut;
+
+    use crate::REGNUM;
+
     let origin = inp_ptr.clone(); // save original inp_ptr
     let origin_res = res_ptr.clone(); // save original res_ptr
     let remain = inner_loop_size % (<O as TypeCommon>::Vec::SIZE as isize); // get inner loop size remainder
     let inner = inner_loop_size - remain; // get inner loop size that is multiple of vec_size
     let num_vecs = inner / (<O as TypeCommon>::Vec::SIZE as isize); // get number of vectors
-    #[cfg(target_feature = "avx2")]
-    let largest_num_vec = 16;
-    #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
-    let largest_num_vec = 32;
-    #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
-    let largest_num_vec = 8;
-    let remain_vec = num_vecs % largest_num_vec;
-    let num_largest_vecs = (num_vecs - remain_vec) / largest_num_vec;
+    let remain_vec = num_vecs % REGNUM as isize;
+    let num_largest_vecs = (num_vecs - remain_vec) / REGNUM as isize;
     let origin_prg2 = prg2.iter().cloned().collect::<Vec<_>>();
     if num_largest_vecs > 0 {
         for _ in 0..outer_loop_size {
@@ -446,7 +440,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
                 vec_post,
                 [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
             );
-            #[cfg(any(target_feature = "avx512f", target_feature = "neon"))]
+            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
             gen_kernel2!(
                 num_largest_vecs,
                 32,
@@ -484,12 +478,11 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
             update_prg3(prg2, shape_len, &mut inp_ptr, inp_strides, inp_shape);
             if let Some(vec_post) = &vec_post {
                 for i in 0..num_largest_vecs {
-                    for j in 0..largest_num_vec {
+                    for j in 0..REGNUM as isize {
                         let mut_ref = unsafe {
-                            res_ptr
-                                .ptr
-                                .offset((i * 16 + j) * (<O as TypeCommon>::Vec::SIZE as isize))
-                                as *mut <O as TypeCommon>::Vec
+                            res_ptr.ptr.offset(
+                                (i * REGNUM as isize + j) * (<O as TypeCommon>::Vec::SIZE as isize),
+                            ) as *mut <O as TypeCommon>::Vec
                         };
                         unsafe {
                             mut_ref.write_unaligned(vec_post(mut_ref.read_unaligned()));
@@ -507,21 +500,17 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
     inp_ptr = origin.clone(); // reset inp_ptr
     res_ptr = origin_res.clone(); // reset res_ptr
     inp_ptr.offset(
-        (num_largest_vecs as i64)
-            * (largest_num_vec as i64)
-            * (<O as TypeCommon>::Vec::SIZE as i64),
+        (num_largest_vecs as i64) * (REGNUM as i64) * (<O as TypeCommon>::Vec::SIZE as i64),
     );
     res_ptr.offset(
-        (num_largest_vecs as i64)
-            * (largest_num_vec as i64)
-            * (<O as TypeCommon>::Vec::SIZE as i64),
+        (num_largest_vecs as i64) * (REGNUM as i64) * (<O as TypeCommon>::Vec::SIZE as i64),
     );
     origin_prg2.iter().enumerate().for_each(|(i, x)| {
-        prg2[i] = *x;
+        *prg2.index_mut(i) = *x;
     });
     gen_reduce_dim_not_include_simd_helper!(remain_vec);
     origin_prg2.iter().enumerate().for_each(|(i, x)| {
-        prg2[i] = *x;
+        *prg2.index_mut(i) = *x;
     });
     if remain > 0 {
         inp_ptr = origin; // reset inp_ptr

@@ -1,6 +1,6 @@
-use std::fmt::Display;
-use quote::ToTokens;
 use quote::quote;
+use quote::ToTokens;
+use std::fmt::Display;
 use syn::parse_quote;
 
 pub fn is_float(list: &str) -> bool {
@@ -29,7 +29,10 @@ pub fn type_level(list: &str) -> u8 {
 }
 
 pub fn type_simd_lanes(list: &str) -> u8 {
-    #[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
+    #[cfg(all(
+        any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
+        not(target_feature = "avx2")
+    ))]
     match list.to_lowercase().as_str() {
         "bool" => 16,
         "i8" => 16,
@@ -131,7 +134,10 @@ pub fn type_simd_lanes(list: &str) -> u8 {
 }
 
 pub fn type_simd_is_arr(list: &str) -> bool {
-    #[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
+    #[cfg(all(
+        any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
+        not(target_feature = "avx2")
+    ))]
     match list.to_lowercase().as_str() {
         "bool" => true,
         "i8" => false,
@@ -276,83 +282,65 @@ pub(crate) fn level_to_uint(level: u8) -> Type {
 
 pub fn level_to_float_expr(level: u8) -> syn::Expr {
     match level {
-        1 =>
-            parse_quote! {
-                Dtype::F16
-            },
-        2 =>
-            parse_quote! {
-                Dtype::F16
-            },
-        3 =>
-            parse_quote! {
-                Dtype::F16
-            },
-        4 =>
-            parse_quote! {
-                Dtype::F16
-            },
-        5 =>
-            parse_quote! {
-                Dtype::F32
-            },
-        6 =>
-            parse_quote! {
-                Dtype::F32
-            },
-        7 =>
-            parse_quote! {
-                Dtype::F64
-            },
-        8 =>
-            parse_quote! {
-                Dtype::F64
-            },
-        _ =>
-            parse_quote! {
-                Dtype::F64
-            },
+        1 => parse_quote! {
+            Dtype::F16
+        },
+        2 => parse_quote! {
+            Dtype::F16
+        },
+        3 => parse_quote! {
+            Dtype::F16
+        },
+        4 => parse_quote! {
+            Dtype::F16
+        },
+        5 => parse_quote! {
+            Dtype::F32
+        },
+        6 => parse_quote! {
+            Dtype::F32
+        },
+        7 => parse_quote! {
+            Dtype::F64
+        },
+        8 => parse_quote! {
+            Dtype::F64
+        },
+        _ => parse_quote! {
+            Dtype::F64
+        },
     }
 }
 
 pub fn level_to_int_expr(level: u8) -> syn::Expr {
     match level {
-        1 =>
-            parse_quote! {
-                Dtype::I8
-            },
-        2 =>
-            parse_quote! {
-                Dtype::I8
-            },
-        3 =>
-            parse_quote! {
-                Dtype::I16
-            },
-        4 =>
-            parse_quote! {
-                Dtype::I16
-            },
-        5 =>
-            parse_quote! {
-                Dtype::I32
-            },
-        6 =>
-            parse_quote! {
-                Dtype::I32
-            },
-        7 =>
-            parse_quote! {
-                Dtype::I64
-            },
-        8 =>
-            parse_quote! {
-                Dtype::I64
-            },
-        _ =>
-            parse_quote! {
-                Dtype::I64
-            },
+        1 => parse_quote! {
+            Dtype::I8
+        },
+        2 => parse_quote! {
+            Dtype::I8
+        },
+        3 => parse_quote! {
+            Dtype::I16
+        },
+        4 => parse_quote! {
+            Dtype::I16
+        },
+        5 => parse_quote! {
+            Dtype::I32
+        },
+        6 => parse_quote! {
+            Dtype::I32
+        },
+        7 => parse_quote! {
+            Dtype::I64
+        },
+        8 => parse_quote! {
+            Dtype::I64
+        },
+        _ => parse_quote! {
+            Dtype::I64
+        },
     }
 }
 
@@ -381,10 +369,16 @@ pub(crate) enum Type {
 
 impl Type {
     pub fn is_float(&self) -> bool {
-        matches!(self, Type::BF16 | Type::F16 | Type::F32 | Type::F64 | Type::C32 | Type::C64)
+        matches!(
+            self,
+            Type::BF16 | Type::F16 | Type::F32 | Type::F64 | Type::C32 | Type::C64
+        )
     }
     pub fn is_unsigned(&self) -> bool {
-        matches!(self, Type::Bool | Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Usize)
+        matches!(
+            self,
+            Type::Bool | Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Usize
+        )
     }
     pub fn is_bool(&self) -> bool {
         matches!(self, Type::Bool)
@@ -531,7 +525,10 @@ impl ToTokens for SimdType {
             SimdType::Complex32 => quote!(cplx32x4::cplx32x4),
             SimdType::Complex64 => quote!(cplx64x2::cplx64x2),
         };
-        #[cfg(all(any(target_feature = "sse", target_feature = "neon"), not(target_feature = "avx2")))]
+        #[cfg(all(
+            any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
+            not(target_feature = "avx2")
+        ))]
         let token = match self {
             SimdType::Bool => quote!(boolx16::boolx16),
             SimdType::I8 => quote!(i8x16::i8x16),
@@ -590,140 +587,121 @@ pub(crate) struct TypeInfo {
 impl TypeInfo {
     pub(crate) fn new(name: &str) -> Self {
         match name.to_lowercase().as_str() {
-            "bool" =>
-                Self {
-                    is_float: false,
-                    is_signed: false,
-                    level: 1,
-                    dtype: Type::Bool,
-                },
-            "i8" =>
-                Self {
-                    is_float: false,
-                    is_signed: true,
-                    level: 2,
-                    dtype: Type::I8,
-                },
-            "u8" =>
-                Self {
-                    is_float: false,
-                    is_signed: false,
-                    level: 3,
-                    dtype: Type::U8,
-                },
-            "i16" =>
-                Self {
-                    is_float: false,
-                    is_signed: true,
-                    level: 4,
-                    dtype: Type::I16,
-                },
+            "bool" => Self {
+                is_float: false,
+                is_signed: false,
+                level: 1,
+                dtype: Type::Bool,
+            },
+            "i8" => Self {
+                is_float: false,
+                is_signed: true,
+                level: 2,
+                dtype: Type::I8,
+            },
+            "u8" => Self {
+                is_float: false,
+                is_signed: false,
+                level: 3,
+                dtype: Type::U8,
+            },
+            "i16" => Self {
+                is_float: false,
+                is_signed: true,
+                level: 4,
+                dtype: Type::I16,
+            },
 
-            "u16" =>
-                Self {
-                    is_float: false,
-                    is_signed: false,
-                    level: 5,
-                    dtype: Type::U16,
-                },
-            "i32" =>
-                Self {
-                    is_float: false,
-                    is_signed: true,
-                    level: 6,
-                    dtype: Type::I32,
-                },
-            "u32" =>
-                Self {
-                    is_float: false,
-                    is_signed: false,
-                    level: 7,
-                    dtype: Type::U32,
-                },
-            "i64" =>
-                Self {
-                    is_float: false,
-                    is_signed: true,
-                    level: 8,
-                    dtype: Type::I64,
-                },
-            "u64" =>
-                Self {
-                    is_float: false,
-                    is_signed: false,
-                    level: 8,
-                    dtype: Type::U64,
-                },
-            "bf16" =>
-                Self {
-                    is_float: true,
-                    is_signed: true,
-                    level: 4,
-                    dtype: Type::BF16,
-                },
-            "f16" =>
-                Self {
-                    is_float: true,
-                    is_signed: true,
-                    level: 4,
-                    dtype: Type::F16,
-                },
-            "f32" =>
-                Self {
-                    is_float: true,
-                    is_signed: true,
-                    level: 6,
-                    dtype: Type::F32,
-                },
-            "f64" =>
-                Self {
-                    is_float: true,
-                    is_signed: true,
-                    level: 8,
-                    dtype: Type::F64,
-                },
-            "c32" =>
-                Self {
-                    is_float: true,
-                    is_signed: true,
-                    level: 6,
-                    dtype: Type::C32,
-                },
-            "c64" =>
-                Self {
-                    is_float: true,
-                    is_signed: true,
-                    level: 8,
-                    dtype: Type::C64,
-                },
-            "isize" =>
-                Self {
-                    is_float: false,
-                    is_signed: true,
-                    level: 8,
-                    dtype: Type::Isize,
-                },
-            "usize" =>
-                Self {
-                    is_float: false,
-                    is_signed: false,
-                    level: 8,
-                    dtype: Type::Usize,
-                },
-            "complex32" =>
-                Self {
-                    is_float: true,
-                    is_signed: true,
-                    level: 6,
-                    dtype: Type::Complex32,
-                },
-            "complex64" =>
-                Self {
-                    is_float: true,
-                    is_signed: true,
-                    level: 8,
-                    dtype: Type::Complex64,
-                },
+            "u16" => Self {
+                is_float: false,
+                is_signed: false,
+                level: 5,
+                dtype: Type::U16,
+            },
+            "i32" => Self {
+                is_float: false,
+                is_signed: true,
+                level: 6,
+                dtype: Type::I32,
+            },
+            "u32" => Self {
+                is_float: false,
+                is_signed: false,
+                level: 7,
+                dtype: Type::U32,
+            },
+            "i64" => Self {
+                is_float: false,
+                is_signed: true,
+                level: 8,
+                dtype: Type::I64,
+            },
+            "u64" => Self {
+                is_float: false,
+                is_signed: false,
+                level: 8,
+                dtype: Type::U64,
+            },
+            "bf16" => Self {
+                is_float: true,
+                is_signed: true,
+                level: 4,
+                dtype: Type::BF16,
+            },
+            "f16" => Self {
+                is_float: true,
+                is_signed: true,
+                level: 4,
+                dtype: Type::F16,
+            },
+            "f32" => Self {
+                is_float: true,
+                is_signed: true,
+                level: 6,
+                dtype: Type::F32,
+            },
+            "f64" => Self {
+                is_float: true,
+                is_signed: true,
+                level: 8,
+                dtype: Type::F64,
+            },
+            "c32" => Self {
+                is_float: true,
+                is_signed: true,
+                level: 6,
+                dtype: Type::C32,
+            },
+            "c64" => Self {
+                is_float: true,
+                is_signed: true,
+                level: 8,
+                dtype: Type::C64,
+            },
+            "isize" => Self {
+                is_float: false,
+                is_signed: true,
+                level: 8,
+                dtype: Type::Isize,
+            },
+            "usize" => Self {
+                is_float: false,
+                is_signed: false,
+                level: 8,
+                dtype: Type::Usize,
+            },
+            "complex32" => Self {
+                is_float: true,
+                is_signed: true,
+                level: 6,
+                dtype: Type::Complex32,
+            },
+            "complex64" => Self {
+                is_float: true,
+                is_signed: true,
+                level: 8,
+                dtype: Type::Complex64,
+            },
             _ => unreachable!("Invalid type"),
         }
     }
@@ -733,45 +711,53 @@ impl TypeInfo {
     pub(crate) fn infer_normal_res_type(&self, other: &Self) -> Type {
         match (self.is_float, other.is_float) {
             (true, true) => {
-                if self.level > other.level { self.dtype } else { other.dtype }
+                if self.level > other.level {
+                    self.dtype
+                } else {
+                    other.dtype
+                }
             }
             (true, false) => {
-                if self.level > other.level { self.dtype } else { level_to_float(other.level) }
+                if self.level > other.level {
+                    self.dtype
+                } else {
+                    level_to_float(other.level)
+                }
             }
             (false, true) => {
-                if self.level > other.level { level_to_float(self.level) } else { other.dtype }
+                if self.level > other.level {
+                    level_to_float(self.level)
+                } else {
+                    other.dtype
+                }
             }
             (false, false) => {
                 if self.level > other.level {
                     self.dtype
                 } else {
                     if self.is_signed || other.is_signed {
-                        if
-                            (self.level == 8 || other.level == 8) &&
-                            ((self.dtype as u8) == (Type::Isize as u8) ||
-                                (other.dtype as u8) == (Type::Isize as u8))
+                        if (self.level == 8 || other.level == 8)
+                            && ((self.dtype as u8) == (Type::Isize as u8)
+                                || (other.dtype as u8) == (Type::Isize as u8))
                         {
                             Type::Isize
-                        } else if
-                            (self.level == 8 || other.level == 8) &&
-                            ((self.dtype as u8) == (Type::Usize as u8) ||
-                                (other.dtype as u8) == (Type::Usize as u8))
+                        } else if (self.level == 8 || other.level == 8)
+                            && ((self.dtype as u8) == (Type::Usize as u8)
+                                || (other.dtype as u8) == (Type::Usize as u8))
                         {
                             Type::Isize
                         } else {
                             level_to_int(std::cmp::max(self.level, other.level))
                         }
                     } else {
-                        if
-                            (self.level == 8 || other.level == 8) &&
-                            ((self.dtype as u8) == (Type::Isize as u8) ||
-                                (other.dtype as u8) == (Type::Isize as u8))
+                        if (self.level == 8 || other.level == 8)
+                            && ((self.dtype as u8) == (Type::Isize as u8)
+                                || (other.dtype as u8) == (Type::Isize as u8))
                         {
                             Type::Usize
-                        } else if
-                            (self.level == 8 || other.level == 8) &&
-                            ((self.dtype as u8) == (Type::Usize as u8) ||
-                                (other.dtype as u8) == (Type::Usize as u8))
+                        } else if (self.level == 8 || other.level == 8)
+                            && ((self.dtype as u8) == (Type::Usize as u8)
+                                || (other.dtype as u8) == (Type::Usize as u8))
                         {
                             Type::Usize
                         } else if self.level == other.level {
@@ -798,19 +784,35 @@ impl TypeInfo {
     pub(crate) fn infer_float_res_type(&self, other: &Self) -> Type {
         match (self.is_float, other.is_float) {
             (true, true) => {
-                if self.level > other.level { self.dtype } else { other.dtype }
+                if self.level > other.level {
+                    self.dtype
+                } else {
+                    other.dtype
+                }
             }
             (true, false) => {
-                if self.level > other.level { self.dtype } else { level_to_float(other.level) }
+                if self.level > other.level {
+                    self.dtype
+                } else {
+                    level_to_float(other.level)
+                }
             }
             (false, true) => {
-                if self.level > other.level { level_to_float(self.level) } else { other.dtype }
+                if self.level > other.level {
+                    level_to_float(self.level)
+                } else {
+                    other.dtype
+                }
             }
-            (false, false) => { level_to_float(std::cmp::max(self.level, other.level)) }
+            (false, false) => level_to_float(std::cmp::max(self.level, other.level)),
         }
     }
 
     pub(crate) fn infer_float_res_type_uary(&self) -> Type {
-        if self.is_float { self.dtype } else { level_to_float(self.level) }
+        if self.is_float {
+            self.dtype
+        } else {
+            level_to_float(self.level)
+        }
     }
 }

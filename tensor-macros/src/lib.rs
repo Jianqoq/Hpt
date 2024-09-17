@@ -25,6 +25,13 @@ use type_utils::TypeInfo;
 use proc_macro2::{ TokenStream as TokenStream2, TokenTree };
 use crate::simd_normal_out::impl_simd_normal_out;
 
+#[cfg(target_feature = "avx2")]
+const NUM_REG: usize = 16;
+#[cfg(all(any(target_feature = "sse", target_arch = "arm"), not(target_feature = "avx2")))]
+const NUM_REG: usize = 8;
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+const NUM_REG: usize = 32;
+
 struct SelectionParser {
     start: Option<Expr>,
     end: Option<Expr>,

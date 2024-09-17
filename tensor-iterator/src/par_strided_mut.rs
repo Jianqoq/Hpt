@@ -5,7 +5,6 @@ use rayon::iter::{
 };
 use tensor_common::{ shape::Shape, shape_utils::{ mt_intervals, predict_broadcast_shape } };
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
-use tensor_types::dtype::TypeCommon;
 use crate::{ iterator_traits::IterGetSet, par_strided::ParStrided, par_strided_zip::ParStridedZip };
 
 #[cfg(feature = "simd")]
@@ -36,7 +35,7 @@ pub mod par_strided_map_mut_simd {
             where
                 C: UnindexedProducer + 'a + IterGetSetSimd + ParallelIterator,
                 <C as IterGetSetSimd>::Item: Send,
-                <T as TypeCommon>::Vec: Send
+                T::Vec: Send
         {
             let new_shape = predict_broadcast_shape(
                 self.shape(),
@@ -73,7 +72,7 @@ pub mod par_strided_map_mut_simd {
 
     impl<'a, T> ParallelIterator
         for ParStridedMutSimd<'a, T>
-        where T: CommonBounds, <T as TypeCommon>::Vec: Send
+        where T: CommonBounds, T::Vec: Send
     {
         type Item = &'a mut T;
     
@@ -84,7 +83,7 @@ pub mod par_strided_map_mut_simd {
 
     impl<'a, T> UnindexedProducer
         for ParStridedMutSimd<'a, T>
-        where T: CommonBounds, <T as TypeCommon>::Vec: Send
+        where T: CommonBounds, T::Vec: Send
     {
         type Item = &'a mut T;
     
@@ -107,10 +106,10 @@ pub mod par_strided_map_mut_simd {
         }
     }
 
-    impl<'a, T: 'a> IterGetSetSimd for ParStridedMutSimd<'a, T> where T: CommonBounds, <T as TypeCommon>::Vec: Send {
+    impl<'a, T: 'a> IterGetSetSimd for ParStridedMutSimd<'a, T> where T: CommonBounds, T::Vec: Send {
         type Item = &'a mut T;
     
-        type SimdItem = &'a mut <T as TypeCommon>::Vec where Self: 'a;
+        type SimdItem = &'a mut T::Vec where Self: 'a;
     
         fn set_end_index(&mut self, end_index: usize) {
             self.base.set_end_index(end_index);
@@ -209,7 +208,7 @@ impl<'a, T: CommonBounds> ParStridedMut<'a, T> {
         where
             C: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
             <C as IterGetSet>::Item: Send,
-            <T as TypeCommon>::Vec: Send
+            T::Vec: Send
     {
         let new_shape = predict_broadcast_shape(
             self.shape(),
