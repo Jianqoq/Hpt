@@ -25,4 +25,4 @@ jobs:
     - name: Run tests
       run: |
         cd tensor-tests
-        cargo test --verbose
+        cargo test --verbose -- --nocapture
