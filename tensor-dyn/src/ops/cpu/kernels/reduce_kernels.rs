@@ -72,6 +72,22 @@ fn update_prg3<T>(
     }
 }
 
+#[inline]
+fn update_prg4<T>(prg: &mut [i64], inp_ptr: &mut Pointer<T>, strides: &[i64], shape: &[i64]) {
+    for j in (0..strides.len()).rev() {
+        if prg[j] < shape[j] - 1
+        /*we need to subtract one because we didn't subtract it before we execute the kernel*/
+        {
+            prg[j] += 1;
+            inp_ptr.offset(strides[j]);
+            break;
+        } else {
+            prg[j] = 0;
+            inp_ptr.offset(-strides[j] * (shape[j] - 1));
+        }
+    }
+}
+
 #[cfg(feature = "simd")]
 macro_rules! gen_kernel {
     (
@@ -654,7 +670,7 @@ pub(crate) fn uncontiguous_reduce_dim_include<T, O, F, F2>(
         if let Some(op_post) = &op_post {
             res_ptr[0isize] = op_post(res_ptr[0isize]);
         }
-        update_prg(prg3, &mut res_ptr, res_strides, res_shape);
+        update_prg4(prg3, &mut res_ptr, res_strides, res_shape);
     }
 }
 

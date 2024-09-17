@@ -675,6 +675,7 @@ where
                 let res_shape = res_shape.clone();
                 let res_strides = result.strides().clone();
                 let shape_len = iterator.a_shape.len() as i64;
+
                 uncontiguous_reduce_dim_include(
                     inner_loop_size as isize,
                     current_size as isize,
