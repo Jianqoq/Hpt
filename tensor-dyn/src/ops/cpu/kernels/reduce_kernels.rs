@@ -581,6 +581,84 @@ pub(crate) fn reduce_dim_not_include<T, O, F, F2>(
 }
 
 #[inline]
+pub(crate) fn contiguous_reduce_dim_include<T, O, F, F2>(
+    inner_loop_size: isize,
+    outer_loop_size: isize,
+    intermediate_size: isize,
+    mut inp_ptr: tensor_common::pointer::Pointer<T>,
+    mut res_ptr: tensor_common::pointer::Pointer<O>,
+    inp_strides: &[i64],
+    inp_shape: &[i64],
+    prg1: &mut [i64],
+    shape_len: i64,
+    op: F,
+    op_post: Option<F2>,
+) where
+    T: CommonBounds,
+    O: CommonBounds,
+    F: Fn(O, T) -> O,
+    F2: Fn(O) -> O,
+{
+    for _ in 0..outer_loop_size {
+        for _ in 0..intermediate_size {
+            let mut tmp = res_ptr[0isize];
+            for i in 0..inner_loop_size as i64 {
+                let a_val = inp_ptr[i];
+                tmp = op(tmp, a_val);
+            }
+            res_ptr[0isize] = tmp;
+            update_prg3(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
+        }
+        if let Some(op_post) = &op_post {
+            let tmp = res_ptr[0isize];
+            let tmp = op_post(tmp);
+            res_ptr[0isize] = tmp;
+        }
+        res_ptr.add(1);
+    }
+}
+
+#[inline]
+pub(crate) fn uncontiguous_reduce_dim_include<T, O, F, F2>(
+    inner_loop_size: isize,
+    outer_loop_size: isize,
+    intermediate_size: isize,
+    mut inp_ptr: tensor_common::pointer::Pointer<T>,
+    mut res_ptr: tensor_common::pointer::Pointer<O>,
+    inp_strides: &[i64],
+    inp_shape: &[i64],
+    prg1: &mut [i64],
+    prg3: &mut [i64],
+    res_strides: &[i64],
+    res_shape: &[i64],
+    shape_len: i64,
+    inp_last_stride: isize,
+    op: F,
+    op_post: Option<F2>,
+) where
+    T: CommonBounds,
+    O: CommonBounds,
+    F: Fn(O, T) -> O,
+    F2: Fn(O) -> O,
+{
+    for _ in 0..outer_loop_size {
+        for _ in 0..intermediate_size {
+            let mut tmp = res_ptr[0isize];
+            for i in 0..inner_loop_size {
+                let a_val = inp_ptr[i * inp_last_stride];
+                tmp = op(tmp, a_val);
+            }
+            res_ptr[0isize] = tmp;
+            update_prg3(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
+        }
+        if let Some(op_post) = &op_post {
+            res_ptr[0isize] = op_post(res_ptr[0isize]);
+        }
+        update_prg(prg3, &mut res_ptr, res_strides, res_shape);
+    }
+}
+
+#[inline]
 pub(crate) fn uncontiguous_reduce_dim_not_include<T, O, F, F2>(
     inner_loop_size: isize,
     outer_loop_size: isize,
