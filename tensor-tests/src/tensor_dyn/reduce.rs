@@ -130,59 +130,59 @@ fn test_uncontiguous_sum() -> anyhow::Result<()> {
 
 #[test]
 fn test_sub_tensor_sum() -> anyhow::Result<()> {
-    // let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-    // let a = slice!(a[:, 1:3, 2:5])?;
-    // let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
-    // let sum = a.sum(0, false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(0, false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum(1, false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(1, false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum(2, false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(2, false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum([0, 1], false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(&[0, 1][..], false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum([0, 2], false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(&[0, 2][..], false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum([1, 2], false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(&[1, 2][..], false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum([0, 1, 2], false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(&[0, 1, 2][..], false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:3, 2:5])?;
+    let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
+    let sum = a.sum(0, false)?;
+    let tch_sum = tch_a.sum_dim_intlist(0, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum(1, false)?;
+    let tch_sum = tch_a.sum_dim_intlist(1, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum(2, false)?;
+    let tch_sum = tch_a.sum_dim_intlist(2, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum([0, 1], false)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[0, 1][..], false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum([0, 2], false)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[0, 2][..], false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum([1, 2], false)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[1, 2][..], false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum([0, 1, 2], false)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[0, 1, 2][..], false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
     Ok(())
 }
 
 #[test]
 fn test_sub_tensor_sum_step() -> anyhow::Result<()> {
-    // let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-    // let a = slice!(a[:, 1:5:2, 2:9:2])?;
-    // let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
-    // let sum = a.sum(0, false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(0, false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum(1, false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(1, false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum(2, false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(2, false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum([0, 1], false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(&[0, 1][..], false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum([0, 2], false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(&[0, 2][..], false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum([1, 2], false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(&[1, 2][..], false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
-    // let sum = a.sum([0, 1, 2], false)?;
-    // let tch_sum = tch_a.sum_dim_intlist(&[0, 1, 2][..], false, tch::Kind::Int64);
-    // assert_eq(&sum, &tch_sum);
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
+    let sum = a.sum(0, false)?;
+    let tch_sum = tch_a.sum_dim_intlist(0, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum(1, false)?;
+    let tch_sum = tch_a.sum_dim_intlist(1, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum(2, false)?;
+    let tch_sum = tch_a.sum_dim_intlist(2, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum([0, 1], false)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[0, 1][..], false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum([0, 2], false)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[0, 2][..], false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum([1, 2], false)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[1, 2][..], false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum([0, 1, 2], false)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[0, 1, 2][..], false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
     Ok(())
 }
 
@@ -253,6 +253,40 @@ fn test_uncontiguous_prod2() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 2, 0])?;
     let tch_a = tch_a.permute(&[1, 2, 0][..]);
+    let sum = a.prod(0, false)?;
+    let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(1, false)?;
+    let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(2, false)?;
+    let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_sub_tensor_prod() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:3, 2:5])?;
+    let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
+    let sum = a.prod(0, false)?;
+    let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(1, false)?;
+    let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(2, false)?;
+    let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_sub_tensor_prod_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
     let sum = a.prod(0, false)?;
     let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
     assert_eq(&sum, &tch_sum);
@@ -351,6 +385,65 @@ fn test_uncontiguous_mean2() -> anyhow::Result<()> {
 }
 
 #[test]
+fn test_sub_tensor_mean() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:3, 2:5])?;
+    let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
+    let mean = a.mean(0, false)?;
+    let tch_mean = tch_a.mean_dim(0, false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean(1, false)?;
+    let tch_mean = tch_a.mean_dim(1, false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean(2, false)?;
+    let tch_mean = tch_a.mean_dim(2, false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([0, 1], false)?;
+    let tch_mean = tch_a.mean_dim(&[0, 1][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([0, 2], false)?;
+    let tch_mean = tch_a.mean_dim(&[0, 2][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([1, 2], false)?;
+    let tch_mean = tch_a.mean_dim(&[1, 2][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([0, 1, 2], false)?;
+    let tch_mean = tch_a.mean_dim(&[0, 1, 2][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    Ok(())
+}
+
+#[test]
+fn test_sub_tensor_mean_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
+    let mean = a.mean(0, false)?;
+    let tch_mean = tch_a.mean_dim(0, false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean(1, false)?;
+    let tch_mean = tch_a.mean_dim(1, false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean(2, false)?;
+    let tch_mean = tch_a.mean_dim(2, false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([0, 1], false)?;
+    let tch_mean = tch_a.mean_dim(&[0, 1][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([0, 2], false)?;
+    let tch_mean = tch_a.mean_dim(&[0, 2][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([1, 2], false)?;
+    let tch_mean = tch_a.mean_dim(&[1, 2][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.mean([0, 1, 2], false)?;
+    let tch_mean = tch_a.mean_dim(&[0, 1, 2][..], false, tch::Kind::Double);
+    assert_eq_f64(&mean, &tch_mean);
+    Ok(())
+}
+
+
+#[test]
 fn test_max() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let max = a.max(0, false)?;
@@ -397,6 +490,40 @@ fn test_uncontiguous_max2() -> anyhow::Result<()> {
 }
 
 #[test]
+fn test_sub_tensor_max() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:3, 2:5])?;
+    let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
+    let max = a.max(0, false)?;
+    let (tch_max, _) = tch_a.max_dim(0, false);
+    assert_eq_f64(&max, &tch_max);
+    let max = a.max(1, false)?;
+    let (tch_max, _) = tch_a.max_dim(1, false);
+    assert_eq_f64(&max, &tch_max);
+    let max = a.max(2, false)?;
+    let (tch_max, _) = tch_a.max_dim(2, false);
+    assert_eq_f64(&max, &tch_max);
+    Ok(())
+}
+
+#[test]
+fn test_sub_tensor_max_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
+    let max = a.max(0, false)?;
+    let (tch_max, _) = tch_a.max_dim(0, false);
+    assert_eq_f64(&max, &tch_max);
+    let max = a.max(1, false)?;
+    let (tch_max, _) = tch_a.max_dim(1, false);
+    assert_eq_f64(&max, &tch_max);
+    let max = a.max(2, false)?;
+    let (tch_max, _) = tch_a.max_dim(2, false);
+    assert_eq_f64(&max, &tch_max);
+    Ok(())
+}
+
+#[test]
 fn test_min() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let min = a.min(0, false)?;
@@ -439,6 +566,40 @@ fn test_uncontiguous_min2() -> anyhow::Result<()> {
     assert_eq_f64(&min, &tch_min);
     let min = a.min(2, false)?;
     let (tch_min, _) = tch_a.min_dim(2, false);
+    Ok(())
+}
+
+#[test]
+fn test_sub_tensor_min() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:3, 2:5])?;
+    let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
+    let min = a.min(0, false)?;
+    let (tch_min, _) = tch_a.min_dim(0, false);
+    assert_eq_f64(&min, &tch_min);
+    let min = a.min(1, false)?;
+    let (tch_min, _) = tch_a.min_dim(1, false);
+    assert_eq_f64(&min, &tch_min);
+    let min = a.min(2, false)?;
+    let (tch_min, _) = tch_a.min_dim(2, false);
+    assert_eq_f64(&min, &tch_min);
+    Ok(())
+}
+
+#[test]
+fn test_sub_tensor_min_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
+    let min = a.min(0, false)?;
+    let (tch_min, _) = tch_a.min_dim(0, false);
+    assert_eq_f64(&min, &tch_min);
+    let min = a.min(1, false)?;
+    let (tch_min, _) = tch_a.min_dim(1, false);
+    assert_eq_f64(&min, &tch_min);
+    let min = a.min(2, false)?;
+    let (tch_min, _) = tch_a.min_dim(2, false);
+    assert_eq_f64(&min, &tch_min);
     Ok(())
 }
 
@@ -501,6 +662,46 @@ fn test_uncontiguous_reducel12() -> anyhow::Result<()> {
 }
 
 #[test]
+fn test_sub_tensor_reducel1() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:3, 2:5])?;
+    let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
+    let sum = a.reducel1(0, false)?;
+    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
+    let tch_sum = tch_a.f_norm_out(&res, 1, 0, false)?;
+    assert_eq_f64(&sum, &tch_sum);
+    let sum = a.reducel1(1, false)?;
+    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
+    let tch_sum = tch_a.f_norm_out(&res, 1, 1, false)?;
+    assert_eq_f64(&sum, &tch_sum);
+    let sum = a.reducel1(2, false)?;
+    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
+    let tch_sum = tch_a.f_norm_out(&res, 1, 2, false)?;
+    assert_eq_f64(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_sub_tensor_reducel1_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
+    let sum = a.reducel1(0, false)?;
+    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
+    let tch_sum = tch_a.f_norm_out(&res, 1, 0, false)?;
+    assert_eq_f64(&sum, &tch_sum);
+    let sum = a.reducel1(1, false)?;
+    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
+    let tch_sum = tch_a.f_norm_out(&res, 1, 1, false)?;
+    assert_eq_f64(&sum, &tch_sum);
+    let sum = a.reducel1(2, false)?;
+    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
+    let tch_sum = tch_a.f_norm_out(&res, 1, 2, false)?;
+    assert_eq_f64(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
 fn test_reducel2() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let sum = a.reducel2(0, false)?;
@@ -523,6 +724,46 @@ fn test_uncontiguous_reducel2() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 0, 2])?;
     let tch_a = tch_a.permute(&[1, 0, 2][..]);
+    let sum = a.reducel2(0, false)?;
+    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
+    let tch_sum = tch_a.f_norm_out(&res, 2, 0, false)?;
+    assert_eq_f64(&sum, &tch_sum);
+    let sum = a.reducel2(1, false)?;
+    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
+    let tch_sum = tch_a.f_norm_out(&res, 2, 1, false)?;
+    assert_eq_f64(&sum, &tch_sum);
+    let sum = a.reducel2(2, false)?;
+    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
+    let tch_sum = tch_a.f_norm_out(&res, 2, 2, false)?;
+    assert_eq_f64(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_sub_tensor_reducel2() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:3, 2:5])?;
+    let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
+    let sum = a.reducel2(0, false)?;
+    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
+    let tch_sum = tch_a.f_norm_out(&res, 2, 0, false)?;
+    assert_eq_f64(&sum, &tch_sum);
+    let sum = a.reducel2(1, false)?;
+    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
+    let tch_sum = tch_a.f_norm_out(&res, 2, 1, false)?;
+    assert_eq_f64(&sum, &tch_sum);
+    let sum = a.reducel2(2, false)?;
+    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
+    let tch_sum = tch_a.f_norm_out(&res, 2, 2, false)?;
+    assert_eq_f64(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_sub_tensor_reducel2_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
     let sum = a.reducel2(0, false)?;
     let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
     let tch_sum = tch_a.f_norm_out(&res, 2, 0, false)?;
@@ -565,6 +806,74 @@ fn test_argmin() -> anyhow::Result<()> {
 }
 
 #[test]
+fn test_uncontiguous_argmin() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 0, 2])?;
+    let tch_a = tch_a.permute(&[1, 0, 2][..]);
+    let sum = a.argmin(0, false)?;
+    let tch_sum = tch_a.argmin(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(1, false)?;
+    let tch_sum = tch_a.argmin(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(2, false)?;
+    let tch_sum = tch_a.argmin(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_uncontiguous_argmin2() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 2, 0])?;
+    let tch_a = tch_a.permute(&[1, 2, 0][..]);
+    let sum = a.argmin(0, false)?;
+    let tch_sum = tch_a.argmin(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(1, false)?;
+    let tch_sum = tch_a.argmin(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(2, false)?;
+    let tch_sum = tch_a.argmin(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_sub_tensor_argmin() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:3, 2:5])?;
+    let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
+    let sum = a.argmin(0, false)?;
+    let tch_sum = tch_a.argmin(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(1, false)?;
+    let tch_sum = tch_a.argmin(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(2, false)?;
+    let tch_sum = tch_a.argmin(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_sub_tensor_argmin_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
+    let sum = a.argmin(0, false)?;
+    let tch_sum = tch_a.argmin(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(1, false)?;
+    let tch_sum = tch_a.argmin(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(2, false)?;
+    let tch_sum = tch_a.argmin(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
 fn test_argmax() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let sum = a.argmax(0, false)?;
@@ -578,6 +887,74 @@ fn test_argmax() -> anyhow::Result<()> {
     assert_eq(&sum, &tch_sum);
     let a = a.permute([1, 0, 2])?;
     let tch_a = tch_a.permute(&[1, 0, 2][..]);
+    let sum = a.argmax(0, false)?;
+    let tch_sum = tch_a.argmax(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(1, false)?;
+    let tch_sum = tch_a.argmax(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(2, false)?;
+    let tch_sum = tch_a.argmax(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_uncontiguous_argmax() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 0, 2])?;
+    let tch_a = tch_a.permute(&[1, 0, 2][..]);
+    let sum = a.argmax(0, false)?;
+    let tch_sum = tch_a.argmax(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(1, false)?;
+    let tch_sum = tch_a.argmax(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(2, false)?;
+    let tch_sum = tch_a.argmax(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_uncontiguous_argmax2() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 2, 0])?;
+    let tch_a = tch_a.permute(&[1, 2, 0][..]);
+    let sum = a.argmax(0, false)?;
+    let tch_sum = tch_a.argmax(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(1, false)?;
+    let tch_sum = tch_a.argmax(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(2, false)?;
+    let tch_sum = tch_a.argmax(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_sub_tensor_argmax() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:3, 2:5])?;
+    let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
+    let sum = a.argmax(0, false)?;
+    let tch_sum = tch_a.argmax(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(1, false)?;
+    let tch_sum = tch_a.argmax(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(2, false)?;
+    let tch_sum = tch_a.argmax(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_sub_tensor_argmax_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
     let sum = a.argmax(0, false)?;
     let tch_sum = tch_a.argmax(0, false);
     assert_eq(&sum, &tch_sum);

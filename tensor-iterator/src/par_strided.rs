@@ -17,9 +17,7 @@ use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use tensor_common::shape_utils::predict_broadcast_shape;
 use tensor_types::dtype::TypeCommon;
 use crate::{
-    iterator_traits::{ IterGetSet, ShapeManipulator },
-    par_strided_map::ParStridedMap,
-    par_strided_zip::ParStridedZip,
+    iterator_traits::{ IterGetSet, ShapeManipulator }, par_strided_fold::ParStridedFold, par_strided_map::ParStridedMap, par_strided_zip::ParStridedZip
 };
 
 #[cfg(feature = "simd")]
@@ -477,6 +475,16 @@ impl<T: CommonBounds> ParStrided<T> {
             start_index: 0,
             end_index: len,
             last_stride: tensor.strides()[tensor.strides().len() - 1],
+        }
+    }
+
+    pub fn par_strided_fold<ID, F>(self, identity: ID, fold_op: F) -> ParStridedFold<Self, ID, F>
+        where F: Fn(ID, T) -> ID + Sync + Send + Copy, ID: Sync + Send + Copy
+    {
+        ParStridedFold {
+            iter: self,
+            identity,
+            fold_op,
         }
     }
 

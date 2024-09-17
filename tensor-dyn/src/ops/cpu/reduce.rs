@@ -14,7 +14,7 @@ use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator};
 use std::sync::Arc;
 use std::sync::Barrier;
 use tensor_common::axis::{process_axes, Axis};
-use tensor_common::shape_utils::mt_intervals_simd;
+use tensor_common::shape_utils::{mt_intervals, mt_intervals_simd};
 use tensor_common::slice::Slice;
 use tensor_iterator::iterator_traits::StridedIterator;
 use tensor_traits::shape_manipulate::ShapeManipulate;
@@ -251,7 +251,7 @@ where
         + Copy,
     <T as TypeCommon>::Vec: Copy,
 {
-    if a.is_contiguous() {
+    if a.is_contiguous() && a.parent().is_none() {
         contiguous_reduce::<
             _,
             _,
@@ -358,7 +358,7 @@ where
     O: CommonBounds,
     <O as TypeCommon>::Vec: Copy,
 {
-    if a.is_contiguous() {
+    if a.is_contiguous() && a.parent().is_none() {
         contiguous_reduce::<T, F, F2, F3, F4, F5, O>(
             a,
             op,
@@ -714,11 +714,16 @@ where
         init_out,
         c,
         move |res| {
-            let val = a
-                .as_raw_mut()
-                .par_iter()
-                .fold(|| init_val, |acc, &x| op(acc, x))
-                .reduce(|| init_val, |a, b| op2(a, b));
+            let val = if a.parent().is_some() {
+                a.par_iter()
+                    .par_strided_fold(init_val, |acc, x| op(acc, x))
+                    .reduce(|| init_val, |a, b| op2(a, b))
+            } else {
+                a.as_raw_mut()
+                    .par_iter()
+                    .fold(|| init_val, |acc, &x| op(acc, x))
+                    .reduce(|| init_val, |a, b| op2(a, b))
+            };
             if let Some(op3) = op3 {
                 *res = op3(op2(val, *res));
             } else {
@@ -785,7 +790,7 @@ where
             });
         },
         move |num_threads, inner_loop_size, ap, result| {
-            let intervals = mt_intervals_simd(inner_loop_size, num_threads, O::Vec::SIZE);
+            let intervals = mt_intervals(inner_loop_size, num_threads);
             let mut slices = vec![Slice::Full; ap.ndim()];
             let mut slices_res = vec![Slice::Full; result.ndim()];
             let mut sliced_tensors = Vec::with_capacity(num_threads);
@@ -829,6 +834,7 @@ where
             );
             let res_shape = result.shape().clone();
             iterators.into_par_iter().for_each(|mut iterator| {
+                let a_last_stride = transposed_tensor.strides()[a.ndim() - axes.len() - 1];
                 let mut result_ptr_c = iterator.res_ptrs.clone();
                 let mut a_data_ptr = iterator.ptrs.clone();
                 let current_size = iterator.end - iterator.start;
@@ -840,7 +846,7 @@ where
                     for _ in 0..inner_loop_size_2 {
                         for i in 0..inner_loop_size as i64 {
                             result_ptr_c[i * res_last_strides] =
-                                op(result_ptr_c[i * res_last_strides], a_data_ptr[i]);
+                                op(result_ptr_c[i * res_last_strides], a_data_ptr[i * a_last_stride]);
                         }
                         for j in (shape_len..iterator.a_shape.len() as i64).rev() {
                             if iterator.prg[j as usize] < iterator.a_shape[j as usize] {

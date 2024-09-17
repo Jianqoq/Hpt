@@ -108,13 +108,6 @@ where
 {
     let (keep_fast_dim, transposed_tensor, result, res_perm) =
         uncontiguous_reduce_prepare(a, axes, init_val, init_out, c)?;
-
-    let a_last_stride = if keep_fast_dim {
-        transposed_tensor.strides()[a.ndim() - axes.len() - 1]
-    } else {
-        transposed_tensor.strides()[a.ndim() - 1]
-    };
-    assert_eq!(a_last_stride, 1);
     let mut transposed_shape_sub_1 = transposed_tensor.shape().inner().clone();
     transposed_shape_sub_1.iter_mut().for_each(|x| {
         *x -= 1;
