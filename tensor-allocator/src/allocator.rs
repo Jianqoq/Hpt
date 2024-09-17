@@ -8,11 +8,37 @@ use crate::strorage::CPU_STORAGE;
 
 pub static mut CACHE: Lazy<Allocator> = Lazy::new(|| Allocator::new(100));
 
+
+/// # Allocator
+/// 
+/// a lru based allocator, to allocate and deallocate memory
+/// 
+/// this allocator is used widely in the library, to allocate and deallocate memory
+/// 
+/// # Safety
+/// 
+/// thread safe
+/// 
+/// # Potential Memory Leak
+/// 
+/// developer must carefully manage the reference count of the pointer allocated
 pub struct Allocator {
     allocator: Mutex<_Allocator>,
 }
 
 impl Allocator {
+
+    /// allocate memory by using lru cache strategy
+    /// 
+    /// # Logic
+    /// 
+    /// 1. check if the layout is found in the cache
+    /// 
+    /// 2. if the layout is found in the cache, pop the memory out, if it return None, there is no available cached memory, we need to allocate new memory
+    /// 
+    /// 3. if the layout is not found in the cache, allocate new memory
+    /// 
+    /// 4. eventually, if the cache is full, pop the least recently used memory and deallocate the memory
     pub fn allocate(&self, layout: Layout) -> *mut u8 {
         self.allocator.lock().unwrap().allocate(layout)
     }

@@ -227,6 +227,7 @@ macro_rules! register_reduction_one_axis {
 
 use tensor_types::vectors::traits::*;
 
+use super::kernels::reduce_kernels::uncontiguous_reduce_dim_include;
 use super::reduce_template::uncontiguos_reduce_template;
 
 #[cfg_attr(feature = "track_caller", track_caller)]
@@ -391,9 +392,9 @@ impl<T: CommonBounds + NormalOut<Output = T> + Cmp> IndexReduce for _Tensor<T> {
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, O>(
     a: &_Tensor<T>,
-    scalar_op: F,
-    scalar_op2: F2,
-    scalar_post: Option<F3>,
+    op: F,
+    op2: F2,
+    op3: Option<F3>,
     vec_op: F4,
     vec_post: Option<F5>,
     axes: &[usize],
@@ -428,12 +429,12 @@ where
             let val = a
                 .as_raw_mut()
                 .par_iter()
-                .fold(|| init_val, |acc, &x| scalar_op(acc, x))
-                .reduce(|| init_val, |a, b| scalar_op2(a, b));
-            if let Some(scalar_post) = scalar_post {
-                *res = scalar_post(scalar_op2(val, *res));
+                .fold(|| init_val, |acc, &x| op(acc, x))
+                .reduce(|| init_val, |a, b| op2(a, b));
+            if let Some(op3) = op3 {
+                *res = op3(op2(val, *res));
             } else {
-                *res = scalar_op2(val, *res);
+                *res = op2(val, *res);
             }
         },
         move |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
@@ -449,24 +450,38 @@ where
                 result.shape().clone(),
             );
             iterators.into_par_iter().for_each(|mut iterator| {
-                let result_ptr_c = iterator.res_ptrs.clone();
-                let a_data_ptr = iterator.ptrs.clone();
+                let mut result_ptr_c = iterator.res_ptrs.clone();
+                let mut a_data_ptr = iterator.ptrs.clone();
                 let current_size = iterator.end - iterator.start;
                 let shape_len = iterator.a_shape.len() as i64;
-                use crate::ops::cpu::kernels::reduce_kernels::contiguous_reduce_dim_include;
-                contiguous_reduce_dim_include(
-                    inner_loop_size as isize,
-                    current_size as isize,
-                    inner_loop_size_2 as isize,
-                    a_data_ptr,
-                    result_ptr_c,
-                    &iterator.strides,
-                    &iterator.a_shape,
-                    &mut iterator.prg,
-                    shape_len,
-                    scalar_op,
-                    scalar_post,
-                );
+                for _ in 0..current_size {
+                    for _ in 0..inner_loop_size_2 {
+                        let mut tmp = result_ptr_c[0isize];
+                        for i in 0..inner_loop_size as i64 {
+                            let a_val = a_data_ptr[i];
+                            tmp = op(tmp, a_val);
+                        }
+                        result_ptr_c[0isize] = tmp;
+                        for j in (0..shape_len - 1).rev() {
+                            if iterator.prg[j as usize] < iterator.a_shape[j as usize] {
+                                iterator.prg[j as usize] += 1;
+                                a_data_ptr.offset(iterator.strides[j as usize]);
+                                break;
+                            } else {
+                                iterator.prg[j as usize] = 0;
+                                a_data_ptr.offset(
+                                    -iterator.strides[j as usize] * iterator.a_shape[j as usize],
+                                );
+                            }
+                        }
+                    }
+                    if let Some(op3) = op3 {
+                        let tmp = result_ptr_c[0isize];
+                        let tmp = op3(tmp);
+                        result_ptr_c[0isize] = tmp;
+                    }
+                    result_ptr_c.add(1);
+                }
             });
         },
         move |num_threads, inner_loop_size, result| {
@@ -505,9 +520,9 @@ where
                             inp.strides().inner(),
                             inp.shape().inner(),
                             O::Vec::SIZE as isize,
-                            scalar_op,
+                            op,
                             vec_op,
-                            scalar_post,
+                            op3,
                             vec_post,
                         );
                     } else {
@@ -518,8 +533,8 @@ where
                             res_ptr,
                             inp.strides().inner(),
                             inp.shape().inner(),
-                            scalar_op,
-                            scalar_post,
+                            op,
+                            op3,
                         );
                     }
                 });
@@ -559,8 +574,8 @@ where
                         &mut prg1,
                         &mut prg2,
                         shape_len,
-                        scalar_op,
-                        scalar_post,
+                        op,
+                        op3,
                         vec_op,
                         vec_post,
                     );
@@ -576,8 +591,8 @@ where
                         &mut prg1,
                         &mut prg2,
                         shape_len,
-                        scalar_op,
-                        scalar_post,
+                        op,
+                        op3,
                     );
                 }
             });
@@ -588,11 +603,11 @@ where
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O>(
     a: &_Tensor<T>,
-    scalar_op: F,   /* scalar op involves type cast */
-    scalar_op2: F2, /* scalar op not involves type cast */
-    scalar_post: Option<F3>,
-    _: F4,         /* simd op, not supported yet */
-    _: Option<F5>, /* simd post, not supported yet */
+    op: F,
+    op2: F2,
+    op3: Option<F3>,
+    _: F4,
+    _: Option<F5>,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -624,22 +639,22 @@ where
         move |res| {
             let val = if a.parent().is_some() {
                 a.par_iter()
-                    .par_strided_fold(init_val, |acc, x| scalar_op(acc, x))
-                    .reduce(|| init_val, |a, b| scalar_op2(a, b))
+                    .par_strided_fold(init_val, |acc, x| op(acc, x))
+                    .reduce(|| init_val, |a, b| op2(a, b))
             } else {
                 a.as_raw_mut()
                     .par_iter()
-                    .fold(|| init_val, |acc, &x| scalar_op(acc, x))
-                    .reduce(|| init_val, |a, b| scalar_op2(a, b))
+                    .fold(|| init_val, |acc, &x| op(acc, x))
+                    .reduce(|| init_val, |a, b| op2(a, b))
             };
-            if let Some(scalar_post) = scalar_post {
-                *res = scalar_post(scalar_op2(val, *res));
+            if let Some(op3) = op3 {
+                *res = op3(op2(val, *res));
             } else {
-                *res = scalar_op2(val, *res);
+                *res = op2(val, *res);
             }
         },
         move |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
-            let a_last_stride = *transposed_tensor.strides().last().unwrap();
+            let a_last_stride = transposed_tensor.strides()[a.ndim() - 1];
             let iterators = UCReductionPreprocessor::new(
                 num_threads,
                 result.size(),
@@ -660,7 +675,6 @@ where
                 let res_shape = res_shape.clone();
                 let res_strides = result.strides().clone();
                 let shape_len = iterator.a_shape.len() as i64;
-                use crate::ops::cpu::kernels::reduce_kernels::uncontiguous_reduce_dim_include;
                 uncontiguous_reduce_dim_include(
                     inner_loop_size as isize,
                     current_size as isize,
@@ -675,8 +689,8 @@ where
                     &res_shape,
                     shape_len,
                     a_last_stride as isize,
-                    scalar_op,
-                    scalar_post,
+                    op,
+                    op3,
                 );
             });
         },
@@ -701,9 +715,9 @@ where
                 .zip(sliced_res.into_par_iter())
                 .for_each(move |(inp, res)| {
                     res.iter_mut().zip(inp.iter()).for_each(|(x, y)| {
-                        *x = scalar_op(*x, y);
+                        *x = op(*x, y);
                     });
-                    if let Some(op3) = scalar_post {
+                    if let Some(op3) = op3 {
                         res.iter_mut().for_each(|x| {
                             *x = op3(*x);
                         });
@@ -750,8 +764,8 @@ where
                     shape_len,
                     a_last_stride as isize,
                     res_last_strides as isize,
-                    scalar_op,
-                    scalar_post,
+                    op,
+                    op3,
                 );
             });
         },
