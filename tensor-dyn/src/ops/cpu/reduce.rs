@@ -227,7 +227,7 @@ macro_rules! register_reduction_one_axis {
 
 use tensor_types::vectors::traits::*;
 
-use super::kernels::reduce_kernels::uncontiguous_reduce_dim_include;
+use super::kernels::reduce_kernels::{contiguous_reduce_dim_include, uncontiguous_reduce_dim_include};
 use super::reduce_template::uncontiguos_reduce_template;
 
 #[cfg_attr(feature = "track_caller", track_caller)]
@@ -450,38 +450,23 @@ where
                 result.shape().clone(),
             );
             iterators.into_par_iter().for_each(|mut iterator| {
-                let mut result_ptr_c = iterator.res_ptrs.clone();
-                let mut a_data_ptr = iterator.ptrs.clone();
+                let result_ptr_c = iterator.res_ptrs.clone();
+                let a_data_ptr = iterator.ptrs.clone();
                 let current_size = iterator.end - iterator.start;
                 let shape_len = iterator.a_shape.len() as i64;
-                for _ in 0..current_size {
-                    for _ in 0..inner_loop_size_2 {
-                        let mut tmp = result_ptr_c[0isize];
-                        for i in 0..inner_loop_size as i64 {
-                            let a_val = a_data_ptr[i];
-                            tmp = op(tmp, a_val);
-                        }
-                        result_ptr_c[0isize] = tmp;
-                        for j in (0..shape_len - 1).rev() {
-                            if iterator.prg[j as usize] < iterator.a_shape[j as usize] {
-                                iterator.prg[j as usize] += 1;
-                                a_data_ptr.offset(iterator.strides[j as usize]);
-                                break;
-                            } else {
-                                iterator.prg[j as usize] = 0;
-                                a_data_ptr.offset(
-                                    -iterator.strides[j as usize] * iterator.a_shape[j as usize],
-                                );
-                            }
-                        }
-                    }
-                    if let Some(op3) = op3 {
-                        let tmp = result_ptr_c[0isize];
-                        let tmp = op3(tmp);
-                        result_ptr_c[0isize] = tmp;
-                    }
-                    result_ptr_c.add(1);
-                }
+                contiguous_reduce_dim_include(
+                    inner_loop_size as isize,
+                    current_size as isize,
+                    inner_loop_size_2 as isize,
+                    a_data_ptr,
+                    result_ptr_c,
+                    &iterator.strides,
+                    &iterator.a_shape,
+                    &mut iterator.prg,
+                    shape_len,
+                    op,
+                    op3,
+                );
             });
         },
         move |num_threads, inner_loop_size, result| {
