@@ -15,11 +15,12 @@ use tensor_types::{
 type BoolVector = tensor_types::_256bit::boolx32::boolx32;
 #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 type BoolVector = tensor_types::_512bit::boolx64::boolx64;
-#[cfg(any(all(
-    not(target_feature = "avx2"),
-    target_feature = "sse",
-    target_arch = "arm"
-)))]
+#[cfg(any(
+    all(not(target_feature = "avx2"), target_feature = "sse"),
+    target_arch = "arm",
+    target_arch = "aarch64",
+    target_feature = "neon"
+))]
 type BoolVector = tensor_types::_128bit::boolx16::boolx16;
 
 pub trait TensorInfo<T> {

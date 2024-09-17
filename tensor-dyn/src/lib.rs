@@ -114,13 +114,13 @@ pub(crate) const REGNUM: usize = 8;
 pub(crate) const REGNUM: usize = 32;
 
 #[cfg(target_feature = "avx2")]
-type BoolVector = crate::_256bit::boolx32::boolx32;
-#[cfg(target_feature = "avx512f")]
-type BoolVector = crate::_512bit::boolx64::boolx64;
-#[cfg(any(all(
-    not(target_feature = "avx2"),
-    target_feature = "sse",
+type BoolVector = tensor_types::_256bit::boolx32::boolx32;
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+type BoolVector = tensor_types::_512bit::boolx64::boolx64;
+#[cfg(any(
+    all(not(target_feature = "avx2"), target_feature = "sse"),
     target_arch = "arm",
-    target_arch = "aarch64"
-)))]
-type BoolVector = crate::_128bit::boolx16::boolx16;
+    target_arch = "aarch64",
+    target_feature = "neon"
+))]
+type BoolVector = tensor_types::_128bit::boolx16::boolx16;
