@@ -14,11 +14,12 @@ use tensor_dyn::*;
 fn assert_eq(a: &_Tensor<i64>, b: &Tensor) {
     let raw = a.as_raw();
     let tch_raw = unsafe { core::slice::from_raw_parts(b.data_ptr() as *const i64, a.size()) };
+    let caller = core::panic::Location::caller();
     raw.par_iter()
         .zip(tch_raw.par_iter())
         .for_each(|(a, b)| {
             if a != b {
-                panic!("{} != {}, at {}", a, b, core::panic::Location::caller())
+                panic!("{} != {}, at {}", a, b, caller)
             }
         });
 }
