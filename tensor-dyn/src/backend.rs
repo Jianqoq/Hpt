@@ -13,6 +13,11 @@ pub struct Cuda;
 
 pub struct Wgpu;
 
+/// backend of tensor
+/// 
+/// this backend stores the pointer of the data memory
+/// 
+/// this backend is used when we `free` or `clone` the tensor
 #[derive(Clone)]
 pub struct Backend<B> {
     pub(crate) _backend: B,
@@ -20,6 +25,7 @@ pub struct Backend<B> {
 
 impl Clone for Cpu {
     fn clone(&self) -> Self {
+        // increment the reference count
         clone_storage(self.ptr as *mut u8);
         Cpu {
             ptr: self.ptr,
@@ -55,10 +61,12 @@ impl BackendTy for Cpu {
     const ID: u8 = 0;
 }
 
+// reserved for future use
 impl BackendTy for Cuda {
     const ID: u8 = 1;
 }
 
+// reserved for future use
 impl BackendTy for Wgpu {
     const ID: u8 = 2;
 }

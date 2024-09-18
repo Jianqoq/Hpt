@@ -6,6 +6,7 @@ use tensor_dyn::slice::SliceOps;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorCreator;
+use tensor_dyn::NormalBinOps;
 
 fn main() -> anyhow::Result<()> {
     let tch_a = tch::Tensor::arange(100, (tch::Kind::Int, tch::Device::Cpu)).reshape(&[10, 10]);
@@ -15,6 +16,7 @@ fn main() -> anyhow::Result<()> {
 
     let a = slice!(a[2:9, 2:9])?.contiguous()?;
     let tch_a = tch_a.slice(1, 2, 9, 1).slice(0, 2, 9, 1).contiguous();
+    a.add_(&a, &a)?;
 
     Ok(())
 }

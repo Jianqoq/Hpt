@@ -1,9 +1,14 @@
+use std::borrow::{Borrow, BorrowMut};
+
 use anyhow::Result;
 use tensor_types::dtype::TypeCommon;
 
-use crate::tensor::{ CommonBounds, TensorInfo, TensorLike };
+use crate::tensor::CommonBounds;
 
-pub trait NormalBinOps<RHS = Self> where <<Self as NormalBinOps<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync {
+pub trait NormalBinOps<RHS = Self>
+where
+    <<Self as NormalBinOps<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync,
+{
     type Output;
     type OutputMeta: CommonBounds;
     type InplaceOutput;
@@ -22,9 +27,8 @@ pub trait NormalBinOps<RHS = Self> where <<Self as NormalBinOps<RHS>>::OutputMet
     /// # Note
     /// inplace operations is just a suggestion to the backend, the backend can choose to ignore them based on their reference count.
     fn add_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>;
+    where
+        U: Borrow<Self::InplaceOutput>;
 
     /// Compute subtraction of `self` and `rhs` element-wise, with auto broadcasting.
     ///
@@ -40,9 +44,8 @@ pub trait NormalBinOps<RHS = Self> where <<Self as NormalBinOps<RHS>>::OutputMet
     /// # Note
     /// inplace operations is just a suggestion to the backend, the backend can choose to ignore them based on their reference count.
     fn sub_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>;
+    where
+        U: Borrow<Self::InplaceOutput>;
 
     /// Compute multiplication of `self` and `rhs` element-wise, with auto broadcasting.
     ///
@@ -58,9 +61,8 @@ pub trait NormalBinOps<RHS = Self> where <<Self as NormalBinOps<RHS>>::OutputMet
     /// # Note
     /// inplace operations is just a suggestion to the backend, the backend can choose to ignore them based on their reference count.
     fn mul_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>;
+    where
+        U: Borrow<Self::InplaceOutput>;
 
     /// Compute remainder of `self` and `rhs` element-wise, with auto broadcasting.
     ///
@@ -76,12 +78,14 @@ pub trait NormalBinOps<RHS = Self> where <<Self as NormalBinOps<RHS>>::OutputMet
     /// # Note
     /// inplace operations is just a suggestion to the backend, the backend can choose to ignore them based on their reference count.
     fn rem_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>;
+    where
+        U: Borrow<Self::InplaceOutput>;
 }
 
-pub trait Matmul<RHS = Self> where <<Self as Matmul<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync {
+pub trait Matmul<RHS = Self>
+where
+    <<Self as Matmul<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync,
+{
     type Output;
     type OutputMeta: CommonBounds;
     type InplaceOutput;
@@ -111,7 +115,6 @@ pub trait Matmul<RHS = Self> where <<Self as Matmul<RHS>>::OutputMeta as TypeCom
     /// assert_eq!(c, res);
     /// ```
     fn matmul_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
-        where
-            U: TensorLike<Self::OutputMeta, Output = Self::InplaceOutput> +
-                TensorInfo<Self::OutputMeta>;
+    where
+        U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>;
 }

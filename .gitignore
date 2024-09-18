@@ -6,6 +6,8 @@ Cargo.lock
 *.zip
 *.ll
 
+/src/**/target
+/src/**/true
 /src/**/*.ll
 /src/**/*.txt
 /src/tensor-graph/src-tauri/*.txt

@@ -1,6 +1,6 @@
 use std::panic::Location;
 
-use crate::{ err_handler::ErrHandler, layout::Layout, shape::Shape, strides::Strides };
+use crate::{err_handler::ErrHandler, layout::Layout, shape::Shape, strides::Strides};
 
 /// # Internal Function
 /// yield `1` before `idx` for `shape`, use when you want to `manipulate the shape of a tensor`
@@ -124,10 +124,7 @@ pub fn compare_and_pad_shapes(a_shape: &[i64], b_shape: &[i64]) -> (Vec<i64>, Ve
 /// assert_eq!(*broadcasted_shape, vec![2, 3]);
 /// ```
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub fn predict_broadcast_shape(
-    a_shape: &[i64],
-    b_shape: &[i64],
-) -> anyhow::Result<Shape> {
+pub fn predict_broadcast_shape(a_shape: &[i64], b_shape: &[i64]) -> anyhow::Result<Shape> {
     let (longer, shorter) = if a_shape.len() >= b_shape.len() {
         (a_shape, b_shape)
     } else {
@@ -143,9 +140,13 @@ pub fn predict_broadcast_shape(
         } else if longer_dim == 1 {
             shorter_dim
         } else {
-            return Err(
-                ErrHandler::BroadcastError(a_shape.into(), b_shape.into(), i, Location::caller()).into()
-            );
+            return Err(ErrHandler::BroadcastError(
+                a_shape.into(),
+                b_shape.into(),
+                i,
+                Location::caller(),
+            )
+            .into());
         };
     }
 
@@ -153,28 +154,28 @@ pub fn predict_broadcast_shape(
 }
 
 /// # Internal Function
-/// 
+///
 /// Predicts the strides resulting from broadcasting two shapes.
-/// 
+///
 /// Broadcasting allows operations to be performed on arrays of different shapes
-/// 
+///
 /// # Arguments
-/// 
+///
 /// - `brocasted_shape`: A slice of `i64` representing the shape after broadcasting.
-/// 
+///
 /// - `original_layout`: The original layout of the tensor.
-/// 
+///
 /// # Returns
-/// 
+///
 /// A `Result<Strides>` representing the strides after broadcasting
-/// 
+///
 /// # Panics
-/// 
+///
 /// if the shapes cannot be broadcast together.
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub fn predict_broadcast_strides<T: Into<Layout>>(
     brocasted_shape: &[i64],
-    original_layout: T
+    original_layout: T,
 ) -> Strides {
     let original_layout: Layout = original_layout.into();
     let brocasted_size = brocasted_shape.iter().product::<i64>();
@@ -183,11 +184,9 @@ pub fn predict_broadcast_strides<T: Into<Layout>>(
     // if true, it is brocasted
     if brocasted_size > original_size {
         let shape = try_pad_shape(original_layout.shape(), brocasted_shape.len());
-        let axes_to_broadcast = get_broadcast_axes_from(
-            &shape,
-            brocasted_shape,
-            Location::caller()
-        ).expect("Cannot broadcast shapes");
+        let axes_to_broadcast =
+            get_broadcast_axes_from(&shape, brocasted_shape, Location::caller())
+                .expect("Cannot broadcast shapes");
 
         let mut new_strides = vec![0; brocasted_shape.len()];
         new_strides
@@ -211,7 +210,7 @@ pub fn predict_broadcast_strides<T: Into<Layout>>(
                 brocasted_shape.into(),
                 original_layout.shape().clone(),
                 original_layout.strides().clone(),
-                Location::caller()
+                Location::caller(),
             );
             unreachable!()
         }
@@ -221,7 +220,7 @@ pub fn predict_broadcast_strides<T: Into<Layout>>(
 pub fn get_broadcast_axes_from(
     a_shape: &[i64],
     res_shape: &[i64],
-    location: &'static Location<'static>
+    location: &'static Location<'static>,
 ) -> anyhow::Result<Vec<usize>> {
     assert!(a_shape.len() <= res_shape.len());
 
@@ -237,9 +236,12 @@ pub fn get_broadcast_axes_from(
         if a_dim == 1 && res_dim != 1 && !padded_axes.contains(&i) {
             axes.push(i);
         } else if res_dim == 1 && a_dim != 1 {
-            anyhow::bail!(
-                ErrHandler::BroadcastError(a_shape.into(), res_shape.into(), i, location)
-            );
+            anyhow::bail!(ErrHandler::BroadcastError(
+                a_shape.into(),
+                res_shape.into(),
+                i,
+                location
+            ));
         }
     }
 
@@ -398,7 +400,7 @@ pub fn predict_reduce_shape_with_zero(shape: &[i64], axes: &[usize]) -> Vec<i64>
 pub fn is_reshape_possible(
     original_shape: &[i64],
     original_strides: &[i64],
-    new_shape: &[i64]
+    new_shape: &[i64],
 ) -> Option<Strides> {
     let mut new_strides = vec![0; new_shape.len()];
     let mut old_strides = vec![0; original_shape.len()];
@@ -508,19 +510,21 @@ pub fn mt_intervals(outer_loop_size: usize, num_threads: usize) -> Vec<(usize, u
     for i in 0..num_threads {
         let start_index =
             i * (outer_loop_size / num_threads) + std::cmp::min(i, outer_loop_size % num_threads);
-        let end_index =
-            start_index +
-            outer_loop_size / num_threads +
-            ((i < outer_loop_size % num_threads) as usize);
+        let end_index = start_index
+            + outer_loop_size / num_threads
+            + ((i < outer_loop_size % num_threads) as usize);
         intervals.push((start_index, end_index));
     }
     intervals
 }
 
+/// usaed to split the outer loop of a tensor for multi-threading, this is used for `simd`
+/// 
+/// this method can produce more intervals that are multiple of `vec_size`
 pub fn mt_intervals_simd(
     outer_loop_size: usize,
     num_threads: usize,
-    vec_size: usize
+    vec_size: usize,
 ) -> Vec<(usize, usize)> {
     let mut intervals = Vec::with_capacity(num_threads);
 
@@ -540,6 +544,8 @@ pub fn mt_intervals_simd(
     }
     intervals
 }
+
+/// check if two shapes is brocast
 pub fn is_broadcast(a_shape: &[i64], b_shape: &[i64]) -> bool {
     let mut a_shape = a_shape.to_vec();
     let mut b_shape = b_shape.to_vec();

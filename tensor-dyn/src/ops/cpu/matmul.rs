@@ -1,22 +1,23 @@
-use rayon::iter::{ IntoParallelRefMutIterator, ParallelIterator };
-use tensor_common::err_handler::ErrHandler;
-use std::panic::Location;
-use std::sync::{ Arc, Barrier };
-use tensor_traits::tensor::CommonBounds;
-use tensor_types::type_promote::NormalOut;
-use tensor_types::into_scalar::IntoScalar;
-use tensor_common::shape_utils::compare_and_pad_shapes;
-use tensor_common::shape_utils::predict_broadcast_shape;
-use tensor_common::strides_utils::preprocess_strides;
-use tensor_common::pointer::Pointer;
-use tensor_common::shape_utils::mt_intervals;
+use crate::backend::Cpu;
 use crate::tensor_base::_Tensor;
 use crate::THREAD_POOL;
-use tensor_traits::tensor::TensorLike;
-use tensor_traits::tensor::TensorInfo;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
+use std::borrow::{Borrow, BorrowMut};
+use std::panic::Location;
+use std::sync::{Arc, Barrier};
+use tensor_common::err_handler::ErrHandler;
+use tensor_common::pointer::Pointer;
+use tensor_common::shape_utils::compare_and_pad_shapes;
+use tensor_common::shape_utils::mt_intervals;
+use tensor_common::shape_utils::predict_broadcast_shape;
+use tensor_common::strides_utils::preprocess_strides;
+use tensor_traits::tensor::CommonBounds;
 use tensor_traits::tensor::TensorCreator;
+use tensor_traits::tensor::TensorInfo;
+use tensor_traits::tensor::TensorLike;
 use tensor_types::dtype::TypeCommon;
-use crate::backend::Cpu;
+use tensor_types::into_scalar::IntoScalar;
+use tensor_types::type_promote::NormalOut;
 
 #[doc = r" Performs matrix multiplication without an output tensor."]
 #[doc = r""]
@@ -35,29 +36,28 @@ use crate::backend::Cpu;
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn matmul_no_out<A, B>(
     lhs: &_Tensor<A>,
-    rhs: &_Tensor<B>
-)
-    -> anyhow::Result<_Tensor<<A as NormalOut<B>>::Output>>
-    where
-        A: CommonBounds + NormalOut<B> + IntoScalar<<A as NormalOut<B>>::Output>,
-        B: CommonBounds + IntoScalar<<A as NormalOut<B>>::Output>,
-        <A as NormalOut<B>>::Output: CommonBounds
+    rhs: &_Tensor<B>,
+) -> anyhow::Result<_Tensor<<A as NormalOut<B>>::Output>>
+where
+    A: CommonBounds + NormalOut<B> + IntoScalar<<A as NormalOut<B>>::Output>,
+    B: CommonBounds + IntoScalar<<A as NormalOut<B>>::Output>,
+    <A as NormalOut<B>>::Output: CommonBounds,
 {
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         if lhs.shape()[1] != rhs.shape()[0] {
-            Err(
-                ErrHandler::MatmulShapeMismatched(
-                    [lhs.shape()[0], lhs.shape()[1]],
-                    [rhs.shape()[0], rhs.shape()[1]],
-                    lhs.shape()[1],
-                    Location::caller()
-                ).into()
+            Err(ErrHandler::MatmulShapeMismatched(
+                [lhs.shape()[0], lhs.shape()[1]],
+                [rhs.shape()[0], rhs.shape()[1]],
+                lhs.shape()[1],
+                Location::caller(),
             )
+            .into())
         } else {
             let res;
-            res = _Tensor::<<A as NormalOut<B>>::Output, Cpu>::zeros(
-                vec![lhs.shape()[0], rhs.shape()[1]]
-            )?;
+            res = _Tensor::<<A as NormalOut<B>>::Output, Cpu>::zeros(vec![
+                lhs.shape()[0],
+                rhs.shape()[1],
+            ])?;
             let new_a = &lhs.try_astype()?;
             let new_b = &rhs.try_astype()?;
             unsafe {
@@ -80,7 +80,7 @@ pub(crate) fn matmul_no_out<A, B>(
                     false,
                     false,
                     false,
-                    gemm::Parallelism::Rayon(rayon::current_num_threads())
+                    gemm::Parallelism::Rayon(rayon::current_num_threads()),
                 );
             }
             Ok(res)
@@ -97,19 +97,19 @@ pub(crate) fn matmul_no_out<A, B>(
             b_shape = longer_shape;
         }
         if a_shape[a_shape.len() - 1] != b_shape[b_shape.len() - 2] {
-            Err(
-                ErrHandler::MatmulShapeMismatched(
-                    [a_shape[a_shape.len() - 2], a_shape[a_shape.len() - 1]],
-                    [b_shape[b_shape.len() - 2], b_shape[b_shape.len() - 1]],
-                    a_shape[a_shape.len() - 1],
-                    Location::caller()
-                ).into()
+            Err(ErrHandler::MatmulShapeMismatched(
+                [a_shape[a_shape.len() - 2], a_shape[a_shape.len() - 1]],
+                [b_shape[b_shape.len() - 2], b_shape[b_shape.len() - 1]],
+                a_shape[a_shape.len() - 1],
+                Location::caller(),
             )
+            .into())
         } else {
             let mut res_shape = predict_broadcast_shape(
                 &a_shape[..a_shape.len() - 2],
-                &b_shape[..b_shape.len() - 2]
-            )?.to_vec();
+                &b_shape[..b_shape.len() - 2],
+            )?
+            .to_vec();
             let mut iterate_shape: Vec<i64> = res_shape.clone();
             res_shape.push(a_shape[a_shape.len() - 2]);
             res_shape.push(b_shape[b_shape.len() - 1]);
@@ -120,9 +120,8 @@ pub(crate) fn matmul_no_out<A, B>(
             let a_strides: Vec<i64> = preprocess_strides(&a_shape, &lhs.strides());
             let b_strides: Vec<i64> = preprocess_strides(&b_shape, &rhs.strides());
             let len: usize = iterate_shape.iter().fold(1, |acc, x| acc * (*x as usize));
-            let res_inner_matrix_size: usize =
-                (res.shape()[res.shape().len() - 2] as usize) *
-                (res.shape()[res.shape().len() - 1] as usize);
+            let res_inner_matrix_size: usize = (res.shape()[res.shape().len() - 2] as usize)
+                * (res.shape()[res.shape().len() - 1] as usize);
             iterate_shape.iter_mut().for_each(|x| {
                 *x -= 1;
             });
@@ -136,9 +135,7 @@ pub(crate) fn matmul_no_out<A, B>(
             };
             let mut num_threads_each = if len < rayon::current_num_threads() {
                 let vec = mt_intervals(rayon::current_num_threads(), len);
-                vec.iter()
-                    .map(|x| x.1 - x.0)
-                    .collect::<Vec<usize>>()
+                vec.iter().map(|x| x.1 - x.0).collect::<Vec<usize>>()
             } else {
                 vec![1; rayon::current_num_threads()]
             };
@@ -152,8 +149,7 @@ pub(crate) fn matmul_no_out<A, B>(
                 let (start, end) = intervals[i];
                 res_ptrs.push(res_ptr.clone());
                 res_ptr.add((end - start) * res_inner_matrix_size);
-                let mut prg = vec![0;
-                iterate_shape.len()];
+                let mut prg = vec![0; iterate_shape.len()];
                 let mut amount_cpy = amount as i64;
                 for j in (0..=iterate_shape.len() - 1).rev() {
                     prg[j] = amount_cpy % (iterate_shape[j] + 1);
@@ -212,7 +208,7 @@ pub(crate) fn matmul_no_out<A, B>(
                                     false,
                                     false,
                                     false,
-                                    gemm::Parallelism::Rayon(threads)
+                                    gemm::Parallelism::Rayon(threads),
                                 );
                                 res_ptr.add(res_inner_matrix_size);
                                 for j in 0..shape.len() {
@@ -240,42 +236,40 @@ pub(crate) fn matmul_no_out<A, B>(
 }
 
 #[track_caller]
-pub(crate) fn matmul_with_out<A, B, O>(
+pub(crate) fn matmul_with_out<A, B, O, Q>(
     lhs: &_Tensor<A>,
     rhs: &_Tensor<B>,
-    mut out: O
-)
-    -> anyhow::Result<_Tensor<<A as NormalOut<B>>::Output>>
-    where
-        A: CommonBounds + NormalOut<B> + IntoScalar<<A as NormalOut<B>>::Output>,
-        B: CommonBounds + IntoScalar<<A as NormalOut<B>>::Output>,
-        O: TensorLike<<A as NormalOut<B>>::Output, Output = _Tensor<<A as NormalOut<B>>::Output>> +
-            TensorInfo<<A as NormalOut<B>>::Output>,
-        <A as NormalOut<B>>::Output: CommonBounds
+    mut out: O,
+) -> anyhow::Result<_Tensor<<A as NormalOut<B>>::Output>>
+where
+    A: CommonBounds + NormalOut<B> + IntoScalar<<A as NormalOut<B>>::Output>,
+    B: CommonBounds + IntoScalar<<A as NormalOut<B>>::Output>,
+    O: Borrow<_Tensor<Q>> + BorrowMut<_Tensor<Q>>,
+    <A as NormalOut<B>>::Output: CommonBounds,
+    Q: CommonBounds,
 {
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         if lhs.shape()[1] != rhs.shape()[0] {
-            Err(
-                ErrHandler::MatmulShapeMismatched(
-                    [lhs.shape()[0], lhs.shape()[1]],
-                    [rhs.shape()[0], rhs.shape()[1]],
-                    lhs.shape()[1],
-                    Location::caller()
-                ).into()
+            Err(ErrHandler::MatmulShapeMismatched(
+                [lhs.shape()[0], lhs.shape()[1]],
+                [rhs.shape()[0], rhs.shape()[1]],
+                lhs.shape()[1],
+                Location::caller(),
             )
+            .into())
         } else {
-            let res;
-            if out.size() == ((lhs.shape()[0] * rhs.shape()[1]) as usize) && out.parent().is_none() {
-                let val = <A as NormalOut<B>>::Output::ZERO;
-                out.to_raw_mut()
-                    .par_iter_mut()
-                    .for_each(|x| {
-                        *x = val;
-                    });
-                res = out.static_cast()?;
+            let res = if out.borrow().size() == ((lhs.shape()[0] * rhs.shape()[1]) as usize)
+                && out.borrow().parent().is_none()
+            {
+                let val = Q::ZERO;
+                out.borrow_mut().to_raw_mut().par_iter_mut().for_each(|x| {
+                    *x = val;
+                });
+                let casted = out.borrow().static_cast::<<A as NormalOut<B>>::Output>()?;
+                casted
             } else {
-                res = _Tensor::zeros(vec![lhs.shape()[0], rhs.shape()[1]])?;
-            }
+                _Tensor::<<A as NormalOut<B>>::Output>::zeros(vec![lhs.shape()[0], rhs.shape()[1]])?
+            };
             let new_a = &lhs.try_astype()?;
             let new_b = &rhs.try_astype()?;
             unsafe {
@@ -298,7 +292,7 @@ pub(crate) fn matmul_with_out<A, B, O>(
                     false,
                     false,
                     false,
-                    gemm::Parallelism::Rayon(rayon::current_num_threads())
+                    gemm::Parallelism::Rayon(rayon::current_num_threads()),
                 );
             }
             Ok(res)
@@ -315,42 +309,38 @@ pub(crate) fn matmul_with_out<A, B, O>(
             b_shape = longer_shape;
         }
         if a_shape[a_shape.len() - 1] != b_shape[b_shape.len() - 2] {
-            Err(
-                ErrHandler::MatmulShapeMismatched(
-                    [a_shape[a_shape.len() - 2], a_shape[a_shape.len() - 1]],
-                    [b_shape[b_shape.len() - 2], b_shape[b_shape.len() - 1]],
-                    a_shape[a_shape.len() - 1],
-                    Location::caller()
-                ).into()
+            Err(ErrHandler::MatmulShapeMismatched(
+                [a_shape[a_shape.len() - 2], a_shape[a_shape.len() - 1]],
+                [b_shape[b_shape.len() - 2], b_shape[b_shape.len() - 1]],
+                a_shape[a_shape.len() - 1],
+                Location::caller(),
             )
+            .into())
         } else {
             let mut res_shape = predict_broadcast_shape(
                 &a_shape[..a_shape.len() - 2],
-                &b_shape[..b_shape.len() - 2]
-            )?.to_vec();
+                &b_shape[..b_shape.len() - 2],
+            )?
+            .to_vec();
             let mut iterate_shape = res_shape.clone();
             res_shape.push(a_shape[a_shape.len() - 2]);
             res_shape.push(b_shape[b_shape.len() - 1]);
             let new_a = &lhs.try_astype::<<A as NormalOut<B>>::Output>()?;
             let new_b = &rhs.try_astype::<<A as NormalOut<B>>::Output>()?;
-            let res;
-            if out.size() == (res_shape.iter().product::<i64>() as usize) {
-                let val = <A as NormalOut<B>>::Output::ZERO;
-                out.to_raw_mut()
-                    .par_iter_mut()
-                    .for_each(|x| {
-                        *x = val;
-                    });
-                res = out.static_cast()?;
+            let res = if out.borrow().size() == (res_shape.iter().product::<i64>() as usize) {
+                let val = Q::ZERO;
+                out.borrow_mut().to_raw_mut().par_iter_mut().for_each(|x| {
+                    *x = val;
+                });
+                out.borrow().static_cast::<<A as NormalOut<B>>::Output>()?
             } else {
-                res = _Tensor::zeros(res_shape)?;
-            }
+                _Tensor::<<A as NormalOut<B>>::Output>::zeros(res_shape)?
+            };
             let a_strides = preprocess_strides(&a_shape, &lhs.strides());
             let b_strides = preprocess_strides(&b_shape, &rhs.strides());
             let len = iterate_shape.iter().fold(1, |acc, x| acc * (*x as usize));
-            let res_inner_matrix_size =
-                (res.shape()[res.shape().len() - 2] as usize) *
-                (res.shape()[res.shape().len() - 1] as usize);
+            let res_inner_matrix_size = (res.shape()[res.shape().len() - 2] as usize)
+                * (res.shape()[res.shape().len() - 1] as usize);
             iterate_shape.iter_mut().for_each(|x| {
                 *x -= 1;
             });
@@ -364,12 +354,9 @@ pub(crate) fn matmul_with_out<A, B, O>(
             };
             let mut num_threads_each: Vec<usize> = if len < rayon::current_num_threads() {
                 let vec = mt_intervals(rayon::current_num_threads(), len);
-                vec.iter()
-                    .map(|x| x.1 - x.0)
-                    .collect::<Vec<usize>>()
+                vec.iter().map(|x| x.1 - x.0).collect::<Vec<usize>>()
             } else {
-                vec![1;
-                rayon::current_num_threads()]
+                vec![1; rayon::current_num_threads()]
             };
             let intervals = mt_intervals(len, num_threads);
             let mut res_ptrs = Vec::with_capacity(num_threads);
@@ -381,8 +368,7 @@ pub(crate) fn matmul_with_out<A, B, O>(
                 let (start, end) = intervals[i];
                 res_ptrs.push(res_ptr.clone());
                 res_ptr.add((end - start) * res_inner_matrix_size);
-                let mut prg: Vec<i64> = vec![0;
-                iterate_shape.len()];
+                let mut prg: Vec<i64> = vec![0; iterate_shape.len()];
                 let mut amount_cpy = amount as i64;
                 for j in (0..=iterate_shape.len() - 1).rev() {
                     prg[j] = amount_cpy % (iterate_shape[j] + 1);
@@ -441,7 +427,7 @@ pub(crate) fn matmul_with_out<A, B, O>(
                                     false,
                                     false,
                                     false,
-                                    gemm::Parallelism::Rayon(threads)
+                                    gemm::Parallelism::Rayon(threads),
                                 );
                                 res_ptr.add(res_inner_matrix_size);
                                 for j in 0..shape.len() {
@@ -471,21 +457,22 @@ pub(crate) fn matmul_with_out<A, B, O>(
 #[allow(unused)]
 pub(crate) fn matmul_no_out_concret<A, B, C>(
     lhs: &_Tensor<A>,
-    rhs: &_Tensor<B>
-)
-    -> anyhow::Result<_Tensor<C>>
-    where C: CommonBounds, A: CommonBounds + IntoScalar<C>, B: CommonBounds + IntoScalar<C>
+    rhs: &_Tensor<B>,
+) -> anyhow::Result<_Tensor<C>>
+where
+    C: CommonBounds,
+    A: CommonBounds + IntoScalar<C>,
+    B: CommonBounds + IntoScalar<C>,
 {
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         if lhs.shape()[1] != rhs.shape()[0] {
-            Err(
-                ErrHandler::MatmulShapeMismatched(
-                    [lhs.shape()[0], lhs.shape()[1]],
-                    [rhs.shape()[0], rhs.shape()[1]],
-                    lhs.shape()[1],
-                    Location::caller()
-                ).into()
+            Err(ErrHandler::MatmulShapeMismatched(
+                [lhs.shape()[0], lhs.shape()[1]],
+                [rhs.shape()[0], rhs.shape()[1]],
+                lhs.shape()[1],
+                Location::caller(),
             )
+            .into())
         } else {
             let res: _Tensor<C>;
             res = _Tensor::zeros(vec![lhs.shape()[0], rhs.shape()[1]])?;
@@ -511,7 +498,7 @@ pub(crate) fn matmul_no_out_concret<A, B, C>(
                     false,
                     false,
                     false,
-                    gemm::Parallelism::Rayon(rayon::current_num_threads())
+                    gemm::Parallelism::Rayon(rayon::current_num_threads()),
                 );
             }
             Ok(res)
@@ -528,19 +515,19 @@ pub(crate) fn matmul_no_out_concret<A, B, C>(
             b_shape = longer_shape;
         }
         if a_shape[a_shape.len() - 1] != b_shape[b_shape.len() - 2] {
-            Err(
-                ErrHandler::MatmulShapeMismatched(
-                    [a_shape[a_shape.len() - 2], a_shape[a_shape.len() - 1]],
-                    [b_shape[b_shape.len() - 2], b_shape[b_shape.len() - 1]],
-                    a_shape[a_shape.len() - 1],
-                    Location::caller()
-                ).into()
+            Err(ErrHandler::MatmulShapeMismatched(
+                [a_shape[a_shape.len() - 2], a_shape[a_shape.len() - 1]],
+                [b_shape[b_shape.len() - 2], b_shape[b_shape.len() - 1]],
+                a_shape[a_shape.len() - 1],
+                Location::caller(),
             )
+            .into())
         } else {
             let mut res_shape = predict_broadcast_shape(
                 &a_shape[..a_shape.len() - 2],
-                &b_shape[..b_shape.len() - 2]
-            )?.to_vec();
+                &b_shape[..b_shape.len() - 2],
+            )?
+            .to_vec();
             let mut iterate_shape: Vec<i64> = res_shape.clone();
             res_shape.push(a_shape[a_shape.len() - 2]);
             res_shape.push(b_shape[b_shape.len() - 1]);
@@ -551,9 +538,8 @@ pub(crate) fn matmul_no_out_concret<A, B, C>(
             let a_strides: Vec<i64> = preprocess_strides(&a_shape, &lhs.strides());
             let b_strides: Vec<i64> = preprocess_strides(&b_shape, &rhs.strides());
             let len: usize = iterate_shape.iter().fold(1, |acc, x| acc * (*x as usize));
-            let res_inner_matrix_size: usize =
-                (res.shape()[res.shape().len() - 2] as usize) *
-                (res.shape()[res.shape().len() - 1] as usize);
+            let res_inner_matrix_size: usize = (res.shape()[res.shape().len() - 2] as usize)
+                * (res.shape()[res.shape().len() - 1] as usize);
             iterate_shape.iter_mut().for_each(|x| {
                 *x -= 1;
             });
@@ -567,9 +553,7 @@ pub(crate) fn matmul_no_out_concret<A, B, C>(
             };
             let mut num_threads_each: Vec<usize> = if len < rayon::current_num_threads() {
                 let vec: Vec<(usize, usize)> = mt_intervals(rayon::current_num_threads(), len);
-                vec.iter()
-                    .map(|x| x.1 - x.0)
-                    .collect::<Vec<usize>>()
+                vec.iter().map(|x| x.1 - x.0).collect::<Vec<usize>>()
             } else {
                 vec![1; rayon::current_num_threads()]
             };
@@ -642,7 +626,7 @@ pub(crate) fn matmul_no_out_concret<A, B, C>(
                                     false,
                                     false,
                                     false,
-                                    gemm::Parallelism::Rayon(threads)
+                                    gemm::Parallelism::Rayon(threads),
                                 );
                                 res_ptr.add(res_inner_matrix_size);
                                 for j in 0..shape.len() {
@@ -673,21 +657,22 @@ pub(crate) fn matmul_no_out_concret<A, B, C>(
 pub(crate) fn matmul_out_concret<A, B, C>(
     lhs: &_Tensor<A>,
     rhs: &_Tensor<B>,
-    out: &_Tensor<C>
-)
-    -> anyhow::Result<_Tensor<C>>
-    where C: CommonBounds, A: CommonBounds + IntoScalar<C>, B: CommonBounds + IntoScalar<C>
+    out: &_Tensor<C>,
+) -> anyhow::Result<_Tensor<C>>
+where
+    C: CommonBounds,
+    A: CommonBounds + IntoScalar<C>,
+    B: CommonBounds + IntoScalar<C>,
 {
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         if lhs.shape()[1] != rhs.shape()[0] {
-            Err(
-                ErrHandler::MatmulShapeMismatched(
-                    [lhs.shape()[0], lhs.shape()[1]],
-                    [rhs.shape()[0], rhs.shape()[1]],
-                    lhs.shape()[1],
-                    Location::caller()
-                ).into()
+            Err(ErrHandler::MatmulShapeMismatched(
+                [lhs.shape()[0], lhs.shape()[1]],
+                [rhs.shape()[0], rhs.shape()[1]],
+                lhs.shape()[1],
+                Location::caller(),
             )
+            .into())
         } else {
             let res: _Tensor<C>;
             res = out.clone();
@@ -713,7 +698,7 @@ pub(crate) fn matmul_out_concret<A, B, C>(
                     false,
                     false,
                     false,
-                    gemm::Parallelism::Rayon(rayon::current_num_threads())
+                    gemm::Parallelism::Rayon(rayon::current_num_threads()),
                 );
             }
             Ok(res)
@@ -730,19 +715,19 @@ pub(crate) fn matmul_out_concret<A, B, C>(
             b_shape = longer_shape;
         }
         if a_shape[a_shape.len() - 1] != b_shape[b_shape.len() - 2] {
-            Err(
-                ErrHandler::MatmulShapeMismatched(
-                    [a_shape[a_shape.len() - 2], a_shape[a_shape.len() - 1]],
-                    [b_shape[b_shape.len() - 2], b_shape[b_shape.len() - 1]],
-                    a_shape[a_shape.len() - 1],
-                    Location::caller()
-                ).into()
+            Err(ErrHandler::MatmulShapeMismatched(
+                [a_shape[a_shape.len() - 2], a_shape[a_shape.len() - 1]],
+                [b_shape[b_shape.len() - 2], b_shape[b_shape.len() - 1]],
+                a_shape[a_shape.len() - 1],
+                Location::caller(),
             )
+            .into())
         } else {
             let mut res_shape = predict_broadcast_shape(
                 &a_shape[..a_shape.len() - 2],
-                &b_shape[..b_shape.len() - 2]
-            )?.to_vec();
+                &b_shape[..b_shape.len() - 2],
+            )?
+            .to_vec();
             let mut iterate_shape: Vec<i64> = res_shape.clone();
             res_shape.push(a_shape[a_shape.len() - 2]);
             res_shape.push(b_shape[b_shape.len() - 1]);
@@ -753,9 +738,8 @@ pub(crate) fn matmul_out_concret<A, B, C>(
             let a_strides: Vec<i64> = preprocess_strides(&a_shape, &lhs.strides());
             let b_strides: Vec<i64> = preprocess_strides(&b_shape, &rhs.strides());
             let len: usize = iterate_shape.iter().fold(1, |acc, x| acc * (*x as usize));
-            let res_inner_matrix_size: usize =
-                (res.shape()[res.shape().len() - 2] as usize) *
-                (res.shape()[res.shape().len() - 1] as usize);
+            let res_inner_matrix_size: usize = (res.shape()[res.shape().len() - 2] as usize)
+                * (res.shape()[res.shape().len() - 1] as usize);
             iterate_shape.iter_mut().for_each(|x| {
                 *x -= 1;
             });
@@ -769,9 +753,7 @@ pub(crate) fn matmul_out_concret<A, B, C>(
             };
             let mut num_threads_each: Vec<usize> = if len < rayon::current_num_threads() {
                 let vec: Vec<(usize, usize)> = mt_intervals(rayon::current_num_threads(), len);
-                vec.iter()
-                    .map(|x| x.1 - x.0)
-                    .collect::<Vec<usize>>()
+                vec.iter().map(|x| x.1 - x.0).collect::<Vec<usize>>()
             } else {
                 vec![1; rayon::current_num_threads()]
             };
@@ -844,7 +826,7 @@ pub(crate) fn matmul_out_concret<A, B, C>(
                                     false,
                                     false,
                                     false,
-                                    gemm::Parallelism::Rayon(threads)
+                                    gemm::Parallelism::Rayon(threads),
                                 );
                                 res_ptr.add(res_inner_matrix_size);
                                 for j in 0..shape.len() {

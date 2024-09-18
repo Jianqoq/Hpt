@@ -46,14 +46,13 @@ pub trait StaticTensorInfo {
     fn is_contiguous(&self) -> bool;
 }
 
-pub trait TensorLike<T, OutputMeta = T, Output = Self> {
-    type Output;
+pub trait TensorLike<T> {
+    /// directly convert the tensor to raw slice
     fn to_raw(&self) -> &[T];
     fn to_raw_mut(&mut self) -> &mut [T];
     fn elsize() -> usize {
         size_of::<T>()
     }
-    fn static_cast(&self) -> anyhow::Result<Self::Output>;
 }
 
 pub trait BaseTensor {

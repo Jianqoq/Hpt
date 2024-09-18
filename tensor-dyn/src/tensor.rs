@@ -58,22 +58,16 @@ where
     }
 }
 
-impl<T, U> TensorLike<T, U, Tensor<U>> for Tensor<T>
+impl<T> TensorLike<T> for Tensor<T>
 where
-    T: IntoScalar<U> + CommonBounds,
-    U: CommonBounds,
+    T: CommonBounds,
 {
-    type Output = Tensor<U>;
     fn to_raw(&self) -> &[T] {
         self.as_raw()
     }
 
     fn to_raw_mut(&mut self) -> &mut [T] {
         self.as_raw_mut()
-    }
-
-    fn static_cast(&self) -> Result<Self::Output> {
-        self.static_cast()
     }
 }
 

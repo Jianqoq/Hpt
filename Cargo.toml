@@ -24,6 +24,10 @@ anyhow = "1.0.40"
 half = "2.4.1"
 tch = {version = "0.17.0", features = ["download-libtorch"]}
 
+[[test]]
+name = "tensor-tests"
+path = "tensor-tests"
+
 [[bin]]
 name = "etensor"
 path = "src/main.rs"

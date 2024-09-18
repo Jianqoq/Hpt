@@ -21,7 +21,6 @@ use tensor_traits::tensor::CommonBounds;
 use tensor_traits::tensor::TensorCreator;
 use tensor_traits::tensor::{IndexReduce, TensorInfo};
 use tensor_types::convertion::Convertor;
-use tensor_types::dtype::TypeCommon;
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::{Cmp, NormalOut};
 
@@ -227,7 +226,9 @@ macro_rules! register_reduction_one_axis {
 
 use tensor_types::vectors::traits::*;
 
-use super::kernels::reduce_kernels::{contiguous_reduce_dim_include, uncontiguous_reduce_dim_include};
+use super::kernels::reduce_kernels::{
+    contiguous_reduce_dim_include, uncontiguous_reduce_dim_include,
+};
 use super::reduce_template::uncontiguos_reduce_template;
 
 #[cfg_attr(feature = "track_caller", track_caller)]
@@ -274,33 +275,17 @@ where
     T: CommonBounds + IntoScalar<O> + Convertor,
     F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
     F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-    F3: Fn(<O as TypeCommon>::Vec, T::Vec) -> <O as TypeCommon>::Vec + Sync + Send + 'static + Copy,
+    F3: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
     O: CommonBounds,
     T::Vec: Copy,
-    <O as TypeCommon>::Vec: Copy,
+    O::Vec: Copy,
 {
     if a.is_contiguous() {
-        contiguous_reduce::<
-            T,
-            F,
-            F2,
-            fn(O) -> O,
-            _,
-            fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec,
-            O,
-        >(
+        contiguous_reduce::<T, F, F2, fn(O) -> O, _, fn(O::Vec) -> O::Vec, O>(
             a, op, op2, None, vec_op, None, &axes, init_val, keepdims, init_out, c,
         )
     } else {
-        uncontiguous_reduce::<
-            T,
-            F,
-            F2,
-            fn(O) -> O,
-            _,
-            fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec,
-            O,
-        >(
+        uncontiguous_reduce::<T, F, F2, fn(O) -> O, _, fn(O::Vec) -> O::Vec, O>(
             a, op, op2, None, vec_op, None, &axes, init_val, keepdims, init_out, c,
         )
     }
@@ -325,10 +310,10 @@ where
     F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
     F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
     F3: Fn(O) -> O + Sync + Send + 'static + Copy,
-    F4: Fn(<O as TypeCommon>::Vec, T::Vec) -> <O as TypeCommon>::Vec + Sync + Send + 'static + Copy,
-    F5: Fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec + Sync + Send + 'static + Copy,
+    F4: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+    F5: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
     O: CommonBounds,
-    <O as TypeCommon>::Vec: Copy,
+    O::Vec: Copy,
 {
     if a.is_contiguous() && a.parent().is_none() {
         contiguous_reduce::<T, F, F2, F3, F4, F5, O>(
@@ -409,14 +394,10 @@ where
     F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
     F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
     F3: Fn(O) -> O + Sync + Send + 'static + Copy,
-    F4: Fn(<O as TypeCommon>::Vec, T::Vec) -> <O as TypeCommon>::Vec
-        + 'static
-        + Copy
-        + Send
-        + std::marker::Sync,
-    F5: Fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec + Sync + Send + 'static + Copy,
+    F4: Fn(O::Vec, T::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
+    F5: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
     T::Vec: Copy,
-    <O as TypeCommon>::Vec: Copy,
+    O::Vec: Copy,
 {
     reduce_template(
         a,
@@ -605,14 +586,10 @@ where
     F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
     F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
     F3: Fn(O) -> O + Sync + Send + 'static + Copy,
-    F4: Fn(<O as TypeCommon>::Vec, T::Vec) -> <O as TypeCommon>::Vec
-        + 'static
-        + Copy
-        + Send
-        + std::marker::Sync,
-    F5: Fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec + Sync + Send + 'static + Copy,
+    F4: Fn(O::Vec, T::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
+    F5: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
     T::Vec: Copy,
-    <O as TypeCommon>::Vec: Copy,
+    O::Vec: Copy,
 {
     uncontiguos_reduce_template(
         a,

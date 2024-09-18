@@ -1,20 +1,10 @@
 use std::{ ops::{ Deref, DerefMut }, sync::Arc };
 
-use serde::Serialize;
-use serde::ser::SerializeStruct;
 use crate::strides_utils::strides_is_contiguous;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Strides {
     pub(crate) inner: Arc<Vec<i64>>,
-}
-
-impl Serialize for Strides {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
-        let mut state = serializer.serialize_struct("Strides", 1)?;
-        state.serialize_field("inner", self.inner.as_ref())?;
-        state.end()
-    }
 }
 
 impl Strides {

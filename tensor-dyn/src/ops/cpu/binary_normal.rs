@@ -1,16 +1,13 @@
-use rayon::iter::{
-    IndexedParallelIterator,
-    IntoParallelRefIterator,
-    IntoParallelRefMutIterator,
-    ParallelIterator,
-};
 use crate::backend::Cpu;
-use tensor_traits::tensor::CommonBounds;
+use crate::tensor_base::_Tensor;
+use rayon::iter::{
+    IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
+};
 use tensor_common::shape_utils::predict_broadcast_shape;
+use tensor_traits::tensor::CommonBounds;
+use tensor_traits::tensor::TensorCreator;
 use tensor_traits::tensor::TensorInfo;
 use tensor_traits::tensor::TensorLike;
-use crate::tensor_base::_Tensor;
-use tensor_traits::tensor::TensorCreator;
 
 #[cfg(feature = "simd")]
 use tensor_types::dtype::TypeCommon;
@@ -26,17 +23,19 @@ use tensor_types::dtype::TypeCommon;
 /// - otherwise, it will use the strided map to parallelize the operation
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub fn binary_fn<A, B, K, F>(lhs: &_Tensor<A>, rhs: &_Tensor<B>, f: F) -> anyhow::Result<_Tensor<K>>
-    where A: CommonBounds, B: CommonBounds, K: CommonBounds, F: Fn(A, B) -> K + Sync + Send + Copy
+where
+    A: CommonBounds,
+    B: CommonBounds,
+    K: CommonBounds,
+    F: Fn(A, B) -> K + Sync + Send + Copy,
 {
     if lhs.size() == 1 {
         let val = lhs.as_raw()[0];
         let res = _Tensor::<K, Cpu>::empty(rhs.shape())?;
         if rhs.parent().is_some() {
-            res.par_iter_mut()
-                .zip(rhs.par_iter())
-                .for_each(|(a, b)| {
-                    *a = f(val, b);
-                });
+            res.par_iter_mut().zip(rhs.par_iter()).for_each(|(a, b)| {
+                *a = f(val, b);
+            });
         } else {
             res.as_raw_mut()
                 .par_iter_mut()
@@ -50,11 +49,9 @@ pub fn binary_fn<A, B, K, F>(lhs: &_Tensor<A>, rhs: &_Tensor<B>, f: F) -> anyhow
         let val = rhs.as_raw()[0];
         let res = _Tensor::<K, Cpu>::empty(lhs.shape())?;
         if lhs.parent().is_some() {
-            res.par_iter_mut()
-                .zip(lhs.par_iter())
-                .for_each(|(a, b)| {
-                    *a = f(b, val);
-                });
+            res.par_iter_mut().zip(lhs.par_iter()).for_each(|(a, b)| {
+                *a = f(b, val);
+            });
         } else {
             res.as_raw_mut()
                 .par_iter_mut()
@@ -65,12 +62,11 @@ pub fn binary_fn<A, B, K, F>(lhs: &_Tensor<A>, rhs: &_Tensor<B>, f: F) -> anyhow
         }
         Ok(res)
     } else {
-        if
-            rhs.parent().is_none() &&
-            lhs.parent().is_none() &&
-            rhs.is_contiguous() &&
-            lhs.is_contiguous() &&
-            rhs.shape() == lhs.shape()
+        if rhs.parent().is_none()
+            && lhs.parent().is_none()
+            && rhs.is_contiguous()
+            && lhs.is_contiguous()
+            && rhs.shape() == lhs.shape()
         {
             let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape())?;
             let ret;
@@ -101,25 +97,23 @@ pub fn binary_fn_with_out<A, B, O, Q, K, F>(
     lhs: &_Tensor<A>,
     rhs: &_Tensor<B>,
     f: F,
-    out: O
-)
-    -> anyhow::Result<_Tensor<K>>
-    where
-        A: CommonBounds,
-        B: CommonBounds,
-        O: TensorLike<Q, Output = _Tensor<K>> + TensorInfo<Q>,
-        K: CommonBounds,
-        Q: CommonBounds,
-        F: Fn(A, B) -> K + Sync + Send + Copy
+    out: O,
+) -> anyhow::Result<_Tensor<K>>
+where
+    A: CommonBounds,
+    B: CommonBounds,
+    O: Borrow<_Tensor<Q>>,
+    K: CommonBounds,
+    Q: CommonBounds,
+    F: Fn(A, B) -> K + Sync + Send + Copy,
 {
     if lhs.size() == 1 {
         let val = lhs.as_raw()[0];
-        let ret;
-        if out.size() * size_of::<Q>() != rhs.size() * size_of::<B>() {
-            ret = _Tensor::<K, Cpu>::empty(rhs.shape())?;
+        let ret = if out.borrow().size() * size_of::<Q>() != rhs.size() * size_of::<B>() {
+            _Tensor::<K, Cpu>::empty(rhs.shape())?
         } else {
-            ret = _Tensor::<K, Cpu>::empty(rhs.shape())?;
-        }
+            out.borrow().static_cast::<K>()?
+        };
         ret.as_raw_mut()
             .par_iter_mut()
             .zip(rhs.as_raw().par_iter())
@@ -130,7 +124,7 @@ pub fn binary_fn_with_out<A, B, O, Q, K, F>(
     } else if rhs.size() == 1 {
         let val = rhs.as_raw()[0];
         let ret;
-        if out.size() * size_of::<Q>() != lhs.size() * size_of::<A>() {
+        if out.borrow().size() * size_of::<Q>() != lhs.size() * size_of::<A>() {
             ret = _Tensor::<K, Cpu>::empty(lhs.shape())?;
         } else {
             ret = _Tensor::<K, Cpu>::empty(lhs.shape())?;
@@ -146,7 +140,7 @@ pub fn binary_fn_with_out<A, B, O, Q, K, F>(
         let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape())?;
         let ret;
         let ret_size: usize = res_shape.iter().product::<i64>() as usize;
-        if out.size() * size_of::<Q>() != ret_size * size_of::<A>() {
+        if out.borrow().size() * size_of::<Q>() != ret_size * size_of::<A>() {
             ret = _Tensor::<K, Cpu>::empty(res_shape)?;
         } else {
             ret = _Tensor::<K, Cpu>::empty(res_shape)?;
@@ -173,6 +167,7 @@ pub fn binary_fn_with_out<A, B, O, Q, K, F>(
     }
 }
 
+use std::borrow::Borrow;
 /// same function as `binary_fn_simd`, just the output tensor is passed as an argument
 ///
 /// full documentation can be found in `binary_fn_simd`
@@ -185,22 +180,22 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
     rhs: &_Tensor<B>,
     f: F,
     f2: F2,
-    out: O
-)
-    -> anyhow::Result<_Tensor<K>>
-    where
-        A: CommonBounds,
-        B: CommonBounds,
-        O: TensorLike<Q, Output = _Tensor<K>> + TensorInfo<Q>,
-        K: CommonBounds,
-        Q: CommonBounds,
-        F: Fn(A, B) -> K + Sync + Send + Copy,
-        F2: Fn(<A as TypeCommon>::Vec, <B as TypeCommon>::Vec) -> <K as TypeCommon>::Vec +
-            Sync +
-            Send +
-            Copy
+    out: O,
+) -> anyhow::Result<_Tensor<K>>
+where
+    A: CommonBounds,
+    B: CommonBounds,
+    O: TensorLike<Q> + TensorInfo<Q> + Borrow<_Tensor<Q>>,
+    K: CommonBounds,
+    Q: CommonBounds,
+    F: Fn(A, B) -> K + Sync + Send + Copy,
+    F2: Fn(<A as TypeCommon>::Vec, <B as TypeCommon>::Vec) -> <K as TypeCommon>::Vec
+        + Sync
+        + Send
+        + Copy,
 {
-    use rayon::slice::{ ParallelSlice, ParallelSliceMut };
+
+    use rayon::slice::{ParallelSlice, ParallelSliceMut};
     use tensor_types::traits::*;
     if lhs.size() == 1 {
         let val = lhs.as_raw()[0];
@@ -208,11 +203,10 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
         let res = if out.size() * size_of::<Q>() != rhs.size() * size_of::<B>() {
             _Tensor::<K, Cpu>::empty(rhs.shape())?
         } else {
-            _Tensor::<K, Cpu>::empty(rhs.shape())?
+            out.borrow().static_cast::<K>()?
         };
-        if
-            <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE &&
-            <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
+        if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
+            && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
         {
             let remain = res.size() % <A as TypeCommon>::Vec::SIZE;
             res.as_raw_mut()
@@ -225,13 +219,13 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
                         std::ptr::copy_nonoverlapping(
                             res,
                             a.as_mut_ptr(),
-                            <A as TypeCommon>::Vec::SIZE
+                            <A as TypeCommon>::Vec::SIZE,
                         );
                     }
                 });
             if remain > 0 {
-                res.as_raw_mut()
-                    [res.size() - remain..].iter_mut()
+                res.as_raw_mut()[res.size() - remain..]
+                    .iter_mut()
                     .zip(rhs.as_raw()[res.size() - remain..].iter())
                     .for_each(|(a, b)| {
                         *a = f(val, *b);
@@ -242,16 +236,14 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
                 .par_chunks_exact_mut(<K as TypeCommon>::Vec::SIZE)
                 .zip(rhs.as_raw().par_chunks_exact(<K as TypeCommon>::Vec::SIZE))
                 .for_each(|(a, b)| {
-                    a.iter_mut()
-                        .zip(b.iter())
-                        .for_each(|(a, b)| {
-                            *a = f(val, *b);
-                        });
+                    a.iter_mut().zip(b.iter()).for_each(|(a, b)| {
+                        *a = f(val, *b);
+                    });
                 });
             let remain = res.size() % <K as TypeCommon>::Vec::SIZE;
             if remain > 0 {
-                res.as_raw_mut()
-                    [res.size() - remain..].iter_mut()
+                res.as_raw_mut()[res.size() - remain..]
+                    .iter_mut()
                     .zip(rhs.as_raw()[res.size() - remain..].iter())
                     .for_each(|(a, b)| {
                         *a = f(val, *b);
@@ -267,9 +259,8 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
         } else {
             _Tensor::<K, Cpu>::empty(lhs.shape())?
         };
-        if
-            <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE &&
-            <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
+        if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
+            && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
         {
             let remain = res.size() % <A as TypeCommon>::Vec::SIZE;
             res.as_raw_mut()
@@ -282,13 +273,13 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
                         std::ptr::copy_nonoverlapping(
                             res,
                             a.as_mut_ptr(),
-                            <A as TypeCommon>::Vec::SIZE
+                            <A as TypeCommon>::Vec::SIZE,
                         );
                     }
                 });
             if remain > 0 {
-                res.as_raw_mut()
-                    [res.size() - remain..].iter_mut()
+                res.as_raw_mut()[res.size() - remain..]
+                    .iter_mut()
                     .zip(lhs.as_raw()[res.size() - remain..].iter())
                     .for_each(|(a, lhs)| {
                         *a = f(*lhs, val);
@@ -299,16 +290,14 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
                 .par_chunks_exact_mut(<K as TypeCommon>::Vec::SIZE)
                 .zip(lhs.as_raw().par_chunks_exact(<K as TypeCommon>::Vec::SIZE))
                 .for_each(|(a, lhs)| {
-                    a.iter_mut()
-                        .zip(lhs.iter())
-                        .for_each(|(a, lhs)| {
-                            *a = f(*lhs, val);
-                        });
+                    a.iter_mut().zip(lhs.iter()).for_each(|(a, lhs)| {
+                        *a = f(*lhs, val);
+                    });
                 });
             let remain = res.size() % <K as TypeCommon>::Vec::SIZE;
             if remain > 0 {
-                res.as_raw_mut()
-                    [res.size() - remain..].iter_mut()
+                res.as_raw_mut()[res.size() - remain..]
+                    .iter_mut()
                     .zip(lhs.as_raw()[res.size() - remain..].iter())
                     .for_each(|(a, lhs)| {
                         *a = f(*lhs, val);
@@ -318,16 +307,13 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
         Ok(res)
     } else {
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
-            let ret = if
-                out.size() * size_of::<Q>() != rhs.size() * size_of::<B>()
-            {
+            let ret = if out.size() * size_of::<Q>() != rhs.size() * size_of::<B>() {
                 _Tensor::<K, Cpu>::empty(rhs.shape())?
             } else {
                 _Tensor::<K, Cpu>::empty(rhs.shape())?
             };
-            if
-                <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE &&
-                <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
+            if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
+                && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
             {
                 let remain = ret.size() % <K as TypeCommon>::Vec::SIZE;
                 ret.as_raw_mut()
@@ -342,13 +328,13 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
                             std::ptr::copy_nonoverlapping(
                                 res.as_ptr(),
                                 ret.as_mut_ptr(),
-                                <K as TypeCommon>::Vec::SIZE
+                                <K as TypeCommon>::Vec::SIZE,
                             );
                         }
                     });
                 if remain > 0 {
-                    ret.as_raw_mut()
-                        [ret.size() - remain..].iter_mut()
+                    ret.as_raw_mut()[ret.size() - remain..]
+                        .iter_mut()
                         .zip(lhs.as_raw()[ret.size() - remain..].iter())
                         .zip(rhs.as_raw()[ret.size() - remain..].iter())
                         .for_each(|((a, &lhs), &rhs)| {
@@ -369,9 +355,8 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
             }
             Ok(ret)
         } else {
-            if
-                <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE &&
-                <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
+            if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
+                && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
             {
                 let ret = lhs
                     .par_iter_simd()
@@ -383,15 +368,10 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
                         |(res, (x, y))| {
                             let x_ptr = x.as_ptr();
                             let y_ptr = y.as_ptr();
-                            *res = f2(
-                                unsafe {
-                                    <A as TypeCommon>::Vec::from_ptr(x_ptr)
-                                },
-                                unsafe {
-                                    <B as TypeCommon>::Vec::from_ptr(y_ptr)
-                                }
-                            );
-                        }
+                            *res = f2(unsafe { <A as TypeCommon>::Vec::from_ptr(x_ptr) }, unsafe {
+                                <B as TypeCommon>::Vec::from_ptr(y_ptr)
+                            });
+                        },
                     )
                     .collect::<_Tensor<K>>();
                 Ok(ret)
@@ -418,21 +398,20 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
     lhs: &_Tensor<A>,
     rhs: &_Tensor<B>,
     f: F,
-    f2: F2
-)
-    -> anyhow::Result<_Tensor<K>>
-    where
-        A: CommonBounds,
-        B: CommonBounds,
-        K: CommonBounds,
-        F: Fn(A, B) -> K + Sync + Send + Copy,
-        F2: Fn(<A as TypeCommon>::Vec, <B as TypeCommon>::Vec) -> <K as TypeCommon>::Vec +
-            Sync +
-            Send +
-            Copy
+    f2: F2,
+) -> anyhow::Result<_Tensor<K>>
+where
+    A: CommonBounds,
+    B: CommonBounds,
+    K: CommonBounds,
+    F: Fn(A, B) -> K + Sync + Send + Copy,
+    F2: Fn(<A as TypeCommon>::Vec, <B as TypeCommon>::Vec) -> <K as TypeCommon>::Vec
+        + Sync
+        + Send
+        + Copy,
 {
+    use rayon::slice::{ParallelSlice, ParallelSliceMut};
     use tensor_types::vectors::traits::*;
-    use rayon::slice::{ ParallelSlice, ParallelSliceMut };
 
     // for binary, case could be (scalar op tensor) or (tensor op scalar) or (tensor op tensor)
     // scalr can be store in to the register to achieve better performance
@@ -441,18 +420,15 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
         let val_vec = <A as TypeCommon>::Vec::splat(val);
         let res = _Tensor::<K, Cpu>::empty(rhs.shape())?;
         if rhs.parent().is_some() {
-            res.par_iter_mut()
-                .zip(rhs.par_iter())
-                .for_each(|(a, b)| {
-                    *a = f(val, b);
-                });
+            res.par_iter_mut().zip(rhs.par_iter()).for_each(|(a, b)| {
+                *a = f(val, b);
+            });
             return Ok(res);
         }
         // simd is enabled only when all operands and output type have the same vector size.
         // example: f32x4 + f32x4 = f32x4 or f32x8 + i32x8 = f32x8. f32x4 + f32x8 is not allowed.
-        if
-            <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE &&
-            <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
+        if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
+            && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
         {
             let remain = res.size() % <A as TypeCommon>::Vec::SIZE;
             res.as_raw_mut()
@@ -465,13 +441,13 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
                         std::ptr::copy_nonoverlapping(
                             res,
                             a.as_mut_ptr(),
-                            <A as TypeCommon>::Vec::SIZE
+                            <A as TypeCommon>::Vec::SIZE,
                         );
                     }
                 });
             if remain > 0 {
-                res.as_raw_mut()
-                    [res.size() - remain..].iter_mut()
+                res.as_raw_mut()[res.size() - remain..]
+                    .iter_mut()
                     .zip(rhs.as_raw()[res.size() - remain..].iter())
                     .for_each(|(a, b)| {
                         *a = f(val, *b);
@@ -482,16 +458,14 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
                 .par_chunks_exact_mut(<K as TypeCommon>::Vec::SIZE)
                 .zip(rhs.as_raw().par_chunks_exact(<K as TypeCommon>::Vec::SIZE))
                 .for_each(|(a, b)| {
-                    a.iter_mut()
-                        .zip(b.iter())
-                        .for_each(|(a, b)| {
-                            *a = f(val, *b);
-                        });
+                    a.iter_mut().zip(b.iter()).for_each(|(a, b)| {
+                        *a = f(val, *b);
+                    });
                 });
             let remain = res.size() % <K as TypeCommon>::Vec::SIZE;
             if remain > 0 {
-                res.as_raw_mut()
-                    [res.size() - remain..].iter_mut()
+                res.as_raw_mut()[res.size() - remain..]
+                    .iter_mut()
                     .zip(rhs.as_raw()[res.size() - remain..].iter())
                     .for_each(|(a, b)| {
                         *a = f(val, *b);
@@ -504,18 +478,15 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
         let val_vec = <B as TypeCommon>::Vec::splat(val);
         let res = _Tensor::<K, Cpu>::empty(lhs.shape())?;
         if lhs.parent().is_some() {
-            res.par_iter_mut()
-                .zip(lhs.par_iter())
-                .for_each(|(a, b)| {
-                    *a = f(b, val);
-                });
+            res.par_iter_mut().zip(lhs.par_iter()).for_each(|(a, b)| {
+                *a = f(b, val);
+            });
             return Ok(res);
         }
         // simd is enabled only when all operands and output type have the same vector size.
         // example: f32x4 + f32x4 = f32x4 or f32x8 + i32x8 = f32x8. f32x4 + f32x8 is not allowed.
-        if
-            <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE &&
-            <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
+        if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
+            && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
         {
             let remain = res.size() % <A as TypeCommon>::Vec::SIZE;
             res.as_raw_mut()
@@ -528,13 +499,13 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
                         std::ptr::copy_nonoverlapping(
                             res,
                             a.as_mut_ptr(),
-                            <A as TypeCommon>::Vec::SIZE
+                            <A as TypeCommon>::Vec::SIZE,
                         );
                     }
                 });
             if remain > 0 {
-                res.as_raw_mut()
-                    [res.size() - remain..].iter_mut()
+                res.as_raw_mut()[res.size() - remain..]
+                    .iter_mut()
                     .zip(lhs.as_raw()[res.size() - remain..].iter())
                     .for_each(|(a, lhs)| {
                         *a = f(*lhs, val);
@@ -545,16 +516,14 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
                 .par_chunks_exact_mut(<K as TypeCommon>::Vec::SIZE)
                 .zip(lhs.as_raw().par_chunks_exact(<K as TypeCommon>::Vec::SIZE))
                 .for_each(|(a, lhs)| {
-                    a.iter_mut()
-                        .zip(lhs.iter())
-                        .for_each(|(a, lhs)| {
-                            *a = f(*lhs, val);
-                        });
+                    a.iter_mut().zip(lhs.iter()).for_each(|(a, lhs)| {
+                        *a = f(*lhs, val);
+                    });
                 });
             let remain = res.size() % <K as TypeCommon>::Vec::SIZE;
             if remain > 0 {
-                res.as_raw_mut()
-                    [res.size() - remain..].iter_mut()
+                res.as_raw_mut()[res.size() - remain..]
+                    .iter_mut()
                     .zip(lhs.as_raw()[res.size() - remain..].iter())
                     .for_each(|(a, lhs)| {
                         *a = f(*lhs, val);
@@ -564,18 +533,16 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
         Ok(res)
     } else {
         // if both lhs and rhs are contiguous and have the same shape, we can directly convert both to 1D array and parrallelize the operation
-        if
-            rhs.is_contiguous() &&
-            lhs.is_contiguous() &&
-            rhs.parent().is_none() &&
-            lhs.parent().is_none() &&
-            rhs.shape() == lhs.shape()
+        if rhs.is_contiguous()
+            && lhs.is_contiguous()
+            && rhs.parent().is_none()
+            && lhs.parent().is_none()
+            && rhs.shape() == lhs.shape()
         {
             let ret;
             ret = _Tensor::<K, Cpu>::empty(rhs.shape())?;
-            if
-                <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE &&
-                <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
+            if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
+                && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
             {
                 // chunk the array, the chunk size must be a multiple of the vector size
                 let per_thread_len = ret.size() / rayon::current_num_threads();
@@ -598,15 +565,15 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
                                     std::ptr::copy_nonoverlapping(
                                         res.as_ptr(),
                                         ret.as_mut_ptr(),
-                                        <K as TypeCommon>::Vec::SIZE
+                                        <K as TypeCommon>::Vec::SIZE,
                                     );
                                 }
                             });
                     });
                 // handle the remaining elements
                 if remain > 0 {
-                    ret.as_raw_mut()
-                        [ret.size() - remain..].iter_mut()
+                    ret.as_raw_mut()[ret.size() - remain..]
+                        .iter_mut()
                         .zip(lhs.as_raw()[ret.size() - remain..].iter())
                         .zip(rhs.as_raw()[ret.size() - remain..].iter())
                         .for_each(|((a, &lhs), &rhs)| {
@@ -629,9 +596,8 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
         } else {
             // simd is enabled only when all operands and output type have the same vector size.
             // example: f32x4 + f32x4 = f32x4 or f32x8 + i32x8 = f32x8. f32x4 + f32x8 is not allowed.
-            if
-                <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE &&
-                <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
+            if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
+                && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
             {
                 let ret = lhs
                     .par_iter_simd()
@@ -642,7 +608,7 @@ pub fn binary_fn_simd<A, B, K, F, F2>(
                         },
                         |(res, (x, y))| {
                             *res = f2(x, y);
-                        }
+                        },
                     )
                     .collect::<_Tensor<K>>();
                 Ok(ret)

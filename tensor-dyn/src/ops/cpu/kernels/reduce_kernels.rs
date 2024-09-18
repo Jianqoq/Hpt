@@ -111,14 +111,14 @@ macro_rules! gen_kernel {
                 paste! {
                     $(
                     let mut [<res_vec $idx>] = unsafe {
-                        <O as TypeCommon>::Vec::from_ptr($res_ptr.ptr.offset((i * $unroll_num + ($idx - 1)) * <O as TypeCommon>::Vec::SIZE as isize))
+                        O::Vec::from_ptr($res_ptr.ptr.offset((i * $unroll_num + ($idx - 1)) * O::Vec::SIZE as isize))
                     };
                     )*
                 }
             for _ in 0..$outer_loop_size {
                 paste! {
                     $(
-                        let [<inp_vec $idx>] = unsafe { T::Vec::from_ptr($inp_ptr.ptr.offset(($idx - 1) * <O as TypeCommon>::Vec::SIZE as isize)) };
+                        let [<inp_vec $idx>] = unsafe { T::Vec::from_ptr($inp_ptr.ptr.offset(($idx - 1) * O::Vec::SIZE as isize)) };
                         [<res_vec $idx>] = $vec_op([<res_vec $idx>], [<inp_vec $idx>]);
                     )*
                 }
@@ -127,7 +127,7 @@ macro_rules! gen_kernel {
             if let Some(vec_post) = &$vec_post {
                 paste! {
                     $(
-                        let mut_ref = unsafe { $res_ptr.ptr.offset((i * $unroll_num + ($idx - 1)) * <O as TypeCommon>::Vec::SIZE as isize) as *mut <O as TypeCommon>::Vec };
+                        let mut_ref = unsafe { $res_ptr.ptr.offset((i * $unroll_num + ($idx - 1)) * O::Vec::SIZE as isize) as *mut O::Vec };
                         unsafe {
                             mut_ref.write_unaligned(vec_post([<res_vec $idx>]));
                         }
@@ -139,8 +139,8 @@ macro_rules! gen_kernel {
                         $(
                             core::ptr::copy_nonoverlapping(
                                 [<res_vec $idx>].as_ptr(),
-                                $res_ptr.ptr.offset((i * $unroll_num + ($idx - 1)) * <O as TypeCommon>::Vec::SIZE as isize),
-                                <O as TypeCommon>::Vec::SIZE
+                                $res_ptr.ptr.offset((i * $unroll_num + ($idx - 1)) * O::Vec::SIZE as isize),
+                                O::Vec::SIZE
                             );
                         )*
                     }
@@ -172,9 +172,9 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
     T: CommonBounds,
     O: CommonBounds,
     F: Fn(O, T) -> O,
-    F2: Fn(<O as TypeCommon>::Vec, T::Vec) -> <O as TypeCommon>::Vec,
+    F2: Fn(O::Vec, T::Vec) -> O::Vec,
     F3: Fn(O) -> O,
-    F4: Fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec,
+    F4: Fn(O::Vec) -> O::Vec,
 {
     use crate::REGNUM;
 
@@ -315,13 +315,13 @@ macro_rules! gen_kernel2 {
                 $inp_ptr.offset(i as i64 * ($unroll_num * $vec_size) as i64);
                     paste! {
                         $(
-                        let mut [<res_vec $idx>] = <O as TypeCommon>::Vec::from_ptr($res_ptr.ptr.offset((i * $unroll_num + ($idx - 1)) * <O as TypeCommon>::Vec::SIZE as isize));
+                        let mut [<res_vec $idx>] = O::Vec::from_ptr($res_ptr.ptr.offset((i * $unroll_num + ($idx - 1)) * O::Vec::SIZE as isize));
                         )*
                     }
                 for _ in 0..$intermediate_size {
                         paste! {
                             $(
-                                let [<inp_vec $idx>] = T::Vec::from_ptr($inp_ptr.ptr.offset(($idx - 1) * <O as TypeCommon>::Vec::SIZE as isize));
+                                let [<inp_vec $idx>] = T::Vec::from_ptr($inp_ptr.ptr.offset(($idx - 1) * O::Vec::SIZE as isize));
                                 [<res_vec $idx>] = $vec_op([<res_vec $idx>], [<inp_vec $idx>]);
                             )*
                         }
@@ -330,7 +330,7 @@ macro_rules! gen_kernel2 {
                 if let Some(vec_post) = &$vec_post {
                     paste! {
                         $(
-                            let mut_ref = $res_ptr.ptr.offset((i * $unroll_num + ($idx - 1)) * <O as TypeCommon>::Vec::SIZE as isize) as *mut <O as TypeCommon>::Vec;
+                            let mut_ref = $res_ptr.ptr.offset((i * $unroll_num + ($idx - 1)) * O::Vec::SIZE as isize) as *mut O::Vec;
                             mut_ref.write_unaligned(vec_post([<res_vec $idx>]));
                         )*
                     }
@@ -339,8 +339,8 @@ macro_rules! gen_kernel2 {
                         $(
                             core::ptr::copy_nonoverlapping(
                                 [<res_vec $idx>].as_ptr(),
-                                $res_ptr.ptr.offset((i * $unroll_num + ($idx - 1)) * <O as TypeCommon>::Vec::SIZE as isize),
-                                <O as TypeCommon>::Vec::SIZE
+                                $res_ptr.ptr.offset((i * $unroll_num + ($idx - 1)) * O::Vec::SIZE as isize),
+                                O::Vec::SIZE
                             );
                         )*
                     }
@@ -418,9 +418,9 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
     T: CommonBounds,
     O: CommonBounds,
     F: Fn(O, T) -> O,
-    F2: Fn(<O as TypeCommon>::Vec, T::Vec) -> <O as TypeCommon>::Vec,
+    F2: Fn(O::Vec, T::Vec) -> O::Vec,
     F3: Fn(O) -> O,
-    F4: Fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec,
+    F4: Fn(O::Vec) -> O::Vec,
 {
     use std::ops::IndexMut;
 
@@ -428,9 +428,9 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
 
     let origin = inp_ptr.clone(); // save original inp_ptr
     let origin_res = res_ptr.clone(); // save original res_ptr
-    let remain = inner_loop_size % (<O as TypeCommon>::Vec::SIZE as isize); // get inner loop size remainder
+    let remain = inner_loop_size % (O::Vec::SIZE as isize); // get inner loop size remainder
     let inner = inner_loop_size - remain; // get inner loop size that is multiple of vec_size
-    let num_vecs = inner / (<O as TypeCommon>::Vec::SIZE as isize); // get number of vectors
+    let num_vecs = inner / (O::Vec::SIZE as isize); // get number of vectors
     let remain_vec = num_vecs % REGNUM as isize;
     let num_largest_vecs = (num_vecs - remain_vec) / REGNUM as isize;
     let origin_prg2 = prg2.iter().cloned().collect::<Vec<_>>();
@@ -442,7 +442,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
                 16,
                 inp_ptr,
                 res_ptr,
-                <O as TypeCommon>::Vec::SIZE as isize,
+                O::Vec::SIZE as isize,
                 intermediate_size,
                 vec_op,
                 inp_strides,
@@ -458,7 +458,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
                 32,
                 inp_ptr,
                 res_ptr,
-                <O as TypeCommon>::Vec::SIZE as isize,
+                O::Vec::SIZE as isize,
                 intermediate_size,
                 vec_op,
                 inp_strides,
@@ -477,7 +477,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
                 8,
                 inp_ptr,
                 res_ptr,
-                <O as TypeCommon>::Vec::SIZE as isize,
+                O::Vec::SIZE as isize,
                 intermediate_size,
                 vec_op,
                 inp_strides,
@@ -493,8 +493,8 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
                     for j in 0..REGNUM as isize {
                         let mut_ref = unsafe {
                             res_ptr.ptr.offset(
-                                (i * REGNUM as isize + j) * (<O as TypeCommon>::Vec::SIZE as isize),
-                            ) as *mut <O as TypeCommon>::Vec
+                                (i * REGNUM as isize + j) * (O::Vec::SIZE as isize),
+                            ) as *mut O::Vec
                         };
                         unsafe {
                             mut_ref.write_unaligned(vec_post(mut_ref.read_unaligned()));
@@ -512,10 +512,10 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
     inp_ptr = origin.clone(); // reset inp_ptr
     res_ptr = origin_res.clone(); // reset res_ptr
     inp_ptr.offset(
-        (num_largest_vecs as i64) * (REGNUM as i64) * (<O as TypeCommon>::Vec::SIZE as i64),
+        (num_largest_vecs as i64) * (REGNUM as i64) * (O::Vec::SIZE as i64),
     );
     res_ptr.offset(
-        (num_largest_vecs as i64) * (REGNUM as i64) * (<O as TypeCommon>::Vec::SIZE as i64),
+        (num_largest_vecs as i64) * (REGNUM as i64) * (O::Vec::SIZE as i64),
     );
     origin_prg2.iter().enumerate().for_each(|(i, x)| {
         *prg2.index_mut(i) = *x;
@@ -572,7 +572,7 @@ pub(crate) fn reduce_dim_not_include<T, O, F, F2>(
     F: Fn(O, T) -> O,
     F2: Fn(O) -> O,
 {
-    for _i in 0..outer_loop_size {
+    for _ in 0..outer_loop_size {
         for _ in 0..intermediate_size {
             for i in 0..inner_loop_size as i64 {
                 let a_val = inp_ptr[i];

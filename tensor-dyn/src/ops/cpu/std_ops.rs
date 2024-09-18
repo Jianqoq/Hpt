@@ -106,7 +106,7 @@ macro_rules! normal_promote_ops_1 {
             U: CommonBounds,
             <T as NormalOut<U>>::Output: CommonBounds,
             <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
-            T::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>
+            T::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>,
         {
             type Output = _Tensor<<T as NormalOut<U>>::Output>;
 
@@ -122,7 +122,7 @@ macro_rules! normal_promote_ops_1 {
                 if lhs_size > rhs_size {
                     if lhs_size == res_size && T::ID == <T as NormalOut<U>>::Output::ID {
                         let out: _Tensor<T> = self.clone();
-                        let out: Self::Output = out.static_cast().unwrap();
+                        let out: Self::Output = out.static_cast::<<T as NormalOut<U>>::Output>().expect("Failed to cast");
                         return binary_fn_with_out_simd(
                             &self,
                             &rhs,

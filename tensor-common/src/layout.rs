@@ -8,47 +8,16 @@ use crate::{
     strides::Strides,
     strides_utils::{shape_to_strides, strides_is_contiguous},
 };
-use serde::ser::SerializeStruct;
-use serde::Serialize;
 
 /// `Layout` stores the `shape` and `strides` of a tensor
 ///
 /// this struct is being used `internally` by the library
 ///
-/// it is also widely being used to perform shape and strides related operations
-///
-/// # Examples
-///
-/// ```
-/// use tensor_common::layout::Layout;
-/// use tensor_common::shape::Shape;
-/// use tensor_common::strides::Strides;
-///
-/// let shape = Shape::from(vec![2, 3, 4]);
-/// let strides = Strides::from(vec![12, 4, 1]);
-///
-/// let layout = Layout::new(shape.clone(), strides.clone());
-///
-/// assert_eq!(layout.shape(), &shape);
-/// assert_eq!(layout.strides(), &strides);
-/// assert_eq!(layout.ndim(), 3);
-/// ```
+/// it is also widely being used to perform shape and strides related operations such as `reshape`, `permute`, `broadcast`, `reduce`, etc.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct Layout {
     shape: Shape,
     strides: Strides,
-}
-
-impl Serialize for Layout {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct("Layout", 2)?;
-        state.serialize_field("shape", &self.shape.inner())?;
-        state.serialize_field("strides", &self.strides.inner())?;
-        state.end()
-    }
 }
 
 impl Layout {
@@ -62,23 +31,6 @@ impl Layout {
     /// # Panics
     ///
     /// if the length of `shape` and `strides` is not equal
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use tensor_common::layout::Layout;
-    /// use tensor_common::shape::Shape;
-    /// use tensor_common::strides::Strides;
-    ///
-    /// let shape = Shape::from(vec![2, 3, 4]);
-    /// let strides = Strides::from(vec![12, 4, 1]);
-    ///
-    /// let layout = Layout::new(shape.clone(), strides.clone());
-    ///
-    /// assert_eq!(layout.shape(), &shape);
-    /// assert_eq!(layout.strides(), &strides);
-    /// assert_eq!(layout.ndim(), 3);
-    /// ```
     pub fn new<A: Into<Shape>, B: Into<Strides>>(shape: A, strides: B) -> Self {
         let shape = shape.into();
         let strides = strides.into();
@@ -398,6 +350,11 @@ impl Layout {
         }
     }
 
+    /// simply return the product of the shape
+    ///
+    /// # Safety
+    ///
+    /// when the layout is a view of another layout, the size will be different, this method won't work
     #[inline(always)]
     pub fn size(&self) -> i64 {
         self.shape.iter().product::<i64>()

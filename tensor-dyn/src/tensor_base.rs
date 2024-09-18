@@ -56,7 +56,11 @@ use tensor_types::{
 use tensor_types::{dtype::TypeCommon, type_promote::FloatOutUnary};
 
 use crate::{
-    backend::{Backend, BackendTy, Buffer, Cpu}, ops::cpu::concat::concat, slice::SliceOps, tensor::Tensor, BoolVector, ALIGN, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION
+    backend::{Backend, BackendTy, Buffer, Cpu},
+    ops::cpu::concat::concat,
+    slice::SliceOps,
+    tensor::Tensor,
+    BoolVector, ALIGN, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION,
 };
 
 /// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
@@ -66,9 +70,7 @@ use crate::{
 /// # Properties
 /// - `data`: The pointer to the data.
 /// - `layout`: The layout of the tensor. We can get strides, shape, ndim, size from it.
-/// - `parent`: The parent tensor of the tensor.
-///
-///  If the tensor is a view of another tensor, the parent tensor will be the original tensor.
+/// - `parent`: The parent tensor of the tensor. parent is always the root tensor (`not a view`).
 /// - `mem_layout`: std::alloc::layout, use for deallocate the memory and find cache in the allocator.
 #[derive(Clone)]
 pub struct _Tensor<T, B = Cpu>
@@ -101,22 +103,16 @@ where
     }
 }
 
-impl<T, U> TensorLike<T, U, _Tensor<U>> for _Tensor<T>
+impl<T> TensorLike<T> for _Tensor<T>
 where
-    T: IntoScalar<U> + CommonBounds,
-    U: CommonBounds,
+    T: CommonBounds,
 {
-    type Output = _Tensor<U>;
     fn to_raw(&self) -> &[T] {
         self.as_raw()
     }
 
     fn to_raw_mut(&mut self) -> &mut [T] {
         self.as_raw_mut()
-    }
-
-    fn static_cast(&self) -> Result<Self::Output> {
-        self.static_cast()
     }
 }
 
@@ -413,38 +409,14 @@ impl<T: CommonBounds> _Tensor<T> {
     /// let static_cast_tensor = tensor.static_cast::<f32>().unwrap();
     /// assert!(tensor.allclose(&static_cast_tensor))
     /// ```
-    pub fn static_cast<U>(&self) -> Result<_Tensor<U>>
+    pub fn static_cast<Dst>(&self) -> Result<_Tensor<Dst>>
     where
-        U: CommonBounds,
+        Dst: CommonBounds,
     {
-        assert_eq!(U::ID, T::ID);
-        match self.parent.clone() {
-            Some(parent) => {
-                #[cfg(feature = "bound_check")]
-                let new_parent = Pointer::new(parent.ptr as *mut U, parent.layout.clone());
-                #[cfg(not(feature = "bound_check"))]
-                let new_parent = Pointer::new(parent.ptr as *mut U);
-                Ok(_Tensor {
-                    #[cfg(feature = "bound_check")]
-                    data: Pointer::new(self.data.ptr as *mut U, self.layout.clone()),
-                    #[cfg(not(feature = "bound_check"))]
-                    data: Pointer::new(self.data.ptr as *mut U),
-                    parent: Some(new_parent),
-                    mem_layout: self.mem_layout.clone(),
-                    layout: self.layout.clone(),
-                    _backend: self._backend.clone(),
-                })
-            }
-            None => Ok(_Tensor {
-                #[cfg(feature = "bound_check")]
-                data: Pointer::new(self.data.ptr as *mut U, self.layout.clone()),
-                #[cfg(not(feature = "bound_check"))]
-                data: Pointer::new(self.data.ptr as *mut U),
-                parent: None,
-                mem_layout: self.mem_layout.clone(),
-                layout: self.layout.clone(),
-                _backend: self._backend.clone(),
-            }),
+        if T::ID == Dst::ID {
+            unsafe { Ok(std::mem::transmute_copy(self)) }
+        } else {
+            panic!("Cannot cast tensor to different type")
         }
     }
 

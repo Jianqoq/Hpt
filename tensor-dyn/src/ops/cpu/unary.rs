@@ -136,7 +136,7 @@ pub fn uary_fn_with_out<A, O, K, Q, F>(
 ) -> anyhow::Result<_Tensor<K, Cpu>>
 where
     A: CommonBounds,
-    O: TensorLike<Q, Output = _Tensor<K, Cpu>> + TensorInfo<Q>,
+    O: TensorLike<Q> + TensorInfo<Q>,
     K: CommonBounds,
     Q: CommonBounds,
     F: Fn(A) -> K + Sync + Send,
@@ -165,7 +165,7 @@ pub(crate) fn uary_fn_with_out_simd<A, O, K, Q, F, F2>(
 ) -> anyhow::Result<_Tensor<K, Cpu>>
 where
     A: CommonBounds,
-    O: TensorLike<Q, Output = _Tensor<K, Cpu>> + TensorInfo<Q>,
+    O: TensorLike<Q> + TensorInfo<Q>,
     K: CommonBounds,
     Q: CommonBounds,
     F: Fn(<A as TypeCommon>::Vec) -> <K as TypeCommon>::Vec + Sync + Send,
@@ -213,7 +213,7 @@ where
     FloatUnaryType<T>: CommonBounds,
     f64: IntoScalar<<T as FloatOutUnary>::Base>,
     _Tensor<<T as FloatOutUnary>::Output>:
-        TensorLike<<T as FloatOutUnary>::Output, Output = _Tensor<<T as FloatOutUnary>::Output>>,
+        TensorLike<<T as FloatOutUnary>::Output>,
     T::Vec: FloatOutUnary<
         Output = <FloatUnaryType<T> as TypeCommon>::Vec,
         Base = <T as FloatOutUnary>::Base,
@@ -963,7 +963,7 @@ impl<T> _Tensor<T>
 where
     T: NormalOut<Output = T> + CommonBounds + IntoScalar<T>,
     NormalType<T>: CommonBounds,
-    _Tensor<NormalType<T>>: TensorLike<NormalType<T>, Output = _Tensor<NormalType<T>>>,
+    _Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
     T::Vec: NormalOut<Output = T::Vec>,
 {
     /// calculate `floor` for each element of the tensor
@@ -1059,7 +1059,7 @@ impl<T> _Tensor<T>
 where
     T: std::ops::Neg + CommonBounds,
     NegType<T>: CommonBounds,
-    _Tensor<NegType<T>>: TensorLike<NegType<T>, Output = _Tensor<NegType<T>>>,
+    _Tensor<NegType<T>>: TensorLike<NegType<T>>,
 {
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]

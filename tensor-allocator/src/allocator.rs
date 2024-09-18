@@ -1,4 +1,4 @@
-use std::{ alloc::Layout, num::NonZeroUsize, sync::Mutex };
+use std::{alloc::Layout, num::NonZeroUsize, sync::Mutex};
 
 use hashbrown::HashSet;
 use lru::LruCache;
@@ -6,51 +6,63 @@ use once_cell::sync::Lazy;
 
 use crate::strorage::CPU_STORAGE;
 
+/// `lru` cache allocator
 pub static mut CACHE: Lazy<Allocator> = Lazy::new(|| Allocator::new(100));
 
-
 /// # Allocator
-/// 
-/// a lru based allocator, to allocate and deallocate memory
-/// 
+///
+/// a `lru` based allocator, to allocate and deallocate memory
+///
 /// this allocator is used widely in the library, to allocate and deallocate memory
-/// 
+///
 /// # Safety
-/// 
+///
 /// thread safe
-/// 
+///
 /// # Potential Memory Leak
-/// 
+///
 /// developer must carefully manage the reference count of the pointer allocated
 pub struct Allocator {
     allocator: Mutex<_Allocator>,
 }
 
 impl Allocator {
-
     /// allocate memory by using lru cache strategy
-    /// 
+    ///
     /// # Logic
-    /// 
+    ///
     /// 1. check if the layout is found in the cache
-    /// 
+    ///
     /// 2. if the layout is found in the cache, pop the memory out, if it return None, there is no available cached memory, we need to allocate new memory
-    /// 
+    ///
     /// 3. if the layout is not found in the cache, allocate new memory
-    /// 
+    ///
     /// 4. eventually, if the cache is full, pop the least recently used memory and deallocate the memory
     pub fn allocate(&self, layout: Layout) -> *mut u8 {
         self.allocator.lock().unwrap().allocate(layout)
     }
 
+    /// deallocate memory by using lru cache strategy
+    ///
+    /// # Logic
+    ///
+    /// 1. check if the ptr is found in the storage
+    ///
+    /// 2. if the ptr is found in the storage, decrement the reference count
+    ///
+    /// 3. if the reference count is 0, remove the ptr from the storage, remove the ptr from the allocated set, and insert the ptr into the cache
     pub fn deallocate(&self, ptr: *mut u8, layout: &Layout) {
         self.allocator.lock().unwrap().deallocate(ptr, layout);
     }
 
+    /// if the ptr is found in the storage, increment the reference count, otherwise insert the ptr into the storage
     pub fn insert_ptr(&self, ptr: *mut u8) {
         self.allocator.lock().unwrap().insert_ptr(ptr);
     }
 
+    /// clear the cache, deallocate all the memory allocated
+    ///
+    /// this is used when the program exits, it will be called automatically
     pub fn clear(&self) {
         let mut allocator = self.allocator.lock().unwrap();
         for (layout, ptrs) in allocator.cache.iter_mut() {
@@ -95,10 +107,8 @@ impl _Allocator {
     ///
     /// This function checks `null` ptr internally, any memory allocated through this method, downstream don't need to check for `null` ptr
     fn allocate(&mut self, layout: Layout) -> *mut u8 {
-        let ptr = if
-            let Some(ptr) = self.cache.get_mut(
-                &layout
-            ) /*check if we previously allocated same layout of memory */
+        let ptr = if let Some(ptr) = self.cache.get_mut(&layout)
+        /*check if we previously allocated same layout of memory */
         {
             // try pop the memory out, if it return None, there is no available cached memory, we need to allocate new memory
             if let Some(ptr) = ptr.pop() {
@@ -106,7 +116,10 @@ impl _Allocator {
             } else {
                 let ptr = unsafe { std::alloc::alloc(layout) };
                 if ptr.is_null() {
-                    panic!("Failed to allocate memory, for {} MB", layout.size() / 1024 / 1024);
+                    panic!(
+                        "Failed to allocate memory, for {} MB",
+                        layout.size() / 1024 / 1024
+                    );
                 }
                 self.allocated.insert(ptr);
                 ptr
@@ -114,7 +127,10 @@ impl _Allocator {
         } else {
             let ptr = unsafe { std::alloc::alloc(layout) };
             if ptr.is_null() {
-                panic!("Failed to allocate memory, for {} MB", layout.size() / 1024 / 1024);
+                panic!(
+                    "Failed to allocate memory, for {} MB",
+                    layout.size() / 1024 / 1024
+                );
             }
             self.allocated.insert(ptr);
             ptr
@@ -188,6 +204,9 @@ impl _Allocator {
     }
 }
 
+/// # Clone Storage
+///
+/// increment the reference count of the ptr in the storage
 pub fn clone_storage(ptr: *mut u8) {
     unsafe {
         if let Ok(mut storage) = CPU_STORAGE.lock() {
