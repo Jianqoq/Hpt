@@ -414,9 +414,13 @@ impl<T: CommonBounds> _Tensor<T> {
         Dst: CommonBounds,
     {
         if T::ID == Dst::ID {
-            let mut ret: _Tensor<Dst> = unsafe { std::mem::transmute_copy(self) };
-            ret._backend = self._backend.clone();
-            Ok(ret)
+            return Ok(_Tensor {
+                    data: Pointer::new(self.data.ptr as *mut Dst),
+                    parent: self.parent.clone(),
+                    mem_layout: self.mem_layout.clone(),
+                    layout: self.layout.clone(),
+                    _backend: self._backend.clone(),
+                });
         } else {
             panic!("Cannot cast tensor to different type")
         }
