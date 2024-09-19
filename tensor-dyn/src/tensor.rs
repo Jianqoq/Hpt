@@ -17,9 +17,7 @@ use crate::{
 use anyhow::Result;
 use tensor_common::{axis::Axis, layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_display::display;
-#[cfg(feature = "simd")]
 use tensor_iterator::par_strided::par_strided_simd::ParStridedSimd;
-#[cfg(feature = "simd")]
 use tensor_iterator::par_strided_mut::par_strided_map_mut_simd::ParStridedMutSimd;
 use tensor_iterator::{par_strided::ParStrided, par_strided_mut::ParStridedMut};
 use tensor_traits::{
@@ -230,11 +228,9 @@ impl<T: CommonBounds> Tensor<T> {
         ParStridedMut::new(self)
     }
 
-    #[cfg(feature = "simd")]
     pub fn iter_simd(&self) -> ParStridedSimd<T> {
         ParStridedSimd::new(self)
     }
-    #[cfg(feature = "simd")]
     pub fn iter_mut_simd(&self) -> ParStridedMutSimd<T> {
         ParStridedMutSimd::new(self)
     }
@@ -483,10 +479,7 @@ impl<T: CommonBounds> Tensor<T> {
 }
 
 impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
-    #[cfg(feature = "simd")]
     type StridedIter = ParStridedSimd<T>;
-    #[cfg(not(feature = "simd"))]
-    type StridedIter = ParStrided<T>;
 
     type Mask = Tensor<bool>;
 

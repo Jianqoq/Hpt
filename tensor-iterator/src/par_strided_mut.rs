@@ -7,7 +7,7 @@ use tensor_common::{ shape::Shape, shape_utils::{ mt_intervals, predict_broadcas
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use crate::{ iterator_traits::IterGetSet, par_strided::ParStrided, par_strided_zip::ParStridedZip };
 
-#[cfg(feature = "simd")]
+
 pub mod par_strided_map_mut_simd {
     use std::sync::Arc;
     use rayon::iter::{plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer}, ParallelIterator};

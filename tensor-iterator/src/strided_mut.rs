@@ -7,7 +7,6 @@ use crate::{
     strided_zip::StridedZip,
 };
 
-#[cfg(feature = "simd")]
 pub mod simd_imports {
     use std::sync::Arc;
     use tensor_common::{ shape::Shape, shape_utils::predict_broadcast_shape };
@@ -55,7 +54,6 @@ pub mod simd_imports {
         }
     }
 
-    #[cfg(feature = "simd")]
     impl<'a, T> StridedIteratorSimd for StridedMutSimd<'a, T> where T: CommonBounds {
         type Item = &'a mut T;
         type SimdItem = &'a mut T::Vec;

@@ -9,7 +9,6 @@ use crate::{
     strided_zip::StridedZip,
 };
 
-#[cfg(feature = "simd")]
 pub mod strided_map_mut_simd {
     use std::sync::Arc;
 
@@ -49,7 +48,6 @@ pub mod strided_map_mut_simd {
 
         type SimdItem = &'a mut T::Vec;
 
-        #[cfg(feature = "simd")]
         fn for_each<F, F2>(self, _: F, _: F2) where F: Fn(Self::Item) {
             unimplemented!()
         }

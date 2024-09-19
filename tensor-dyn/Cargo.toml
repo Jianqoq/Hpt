@@ -37,5 +37,4 @@ track_caller = [
     "tensor-common/track_caller",
     "tensor-iterator/track_caller",
 ]
-simd = ["tensor-iterator/simd"]
 bound_check = ["tensor-common/bound_check", "tensor-iterator/bound_check"]

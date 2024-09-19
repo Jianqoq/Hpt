@@ -55,7 +55,6 @@ pub trait StridedIterator where Self: Sized {
         where F: Fn(&mut T, Self::Item), INIT: Fn() -> T;
 }
 
-#[cfg(feature = "simd")]
 pub trait StridedIteratorSimd where Self: Sized {
     type Item;
     type SimdItem;

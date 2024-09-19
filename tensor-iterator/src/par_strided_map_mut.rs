@@ -9,7 +9,7 @@ use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 
 use crate::{ iterator_traits::IterGetSet, par_strided_mut::ParStridedMut, par_strided_zip::ParStridedZip};
 
-#[cfg(feature = "simd")]
+
 pub mod par_strided_map_mut_simd {
     use std::sync::Arc;
 
@@ -43,7 +43,6 @@ pub mod par_strided_map_mut_simd {
         }
     }
     
-    #[cfg(feature = "simd")]
     impl<'a, T> ParallelIterator for ParStridedMapMutSimd<'a, T> where T: 'a + CommonBounds, T::Vec: Send {
         type Item = &'a mut T;
     
@@ -52,7 +51,6 @@ pub mod par_strided_map_mut_simd {
         }
     }
     
-    #[cfg(feature = "simd")]
     impl<'a, T> UnindexedProducer for ParStridedMapMutSimd<'a, T> where T: 'a + CommonBounds, T::Vec: Send {
         type Item = &'a mut T;
     
@@ -69,7 +67,6 @@ pub mod par_strided_map_mut_simd {
         }
     }
     
-    #[cfg(feature = "simd")]
     impl<'a, T: 'a + CommonBounds> IterGetSetSimd for ParStridedMapMutSimd<'a, T> where T::Vec: Send {
         type Item = &'a mut T;
     

@@ -14,19 +14,8 @@ impl<T> _Tensor<T, Cpu>
         let ret = _Tensor::<T>::empty(self.shape())?;
         let bernoli = rand::distributions::Bernoulli::new(rate)?;
         let scale: T = (1.0 / (1.0 - rate)).into_scalar();
-        #[cfg(feature = "simd")]
         ret.par_iter_mut_simd()
             .zip(self.par_iter_simd())
-            .for_each_init(
-                || rand::thread_rng(),
-                |rng, (ret, val)| {
-                    let mask = bernoli.sample(rng);
-                    *ret = val._mul(mask)._mul(scale);
-                }
-            );
-        #[cfg(not(feature = "simd"))]
-        ret.par_iter_mut()
-            .zip(self.par_iter())
             .for_each_init(
                 || rand::thread_rng(),
                 |rng, (ret, val)| {

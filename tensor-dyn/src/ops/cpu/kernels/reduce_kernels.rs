@@ -1,13 +1,9 @@
 use tensor_common::pointer::Pointer;
 use tensor_traits::CommonBounds;
 
-#[cfg(feature = "simd")]
 use paste::paste;
-#[cfg(feature = "simd")]
 use tensor_macros::{gen_fast_reduce_simd_helper, gen_reduce_dim_not_include_simd_helper};
-#[cfg(feature = "simd")]
 use tensor_types::dtype::TypeCommon;
-#[cfg(feature = "simd")]
 use tensor_types::vectors::traits::*;
 
 #[inline]
@@ -27,7 +23,6 @@ fn update_prg<T>(prg: &mut [i64], inp_ptr: &mut Pointer<T>, strides: &[i64], sha
 }
 
 /// used for updating prg and inp_ptr for case2, first next
-#[cfg(feature = "simd")]
 #[inline]
 fn update_prg2<T>(
     prg: &mut [i64],
@@ -50,7 +45,6 @@ fn update_prg2<T>(
 }
 
 /// used for updating prg and inp_ptr for case2, second next
-#[cfg(feature = "simd")]
 #[inline]
 fn update_prg3<T>(
     prg: &mut [i64],
@@ -88,7 +82,6 @@ fn update_prg4<T>(prg: &mut [i64], inp_ptr: &mut Pointer<T>, strides: &[i64], sh
     }
 }
 
-#[cfg(feature = "simd")]
 macro_rules! gen_kernel {
     (
         $num_largest_vecs:expr,
@@ -154,7 +147,6 @@ macro_rules! gen_kernel {
 }
 
 /// case when reduce along all axes except the fastest dimension, this case, inner loop stride is always 1
-#[cfg(feature = "simd")]
 #[inline]
 pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
     inner_loop_size: isize,
@@ -291,7 +283,6 @@ pub(crate) fn fast_reduce_no_simd<T, O, F, F2>(
     }
 }
 
-#[cfg(feature = "simd")]
 macro_rules! gen_kernel2 {
     (
         $num_largest_vecs:expr,
@@ -351,7 +342,6 @@ macro_rules! gen_kernel2 {
     };
 }
 
-#[cfg(feature = "simd")]
 macro_rules! gen_kernel3 {
     (
         $num_largest_vecs:expr,
@@ -397,7 +387,6 @@ macro_rules! gen_kernel3 {
 }
 
 // case when reduce doesn't contain fastest dim, inner loop stride is always 1
-#[cfg(feature = "simd")]
 #[inline]
 pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
     inner_loop_size: isize,
@@ -551,7 +540,6 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
     }
 }
 
-// #[cfg(not(feature = "simd"))]
 #[inline]
 pub(crate) fn reduce_dim_not_include<T, O, F, F2>(
     inner_loop_size: isize,

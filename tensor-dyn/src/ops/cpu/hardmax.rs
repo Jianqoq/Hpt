@@ -24,7 +24,6 @@ where
             axis
         }) as usize;
         let max = self.max(axis as i64, true)?;
-        #[cfg(feature = "simd")]
         let ret = {
             use tensor_types::traits::Init;
             self.par_iter_simd()
@@ -38,13 +37,6 @@ where
                         *res = a._eq(b)._mul(one);
                     },
                 )
-                .collect::<_Tensor<T>>()
-        };
-        #[cfg(not(feature = "simd"))]
-        let ret = {
-            self.par_iter()
-                .zip(max.par_iter())
-                .strided_map(|(a, b)| a._eq(b)._mul(T::ONE))
                 .collect::<_Tensor<T>>()
         };
         Ok(ret)

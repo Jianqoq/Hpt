@@ -10,5 +10,4 @@ pub mod strided_mut;
 pub mod strided_map;
 pub mod strided_map_mut;
 pub mod par_strided_fold;
-#[cfg(feature = "simd")]
 mod with_simd;

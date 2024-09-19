@@ -13,7 +13,7 @@ use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use tensor_common::shape_utils::predict_broadcast_shape;
 use crate::{ iterator_traits::{ IterGetSet, ShapeManipulator }, strided_zip::StridedZip };
 
-#[cfg(feature = "simd")]
+
 pub mod strided_simd {
     use tensor_types::vectors::traits::Init;
     use std::{ panic::Location, sync::Arc };
@@ -90,7 +90,6 @@ pub mod strided_simd {
         }
     }
 
-    #[cfg(feature = "simd")]
     impl<T: CommonBounds> IterGetSetSimd for StridedSimd<T> {
         type Item = T;
         type SimdItem = T::Vec;

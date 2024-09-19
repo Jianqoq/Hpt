@@ -28,13 +28,9 @@ use tensor_common::{
     slice::Slice,
 };
 use tensor_display::display;
-#[cfg(feature = "simd")]
 use tensor_iterator::par_strided::par_strided_simd::ParStridedSimd;
-#[cfg(feature = "simd")]
 use tensor_iterator::par_strided_mut::par_strided_map_mut_simd::ParStridedMutSimd;
-#[cfg(feature = "simd")]
 use tensor_iterator::strided::strided_simd::StridedSimd;
-#[cfg(feature = "simd")]
 use tensor_iterator::strided_mut::simd_imports::StridedMutSimd;
 use tensor_iterator::{
     par_strided::ParStrided, par_strided_mut::ParStridedMut, strided::Strided,
@@ -205,15 +201,8 @@ impl<T: CommonBounds> TensorAlloc for _Tensor<T> {
 
 impl<T: CommonBounds> _Tensor<T> {
     pub fn assign(&mut self, other: &_Tensor<T>) {
-        #[cfg(feature = "simd")]
         self.par_iter_mut_simd()
             .zip(other.par_iter_simd())
-            .for_each(|(a, b)| {
-                *a = b;
-            });
-        #[cfg(not(feature = "simd"))]
-        self.par_iter_mut()
-            .zip(other.par_iter())
             .for_each(|(a, b)| {
                 *a = b;
             });
@@ -290,22 +279,18 @@ impl<T: CommonBounds> _Tensor<T> {
         StridedMut::new(self)
     }
 
-    #[cfg(feature = "simd")]
     pub fn iter_simd(&self) -> StridedSimd<T> {
         StridedSimd::new(self)
     }
 
-    #[cfg(feature = "simd")]
     pub fn iter_mut_simd(&self) -> StridedMutSimd<T> {
         StridedMutSimd::new(self)
     }
 
-    #[cfg(feature = "simd")]
     pub fn par_iter_simd(&self) -> ParStridedSimd<T> {
         ParStridedSimd::new(self)
     }
 
-    #[cfg(feature = "simd")]
     pub fn par_iter_mut_simd(&self) -> ParStridedMutSimd<T> {
         ParStridedMutSimd::new(self)
     }
@@ -460,21 +445,6 @@ impl<T: CommonBounds> _Tensor<T> {
         if self.shape() != other.shape() {
             return false;
         }
-        // #[cfg(feature = "simd")]
-        // let folder = self
-        //     .par_iter_simd()
-        //     .zip(other.par_iter_simd())
-        //     .fold(
-        //         || true,
-        //         |acc, (a, b)| {
-        //             let a_val: f64 = a.to_f64();
-        //             let b_val: f64 = b.to_f64();
-        //             let abs_diff: f64 = (a_val - b_val).abs();
-        //             let torlerance: f64 = 1.0e-8 + 1.0e-5 * b_val.abs();
-        //             acc && abs_diff <= torlerance
-        //         }
-        //     );
-        // #[cfg(feature = "simd")]
         let folder = self.par_iter().zip(other.par_iter()).fold(
             || true,
             |acc, (a, b)| {
@@ -505,12 +475,6 @@ impl<T: CommonBounds> _Tensor<T> {
     /// let contiguous_tensor = tensor.contiguous().unwrap();
     /// assert!(contiguous_tensor.is_contiguous())
     /// ```
-    #[cfg(not(feature = "simd"))]
-    pub fn contiguous(&self) -> Result<Self> {
-        let res = self.par_iter().strided_map(|x| x).collect();
-        Ok(res)
-    }
-    #[cfg(feature = "simd")]
     pub fn contiguous(&self) -> Result<Self> {
         use tensor_types::traits::VecTrait;
         let res = self
@@ -682,10 +646,7 @@ impl<T: CommonBounds> _Tensor<T> {
 }
 
 impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
-    #[cfg(feature = "simd")]
     type StridedIter = ParStridedSimd<T>;
-    #[cfg(not(feature = "simd"))]
-    type StridedIter = ParStrided<T>;
 
     type Mask = _Tensor<bool>;
 

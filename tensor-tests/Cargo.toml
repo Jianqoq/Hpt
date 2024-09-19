@@ -8,7 +8,6 @@ edition = "2021"
 tensor-macros = { path = "../tensor-macros" }
 tensor-common = { path = "../tensor-common" }
 tensor-dyn = { path = "../tensor-dyn", features = [
-    "simd",
     "track_caller",
     "bound_check",
 ] }

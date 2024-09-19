@@ -11,5 +11,4 @@ rayon = "1.8.0"
 
 [features]
 track_caller = []
-simd = []
 bound_check = []

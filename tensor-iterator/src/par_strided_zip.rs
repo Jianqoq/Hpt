@@ -12,7 +12,7 @@ use tensor_traits::tensor::CommonBounds;
 
 use crate::{ iterator_traits::{ IterGetSet, ShapeManipulator }, par_strided_map::ParStridedMap };
 
-#[cfg(feature = "simd")]
+
 pub mod par_strided_zip_simd {
     use std::sync::Arc;
 

@@ -3,7 +3,7 @@ use tensor_common::{ shape::Shape, shape_utils::predict_broadcast_shape, strides
 
 use crate::iterator_traits::{ IterGetSet, ShapeManipulator, StridedIterator };
 
-#[cfg(feature = "simd")]
+
 pub mod strided_zip_simd {
     use tensor_common::{ shape::Shape, shape_utils::predict_broadcast_shape, strides::Strides };
 

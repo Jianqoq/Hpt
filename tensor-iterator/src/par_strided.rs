@@ -19,7 +19,7 @@ use crate::{
     iterator_traits::{ IterGetSet, ShapeManipulator }, par_strided_fold::ParStridedFold, par_strided_map::ParStridedMap, par_strided_zip::ParStridedZip
 };
 
-#[cfg(feature = "simd")]
+
 pub mod par_strided_simd {
     use std::{ panic::Location, sync::Arc };
 
@@ -309,7 +309,7 @@ pub mod par_strided_simd {
             folder
         }
     }
-    #[cfg(feature = "simd")]
+
     impl<T: CommonBounds> ShapeManipulator for ParStridedSimd<T> where T::Vec: Send {
         #[cfg_attr(feature = "track_caller", track_caller)]
         fn reshape<S: Into<Shape>>(mut self, shape: S) -> Self {

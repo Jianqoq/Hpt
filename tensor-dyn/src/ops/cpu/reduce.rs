@@ -2,7 +2,7 @@ use crate::backend::Cpu;
 use crate::ops::cpu::reduce_template::reduce_template;
 use crate::slice::SliceOps;
 use crate::tensor_base::_Tensor;
-use crate::{argmax_kernel, argmin_kernel, SIMD_ENABLED};
+use crate::{argmax_kernel, argmin_kernel};
 
 use crate::ops::cpu::reduce_utils::{ReductionPreprocessor, UCReductionPreprocessor};
 use crate::THREAD_POOL;
@@ -477,7 +477,7 @@ where
                     let outer_loop_size = (inp.size() as isize) / inner_loop_size;
                     use crate::ops::cpu::kernels::reduce_kernels::fast_reduce_no_simd;
                     use crate::ops::cpu::kernels::reduce_kernels::fast_reduce_simd;
-                    if O::Vec::SIZE == T::Vec::SIZE && SIMD_ENABLED {
+                    if O::Vec::SIZE == T::Vec::SIZE {
                         fast_reduce_simd(
                             inner_loop_size,
                             outer_loop_size,
@@ -528,7 +528,7 @@ where
                 let mut prg2 = iterator.a_prg.clone();
                 use crate::ops::cpu::kernels::reduce_kernels::reduce_dim_not_include;
                 use crate::ops::cpu::kernels::reduce_kernels::reduce_dim_not_include_simd;
-                if O::Vec::SIZE == T::Vec::SIZE && SIMD_ENABLED {
+                if O::Vec::SIZE == T::Vec::SIZE {
                     reduce_dim_not_include_simd(
                         inner_loop_size as isize,
                         current_size as isize,

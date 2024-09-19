@@ -16,28 +16,6 @@ use tensor_types::type_promote::NormalOut;
 macro_rules! normal_promote_ops_1 {
     ($([$op:ident, $op2:ident, $op3:ident]),*) => {
         $(
-            #[cfg(not(feature = "simd"))]
-            impl<T, U> $op<_Tensor<U>> for _Tensor<T>
-                where
-                T: CommonBounds + NormalOut<U>,
-                U: CommonBounds,
-                <T as NormalOut<U>>::Output: CommonBounds,
-                <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>
-            {
-                type Output = _Tensor<<T as NormalOut<U>>::Output>;
-
-                #[cfg_attr(feature = "track_caller", track_caller)]
-                fn $op2(self, rhs: _Tensor<U>) -> Self::Output {
-                    return binary_fn_with_out_simd(
-                        &self,
-                        &rhs,
-                        |x, y| x.$op3(y),
-                        |x, y| x.$op3(y),
-                        None::<_Tensor<<T as NormalOut<U>>::Output>>,
-                    ).unwrap();
-                }
-            }
-            #[cfg(feature = "simd")]
             impl<T, U> $op<_Tensor<U>> for _Tensor<T>
             where
             T: CommonBounds + NormalOut<U>,
@@ -94,7 +72,6 @@ macro_rules! normal_promote_ops_2 {
 macro_rules! normal_promote_ops_3 {
     ($([$op:ident, $op2:ident, $op3:ident]),*) => {
         $(
-            #[cfg(not(feature = "simd"))]
             impl<'a, T, U> $op<&'a _Tensor<U>> for &'a _Tensor<T>
                 where
                 T: CommonBounds + NormalOut<U>,
@@ -102,27 +79,6 @@ macro_rules! normal_promote_ops_3 {
                 <T as NormalOut<U>>::Output: CommonBounds,
                 <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
                 T::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>,
-            {
-                type Output = _Tensor<<T as NormalOut<U>>::Output>;
-                #[cfg_attr(feature = "track_caller", track_caller)]
-                fn $op2(self, rhs: &'a _Tensor<U>) -> Self::Output {
-                    return binary_fn_with_out_simd(
-                        &self,
-                        &rhs,
-                        |x, y| x.$op3(y),
-                        |x, y| x.$op3(y),
-                        None::<_Tensor<<T as NormalOut<U>>::Output>>,
-                    ).unwrap();
-                }
-            }
-            #[cfg(feature = "simd")]
-            impl<'a, T, U> $op<&'a _Tensor<U>> for &'a _Tensor<T>
-                where
-                T: CommonBounds + NormalOut<U>,
-                U: CommonBounds,
-                <T as NormalOut<U>>::Output: CommonBounds,
-                <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
-                T::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>
             {
                 type Output = _Tensor<<T as NormalOut<U>>::Output>;
                 #[cfg_attr(feature = "track_caller", track_caller)]

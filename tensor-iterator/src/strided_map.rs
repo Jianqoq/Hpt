@@ -2,7 +2,7 @@ use tensor_traits::tensor::{ CommonBounds, TensorAlloc, TensorInfo };
 use crate::iterator_traits::StridedIterator;
 use crate::{ iterator_traits::IterGetSet, strided_map_mut::StridedMapMut };
 
-#[cfg(feature = "simd")]
+
 pub mod strided_map_simd {
     use tensor_traits::{ CommonBounds, TensorAlloc, TensorInfo };
     use tensor_types::dtype::TypeCommon;
