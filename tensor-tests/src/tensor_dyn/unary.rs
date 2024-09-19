@@ -8,6 +8,9 @@ use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorInfo;
 use tensor_dyn::{tensor_base::_Tensor, TensorCreator};
 use tensor_macros::match_selection;
+use tensor_dyn::FloatUaryOps;
+use tensor_dyn::NormalUaryOps;
+use tensor_dyn::Neg;
 
 #[allow(unused)]
 fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {

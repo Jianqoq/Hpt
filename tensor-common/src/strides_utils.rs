@@ -82,49 +82,6 @@ pub fn calculate_new_strides(last_stride: i64, shape: &[i64]) -> Vec<i64> {
 }
 
 /// # Internal Function
-/// Checks if the strides represent a contiguous layout.
-///
-/// This function determines whether a tensor's layout in memory is contiguous.
-///
-/// # Arguments
-/// - `strides`: A reference to a vector containing the strides of the tensor.
-///
-/// # Returns
-/// `true` if the tensor is contiguous in memory, `false` otherwise.
-///
-/// # Examples
-/// ```
-/// use tensor_common::strides_is_contiguous;
-/// let strides = vec![20, 5, 1];
-/// let is_contiguous = strides_is_contiguous(&strides);
-/// ```
-pub(crate) fn strides_is_contiguous(strides: &[i64]) -> bool {
-    let mut prev_stride = strides[strides.len() - 1];
-    for i in (0..strides.len()).rev() {
-        if strides[i] < prev_stride {
-            return false;
-        } else {
-            prev_stride = strides[i];
-        }
-    }
-    true
-}
-
-pub fn strides_is_contiguous_ignore_zero(strides: &[i64]) -> bool {
-    let mut contiguous = true;
-    let mut prev_stride = strides[strides.len() - 1];
-    for i in (0..strides.len()).rev() {
-        if strides[i] < prev_stride && strides[i] != 0 {
-            contiguous = false;
-            break;
-        } else {
-            prev_stride = strides[i];
-        }
-    }
-    contiguous
-}
-
-/// # Internal Function
 /// Checks if the strides represent an expanded (non-default) layout.
 ///
 /// This function determines whether a tensor's layout in memory has been expanded,

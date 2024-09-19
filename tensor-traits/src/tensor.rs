@@ -55,11 +55,6 @@ pub trait TensorLike<T> {
     }
 }
 
-pub trait BaseTensor {
-    type Output;
-    fn base(&self) -> &Self::Output;
-}
-
 pub trait TensorCreator<T, Output = Self>
 where
     Self: Sized,
@@ -68,166 +63,169 @@ where
     type Mask;
     type Basic;
 
-    /// Creates an empty tensor with the specified shape.
+    /// Creates an uninitialized tensor with the specified shape.
     ///
-    /// This function generates a tensor with a given shape, but without initializing its values.
-    /// It is the only method to create a tensor in an uninitialized state.
+    /// The `empty` function creates a tensor with the specified shape without initializing its elements.
+    /// The values in the tensor will be undefined.
     ///
-    /// # Arguments
-    /// - `shape`: The shape of the tensor to be created.
+    /// # Parameters
+    ///
+    /// - `shape`: The shape of the tensor to create. It can be a fixed-size array or a vector representing the dimensions.
     ///
     /// # Returns
-    /// `Result<Output>`: An empty tensor with the specified shape.
     ///
-    /// # Examples
-    /// ```
-    /// let empty_tensor = YourType::empty([2, 3]); // Creates a 2x3 empty tensor
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor with the specified shape and undefined values.
+    ///
+    /// # See Also
+    ///
+    /// - [`zeros`]: Creates a tensor filled with zeros.
+    /// - [`ones`]: Creates a tensor filled with ones.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Output>;
 
-    /// Creates a tensor filled with zeros.
+    /// Creates a tensor filled with zeros, with the specified shape.
     ///
-    /// This function generates a tensor of a given shape, where each element is initialized to zero.
+    /// The `zeros` function creates a tensor with the specified shape, and all elements are initialized to zero.
     ///
-    /// # Arguments
-    /// - `shape`: The shape of the tensor to be created.
+    /// # Parameters
+    ///
+    /// - `shape`: The shape of the tensor to create. It can be a fixed-size array or a vector representing the dimensions.
     ///
     /// # Returns
-    /// `Result<Output>`: A tensor filled with zeros.
     ///
-    /// # Examples
-    /// ```
-    /// let zeros_tensor = YourType::zeros([2, 3]); // Creates a 2x3 tensor filled with zeros
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor filled with zeros.
+    ///
+    /// # See Also
+    ///
+    /// - [`empty`]: Creates an uninitialized tensor with the specified shape.
+    /// - [`ones`]: Creates a tensor filled with ones.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn zeros<S: Into<Shape>>(shape: S) -> anyhow::Result<Output>;
 
-    /// Creates a tensor filled with ones.
+    /// Creates a tensor filled with ones, with the specified shape.
     ///
-    /// This function generates a tensor of a given shape, where each element is initialized to one.
+    /// The `ones` function creates a tensor with the specified shape, and all elements are initialized to one.
     ///
-    /// # Arguments
-    /// - `shape`: The shape of the tensor to be created.
+    /// # Parameters
+    ///
+    /// - `shape`: The shape of the tensor to create. It can be a fixed-size array or a vector representing the dimensions.
     ///
     /// # Returns
-    /// `Result<Output>`: A tensor filled with ones.
     ///
-    /// # Examples
-    /// ```
-    /// let ones_tensor = YourType::ones([2, 3]); // Creates a 2x3 tensor filled with ones
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor filled with ones.
+    ///
+    /// # See Also
+    ///
+    /// - [`zeros`]: Creates a tensor filled with zeros.
+    /// - [`full`]: Creates a tensor filled with a specific value.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn ones<S: Into<Shape>>(shape: S) -> anyhow::Result<Output>
     where
         u8: IntoScalar<T>;
 
-    /// Creates a tensor with the same shape as the caller tensor, but empty.
+    /// Creates an uninitialized tensor with the same shape as the current tensor.
     ///
-    /// This function generates an empty tensor (uninitialized values) having the same shape as the provided tensor.
+    /// The `empty_like` function creates a tensor with the same shape as the input tensor, but without initializing its elements.
+    /// The values in the tensor will be undefined.
     ///
     /// # Returns
-    /// `Result<Output>`: An empty tensor with the same shape as `self`.
     ///
-    /// # Examples
-    /// ```
-    /// let original_tensor = YourType::new(...);
-    /// let empty_tensor = original_tensor.empty_like(); // New tensor with the same shape, but empty
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor with the same shape as the input tensor and undefined values.
+    ///
+    /// # See Also
+    ///
+    /// - [`zeros_like`]: Creates a tensor with the same shape and filled with zeros.
+    /// - [`ones_like`]: Creates a tensor with the same shape and filled with ones.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn empty_like(&self) -> anyhow::Result<Output>;
 
-    /// Creates a tensor with all zeros, based on the shape of `self`.
+    /// Creates a tensor filled with zeros, with the same shape as the current tensor.
     ///
-    /// This function generates a tensor filled with zeros having the same shape as the provided tensor.
+    /// The `zeros_like` function creates a tensor with the same shape as the input tensor, and all elements are initialized to zero.
     ///
     /// # Returns
-    /// `Result<Output>`: A tensor filled with zeros, having the same shape as `self`.
     ///
-    /// # Examples
-    /// ```
-    /// let original_tensor = YourType::new(...);
-    /// let zeros_tensor = original_tensor.zeros_like(); // New tensor with the same shape, filled with zeros
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor filled with zeros and with the same shape as the input tensor.
+    ///
+    /// # See Also
+    ///
+    /// - [`empty_like`]: Creates an uninitialized tensor with the same shape.
+    /// - [`ones_like`]: Creates a tensor filled with ones and with the same shape.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn zeros_like(&self) -> anyhow::Result<Output>;
 
-    /// Creates a tensor with all ones, based on the shape of `self`.
+    /// Creates a tensor filled with ones, with the same shape as the current tensor.
     ///
-    /// This function generates a tensor filled with ones having the same shape as the provided tensor.
+    /// The `ones_like` function creates a tensor with the same shape as the input tensor, and all elements are initialized to one.
     ///
     /// # Returns
-    /// `Result<Output>`: A tensor filled with ones, having the same shape as `self`.
     ///
-    /// # Examples
-    /// ```
-    /// let original_tensor = YourType::new(...);
-    /// let ones_tensor = original_tensor.ones_like(); // New tensor with the same shape, filled with ones
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor filled with ones and with the same shape as the input tensor.
+    ///
+    /// # See Also
+    ///
+    /// - [`zeros_like`]: Creates a tensor filled with zeros and with the same shape.
+    /// - [`full_like`]: Creates a tensor filled with a specific value and with the same shape.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn ones_like(&self) -> anyhow::Result<Output>
     where
         u8: IntoScalar<T>;
 
-    /// Creates a tensor filled entirely with a specified value.
+    /// Creates a tensor filled with a specified value, with the specified shape.
     ///
-    /// This function generates a tensor of a given shape, where each element is set to the specified value.
+    /// The `full` function creates a tensor with the specified shape, and all elements are initialized to the specified value.
     ///
-    /// # Type Parameters
-    /// - `S`: A type that can be converted into the `Shape` type.
+    /// # Parameters
     ///
-    /// # Arguments
     /// - `val`: The value to fill the tensor with.
-    /// - `shape`: The shape of the tensor to be created.
+    /// - `shape`: The shape of the tensor to create. It can be a fixed-size array or a vector representing the dimensions.
     ///
     /// # Returns
-    /// `Result<Output>`: The tensor filled with the specified value.
     ///
-    /// # Examples
-    /// ```
-    /// let tensor = YourType::full(3.14, [2, 2]); // Creates a 2x2 tensor filled with 3.14
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor filled with the specified value.
+    ///
+    /// # See Also
+    ///
+    /// - [`zeros`]: Creates a tensor filled with zeros.
+    /// - [`ones`]: Creates a tensor filled with ones.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn full<S: Into<Shape>>(val: T, shape: S) -> anyhow::Result<Output>;
 
-    /// Creates a tensor with the same shape as another tensor, filled with a specified value.
+    /// Creates a tensor filled with a specified value, with the same shape as the current tensor.
     ///
-    /// This method generates a new tensor having the same shape as `self`,
-    /// but with each element set to the specified value.
+    /// The `full_like` function creates a tensor with the same shape as the input tensor, and all elements are initialized to the specified value.
     ///
-    /// # Arguments
-    /// - `val`: The value to fill the new tensor with.
+    /// # Parameters
+    ///
+    /// - `val`: The value to fill the tensor with.
     ///
     /// # Returns
-    /// `Result<Output>`: A new tensor with the same shape as `self`, filled with `val`.
     ///
-    /// # Examples
-    /// ```
-    /// let original_tensor = YourType::new(...);
-    /// let filled_tensor = original_tensor.full_like(1.0); // New tensor with the same shape, filled with 1.0
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor filled with the specified value and with the same shape as the input tensor.
+    ///
+    /// # See Also
+    ///
+    /// - [`zeros_like`]: Creates a tensor filled with zeros and with the same shape.
+    /// - [`ones_like`]: Creates a tensor filled with ones and with the same shape.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn full_like(&self, val: T) -> anyhow::Result<Output>;
 
-    /// Creates a tensor with a range of values from `start` to `end` (exclusive).
+    /// Generates a tensor with evenly spaced values between `start` and `end`.
     ///
-    /// The function generates a one-dimensional tensor containing a sequence of values
-    /// starting from `start` and ending before `end`.
+    /// The `arange` function creates a tensor of values in the range `[start, end)`, with a step size of 1.
     ///
-    /// # Type Constraints
-    /// - `T`: Must be convertible to `usize` and support basic arithmetic operations.
+    /// # Parameters
     ///
-    /// # Arguments
     /// - `start`: The starting value of the range.
     /// - `end`: The end value of the range (exclusive).
     ///
     /// # Returns
-    /// `Result<Output>`: A tensor containing the range of values.
     ///
-    /// # Examples
-    /// ```
-    /// let range_tensor = YourType::arange(0, 10); // Creates a tensor with values from 0 to 9
-    /// ```
+    /// - `anyhow::Result<Output>`: A tensor with evenly spaced values between `start` and `end`.
+    ///
+    /// # See Also
+    ///
+    /// - [`arange_step`]: Generates a tensor with evenly spaced values between `start` and `end`, with a custom step size.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn arange<U>(start: U, end: U) -> anyhow::Result<Output>
     where
@@ -235,67 +233,69 @@ where
         usize: IntoScalar<T>,
         U: Convertor + IntoScalar<T> + Copy;
 
-    /// Creates a tensor with a range of values from `start` to `end` (exclusive), using a specified step.
+    /// Generates a tensor with evenly spaced values between `start` and `end`, with a specified step size.
     ///
-    /// This function generates a one-dimensional tensor containing a sequence of values,
-    /// starting from `start`, incrementing by `step`, and ending before `end`.
+    /// The `arange_step` function creates a tensor of values in the range `[start, end)`, with the specified `step` size.
     ///
-    /// # Arguments
+    /// # Parameters
+    ///
     /// - `start`: The starting value of the range.
     /// - `end`: The end value of the range (exclusive).
-    /// - `step`: The step value to increment by.
+    /// - `step`: The step size between consecutive values.
     ///
     /// # Returns
-    /// `Result<Output>`: A tensor containing the range of values with the specified step.
     ///
-    /// # Examples
-    /// ```
-    /// let range_step_tensor = YourType::arange_step(0, 10, 2); // Creates a tensor with values [0, 2, 4, 6, 8]
-    /// ```
+    /// - `anyhow::Result<Output>`: A tensor with evenly spaced values between `start` and `end` with the specified step size.
+    ///
+    /// # See Also
+    ///
+    /// - [`arange`]: Generates a tensor with evenly spaced values with a default step size of 1.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn arange_step(start: T, end: T, step: T) -> anyhow::Result<Output>
     where
         T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>;
 
-    /// Creates an identity matrix of size `n` x `m`, with ones on the k-th diagonal and zeros elsewhere.
+    /// Generates a 2D identity matrix with ones on the diagonal and zeros elsewhere.
     ///
-    /// # Arguments
-    /// - `n`: The number of rows in the matrix.
-    /// - `m`: The number of columns in the matrix.
-    /// - `k`: The index of the diagonal. A positive value refers to an upper diagonal,
-    ///        a negative value to a lower diagonal, and zero to the main diagonal.
+    /// The `eye` function creates a matrix with `n` rows and `m` columns, with ones on the `k`-th diagonal and zeros elsewhere.
+    ///
+    /// # Parameters
+    ///
+    /// - `n`: The number of rows.
+    /// - `m`: The number of columns.
+    /// - `k`: The index of the diagonal where ones should appear (0 refers to the main diagonal).
     ///
     /// # Returns
-    /// `anyhow::Result<Output>`: The identity matrix as specified.
     ///
-    /// # Examples
-    /// ```
-    /// let eye_matrix = Tensor::<i32>::eye(3, 3, 0); // Creates a 3x3 identity matrix
-    /// ```
+    /// - `anyhow::Result<Output>`: A 2D identity matrix.
+    ///
+    /// # See Also
+    ///
+    /// - [`identity`]: Generates a square identity matrix of size `n x n`.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn eye(n: usize, m: usize, k: usize) -> anyhow::Result<Output>
     where
         u8: IntoScalar<T>;
 
-    /// Returns evenly spaced numbers over a specified interval.
+    /// Generates a tensor with `num` evenly spaced values between `start` and `end`.
     ///
-    /// Generates `num` evenly spaced samples, calculated over the interval [start, end].
-    /// The endpoint of the interval can optionally be excluded.
+    /// The `linspace` function creates a tensor of `num` values, evenly spaced between `start` and `end`. Optionally, the end value can be included.
     ///
-    /// # Arguments
-    /// - `start`: The starting value of the sequence.
-    /// - `end`: The end value of the sequence.
-    /// - `num`: The number of evenly spaced samples to generate.
-    /// - `include_end`: Whether to include the end value in the sequence.
+    /// # Parameters
+    ///
+    /// - `start`: The starting value of the range.
+    /// - `end`: The end value of the range.
+    /// - `num`: The number of values to generate.
+    /// - `include_end`: Whether to include the `end` value in the result.
     ///
     /// # Returns
-    /// `Result<Output>`: A tensor with the evenly spaced numbers.
     ///
-    /// # Examples
-    /// ```
-    /// let linspace_tensor = YourType::linspace(0., 10., 5, false);
-    /// // Creates a tensor with values [0., 2.5, 5., 7.5, 10.]
-    /// ```
+    /// - `anyhow::Result<Output>`: A tensor with `num` evenly spaced values between `start` and `end`.
+    ///
+    /// # See Also
+    ///
+    /// - [`logspace`]: Generates a tensor with logarithmically spaced values.
+    /// - [`geomspace`]: Generates a tensor with geometrically spaced values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn linspace(start: T, end: T, num: usize, include_end: bool) -> anyhow::Result<Output>
     where
@@ -303,53 +303,50 @@ where
         usize: IntoScalar<T>,
         f64: IntoScalar<T>;
 
-    /// Returns numbers spaced evenly on a log scale.
+    /// Generates a tensor with `num` logarithmically spaced values between `start` and `end`.
     ///
-    /// Generates `num` samples, evenly spaced on a log scale. The sequence starts at `base ** start` and ends with `base ** end`.
-    /// The endpoint of the interval can optionally be excluded.
+    /// The `logspace` function creates a tensor of `num` values, logarithmically spaced between `start` and `end`. The spacing is based on the specified `base`.
     ///
-    /// # Arguments
-    /// - `start`: The exponent of the starting value.
-    /// - `end`: The exponent of the end value.
-    /// - `num`: The number of samples to generate.
-    /// - `include_end`: Whether to include the end value in the sequence.
-    /// - `base`: The base of the logarithm.
+    /// # Parameters
+    ///
+    /// - `start`: The starting value (in logarithmic scale).
+    /// - `end`: The end value (in logarithmic scale).
+    /// - `num`: The number of values to generate.
+    /// - `include_end`: Whether to include the `end` value in the result.
+    /// - `base`: The base of the logarithm used for spacing.
     ///
     /// # Returns
-    /// `Result<Output>`: A tensor with the numbers spaced evenly on a log scale.
     ///
-    /// # Examples
-    /// ```
-    /// let logspace_tensor = YourType::logspace(0., 10., 5, false, 2.);
-    /// // Creates a tensor with values [1., 2.160119483, 4.641588833, 10., 21.5443469]
-    /// ```
+    /// - `anyhow::Result<Output>`: A tensor with `num` logarithmically spaced values.
+    ///
+    /// # See Also
+    ///
+    /// - [`linspace`]: Generates a tensor with evenly spaced values.
+    /// - [`geomspace`]: Generates a tensor with geometrically spaced values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> anyhow::Result<Output>
     where
         T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64> + NormalOut<T, Output = T>;
 
-    /// Returns numbers spaced evenly on a geometric scale.
+    /// Generates a tensor with `n` geometrically spaced values between `start` and `end`.
     ///
-    /// Generates `num` samples, evenly spaced on a geometric scale over the interval [start, end].
-    /// The endpoint of the interval can optionally be included.
+    /// The `geomspace` function creates a tensor of `n` values, geometrically spaced between `start` and `end`.
     ///
-    /// # Arguments
-    /// - `start`: The starting value of the sequence.
-    /// - `end`: The end value of the sequence.
-    /// - `n`: The number of samples to generate.
-    /// - `include_end`: Whether to include the end value in the sequence.
+    /// # Parameters
+    ///
+    /// - `start`: The starting value of the range.
+    /// - `end`: The end value of the range.
+    /// - `n`: The number of values to generate.
+    /// - `include_end`: Whether to include the `end` value in the result.
     ///
     /// # Returns
-    /// `Result<Output>`: A tensor with the numbers spaced evenly on a geometric scale.
     ///
-    /// # Type Constraints
-    /// - `T`: Must be convertible to `f64` and `usize`, and support floating-point arithmetic and comparison.
+    /// - `anyhow::Result<Output>`: A tensor with `n` geometrically spaced values between `start` and `end`.
     ///
-    /// # Examples
-    /// ```
-    /// let geomspace_tensor = YourType::geomspace(1., 1000., 4, true);
-    /// // Creates a tensor with values [1., 10., 100., 1000.]
-    /// ```
+    /// # See Also
+    ///
+    /// - [`linspace`]: Generates a tensor with evenly spaced values.
+    /// - [`logspace`]: Generates a tensor with logarithmically spaced values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> anyhow::Result<Output>
     where
@@ -366,88 +363,89 @@ where
             + CommonBounds,
         <<T as FloatOutUnary>::Output as TypeCommon>::Vec: Send + Sync;
 
-    /// Creates a triangular matrix with dimensions `n` x `m`.
+    /// Generates a lower or upper triangular matrix.
     ///
-    /// This function generates a matrix of size `n` x `m`, filled with ones below (`low_triangle` = true)
-    /// or above (`low_triangle` = false) the k-th diagonal.
+    /// The `tri` function creates a matrix with `n` rows and `m` columns, where elements below or above the `k`-th diagonal are set to zero, depending on the `low_triangle` flag.
     ///
-    /// # Arguments
-    /// - `n`: The number of rows in the matrix.
-    /// - `m`: The number of columns in the matrix.
-    /// - `k`: The index of the diagonal.
-    /// - `low_triangle`: Whether to create a lower triangular matrix (true) or upper triangular matrix (false).
+    /// # Parameters
+    ///
+    /// - `n`: The number of rows.
+    /// - `m`: The number of columns.
+    /// - `k`: The index of the diagonal where the triangle begins (0 refers to the main diagonal).
+    /// - `low_triangle`: A boolean indicating whether to return the lower or upper triangular matrix.
     ///
     /// # Returns
-    /// `anyhow::Result<Output>`: The triangular matrix as specified.
     ///
-    /// # Examples
-    /// ```
-    /// let tri_matrix = YourType::tri(3, 3, 0, true); // Creates a 3x3 lower triangular matrix
-    /// ```
+    /// - `anyhow::Result<Output>`: A lower or upper triangular matrix.
+    ///
+    /// # See Also
+    ///
+    /// - [`tril`]: Returns the lower triangular part of a matrix.
+    /// - [`triu`]: Returns the upper triangular part of
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> anyhow::Result<Output>
     where
         u8: IntoScalar<T>;
 
-    /// Creates a lower triangular matrix from the existing tensor.
+    /// Returns the lower triangular part of the tensor, setting elements above the `k`-th diagonal to zero.
     ///
-    /// The lower triangular part of the tensor is retained, and elements above the k-th diagonal are set to zero.
+    /// The `tril` function extracts the lower triangular part of the tensor, setting elements above the `k`-th diagonal to zero.
     ///
-    /// # Arguments
-    /// - `k`: The index of the diagonal. Elements above this diagonal are set to zero.
+    /// # Parameters
+    ///
+    /// - `k`: The index of the diagonal (0 refers to the main diagonal).
     ///
     /// # Returns
-    /// `anyhow::Result<Output>`: The lower triangular matrix.
     ///
-    /// # Examples
-    /// ```
-    /// let tensor = YourType::new(...);
-    /// let lower_tri_matrix = tensor.tril(0); // Creates a lower triangular matrix from tensor
-    /// ```
+    /// - `anyhow::Result<Self>`: A tensor with the upper triangular part zeroed out.
+    ///
+    /// # See Also
+    ///
+    /// - [`tri`]: Generates a lower or upper triangular matrix.
+    /// - [`triu`]: Returns the upper triangular part of a tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tril(&self, k: i64) -> anyhow::Result<Self>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
         <T as TypeCommon>::Vec: NormalOut<BoolVector, Output = <T as TypeCommon>::Vec>;
 
-    /// Creates an upper triangular matrix from the existing tensor.
+    /// Returns the upper triangular part of the tensor, setting elements below the `k`-th diagonal to zero.
     ///
-    /// The upper triangular part of the tensor is retained, and elements below the k-th diagonal are set to zero.
+    /// The `triu` function extracts the upper triangular part of the tensor, setting elements below the `k`-th diagonal to zero.
     ///
-    /// # Arguments
-    /// - `k`: The index of the diagonal. Elements below this diagonal are set to zero.
+    /// # Parameters
+    ///
+    /// - `k`: The index of the diagonal (0 refers to the main diagonal).
     ///
     /// # Returns
-    /// `anyhow::Result<Output>`: The upper triangular matrix.
     ///
-    /// # Type Constraints
-    /// - `Output`: The output type must support multiplication with `Self::Mask`.
+    /// - `anyhow::Result<Self>`: A tensor with the lower triangular part zeroed out.
     ///
-    /// # Examples
-    /// ```
-    /// let tensor = YourType::new(...);
-    /// let upper_tri_matrix = tensor.triu(0); // Creates an upper triangular matrix from tensor
-    /// ```
+    /// # See Also
+    ///
+    /// - [`tri`]: Generates a lower or upper triangular matrix.
+    /// - [`tril`]: Returns the lower triangular part of a tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn triu(&self, k: i64) -> anyhow::Result<Self>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
         <T as TypeCommon>::Vec: NormalOut<BoolVector, Output = <T as TypeCommon>::Vec>;
 
-    /// Creates an identity matrix of size `n` x `n`.
+    /// Generates a square identity matrix of size `n x n`.
     ///
-    /// This function generates an identity matrix with ones on the main diagonal and zeros elsewhere.
+    /// The `identity` function creates a matrix with `n` rows and `n` columns, with ones on the main diagonal and zeros elsewhere.
     ///
-    /// # Arguments
-    /// - `n`: The size of the matrix (both number of rows and columns).
+    /// # Parameters
+    ///
+    /// - `n`: The size of the matrix (number of rows and columns).
     ///
     /// # Returns
-    /// `Result<Output>`: The identity matrix of size `n` x `n`.
     ///
-    /// # Examples
-    /// ```
-    /// let identity_matrix = YourType::identity(3); // Creates a 3x3 identity matrix
-    /// ```
+    /// - `anyhow::Result<Output>`: A square identity matrix.
+    ///
+    /// # See Also
+    ///
+    /// - [`eye`]: Generates a matrix with ones on a specified diagonal and zeros elsewhere.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn identity(n: usize) -> anyhow::Result<Output>
     where
@@ -468,35 +466,41 @@ where
 {
     type Output;
 
-    /// find the index of the max value along a specific axis
+    /// Returns the indices of the maximum values along the specified axis.
     ///
-    /// 'axis': `isize` or `[usize]`
+    /// The `argmax` function computes the index of the maximum value along the given axis for each slice of the tensor.
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([1, 2, 3]);
-    /// assert_eq!(a.argmax(0, false).unwrap(), Tensor::new(2));
-    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
-    /// assert_eq!(a.argmax(0, false).unwrap(), Tensor::new([1, 1, 1]));
-    /// assert_eq!(a.argmax(1, false).unwrap(), Tensor::new([2, 2]));
-    /// ```
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to compute the index of the maximum value.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the indices of the maximum values.
+    ///
+    /// # See Also
+    ///
+    /// - [`argmin`]: Returns the indices of the minimum values along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn argmax<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 
-    /// find the index of the min value along a specific axis
+    /// Returns the indices of the minimum values along the specified axis.
     ///
-    /// 'axis': `isize` or `[usize]`
+    /// The `argmin` function computes the index of the minimum value along the given axis for each slice of the tensor.
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([1, 2, 3]);
-    /// assert_eq!(a.argmin(0, false).unwrap(), Tensor::new(0));
-    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
-    /// assert_eq!(a.argmin(0, false).unwrap(), Tensor::new([0, 0, 0]));
-    /// assert_eq!(a.argmin(1, false).unwrap(), Tensor::new([0, 0]));
-    /// ```
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to compute the index of the minimum value.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the indices of the minimum values.
+    ///
+    /// # See Also
+    ///
+    /// - [`argmax`]: Returns the indices of the maximum values along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }
@@ -508,22 +512,39 @@ where
     type Output;
     type BoolOutput;
 
-    /// sum along a specific axis or a set of axis
+    /// Computes the sum of the elements along the specified axis.
     ///
-    /// `axis`: `isize` | `[usize]`
+    /// The `sum` function computes the sum of elements along the specified axis of the tensor.
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([1, 2, 3]);
-    /// assert_eq!(a.sum(0, false).unwrap(), Tensor::new(6));
-    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
-    /// assert_eq!(a.sum(0, false).unwrap(), Tensor::new([5, 7, 9]));
-    /// assert_eq!(a.sum(1, false).unwrap(), Tensor::new([6, 15]));
-    /// ```
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to sum the elements.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements along the specified axis.
+    ///
+    /// # See Also
+    ///
+    /// - [`nansum`]: Computes the sum while ignoring NaN values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 
+    /// Computes the sum of the elements along the specified axis, storing the result in a pre-allocated tensor.
+    ///
+    /// The `sum_` function computes the sum of elements along the specified axis, and optionally initializes an output tensor to store the result.
+    ///
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to sum the elements.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    /// - `init_out`: Whether to initialize the output tensor.
+    /// - `out`: The tensor in which to store the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements, with the result stored in the specified output tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sum_<S: Into<Axis>>(
         &self,
@@ -533,19 +554,19 @@ where
         out: Self::Output,
     ) -> anyhow::Result<Self::Output>;
 
-    /// sum along a specific axis or a set of axis, with initial value
+    /// Computes the sum of the elements along the specified axis, with an initial value.
     ///
-    /// `axis`: `isize` | `[usize]`
+    /// The `sum_with_init` function computes the sum of elements along the specified axes, starting from a given initial value.
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([1, 2, 3]);
-    /// assert_eq!(a.sum_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new(7));
-    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
-    /// assert_eq!(a.sum_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new([6, 8, 10]));
-    /// assert_eq!(a.sum_with_init(/*init_val*/1, /*axes*/1, /*keep_dims*/false).unwrap(), Tensor::new([7, 16]));
-    /// ```
+    /// # Parameters
+    ///
+    /// - `init_val`: The initial value to start the summation.
+    /// - `axes`: The axes along which to sum the elements.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements along the specified axes.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sum_with_init<S: Into<Axis>>(
         &self,
@@ -554,35 +575,34 @@ where
         keep_dims: bool,
     ) -> anyhow::Result<Self::Output>;
 
-    /// sum along a specific axis, NaN will be treated as 0
+    /// Computes the sum of the elements along the specified axis, ignoring NaN values.
     ///
-    /// `axis`: `isize` or `[usize]`
+    /// The `nansum` function computes the sum of elements along the specified axis, while ignoring NaN values in the tensor.
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::<f32>::new([1f32, f32::NAN, 3.]);
-    /// assert_eq!(a.nansum(0, false).unwrap(), Tensor::new(4.));
-    /// let a = Tensor::new([[1., 2., f32::NAN], [4., f32::NAN, 6.]]);
-    /// assert_eq!(a.nansum(0, false).unwrap(), Tensor::new([5., 2., 6.]));
-    /// assert_eq!(a.nansum(1, false).unwrap(), Tensor::new([3., 10.]));
-    /// ```
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to sum the elements.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements, ignoring NaN values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn nansum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 
-    /// sum along a specific axis, NaN will be treated as 0, with initial value
+    /// Computes the sum of the elements along the specified axis, with an initial value, ignoring NaN values.
     ///
-    /// `axis`: `isize` or `[usize]`
+    /// The `nansum_with_init` function computes the sum of elements along the specified axes, starting from a given initial value and ignoring NaN values.
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::<f32>::new([1f32, f32::NAN, 3.]);
-    /// assert_eq!(a.nansum_with_init(1f32, 0, false).unwrap(), Tensor::new(5.));
-    /// let a = Tensor::new([[1., 2., f32::NAN], [4., f32::NAN, 6.]]);
-    /// assert_eq!(a.nansum_with_init(1f32, 0, false).unwrap(), Tensor::new([6., 3., 7.]));
-    /// assert_eq!(a.nansum_with_init(1f32, 1, false).unwrap(), Tensor::new([4., 11.]));
-    /// ```
+    /// # Parameters
+    ///
+    /// - `init_val`: The initial value to start the summation.
+    /// - `axes`: The axes along which to sum the elements.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements, ignoring NaN values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn nansum_with_init<S: Into<Axis>>(
         &self,
@@ -591,35 +611,38 @@ where
         keep_dims: bool,
     ) -> anyhow::Result<Self::Output>;
 
-    /// product along a specific axis
+    /// Computes the product of the elements along the specified axis.
     ///
-    /// `axis`: `isize` or `[usize]`
+    /// The `prod` function computes the product of elements along the specified axis of the tensor.
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([1, 2, 3]);
-    /// assert_eq!(a.prod(0, false).unwrap(), Tensor::new(6));
-    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
-    /// assert_eq!(a.prod(0, false).unwrap(), Tensor::new([4, 10, 18]));
-    /// assert_eq!(a.prod(1, false).unwrap(), Tensor::new([6, 120]));
-    /// ```
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to compute the product.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements along the specified axis.
+    ///
+    /// # See Also
+    ///
+    /// - [`nanprod`]: Computes the product while ignoring NaN values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 
-    /// product along a specific axis, with initial value
+    /// Computes the product of the elements along the specified axis, with an initial value.
     ///
-    /// `axis`: `isize` or `[usize]`
+    /// The `prod_with_init` function computes the product of elements along the specified axes, starting from a given initial value.
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([1, 2, 3]);
-    /// assert_eq!(a.prod_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new(6));
-    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
-    /// assert_eq!(a.prod_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new([4, 10, 18]));
-    /// assert_eq!(a.prod_with_init(/*init_val*/1, /*axes*/1, /*keep_dims*/false).unwrap(), Tensor::new([6, 120]));
-    /// ```
+    /// # Parameters
+    ///
+    /// - `init_val`: The initial value to start the product computation.
+    /// - `axes`: The axes along which to compute the product.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements along the specified axes.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn prod_with_init<S: Into<Axis>>(
         &self,
@@ -628,35 +651,34 @@ where
         keep_dims: bool,
     ) -> anyhow::Result<Self::Output>;
 
-    /// product along a specific axis, NaN will be treated as 0
+    /// Computes the product of the elements along the specified axis, ignoring NaN values.
     ///
-    /// `axis`: `isize` or `[usize]`
+    /// The `nanprod` function computes the product of elements along the specified axis, while ignoring NaN values in the tensor.
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::<f32>::new([1f32, f32::NAN, 3.]);
-    /// assert_eq!(a.nanprod(0, false).unwrap(), Tensor::new(3.));
-    /// let a = Tensor::new([[1., 2., f32::NAN], [4., f32::NAN, 6.]]);
-    /// assert_eq!(a.nanprod(0, false).unwrap(), Tensor::new([4., 2., 6.]));
-    /// assert_eq!(a.nanprod(1, false).unwrap(), Tensor::new([2., 24.]));
-    /// ```
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to compute the product.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements, ignoring NaN values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 
-    /// product along a specific axis, NaN will be treated as 0, with initial value
+    /// Computes the product of the elements along the specified axis, with an initial value, ignoring NaN values.
     ///
-    /// `axis`: `isize` or `[usize]`
+    /// The `nanprod_with_init` function computes the product of elements along the specified axes, starting from a given initial value and ignoring NaN values.
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::<f32>::new([1f32, f32::NAN, 3.]);
-    /// assert_eq!(a.nanprod_with_init(1f32, 0, false).unwrap(), Tensor::new(3.));
-    /// let a = Tensor::new([[1., 2., f32::NAN], [4., f32::NAN, 6.]]);
-    /// assert_eq!(a.nanprod_with_init(1f32, 0, false).unwrap(), Tensor::new([4., 2., 6.]));
-    /// assert_eq!(a.nanprod_with_init(1f32, 1, false).unwrap(), Tensor::new([2., 24.]));
-    /// ```
+    /// # Parameters
+    ///
+    /// - `init_val`: The initial value to start the product computation.
+    /// - `axes`: The axes along which to compute the product.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements, ignoring NaN values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn nanprod_with_init<S: Into<Axis>>(
         &self,
@@ -665,35 +687,38 @@ where
         keep_dims: bool,
     ) -> anyhow::Result<Self::Output>;
 
-    /// find the min value along a specific axis or a set of axis
+    /// Computes the minimum value along the specified axis.
     ///
-    /// 'axis': `isize` or `[usize]`
+    /// The `min` function returns the minimum value of the elements along the specified axis of the tensor.
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([1, 2, 3]);
-    /// assert_eq!(a.min(0, false).unwrap(), Tensor::new(1));
-    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
-    /// assert_eq!(a.min(0, false).unwrap(), Tensor::new([1, 2, 3]));
-    /// assert_eq!(a.min(1, false).unwrap(), Tensor::new([1, 4]));
-    /// ```
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to compute the minimum value.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self>`: A tensor containing the minimum values along the specified axis.
+    ///
+    /// # See Also
+    ///
+    /// - [`max`]: Computes the maximum value along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self>;
 
-    /// find the min value along a specific axis or a set of axis, with initial value
+    /// Computes the minimum value along the specified axis, with an initial value.
     ///
-    /// `axis`: `isize` or `[usize]`
+    /// The `min_with_init` function computes the minimum value along the specified axes, starting from a given initial value.
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([1, 2, 3]);
-    /// assert_eq!(a.min_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new(1));
-    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
-    /// assert_eq!(a.min_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new([1, 2, 3]));
-    /// assert_eq!(a.min_with_init(/*init_val*/1, /*axes*/1, /*keep_dims*/false).unwrap(), Tensor::new([1, 4]));
-    /// ```
+    /// # Parameters
+    ///
+    /// - `init_val`: The initial value to compare against.
+    /// - `axes`: The axes along which to compute the minimum value.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self>`: A tensor containing the minimum values along the specified axes.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn min_with_init<S: Into<Axis>>(
         &self,
@@ -702,35 +727,38 @@ where
         keep_dims: bool,
     ) -> anyhow::Result<Self>;
 
-    /// find the max value along a specific axis or a set of axis
+    /// Computes the maximum value along the specified axis.
     ///
-    /// 'axis': `isize` or `[usize]`
+    /// The `max` function returns the maximum value of the elements along the specified axis of the tensor.
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([1, 2, 3]);
-    /// assert_eq!(a.max(0, false).unwrap(), Tensor::new(3));
-    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
-    /// assert_eq!(a.max(0, false).unwrap(), Tensor::new([4, 5, 6]));
-    /// assert_eq!(a.max(1, false).unwrap(), Tensor::new([3, 6]));
-    /// ```
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to compute the maximum value.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self>`: A tensor containing the maximum values along the specified axis.
+    ///
+    /// # See Also
+    ///
+    /// - [`min`]: Computes the minimum value along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self>;
 
-    /// find the max value along a specific axis or a set of axis, with initial value
+    /// Computes the maximum value along the specified axis, with an initial value.
     ///
-    /// `axis`: `isize` or `[usize]`
+    /// The `max_with_init` function computes the maximum value along the specified axes, starting from a given initial value.
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([1, 2, 3]);
-    /// assert_eq!(a.max_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new(3));
-    /// let a = Tensor::new([[1, 2, 3], [4, 5, 6]]);
-    /// assert_eq!(a.max_with_init(/*init_val*/1, /*axes*/0, /*keep_dims*/false).unwrap(), Tensor::new([4, 5, 6]));
-    /// assert_eq!(a.max_with_init(/*init_val*/1, /*axes*/1, /*keep_dims*/false).unwrap(), Tensor::new([3, 6]));
-    /// ```
+    /// # Parameters
+    ///
+    /// - `init_val`: The initial value to compare against.
+    /// - `axes`: The axes along which to compute the maximum value.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self>`: A tensor containing the maximum values along the specified axes.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn max_with_init<S: Into<Axis>>(
         &self,
@@ -739,39 +767,71 @@ where
         keep_dims: bool,
     ) -> anyhow::Result<Self>;
 
-    /// check if all values are true along a specific axis or a set of axis
+    /// Returns `true` if all elements along the specified axis evaluate to `true`.
     ///
-    /// 'axis': `isize` or `[usize]`
+    /// The `all` function checks whether all elements along the specified axis evaluate to `true`.
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([true, true, true]);
-    /// assert_eq!(a.all(0, false).unwrap(), Tensor::new(true));
-    /// let a = Tensor::new([[true, true, true], [true, true, true]]);
-    /// assert_eq!(a.all(0, false).unwrap(), Tensor::new([true, true, true]));
-    /// assert_eq!(a.all(1, false).unwrap(), Tensor::new([true, true]));
-    /// ```
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to check.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::BoolOutput>`: A boolean tensor indicating whether all elements evaluate to `true`.
+    ///
+    /// # See Also
+    ///
+    /// - [`any`]: Returns `true` if any element along the specified axis evaluates to `true`.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput>;
 
-    /// check if any value is true along a specific axis or a set of axis
+    /// Returns `true` if any element along the specified axis evaluates to `true`.
     ///
-    /// 'axis': `isize` or `[usize]`
+    /// The `any` function checks whether any element along the specified axis evaluates to `true`.
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([true, false, true]);
-    /// assert_eq!(a.any(0, false).unwrap(), Tensor::new(true));
-    /// let a = Tensor::new([[true, false, true], [false, false, false]]);
-    /// assert_eq!(a.any(0, false).unwrap(), Tensor::new([true, false, true]));
-    /// assert_eq!(a.any(1, false).unwrap(), Tensor::new([true, false]));
-    /// ```
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to check.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::BoolOutput>`: A boolean tensor indicating whether any element evaluates to `true`.
+    ///
+    /// # See Also
+    ///
+    /// - [`all`]: Returns `true` if all elements along the specified axis evaluate to `true`.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput>;
+
+    /// Reduces the tensor along the specified axis using the L1 norm (sum of absolute values).
+    ///
+    /// The `reducel1` function computes the L1 norm (sum of absolute values) along the specified axis of the tensor.
+    ///
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to reduce the tensor.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor with the L1 norm computed along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+
+    /// Computes the sum of the squares of the elements along the specified axis.
+    ///
+    /// The `sum_square` function computes the sum of the squares of the elements along the specified axis of the tensor.
+    ///
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to sum the squares.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of squares of elements along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }
@@ -782,25 +842,64 @@ where
 {
     type Output;
 
-    /// calculate average value along a specific axis or a set of axis
+    /// Computes the mean of the elements along the specified axis.
     ///
-    /// `axis`: `isize` or `[usize]`
+    /// The `mean` function calculates the mean of the elements along the specified axis of the tensor.
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([1., 2., 3.]);
-    /// assert_eq!(a.mean(0, false).unwrap(), Tensor::new(2.));
-    /// let a = Tensor::new([[1., 2., 3.], [4., 5., 6.]]);
-    /// assert_eq!(a.mean(0, false).unwrap(), Tensor::new([2.5, 3.5, 4.5]));
-    /// assert_eq!(a.mean(1, false).unwrap(), Tensor::new([2., 5.]));
-    /// ```
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to compute the mean.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the mean values along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+
+    /// Reduces the tensor along the specified axis using the L2 norm (Euclidean norm).
+    ///
+    /// The `reducel2` function computes the L2 norm (Euclidean norm) along the specified axis of the tensor.
+    ///
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to reduce the tensor.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor with the L2 norm computed along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn reducel2<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+
+    /// Reduces the tensor along the specified axis using the L3 norm.
+    ///
+    /// The `reducel3` function computes the L3 norm along the specified axis of the tensor.
+    ///
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to reduce the tensor.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor with the L3 norm computed along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn reducel3<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+
+    /// Computes the logarithm of the sum of exponentials of the elements along the specified axis.
+    ///
+    /// The `logsumexp` function calculates the logarithm of the sum of exponentials of the elements along the specified axis,
+    /// which is useful for numerical stability in certain operations.
+    ///
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to compute the logarithm of the sum of exponentials.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the log-sum-exp values along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn logsumexp<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }

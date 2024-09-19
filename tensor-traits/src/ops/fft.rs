@@ -1,155 +1,141 @@
 use anyhow::Result;
 use tensor_common::axis::Axis;
 
-pub trait FFTOps where Self: Sized {
-    /// Performs a Fast Fourier Transform (FFT) along a specified axis.
+pub trait FFTOps
+where
+    Self: Sized,
+{
+    /// Computes the Fast Fourier Transform (FFT) of the tensor along a specified axis.
     ///
-    /// This method computes the FFT along a single axis of the tensor. It delegates to the `fftn` method,
-    /// which handles the actual computation. This is a convenience method for computing FFT along one dimension.
+    /// The `fft` function computes the one-dimensional discrete Fourier Transform of the input tensor,
+    /// converting the signal from the time domain to the frequency domain.
     ///
-    /// # Arguments
-    /// - `axis`: The axis along which to compute the FFT. It is an `isize`, allowing for both positive
-    ///   and negative indexing.
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to compute the FFT.
     ///
     /// # Returns
-    /// `anyhow::Result<Self>`: The result of the FFT computation along the specified axis.
-    /// It returns an error if the operation fails.
     ///
-    /// # Examples
-    /// ```
-    /// use num_complex::Complex32;
-    /// use tensor_core::Tensor;
-    /// use tensor_trait::FFTOps;
-    /// let tensor = Tensor::<Complex32>::new([1.0, 2.0, 3.0]);
-    /// let result = tensor.fft(0); // Compute FFT along the first axis
-    /// ```
+    /// - `anyhow::Result<_Tensor<ComplexType<T>>>`: A tensor of complex numbers representing the frequency components.
+    ///
+    /// # Notes
+    ///
+    /// - **Fourier Transform**: Converts time-domain signals to frequency-domain signals.
+    /// - **Axis Specification**: The FFT is computed along the specified axis.
+    ///
+    /// # See Also
+    ///
+    /// - [`ifft`]: Computes the inverse FFT of the tensor.
+    /// - [`fft2`]: Computes the 2D FFT of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn fft(&self, axis: i64) -> Result<Self>;
 
-    /// Performs an Inverse Fast Fourier Transform (IFFT) along a specified axis.
+    /// Computes the inverse Fast Fourier Transform (IFFT) of the tensor along a specified axis.
     ///
-    /// This method computes the IFFT along a single axis of the tensor. Similar to `fft`, it calls
-    /// the `ifftn` method for the actual computation. Useful for computing IFFT in one-dimensional cases.
+    /// The `ifft` function computes the one-dimensional inverse discrete Fourier Transform of the input tensor,
+    /// converting the signal from the frequency domain back to the time domain.
     ///
-    /// # Arguments
-    /// - `axis`: The axis along which to compute the IFFT. It is an `isize`, which allows for both positive
-    ///   and negative indexing.
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to compute the IFFT.
     ///
     /// # Returns
-    /// `anyhow::Result<Self>`: The result of the IFFT computation along the specified axis.
-    /// It returns an error if the operation fails.
     ///
-    /// # Examples
-    /// ```
-    /// use num_complex::Complex32;
-    /// use tensor_core::Tensor;
-    /// use tensor_trait::FFTOps;
-    /// let tensor = Tensor::<Complex32>::new([1.0, 2.0, 3.0]);
-    /// let result = tensor.ifft(0); // Compute IFFT along the first axis
-    /// ```
+    /// - `anyhow::Result<_Tensor<FloatType<T>>>`: A tensor of real numbers representing the time-domain signal.
+    ///
+    /// # Notes
+    ///
+    /// - **Inverse Fourier Transform**: Converts frequency-domain signals back to the time domain.
+    /// - **Axis Specification**: The IFFT is computed along the specified axis.
+    ///
+    /// # See Also
+    ///
+    /// - [`fft`]: Computes the FFT of the tensor.
+    /// - [`ifft2`]: Computes the 2D inverse FFT of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn ifft(&self, axis: i64) -> Result<Self>;
 
-    /// Performs a Fast Fourier Transform (FFT) along two specified axes.
+    /// Computes the 2D Fast Fourier Transform (FFT2) of the tensor.
     ///
-    /// This method computes the FFT along two axes of the tensor. It delegates to the `fftn` method,
-    /// which handles the actual computation. This is a convenience method for computing FFT along one dimension.
-    ///
-    /// # Arguments
-    /// - `axis`: The axis along which to compute the FFT. It is an `isize`, allowing for both positive
-    ///   and negative indexing.
+    /// The `fft2` function computes the two-dimensional discrete Fourier Transform of the input tensor,
+    /// converting the signal from the time domain to the frequency domain in two dimensions.
     ///
     /// # Returns
-    /// `anyhow::Result<Self>`: The result of the FFT computation along the specified axis.
-    /// It returns an error if the operation fails.
     ///
-    /// # Examples
-    /// ```
-    /// use num_complex::Complex32;
-    /// use tensor_core::Tensor;
-    /// use tensor_trait::FFTOps;
-    /// let tensor = Tensor::<Complex32>::new([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]);
-    /// let result = tensor.fft2([0, 1]); // Compute FFT along all the axis
-    /// ```
+    /// - `anyhow::Result<_Tensor<ComplexType<T>>>`: A tensor of complex numbers representing the frequency components.
+    ///
+    /// # Notes
+    ///
+    /// - **Fourier Transform**: Converts 2D time-domain signals to frequency-domain signals.
+    /// - **Multidimensional**: Operates over two axes at once.
+    ///
+    /// # See Also
+    ///
+    /// - [`ifft2`]: Computes the 2D inverse FFT of the tensor.
+    /// - [`fft`]: Computes the 1D FFT of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn fft2(&self, axis1: i64, axis2: i64) -> Result<Self>;
 
-    /// Performs an Inverse Fast Fourier Transform (FFT) along two specified axes.
+    /// Computes the 2D inverse Fast Fourier Transform (IFFT2) of the tensor.
     ///
-    /// This method computes the inverse FFT along two axes of the tensor. It delegates to the `fftn` method,
-    /// which handles the actual computation. This is a convenience method for computing FFT along one dimension.
-    ///
-    /// # Arguments
-    /// - `axis`: The axis along which to compute the FFT. It is an `isize`, allowing for both positive
-    ///   and negative indexing.
+    /// The `ifft2` function computes the two-dimensional inverse discrete Fourier Transform of the input tensor,
+    /// converting the signal from the frequency domain back to the time domain in two dimensions.
     ///
     /// # Returns
-    /// `anyhow::Result<Self>`: The result of the FFT computation along the specified axis.
-    /// It returns an error if the operation fails.
     ///
-    /// # Examples
-    /// ```
-    /// use num_complex::Complex32;
-    /// use tensor_core::Tensor;
-    /// use tensor_trait::FFTOps;
-    /// let tensor = Tensor::<Complex32>::new([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]);
-    /// let result = tensor.ifft2([0, 1]); // Compute inverse FFT along all the axis
-    /// ```
+    /// - `anyhow::Result<_Tensor<FloatType<T>>>`: A tensor of real numbers representing the time-domain signal.
+    ///
+    /// # Notes
+    ///
+    /// - **Inverse Fourier Transform**: Converts 2D frequency-domain signals back to the time domain.
+    /// - **Multidimensional**: Operates over two axes at once.
+    ///
+    /// # See Also
+    ///
+    /// - [`fft2`]: Computes the 2D FFT of the tensor.
+    /// - [`ifft`]: Computes the 1D inverse FFT of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn ifft2(&self, axis1: i64, axis2: i64) -> Result<Self>;
 
-    /// Performs an N-dimensional Fast Fourier Transform (FFT).
+    /// Computes the N-dimensional Fast Fourier Transform (FFTN) of the tensor.
     ///
-    /// This method computes the FFT along multiple axes of the tensor. It handles complex FFT logic,
-    /// including transposing and parallel processing, to efficiently compute the FFT over specified axes.
-    ///
-    /// # Arguments
-    /// - `axes`: The axes along which to compute the FFT. This is generic and can be converted into `Axis`.
+    /// The `fftn` function computes the N-dimensional discrete Fourier Transform of the input tensor,
+    /// converting the signal from the time domain to the frequency domain in N dimensions.
     ///
     /// # Returns
-    /// `anyhow::Result<Self>`: The result of the FFT computation along the specified axes.
-    /// Returns an error if the operation fails.
     ///
-    /// # Errors
-    /// This method returns an error if any issue occurs during the FFT computation, such as invalid axes.
+    /// - `anyhow::Result<_Tensor<ComplexType<T>>>`: A tensor of complex numbers representing the frequency components.
     ///
-    /// # Examples
-    /// ```
-    /// use num_complex::Complex32;
-    /// use tensor_core::Tensor;
-    /// use tensor_trait::FFTOps;
-    /// let tensor = Tensor::<Complex32>::new([1.0, 2.0, 3.0]);
-    /// let fft_result = tensor.fftn(vec![0, 1]); // Compute FFT along axes 0 and 1
-    /// ```
+    /// # Notes
+    ///
+    /// - **Fourier Transform**: Converts N-dimensional time-domain signals to frequency-domain signals.
+    /// - **Multidimensional**: Operates over multiple axes at once.
+    ///
+    /// # See Also
+    ///
+    /// - [`ifftn`]: Computes the N-dimensional inverse FFT of the tensor.
+    /// - [`fft2`]: Computes the 2D FFT of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn fftn<A: Into<Axis>>(&self, axes: A) -> Result<Self>;
 
-    /// Performs an N-dimensional Inverse Fast Fourier Transform (IFFT).
+    /// Computes the N-dimensional inverse Fast Fourier Transform (IFFTN) of the tensor.
     ///
-    /// This method computes the IFFT along multiple axes of the tensor. It manages complex IFFT logic,
-    /// including transposing and parallel processing, to efficiently compute the IFFT over specified axes.
-    ///
-    /// # Type Parameters
-    /// - `A`: A type that can be converted into the `Axis` type. It represents the axes along which IFFT is computed.
-    ///
-    /// # Arguments
-    /// - `axes`: The axes along which to compute the IFFT. This is generic and can be converted into `Axis`.
+    /// The `ifftn` function computes the N-dimensional inverse discrete Fourier Transform of the input tensor,
+    /// converting the signal from the frequency domain back to the time domain in N dimensions.
     ///
     /// # Returns
-    /// `anyhow::Result<Self>`: The result of the IFFT computation along the specified axes.
-    /// Returns an error if the operation fails.
     ///
-    /// # Errors
-    /// This method returns an error if any issue occurs during the IFFT computation, such as invalid axes.
+    /// - `anyhow::Result<_Tensor<FloatType<T>>>`: A tensor of real numbers representing the time-domain signal.
     ///
-    /// # Examples
-    /// ```
-    /// use num_complex::Complex32;
-    /// use tensor_core::Tensor;
-    /// use tensor_trait::FFTOps;
-    /// let tensor = Tensor::<Complex32>::new([1.0, 2.0, 3.0]);
-    /// let ifft_result = tensor.ifftn(vec![0, 1]); // Compute IFFT along axes 0 and 1
-    /// ```
+    /// # Notes
+    ///
+    /// - **Inverse Fourier Transform**: Converts N-dimensional frequency-domain signals back to the time domain.
+    /// - **Multidimensional**: Operates over multiple axes at once.
+    ///
+    /// # See Also
+    ///
+    /// - [`fftn`]: Computes the N-dimensional FFT of the tensor.
+    /// - [`ifft2`]: Computes the 2D inverse FFT of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn ifftn<A: Into<Axis>>(&self, axes: A) -> Result<Self>;
 }

@@ -5,6 +5,9 @@ use tch::{ Tensor, Kind, Device };
 use tensor_dyn::{ tensor_base::_Tensor, Random };
 use tensor_dyn::TensorInfo;
 use crate::benchmarks::unary::float_cmp::assert_eq;
+use tensor_dyn::FloatUaryOps;
+use tensor_dyn::NormalUaryOps;
+use tensor_dyn::Neg;
 
 macro_rules! unary_bench_mark {
     (

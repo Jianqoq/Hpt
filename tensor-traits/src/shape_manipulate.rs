@@ -1,331 +1,386 @@
 use anyhow::Result;
-use tensor_common::{ axis::Axis, shape::Shape };
+use tensor_common::{axis::Axis, shape::Shape};
 
-pub trait ShapeManipulate<Output = Self> where Self: Sized {
+pub trait ShapeManipulate<Output = Self>
+where
+    Self: Sized,
+{
     type Meta;
 
-    /// remove a sequence of dimensions from the shape of a tensor
+    /// Squeezes the tensor, removing dimensions of size 1 along the specified axes.
     ///
-    /// # Arguments
-    /// `axes` - the axes to be removed
+    /// The `squeeze` function removes dimensions of size 1 from the tensor along the specified axes.
+    /// This is useful for simplifying the shape of the tensor without affecting the actual data.
+    ///
+    /// # Parameters
+    ///
+    /// - `axes`: The axes along which to remove dimensions of size 1. Can be a single axis or a collection of axes.
     ///
     /// # Returns
-    /// a tensor with the specified axes removed
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::arange(0.0, 100.0).unwrap();
-    /// let b = a.squeeze(0).unwrap();
-    /// assert_eq!(b.shape(), &[100]);
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor with the specified dimensions of size 1 removed.
+    ///
+    /// # See Also
+    ///
+    /// - [`unsqueeze`]: Adds dimensions of size 1 to the tensor at the specified axes.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn squeeze<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
 
-    /// yeild `1` dimension to the shape of a tensor in the specific axes
+    /// Unsqueezes the tensor, adding dimensions of size 1 along the specified axes.
     ///
-    /// # Arguments
-    /// `axes` - the axes to be added
+    /// The `unsqueeze` function adds dimensions of size 1 to the tensor at the specified axes.
+    /// This is useful for expanding the shape of the tensor to match other tensors for broadcasting purposes.
+    ///
+    /// # Parameters
+    ///
+    /// - `axes`: The axes along which to add dimensions of size 1. Can be a single axis or a collection of axes.
     ///
     /// # Returns
-    /// a tensor with the specified axes added
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::arange(0.0, 100.0).unwrap();
-    /// let b = a.unsqueeze(0).unwrap();
-    /// assert_eq!(b.shape(), &[1, 100]);
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor with the specified dimensions of size 1 added.
+    ///
+    /// # See Also
+    ///
+    /// - [`squeeze`]: Removes dimensions of size 1 from the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn unsqueeze<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
 
-    /// Gives a new shape to an array without changing its data.
+    /// Reshapes the tensor to a new shape.
     ///
-    /// # Arguments
-    /// `shape` - the new shape
+    /// The `reshape` function changes the shape of the tensor to the specified shape, without altering the data.
+    /// The total number of elements in the tensor must remain the same in the new shape.
+    ///
+    /// # Parameters
+    ///
+    /// - `shape`: The new shape for the tensor. It can be a fixed-size array or a vector representing the target shape.
     ///
     /// # Returns
-    /// a tensor with the specified shape
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::arange(0.0, 100.0).unwrap();
-    /// let b = a.reshape([10, 10]).unwrap();
-    /// assert_eq!(b.shape(), &[10, 10]);
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor with the specified shape.
+    ///
+    /// # See Also
+    ///
+    /// - [`transpose`]: Swaps two specified axes in the tensor.
+    /// - [`expand`]: Expands the tensor to a larger shape.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn reshape<S: Into<Shape>>(&self, shape: S) -> Result<Output>;
 
-    /// Returns an array with axes swapped.
-    /// This method always return a view of the original Tensor
+    /// Transposes two axes of the tensor.
     ///
-    /// # Arguments
-    /// `axis1` - axis 1 to be swapped
-    /// `axis2` - axis 2 to be swapped
+    /// The `transpose` function swaps two specified axes in the tensor, effectively transposing those dimensions.
+    /// This is useful for changing the order of dimensions in multi-dimensional tensors.
+    ///
+    /// # Parameters
+    ///
+    /// - `axis1`: The first axis to swap.
+    /// - `axis2`: The second axis to swap.
     ///
     /// # Returns
-    /// a tensor with the specified axes swapped
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::arange(0.0, 100.0).unwrap();
-    /// let b = a.transpose(0, 1).unwrap();
-    /// assert_eq!(b.shape(), &[100, 1]);
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor with the specified axes swapped.
+    ///
+    /// # See Also
+    ///
+    /// - [`permute`]: Rearranges all axes of the tensor according to a given order.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn transpose(&self, axis1: i64, axis2: i64) -> Result<Output>;
 
-    /// Permutes the dimensions of an array.
-    /// This method always return a view of the original Tensor
+    /// Permutes the axes of the tensor according to a specified order.
     ///
-    /// # Arguments
-    /// `axes` - the new order of the axes
+    /// The `permute` function rearranges the axes of the tensor according to the specified order.
+    /// This is useful for changing the shape of the tensor to match other tensors or for certain operations.
+    ///
+    /// # Parameters
+    ///
+    /// - `axes`: A list of axes representing the new order. It can be a fixed-size array or a vector representing the target axes order.
     ///
     /// # Returns
-    /// a tensor with the specified axes permuted
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::arange(0.0, 100.0).unwrap();
-    /// let b = a.permute([1, 0]).unwrap();
-    /// assert_eq!(b.shape(), &[100, 1]);
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor with the specified axes order.
+    ///
+    /// # See Also
+    ///
+    /// - [`permute_inv`]: Reverses the effect of the permute function by rearranging the axes back to their original order.
+    /// - [`transpose`]: Swaps two specified axes in the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn permute<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
+
+    /// Permutes the axes of the tensor back to their original order.
+    ///
+    /// The `permute_inv` function reverses the effect of the `permute` function, restoring the original order of axes.
+    ///
+    /// # Parameters
+    ///
+    /// - `axes`: A list of axes representing the new order. It can be a fixed-size array or a vector representing the target axes order.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Output>`: A new tensor with the original axes order restored.
+    ///
+    /// # See Also
+    ///
+    /// - [`permute`]: Rearranges all axes of the tensor according to a given order.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
 
-    /// Expand the tensor to the specified shape
-    /// only the dimensions that are 1 can be expanded
+    /// Expands the tensor to the specified shape.
     ///
-    /// # Arguments
-    /// `shape` - the new shape
+    /// The `expand` function expands the tensor to a larger shape by repeating its elements along specified dimensions,
+    /// without copying the underlying data.
+    ///
+    /// # Parameters
+    ///
+    /// - `shape`: The target shape for the expanded tensor.
     ///
     /// # Returns
-    /// a tensor with the specified shape
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::arange(0.0, 100.0).unwrap();
-    /// let b = a.expand([10, 10]).unwrap();
-    /// assert_eq!(b.shape(), &[10, 10]);
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor with the specified expanded shape.
+    ///
+    /// # See Also
+    ///
+    /// - [`reshape`]: Reshapes the tensor to a new shape without altering the data.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn expand<S: Into<Shape>>(&self, shape: S) -> Result<Output>;
 
-    /// tranpose a Tensor with dimension `>= 2`
+    /// Transposes the last two dimensions of the tensor.
     ///
-    /// for dimension larger than `2`, the last two dimensions are swapped
+    /// The `t` function swaps the last two dimensions of the tensor, commonly used for 2D tensors like matrices.
     ///
     /// # Returns
-    /// a Tensor with the specified axes swapped
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::arange(0.0, 100.0).unwrap();
-    /// let b = a.t().unwrap();
-    /// assert_eq!(b.shape(), &[1, 100]);
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor with the last two dimensions swapped.
+    ///
+    /// # See Also
+    ///
+    /// - [`mt`]: A shorthand for matrix transpose that also works for batch dimensions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn t(&self) -> Result<Output>;
 
-    /// flip the axes of a tensor
+    /// Reverse the order of the dimensions of the tensor.
+    ///
+    /// The `mt` function reverses the order of all the dimensions of the tensor.
     ///
     /// # Returns
-    /// a tensor with all the axes flipped
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::arange(0.0, 100.0).unwrap();
-    /// let b = a.flip(Axis(0)).unwrap();
-    /// assert_eq!(b.shape(), &[100]);
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor with the last two dimensions swapped.
+    ///
+    /// # See Also
+    ///
+    /// - [`t`]: Transposes the last two dimensions of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn mt(&self) -> Result<Output>;
 
-    /// flip the elements of a tensor along a sequence of axes
+    /// Flips the tensor along the specified axes.
     ///
-    /// # Arguments
-    /// `axes` - the axes to be flipped
+    /// The `flip` function reverses the elements of the tensor along the specified axes, effectively flipping the tensor.
+    ///
+    /// # Parameters
+    ///
+    /// - `axes`: The axes along which to flip the tensor.
     ///
     /// # Returns
-    /// a tensor with the specified axes flipped
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::arange(0.0, 100.0).unwrap();
-    /// let b = a.flip(Axis(0)).unwrap();
-    /// assert_eq!(b.shape(), &[100]);
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor with the elements flipped along the specified axes.
+    ///
+    /// # See Also
+    ///
+    /// - [`fliplr`]: Flips the tensor along the horizontal axis.
+    /// - [`flipud`]: Flips the tensor along the vertical axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn flip<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
+
+    /// Flips the tensor along the horizontal axis (left to right).
+    ///
+    /// The `fliplr` function reverses the elements of the tensor along the horizontal axis, flipping the tensor from left to right.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Output>`: A new tensor with the elements flipped horizontally.
+    ///
+    /// # See Also
+    ///
+    /// - [`flipud`]: Flips the tensor along the vertical axis (up to down).
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn fliplr(&self) -> Result<Output>;
+
+    /// Flips the tensor along the vertical axis (up to down).
+    ///
+    /// The `flipud` function reverses the elements of the tensor along the vertical axis, flipping the tensor from top to bottom.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Output>`: A new tensor with the elements flipped vertically.
+    ///
+    /// # See Also
+    ///
+    /// - [`fliplr`]: Flips the tensor along the horizontal axis (left to right).
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn flipud(&self) -> Result<Output>;
 
-    /// Construct a tensor by repeating A the number of times given by reps.
+    /// Tiles the tensor by repeating it along specified axes.
     ///
-    /// # Arguments
-    /// `reps` - the number of repetitions for each axis
+    /// The `tile` function repeats the tensor along the specified axes according to the number of repetitions provided.
+    ///
+    /// # Parameters
+    ///
+    /// - `reps`: The number of repetitions along each axis. Can be a single number or a collection of values representing repetitions along multiple axes.
     ///
     /// # Returns
-    /// a tensor with the specified axes repeated
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::from_array(&[1, 2, 3]).unwrap();
-    /// let b = a.tile(3).unwrap();
-    /// assert_eq!(b.shape(), &[3, 3]);
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor with the tiled elements.
+    ///
+    /// # See Also
+    ///
+    /// - [`repeat`]: Repeats the elements of the tensor along a single axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tile<S: Into<Axis>>(&self, reps: S) -> Result<Output>;
-
-    /// Trim the leading and/or trailing zeros from a 1-D tensor.
+    /// Trims leading and/or trailing zeros from the tensor.
     ///
-    /// # Arguments
-    /// `trim` - the side(s) of the tensor to be trimmed
+    /// The `trim_zeros` function removes zeros from the tensor, either from the start, the end, or both, depending on the `trim` argument.
+    ///
+    /// # Parameters
+    ///
+    /// - `trim`: A string indicating which zeros to trim. Can be `"start"`, `"end"`, or `"both"`.
     ///
     /// # Returns
-    /// a tensor with the specified axes trimmed
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::from_array(&[0, 0, 0, 1, 2, 3, 0, 0, 0]).unwrap();
-    /// let b = a.trim_zeros("fb").unwrap();
-    /// assert_eq!(b.shape(), &[1, 2, 3]);
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor with the leading and/or trailing zeros removed.
+    ///
+    /// # Notes
+    ///
+    /// - **Trimming Zeros**: Zeros are removed according to the specified option. Non-zero elements remain unchanged.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn trim_zeros(&self, trim: &str) -> Result<Output> where Self::Meta: PartialEq;
+    fn trim_zeros(&self, trim: &str) -> Result<Output>
+    where
+        Self::Meta: PartialEq;
 
-    /// Repeat elements along a given axis of a tensor.
+    /// Repeats elements of the tensor along a specified axis.
     ///
-    /// # Arguments
-    /// `repeats` - the number of repetitions for each axis
-    /// `axis` - the axis to be repeated
+    /// The `repeat` function repeats the elements of the tensor along the specified axis a given number of times.
+    ///
+    /// # Parameters
+    ///
+    /// - `repeats`: The number of times to repeat each element.
+    /// - `axis`: The axis along which to repeat the elements.
     ///
     /// # Returns
-    /// a tensor with the specified axes repeated
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::from_array(&[1, 2, 3]).unwrap();
-    /// let b = a.repeat(3, 0).unwrap();
-    /// assert_eq!(b.shape(), &[9]);
-    /// ```
+    /// - `anyhow::Result<Output>`: A new tensor with the elements repeated along the specified axis.
+    ///
+    /// # See Also
+    ///
+    /// - [`tile`]: Tiles the entire tensor by repeating it along multiple axes.
+
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn repeat(&self, repeats: usize, axis: i16) -> Result<Output>;
 
-    /// Split a tensor into multiple sub-tensors.
+    /// Splits the tensor into multiple sub-tensors along a specified axis.
     ///
-    /// # Arguments
-    /// `indices_or_sections` - the indices or sections to be split
-    /// `axis` - the axis to be split
+    /// The `split` function splits the tensor into multiple sub-tensors based on the specified indices or sections.
+    ///
+    /// # Parameters
+    ///
+    /// - `indices_or_sections`: Either a list of indices or a number of sections to split the tensor into.
+    /// - `axis`: The axis along which to split the tensor.
     ///
     /// # Returns
-    /// a vector of tensors with the specified axes split
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::from_array(&[1, 2, 3, 4, 5, 6]).unwrap();
-    /// let b = a.split(&[2, 4], 0).unwrap();
-    /// assert_eq!(b[0].shape(), &[2]);
-    /// assert_eq!(b[1].shape(), &[2]);
-    /// assert_eq!(b[2].shape(), &[2]);
-    /// ```
+    /// - `anyhow::Result<Vec<Output>>`: A list of sub-tensors resulting from the split.
+    ///
+    /// # See Also
+    ///
+    /// - [`dsplit`]: Splits the tensor along the depth axis.
+    /// - [`hsplit`]: Splits the tensor along the horizontal axis.
+    /// - [`vsplit`]: Splits the tensor along the vertical axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn split(&self, indices_or_sections: &[i64], axis: i64) -> Result<Vec<Output>>;
 
-    /// Split a tensor into multiple sub-tensors along the first axis.
+    /// Splits the tensor along the depth axis (axis 0).
     ///
-    /// # Arguments
-    /// `indices` - the indices to be split
+    /// The `dsplit` function splits the tensor into multiple sub-tensors along the depth axis (axis 0) at the specified indices.
+    ///
+    /// # Parameters
+    ///
+    /// - `indices`: The indices at which to split the tensor.
     ///
     /// # Returns
-    /// a vector of tensors with the specified axes split
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::from_array(&[1, 2, 3, 4, 5, 6]).unwrap();
-    /// let b = a.dsplit(&[2, 4]).unwrap();
-    /// assert_eq!(b[0].shape(), &[2, 3]);
-    /// assert_eq!(b[1].shape(), &[2, 3]);
-    /// assert_eq!(b[2].shape(), &[2, 3]);
-    /// ```
+    /// - `anyhow::Result<Vec<Output>>`: A list of sub-tensors resulting from the split.
+    ///
+    /// # See Also
+    ///
+    /// - [`split`]: Splits the tensor along a specified axis.
+    /// - [`hsplit`]: Splits the tensor along the horizontal axis.
+    /// - [`vsplit`]: Splits the tensor along the vertical axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn dsplit(&self, indices: &[i64]) -> Result<Vec<Output>>;
 
-    /// Split a tensor into multiple sub-tensors along the last axis.
+    /// Splits the tensor along the horizontal axis (axis 1).
     ///
-    /// # Arguments
-    /// `indices` - the indices to be split
+    /// The `hsplit` function splits the tensor into multiple sub-tensors along the horizontal axis (axis 1) at the specified indices.
+    ///
+    /// # Parameters
+    ///
+    /// - `indices`: The indices at which to split the tensor.
     ///
     /// # Returns
-    /// a vector of tensors with the specified axes split
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::from_array(&[1, 2, 3, 4, 5, 6]).unwrap();
-    /// let b = a.hsplit(&[2, 4]).unwrap();
-    /// assert_eq!(b[0].shape(), &[3, 2]);
-    /// assert_eq!(b[1].shape(), &[3, 2]);
-    /// assert_eq!(b[2].shape(), &[3, 2]);
-    /// ```
+    /// - `anyhow::Result<Vec<Output>>`: A list of sub-tensors resulting from the split.
+    ///
+    /// # See Also
+    ///
+    /// - [`split`]: Splits the tensor along a specified axis.
+    /// - [`dsplit`]: Splits the tensor along the depth axis.
+    /// - [`vsplit`]: Splits the tensor along the vertical axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn hsplit(&self, indices: &[i64]) -> Result<Vec<Output>>;
 
-    /// Split a tensor into multiple sub-tensors along the second axis.
+    /// Splits the tensor along the vertical axis (axis 2).
     ///
-    /// # Arguments
-    /// `indices` - the indices to be split
+    /// The `vsplit` function splits the tensor into multiple sub-tensors along the vertical axis (axis 2) at the specified indices.
+    ///
+    /// # Parameters
+    ///
+    /// - `indices`: The indices at which to split the tensor.
     ///
     /// # Returns
-    /// a vector of tensors with the specified axes split
     ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::from_array(&[1, 2, 3, 4, 5, 6]).unwrap();
-    /// let b = a.vsplit(&[2, 4]).unwrap();
-    /// assert_eq!(b[0].shape(), &[3, 2]);
-    /// assert_eq!(b[1].shape(), &[3, 2]);
-    /// assert_eq!(b[2].shape(), &[3, 2]);
-    /// ```
+    /// - `anyhow::Result<Vec<Output>>`: A list of sub-tensors resulting from the split.
+    ///
+    /// # See Also
+    ///
+    /// - [`split`]: Splits the tensor along a specified axis.
+    /// - [`dsplit`]: Splits the tensor along the depth axis.
+    /// - [`hsplit`]: Splits the tensor along the horizontal axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn vsplit(&self, indices: &[i64]) -> Result<Vec<Output>>;
 
-    /// Swap the axes of a tensor.
+    /// alias of `transpose`
     ///
-    /// # Arguments
-    /// `axis1` - axis 1 to be swapped
-    /// `axis2` - axis 2 to be swapped
+    /// # See Also
     ///
-    /// # Returns
-    /// a tensor with the specified axes swapped
-    ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::from_array(&[1, 2, 3, 4, 5, 6]).unwrap();
-    /// let b = a.swap_axes(0, 1).unwrap();
-    /// assert_eq!(b.shape(), &[3, 2]);
-    /// ```
+    /// - [`transpose`]: Swaps two specified axes in the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn swap_axes(&self, axis1: i64, axis2: i64) -> Result<Output>;
+
+    /// Flattens the tensor to a 1D array or a sub-range of the tensor's dimensions.
+    ///
+    /// The `flatten` function flattens the tensor either completely or partially, depending on the specified start and end dimensions.
+    ///
+    /// # Parameters
+    ///
+    /// - `start`: The starting dimension for flattening.
+    /// - `end`: The ending dimension for flattening.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Output>`: A new tensor that is flattened according to the specified range.
+    ///
+    /// # See Also
+    ///
+    /// - [`reshape`]: Reshapes the tensor to a new shape.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn flatten<A>(&self, start: A, end: A) -> Result<Output> where A: Into<Option<usize>>;
+    fn flatten<A>(&self, start: A, end: A) -> Result<Output>
+    where
+        A: Into<Option<usize>>;
 }

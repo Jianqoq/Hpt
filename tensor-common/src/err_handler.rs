@@ -2,7 +2,7 @@ use std::panic::Location;
 
 use thiserror::Error;
 
-use crate::{ shape::Shape, strides::Strides };
+use crate::{shape::Shape, strides::Strides};
 
 /// Error handler for the library
 ///
@@ -82,6 +82,9 @@ pub enum ErrHandler {
         "internal error: invalid cache param, {0} must be less than {1} and multiple of {2} or equal to 1, but got {3}, at {4}"
     )]
     InvalidCacheParam(&'static str, i64, i64, i64, &'static Location<'static>),
+
+    #[error("invalid input shape, expect shape to be [batch, height, width, channel], but got ndim: {0}, at {1}")]
+    Conv2dImgShapeInCorrect(usize, &'static Location<'static>),
 }
 
 impl ErrHandler {
@@ -89,7 +92,11 @@ impl ErrHandler {
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn check_ndim_match(ndim: usize, expect_ndim: usize) -> Result<(), Self> {
         if ndim != expect_ndim {
-            return Err(ErrHandler::NdimMismatched(expect_ndim, ndim, Location::caller()));
+            return Err(ErrHandler::NdimMismatched(
+                expect_ndim,
+                ndim,
+                Location::caller(),
+            ));
         }
         Ok(())
     }
@@ -106,9 +113,18 @@ impl ErrHandler {
     /// function to check if the index provided is in the range of the ndim, if not, it will return an error
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn check_index_in_range(ndim: usize, index: i64) -> Result<(), Self> {
-        let indedx = if index < 0 { index + (ndim as i64) } else { index };
+        let indedx = if index < 0 {
+            index + (ndim as i64)
+        } else {
+            index
+        };
         if indedx < 0 || indedx >= (ndim as i64) {
-            return Err(ErrHandler::IndexOutOfRange(ndim, index, indedx, Location::caller()));
+            return Err(ErrHandler::IndexOutOfRange(
+                ndim,
+                index,
+                indedx,
+                Location::caller(),
+            ));
         }
         Ok(())
     }
@@ -116,9 +132,18 @@ impl ErrHandler {
     /// function to check if the index provided is in the range of the ndim, if not, it will return an error
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn check_index_in_range_mut(ndim: usize, index: &mut i64) -> Result<(), Self> {
-        let indedx = if *index < 0 { *index + (ndim as i64) } else { *index };
+        let indedx = if *index < 0 {
+            *index + (ndim as i64)
+        } else {
+            *index
+        };
         if indedx < 0 || indedx >= (ndim as i64) {
-            return Err(ErrHandler::IndexOutOfRange(ndim, *index, indedx, Location::caller()));
+            return Err(ErrHandler::IndexOutOfRange(
+                ndim,
+                *index,
+                indedx,
+                Location::caller(),
+            ));
         }
         *index = indedx;
         Ok(())

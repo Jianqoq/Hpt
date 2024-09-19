@@ -45,7 +45,7 @@ use tensor_traits::{
     random::Random,
     shape_manipulate::ShapeManipulate,
     tensor::{CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike},
-    BaseTensor, RandomInt,
+    RandomInt,
 };
 use tensor_types::{
     convertion::{Convertor, FromScalar},
@@ -200,20 +200,6 @@ impl<T: CommonBounds> TensorAlloc for _Tensor<T> {
         Self: Sized,
     {
         Self::empty(shape)
-    }
-}
-
-impl<T: CommonBounds> BaseTensor for _Tensor<T> {
-    type Output = _Tensor<T>;
-    fn base(&self) -> &Self::Output {
-        &self
-    }
-}
-
-impl<T: CommonBounds> BaseTensor for &_Tensor<T> {
-    type Output = _Tensor<T>;
-    fn base(&self) -> &Self::Output {
-        &self
     }
 }
 

@@ -2,11 +2,9 @@ use core::panic::Location;
 
 use crate::err_handler::ErrHandler;
 
-/// Axis struct to hold the axes for operations
+/// `Axis` struct to hold the axes for operations
 ///
 /// it stores the axes the user wants to perform operations on
-///
-/// it is not being used directly by the user, but is used by the library internally
 pub struct Axis {
     pub axes: Vec<i64>,
 }
@@ -23,11 +21,11 @@ pub struct Axis {
 ///
 /// # Returns
 ///
-/// * `Result<Vec<usize>, anyhow::Error>` - the processed axes
+/// - the processed axes
 ///
 /// # Error
 ///
-/// if the axis is out of `0..ndim`, it will return an error
+/// if the axis is out of `0..ndim`
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub fn process_axes<T: Into<Axis>>(axes: T, ndim: usize) -> anyhow::Result<Vec<usize>> {
     let ndim = ndim as i64;

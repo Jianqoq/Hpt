@@ -9,7 +9,6 @@ use crate::tensor_base::_Tensor;
 use crate::THREAD_POOL;
 use rand::Rng;
 use tensor_common::shape_utils::mt_intervals;
-use tensor_traits::BaseTensor;
 use tensor_traits::CommonBounds;
 use tensor_traits::ShapeManipulate;
 use tensor_traits::TensorCreator;
@@ -182,7 +181,7 @@ where
         largest: bool,
         sorted: bool,
     ) -> anyhow::Result<(Tensor<i64>, Tensor<T>)> {
-        let (a, b) = self.base().topk(k, dim, largest, sorted)?;
+        let (a, b) = self.inner.topk(k, dim, largest, sorted)?;
         Ok((a.into(), b.into()))
     }
 }

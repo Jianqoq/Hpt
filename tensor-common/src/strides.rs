@@ -1,7 +1,18 @@
-use std::{ ops::{ Deref, DerefMut }, sync::Arc };
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
-use crate::strides_utils::strides_is_contiguous;
-
+/// Represents the strides of a multi-dimensional structure, such as a tensor or an array.
+///
+/// Strides are used to calculate the memory offset of an element in a multi-dimensional structure.
+///
+/// # Example
+/// for a strides of `[1, 2, 3]`, we can access the 1st dimension element by adding 1 memory offset, 
+/// the 2nd dimension element by adding 2 memory offset, and the 3rd dimension element by adding 3 memory offset.
+///
+/// # Note
+/// User don't need to use it directly, the convertion happens right after the user passes the strides data to the functions.
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Strides {
     pub(crate) inner: Arc<Vec<i64>>,
@@ -46,7 +57,9 @@ impl From<Vec<i64>> for Strides {
 
 impl From<&[i64]> for Strides {
     fn from(v: &[i64]) -> Self {
-        Strides { inner: Arc::new(v.to_vec()) }
+        Strides {
+            inner: Arc::new(v.to_vec()),
+        }
     }
 }
 
@@ -109,15 +122,5 @@ impl Deref for Strides {
 impl DerefMut for Strides {
     fn deref_mut(&mut self) -> &mut Self::Target {
         Arc::make_mut(&mut self.inner)
-    }
-}
-
-impl Strides {
-    pub fn new<S: IntoStrides>(v: S) -> Self {
-        v.into_strides()
-    }
-
-    pub fn is_countiguous(&self) -> bool {
-        strides_is_contiguous(&self.inner)
     }
 }

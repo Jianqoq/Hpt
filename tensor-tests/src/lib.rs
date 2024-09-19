@@ -10,3 +10,7 @@ pub mod tensor_dyn {
     pub mod lp_pool2d;
     pub mod slice;
 }
+
+pub mod tensor_common {
+    pub mod shape_utils;
+}

@@ -6,7 +6,7 @@ use crate::{
     shape::Shape,
     shape_utils::{is_reshape_possible, predict_broadcast_shape},
     strides::Strides,
-    strides_utils::{shape_to_strides, strides_is_contiguous},
+    strides_utils::shape_to_strides,
 };
 
 /// `Layout` stores the `shape` and `strides` of a tensor
@@ -368,7 +368,17 @@ impl Layout {
     ///
     /// * `bool` - whether the layout is contiguous
     pub fn is_contiguous(&self) -> bool {
-        strides_is_contiguous(&self.strides)
+        let mut expected_stride = 1;
+        for (&dim_size, &stride) in self.shape.iter().rev().zip(self.strides.iter().rev()) {
+            if dim_size == 0 {
+                continue;
+            }
+            if stride != expected_stride {
+                return false;
+            }
+            expected_stride *= dim_size;
+        }
+        true
     }
 
     /// # Internal Function

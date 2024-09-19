@@ -1,4 +1,5 @@
 use std::{
+    borrow::Borrow,
     fmt::{Debug, Display},
     ops::{Add, Deref, Div, Mul, Rem, Sub},
     sync::{atomic::Ordering, Arc},
@@ -25,7 +26,7 @@ use tensor_traits::{
     ops::uary::FloatUaryOps,
     shape_manipulate::ShapeManipulate,
     tensor::{CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike},
-    BaseTensor, NormalUaryOps,
+    NormalUaryOps,
 };
 use tensor_types::{
     convertion::{Convertor, FromScalar},
@@ -153,20 +154,6 @@ impl<T: CommonBounds> TensorAlloc for Tensor<T> {
         Self: Sized,
     {
         Self::empty(shape)
-    }
-}
-
-impl<T: CommonBounds> BaseTensor for Tensor<T> {
-    type Output = _Tensor<T>;
-    fn base(&self) -> &Self::Output {
-        &self.inner
-    }
-}
-
-impl<T: CommonBounds> BaseTensor for &Tensor<T> {
-    type Output = _Tensor<T>;
-    fn base(&self) -> &Self::Output {
-        &self.inner
     }
 }
 
@@ -737,22 +724,37 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
 
 impl<T> FloatUaryOps for Tensor<T>
 where
-    T: FloatOutUnary + CommonBounds,
+    T: FloatOutUnary<Base = FloatUnaryType<T>> + CommonBounds,
     FloatUnaryType<T>: CommonBounds,
-    f64: IntoScalar<<T as FloatOutUnary>::Base>,
-    FloatUnaryType<T>: IntoScalar<FloatUnaryType<T>>,
-    <T as TypeCommon>::Vec: FloatOutUnary<
-        Output = <FloatUnaryType<T> as TypeCommon>::Vec,
-        Base = <T as FloatOutUnary>::Base,
-    >,
+    f64: IntoScalar<<T as FloatOutUnary>::Output>,
+    T::Vec:
+        FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec, Base = FloatUnaryType<T>>,
     <FloatUnaryType<T> as TypeCommon>::Vec: Send + Copy + Sync,
-    <T as FloatOutUnary>::Base: CommonBounds,
 {
     type Output = Tensor<FloatUnaryType<T>>;
 
     type InplaceOutput = _Tensor<FloatUnaryType<T>>;
 
     type OutputMeta = <T as FloatOutUnary>::Base;
+
+    fn erf(&self) -> Result<Self::Output> {
+        Ok(_Tensor::<T, Cpu>::erf(self)?.into())
+    }
+
+    fn fast_hard_sigmoid(&self) -> Result<Self::Output> {
+        Ok(_Tensor::<T, Cpu>::fast_hard_sigmoid(self)?.into())
+    }
+
+    fn relu(&self) -> Result<Self::Output> {
+        Ok(_Tensor::<T, Cpu>::relu(self)?.into())
+    }
+
+    fn relu_<U>(&self, out: U) -> Result<Self::Output>
+    where
+        U: std::borrow::Borrow<Self::InplaceOutput>,
+    {
+        Ok(_Tensor::<T, Cpu>::relu_(self, out.borrow())?.into())
+    }
 
     fn sin(&self) -> Result<Self::Output> {
         Ok(_Tensor::<T, Cpu>::sin(self)?.into())
@@ -804,86 +806,86 @@ where
 
     fn sin_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::sin_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::sin_(self, out)?.into())
     }
 
     fn cos_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::cos_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::cos_(self, out)?.into())
     }
 
     fn tan_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::tan_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::tan_(self, out)?.into())
     }
 
     fn asin_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::asin_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::asin_(self, out)?.into())
     }
 
     fn acos_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::acos_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::acos_(self, out)?.into())
     }
 
     fn atan_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::atan_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::atan_(self, out)?.into())
     }
 
     fn sinh_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::sinh_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::sinh_(self, out)?.into())
     }
 
     fn cosh_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::cosh_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::cosh_(self, out)?.into())
     }
 
     fn tanh_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::tanh_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::tanh_(self, out)?.into())
     }
 
     fn asinh_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::asinh_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::asinh_(self, out)?.into())
     }
 
     fn acosh_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::acosh_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::acosh_(self, out)?.into())
     }
 
     fn atanh_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::atanh_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::atanh_(self, out)?.into())
     }
 
     fn exp(&self) -> Result<Self::Output> {
@@ -892,9 +894,9 @@ where
 
     fn exp_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::exp_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::exp_(self, out)?.into())
     }
 
     fn exp2(&self) -> Result<Self::Output> {
@@ -903,9 +905,9 @@ where
 
     fn exp2_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::exp2_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::exp2_(self, out)?.into())
     }
 
     fn sqrt(&self) -> Result<Self::Output> {
@@ -914,9 +916,9 @@ where
 
     fn sqrt_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::sqrt_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::sqrt_(self, out)?.into())
     }
 
     fn recip(&self) -> Result<Self::Output> {
@@ -925,9 +927,9 @@ where
 
     fn recip_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::recip_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::recip_(self, out)?.into())
     }
 
     fn ln(&self) -> Result<Self::Output> {
@@ -936,9 +938,9 @@ where
 
     fn ln_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::ln_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::ln_(self, out)?.into())
     }
 
     fn log2(&self) -> Result<Self::Output> {
@@ -947,9 +949,9 @@ where
 
     fn log2_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::log2_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::log2_(self, out)?.into())
     }
 
     fn log10(&self) -> Result<Self::Output> {
@@ -958,9 +960,9 @@ where
 
     fn log10_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::log10_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::log10_(self, out)?.into())
     }
 
     fn celu(&self, alpha: Self::OutputMeta) -> Result<Self::Output> {
@@ -969,9 +971,9 @@ where
 
     fn celu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::celu_(self, alpha, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::celu_(self, alpha, out)?.into())
     }
 
     fn sigmoid(&self) -> Result<Self::Output> {
@@ -980,9 +982,9 @@ where
 
     fn sigmoid_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::sigmoid_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::sigmoid_(self, out)?.into())
     }
 
     fn elu(&self, alpha: Self::OutputMeta) -> Result<Self::Output> {
@@ -991,9 +993,9 @@ where
 
     fn elu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::elu_(self, alpha, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::elu_(self, alpha, out)?.into())
     }
 
     fn leaky_relu(&self, alpha: Self::OutputMeta) -> Result<Self::Output> {
@@ -1002,9 +1004,9 @@ where
 
     fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::leaky_relu_(self, alpha, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::leaky_relu_(self, alpha, out)?.into())
     }
 
     fn gelu(&self) -> Result<Self::Output> {
@@ -1013,9 +1015,9 @@ where
 
     fn gelu_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::gelu_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::gelu_(self, out)?.into())
     }
 
     fn selu(
@@ -1033,9 +1035,9 @@ where
         out: U,
     ) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::selu_(self, alpha, gamma, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::selu_(self, alpha, gamma, out)?.into())
     }
 
     fn hard_sigmoid(&self) -> Result<Self::Output> {
@@ -1044,9 +1046,9 @@ where
 
     fn hard_sigmoid_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::hard_sigmoid_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::hard_sigmoid_(self, out)?.into())
     }
 
     fn hard_swish(&self) -> Result<Self::Output> {
@@ -1055,9 +1057,9 @@ where
 
     fn hard_swish_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::hard_swish_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::hard_swish_(self, out)?.into())
     }
 
     fn relu6(&self) -> Result<Self::Output> {
@@ -1066,9 +1068,9 @@ where
 
     fn relu6_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::relu6_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::relu6_(self, out)?.into())
     }
 
     fn softplus(&self) -> Result<Self::Output> {
@@ -1077,9 +1079,9 @@ where
 
     fn softplus_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::softplus_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::softplus_(self, out)?.into())
     }
 
     fn softsign(&self) -> Result<Self::Output> {
@@ -1088,9 +1090,9 @@ where
 
     fn softsign_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::softsign_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::softsign_(self, out)?.into())
     }
 
     fn mish(&self) -> Result<Self::Output> {
@@ -1099,9 +1101,9 @@ where
 
     fn mish_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu>::mish_(self, out.base().clone())?.into())
+        Ok(_Tensor::<T, Cpu>::mish_(self, out)?.into())
     }
 }
 
@@ -1109,14 +1111,25 @@ impl<T> NormalUaryOps for Tensor<T>
 where
     T: NormalOut<Output = T> + CommonBounds + IntoScalar<T>,
     NormalType<T>: CommonBounds,
-    <T as NormalOut>::Output: IntoScalar<<T as NormalOut>::Output>,
-    <T as TypeCommon>::Vec: NormalOut<Output = <T as TypeCommon>::Vec>,
+    _Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
+    T::Vec: NormalOut<Output = T::Vec>,
 {
     type Output = Tensor<NormalType<T>>;
 
-    type InplaceOutput = Tensor<NormalType<T>>;
+    type InplaceOutput = _Tensor<NormalType<T>>;
 
     type OutputMeta = NormalType<T>;
+
+    fn floor(&self) -> Result<Self::Output> {
+        Ok(_Tensor::floor(self)?.into())
+    }
+
+    fn floor_<U>(&self, out: U) -> Result<Self::Output>
+    where
+        U: Borrow<Self::InplaceOutput>,
+    {
+        Ok(_Tensor::floor_(self, out)?.into())
+    }
 
     fn square(&self) -> Result<Self::Output> {
         Ok(_Tensor::square(self)?.into())
@@ -1124,9 +1137,9 @@ where
 
     fn square_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::square_(self, out.base().clone())?.into())
+        Ok(_Tensor::square_(self, out)?.into())
     }
 
     fn abs(&self) -> Result<Self> {
@@ -1135,9 +1148,9 @@ where
 
     fn abs_<U>(&self, out: U) -> Result<Self>
     where
-        U: BaseTensor<Output = Self>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::abs_(self, out.base().clone())?.into())
+        Ok(_Tensor::abs_(self, out)?.into())
     }
 
     fn ceil(&self) -> Result<Self::Output> {
@@ -1146,9 +1159,9 @@ where
 
     fn ceil_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::ceil_(self, out.base().clone())?.into())
+        Ok(_Tensor::ceil_(self, out)?.into())
     }
 
     fn sign(&self) -> Result<Self::Output> {
@@ -1157,9 +1170,9 @@ where
 
     fn sign_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput> + BaseTensor,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::sign_(self, out.base().clone())?.into())
+        Ok(_Tensor::sign_(self, out)?.into())
     }
 
     fn clip(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> Result<Self::Output> {
@@ -1168,9 +1181,9 @@ where
 
     fn clip_<U>(&self, min: Self::OutputMeta, max: Self::OutputMeta, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput>,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::clip_(self, min, max, out.base().clone())?.into())
+        Ok(_Tensor::clip_(self, min, max, out)?.into())
     }
 
     fn round(&self) -> Result<Self::Output> {
@@ -1179,9 +1192,9 @@ where
 
     fn round_<U>(&self, out: U) -> Result<Self::Output>
     where
-        U: BaseTensor<Output = Self::InplaceOutput> + BaseTensor,
+        U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::round_(self, out.base().clone())?.into())
+        Ok(_Tensor::round_(self, out)?.into())
     }
 }
 

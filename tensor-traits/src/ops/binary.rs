@@ -13,70 +13,38 @@ where
     type OutputMeta: CommonBounds;
     type InplaceOutput;
 
-    /// Compute addition of `self` and `rhs` element-wise, with auto broadcasting.
+    /// inplace version of add
     ///
-    /// # Example
-    /// ```rust
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([1f32, 2f32, 3f32]);
-    /// let b = Tensor::new([1f32, 2f32, 3f32]);
-    /// let c = Tensor::new([2f32, 3f32, 4f32]);
-    /// let res = a.add_(b, c).unwrap();
-    /// assert_eq!(c, Tensor::new([2f32, 4f32, 6f32]));
-    /// ```
-    /// # Note
-    /// inplace operations is just a suggestion to the backend, the backend can choose to ignore them based on their reference count.
+    /// # See Also
+    ///
+    /// - [`add`]: Perform addition of `self` and `rhs` element-wise, with auto broadcasting.
     fn add_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Compute subtraction of `self` and `rhs` element-wise, with auto broadcasting.
+    /// Inplace version of subtraction
     ///
-    /// # Example
-    /// ```rust
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([1f32, 2f32, 3f32]);
-    /// let b = Tensor::new([1f32, 2f32, 3f32]);
-    /// let c = Tensor::new([2f32, 3f32, 4f32]);
-    /// let res = a.sub_(b, c).unwrap();
-    /// assert_eq!(c, Tensor::new([0f32, 0f32, 0f32]));
-    /// ```
-    /// # Note
-    /// inplace operations is just a suggestion to the backend, the backend can choose to ignore them based on their reference count.
+    /// # See Also
+    ///
+    /// - [`sub`]: Perform subtraction of `self` and `rhs` element-wise, with auto broadcasting.
     fn sub_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Compute multiplication of `self` and `rhs` element-wise, with auto broadcasting.
+    /// Inplace version of multiplication
     ///
-    /// # Example
-    /// ```rust
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([1f32, 2f32, 3f32]);
-    /// let b = Tensor::new([1f32, 2f32, 3f32]);
-    /// let c = Tensor::new([2f32, 3f32, 4f32]);
-    /// let res = a.mul_(b, c).unwrap();
-    /// assert_eq!(c, Tensor::new([1f32, 4f32, 9f32]));
-    /// ```
-    /// # Note
-    /// inplace operations is just a suggestion to the backend, the backend can choose to ignore them based on their reference count.
+    /// # See Also
+    ///
+    /// - [`mul`]: Perform multiplication of `self` and `rhs` element-wise, with auto broadcasting.
     fn mul_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Compute remainder of `self` and `rhs` element-wise, with auto broadcasting.
+    /// Inplace version of rem
     ///
-    /// # Example
-    /// ```rust
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([1f32, 2f32, 3f32]);
-    /// let b = Tensor::new([1f32, 2f32, 3f32]);
-    /// let c = Tensor::new([2f32, 3f32, 4f32]);
-    /// let res = a.rem_(b, c).unwrap();
-    /// assert_eq!(c, Tensor::new([0f32, 1f32, 0f32]));
-    /// ```
-    /// # Note
-    /// inplace operations is just a suggestion to the backend, the backend can choose to ignore them based on their reference count.
+    /// # See Also
+    ///
+    /// - [`div`]: Perform rem of `self` and `rhs` element-wise, with auto broadcasting.
     fn rem_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -89,31 +57,36 @@ where
     type Output;
     type OutputMeta: CommonBounds;
     type InplaceOutput;
-    /// Perform matrix multiplication of `self` and `rhs`, with auto broadcasting.
+
+    /// Computes the matrix multiplication of two tensors.
     ///
-    /// # Example
-    /// ```rust
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([[1f32, 2f32, 3f32], [4f32, 5f32, 6f32]]);
-    /// let b = Tensor::new([[1f32, 2f32], [3f32, 4f32], [5f32, 6f32]]);
-    /// let c = Tensor::new([[22f32, 28f32], [49f32, 64f32]]);
-    /// let res = a.matmul(b).unwrap();
-    /// assert_eq!(c, res);
-    /// ```
+    /// The `matmul` function performs matrix multiplication on two input tensors. This operation supports both 2D matrices
+    /// and higher-dimensional tensors. For higher-dimensional tensors, this function treats the last two dimensions as matrices
+    /// and performs matrix multiplication over them, broadcasting the remaining dimensions.
+    ///
+    /// # Parameters
+    ///
+    /// - `A`: The first tensor to be multiplied.
+    /// - `B`: The second tensor to be multiplied.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<_Tensor<FloatType<T>>>`: A tensor containing the result of the matrix multiplication.
+    ///
+    /// # Notes
+    ///
+    /// - **Matrix Multiplication**: Performs matrix multiplication between two tensors. The number of columns in the first matrix
+    ///   must match the number of rows in the second matrix.
+    /// - **Broadcasting**: For higher-dimensional tensors, the function broadcasts over the batch dimensions and performs matrix
+    ///   multiplication on the last two dimensions.
+    /// - **Compatibility**: The input tensors must have compatible shapes for matrix multiplication.
     fn matmul(&self, rhs: RHS) -> Result<Self::Output>;
 
-    /// Inplace Version of matmul. Perform matrix multiplication of `self` and `rhs`, with auto broadcasting.
+    /// Inplace version of matmul
     ///
-    /// # Example
-    /// ```rust
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::new([[1f32, 2f32, 3f32], [4f32, 5f32, 6f32]]);
-    /// let b = Tensor::new([[1f32, 2f32], [3f32, 4f32], [5f32, 6f32]]);
-    /// let c = Tensor::new([[22f32, 28f32], [49f32, 64f32]]);
-    /// let mut res = Tensor::new([[0f32, 0f32], [0f32, 0f32]]);
-    /// a.matmul_(b, &mut res).unwrap();
-    /// assert_eq!(c, res);
-    /// ```
+    /// # See Also
+    ///
+    /// - [`matmul`]: Perform matrix multiplication of `self` and `rhs`.
     fn matmul_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>;

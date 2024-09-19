@@ -1,18 +1,19 @@
-use tensor_common::pointer::Pointer;
-use tensor_types::type_promote::NormalOut;
-use tensor_types::vectors::traits::*;
+use super::conv_config::Conv2dConfig;
 use crate::ops::cpu::conv_config::KernelParamAlgo;
 use crate::ops::cpu::kernels::conv_kernels::*;
 use crate::tensor_base::_Tensor;
 use crate::CONV_REGNUM;
+use rayon::prelude::*;
+use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::ErrHandler::InvalidCacheParam;
+use tensor_common::err_handler::ErrHandler::InvalidInputShape;
+use tensor_common::pointer::Pointer;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
 use tensor_types::into_scalar::IntoScalar;
-use rayon::prelude::*;
-use tensor_common::err_handler::ErrHandler::InvalidInputShape;
-use tensor_common::err_handler::ErrHandler::InvalidCacheParam;
-use super::conv_config::Conv2dConfig;
+use tensor_types::type_promote::NormalOut;
+use tensor_types::vectors::traits::*;
 
 fn case1_helper<T, const REGNUM: usize>(
     [kh, kw, ci_b_remain]: [i64; 3],
@@ -37,10 +38,10 @@ fn case1_helper<T, const REGNUM: usize>(
         i64,
         &Pointer<T>,
         &mut [T::Vec; REGNUM],
-        &Pointer<T>
-    )
-)
-    where T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>
+        &Pointer<T>,
+    ),
+) where
+    T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
 {
     if ip == 0 {
         for j in 0..num_co_rb {
@@ -60,14 +61,18 @@ fn case1_helper<T, const REGNUM: usize>(
                             isw,
                             &inp_cpy,
                             &mut res_buffer,
-                            &kernel_cpy
+                            &kernel_cpy,
                         );
                     }
                 }
             }
             for h in 0..REGNUM as i64 {
-                let out_vec =
-                    &mut out[c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * (T::Vec::SIZE as i64)] as *mut _ as *mut T::Vec; // prettier-ignore
+                let out_vec = &mut out[c * co_b
+                    + b * osb
+                    + l * osh
+                    + (num_wo_b * (CONV_REGNUM as i64) + h) * osw
+                    + j * (T::Vec::SIZE as i64)] as *mut _
+                    as *mut T::Vec; // prettier-ignore
                 unsafe {
                     out_vec.write_unaligned(res_buffer[h as usize]);
                 }
@@ -77,8 +82,12 @@ fn case1_helper<T, const REGNUM: usize>(
         let mut res_buffer = [T::Vec::splat(T::ZERO); REGNUM];
         for j in 0..num_co_rb {
             for h in 0..REGNUM as i64 {
-                let out_vec =
-                    &mut out[c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * (T::Vec::SIZE as i64)] as *mut _ as *mut T::Vec; // prettier-ignore
+                let out_vec = &mut out[c * co_b
+                    + b * osb
+                    + l * osh
+                    + (num_wo_b * (CONV_REGNUM as i64) + h) * osw
+                    + j * (T::Vec::SIZE as i64)] as *mut _
+                    as *mut T::Vec; // prettier-ignore
                 res_buffer[h as usize] = unsafe { out_vec.read_unaligned() };
             }
             for n in 0..kh {
@@ -96,14 +105,18 @@ fn case1_helper<T, const REGNUM: usize>(
                             isw,
                             &inp_cpy,
                             &mut res_buffer,
-                            &kernel_cpy
+                            &kernel_cpy,
                         );
                     }
                 }
             }
             for h in 0..REGNUM as i64 {
-                let out_vec =
-                    &mut out[c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * (T::Vec::SIZE as i64)] as *mut _ as *mut T::Vec; // prettier-ignore
+                let out_vec = &mut out[c * co_b
+                    + b * osb
+                    + l * osh
+                    + (num_wo_b * (CONV_REGNUM as i64) + h) * osw
+                    + j * (T::Vec::SIZE as i64)] as *mut _
+                    as *mut T::Vec; // prettier-ignore
                 unsafe {
                     out_vec.write_unaligned(res_buffer[h as usize]);
                 }
@@ -124,9 +137,9 @@ fn case1_remain1_helper<T, const REGNUM: usize>(
     num_wo_b: i64,
     [inp_cpy, kernel_cpy]: [&Pointer<T>; 2],
     mut out: Pointer<T>,
-    micro_kernel: fn(i64, i64, i64, i64, i64, i64, i64, &Pointer<T>, &mut [T; REGNUM], &Pointer<T>)
-)
-    where T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>
+    micro_kernel: fn(i64, i64, i64, i64, i64, i64, i64, &Pointer<T>, &mut [T; REGNUM], &Pointer<T>),
+) where
+    T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
 {
     if ip == 0 {
         let mut res_buffer = [T::ZERO; REGNUM];
@@ -144,23 +157,21 @@ fn case1_remain1_helper<T, const REGNUM: usize>(
                         isw,
                         &inp_cpy,
                         &mut res_buffer,
-                        &kernel_cpy
+                        &kernel_cpy,
                     );
                 }
             }
         }
         for h in 0..REGNUM as i64 {
-            let out_vec =
-                &mut out
-                    [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw];
+            let out_vec = &mut out
+                [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw];
             *out_vec = res_buffer[h as usize];
         }
     } else {
         let mut res_buffer = [T::ZERO; REGNUM];
         for h in 0..REGNUM as i64 {
-            let out_vec =
-                &mut out
-                    [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw];
+            let out_vec = &mut out
+                [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw];
             res_buffer[h as usize] = *out_vec;
         }
         for n in 0..kh {
@@ -177,15 +188,14 @@ fn case1_remain1_helper<T, const REGNUM: usize>(
                         isw,
                         &inp_cpy,
                         &mut res_buffer,
-                        &kernel_cpy
+                        &kernel_cpy,
                     );
                 }
             }
         }
         for h in 0..REGNUM as i64 {
-            let out_vec =
-                &mut out
-                    [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw];
+            let out_vec = &mut out
+                [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw];
             *out_vec = res_buffer[h as usize];
         }
     }
@@ -220,22 +230,12 @@ fn case3_helper<T, const REGNUM: usize>(
         i64,
         &Pointer<T>,
         &mut [T::Vec],
-        &Pointer<T>
-    ),
-    micro_kernel: fn(
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
         &Pointer<T>,
-        &mut Vec<Vec<T::Vec>>,
-        &[T::Vec]
     ),
-    mut out: &mut Pointer<T>
-)
-    where T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>
+    micro_kernel: fn(i64, i64, i64, i64, i64, i64, &Pointer<T>, &mut Vec<Vec<T::Vec>>, &[T::Vec]),
+    mut out: &mut Pointer<T>,
+) where
+    T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
 {
     let num_vec_size = co_b_remain / (T::Vec::SIZE as i64);
     let remain = co_b_remain % (T::Vec::SIZE as i64);
@@ -260,14 +260,18 @@ fn case3_helper<T, const REGNUM: usize>(
                                 osw,
                                 &inp,
                                 &mut res_buffer,
-                                &kernel
+                                &kernel,
                             );
                         }
                     }
                 }
                 for h in 0..REGNUM as i64 {
-                    let out_vec = &mut out
-                        [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * T::Vec::SIZE as i64] as *mut _ as *mut T::Vec; // prettier-ignore
+                    let out_vec = &mut out[c * co_b
+                        + b * osb
+                        + l * osh
+                        + (num_wo_b * (CONV_REGNUM as i64) + h) * osw
+                        + j * T::Vec::SIZE as i64] as *mut _
+                        as *mut T::Vec; // prettier-ignore
                     unsafe {
                         *out_vec = res_buffer[h as usize];
                     }
@@ -277,8 +281,12 @@ fn case3_helper<T, const REGNUM: usize>(
             let mut res_buffer = [T::Vec::splat(T::ZERO); REGNUM];
             for j in 0..num_vec_size {
                 for h in 0..REGNUM as i64 {
-                    let out_vec = &mut out
-                        [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * T::Vec::SIZE as i64] as *mut _ as *mut T::Vec; // prettier-ignore
+                    let out_vec = &mut out[c * co_b
+                        + b * osb
+                        + l * osh
+                        + (num_wo_b * (CONV_REGNUM as i64) + h) * osw
+                        + j * T::Vec::SIZE as i64] as *mut _
+                        as *mut T::Vec; // prettier-ignore
                     res_buffer[h as usize] = unsafe { out_vec.read_unaligned() };
                 }
                 for n in 0..kh {
@@ -298,14 +306,18 @@ fn case3_helper<T, const REGNUM: usize>(
                                 osw,
                                 &inp,
                                 &mut res_buffer,
-                                &kernel
+                                &kernel,
                             );
                         }
                     }
                 }
                 for h in 0..REGNUM as i64 {
-                    let out_vec = &mut out
-                        [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw + j * T::Vec::SIZE as i64] as *mut _ as *mut T::Vec; // prettier-ignore
+                    let out_vec = &mut out[c * co_b
+                        + b * osb
+                        + l * osh
+                        + (num_wo_b * (CONV_REGNUM as i64) + h) * osw
+                        + j * T::Vec::SIZE as i64] as *mut _
+                        as *mut T::Vec; // prettier-ignore
                     unsafe {
                         *out_vec = res_buffer[h as usize];
                     }
@@ -313,8 +325,7 @@ fn case3_helper<T, const REGNUM: usize>(
             }
         }
     } else {
-        let mut kernel_buffer =
-            vec![T::Vec::splat(T::ZERO); num_vec_size as usize + 1];
+        let mut kernel_buffer = vec![T::Vec::splat(T::ZERO); num_vec_size as usize + 1];
         let mut remain_buffer =
             vec![vec![T::Vec::splat(T::ZERO); wo_b_remain as usize]; num_vec_size as usize + 1];
         if ip > 0 {
@@ -324,7 +335,7 @@ fn case3_helper<T, const REGNUM: usize>(
                 osw,
                 c * co_b + b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
                 &mut remain_buffer,
-                &mut out
+                &mut out,
             );
         }
         for n in 0..kh {
@@ -336,7 +347,7 @@ fn case3_helper<T, const REGNUM: usize>(
                         remain,
                         c * co_b + n * ks0 + m * ks1 + i * ks2,
                         &kernel,
-                        &mut kernel_buffer
+                        &mut kernel_buffer,
                     );
                     micro_kernel(
                         num_vec_size,
@@ -347,7 +358,7 @@ fn case3_helper<T, const REGNUM: usize>(
                         isw,
                         &inp,
                         &mut remain_buffer,
-                        &kernel_buffer
+                        &kernel_buffer,
                     );
                 }
             }
@@ -358,21 +369,15 @@ fn case3_helper<T, const REGNUM: usize>(
             osw,
             c * co_b + b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
             &mut remain_buffer,
-            &mut out
+            &mut out,
         );
     }
 }
 
 impl<T> _Tensor<T>
-    where
-        T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
-        T::Vec: VecTrait<T> +
-            Copy +
-            Init<T> +
-            Send +
-            Sync +
-            VecCommon +
-            NormalOut<Output = T::Vec>
+where
+    T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
+    T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecCommon + NormalOut<Output = T::Vec>,
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn conv2d(
@@ -381,11 +386,18 @@ impl<T> _Tensor<T>
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        config: Option<&Conv2dConfig<T>>
+        config: Option<&Conv2dConfig<T>>,
     ) -> anyhow::Result<_Tensor<T>> {
         use crate::CONV_REGNUM;
 
         let img_shape = self.shape();
+        if img_shape.len() != 4 {
+            return Err(ErrHandler::Conv2dImgShapeInCorrect(
+                img_shape.len(),
+                core::panic::Location::caller(),
+            )
+            .into());
+        }
         let batch = img_shape[0];
         let img_height = img_shape[1];
         let img_width = img_shape[2];
@@ -410,13 +422,8 @@ impl<T> _Tensor<T>
             (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1;
         let img = if !padding.iter().all(|(a, b)| *a == 0 && *b == 0) {
             self.pad(
-                &[
-                    (0, 0),
-                    (ph_start, ph_end),
-                    (pw_start, pw_end),
-                    (0, 0),
-                ],
-                T::ZERO
+                &[(0, 0), (ph_start, ph_end), (pw_start, pw_end), (0, 0)],
+                T::ZERO,
             )?
         } else {
             self.clone()
@@ -426,7 +433,7 @@ impl<T> _Tensor<T>
                 Err(InvalidInputShape(out_height, core::panic::Location::caller()).into())
             } else {
                 Err(InvalidInputShape(out_width, core::panic::Location::caller()).into())
-            }
+            };
         }
         let output = _Tensor::<T>::empty([batch, out_height, out_width, out_channels])?;
         let out = output.ptr();
@@ -453,7 +460,7 @@ impl<T> _Tensor<T>
                         out_channels,
                         in_channels,
                         [kernel_height, kernel_width],
-                        KernelParamAlgo::Greedy
+                        KernelParamAlgo::Greedy,
                     )
                 };
                 (config.ci_block_size, config.co_block_size)
@@ -467,19 +474,15 @@ impl<T> _Tensor<T>
         let wo_b_remain = out_width % (CONV_REGNUM as i64);
         let ci_b_remain = in_channels % ci_b;
         let num_co_rb = co_b / (T::Vec::SIZE as i64);
-        if
-            !(co_b % (T::Vec::SIZE as i64) == 0 || co_b == 1) ||
-            co_b > out_channels
-        {
-            return Err(
-                InvalidCacheParam(
-                    "co_b",
-                    out_channels,
-                    T::Vec::SIZE as i64,
-                    co_b,
-                    core::panic::Location::caller()
-                ).into()
-            );
+        if !(co_b % (T::Vec::SIZE as i64) == 0 || co_b == 1) || co_b > out_channels {
+            return Err(InvalidCacheParam(
+                "co_b",
+                out_channels,
+                T::Vec::SIZE as i64,
+                co_b,
+                core::panic::Location::caller(),
+            )
+            .into());
         }
         let num_vec_size = co_b_remain / (T::Vec::SIZE as i64);
         let outer = batch * num_co_b * out_height;
@@ -487,28 +490,26 @@ impl<T> _Tensor<T>
         let inp_cpy = inp.clone();
         let kernel_cpy = kernel.clone();
 
-        let case0_init = move |
-            b: i64,
-            l: i64,
-            c: i64,
-            ip: i64,
-            ci_b_remain: i64,
-            inner_size: i64,
-            micro_kernel_fn: fn(
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                &Pointer<T>,
-                &mut [T::Vec; CONV_REGNUM],
-                &Pointer<T>
-            ),
-            mut out: Pointer<T>
-        | {
+        let case0_init = move |b: i64,
+                               l: i64,
+                               c: i64,
+                               ip: i64,
+                               ci_b_remain: i64,
+                               inner_size: i64,
+                               micro_kernel_fn: fn(
+            i64,
+            i64,
+            i64,
+            i64,
+            i64,
+            i64,
+            i64,
+            i64,
+            &Pointer<T>,
+            &mut [T::Vec; CONV_REGNUM],
+            &Pointer<T>,
+        ),
+                               mut out: Pointer<T>| {
             for kp in 0..num_wo_b {
                 for j in 0..inner_size {
                     let mut res_buffer = [T::Vec::splat(T::ZERO); CONV_REGNUM];
@@ -527,15 +528,19 @@ impl<T> _Tensor<T>
                                     isw,
                                     &inp_cpy,
                                     &mut res_buffer,
-                                    &kernel_cpy
+                                    &kernel_cpy,
                                 );
                             }
                         }
                     }
                     for h in 0..CONV_REGNUM as i64 {
                         unsafe {
-                            let out_vec = &mut out
-                                [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw + j * (T::Vec::SIZE as i64)] as *mut _ as *mut T::Vec; // prettier-ignore
+                            let out_vec = &mut out[c * co_b
+                                + b * osb
+                                + l * osh
+                                + (kp * (CONV_REGNUM as i64) + h) * osw
+                                + j * (T::Vec::SIZE as i64)]
+                                as *mut _ as *mut T::Vec; // prettier-ignore
                             out_vec.write_unaligned(res_buffer[h as usize]);
                         }
                     }
@@ -545,35 +550,37 @@ impl<T> _Tensor<T>
 
         let inp_cpy = inp.clone();
         let kernel_cpy = kernel.clone();
-        let case0_no_init = move |
-            b: i64,
-            l: i64,
-            c: i64,
-            ip: i64,
-            ci_b_remain: i64,
-            inner_size: i64,
-            micro_kernel_fn: fn(
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                &Pointer<T>,
-                &mut [T::Vec; CONV_REGNUM],
-                &Pointer<T>
-            ),
-            mut out: Pointer<T>
-        | {
+        let case0_no_init = move |b: i64,
+                                  l: i64,
+                                  c: i64,
+                                  ip: i64,
+                                  ci_b_remain: i64,
+                                  inner_size: i64,
+                                  micro_kernel_fn: fn(
+            i64,
+            i64,
+            i64,
+            i64,
+            i64,
+            i64,
+            i64,
+            i64,
+            &Pointer<T>,
+            &mut [T::Vec; CONV_REGNUM],
+            &Pointer<T>,
+        ),
+                                  mut out: Pointer<T>| {
             let mut res_buffer = [T::Vec::splat(T::ZERO); CONV_REGNUM];
             for kp in 0..num_wo_b {
                 for j in 0..inner_size {
                     for h in 0..CONV_REGNUM as i64 {
                         unsafe {
-                            let out_vec = &mut out
-                            [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw + j * (T::Vec::SIZE as i64)] as *mut _ as *mut T::Vec; // prettier-ignore
+                            let out_vec = &mut out[c * co_b
+                                + b * osb
+                                + l * osh
+                                + (kp * (CONV_REGNUM as i64) + h) * osw
+                                + j * (T::Vec::SIZE as i64)]
+                                as *mut _ as *mut T::Vec; // prettier-ignore
                             res_buffer[h as usize] = out_vec.read_unaligned();
                         }
                     }
@@ -592,15 +599,19 @@ impl<T> _Tensor<T>
                                     isw,
                                     &inp_cpy,
                                     &mut res_buffer,
-                                    &kernel_cpy
+                                    &kernel_cpy,
                                 );
                             }
                         }
                     }
                     for h in 0..CONV_REGNUM as i64 {
                         unsafe {
-                            let out_vec = &mut out
-                            [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw + j * (T::Vec::SIZE as i64)] as *mut _ as *mut T::Vec; // prettier-ignore
+                            let out_vec = &mut out[c * co_b
+                                + b * osb
+                                + l * osh
+                                + (kp * (CONV_REGNUM as i64) + h) * osw
+                                + j * (T::Vec::SIZE as i64)]
+                                as *mut _ as *mut T::Vec; // prettier-ignore
                             out_vec.write_unaligned(res_buffer[h as usize]);
                         }
                     }
@@ -608,28 +619,26 @@ impl<T> _Tensor<T>
             }
         };
 
-        let case0 = move |
-            b: i64,
-            l: i64,
-            c: i64,
-            ip: i64,
-            ci_b_remain: i64,
-            inner_size: i64,
-            micro_kernel_fn: fn(
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                &Pointer<T>,
-                &mut [T::Vec; CONV_REGNUM],
-                &Pointer<T>
-            ),
-            out: Pointer<T>
-        | {
+        let case0 = move |b: i64,
+                          l: i64,
+                          c: i64,
+                          ip: i64,
+                          ci_b_remain: i64,
+                          inner_size: i64,
+                          micro_kernel_fn: fn(
+            i64,
+            i64,
+            i64,
+            i64,
+            i64,
+            i64,
+            i64,
+            i64,
+            &Pointer<T>,
+            &mut [T::Vec; CONV_REGNUM],
+            &Pointer<T>,
+        ),
+                          out: Pointer<T>| {
             if ip > 0 {
                 case0_no_init(b, l, c, ip, ci_b_remain, inner_size, micro_kernel_fn, out);
             } else {
@@ -639,14 +648,12 @@ impl<T> _Tensor<T>
         let inp_cpy = inp.clone();
         let kernel_cpy = kernel.clone();
 
-        let case0_remain1 = move |
-            b: i64,
-            l: i64,
-            c: i64,
-            ip: i64,
-            ci_b_remain: i64,
-            mut out: Pointer<T>
-        | {
+        let case0_remain1 = move |b: i64,
+                                  l: i64,
+                                  c: i64,
+                                  ip: i64,
+                                  ci_b_remain: i64,
+                                  mut out: Pointer<T>| {
             if ip == 0 {
                 for kp in 0..num_wo_b {
                     let mut res_buffer = [<T>::ZERO; CONV_REGNUM];
@@ -664,15 +671,14 @@ impl<T> _Tensor<T>
                                     isw,
                                     &inp_cpy,
                                     &mut res_buffer,
-                                    &kernel_cpy
+                                    &kernel_cpy,
                                 );
                             }
                         }
                     }
                     for h in 0..CONV_REGNUM as i64 {
-                        let out_vec =
-                            &mut out
-                                [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw]; // prettier-ignore
+                        let out_vec = &mut out
+                            [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw]; // prettier-ignore
                         *out_vec = res_buffer[h as usize];
                     }
                 }
@@ -680,7 +686,8 @@ impl<T> _Tensor<T>
                 let mut res_buffer = [<T>::ZERO; CONV_REGNUM];
                 for kp in 0..num_wo_b {
                     for h in 0..CONV_REGNUM as i64 {
-                        let out_vec = &out[c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw]; // prettier-ignore
+                        let out_vec = &out
+                            [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw]; // prettier-ignore
                         res_buffer[h as usize] = *out_vec;
                     }
                     for n in 0..kernel_height {
@@ -697,15 +704,14 @@ impl<T> _Tensor<T>
                                     isw,
                                     &inp_cpy,
                                     &mut res_buffer,
-                                    &kernel_cpy
+                                    &kernel_cpy,
                                 );
                             }
                         }
                     }
                     for h in 0..CONV_REGNUM as i64 {
-                        let out_vec =
-                            &mut out
-                                [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw]; // prettier-ignore
+                        let out_vec = &mut out
+                            [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw]; // prettier-ignore
                         *out_vec = res_buffer[h as usize];
                     }
                 }
@@ -729,7 +735,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         out,
-                        micro_kernel_1::<T, 1>
+                        micro_kernel_1::<T, 1>,
                     );
                 }
                 2 => {
@@ -745,7 +751,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         out,
-                        micro_kernel_2::<T, 2>
+                        micro_kernel_2::<T, 2>,
                     );
                 }
                 3 => {
@@ -761,7 +767,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         out,
-                        micro_kernel_3::<T, 3>
+                        micro_kernel_3::<T, 3>,
                     );
                 }
                 4 => {
@@ -777,7 +783,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         out,
-                        micro_kernel_4::<T, 4>
+                        micro_kernel_4::<T, 4>,
                     );
                 }
                 5 => {
@@ -793,7 +799,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         out,
-                        micro_kernel_5::<T, 5>
+                        micro_kernel_5::<T, 5>,
                     );
                 }
                 6 => {
@@ -809,7 +815,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         out,
-                        micro_kernel_6::<T, 6>
+                        micro_kernel_6::<T, 6>,
                     );
                 }
                 #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
@@ -826,7 +832,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         out,
-                        micro_kernel_7::<T, 7>
+                        micro_kernel_7::<T, 7>,
                     );
                 }
                 #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
@@ -843,7 +849,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         out,
-                        micro_kernel_8::<T, 8>
+                        micro_kernel_8::<T, 8>,
                     );
                 }
                 #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
@@ -860,7 +866,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         out,
-                        micro_kernel_9::<T, 9>
+                        micro_kernel_9::<T, 9>,
                     );
                 }
                 #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
@@ -877,7 +883,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         out,
-                        micro_kernel_10::<T, 10>
+                        micro_kernel_10::<T, 10>,
                     );
                 }
                 #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
@@ -894,7 +900,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         out,
-                        micro_kernel_11::<T, 11>
+                        micro_kernel_11::<T, 11>,
                     );
                 }
                 #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
@@ -911,7 +917,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         out,
-                        micro_kernel_12::<T, 12>
+                        micro_kernel_12::<T, 12>,
                     );
                 }
                 #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
@@ -928,7 +934,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         out,
-                        micro_kernel_13::<T, 13>
+                        micro_kernel_13::<T, 13>,
                     );
                 }
                 #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
@@ -945,7 +951,7 @@ impl<T> _Tensor<T>
                         [num_wo_b, num_co_rb],
                         [&inp_cpy, &kernel_cpy],
                         out,
-                        micro_kernel_14::<T, 14>
+                        micro_kernel_14::<T, 14>,
                     );
                 }
                 _ => unimplemented!(),
@@ -954,267 +960,258 @@ impl<T> _Tensor<T>
 
         let inp_cpy = inp.clone();
         let kernel_cpy = kernel.clone();
-        let case1_remain1 = move |
-            b: i64,
-            l: i64,
-            c: i64,
-            ip: i64,
-            ci_b_remain: i64,
-            out: Pointer<T>
-        | {
-            match wo_b_remain {
-                1 => {
-                    case1_remain1_helper::<T, 1>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_1_1::<T>
-                    );
+        let case1_remain1 =
+            move |b: i64, l: i64, c: i64, ip: i64, ci_b_remain: i64, out: Pointer<T>| {
+                match wo_b_remain {
+                    1 => {
+                        case1_remain1_helper::<T, 1>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            [&inp_cpy, &kernel_cpy],
+                            out,
+                            micro_kernel_1_1::<T>,
+                        );
+                    }
+                    2 => {
+                        case1_remain1_helper::<T, 2>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            [&inp_cpy, &kernel_cpy],
+                            out,
+                            micro_kernel_2_1::<T>,
+                        );
+                    }
+                    3 => {
+                        case1_remain1_helper::<T, 3>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            [&inp_cpy, &kernel_cpy],
+                            out,
+                            micro_kernel_3_1::<T>,
+                        );
+                    }
+                    4 => {
+                        case1_remain1_helper::<T, 4>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            [&inp_cpy, &kernel_cpy],
+                            out,
+                            micro_kernel_4_1::<T>,
+                        );
+                    }
+                    5 => {
+                        case1_remain1_helper::<T, 5>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            [&inp_cpy, &kernel_cpy],
+                            out,
+                            micro_kernel_5_1::<T>,
+                        );
+                    }
+                    6 => {
+                        case1_remain1_helper::<T, 6>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            [&inp_cpy, &kernel_cpy],
+                            out,
+                            micro_kernel_6_1::<T>,
+                        );
+                    }
+                    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                    7 => {
+                        case1_remain1_helper::<T, 7>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            [&inp_cpy, &kernel_cpy],
+                            out,
+                            micro_kernel_7_1::<T>,
+                        );
+                    }
+                    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                    8 => {
+                        case1_remain1_helper::<T, 8>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            [&inp_cpy, &kernel_cpy],
+                            out,
+                            micro_kernel_8_1::<T>,
+                        );
+                    }
+                    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                    9 => {
+                        case1_remain1_helper::<T, 9>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            [&inp_cpy, &kernel_cpy],
+                            out,
+                            micro_kernel_9_1::<T>,
+                        );
+                    }
+                    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                    10 => {
+                        case1_remain1_helper::<T, 10>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            [&inp_cpy, &kernel_cpy],
+                            out,
+                            micro_kernel_10_1::<T>,
+                        );
+                    }
+                    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                    11 => {
+                        case1_remain1_helper::<T, 11>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            [&inp_cpy, &kernel_cpy],
+                            out,
+                            micro_kernel_11_1::<T>,
+                        );
+                    }
+                    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                    12 => {
+                        case1_remain1_helper::<T, 12>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            [&inp_cpy, &kernel_cpy],
+                            out,
+                            micro_kernel_12_1::<T>,
+                        );
+                    }
+                    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                    13 => {
+                        case1_remain1_helper::<T, 13>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            [&inp_cpy, &kernel_cpy],
+                            out,
+                            micro_kernel_13_1::<T>,
+                        );
+                    }
+                    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                    14 => {
+                        case1_remain1_helper::<T, 14>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            [&inp_cpy, &kernel_cpy],
+                            out,
+                            micro_kernel_14_1::<T>,
+                        );
+                    }
+                    _ => unimplemented!(),
                 }
-                2 => {
-                    case1_remain1_helper::<T, 2>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_2_1::<T>
-                    );
-                }
-                3 => {
-                    case1_remain1_helper::<T, 3>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_3_1::<T>
-                    );
-                }
-                4 => {
-                    case1_remain1_helper::<T, 4>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_4_1::<T>
-                    );
-                }
-                5 => {
-                    case1_remain1_helper::<T, 5>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_5_1::<T>
-                    );
-                }
-                6 => {
-                    case1_remain1_helper::<T, 6>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_6_1::<T>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                7 => {
-                    case1_remain1_helper::<T, 7>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_7_1::<T>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                8 => {
-                    case1_remain1_helper::<T, 8>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_8_1::<T>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                9 => {
-                    case1_remain1_helper::<T, 9>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_9_1::<T>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                10 => {
-                    case1_remain1_helper::<T, 10>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_10_1::<T>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                11 => {
-                    case1_remain1_helper::<T, 11>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_11_1::<T>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                12 => {
-                    case1_remain1_helper::<T, 12>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_12_1::<T>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                13 => {
-                    case1_remain1_helper::<T, 13>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_13_1::<T>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                14 => {
-                    case1_remain1_helper::<T, 14>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_14_1::<T>
-                    );
-                }
-                _ => unimplemented!(),
-            }
-        };
+            };
 
         let inp_cpy = inp.clone();
         let kernel_cpy = kernel.clone();
 
         let case0 = &case0;
-        let case2 = move |
-            b: i64,
-            l: i64,
-            c: i64,
-            ip: i64,
-            num_vec_size: i64,
-            remain: i64,
-            ci_b_remain: i64,
-            mut out: Pointer<T>
-        | {
-            let mut kernel_buffer =
-                vec![T::Vec::splat(T::ZERO); num_vec_size as usize + 1];
+        let case2 = move |b: i64,
+                          l: i64,
+                          c: i64,
+                          ip: i64,
+                          num_vec_size: i64,
+                          remain: i64,
+                          ci_b_remain: i64,
+                          mut out: Pointer<T>| {
+            let mut kernel_buffer = vec![T::Vec::splat(T::ZERO); num_vec_size as usize + 1];
             let mut res_buffer =
                 vec![vec![T::Vec::splat(T::ZERO); CONV_REGNUM]; num_vec_size as usize + 1];
             for kp in 0..num_wo_b {
@@ -1225,14 +1222,14 @@ impl<T> _Tensor<T>
                         osw,
                         c * co_b + b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
                         &mut res_buffer,
-                        &mut out
+                        &mut out,
                     );
                 } else {
-                    res_buffer.iter_mut().for_each(|x|
+                    res_buffer.iter_mut().for_each(|x| {
                         x.iter_mut().for_each(|y| {
                             *y = T::Vec::splat(T::ZERO);
                         })
-                    );
+                    });
                 }
                 for n in 0..kernel_height {
                     for m in 0..kernel_width {
@@ -1243,7 +1240,7 @@ impl<T> _Tensor<T>
                                 remain,
                                 c * co_b + n * ks0 + m * ks1 + i * ks2,
                                 &kernel_cpy,
-                                &mut kernel_buffer
+                                &mut kernel_buffer,
                             );
                             micro_kernel_regnum_with_buffer::<T>(
                                 num_vec_size,
@@ -1254,7 +1251,7 @@ impl<T> _Tensor<T>
                                 isw,
                                 &inp_cpy,
                                 &mut res_buffer,
-                                &kernel_buffer
+                                &kernel_buffer,
                             );
                         }
                     }
@@ -1265,7 +1262,7 @@ impl<T> _Tensor<T>
                     osw,
                     c * co_b + b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
                     &mut res_buffer,
-                    &mut out
+                    &mut out,
                 );
             }
         };
@@ -1273,327 +1270,328 @@ impl<T> _Tensor<T>
         let inp_cpy = inp.clone();
         let kernel_cpy = kernel.clone();
         let case1 = &case1;
-        let case3 = move |b: i64, l: i64, c: i64, ip: i64, ci_b_remain: i64, mut out: Pointer<T>| {
-            match wo_b_remain {
-                1 => {
-                    case3_helper::<T, 1>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 1, true>,
-                        load_store_res_buffer::<T, 1, false>,
-                        micro_kernel_1_dyn::<T, 1>,
-                        micro_kernel_1_with_buffer::<T>,
-                        &mut out
-                    );
+        let case3 =
+            move |b: i64, l: i64, c: i64, ip: i64, ci_b_remain: i64, mut out: Pointer<T>| {
+                match wo_b_remain {
+                    1 => {
+                        case3_helper::<T, 1>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            co_b_remain,
+                            wo_b_remain,
+                            [&inp_cpy, &kernel_cpy],
+                            pack_kernel::<T>,
+                            load_store_res_buffer::<T, 1, true>,
+                            load_store_res_buffer::<T, 1, false>,
+                            micro_kernel_1_dyn::<T, 1>,
+                            micro_kernel_1_with_buffer::<T>,
+                            &mut out,
+                        );
+                    }
+                    2 => {
+                        case3_helper::<T, 2>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            co_b_remain,
+                            wo_b_remain,
+                            [&inp_cpy, &kernel_cpy],
+                            pack_kernel::<T>,
+                            load_store_res_buffer::<T, 2, true>,
+                            load_store_res_buffer::<T, 2, false>,
+                            micro_kernel_2_dyn::<T, 2>,
+                            micro_kernel_2_with_buffer::<T>,
+                            &mut out,
+                        );
+                    }
+                    3 => {
+                        case3_helper::<T, 3>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            co_b_remain,
+                            wo_b_remain,
+                            [&inp_cpy, &kernel_cpy],
+                            pack_kernel::<T>,
+                            load_store_res_buffer::<T, 3, true>,
+                            load_store_res_buffer::<T, 3, false>,
+                            micro_kernel_3_dyn::<T, 3>,
+                            micro_kernel_3_with_buffer::<T>,
+                            &mut out,
+                        );
+                    }
+                    4 => {
+                        case3_helper::<T, 4>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            co_b_remain,
+                            wo_b_remain,
+                            [&inp_cpy, &kernel_cpy],
+                            pack_kernel::<T>,
+                            load_store_res_buffer::<T, 4, true>,
+                            load_store_res_buffer::<T, 4, false>,
+                            micro_kernel_4_dyn::<T, 4>,
+                            micro_kernel_4_with_buffer::<T>,
+                            &mut out,
+                        );
+                    }
+                    5 => {
+                        case3_helper::<T, 5>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            co_b_remain,
+                            wo_b_remain,
+                            [&inp_cpy, &kernel_cpy],
+                            pack_kernel::<T>,
+                            load_store_res_buffer::<T, 5, true>,
+                            load_store_res_buffer::<T, 5, false>,
+                            micro_kernel_5_dyn::<T, 5>,
+                            micro_kernel_5_with_buffer::<T>,
+                            &mut out,
+                        );
+                    }
+                    6 => {
+                        case3_helper::<T, 6>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            co_b_remain,
+                            wo_b_remain,
+                            [&inp_cpy, &kernel_cpy],
+                            pack_kernel::<T>,
+                            load_store_res_buffer::<T, 6, true>,
+                            load_store_res_buffer::<T, 6, false>,
+                            micro_kernel_6_dyn::<T, 6>,
+                            micro_kernel_6_with_buffer::<T>,
+                            &mut out,
+                        );
+                    }
+                    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                    7 => {
+                        case3_helper::<T, 7>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            co_b_remain,
+                            wo_b_remain,
+                            [&inp_cpy, &kernel_cpy],
+                            pack_kernel::<T>,
+                            load_store_res_buffer::<T, 7, true>,
+                            load_store_res_buffer::<T, 7, false>,
+                            micro_kernel_7_dyn::<T, 7>,
+                            micro_kernel_7_with_buffer::<T>,
+                            &mut out,
+                        );
+                    }
+                    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                    8 => {
+                        case3_helper::<T, 8>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            co_b_remain,
+                            wo_b_remain,
+                            [&inp_cpy, &kernel_cpy],
+                            pack_kernel::<T>,
+                            load_store_res_buffer::<T, 8, true>,
+                            load_store_res_buffer::<T, 8, false>,
+                            micro_kernel_8_dyn::<T, 8>,
+                            micro_kernel_8_with_buffer::<T>,
+                            &mut out,
+                        );
+                    }
+                    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                    9 => {
+                        case3_helper::<T, 9>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            co_b_remain,
+                            wo_b_remain,
+                            [&inp_cpy, &kernel_cpy],
+                            pack_kernel::<T>,
+                            load_store_res_buffer::<T, 9, true>,
+                            load_store_res_buffer::<T, 9, false>,
+                            micro_kernel_9_dyn::<T, 9>,
+                            micro_kernel_9_with_buffer::<T>,
+                            &mut out,
+                        );
+                    }
+                    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                    10 => {
+                        case3_helper::<T, 10>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            co_b_remain,
+                            wo_b_remain,
+                            [&inp_cpy, &kernel_cpy],
+                            pack_kernel::<T>,
+                            load_store_res_buffer::<T, 10, true>,
+                            load_store_res_buffer::<T, 10, false>,
+                            micro_kernel_10_dyn::<T, 10>,
+                            micro_kernel_10_with_buffer::<T>,
+                            &mut out,
+                        );
+                    }
+                    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                    11 => {
+                        case3_helper::<T, 11>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            co_b_remain,
+                            wo_b_remain,
+                            [&inp_cpy, &kernel_cpy],
+                            pack_kernel::<T>,
+                            load_store_res_buffer::<T, 11, true>,
+                            load_store_res_buffer::<T, 11, false>,
+                            micro_kernel_11_dyn::<T, 11>,
+                            micro_kernel_11_with_buffer::<T>,
+                            &mut out,
+                        );
+                    }
+                    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                    12 => {
+                        case3_helper::<T, 12>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            co_b_remain,
+                            wo_b_remain,
+                            [&inp_cpy, &kernel_cpy],
+                            pack_kernel::<T>,
+                            load_store_res_buffer::<T, 12, true>,
+                            load_store_res_buffer::<T, 12, false>,
+                            micro_kernel_12_dyn::<T, 12>,
+                            micro_kernel_12_with_buffer::<T>,
+                            &mut out,
+                        );
+                    }
+                    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                    13 => {
+                        case3_helper::<T, 13>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            co_b_remain,
+                            wo_b_remain,
+                            [&inp_cpy, &kernel_cpy],
+                            pack_kernel::<T>,
+                            load_store_res_buffer::<T, 13, true>,
+                            load_store_res_buffer::<T, 13, false>,
+                            micro_kernel_13_dyn::<T, 13>,
+                            micro_kernel_13_with_buffer::<T>,
+                            &mut out,
+                        );
+                    }
+                    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                    14 => {
+                        case3_helper::<T, 14>(
+                            [kernel_height, kernel_width, ci_b_remain],
+                            [ip, b, l, c],
+                            [isb, ish, isw],
+                            [osb, osh, osw],
+                            [ks0, ks1, ks2],
+                            [step_width, step_height],
+                            [dh, dw],
+                            [ci_b, co_b],
+                            num_wo_b,
+                            co_b_remain,
+                            wo_b_remain,
+                            [&inp_cpy, &kernel_cpy],
+                            pack_kernel::<T>,
+                            load_store_res_buffer::<T, 14, true>,
+                            load_store_res_buffer::<T, 14, false>,
+                            micro_kernel_14_dyn::<T, 14>,
+                            micro_kernel_14_with_buffer::<T>,
+                            &mut out,
+                        );
+                    }
+                    _ => unimplemented!(),
                 }
-                2 => {
-                    case3_helper::<T, 2>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 2, true>,
-                        load_store_res_buffer::<T, 2, false>,
-                        micro_kernel_2_dyn::<T, 2>,
-                        micro_kernel_2_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                3 => {
-                    case3_helper::<T, 3>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 3, true>,
-                        load_store_res_buffer::<T, 3, false>,
-                        micro_kernel_3_dyn::<T, 3>,
-                        micro_kernel_3_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                4 => {
-                    case3_helper::<T, 4>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 4, true>,
-                        load_store_res_buffer::<T, 4, false>,
-                        micro_kernel_4_dyn::<T, 4>,
-                        micro_kernel_4_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                5 => {
-                    case3_helper::<T, 5>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 5, true>,
-                        load_store_res_buffer::<T, 5, false>,
-                        micro_kernel_5_dyn::<T, 5>,
-                        micro_kernel_5_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                6 => {
-                    case3_helper::<T, 6>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 6, true>,
-                        load_store_res_buffer::<T, 6, false>,
-                        micro_kernel_6_dyn::<T, 6>,
-                        micro_kernel_6_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                7 => {
-                    case3_helper::<T, 7>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 7, true>,
-                        load_store_res_buffer::<T, 7, false>,
-                        micro_kernel_7_dyn::<T, 7>,
-                        micro_kernel_7_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                8 => {
-                    case3_helper::<T, 8>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 8, true>,
-                        load_store_res_buffer::<T, 8, false>,
-                        micro_kernel_8_dyn::<T, 8>,
-                        micro_kernel_8_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                9 => {
-                    case3_helper::<T, 9>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 9, true>,
-                        load_store_res_buffer::<T, 9, false>,
-                        micro_kernel_9_dyn::<T, 9>,
-                        micro_kernel_9_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                10 => {
-                    case3_helper::<T, 10>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 10, true>,
-                        load_store_res_buffer::<T, 10, false>,
-                        micro_kernel_10_dyn::<T, 10>,
-                        micro_kernel_10_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                11 => {
-                    case3_helper::<T, 11>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 11, true>,
-                        load_store_res_buffer::<T, 11, false>,
-                        micro_kernel_11_dyn::<T, 11>,
-                        micro_kernel_11_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                12 => {
-                    case3_helper::<T, 12>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 12, true>,
-                        load_store_res_buffer::<T, 12, false>,
-                        micro_kernel_12_dyn::<T, 12>,
-                        micro_kernel_12_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                13 => {
-                    case3_helper::<T, 13>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 13, true>,
-                        load_store_res_buffer::<T, 13, false>,
-                        micro_kernel_13_dyn::<T, 13>,
-                        micro_kernel_13_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                14 => {
-                    case3_helper::<T, 14>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 14, true>,
-                        load_store_res_buffer::<T, 14, false>,
-                        micro_kernel_14_dyn::<T, 14>,
-                        micro_kernel_14_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                _ => unimplemented!(),
-            }
-        };
+            };
         #[rustfmt::skip]
         (0..outer).into_par_iter().for_each(|idx| {
             let b = idx / (num_co_b * out_height);
@@ -1784,7 +1782,7 @@ pub fn get_num_cache_set(cache_size: usize, cache_line_size: usize, associativit
 pub(crate) fn get_cache_set(
     address: usize,
     cache_line_size: usize,
-    num_cache_sets: usize
+    num_cache_sets: usize,
 ) -> usize {
     (address / cache_line_size) % num_cache_sets
 }
@@ -1794,7 +1792,7 @@ pub(crate) fn get_set_gap<T>(stride: i64, cache_line_size: usize, cache_set_num:
     let set2 = get_cache_set(
         ((stride as usize) * size_of::<T>()),
         cache_line_size,
-        cache_set_num
+        cache_set_num,
     );
     if set2 > set1 {
         set2 - set1
