@@ -724,13 +724,52 @@ pub trait FloatUaryOps {
     where
         U: Borrow<Self::InplaceOutput>;
 
+    /// Applies the Rectified Linear Unit (ReLU) function to the tensor.
+    ///
+    /// The `relu` function returns a new tensor where each element is replaced by `max(0, x)`, effectively setting negative elements to zero.
+    ///
+    /// # Returns
+    ///
+    /// - `Result<Self::Output>`: A tensor with ReLU applied to each element.
+    ///
+    /// # See Also
+    ///
+    /// - [`leaky_relu`]: Applies the leaky ReLU function to the tensor.
     fn relu(&self) -> Result<Self::Output>;
+
+    /// Inplace Version of relu.
+    ///
+    /// # See Also
+    ///
+    /// - [`relu`]: Applies the Rectified Linear Unit (ReLU) function to the tensor.
     fn relu_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
+    /// Computes the element-wise error function (erf) of the tensor.
+    ///
+    /// The `erf` function calculates the error function for each element in the tensor, returning a new tensor with the results.
+    ///
+    /// # Returns
+    ///
+    /// - `Result<Self::Output>`: A tensor where each element is the error function of the corresponding input element.
+    ///
+    /// # See Also
+    ///
+    /// - [`erfc`]: Computes the complementary error function of each element in the tensor.
     fn erf(&self) -> Result<Self::Output>;
 
+    /// Applies the fast approximation of the Hard Sigmoid function to the tensor.
+    ///
+    /// The `fast_hard_sigmoid` function computes a fast approximation of the Hard Sigmoid function for each element in the tensor. This approximation is often used for performance optimization.
+    ///
+    /// # Returns
+    ///
+    /// - `Result<Self::Output>`: A tensor with the fast hard sigmoid function applied to each element.
+    ///
+    /// # See Also
+    ///
+    /// - [`sigmoid`]: Applies the standard sigmoid function to the tensor.
     fn fast_hard_sigmoid(&self) -> Result<Self::Output>;
 
     /// Computes the element-wise Leaky Rectified Linear Unit (Leaky ReLU) of the tensor.
@@ -1036,9 +1075,26 @@ where
     type InplaceOutput;
     type OutputMeta;
 
+    /// Applies the element-wise floor function to the tensor.
+    ///
+    /// The `floor` function returns a new tensor where each element is the largest integer less than or equal to the corresponding element in the input tensor.
+    ///
+    /// # Returns
+    ///
+    /// - `Result<Self::Output>`: A tensor where each element has been floored.
+    ///
+    /// # See Also
+    ///
+    /// - [`ceil`]: Applies the element-wise ceiling function to the tensor.
+    /// - [`round`]: Rounds each element to the nearest integer.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn floor(&self) -> Result<Self::Output>;
 
+    /// Inplace Version of floor.
+    ///
+    /// # See Also
+    ///
+    /// - [`floor`]: Applies the element-wise floor function to the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn floor_<U>(&self, out: U) -> Result<Self::Output>
     where
