@@ -98,3 +98,9 @@ impl std::ops::Rem for i32x4 {
         i32x4(self.0 % rhs.0)
     }
 }
+impl std::ops::Neg for i32x4 {
+    type Output = i32x4;
+    fn neg(self) -> Self::Output {
+        i32x4(-self.0)
+    }
+}

@@ -101,3 +101,9 @@ impl std::ops::Rem for f64x4 {
         f64x4(self.0 % rhs.0)
     }
 }
+impl std::ops::Neg for f64x4 {
+    type Output = Self;
+    fn neg(self) -> Self {
+        f64x4(-self.0)
+    }
+}

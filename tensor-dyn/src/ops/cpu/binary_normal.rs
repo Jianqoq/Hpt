@@ -3,101 +3,20 @@ use crate::tensor_base::_Tensor;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
-use tensor_common::shape_utils::predict_broadcast_shape;
 use tensor_traits::tensor::CommonBounds;
 use tensor_traits::tensor::TensorCreator;
 use tensor_traits::tensor::TensorInfo;
-use tensor_traits::tensor::TensorLike;
 
-#[cfg(feature = "simd")]
+use std::borrow::Borrow;
 use tensor_types::dtype::TypeCommon;
 
-/// binary function that takes two tensors and a kernel function and returns a new tensor
-///
-/// there are three cases:
-///
-/// - if one of the tensors has only one element, it will directly use the scalar value to perform the operation
-///
-/// - if both tensors have the same shape and are contiguous, it will directly convert both to 1D array and parallelize the operation
-///
-/// - otherwise, it will use the strided map to parallelize the operation
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub fn binary_fn<A, B, K, F>(lhs: &_Tensor<A>, rhs: &_Tensor<B>, f: F) -> anyhow::Result<_Tensor<K>>
-where
-    A: CommonBounds,
-    B: CommonBounds,
-    K: CommonBounds,
-    F: Fn(A, B) -> K + Sync + Send + Copy,
-{
-    if lhs.size() == 1 {
-        let val = lhs.as_raw()[0];
-        let res = _Tensor::<K, Cpu>::empty(rhs.shape())?;
-        if rhs.parent().is_some() {
-            res.par_iter_mut().zip(rhs.par_iter()).for_each(|(a, b)| {
-                *a = f(val, b);
-            });
-        } else {
-            res.as_raw_mut()
-                .par_iter_mut()
-                .zip(rhs.as_raw().par_iter())
-                .for_each(|(a, &b)| {
-                    *a = f(val, b);
-                });
-        }
-        Ok(res)
-    } else if rhs.size() == 1 {
-        let val = rhs.as_raw()[0];
-        let res = _Tensor::<K, Cpu>::empty(lhs.shape())?;
-        if lhs.parent().is_some() {
-            res.par_iter_mut().zip(lhs.par_iter()).for_each(|(a, b)| {
-                *a = f(b, val);
-            });
-        } else {
-            res.as_raw_mut()
-                .par_iter_mut()
-                .zip(lhs.as_raw().par_iter())
-                .for_each(|(a, &b)| {
-                    *a = f(b, val);
-                });
-        }
-        Ok(res)
-    } else {
-        if rhs.parent().is_none()
-            && lhs.parent().is_none()
-            && rhs.is_contiguous()
-            && lhs.is_contiguous()
-            && rhs.shape() == lhs.shape()
-        {
-            let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape())?;
-            let ret;
-            ret = _Tensor::<K, Cpu>::empty(res_shape)?;
-            ret.as_raw_mut()
-                .par_iter_mut()
-                .zip(lhs.as_raw().par_iter())
-                .zip(rhs.as_raw().par_iter())
-                .for_each(|((ret, &lhs), &rhs)| {
-                    *ret = f(lhs, rhs);
-                });
-            Ok(ret)
-        } else {
-            let ret = lhs
-                .par_iter()
-                .zip(rhs.par_iter())
-                .strided_map(|(x, y)| f(x, y))
-                .collect::<_Tensor<K>>();
-            Ok(ret)
-        }
-    }
-}
-
-/// same function as `binary_fn`, just the output tensor is passed as an argument
-///
-/// full documentation can be found in `binary_fn`
-pub fn binary_fn_with_out<A, B, O, Q, K, F>(
+pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
     lhs: &_Tensor<A>,
     rhs: &_Tensor<B>,
     f: F,
-    out: O,
+    f2: F2,
+    out: Option<O>,
 ) -> anyhow::Result<_Tensor<K>>
 where
     A: CommonBounds,
@@ -106,104 +25,24 @@ where
     K: CommonBounds,
     Q: CommonBounds,
     F: Fn(A, B) -> K + Sync + Send + Copy,
-{
-    if lhs.size() == 1 {
-        let val = lhs.as_raw()[0];
-        let ret = if out.borrow().size() * size_of::<Q>() != rhs.size() * size_of::<B>() {
-            _Tensor::<K, Cpu>::empty(rhs.shape())?
-        } else {
-            out.borrow().static_cast::<K>()?
-        };
-        ret.as_raw_mut()
-            .par_iter_mut()
-            .zip(rhs.as_raw().par_iter())
-            .for_each(|(a, &b)| {
-                *a = f(val, b);
-            });
-        Ok(ret)
-    } else if rhs.size() == 1 {
-        let val = rhs.as_raw()[0];
-        let ret;
-        if out.borrow().size() * size_of::<Q>() != lhs.size() * size_of::<A>() {
-            ret = _Tensor::<K, Cpu>::empty(lhs.shape())?;
-        } else {
-            ret = _Tensor::<K, Cpu>::empty(lhs.shape())?;
-        }
-        ret.as_raw_mut()
-            .par_iter_mut()
-            .zip(lhs.as_raw().par_iter())
-            .for_each(|(a, &b)| {
-                *a = f(b, val);
-            });
-        Ok(ret)
-    } else {
-        let res_shape = predict_broadcast_shape(lhs.shape(), rhs.shape())?;
-        let ret;
-        let ret_size: usize = res_shape.iter().product::<i64>() as usize;
-        if out.borrow().size() * size_of::<Q>() != ret_size * size_of::<A>() {
-            ret = _Tensor::<K, Cpu>::empty(res_shape)?;
-        } else {
-            ret = _Tensor::<K, Cpu>::empty(res_shape)?;
-        }
-        if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
-            let min_len: usize =
-                ret.size() / (((rayon::current_num_threads() as f64) * 1.3) as usize);
-            ret.as_raw_mut()
-                .par_iter_mut()
-                .with_min_len(min_len)
-                .zip(lhs.as_raw().par_iter().with_min_len(min_len))
-                .zip(rhs.as_raw().par_iter().with_min_len(min_len))
-                .for_each(|((ret, &lhs), &rhs)| {
-                    *ret = f(lhs, rhs);
-                });
-        } else {
-            ret.par_iter_mut()
-                .zip(lhs.par_iter().zip(rhs.par_iter()))
-                .for_each(|(res, (x, y))| {
-                    *res = f(x, y);
-                });
-        }
-        Ok(ret)
-    }
-}
-
-use std::borrow::Borrow;
-/// same function as `binary_fn_simd`, just the output tensor is passed as an argument
-///
-/// full documentation can be found in `binary_fn_simd`
-///
-/// simd will be enabled only when all operands and output type have the same vector size.
-#[cfg(feature = "simd")]
-#[cfg_attr(feature = "track_caller", track_caller)]
-pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
-    lhs: &_Tensor<A>,
-    rhs: &_Tensor<B>,
-    f: F,
-    f2: F2,
-    out: O,
-) -> anyhow::Result<_Tensor<K>>
-where
-    A: CommonBounds,
-    B: CommonBounds,
-    O: TensorLike<Q> + TensorInfo<Q> + Borrow<_Tensor<Q>>,
-    K: CommonBounds,
-    Q: CommonBounds,
-    F: Fn(A, B) -> K + Sync + Send + Copy,
     F2: Fn(<A as TypeCommon>::Vec, <B as TypeCommon>::Vec) -> <K as TypeCommon>::Vec
         + Sync
         + Send
         + Copy,
 {
-
     use rayon::slice::{ParallelSlice, ParallelSliceMut};
     use tensor_types::traits::*;
     if lhs.size() == 1 {
         let val = lhs.as_raw()[0];
         let val_vec = <A as TypeCommon>::Vec::splat(val);
-        let res = if out.size() * size_of::<Q>() != rhs.size() * size_of::<B>() {
-            _Tensor::<K, Cpu>::empty(rhs.shape())?
+        let res = if let Some(out) = out {
+            if out.borrow().size() * size_of::<Q>() != rhs.size() * size_of::<B>() {
+                _Tensor::<K, Cpu>::empty(rhs.shape())?
+            } else {
+                out.borrow().static_cast::<K>()?
+            }
         } else {
-            out.borrow().static_cast::<K>()?
+            _Tensor::<K, Cpu>::empty(rhs.shape())?
         };
         if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
             && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
@@ -254,8 +93,12 @@ where
     } else if rhs.size() == 1 {
         let val = rhs.as_raw()[0];
         let val_vec = <B as TypeCommon>::Vec::splat(val);
-        let res = if out.size() * size_of::<Q>() != lhs.size() * size_of::<B>() {
-            _Tensor::<K, Cpu>::empty(lhs.shape())?
+        let res = if let Some(out) = out {
+            if out.borrow().size() * size_of::<Q>() != lhs.size() * size_of::<B>() {
+                _Tensor::<K, Cpu>::empty(lhs.shape())?
+            } else {
+                _Tensor::<K, Cpu>::empty(lhs.shape())?
+            }
         } else {
             _Tensor::<K, Cpu>::empty(lhs.shape())?
         };
@@ -307,8 +150,12 @@ where
         Ok(res)
     } else {
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
-            let ret = if out.size() * size_of::<Q>() != rhs.size() * size_of::<B>() {
-                _Tensor::<K, Cpu>::empty(rhs.shape())?
+            let ret = if let Some(out) = out {
+                if out.borrow().size() * size_of::<Q>() != rhs.size() * size_of::<B>() {
+                    _Tensor::<K, Cpu>::empty(rhs.shape())?
+                } else {
+                    out.borrow().static_cast::<K>()?
+                }
             } else {
                 _Tensor::<K, Cpu>::empty(rhs.shape())?
             };

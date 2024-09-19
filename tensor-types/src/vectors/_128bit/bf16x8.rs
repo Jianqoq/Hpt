@@ -240,3 +240,14 @@ impl std::ops::Rem for bf16x8 {
         ret
     }
 }
+impl std::ops::Neg for bf16x8 {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        let mut ret = bf16x8::default();
+        for i in 0..8 {
+            ret.0[i] = -self.0[i];
+        }
+        ret
+    }
+}

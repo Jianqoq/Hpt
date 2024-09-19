@@ -103,3 +103,15 @@ impl std::ops::Div for cplx64x1 {
         ret
     }
 }
+
+impl std::ops::Neg for cplx64x1 {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        let mut ret = cplx64x1::default();
+        for i in 0..1 {
+            ret.0[i] = -self.0[i];
+        }
+        ret
+    }
+}

@@ -446,7 +446,7 @@ pub fn impl_simd_normal_out() -> TokenStream {
                         }
                     }
                     fn _clip(self, min: Self::Output, max: Self::Output) -> Self::Output {
-                        todo!()
+                        self._max(min)._min(max)
                     }
                     #mul_add_method
                     #neg_method

@@ -258,6 +258,17 @@ impl std::ops::Rem for f16x8 {
         ret
     }
 }
+impl std::ops::Neg for f16x8 {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        let mut ret = f16x8::default();
+        for i in 0..8 {
+            ret.0[i] = -self.0[i];
+        }
+        ret
+    }
+}
 
 pub fn u16_to_f32(val: u16x4) -> std::simd::f32x4 {
     let sign_mask = std::simd::u16x4::splat(0x8000);

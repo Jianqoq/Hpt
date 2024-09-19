@@ -106,3 +106,9 @@ impl std::ops::Rem for isizex2 {
         isizex2(self.0 % rhs.0)
     }
 }
+impl std::ops::Neg for isizex2 {
+    type Output = Self;
+    fn neg(self) -> Self {
+        isizex2(-self.0)
+    }
+}

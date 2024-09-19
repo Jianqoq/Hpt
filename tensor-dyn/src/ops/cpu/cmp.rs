@@ -10,73 +10,8 @@ use tensor_types::{
 use crate::{tensor::Tensor, tensor_base::_Tensor, BoolVector};
 use anyhow::Result;
 
-#[cfg(not(feature = "simd"))]
-use super::binary_normal::binary_fn;
+use super::binary_normal::binary_fn_with_out_simd;
 
-#[cfg(feature = "simd")]
-use super::binary_normal::binary_fn_simd;
-
-#[cfg(not(feature = "simd"))]
-impl<T> _Tensor<T>
-where
-    T: CommonBounds,
-{
-    fn tensor_neq<U: CommonBounds, D: Into<_Tensor<U>>>(&self, rhs: D) -> Result<_Tensor<bool>>
-    where
-        T: Cmp<U>,
-    {
-        let _rhs: _Tensor<U> = rhs.into();
-        let res: _Tensor<bool> = binary_fn(self, &_rhs, |x, y| x._ne(y))?;
-        Ok(res)
-    }
-
-    fn tensor_eq<U: CommonBounds, D: Into<_Tensor<U>>>(&self, rhs: D) -> Result<_Tensor<bool>>
-    where
-        T: Cmp<U>,
-    {
-        let _rhs: _Tensor<U> = rhs.into();
-        let res: _Tensor<bool> = binary_fn(self, &_rhs, |x, y| x._eq(y))?;
-        Ok(res)
-    }
-
-    fn tensor_lt<U: CommonBounds, D: Into<_Tensor<U>>>(&self, rhs: D) -> Result<_Tensor<bool>>
-    where
-        T: Cmp<U>,
-    {
-        let _rhs: _Tensor<U> = rhs.into();
-        let res: _Tensor<bool> = binary_fn(self, &_rhs, |x, y| x._lt(y))?;
-        Ok(res)
-    }
-
-    fn tensor_gt<U: CommonBounds, D: Into<_Tensor<U>>>(&self, rhs: D) -> Result<_Tensor<bool>>
-    where
-        T: Cmp<U>,
-    {
-        let _rhs: _Tensor<U> = rhs.into();
-        let res: _Tensor<bool> = binary_fn(self, &_rhs, |x, y| x._gt(y))?;
-        Ok(res)
-    }
-
-    fn tensor_le<U: CommonBounds, D: Into<_Tensor<U>>>(&self, rhs: D) -> Result<_Tensor<bool>>
-    where
-        T: Cmp<U>,
-    {
-        let _rhs: _Tensor<U> = rhs.into();
-        let res: _Tensor<bool> = binary_fn(self, &_rhs, |x, y| x._le(y))?;
-        Ok(res)
-    }
-
-    fn tensor_ge<U: CommonBounds, D: Into<_Tensor<U>>>(&self, rhs: D) -> Result<_Tensor<bool>>
-    where
-        T: Cmp<U>,
-    {
-        let _rhs: _Tensor<U> = rhs.into();
-        let res: _Tensor<bool> = binary_fn(self, &_rhs, |x, y| x._ge(y))?;
-        Ok(res)
-    }
-}
-
-#[cfg(feature = "simd")]
 impl<T> _Tensor<T>
 where
     T: CommonBounds,
@@ -88,7 +23,13 @@ where
         <<T as TypeCommon>::Vec as SimdCmp<<U as TypeCommon>::Vec>>::Output: IntoVec<BoolVector>,
     {
         let _rhs = rhs.into();
-        let res = binary_fn_simd(self, &_rhs, |x, y| x._ne(y), |x, y| x._ne(y).into_vec())?;
+        let res = binary_fn_with_out_simd(
+            self,
+            &_rhs,
+            |x, y| x._ne(y),
+            |x, y| x._ne(y).into_vec(),
+            None::<_Tensor<bool>>,
+        )?;
         Ok(res)
     }
 
@@ -99,7 +40,13 @@ where
         <<T as TypeCommon>::Vec as SimdCmp<<U as TypeCommon>::Vec>>::Output: IntoVec<BoolVector>,
     {
         let _rhs = rhs.into();
-        let res = binary_fn_simd(self, &_rhs, |x, y| x._eq(y), |x, y| x._eq(y).into_vec())?;
+        let res = binary_fn_with_out_simd(
+            self,
+            &_rhs,
+            |x, y| x._eq(y),
+            |x, y| x._eq(y).into_vec(),
+            None::<_Tensor<bool>>,
+        )?;
         Ok(res)
     }
 
@@ -110,7 +57,13 @@ where
         <<T as TypeCommon>::Vec as SimdCmp<<U as TypeCommon>::Vec>>::Output: IntoVec<BoolVector>,
     {
         let _rhs = rhs.into();
-        let res = binary_fn_simd(self, &_rhs, |x, y| x._lt(y), |x, y| x._lt(y).into_vec())?;
+        let res = binary_fn_with_out_simd(
+            self,
+            &_rhs,
+            |x, y| x._lt(y),
+            |x, y| x._lt(y).into_vec(),
+            None::<_Tensor<bool>>,
+        )?;
         Ok(res)
     }
 
@@ -121,7 +74,13 @@ where
         <<T as TypeCommon>::Vec as SimdCmp<<U as TypeCommon>::Vec>>::Output: IntoVec<BoolVector>,
     {
         let _rhs: _Tensor<U> = rhs.into();
-        let res = binary_fn_simd(self, &_rhs, |x, y| x._gt(y), |x, y| x._gt(y).into_vec())?;
+        let res = binary_fn_with_out_simd(
+            self,
+            &_rhs,
+            |x, y| x._gt(y),
+            |x, y| x._gt(y).into_vec(),
+            None::<_Tensor<bool>>,
+        )?;
         Ok(res)
     }
 
@@ -132,7 +91,13 @@ where
         <<T as TypeCommon>::Vec as SimdCmp<<U as TypeCommon>::Vec>>::Output: IntoVec<BoolVector>,
     {
         let _rhs: _Tensor<U> = rhs.into();
-        let res = binary_fn_simd(self, &_rhs, |x, y| x._le(y), |x, y| x._le(y).into_vec())?;
+        let res = binary_fn_with_out_simd(
+            self,
+            &_rhs,
+            |x, y| x._le(y),
+            |x, y| x._le(y).into_vec(),
+            None::<_Tensor<bool>>,
+        )?;
         Ok(res)
     }
 
@@ -143,7 +108,13 @@ where
         <<T as TypeCommon>::Vec as SimdCmp<<U as TypeCommon>::Vec>>::Output: IntoVec<BoolVector>,
     {
         let _rhs: _Tensor<U> = rhs.into();
-        let res = binary_fn_simd(self, &_rhs, |x, y| x._ge(y), |x, y| x._ge(y).into_vec())?;
+        let res = binary_fn_with_out_simd(
+            self,
+            &_rhs,
+            |x, y| x._ge(y),
+            |x, y| x._ge(y).into_vec(),
+            None::<_Tensor<bool>>,
+        )?;
         Ok(res)
     }
 }

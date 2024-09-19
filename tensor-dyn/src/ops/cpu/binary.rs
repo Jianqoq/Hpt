@@ -1,15 +1,14 @@
+use crate::ops::cpu::binary_normal::binary_fn_with_out_simd;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
 use std::borrow::{Borrow, BorrowMut};
 use tensor_traits::{
     ops::binary::{Matmul, NormalBinOps},
     tensor::CommonBounds,
 };
+use tensor_types::dtype::TypeCommon;
 use tensor_types::{into_scalar::IntoScalar, type_promote::NormalOut};
 
-use super::{
-    binary_normal::binary_fn_with_out,
-    matmul::{matmul_no_out, matmul_with_out},
-};
+use super::matmul::{matmul_no_out, matmul_with_out};
 
 pub(crate) type NormalType<A, B> = <A as NormalOut<B>>::Output;
 
@@ -21,39 +20,40 @@ macro_rules! impl_bin_ops {
     ) => {
     impl<A, B> NormalBinOps<$($rhs)*>
         for $($lhs)*
-        where A: CommonBounds + NormalOut<B>, B: CommonBounds, <A as NormalOut<B>>::Output: CommonBounds
+        where
+        A: CommonBounds + NormalOut<B>,
+        B: CommonBounds,
+        <A as NormalOut<B>>::Output: CommonBounds,
+        <A as NormalOut<B>>::Output: IntoScalar<<A as NormalOut<B>>::Output>,
+        A::Vec: NormalOut<B::Vec, Output = <<A as NormalOut<B>>::Output as TypeCommon>::Vec>,
     {
         type Output = $output<NormalType<A, B>>;
         type OutputMeta = NormalType<A, B>;
         type InplaceOutput = _Tensor<NormalType<A, B>>;
 
-        #[cfg_attr(feature = "track_caller", track_caller)]
         fn add_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
             where
                 U: Borrow<Self::InplaceOutput>
         {
-            binary_fn_with_out(self, &rhs, |a, b| a._add(b), out)
+            binary_fn_with_out_simd(self, &rhs, |a, b| a._add(b), |a, b| a._add(b), Some(out))
         }
-        #[cfg_attr(feature = "track_caller", track_caller)]
         fn sub_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
             where
                 U: Borrow<Self::InplaceOutput>
         {
-            binary_fn_with_out(self, &rhs, |a, b| a._sub(b), out)
+            binary_fn_with_out_simd(self, &rhs, |a, b| a._sub(b), |a, b| a._sub(b), Some(out))
         }
-        #[cfg_attr(feature = "track_caller", track_caller)]
         fn mul_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
             where
                 U: Borrow<Self::InplaceOutput>
         {
-            binary_fn_with_out(self, &rhs, |a, b| a._mul(b), out)
+            binary_fn_with_out_simd(self, &rhs, |a, b| a._mul(b), |a, b| a._mul(b), Some(out))
         }
-        #[cfg_attr(feature = "track_caller", track_caller)]
         fn rem_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
             where
                 U: Borrow<Self::InplaceOutput>
         {
-            binary_fn_with_out(self, &rhs, |a, b| a._rem(b), out)
+            binary_fn_with_out_simd(self, &rhs, |a, b| a._rem(b), |a, b| a._rem(b), Some(out))
         }
     }
     };
@@ -72,38 +72,39 @@ macro_rules! impl_bin_ops_basic {
     ) => {
         impl<A, B> NormalBinOps<$($rhs)*>
         for $($lhs)*
-        where A: CommonBounds + NormalOut<B>, B: CommonBounds, <A as NormalOut<B>>::Output: CommonBounds
+        where
+        A: CommonBounds + NormalOut<B>,
+        B: CommonBounds,
+        <A as NormalOut<B>>::Output: CommonBounds,
+        <A as NormalOut<B>>::Output: IntoScalar<<A as NormalOut<B>>::Output>,
+        A::Vec: NormalOut<B::Vec, Output = <<A as NormalOut<B>>::Output as TypeCommon>::Vec>,
     {
         type Output = Tensor<NormalType<A, B>>;
         type OutputMeta = NormalType<A, B>;
         type InplaceOutput = _Tensor<NormalType<A, B>>;
-        #[cfg_attr(feature = "track_caller", track_caller)]
         fn add_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
             where
                 U: Borrow<Self::InplaceOutput>
         {
-            Ok(binary_fn_with_out(self, &rhs, |a, b| a._add(b), out)?.into())
+            Ok(binary_fn_with_out_simd(self, &rhs, |a, b| a._add(b), |a, b| a._add(b), Some(out))?.into())
         }
-        #[cfg_attr(feature = "track_caller", track_caller)]
         fn sub_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
             where
                 U: Borrow<Self::InplaceOutput>
         {
-            Ok(binary_fn_with_out(self, &rhs, |a, b| a._sub(b), out)?.into())
+            Ok(binary_fn_with_out_simd(self, &rhs, |a, b| a._sub(b), |a, b| a._sub(b), Some(out))?.into())
         }
-        #[cfg_attr(feature = "track_caller", track_caller)]
         fn mul_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
             where
                 U: Borrow<Self::InplaceOutput>
         {
-            Ok(binary_fn_with_out(self, &rhs, |a, b| a._mul(b), out)?.into())
+            Ok(binary_fn_with_out_simd(self, &rhs, |a, b| a._mul(b), |a, b| a._mul(b), Some(out))?.into())
         }
-        #[cfg_attr(feature = "track_caller", track_caller)]
         fn rem_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
             where
                 U: Borrow<Self::InplaceOutput>
         {
-            Ok(binary_fn_with_out(self, &rhs, |a, b| a._rem(b), out)?.into())
+            Ok(binary_fn_with_out_simd(self, &rhs, |a, b| a._rem(b), |a, b| a._rem(b), Some(out))?.into())
         }
     }
     };
