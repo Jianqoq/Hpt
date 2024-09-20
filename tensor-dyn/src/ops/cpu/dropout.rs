@@ -1,4 +1,5 @@
 use rand_distr::Distribution;
+use tensor_iterator::TensorIterator;
 use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
 use rayon::iter::ParallelIterator;
 use tensor_types::{ into_scalar::IntoScalar, type_promote::NormalOut };

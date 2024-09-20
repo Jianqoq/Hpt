@@ -2,6 +2,7 @@
 use tch::Tensor;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::TensorInfo;
+use tensor_dyn::TensorLike;
 
 pub(crate) fn assert_eq(a: &Tensor, b: &_Tensor<f64>) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };

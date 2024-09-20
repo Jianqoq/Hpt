@@ -17,9 +17,7 @@ use crate::{
 use anyhow::Result;
 use tensor_common::{axis::Axis, layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_display::display;
-use tensor_iterator::par_strided::par_strided_simd::ParStridedSimd;
-use tensor_iterator::par_strided_mut::par_strided_map_mut_simd::ParStridedMutSimd;
-use tensor_iterator::{par_strided::ParStrided, par_strided_mut::ParStridedMut};
+use tensor_iterator::{par_strided::par_strided_simd::ParStridedSimd, TensorIterator};
 use tensor_traits::{
     ops::uary::FloatUaryOps,
     shape_manipulate::ShapeManipulate,
@@ -61,14 +59,18 @@ impl<T> TensorLike<T> for Tensor<T>
 where
     T: CommonBounds,
 {
-    fn to_raw(&self) -> &[T] {
-        self.as_raw()
+    fn as_raw(&self) -> &[T] {
+        self.inner.as_raw()
     }
 
-    fn to_raw_mut(&mut self) -> &mut [T] {
-        self.as_raw_mut()
+    fn as_raw_mut(&mut self) -> &mut [T] {
+        let slice =
+            unsafe { std::slice::from_raw_parts_mut(self.inner.ptr().ptr as *mut T, self.size()) };
+        slice
     }
 }
+
+impl<T: CommonBounds> TensorIterator<'_, T> for Tensor<T> {}
 
 impl<T> TensorInfo<T> for Tensor<T>
 where
@@ -156,85 +158,6 @@ impl<T: CommonBounds> TensorAlloc for Tensor<T> {
 }
 
 impl<T: CommonBounds> Tensor<T> {
-    /// Converts a tensor to a raw slice representing direct memory access.
-    ///
-    /// This function provides direct, read-only access to the tensor's underlying memory. It is useful
-    /// for interfacing with low-level or external functions that require direct memory access.
-    ///
-    /// # Returns
-    /// `&[T]`: A raw slice providing direct, read-only access to the tensor's memory.
-    ///
-    /// # Caution
-    /// - Direct memory access can lead to undefined behavior if not handled properly.
-    /// - This function bypasses Rust's safety checks, so caution must be exercised to avoid data corruption
-    ///   or undefined behavior.
-    /// - The caller is responsible for ensuring that the memory accessed is valid and not being mutated
-    ///   elsewhere concurrently.
-    ///
-    /// # Examples
-    /// ```
-    /// let tensor = YourType::new(...);
-    /// let direct_memory_access = tensor.as_raw();
-    /// // Use direct_memory_access for operations requiring direct memory access
-    /// ```
-    pub fn as_raw(&self) -> &[T] {
-        let ptr = self.data.ptr;
-        let size;
-        if !self.is_contiguous() {
-            size = self.layout.real_size();
-        } else {
-            size = self.size();
-        }
-        let slice = unsafe { std::slice::from_raw_parts(ptr, size) };
-        slice
-    }
-
-    /// Converts a tensor to a raw mutable slice representing direct memory access.
-    ///
-    /// This function provides direct, mutable access to the tensor's underlying memory. It is intended for
-    /// advanced use cases where direct memory manipulation is required.
-    ///
-    /// # Returns
-    /// `&mut [T]`: A raw mutable slice providing direct access to the tensor's memory.
-    ///
-    /// # Caution
-    /// - Modifying data through this interface can lead to undefined behavior and should be done with utmost care.
-    /// - This method bypasses Rust's safety and concurrency checks.
-    /// - The caller must ensure that no other references to the tensor data are being mutated concurrently.
-    ///
-    /// # Examples
-    /// ```
-    /// let mut tensor = YourType::new(...);
-    /// let direct_memory_access_mut = tensor.as_raw_mut();
-    /// // Perform operations requiring direct and mutable memory access
-    /// ```
-    pub fn as_raw_mut(&self) -> &mut [T] {
-        let ptr = self.data.ptr;
-        let size;
-        if !self.is_contiguous() {
-            size = self.layout.real_size();
-        } else {
-            size = self.size();
-        }
-        let slice = unsafe { std::slice::from_raw_parts_mut(ptr, size) };
-        slice
-    }
-
-    pub fn iter(&self) -> ParStrided<T> {
-        ParStrided::new(self)
-    }
-
-    pub fn iter_mut(&self) -> ParStridedMut<T> {
-        ParStridedMut::new(self)
-    }
-
-    pub fn iter_simd(&self) -> ParStridedSimd<T> {
-        ParStridedSimd::new(self)
-    }
-    pub fn iter_mut_simd(&self) -> ParStridedMutSimd<T> {
-        ParStridedMutSimd::new(self)
-    }
-
     /// Converts the tensor to a new type.
     ///
     /// This method attempts to convert the elements of the tensor to a specified type `U`.

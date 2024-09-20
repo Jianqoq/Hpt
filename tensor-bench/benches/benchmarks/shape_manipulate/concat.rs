@@ -4,6 +4,7 @@ use criterion::{ black_box, criterion_group, BenchmarkId, Criterion };
 use tch::{ Tensor, Kind, Device };
 use tensor_dyn::{ tensor_base::_Tensor, Random };
 use tensor_dyn::TensorInfo;
+use tensor_dyn::TensorLike;
 
 fn concat_benchmark(c: &mut Criterion) {
     tensor_dyn::set_num_threads(num_cpus::get_physical());
@@ -19,9 +20,9 @@ fn concat_benchmark(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("torch", format!("tch {}", i)), |b| {
             b.iter(|| { Tensor::cat(&[&a, &a1, &a2], *axis) });
         });
-        let a = black_box(_Tensor::<f32>::randn([128, 128, 128]).unwrap());
-        let a1 = black_box(_Tensor::<f32>::randn([128, 128, 128]).unwrap());
-        let a2 = black_box(_Tensor::<f32>::randn([128, 128, 128]).unwrap());
+        let mut a = black_box(_Tensor::<f32>::randn([128, 128, 128]).unwrap());
+        let mut a1 = black_box(_Tensor::<f32>::randn([128, 128, 128]).unwrap());
+        let mut a2 = black_box(_Tensor::<f32>::randn([128, 128, 128]).unwrap());
         group.bench_function(BenchmarkId::new("hpt", format!("hpt {}", i)), |b| {
             b.iter(|| { _Tensor::<f32>::concat(vec![&a, &a1, &a2], *axis as usize, false) });
         });
@@ -29,14 +30,17 @@ fn concat_benchmark(c: &mut Criterion) {
         let tch_a1 = black_box(Tensor::randn([128, 128, 128], (Kind::Float, Device::Cpu)));
         let tch_a2 = black_box(Tensor::randn([128, 128, 128], (Kind::Float, Device::Cpu)));
         let tch_concat = Tensor::cat(&[&tch_a, &tch_a1, &tch_a2], *axis);
+        let a_size = a.size();
+        let a1_size = a1.size();
+        let a2_size = a2.size();
         a.as_raw_mut().copy_from_slice(
-            unsafe { std::slice::from_raw_parts(tch_a.data_ptr() as *const f32, a.size()) }
+            unsafe { std::slice::from_raw_parts(tch_a.data_ptr() as *const f32, a_size) }
         );
         a1.as_raw_mut().copy_from_slice(
-            unsafe { std::slice::from_raw_parts(tch_a1.data_ptr() as *const f32, a1.size()) }
+            unsafe { std::slice::from_raw_parts(tch_a1.data_ptr() as *const f32, a1_size) }
         );
         a2.as_raw_mut().copy_from_slice(
-            unsafe { std::slice::from_raw_parts(tch_a2.data_ptr() as *const f32, a2.size()) }
+            unsafe { std::slice::from_raw_parts(tch_a2.data_ptr() as *const f32, a2_size) }
         );
         let concat = _Tensor::<f32>::concat(vec![&a, &a1, &a2], *axis as usize, false).unwrap();
         let raw = concat.as_raw();

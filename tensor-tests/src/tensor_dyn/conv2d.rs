@@ -8,6 +8,7 @@ use tensor_types::convertion::{ Convertor, FromScalar };
 use tch;
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::NormalOut;
+use tensor_dyn::TensorLike;
 
 fn common_input<T>([batch, out_channel, in_channel, kernel_height, kernel_width, height, width]: [
     i64;

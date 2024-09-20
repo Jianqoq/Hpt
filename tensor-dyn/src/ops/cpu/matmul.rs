@@ -262,7 +262,7 @@ where
                 && out.borrow().parent().is_none()
             {
                 let val = Q::ZERO;
-                out.borrow_mut().to_raw_mut().par_iter_mut().for_each(|x| {
+                out.borrow_mut().as_raw_mut().par_iter_mut().for_each(|x| {
                     *x = val;
                 });
                 let casted = out.borrow().static_cast::<<A as NormalOut<B>>::Output>()?;
@@ -329,7 +329,7 @@ where
             let new_b = &rhs.try_astype::<<A as NormalOut<B>>::Output>()?;
             let res = if out.borrow().size() == (res_shape.iter().product::<i64>() as usize) {
                 let val = Q::ZERO;
-                out.borrow_mut().to_raw_mut().par_iter_mut().for_each(|x| {
+                out.borrow_mut().as_raw_mut().par_iter_mut().for_each(|x| {
                     *x = val;
                 });
                 out.borrow().static_cast::<<A as NormalOut<B>>::Output>()?

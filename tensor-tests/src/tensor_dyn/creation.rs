@@ -8,6 +8,7 @@ use tensor_dyn::ShapeManipulate;
 use tensor_macros::match_selection;
 use tensor_common::slice::Slice;
 use tensor_dyn::slice::SliceOps;
+use tensor_dyn::TensorLike;
 
 #[allow(unused)]
 fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
@@ -109,9 +110,10 @@ fn test_tril() -> anyhow::Result<()> {
         let tch_a = Tensor
             ::randn(&[10, 10], (tch::Kind::Double, tch::Device::Cpu))
             .tril(diagnal);
-        let a = _Tensor::<f64>::empty(&[10, 10])?;
+        let mut a = _Tensor::<f64>::empty(&[10, 10])?;
+        let a_size = a.size();
         a.as_raw_mut().copy_from_slice(unsafe {
-            std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a.size())
+            std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
         });
         let b = a.tril(diagnal)?;
         assert_eq(&b, &tch_a);

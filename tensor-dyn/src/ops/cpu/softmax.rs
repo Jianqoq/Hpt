@@ -1,4 +1,5 @@
 use crate::{tensor::Tensor, tensor_base::_Tensor};
+use tensor_iterator::TensorIterator;
 use tensor_traits::CommonBounds;
 use tensor_types::{
     convertion::Convertor,
@@ -54,6 +55,26 @@ where
     <<T as FloatOutUnary>::Output as FloatOutUnary>::Output:
         IntoScalar<<<T as FloatOutUnary>::Output as FloatOutUnary>::Output> + CommonBounds,
 {
+    /// Applies the Softmax function to the tensor along the specified axis.
+    ///
+    /// The `softmax` function computes the softmax of each element along the specified axis of the tensor.
+    /// The softmax function is often used in multi-class classification problems to convert logits into probabilities.
+    ///
+    /// The softmax of an element `x_i` is given by:
+    /// `softmax(x_i) = exp(x_i) / sum(exp(x_j))` for all `j` along the specified axis.
+    ///
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to compute the softmax function.
+    ///
+    /// # Returns
+    ///
+    /// - A new tensor with the softmax values along the specified axis.
+    ///
+    /// # Notes
+    ///
+    /// - **Normalization**: The elements are exponentiated and then normalized by dividing by the sum of exponentials.
+    /// - **Axis Specification**: The softmax is computed along the given axis, treating the other axes independently.
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn softmax(&self, axis: i64) -> anyhow::Result<Tensor<<T as FloatOutUnary>::Output>>
     where

@@ -11,6 +11,7 @@ use tensor_macros::match_selection;
 use tensor_dyn::FloatUaryOps;
 use tensor_dyn::NormalUaryOps;
 use tensor_dyn::Neg;
+use tensor_dyn::TensorLike;
 
 #[allow(unused)]
 fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
@@ -58,9 +59,10 @@ macro_rules! test_unarys {
             #[test]
             fn [<test _ $name>]() -> anyhow::Result<()> {
                 let tch_a = tch::Tensor::randn($shapes, (tch::Kind::Double, tch::Device::Cpu));
-                let a = _Tensor::<f64>::empty($shapes)?;
+                let mut a = _Tensor::<f64>::empty($shapes)?;
+                let a_size = a.size();
                 a.as_raw_mut().copy_from_slice(unsafe {
-                    std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a.size())
+                    std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
                 });
                 let b = a.$hpt_method($($hpt_args),*)?;
                 let tch_b = tch_a.$tch_method($($tch_args),*);

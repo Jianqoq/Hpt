@@ -16,10 +16,12 @@ use tensor_common::axis::{process_axes, Axis};
 use tensor_common::shape_utils::{mt_intervals, mt_intervals_simd};
 use tensor_common::slice::Slice;
 use tensor_iterator::iterator_traits::StridedIterator;
+use tensor_iterator::TensorIterator;
 use tensor_traits::shape_manipulate::ShapeManipulate;
 use tensor_traits::tensor::CommonBounds;
 use tensor_traits::tensor::TensorCreator;
 use tensor_traits::tensor::{IndexReduce, TensorInfo};
+use tensor_traits::TensorLike;
 use tensor_types::convertion::Convertor;
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::{Cmp, NormalOut};
@@ -85,7 +87,7 @@ macro_rules! body_one_axis {
             })
         });
         let mut new_shape: Option<Vec<i64>> = None;
-        let result;
+        let mut result;
         let result_size;
         if $keepdims {
             let mut shape_tmp = Vec::with_capacity(a_.ndim());
@@ -407,8 +409,9 @@ where
         init_out,
         c,
         move |res| {
-            let val = a
-                .as_raw_mut()
+            let ptr = a.ptr();
+            let raw = unsafe { std::slice::from_raw_parts_mut(ptr.ptr, a.size() as usize) };
+            let val = raw
                 .par_iter()
                 .fold(|| init_val, |acc, &x| op(acc, x))
                 .reduce(|| init_val, |a, b| op2(a, b));
@@ -599,16 +602,10 @@ where
         init_out,
         c,
         move |res| {
-            let val = if a.parent().is_some() {
-                a.par_iter()
-                    .par_strided_fold(init_val, |acc, x| op(acc, x))
-                    .reduce(|| init_val, |a, b| op2(a, b))
-            } else {
-                a.as_raw_mut()
-                    .par_iter()
-                    .fold(|| init_val, |acc, &x| op(acc, x))
-                    .reduce(|| init_val, |a, b| op2(a, b))
-            };
+            let val = a
+                .par_iter()
+                .par_strided_fold(init_val, |acc, x| op(acc, x))
+                .reduce(|| init_val, |a, b| op2(a, b));
             if let Some(op3) = op3 {
                 *res = op3(op2(val, *res));
             } else {

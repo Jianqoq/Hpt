@@ -174,6 +174,21 @@ impl<T> Tensor<T>
 where
     T: CommonBounds + PartialOrd,
 {
+    /// Returns the top `k` largest or smallest elements along a specified dimension of the tensor.
+    ///
+    /// The `topk` function returns the top `k` elements along the specified dimension of the tensor, where `largest` determines
+    /// whether to return the largest or smallest elements. The result can also be sorted in descending order if `sorted` is `true`.
+    ///
+    /// # Parameters
+    ///
+    /// - `k`: The number of top elements to return.
+    /// - `dim`: The dimension along which to select the top `k` elements.
+    /// - `largest`: If `true`, returns the largest elements. If `false`, returns the smallest elements.
+    /// - `sorted`: If `true`, sorts the returned elements in descending order.
+    ///
+    /// # Returns
+    ///
+    /// - A tuple of two tensors: one containing the top `k` elements and another containing the corresponding indices.
     pub fn topk(
         &self,
         k: i64,

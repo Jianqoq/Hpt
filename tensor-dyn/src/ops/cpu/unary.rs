@@ -9,6 +9,7 @@ use rayon::iter::{
 use rayon::slice::{ParallelSlice, ParallelSliceMut};
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::shape_utils::mt_intervals;
+use tensor_iterator::TensorIterator;
 use tensor_traits::tensor::TensorCreator;
 use tensor_traits::tensor::{CommonBounds, TensorInfo, TensorLike};
 use tensor_traits::{FloatUaryOps, Neg, NormalUaryOps};
@@ -31,7 +32,7 @@ where
     F: Fn(<A as TypeCommon>::Vec) -> <K as TypeCommon>::Vec + Sync + Send,
     F2: Fn(A) -> K + Sync + Send,
 {
-    let ret = if let Some(out) = out {
+    let mut ret = if let Some(out) = out {
         if out.borrow().size() * size_of::<K>() == inp.size() * size_of::<A>() {
             out.borrow().static_cast()?
         } else {
@@ -40,6 +41,7 @@ where
     } else {
         _Tensor::<K, Cpu>::empty(inp.shape())?
     };
+    let ret_size = ret.size();
     if inp.parent().is_some() {
         ret.par_iter_mut_simd()
             .zip(inp.par_iter_simd())
@@ -76,9 +78,9 @@ where
             });
     }
     if total_remain > 0 {
-        ret.as_raw_mut()[ret.size() - total_remain..]
+        ret.as_raw_mut()[ret_size - total_remain..]
             .iter_mut()
-            .zip(inp.as_raw()[ret.size() - total_remain..].iter())
+            .zip(inp.as_raw()[ret_size - total_remain..].iter())
             .for_each(|(a, &lhs)| {
                 *a = f2(lhs);
             });
@@ -963,7 +965,7 @@ where
                 Ok(res)
             }
             None => {
-                let res = _Tensor::<T, Cpu>::empty(vec![self.size() as i64])?;
+                let mut res = _Tensor::<T, Cpu>::empty(vec![self.size() as i64])?;
                 let mut tmp = T::ZERO;
                 if self.is_contiguous() {
                     let raw = self.as_raw();
@@ -1085,7 +1087,7 @@ where
                 Ok(res)
             }
             None => {
-                let res = _Tensor::<T, Cpu>::empty(vec![self.size() as i64])?;
+                let mut res = _Tensor::<T, Cpu>::empty(vec![self.size() as i64])?;
                 let mut tmp = T::ONE;
                 if self.is_contiguous() {
                     let raw = self.as_raw();

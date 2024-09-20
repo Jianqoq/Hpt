@@ -7,6 +7,7 @@ use tch::{ Tensor, Kind, Device };
 use tensor_dyn::{ tensor_base::_Tensor, Random };
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorInfo;
+use tensor_dyn::TensorLike;
 
 #[allow(unused)]
 fn assert_eq_i64(a: &Tensor, b: &_Tensor<i64>) {

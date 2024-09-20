@@ -1,8 +1,8 @@
 use std::sync::{ Arc, Barrier };
 
 use tensor_common::{ shape_utils::mt_intervals, slice::Slice };
-use tensor_iterator::iterator_traits::StridedIterator;
-use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
+use tensor_iterator::{iterator_traits::StridedIterator, TensorIterator};
+use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo, TensorLike };
 
 use crate::{ backend::Cpu, slice::SliceOps, tensor_base::_Tensor, THREAD_POOL };
 

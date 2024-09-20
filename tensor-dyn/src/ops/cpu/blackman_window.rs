@@ -1,5 +1,5 @@
 use rayon::iter::{ IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator };
-use tensor_traits::CommonBounds;
+use tensor_traits::{CommonBounds, TensorLike};
 use tensor_types::{
     convertion::FromScalar,
     dtype::FloatConst,
@@ -36,7 +36,7 @@ impl<T> _Tensor<T>
         let a2: <T as FloatOutBinary>::Output = 0.08.into_scalar();
         let length_usize = if periodic { window_length } else { window_length - 1 };
         let length: <T as FloatOutBinary>::Output = length_usize.into_scalar();
-        let ret = _Tensor::<<T as FloatOutBinary>::Output>::empty(&[length_usize])?;
+        let mut ret = _Tensor::<<T as FloatOutBinary>::Output>::empty(&[length_usize])?;
         ret.as_raw_mut()
             .par_iter_mut()
             .enumerate()

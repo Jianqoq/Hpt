@@ -8,6 +8,7 @@ use crate::benchmarks::unary::float_cmp::assert_eq;
 use tensor_dyn::FloatUaryOps;
 use tensor_dyn::NormalUaryOps;
 use tensor_dyn::Neg;
+use tensor_dyn::TensorLike;
 
 macro_rules! unary_bench_mark {
     (
@@ -44,7 +45,7 @@ macro_rules! unary_bench_mark {
                         }
                     );
                     let a = black_box(Tensor::randn(shape, (Kind::Double, Device::Cpu)));
-                    let a2 = black_box(_Tensor::<f64>::empty(shape)).unwrap();
+                    let mut a2 = black_box(_Tensor::<f64>::empty(shape)).unwrap();
                     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, a2.size()) };
                     let a2_raw_mut = a2.as_raw_mut();
                     a2_raw_mut.copy_from_slice(a_raw);

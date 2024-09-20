@@ -28,14 +28,7 @@ use tensor_common::{
     slice::Slice,
 };
 use tensor_display::display;
-use tensor_iterator::par_strided::par_strided_simd::ParStridedSimd;
-use tensor_iterator::par_strided_mut::par_strided_map_mut_simd::ParStridedMutSimd;
-use tensor_iterator::strided::strided_simd::StridedSimd;
-use tensor_iterator::strided_mut::simd_imports::StridedMutSimd;
-use tensor_iterator::{
-    par_strided::ParStrided, par_strided_mut::ParStridedMut, strided::Strided,
-    strided_mut::StridedMut,
-};
+use tensor_iterator::{par_strided::par_strided_simd::ParStridedSimd, TensorIterator};
 use tensor_macros::match_selection;
 use tensor_traits::{
     random::Random,
@@ -103,12 +96,28 @@ impl<T> TensorLike<T> for _Tensor<T>
 where
     T: CommonBounds,
 {
-    fn to_raw(&self) -> &[T] {
-        self.as_raw()
+    fn as_raw(&self) -> &[T] {
+        let ptr = self.data.ptr;
+        let size;
+        if !self.is_contiguous() {
+            size = self.layout.real_size();
+        } else {
+            size = self.size();
+        }
+        let slice = unsafe { std::slice::from_raw_parts(ptr, size) };
+        slice
     }
 
-    fn to_raw_mut(&mut self) -> &mut [T] {
-        self.as_raw_mut()
+    fn as_raw_mut(&mut self) -> &mut [T] {
+        let ptr = self.data.ptr;
+        let size;
+        if !self.is_contiguous() {
+            size = self.layout.real_size();
+        } else {
+            size = self.size();
+        }
+        let slice = unsafe { std::slice::from_raw_parts_mut(ptr, size) };
+        slice
     }
 }
 
@@ -199,6 +208,8 @@ impl<T: CommonBounds> TensorAlloc for _Tensor<T> {
     }
 }
 
+impl<T: CommonBounds> TensorIterator<'_, T> for _Tensor<T> {}
+
 impl<T: CommonBounds> _Tensor<T> {
     pub fn assign(&mut self, other: &_Tensor<T>) {
         self.par_iter_mut_simd()
@@ -206,101 +217,6 @@ impl<T: CommonBounds> _Tensor<T> {
             .for_each(|(a, b)| {
                 *a = b;
             });
-    }
-    /// Converts a tensor to a raw slice representing direct memory access.
-    ///
-    /// This function provides direct, read-only access to the tensor's underlying memory. It is useful
-    /// for interfacing with low-level or external functions that require direct memory access.
-    ///
-    /// # Returns
-    /// `&[T]`: A raw slice providing direct, read-only access to the tensor's memory.
-    ///
-    /// # Caution
-    /// - Direct memory access can lead to undefined behavior if not handled properly.
-    /// - This function bypasses Rust's safety checks, so caution must be exercised to avoid data corruption
-    ///   or undefined behavior.
-    /// - The caller is responsible for ensuring that the memory accessed is valid and not being mutated
-    ///   elsewhere concurrently.
-    ///
-    /// # Examples
-    /// ```
-    /// let tensor = YourType::new(...);
-    /// let direct_memory_access = tensor.as_raw();
-    /// // Use direct_memory_access for operations requiring direct memory access
-    /// ```
-    pub fn as_raw(&self) -> &[T] {
-        let ptr = self.data.ptr;
-        let size;
-        if !self.is_contiguous() {
-            size = self.layout.real_size();
-        } else {
-            size = self.size();
-        }
-        let slice = unsafe { std::slice::from_raw_parts(ptr, size) };
-        slice
-    }
-
-    /// Converts a tensor to a raw mutable slice representing direct memory access.
-    ///
-    /// This function provides direct, mutable access to the tensor's underlying memory. It is intended for
-    /// advanced use cases where direct memory manipulation is required.
-    ///
-    /// # Returns
-    /// `&mut [T]`: A raw mutable slice providing direct access to the tensor's memory.
-    ///
-    /// # Caution
-    /// - Modifying data through this interface can lead to undefined behavior and should be done with utmost care.
-    /// - This method bypasses Rust's safety and concurrency checks.
-    /// - The caller must ensure that no other references to the tensor data are being mutated concurrently.
-    ///
-    /// # Examples
-    /// ```
-    /// let mut tensor = YourType::new(...);
-    /// let direct_memory_access_mut = tensor.as_raw_mut();
-    /// // Perform operations requiring direct and mutable memory access
-    /// ```
-    pub fn as_raw_mut(&self) -> &mut [T] {
-        let ptr = self.data.ptr;
-        let size;
-        if !self.is_contiguous() {
-            size = self.layout.real_size();
-        } else {
-            size = self.size();
-        }
-        let slice = unsafe { std::slice::from_raw_parts_mut(ptr, size) };
-        slice
-    }
-
-    pub fn iter(&self) -> Strided<T> {
-        Strided::new(self)
-    }
-
-    pub fn iter_mut(&self) -> StridedMut<T> {
-        StridedMut::new(self)
-    }
-
-    pub fn iter_simd(&self) -> StridedSimd<T> {
-        StridedSimd::new(self)
-    }
-
-    pub fn iter_mut_simd(&self) -> StridedMutSimd<T> {
-        StridedMutSimd::new(self)
-    }
-
-    pub fn par_iter_simd(&self) -> ParStridedSimd<T> {
-        ParStridedSimd::new(self)
-    }
-
-    pub fn par_iter_mut_simd(&self) -> ParStridedMutSimd<T> {
-        ParStridedMutSimd::new(self)
-    }
-
-    pub fn par_iter(&self) -> ParStrided<T> {
-        ParStrided::new(self)
-    }
-
-    pub fn par_iter_mut(&self) -> ParStridedMut<T> {
-        ParStridedMut::new(self)
     }
 
     /// Converts the tensor to a new type.
@@ -324,7 +240,7 @@ impl<T: CommonBounds> _Tensor<T> {
         T: IntoScalar<U>,
     {
         // Create an empty tensor of the new type with the same shape.
-        let ret: _Tensor<U> = _Tensor::<U>::empty(self.layout.shape().clone())?;
+        let mut ret: _Tensor<U> = _Tensor::<U>::empty(self.layout.shape().clone())?;
 
         // Parallel iteration to convert and copy each element to the new tensor.
         ret.as_raw_mut()
@@ -724,7 +640,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             strides[i] = size as i64;
             size *= tmp;
         }
-        let ret = _Tensor::<T>::empty(res_shape)?;
+        let mut ret = _Tensor::<T>::empty(res_shape)?;
         unsafe {
             ret.as_raw_mut().as_mut_ptr().write_bytes(1, size);
         }
@@ -749,9 +665,9 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
     fn full<S: Into<Shape>>(val: T, shape: S) -> Result<Self> {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);
-        let ret = _Tensor::<T, Cpu>::empty(res_shape)?;
-        let slice = ret.as_raw_mut();
+        let mut ret = _Tensor::<T, Cpu>::empty(res_shape)?;
         let size = ret.size();
+        let slice = ret.as_raw_mut();
         let remain = size % 8;
         let vector = [val; 8];
         slice[0..size - remain]
@@ -775,12 +691,12 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         usize: IntoScalar<T>,
         U: Convertor + IntoScalar<T> + Copy,
     {
-        let size: i64 = end.to_i64() - start.to_i64();
+        let size = end.to_i64() - start.to_i64();
         let start = start.into_scalar();
         if size <= 0 {
             return _Tensor::<T, Cpu>::empty(Arc::new(vec![0]));
         }
-        let data: _Tensor<T> = _Tensor::<T, Cpu>::empty(Arc::new(vec![size]))?;
+        let mut data: _Tensor<T> = _Tensor::<T, Cpu>::empty(Arc::new(vec![size]))?;
 
         data.as_raw_mut()
             .into_par_iter()
@@ -795,11 +711,11 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
     where
         T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>,
     {
-        let step_float: f64 = step.to_f64();
+        let step_float = step.to_f64();
         let end_usize = end.to_i64();
         let start_usize = start.to_i64();
-        let size: usize = ((end_usize - start_usize) as usize) / (step_float.abs() as usize);
-        let data = _Tensor::<T, Cpu>::empty(Arc::new(vec![size as i64]))?;
+        let size = ((end_usize - start_usize) as usize) / (step_float.abs() as usize);
+        let mut data = _Tensor::<T, Cpu>::empty(Arc::new(vec![size as i64]))?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()
@@ -814,9 +730,8 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         u8: IntoScalar<T>,
     {
         let shape = vec![n as i64, m as i64];
-        let res = _Tensor::<T, Cpu>::empty(Arc::new(shape))?;
-        let _r = res.as_raw_mut();
-        _r.into_par_iter().enumerate().for_each(|(i, x)| {
+        let mut res = _Tensor::<T, Cpu>::empty(Arc::new(shape))?;
+        res.as_raw_mut().into_par_iter().enumerate().for_each(|(i, x)| {
             let row = i / m;
             let col = i % m;
             if col == row + k {
@@ -843,7 +758,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             (_end - _start) / n
         };
         let step_t: T = step.into_scalar();
-        let data = _Tensor::<T, Cpu>::empty(Arc::new(vec![n as i64]))?;
+        let mut data = _Tensor::<T, Cpu>::empty(Arc::new(vec![n as i64]))?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()
@@ -857,16 +772,16 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
     where
         T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64> + NormalOut<T, Output = T>,
     {
-        let _start: f64 = start.to_f64();
-        let _end: f64 = end.to_f64();
-        let n: f64 = num as f64;
-        let step: f64 = if include_end {
+        let _start = start.to_f64();
+        let _end = end.to_f64();
+        let n = num as f64;
+        let step = if include_end {
             (_end - _start) / (n - 1.0)
         } else {
             (_end - _start) / n
         };
-        let step_t: T = T::__from(step);
-        let data = _Tensor::<T, Cpu>::empty(Arc::new(vec![n as i64]))?;
+        let step_t = T::__from(step);
+        let mut data = _Tensor::<T, Cpu>::empty(Arc::new(vec![n as i64]))?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()
@@ -909,7 +824,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         } else {
             return Err(anyhow::Error::msg("start and end must have the same sign"));
         };
-        let data = _Tensor::<T>::empty(Arc::new(vec![n as i64]))?;
+        let mut data = _Tensor::<T>::empty(Arc::new(vec![n as i64]))?;
         let ten: <T as FloatOutUnary>::Output = <T as FloatOutUnary>::Output::__from(10.0);
         let start = if start > T::ZERO {
             start._log10()
@@ -964,10 +879,9 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         u8: IntoScalar<T>,
     {
         let shape = vec![n as i64, m as i64];
-        let res = _Tensor::<T, Cpu>::empty(Arc::new(shape))?;
-        let _r = res.as_raw_mut();
+        let mut res = _Tensor::<T, Cpu>::empty(Arc::new(shape))?;
         if low_triangle {
-            _r.into_par_iter().enumerate().for_each(|(i, x)| {
+            res.as_raw_mut().into_par_iter().enumerate().for_each(|(i, x)| {
                 let row = i / m;
                 let col = i % m;
                 if (col as i64) <= (row as i64) + k {
@@ -978,7 +892,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             });
         } else {
             let k = k - 1;
-            _r.into_par_iter().enumerate().for_each(|(i, x)| {
+            res.as_raw_mut().into_par_iter().enumerate().for_each(|(i, x)| {
                 let row = i / m;
                 let col = i % m;
                 if (col as i64) <= (row as i64) + k {

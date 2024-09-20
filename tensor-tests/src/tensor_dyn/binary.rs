@@ -11,6 +11,7 @@ use tensor_macros::match_selection;
 use tensor_common::slice::Slice;
 use tensor_dyn::slice::SliceOps;
 use tensor_dyn::Matmul;
+use tensor_dyn::TensorLike;
 
 #[allow(unused)]
 fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
@@ -85,15 +86,17 @@ fn common_input<const N: usize, const M: usize>(
     rhs_shape: [i64; M]
 ) -> anyhow::Result<((Tensor, Tensor), (_Tensor<f64>, _Tensor<f64>))> {
     let tch_a = Tensor::randn(&lhs_shape, (tch::Kind::Double, tch::Device::Cpu));
-    let a = _Tensor::<f64>::empty(&lhs_shape)?;
+    let mut a = _Tensor::<f64>::empty(&lhs_shape)?;
+    let a_size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
-        std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a.size())
+        std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
     });
 
     let tch_b = Tensor::randn(&rhs_shape, (tch::Kind::Double, tch::Device::Cpu));
-    let b = _Tensor::<f64>::empty(&rhs_shape)?;
+    let mut b = _Tensor::<f64>::empty(&rhs_shape)?;
+    let b_size = b.size();
     b.as_raw_mut().copy_from_slice(unsafe {
-        std::slice::from_raw_parts(tch_b.data_ptr() as *const f64, b.size())
+        std::slice::from_raw_parts(tch_b.data_ptr() as *const f64, b_size)
     });
 
     Ok(((tch_a, tch_b), (a, b)))
@@ -108,18 +111,20 @@ fn common_input_i64<const N: usize, const M: usize>(
         tch::Kind::Int64,
         tch::Device::Cpu,
     )).reshape(&lhs_shape);
-    let a = _Tensor::<i64>::empty(&lhs_shape)?;
+    let mut a = _Tensor::<i64>::empty(&lhs_shape)?;
+    let a_size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
-        std::slice::from_raw_parts(tch_a.data_ptr() as *const i64, a.size())
+        std::slice::from_raw_parts(tch_a.data_ptr() as *const i64, a_size)
     });
 
     let tch_b = Tensor::arange(rhs_shape.iter().product::<i64>(), (
         tch::Kind::Int64,
         tch::Device::Cpu,
     )).reshape(&rhs_shape);
-    let b = _Tensor::<i64>::empty(&rhs_shape)?;
+    let mut b = _Tensor::<i64>::empty(&rhs_shape)?;
+    let b_size = b.size();
     b.as_raw_mut().copy_from_slice(unsafe {
-        std::slice::from_raw_parts(tch_b.data_ptr() as *const i64, b.size())
+        std::slice::from_raw_parts(tch_b.data_ptr() as *const i64, b_size)
     });
 
     Ok(((tch_a, tch_b), (a, b)))

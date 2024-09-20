@@ -11,12 +11,13 @@ use tensor_allocator::CACHE;
 use num::complex::{ Complex32, Complex64 };
 use half::bf16;
 use crate::backend::Backend;
+use tensor_traits::TensorLike;
 
 macro_rules! from_scalar {
     ($($t:ident),*) => {
         $(impl Into<_Tensor<$t>> for $t {
             fn into(self) -> _Tensor<$t> {
-                let ret = _Tensor::<$t>::empty(vec![]).unwrap();
+                let mut ret = _Tensor::<$t>::empty(vec![]).unwrap();
                 ret.as_raw_mut()[0] = self;
                 return ret;
             }

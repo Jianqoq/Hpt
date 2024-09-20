@@ -3,9 +3,11 @@ use crate::tensor_base::_Tensor;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
+use tensor_iterator::TensorIterator;
 use tensor_traits::tensor::CommonBounds;
 use tensor_traits::tensor::TensorCreator;
 use tensor_traits::tensor::TensorInfo;
+use tensor_traits::TensorLike;
 
 use std::borrow::Borrow;
 use tensor_types::dtype::TypeCommon;
@@ -35,7 +37,7 @@ where
     if lhs.size() == 1 {
         let val = lhs.as_raw()[0];
         let val_vec = <A as TypeCommon>::Vec::splat(val);
-        let res = if let Some(out) = out {
+        let mut res = if let Some(out) = out {
             if out.borrow().size() * size_of::<Q>() != rhs.size() * size_of::<B>() {
                 _Tensor::<K, Cpu>::empty(rhs.shape())?
             } else {
@@ -63,9 +65,10 @@ where
                     }
                 });
             if remain > 0 {
-                res.as_raw_mut()[res.size() - remain..]
+                let ret_size = res.size();
+                res.as_raw_mut()[ret_size - remain..]
                     .iter_mut()
-                    .zip(rhs.as_raw()[res.size() - remain..].iter())
+                    .zip(rhs.as_raw()[ret_size - remain..].iter())
                     .for_each(|(a, b)| {
                         *a = f(val, *b);
                     });
@@ -81,9 +84,10 @@ where
                 });
             let remain = res.size() % <K as TypeCommon>::Vec::SIZE;
             if remain > 0 {
-                res.as_raw_mut()[res.size() - remain..]
+                let ret_size = res.size();
+                res.as_raw_mut()[ret_size - remain..]
                     .iter_mut()
-                    .zip(rhs.as_raw()[res.size() - remain..].iter())
+                    .zip(rhs.as_raw()[ret_size - remain..].iter())
                     .for_each(|(a, b)| {
                         *a = f(val, *b);
                     });
@@ -93,7 +97,7 @@ where
     } else if rhs.size() == 1 {
         let val = rhs.as_raw()[0];
         let val_vec = <B as TypeCommon>::Vec::splat(val);
-        let res = if let Some(out) = out {
+        let mut res = if let Some(out) = out {
             if out.borrow().size() * size_of::<Q>() != lhs.size() * size_of::<B>() {
                 _Tensor::<K, Cpu>::empty(lhs.shape())?
             } else {
@@ -121,9 +125,10 @@ where
                     }
                 });
             if remain > 0 {
-                res.as_raw_mut()[res.size() - remain..]
+                let ret_size = res.size();
+                res.as_raw_mut()[ret_size - remain..]
                     .iter_mut()
-                    .zip(lhs.as_raw()[res.size() - remain..].iter())
+                    .zip(lhs.as_raw()[ret_size - remain..].iter())
                     .for_each(|(a, lhs)| {
                         *a = f(*lhs, val);
                     });
@@ -139,9 +144,10 @@ where
                 });
             let remain = res.size() % <K as TypeCommon>::Vec::SIZE;
             if remain > 0 {
-                res.as_raw_mut()[res.size() - remain..]
+                let ret_size = res.size();
+                res.as_raw_mut()[ret_size - remain..]
                     .iter_mut()
-                    .zip(lhs.as_raw()[res.size() - remain..].iter())
+                    .zip(lhs.as_raw()[ret_size - remain..].iter())
                     .for_each(|(a, lhs)| {
                         *a = f(*lhs, val);
                     });
@@ -150,7 +156,7 @@ where
         Ok(res)
     } else {
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
-            let ret = if let Some(out) = out {
+            let mut ret = if let Some(out) = out {
                 if out.borrow().size() * size_of::<Q>() != rhs.size() * size_of::<B>() {
                     _Tensor::<K, Cpu>::empty(rhs.shape())?
                 } else {
@@ -180,10 +186,11 @@ where
                         }
                     });
                 if remain > 0 {
-                    ret.as_raw_mut()[ret.size() - remain..]
+                    let ret_size = ret.size();
+                    ret.as_raw_mut()[ret_size - remain..]
                         .iter_mut()
-                        .zip(lhs.as_raw()[ret.size() - remain..].iter())
-                        .zip(rhs.as_raw()[ret.size() - remain..].iter())
+                        .zip(lhs.as_raw()[ret_size - remain..].iter())
+                        .zip(rhs.as_raw()[ret_size - remain..].iter())
                         .for_each(|((a, &lhs), &rhs)| {
                             *a = f(lhs, rhs);
                         });

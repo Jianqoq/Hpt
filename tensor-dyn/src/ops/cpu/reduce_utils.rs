@@ -2,7 +2,7 @@ use std::borrow::BorrowMut;
 
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use tensor_common::{pointer::Pointer, shape::Shape, shape_utils::mt_intervals, strides::Strides};
-use tensor_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo};
+use tensor_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, TensorLike};
 
 use crate::{backend::Cpu, tensor_base::_Tensor};
 
@@ -52,7 +52,7 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds>(
 
     let res_layout = a.layout.reduce(axes, false)?;
 
-    let res = if let Some(out) = c {
+    let res = if let Some(mut out) = c {
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
         if res_layout.shape().inner() != out.shape().inner() {
@@ -98,7 +98,7 @@ pub(crate) fn uncontiguous_reduce_prepare<T: CommonBounds, O: CommonBounds>(
     let mut res_permute_axes = (0..res_layout.ndim()).collect::<Vec<usize>>();
     res_permute_axes.sort_by(|a, b| transposed_axis[*a].cmp(&transposed_axis[*b]));
 
-    let res = if let Some(out) = c {
+    let res = if let Some(mut out) = c {
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
         if res_layout.shape().inner() != out.shape().inner() {

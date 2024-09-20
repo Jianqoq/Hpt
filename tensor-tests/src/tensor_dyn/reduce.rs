@@ -68,10 +68,11 @@ fn common_input_f64<const N: usize>(
     shape: [i64; N],
 ) -> anyhow::Result<(_Tensor<f64, Cpu>, Tensor)> {
     let tch_a = Tensor::randn(&shape, (tch::Kind::Double, tch::Device::Cpu)).reshape(&shape);
-    let a = _Tensor::<f64, Cpu>::empty(&shape)?;
+    let mut a = _Tensor::<f64, Cpu>::empty(&shape)?;
+    let a_size = a.size();
     let raw_mut = a.as_raw_mut();
     let tch_raw =
-        unsafe { core::slice::from_raw_parts_mut(tch_a.data_ptr() as *mut f64, a.size()) };
+        unsafe { core::slice::from_raw_parts_mut(tch_a.data_ptr() as *mut f64, a_size) };
     raw_mut
         .par_iter_mut()
         .zip(tch_raw.par_iter())

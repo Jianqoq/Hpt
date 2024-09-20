@@ -7,6 +7,7 @@ use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::{TensorCreator, TensorInfo};
 use tensor_macros::match_selection;
+use tensor_dyn::TensorLike;
 
 #[allow(unused)]
 fn assert_eq(b: &_Tensor<i32>, a: &Tensor) {

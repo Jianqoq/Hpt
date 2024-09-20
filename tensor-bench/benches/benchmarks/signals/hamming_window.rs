@@ -3,6 +3,7 @@ use criterion::{ black_box, criterion_group, criterion_main, BenchmarkId, Criter
 use tch::{ Tensor, Kind, Device };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::TensorInfo;
+use tensor_dyn::TensorLike;
 
 fn assert_eq(a: &Tensor, b: &_Tensor<f64>) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
