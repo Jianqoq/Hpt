@@ -2,6 +2,7 @@ use std::ops::{ Deref, DerefMut, Index, IndexMut };
 
 use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
+/// a vector of 16 i16 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct i16x16(pub(crate) std::simd::i16x16);

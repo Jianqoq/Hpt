@@ -7,18 +7,12 @@ use std::{
 /// This is for wrapping raw pointers to make them safe for multithreading
 ///
 /// This is for internal use only
-#[cfg(not(feature = "bound_check"))]
-#[derive(Debug, Copy, Clone)]
-pub struct Pointer<T> {
-    pub ptr: *mut T,
-}
-
-#[cfg(feature = "bound_check")]
 #[derive(Debug, Clone)]
 pub struct Pointer<T> {
     /// raw pointer
     pub ptr: *mut T,
     /// layout of the pointer, it is used when the `bound_check` feature is enabled
+    #[cfg(feature = "bound_check")]
     pub layout: crate::layout::Layout,
 }
 
@@ -62,6 +56,21 @@ impl<T> Pointer<T> {
         Self { ptr }
     }
 
+    /// Wrap a raw pointer into a Pointer struct for supporting `Send` in multithreading, zero cost
+    ///
+    /// # Arguments
+    /// `ptr` - `*mut T`
+    ///
+    /// # Returns
+    /// `Pointer<T>`
+    ///
+    /// # Example
+    /// ```
+    /// use tensor_pointer::Pointer;
+    /// let mut _a = 10i32;
+    /// let a = Pointer::<i32>::new(_a as *mut i32);
+    /// assert_eq!(a.read(), 10);
+    /// ```
     #[cfg(feature = "bound_check")]
     #[inline(always)]
     pub fn new(ptr: *mut T, layout: crate::layout::Layout) -> Self {

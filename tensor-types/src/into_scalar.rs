@@ -1,7 +1,9 @@
 use half::{f16, bf16};
 use num_complex::{ Complex32, Complex64 };
 
+/// A trait for converting a scalar into another scalar type.
 pub trait IntoScalar<T> {
+    /// Convert the scalar into another scalar type.
     fn into_scalar(self) -> T;
 }
 

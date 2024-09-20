@@ -13,6 +13,7 @@ use crate::vectors::{
 };
 use crate::{traits::SimdCompare, vectors::_256bit::u16x16::u16x16};
 
+/// a vector of 16 bf16 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct bf16x16(pub(crate) [half::bf16; 16]);
@@ -89,6 +90,7 @@ impl IndexMut<usize> for bf16x16 {
 }
 
 impl bf16x16 {
+    /// convert to 2 f32x8
     #[cfg(target_feature = "avx2")]
     pub fn to_2_f32x8(&self) -> [f32x8; 2] {
         let [ai, bi]: [std::simd::u16x8; 2] = unsafe { std::mem::transmute(self.0) };
@@ -109,6 +111,8 @@ impl bf16x16 {
         ];
         unsafe { std::mem::transmute([a_res, b_res]) }
     }
+    
+    /// convert from 2 f32x8
     #[cfg(target_feature = "avx2")]
     pub fn from_2_f32x8(inp: [f32x8; 2]) -> Self {
         use std::simd::cmp::SimdPartialEq;
@@ -144,6 +148,7 @@ impl bf16x16 {
         unsafe { std::mem::transmute([a_res, b_res]) }
     }
 
+    /// check if the value is NaN, return a mask
     pub fn is_nan(&self) -> u16x16 {
         let x = std::simd::u16x16::splat(0x7f80u16);
         let y = std::simd::u16x16::splat(0x007fu16);
@@ -156,6 +161,7 @@ impl bf16x16 {
         unsafe { std::mem::transmute(eq & neq_zero) }
     }
 
+    /// check if the value is infinite, return a mask
     pub fn is_infinite(&self) -> u16x16 {
         let x = u16x16::splat(0x7f80u16);
         let y = u16x16::splat(0x007fu16);

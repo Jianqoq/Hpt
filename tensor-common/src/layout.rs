@@ -40,22 +40,27 @@ impl Layout {
         Layout { shape, strides }
     }
 
+    /// Returns the shape of the layout
     pub fn shape(&self) -> &Shape {
         &self.shape
     }
 
+    /// Set the shape of the layout
     pub fn set_shape(&mut self, shape: Shape) {
         self.shape = shape;
     }
 
+    /// Returns the strides of the layout
     pub fn strides(&self) -> &Strides {
         &self.strides
     }
 
+    /// Set the strides of the layout
     pub fn set_strides(&mut self, strides: Strides) {
         self.strides = strides;
     }
 
+    /// Returns the number of dimensions of the layout
     pub fn ndim(&self) -> usize {
         self.shape.len()
     }

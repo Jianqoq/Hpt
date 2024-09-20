@@ -13,22 +13,39 @@ use tensor_macros::infer_enum_type;
 /// enum for data type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Dtype {
+    /// boolean
     Bool,
+    /// signed 8-bit integer
     I8,
+    /// unsigned 8-bit integer
     U8,
+    /// signed 16-bit integer
     I16,
+    /// unsigned 16-bit integer
     U16,
+    /// signed 32-bit integer
     I32,
+    /// unsigned 32-bit integer
     U32,
+    /// signed 64-bit integer
     I64,
+    /// unsigned 64-bit integer
     U64,
+    /// 16-bit bfloat
     BF16,
+    /// 16-bit float
     F16,
+    /// 32-bit float
     F32,
+    /// 64-bit float
     F64,
+    /// 32-bit complex
     C32,
+    /// 64-bit complex
     C64,
+    /// signed isize
     Isize,
+    /// unsigned usize
     Usize,
 }
 

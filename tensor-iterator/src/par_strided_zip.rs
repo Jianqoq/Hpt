@@ -15,6 +15,7 @@ use crate::{
     par_strided_map::ParStridedMap,
 };
 
+/// A module for parallel strided simd zip iterator.
 pub mod par_strided_zip_simd {
     use std::sync::Arc;
 

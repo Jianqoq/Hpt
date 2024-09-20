@@ -3,6 +3,7 @@ use std::simd::num::SimdFloat;
 use crate::vectors::traits::{ Init, SimdSelect, VecCommon, VecTrait };
 use std::simd::StdFloat;
 
+/// a vector of 8 f32 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct f32x8(pub(crate) std::simd::f32x8);

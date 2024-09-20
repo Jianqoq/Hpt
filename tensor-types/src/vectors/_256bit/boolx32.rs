@@ -5,6 +5,7 @@ use std::simd::{cmp::SimdPartialEq, Simd};
 use crate::traits::SimdCompare;
 use crate::vectors::traits::{Init, VecCommon, VecTrait};
 
+/// a vector of 32 bool values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct boolx32(pub(crate) [bool; 32]);

@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use tensor_common::{ axis::Axis, shape::Shape, strides::Strides };
 
+/// A trait for getting and setting values from an iterator.
 pub trait IterGetSet {
+    /// The type of the iterator's elements.
     type Item;
     /// set the end index of the iterator, this is used when rayon perform data splitting
     fn set_end_index(&mut self, end_index: usize);
@@ -32,9 +34,11 @@ pub trait IterGetSet {
     fn inner_loop_next(&mut self, index: usize) -> Self::Item;
 }
 
-
+/// A trait for getting and setting values from an simd iterator
 pub trait IterGetSetSimd {
+    /// The type of the iterator's elements.
     type Item;
+    /// The type of the iterator's simd elements.
     type SimdItem;
     /// set the end index of the iterator, this is used when rayon perform data splitting
     fn set_end_index(&mut self, end_index: usize);
@@ -72,6 +76,7 @@ pub trait IterGetSetSimd {
     fn lanes(&self) -> Option<usize>;
 }
 
+/// A trait for performing shape manipulation on an iterator.
 pub trait ShapeManipulator {
     /// reshape the iterator, we can change the iteration behavior by changing the shape
     fn reshape<S: Into<Shape>>(self, shape: S) -> Self;
@@ -81,7 +86,9 @@ pub trait ShapeManipulator {
     fn expand<S: Into<Shape>>(self, shape: S) -> Self;
 }
 
+/// A trait for performing single thread iteration over an iterator.
 pub trait StridedIterator where Self: Sized {
+    /// The type of the iterator's elements.
     type Item;
     /// perform scalar iteration, this method is for single thread iterator
     fn for_each<F>(self, func: F) where F: Fn(Self::Item);
@@ -90,8 +97,11 @@ pub trait StridedIterator where Self: Sized {
         where F: Fn(&mut T, Self::Item), INIT: Fn() -> T;
 }
 
+/// A trait for performing single thread simd iteration over an iterator.
 pub trait StridedIteratorSimd where Self: Sized {
+    /// The type of the iterator's elements.
     type Item;
+    /// The type of the iterator's simd elements.
     type SimdItem;
     /// perform simd iteration, this method is for single thread simd iterator
     fn for_each<F, F2>(self, func: F, func2: F2) where F: Fn(Self::Item), F2: Fn(Self::SimdItem);

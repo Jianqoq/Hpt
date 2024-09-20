@@ -44,7 +44,7 @@ impl Shape {
         shape_to_strides(self)
     }
 
-    // Returns a new Shape with all elements decreased by 1
+    /// Returns a new Shape with all elements decreased by 1
     pub fn sub_one(&self) -> Shape {
         self.iter().map(|x| *x - 1).collect::<Vec<i64>>().into()
     }

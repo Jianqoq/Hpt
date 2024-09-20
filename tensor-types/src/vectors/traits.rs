@@ -59,7 +59,9 @@ pub trait SimdSelect<T> {
     fn select(&self, true_val: T, false_val: T) -> T;
 }
 
+/// A trait for vector comparison
 pub trait SimdCompare {
+    /// the mask type for the vector
     type SimdMask;
     /// compare two vectors to check if is equal and return a mask
     fn simd_eq(self, other: Self) -> Self::SimdMask;

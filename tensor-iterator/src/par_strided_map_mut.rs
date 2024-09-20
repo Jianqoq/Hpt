@@ -11,6 +11,7 @@ use crate::{
     iterator_traits::IterGetSet, par_strided_mut::ParStridedMut, par_strided_zip::ParStridedZip,
 };
 
+/// A module for parallel strided mutable map iterator.
 pub mod par_strided_map_mut_simd {
     use std::sync::Arc;
 

@@ -16,6 +16,7 @@ use tensor_common::{
 };
 use tensor_traits::tensor::{CommonBounds, TensorInfo};
 
+/// A module for single-threaded strided simd iterator.
 pub mod strided_simd {
     use std::{panic::Location, sync::Arc};
     use tensor_common::{

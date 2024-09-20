@@ -10,6 +10,7 @@ use tensor_common::{
 };
 use tensor_traits::tensor::{CommonBounds, TensorInfo};
 
+/// A module for parallel mutable strided iterator.
 pub mod par_strided_map_mut_simd {
     use crate::{
         iterator_traits::IterGetSetSimd, par_strided::par_strided_simd::ParStridedSimd,

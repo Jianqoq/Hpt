@@ -2,12 +2,6 @@
 ///
 /// Provides several ways to specify which axes the tensor dot product should be computed along.
 ///
-/// # Variants
-/// - `Int(i64)`: A single integer representing a single axis.
-/// - `TupleScalar((i64, i64))`: A tuple of two integers representing axes for the first and second tensor, respectively.
-/// - `TupleArray(([i64; N], [i64; N]))`: A tuple of two arrays, each representing a list of axes for each tensor.
-/// - `ArrayArray([[i64; N]; 2])`: An array of two arrays, each representing a list of axes for each tensor.
-///
 /// # Examples
 /// ```
 /// use tensor_common::TensorDotArgs;
@@ -15,9 +9,13 @@
 /// let axes = TensorDotArgs::<2>::TupleArray(([0i64, 1], [2, 3]));
 /// ```
 pub enum TensorDotArgs<const N: usize> {
+    /// A single integer representing a single axis.
     Int(i64),
+    /// A tuple of two integers representing axes for the first and second tensor, respectively.
     TupleScalar((i64, i64)),
+    /// A tuple of two arrays, each representing a list of axes for each tensor.
     TupleArray(([i64; N], [i64; N])),
+    /// An array of two arrays, each representing a list of axes for each tensor.
     ArrayArray([[i64; N]; 2]),
 }
 

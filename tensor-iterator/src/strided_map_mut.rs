@@ -9,6 +9,7 @@ use crate::{
     strided_zip::StridedZip,
 };
 
+/// A module for mutable mapped strided iterator.
 pub mod strided_map_mut_simd {
     use std::sync::Arc;
 

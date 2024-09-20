@@ -3,6 +3,7 @@ use tensor_traits::tensor::{CommonBounds, TensorAlloc, TensorInfo};
 
 use crate::{iterator_traits::IterGetSet, par_strided_map_mut::ParStridedMapMut};
 
+/// A module for parallel strided map iterator.
 pub mod par_strided_map_simd {
     use rayon::iter::{plumbing::UnindexedProducer, ParallelIterator};
     use tensor_traits::{CommonBounds, TensorAlloc, TensorInfo};

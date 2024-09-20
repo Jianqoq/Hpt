@@ -34,8 +34,11 @@ use tensor_macros::{
 use tensor_macros::{float_out_binary_simd, simd_bitwise};
 /// this trait is used to perform type promotion in dynamic graph
 pub trait FloatOutBinary<RHS = Self> {
+    /// the output type
     type Output;
+    /// perform a / b
     fn _div(self, rhs: RHS) -> Self::Output;
+    /// perform log<sub>b</sub>(x)
     fn _log(self, base: RHS) -> Self::Output;
 }
 
@@ -44,6 +47,7 @@ float_out_binary_simd!();
 
 /// this trait is used to perform normal operations that don't require type promotion
 pub trait NormalOut<RHS = Self> {
+    /// the output type
     type Output;
     /// perform a + b
     fn _add(self, rhs: RHS) -> Self::Output;
@@ -86,6 +90,7 @@ impl_normal_out_simd!();
 
 /// this trait is used to perform bitwise operations
 pub trait BitWiseOut<RHS = Self> {
+    /// the output type
     type Output;
     /// perform a & b
     fn _bitand(self, rhs: RHS) -> Self::Output;
@@ -125,6 +130,7 @@ impl_cmp!();
 
 /// this trait is used to perform comparison operations on simd
 pub trait SimdCmp<RHS = Self> {
+    /// the output type
     type Output;
     /// perform a == b, return a mask
     ///
@@ -168,6 +174,7 @@ simd_cmp!();
 
 /// this trait is used to perform evaluation operations
 pub trait Eval {
+    /// the output type
     type Output;
     /// check if the value is nan
     fn _is_nan(&self) -> Self::Output;

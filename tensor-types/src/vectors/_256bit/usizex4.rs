@@ -2,6 +2,7 @@ use std::ops::{ Deref, DerefMut, Index, IndexMut };
 
 use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
+/// a vector of 4 usize values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct usizex4(pub(crate) std::simd::usizex4);

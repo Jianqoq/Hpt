@@ -83,6 +83,7 @@ pub enum ErrHandler {
     )]
     InvalidCacheParam(&'static str, i64, i64, i64, &'static Location<'static>),
 
+    /// used when the conv2d input shape is not correct
     #[error("invalid input shape, expect shape to be [batch, height, width, channel], but got ndim: {0}, at {1}")]
     Conv2dImgShapeInCorrect(usize, &'static Location<'static>),
 }

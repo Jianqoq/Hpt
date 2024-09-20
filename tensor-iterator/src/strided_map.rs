@@ -2,6 +2,7 @@ use crate::iterator_traits::StridedIterator;
 use crate::{iterator_traits::IterGetSet, strided_map_mut::StridedMapMut};
 use tensor_traits::tensor::{CommonBounds, TensorAlloc, TensorInfo};
 
+/// A module for strided map simd iterator.
 pub mod strided_map_simd {
     use crate::iterator_traits::StridedIteratorSimd;
     use crate::{

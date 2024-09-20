@@ -125,10 +125,26 @@ pub trait VecConvertor {
     fn to_complex64(self) -> cplx64x2::cplx64x2;
 }
 
+
 #[cfg(all(
     any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
     not(target_feature = "avx2")
 ))]
+/// VecConvertor trait
+/// 
+/// This trait is used to convert a simd vector to another type
+/// 
+/// # Example
+/// 
+/// ```
+/// use tensor_types::VecConvertor;
+/// 
+/// let a = f32x8::f32x8::splat(1.0);
+/// 
+/// let b = a.to_f64();
+/// 
+/// assert_eq!(b, f64x4::f64x4::splat(1.0));
+/// ```
 pub trait VecConvertor {
     /// convert the value to boolx16
     fn to_bool(self) -> boolx16::boolx16;
@@ -1691,7 +1707,9 @@ impl Convertor for bf16 {
     }
 }
 
+/// A trait for converting a scalar value to another scalar value.
 pub trait FromScalar<T> {
+    /// Convert a scalar value to another scalar value.
     fn __from(a: T) -> Self;
 }
 

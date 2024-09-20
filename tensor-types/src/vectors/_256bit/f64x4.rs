@@ -2,6 +2,7 @@ use std::{ops::{ Deref, DerefMut, Index, IndexMut }, simd::StdFloat};
 
 use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
+/// a vector of 4 f64 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct f64x4(pub(crate) std::simd::f64x4);

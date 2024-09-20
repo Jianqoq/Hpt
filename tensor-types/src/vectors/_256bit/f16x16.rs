@@ -12,6 +12,7 @@ use crate::vectors::{
     traits::{Init, VecCommon, VecTrait},
 };
 
+/// a vector of 16 f16 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct f16x16(pub(crate) [half::f16; 16]);
@@ -77,6 +78,7 @@ impl IndexMut<usize> for f16x16 {
 }
 
 impl f16x16 {
+    /// check if the value is NaN, return a mask
     pub fn is_nan(&self) -> u16x16 {
         let x = u16x16::splat(0x7c00u16);
         let y = u16x16::splat(0x03ffu16);
@@ -92,6 +94,7 @@ impl f16x16 {
 
         unsafe { std::mem::transmute(result) }
     }
+    /// check if the value is infinite, return a mask
     pub fn is_infinite(&self) -> u16x16 {
         let x = u16x16::splat(0x7c00u16);
         let y = u16x16::splat(0x03ffu16);
@@ -107,6 +110,7 @@ impl f16x16 {
 
         unsafe { std::mem::transmute(result) }
     }
+    /// convert to 2 f32x8
     #[cfg(feature = "f16c")]
     pub fn to_2_f32x8(self) -> [f32x8; 2] {
         unsafe {
@@ -118,6 +122,7 @@ impl f16x16 {
             std::mem::transmute([(f32x8_1, f32x8_2)])
         }
     }
+    /// convert to 2 f32x8
     #[cfg(not(feature = "f16c"))]
     pub fn to_2_f32x8(self) -> [f32x8; 2] {
         let [a0, a1] = unsafe {
@@ -241,6 +246,7 @@ impl std::ops::Neg for f16x16 {
     }
 }
 
+/// convert u16 to f16
 pub fn u16_to_f16(val: u16x8) -> std::simd::f32x8 {
     let sign_mask = u16x8::splat(0x8000);
     let exp_mask = u16x8::splat(0x7c00);

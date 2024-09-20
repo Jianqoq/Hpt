@@ -33,6 +33,22 @@ pub mod simd_imports {
     }
 
     impl<'a, T: CommonBounds> StridedMutSimd<'a, T> {
+        /// Creates a new `StridedMutSimd` instance from a tensor.
+        ///
+        /// This constructor initializes a `StridedMutSimd` iterator by creating a base `StridedSimd`
+        /// from the provided tensor. It also retrieves the last stride from the base iterator to
+        /// configure the strided access pattern. The `PhantomData` marker is used to associate
+        /// the iterator with the tensor's data type `T` without holding any actual data.
+        ///
+        /// # Arguments
+        ///
+        /// * `tensor` - An instance that implements the `TensorInfo<T>` trait, representing the tensor
+        ///   to be iterated over. This tensor provides the necessary information about the tensor's shape,
+        ///   strides, and data layout.
+        ///
+        /// # Returns
+        ///
+        /// A new instance of `StridedMutSimd`
         pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
             let base = StridedSimd::new(tensor);
             let last_stride = base.last_stride;

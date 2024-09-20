@@ -22,6 +22,7 @@ use tensor_common::{
 };
 use tensor_traits::tensor::{CommonBounds, TensorInfo};
 
+/// A module for parallel strided iterators.
 pub mod par_strided_simd {
     use std::{panic::Location, sync::Arc};
 
