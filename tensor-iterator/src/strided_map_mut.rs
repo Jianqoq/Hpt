@@ -1,10 +1,10 @@
 use std::sync::Arc;
-use tensor_common::{ shape::Shape, strides::Strides };
-use tensor_traits::tensor::{ CommonBounds, TensorInfo };
+use tensor_common::{shape::Shape, strides::Strides};
+use tensor_traits::tensor::{CommonBounds, TensorInfo};
 use tensor_types::dtype::TypeCommon;
 
 use crate::{
-    iterator_traits::{ IterGetSet, StridedIterator },
+    iterator_traits::{IterGetSet, StridedIterator},
     par_strided_mut::ParStridedMut,
     strided_zip::StridedZip,
 };
@@ -12,55 +12,99 @@ use crate::{
 pub mod strided_map_mut_simd {
     use std::sync::Arc;
 
-    use tensor_common::{ shape::Shape, strides::Strides };
-    use tensor_traits::{ CommonBounds, TensorInfo };
+    use tensor_common::{shape::Shape, strides::Strides};
+    use tensor_traits::{CommonBounds, TensorInfo};
     use tensor_types::dtype::TypeCommon;
 
     use crate::{
-        iterator_traits::{ IterGetSetSimd, StridedIteratorSimd },
+        iterator_traits::{IterGetSetSimd, StridedIteratorSimd},
         par_strided_mut::par_strided_map_mut_simd::ParStridedMutSimd,
         strided_zip::strided_zip_simd::StridedZipSimd,
     };
 
-    pub struct StridedMapMutSimd<'a, T> where T: Copy + TypeCommon + Send + Sync{
+    /// A SIMD-optimized mutable mapped strided iterator over tensor elements.
+    ///
+    /// This struct provides mutable access to tensor elements with SIMD optimizations,
+    /// allowing for efficient parallel processing of tensor data.
+    pub struct StridedMapMutSimd<'a, T>
+    where
+        T: Copy + TypeCommon + Send + Sync,
+    {
+        /// The underlying parallel SIMD-optimized strided iterator.
         pub(crate) base: ParStridedMutSimd<'a, T>,
+        /// Phantom data to associate the lifetime `'a` with the struct.
         pub(crate) phantom: std::marker::PhantomData<&'a ()>,
     }
-    impl<'a, T> StridedMapMutSimd<'a, T> where T: CommonBounds, T::Vec: Send {
+    impl<'a, T> StridedMapMutSimd<'a, T>
+    where
+        T: CommonBounds,
+        T::Vec: Send,
+    {
+        /// Creates a new `StridedMapMutSimd` instance from a given tensor.
+        ///
+        /// # Arguments
+        ///
+        /// * `res_tensor` - The tensor implementing the `TensorInfo<T>` trait to iterate over mutably.
+        ///
+        /// # Returns
+        ///
+        /// A new instance of `StridedMapMutSimd` initialized with the provided tensor.
         pub fn new<U: TensorInfo<T>>(res_tensor: U) -> Self {
             StridedMapMutSimd {
                 base: ParStridedMutSimd::new(res_tensor),
                 phantom: std::marker::PhantomData,
             }
         }
-
+        /// Combines this `StridedMapMutSimd` iterator with another SIMD-optimized iterator, enabling simultaneous iteration.
+        ///
+        /// This method zips together `self` and `other` into a `StridedZipSimd` iterator, allowing for synchronized
+        /// iteration over both iterators. This is particularly useful for operations that require processing
+        /// elements from two tensors in parallel.
+        ///
+        /// # Arguments
+        ///
+        /// * `other` - The other iterator to zip with. It must implement the `IterGetSetSimd` trait, and
+        ///             its associated `Item` type must be `Send`.
+        ///
+        /// # Returns
+        ///
+        /// A `StridedZipSimd` instance that zips together `self` and `other`, enabling synchronized
+        /// iteration over their elements.
         pub fn zip<C>(self, other: C) -> StridedZipSimd<'a, Self, C>
-            where C: 'a + IterGetSetSimd, <C as IterGetSetSimd>::Item: Send
+        where
+            C: 'a + IterGetSetSimd,
+            <C as IterGetSetSimd>::Item: Send,
         {
             StridedZipSimd::new(self, other)
         }
     }
-    impl<'a, T> StridedIteratorSimd
-        for StridedMapMutSimd<'a, T>
-        where T: 'a + CommonBounds, T::Vec: Send
+    impl<'a, T> StridedIteratorSimd for StridedMapMutSimd<'a, T>
+    where
+        T: 'a + CommonBounds,
+        T::Vec: Send,
     {
         type Item = &'a mut T;
 
         type SimdItem = &'a mut T::Vec;
 
-        fn for_each<F, F2>(self, _: F, _: F2) where F: Fn(Self::Item) {
+        fn for_each<F, F2>(self, _: F, _: F2)
+        where
+            F: Fn(Self::Item),
+        {
             unimplemented!()
         }
 
         fn for_each_init<F, INIT, I>(self, _: INIT, _: F)
-            where F: Fn(&mut I, Self::Item), INIT: Fn() -> I
+        where
+            F: Fn(&mut I, Self::Item),
+            INIT: Fn() -> I,
         {
             unimplemented!()
         }
     }
-    impl<'a, T: 'a + CommonBounds> IterGetSetSimd
-        for StridedMapMutSimd<'a, T>
-        where T::Vec: Send
+    impl<'a, T: 'a + CommonBounds> IterGetSetSimd for StridedMapMutSimd<'a, T>
+    where
+        T::Vec: Send,
     {
         type Item = &'a mut T;
         type SimdItem = &'a mut T::Vec;
@@ -131,46 +175,90 @@ pub mod strided_map_mut_simd {
     }
 }
 
-pub struct StridedMapMut<'a, T> where T: Copy + TypeCommon {
+/// A `non` SIMD-optimized mutable mapped strided iterator over tensor elements.
+///
+/// This struct provides mutable access to tensor elements,
+pub struct StridedMapMut<'a, T>
+where
+    T: Copy + TypeCommon,
+{
+    /// The underlying parallel mutable strided iterator.
     pub(crate) base: ParStridedMut<'a, T>,
+    /// Phantom data to associate the lifetime `'a` with the struct.
     pub(crate) phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl<'a, T> StridedMapMut<'a, T> where T: CommonBounds, T::Vec: Send {
+impl<'a, T> StridedMapMut<'a, T>
+where
+    T: CommonBounds,
+    T::Vec: Send,
+{
+    /// Creates a new `StridedMapMut` instance from a given tensor.
+    ///
+    /// # Arguments
+    ///
+    /// * `res_tensor` - The tensor implementing the `TensorInfo<T>` trait to iterate over mutably.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `StridedMapMut` initialized with the provided tensor.
     pub fn new<U: TensorInfo<T>>(res_tensor: U) -> Self {
         StridedMapMut {
             base: ParStridedMut::new(res_tensor),
             phantom: std::marker::PhantomData,
         }
     }
-
+    
+    /// Combines this `StridedMapMut` iterator with another iterator, enabling simultaneous iteration.
+    ///
+    /// This method zips together `self` and `other` into a `StridedZip` iterator, allowing for synchronized
+    /// iteration over both iterators. This is particularly useful for operations that require processing
+    /// elements from two tensors in parallel, such as element-wise arithmetic operations.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The other iterator to zip with. It must implement the `IterGetSet` trait, and
+    ///             its associated `Item` type must be `Send`.
+    ///
+    /// # Returns
+    ///
+    /// A `StridedZip` instance that encapsulates both `self` and `other`, allowing for synchronized
+    /// iteration over their elements.
     pub fn zip<C>(self, other: C) -> StridedZip<'a, Self, C>
-        where C: 'a + IterGetSet, <C as IterGetSet>::Item: Send
+    where
+        C: 'a + IterGetSet,
+        <C as IterGetSet>::Item: Send,
     {
         StridedZip::new(self, other)
     }
 }
 
-impl<'a, T> StridedIterator
-    for StridedMapMut<'a, T>
-    where T: 'a + CommonBounds, T::Vec: Send
+impl<'a, T> StridedIterator for StridedMapMut<'a, T>
+where
+    T: 'a + CommonBounds,
+    T::Vec: Send,
 {
     type Item = &'a mut T;
 
-    fn for_each<F>(self, _: F) where F: Fn(Self::Item) {
+    fn for_each<F>(self, _: F)
+    where
+        F: Fn(Self::Item),
+    {
         unimplemented!()
     }
 
     fn for_each_init<F, INIT, I>(self, _: INIT, _: F)
-        where F: Fn(&mut I, Self::Item), INIT: Fn() -> I
+    where
+        F: Fn(&mut I, Self::Item),
+        INIT: Fn() -> I,
     {
         unimplemented!()
     }
 }
 
-impl<'a, T: 'a + CommonBounds> IterGetSet
-    for StridedMapMut<'a, T>
-    where T::Vec: Send
+impl<'a, T: 'a + CommonBounds> IterGetSet for StridedMapMut<'a, T>
+where
+    T::Vec: Send,
 {
     type Item = &'a mut T;
 

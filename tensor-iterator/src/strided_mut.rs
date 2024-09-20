@@ -1,27 +1,34 @@
-use std::sync::Arc;
-use tensor_common::{ shape::Shape, shape_utils::predict_broadcast_shape };
-use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use crate::{
-    iterator_traits::{ IterGetSet, StridedIterator },
+    iterator_traits::{IterGetSet, StridedIterator},
     strided::Strided,
     strided_zip::StridedZip,
 };
+use std::sync::Arc;
+use tensor_common::{shape::Shape, shape_utils::predict_broadcast_shape};
+use tensor_traits::tensor::{CommonBounds, TensorInfo};
 
+/// Module containing SIMD-optimized implementations for strided mutability.
 pub mod simd_imports {
-    use std::sync::Arc;
-    use tensor_common::{ shape::Shape, shape_utils::predict_broadcast_shape };
-    use tensor_traits::{ CommonBounds, TensorInfo };
-    use tensor_types::dtype::TypeCommon;
-    use tensor_types::vectors::traits::VecCommon;
     use crate::{
-        iterator_traits::{ IterGetSetSimd, StridedIteratorSimd },
+        iterator_traits::{IterGetSetSimd, StridedIteratorSimd},
         strided::strided_simd::StridedSimd,
         strided_zip::strided_zip_simd::StridedZipSimd,
     };
+    use std::sync::Arc;
+    use tensor_common::{shape::Shape, shape_utils::predict_broadcast_shape};
+    use tensor_traits::{CommonBounds, TensorInfo};
+    use tensor_types::dtype::TypeCommon;
+    use tensor_types::vectors::traits::VecCommon;
 
+    /// A SIMD-optimized mutable strided iterator over tensor elements.
+    ///
+    /// This struct provides mutable access to tensor elements with SIMD optimizations.
     pub struct StridedMutSimd<'a, T: TypeCommon> {
+        /// The underlying SIMD-optimized strided iterator.
         pub(crate) base: StridedSimd<T>,
+        /// The stride for the last dimension, used for inner loop element access.
         pub(crate) last_stride: i64,
+        /// Phantom data to associate the lifetime `'a` with the struct.
         pub(crate) phantom: std::marker::PhantomData<&'a ()>,
     }
 
@@ -36,13 +43,35 @@ pub mod simd_imports {
             }
         }
 
+        /// Combines this `StridedMutSimd` iterator with another iterator, enabling simultaneous iteration.
+        ///
+        /// This method performs shape broadcasting between `self` and `other` to ensure that both iterators
+        /// iterate over tensors with compatible shapes. It adjusts the strides and shapes of both iterators
+        /// to match the broadcasted shape and then returns a `StridedZipSimd` that allows for synchronized
+        /// iteration over both iterators.
+        ///
+        /// # Arguments
+        ///
+        /// * `other` - The other iterator to zip with. It must implement the `IterGetSetSimd` trait, and
+        ///             its associated `Item` type must be `Send`.
+        ///
+        /// # Returns
+        ///
+        /// A `StridedZipSimd` instance that zips together `self` and `other`, enabling synchronized
+        /// iteration over their elements.
+        ///
+        /// # Panics
+        ///
+        /// This method will panic if the shapes of `self` and `other` cannot be broadcasted together.
+        /// Ensure that the shapes are compatible before calling this method.
         #[track_caller]
         pub fn zip<C>(mut self, mut other: C) -> StridedZipSimd<'a, Self, C>
-            where C: 'a + IterGetSetSimd, <C as IterGetSetSimd>::Item: Send
+        where
+            C: 'a + IterGetSetSimd,
+            <C as IterGetSetSimd>::Item: Send,
         {
-            let new_shape = predict_broadcast_shape(self.shape(), other.shape()).expect(
-                "Cannot broadcast shapes"
-            );
+            let new_shape = predict_broadcast_shape(self.shape(), other.shape())
+                .expect("Cannot broadcast shapes");
 
             other.broadcast_set_strides(&new_shape);
             self.broadcast_set_strides(&new_shape);
@@ -54,11 +83,18 @@ pub mod simd_imports {
         }
     }
 
-    impl<'a, T> StridedIteratorSimd for StridedMutSimd<'a, T> where T: CommonBounds {
+    impl<'a, T> StridedIteratorSimd for StridedMutSimd<'a, T>
+    where
+        T: CommonBounds,
+    {
         type Item = &'a mut T;
         type SimdItem = &'a mut T::Vec;
 
-        fn for_each<F, F2>(mut self, func: F, _: F2) where F: Fn(Self::Item), F2: Fn(Self::SimdItem) {
+        fn for_each<F, F2>(mut self, func: F, _: F2)
+        where
+            F: Fn(Self::Item),
+            F2: Fn(Self::SimdItem),
+        {
             let outer_loop_size = self.outer_loop_size();
             let inner_loop_size = self.inner_loop_size() + 1;
             for _ in 0..outer_loop_size {
@@ -70,7 +106,9 @@ pub mod simd_imports {
         }
 
         fn for_each_init<F, INIT, I>(mut self, init: INIT, func: F)
-            where F: Fn(&mut I, Self::Item), INIT: Fn() -> I
+        where
+            F: Fn(&mut I, Self::Item),
+            INIT: Fn() -> I,
         {
             let outer_loop_size = self.outer_loop_size();
             let inner_loop_size = self.inner_loop_size() + 1;
@@ -84,7 +122,10 @@ pub mod simd_imports {
         }
     }
 
-    impl<'a, T: 'a> IterGetSetSimd for StridedMutSimd<'a, T> where T: CommonBounds {
+    impl<'a, T: 'a> IterGetSetSimd for StridedMutSimd<'a, T>
+    where
+        T: CommonBounds,
+    {
         type Item = &'a mut T;
         type SimdItem = &'a mut T::Vec;
 
@@ -141,7 +182,11 @@ pub mod simd_imports {
         #[inline(always)]
         fn inner_loop_next(&mut self, index: usize) -> Self::Item {
             unsafe {
-                &mut *self.base.ptr.ptr.offset((index as isize) * (self.last_stride as isize))
+                &mut *self
+                    .base
+                    .ptr
+                    .ptr
+                    .offset((index as isize) * (self.last_stride as isize))
             }
         }
         fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
@@ -157,22 +202,58 @@ pub mod simd_imports {
     }
 }
 
+/// A mutable strided iterator over tensor elements.
+///
+/// This struct provides mutable access to tensor elements with strided access patterns in `single thread`.
 pub struct StridedMut<'a, T> {
+    /// The underlying `single thread` strided iterator handling the iteration logic.
     pub(crate) base: Strided<T>,
+    /// Phantom data to associate the lifetime `'a` with the struct.
     pub(crate) phantom: std::marker::PhantomData<&'a ()>,
 }
 
 impl<'a, T: CommonBounds> StridedMut<'a, T> {
+    /// Creates a new `StridedMut` instance from a given tensor.
+    ///
+    /// # Arguments
+    ///
+    /// * `tensor` - The tensor implementing the `TensorInfo<T>` trait to iterate over.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `StridedMut` initialized with the provided tensor.
     pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
         StridedMut {
             base: Strided::new(tensor),
             phantom: std::marker::PhantomData,
         }
     }
-
+    /// Combines this `StridedMut` iterator with another iterator, enabling simultaneous iteration.
+    ///
+    /// This method performs shape broadcasting between `self` and `other` to ensure that both iterators
+    /// iterate over tensors with compatible shapes. It adjusts the strides and shapes of both iterators
+    /// to match the broadcasted shape and then returns a `StridedZip` that allows for synchronized
+    /// iteration over both iterators.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The other iterator to zip with. It must implement the `IterGetSet` trait, and
+    ///             its associated `Item` type must be `Send`.
+    ///
+    /// # Returns
+    ///
+    /// A `StridedZip` instance that zips together `self` and `other`, enabling synchronized
+    /// iteration over their elements.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the shapes of `self` and `other` cannot be broadcasted together.
+    /// Ensure that the shapes are compatible before calling this method.
     #[track_caller]
     pub fn zip<C>(mut self, mut other: C) -> StridedZip<'a, Self, C>
-        where C: 'a + IterGetSet, <C as IterGetSet>::Item: Send
+    where
+        C: 'a + IterGetSet,
+        <C as IterGetSet>::Item: Send,
     {
         let new_shape = match predict_broadcast_shape(self.shape(), other.shape()) {
             Ok(s) => s,
@@ -191,10 +272,16 @@ impl<'a, T: CommonBounds> StridedMut<'a, T> {
     }
 }
 
-impl<'a, T> StridedIterator for StridedMut<'a, T> where T: CommonBounds {
+impl<'a, T> StridedIterator for StridedMut<'a, T>
+where
+    T: CommonBounds,
+{
     type Item = &'a mut T;
 
-    fn for_each<F>(mut self, func: F) where F: Fn(Self::Item) {
+    fn for_each<F>(mut self, func: F)
+    where
+        F: Fn(Self::Item),
+    {
         let outer_loop_size = self.outer_loop_size();
         let inner_loop_size = self.inner_loop_size();
         for _ in 0..outer_loop_size {
@@ -206,7 +293,9 @@ impl<'a, T> StridedIterator for StridedMut<'a, T> where T: CommonBounds {
     }
 
     fn for_each_init<F, INIT, I>(mut self, init: INIT, func: F)
-        where F: Fn(&mut I, Self::Item), INIT: Fn() -> I
+    where
+        F: Fn(&mut I, Self::Item),
+        INIT: Fn() -> I,
     {
         let outer_loop_size = self.outer_loop_size();
         let inner_loop_size = self.inner_loop_size() + 1;
@@ -220,7 +309,10 @@ impl<'a, T> StridedIterator for StridedMut<'a, T> where T: CommonBounds {
     }
 }
 
-impl<'a, T: 'a> IterGetSet for StridedMut<'a, T> where T: CommonBounds {
+impl<'a, T: 'a> IterGetSet for StridedMut<'a, T>
+where
+    T: CommonBounds,
+{
     type Item = &'a mut T;
 
     fn set_end_index(&mut self, end_index: usize) {
@@ -273,7 +365,8 @@ impl<'a, T: 'a> IterGetSet for StridedMut<'a, T> where T: CommonBounds {
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         unsafe {
-            self.base.ptr
+            self.base
+                .ptr
                 .get_ptr()
                 .add(index * (self.base.last_stride as usize))
                 .as_mut()

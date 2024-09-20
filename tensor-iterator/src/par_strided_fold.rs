@@ -8,6 +8,11 @@ use tensor_traits::CommonBounds;
 
 use crate::iterator_traits::IterGetSet;
 
+/// A parallel strided fold iterator over tensor elements.
+///
+/// This struct facilitates performing fold (reduction) operations on tensor elements in a parallel and strided manner.
+/// It leverages Rayon for concurrent execution, ensuring efficient traversal and aggregation of tensor data based on
+/// their strides.
 pub struct ParStridedFold<I, ID, F> {
     pub(crate) iter: I,
     pub(crate) identity: ID,
@@ -19,7 +24,7 @@ where
     I: ParallelIterator + UnindexedProducer + IterGetSet,
     F: Fn(ID, <I as IterGetSet>::Item) -> ID + Sync + Send + Copy,
     ID: CommonBounds,
-    <I as IterGetSet>::Item: Display
+    <I as IterGetSet>::Item: Display,
 {
     type Item = ID;
 
@@ -36,7 +41,7 @@ where
     I: ParallelIterator + UnindexedProducer + IterGetSet,
     F: Fn(ID, <I as IterGetSet>::Item) -> ID + Sync + Send + Copy,
     ID: CommonBounds,
-    <I as IterGetSet>::Item: Display
+    <I as IterGetSet>::Item: Display,
 {
     type Item = ID;
 

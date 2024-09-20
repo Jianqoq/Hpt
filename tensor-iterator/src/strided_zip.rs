@@ -1,29 +1,38 @@
 use std::sync::Arc;
-use tensor_common::{ shape::Shape, shape_utils::predict_broadcast_shape, strides::Strides };
+use tensor_common::{shape::Shape, shape_utils::predict_broadcast_shape, strides::Strides};
 
-use crate::iterator_traits::{ IterGetSet, ShapeManipulator, StridedIterator };
-
+use crate::iterator_traits::{IterGetSet, ShapeManipulator, StridedIterator};
 
 pub mod strided_zip_simd {
-    use tensor_common::{ shape::Shape, shape_utils::predict_broadcast_shape, strides::Strides };
+    use tensor_common::{shape::Shape, shape_utils::predict_broadcast_shape, strides::Strides};
 
-    use crate::iterator_traits::{ IterGetSetSimd, ShapeManipulator, StridedIteratorSimd };
+    use crate::iterator_traits::{IterGetSetSimd, ShapeManipulator, StridedIteratorSimd};
     use std::sync::Arc;
 
+    /// A single thread SIMD-optimized zipped iterator combining two iterators over tensor elements.
+    ///
+    /// This struct allows for synchronized iteration over two SIMD-optimized iterators,
     #[derive(Clone)]
     pub struct StridedZipSimd<'a, A: 'a, B: 'a> {
+        /// The first iterator to be zipped.
         pub(crate) a: A,
+        /// The second iterator to be zipped.
         pub(crate) b: B,
+        /// Phantom data to associate the lifetime `'a` with the struct.
         pub(crate) phantom: std::marker::PhantomData<&'a ()>,
     }
 
-    impl<'a, A, B> IterGetSetSimd
-        for StridedZipSimd<'a, A, B>
-        where A: IterGetSetSimd, B: IterGetSetSimd
+    impl<'a, A, B> IterGetSetSimd for StridedZipSimd<'a, A, B>
+    where
+        A: IterGetSetSimd,
+        B: IterGetSetSimd,
     {
         type Item = (<A as IterGetSetSimd>::Item, <B as IterGetSetSimd>::Item);
 
-        type SimdItem = (<A as IterGetSetSimd>::SimdItem, <B as IterGetSetSimd>::SimdItem);
+        type SimdItem = (
+            <A as IterGetSetSimd>::SimdItem,
+            <B as IterGetSetSimd>::SimdItem,
+        );
 
         fn set_end_index(&mut self, _: usize) {
             panic!("single thread strided zip does not support set_intervals");
@@ -86,7 +95,10 @@ pub mod strided_zip_simd {
             (self.a.inner_loop_next(index), self.b.inner_loop_next(index))
         }
         fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
-            (self.a.inner_loop_next_simd(index), self.b.inner_loop_next_simd(index))
+            (
+                self.a.inner_loop_next_simd(index),
+                self.b.inner_loop_next_simd(index),
+            )
         }
         fn all_last_stride_one(&self) -> bool {
             self.a.all_last_stride_one() && self.b.all_last_stride_one()
@@ -94,7 +106,11 @@ pub mod strided_zip_simd {
         fn lanes(&self) -> Option<usize> {
             match (self.a.lanes(), self.b.lanes()) {
                 (Some(a), Some(b)) => {
-                    if a == b { Some(a) } else { None }
+                    if a == b {
+                        Some(a)
+                    } else {
+                        None
+                    }
                 }
                 _ => None,
             }
@@ -102,12 +118,22 @@ pub mod strided_zip_simd {
     }
 
     impl<'a, A, B> StridedZipSimd<'a, A, B>
-        where
-            A: 'a + IterGetSetSimd,
-            B: 'a + IterGetSetSimd,
-            <A as IterGetSetSimd>::Item: Send,
-            <B as IterGetSetSimd>::Item: Send
+    where
+        A: 'a + IterGetSetSimd,
+        B: 'a + IterGetSetSimd,
+        <A as IterGetSetSimd>::Item: Send,
+        <B as IterGetSetSimd>::Item: Send,
     {
+        /// Creates a new `StridedZipSimd` instance by zipping two SIMD-optimized iterators.
+        ///
+        /// # Arguments
+        ///
+        /// * `a` - The first iterator to zip.
+        /// * `b` - The second iterator to zip.
+        ///
+        /// # Returns
+        ///
+        /// A new `StridedZipSimd` instance that combines both iterators for synchronized iteration.
         pub fn new(a: A, b: B) -> Self {
             StridedZipSimd {
                 a,
@@ -116,17 +142,36 @@ pub mod strided_zip_simd {
             }
         }
 
+        /// Combines this `StridedZipSimd` iterator with another SIMD-optimized iterator, enabling simultaneous iteration.
+        ///
+        /// This method performs shape broadcasting between `self` and `other` to ensure that both iterators
+        /// iterate over tensors with compatible shapes. It reshapes both iterators to the new broadcasted shape
+        /// and then returns a new `StridedZipSimd` that allows for synchronized iteration over all three iterators.
+        ///
+        /// # Arguments
+        ///
+        /// * `other` - The third iterator to zip with. It must implement both the `IterGetSetSimd` and `ShapeManipulator` traits,
+        ///             and its associated `Item` type must be `Send`.
+        ///
+        /// # Returns
+        ///
+        /// A `StridedZipSimd` instance that zips together `self` and `other`, enabling synchronized
+        /// iteration over all three iterators.
+        ///
+        /// # Panics
+        ///
+        /// This method will panic if the shapes of `self` and `other` cannot be broadcasted together.
+        /// Ensure that the shapes are compatible before calling this method.
         #[track_caller]
         pub fn zip<C>(self, other: C) -> StridedZipSimd<'a, Self, C>
-            where
-                C: IterGetSetSimd + ShapeManipulator,
-                Self: IterGetSetSimd + ShapeManipulator,
-                <C as IterGetSetSimd>::Item: Send,
-                <Self as IterGetSetSimd>::Item: Send
+        where
+            C: IterGetSetSimd + ShapeManipulator,
+            Self: IterGetSetSimd + ShapeManipulator,
+            <C as IterGetSetSimd>::Item: Send,
+            <Self as IterGetSetSimd>::Item: Send,
         {
-            let new_shape = predict_broadcast_shape(&self.shape(), &other.shape()).expect(
-                "Cannot broadcast shapes"
-            );
+            let new_shape = predict_broadcast_shape(&self.shape(), &other.shape())
+                .expect("Cannot broadcast shapes");
 
             let mut a = self.reshape(new_shape.clone());
             let mut b = other.reshape(new_shape.clone());
@@ -137,15 +182,18 @@ pub mod strided_zip_simd {
         }
     }
 
-    impl<'a, A, B> StridedIteratorSimd
-        for StridedZipSimd<'a, A, B>
-        where A: IterGetSetSimd, B: IterGetSetSimd
+    impl<'a, A, B> StridedIteratorSimd for StridedZipSimd<'a, A, B>
+    where
+        A: IterGetSetSimd,
+        B: IterGetSetSimd,
     {
         type Item = <Self as IterGetSetSimd>::Item;
         type SimdItem = <Self as IterGetSetSimd>::SimdItem;
 
         fn for_each<F, F2>(mut self, folder: F, folder2: F2)
-            where F: Fn(Self::Item), F2: Fn(Self::SimdItem)
+        where
+            F: Fn(Self::Item),
+            F2: Fn(Self::SimdItem),
         {
             let outer_loop_size = self.outer_loop_size();
             let inner_loop_size = self.inner_loop_size(); // we don't need to add 1 as we didn't subtract shape by 1
@@ -214,7 +262,9 @@ pub mod strided_zip_simd {
         }
 
         fn for_each_init<F, INIT, T>(mut self, init: INIT, func: F)
-            where F: Fn(&mut T, Self::Item), INIT: Fn() -> T
+        where
+            F: Fn(&mut T, Self::Item),
+            INIT: Fn() -> T,
         {
             let outer_loop_size = self.outer_loop_size();
             let inner_loop_size = self.inner_loop_size();
@@ -229,14 +279,24 @@ pub mod strided_zip_simd {
     }
 }
 
+/// A single thread `non` SIMD-optimized zipped iterator combining two iterators over tensor elements.
+///
+/// This struct allows for synchronized iteration over two simple iterators,
 #[derive(Clone)]
 pub struct StridedZip<'a, A: 'a, B: 'a> {
+    /// The first iterator to be zipped.
     pub(crate) a: A,
+    /// The second iterator to be zipped.
     pub(crate) b: B,
+    /// Phantom data to associate the lifetime `'a` with the struct.
     pub(crate) phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl<'a, A, B> IterGetSet for StridedZip<'a, A, B> where A: IterGetSet, B: IterGetSet {
+impl<'a, A, B> IterGetSet for StridedZip<'a, A, B>
+where
+    A: IterGetSet,
+    B: IterGetSet,
+{
     type Item = (<A as IterGetSet>::Item, <B as IterGetSet>::Item);
 
     fn set_end_index(&mut self, _: usize) {
@@ -298,12 +358,22 @@ impl<'a, A, B> IterGetSet for StridedZip<'a, A, B> where A: IterGetSet, B: IterG
 }
 
 impl<'a, A, B> StridedZip<'a, A, B>
-    where
-        A: 'a + IterGetSet,
-        B: 'a + IterGetSet,
-        <A as IterGetSet>::Item: Send,
-        <B as IterGetSet>::Item: Send
+where
+    A: 'a + IterGetSet,
+    B: 'a + IterGetSet,
+    <A as IterGetSet>::Item: Send,
+    <B as IterGetSet>::Item: Send,
 {
+    /// Creates a new `StridedZip` instance by zipping two iterators.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `a` - The first iterator to zip.
+    /// * `b` - The second iterator to zip.
+    /// 
+    /// # Returns
+    /// 
+    /// A new `StridedZip` instance that combines both iterators for synchronized iteration.
     pub fn new(a: A, b: B) -> Self {
         StridedZip {
             a,
@@ -312,17 +382,38 @@ impl<'a, A, B> StridedZip<'a, A, B>
         }
     }
 
+    /// Combines this `StridedZip` iterator with another iterator, enabling simultaneous iteration.
+    /// 
+    /// This method zips together `self` and `other` into a `StridedZip` iterator, allowing for synchronized
+    /// 
+    /// iteration over both iterators. This is particularly useful for operations that require processing
+    /// 
+    /// elements from two tensors in parallel, such as element-wise arithmetic operations.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `other` - The other iterator to zip with. It must implement the `IterGetSet` trait, and
+    ///             its associated `Item` type must be `Send`.
+    /// 
+    /// # Returns
+    /// 
+    /// A `StridedZip` instance that encapsulates both `self` and `other`, allowing for synchronized
+    /// 
+    /// iteration over their elements.
+    /// 
+    /// # Panics
+    /// 
+    /// This method will panic if the shapes of `self` and `other` cannot be broadcasted together.
     #[track_caller]
     pub fn zip<C>(self, other: C) -> StridedZip<'a, Self, C>
-        where
-            C: IterGetSet + ShapeManipulator,
-            Self: IterGetSet + ShapeManipulator,
-            <C as IterGetSet>::Item: Send,
-            <Self as IterGetSet>::Item: Send
+    where
+        C: IterGetSet + ShapeManipulator,
+        Self: IterGetSet + ShapeManipulator,
+        <C as IterGetSet>::Item: Send,
+        <Self as IterGetSet>::Item: Send,
     {
-        let new_shape = predict_broadcast_shape(&self.shape(), &other.shape()).expect(
-            "Cannot broadcast shapes"
-        );
+        let new_shape = predict_broadcast_shape(&self.shape(), &other.shape())
+            .expect("Cannot broadcast shapes");
 
         let mut a = self.reshape(new_shape.clone());
         let mut b = other.reshape(new_shape.clone());
@@ -333,10 +424,17 @@ impl<'a, A, B> StridedZip<'a, A, B>
     }
 }
 
-impl<'a, A, B> StridedIterator for StridedZip<'a, A, B> where A: IterGetSet, B: IterGetSet {
+impl<'a, A, B> StridedIterator for StridedZip<'a, A, B>
+where
+    A: IterGetSet,
+    B: IterGetSet,
+{
     type Item = <Self as IterGetSet>::Item;
 
-    fn for_each<F>(mut self, folder: F) where F: Fn(Self::Item) {
+    fn for_each<F>(mut self, folder: F)
+    where
+        F: Fn(Self::Item),
+    {
         let outer_loop_size = self.outer_loop_size();
         let inner_loop_size = self.inner_loop_size(); // we don't need to add 1 as we didn't subtract shape by 1
         self.set_prg(vec![0; self.a.shape().len()]);
@@ -349,7 +447,9 @@ impl<'a, A, B> StridedIterator for StridedZip<'a, A, B> where A: IterGetSet, B: 
     }
 
     fn for_each_init<F, INIT, T>(mut self, init: INIT, func: F)
-        where F: Fn(&mut T, Self::Item), INIT: Fn() -> T
+    where
+        F: Fn(&mut T, Self::Item),
+        INIT: Fn() -> T,
     {
         let outer_loop_size = self.outer_loop_size();
         let inner_loop_size = self.inner_loop_size();
