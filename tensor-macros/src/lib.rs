@@ -1,3 +1,19 @@
+//! # Tensor Macros
+//! 
+//! This crate provides a set of macros to generate code for tensor operations. 
+//! These macros are used to simplify and automate common tasks such as defining 
+//! tensor operations, reducing dimensionality, and optimizing numerical computations.
+//!
+//! ## Examples
+//!
+//! Here's an example of using a macro from this crate:
+//!
+//! ```rust
+//! // Example code using a macro from this crate
+//! ```
+
+#![deny(missing_docs)]
+
 use binary_float_out::impl_float_out_binary;
 use float_unary::impl_float_out_unary;
 use kernel_gen_helper::{ __gen_fast_reduce_simd_helper, __gen_reduce_dim_not_include_simd_helper };
@@ -25,6 +41,7 @@ use type_utils::TypeInfo;
 use proc_macro2::{ TokenStream as TokenStream2, TokenTree };
 use crate::simd_normal_out::impl_simd_normal_out;
 
+/// number of registers available for the target architecture
 #[cfg(target_feature = "avx2")]
 const NUM_REG: usize = 16;
 #[cfg(all(any(target_feature = "sse", target_arch = "arm"), not(target_feature = "avx2")))]
@@ -115,6 +132,7 @@ impl parse::Parse for Selections {
     }
 }
 
+/// parse the input and generate the corresponding slice
 #[proc_macro]
 pub fn match_selection(input: TokenStream) -> TokenStream {
     let res: Selections = parse_macro_input!(input as Selections);
@@ -190,6 +208,7 @@ impl parse::Parse for InferEnumType {
     }
 }
 
+/// infer the type of the enum
 #[proc_macro]
 pub fn infer_enum_type(input: TokenStream) -> TokenStream {
     let res: InferEnumType = parse_macro_input!(input as InferEnumType);
@@ -254,6 +273,7 @@ impl parse::Parse for GenericCal {
     }
 }
 
+/// infer the type of the result
 #[proc_macro]
 pub fn infer_cal_res_type(input: TokenStream) -> TokenStream {
     let res: GenericCal = parse_macro_input!(input as GenericCal);
@@ -289,36 +309,43 @@ pub fn infer_cal_res_type(input: TokenStream) -> TokenStream {
     ret.into()
 }
 
+/// implement float out binary trait
 #[proc_macro]
 pub fn float_out_binary(_: TokenStream) -> TokenStream {
     impl_float_out_binary()
 }
 
+/// implement simd float out binary trait
 #[proc_macro]
 pub fn float_out_binary_simd(_: TokenStream) -> TokenStream {
     impl_simd_binary_out_float()
 }
 
+/// implement float out unary trait
 #[proc_macro]
 pub fn float_out_unary(_: TokenStream) -> TokenStream {
     impl_float_out_unary()
 }
 
+/// implement simd float out unary trait
 #[proc_macro]
 pub fn simd_float_out_unary(_: TokenStream) -> TokenStream {
     simd_float_out_unary::impl_float_out_unary()
 }
 
+/// implement simd eval trait
 #[proc_macro]
 pub fn simd_eval(_: TokenStream) -> TokenStream {
     simd_eval::impl_simd_eval()
 }
 
+/// implement simd bitwise trait
 #[proc_macro]
 pub fn simd_bitwise(_: TokenStream) -> TokenStream {
     impl_simd_bitwise_out()
 }
 
+/// generate notmal out trait
 #[proc_macro]
 pub fn impl_normal_out(_: TokenStream) -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
@@ -647,26 +674,31 @@ pub fn impl_normal_out(_: TokenStream) -> TokenStream {
     ret.into()
 }
 
+/// implement simd normal out trait
 #[proc_macro]
 pub fn impl_normal_out_simd(_: TokenStream) -> TokenStream {
     impl_simd_normal_out()
 }
 
+/// implement simd convert trait
 #[proc_macro]
 pub fn impl_simd_convert(_: TokenStream) -> TokenStream {
     __impl_simd_convert()
 }
 
+/// implement simd cmp trait
 #[proc_macro]
 pub fn simd_cmp(_: TokenStream) -> TokenStream {
     impl_simd_cmp()
 }
 
+/// implment into vec trait
 #[proc_macro]
 pub fn impl_into_vec(_: TokenStream) -> TokenStream {
     into_vec::into_vec()
 }
 
+/// implement bitwise out trait
 #[proc_macro]
 pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
@@ -747,6 +779,7 @@ pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
     ret.into()
 }
 
+/// implement compare trait
 #[proc_macro]
 pub fn impl_cmp(_: TokenStream) -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
@@ -819,6 +852,7 @@ pub fn impl_cmp(_: TokenStream) -> TokenStream {
     ret.into()
 }
 
+/// implement eval trait
 #[proc_macro]
 pub fn impl_eval(_: TokenStream) -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
@@ -914,152 +948,14 @@ pub fn impl_eval(_: TokenStream) -> TokenStream {
     ret.into()
 }
 
-#[proc_macro]
-pub fn impl_static_tensor_scalar_std_ops(_: TokenStream) -> TokenStream {
-    let mut ret = proc_macro2::TokenStream::new();
-
-    let types = [
-        quote!(bool),
-        quote!(f16),
-        quote!(bf16),
-        quote!(f32),
-        quote!(f64),
-        quote!(i8),
-        quote!(i16),
-        quote!(i32),
-        quote!(i64),
-        quote!(u8),
-        quote!(u16),
-        quote!(u32),
-        quote!(u64),
-        quote!(isize),
-        quote!(usize),
-    ];
-
-    let std_ops = [quote!(Add), quote!(Div), quote!(Mul), quote!(Sub)];
-
-    let std_ops_method = [quote!(add), quote!(div), quote!(mul), quote!(sub)];
-
-    for lhs in types.iter() {
-        for (op, method) in std_ops.iter().zip(std_ops_method.iter()) {
-            ret.extend(
-                quote!(
-                impl_scalar_op_lhs!(#op, [], #lhs, [], Tensor, #method);
-            )
-            );
-            ret.extend(
-                quote!(
-                impl_scalar_op_lhs!(#op, [&], #lhs, [], Tensor, #method);
-            )
-            );
-            ret.extend(
-                quote!(
-                impl_scalar_op_lhs!(#op, [&], #lhs, [&], Tensor, #method);
-            )
-            );
-            ret.extend(
-                quote!(
-                impl_scalar_op_lhs!(#op, [], #lhs, [&], Tensor, #method);
-            )
-            );
-            ret.extend(
-                quote!(
-                impl_scalar_op_rhs!(#op, [], Tensor, [], #lhs, #method);
-            )
-            );
-            ret.extend(
-                quote!(
-                impl_scalar_op_rhs!(#op, [], Tensor, [&], #lhs, #method);
-            )
-            );
-            ret.extend(
-                quote!(
-                impl_scalar_op_rhs!(#op, [&], Tensor, [], #lhs, #method);
-            )
-            );
-            ret.extend(
-                quote!(
-                impl_scalar_op_rhs!(#op, [&], Tensor, [&], #lhs, #method);
-            )
-            );
-        }
-    }
-
-    ret.into()
-}
-
-#[proc_macro]
-pub fn impl_tensor_slice_std_ops(_: TokenStream) -> TokenStream {
-    let mut ret = proc_macro2::TokenStream::new();
-    let types = [
-        quote!(bool),
-        quote!(f16),
-        quote!(bf16),
-        quote!(f32),
-        quote!(f64),
-        quote!(i8),
-        quote!(i16),
-        quote!(i32),
-        quote!(i64),
-        quote!(u8),
-        quote!(u16),
-        quote!(u32),
-        quote!(u64),
-        quote!(isize),
-        quote!(usize),
-        quote!(&bool),
-        quote!(&f16),
-        quote!(&bf16),
-        quote!(&f32),
-        quote!(&f64),
-        quote!(&i8),
-        quote!(&i16),
-        quote!(&i32),
-        quote!(&i64),
-        quote!(&u8),
-        quote!(&u16),
-        quote!(&u32),
-        quote!(&u64),
-        quote!(&isize),
-        quote!(&usize),
-    ];
-
-    let target = [quote!(TensorSlice), quote!(&TensorSlice)];
-
-    let std_ops = [quote!(Add), quote!(Div), quote!(Mul), quote!(Sub), quote!(Rem)];
-
-    let std_ops_method = [quote!(add), quote!(div), quote!(mul), quote!(sub), quote!(rem)];
-
-    let prim_expr_methods = [quote!(Add), quote!(Div), quote!(Mul), quote!(Sub), quote!(Rem)];
-
-    for lhs in types.iter() {
-        for rhs in target.iter() {
-            for ((op, method), prim_method) in std_ops
-                .iter()
-                .zip(std_ops_method.iter())
-                .zip(prim_expr_methods.iter()) {
-                ret.extend(
-                    quote!(
-                        impl std::ops::#op<#rhs> for #lhs {
-                            type Output = PrimeExpr;
-                            fn #method(self, rhs: #rhs) -> Self::Output {
-                                PrimeExpr::#prim_method(#prim_method::make(self, rhs))
-                            }
-                        }
-                    )
-                );
-            }
-        }
-    }
-
-    ret.into()
-}
-
+/// generate fast reduce simd helper
 #[proc_macro]
 pub fn gen_fast_reduce_simd_helper(input: TokenStream) -> TokenStream {
     __gen_fast_reduce_simd_helper(input)
 }
 
+
+/// generate reduce dim not include simd helper
 #[proc_macro]
 pub fn gen_reduce_dim_not_include_simd_helper(input: TokenStream) -> TokenStream {
     __gen_reduce_dim_not_include_simd_helper(input)

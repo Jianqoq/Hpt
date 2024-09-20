@@ -1,26 +1,56 @@
-use tensor_common::{ layout::Layout, pointer::Pointer, slice::{ slice_process, Slice } };
-use tensor_traits::tensor::{ CommonBounds, TensorInfo };
+//! Slice operations for dynamic tensors.
+
 use anyhow::Result;
+use tensor_common::{
+    layout::Layout,
+    pointer::Pointer,
+    slice::{slice_process, Slice},
+};
+use tensor_traits::tensor::{CommonBounds, TensorInfo};
 
-use crate::{ tensor::Tensor, tensor_base::_Tensor };
+use crate::tensor_base::_Tensor;
 
-pub trait SliceOps<T, U> where T: CommonBounds {
-    // slice operation mostly change the shape of tensor only
-    fn slice(&self, ranges: U) -> Result<Self> where Self: Sized;
-}
-
-impl<T> _Tensor<T> where T: CommonBounds {
-    fn slice_process(&self, index: &[Slice]) -> Result<_Tensor<T>> {
-        let (res_shape, res_strides, offset) = slice_process(
-            self.shape().to_vec(),
-            self.strides().to_vec(),
-            index,
-            1
-        )?;
+impl<T> _Tensor<T>
+where
+    T: CommonBounds,
+{
+    /// Extracts a slice of the tensor based on the provided indices.
+    ///
+    /// This method creates a new tensor that represents a slice of the original tensor.
+    /// It slices the tensor according to the specified indices and returns a new tensor
+    /// without copying the underlying data, but instead adjusting the shape and strides.
+    ///
+    /// # Arguments
+    ///
+    /// * `index` - A reference to a slice of `Slice` structs that define how to slice the tensor along each axis.
+    ///   The `Slice` type allows for specifying ranges, single elements, and other slicing options.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the sliced tensor as a new tensor. If any slicing error occurs
+    /// (e.g., out-of-bounds access), an error message is returned.
+    pub fn slice(&self, index: &[Slice]) -> Result<_Tensor<T>> {
+        let (res_shape, res_strides, offset) =
+            slice_process(self.shape().to_vec(), self.strides().to_vec(), index, 1)?;
         let res_ptr: *mut T = unsafe { self.data.ptr.offset(offset as isize) };
         Ok(self.from_slice(res_ptr, res_shape, res_strides))
     }
-
+    /// Creates a new tensor from a slice of memory.
+    ///
+    /// This method is used internally to create a new tensor from a pointer to a memory region,
+    /// along with the provided shape and strides. It manages the memory layout and ensures
+    /// that the resulting tensor references the correct portion of the original tensor.
+    ///
+    /// # Arguments
+    ///
+    /// * `ptr` - A pointer to the memory region that the new tensor will reference.
+    /// * `shape` - A vector representing the shape of the new tensor.
+    /// * `strides` - A vector representing the strides of the new tensor, which determine
+    ///   how the tensor's data is laid out in memory.
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `_Tensor` referencing the specified slice of memory.
     pub fn from_slice(&self, ptr: *mut T, shape: Vec<i64>, strides: Vec<i64>) -> _Tensor<T> {
         let (shape, strides) = if shape.contains(&0) {
             let mut new_shape = Vec::new();
@@ -36,6 +66,7 @@ impl<T> _Tensor<T> where T: CommonBounds {
         } else {
             (shape, strides)
         };
+        // Create a new tensor, either as a child of a parent tensor or as a standalone tensor
         if self.parent.is_none() {
             let layout = Layout::new(shape, strides);
             Self {
@@ -61,63 +92,5 @@ impl<T> _Tensor<T> where T: CommonBounds {
                 _backend: self._backend.clone(),
             }
         }
-    }
-}
-
-impl<T, const N: usize> SliceOps<T, [Slice; N]> for _Tensor<T> where T: CommonBounds {
-    fn slice(&self, slices: [Slice; N]) -> Result<_Tensor<T>> {
-        self.slice_process(&slices)
-    }
-}
-
-impl<T, const N: usize> SliceOps<T, &[Slice; N]> for _Tensor<T> where T: CommonBounds {
-    fn slice(&self, slices: &[Slice; N]) -> Result<_Tensor<T>> {
-        self.slice_process(slices)
-    }
-}
-
-impl<T> SliceOps<T, &[Slice]> for _Tensor<T> where T: CommonBounds {
-    fn slice(&self, slices: &[Slice]) -> Result<_Tensor<T>> {
-        self.slice_process(slices)
-    }
-}
-
-impl<T> SliceOps<T, &Vec<Slice>> for _Tensor<T> where T: CommonBounds {
-    fn slice(&self, slices: &Vec<Slice>) -> Result<_Tensor<T>> {
-        self.slice_process(slices)
-    }
-}
-
-impl<T> Tensor<T> where T: CommonBounds {
-    fn slice_process(&self, index: &[Slice]) -> Result<Tensor<T>> {
-        Ok(self.inner.slice_process(index)?.into())
-    }
-
-    pub fn from_slice(&self, ptr: *mut T, shape: Vec<i64>, strides: Vec<i64>) -> Tensor<T> {
-        self.inner.from_slice(ptr, shape, strides).into()
-    }
-}
-
-impl<T, const N: usize> SliceOps<T, [Slice; N]> for Tensor<T> where T: CommonBounds {
-    fn slice(&self, slices: [Slice; N]) -> Result<Tensor<T>> {
-        self.slice_process(&slices)
-    }
-}
-
-impl<T, const N: usize> SliceOps<T, &[Slice; N]> for Tensor<T> where T: CommonBounds {
-    fn slice(&self, slices: &[Slice; N]) -> Result<Tensor<T>> {
-        self.slice_process(slices)
-    }
-}
-
-impl<T> SliceOps<T, &[Slice]> for Tensor<T> where T: CommonBounds {
-    fn slice(&self, slices: &[Slice]) -> Result<Tensor<T>> {
-        self.slice_process(slices)
-    }
-}
-
-impl<T> SliceOps<T, &Vec<Slice>> for Tensor<T> where T: CommonBounds {
-    fn slice(&self, slices: &Vec<Slice>) -> Result<Tensor<T>> {
-        self.slice_process(slices)
     }
 }

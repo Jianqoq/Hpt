@@ -7,7 +7,6 @@ use tensor_dyn::TensorInfo;
 use tensor_dyn::ShapeManipulate;
 use tensor_macros::match_selection;
 use tensor_common::slice::Slice;
-use tensor_dyn::slice::SliceOps;
 use tensor_dyn::TensorLike;
 
 #[allow(unused)]
@@ -53,7 +52,7 @@ fn test_hamming() -> anyhow::Result<()> {
         tch::Kind::Double,
         tch::Device::Cpu,
     ));
-    let a = _Tensor::<f64>::hamming_window(1000, true)?;
+    let a = tensor_dyn::tensor::Tensor::<f64>::hamming_window(1000, true)?;
     assert_eq(&a, &tch_a);
     Ok(())
 }
@@ -64,7 +63,7 @@ fn test_hann() -> anyhow::Result<()> {
         tch::Kind::Double,
         tch::Device::Cpu,
     ));
-    let a = _Tensor::<f64>::hann_window(1000, true)?;
+    let a = tensor_dyn::tensor::Tensor::<f64>::hann_window(1000, true)?;
     assert_eq(&a, &tch_a);
     Ok(())
 }

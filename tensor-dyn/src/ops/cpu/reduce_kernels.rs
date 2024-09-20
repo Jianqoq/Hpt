@@ -1,4 +1,5 @@
 
+/// argmax kernel
 #[macro_export]
 macro_rules! argmax_kernel {
     (
@@ -35,6 +36,7 @@ macro_rules! argmax_kernel {
     };
 }
 
+/// argmin kernel
 #[macro_export]
 macro_rules! argmin_kernel {
     (

@@ -1,16 +1,16 @@
+use crate::backend::Backend;
+use crate::{backend::Cpu, tensor_base::_Tensor};
+use half::bf16;
 use half::f16;
-use crate::{ backend::Cpu, tensor_base::_Tensor };
-use tensor_common::shape::Shape;
-use tensor_common::pointer::Pointer;
+use num::complex::{Complex32, Complex64};
 use std::alloc::Layout;
 use std::mem::ManuallyDrop;
-use tensor_traits::tensor::TensorCreator;
 use std::sync::Arc;
-use tensor_common::strides_utils::shape_to_strides;
 use tensor_allocator::CACHE;
-use num::complex::{ Complex32, Complex64 };
-use half::bf16;
-use crate::backend::Backend;
+use tensor_common::pointer::Pointer;
+use tensor_common::shape::Shape;
+use tensor_common::strides_utils::shape_to_strides;
+use tensor_traits::tensor::TensorCreator;
 use tensor_traits::TensorLike;
 
 macro_rules! from_scalar {
@@ -304,6 +304,7 @@ macro_rules! impl_type_num {
     };
 }
 
+/// This macro is used to generate the nested array type
 #[macro_export]
 macro_rules! repeate_generic {
     (const, $($t:ident),*) => {
@@ -354,7 +355,9 @@ macro_rules! repeate_generic {
 }
 
 from_scalar!(bool, i8, u8, i16, u16, i32, u32, i64, u64, f16, bf16, f32, f64, Complex32, Complex64);
-impl_type_num!(vec, bool, i8, u8, i16, u16, i32, u32, i64, u64, f16, f32, f64, Complex32, Complex64); // prettier-ignore
+impl_type_num!(
+    vec, bool, i8, u8, i16, u16, i32, u32, i64, u64, f16, f32, f64, Complex32, Complex64
+); // prettier-ignore
 impl_type_num!(ndarray, N; ; bool, i8, u8, i16, u16, i32, u32, i64, u64, f16, f32, f64, Complex32, Complex64);
 impl_type_num!(ndarray_ref, N; ; bool, i8, u8, i16, u16, i32, u32, i64, u64, f16, f32, f64, Complex32, Complex64);
 impl_type_num!(ndarray, N, M; i; bool, i8, u8, i16, u16, i32, u32, i64, u64, f16, f32, f64, Complex32, Complex64);
@@ -389,7 +392,11 @@ impl_type_num!(ndarray_source_target, f32, N, M, O, P, Q, R, S, T; i, j, k, l, m
 impl_type_num!(ndarray_source_target, f64, N, M, O, P, Q, R, S, T; i, j, k, l, m, n, o; Complex64);
 
 impl<T> _Tensor<T, Cpu> {
-    pub fn new<A>(data: A) -> Self where A: Into<_Tensor<T>> {
+    /// Creates a new tensor from the provided data.
+    pub fn new<A>(data: A) -> Self
+    where
+        A: Into<_Tensor<T>>,
+    {
         data.into()
     }
 }

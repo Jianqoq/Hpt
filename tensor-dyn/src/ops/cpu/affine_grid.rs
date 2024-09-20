@@ -1,36 +1,54 @@
-use std::{ ops::{ Add, Div, Mul, Neg, Sub }, sync::{ Arc, Barrier } };
+use std::{
+    ops::{Add, Div, Mul, Neg, Sub},
+    sync::{Arc, Barrier},
+};
 
-use tensor_common::{ shape::Shape, shape_utils::mt_intervals };
-use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
-use tensor_types::{ dtype::FloatConst, into_scalar::IntoScalar };
+use tensor_common::{shape::Shape, shape_utils::mt_intervals};
+use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
+use tensor_types::{dtype::FloatConst, into_scalar::IntoScalar};
 
-use crate::{ tensor_base::_Tensor, THREAD_POOL };
+use crate::{tensor_base::_Tensor, THREAD_POOL};
 
 impl<T> _Tensor<T>
-    where
-        T: CommonBounds +
-            Mul<Output = T> +
-            Sub<Output = T> +
-            Div<Output = T> +
-            Add<Output = T> +
-            Neg<Output = T> +
-            FloatConst,
-        i64: IntoScalar<T>
+where
+    T: CommonBounds
+        + Mul<Output = T>
+        + Sub<Output = T>
+        + Div<Output = T>
+        + Add<Output = T>
+        + Neg<Output = T>
+        + FloatConst,
+    i64: IntoScalar<T>,
 {
+    /// Generates an affine grid for the given shape.
+    ///
+    /// This method creates an affine grid, commonly used in applications like
+    /// spatial transformations. The output is a grid of coordinates that can
+    /// be used to apply affine transformations on input tensors. It supports
+    /// both aligned corners and non-aligned corners, depending on the
+    /// `align_corners` flag.
+    ///
+    /// # Arguments
+    ///
+    /// * `shape` - The target shape for the affine grid. It can be provided
+    ///   as a type that implements the `Into<Shape>` trait, allowing flexibility
+    ///   in specifying the shape.
+    /// * `align_corners` - A boolean flag that, if true, aligns the grid corners
+    ///   with the corners of the input tensor. If false, the grid will be
+    ///   aligned in a different way, typically for downscaling operations.
     pub fn affine_grid<S: Into<Shape>>(
         &self,
         shape: S,
-        align_corners: bool
+        align_corners: bool,
     ) -> anyhow::Result<_Tensor<T>> {
         let shape: Vec<i64> = shape.into().inner().clone();
         let theta_strides = self.strides();
         let theta_shape = self.shape();
         if shape.len() == 4 {
-            if
-                self.ndim() != 3 ||
-                theta_shape[0] != shape[0] ||
-                theta_shape[1] != 2 ||
-                theta_shape[2] != 3
+            if self.ndim() != 3
+                || theta_shape[0] != shape[0]
+                || theta_shape[1] != 2
+                || theta_shape[2] != 3
             {
                 anyhow::bail!("Theta shape must be [n, 2, 3]");
             }
@@ -85,14 +103,12 @@ impl<T> _Tensor<T>
                                 let wi: T = prg[2].into_scalar();
                                 let x = (T::TWO * wi) / (w - T::ONE) - T::ONE;
                                 let y = (T::TWO * hi) / (h - T::ONE) - T::ONE;
-                                let tx =
-                                    theta_ptr[ni * ts0 + 0 * ts1 + 0 * ts2] * x +
-                                    theta_ptr[ni * ts0 + 0 * ts1 + 1 * ts2] * y +
-                                    theta_ptr[ni * ts0 + 0 * ts1 + 2 * ts2];
-                                let ty =
-                                    theta_ptr[ni * ts0 + 1 * ts1 + 0 * ts2] * x +
-                                    theta_ptr[ni * ts0 + 1 * ts1 + 1 * ts2] * y +
-                                    theta_ptr[ni * ts0 + 1 * ts1 + 2 * ts2];
+                                let tx = theta_ptr[ni * ts0 + 0 * ts1 + 0 * ts2] * x
+                                    + theta_ptr[ni * ts0 + 0 * ts1 + 1 * ts2] * y
+                                    + theta_ptr[ni * ts0 + 0 * ts1 + 2 * ts2];
+                                let ty = theta_ptr[ni * ts0 + 1 * ts1 + 0 * ts2] * x
+                                    + theta_ptr[ni * ts0 + 1 * ts1 + 1 * ts2] * y
+                                    + theta_ptr[ni * ts0 + 1 * ts1 + 2 * ts2];
                                 ptr.modify(0, tx);
                                 ptr.modify(1, ty);
 
@@ -118,14 +134,12 @@ impl<T> _Tensor<T>
                                 let wi: T = prg[2].into_scalar();
                                 let x = -T::ONE + (T::TWO * (wi + T::HALF)) / w;
                                 let y = -T::ONE + (T::TWO * (hi + T::HALF)) / h;
-                                let tx =
-                                    theta_ptr[ni * ts0] * x +
-                                    theta_ptr[ni * ts0 + ts2] * y +
-                                    theta_ptr[ni * ts0 + ts2 * 2];
-                                let ty =
-                                    theta_ptr[ni * ts0 + ts1] * x +
-                                    theta_ptr[ni * ts0 + ts1 + ts2] * y +
-                                    theta_ptr[ni * ts0 + ts1 + ts2 * 2];
+                                let tx = theta_ptr[ni * ts0] * x
+                                    + theta_ptr[ni * ts0 + ts2] * y
+                                    + theta_ptr[ni * ts0 + ts2 * 2];
+                                let ty = theta_ptr[ni * ts0 + ts1] * x
+                                    + theta_ptr[ni * ts0 + ts1 + ts2] * y
+                                    + theta_ptr[ni * ts0 + ts1 + ts2 * 2];
                                 ptr.modify(0, tx);
                                 ptr.modify(1, ty);
                                 for j in (0..(layout.ndim() as i64) - 1).rev() {

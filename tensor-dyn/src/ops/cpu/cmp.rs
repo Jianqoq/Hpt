@@ -16,6 +16,15 @@ impl<T> _Tensor<T>
 where
     T: CommonBounds,
 {
+    /// perform element-wise not equal operation between two tensors
+    /// 
+    /// # Arguments
+    /// 
+    /// * `rhs` - The right hand side tensor
+    /// 
+    /// # Returns
+    /// 
+    /// A tensor of boolean values
     pub fn tensor_neq<U: CommonBounds, D: Into<_Tensor<U>>>(&self, rhs: D) -> Result<_Tensor<bool>>
     where
         T: Cmp<U>,
@@ -33,6 +42,15 @@ where
         Ok(res)
     }
 
+    /// perform element-wise equal operation between two tensors
+    /// 
+    /// # Arguments
+    /// 
+    /// * `rhs` - The right hand side tensor
+    /// 
+    /// # Returns
+    /// 
+    /// A tensor of boolean values
     pub fn tensor_eq<U: CommonBounds, D: Into<_Tensor<U>>>(&self, rhs: D) -> Result<_Tensor<bool>>
     where
         T: Cmp<U>,
@@ -50,6 +68,15 @@ where
         Ok(res)
     }
 
+    /// perform element-wise less than operation between two tensors
+    /// 
+    /// # Arguments
+    /// 
+    /// * `rhs` - The right hand side tensor
+    /// 
+    /// # Returns
+    /// 
+    /// A tensor of boolean values
     pub fn tensor_lt<U: CommonBounds, D: Into<_Tensor<U>>>(&self, rhs: D) -> Result<_Tensor<bool>>
     where
         T: Cmp<U>,
@@ -67,6 +94,15 @@ where
         Ok(res)
     }
 
+    /// perform element-wise greater than operation between two tensors
+    /// 
+    /// # Arguments
+    /// 
+    /// * `rhs` - The right hand side tensor
+    /// 
+    /// # Returns
+    /// 
+    /// A tensor of boolean values
     pub fn tensor_gt<U: CommonBounds, D: Into<_Tensor<U>>>(&self, rhs: D) -> Result<_Tensor<bool>>
     where
         T: Cmp<U>,
@@ -84,6 +120,15 @@ where
         Ok(res)
     }
 
+    /// perform element-wise less than or equal operation between two tensors
+    /// 
+    /// # Arguments
+    /// 
+    /// * `rhs` - The right hand side tensor
+    /// 
+    /// # Returns
+    /// 
+    /// A tensor of boolean values
     pub fn tensor_le<U: CommonBounds, D: Into<_Tensor<U>>>(&self, rhs: D) -> Result<_Tensor<bool>>
     where
         T: Cmp<U>,
@@ -101,6 +146,15 @@ where
         Ok(res)
     }
 
+    /// perform element-wise greater than or equal operation between two tensors
+    /// 
+    /// # Arguments
+    /// 
+    /// * `rhs` - The right hand side tensor
+    /// 
+    /// # Returns
+    /// 
+    /// A tensor of boolean values
     pub fn tensor_ge<U: CommonBounds, D: Into<_Tensor<U>>>(&self, rhs: D) -> Result<_Tensor<bool>>
     where
         T: Cmp<U>,
@@ -123,6 +177,15 @@ impl<T> Tensor<T>
 where
     T: CommonBounds,
 {
+    /// perform element-wise not equal operation between two tensors
+    /// 
+    /// # Arguments
+    /// 
+    /// * `rhs` - The right hand side tensor
+    /// 
+    /// # Returns
+    /// 
+    /// A tensor of boolean values
     pub fn tensor_neq<U: CommonBounds, D: Into<Tensor<U>>>(&self, rhs: D) -> Result<_Tensor<bool>>
     where
         T: Cmp<U>,
@@ -132,6 +195,15 @@ where
         Ok(self.inner.as_ref().tensor_neq(_rhs.inner.as_ref())?.into())
     }
 
+    /// perform element-wise equal operation between two tensors
+    /// 
+    /// # Arguments
+    /// 
+    /// * `rhs` - The right hand side tensor
+    /// 
+    /// # Returns
+    /// 
+    /// A tensor of boolean values
     pub fn tensor_eq<U: CommonBounds, D: Into<Tensor<U>>>(&self, rhs: D) -> Result<_Tensor<bool>>
     where
         T: Cmp<U>,
@@ -141,6 +213,15 @@ where
         Ok(self.inner.tensor_eq(_rhs.inner.as_ref())?.into())
     }
 
+    /// perform element-wise less than operation between two tensors
+    /// 
+    /// # Arguments
+    /// 
+    /// * `rhs` - The right hand side tensor
+    /// 
+    /// # Returns
+    /// 
+    /// A tensor of boolean values
     pub fn tensor_lt<U: CommonBounds, D: Into<Tensor<U>>>(&self, rhs: D) -> Result<_Tensor<bool>>
     where
         T: Cmp<U>,
@@ -150,6 +231,15 @@ where
         Ok(self.inner.as_ref().tensor_lt(_rhs.inner.as_ref())?.into())
     }
 
+    /// perform element-wise greater than operation between two tensors
+    /// 
+    /// # Arguments
+    /// 
+    /// * `rhs` - The right hand side tensor
+    /// 
+    /// # Returns
+    /// 
+    /// A tensor of boolean values
     pub fn tensor_gt<U: CommonBounds, D: Into<Tensor<U>>>(&self, rhs: D) -> Result<_Tensor<bool>>
     where
         T: Cmp<U>,
@@ -159,6 +249,15 @@ where
         Ok(self.inner.as_ref().tensor_gt(_rhs.inner.as_ref())?.into())
     }
 
+    /// perform element-wise less than or equal operation between two tensors
+    /// 
+    /// # Arguments
+    /// 
+    /// * `rhs` - The right hand side tensor
+    /// 
+    /// # Returns
+    /// 
+    /// A tensor of boolean values
     pub fn tensor_le<U: CommonBounds, D: Into<Tensor<U>>>(&self, rhs: D) -> Result<_Tensor<bool>>
     where
         T: Cmp<U>,
@@ -168,6 +267,15 @@ where
         Ok(self.inner.as_ref().tensor_le(_rhs.inner.as_ref())?.into())
     }
 
+    /// perform element-wise greater than or equal operation between two tensors
+    /// 
+    /// # Arguments
+    /// 
+    /// * `rhs` - The right hand side tensor
+    /// 
+    /// # Returns
+    /// 
+    /// A tensor of boolean values
     pub fn tensor_ge<U: CommonBounds, D: Into<Tensor<U>>>(&self, rhs: D) -> Result<_Tensor<bool>>
     where
         T: Cmp<U>,

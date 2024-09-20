@@ -10,6 +10,7 @@ use tensor_types::{into_scalar::IntoScalar, type_promote::NormalOut};
 
 use super::matmul::{matmul_no_out, matmul_with_out};
 
+/// a type alias for the output type of the binary operations of `A` and `B`
 pub(crate) type NormalType<A, B> = <A as NormalOut<B>>::Output;
 
 macro_rules! impl_bin_ops {

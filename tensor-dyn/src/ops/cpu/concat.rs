@@ -1,35 +1,43 @@
-use std::{ panic::Location, sync::{ Arc, Barrier } };
-
-use tensor_common::{ err_handler::ErrHandler, shape_utils::mt_intervals, slice::Slice };
-use tensor_traits::{
-    shape_manipulate::ShapeManipulate,
-    tensor::{ CommonBounds, TensorCreator, TensorInfo },
+use std::{
+    panic::Location,
+    sync::{Arc, Barrier},
 };
 
-use crate::{ slice::SliceOps, tensor_base::_Tensor, THREAD_POOL };
+use tensor_common::{err_handler::ErrHandler, shape_utils::mt_intervals, slice::Slice};
+use tensor_traits::{
+    shape_manipulate::ShapeManipulate,
+    tensor::{CommonBounds, TensorCreator, TensorInfo},
+};
 
-/// Concatenates the given sequence of tensors in the given dimension.
+use crate::{tensor_base::_Tensor, THREAD_POOL};
+
+/// Concatenates multiple tensors along a specified axis.
 ///
-/// The tensors must have the same shape, except in the dimension to concatenate.
+/// This method concatenates a list of tensors along a specified axis, with an option to retain
+/// or collapse dimensions. All tensors must have the same shape except for the concatenation axis.
 ///
 /// # Arguments
 ///
-/// * `tensors` - A sequence of tensors to concatenate.
-///
-/// * `axis` - The axis along which the tensors will be concatenated.
-///
-/// * `keepdims` - If true, the resulting tensor will have the same number of dimensions as the input tensors.
+/// * `tensors` - A vector of references to the tensors that will be concatenated.
+/// * `axis` - The axis along which the concatenation will occur. All tensors must have
+///   the same shape along the non-concatenation axes.
+/// * `keepdims` - A boolean flag indicating whether to retain the original dimensions of
+///   the tensors in the output:
+///   - If `true`, the original dimensions will be kept.
+///   - If `false`, the resulting tensor will have its dimensions adjusted based on concatenation.
 ///
 /// # Returns
 ///
-/// A tensor with the concatenated tensors.
+/// This function returns a `Result` containing a new tensor that is the result of concatenating
+/// the input tensors along the specified axis.
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn concat<T>(
     tensors: Vec<&_Tensor<T>>,
     axis: usize,
-    keepdims: bool
+    keepdims: bool,
 ) -> anyhow::Result<_Tensor<T>>
-    where T: CommonBounds
+where
+    T: CommonBounds,
 {
     let length = tensors.len();
     let mut all_same_shape = true;
@@ -39,42 +47,35 @@ pub(crate) fn concat<T>(
             .iter()
             .enumerate()
             .try_for_each(|(idx, x)| {
-                if
-                    idx != axis &&
-                    i.shape().len() == tensors[0].shape().len() &&
-                    *x != i.shape()[idx]
+                if idx != axis
+                    && i.shape().len() == tensors[0].shape().len()
+                    && *x != i.shape()[idx]
                 {
-                    return Err(
-                        anyhow::Error::msg("Shapes except the axis to stack must be the same")
-                    );
+                    return Err(anyhow::Error::msg(
+                        "Shapes except the axis to stack must be the same",
+                    ));
                 } else if i.shape().len() != tensors[0].shape().len() {
-                    return Err(
-                        ErrHandler::NdimMismatched(
-                            tensors[0].ndim(),
-                            i.ndim(),
-                            Location::caller()
-                        ).into()
-                    );
+                    return Err(ErrHandler::NdimMismatched(
+                        tensors[0].ndim(),
+                        i.ndim(),
+                        Location::caller(),
+                    )
+                    .into());
                 } else if idx == axis && *x != i.shape()[idx] {
                     all_same_shape = false;
                 }
                 Ok(())
             })?;
     }
-    let mut new_shape: Vec<i64> = vec![0;
-                                       tensors[0].ndim()];
+    let mut new_shape: Vec<i64> = vec![0; tensors[0].ndim()];
     tensors.iter().for_each(|x| {
         new_shape[axis] += x.shape()[axis];
     });
-    tensors[0]
-        .shape()
-        .iter()
-        .enumerate()
-        .for_each(|(i, x)| {
-            if i != axis {
-                new_shape[i] = *x;
-            }
-        });
+    tensors[0].shape().iter().enumerate().for_each(|(i, x)| {
+        if i != axis {
+            new_shape[i] = *x;
+        }
+    });
     let new_tensor = _Tensor::<T>::empty(&new_shape)?;
     let mut begin = 0;
     let mut res_slices = Vec::with_capacity(length);

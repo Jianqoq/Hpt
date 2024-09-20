@@ -3,7 +3,6 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIter
 use tch::Tensor;
 use tensor_common::slice;
 use tensor_common::slice::Slice;
-use tensor_dyn::slice::SliceOps;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorInfo;
 use tensor_dyn::{tensor_base::_Tensor, TensorCreator};

@@ -1,6 +1,5 @@
 use crate::backend::Cpu;
 use crate::ops::cpu::reduce_template::reduce_template;
-use crate::slice::SliceOps;
 use crate::tensor_base::_Tensor;
 use crate::{argmax_kernel, argmin_kernel};
 

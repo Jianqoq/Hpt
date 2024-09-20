@@ -47,7 +47,6 @@ use tensor_types::{dtype::TypeCommon, type_promote::FloatOutUnary};
 use crate::{
     backend::{Backend, BackendTy, Buffer, Cpu},
     ops::cpu::concat::concat,
-    slice::SliceOps,
     tensor::Tensor,
     BoolVector, ALIGN, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION,
 };
@@ -234,6 +233,7 @@ impl<T: CommonBounds> TensorAlloc for _Tensor<T> {
 impl<T: CommonBounds> TensorIterator<'_, T> for _Tensor<T> {}
 
 impl<T: CommonBounds> _Tensor<T> {
+    /// copy the data from the other tensor to this tensor
     pub fn assign(&mut self, other: &_Tensor<T>) {
         self.par_iter_mut_simd()
             .zip(other.par_iter_simd())
@@ -241,6 +241,8 @@ impl<T: CommonBounds> _Tensor<T> {
                 *a = b;
             });
     }
+
+    /// cast the tensor to the new type
     pub fn astype<U>(&self) -> Result<_Tensor<U>>
     where
         U: CommonBounds,
@@ -258,6 +260,8 @@ impl<T: CommonBounds> _Tensor<T> {
             });
         Ok(ret)
     }
+
+    /// try to cast the tensor to the new type, if the type is the same, return the tensor itself, otherwise return the new tensor
     pub fn try_astype<U>(&self) -> Result<_Tensor<U>>
     where
         U: CommonBounds,
@@ -270,6 +274,7 @@ impl<T: CommonBounds> _Tensor<T> {
         }
     }
 
+    /// bitcast the tensor to the new type, the user must ensure the size of the new type is the same as the old type
     pub fn static_cast<Dst>(&self) -> Result<_Tensor<Dst>>
     where
         Dst: CommonBounds,
@@ -308,6 +313,7 @@ impl<T: CommonBounds> _Tensor<T> {
         }
     }
 
+    /// check if two tensors are close to each other
     pub fn allclose<U: CommonBounds>(&self, other: &_Tensor<U>) -> bool
     where
         T: Convertor,

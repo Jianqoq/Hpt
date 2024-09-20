@@ -1,40 +1,62 @@
-use rayon::iter::{ IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator };
+use crate::{tensor::Tensor, tensor_base::_Tensor};
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
+use tensor_traits::TensorCreator;
 use tensor_traits::{CommonBounds, TensorLike};
 use tensor_types::{
     convertion::FromScalar,
     dtype::FloatConst,
     into_scalar::IntoScalar,
-    type_promote::{ FloatOutBinary, FloatOutUnary, NormalOut },
+    type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
-use tensor_traits::TensorCreator;
-use crate::{ tensor::Tensor, tensor_base::_Tensor };
 
 impl<T> _Tensor<T>
-    where
-        f64: IntoScalar<<T as FloatOutBinary>::Output>,
-        T: CommonBounds +
-            NormalOut<T, Output = T> +
-            FromScalar<T> +
-            FloatConst +
-            FloatOutUnary +
-            FloatOutBinary +
-            FloatOutBinary<<T as FloatOutUnary>::Output, Output = <T as FloatOutBinary>::Output> +
-            NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>,
-        <T as FloatOutBinary>::Output: FloatOutUnary<Output = <T as FloatOutBinary>::Output> +
-            NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output> +
-            FloatOutBinary<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output> +
-            CommonBounds,
-        usize: IntoScalar<<T as FloatOutBinary>::Output>,
-        i64: IntoScalar<<T as FloatOutBinary>::Output>
+where
+    f64: IntoScalar<<T as FloatOutBinary>::Output>,
+    T: CommonBounds
+        + NormalOut<T, Output = T>
+        + FromScalar<T>
+        + FloatConst
+        + FloatOutUnary
+        + FloatOutBinary
+        + FloatOutBinary<<T as FloatOutUnary>::Output, Output = <T as FloatOutBinary>::Output>
+        + NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>,
+    <T as FloatOutBinary>::Output: FloatOutUnary<Output = <T as FloatOutBinary>::Output>
+        + NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>
+        + FloatOutBinary<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>
+        + CommonBounds,
+    usize: IntoScalar<<T as FloatOutBinary>::Output>,
+    i64: IntoScalar<<T as FloatOutBinary>::Output>,
 {
+    /// Generates a Blackman window tensor.
+    ///
+    /// A Blackman window is commonly used in signal processing to reduce spectral leakage.
+    /// This method generates a tensor representing the Blackman window, which can be used
+    /// for tasks like filtering or analysis in the frequency domain. The window can be
+    /// either periodic or symmetric, depending on the `periodic` parameter.
+    ///
+    /// # Arguments
+    ///
+    /// * `window_length` - The length of the window, specified as an `i64`. This determines
+    ///   the number of elements in the output tensor.
+    /// * `periodic` - A boolean flag indicating whether the window should be periodic or symmetric:
+    ///   - If `true`, the window will be periodic, which is typically used for spectral analysis.
+    ///   - If `false`, the window will be symmetric, which is typically used for filtering.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing a tensor of type `<T as FloatOutBinary>::Output`
     pub fn blackman_window(
         window_length: i64,
-        periodic: bool
+        periodic: bool,
     ) -> anyhow::Result<_Tensor<<T as FloatOutBinary>::Output>> {
         let a0: <T as FloatOutBinary>::Output = 0.42.into_scalar();
         let a1: <T as FloatOutBinary>::Output = 0.5.into_scalar();
         let a2: <T as FloatOutBinary>::Output = 0.08.into_scalar();
-        let length_usize = if periodic { window_length } else { window_length - 1 };
+        let length_usize = if periodic {
+            window_length
+        } else {
+            window_length - 1
+        };
         let length: <T as FloatOutBinary>::Output = length_usize.into_scalar();
         let mut ret = _Tensor::<<T as FloatOutBinary>::Output>::empty(&[length_usize])?;
         ret.as_raw_mut()
@@ -51,26 +73,44 @@ impl<T> _Tensor<T>
 }
 
 impl<T> Tensor<T>
-    where
-        f64: IntoScalar<<T as FloatOutBinary>::Output>,
-        T: CommonBounds +
-            NormalOut<T, Output = T> +
-            FromScalar<T> +
-            FloatConst +
-            FloatOutUnary +
-            FloatOutBinary +
-            FloatOutBinary<<T as FloatOutUnary>::Output, Output = <T as FloatOutBinary>::Output> +
-            NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>,
-        <T as FloatOutBinary>::Output: FloatOutUnary<Output = <T as FloatOutBinary>::Output> +
-            NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output> +
-            FloatOutBinary<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output> +
-            CommonBounds,
-        usize: IntoScalar<<T as FloatOutBinary>::Output>,
-        i64: IntoScalar<<T as FloatOutBinary>::Output>
+where
+    f64: IntoScalar<<T as FloatOutBinary>::Output>,
+    T: CommonBounds
+        + NormalOut<T, Output = T>
+        + FromScalar<T>
+        + FloatConst
+        + FloatOutUnary
+        + FloatOutBinary
+        + FloatOutBinary<<T as FloatOutUnary>::Output, Output = <T as FloatOutBinary>::Output>
+        + NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>,
+    <T as FloatOutBinary>::Output: FloatOutUnary<Output = <T as FloatOutBinary>::Output>
+        + NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>
+        + FloatOutBinary<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>
+        + CommonBounds,
+    usize: IntoScalar<<T as FloatOutBinary>::Output>,
+    i64: IntoScalar<<T as FloatOutBinary>::Output>,
 {
+        /// Generates a Blackman window tensor.
+    ///
+    /// A Blackman window is commonly used in signal processing to reduce spectral leakage.
+    /// This method generates a tensor representing the Blackman window, which can be used
+    /// for tasks like filtering or analysis in the frequency domain. The window can be
+    /// either periodic or symmetric, depending on the `periodic` parameter.
+    ///
+    /// # Arguments
+    ///
+    /// * `window_length` - The length of the window, specified as an `i64`. This determines
+    ///   the number of elements in the output tensor.
+    /// * `periodic` - A boolean flag indicating whether the window should be periodic or symmetric:
+    ///   - If `true`, the window will be periodic, which is typically used for spectral analysis.
+    ///   - If `false`, the window will be symmetric, which is typically used for filtering.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing a tensor of type `<T as FloatOutBinary>::Output`
     pub fn blackman_window(
         window_length: i64,
-        periodic: bool
+        periodic: bool,
     ) -> anyhow::Result<Tensor<<T as FloatOutBinary>::Output>> {
         Ok(_Tensor::<T>::blackman_window(window_length, periodic)?.into())
     }

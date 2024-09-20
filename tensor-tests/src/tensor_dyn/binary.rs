@@ -9,7 +9,6 @@ use std::ops::*;
 use tensor_dyn::Random;
 use tensor_macros::match_selection;
 use tensor_common::slice::Slice;
-use tensor_dyn::slice::SliceOps;
 use tensor_dyn::Matmul;
 use tensor_dyn::TensorLike;
 

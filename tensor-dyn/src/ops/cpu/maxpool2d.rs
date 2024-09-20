@@ -194,6 +194,31 @@ where
     i64: IntoScalar<T>,
     T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecCommon + NormalOut<Output = T::Vec>,
 {
+    /// Applies 2D max pooling to the input tensor.
+    ///
+    /// This method performs max pooling, which reduces the spatial dimensions of the input tensor by
+    /// selecting the maximum value from each region defined by the `kernel_shape`. Max pooling is commonly
+    /// used in convolutional neural networks to downsample the input, reduce the number of parameters,
+    /// and control overfitting.
+    ///
+    /// # Arguments
+    ///
+    /// * `kernel_shape` - A 2-element array specifying the height and width of the pooling kernel.
+    ///   This defines the size of the region over which the maximum value is computed.
+    /// * `steps` - A 2-element array specifying the stride (step size) of the pooling operation
+    ///   along the height and width dimensions. The stride determines how far the pooling window moves
+    ///   in each step.
+    /// * `padding` - A 2-element array of tuples specifying the amount of padding added to the input
+    ///   tensor along the height and width dimensions. Each tuple contains the padding before and after
+    ///   the region along the respective axis.
+    /// * `dilation` - A 2-element array specifying the dilation factor for the pooling operation. Dilation
+    ///   allows the pooling window to cover a larger area by spacing out the elements being pooled.
+    /// * `config` - An optional reference to a `Conv2dConfig` structure that holds configuration parameters
+    ///   for optimizing the pooling operation. If not provided, default settings are used.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing a new tensor with the result of the max pooling operation.
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn max_pool2d(
         &self,
@@ -1211,31 +1236,5 @@ where
         });
 
         Ok(output)
-    }
-}
-pub fn get_num_cache_set(cache_size: usize, cache_line_size: usize, associativity: usize) -> usize {
-    cache_size / (cache_line_size * associativity)
-}
-
-#[allow(unused)]
-pub(crate) fn get_cache_set(
-    address: usize,
-    cache_line_size: usize,
-    num_cache_sets: usize,
-) -> usize {
-    (address / cache_line_size) % num_cache_sets
-}
-#[allow(unused)]
-pub(crate) fn get_set_gap<T>(stride: i64, cache_line_size: usize, cache_set_num: usize) -> usize {
-    let set1 = get_cache_set(0, cache_line_size, cache_set_num);
-    let set2 = get_cache_set(
-        ((stride as usize) * size_of::<T>()),
-        cache_line_size,
-        cache_set_num,
-    );
-    if set2 > set1 {
-        set2 - set1
-    } else {
-        set1 + cache_set_num - set2
     }
 }

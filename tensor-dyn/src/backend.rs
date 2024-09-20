@@ -1,3 +1,5 @@
+//! a module to define the backend of the tensor
+
 #![allow(unused)]
 
 use std::sync::Arc;
@@ -74,6 +76,7 @@ impl Buffer for Cpu {
 /// 
 /// 2: Wgpu
 pub trait BackendTy {
+    /// beackend id
     const ID: u8;
 }
 

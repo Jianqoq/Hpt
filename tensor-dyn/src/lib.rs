@@ -1,59 +1,108 @@
+//! This crate is dynamic graph based tensor library
+
 #![feature(portable_simd)]
-pub mod tensor_base;
+#![deny(missing_docs)]
+
+/// a module contains all the Tensor operations. include the CPU and GPU operations
 pub mod ops {
+    /// a module contains all the CPU operations
     pub mod cpu {
+        /// a module defines affine_grid operation
         pub mod affine_grid;
+        /// a module defines avg_pool2d operation
         pub mod avg_pool2d;
+        /// a module defines all normal binary operation
         pub mod binary;
+        /// a module defines binary normal iterations,
+        /// the `binary` module uses this module's function to perform computation
         pub mod binary_normal;
+        /// a module defines blackman_window operation
         pub mod blackman_window;
+        /// a module defines tensor compare operation
         pub mod cmp;
+        /// a module defines all the common tensor reduce operations
         pub mod common_reduce;
+        /// a module defines concat operation
         pub mod concat;
+        /// a module defines conv2d operation
         pub mod conv2d;
+        /// a module defines conv_config struct
         pub mod conv_config;
+        /// a module defines dropout operation
         pub mod dropout;
+        /// a module defines fft operation
         pub mod fft;
+        /// a module defines gather operation
         pub mod gather;
+        /// a module defines gather_elements operation
         pub mod gather_elements;
+        /// a module defines hardmax operation
         pub mod hardmax;
+        /// a module defines lp_norm operation
         pub mod lp_norm;
+        /// a module defines lp_pool2d operation
         pub mod lp_pool2d;
+        /// a module defines matmul operation
         pub mod matmul;
+        /// a module defines max_roi_pool operation
         pub mod max_roi_pool;
+        /// a module defines max_pool2d operation
         pub mod maxpool2d;
+        /// a module defines onehot operation
         pub mod onehot;
+        /// a module defines pad operation
         pub mod pad;
+        /// a module defines internal reduce functions
         pub mod reduce;
+        /// a module defines reduce kernels
         pub mod reduce_kernels;
+        /// a module defines reduce template
         pub mod reduce_template;
+        /// a module contains all the reduce computation utils
         pub mod reduce_utils;
+        /// a module defines shrink operation
         pub mod shrink;
+        /// a module defines softmax operation
         pub mod softmax;
+        /// a module defines all the std::ops operations
         pub mod std_ops;
+        /// a module defines tensordot operation
         pub mod tensordot;
+        /// a module defines topk operation
         pub mod topk;
+        /// a module defines all the unary operations
         pub mod unary;
-        pub mod unique;
+        /// a module defines all the window operation
         pub mod windows;
+        /// a module defines all the kernels
         pub mod kernels {
+            /// a module defines the avgpool2d kernels
             pub mod avgpool_kernels;
+            /// a module defines the conv2d kernels
             pub mod conv_kernels;
+            /// a module defines the lp_pool2d kernels
             pub mod lp_pool_kernels;
+            /// a module defines the maxpool2d kernels
             pub mod maxpool_kernels;
+            /// a module defines the reduce kernels
             pub mod reduce_kernels;
         }
     }
 }
 
+/// a module for the wgpu kernels
 pub mod wgpu_kernels {}
 
 pub mod backend;
+/// A module for random number generation.
 pub mod random;
 pub mod slice;
+/// a module that wrap the _Tensor struct
 pub mod tensor;
+/// a module that defines the _Tensor struct
+pub mod tensor_base;
+/// a module that contains the implementation of the `Into` trait for the `_Tensor` struct.
 pub mod to_tensor;
-pub mod wgpu_exec;
 use ctor::ctor;
 pub use tensor_iterator::iterator_traits::*;
 pub use tensor_macros::match_selection;
@@ -70,13 +119,18 @@ thread_local! {
 
 static DISPLAY_PRECISION: AtomicUsize = AtomicUsize::new(4);
 static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(3);
+
+/// Set the Tensor display precision
 pub fn set_global_display_precision(precision: usize) {
     DISPLAY_PRECISION.store(precision, std::sync::atomic::Ordering::Relaxed);
 }
+
+/// Set the left and right elements to display for each dimension
 pub fn set_global_display_lr_elements(lr_elements: usize) {
     DISPLAY_LR_ELEMENTS.store(lr_elements, std::sync::atomic::Ordering::Relaxed);
 }
 
+/// Set the global number of threads
 pub fn set_num_threads(num_threads: usize) {
     THREAD_POOL.with(|x| {
         x.borrow_mut().set_num_threads(num_threads);
@@ -87,6 +141,8 @@ pub fn set_num_threads(num_threads: usize) {
         .build_global()
         .unwrap();
 }
+
+/// Get the global number of threads
 pub fn get_num_threads() -> usize {
     THREAD_POOL.with(|x| x.borrow().max_count())
 }

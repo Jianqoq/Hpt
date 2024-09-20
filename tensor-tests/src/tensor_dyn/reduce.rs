@@ -7,7 +7,6 @@ use tch::Tensor;
 use tensor_base::_Tensor;
 use tensor_common::slice;
 use tensor_common::slice::Slice;
-use tensor_dyn::slice::SliceOps;
 use tensor_dyn::*;
 
 #[track_caller]

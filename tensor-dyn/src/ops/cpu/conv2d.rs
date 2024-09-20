@@ -379,6 +379,27 @@ where
     T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
     T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecCommon + NormalOut<Output = T::Vec>,
 {
+    /// Performs a 2D convolution operation on the input tensor.
+    ///
+    /// This method applies a 2D convolution operation on the tensor using the specified kernel,
+    /// strides (steps), padding, and dilation factors. It optionally accepts a configuration (`Conv2dConfig`)
+    /// to fine-tune the performance, such as optimizing for cache usage and block sizes.
+    ///
+    /// # Arguments
+    ///
+    /// * `kernels` - A reference to the tensor representing the convolution kernels (filters).
+    ///   The size of the kernel tensor determines the spatial dimensions of the convolution operation.
+    /// * `steps` - A 2-element array specifying the stride (step size) of the convolution along the height and width dimensions.
+    /// * `padding` - A 2-element array of tuples representing the padding for the height and width dimensions.
+    ///   Each tuple specifies the amount of padding added before and after the data along the respective axis.
+    /// * `dilation` - A 2-element array specifying the dilation factor for the convolution along the height and width dimensions.
+    ///   Dilation allows the kernel to be applied to inputs with gaps, increasing the receptive field of the kernel.
+    /// * `config` - An optional reference to a `Conv2dConfig` structure that holds additional configuration parameters for optimization.
+    ///   If not provided, a default configuration is used.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing the output tensor after applying the 2D convolution operation.
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn conv2d(
         &self,
@@ -1772,31 +1793,5 @@ where
         });
 
         Ok(output)
-    }
-}
-pub fn get_num_cache_set(cache_size: usize, cache_line_size: usize, associativity: usize) -> usize {
-    cache_size / (cache_line_size * associativity)
-}
-
-#[allow(unused)]
-pub(crate) fn get_cache_set(
-    address: usize,
-    cache_line_size: usize,
-    num_cache_sets: usize,
-) -> usize {
-    (address / cache_line_size) % num_cache_sets
-}
-#[allow(unused)]
-pub(crate) fn get_set_gap<T>(stride: i64, cache_line_size: usize, cache_set_num: usize) -> usize {
-    let set1 = get_cache_set(0, cache_line_size, cache_set_num);
-    let set2 = get_cache_set(
-        ((stride as usize) * size_of::<T>()),
-        cache_line_size,
-        cache_set_num,
-    );
-    if set2 > set1 {
-        set2 - set1
-    } else {
-        set1 + cache_set_num - set2
     }
 }

@@ -18,6 +18,25 @@ where
     <<T as FloatOutUnary>::Output as FloatOutUnary>::Output:
         IntoScalar<<<T as FloatOutUnary>::Output as FloatOutUnary>::Output> + CommonBounds,
 {
+    /// Applies the softmax function along a specified axis.
+    ///
+    /// The softmax function normalizes the elements along the specified axis such that they sum to 1.
+    /// It is commonly used in machine learning models, particularly for multi-class classification tasks.
+    /// The softmax function transforms each element `x_i` in the input tensor into a probability by computing:
+    ///
+    /// ```text
+    /// softmax(x_i) = exp(x_i) / sum(exp(x_j)) for all j along the specified axis
+    /// ```
+    ///
+    /// # Arguments
+    ///
+    /// * `axis` - The axis along which to apply the softmax function. The elements along this axis
+    ///   will be transformed into probabilities that sum to 1.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing a tensor with the softmax values computed along
+    /// the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn softmax(&self, axis: i64) -> anyhow::Result<_Tensor<<T as FloatOutUnary>::Output>>
     where
@@ -55,26 +74,25 @@ where
     <<T as FloatOutUnary>::Output as FloatOutUnary>::Output:
         IntoScalar<<<T as FloatOutUnary>::Output as FloatOutUnary>::Output> + CommonBounds,
 {
-    /// Applies the Softmax function to the tensor along the specified axis.
+    /// Applies the softmax function along a specified axis.
     ///
-    /// The `softmax` function computes the softmax of each element along the specified axis of the tensor.
-    /// The softmax function is often used in multi-class classification problems to convert logits into probabilities.
+    /// The softmax function normalizes the elements along the specified axis such that they sum to 1.
+    /// It is commonly used in machine learning models, particularly for multi-class classification tasks.
+    /// The softmax function transforms each element `x_i` in the input tensor into a probability by computing:
     ///
-    /// The softmax of an element `x_i` is given by:
-    /// `softmax(x_i) = exp(x_i) / sum(exp(x_j))` for all `j` along the specified axis.
+    /// ```text
+    /// softmax(x_i) = exp(x_i) / sum(exp(x_j)) for all j along the specified axis
+    /// ```
     ///
-    /// # Parameters
+    /// # Arguments
     ///
-    /// - `axis`: The axis along which to compute the softmax function.
+    /// * `axis` - The axis along which to apply the softmax function. The elements along this axis
+    ///   will be transformed into probabilities that sum to 1.
     ///
     /// # Returns
     ///
-    /// - A new tensor with the softmax values along the specified axis.
-    ///
-    /// # Notes
-    ///
-    /// - **Normalization**: The elements are exponentiated and then normalized by dividing by the sum of exponentials.
-    /// - **Axis Specification**: The softmax is computed along the given axis, treating the other axes independently.
+    /// This function returns a `Result` containing a tensor with the softmax values computed along
+    /// the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn softmax(&self, axis: i64) -> anyhow::Result<Tensor<<T as FloatOutUnary>::Output>>
     where
@@ -103,6 +121,28 @@ where
     <<<T as FloatOutUnary>::Output as FloatOutUnary>::Output as FloatOutUnary>::Output:
         CommonBounds,
 {
+    /// Applies the log-softmax function along a specified axis.
+    ///
+    /// The log-softmax function is the logarithm of the softmax function. It is useful in numerical stability,
+    /// particularly in scenarios involving large exponents or probabilities, such as in classification tasks.
+    /// The log-softmax function computes the logarithm of the softmax of each element `x_i` as:
+    ///
+    /// ```text
+    /// log_softmax(x_i) = log(exp(x_i) / sum(exp(x_j))) for all j along the specified axis
+    /// ```
+    ///
+    /// This function prevents numerical overflow by directly computing the log of the softmax,
+    /// rather than computing the softmax first and then taking the log.
+    ///
+    /// # Arguments
+    ///
+    /// * `axis` - The axis along which to apply the log-softmax function. The elements along this axis
+    ///   will be transformed into log-probabilities that correspond to the softmax values.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing a tensor with the log-softmax values computed along
+    /// the specified axis.
     pub fn logsoftmax(
         &self,
         axis: i64,
@@ -148,6 +188,28 @@ where
     <<<T as FloatOutUnary>::Output as FloatOutUnary>::Output as FloatOutUnary>::Output:
         CommonBounds,
 {
+    /// Applies the log-softmax function along a specified axis.
+    ///
+    /// The log-softmax function is the logarithm of the softmax function. It is useful in numerical stability,
+    /// particularly in scenarios involving large exponents or probabilities, such as in classification tasks.
+    /// The log-softmax function computes the logarithm of the softmax of each element `x_i` as:
+    ///
+    /// ```text
+    /// log_softmax(x_i) = log(exp(x_i) / sum(exp(x_j))) for all j along the specified axis
+    /// ```
+    ///
+    /// This function prevents numerical overflow by directly computing the log of the softmax,
+    /// rather than computing the softmax first and then taking the log.
+    ///
+    /// # Arguments
+    ///
+    /// * `axis` - The axis along which to apply the log-softmax function. The elements along this axis
+    ///   will be transformed into log-probabilities that correspond to the softmax values.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing a tensor with the log-softmax values computed along
+    /// the specified axis.
     pub fn logsoftmax(
         &self,
         axis: i64,

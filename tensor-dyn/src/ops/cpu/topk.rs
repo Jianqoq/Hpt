@@ -18,6 +18,24 @@ impl<T> _Tensor<T>
 where
     T: CommonBounds + PartialOrd,
 {
+    /// Returns the top `k` values and their indices along the specified dimension.
+    ///
+    /// This method retrieves the top `k` largest or smallest values from the tensor along the given `dim` axis,
+    /// and returns two tensors: one containing the values and the other containing the corresponding indices.
+    /// You can specify whether to retrieve the largest or smallest values and whether the result should be sorted.
+    ///
+    /// # Arguments
+    ///
+    /// * `k` - The number of top elements to retrieve.
+    /// * `dim` - The dimension along which to find the top `k` elements.
+    /// * `largest` - A boolean flag indicating whether to retrieve the largest (`true`) or smallest (`false`) values.
+    /// * `sorted` - A boolean flag indicating whether the result should be sorted in descending order (if `largest` is `true`) or ascending order (if `largest` is `false`).
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing a tuple of two tensors:
+    /// * The first tensor contains the indices of the top `k` values.
+    /// * The second tensor contains the corresponding top `k` values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn topk(
         &self,

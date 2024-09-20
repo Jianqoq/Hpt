@@ -2,7 +2,6 @@
 use tch::Tensor;
 use tensor_common::slice;
 use tensor_common::slice::Slice;
-use tensor_dyn::slice::SliceOps;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::{TensorCreator, TensorInfo};

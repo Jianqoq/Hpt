@@ -267,6 +267,6 @@ macro_rules! slice {
     (
         $tensor:ident [$($indexes:tt)*]
     ) => {
-        $tensor.slice(match_selection!($($indexes)*))
+        $tensor.slice(&match_selection!($($indexes)*))
     };
 }

@@ -3,9 +3,7 @@ use std::borrow::Borrow;
 use crate::backend::Cpu;
 use crate::tensor_base::_Tensor;
 use crate::THREAD_POOL;
-use rayon::iter::{
-    IndexedParallelIterator, ParallelIterator,
-};
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::slice::{ParallelSlice, ParallelSliceMut};
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::shape_utils::mt_intervals;
@@ -845,6 +843,16 @@ where
     <T as Eval>::Output: CommonBounds,
     T::Vec: Eval<Output = <<T as Eval>::Output as TypeCommon>::Vec>,
 {
+    /// Checks for infinity (`inf`) values in the tensor.
+    ///
+    /// This method returns a new tensor where each element indicates whether the corresponding element
+    /// in the input tensor is an infinity value (`+inf` or `-inf`). The output tensor will contain boolean-like values
+    /// (1 for `inf`, 0 for non-`inf`).
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing a tensor of type `_Tensor<<T as Eval>::Output>`,
+    /// where each element is either `1` (if the corresponding element is `inf`) or `0` (if it is not).
     pub fn is_inf(&self) -> anyhow::Result<_Tensor<<T as Eval>::Output>> {
         uary_fn_with_out_simd(
             self,
@@ -853,6 +861,17 @@ where
             None::<_Tensor<<T as Eval>::Output>>,
         )
     }
+
+    /// Checks for `NaN` (Not-a-Number) values in the tensor.
+    ///
+    /// This method returns a new tensor where each element indicates whether the corresponding element
+    /// in the input tensor is a `NaN` value. The output tensor will contain boolean-like values
+    /// (1 for `NaN`, 0 for non-`NaN`).
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing a tensor of type `_Tensor<<T as Eval>::Output>`,
+    /// where each element is either `1` (if the corresponding element is `NaN`) or `0` (if it is not).
     pub fn is_nan(&self) -> anyhow::Result<_Tensor<<T as Eval>::Output>> {
         uary_fn_with_out_simd(
             self,
@@ -867,6 +886,21 @@ impl<T> _Tensor<T>
 where
     T: CommonBounds,
 {
+    /// Computes the cumulative sum of the elements along a specified axis.
+    ///
+    /// This method calculates the cumulative sum of the elements in the tensor along the given `axis`.
+    /// The cumulative sum of an element at position `i` is the sum of all elements from the start of the axis
+    /// up to and including position `i`. If no axis is specified, the cumulative sum is computed over a flattened
+    /// version of the tensor.
+    ///
+    /// # Arguments
+    ///
+    /// * `axis` - An optional axis along which to compute the cumulative sum. If `None`, the tensor is flattened,
+    ///   and the cumulative sum is computed over all elements.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing a new tensor with the cumulative sum computed along the specified axis.
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn cumsum(&self, axis: Option<i64>) -> anyhow::Result<Self>
@@ -989,6 +1023,22 @@ where
             }
         }
     }
+
+    /// Computes the cumulative product of the elements along a specified axis.
+    ///
+    /// This method calculates the cumulative product of the elements in the tensor along the given `axis`.
+    /// The cumulative product of an element at position `i` is the product of all elements from the start of the axis
+    /// up to and including position `i`. If no axis is specified, the cumulative product is computed over a flattened
+    /// version of the tensor.
+    ///
+    /// # Arguments
+    ///
+    /// * `axis` - An optional axis along which to compute the cumulative product. If `None`, the tensor is flattened,
+    ///   and the cumulative product is computed over all elements.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing a new tensor with the cumulative product computed along the specified axis.
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn cumprod(&self, axis: Option<i64>) -> anyhow::Result<Self>

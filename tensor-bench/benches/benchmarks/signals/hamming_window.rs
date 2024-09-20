@@ -30,10 +30,10 @@ fn hamming_window_benchmark(c: &mut Criterion) {
             b.iter(|| { Tensor::hamming_window_periodic(lens, false, (Kind::Float, Device::Cpu)) });
         });
         group.bench_with_input(BenchmarkId::new("hpt", format!("hpt {}", idx)), &lens, |b, _| {
-            b.iter(|| { _Tensor::<f32>::hamming_window(lens, false).unwrap() });
+            b.iter(|| { tensor_dyn::tensor::Tensor::<f32>::hamming_window(lens, false).unwrap() });
         });
         let a = black_box(Tensor::hamming_window_periodic(lens, false, (Kind::Double, Device::Cpu)));
-        let a2 = black_box(_Tensor::<f64>::hamming_window(lens, false).unwrap());
+        let a2 = black_box(tensor_dyn::tensor::Tensor::<f64>::hamming_window(lens, false).unwrap());
         assert_eq(&a, &a2);
     }
 
