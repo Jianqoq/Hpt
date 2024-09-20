@@ -383,4 +383,64 @@ where
     fn flatten<A>(&self, start: A, end: A) -> Result<Output>
     where
         A: Into<Option<usize>>;
+
+    /// Stacks a sequence of tensors along a specified axis.
+    ///
+    /// Given a list of tensors, this function concatenates them along the specified axis.
+    /// All tensors must have the same shape, except in the dimension corresponding to `axis`.
+    ///
+    /// # Arguments
+    /// - `tensors`: A vector of tensor references to be stacked.
+    /// - `axis`: The axis along which the tensors will be stacked.
+    /// - `keepdims`: A boolean indicating whether to keep the dimension of the axis or not.
+    ///
+    /// # Returns
+    /// A `Result` containing the stacked tensor or an error if the operation fails.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn concat(tensors: Vec<&Self>, axis: usize, keepdims: bool) -> Result<Output>;
+
+    /// Vertically stacks a sequence of tensors.
+    ///
+    /// This is a convenience method for stacking tensors along the first axis (axis=0).
+    /// All tensors must have the same number of dimensions and the same shape,
+    /// except for the first axis.
+    ///
+    /// # Arguments
+    /// - `tensors`: A vector of tensor references to be vertically stacked.
+    ///
+    /// # Returns
+    /// A `Result` containing the vertically stacked tensor or an error if the operation fails.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn vstack(tensors: Vec<&Self>) -> Result<Output>;
+
+    /// Horizontally stacks a sequence of tensors.
+    ///
+    /// This function concatenates tensors along the second axis (axis=1).
+    /// It automatically reshapes tensors with fewer dimensions to have an additional axis.
+    /// For 1-dimensional tensors, they are reshaped to 2D before stacking.
+    /// Scalars are reshaped to 1x1 tensors.
+    ///
+    /// # Arguments
+    /// - `tensors`: A vector of references to the tensors to be horizontally stacked.
+    ///
+    /// # Returns
+    /// A `Result` containing the horizontally stacked tensor or an error if the operation fails.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn hstack(tensors: Vec<&Self>) -> Result<Output>;
+
+    /// Depth-stacks a sequence of tensors.
+    ///
+    /// This function concatenates tensors along the third axis (axis=2).
+    /// It automatically reshapes tensors with fewer dimensions to match the required number of dimensions.
+    /// For 1-dimensional tensors, they are reshaped to 1xNx1 before stacking.
+    /// For 2-dimensional tensors, they are reshaped to NxMx1.
+    /// Scalars are reshaped to 1x1x1 tensors.
+    ///
+    /// # Arguments
+    /// - `tensors`: A vector of references to the tensors to be depth-stacked.
+    ///
+    /// # Returns
+    /// A `Result` containing the depth-stacked tensor or an error if the operation fails.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn dstack(tensors: Vec<&Self>) -> Result<Output>;
 }

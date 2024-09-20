@@ -55,7 +55,7 @@ pub trait TensorInfo<T> {
     }
 }
 
-pub trait TensorLike<T> {
+pub trait TensorLike<T>: Sized {
     /// directly convert the tensor to raw slice
     ///
     /// # Note
@@ -73,6 +73,15 @@ pub trait TensorLike<T> {
     ///
     /// if you do iteration on the view tensor, you may see unexpected results.
     fn as_raw_mut(&mut self) -> &mut [T];
+
+    /// Returns the tensor as a contiguous tensor.
+    ///
+    /// # Note
+    ///
+    /// This function will return a contiguous tensor. If the tensor is already contiguous, it will return a clone of the tensor.
+    ///
+    /// If the tensor is a view tensor, it will return a new tensor with the same data but with a contiguous layout.
+    fn contiguous(&self) -> anyhow::Result<Self>;
 
     /// Returns the data type memory size in bytes.
     fn elsize() -> usize {
@@ -479,6 +488,12 @@ where
 
 pub trait TensorAlloc<Output = Self> {
     type Meta;
+
+    /// Creates a tensor with the specified shape,
+    /// 
+    /// # Note
+    /// 
+    /// This function doesn't initialize the tensor's elements.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn _empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Output>
     where

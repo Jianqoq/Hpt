@@ -1,10 +1,12 @@
+
+/// a trait to convert a vector to another vector
 pub trait IntoVec<T> {
+    /// convert a vector to another vector T
     fn into_vec(self) -> T;
 }
 
 #[cfg(target_feature = "avx2")]
 mod into_vec {
-
     use super::IntoVec;
     use crate::convertion::VecConvertor;
     use crate::vectors::_256bit::*;

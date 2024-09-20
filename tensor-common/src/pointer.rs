@@ -16,7 +16,9 @@ pub struct Pointer<T> {
 #[cfg(feature = "bound_check")]
 #[derive(Debug, Clone)]
 pub struct Pointer<T> {
+    /// raw pointer
     pub ptr: *mut T,
+    /// layout of the pointer, it is used when the `bound_check` feature is enabled
     pub layout: crate::layout::Layout,
 }
 

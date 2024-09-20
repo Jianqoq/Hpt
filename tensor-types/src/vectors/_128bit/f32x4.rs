@@ -4,6 +4,7 @@ use std::ops::{ Deref, DerefMut, Index, IndexMut };
 use std::simd::num::SimdFloat;
 use std::simd::StdFloat;
 
+/// a vector of 4 f32 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct f32x4(pub(crate) std::simd::f32x4);

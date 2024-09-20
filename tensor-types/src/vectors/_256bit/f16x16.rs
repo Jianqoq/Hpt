@@ -1,12 +1,16 @@
-use std::arch::x86_64::{ __m128i, _mm256_cvtph_ps, _mm256_cvtps_ph, _mm_loadu_si128 };
+use std::arch::x86_64::{__m128i, _mm256_cvtph_ps, _mm256_cvtps_ph, _mm_loadu_si128};
 use std::ops::{Index, IndexMut};
-use std::simd::num::{ SimdFloat, SimdInt, SimdUint };
-use std::simd::u16x8;
-use std::simd::{ cmp::SimdPartialEq, Simd };
 use std::simd::cmp::SimdPartialOrd;
+use std::simd::num::{SimdFloat, SimdInt, SimdUint};
+use std::simd::u16x8;
+use std::simd::{cmp::SimdPartialEq, Simd};
 
+use crate::traits::SimdCompare;
 use crate::vectors::_256bit::f32x8::f32x8;
-use crate::vectors::{ traits::{ Init, VecCommon, VecTrait }, _256bit::u16x16::u16x16 };
+use crate::vectors::{
+    _256bit::u16x16::u16x16,
+    traits::{Init, VecCommon, VecTrait},
+};
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
@@ -103,62 +107,67 @@ impl f16x16 {
 
         unsafe { std::mem::transmute(result) }
     }
-    pub fn simd_eq(&self, other: Self) -> u16x16 {
+    #[cfg(feature = "f16c")]
+    pub fn to_2_f32x8(self) -> [f32x8; 2] {
+        unsafe {
+            let raw_f16: [u16; 16] = std::mem::transmute(self.0);
+            let f32x8_1 = _mm256_cvtph_ps(_mm_loadu_si128(raw_f16.as_ptr() as *const __m128i));
+            let f32x8_2 =
+                _mm256_cvtph_ps(_mm_loadu_si128(raw_f16.as_ptr().add(8) as *const __m128i));
+
+            std::mem::transmute([(f32x8_1, f32x8_2)])
+        }
+    }
+    #[cfg(not(feature = "f16c"))]
+    pub fn to_2_f32x8(self) -> [f32x8; 2] {
+        let [a0, a1] = unsafe {
+            let a: [std::simd::u16x8; 2] = std::mem::transmute(self.0);
+            a
+        };
+        let a0 = u16_to_f16(a0);
+        let a1 = u16_to_f16(a1);
+        unsafe { std::mem::transmute([a0, a1]) }
+    }
+}
+
+impl SimdCompare for f16x16 {
+    type SimdMask = u16x16;
+    fn simd_eq(self, other: Self) -> u16x16 {
         let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
         let y: Simd<u16, 16> = unsafe { std::mem::transmute(other.0) };
         let eq = x.simd_eq(y);
         unsafe { std::mem::transmute(eq) }
     }
-    pub fn simd_ne(&self, other: Self) -> u16x16 {
+    fn simd_ne(self, other: Self) -> u16x16 {
         let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
         let y: Simd<u16, 16> = unsafe { std::mem::transmute(other.0) };
         let ne = x.simd_ne(y);
         unsafe { std::mem::transmute(ne) }
     }
-    pub fn simd_lt(&self, other: Self) -> u16x16 {
+    fn simd_lt(self, other: Self) -> u16x16 {
         let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
         let y: Simd<u16, 16> = unsafe { std::mem::transmute(other.0) };
         let lt = x.simd_lt(y);
         unsafe { std::mem::transmute(lt) }
     }
-    pub fn simd_le(&self, other: Self) -> u16x16 {
+    fn simd_le(self, other: Self) -> u16x16 {
         let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
         let y: Simd<u16, 16> = unsafe { std::mem::transmute(other.0) };
         let le = x.simd_le(y);
         unsafe { std::mem::transmute(le) }
     }
-    pub fn simd_gt(&self, other: Self) -> u16x16 {
+    fn simd_gt(self, other: Self) -> u16x16 {
         let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
         let y: Simd<u16, 16> = unsafe { std::mem::transmute(other.0) };
         let gt = x.simd_gt(y);
         unsafe { std::mem::transmute(gt) }
     }
-    pub fn simd_ge(&self, other: Self) -> u16x16 {
+    fn simd_ge(self, other: Self) -> u16x16 {
         let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
         let y: Simd<u16, 16> = unsafe { std::mem::transmute(other.0) };
         let ge = x.simd_ge(y);
         unsafe { std::mem::transmute(ge) }
     }
-    pub fn to_2_f32x8(self) -> [f32x8; 2] {
-        unsafe {
-            let raw_f16: [u16; 16] = std::mem::transmute(self.0);
-            let f32x8_1 = _mm256_cvtph_ps(_mm_loadu_si128(raw_f16.as_ptr() as *const __m128i));
-            let f32x8_2 = _mm256_cvtph_ps(
-                _mm_loadu_si128(raw_f16.as_ptr().add(8) as *const __m128i)
-            );
-
-            std::mem::transmute([(f32x8_1, f32x8_2)])
-        }
-    }
-    // pub fn to_2_f32x8(self) -> [f32x8; 2] {
-    //     let [a0, a1] = unsafe {
-    //         let a: [std::simd::u16x8; 2] = std::mem::transmute(self.0);
-    //         a
-    //     };
-    //     let a0 = u16_to_f16(a0);
-    //     let a1 = u16_to_f16(a1);
-    //     unsafe { std::mem::transmute([a0, a1]) }
-    // }
 }
 
 impl std::ops::Add for f16x16 {
@@ -240,7 +249,7 @@ pub fn u16_to_f16(val: u16x8) -> std::simd::f32x8 {
 
     let zero_check = val & zero_mask;
     let mut result = std::simd::f32x8::from_bits(
-        (val.cast::<u32>() << 16) & std::simd::u32x8::splat(0xffff_ffff)
+        (val.cast::<u32>() << 16) & std::simd::u32x8::splat(0xffff_ffff),
     );
 
     let half_sign = (val & sign_mask).cast::<u32>();
@@ -257,9 +266,9 @@ pub fn u16_to_f16(val: u16x8) -> std::simd::f32x8 {
     result = infinity_or_nan_mask.select(
         nan_mask.select(
             std::simd::f32x8::from_bits(nan_result),
-            infinity_mask.select(std::simd::f32x8::from_bits(inf_result), result)
+            infinity_mask.select(std::simd::f32x8::from_bits(inf_result), result),
         ),
-        result
+        result,
     );
 
     let unbiased_exp = (half_exp >> 10).cast::<i32>() - std::simd::u32x8::splat(15).cast::<i32>();
@@ -270,22 +279,23 @@ pub fn u16_to_f16(val: u16x8) -> std::simd::f32x8 {
 
     let e = leading_zeros - u16x8::splat(6); // Adjustment for subnormals
     let exp_subnormal = (std::simd::u32x8::splat(127 - 15) - e.cast::<u32>()) << 23;
-    let man_subnormal =
-        (half_man << (std::simd::u32x8::splat(14) + e.cast::<u32>())) &
-        std::simd::u32x8::splat(0x7f_ff_ff);
+    let man_subnormal = (half_man << (std::simd::u32x8::splat(14) + e.cast::<u32>()))
+        & std::simd::u32x8::splat(0x7f_ff_ff);
 
     let exp_normal = (unbiased_exp + std::simd::i32x8::splat(127)) << 23;
     let man_normal = (half_man & std::simd::u32x8::splat(0x03ff)) << 13;
 
     let sign_normal = half_sign << 16;
-    let normal_result = std::simd::f32x8::from_bits(
-        sign_normal | exp_normal.cast::<u32>() | man_normal
-    );
+    let normal_result =
+        std::simd::f32x8::from_bits(sign_normal | exp_normal.cast::<u32>() | man_normal);
     let subnormal_result = std::simd::f32x8::from_bits(sign_normal | exp_subnormal | man_subnormal);
 
     let final_result = subnormal_mask.select(subnormal_result, normal_result);
 
-    zero_check.cast::<f32>().simd_eq(std::simd::f32x8::splat(0.0)).select(result, final_result)
+    zero_check
+        .cast::<f32>()
+        .simd_eq(std::simd::f32x8::splat(0.0))
+        .select(result, final_result)
 }
 
 #[inline]

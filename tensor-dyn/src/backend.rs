@@ -4,13 +4,18 @@ use std::sync::Arc;
 
 use tensor_allocator::{ clone_storage, CPU_STORAGE };
 
+/// Cpu backend
+/// 
+/// this backend stores the pointer of the data memory
 pub struct Cpu {
     pub(crate) ptr: u64,
 }
 
+/// Cuda backend
 #[derive(Clone)]
 pub struct Cuda;
 
+/// Wgpu backend
 pub struct Wgpu;
 
 /// backend of tensor
@@ -34,6 +39,8 @@ impl Clone for Cpu {
 }
 
 impl Backend<Cpu> {
+
+    /// create a new Cpu backend
     pub fn new(address: u64) -> Self {
         Backend {
             _backend: Cpu {
@@ -43,7 +50,11 @@ impl Backend<Cpu> {
     }
 }
 
+/// trait for buffer
+/// 
+/// this trait is used to get the pointer of the data memory
 pub trait Buffer {
+    /// get the pointer of the data memory
     fn get_ptr(&self) -> u64;
 }
 
@@ -53,6 +64,15 @@ impl Buffer for Cpu {
     }
 }
 
+/// backend id trait
+/// 
+/// this trait is used to get the id of the backend
+/// 
+/// 0: Cpu
+/// 
+/// 1: Cuda
+/// 
+/// 2: Wgpu
 pub trait BackendTy {
     const ID: u8;
 }

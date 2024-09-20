@@ -3,7 +3,7 @@ use std::time::Duration;
 use criterion::{ black_box, criterion_group, BenchmarkId, Criterion };
 use tch::{ Tensor, Kind, Device };
 use tensor_dyn::{ tensor_base::_Tensor, Random };
-use tensor_dyn::TensorInfo;
+use tensor_dyn::{ShapeManipulate, TensorInfo};
 use tensor_dyn::TensorLike;
 
 fn concat_benchmark(c: &mut Criterion) {

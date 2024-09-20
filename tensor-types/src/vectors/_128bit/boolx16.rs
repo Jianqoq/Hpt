@@ -1,7 +1,9 @@
+use crate::traits::{Init, VecCommon, VecTrait};
 use std::ops::{Index, IndexMut};
-use std::simd::{ cmp::SimdPartialEq, Simd };
 use std::simd::cmp::SimdPartialOrd;
-use crate::traits::{ Init, VecCommon, VecTrait };
+use std::simd::{cmp::SimdPartialEq, Simd};
+
+use crate::{traits::SimdCompare, vectors::_128bit::u8x16::u8x16};
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
@@ -30,10 +32,7 @@ impl VecTrait<bool> for boolx16 {
     }
     #[inline(always)]
     fn sum(&self) -> bool {
-        self.0
-            .iter()
-            .map(|&x| x as u8)
-            .sum::<u8>() > 0
+        self.0.iter().map(|&x| x as u8).sum::<u8>() > 0
     }
 
     fn extract(self, idx: usize) -> bool {
@@ -42,7 +41,7 @@ impl VecTrait<bool> for boolx16 {
 }
 impl VecCommon for boolx16 {
     const SIZE: usize = 16;
-    
+
     type Base = bool;
 }
 impl Init<bool> for boolx16 {
@@ -62,33 +61,34 @@ impl IndexMut<usize> for boolx16 {
         &mut self.0[index]
     }
 }
-impl boolx16 {
-    pub fn simd_eq(self, rhs: Self) -> Self {
+impl SimdCompare for boolx16 {
+    type SimdMask = Self;
+    fn simd_eq(self, rhs: Self) -> Self {
         let lhs: Simd<u8, 16> = unsafe { std::mem::transmute(self) };
         let rhs: Simd<u8, 16> = unsafe { std::mem::transmute(rhs) };
         boolx16(lhs.simd_eq(rhs).into())
     }
-    pub fn simd_ne(self, rhs: Self) -> Self {
+    fn simd_ne(self, rhs: Self) -> Self {
         let lhs: Simd<u8, 16> = unsafe { std::mem::transmute(self) };
         let rhs: Simd<u8, 16> = unsafe { std::mem::transmute(rhs) };
         boolx16(lhs.simd_ne(rhs).into())
     }
-    pub fn simd_lt(self, rhs: Self) -> Self {
+    fn simd_lt(self, rhs: Self) -> Self {
         let lhs: Simd<u8, 16> = unsafe { std::mem::transmute(self) };
         let rhs: Simd<u8, 16> = unsafe { std::mem::transmute(rhs) };
         boolx16(lhs.simd_lt(rhs).into())
     }
-    pub fn simd_le(self, rhs: Self) -> Self {
+    fn simd_le(self, rhs: Self) -> Self {
         let lhs: Simd<u8, 16> = unsafe { std::mem::transmute(self) };
         let rhs: Simd<u8, 16> = unsafe { std::mem::transmute(rhs) };
         boolx16(lhs.simd_le(rhs).into())
     }
-    pub fn simd_gt(self, rhs: Self) -> Self {
+    fn simd_gt(self, rhs: Self) -> Self {
         let lhs: Simd<u8, 16> = unsafe { std::mem::transmute(self) };
         let rhs: Simd<u8, 16> = unsafe { std::mem::transmute(rhs) };
         boolx16(lhs.simd_gt(rhs).into())
     }
-    pub fn simd_ge(self, rhs: Self) -> Self {
+    fn simd_ge(self, rhs: Self) -> Self {
         let lhs: Simd<u8, 16> = unsafe { std::mem::transmute(self) };
         let rhs: Simd<u8, 16> = unsafe { std::mem::transmute(rhs) };
         boolx16(lhs.simd_ge(rhs).into())

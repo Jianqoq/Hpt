@@ -15,13 +15,16 @@ use std::{
 /// User don't need to use it directly, the convertion happens right after the user passes the strides data to the functions.
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Strides {
+    /// inner data of the strides
     pub(crate) inner: Arc<Vec<i64>>,
 }
 
 impl Strides {
+    /// Returns inner &Vec<i64>
     pub fn inner(&self) -> &Vec<i64> {
         &self.inner
     }
+    /// Returns inner &Arc<Vec<i64>>
     pub fn inner_(&self) -> &Arc<Vec<i64>> {
         &self.inner
     }
@@ -37,10 +40,6 @@ impl std::fmt::Display for Strides {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("strides({:?})", self.inner))
     }
-}
-
-pub trait IntoStrides {
-    fn into_strides(self) -> Strides;
 }
 
 impl From<Arc<Vec<i64>>> for Strides {

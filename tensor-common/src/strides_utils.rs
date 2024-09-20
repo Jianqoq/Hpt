@@ -70,17 +70,6 @@ pub fn shape_to_strides(shape: &[i64]) -> Strides {
     strides.into()
 }
 
-pub fn calculate_new_strides(last_stride: i64, shape: &[i64]) -> Vec<i64> {
-    let mut strides = vec![0; shape.len()];
-    let mut size = last_stride;
-    for i in (0..shape.len()).rev() {
-        let tmp = shape[i];
-        strides[i] = size;
-        size *= tmp;
-    }
-    strides
-}
-
 /// # Internal Function
 /// Checks if the strides represent an expanded (non-default) layout.
 ///

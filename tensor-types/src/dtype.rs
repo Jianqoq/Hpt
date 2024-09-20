@@ -10,6 +10,7 @@ use core::f32;
 use std::{fmt::{Debug, Display}, ops::{Index, IndexMut}};
 use tensor_macros::infer_enum_type;
 
+/// enum for data type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Dtype {
     Bool,
@@ -56,6 +57,7 @@ impl Display for Dtype {
 }
 
 impl Dtype {
+    /// get the size of the data type in bytes
     pub const fn size(&self) -> usize {
         match self {
             Dtype::Bool => size_of::<bool>(),
@@ -77,6 +79,7 @@ impl Dtype {
             Dtype::Usize => size_of::<usize>(),
         }
     }
+    /// get the number of bits in the data type
     pub const fn bits(&self) -> usize {
         match self {
             Dtype::Bool => 1,
@@ -100,19 +103,49 @@ impl Dtype {
     }
 }
 
+/// common trait for all data types
+/// 
+/// This trait is used to define the common properties of all data types
+/// 
+/// # Example
+/// 
+/// ```
+/// use tensor_types::Dtype;
+/// use tensor_types::TypeCommon;
+/// 
+/// fn main() {
+///    let max = f32::MAX;  // get the maximum value of f32
+///    let min = f32::MIN;  // get the minimum value of f32
+///    let zero = f32::ZERO;  // get the zero value of f32
+///    let one = f32::ONE;  // get the one value of f32
+///    let inf = f32::INF;  // get the infinity value of f32
+///    let neg_inf = f32::NEG_INF;  // get the negative infinity value of f32
+///    let two = f32::TWO;  // get the two value of f32
+///    let str = f32::STR;  // get the string representation of f32
+/// }
 pub trait TypeCommon
 where
     Self: Sized,
 {
+    /// the data type id
     const ID: Dtype;
+    /// the maximum value of the data type
     const MAX: Self;
+    /// the minimum value of the data type
     const MIN: Self;
+    /// the zero value of the data type
     const ZERO: Self;
+    /// the one value of the data type
     const ONE: Self;
+    /// the infinity value of the data type, for integer types, it is the maximum value
     const INF: Self;
+    /// the negative infinity value of the data type, for integer types, it is the minimum value
     const NEG_INF: Self;
+    /// the two value of the data type
     const TWO: Self;
+    /// the string representation of the data type
     const STR: &'static str;
+    /// the simd vector type of the data type
     type Vec: VecTrait<Self>
         + Init<Self>
         + VecCommon
@@ -672,15 +705,26 @@ mod type_impl {
         cplx64x1::cplx64x1
     );
 }
+
+/// constant values for floating point data types
 pub trait FloatConst {
+    /// 0.5
     const HALF: Self;
+    /// e
     const E: Self;
+    /// π
     const PI: Self;
+    /// 3.0
     const THREE: Self;
+    /// 6.0
     const SIX: Self;
+    /// 2π
     const TWOPI: Self;
+    /// 4π
     const FOURPI: Self;
+    /// 0.2
     const POINT_TWO: Self;
+    /// 1/√2
     const FRAC_1_SQRT_2: Self;
 }
 

@@ -50,25 +50,39 @@ pub mod par_strided_simd {
         par_strided_zip::par_strided_zip_simd::ParStridedZipSimd,
     };
 
+    /// Parallel strided iterator for SIMD operations.
+    /// 
+    /// This struct is used to iterate over a tensor in parallel, with SIMD support.
     #[derive(Clone)]
     pub struct ParStridedSimd<T: Send + Copy + Sync> {
+        /// Pointer to the data.
         pub(crate) ptr: Pointer<T>,
+        /// Layout of the tensor.
         pub(crate) layout: Layout,
+        /// Progress of the loop.
         pub(crate) prg: Vec<i64>,
+        /// Chunk intervals for the outer loop.
         pub(crate) intervals: Arc<Vec<(usize, usize)>>,
+        /// Start index of the chunk intervals.
         pub(crate) start_index: usize,
+        /// End index of the chunk intervals.
         pub(crate) end_index: usize,
+        /// Stride of the last dimension.
         pub(crate) last_stride: i64,
     }
     impl<T: CommonBounds> ParStridedSimd<T> {
+
+        /// Returns the shape of the iterator.
         pub fn shape(&self) -> &Shape {
             self.layout.shape()
         }
 
+        /// Returns the strides of the iterator.
         pub fn strides(&self) -> &Strides {
             self.layout.strides()
         }
 
+        /// Create a new parallel strided iterator for SIMD operations.
         pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
             let inner_loop_size = tensor.shape()[tensor.shape().len() - 1] as usize;
             let outer_loop_size = tensor.size() / inner_loop_size;
@@ -91,6 +105,7 @@ pub mod par_strided_simd {
             }
         }
 
+        /// zip with another iterator.
         #[cfg_attr(feature = "track_caller", track_caller)]
         pub fn zip<'a, C>(mut self, mut other: C) -> ParStridedZipSimd<'a, Self, C>
             where
@@ -130,6 +145,7 @@ pub mod par_strided_simd {
             ParStridedZipSimd::new(self, other)
         }
 
+        /// Map the iterator with a function.
         pub fn strided_map_simd<'a, F, F2>(
             self,
             f: F,

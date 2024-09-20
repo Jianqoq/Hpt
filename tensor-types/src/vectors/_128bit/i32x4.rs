@@ -2,6 +2,7 @@ use std::ops::{ Deref, DerefMut, Index, IndexMut };
 
 use crate::traits::{ Init, VecCommon, VecTrait };
 
+/// a vector of 4 i32 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct i32x4(pub(crate) std::simd::i32x4);

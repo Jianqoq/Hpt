@@ -12,22 +12,27 @@ use crate::{strides::Strides, strides_utils::shape_to_strides};
 /// User don't need to use it directly, the convertion happens right after the user passes the shape data to the functions.
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Shape {
+    /// inner data of the shape
     inner: Arc<Vec<i64>>,
 }
 
 impl Shape {
+    /// Create a new shape
     pub fn new<S: Into<Shape>>(shape: S) -> Self {
         shape.into()
     }
 
+    /// Returns the size of the shape (product of all elements)
     pub fn size(&self) -> i64 {
         self.iter().product()
     }
 
+    /// convert Shape to Vec<i64>
     pub fn to_vec(&self) -> Vec<i64> {
         self.inner.as_ref().clone()
     }
 
+    /// Returns inner &Vec<i64>
     pub fn inner(&self) -> &Vec<i64> {
         &self.inner
     }
@@ -39,6 +44,7 @@ impl Shape {
         shape_to_strides(self)
     }
 
+    // Returns a new Shape with all elements decreased by 1
     pub fn sub_one(&self) -> Shape {
         self.iter().map(|x| *x - 1).collect::<Vec<i64>>().into()
     }

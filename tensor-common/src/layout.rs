@@ -16,7 +16,9 @@ use crate::{
 /// it is also widely being used to perform shape and strides related operations such as `reshape`, `permute`, `broadcast`, `reduce`, etc.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct Layout {
+    /// the shape of the tensor
     shape: Shape,
+    /// the strides of the tensor
     strides: Strides,
 }
 

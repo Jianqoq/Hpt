@@ -3,6 +3,7 @@ use std::ops::{Index, IndexMut};
 use num_complex::Complex64;
 use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 
+/// a vector of 1 Complex64 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct cplx64x1(pub(crate) [Complex64; 1]);
