@@ -3,6 +3,7 @@ use rand_distr::uniform::SampleUniform;
 use tensor_common::shape::Shape;
 use tensor_types::into_scalar::IntoScalar;
 
+/// A trait for generating random numbers.
 pub trait Random
 where
     Self: Sized,
@@ -249,6 +250,13 @@ where
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn triangular_like(&self, low: Self::Meta, high: Self::Meta, mode: Self::Meta) -> Result<Self>;
 
+    /// Generates a bernoulli array with values `true` or `false` following the Bernoulli distribution.
+    /// 
+    /// # Parameters
+    /// - `shape`: The shape of the output array, which can be converted from `S` into `Shape`.
+    /// - `p`: A value of type `Self::Meta` representing the probability of success (true) in the Bernoulli distribution.
+    /// # Returns
+    /// A random boolean array with values `true` or `false` following the Bernoulli distribution.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self>
     where
@@ -256,6 +264,7 @@ where
         bool: IntoScalar<Self::Meta>;
 }
 
+/// A trait for generating random integers.
 pub trait RandomInt
 where
     Self: Sized,

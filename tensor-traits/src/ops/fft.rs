@@ -1,6 +1,7 @@
 use anyhow::Result;
 use tensor_common::axis::Axis;
 
+/// A trait for Fast Fourier Transform (FFT) operations.
 pub trait FFTOps
 where
     Self: Sized,

@@ -1,6 +1,6 @@
 use crate::{tensor::Tensor, tensor_base::_Tensor};
 use tensor_iterator::TensorIterator;
-use tensor_traits::CommonBounds;
+use tensor_traits::{CommonBounds, NormalReduce};
 use tensor_types::{
     convertion::Convertor,
     dtype::TypeCommon,

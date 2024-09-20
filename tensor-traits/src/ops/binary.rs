@@ -5,12 +5,16 @@ use tensor_types::dtype::TypeCommon;
 
 use crate::tensor::CommonBounds;
 
+/// A trait for binary operations on tensors.
 pub trait NormalBinOps<RHS = Self>
 where
     <<Self as NormalBinOps<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync,
 {
+    /// The output tensor type.
     type Output;
+    /// The output tensor data type.
     type OutputMeta: CommonBounds;
+    /// The inplace output tensor type.
     type InplaceOutput;
 
     /// inplace version of add
@@ -50,12 +54,16 @@ where
         U: Borrow<Self::InplaceOutput>;
 }
 
+/// A trait for matrix multiplication operations on tensors.
 pub trait Matmul<RHS = Self>
 where
     <<Self as Matmul<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync,
 {
+    /// The output tensor type.
     type Output;
+    /// The output tensor data type.
     type OutputMeta: CommonBounds;
+    /// The inplace output tensor type.
     type InplaceOutput;
 
     /// Computes the matrix multiplication of two tensors.

@@ -17,7 +17,7 @@ use crate::{
 use anyhow::Result;
 use tensor_common::{axis::Axis, layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_display::display;
-use tensor_iterator::{par_strided::par_strided_simd::ParStridedSimd, TensorIterator};
+use tensor_iterator::TensorIterator;
 use tensor_traits::{
     ops::uary::FloatUaryOps,
     shape_manipulate::ShapeManipulate,
@@ -152,7 +152,6 @@ where
 
 impl<T: CommonBounds> TensorAlloc for Tensor<T> {
     type Meta = T;
-
     fn _empty<S: Into<Shape>>(shape: S) -> Result<Self>
     where
         Self: Sized,
@@ -265,12 +264,6 @@ impl<T: CommonBounds> Tensor<T> {
 }
 
 impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
-    type StridedIter = ParStridedSimd<T>;
-
-    type Mask = Tensor<bool>;
-
-    type Basic = Tensor<T>;
-
     fn empty<S: Into<Shape>>(shape: S) -> Result<Self> {
         Ok(_Tensor::<T, Cpu>::empty(shape)?.into())
     }

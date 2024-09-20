@@ -1,12 +1,12 @@
 use crate::tensor_base::_Tensor;
 use tensor_common::axis::{process_axes, Axis};
-use tensor_traits::{CommonBounds, TensorInfo};
+use tensor_traits::{CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce, TensorInfo};
 use tensor_types::vectors::traits::Init;
 use tensor_types::{
     convertion::{Convertor, VecConvertor},
     dtype::TypeCommon,
     into_scalar::IntoScalar,
-    type_promote::{BitWiseOut, Eval, FloatOutBinary, FloatOutUnary, NormalOut},
+    type_promote::{Eval, FloatOutBinary, FloatOutUnary, NormalOut},
     vectors::traits::SimdSelect,
 };
 
@@ -15,27 +15,14 @@ use super::{
     unary::FloatBinaryType,
 };
 
-impl<T> _Tensor<T>
+impl<T: CommonBounds> NormalReduce<T> for _Tensor<T>
 where
-    T: CommonBounds + NormalOut<T, Output = T> + Convertor,
-    T::Vec: NormalOut<T::Vec, Output = T::Vec>,
+    T: NormalOut<Output = T>,
+    T::Vec: NormalOut<Output = T::Vec>,
 {
-    /// Sums the elements of the tensor along specified axes.
-    ///
-    /// This method computes the sum of elements along the given axes, effectively reducing the tensor's dimensionality. The `axes` parameter specifies which dimensions to sum over, and `keep_dims` determines whether the original dimensions are retained or squeezed out.
-    ///
-    /// # Arguments
-    ///
-    /// * `axes` - The axes along which to sum the elements. This can be a single axis or a list of axes, specified using the `Into<Axis>` trait.
-    /// * `keep_dims` - A boolean flag indicating whether to keep the original dimensions:
-    ///  If `true`, the summed dimensions are retained with size 1.
-    ///  If `false`, the summed dimensions are removed from the tensor shape.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing the summed tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn sum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self> {
+    type Output = Self;
+
+    fn sum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes = process_axes(axes, self.ndim())?;
         reduce(
             self,
@@ -49,29 +36,13 @@ where
         )
     }
 
-    /// same as `sum` but but with an output tensor
-    ///
-    /// # Arguments
-    ///
-    /// * `axes` - The axes along which to sum the elements. This can be a single axis or a list of axes, specified using the `Into<Axis>` trait.
-    ///
-    /// * `keep_dims` - A boolean flag indicating whether to keep the original dimensions:  If `true`, the summed dimensions are retained with size 1. If `false`, the summed dimensions are removed from the tensor shape.
-    ///
-    /// * `init_out` - A boolean flag indicating whether to initialize the output tensor with zeros.
-    ///
-    /// * `out` - The output tensor
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing the summed tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn sum_<S: Into<Axis>>(
+    fn sum_<S: Into<Axis>>(
         &self,
         axes: S,
         keep_dims: bool,
         init_out: bool,
-        out: &_Tensor<T>,
-    ) -> anyhow::Result<Self> {
+        out: Self::Output,
+    ) -> anyhow::Result<Self::Output> {
         let axes = process_axes(axes, self.ndim())?;
         reduce(
             self,
@@ -85,26 +56,12 @@ where
         )
     }
 
-    /// same as `sum` but but with an init value
-    ///
-    /// # Arguments
-    ///
-    /// * `axes` - The axes along which to sum the elements. This can be a single axis or a list of axes, specified using the `Into<Axis>` trait.
-    ///
-    /// * `keep_dims` - A boolean flag indicating whether to keep the original dimensions:  If `true`, the summed dimensions are retained with size 1. If `false`, the summed dimensions are removed from the tensor shape.
-    ///
-    /// * `init_val` - The initial value for the sum
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing the summed tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn sum_with_init<S: Into<Axis>>(
+    fn sum_with_init<S: Into<Axis>>(
         &self,
         init_val: T,
         axes: S,
         keep_dims: bool,
-    ) -> anyhow::Result<Self> {
+    ) -> anyhow::Result<Self::Output> {
         let axes = process_axes(axes, self.ndim())?;
         reduce(
             self,
@@ -118,123 +75,7 @@ where
         )
     }
 
-    /// Computes the sum of elements along specified axes, treating NaNs as zero.
-    ///
-    /// This method calculates the sum of the tensor's elements along one or more axes,
-    /// ignoring `NaN` values (treating them as zero). It provides an option to retain
-    /// or collapse the reduced dimensions. This function is particularly useful for
-    /// handling missing data represented as `NaN` values.
-    ///
-    /// # Arguments
-    ///
-    /// * `axes` - Specifies the axis or axes along which to compute the sum. This can be
-    ///   passed as a type that implements the `Into<Axis>` trait, allowing flexible input for axes.
-    /// * `keep_dims` - A boolean flag indicating whether to keep the reduced dimensions in
-    ///   the output tensor:
-    ///   - If `true`, the reduced dimensions will be retained with size 1.
-    ///   - If `false`, the reduced dimensions will be removed from the output.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor with the summed values
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn nansum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self>
-    where
-        T: Eval<Output = bool>,
-        T::Vec: Eval,
-        <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
-    {
-        let axes = process_axes(axes, self.ndim())?;
-        reduce(
-            self,
-            |a, b| {
-                if b._is_nan() {
-                    a
-                } else {
-                    b._add(a)
-                }
-            },
-            |a, b| {
-                let mask = b._is_nan();
-                mask.select(a, b._add(a))
-            },
-            &axes,
-            T::ZERO,
-            keep_dims,
-            false,
-            None,
-        )
-    }
-
-    /// same as `nansum` but but with an output tensor
-    ///
-    /// # Arguments
-    ///
-    /// * `axes` - The axes along which to sum the elements. This can be a single axis or a list of axes, specified using the `Into<Axis>` trait.
-    ///
-    /// * `keep_dims` - A boolean flag indicating whether to keep the original dimensions:  If `true`, the summed dimensions are retained with size 1. If `false`, the summed dimensions are removed from the tensor shape.
-    ///
-    /// * `init_out` - A boolean flag indicating whether to initialize the output tensor with zeros.
-    ///
-    /// * `out` - The output tensor
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing the summed tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn nansum_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool,
-    ) -> anyhow::Result<Self>
-    where
-        T: Eval<Output = bool>,
-        T::Vec: Eval,
-        <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
-    {
-        let axes = process_axes(axes, self.ndim())?;
-        reduce(
-            self,
-            |a, b| {
-                if b._is_nan() {
-                    a
-                } else {
-                    b._add(a)
-                }
-            },
-            |a, b| {
-                let mask = b._is_nan();
-                mask.select(a, b._add(a))
-            },
-            &axes,
-            init_val,
-            keep_dims,
-            false,
-            None,
-        )
-    }
-
-    /// Computes the product of elements along a specified axis.
-    ///
-    /// This method calculates the product of the tensor's elements along a specified axis,
-    /// with an option to retain or collapse the reduced dimension. It is useful for
-    /// multiplying values along a specific dimension of a multi-dimensional tensor.
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - Specifies the axis along which to compute the product. This can be
-    ///   passed as a type that implements the `Into<Axis>` trait, allowing flexible input for axes.
-    /// * `keep_dims` - A boolean flag indicating whether to keep the reduced dimension in
-    ///   the output tensor:
-    ///   - If `true`, the reduced dimension will be retained with size 1.
-    ///   - If `false`, the reduced dimension will be removed from the output.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor with the product of the values
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
+    fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes = process_axes(axis, self.ndim())?;
         reduce(
             self,
@@ -248,28 +89,12 @@ where
         )
     }
 
-    /// same as `prod` but but with an output tensor
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - The axis along which to compute the product. This can be a single axis or a list of axes, specified using the `Into<Axis>` trait.
-    ///
-    /// * `keep_dims` - A boolean flag indicating whether to keep the original dimensions:  If `true`, the summed dimensions are retained with size 1. If `false`, the summed dimensions are removed from the tensor shape.
-    ///
-    /// * `init_out` - A boolean flag indicating whether to initialize the output tensor with zeros.
-    ///
-    /// * `out` - The output tensor
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor with the product of the values
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn prod_with_init<S: Into<Axis>>(
+    fn prod_with_init<S: Into<Axis>>(
         &self,
         init_val: T,
         axes: S,
         keep_dims: bool,
-    ) -> anyhow::Result<Self> {
+    ) -> anyhow::Result<Self::Output> {
         let axes = process_axes(axes, self.ndim())?;
         reduce(
             self,
@@ -283,124 +108,7 @@ where
         )
     }
 
-    /// Computes the product of elements along a specified axis, treating NaNs as one.
-    ///
-    /// This method calculates the product of the tensor's elements along a specified axis,
-    /// ignoring `NaN` values (treating them as one). It provides an option to retain or
-    /// collapse the reduced dimension. This function is particularly useful for handling
-    /// missing data represented as `NaN` values.
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - Specifies the axis along which to compute the product. This can be
-    ///   passed as a type that implements the `Into<Axis>` trait, allowing flexible input for axes.
-    /// * `keep_dims` - A boolean flag indicating whether to keep the reduced dimension in
-    ///   the output tensor:
-    ///   - If `true`, the reduced dimension will be retained with size 1.
-    ///   - If `false`, the reduced dimension will be removed from the output.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor with the product of the values
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self>
-    where
-        T: Eval<Output = bool>,
-        T::Vec: Eval,
-        <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
-    {
-        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce(
-            self,
-            |a, b| {
-                if b._is_nan() {
-                    a
-                } else {
-                    b._mul(a)
-                }
-            },
-            |a, b| {
-                let mask = b._is_nan();
-                mask.select(a, b._mul(a))
-            },
-            &axes,
-            T::ONE,
-            keep_dims,
-            false,
-            None,
-        )
-    }
-
-    /// same as `nanprod` but but with an output tensor
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - The axis along which to compute the product. This can be a single axis or a list of axes, specified using the `Into<Axis>` trait.
-    ///
-    /// * `keep_dims` - A boolean flag indicating whether to keep the original dimensions:  If `true`, the summed dimensions are retained with size 1. If `false`, the summed dimensions are removed from the tensor shape.
-    ///
-    /// * `init_out` - A boolean flag indicating whether to initialize the output tensor with zeros.
-    ///
-    /// * `out` - The output tensor
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor with the product of the values
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn nanprod_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool,
-    ) -> anyhow::Result<Self>
-    where
-        T: Eval<Output = bool>,
-        T::Vec: Eval,
-        <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
-    {
-        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce(
-            self,
-            |a, b| {
-                if b._is_nan() {
-                    a
-                } else {
-                    b._mul(a)
-                }
-            },
-            |a, b| {
-                let mask = b._is_nan();
-                mask.select(a, b._mul(a))
-            },
-            &axes,
-            init_val,
-            keep_dims,
-            false,
-            None,
-        )
-    }
-
-    /// Computes the minimum value along a specified axis.
-    ///
-    /// This method calculates the minimum value of the tensor's elements along a specified axis,
-    /// with an option to retain or collapse the reduced dimension. It is useful for finding
-    /// the smallest value along a specific dimension of a multi-dimensional tensor.
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - Specifies the axis along which to compute the minimum value. This can be
-    ///   passed as a type that implements the `Into<Axis>` trait, allowing flexible input for axes.
-    /// * `keep_dims` - A boolean flag indicating whether to keep the reduced dimension in
-    ///   the output tensor:
-    ///   - If `true`, the reduced dimension will be retained with size 1.
-    ///   - If `false`, the reduced dimension will be removed from the output.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor with the minimum values along
-    /// the specified axis.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
+    fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
@@ -414,24 +122,7 @@ where
         )
     }
 
-    /// same as `min` but but with an output tensor
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - The axis along which to compute the minimum value. This can be a single axis or a list of axes, specified using the `Into<Axis>` trait.
-    ///
-    /// * `keep_dims` - A boolean flag indicating whether to keep the original dimensions:  If `true`, the summed dimensions are retained with size 1. If `false`, the summed dimensions are removed from the tensor shape.
-    ///
-    /// * `init_out` - A boolean flag indicating whether to initialize the output tensor with zeros.
-    ///
-    /// * `out` - The output tensor
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor with the minimum values along
-    /// the specified axis.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn min_with_init<S: Into<Axis>>(
+    fn min_with_init<S: Into<Axis>>(
         &self,
         init_val: T,
         axes: S,
@@ -450,27 +141,7 @@ where
         )
     }
 
-    /// Computes the maximum value along a specified axis.
-    ///
-    /// This method calculates the maximum value of the tensor's elements along a specified axis,
-    /// with an option to retain or collapse the reduced dimension. It is useful for finding
-    /// the largest value along a specific dimension of a multi-dimensional tensor.
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - Specifies the axis along which to compute the maximum value. This can be
-    ///   passed as a type that implements the `Into<Axis>` trait, allowing flexible input for axes.
-    /// * `keep_dims` - A boolean flag indicating whether to keep the reduced dimension in
-    ///   the output tensor:
-    ///   - If `true`, the reduced dimension will be retained with size 1.
-    ///   - If `false`, the reduced dimension will be removed from the output.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor with the maximum values along
-    /// the specified axis.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
+    fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
@@ -484,23 +155,7 @@ where
         )
     }
 
-    /// same as `max` but but with an output tensor
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - The axis along which to compute the maximum value. This can be a single axis or a list of axes, specified using the `Into<Axis>` trait.
-    ///
-    /// * `keep_dims` - A boolean flag indicating whether to keep the original dimensions:  If `true`, the summed dimensions are retained with size 1. If `false`, the summed dimensions are removed from the tensor shape.
-    ///
-    /// * `init_out` - A boolean flag indicating whether to initialize the output tensor with zeros.
-    ///
-    /// * `out` - The output tensor
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor with the maximum values along the specified axis.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn max_with_init<S: Into<Axis>>(
+    fn max_with_init<S: Into<Axis>>(
         &self,
         init_val: T,
         axes: S,
@@ -519,33 +174,43 @@ where
         )
     }
 
-    /// Checks if all elements along the specified axes are `true`.
-    ///
-    /// This method evaluates whether all the elements in the tensor along one or more specified axes
-    /// are `true` (non-zero for numerical tensors). It can optionally retain or collapse the
-    /// reduced dimensions.
-    ///
-    /// # Arguments
-    ///
-    /// * `axes` - Specifies the axis or axes along which to evaluate the condition. This can be
-    ///   passed as a type that implements the `Into<Axis>` trait, allowing flexible input for axes.
-    /// * `keep_dims` - A boolean flag indicating whether to keep the reduced dimensions in
-    ///   the output tensor:
-    ///   - If `true`, the reduced dimensions will be retained with size 1.
-    ///   - If `false`, the reduced dimensions will be removed from the output.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a tensor where each element along the reduced axes is either `true`
-    /// or `false`, depending on whether all elements in the corresponding slice were `true`.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn all<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<_Tensor<bool>>
-    where
-        T: IntoScalar<bool> + Eval<Output = bool> + Convertor,
-        T::Vec: Eval + VecConvertor,
-        <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
-    {
-        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+    fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        reduce(
+            self,
+            |a, b| a._add(b._abs()),
+            |a, b| a._add(b._abs()),
+            &axes,
+            T::ZERO,
+            keep_dims,
+            false,
+            None,
+        )
+    }
+
+    fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        reduce(
+            self,
+            |a, b| a._add(b._square()),
+            |a, b| a._add(b._square()),
+            &axes,
+            T::ZERO,
+            keep_dims,
+            false,
+            None,
+        )
+    }
+}
+
+impl<T> EvalReduce for _Tensor<T>
+where
+    T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
+    T::Vec: VecConvertor,
+{
+    type BoolOutput = _Tensor<bool>;
+    fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce2(
             self,
             |a, b| b._is_true() & a,
@@ -561,32 +226,8 @@ where
             None,
         )
     }
-    /// Checks if any element along the specified axis is `true`.
-    ///
-    /// This method evaluates whether any of the elements in the tensor along a specified axis
-    /// are `true` (non-zero for numerical tensors). It can optionally retain or collapse the
-    /// reduced dimension.
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - Specifies the axis along which to evaluate the condition. This can be
-    ///   passed as a type that implements the `Into<Axis>` trait, allowing flexible input for axes.
-    /// * `keep_dims` - A boolean flag indicating whether to keep the reduced dimension in
-    ///   the output tensor:
-    ///   - If `true`, the reduced dimension will be retained with size 1.
-    ///   - If `false`, the reduced dimension will be removed from the output.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor of boolean values, where each element
-    /// is `true` if any element along the specified axis is `true`, and `false` otherwise.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<_Tensor<bool>>
-    where
-        T: IntoScalar<bool> + Eval<Output = bool> + Convertor,
-        T::Vec: Eval + BitWiseOut + VecConvertor,
-        <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
-    {
+
+    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce2(
             self,
@@ -603,33 +244,33 @@ where
             None,
         )
     }
-    /// Computes the L1 norm (sum of absolute values) along a specified axis.
-    ///
-    /// This method calculates the L1 norm of the tensor along a specified axis by summing
-    /// the absolute values of the elements. It provides an option to retain or collapse the
-    /// reduced dimension. The L1 norm is commonly used in optimization problems and regularization.
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - Specifies the axis along which to compute the L1 norm. This can be
-    ///   passed as a type that implements the `Into<Axis>` trait, allowing flexible input for axes.
-    /// * `keep_dims` - A boolean flag indicating whether to keep the reduced dimension in
-    ///   the output tensor:
-    ///   - If `true`, the reduced dimension will be retained with size 1.
-    ///   - If `false`, the reduced dimension will be removed from the output.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor with the L1 norm values along
-    /// the specified axis
-    #[allow(unused)]
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
-        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+}
+
+impl<T> NormalEvalReduce<T> for _Tensor<T>
+where
+    T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
+    T::Vec: VecConvertor,
+    T: NormalOut<Output = T>,
+    T::Vec: NormalOut<Output = T::Vec> + Eval,
+    <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
+{
+    type Output = Self;
+
+    fn nansum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+        let axes = process_axes(axes, self.ndim())?;
         reduce(
             self,
-            |a, b| a._add(b._abs()),
-            |a, b| a._add(b._abs()),
+            |a, b| {
+                if b._is_nan() {
+                    a
+                } else {
+                    b._add(a)
+                }
+            },
+            |a, b| {
+                let mask = b._is_nan();
+                mask.select(a, b._add(a))
+            },
             &axes,
             T::ZERO,
             keep_dims,
@@ -638,36 +279,79 @@ where
         )
     }
 
-    /// Computes the sum of squares of elements along a specified axis.
-    ///
-    /// This method calculates the sum of the squared values of the tensor's elements
-    /// along a specified axis. It provides an option to retain or collapse the reduced
-    /// dimension. This operation is commonly used in various mathematical and machine
-    /// learning applications, including loss calculations.
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - Specifies the axis along which to compute the sum of squares. This can be
-    ///   passed as a type that implements the `Into<Axis>` trait, allowing flexible input for axes.
-    /// * `keep_dims` - A boolean flag indicating whether to keep the reduced dimension in
-    ///   the output tensor:
-    ///   - If `true`, the reduced dimension will be retained with size 1.
-    ///   - If `false`, the reduced dimension will be removed from the output.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor with the sum of squares of the values
-    /// along the specified axis.
-    #[allow(unused)]
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
+    fn nansum_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool,
+    ) -> anyhow::Result<Self::Output> {
+        let axes = process_axes(axes, self.ndim())?;
+        reduce(
+            self,
+            |a, b| {
+                if b._is_nan() {
+                    a
+                } else {
+                    b._add(a)
+                }
+            },
+            |a, b| {
+                let mask = b._is_nan();
+                mask.select(a, b._add(a))
+            },
+            &axes,
+            init_val,
+            keep_dims,
+            false,
+            None,
+        )
+    }
+
+    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
-            |a, b| a._add(b._square()),
-            |a, b| a._add(b._square()),
+            |a, b| {
+                if b._is_nan() {
+                    a
+                } else {
+                    b._mul(a)
+                }
+            },
+            |a, b| {
+                let mask = b._is_nan();
+                mask.select(a, b._mul(a))
+            },
             &axes,
-            T::ZERO,
+            T::ONE,
+            keep_dims,
+            false,
+            None,
+        )
+    }
+
+    fn nanprod_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool,
+    ) -> anyhow::Result<Self::Output> {
+        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+        reduce(
+            self,
+            |a, b| {
+                if b._is_nan() {
+                    a
+                } else {
+                    b._mul(a)
+                }
+            },
+            |a, b| {
+                let mask = b._is_nan();
+                mask.select(a, b._mul(a))
+            },
+            &axes,
+            init_val,
             keep_dims,
             false,
             None,

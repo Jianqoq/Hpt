@@ -1,3 +1,7 @@
+//! This crate provides a memory allocator for tensor
+
+#![deny(missing_docs)]
+
 mod allocator;
 mod strorage;
 extern crate lru;

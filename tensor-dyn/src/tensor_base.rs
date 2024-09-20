@@ -28,7 +28,7 @@ use tensor_common::{
     slice::Slice,
 };
 use tensor_display::display;
-use tensor_iterator::{par_strided::par_strided_simd::ParStridedSimd, TensorIterator};
+use tensor_iterator::TensorIterator;
 use tensor_macros::match_selection;
 use tensor_traits::{
     random::Random,
@@ -221,7 +221,6 @@ where
 
 impl<T: CommonBounds> TensorAlloc for _Tensor<T> {
     type Meta = T;
-
     fn _empty<S: Into<Shape>>(shape: S) -> Result<Self>
     where
         Self: Sized,
@@ -337,12 +336,6 @@ impl<T: CommonBounds> _Tensor<T> {
 }
 
 impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
-    type StridedIter = ParStridedSimd<T>;
-
-    type Mask = _Tensor<bool>;
-
-    type Basic = _Tensor<T>;
-
     fn empty<S: Into<Shape>>(shape: S) -> Result<Self> {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);

@@ -11,6 +11,7 @@ use tensor_macros::match_selection;
 use tensor_common::slice::Slice;
 use tensor_dyn::Matmul;
 use tensor_dyn::TensorLike;
+use tensor_dyn::TensorCmp;
 
 #[allow(unused)]
 fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {

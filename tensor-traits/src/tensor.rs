@@ -23,6 +23,7 @@ type BoolVector = tensor_types::_512bit::boolx64::boolx64;
 ))]
 type BoolVector = tensor_types::_128bit::boolx16::boolx16;
 
+/// A trait for getting information of a Tensor
 pub trait TensorInfo<T> {
     /// Returns a pointer to the tensor's first data.
     fn ptr(&self) -> Pointer<T>;
@@ -55,6 +56,7 @@ pub trait TensorInfo<T> {
     }
 }
 
+/// A trait for let the object like a tensor
 pub trait TensorLike<T>: Sized {
     /// directly convert the tensor to raw slice
     ///
@@ -89,14 +91,11 @@ pub trait TensorLike<T>: Sized {
     }
 }
 
+/// A trait defines a set of functions to create tensors.
 pub trait TensorCreator<T, Output = Self>
 where
     Self: Sized,
 {
-    type StridedIter;
-    type Mask;
-    type Basic;
-
     /// Creates an uninitialized tensor with the specified shape.
     ///
     /// The `empty` function creates a tensor with the specified shape without initializing its elements.
@@ -486,13 +485,14 @@ where
         u8: IntoScalar<T>;
 }
 
+/// A trait for tensor memory allocation, this trait only used when we work with generic type
 pub trait TensorAlloc<Output = Self> {
+    /// The tensor data type.
     type Meta;
-
     /// Creates a tensor with the specified shape,
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// This function doesn't initialize the tensor's elements.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn _empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Output>
@@ -500,10 +500,12 @@ pub trait TensorAlloc<Output = Self> {
         Self: Sized;
 }
 
+/// A trait typically for argmax and argmin functions.
 pub trait IndexReduce
 where
     Self: Sized,
 {
+    /// The output tensor type.
     type Output;
 
     /// Returns the indices of the maximum values along the specified axis.
@@ -545,12 +547,13 @@ where
     fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }
 
+/// A trait for normal tensor reduction operations.
 pub trait NormalReduce<T>
 where
     Self: Sized,
 {
+    /// The output tensor type.
     type Output;
-    type BoolOutput;
 
     /// Computes the sum of the elements along the specified axis.
     ///
@@ -615,42 +618,6 @@ where
         keep_dims: bool,
     ) -> anyhow::Result<Self::Output>;
 
-    /// Computes the sum of the elements along the specified axis, ignoring NaN values.
-    ///
-    /// The `nansum` function computes the sum of elements along the specified axis, while ignoring NaN values in the tensor.
-    ///
-    /// # Parameters
-    ///
-    /// - `axis`: The axis along which to sum the elements.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements, ignoring NaN values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn nansum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
-
-    /// Computes the sum of the elements along the specified axis, with an initial value, ignoring NaN values.
-    ///
-    /// The `nansum_with_init` function computes the sum of elements along the specified axes, starting from a given initial value and ignoring NaN values.
-    ///
-    /// # Parameters
-    ///
-    /// - `init_val`: The initial value to start the summation.
-    /// - `axes`: The axes along which to sum the elements.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements, ignoring NaN values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn nansum_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool,
-    ) -> anyhow::Result<Self::Output>;
-
     /// Computes the product of the elements along the specified axis.
     ///
     /// The `prod` function computes the product of elements along the specified axis of the tensor.
@@ -685,42 +652,6 @@ where
     /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements along the specified axes.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn prod_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool,
-    ) -> anyhow::Result<Self::Output>;
-
-    /// Computes the product of the elements along the specified axis, ignoring NaN values.
-    ///
-    /// The `nanprod` function computes the product of elements along the specified axis, while ignoring NaN values in the tensor.
-    ///
-    /// # Parameters
-    ///
-    /// - `axis`: The axis along which to compute the product.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements, ignoring NaN values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
-
-    /// Computes the product of the elements along the specified axis, with an initial value, ignoring NaN values.
-    ///
-    /// The `nanprod_with_init` function computes the product of elements along the specified axes, starting from a given initial value and ignoring NaN values.
-    ///
-    /// # Parameters
-    ///
-    /// - `init_val`: The initial value to start the product computation.
-    /// - `axes`: The axes along which to compute the product.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements, ignoring NaN values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn nanprod_with_init<S: Into<Axis>>(
         &self,
         init_val: T,
         axes: S,
@@ -807,6 +738,41 @@ where
         keep_dims: bool,
     ) -> anyhow::Result<Self>;
 
+    /// Reduces the tensor along the specified axis using the L1 norm (sum of absolute values).
+    ///
+    /// The `reducel1` function computes the L1 norm (sum of absolute values) along the specified axis of the tensor.
+    ///
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to reduce the tensor.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor with the L1 norm computed along the specified axis.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+
+    /// Computes the sum of the squares of the elements along the specified axis.
+    ///
+    /// The `sum_square` function computes the sum of the squares of the elements along the specified axis of the tensor.
+    ///
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to sum the squares.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of squares of elements along the specified axis.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+}
+
+/// A trait for tensor reduction operations, the output must be a boolean tensor.
+pub trait EvalReduce {
+    /// The boolean tensor type.
+    type BoolOutput;
     /// Returns `true` if all elements along the specified axis evaluate to `true`.
     ///
     /// The `all` function checks whether all elements along the specified axis evaluate to `true`.
@@ -844,42 +810,91 @@ where
     /// - [`all`]: Returns `true` if all elements along the specified axis evaluate to `true`.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput>;
-
-    /// Reduces the tensor along the specified axis using the L1 norm (sum of absolute values).
-    ///
-    /// The `reducel1` function computes the L1 norm (sum of absolute values) along the specified axis of the tensor.
-    ///
-    /// # Parameters
-    ///
-    /// - `axis`: The axis along which to reduce the tensor.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor with the L1 norm computed along the specified axis.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
-
-    /// Computes the sum of the squares of the elements along the specified axis.
-    ///
-    /// The `sum_square` function computes the sum of the squares of the elements along the specified axis of the tensor.
-    ///
-    /// # Parameters
-    ///
-    /// - `axis`: The axis along which to sum the squares.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of squares of elements along the specified axis.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }
 
+/// A trait for tensor reduction operations, the output must remain the same tensor type.
+pub trait NormalEvalReduce<T> {
+    /// the output tensor type.
+    type Output;
+        /// Computes the sum of the elements along the specified axis, ignoring NaN values.
+    ///
+    /// The `nansum` function computes the sum of elements along the specified axis, while ignoring NaN values in the tensor.
+    ///
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to sum the elements.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements, ignoring NaN values.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn nansum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+
+    /// Computes the sum of the elements along the specified axis, with an initial value, ignoring NaN values.
+    ///
+    /// The `nansum_with_init` function computes the sum of elements along the specified axes, starting from a given initial value and ignoring NaN values.
+    ///
+    /// # Parameters
+    ///
+    /// - `init_val`: The initial value to start the summation.
+    /// - `axes`: The axes along which to sum the elements.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements, ignoring NaN values.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn nansum_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool,
+    ) -> anyhow::Result<Self::Output>;
+
+        /// Computes the product of the elements along the specified axis, ignoring NaN values.
+    ///
+    /// The `nanprod` function computes the product of elements along the specified axis, while ignoring NaN values in the tensor.
+    ///
+    /// # Parameters
+    ///
+    /// - `axis`: The axis along which to compute the product.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements, ignoring NaN values.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+
+    /// Computes the product of the elements along the specified axis, with an initial value, ignoring NaN values.
+    ///
+    /// The `nanprod_with_init` function computes the product of elements along the specified axes, starting from a given initial value and ignoring NaN values.
+    ///
+    /// # Parameters
+    ///
+    /// - `init_val`: The initial value to start the product computation.
+    /// - `axes`: The axes along which to compute the product.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements, ignoring NaN values.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn nanprod_with_init<S: Into<Axis>>(
+        &self,
+        init_val: T,
+        axes: S,
+        keep_dims: bool,
+    ) -> anyhow::Result<Self::Output>;
+}
+
+/// A trait for tensor reduction operations, the output must be a floating-point tensor.
 pub trait FloatReduce<T>
 where
     Self: Sized,
 {
+    /// The output tensor type.
     type Output;
 
     /// Computes the mean of the elements along the specified axis.
@@ -944,6 +959,7 @@ where
     fn logsumexp<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 }
 
+/// Common bounds for primitive types
 pub trait CommonBounds:
     Sync + Send + Clone + Copy + TypeCommon + 'static + Display + IntoScalar<Self> + Convertor
 where

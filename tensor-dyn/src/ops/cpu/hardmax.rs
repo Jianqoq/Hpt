@@ -1,9 +1,12 @@
 use crate::{tensor::Tensor, tensor_base::_Tensor};
 use tensor_iterator::TensorIterator;
 use tensor_traits::CommonBounds;
+use tensor_traits::NormalReduce;
 use tensor_types::{
-    convertion::Convertor,
-    type_promote::{Cmp, NormalOut, SimdCmp},
+    convertion::{Convertor, VecConvertor},
+    into_scalar::IntoScalar,
+    traits::SimdSelect,
+    type_promote::{Cmp, Eval, NormalOut, SimdCmp},
 };
 
 impl<T> _Tensor<T>
@@ -16,6 +19,9 @@ where
     bool: NormalOut<T, Output = T>,
     T::Vec: SimdCmp + NormalOut<Output = T::Vec>,
     <T::Vec as SimdCmp>::Output: NormalOut<T::Vec, Output = T::Vec>,
+    T: Eval<Output = bool> + IntoScalar<bool>,
+    T::Vec: Eval + VecConvertor,
+    <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
 {
     /// Applies the hardmax function along a specified axis.
     ///
@@ -69,6 +75,9 @@ where
     bool: NormalOut<T, Output = T>,
     T::Vec: SimdCmp + NormalOut<Output = T::Vec>,
     <T::Vec as SimdCmp>::Output: NormalOut<T::Vec, Output = T::Vec>,
+    T: Eval<Output = bool> + IntoScalar<bool>,
+    T::Vec: Eval + VecConvertor,
+    <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
 {
     /// Applies the hardmax function along a specified axis.
     ///

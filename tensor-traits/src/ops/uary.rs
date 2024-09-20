@@ -5,9 +5,13 @@ use tensor_types::{dtype::TypeCommon, type_promote::NormalOut};
 
 use crate::tensor::CommonBounds;
 
+/// A trait for tensor unary operations, the output must be a floating point tensor
 pub trait FloatUaryOps {
+    /// output tensor type
     type Output;
+    /// output tensor type for inplace operation
     type InplaceOutput;
+    /// output tensor data type
     type OutputMeta: Send;
     /// Computes the element-wise sine of the tensor.
     ///
@@ -392,7 +396,26 @@ pub trait FloatUaryOps {
     fn atanh_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
-
+    
+    /// Computes the element-wise exponential of the tensor.
+    /// 
+    /// The `exp` function calculates the exponential (e<sup>x</sup>) of each element in the tensor, returning a new tensor
+    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
+    /// perform the computation more efficiently.
+    /// 
+    /// # Returns
+    /// 
+    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// 
+    /// # Notes
+    /// 
+    /// - **Element-wise Operation**: The exponential is computed for each element individually.
+    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the exponential operation.
+    /// 
+    /// # See Also
+    /// 
+    /// - [`log`]: Computes the element-wise natural logarithm of the tensor.
+    /// - [`pow`]: Raises each element of the tensor to a specified power.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn exp(&self) -> Result<Self::Output>;
 
@@ -1067,12 +1090,16 @@ pub trait FloatUaryOps {
         U: Borrow<Self::InplaceOutput>;
 }
 
+/// A trait for unary operations, the output must be the same type as the input.
 pub trait NormalUaryOps
 where
     Self: Sized,
 {
+    /// The output type of the unary operation.
     type Output;
+    /// The output type of the inplace unary operation.
     type InplaceOutput;
+    /// The output type of the unary operation.
     type OutputMeta;
 
     /// Applies the element-wise floor function to the tensor.
@@ -1291,11 +1318,13 @@ where
         U: Borrow<Self::InplaceOutput>;
 }
 
+/// A trait for accumulative operations.
 pub trait Cum
 where
     Self: Sized,
     <<Self as Cum>::Meta as TypeCommon>::Vec: Send + Sync,
 {
+    /// The output type of the accumulative operation.
     type Meta: CommonBounds;
 
     /// Computes the cumulative sum of the elements in the tensor along a specified axis.
@@ -1355,9 +1384,13 @@ where
         Self::Meta: NormalOut<Self::Meta, Output = Self::Meta>;
 }
 
+/// A trait for get the negative of the tensor.
 pub trait Neg {
+    /// The output tensor type.
     type Output;
+    /// The output tensor data type
     type InplaceOutput;
+    /// The output tensor data type
     type OutputMeta;
 
     /// Computes the element-wise negation (multiplying by -1) of the tensor.

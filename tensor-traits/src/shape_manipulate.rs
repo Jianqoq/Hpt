@@ -1,10 +1,12 @@
 use anyhow::Result;
 use tensor_common::{axis::Axis, shape::Shape};
 
+/// A trait for manipulating the shape of a tensor.
 pub trait ShapeManipulate<Output = Self>
 where
     Self: Sized,
 {
+    /// tensor data type
     type Meta;
 
     /// Squeezes the tensor, removing dimensions of size 1 along the specified axes.

@@ -1,4 +1,4 @@
-use tensor_traits::{CommonBounds, TensorInfo};
+use tensor_traits::{CommonBounds, NormalReduce, TensorInfo};
 use tensor_types::{
     convertion::Convertor,
     into_scalar::IntoScalar,
@@ -53,12 +53,11 @@ impl<T> _Tensor<T, Cpu> {
                 <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
                 Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
             > + NormalOut<T::Vec, Output = T::Vec>,
-        <T as TypeCommon>::Vec: FloatOutBinary<
+        T::Vec: FloatOutBinary<
             <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
             Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
         >,
-        <T as TypeCommon>::Vec:
-            FloatOutBinary<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>,
+        T::Vec: FloatOutBinary<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>,
     {
         let axis = if axis < 0 {
             (self.shape().len() as i64) + axis
