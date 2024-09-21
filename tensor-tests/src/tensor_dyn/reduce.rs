@@ -3,7 +3,6 @@ use backend::Cpu;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
-use serial_test::serial;
 use tch::Tensor;
 use tensor_base::_Tensor;
 use tensor_common::slice;
@@ -78,7 +77,6 @@ fn common_input_f64<const N: usize>(
 }
 
 #[test]
-#[serial]
 fn test_sum() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let sum = a.sum(0, false)?;
@@ -106,7 +104,6 @@ fn test_sum() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_uncontiguous_sum() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 0, 2])?;
@@ -136,7 +133,6 @@ fn test_uncontiguous_sum() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_sub_tensor_sum() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:3, 2:5])?;
@@ -166,7 +162,6 @@ fn test_sub_tensor_sum() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_sub_tensor_sum_step() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:5:2, 2:9:2])?;
@@ -196,7 +191,6 @@ fn test_sub_tensor_sum_step() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_uncontiguous_sum2() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 2, 0])?;
@@ -226,7 +220,6 @@ fn test_uncontiguous_sum2() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_prod() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(8 * 8096 * 2048, [8, 8096, 2048])?;
     let sum = a.prod(0, false)?;
@@ -243,7 +236,6 @@ fn test_prod() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_uncontiguous_prod() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 0, 2])?;
@@ -261,7 +253,6 @@ fn test_uncontiguous_prod() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_uncontiguous_prod2() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 2, 0])?;
@@ -279,7 +270,6 @@ fn test_uncontiguous_prod2() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_sub_tensor_prod() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:3, 2:5])?;
@@ -297,7 +287,6 @@ fn test_sub_tensor_prod() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_sub_tensor_prod_step() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:5:2, 2:9:2])?;
@@ -315,7 +304,6 @@ fn test_sub_tensor_prod_step() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_mean() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let mean = a.mean(0, false)?;
@@ -343,7 +331,6 @@ fn test_mean() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_uncontiguous_mean() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 0, 2])?;
@@ -373,7 +360,6 @@ fn test_uncontiguous_mean() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_uncontiguous_mean2() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 2, 0])?;
@@ -403,7 +389,6 @@ fn test_uncontiguous_mean2() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_sub_tensor_mean() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:3, 2:5])?;
@@ -433,7 +418,6 @@ fn test_sub_tensor_mean() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_sub_tensor_mean_step() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:5:2, 2:9:2])?;
@@ -463,7 +447,6 @@ fn test_sub_tensor_mean_step() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_max() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let max = a.max(0, false)?;
@@ -478,7 +461,6 @@ fn test_max() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_uncontiguous_max() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 0, 2])?;
@@ -495,7 +477,6 @@ fn test_uncontiguous_max() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_uncontiguous_max2() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 2, 0])?;
@@ -512,7 +493,6 @@ fn test_uncontiguous_max2() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_sub_tensor_max() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:3, 2:5])?;
@@ -530,7 +510,6 @@ fn test_sub_tensor_max() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_sub_tensor_max_step() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:5:2, 2:9:2])?;
@@ -548,7 +527,6 @@ fn test_sub_tensor_max_step() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_min() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let min = a.min(0, false)?;
@@ -563,7 +541,6 @@ fn test_min() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_uncontiguous_min() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 0, 2])?;
@@ -580,7 +557,6 @@ fn test_uncontiguous_min() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_uncontiguous_min2() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 2, 0])?;
@@ -597,7 +573,6 @@ fn test_uncontiguous_min2() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_sub_tensor_min() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:3, 2:5])?;
@@ -615,7 +590,6 @@ fn test_sub_tensor_min() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_sub_tensor_min_step() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:5:2, 2:9:2])?;
@@ -633,7 +607,6 @@ fn test_sub_tensor_min_step() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_reducel1() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let sum = a.reducel1(0, false)?;
@@ -652,7 +625,6 @@ fn test_reducel1() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_uncontiguous_reducel1() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 0, 2])?;
@@ -673,7 +645,6 @@ fn test_uncontiguous_reducel1() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_uncontiguous_reducel12() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 2, 0])?;
@@ -694,7 +665,6 @@ fn test_uncontiguous_reducel12() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_sub_tensor_reducel1() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:3, 2:5])?;
@@ -715,7 +685,6 @@ fn test_sub_tensor_reducel1() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_sub_tensor_reducel1_step() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:5:2, 2:9:2])?;
@@ -736,7 +705,7 @@ fn test_sub_tensor_reducel1_step() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
+
 fn test_reducel2() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let sum = a.reducel2(0, false)?;
@@ -755,7 +724,6 @@ fn test_reducel2() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_uncontiguous_reducel2() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 0, 2])?;
@@ -776,7 +744,6 @@ fn test_uncontiguous_reducel2() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_sub_tensor_reducel2() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:3, 2:5])?;
@@ -797,7 +764,6 @@ fn test_sub_tensor_reducel2() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_sub_tensor_reducel2_step() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:5:2, 2:9:2])?;
@@ -818,7 +784,6 @@ fn test_sub_tensor_reducel2_step() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_argmin() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let sum = a.argmin(0, false)?;
@@ -845,7 +810,6 @@ fn test_argmin() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_uncontiguous_argmin() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 0, 2])?;
@@ -863,7 +827,6 @@ fn test_uncontiguous_argmin() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_uncontiguous_argmin2() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 2, 0])?;
@@ -881,7 +844,6 @@ fn test_uncontiguous_argmin2() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_sub_tensor_argmin() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:3, 2:5])?;
@@ -899,7 +861,6 @@ fn test_sub_tensor_argmin() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_sub_tensor_argmin_step() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:5:2, 2:9:2])?;
@@ -917,7 +878,6 @@ fn test_sub_tensor_argmin_step() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_argmax() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let sum = a.argmax(0, false)?;
@@ -944,7 +904,6 @@ fn test_argmax() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_uncontiguous_argmax() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 0, 2])?;
@@ -962,7 +921,6 @@ fn test_uncontiguous_argmax() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_uncontiguous_argmax2() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = a.permute([1, 2, 0])?;
@@ -980,7 +938,6 @@ fn test_uncontiguous_argmax2() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_sub_tensor_argmax() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:3, 2:5])?;
@@ -998,7 +955,6 @@ fn test_sub_tensor_argmax() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_sub_tensor_argmax_step() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:5:2, 2:9:2])?;

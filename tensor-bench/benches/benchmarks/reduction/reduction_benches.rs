@@ -8,6 +8,7 @@ use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
 use tensor_dyn::NormalReduce;
 
+#[allow(unused)]
 fn assert_eq_i64(a: &Tensor, b: &_Tensor<i64>) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const i64, b.size()) };
     let b_raw = b.as_raw();
@@ -25,6 +26,7 @@ macro_rules! reduction_bench_mark {
         $hpt_method:ident($($hpt_args:expr),*)
     ) => {
         paste::paste! {
+            #[cfg(any(feature = $name, feature = "reduction"))]
             fn [<$name _benchmark>](c: &mut Criterion) {
                 tensor_dyn::set_num_threads(num_cpus::get_physical());
                 tch::set_num_threads(num_cpus::get_physical() as i32);
@@ -73,7 +75,7 @@ macro_rules! reduction_bench_mark {
             
                 group.finish();
             }
-            
+            #[cfg(any(feature = $name, feature = "reduction"))]
             criterion_group!([<$name _benches>], [<$name _benchmark>]);
         }
     };

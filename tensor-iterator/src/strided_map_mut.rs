@@ -150,6 +150,10 @@ pub mod strided_map_mut_simd {
         fn lanes(&self) -> Option<usize> {
             todo!()
         }
+        
+        fn layout(&self) -> &tensor_common::layout::Layout {
+            self.base.layout()
+        }
     }
 }
 
@@ -265,5 +269,9 @@ where
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         self.base.inner_loop_next(index)
+    }
+    
+    fn layout(&self) -> &tensor_common::layout::Layout {
+        self.base.layout()
     }
 }

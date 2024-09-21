@@ -106,14 +106,14 @@ pub mod to_tensor;
 
 /// a module that contains all the exposed functions for normal tensor (we may have diff tensor (differentiable tensor) in the future)
 pub mod tensor_expose {
-    /// a module that contains all the shape manipulation functions
-    pub mod shape_manipulate;
     /// a module that contains all the unary operations that has floating type output
     pub mod float_out_unary;
-    /// a module that contains all the unary operations that has self type output
-    pub mod normal_out_unary;
     /// a module that contains all normal methods to create a tensor
     pub mod normal_creation;
+    /// a module that contains all the unary operations that has self type output
+    pub mod normal_out_unary;
+    /// a module that contains all the shape manipulation functions
+    pub mod shape_manipulate;
 }
 
 use ctor::ctor;
@@ -146,15 +146,21 @@ pub fn set_global_display_lr_elements(lr_elements: usize) {
 }
 
 /// Set the global number of threads
+///
+/// # Note
+/// Rayon only allows the number of threads to be set once, so this function won't have any effect if it's called more than once.
 pub fn set_num_threads(num_threads: usize) {
     THREAD_POOL.with(|x| {
         x.borrow_mut().set_num_threads(num_threads);
     });
-    rayon::ThreadPoolBuilder::new()
+    match rayon::ThreadPoolBuilder::new()
         .num_threads(num_threads)
         .stack_size(4 * 1024 * 1024)
         .build_global()
-        .unwrap();
+    {
+        Ok(_) => {}
+        Err(_) => {}
+    }
 }
 
 /// Get the global number of threads
@@ -165,7 +171,7 @@ pub fn get_num_threads() -> usize {
 #[ctor]
 fn init() {
     THREAD_POOL.with(|x| {
-        x.borrow_mut().set_num_threads(num_cpus::get());
+        x.borrow_mut().set_num_threads(num_cpus::get_physical());
     });
 }
 

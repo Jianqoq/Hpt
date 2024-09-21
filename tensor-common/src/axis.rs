@@ -99,6 +99,22 @@ impl<'a> From<&'a [i128]> for Axis {
     }
 }
 
+impl<'a> From<&'a [usize]> for Axis {
+    fn from(axes: &'a [usize]) -> Self {
+        Axis {
+            axes: axes.iter().map(|x| *x as i64).collect(),
+        }
+    }
+}
+
+impl<'a> From<&'a [isize]> for Axis {
+    fn from(axes: &'a [isize]) -> Self {
+        Axis {
+            axes: axes.iter().map(|x| *x as i64).collect(),
+        }
+    }
+}
+
 impl<'a, const N: usize> From<&'a [i64; N]> for Axis {
     fn from(axes: &'a [i64; N]) -> Self {
         Axis {
@@ -139,10 +155,74 @@ impl<'a, const N: usize> From<&'a [i128; N]> for Axis {
     }
 }
 
+impl<'a, const N: usize> From<&'a [usize; N]> for Axis {
+    fn from(axes: &'a [usize; N]) -> Self {
+        Axis {
+            axes: axes.iter().map(|x| *x as i64).collect(),
+        }
+    }
+}
+
+impl<'a, const N: usize> From<&'a [isize; N]> for Axis {
+    fn from(axes: &'a [isize; N]) -> Self {
+        Axis {
+            axes: axes.iter().map(|x| *x as i64).collect(),
+        }
+    }
+}
+
 impl<const N: usize> From<[i64; N]> for Axis {
     fn from(axes: [i64; N]) -> Self {
         Axis {
             axes: axes.to_vec(),
+        }
+    }
+}
+
+impl<const N: usize> From<[i32; N]> for Axis {
+    fn from(axes: [i32; N]) -> Self {
+        Axis {
+            axes: axes.iter().map(|x| *x as i64).collect(),
+        }
+    }
+}
+
+impl<const N: usize> From<[i16; N]> for Axis {
+    fn from(axes: [i16; N]) -> Self {
+        Axis {
+            axes: axes.iter().map(|x| *x as i64).collect(),
+        }
+    }
+}
+
+impl<const N: usize> From<[i8; N]> for Axis {
+    fn from(axes: [i8; N]) -> Self {
+        Axis {
+            axes: axes.iter().map(|x| *x as i64).collect(),
+        }
+    }
+}
+
+impl<const N: usize> From<[i128; N]> for Axis {
+    fn from(axes: [i128; N]) -> Self {
+        Axis {
+            axes: axes.iter().map(|x| *x as i64).collect(),
+        }
+    }
+}
+
+impl<const N: usize> From<[usize; N]> for Axis {
+    fn from(axes: [usize; N]) -> Self {
+        Axis {
+            axes: axes.iter().map(|x| *x as i64).collect(),
+        }
+    }
+}
+
+impl<const N: usize> From<[isize; N]> for Axis {
+    fn from(axes: [isize; N]) -> Self {
+        Axis {
+            axes: axes.iter().map(|x| *x as i64).collect(),
         }
     }
 }
@@ -159,11 +239,27 @@ impl<'a> From<&'a Vec<i64>> for Axis {
     }
 }
 
-impl<'a> From<&'a [usize]> for Axis {
-    fn from(axes: &'a [usize]) -> Self {
-        Axis {
-            axes: axes.iter().map(|x| *x as i64).collect(),
-        }
+impl<'a> From<&'a Vec<i32>> for Axis {
+    fn from(axes: &'a Vec<i32>) -> Self {
+        Axis { axes: axes.iter().map(|x| *x as i64).collect() }
+    }
+}
+
+impl<'a> From<&'a Vec<i16>> for Axis {
+    fn from(axes: &'a Vec<i16>) -> Self {
+        Axis { axes: axes.iter().map(|x| *x as i64).collect() }
+    }
+}
+
+impl<'a> From<&'a Vec<i8>> for Axis {
+    fn from(axes: &'a Vec<i8>) -> Self {
+        Axis { axes: axes.iter().map(|x| *x as i64).collect() }
+    }
+}
+
+impl<'a> From<&'a Vec<i128>> for Axis {
+    fn from(axes: &'a Vec<i128>) -> Self {
+        Axis { axes: axes.iter().map(|x| *x as i64).collect() }
     }
 }
 
@@ -183,6 +279,14 @@ impl<'a> From<&'a Vec<usize>> for Axis {
     }
 }
 
+impl<'a> From<&'a Vec<isize>> for Axis {
+    fn from(axes: &'a Vec<isize>) -> Self {
+        Axis {
+            axes: axes.iter().map(|x| *x as i64).collect(),
+        }
+    }
+}
+
 impl From<i64> for Axis {
     fn from(axes: i64) -> Self {
         Axis { axes: vec![axes] }
@@ -192,5 +296,77 @@ impl From<i64> for Axis {
 impl From<&i64> for Axis {
     fn from(axes: &i64) -> Self {
         Axis { axes: vec![*axes] }
+    }
+}
+
+impl From<i32> for Axis {
+    fn from(axes: i32) -> Self {
+        Axis { axes: vec![axes as i64] }
+    }
+}
+
+impl From<&i32> for Axis {
+    fn from(axes: &i32) -> Self {
+        Axis { axes: vec![*axes as i64] }
+    }
+}
+
+impl From<i16> for Axis {
+    fn from(axes: i16) -> Self {
+        Axis { axes: vec![axes as i64] }
+    }
+}
+
+impl From<&i16> for Axis {
+    fn from(axes: &i16) -> Self {
+        Axis { axes: vec![*axes as i64] }
+    }
+}
+
+impl From<i8> for Axis {
+    fn from(axes: i8) -> Self {
+        Axis { axes: vec![axes as i64] }
+    }
+}
+
+impl From<&i8> for Axis {
+    fn from(axes: &i8) -> Self {
+        Axis { axes: vec![*axes as i64] }
+    }
+}
+
+impl From<i128> for Axis {
+    fn from(axes: i128) -> Self {
+        Axis { axes: vec![axes as i64] }
+    }
+}
+
+impl From<&i128> for Axis {
+    fn from(axes: &i128) -> Self {
+        Axis { axes: vec![*axes as i64] }
+    }
+}
+
+impl From<usize> for Axis {
+    fn from(axes: usize) -> Self {
+        Axis { axes: vec![axes as i64] }
+    }
+}
+
+impl From<&usize> for Axis {
+    fn from(axes: &usize) -> Self {
+        Axis { axes: vec![*axes as i64] }
+    }
+}
+
+impl From<isize> for Axis {
+    fn from(axes: isize) -> Self {
+        Axis { axes: vec![axes as i64] }
+    }
+}
+
+impl From<&isize> for Axis {
+    fn from(axes: &isize) -> Self {
+        Axis { axes: vec![*axes as i64] }
     }
 }

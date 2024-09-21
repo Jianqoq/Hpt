@@ -875,40 +875,64 @@ pub fn mt_intervals_simd(
     num_threads: usize,
     vec_size: usize,
 ) -> Vec<(usize, usize)> {
+    assert!(vec_size > 0, "vec_size must be greater than zero");
+    assert!(num_threads > 0, "num_threads must be greater than zero");
+
+    // 计算可以被 vec_size 整除的对齐大小和剩余部分
+    let aligned_size = (outer_loop_size / vec_size) * vec_size;
+    let remainder = outer_loop_size - aligned_size;
+
     let mut intervals = Vec::with_capacity(num_threads);
 
-    if vec_size > outer_loop_size {
-        intervals.push((0, outer_loop_size));
-        for _ in 1..num_threads {
-            intervals.push((0, 0));
+    if aligned_size > 0 {
+        // 计算总的 vec 块数
+        let total_vec_blocks = aligned_size / vec_size;
+        let base_blocks_per_thread = total_vec_blocks / num_threads;
+        let extra_blocks = total_vec_blocks % num_threads;
+
+        let mut start = 0;
+
+        for i in 0..num_threads {
+            let mut blocks = base_blocks_per_thread;
+
+            // 前 extra_blocks 个线程多分配一个块
+            if i < extra_blocks {
+                blocks += 1;
+            }
+
+            let end = start + blocks * vec_size;
+            intervals.push((start, end));
+            start = end;
         }
-        return intervals;
-    }
-    let max_threads = outer_loop_size / vec_size;
-    let actual_threads = num_threads.min(max_threads);
 
-    let vec_block_size = vec_size;
-    let base_block_count = outer_loop_size / vec_block_size / actual_threads;
-    let remainder = outer_loop_size % (vec_block_size * actual_threads);
-
-    for i in 0..actual_threads {
-        let extra = if i < remainder { vec_block_size } else { 0 };
-
-        let mut start_index =
-            i * base_block_count * vec_block_size + i.min(remainder) * vec_block_size;
-        let mut end_index = start_index + base_block_count * vec_block_size + extra;
-        if start_index >= outer_loop_size {
-            start_index = 0;
-        }
-        if end_index >= outer_loop_size {
-            if start_index != 0 {
-                end_index = outer_loop_size;
-            } else {
-                end_index = 0;
+        // 将 remainder 分配给最后一个线程
+        if remainder > 0 {
+            if let Some(last) = intervals.last_mut() {
+                *last = (last.0, last.1 + remainder);
             }
         }
-        intervals.push((start_index, end_index));
     }
+
+    if aligned_size == 0 && remainder > 0 {
+        // 当 aligned_size 为 0 且有剩余时，将剩余分配给第一个线程
+        if num_threads >= 1 {
+            intervals.push((0, remainder));
+            for _ in 1..num_threads {
+                intervals.push((0, 0));
+            }
+        }
+    } else if aligned_size > 0 {
+        // 当 aligned_size > 0 时，确保 intervals 长度为 num_threads
+        while intervals.len() < num_threads {
+            intervals.push((aligned_size, aligned_size));
+        }
+    } else {
+        // 当 aligned_size == 0 且 remainder == 0 时，所有线程返回 (0, 0)
+        for _ in intervals.len()..num_threads {
+            intervals.push((0, 0));
+        }
+    }
+
     intervals
 }
 

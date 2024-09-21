@@ -50,6 +50,21 @@ fn test_transpose() -> anyhow::Result<()> {
 }
 
 #[test]
+fn test_swap_axes() -> anyhow::Result<()> {
+    let tch_a = Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let mut a = _Tensor::<f64>::empty(&[10, 10, 10])?;
+    let a_size = a.size();
+    a.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
+    });
+    let b = a.swap_axes(0, 1)?;
+    let tch_b = tch_a.permute(&[1, 0, 2][..]);
+    assert_eq(&b, &tch_b);
+    assert_eq!(&tch_b.size(), b.shape().inner());
+    Ok(())
+}
+
+#[test]
 fn test_unsqueeze() -> anyhow::Result<()> {
     let tch_a = Tensor::randn(&[10], (tch::Kind::Double, tch::Device::Cpu));
     let mut a = _Tensor::<f64>::empty(&[10])?;

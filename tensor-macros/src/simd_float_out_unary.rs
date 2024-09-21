@@ -385,37 +385,25 @@ pub fn impl_float_out_unary() -> TokenStream {
                     }
                 }
             };
-            let std_unary = |func_name: &str, func: &str| {
-                let func_name = Ident::new(func_name, proc_macro2::Span::call_site());
-                let func = Ident::new(func, proc_macro2::Span::call_site());
-                quote! {
-                    #[inline(always)]
-                    fn #func_name(self) -> Self::Output {
-                        paste::paste! {
-                            #res_simd_ty::#res_simd_ty(self.[<to_ #res_type>]().0.#func())
-                        }
-                    }
-                }
-            };
-            let sin = std_unary("_sin", "sin");
-            let cos = std_unary("_cos", "cos");
-            let tan = std_unary("_tan", "tan");
-            let asin = std_unary("_asin", "asin");
-            let acos = std_unary("_acos", "acos");
-            let atan = std_unary("_atan", "atan");
-            let sinh = std_unary("_sinh", "sinh");
-            let cosh = std_unary("_cosh", "cosh");
-            let tanh = std_unary("_tanh", "tanh");
-            let asinh = std_unary("_asinh", "asinh");
-            let atanh = std_unary("_atanh", "atanh");
-            let acosh = std_unary("_acosh", "acosh");
-            let ln = std_unary("_ln", "ln");
-            let exp = std_unary("_exp", "exp");
-            let exp2 = std_unary("_exp2", "exp2");
-            let log2 = std_unary("_log2", "log2");
-            let log10 = std_unary("_log10", "log10");
-            let sqrt = std_unary("_sqrt", "sqrt");
-            let cbrt = std_unary("_cbrt", "cbrt");
+            let sin = sleef("_sin", "sin_u10");
+            let cos = sleef("_cos", "cos_u10");
+            let tan = sleef("_tan", "tan_u10");
+            let asin = sleef("_asin", "asin_u10");
+            let acos = sleef("_acos", "acos_u10");
+            let atan = sleef("_atan", "atan_u10");
+            let sinh = sleef("_sinh", "sinh_u10");
+            let cosh = sleef("_cosh", "cosh_u10");
+            let tanh = sleef("_tanh", "tanh_u10");
+            let asinh = sleef("_asinh", "asinh_u10");
+            let atanh = sleef("_atanh", "atanh_u10");
+            let acosh = sleef("_acosh", "acosh_u10");
+            let ln = sleef("_ln", "log_u10");
+            let exp = sleef("_exp", "exp_u10");
+            let exp2 = sleef("_exp2", "exp2_u10");
+            let log2 = sleef("_log2", "log2_u10");
+            let log10 = sleef("_log10", "log10_u10");
+            let sqrt = sleef("_sqrt", "sqrt_u05");
+            let cbrt = sleef("_cbrt", "cbrt_u10");
             let erf = sleef("_erf", "erf_u10");
             let res = quote! {
                 impl FloatOutUnary for #lhs_simd {

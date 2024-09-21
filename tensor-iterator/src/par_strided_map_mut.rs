@@ -221,6 +221,10 @@ pub mod par_strided_map_mut_simd {
         fn lanes(&self) -> Option<usize> {
             self.base.lanes()
         }
+        
+        fn layout(&self) -> &tensor_common::layout::Layout {
+            self.base.layout()
+        }
     }
 }
 
@@ -385,5 +389,9 @@ impl<'a, T: 'a + CommonBounds> IterGetSet for ParStridedMapMut<'a, T> {
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         self.base.inner_loop_next(index)
+    }
+    
+    fn layout(&self) -> &tensor_common::layout::Layout {
+        self.base.layout()
     }
 }

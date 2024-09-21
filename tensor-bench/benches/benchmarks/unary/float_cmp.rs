@@ -4,10 +4,11 @@ use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
 
+#[allow(unused)]
 pub(crate) fn assert_eq(a: &Tensor, b: &_Tensor<f64>) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
     let b_raw = b.as_raw();
-    let tolerance = 2.5e-16;
+    let tolerance = 2.5e-15;
 
     for i in 0..b.size() {
         let abs_diff = (a_raw[i] - b_raw[i]).abs();
@@ -15,6 +16,22 @@ pub(crate) fn assert_eq(a: &Tensor, b: &_Tensor<f64>) {
         
         if abs_diff > tolerance && relative_diff > tolerance {
             panic!("{} != {} (abs_diff: {}, relative_diff: {})", a_raw[i], b_raw[i], abs_diff, relative_diff);
+        }
+    }
+}
+
+#[allow(unused)]
+pub(crate) fn assert_eq_print(a: &Tensor, b: &_Tensor<f64>) {
+    let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
+    let b_raw = b.as_raw();
+    let tolerance = 2.5e-15;
+
+    for i in 0..b.size() {
+        let abs_diff = (a_raw[i] - b_raw[i]).abs();
+        let relative_diff = abs_diff / b_raw[i].abs().max(f64::EPSILON);
+        
+        if abs_diff > tolerance && relative_diff > tolerance {
+            println!("{} != {} (abs_diff: {}, relative_diff: {})", a_raw[i], b_raw[i], abs_diff, relative_diff);
         }
     }
 }

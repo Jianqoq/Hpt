@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use rayon::iter::{
-    plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
+    plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
     ParallelIterator,
 };
-use tensor_common::{ shape::Shape, strides::Strides };
+use tensor_common::{shape::Shape, strides::Strides};
 
 use crate::iterator_traits::IterGetSetSimd;
 
@@ -13,11 +13,10 @@ pub(crate) struct WithSimd<I, F> {
     pub(crate) vec_op: F,
 }
 
-impl<I, F> UnindexedProducer
-    for WithSimd<I, F>
-    where
-        I: UnindexedProducer + IterGetSetSimd + ParallelIterator,
-        F: Fn(<I as IterGetSetSimd>::SimdItem) + Sync + Send + Copy
+impl<I, F> UnindexedProducer for WithSimd<I, F>
+where
+    I: UnindexedProducer + IterGetSetSimd + ParallelIterator,
+    F: Fn(<I as IterGetSetSimd>::SimdItem) + Sync + Send + Copy,
 {
     type Item = <I as IterGetSetSimd>::Item;
     fn split(self) -> (Self, Option<Self>) {
@@ -34,7 +33,10 @@ impl<I, F> UnindexedProducer
         )
     }
 
-    fn fold_with<FOLD>(mut self, mut folder: FOLD) -> FOLD where FOLD: Folder<Self::Item> {
+    fn fold_with<FOLD>(mut self, mut folder: FOLD) -> FOLD
+    where
+        FOLD: Folder<Self::Item>,
+    {
         let outer_loop_size = self.outer_loop_size();
         let inner_loop_size = self.inner_loop_size() + 1;
         let vec_op = self.vec_op;
@@ -103,25 +105,26 @@ impl<I, F> UnindexedProducer
     }
 }
 
-impl<I, F> ParallelIterator
-    for WithSimd<I, F>
-    where
-        I: UnindexedProducer + IterGetSetSimd + ParallelIterator,
-        F: Fn(<I as IterGetSetSimd>::SimdItem) + Sync + Send + Copy,
-        <I as IterGetSetSimd>::Item: Send
+impl<I, F> ParallelIterator for WithSimd<I, F>
+where
+    I: UnindexedProducer + IterGetSetSimd + ParallelIterator,
+    F: Fn(<I as IterGetSetSimd>::SimdItem) + Sync + Send + Copy,
+    <I as IterGetSetSimd>::Item: Send,
 {
     type Item = <I as IterGetSetSimd>::Item;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item> {
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    where
+        C: UnindexedConsumer<Self::Item>,
+    {
         bridge_unindexed(self, consumer)
     }
 }
 
-impl<I, F> IterGetSetSimd
-    for WithSimd<I, F>
-    where
-        I: UnindexedProducer + IterGetSetSimd + ParallelIterator,
-        F: Fn(<I as IterGetSetSimd>::SimdItem) + Sync + Send + Copy
+impl<I, F> IterGetSetSimd for WithSimd<I, F>
+where
+    I: UnindexedProducer + IterGetSetSimd + ParallelIterator,
+    F: Fn(<I as IterGetSetSimd>::SimdItem) + Sync + Send + Copy,
 {
     type Item = <I as IterGetSetSimd>::Item;
 
@@ -189,5 +192,9 @@ impl<I, F> IterGetSetSimd
     }
     fn lanes(&self) -> Option<usize> {
         self.base.lanes()
+    }
+
+    fn layout(&self) -> &tensor_common::layout::Layout {
+        self.base.layout()
     }
 }

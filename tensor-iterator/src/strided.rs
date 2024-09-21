@@ -174,6 +174,10 @@ pub mod strided_simd {
         fn lanes(&self) -> Option<usize> {
             Some(T::Vec::SIZE)
         }
+        
+        fn layout(&self) -> &Layout {
+            &self.layout
+        }
     }
 
     impl<T: CommonBounds> ShapeManipulator for StridedSimd<T> {
@@ -321,7 +325,7 @@ impl<T: CommonBounds> IterGetSet for Strided<T> {
                 break;
             } else {
                 self.prg[j] = 0;
-                self.ptr -= self.strides()[j] * (self.shape()[j] - 1);
+                self.ptr += -self.strides()[j] * (self.shape()[j] - 1);
             }
         }
     }
@@ -336,6 +340,10 @@ impl<T: CommonBounds> IterGetSet for Strided<T> {
 
     fn shape(&self) -> &Shape {
         self.layout.shape()
+    }
+    
+    fn layout(&self) -> &Layout {
+        &self.layout
     }
 }
 

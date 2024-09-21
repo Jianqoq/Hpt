@@ -129,6 +129,10 @@ pub mod strided_zip_simd {
                 _ => None,
             }
         }
+        
+        fn layout(&self) -> &tensor_common::layout::Layout {
+            self.a.layout()
+        }
     }
 
     impl<'a, A, B> StridedZipSimd<'a, A, B>
@@ -255,6 +259,10 @@ where
     
     fn inner_loop_size(&self) -> usize {
         self.a.inner_loop_size()
+    }
+    
+    fn layout(&self) -> &tensor_common::layout::Layout {
+        self.a.layout()
     }
 }
 

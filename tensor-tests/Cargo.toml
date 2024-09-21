@@ -17,7 +17,6 @@ tch = {version = "0.17.0", features = ["download-libtorch"]}
 anyhow = "1.0.75"
 rayon = { version = "1.10.0", default-features = false }
 paste = "1.0.15"
-serial_test = "3.1.1"
 
 [profile.dev]
 opt-level = 3

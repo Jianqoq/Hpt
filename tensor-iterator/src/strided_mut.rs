@@ -136,6 +136,10 @@ pub mod simd_imports {
         fn lanes(&self) -> Option<usize> {
             self.base.lanes()
         }
+        
+        fn layout(&self) -> &tensor_common::layout::Layout {
+            self.base.layout()
+        }
     }
     impl<'a, T> StridedIteratorSimd for StridedMutSimd<'a, T> where T: CommonBounds {}
     impl<'a, T> StridedSimdIteratorZip for StridedMutSimd<'a, T> where T: CommonBounds {}
@@ -277,5 +281,9 @@ where
     
     fn inner_loop_size(&self) -> usize {
         self.base.inner_loop_size()
+    }
+    
+    fn layout(&self) -> &tensor_common::layout::Layout {
+        self.base.layout()
     }
 }

@@ -36,6 +36,8 @@ pub trait IterGetSet {
     fn strides(&self) -> &Strides;
     /// get the shape of the iterator
     fn shape(&self) -> &Shape;
+    /// get the layout of the iterator
+    fn layout(&self) -> &Layout;
     /// set the strides for all the iterators
     fn broadcast_set_strides(&mut self, shape: &Shape);
     /// get the outer loop size
@@ -70,6 +72,8 @@ pub trait IterGetSetSimd {
     fn strides(&self) -> &Strides;
     /// get the shape of the iterator
     fn shape(&self) -> &Shape;
+    /// get the layout of the iterator
+    fn layout(&self) -> &Layout;
     /// set the strides for all the iterators
     fn broadcast_set_strides(&mut self, shape: &Shape);
     /// get the outer loop size

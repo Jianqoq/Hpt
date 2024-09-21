@@ -143,6 +143,10 @@ pub mod par_strided_zip_simd {
                 _ => None,
             }
         }
+        
+        fn layout(&self) -> &tensor_common::layout::Layout {
+            self.a.layout()
+        }
     }
     impl<'a, A, B> ParStridedZipSimd<'a, A, B>
     where
@@ -414,6 +418,10 @@ where
 
     fn inner_loop_size(&self) -> usize {
         self.a.inner_loop_size()
+    }
+    
+    fn layout(&self) -> &tensor_common::layout::Layout {
+        self.a.layout()
     }
 }
 

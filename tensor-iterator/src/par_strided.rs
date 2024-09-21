@@ -249,6 +249,10 @@ pub mod par_strided_simd {
             use tensor_types::vectors::traits::VecCommon;
             Some(T::Vec::SIZE)
         }
+        
+        fn layout(&self) -> &Layout {
+            &self.layout
+        }
     }
 
     impl<T> ParallelIterator for ParStridedSimd<T>
@@ -569,6 +573,10 @@ impl<T: CommonBounds> IterGetSet for ParStrided<T> {
 
     fn inner_loop_size(&self) -> usize {
         self.shape().last().unwrap().clone() as usize
+    }
+    
+    fn layout(&self) -> &Layout {
+        &self.layout
     }
 }
 

@@ -1,6 +1,5 @@
 #![allow(unused_imports)]
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use serial_test::serial;
 use tch::Tensor;
 use tensor_common::slice;
 use tensor_common::slice::Slice;
@@ -40,7 +39,27 @@ fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
 }
 
 #[test]
-#[serial]
+fn test_new() -> anyhow::Result<()> {
+    let a = _Tensor::<f64>::new(&[10.0, 10.0]);
+    assert_eq!(a.as_raw(), &[10.0, 10.0]);
+    Ok(())
+}
+
+#[test]
+#[should_panic]
+fn test_allocate_too_large() {
+    let _a = _Tensor::<f64>::empty(&[
+        10_000_000_000,
+        10_000_000_000,
+        10_000_000_000,
+        10_000_000_000,
+        10_000_000_000,
+        10_000_000_000,
+    ])
+    .unwrap();
+}
+
+#[test]
 fn test_arange() -> anyhow::Result<()> {
     let tch_a = Tensor::arange(100, (tch::Kind::Double, tch::Device::Cpu));
     let a = _Tensor::<f64>::arange(0, 100)?;
@@ -49,7 +68,6 @@ fn test_arange() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_hamming() -> anyhow::Result<()> {
     let tch_a = Tensor::hamming_window_periodic(1000, true, (tch::Kind::Double, tch::Device::Cpu));
     let a = tensor_dyn::tensor::Tensor::<f64>::hamming_window(1000, true)?;
@@ -58,7 +76,6 @@ fn test_hamming() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_hann() -> anyhow::Result<()> {
     let tch_a = Tensor::hann_window_periodic(1000, true, (tch::Kind::Double, tch::Device::Cpu));
     let a = tensor_dyn::tensor::Tensor::<f64>::hann_window(1000, true)?;
@@ -67,7 +84,6 @@ fn test_hann() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 #[allow(unused)]
 fn test_blackman_window() -> anyhow::Result<()> {
     let tch_a = Tensor::blackman_window_periodic(1000, true, (tch::Kind::Double, tch::Device::Cpu));
@@ -76,7 +92,6 @@ fn test_blackman_window() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_zeros() -> anyhow::Result<()> {
     let tch_a = Tensor::zeros(&[1000], (tch::Kind::Double, tch::Device::Cpu));
     let a = _Tensor::<f64>::zeros(&[1000])?;
@@ -85,7 +100,6 @@ fn test_zeros() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_full() -> anyhow::Result<()> {
     let tch_a = Tensor::full(&[1000], 1.0, (tch::Kind::Double, tch::Device::Cpu));
     let a = _Tensor::<f64>::full(1.0, &[1000])?;
@@ -94,7 +108,6 @@ fn test_full() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_eye() -> anyhow::Result<()> {
     let tch_a = Tensor::eye(10, (tch::Kind::Double, tch::Device::Cpu));
     let a = _Tensor::<f64>::eye(10, 10, 0)?;
@@ -103,7 +116,6 @@ fn test_eye() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_tril() -> anyhow::Result<()> {
     fn assert(diagnal: i64) -> anyhow::Result<()> {
         let tch_a = Tensor::randn(&[10, 10], (tch::Kind::Double, tch::Device::Cpu)).tril(diagnal);
@@ -125,7 +137,6 @@ fn test_tril() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_identity() -> anyhow::Result<()> {
     let tch_a = Tensor::eye(10, (tch::Kind::Double, tch::Device::Cpu));
     let a = _Tensor::<f64>::identity(10)?;

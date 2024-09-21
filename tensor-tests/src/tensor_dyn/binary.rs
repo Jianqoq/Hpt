@@ -1,6 +1,5 @@
 #![allow(unused_imports)]
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use serial_test::serial;
 use std::ops::*;
 use tch::Tensor;
 use tensor_common::slice;
@@ -136,7 +135,7 @@ macro_rules! test_binarys {
         $assert_method:ident $(, $try:tt)*
     ) => {
         paste::paste! {
-            #[test]#[serial]
+            #[test]
             fn [<test _ $name>]() -> anyhow::Result<()> {
                 let ((tch_a, tch_b), (a, b)) = $input_method([10, 10], [10, 10])?;
                 let c = a.$hpt_op(&b)$($try)*;
@@ -145,7 +144,7 @@ macro_rules! test_binarys {
                 Ok(())
             }
 
-            #[test]#[serial]
+            #[test]
             fn [<test_ $name _broadcast>]() -> anyhow::Result<()> {
                 let ((tch_a, tch_b), (a, b)) = $input_method([10, 10], [10, 1])?;
                 let c = a.$hpt_op(&b)$($try)*;
@@ -159,7 +158,7 @@ macro_rules! test_binarys {
                 Ok(())
             }
 
-            #[test]#[serial]
+            #[test]
             fn [<test_ $name _sub_tensors>]() -> anyhow::Result<()> {
                 let ((tch_a, tch_b), (a, b)) = $input_method([10, 10], [10, 10])?;
                 let tch_a = tch_a.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
@@ -172,7 +171,7 @@ macro_rules! test_binarys {
                 Ok(())
             }
 
-            #[test]#[serial]
+            #[test]
 
             fn [<test_ $name _uncontiguous>]() -> anyhow::Result<()> {
                 let ((tch_a, tch_b), (a, b)) = $input_method([10, 10], [10, 10])?;
@@ -186,7 +185,7 @@ macro_rules! test_binarys {
                 Ok(())
             }
 
-            #[test]#[serial]
+            #[test]
             fn [<test_ $name _uncontiguous_sub_tensors>]() -> anyhow::Result<()> {
                 let ((tch_a, tch_b), (a, b)) = $input_method([10, 10], [10, 10])?;
                 let tch_a = tch_a.slice(0, 2, 6, 1).slice(1, 2, 6, 1);

@@ -1,6 +1,5 @@
 #![allow(unused_imports)]
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use serial_test::serial;
 use tch::Tensor;
 use tensor_common::slice;
 use tensor_common::slice::Slice;
@@ -56,7 +55,7 @@ macro_rules! test_unarys {
         $hpt_method:ident($($hpt_args:expr),*)
     ) => {
         paste::paste! {
-            #[test]#[serial]
+            #[test]
             fn [<test _ $name>]() -> anyhow::Result<()> {
                 let tch_a = tch::Tensor::randn($shapes, (tch::Kind::Double, tch::Device::Cpu));
                 let mut a = _Tensor::<f64>::empty($shapes)?;
@@ -133,7 +132,6 @@ test_unarys!(
 test_unarys!(hard_swish, [1000], assert_eq, hardswish(), hard_swish());
 
 #[test]
-#[serial]
 fn test_sub_tensor_sin() -> anyhow::Result<()> {
     let a = _Tensor::<f64>::arange(0, 100)?.reshape([10, 10])?;
     let slice = slice!(a[3:8, 3:8])?;
@@ -146,7 +144,6 @@ fn test_sub_tensor_sin() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 fn test_cast() -> anyhow::Result<()> {
     let a = _Tensor::<f64>::arange(0, 100)?.reshape([10, 10])?;
     let b = a.astype::<bool>()?;

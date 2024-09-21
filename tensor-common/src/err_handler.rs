@@ -20,7 +20,7 @@ pub enum ErrHandler {
     MatmulShapeMismatched([i64; 2], [i64; 2], i64, &'static Location<'static>),
 
     /// used when the lhs ndim is not compatible with the rhs ndim
-    #[error("expect ndim to be {0} but got {1}")]
+    #[error("expect ndim to be {0} but got {1}, at {2}")]
     NdimMismatched(usize, usize, &'static Location<'static>),
 
     /// used when the ndim is not large enough
@@ -36,7 +36,7 @@ pub enum ErrHandler {
     IndexOutOfRange(usize, i64, &'static Location<'static>),
 
     /// used when the axis is out of range, this is used for out of range when converting the negative axis to positive axis
-    #[error("tensor ndim is {0} but got converted index `{2}` from `{1}`, at {3}")]
+    #[error("tensor ndim is {0} but got converted index from `{1}` to `{2}`, at {3}")]
     IndexOutOfRangeCvt(usize, i64, i64, &'static Location<'static>),
 
     /// used when the axis provided is not unique, for example, sum([1, 1]) is not allowed
@@ -56,8 +56,8 @@ pub enum ErrHandler {
     BroadcastError(Shape, Shape, usize, &'static Location<'static>),
 
     /// used when the axis is not unique
-    #[error("axis should be unique, but got {0} and {1}")]
-    SameAxisError(i64, i64),
+    #[error("axis should be unique, but got {0} and {1}, at {2}")]
+    SameAxisError(i64, i64, &'static Location<'static>),
 
     /// used when the reshape is not possible
     #[error("can't reshape from {0} with size {2} to {1} with size {3}, at {4}")]
@@ -110,7 +110,7 @@ impl ErrHandler {
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn check_same_axis(axis1: i64, axis2: i64) -> Result<(), Self> {
         if axis1 == axis2 {
-            return Err(ErrHandler::SameAxisError(axis1, axis2));
+            return Err(ErrHandler::SameAxisError(axis1, axis2, Location::caller()));
         }
         Ok(())
     }

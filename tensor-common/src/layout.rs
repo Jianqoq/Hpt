@@ -107,6 +107,9 @@ impl Layout {
     /// assert_eq!(new_strides, Strides::from(vec![8, 4, 1]));
     /// ```
     pub fn is_reshape_possible(&self, shape: &[i64]) -> Option<Strides> {
+        if self.size() != shape.iter().product::<i64>() {
+            return None;
+        }
         is_reshape_possible(&self.shape, &self.strides, shape)
     }
 
@@ -386,17 +389,6 @@ impl Layout {
             expected_stride *= dim_size;
         }
         true
-    }
-
-    /// # Internal Function
-    ///
-    /// get the contiguous strides of the layout
-    ///
-    /// # Returns
-    ///
-    /// * `Strides` - the contiguous strides
-    pub fn continuous_strides(&self) -> Strides {
-        shape_to_strides(&self.shape)
     }
 }
 
