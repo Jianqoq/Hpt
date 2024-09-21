@@ -21,25 +21,6 @@ where
 
     type OutputMeta = <T as FloatOutUnary>::Base;
 
-    fn erf(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::erf(self)?.into())
-    }
-
-    fn fast_hard_sigmoid(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::fast_hard_sigmoid(self)?.into())
-    }
-
-    fn relu(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::relu(self)?.into())
-    }
-
-    fn relu_<U>(&self, out: U) -> Result<Self::Output>
-    where
-        U: std::borrow::Borrow<Self::InplaceOutput>,
-    {
-        Ok(_Tensor::<T, Cpu>::relu_(self, out.borrow())?.into())
-    }
-
     fn sin(&self) -> Result<Self::Output> {
         Ok(_Tensor::<T, Cpu>::sin(self)?.into())
     }
@@ -280,6 +261,25 @@ where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::elu_(self, alpha, out)?.into())
+    }
+
+    fn relu(&self) -> Result<Self::Output> {
+        Ok(_Tensor::<T, Cpu>::relu(self)?.into())
+    }
+
+    fn relu_<U>(&self, out: U) -> Result<Self::Output>
+    where
+        U: std::borrow::Borrow<Self::InplaceOutput>,
+    {
+        Ok(_Tensor::<T, Cpu>::relu_(self, out.borrow())?.into())
+    }
+
+    fn erf(&self) -> Result<Self::Output> {
+        Ok(_Tensor::<T, Cpu>::erf(self)?.into())
+    }
+
+    fn fast_hard_sigmoid(&self) -> Result<Self::Output> {
+        Ok(_Tensor::<T, Cpu>::fast_hard_sigmoid(self)?.into())
     }
 
     fn leaky_relu(&self, alpha: Self::OutputMeta) -> Result<Self::Output> {
