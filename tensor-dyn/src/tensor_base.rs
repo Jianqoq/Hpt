@@ -945,8 +945,9 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tile<S: Into<Axis>>(&self, repeats: S) -> Result<Self> {
-        let repeats: Vec<usize> = process_axes(repeats, self.ndim())?;
-        let repeats: Vec<i64> = repeats.into_iter().map(|x| x as i64).collect::<Vec<i64>>();
+        let repeats: Axis = repeats.into();
+        ErrHandler::check_index_in_range(self.ndim(), (repeats.axes.len() - 1) as i64)?;
+        let repeats: Vec<i64> = repeats.axes.into_iter().map(|x| x as i64).collect::<Vec<i64>>();
         let final_repeats;
         let mut final_shape;
         if repeats.len() > self.ndim() {
@@ -1101,18 +1102,11 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
     where
         A: Into<Option<usize>>,
     {
-        let start = start_dim.into().unwrap_or(1);
-        let end = end_dim.into().unwrap_or(self.ndim());
+        let start = start_dim.into().unwrap_or(0);
+        let end = end_dim.into().unwrap_or(self.ndim() - 1);
         let shape = self.shape();
-        if start >= self.ndim() || end >= self.ndim() {
-            return Err(ErrHandler::IndexOutOfRange(
-                self.ndim(),
-                start as i64,
-                start as i64,
-                Location::caller(),
-            )
-            .into());
-        }
+        ErrHandler::check_index_in_range(self.ndim(), start as i64)?;
+        ErrHandler::check_index_in_range(self.ndim(), end as i64)?;
         let flattened_dim = shape[start..=end].iter().product::<i64>();
         let mut new_shape = Vec::new();
         for (i, &dim) in shape.iter().enumerate() {

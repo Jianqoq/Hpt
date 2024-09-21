@@ -32,8 +32,12 @@ pub enum ErrHandler {
     NdimExceed(usize, usize, &'static Location<'static>),
 
     /// used when the axis is out of range
+    #[error("tensor ndim is {0} but got index `{1}`, at {2}")]
+    IndexOutOfRange(usize, i64, &'static Location<'static>),
+
+    /// used when the axis is out of range, this is used for out of range when converting the negative axis to positive axis
     #[error("tensor ndim is {0} but got converted index `{2}` from `{1}`, at {3}")]
-    IndexOutOfRange(usize, i64, i64, &'static Location<'static>),
+    IndexOutOfRangeCvt(usize, i64, i64, &'static Location<'static>),
 
     /// used when the axis provided is not unique, for example, sum([1, 1]) is not allowed
     #[error("Shape mismatched: {0}")]
@@ -120,12 +124,16 @@ impl ErrHandler {
             index
         };
         if indedx < 0 || indedx >= (ndim as i64) {
-            return Err(ErrHandler::IndexOutOfRange(
-                ndim,
-                index,
-                indedx,
-                Location::caller(),
-            ));
+            if index < 0 {
+                return Err(ErrHandler::IndexOutOfRangeCvt(
+                    ndim,
+                    index,
+                    indedx,
+                    Location::caller(),
+                ));
+            } else {
+                return Err(ErrHandler::IndexOutOfRange(ndim, index, Location::caller()));
+            }
         }
         Ok(())
     }
@@ -139,12 +147,20 @@ impl ErrHandler {
             *index
         };
         if indedx < 0 || indedx >= (ndim as i64) {
-            return Err(ErrHandler::IndexOutOfRange(
-                ndim,
-                *index,
-                indedx,
-                Location::caller(),
-            ));
+            if *index < 0 {
+                return Err(ErrHandler::IndexOutOfRangeCvt(
+                    ndim,
+                    *index,
+                    indedx,
+                    Location::caller(),
+                ));
+            } else {
+                return Err(ErrHandler::IndexOutOfRange(
+                    ndim,
+                    *index,
+                    Location::caller(),
+                ));
+            }
         }
         *index = indedx;
         Ok(())

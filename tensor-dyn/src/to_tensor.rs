@@ -1,4 +1,5 @@
 use crate::backend::Backend;
+use crate::tensor::Tensor;
 use crate::{backend::Cpu, tensor_base::_Tensor};
 use half::bf16;
 use half::f16;
@@ -398,5 +399,17 @@ impl<T> _Tensor<T, Cpu> {
         A: Into<_Tensor<T>>,
     {
         data.into()
+    }
+}
+
+impl<T> Tensor<T, Cpu> {
+    /// Creates a new tensor from the provided data.
+    pub fn new<A>(data: A) -> Self
+    where
+        A: Into<_Tensor<T>>,
+    {
+        Tensor {
+            inner: Arc::new(data.into()),
+        }
     }
 }

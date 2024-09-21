@@ -1,13 +1,11 @@
+use crate::ops::cpu::concat::concat;
+use crate::{tensor::Tensor, tensor_base::_Tensor};
 use anyhow::Result;
 use tensor_common::{axis::Axis, shape::Shape};
+use tensor_traits::{CommonBounds, ShapeManipulate};
 
-/// A trait for manipulating the shape of a tensor.
-pub trait ShapeManipulate<Output = Self>
-where
-    Self: Sized,
-{
-    /// tensor data type
-    type Meta;
+impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
+    type Meta = T;
 
     /// Removes dimensions of size 1 from the tensor along the specified axes.
     ///
@@ -27,8 +25,19 @@ where
     /// # Panics
     ///
     /// * This function will panic if the specified axes do not have a dimension of 1 or if the axes are out of bounds.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn squeeze<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// use tensor_dyn::TensorInfo;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0]).reshape(&[1, 3, 1]).unwrap();
+    /// let squeezed_tensor = tensor.squeeze(0).unwrap();
+    /// assert_eq!(squeezed_tensor.shape().inner(), &[3]);
+    /// ```
+    fn squeeze<A: Into<Axis>>(&self, axes: A) -> Result<Tensor<T>> {
+        Ok(_Tensor::squeeze(self, axes)?.into())
+    }
 
     /// Adds a new dimension of size 1 to the tensor at the specified axes.
     ///
@@ -48,8 +57,19 @@ where
     /// # Panics
     ///
     /// * This function will panic if the specified axes are out of bounds for the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn unsqueeze<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// use tensor_dyn::TensorInfo;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0]).reshape(&[3]).unwrap();
+    /// let unsqueezed_tensor = tensor.unsqueeze(0).unwrap();
+    /// assert_eq!(unsqueezed_tensor.shape().inner(), &[1, 3]);
+    /// ```
+    fn unsqueeze<A: Into<Axis>>(&self, axes: A) -> Result<Tensor<T>> {
+        Ok(_Tensor::unsqueeze(self, axes)?.into())
+    }
 
     /// Reshapes the tensor into the specified shape without changing its data.
     ///
@@ -70,8 +90,19 @@ where
     /// # Panics
     ///
     /// * This function will panic if the new shape does not match the total number of elements in the original tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn reshape<S: Into<Shape>>(&self, shape: S) -> Result<Output>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// use tensor_dyn::TensorInfo;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0]).reshape(&[3]).unwrap();
+    /// let reshaped_tensor = tensor.reshape(&[1, 3]).unwrap();
+    /// assert_eq!(reshaped_tensor.shape().inner(), &[1, 3]);
+    /// ```
+    fn reshape<S: Into<Shape>>(&self, shape: S) -> Result<Tensor<T>> {
+        Ok(_Tensor::reshape(self, shape)?.into())
+    }
 
     /// Swaps two axes of the tensor, effectively transposing the dimensions along the specified axes.
     ///
@@ -92,11 +123,22 @@ where
     ///
     /// * This function will panic if either `axis1` or `axis2` are out of bounds or if they are not valid dimensions of the tensor.
     ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// use tensor_dyn::TensorInfo;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0]).reshape(&[1, 3]).unwrap();
+    /// let transposed_tensor = tensor.transpose(0, 1).unwrap();
+    /// assert_eq!(transposed_tensor.shape().inner(), &[3, 1]);
+    /// ```
+    ///
     /// # See Also
     /// - [`permute`]: Rearranges all axes of the tensor according to a given order.
     /// - [`swap_axes`]: Swaps two specified axes in the tensor (an alias for `transpose`).
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn transpose(&self, axis1: i64, axis2: i64) -> Result<Output>;
+    fn transpose(&self, axis1: i64, axis2: i64) -> Result<Tensor<T>> {
+        Ok(_Tensor::transpose(self, axis1, axis2)?.into())
+    }
 
     /// Reorders the dimensions of the tensor according to the specified axes.
     ///
@@ -117,8 +159,19 @@ where
     ///
     /// * This function will panic if the length of `axes` does not match the number of dimensions in the tensor,
     /// or if any of the axes are out of bounds.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn permute<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// use tensor_dyn::TensorInfo;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0]).reshape(&[1, 3]).unwrap();
+    /// let permuted_tensor = tensor.permute(&[1, 0]).unwrap();
+    /// assert_eq!(permuted_tensor.shape().inner(), &[3, 1]);
+    /// ```
+    fn permute<A: Into<Axis>>(&self, axes: A) -> Result<Tensor<T>> {
+        Ok(_Tensor::permute(self, axes)?.into())
+    }
 
     /// Reverses the permutation of the dimensions of the tensor according to the specified axes.
     ///
@@ -138,8 +191,20 @@ where
     ///
     /// * This function will panic if the length of `axes` does not match the number of dimensions in the tensor,
     /// or if any of the axes are out of bounds.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// use tensor_dyn::TensorInfo;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0]).reshape(&[1, 3]).unwrap();
+    /// let permuted_tensor = tensor.permute(&[1, 0]).unwrap();
+    /// let restored_tensor = permuted_tensor.permute_inv(&[1, 0]).unwrap();
+    /// assert_eq!(restored_tensor.shape().inner(), &[1, 3]);
+    /// ```
+    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
+        Ok(_Tensor::permute_inv(self, axes)?.into())
+    }
 
     /// Expands the tensor to a larger shape without copying data, using broadcasting.
     ///
@@ -162,8 +227,19 @@ where
     ///
     /// * This function will panic if the target shape is incompatible with the tensor's current shape,
     /// or if the dimension to expand is not `1`.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn expand<S: Into<Shape>>(&self, shape: S) -> Result<Output>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// use tensor_dyn::TensorInfo;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0]).reshape(&[1, 3]).unwrap();
+    /// let expanded_tensor = tensor.expand(&[2, 3]).unwrap();
+    /// assert_eq!(expanded_tensor.shape().inner(), &[2, 3]);
+    /// ```
+    fn expand<S: Into<Shape>>(&self, shape: S) -> Result<Tensor<T>> {
+        Ok(_Tensor::expand(self, shape)?.into())
+    }
 
     /// Returns the transpose of the tensor by swapping the last two dimensions.
     ///
@@ -183,8 +259,19 @@ where
     ///
     /// * This function will panic if the tensor has fewer than two dimensions, as transposing the last two dimensions requires
     /// the tensor to be at least 2D.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn t(&self) -> Result<Output>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// use tensor_dyn::TensorInfo;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0, 4.0]).reshape(&[2, 2]).unwrap();
+    /// let transposed_tensor = tensor.t().unwrap();
+    /// assert_eq!(transposed_tensor.shape().inner(), &[2, 2]);
+    /// ```
+    fn t(&self) -> Result<Self> {
+        Ok(_Tensor::t(self)?.into())
+    }
 
     /// reverse the dimensions of the tensor.
     ///
@@ -201,8 +288,19 @@ where
     /// # Panics
     ///
     /// * This function will panic if the tensor is not 2D. It is only valid for matrices.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn mt(&self) -> Result<Output>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// use tensor_dyn::TensorInfo;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0, 4.0]).reshape(&[2, 2]).unwrap();
+    /// let transposed_tensor = tensor.mt().unwrap();
+    /// assert_eq!(transposed_tensor.shape().inner(), &[2, 2]);
+    /// ```
+    fn mt(&self) -> Result<Self> {
+        Ok(_Tensor::mt(self)?.into())
+    }
 
     /// Reverses the order of elements along the specified axes of the tensor.
     ///
@@ -220,8 +318,24 @@ where
     /// # Panics
     ///
     /// * This function will panic if any of the specified axes are out of bounds for the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn flip<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0, 4.0])
+    ///     .reshape(&[2, 2])
+    ///     .unwrap();
+    /// let flipped_tensor = tensor.flip(0).unwrap();
+    /// assert!(flipped_tensor.allclose(
+    ///     &Tensor::<f64>::new(vec![3.0, 4.0, 1.0, 2.0])
+    ///         .reshape(&[2, 2])
+    ///         .unwrap()
+    /// ));
+    /// ```
+    fn flip<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
+        Ok(_Tensor::flip(self, axes)?.into())
+    }
 
     /// Reverses the order of elements along the last dimension (columns) of a 2D tensor (matrix).
     ///
@@ -241,8 +355,24 @@ where
     /// # Panics
     ///
     /// * This function will panic if the tensor has fewer than two dimensions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn fliplr(&self) -> Result<Output>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0, 4.0])
+    ///     .reshape(&[2, 2])
+    ///     .unwrap();
+    /// let flipped_tensor = tensor.fliplr().unwrap();
+    /// assert!(flipped_tensor.allclose(
+    ///     &Tensor::<f64>::new(vec![2.0, 1.0, 4.0, 3.0])
+    ///         .reshape(&[2, 2])
+    ///         .unwrap()
+    /// ));
+    /// ```
+    fn fliplr(&self) -> Result<Self> {
+        Ok(_Tensor::fliplr(self)?.into())
+    }
 
     /// Reverses the order of elements along the first dimension (rows) of a 2D tensor (matrix).
     ///
@@ -260,8 +390,24 @@ where
     /// # Panics
     ///
     /// * This function will panic if the tensor has fewer than one dimension.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn flipud(&self) -> Result<Output>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0, 4.0])
+    ///     .reshape(&[2, 2])
+    ///     .unwrap();
+    /// let flipped_tensor = tensor.flipud().unwrap();
+    /// assert!(flipped_tensor.allclose(
+    ///     &Tensor::<f64>::new(vec![3.0, 4.0, 1.0, 2.0])
+    ///         .reshape(&[2, 2])
+    ///         .unwrap()
+    /// ));
+    /// ```
+    fn flipud(&self) -> Result<Self> {
+        Ok(_Tensor::flipud(self)?.into())
+    }
 
     /// Repeats the tensor along the specified axes according to the given repetition values.
     ///
@@ -282,8 +428,24 @@ where
     ///
     /// * This function will panic if the length of `reps` does not match the number of dimensions in the tensor,
     ///   or if any repetition value is negative.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn tile<S: Into<Axis>>(&self, reps: S) -> Result<Output>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0])
+    ///    .reshape(&[1, 3])
+    ///   .unwrap();
+    /// let repeated_tensor = tensor.tile(&[2, 1]).unwrap();
+    /// assert!(repeated_tensor.allclose(
+    ///    &Tensor::<f64>::new(vec![1.0, 2.0, 3.0, 1.0, 2.0, 3.0])
+    ///       .reshape(&[2, 3])
+    ///      .unwrap()
+    /// ));
+    /// ```
+    fn tile<S: Into<Axis>>(&self, repeats: S) -> Result<Self> {
+        Ok(_Tensor::tile(self, repeats)?.into())
+    }
 
     /// Removes leading or trailing zeros from the tensor based on the specified trim mode.
     ///
@@ -309,10 +471,23 @@ where
     /// # Requirements
     ///
     /// * `Self::Meta` must implement `PartialEq`, as it is used to compare the tensor elements for equality with zero.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn trim_zeros(&self, trim: &str) -> Result<Output>
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// let tensor = Tensor::<f64>::new(vec![0.0, 0.0, 1.0, 2.0, 0.0, 0.0])
+    ///     .reshape(&[6])
+    ///     .unwrap();
+    /// let trimmed_tensor = tensor.trim_zeros("fb").unwrap();
+    /// assert!(trimmed_tensor.allclose(&Tensor::<f64>::new(vec![1.0, 2.0]).reshape(&[2]).unwrap()));
+    /// ```
+    fn trim_zeros(&self, trim: &str) -> Result<Self>
     where
-        Self::Meta: PartialEq;
+        Self::Meta: PartialEq,
+    {
+        Ok(_Tensor::trim_zeros(self, trim)?.into())
+    }
 
     /// Repeats the elements of the tensor along the specified axis a given number of times.
     ///
@@ -331,8 +506,24 @@ where
     /// # Panics
     ///
     /// * This function will panic if the `axis` is out of bounds for the tensor, or if `repeats` is zero.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn repeat(&self, repeats: usize, axis: i16) -> Result<Output>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0])
+    ///     .reshape(&[1, 3])
+    ///     .unwrap();
+    /// let repeated_tensor = tensor.repeat(2, 0).unwrap();
+    /// assert!(repeated_tensor.allclose(
+    ///     &Tensor::<f64>::new(vec![1.0, 2.0, 3.0, 1.0, 2.0, 3.0])
+    ///         .reshape(&[2, 3])
+    ///         .unwrap()
+    /// ));
+    /// ```
+    fn repeat(&self, repeats: usize, axes: i16) -> Result<Tensor<T>> {
+        Ok(_Tensor::repeat(self, repeats, axes)?.into())
+    }
 
     /// Splits the tensor into multiple sub-tensors along the specified axis.
     ///
@@ -356,8 +547,32 @@ where
     /// * This function will panic if `axis` is out of bounds for the tensor.
     /// * It will also panic if the indices in `indices_or_sections` are out of range, or if `indices_or_sections` is an integer
     ///   that does not evenly divide the tensor along the specified axis.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn split(&self, indices_or_sections: &[i64], axis: i64) -> Result<Vec<Output>>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+    ///     .reshape(&[2, 3])
+    ///     .unwrap();
+    /// let split_tensors = tensor.split(&[1], 0).unwrap();
+    /// assert!(split_tensors[0].allclose(
+    ///     &Tensor::<f64>::new(vec![1.0, 2.0, 3.0])
+    ///         .reshape(&[1, 3])
+    ///         .unwrap()
+    /// ));
+    /// assert!(split_tensors[1].allclose(
+    ///     &Tensor::<f64>::new(vec![4.0, 5.0, 6.0])
+    ///         .reshape(&[1, 3])
+    ///         .unwrap()
+    /// ));
+    /// ```
+    fn split(&self, indices_or_sections: &[i64], axis: i64) -> Result<Vec<Self>> {
+        Ok(_Tensor::split(self, indices_or_sections, axis)?
+            .into_iter()
+            .map(|x| x.into())
+            .collect())
+    }
 
     /// Splits the tensor into multiple sub-tensors along the depth axis (third dimension).
     ///
@@ -375,8 +590,32 @@ where
     /// # Panics
     ///
     /// * This function will panic if the tensor has fewer than 3 dimensions or if any of the indices are out of bounds.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn dsplit(&self, indices: &[i64]) -> Result<Vec<Output>>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+    ///     .reshape(&[1, 2, 3])
+    ///     .unwrap();
+    /// let split_tensors = tensor.dsplit(&[1]).unwrap();
+    /// assert!(split_tensors[0].allclose(
+    ///     &Tensor::<f64>::new(vec![1.0, 4.0])
+    ///         .reshape(&[1, 2, 1])
+    ///         .unwrap()
+    /// ));
+    /// assert!(split_tensors[1].allclose(
+    ///     &Tensor::<f64>::new(vec![2.0, 3.0, 5.0, 6.0])
+    ///         .reshape(&[1, 2, 2])
+    ///         .unwrap()
+    /// ));
+    /// ```
+    fn dsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
+        Ok(_Tensor::dsplit(self, indices)?
+            .into_iter()
+            .map(|x| x.into())
+            .collect())
+    }
 
     /// Splits the tensor into multiple sub-tensors along the horizontal axis (second dimension).
     ///
@@ -394,8 +633,32 @@ where
     /// # Panics
     ///
     /// * This function will panic if the tensor has fewer than 2 dimensions or if any of the indices are out of bounds.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn hsplit(&self, indices: &[i64]) -> Result<Vec<Output>>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+    ///     .reshape(&[1, 2, 3])
+    ///     .unwrap();
+    /// let split_tensors = tensor.hsplit(&[1]).unwrap();
+    /// assert!(split_tensors[0].allclose(
+    ///     &Tensor::<f64>::new(vec![1.0, 2.0, 3.0])
+    ///         .reshape(&[1, 1, 3])
+    ///         .unwrap()
+    /// ));
+    /// assert!(split_tensors[1].allclose(
+    ///     &Tensor::<f64>::new(vec![4.0, 5.0, 6.0])
+    ///         .reshape(&[1, 1, 3])
+    ///         .unwrap()
+    /// ));
+    /// ```
+    fn hsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
+        Ok(_Tensor::hsplit(self, indices)?
+            .into_iter()
+            .map(|x| x.into())
+            .collect())
+    }
 
     /// Splits the tensor into multiple sub-tensors along the vertical axis (first dimension).
     ///
@@ -413,8 +676,32 @@ where
     /// # Panics
     ///
     /// * This function will panic if the tensor has fewer than 2 dimensions or if any of the indices are out of bounds.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn vsplit(&self, indices: &[i64]) -> Result<Vec<Output>>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+    ///     .reshape(&[2, 3])
+    ///     .unwrap();
+    /// let split_tensors = tensor.vsplit(&[1]).unwrap();
+    /// assert!(split_tensors[0].allclose(
+    ///     &Tensor::<f64>::new(vec![1.0, 2.0, 3.0])
+    ///         .reshape(&[1, 3])
+    ///         .unwrap()
+    /// ));
+    /// assert!(split_tensors[1].allclose(
+    ///     &Tensor::<f64>::new(vec![4.0, 5.0, 6.0])
+    ///         .reshape(&[1, 3])
+    ///         .unwrap()
+    /// ));
+    /// ```
+    fn vsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
+        Ok(_Tensor::vsplit(self, indices)?
+            .into_iter()
+            .map(|x| x.into())
+            .collect())
+    }
 
     /// Swaps two axes of the tensor, effectively transposing the data along the specified axes.
     ///
@@ -432,8 +719,19 @@ where
     /// # Panics
     ///
     /// * This function will panic if either `axis1` or `axis2` are out of bounds.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn swap_axes(&self, axis1: i64, axis2: i64) -> Result<Output>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// use tensor_dyn::TensorInfo;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0]).reshape(&[1, 3]).unwrap();
+    /// let transposed_tensor = tensor.swap_axes(0, 1).unwrap();
+    /// assert_eq!(transposed_tensor.shape().inner(), &[3, 1]);
+    /// ```
+    fn swap_axes(&self, axis1: i64, axis2: i64) -> Result<Self> {
+        Ok(_Tensor::swap_axes(self, axis1, axis2)?.into())
+    }
 
     /// Flattens a range of dimensions into a single dimension.
     ///
@@ -451,10 +749,24 @@ where
     /// # Panics
     ///
     /// * This function will panic if `start` or `end` are out of bounds or if `start` is greater than `end`.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn flatten<A>(&self, start: A, end: A) -> Result<Output>
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// use tensor_dyn::TensorInfo;
+    /// let tensor = Tensor::<f64>::new(vec![1.0, 2.0, 3.0, 4.0])
+    ///     .reshape(&[2, 2])
+    ///     .unwrap();
+    /// let flattened_tensor = tensor.flatten(None, None).unwrap();
+    /// assert_eq!(flattened_tensor.shape().inner(), &[4]);
+    /// ```
+    fn flatten<A>(&self, start: A, end: A) -> Result<Self>
     where
-        A: Into<Option<usize>>;
+        A: Into<Option<usize>>,
+    {
+        Ok(_Tensor::flatten(self, start, end)?.into())
+    }
 
     /// Concatenates multiple tensors along a specified axis.
     ///
@@ -474,9 +786,32 @@ where
     /// # Panics
     ///
     /// * This function will panic if the tensors have incompatible shapes along the specified axis.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn concat(tensors: Vec<&Self>, axis: usize, keepdims: bool) -> Result<Output>;
-
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// let tensor1 = Tensor::<f64>::new(vec![1.0, 2.0, 3.0])
+    ///    .reshape(&[1, 3])
+    ///   .unwrap();
+    /// let tensor2 = Tensor::<f64>::new(vec![4.0, 5.0, 6.0])
+    ///   .reshape(&[1, 3])
+    ///  .unwrap();
+    /// let stacked_tensor = Tensor::concat(vec![&tensor1, &tensor2], 0, false).unwrap();
+    /// assert!(stacked_tensor.allclose(
+    ///   &Tensor::<f64>::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+    ///    .reshape(&[2, 3])
+    ///  .unwrap()
+    /// ));
+    /// ```
+    fn concat(tensors: Vec<&Self>, axis: usize, keepdims: bool) -> Result<Self> {
+        Ok(concat(
+            tensors.iter().map(|x| x.inner.as_ref()).collect(),
+            axis,
+            keepdims,
+        )?
+        .into())
+    }
     /// Stacks multiple tensors vertically (along the first axis).
     ///
     /// This function concatenates tensors by stacking them along the first dimension (rows).
@@ -492,8 +827,27 @@ where
     /// # Panics
     ///
     /// * This function will panic if the tensors have incompatible shapes along the first dimension.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn vstack(tensors: Vec<&Self>) -> Result<Output>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// let tensor1 = Tensor::<f64>::new(vec![1.0, 2.0, 3.0])
+    ///     .reshape(&[1, 3])
+    ///     .unwrap();
+    /// let tensor2 = Tensor::<f64>::new(vec![4.0, 5.0, 6.0])
+    ///     .reshape(&[1, 3])
+    ///     .unwrap();
+    /// let stacked_tensor = Tensor::vstack(vec![&tensor1, &tensor2]).unwrap();
+    /// assert!(stacked_tensor.allclose(
+    ///     &Tensor::<f64>::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+    ///         .reshape(&[2, 3])
+    ///         .unwrap()
+    /// ));
+    /// ```
+    fn vstack(tensors: Vec<&Self>) -> Result<Self> {
+        Ok(concat(tensors.iter().map(|x| x.inner.as_ref()).collect(), 0, false)?.into())
+    }
 
     /// Stacks multiple tensors horizontally (along the second axis).
     ///
@@ -510,8 +864,19 @@ where
     /// # Panics
     ///
     /// * This function will panic if the tensors have incompatible shapes along the second dimension.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn hstack(tensors: Vec<&Self>) -> Result<Output>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// let tensor1 = Tensor::<f64>::new(vec![1.0, 2.0]).reshape(&[2, 1]).unwrap();
+    /// let tensor2 = Tensor::<f64>::new(vec![3.0, 4.0]).reshape(&[2, 1]).unwrap();
+    /// let stacked_tensor = Tensor::hstack(vec![&tensor1, &tensor2]).unwrap();
+    /// assert!(stacked_tensor.allclose(&Tensor::<f64>::new([[1.0, 3.0], [2.0, 4.0]])));
+    /// ```
+    fn hstack(tensors: Vec<&Self>) -> Result<Self> {
+        Ok(concat(tensors.iter().map(|x| x.inner.as_ref()).collect(), 1, false)?.into())
+    }
 
     /// Stacks multiple tensors along the depth axis (third dimension).
     ///
@@ -528,6 +893,17 @@ where
     /// # Panics
     ///
     /// * This function will panic if the tensors have incompatible shapes along the third dimension.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn dstack(tensors: Vec<&Self>) -> Result<Output>;
+    ///
+    /// # Examples
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::ShapeManipulate;
+    /// let tensor1 = Tensor::<f64>::new([1.0, 2.0]).reshape(&[2, 1, 1]).unwrap();
+    /// let tensor2 = Tensor::<f64>::new([3.0, 4.0]).reshape(&[2, 1, 1]).unwrap();
+    /// let stacked_tensor = Tensor::dstack(vec![&tensor1, &tensor2]).unwrap();
+    /// assert!(stacked_tensor.allclose(&Tensor::<f64>::new([[[1.0, 3.0]], [[2.0, 4.0]]])));
+    /// ```
+    fn dstack(tensors: Vec<&Self>) -> Result<Self> {
+        Ok(concat(tensors.iter().map(|x| x.inner.as_ref()).collect(), 2, false)?.into())
+    }
 }

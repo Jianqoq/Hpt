@@ -15,379 +15,297 @@ pub trait FloatUaryOps {
     type OutputMeta: Send;
     /// Computes the element-wise sine of the tensor.
     ///
-    /// The `sin` function calculates the sine of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
-    ///
+    /// This function calculates the sine of each element in the tensor, returning a new tensor
+    /// where each element is the sine of the corresponding element in the original tensor.
+    /// The sine function is defined as:
+    /// ```text
+    /// sin(x)
+    /// ```
+    /// # Arguments
+    /// This function takes no arguments.
     /// # Returns
-    ///
-    /// - `anyhow::Result<Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system
-    ///
-    /// # Notes
-    ///
-    /// - **Element-wise Operation**: The sine is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the sine operation.
-    ///
-    /// # See Also
-    ///
-    /// - [`cos`]: Computes the element-wise cosine of the tensor.
-    /// - [`tan`]: Computes the element-wise tangent of the tensor.
+    /// * A new tensor where each element is the sine of the corresponding element in the original tensor.
+    /// # Panics
+    /// * This function may panic if the tensor contains invalid values for the sine function, such as `NaN` values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sin(&self) -> Result<Self::Output>;
 
     /// Computes the element-wise cos of the tensor.
     ///
-    /// The `sin` function calculates the cos of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
-    ///
+    /// This function calculates the cos of each element in the tensor, returning a new tensor
+    /// where each element is the cos of the corresponding element in the original tensor.
+    /// The cos function is defined as:
+    /// ```text
+    /// cos(x)
+    /// ```
+    /// # Arguments
+    /// This function takes no arguments.
     /// # Returns
-    ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system
-    ///
-    /// # Notes
-    ///
-    /// - **Element-wise Operation**: The cos is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the cos operation.
-    ///
-    /// # See Also
-    ///
-    /// - [`cos`]: Computes the element-wise cosine of the tensor.
-    /// - [`tan`]: Computes the element-wise tangent of the tensor.
+    /// * A new tensor where each element is the cos of the corresponding element in the original tensor.
+    /// # Panics
+    /// * This function may panic if the tensor contains invalid values for the cos function, such as `NaN` values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn cos(&self) -> Result<Self::Output>;
 
     /// Computes the element-wise tan of the tensor.
     ///
-    /// The `tan` function calculates the tan of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
-    ///
+    /// This function calculates the tan of each element in the tensor, returning a new tensor
+    /// where each element is the tan of the corresponding element in the original tensor.
+    /// The tan function is defined as:
+    /// ```text
+    /// tan(x)
+    /// ```
+    /// # Arguments
+    /// This function takes no arguments.
     /// # Returns
-    ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system
-    ///
-    /// # Notes
-    ///
-    /// - **Element-wise Operation**: The tan is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the tan operation.
-    ///
-    /// # See Also
-    ///
-    /// - [`cos`]: Computes the element-wise cosine of the tensor.
-    /// - [`tan`]: Computes the element-wise tangent of the tensor.
+    /// * A new tensor where each element is the tan of the corresponding element in the original tensor.
+    /// # Panics
+    /// * This function may panic if the tensor contains invalid values for the tan function, such as `NaN` values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tan(&self) -> Result<Self::Output>;
 
     /// Computes the element-wise asin of the tensor.
     ///
-    /// The `asin` function calculates the asin of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
-    ///
+    /// This function calculates the asin of each element in the tensor, returning a new tensor
+    /// where each element is the asin of the corresponding element in the original tensor.
+    /// The asin function is defined as:
+    /// ```text
+    /// asin(x)
+    /// ```
+    /// # Arguments
+    /// This function takes no arguments.
     /// # Returns
-    ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system
-    ///
-    /// # Notes
-    ///
-    /// - **Element-wise Operation**: The asin is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the asin operation.
-    ///
-    /// # See Also
-    ///
-    /// - [`cos`]: Computes the element-wise cosine of the tensor.
-    /// - [`tan`]: Computes the element-wise tangent of the tensor.
+    /// * A new tensor where each element is the asin of the corresponding element in the original tensor.
+    /// # Panics
+    /// * This function may panic if the tensor contains invalid values for the asin function, such as `NaN` values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn asin(&self) -> Result<Self::Output>;
 
     /// Computes the element-wise acos of the tensor.
     ///
-    /// The `acos` function calculates the acos of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
-    ///
+    /// This function calculates the acos of each element in the tensor, returning a new tensor
+    /// where each element is the acos of the corresponding element in the original tensor.
+    /// The acos function is defined as:
+    /// ```text
+    /// acos(x)
+    /// ```
+    /// # Arguments
+    /// This function takes no arguments.
     /// # Returns
-    ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system
-    ///
-    /// # Notes
-    ///
-    /// - **Element-wise Operation**: The acos is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the acos operation.
-    ///
-    /// # See Also
-    ///
-    /// - [`cos`]: Computes the element-wise cosine of the tensor.
-    /// - [`tan`]: Computes the element-wise tangent of the tensor.
+    /// * A new tensor where each element is the acos of the corresponding element in the original tensor.
+    /// # Panics
+    /// * This function may panic if the tensor contains invalid values for the acos function, such as `NaN` values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn acos(&self) -> Result<Self::Output>;
 
     /// Computes the element-wise atan of the tensor.
     ///
-    /// The `atan` function calculates the atan of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
-    ///
+    /// This function calculates the atan of each element in the tensor, returning a new tensor
+    /// where each element is the atan of the corresponding element in the original tensor.
+    /// The atan function is defined as:
+    /// ```text
+    /// atan(x)
+    /// ```
+    /// # Arguments
+    /// This function takes no arguments.
     /// # Returns
-    ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system
-    ///
-    /// # Notes
-    ///
-    /// - **Element-wise Operation**: The atan is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the atan operation.
-    ///
-    /// # See Also
-    ///
-    /// - [`cos`]: Computes the element-wise cosine of the tensor.
-    /// - [`tan`]: Computes the element-wise tangent of the tensor.
+    /// * A new tensor where each element is the atan of the corresponding element in the original tensor.
+    /// # Panics
+    /// * This function may panic if the tensor contains invalid values for the atan function, such as `NaN` values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn atan(&self) -> Result<Self::Output>;
 
     /// Computes the element-wise sinh of the tensor.
     ///
-    /// The `sinh` function calculates the sinh of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
-    ///
+    /// This function calculates the sinh of each element in the tensor, returning a new tensor
+    /// where each element is the sinh of the corresponding element in the original tensor.
+    /// The sinh function is defined as:
+    /// ```text
+    /// sinh(x)
+    /// ```
+    /// # Arguments
+    /// This function takes no arguments.
     /// # Returns
-    ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system
-    ///
-    /// # Notes
-    ///
-    /// - **Element-wise Operation**: The sinh is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the sinh operation.
-    ///
-    /// # See Also
-    ///
-    /// - [`cos`]: Computes the element-wise cosine of the tensor.
-    /// - [`tan`]: Computes the element-wise tangent of the tensor.
+    /// * A new tensor where each element is the sinh of the corresponding element in the original tensor.
+    /// # Panics
+    /// * This function may panic if the tensor contains invalid values for the sinh function, such as `NaN` values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sinh(&self) -> Result<Self::Output>;
 
     /// Computes the element-wise cosh of the tensor.
     ///
-    /// The `cosh` function calculates the cosh of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
-    ///
+    /// This function calculates the cosh of each element in the tensor, returning a new tensor
+    /// where each element is the cosh of the corresponding element in the original tensor.
+    /// The cosh function is defined as:
+    /// ```text
+    /// cosh(x)
+    /// ```
+    /// # Arguments
+    /// This function takes no arguments.
     /// # Returns
-    ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system
-    ///
-    /// # Notes
-    ///
-    /// - **Element-wise Operation**: The cosh is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the cosh operation.
-    ///
-    /// # See Also
-    ///
-    /// - [`cos`]: Computes the element-wise cosine of the tensor.
-    /// - [`tan`]: Computes the element-wise tangent of the tensor.
+    /// * A new tensor where each element is the cosh of the corresponding element in the original tensor.
+    /// # Panics
+    /// * This function may panic if the tensor contains invalid values for the cosh function, such as `NaN` values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn cosh(&self) -> Result<Self::Output>;
 
     /// Computes the element-wise tanh of the tensor.
     ///
-    /// The `tanh` function calculates the tanh of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
-    ///
+    /// This function calculates the tanh of each element in the tensor, returning a new tensor
+    /// where each element is the tanh of the corresponding element in the original tensor.
+    /// The tanh function is defined as:
+    /// ```text
+    /// tanh(x)
+    /// ```
+    /// # Arguments
+    /// This function takes no arguments.
     /// # Returns
-    ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system
-    ///
-    /// # Notes
-    ///
-    /// - **Element-wise Operation**: The tanh is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the tanh operation.
-    ///
-    /// # See Also
-    ///
-    /// - [`cos`]: Computes the element-wise cosine of the tensor.
-    /// - [`tan`]: Computes the element-wise tangent of the tensor.
+    /// * A new tensor where each element is the tanh of the corresponding element in the original tensor.
+    /// # Panics
+    /// * This function may panic if the tensor contains invalid values for the tanh function, such as `NaN` values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tanh(&self) -> Result<Self::Output>;
 
     /// Computes the element-wise asinh of the tensor.
     ///
-    /// The `asinh` function calculates the asinh of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
-    ///
+    /// This function calculates the asinh of each element in the tensor, returning a new tensor
+    /// where each element is the asinh of the corresponding element in the original tensor.
+    /// The asinh function is defined as:
+    /// ```text
+    /// asinh(x)
+    /// ```
+    /// # Arguments
+    /// This function takes no arguments.
     /// # Returns
-    ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system
-    ///
-    /// # Notes
-    ///
-    /// - **Element-wise Operation**: The asinh is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the asinh operation.
-    ///
-    /// # See Also
-    ///
-    /// - [`cos`]: Computes the element-wise cosine of the tensor.
-    /// - [`tan`]: Computes the element-wise tangent of the tensor.
+    /// * A new tensor where each element is the asinh of the corresponding element in the original tensor.
+    /// # Panics
+    /// * This function may panic if the tensor contains invalid values for the asinh function, such as `NaN` values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn asinh(&self) -> Result<Self::Output>;
 
     /// Computes the element-wise acosh of the tensor.
     ///
-    /// The `acosh` function calculates the acosh of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
-    ///
+    /// This function calculates the acosh of each element in the tensor, returning a new tensor
+    /// where each element is the acosh of the corresponding element in the original tensor.
+    /// The acosh function is defined as:
+    /// ```text
+    /// acosh(x)
+    /// ```
+    /// # Arguments
+    /// This function takes no arguments.
     /// # Returns
-    ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system
-    ///
-    /// # Notes
-    ///
-    /// - **Element-wise Operation**: The acosh is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the acosh operation.
-    ///
-    /// # See Also
-    ///
-    /// - [`cos`]: Computes the element-wise cosine of the tensor.
-    /// - [`tan`]: Computes the element-wise tangent of the tensor.
+    /// * A new tensor where each element is the acosh of the corresponding element in the original tensor.
+    /// # Panics
+    /// * This function may panic if the tensor contains invalid values for the acosh function, such as `NaN` values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn acosh(&self) -> Result<Self::Output>;
 
     /// Computes the element-wise atanh of the tensor.
     ///
-    /// The `atanh` function calculates the atanh of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
-    ///
+    /// This function calculates the atanh of each element in the tensor, returning a new tensor
+    /// where each element is the atanh of the corresponding element in the original tensor.
+    /// The atanh function is defined as:
+    /// ```text
+    /// atanh(x)
+    /// ```
+    /// # Arguments
+    /// This function takes no arguments.
     /// # Returns
-    ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system
-    ///
-    /// # Notes
-    ///
-    /// - **Element-wise Operation**: The atanh is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the atanh operation.
-    ///
-    /// # See Also
-    ///
-    /// - [`cos`]: Computes the element-wise cosine of the tensor.
-    /// - [`tan`]: Computes the element-wise tangent of the tensor.
+    /// * A new tensor where each element is the atanh of the corresponding element in the original tensor.
+    /// # Panics
+    /// * This function may panic if the tensor contains invalid values for the atanh function, such as `NaN` values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn atanh(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of sin.
-    ///
+    /// sin method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`sin`]: Computes the element-wise sine of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sin_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Inplace Version of cos.
-    ///
+    /// cos method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`cos`]: Computes the element-wise cosine of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn cos_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Inplace Version of tan.
-    ///
+    /// tan method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`tan`]: Computes the element-wise tangent of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tan_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Inplace Version of asin.
-    ///
+    /// asin method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`asin`]: Computes the element-wise asin of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn asin_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Inplace Version of acos.
-    ///
+    /// acos method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`acos`]: Computes the element-wise acos of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn acos_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Inplace Version of atan.
-    ///
+    /// atan method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`atan`]: Computes the element-wise atan of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn atan_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Inplace Version of sinh.
-    ///
+    /// sinh method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`sinh`]: Computes the element-wise sinh of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sinh_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Inplace Version of cosh.
-    ///
+    /// cosh method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`cosh`]: Computes the element-wise cosh of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn cosh_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Inplace Version of tanh.
-    ///
+    /// tanh method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`tanh`]: Computes the element-wise tanh of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tanh_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Inplace Version of asinh.
-    ///
+    /// asinh method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`asinh`]: Computes the element-wise asinh of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn asinh_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Inplace Version of acosh.
-    ///
+    /// acosh method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`acosh`]: Computes the element-wise acosh of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn acosh_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Inplace Version of atanh.
+    /// atanh method with output tensor, this method will write the result to the output tensor
     ///
     /// # See Also
     ///
@@ -396,49 +314,26 @@ pub trait FloatUaryOps {
     fn atanh_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
-    
+
     /// Computes the element-wise exponential of the tensor.
-    /// 
-    /// The `exp` function calculates the exponential (e<sup>x</sup>) of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
-    /// 
+    ///
+    /// This function calculates the exponential (base `e`) of each element in the tensor.
+    /// The exponential function is defined as:
+    ///
+    /// exp(x) = e<sup>x</sup>
+    ///
+    /// # Arguments
+    /// This function takes no arguments.
     /// # Returns
-    /// 
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
-    /// 
-    /// # Notes
-    /// 
-    /// - **Element-wise Operation**: The exponential is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the exponential operation.
-    /// 
-    /// # See Also
-    /// 
-    /// - [`log`]: Computes the element-wise natural logarithm of the tensor.
-    /// - [`pow`]: Raises each element of the tensor to a specified power.
+    /// * A new tensor where each element is the exponential of the corresponding element in the original tensor.
+    /// # Panics
+    /// * This function may panic if the tensor contains values that would result in an overflow when calculating the exponential.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn exp(&self) -> Result<Self::Output>;
 
-    /// Computes the element-wise exponential of the tensor.
-    ///
-    /// The `exp` function calculates the exponential (e<sup>x</sup>) of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
-    ///
-    /// # Notes
-    ///
-    /// - **Element-wise Operation**: The exponential is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the exponential operation.
-    ///
+    /// exp method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
-    /// - [`log`]: Computes the element-wise natural logarithm of the tensor.
-    /// - [`pow`]: Raises each element of the tensor to a specified power.
-
+    /// - [`exp`]: Computes the element-wise exponential of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn exp_<U>(&self, out: U) -> Result<Self::Output>
     where
@@ -446,31 +341,27 @@ pub trait FloatUaryOps {
 
     /// Computes the element-wise base-2 exponential of the tensor.
     ///
-    /// The `exp2` function calculates 2<sup>x</sup> for each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
+    /// This function calculates the base-2 exponential (2<sup>x</sup>) of each element in the tensor.
+    /// The base-2 exponential function is defined as:
+    ///
+    /// exp2(x) = 2<sup>x</sup>
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where each element is the base-2 exponential of the corresponding element in the original tensor.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: The base-2 exponential is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the base-2 exponential operation.
-    ///
-    /// # See Also
-    ///
-    /// - [`exp`]: Computes the element-wise natural exponential of the tensor.
-    /// - [`log2`]: Computes the element-wise base-2 logarithm of the tensor.
-    /// - [`pow`]: Raises each element of the tensor to a specified power.
+    /// * This function may panic if the tensor contains values that would result in an overflow when calculating the base-2 exponential.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn exp2(&self) -> Result<Self::Output>;
 
-    /// in-place version of exp2
-    ///
+    /// exp2 method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`exp2`]: Computes the element-wise base-2 exponential of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn exp2_<U>(&self, out: U) -> Result<Self::Output>
@@ -479,32 +370,27 @@ pub trait FloatUaryOps {
 
     /// Computes the element-wise square root of the tensor.
     ///
-    /// The `sqrt` function calculates the square root of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
+    /// This function calculates the square root of each element in the tensor.
+    /// The square root function is defined as:
+    ///
+    /// sqrt(x) = √x
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where each element is the square root of the corresponding element in the original tensor.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: The square root is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the square root operation.
-    ///
-    /// # See Also
-    ///
-    /// - [`pow`]: Raises each element of the tensor to a specified power.
-    /// - [`exp`]: Computes the element-wise natural exponential of the tensor.
-    /// - [`log`]: Computes the element-wise natural logarithm of the tensor.
-
+    /// * This function will panic if the tensor contains negative values, as the square root is not defined for negative numbers in real numbers.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sqrt(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of sqrt.
-    ///
+    /// sqrt method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`sqrt`]: Computes the element-wise square root of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sqrt_<U>(&self, out: U) -> Result<Self::Output>
@@ -513,372 +399,343 @@ pub trait FloatUaryOps {
 
     /// Computes the element-wise reciprocal of the tensor.
     ///
-    /// The `recip` function calculates the reciprocal (1/x) of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
+    /// This function calculates the reciprocal of each element in the tensor. The reciprocal of a number is defined as:
+    ///
+    /// recip(x) = 1 / x
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where each element is the reciprocal of the corresponding element in the original tensor.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: The reciprocal is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the reciprocal operation.
-    /// - **Error Handling**: If an element is zero, computing its reciprocal will result in an error.
-    ///
-    /// # See Also
-    ///
-    /// - [`mul`]: Computes the element-wise multiplication of the tensor.
-    /// - [`div`]: Computes the element-wise division of the tensor by another tensor or scalar.
-    /// - [`pow`]: Raises each element of the tensor to a specified power.
-
+    /// * This function will panic if the tensor contains zeros, as the reciprocal of zero is undefined.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn recip(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of recip.
-    ///
+    /// recip method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`recip`]: Computes the element-wise reciprocal of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn recip_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Computes the element-wise natural logarithm (ln) of the tensor.
+    /// Computes the element-wise natural logarithm of the tensor.
     ///
-    /// The `ln` function calculates the natural logarithm (base *e*) of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
+    /// This function calculates the natural logarithm (`ln`, base `e`) of each element in the tensor.
+    /// The natural logarithm is defined as:
+    ///
+    /// `ln(x) = log_e(x)`
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where each element is the natural logarithm of the corresponding element in the original tensor.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: The natural logarithm is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the natural logarithm operation.
-    /// - **Error Handling**: The logarithm is only defined for positive numbers; attempting to compute the logarithm of zero or negative numbers will result in an error.
-    ///
-    /// # See Also
-    ///
-    /// - [`log2`]: Computes the element-wise base-2 logarithm of the tensor.
-    /// - [`log10`]: Computes the element-wise base-10 logarithm of the tensor.
-    /// - [`exp`]: Computes the element-wise natural exponential of the tensor.
+    /// * This function will panic if the tensor contains values less than or equal to zero, as the logarithm is not defined for such values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn ln(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of ln.
-    ///
+    /// ln method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`ln`]: Computes the element-wise natural logarithm of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn ln_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Computes the element-wise base-2 logarithm (log2) of the tensor.
+    /// Computes the element-wise base-2 logarithm of the tensor.
     ///
-    /// The `log2` function calculates the base-2 logarithm of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
+    /// This function calculates the base-2 logarithm (`log2`) of each element in the tensor.
+    /// The base-2 logarithm is defined as:
+    ///
+    /// `log2(x) = log_2(x)`
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where each element is the base-2 logarithm of the corresponding element in the original tensor.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: The base-2 logarithm is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the base-2 logarithm operation.
-    /// - **Error Handling**: The logarithm is only defined for positive numbers; attempting to compute the logarithm of zero or negative numbers will result in an error.
-    ///
-    /// # See Also
-    ///
-    /// - [`ln`]: Computes the element-wise natural logarithm (base *e*) of the tensor.
-    /// - [`log10`]: Computes the element-wise base-10 logarithm of the tensor.
-    /// - [`exp2`]: Computes the element-wise base-2 exponential of the tensor.
-
+    /// * This function will panic if the tensor contains values less than or equal to zero, as the logarithm is not defined for such values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn log2(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of log2.
-    ///
+    /// log2 method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`log2`]: Computes the element-wise base-2 logarithm of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn log2_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Computes the element-wise base-10 logarithm (log10) of the tensor.
+    /// Computes the element-wise base-10 logarithm of the tensor.
     ///
-    /// The `log10` function calculates the base-10 logarithm of each element in the tensor, returning a new tensor
-    /// containing the results. If the `simd` feature is enabled, it utilizes SIMD instructions to
-    /// perform the computation more efficiently.
+    /// This function calculates the base-10 logarithm (`log10`) of each element in the tensor.
+    /// The base-10 logarithm is defined as:
+    ///
+    /// `log10(x) = log_10(x)`
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where each element is the base-10 logarithm of the corresponding element in the original tensor.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: The base-10 logarithm is computed for each element individually.
-    /// - **Data Type Conversion**: The input tensor's data type `T` is converted to a floating-point type suitable for the base-10 logarithm operation.
-    /// - **Error Handling**: The logarithm is only defined for positive numbers; attempting to compute the logarithm of zero or negative numbers will result in an error.
-    ///
-    /// # See Also
-    ///
-    /// - [`ln`]: Computes the element-wise natural logarithm (base *e*) of the tensor.
-    /// - [`log2`]: Computes the element-wise base-2 logarithm of the tensor.
-    /// - [`exp`]: Computes the element-wise natural exponential of the tensor.
+    /// * This function will panic if the tensor contains values less than or equal to zero, as the logarithm is not defined for such values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn log10(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of log10.
-    ///
+    /// log10 method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`log10`]: Computes the element-wise base-10 logarithm of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn log10_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Computes the element-wise Continuously Differentiable Exponential Linear Unit (CELU) of the tensor.
+    /// Computes the element-wise Continuously Differentiable Exponential Linear Unit (CELU) activation function.
     ///
-    /// The `celu` function applies the CELU activation function to each element in the tensor. This is defined as:
-    /// - `x` if `x > 0`
-    /// - `alpha * (exp(x / alpha) - 1)` if `x <= 0`
+    /// This function applies the CELU activation function with the given `alpha` parameter:
+    ///
+    /// `celu(x) = max(0, x) + min(0, alpha * (exp(x / alpha) - 1))`
+    ///
+    /// # Arguments
+    ///
+    /// * `alpha` - A parameter controlling the saturation of negative values. This value is applied element-wise.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where the CELU activation function has been applied to each element.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: CELU is computed for each element individually.
-    /// - **Parameter**: `alpha` controls the saturation point of the negative inputs. It must be greater than zero.
-    ///
-    /// # See Also
-    ///
-    /// - [`elu`]: Computes the element-wise Exponential Linear Unit (ELU).
-    /// - [`relu`]: Computes the element-wise Rectified Linear Unit (ReLU).
-    /// - [`sigmoid`]: Computes the element-wise sigmoid function of the tensor.
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn celu(&self, alpha: Self::OutputMeta) -> Result<Self::Output>;
 
-    /// Inplace Version of celu.
-    ///
+    /// celu method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
-    /// - [`celu`]: Computes the element-wise Continuously Differentiable Exponential Linear Unit (CELU) of the tensor.
+    /// - [`celu`]: Computes the element-wise Continuously Differentiable Exponential Linear Unit (CELU).
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn celu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Computes the element-wise sigmoid function of the tensor.
+    /// Computes the element-wise sigmoid activation function of the tensor.
     ///
-    /// The `sigmoid` function calculates the sigmoid of each element in the tensor, defined as:
-    /// `1 / (1 + exp(-x))`, returning a new tensor containing the results. If the `simd` feature is enabled,
-    /// it utilizes SIMD instructions to perform the computation more efficiently.
+    /// The sigmoid function is defined as:
+    ///
+    /// sigmoid(x) = 1 / (1 + e<sup>-x</sup>)
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where the sigmoid function has been applied to each element.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: The sigmoid function is computed for each element individually.
-    ///
-    /// # See Also
-    ///
-    /// - [`tanh`]: Computes the element-wise hyperbolic tangent of the tensor.
-    /// - [`relu`]: Computes the element-wise Rectified Linear Unit (ReLU).
-    /// - [`celu`]: Computes the element-wise Continuously Differentiable Exponential Linear Unit (CELU).
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sigmoid(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of sigmoid.
-    ///
+    /// sigmoid method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`sigmoid`]: Computes the element-wise sigmoid function of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sigmoid_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Computes the element-wise Exponential Linear Unit (ELU) of the tensor.
+    /// Computes the element-wise Exponential Linear Unit (ELU) activation function.
     ///
-    /// The `elu` function applies the ELU activation function to each element in the tensor. This is defined as:
-    /// - `x` if `x > 0`
-    /// - `alpha * (exp(x) - 1)` if `x <= 0`
+    /// This function applies the ELU activation function with the given `alpha` parameter:
+    ///
+    /// elu(x) = x if x > 0 else alpha * (e<sup>x</sup> - 1)
+    ///
+    /// # Arguments
+    ///
+    /// * `alpha` - A parameter controlling the saturation of negative values.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where the ELU activation function has been applied to each element.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: ELU is computed for each element individually.
-    /// - **Parameter**: `alpha` controls the saturation point of the negative inputs. It must be greater than zero.
-    ///
-    /// # See Also
-    ///
-    /// - [`celu`]: Computes the element-wise Continuously Differentiable Exponential Linear Unit (CELU).
-    /// - [`relu`]: Computes the element-wise Rectified Linear Unit (ReLU).
-    /// - [`sigmoid`]: Computes the element-wise sigmoid function of the tensor.
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn elu(&self, alpha: Self::OutputMeta) -> Result<Self::Output>;
 
-    /// Inplace Version of elu.
-    ///
+    /// elu method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
-    /// - [`elu`]: Computes the element-wise Exponential Linear Unit (ELU) of the tensor.
+    /// - [`elu`]: Computes the element-wise Exponential Linear Unit (ELU).
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn elu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Applies the Rectified Linear Unit (ReLU) function to the tensor.
+    /// Computes the element-wise Rectified Linear Unit (ReLU) activation function.
     ///
-    /// The `relu` function returns a new tensor where each element is replaced by `max(0, x)`, effectively setting negative elements to zero.
+    /// The ReLU function is defined as:
+    ///
+    /// `relu(x) = max(0, x)`
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `Result<Self::Output>`: A tensor with ReLU applied to each element.
+    /// * A new tensor where the ReLU activation function has been applied to each element.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`leaky_relu`]: Applies the leaky ReLU function to the tensor.
+    /// * This function should not panic under normal conditions.
     fn relu(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of relu.
-    ///
+    /// relu method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
-    /// - [`relu`]: Applies the Rectified Linear Unit (ReLU) function to the tensor.
+    /// - [`relu`]: Computes the element-wise Rectified Linear Unit (ReLU).
     fn relu_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
     /// Computes the element-wise error function (erf) of the tensor.
     ///
-    /// The `erf` function calculates the error function for each element in the tensor, returning a new tensor with the results.
+    /// The error function is used in probability, statistics, and partial differential equations.
+    /// It is defined as:
+    ///
+    /// erf(x) = 2/sqrt(pi) * integral from 0 to x of exp(-t<sup>2</sup>) dt
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `Result<Self::Output>`: A tensor where each element is the error function of the corresponding input element.
+    /// * A new tensor where the error function has been applied to each element.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`erfc`]: Computes the complementary error function of each element in the tensor.
+    /// * This function should not panic under normal conditions.
     fn erf(&self) -> Result<Self::Output>;
 
-    /// Applies the fast approximation of the Hard Sigmoid function to the tensor.
+    /// Computes the element-wise fast hard sigmoid activation function.
     ///
-    /// The `fast_hard_sigmoid` function computes a fast approximation of the Hard Sigmoid function for each element in the tensor. This approximation is often used for performance optimization.
+    /// This function applies an approximation of the sigmoid function for efficiency, defined as:
+    ///
+    /// `fast_hard_sigmoid(x) = max(0, min(1, 0.2 * x + 0.5))`
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `Result<Self::Output>`: A tensor with the fast hard sigmoid function applied to each element.
+    /// * A new tensor where the fast hard sigmoid function has been applied to each element.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`sigmoid`]: Applies the standard sigmoid function to the tensor.
+    /// * This function should not panic under normal conditions.
     fn fast_hard_sigmoid(&self) -> Result<Self::Output>;
 
-    /// Computes the element-wise Leaky Rectified Linear Unit (Leaky ReLU) of the tensor.
+    /// Computes the element-wise Leaky Rectified Linear Unit (Leaky ReLU) activation function.
     ///
-    /// The `leaky_relu` function applies the Leaky ReLU activation function to each element in the tensor. This is defined as:
-    /// - `x` if `x > 0`
-    /// - `alpha * x` if `x <= 0`
+    /// This function applies the Leaky ReLU activation function with the given `alpha` parameter:
+    ///
+    /// `leaky_relu(x) = x if x > 0 else alpha * x`
+    ///
+    /// # Arguments
+    ///
+    /// * `alpha` - A parameter controlling the slope for negative input values. This value is applied element-wise.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where the Leaky ReLU activation function has been applied to each element.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: Leaky ReLU is computed for each element individually.
-    /// - **Parameter**: `alpha` controls the slope for negative inputs. It must be greater than zero.
-    ///
-    /// # See Also
-    ///
-    /// - [`relu`]: Computes the element-wise Rectified Linear Unit (ReLU).
-    /// - [`elu`]: Computes the element-wise Exponential Linear Unit (ELU).
-    /// - [`mish`]: Computes the element-wise mish activation function of the tensor.
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn leaky_relu(&self, alpha: Self::OutputMeta) -> Result<Self::Output>;
 
-    /// Inplace Version of leaky_relu.
-    ///
+    /// leaky_relu method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
-    /// - [`leaky_relu`]: Computes the element-wise Leaky Rectified Linear Unit (Leaky ReLU) of the tensor.
+    /// - [`leaky_relu`]: Computes the element-wise Leaky Rectified Linear Unit (Leaky ReLU).
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Computes the element-wise Gaussian Error Linear Unit (GELU) of the tensor.
+    /// Computes the element-wise Gaussian Error Linear Unit (GELU) activation function.
     ///
-    /// The `gelu` function applies the GELU activation function to each element in the tensor, defined as:
-    /// `0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))`
+    /// The GELU activation is defined as:
+    ///
+    /// `gelu(x) = x * P(X <= x)` where `P` is the cumulative distribution function of a Gaussian distribution.
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where the GELU activation function has been applied to each element.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: GELU is computed for each element individually.
-    ///
-    /// # See Also
-    ///
-    /// - [`relu`]: Computes the element-wise Rectified Linear Unit (ReLU).
-    /// - [`mish`]: Computes the element-wise mish activation function of the tensor.
-    /// - [`sigmoid`]: Computes the element-wise sigmoid function of the tensor.
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn gelu(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of gelu.
-    ///
+    /// gelu method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
-    /// - [`gelu`]: Computes the element-wise Gaussian Error Linear Unit (GELU) of the tensor.
+    /// - [`gelu`]: Computes the element-wise Gaussian Error Linear Unit (GELU).
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn gelu_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Computes the element-wise Scaled Exponential Linear Unit (SELU) of the tensor.
+    /// Computes the element-wise Scaled Exponential Linear Unit (SELU) activation function.
     ///
-    /// The `selu` function applies the SELU activation function to each element in the tensor, defined as:
-    /// - `scale * x` if `x > 0`
-    /// - `scale * alpha * (exp(x) - 1)` if `x <= 0`
+    /// This function applies the SELU activation function with optional `alpha` and `gamma` parameters.
+    /// By default, SELU uses specific values for `alpha` and `gamma`:
+    ///
+    /// selu(x) = gamma * (x if x > 0 else alpha * (e<sup>x</sup> - 1))
+    ///
+    /// # Arguments
+    ///
+    /// * `alpha` - The scaling parameter for negative inputs. Defaults to a specific constant value if `None`.
+    /// * `gamma` - The scaling parameter for all inputs. Defaults to a specific constant value if `None`.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where the SELU activation function has been applied to each element.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: SELU is computed for each element individually.
-    /// - **Parameters**: `scale` and `alpha` are predefined constants for SELU activation.
-    ///
-    /// # See Also
-    ///
-    /// - [`celu`]: Computes the element-wise Continuously Differentiable Exponential Linear Unit (CELU).
-    /// - [`elu`]: Computes the element-wise Exponential Linear Unit (ELU).
-    /// - [`relu`]: Computes the element-wise Rectified Linear Unit (ReLU).
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn selu(
         &self,
@@ -886,11 +743,9 @@ pub trait FloatUaryOps {
         gamma: Option<Self::OutputMeta>,
     ) -> Result<Self::Output>;
 
-    /// Inplace Version of selu.
-    ///
+    /// selu method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
-    /// - [`selu`]: Computes the element-wise Scaled Exponential Linear Unit (SELU) of the tensor.
+    /// - [`selu`]: Computes the element-wise Scaled Exponential Linear Unit (SELU).
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn selu_<U>(
         &self,
@@ -901,189 +756,169 @@ pub trait FloatUaryOps {
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Computes the element-wise hard sigmoid of the tensor.
+    /// Computes the element-wise Hard Sigmoid activation function.
     ///
-    /// The `hard_sigmoid` function applies a piecewise linear approximation of the sigmoid function to each element in the tensor:
-    /// - `0` if `x < -2.5`
-    /// - `1` if `x > 2.5`
-    /// - `0.2 * x + 0.5` otherwise
+    /// The Hard Sigmoid function is an efficient approximation of the sigmoid function:
+    ///
+    /// `hard_sigmoid(x) = max(0, min(1, 0.2 * x + 0.5))`
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where the Hard Sigmoid activation function has been applied to each element.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: Hard sigmoid is computed for each element individually.
-    ///
-    /// # See Also
-    ///
-    /// - [`sigmoid`]: Computes the element-wise sigmoid function of the tensor.
-    /// - [`hard_swish`]: Computes the element-wise hard swish activation function of the tensor.
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn hard_sigmoid(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of hard_sigmoid.
-    ///
+    /// hard_sigmoid method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
-    /// - [`hard_sigmoid`]: Computes the element-wise hard sigmoid of the tensor.
+    /// - [`hard_sigmoid`]: Computes the element-wise Hard Sigmoid.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn hard_sigmoid_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Computes the element-wise hard swish of the tensor.
+    /// Computes the element-wise Hard Swish activation function.
     ///
-    /// The `hard_swish` function applies a piecewise approximation of the swish activation function to each element in the tensor:
-    /// - `x * (0.2 * x + 0.5)` if `-2.5 <= x <= 2.5`
-    /// - `0` if `x < -2.5`
-    /// - `x` if `x > 2.5`
+    /// The Hard Swish function is an approximation of the Swish activation function:
+    ///
+    /// `hard_swish(x) = x * max(0, min(1, 0.2 * x + 0.5))`
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where the Hard Swish activation function has been applied to each element.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: Hard swish is computed for each element individually.
-    ///
-    /// # See Also
-    ///
-    /// - [`swish`]: Computes the element-wise swish activation function.
-    /// - [`relu`]: Computes the element-wise Rectified Linear Unit (ReLU).
-    /// - [`hard_sigmoid`]: Computes the element-wise hard sigmoid of the tensor.
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn hard_swish(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of hard_swish.
-    ///
+    /// hard_swish method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
-    /// - [`hard_swish`]: Computes the element-wise hard swish activation function of the tensor.
+    /// - [`hard_swish`]: Computes the element-wise Hard Swish.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn hard_swish_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
-    /// Computes the element-wise ReLU6 activation function of the tensor.
+
+    /// Computes the element-wise Rectified Linear Unit 6 (ReLU6) activation function.
     ///
-    /// The `relu6` function applies the ReLU6 activation function, which is a modified ReLU capped at 6:
-    /// - `min(max(0, x), 6)`
+    /// The ReLU6 function is a variant of the ReLU function, defined as:
+    ///
+    /// `relu6(x) = min(max(0, x), 6)`
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where the ReLU6 activation function has been applied to each element.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: ReLU6 is computed for each element individually.
-    ///
-    /// # See Also
-    ///
-    /// - [`relu`]: Computes the element-wise Rectified Linear Unit (ReLU).
-    /// - [`leaky_relu`]: Computes the element-wise Leaky Rectified Linear Unit (Leaky ReLU).
-    /// - [`relu6`]: Computes the element-wise ReLU6 activation.
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn relu6(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of relu6.
-    ///
+    /// relu6 method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
-    /// - [`relu6`]: Computes the element-wise ReLU6 activation function of the tensor.
+    /// - [`relu6`]: Computes the element-wise Rectified Linear Unit 6 (ReLU6).
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn relu6_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Computes the element-wise softplus of the tensor.
+    /// Computes the element-wise Softplus activation function.
     ///
-    /// The `softplus` function applies the softplus activation function to each element in the tensor, defined as:
-    /// `log(1 + exp(x))`
+    /// The Softplus function is defined as:
+    ///
+    /// softplus(x) = ln(1 + e<sup>x</sup>)
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where the Softplus activation function has been applied to each element.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: Softplus is computed for each element individually.
-    ///
-    /// # See Also
-    ///
-    /// - [`softsign`]: Computes the element-wise softsign activation function of the tensor.
-    /// - [`relu`]: Computes the element-wise Rectified Linear Unit (ReLU).
-    /// - [`sigmoid`]: Computes the element-wise sigmoid function of the tensor.
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn softplus(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of softplus.
-    ///
+    /// Softplus method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`softplus`]: Computes the element-wise softplus of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn softplus_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Computes the element-wise softsign of the tensor.
+    /// Computes the element-wise Softsign activation function.
     ///
-    /// The `softsign` function applies the softsign activation function to each element in the tensor, defined as:
-    /// `x / (1 + |x|)`
+    /// The Softsign function is defined as:
+    ///
+    /// `softsign(x) = x / (1 + |x|)`
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where the Softsign activation function has been applied to each element.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: Softsign is computed for each element individually.
-    ///
-    /// # See Also
-    ///
-    /// - [`softplus`]: Computes the element-wise softplus activation function of the tensor.
-    /// - [`sigmoid`]: Computes the element-wise sigmoid function of the tensor.
-    /// - [`tanh`]: Computes the element-wise hyperbolic tangent of the tensor.
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn softsign(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of softsign.
-    ///
+    /// softsign method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`softsign`]: Computes the element-wise softsign of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn softsign_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Computes the element-wise mish activation function of the tensor.
+    /// Computes the element-wise Mish activation function.
     ///
-    /// The `mish` function applies the mish activation function to each element in the tensor, defined as:
-    /// `x * tanh(softplus(x))`
+    /// The Mish function is defined as:
+    ///
+    /// mish(x) = x * tanh(softplus(x)) = x * tanh(ln(1 + e<sup>x</sup>))
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where the Mish activation function has been applied to each element.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: Mish is computed for each element individually.
-    ///
-    /// # See Also
-    ///
-    /// - [`swish`]: Computes the element-wise swish activation function.
-    /// - [`relu`]: Computes the element-wise Rectified Linear Unit (ReLU).
-    /// - [`gelu`]: Computes the element-wise Gaussian Error Linear Unit (GELU).
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn mish(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of mish.
-    ///
+    /// mish method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
-    /// - [`mish`]: Computes the element-wise mish activation function of the tensor.
+    /// - [`mish`]: Computes the element-wise Mish of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn mish_<U>(&self, out: U) -> Result<Self::Output>
     where

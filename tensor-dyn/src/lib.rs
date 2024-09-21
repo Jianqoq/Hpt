@@ -103,6 +103,15 @@ pub mod tensor;
 pub mod tensor_base;
 /// a module that contains the implementation of the `Into` trait for the `_Tensor` struct.
 pub mod to_tensor;
+
+/// a module that contains all the exposed functions for normal tensor (we may have diff tensor (differentiable tensor) in the future)
+pub mod tensor_expose {
+    /// a module that contains all the shape manipulation functions
+    pub mod shape_manipulate;
+    /// a module that contains all the unary operations that has floating type output
+    pub mod float_out_unary;
+}
+
 use ctor::ctor;
 pub use tensor_iterator::iterator_traits::*;
 pub use tensor_macros::match_selection;
@@ -177,6 +186,6 @@ type BoolVector = tensor_types::_512bit::boolx64::boolx64;
     all(not(target_feature = "avx2"), target_feature = "sse"),
     target_arch = "arm",
     target_arch = "aarch64",
-    target_feature = "neon"
+    target_feature = "neon",
 ))]
 type BoolVector = tensor_types::_128bit::boolx16::boolx16;

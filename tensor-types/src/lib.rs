@@ -18,9 +18,11 @@ pub mod type_promote;
 /// A module defines a set of vector types
 pub mod vectors {
     /// A module defines a set of 128-bit vector types
-    #[cfg(all(
-        any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
-        not(target_feature = "avx2")
+    #[cfg(any(
+        all(not(target_feature = "avx2"), target_feature = "sse"),
+        target_arch = "arm",
+        target_arch = "aarch64",
+        target_feature = "neon"
     ))]
     pub mod _128bit {
         /// A module defines a set of 128-bit vector types for bf16
