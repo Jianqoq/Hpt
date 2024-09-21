@@ -1,5 +1,6 @@
 #![allow(unused)]
 use rayon::iter::{ IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator };
+use serial_test::serial;
 use tensor_dyn::{ set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo };
 use tensor_dyn::ops::cpu::conv_config::{ Conv2dConfig, KernelParamAlgo };
 use tensor_dyn::{ tensor_base::_Tensor, TensorCreator };
@@ -67,6 +68,7 @@ fn assert_eq(
 }
 
 #[test]
+#[serial]
 fn test_case0() -> anyhow::Result<()> {
     let kernel = [3, 3];
     let (a, tch_a) = common_input([1, 128, 3, 3, 64, 64])?;
@@ -91,6 +93,7 @@ fn test_case0() -> anyhow::Result<()> {
 }
 
 #[test]
+#[serial]
 fn test_case1() -> anyhow::Result<()> {
     let kernel = [4, 4];
     let (a, tch_a) = common_input([1, 128, 3, 3, 130, 130])?;
@@ -108,6 +111,7 @@ fn test_case1() -> anyhow::Result<()> {
 }
 
 #[test]
+#[serial]
 fn test_case2() -> anyhow::Result<()> {
     let kernel = [3, 3];
     let (a, tch_a) = common_input([1, 128, 3, 3, 128, 128])?;
@@ -125,6 +129,7 @@ fn test_case2() -> anyhow::Result<()> {
 }
 
 #[test]
+#[serial]
 fn test_case3() -> anyhow::Result<()> {
     let kernel = [3, 3];
     let (a, tch_a) = common_input([1, 130, 3, 3, 130, 130])?;
@@ -142,6 +147,7 @@ fn test_case3() -> anyhow::Result<()> {
 }
 
 #[test]
+#[serial]
 fn test_case4() -> anyhow::Result<()> {
     let kernel = [3, 3];
     let (a, tch_a) = common_input([1, 128, 3, 3, 128, 128])?;
@@ -159,6 +165,7 @@ fn test_case4() -> anyhow::Result<()> {
 }
 
 #[test]
+#[serial]
 fn test_case5() -> anyhow::Result<()> {
     let kernel = [3, 3];
     let (a, tch_a) = common_input([1, 128, 3, 3, 127, 127])?;
@@ -176,6 +183,7 @@ fn test_case5() -> anyhow::Result<()> {
 }
 
 #[test]
+#[serial]
 fn test_case6() -> anyhow::Result<()> {
     let kernel = [3, 3];
     let (a, tch_a) = common_input([1, 130, 3, 3, 130, 130])?;
@@ -193,6 +201,7 @@ fn test_case6() -> anyhow::Result<()> {
 }
 
 #[test]
+#[serial]
 fn test_case7() -> anyhow::Result<()> {
     let kernel = [3, 3];
     let (a, tch_a) = common_input([1, 130, 3, 3, 128, 128])?;

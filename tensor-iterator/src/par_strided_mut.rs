@@ -1,6 +1,5 @@
 use crate::{
-    iterator_traits::{
-        Bases, IterGetSet, ParStridedHelper, ParStridedIteratorZip, ShapeManipulator,
+    iterator_traits::{ IterGetSet, ParStridedHelper, ParStridedIteratorZip, ShapeManipulator,
     },
     par_strided::ParStrided,
     shape_manipulate::{par_expand, par_reshape, par_transpose},
@@ -317,13 +316,6 @@ impl<'a, T: CommonBounds> ShapeManipulator for ParStridedMut<'a, T> {
 }
 
 impl<'a, T: CommonBounds> ParStridedIteratorZip for ParStridedMut<'a, T> {}
-impl<'a, T: CommonBounds> Bases for ParStridedMut<'a, T> {
-    type LHS = ParStrided<T>;
-
-    fn base(&self) -> &Self::LHS {
-        &self.base
-    }
-}
 
 impl<'a, T: CommonBounds> ParStridedMut<'a, T> {
     /// Creates a new `ParStridedMut` instance from a given tensor.
@@ -435,5 +427,21 @@ where
                 .as_mut()
                 .unwrap()
         }
+    }
+    
+    fn strides(&self) -> &tensor_common::strides::Strides {
+        self.base.strides()
+    }
+    
+    fn shape(&self) -> &Shape {
+        self.base.shape()
+    }
+    
+    fn outer_loop_size(&self) -> usize {
+        self.base.outer_loop_size()
+    }
+    
+    fn inner_loop_size(&self) -> usize {
+        self.base.inner_loop_size()
     }
 }

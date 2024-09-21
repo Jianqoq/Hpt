@@ -1,12 +1,13 @@
 #![allow(unused)]
+use serial_test::serial;
 use tch::Tensor;
 use tensor_common::slice;
 use tensor_common::slice::Slice;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::ShapeManipulate;
+use tensor_dyn::TensorLike;
 use tensor_dyn::{TensorCreator, TensorInfo};
 use tensor_macros::match_selection;
-use tensor_dyn::TensorLike;
 
 #[allow(unused)]
 fn assert_eq(b: &_Tensor<i32>, a: &Tensor) {
@@ -31,6 +32,7 @@ fn assert_eq(b: &_Tensor<i32>, a: &Tensor) {
 }
 
 #[test]
+#[serial]
 fn test_slice() -> anyhow::Result<()> {
     let tch_a = Tensor::arange(100, (tch::Kind::Int, tch::Device::Cpu)).reshape(&[10, 10]);
     let a = _Tensor::<i32>::arange(0, 100)?.reshape(&[10, 10])?;
@@ -45,6 +47,7 @@ fn test_slice() -> anyhow::Result<()> {
 }
 
 #[test]
+#[serial]
 fn test_uncontinuous_slice() -> anyhow::Result<()> {
     let tch_a = Tensor::arange(100, (tch::Kind::Int, tch::Device::Cpu)).reshape(&[10, 10]);
     let a = _Tensor::<i32>::arange(0, 100)?.reshape(&[10, 10])?;

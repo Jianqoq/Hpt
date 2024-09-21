@@ -16,16 +16,8 @@ use crate::{
     strided_zip::{strided_zip_simd::StridedZipSimd, StridedZip},
 };
 
-/// A trait for getting base iterator, for iterator has two bases, return the first one.
-pub trait Bases {
-    /// The type of the first base iterator.
-    type LHS: IterGetSet;
-    /// get the first base iterator
-    fn base(&self) -> &Self::LHS;
-}
-
 /// A trait for getting and setting values from an iterator.
-pub trait IterGetSet: Bases {
+pub trait IterGetSet {
     /// The type of the iterator's elements.
     type Item;
     /// set the end index of the iterator, this is used when rayon perform data splitting
@@ -41,23 +33,15 @@ pub trait IterGetSet: Bases {
     /// get the intervals of the iterator
     fn intervals(&self) -> &Arc<Vec<(usize, usize)>>;
     /// get the strides of the iterator
-    fn strides(&self) -> &Strides {
-        self.base().strides()
-    }
+    fn strides(&self) -> &Strides;
     /// get the shape of the iterator
-    fn shape(&self) -> &Shape {
-        self.base().shape()
-    }
+    fn shape(&self) -> &Shape;
     /// set the strides for all the iterators
     fn broadcast_set_strides(&mut self, shape: &Shape);
     /// get the outer loop size
-    fn outer_loop_size(&self) -> usize {
-        self.base().outer_loop_size()
-    }
+    fn outer_loop_size(&self) -> usize;
     /// get the inner loop size
-    fn inner_loop_size(&self) -> usize {
-        self.base().inner_loop_size()
-    }
+    fn inner_loop_size(&self) -> usize;
     /// update the loop progress
     fn next(&mut self);
     /// get the next element of the inner loop

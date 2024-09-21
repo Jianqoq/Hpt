@@ -7,7 +7,7 @@ use tensor_common::{shape::Shape, strides::Strides};
 use tensor_traits::tensor::CommonBounds;
 
 use crate::{
-    iterator_traits::{Bases, IterGetSet, ParStridedIteratorZip},
+    iterator_traits::{IterGetSet, ParStridedIteratorZip},
     par_strided_map::ParStridedMap,
 };
 
@@ -350,18 +350,6 @@ pub struct ParStridedZip<'a, A: 'a, B: 'a> {
     pub(crate) phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl<'a, A, B> Bases for ParStridedZip<'a, A, B>
-where
-    A: IterGetSet,
-    B: IterGetSet,
-{
-    type LHS = A;
-
-    fn base(&self) -> &Self::LHS {
-        &self.a
-    }
-}
-
 impl<'a, A, B> IterGetSet for ParStridedZip<'a, A, B>
 where
     A: IterGetSet,
@@ -410,6 +398,22 @@ where
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         (self.a.inner_loop_next(index), self.b.inner_loop_next(index))
+    }
+
+    fn strides(&self) -> &Strides {
+        self.a.strides()
+    }
+
+    fn shape(&self) -> &Shape {
+        self.a.shape()
+    }
+
+    fn outer_loop_size(&self) -> usize {
+        self.a.outer_loop_size()
+    }
+
+    fn inner_loop_size(&self) -> usize {
+        self.a.inner_loop_size()
     }
 }
 

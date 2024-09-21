@@ -1,5 +1,5 @@
 use crate::{
-    iterator_traits::{Bases, IterGetSet, StridedIterator, StridedIteratorZip},
+    iterator_traits::{IterGetSet, StridedIterator, StridedIteratorZip},
     strided::Strided,
     strided_zip::StridedZip,
 };
@@ -211,14 +211,6 @@ impl<'a, T: CommonBounds> StridedMut<'a, T> {
     }
 }
 
-impl<'a, T: CommonBounds> Bases for StridedMut<'a, T> {
-    type LHS = Strided<T>;
-
-    fn base(&self) -> &Self::LHS {
-        &self.base
-    }
-}
-
 impl<'a, T: CommonBounds> StridedIterator for StridedMut<'a, T> {}
 impl<'a, T: CommonBounds> StridedIteratorZip for StridedMut<'a, T> {}
 
@@ -269,5 +261,21 @@ where
                 .as_mut()
                 .unwrap()
         }
+    }
+    
+    fn strides(&self) -> &tensor_common::strides::Strides {
+        self.base.strides()
+    }
+    
+    fn shape(&self) -> &Shape {
+        self.base.shape()
+    }
+    
+    fn outer_loop_size(&self) -> usize {
+        self.base.outer_loop_size()
+    }
+    
+    fn inner_loop_size(&self) -> usize {
+        self.base.inner_loop_size()
     }
 }

@@ -1,16 +1,17 @@
 #![allow(unused_imports)]
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use serial_test::serial;
 use tch::Tensor;
 use tensor_common::slice;
 use tensor_common::slice::Slice;
+use tensor_dyn::FloatUaryOps;
+use tensor_dyn::Neg;
+use tensor_dyn::NormalUaryOps;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorInfo;
+use tensor_dyn::TensorLike;
 use tensor_dyn::{tensor_base::_Tensor, TensorCreator};
 use tensor_macros::match_selection;
-use tensor_dyn::FloatUaryOps;
-use tensor_dyn::NormalUaryOps;
-use tensor_dyn::Neg;
-use tensor_dyn::TensorLike;
 
 #[allow(unused)]
 fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
@@ -55,7 +56,7 @@ macro_rules! test_unarys {
         $hpt_method:ident($($hpt_args:expr),*)
     ) => {
         paste::paste! {
-            #[test]
+            #[test]#[serial]
             fn [<test _ $name>]() -> anyhow::Result<()> {
                 let tch_a = tch::Tensor::randn($shapes, (tch::Kind::Double, tch::Device::Cpu));
                 let mut a = _Tensor::<f64>::empty($shapes)?;
@@ -132,12 +133,12 @@ test_unarys!(
 test_unarys!(hard_swish, [1000], assert_eq, hardswish(), hard_swish());
 
 #[test]
+#[serial]
 fn test_sub_tensor_sin() -> anyhow::Result<()> {
     let a = _Tensor::<f64>::arange(0, 100)?.reshape([10, 10])?;
     let slice = slice!(a[3:8, 3:8])?;
     let b = slice.sin()?;
-    let tch_a =
-        Tensor::arange(100, (tch::Kind::Double, tch::Device::Cpu)).reshape(&[10, 10][..]);
+    let tch_a = Tensor::arange(100, (tch::Kind::Double, tch::Device::Cpu)).reshape(&[10, 10][..]);
     let tch_slice = tch_a.slice(0, 3, 8, 1).slice(1, 3, 8, 1);
     let tch_b = tch_slice.sin();
     assert_eq(&b, &tch_b);
@@ -145,11 +146,11 @@ fn test_sub_tensor_sin() -> anyhow::Result<()> {
 }
 
 #[test]
+#[serial]
 fn test_cast() -> anyhow::Result<()> {
     let a = _Tensor::<f64>::arange(0, 100)?.reshape([10, 10])?;
     let b = a.astype::<bool>()?;
-    let tch_a =
-        Tensor::arange(100, (tch::Kind::Double, tch::Device::Cpu)).reshape(&[10, 10][..]);
+    let tch_a = Tensor::arange(100, (tch::Kind::Double, tch::Device::Cpu)).reshape(&[10, 10][..]);
     let tch_b = tch_a.to_kind(tch::Kind::Bool);
     assert_eq_bool(&b, &tch_b);
     Ok(())

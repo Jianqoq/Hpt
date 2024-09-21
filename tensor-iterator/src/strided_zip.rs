@@ -1,9 +1,7 @@
 use std::sync::Arc;
 use tensor_common::{shape::Shape, strides::Strides};
 
-use crate::iterator_traits::{
-    Bases, IterGetSet, StridedIterator, StridedIteratorMap, StridedIteratorZip,
-};
+use crate::iterator_traits::{IterGetSet, StridedIterator, StridedIteratorMap, StridedIteratorZip};
 
 /// A module for zipped strided simd iterator.
 pub mod strided_zip_simd {
@@ -195,18 +193,6 @@ pub struct StridedZip<'a, A: 'a, B: 'a> {
     pub(crate) phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl<'a, A, B> Bases for StridedZip<'a, A, B>
-where
-    A: IterGetSet,
-    B: IterGetSet,
-{
-    type LHS = A;
-
-    fn base(&self) -> &Self::LHS {
-        &self.a
-    }
-}
-
 impl<'a, A, B> IterGetSet for StridedZip<'a, A, B>
 where
     A: IterGetSet,
@@ -253,6 +239,22 @@ where
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         (self.a.inner_loop_next(index), self.b.inner_loop_next(index))
+    }
+    
+    fn strides(&self) -> &Strides {
+        self.a.strides()
+    }
+    
+    fn shape(&self) -> &Shape {
+        self.a.shape()
+    }
+    
+    fn outer_loop_size(&self) -> usize {
+        self.a.outer_loop_size()
+    }
+    
+    fn inner_loop_size(&self) -> usize {
+        self.a.inner_loop_size()
     }
 }
 

@@ -1,7 +1,5 @@
 use crate::{
-    iterator_traits::{
-        Bases, IterGetSet, ParStridedHelper, ParStridedIteratorZip, ShapeManipulator,
-    },
+    iterator_traits::{IterGetSet, ParStridedHelper, ParStridedIteratorZip, ShapeManipulator},
     par_strided_fold::ParStridedFold,
     par_strided_map::ParStridedMap,
     shape_manipulate::{par_expand, par_reshape, par_transpose},
@@ -394,13 +392,6 @@ pub struct ParStrided<T> {
     pub(crate) last_stride: i64,
 }
 
-impl<T: CommonBounds> Bases for ParStrided<T> {
-    type LHS = ParStrided<T>;
-    fn base(&self) -> &Self::LHS {
-        self
-    }
-}
-
 impl<T: CommonBounds> ParStrided<T> {
     /// Retrieves the shape of the tensor.
     ///
@@ -562,6 +553,22 @@ impl<T: CommonBounds> IterGetSet for ParStrided<T> {
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         unsafe { *self.ptr.get_ptr().add(index * (self.last_stride as usize)) }
+    }
+    
+    fn strides(&self) -> &Strides {
+        self.layout.strides()
+    }
+    
+    fn shape(&self) -> &Shape {
+        self.layout.shape()
+    }
+    
+    fn outer_loop_size(&self) -> usize {
+        self.intervals[self.start_index].1 - self.intervals[self.start_index].0
+    }
+
+    fn inner_loop_size(&self) -> usize {
+        self.shape().last().unwrap().clone() as usize
     }
 }
 

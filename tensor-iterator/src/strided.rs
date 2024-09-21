@@ -1,6 +1,6 @@
 use crate::{
     iterator_traits::{
-        Bases, IterGetSet, ShapeManipulator, StridedHelper, StridedIterator, StridedIteratorMap,
+        IterGetSet, ShapeManipulator, StridedHelper, StridedIterator, StridedIteratorMap,
         StridedIteratorZip,
     },
     shape_manipulate::{expand, reshape, transpose},
@@ -271,13 +271,6 @@ impl<T: CommonBounds> Strided<T> {
 
 impl<T> StridedIteratorMap for Strided<T> {}
 impl<T> StridedIteratorZip for Strided<T> {}
-impl<T: CommonBounds> Bases for Strided<T> {
-    type LHS = Self;
-
-    fn base(&self) -> &Self::LHS {
-        self
-    }
-}
 
 impl<T: CommonBounds> IterGetSet for Strided<T> {
     type Item = T;
@@ -335,6 +328,14 @@ impl<T: CommonBounds> IterGetSet for Strided<T> {
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         unsafe { *self.ptr.get_ptr().add(index * (self.last_stride as usize)) }
+    }
+
+    fn strides(&self) -> &Strides {
+        self.layout.strides()
+    }
+
+    fn shape(&self) -> &Shape {
+        self.layout.shape()
     }
 }
 

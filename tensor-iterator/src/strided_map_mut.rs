@@ -4,7 +4,7 @@ use tensor_traits::tensor::{CommonBounds, TensorInfo};
 use tensor_types::dtype::TypeCommon;
 
 use crate::{
-    iterator_traits::{Bases, IterGetSet, StridedIterator},
+    iterator_traits::{IterGetSet, StridedIterator},
     par_strided_mut::ParStridedMut,
     strided_zip::StridedZip,
 };
@@ -208,17 +208,6 @@ where
         <C as IterGetSet>::Item: Send,
     {
         StridedZip::new(self, other)
-    }
-}
-
-impl<'a, T> Bases for StridedMapMut<'a, T>
-where
-    T: 'a + CommonBounds,
-{
-    type LHS = ParStridedMut<'a, T>;
-
-    fn base(&self) -> &Self::LHS {
-        &self.base
     }
 }
 
