@@ -1,5 +1,5 @@
 use crate::{tensor::Tensor, tensor_base::_Tensor};
-use tensor_iterator::TensorIterator;
+use tensor_iterator::{iterator_traits::ParStridedIteratorZip, TensorIterator};
 use tensor_traits::{CommonBounds, NormalReduce};
 use tensor_types::{
     convertion::Convertor,

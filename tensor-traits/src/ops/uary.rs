@@ -937,26 +937,28 @@ where
     /// The output type of the unary operation.
     type OutputMeta;
 
-    /// Applies the element-wise floor function to the tensor.
+    /// Computes the element-wise floor of the tensor.
     ///
-    /// The `floor` function returns a new tensor where each element is the largest integer less than or equal to the corresponding element in the input tensor.
+    /// This function rounds each element in the tensor down to the nearest integer, returning a new tensor
+    /// where each element is the largest integer less than or equal to the corresponding element in the original tensor.
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `Result<Self::Output>`: A tensor where each element has been floored.
+    /// * A new tensor where each element is the floor of the corresponding element in the original tensor.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`ceil`]: Applies the element-wise ceiling function to the tensor.
-    /// - [`round`]: Rounds each element to the nearest integer.
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn floor(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of floor.
-    ///
+    /// Floor method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
-    /// - [`floor`]: Applies the element-wise floor function to the tensor.
+    /// - [`floor`]: Computes the element-wise floor of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn floor_<U>(&self, out: U) -> Result<Self::Output>
     where
@@ -964,28 +966,26 @@ where
 
     /// Computes the element-wise square of the tensor.
     ///
-    /// The `square` function squares each element in the tensor, returning a new tensor
-    /// containing the results.
+    /// This function returns a new tensor where each element is the square of the corresponding element in the original tensor:
+    ///
+    /// `square(x) = x^2`
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where each element is squared.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: The square is computed for each element individually.
-    ///
-    /// # See Also
-    ///
-    /// - [`sqrt`]: Computes the element-wise square root of the tensor.
-    /// - [`pow`]: Raises each element of the tensor to a specified power.
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn square(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of square.
-    ///
+    /// Square method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`square`]: Computes the element-wise square of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn square_<U>(&self, out: U) -> Result<Self::Output>
@@ -994,124 +994,111 @@ where
 
     /// Computes the element-wise absolute value of the tensor.
     ///
-    /// The `abs` function returns the absolute value of each element in the tensor, returning a new tensor
-    /// containing the results.
+    /// This function returns a new tensor where each element is the absolute value of the corresponding element in the original tensor:
+    ///
+    /// `abs(x) = |x|`
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where each element is the absolute value of the corresponding element in the original tensor.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: The absolute value is computed for each element individually.
-    ///
-    /// # See Also
-    ///
-    /// - [`sign`]: Computes the element-wise sign of the tensor.
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn abs(&self) -> Result<Self>;
 
-    /// Inplace Version of abs.
-    ///
+    /// abs method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`abs`]: Computes the element-wise absolute value of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn abs_<U>(&self, out: U) -> Result<Self>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Computes the element-wise ceiling (rounding up) of the tensor.
+    /// Computes the element-wise ceiling of the tensor.
     ///
-    /// The `ceil` function rounds each element in the tensor up to the nearest integer, returning a new tensor
-    /// containing the results.
+    /// This function rounds each element in the tensor up to the nearest integer, returning a new tensor
+    /// where each element is the smallest integer greater than or equal to the corresponding element in the original tensor.
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where each element is the ceiling of the corresponding element in the original tensor.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: The ceiling is computed for each element individually.
-    ///
-    /// # See Also
-    ///
-    /// - [`floor`]: Computes the element-wise floor (rounding down) of the tensor.
-    /// - [`round`]: Rounds each element in the tensor to the nearest integer.
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn ceil(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of ceil.
-    ///
+    /// Ceil method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
-    /// - [`ceil`]: Computes the element-wise ceiling (rounding up) of the tensor.
+    /// - [`ceil`]: Computes the element-wise ceiling of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn ceil_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
+
     /// Computes the element-wise sign of the tensor.
     ///
-    /// The `sign` function returns the sign of each element in the tensor:
-    /// - `1` if the element is positive
-    /// - `-1` if the element is negative
-    /// - `0` if the element is zero
+    /// This function returns a new tensor where each element represents the sign of the corresponding element in the original tensor:
+    ///
+    /// * `1` for positive values
+    /// * `0` for zero
+    /// * `-1` for negative values
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where each element is the sign of the corresponding element in the original tensor.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: The sign is computed for each element individually.
-    ///
-    /// # See Also
-    ///
-    /// - [`abs`]: Computes the element-wise absolute value of the tensor.
-    /// - [`neg`]: Negates each element in the tensor.
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sign(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of sign.
-    ///
+    /// sign method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
     /// - [`sign`]: Computes the element-wise sign of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sign_<U>(&self, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Clips (limits) the values of the tensor to a specified range.
+    /// Clips (limits) the values of the tensor between the specified `min` and `max`.
     ///
-    /// The `clip` function limits each element in the tensor to lie within the specified range [`min`, `max`].
-    /// Any values lower than `min` are replaced by `min`, and any values higher than `max` are replaced by `max`.
+    /// This function returns a new tensor where each element is clipped to be within the range `[min, max]`. If an element is less than `min`, it is set to `min`. If it is greater than `max`, it is set to `max`.
     ///
-    /// # Parameters
+    /// # Arguments
     ///
-    /// - `min`: The lower bound of the range.
-    /// - `max`: The upper bound of the range.
+    /// * `min` - The minimum allowed value for each element.
+    /// * `max` - The maximum allowed value for each element.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where each element is clipped to the specified range.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: Clipping is applied to each element individually.
-    ///
-    /// # See Also
-    ///
-    /// - [`max`]: Returns the element-wise maximum of two tensors.
-    /// - [`min`]: Returns the element-wise minimum of two tensors.
+    /// * This function will panic if `min` is greater than `max`.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn clip(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> Result<Self::Output>;
 
-    /// Inplace Version of clip.
-    ///
+    /// clip method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
-    /// - [`clip`]: Clips (limits) the values of the tensor to a specified range.
+    /// - [`clip`]: Clips (limits) the values of the tensor between the specified `min` and `max`.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn clip_<U>(
         &self,
@@ -1122,31 +1109,28 @@ where
     where
         U: Borrow<Self::InplaceOutput>;
 
-    /// Rounds each element in the tensor to the nearest integer.
+    /// Computes the element-wise rounding of the tensor.
     ///
-    /// The `round` function rounds each element in the tensor to the nearest integer, returning a new tensor
-    /// containing the results. If the element is halfway between two integers, it rounds away from zero.
+    /// This function rounds each element in the tensor to the nearest integer, returning a new tensor
+    /// where each element is the nearest integer to the corresponding element in the original tensor.
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<_Tensor<FloatUnaryType<T>>>`: A floating type based on type promote system.
+    /// * A new tensor where each element is rounded to the nearest integer.
     ///
-    /// # Notes
+    /// # Panics
     ///
-    /// - **Element-wise Operation**: Rounding is computed for each element individually.
-    ///
-    /// # See Also
-    ///
-    /// - [`ceil`]: Rounds each element in the tensor up to the nearest integer.
-    /// - [`floor`]: Rounds each element in the tensor down to the nearest integer.
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn round(&self) -> Result<Self::Output>;
 
-    /// Inplace Version of round.
-    ///
+    /// round method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    ///
-    /// - [`round`]: Rounds each element in the tensor to the nearest integer.
+    /// - [`round`]: Computes the element-wise rounding of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn round_<U>(&self, out: U) -> Result<Self::Output>
     where

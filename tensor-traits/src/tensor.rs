@@ -96,109 +96,113 @@ pub trait TensorCreator<T, Output = Self>
 where
     Self: Sized,
 {
-    /// Creates an uninitialized tensor with the specified shape.
+    /// Creates a tensor with uninitialized elements of the specified shape.
     ///
-    /// The `empty` function creates a tensor with the specified shape without initializing its elements.
-    /// The values in the tensor will be undefined.
+    /// This function allocates memory for a tensor of the given shape, but the values are uninitialized, meaning they may contain random data.
     ///
-    /// # Parameters
+    /// # Arguments
     ///
-    /// - `shape`: The shape of the tensor to create. It can be a fixed-size array or a vector representing the dimensions.
+    /// * `shape` - The desired shape of the tensor. The type `S` must implement `Into<Shape>`.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<Output>`: A new tensor with the specified shape and undefined values.
+    /// * A tensor with the specified shape, but with uninitialized data.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`zeros`]: Creates a tensor filled with zeros.
-    /// - [`ones`]: Creates a tensor filled with ones.
+    /// * This function may panic if the requested shape is invalid or too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Output>;
 
-    /// Creates a tensor filled with zeros, with the specified shape.
+    /// Creates a tensor filled with zeros of the specified shape.
     ///
-    /// The `zeros` function creates a tensor with the specified shape, and all elements are initialized to zero.
+    /// This function returns a tensor where every element is initialized to `0`, with the shape defined by the input.
     ///
-    /// # Parameters
+    /// # Arguments
     ///
-    /// - `shape`: The shape of the tensor to create. It can be a fixed-size array or a vector representing the dimensions.
+    /// * `shape` - The desired shape of the tensor. The type `S` must implement `Into<Shape>`.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<Output>`: A new tensor filled with zeros.
+    /// * A tensor filled with zeros, with the specified shape.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`empty`]: Creates an uninitialized tensor with the specified shape.
-    /// - [`ones`]: Creates a tensor filled with ones.
+    /// * This function may panic if the requested shape is invalid or too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn zeros<S: Into<Shape>>(shape: S) -> anyhow::Result<Output>;
 
-    /// Creates a tensor filled with ones, with the specified shape.
+    /// Creates a tensor filled with ones of the specified shape.
     ///
-    /// The `ones` function creates a tensor with the specified shape, and all elements are initialized to one.
+    /// This function returns a tensor where every element is initialized to `1`, with the shape defined by the input.
     ///
-    /// # Parameters
+    /// # Arguments
     ///
-    /// - `shape`: The shape of the tensor to create. It can be a fixed-size array or a vector representing the dimensions.
+    /// * `shape` - The desired shape of the tensor. The type `S` must implement `Into<Shape>`.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<Output>`: A new tensor filled with ones.
+    /// * A tensor filled with ones, with the specified shape.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`zeros`]: Creates a tensor filled with zeros.
-    /// - [`full`]: Creates a tensor filled with a specific value.
+    /// * This function may panic if the requested shape is invalid or too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn ones<S: Into<Shape>>(shape: S) -> anyhow::Result<Output>
     where
         u8: IntoScalar<T>;
 
-    /// Creates an uninitialized tensor with the same shape as the current tensor.
+    /// Creates a tensor with uninitialized elements, having the same shape as the input tensor.
     ///
-    /// The `empty_like` function creates a tensor with the same shape as the input tensor, but without initializing its elements.
-    /// The values in the tensor will be undefined.
+    /// This function returns a tensor with the same shape as the calling tensor, but with uninitialized data.
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<Output>`: A new tensor with the same shape as the input tensor and undefined values.
+    /// * A tensor with the same shape as the input, but with uninitialized data.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`zeros_like`]: Creates a tensor with the same shape and filled with zeros.
-    /// - [`ones_like`]: Creates a tensor with the same shape and filled with ones.
+    /// * This function may panic if the shape is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn empty_like(&self) -> anyhow::Result<Output>;
 
-    /// Creates a tensor filled with zeros, with the same shape as the current tensor.
+    /// Creates a tensor filled with zeros, having the same shape as the input tensor.
     ///
-    /// The `zeros_like` function creates a tensor with the same shape as the input tensor, and all elements are initialized to zero.
+    /// This function returns a tensor with the same shape as the calling tensor, with all elements initialized to `0`.
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<Output>`: A new tensor filled with zeros and with the same shape as the input tensor.
+    /// * A tensor with the same shape as the input, filled with zeros.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`empty_like`]: Creates an uninitialized tensor with the same shape.
-    /// - [`ones_like`]: Creates a tensor filled with ones and with the same shape.
+    /// * This function may panic if the shape is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn zeros_like(&self) -> anyhow::Result<Output>;
 
-    /// Creates a tensor filled with ones, with the same shape as the current tensor.
+    /// Creates a tensor filled with ones, having the same shape as the input tensor.
     ///
-    /// The `ones_like` function creates a tensor with the same shape as the input tensor, and all elements are initialized to one.
+    /// This function returns a tensor with the same shape as the calling tensor, with all elements initialized to `1`.
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<Output>`: A new tensor filled with ones and with the same shape as the input tensor.
+    /// * A tensor with the same shape as the input, filled with ones.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`zeros_like`]: Creates a tensor filled with zeros and with the same shape.
-    /// - [`full_like`]: Creates a tensor filled with a specific value and with the same shape.
+    /// * This function may panic if the shape is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn ones_like(&self) -> anyhow::Result<Output>
     where
@@ -206,59 +210,57 @@ where
 
     /// Creates a tensor filled with a specified value, with the specified shape.
     ///
-    /// The `full` function creates a tensor with the specified shape, and all elements are initialized to the specified value.
+    /// This function returns a tensor where every element is set to `val`, with the shape defined by the input.
     ///
-    /// # Parameters
+    /// # Arguments
     ///
-    /// - `val`: The value to fill the tensor with.
-    /// - `shape`: The shape of the tensor to create. It can be a fixed-size array or a vector representing the dimensions.
+    /// * `val` - The value to fill the tensor with.
+    /// * `shape` - The desired shape of the tensor. The type `S` must implement `Into<Shape>`.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<Output>`: A new tensor filled with the specified value.
+    /// * A tensor filled with `val`, with the specified shape.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`zeros`]: Creates a tensor filled with zeros.
-    /// - [`ones`]: Creates a tensor filled with ones.
+    /// * This function may panic if the requested shape is invalid or too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn full<S: Into<Shape>>(val: T, shape: S) -> anyhow::Result<Output>;
 
-    /// Creates a tensor filled with a specified value, with the same shape as the current tensor.
+    /// Creates a tensor filled with a specified value, having the same shape as the input tensor.
     ///
-    /// The `full_like` function creates a tensor with the same shape as the input tensor, and all elements are initialized to the specified value.
+    /// This function returns a tensor where every element is set to `val`, with the same shape as the calling tensor.
     ///
-    /// # Parameters
+    /// # Arguments
     ///
-    /// - `val`: The value to fill the tensor with.
+    /// * `val` - The value to fill the tensor with.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<Output>`: A new tensor filled with the specified value and with the same shape as the input tensor.
+    /// * A tensor with the same shape as the input, filled with `val`.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`zeros_like`]: Creates a tensor filled with zeros and with the same shape.
-    /// - [`ones_like`]: Creates a tensor filled with ones and with the same shape.
+    /// * This function may panic if the shape is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn full_like(&self, val: T) -> anyhow::Result<Output>;
 
-    /// Generates a tensor with evenly spaced values between `start` and `end`.
+    /// Creates a tensor with values within a specified range.
     ///
-    /// The `arange` function creates a tensor of values in the range `[start, end)`, with a step size of 1.
+    /// This function generates a 1D tensor with values ranging from `start` (inclusive) to `end` (exclusive).
     ///
-    /// # Parameters
+    /// # Arguments
     ///
-    /// - `start`: The starting value of the range.
-    /// - `end`: The end value of the range (exclusive).
+    /// * `start` - The start of the range.
+    /// * `end` - The end of the range.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<Output>`: A tensor with evenly spaced values between `start` and `end`.
+    /// * A 1D tensor with values ranging from `start` to `end`.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`arange_step`]: Generates a tensor with evenly spaced values between `start` and `end`, with a custom step size.
+    /// * This function will panic if `start` is greater than or equal to `end`, or if the range is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn arange<U>(start: U, end: U) -> anyhow::Result<Output>
     where
@@ -266,69 +268,70 @@ where
         usize: IntoScalar<T>,
         U: Convertor + IntoScalar<T> + Copy;
 
-    /// Generates a tensor with evenly spaced values between `start` and `end`, with a specified step size.
+    /// Creates a tensor with values within a specified range with a given step size.
     ///
-    /// The `arange_step` function creates a tensor of values in the range `[start, end)`, with the specified `step` size.
+    /// This function generates a 1D tensor with values ranging from `start` (inclusive) to `end` (exclusive),
+    /// incremented by `step`.
     ///
-    /// # Parameters
+    /// # Arguments
     ///
-    /// - `start`: The starting value of the range.
-    /// - `end`: The end value of the range (exclusive).
-    /// - `step`: The step size between consecutive values.
+    /// * `start` - The start of the range.
+    /// * `end` - The end of the range (exclusive).
+    /// * `step` - The step size between consecutive values.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<Output>`: A tensor with evenly spaced values between `start` and `end` with the specified step size.
+    /// * A 1D tensor with values from `start` to `end`, incremented by `step`.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`arange`]: Generates a tensor with evenly spaced values with a default step size of 1.
+    /// * This function will panic if `step` is zero or if the range and step values are incompatible.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn arange_step(start: T, end: T, step: T) -> anyhow::Result<Output>
     where
         T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>;
 
-    /// Generates a 2D identity matrix with ones on the diagonal and zeros elsewhere.
+    /// Creates a 2D identity matrix with ones on a diagonal and zeros elsewhere.
     ///
-    /// The `eye` function creates a matrix with `n` rows and `m` columns, with ones on the `k`-th diagonal and zeros elsewhere.
+    /// This function generates a matrix of size `n` by `m`, with ones on the `k`th diagonal (can be offset) and zeros elsewhere.
     ///
-    /// # Parameters
+    /// # Arguments
     ///
-    /// - `n`: The number of rows.
-    /// - `m`: The number of columns.
-    /// - `k`: The index of the diagonal where ones should appear (0 refers to the main diagonal).
+    /// * `n` - The number of rows in the matrix.
+    /// * `m` - The number of columns in the matrix.
+    /// * `k` - The diagonal offset (0 for main diagonal, positive for upper diagonals, negative for lower diagonals).
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<Output>`: A 2D identity matrix.
+    /// * A 2D identity matrix with ones on the specified diagonal.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`identity`]: Generates a square identity matrix of size `n x n`.
+    /// * This function will panic if `n` or `m` is zero, or if memory constraints are exceeded.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn eye(n: usize, m: usize, k: usize) -> anyhow::Result<Output>
     where
         u8: IntoScalar<T>;
 
-    /// Generates a tensor with `num` evenly spaced values between `start` and `end`.
+    /// Creates a tensor with evenly spaced values between `start` and `end`.
     ///
-    /// The `linspace` function creates a tensor of `num` values, evenly spaced between `start` and `end`. Optionally, the end value can be included.
+    /// This function generates a 1D tensor of `num` values, linearly spaced between `start` and `end`.
+    /// If `include_end` is `true`, the `end` value will be included as the last element.
     ///
-    /// # Parameters
+    /// # Arguments
     ///
-    /// - `start`: The starting value of the range.
-    /// - `end`: The end value of the range.
-    /// - `num`: The number of values to generate.
-    /// - `include_end`: Whether to include the `end` value in the result.
+    /// * `start` - The start of the range.
+    /// * `end` - The end of the range.
+    /// * `num` - The number of evenly spaced values to generate.
+    /// * `include_end` - Whether to include the `end` value in the generated tensor.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<Output>`: A tensor with `num` evenly spaced values between `start` and `end`.
+    /// * A 1D tensor with `num` linearly spaced values between `start` and `end`.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`logspace`]: Generates a tensor with logarithmically spaced values.
-    /// - [`geomspace`]: Generates a tensor with geometrically spaced values.
+    /// * This function will panic if `num` is zero or if `num` is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn linspace(start: T, end: T, num: usize, include_end: bool) -> anyhow::Result<Output>
     where
@@ -336,50 +339,50 @@ where
         usize: IntoScalar<T>,
         f64: IntoScalar<T>;
 
-    /// Generates a tensor with `num` logarithmically spaced values between `start` and `end`.
+    /// Creates a tensor with logarithmically spaced values between `start` and `end`.
     ///
-    /// The `logspace` function creates a tensor of `num` values, logarithmically spaced between `start` and `end`. The spacing is based on the specified `base`.
+    /// This function generates a 1D tensor of `num` values spaced evenly on a log scale between `start` and `end`.
+    /// The spacing is based on the logarithm to the given `base`. If `include_end` is `true`, the `end` value will be included.
     ///
-    /// # Parameters
+    /// # Arguments
     ///
-    /// - `start`: The starting value (in logarithmic scale).
-    /// - `end`: The end value (in logarithmic scale).
-    /// - `num`: The number of values to generate.
-    /// - `include_end`: Whether to include the `end` value in the result.
-    /// - `base`: The base of the logarithm used for spacing.
+    /// * `start` - The starting exponent (base `base`).
+    /// * `end` - The ending exponent (base `base`).
+    /// * `num` - The number of logarithmically spaced values to generate.
+    /// * `include_end` - Whether to include the `end` value in the generated tensor.
+    /// * `base` - The base of the logarithm.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<Output>`: A tensor with `num` logarithmically spaced values.
+    /// * A 1D tensor with `num` logarithmically spaced values between `start` and `end`.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`linspace`]: Generates a tensor with evenly spaced values.
-    /// - [`geomspace`]: Generates a tensor with geometrically spaced values.
+    /// * This function will panic if `num` is zero or if `base` is less than or equal to zero.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> anyhow::Result<Output>
     where
         T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64> + NormalOut<T, Output = T>;
 
-    /// Generates a tensor with `n` geometrically spaced values between `start` and `end`.
+    /// Creates a tensor with geometrically spaced values between `start` and `end`.
     ///
-    /// The `geomspace` function creates a tensor of `n` values, geometrically spaced between `start` and `end`.
+    /// This function generates a 1D tensor of `n` values spaced evenly on a geometric scale between `start` and `end`.
+    /// If `include_end` is `true`, the `end` value will be included.
     ///
-    /// # Parameters
+    /// # Arguments
     ///
-    /// - `start`: The starting value of the range.
-    /// - `end`: The end value of the range.
-    /// - `n`: The number of values to generate.
-    /// - `include_end`: Whether to include the `end` value in the result.
+    /// * `start` - The starting value (must be positive).
+    /// * `end` - The ending value (must be positive).
+    /// * `n` - The number of geometrically spaced values to generate.
+    /// * `include_end` - Whether to include the `end` value in the generated tensor.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<Output>`: A tensor with `n` geometrically spaced values between `start` and `end`.
+    /// * A 1D tensor with `n` geometrically spaced values between `start` and `end`.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`linspace`]: Generates a tensor with evenly spaced values.
-    /// - [`logspace`]: Generates a tensor with logarithmically spaced values.
+    /// * This function will panic if `n` is zero, if `start` or `end` is negative, or if the values result in undefined behavior.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> anyhow::Result<Output>
     where
@@ -396,89 +399,86 @@ where
             + CommonBounds,
         <<T as FloatOutUnary>::Output as TypeCommon>::Vec: Send + Sync;
 
-    /// Generates a lower or upper triangular matrix.
+    /// Creates a 2D triangular matrix of size `n` by `m`, with ones below or on the `k`th diagonal and zeros elsewhere.
     ///
-    /// The `tri` function creates a matrix with `n` rows and `m` columns, where elements below or above the `k`-th diagonal are set to zero, depending on the `low_triangle` flag.
+    /// This function generates a matrix with a triangular structure, filled with ones and zeros, based on the diagonal offset and the `low_triangle` flag.
     ///
-    /// # Parameters
+    /// # Arguments
     ///
-    /// - `n`: The number of rows.
-    /// - `m`: The number of columns.
-    /// - `k`: The index of the diagonal where the triangle begins (0 refers to the main diagonal).
-    /// - `low_triangle`: A boolean indicating whether to return the lower or upper triangular matrix.
+    /// * `n` - The number of rows in the matrix.
+    /// * `m` - The number of columns in the matrix.
+    /// * `k` - The diagonal offset (0 for main diagonal, positive for upper diagonals, negative for lower diagonals).
+    /// * `low_triangle` - If `true`, the matrix will be lower triangular; otherwise, upper triangular.
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<Output>`: A lower or upper triangular matrix.
+    /// * A 2D triangular matrix of ones and zeros.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`tril`]: Returns the lower triangular part of a matrix.
-    /// - [`triu`]: Returns the upper triangular part of
+    /// * This function will panic if `n` or `m` is zero.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> anyhow::Result<Output>
     where
         u8: IntoScalar<T>;
 
-    /// Returns the lower triangular part of the tensor, setting elements above the `k`-th diagonal to zero.
+    /// Returns the lower triangular part of the matrix, with all elements above the `k`th diagonal set to zero.
     ///
-    /// The `tril` function extracts the lower triangular part of the tensor, setting elements above the `k`-th diagonal to zero.
+    /// This function generates a tensor where the elements above the specified diagonal are set to zero.
     ///
-    /// # Parameters
+    /// # Arguments
     ///
-    /// - `k`: The index of the diagonal (0 refers to the main diagonal).
+    /// * `k` - The diagonal offset (0 for main diagonal, positive for upper diagonals, negative for lower diagonals).
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<Self>`: A tensor with the upper triangular part zeroed out.
+    /// * A tensor with its upper triangular part set to zero.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`tri`]: Generates a lower or upper triangular matrix.
-    /// - [`triu`]: Returns the upper triangular part of a tensor.
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tril(&self, k: i64) -> anyhow::Result<Self>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
         <T as TypeCommon>::Vec: NormalOut<BoolVector, Output = <T as TypeCommon>::Vec>;
 
-    /// Returns the upper triangular part of the tensor, setting elements below the `k`-th diagonal to zero.
+    /// Returns the upper triangular part of the matrix, with all elements below the `k`th diagonal set to zero.
     ///
-    /// The `triu` function extracts the upper triangular part of the tensor, setting elements below the `k`-th diagonal to zero.
+    /// This function generates a tensor where the elements below the specified diagonal are set to zero.
     ///
-    /// # Parameters
+    /// # Arguments
     ///
-    /// - `k`: The index of the diagonal (0 refers to the main diagonal).
+    /// * `k` - The diagonal offset (0 for main diagonal, positive for upper diagonals, negative for lower diagonals).
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<Self>`: A tensor with the lower triangular part zeroed out.
+    /// * A tensor with its lower triangular part set to zero.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`tri`]: Generates a lower or upper triangular matrix.
-    /// - [`tril`]: Returns the lower triangular part of a tensor.
+    /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn triu(&self, k: i64) -> anyhow::Result<Self>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
         <T as TypeCommon>::Vec: NormalOut<BoolVector, Output = <T as TypeCommon>::Vec>;
 
-    /// Generates a square identity matrix of size `n x n`.
+    /// Creates a 2D identity matrix of size `n` by `n`.
     ///
-    /// The `identity` function creates a matrix with `n` rows and `n` columns, with ones on the main diagonal and zeros elsewhere.
+    /// This function generates a square matrix with ones on the main diagonal and zeros elsewhere.
     ///
-    /// # Parameters
+    /// # Arguments
     ///
-    /// - `n`: The size of the matrix (number of rows and columns).
+    /// * `n` - The size of the matrix (both rows and columns).
     ///
     /// # Returns
     ///
-    /// - `anyhow::Result<Output>`: A square identity matrix.
+    /// * A 2D identity matrix of size `n`.
     ///
-    /// # See Also
+    /// # Panics
     ///
-    /// - [`eye`]: Generates a matrix with ones on a specified diagonal and zeros elsewhere.
+    /// * This function will panic if `n` is zero.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn identity(n: usize) -> anyhow::Result<Output>
     where
@@ -816,7 +816,7 @@ pub trait EvalReduce {
 pub trait NormalEvalReduce<T> {
     /// the output tensor type.
     type Output;
-        /// Computes the sum of the elements along the specified axis, ignoring NaN values.
+    /// Computes the sum of the elements along the specified axis, ignoring NaN values.
     ///
     /// The `nansum` function computes the sum of elements along the specified axis, while ignoring NaN values in the tensor.
     ///
@@ -852,7 +852,7 @@ pub trait NormalEvalReduce<T> {
         keep_dims: bool,
     ) -> anyhow::Result<Self::Output>;
 
-        /// Computes the product of the elements along the specified axis, ignoring NaN values.
+    /// Computes the product of the elements along the specified axis, ignoring NaN values.
     ///
     /// The `nanprod` function computes the product of elements along the specified axis, while ignoring NaN values in the tensor.
     ///

@@ -1,29 +1,21 @@
 use std::{
-    borrow::Borrow,
     fmt::{Debug, Display},
-    ops::{Add, Deref, Div, Mul, Rem, Sub},
+    ops::{Add, Deref, Mul, Rem, Sub},
     sync::{atomic::Ordering, Arc},
 };
 
 use crate::{
     backend::{BackendTy, Buffer, Cpu},
-    ops::cpu::unary::{FloatUnaryType, NormalType},
     tensor_base::_Tensor,
-    BoolVector, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION,
+    DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION,
 };
 use anyhow::Result;
 use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_display::display;
 use tensor_iterator::TensorIterator;
-use tensor_traits::{
-    tensor::{CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike},
-    NormalUaryOps,
-};
+use tensor_traits::tensor::{CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike};
 use tensor_types::{
-    convertion::{Convertor, FromScalar},
-    dtype::TypeCommon,
-    into_scalar::IntoScalar,
-    type_promote::{FloatOutUnary, NormalOut},
+    convertion::Convertor, dtype::TypeCommon, into_scalar::IntoScalar, type_promote::NormalOut,
 };
 
 /// A wrapper of `Tensor` for user.
@@ -255,223 +247,6 @@ impl<T: CommonBounds> Tensor<T> {
         U: Convertor + CommonBounds,
     {
         self.inner.allclose(&other.inner)
-    }
-}
-
-impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
-    fn empty<S: Into<Shape>>(shape: S) -> Result<Self> {
-        Ok(_Tensor::<T, Cpu>::empty(shape)?.into())
-    }
-
-    fn zeros<S: Into<Shape>>(shape: S) -> Result<Self> {
-        Ok(_Tensor::<T, Cpu>::zeros(shape)?.into())
-    }
-
-    fn ones<S: Into<Shape>>(shape: S) -> Result<Self>
-    where
-        u8: IntoScalar<T>,
-    {
-        Ok(_Tensor::<T, Cpu>::ones(shape)?.into())
-    }
-
-    fn empty_like(&self) -> Result<Self> {
-        Ok(_Tensor::empty_like(self)?.into())
-    }
-
-    fn zeros_like(&self) -> Result<Self> {
-        Ok(_Tensor::zeros_like(self)?.into())
-    }
-
-    fn ones_like(&self) -> Result<Self>
-    where
-        u8: IntoScalar<T>,
-    {
-        Ok(_Tensor::ones_like(self)?.into())
-    }
-
-    fn full<S: Into<Shape>>(val: T, shape: S) -> Result<Self> {
-        Ok(_Tensor::<T, Cpu>::full(val, shape)?.into())
-    }
-
-    fn full_like(&self, val: T) -> Result<Self> {
-        Ok(_Tensor::full_like(self, val)?.into())
-    }
-
-    fn arange<U>(start: U, end: U) -> Result<Self>
-    where
-        T: Convertor + FromScalar<U> + NormalOut<T, Output = T>,
-        usize: IntoScalar<T>,
-        U: Convertor + IntoScalar<T> + Copy,
-    {
-        Ok(_Tensor::<T, Cpu>::arange(start, end)?.into())
-    }
-
-    fn arange_step(start: T, end: T, step: T) -> Result<Self>
-    where
-        T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>,
-    {
-        Ok(_Tensor::<T, Cpu>::arange_step(start, end, step)?.into())
-    }
-
-    fn eye(n: usize, m: usize, k: usize) -> Result<Self>
-    where
-        u8: IntoScalar<T>,
-    {
-        Ok(_Tensor::<T, Cpu>::eye(n, m, k)?.into())
-    }
-
-    fn linspace(start: T, end: T, num: usize, include_end: bool) -> Result<Self>
-    where
-        T: Convertor + num::Float + NormalOut<T, Output = T>,
-        usize: IntoScalar<T>,
-        f64: IntoScalar<T>,
-    {
-        Ok(_Tensor::<T, Cpu>::linspace(start, end, num, include_end)?.into())
-    }
-
-    fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> Result<Self>
-    where
-        T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64> + NormalOut<T, Output = T>,
-    {
-        Ok(_Tensor::<T, Cpu>::logspace(start, end, num, include_end, base)?.into())
-    }
-
-    fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self>
-    where
-        T: PartialOrd
-            + FloatOutUnary
-            + NormalOut<T, Output = T>
-            + FromScalar<FloatUnaryType<T>>
-            + std::ops::Neg<Output = T>,
-        FloatUnaryType<T>: Sub<Output = FloatUnaryType<T>>
-            + FromScalar<usize>
-            + FromScalar<f64>
-            + Div<Output = FloatUnaryType<T>>
-            + NormalOut<Output = FloatUnaryType<T>>
-            + CommonBounds,
-    {
-        Ok(_Tensor::<T, Cpu>::geomspace(start, end, n, include_end)?.into())
-    }
-
-    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self>
-    where
-        u8: IntoScalar<T>,
-    {
-        Ok(_Tensor::<T, Cpu>::tri(n, m, k, low_triangle)?.into())
-    }
-
-    fn tril(&self, k: i64) -> Result<Self>
-    where
-        T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
-        <T as TypeCommon>::Vec: NormalOut<BoolVector, Output = <T as TypeCommon>::Vec>,
-    {
-        Ok(_Tensor::tril(self, k)?.into())
-    }
-
-    fn triu(&self, k: i64) -> Result<Self>
-    where
-        T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
-        <T as TypeCommon>::Vec: NormalOut<BoolVector, Output = <T as TypeCommon>::Vec>,
-    {
-        Ok(_Tensor::triu(self, k)?.into())
-    }
-
-    fn identity(n: usize) -> Result<Self>
-    where
-        u8: IntoScalar<T>,
-    {
-        Ok(_Tensor::<T, Cpu>::identity(n)?.into())
-    }
-}
-
-impl<T> NormalUaryOps for Tensor<T>
-where
-    T: NormalOut<Output = T> + CommonBounds + IntoScalar<T>,
-    NormalType<T>: CommonBounds,
-    _Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
-    T::Vec: NormalOut<Output = T::Vec>,
-{
-    type Output = Tensor<NormalType<T>>;
-
-    type InplaceOutput = _Tensor<NormalType<T>>;
-
-    type OutputMeta = NormalType<T>;
-
-    fn floor(&self) -> Result<Self::Output> {
-        Ok(_Tensor::floor(self)?.into())
-    }
-
-    fn floor_<U>(&self, out: U) -> Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
-        Ok(_Tensor::floor_(self, out)?.into())
-    }
-
-    fn square(&self) -> Result<Self::Output> {
-        Ok(_Tensor::square(self)?.into())
-    }
-
-    fn square_<U>(&self, out: U) -> Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
-        Ok(_Tensor::square_(self, out)?.into())
-    }
-
-    fn abs(&self) -> Result<Self> {
-        Ok(_Tensor::abs(self)?.into())
-    }
-
-    fn abs_<U>(&self, out: U) -> Result<Self>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
-        Ok(_Tensor::abs_(self, out)?.into())
-    }
-
-    fn ceil(&self) -> Result<Self::Output> {
-        Ok(_Tensor::ceil(self)?.into())
-    }
-
-    fn ceil_<U>(&self, out: U) -> Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
-        Ok(_Tensor::ceil_(self, out)?.into())
-    }
-
-    fn sign(&self) -> Result<Self::Output> {
-        Ok(_Tensor::sign(self)?.into())
-    }
-
-    fn sign_<U>(&self, out: U) -> Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
-        Ok(_Tensor::sign_(self, out)?.into())
-    }
-
-    fn clip(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> Result<Self::Output> {
-        Ok(_Tensor::clip(self, min, max)?.into())
-    }
-
-    fn clip_<U>(&self, min: Self::OutputMeta, max: Self::OutputMeta, out: U) -> Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
-        Ok(_Tensor::clip_(self, min, max, out)?.into())
-    }
-
-    fn round(&self) -> Result<Self::Output> {
-        Ok(_Tensor::round(self)?.into())
-    }
-
-    fn round_<U>(&self, out: U) -> Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
-        Ok(_Tensor::round_(self, out)?.into())
     }
 }
 

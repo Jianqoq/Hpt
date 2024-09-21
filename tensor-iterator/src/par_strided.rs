@@ -1,22 +1,22 @@
 use crate::{
-    iterator_traits::{IterGetSet, ShapeManipulator},
+    iterator_traits::{
+        Bases, IterGetSet, ParStridedHelper, ParStridedIteratorZip, ShapeManipulator,
+    },
     par_strided_fold::ParStridedFold,
     par_strided_map::ParStridedMap,
-    par_strided_zip::ParStridedZip,
+    shape_manipulate::{par_expand, par_reshape, par_transpose},
 };
 use rayon::iter::{
     plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
     ParallelIterator,
 };
-use std::{panic::Location, sync::Arc};
-use tensor_common::shape_utils::predict_broadcast_shape;
+use std::sync::Arc;
 use tensor_common::{
-    axis::{process_axes, Axis},
-    err_handler::ErrHandler,
+    axis::Axis,
     layout::Layout,
     pointer::Pointer,
     shape::Shape,
-    shape_utils::{get_broadcast_axes_from, mt_intervals, try_pad_shape},
+    shape_utils::{mt_intervals, try_pad_shape},
     strides::Strides,
     strides_utils::preprocess_strides,
 };
@@ -24,30 +24,28 @@ use tensor_traits::tensor::{CommonBounds, TensorInfo};
 
 /// A module for parallel strided iterators.
 pub mod par_strided_simd {
-    use std::{panic::Location, sync::Arc};
+    use std::sync::Arc;
 
     use rayon::iter::{
         plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
         ParallelIterator,
     };
     use tensor_common::{
-        axis::{process_axes, Axis},
-        err_handler::ErrHandler,
+        axis::Axis,
         layout::Layout,
         pointer::Pointer,
         shape::Shape,
-        shape_utils::{
-            get_broadcast_axes_from, mt_intervals, predict_broadcast_shape, try_pad_shape,
-        },
+        shape_utils::{mt_intervals, predict_broadcast_shape, try_pad_shape},
         strides::Strides,
         strides_utils::preprocess_strides,
     };
     use tensor_traits::{CommonBounds, TensorInfo};
 
     use crate::{
-        iterator_traits::{IterGetSetSimd, ShapeManipulator},
+        iterator_traits::{IterGetSetSimd, ParStridedHelper, ShapeManipulator},
         par_strided_map::par_strided_map_simd::ParStridedMapSimd,
         par_strided_zip::par_strided_zip_simd::ParStridedZipSimd,
+        shape_manipulate::{par_expand, par_reshape, par_transpose},
     };
 
     /// Parallel strided iterator for SIMD operations.
@@ -331,125 +329,46 @@ pub mod par_strided_simd {
         }
     }
 
+    impl<T: CommonBounds> ParStridedHelper for ParStridedSimd<T> {
+        fn _set_last_strides(&mut self, stride: i64) {
+            self.last_stride = stride;
+        }
+
+        fn _set_strides(&mut self, strides: Strides) {
+            self.layout.set_strides(strides);
+        }
+
+        fn _set_shape(&mut self, shape: Shape) {
+            self.layout.set_shape(shape);
+        }
+
+        fn _layout(&self) -> &Layout {
+            &self.layout
+        }
+
+        fn _set_intervals(&mut self, intervals: Arc<Vec<(usize, usize)>>) {
+            self.intervals = intervals;
+        }
+
+        fn _set_end_index(&mut self, end_index: usize) {
+            self.end_index = end_index;
+        }
+    }
+
     impl<T: CommonBounds> ShapeManipulator for ParStridedSimd<T>
     where
         T::Vec: Send,
     {
-        #[cfg_attr(feature = "track_caller", track_caller)]
-        fn reshape<S: Into<Shape>>(mut self, shape: S) -> Self {
-            let tmp = shape.into();
-            let res_shape = tmp;
-            if self.layout.shape() == &res_shape {
-                return self;
-            }
-            let size = res_shape.size() as usize;
-            let inner_loop_size = res_shape[res_shape.len() - 1] as usize;
-            let outer_loop_size = size / inner_loop_size;
-            let num_threads;
-            if outer_loop_size < rayon::current_num_threads() {
-                num_threads = outer_loop_size;
-            } else {
-                num_threads = rayon::current_num_threads();
-            }
-            let intervals = mt_intervals(outer_loop_size, num_threads);
-            let len = intervals.len();
-            self.set_intervals(Arc::new(intervals));
-            self.set_end_index(len);
-            let self_size = self.layout.size();
-
-            if size > (self_size as usize) {
-                let self_shape = try_pad_shape(self.shape(), res_shape.len());
-
-                let axes_to_broadcast =
-                    get_broadcast_axes_from(&self_shape, &res_shape, Location::caller())
-                        .expect("Cannot broadcast shapes");
-
-                let mut new_strides = vec![0; res_shape.len()];
-                new_strides
-                    .iter_mut()
-                    .rev()
-                    .zip(self.strides().iter().rev())
-                    .for_each(|(a, b)| {
-                        *a = *b;
-                    });
-                for &axis in axes_to_broadcast.iter() {
-                    assert_eq!(self_shape[axis], 1);
-                    new_strides[axis] = 0;
-                }
-                self.last_stride = new_strides[new_strides.len() - 1];
-                self.set_strides(new_strides.into());
-            } else {
-                ErrHandler::check_size_match(self.layout.shape().size(), res_shape.size()).unwrap();
-                if let Some(new_strides) = self.layout.is_reshape_possible(&res_shape) {
-                    self.set_strides(new_strides);
-                    self.last_stride = self.strides()[self.strides().len() - 1];
-                } else {
-                    ErrHandler::IterInplaceReshapeError(
-                        self.shape().clone(),
-                        res_shape.clone(),
-                        self.strides().clone(),
-                        Location::caller(),
-                    );
-                }
-            }
-
-            self.set_shape(res_shape.clone());
-            self
+        fn reshape<S: Into<Shape>>(self, shape: S) -> Self {
+            par_reshape(self, shape)
         }
 
-        fn transpose<AXIS: Into<Axis>>(mut self, axes: AXIS) -> Self {
-            // ErrHandler::check_axes_in_range(self.shape().len(), axes).unwrap();
-            let axes = process_axes(axes, self.shape().len()).unwrap();
-
-            let mut new_shape = self.shape().to_vec();
-            for i in axes.iter() {
-                new_shape[*i] = self.shape()[axes[*i]];
-            }
-            let mut new_strides = self.strides().to_vec();
-            for i in axes.iter() {
-                new_strides[*i] = self.strides()[axes[*i]];
-            }
-            let new_strides: Strides = new_strides.into();
-            let new_shape = Arc::new(new_shape);
-            let outer_loop_size = (new_shape.iter().product::<i64>() as usize)
-                / (new_shape[new_shape.len() - 1] as usize);
-            let num_threads;
-            if outer_loop_size < rayon::current_num_threads() {
-                num_threads = outer_loop_size;
-            } else {
-                num_threads = rayon::current_num_threads();
-            }
-            let intervals = Arc::new(mt_intervals(outer_loop_size, num_threads));
-            let len = intervals.len();
-            self.set_intervals(intervals.clone());
-            self.set_end_index(len);
-
-            self.last_stride = new_strides[new_strides.len() - 1];
-            self.set_strides(new_strides);
-            self.set_shape(Shape::from(new_shape));
-            self
+        fn transpose<AXIS: Into<Axis>>(self, axes: AXIS) -> Self {
+            par_transpose(self, axes)
         }
 
-        fn expand<S: Into<Shape>>(mut self, shape: S) -> Self {
-            let res_shape = shape.into();
-
-            let new_strides = self.layout.expand_strides(&res_shape);
-
-            let outer_loop_size = (res_shape.iter().product::<i64>() as usize)
-                / (res_shape[res_shape.len() - 1] as usize);
-            let num_threads;
-            if outer_loop_size < rayon::current_num_threads() {
-                num_threads = outer_loop_size;
-            } else {
-                num_threads = rayon::current_num_threads();
-            }
-            let intervals = Arc::new(mt_intervals(outer_loop_size, num_threads));
-            let len = intervals.len();
-            self.set_intervals(intervals.clone());
-            self.set_end_index(len);
-            self.set_shape(res_shape.clone());
-            self.set_strides(new_strides);
-            self
+        fn expand<S: Into<Shape>>(self, shape: S) -> Self {
+            par_expand(self, shape)
         }
     }
 }
@@ -473,6 +392,13 @@ pub struct ParStrided<T> {
     pub(crate) end_index: usize,
     /// Stride of the last dimension.
     pub(crate) last_stride: i64,
+}
+
+impl<T: CommonBounds> Bases for ParStrided<T> {
+    type LHS = ParStrided<T>;
+    fn base(&self) -> &Self::LHS {
+        self
+    }
 }
 
 impl<T: CommonBounds> ParStrided<T> {
@@ -555,63 +481,6 @@ impl<T: CommonBounds> ParStrided<T> {
             fold_op,
         }
     }
-    /// Combines this `ParStrided` iterator with another iterator, enabling simultaneous parallel iteration.
-    ///
-    /// This method performs shape broadcasting between `self` and `other` to ensure that both iterators
-    /// iterate over tensors with compatible shapes. It adjusts the strides and shapes of both iterators
-    /// to match the broadcasted shape and then returns a `ParStridedZip` that allows for synchronized
-    /// parallel iteration over both iterators.
-    ///
-    /// # Arguments
-    ///
-    /// * `other` - The other iterator to zip with. It must implement the `IterGetSet`, `UnindexedProducer`,
-    ///             and `ParallelIterator` traits, and its associated `Item` type must be `Send`.
-    ///
-    /// # Returns
-    ///
-    /// A `ParStridedZip` instance that zips together `self` and `other`, enabling synchronized
-    /// parallel iteration over their elements.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if the shapes of `self` and `other` cannot be broadcasted together.
-    /// Ensure that the shapes are compatible before calling this method.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn zip<'a, C>(mut self, mut other: C) -> ParStridedZip<'a, Self, C>
-    where
-        C: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
-        <C as IterGetSet>::Item: Send,
-    {
-        let new_shape =
-            predict_broadcast_shape(self.shape(), other.shape()).expect("Cannot broadcast shapes");
-
-        let inner_loop_size = new_shape[new_shape.len() - 1] as usize;
-
-        // if collapse all is true, then the outer loop size is the product of all the elements in the shape
-        // inner_loop_size in this case will be useless
-        let outer_loop_size = (new_shape.size() as usize) / inner_loop_size;
-
-        let num_threads;
-        if outer_loop_size < rayon::current_num_threads() {
-            num_threads = outer_loop_size;
-        } else {
-            num_threads = rayon::current_num_threads();
-        }
-        let intervals = Arc::new(mt_intervals(outer_loop_size, num_threads));
-        let len = intervals.len();
-        self.set_intervals(intervals.clone());
-        self.set_end_index(len);
-        other.set_intervals(intervals.clone());
-        other.set_end_index(len);
-
-        other.broadcast_set_strides(&new_shape);
-        self.broadcast_set_strides(&new_shape);
-
-        other.set_shape(new_shape.clone());
-        self.set_shape(new_shape.clone());
-
-        ParStridedZip::new(self, other)
-    }
     /// Transforms the zipped iterators by applying a provided function to their items.
     ///
     /// This method allows for element-wise operations on the zipped iterators by applying `func` to each item.
@@ -642,6 +511,8 @@ impl<T: CommonBounds> ParStrided<T> {
     }
 }
 
+impl<T: CommonBounds> ParStridedIteratorZip for ParStrided<T> {}
+
 impl<T: CommonBounds> IterGetSet for ParStrided<T> {
     type Item = T;
 
@@ -669,26 +540,10 @@ impl<T: CommonBounds> IterGetSet for ParStrided<T> {
         &self.intervals
     }
 
-    fn strides(&self) -> &Strides {
-        self.layout.strides()
-    }
-
-    fn shape(&self) -> &Shape {
-        self.layout.shape()
-    }
-
     fn broadcast_set_strides(&mut self, shape: &Shape) {
         let self_shape = try_pad_shape(self.shape(), shape.len());
         self.set_strides(preprocess_strides(&self_shape, self.strides()).into());
         self.last_stride = self.strides()[self.strides().len() - 1];
-    }
-
-    fn outer_loop_size(&self) -> usize {
-        self.intervals[self.start_index].1 - self.intervals[self.start_index].0
-    }
-
-    fn inner_loop_size(&self) -> usize {
-        self.shape().last().unwrap().clone() as usize
     }
 
     fn next(&mut self) {
@@ -786,124 +641,46 @@ where
     }
 }
 
+impl<T> ParStridedHelper for ParStrided<T> {
+    fn _layout(&self) -> &Layout {
+        &self.layout
+    }
+
+    fn _set_last_strides(&mut self, last_stride: i64) {
+        self.last_stride = last_stride;
+    }
+
+    fn _set_strides(&mut self, strides: Strides) {
+        self.layout.set_strides(strides);
+    }
+
+    fn _set_shape(&mut self, shape: Shape) {
+        self.layout.set_shape(shape);
+    }
+
+    fn _set_intervals(&mut self, intervals: Arc<Vec<(usize, usize)>>) {
+        self.intervals = intervals;
+    }
+
+    fn _set_end_index(&mut self, end_index: usize) {
+        self.end_index = end_index;
+    }
+}
+
 impl<T: CommonBounds> ShapeManipulator for ParStrided<T>
 where
     T::Vec: Send,
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn reshape<S: Into<Shape>>(mut self, shape: S) -> Self {
-        let tmp = shape.into();
-        let res_shape = tmp;
-        if self.layout.shape() == &res_shape {
-            return self;
-        }
-        let size = res_shape.size() as usize;
-        let inner_loop_size = res_shape[res_shape.len() - 1] as usize;
-        let outer_loop_size = size / inner_loop_size;
-        let num_threads;
-        if outer_loop_size < rayon::current_num_threads() {
-            num_threads = outer_loop_size;
-        } else {
-            num_threads = rayon::current_num_threads();
-        }
-        let intervals = mt_intervals(outer_loop_size, num_threads);
-        let len = intervals.len();
-        self.set_intervals(Arc::new(intervals));
-        self.set_end_index(len);
-        let self_size = self.layout.size();
-
-        if size > (self_size as usize) {
-            let self_shape = try_pad_shape(self.shape(), res_shape.len());
-
-            let axes_to_broadcast =
-                get_broadcast_axes_from(&self_shape, &res_shape, Location::caller())
-                    .expect("Cannot broadcast shapes");
-
-            let mut new_strides = vec![0; res_shape.len()];
-            new_strides
-                .iter_mut()
-                .rev()
-                .zip(self.strides().iter().rev())
-                .for_each(|(a, b)| {
-                    *a = *b;
-                });
-            for &axis in axes_to_broadcast.iter() {
-                assert_eq!(self_shape[axis], 1);
-                new_strides[axis] = 0;
-            }
-            self.last_stride = new_strides[new_strides.len() - 1];
-            self.set_strides(new_strides.into());
-        } else {
-            ErrHandler::check_size_match(self.layout.shape().size(), res_shape.size()).unwrap();
-            if let Some(new_strides) = self.layout.is_reshape_possible(&res_shape) {
-                self.set_strides(new_strides);
-                self.last_stride = self.strides()[self.strides().len() - 1];
-            } else {
-                ErrHandler::IterInplaceReshapeError(
-                    self.shape().clone(),
-                    res_shape.clone(),
-                    self.strides().clone(),
-                    Location::caller(),
-                );
-            }
-        }
-
-        self.set_shape(res_shape.clone());
-        self
+    fn reshape<S: Into<Shape>>(self, shape: S) -> Self {
+        par_reshape(self, shape)
     }
 
-    fn transpose<AXIS: Into<Axis>>(mut self, axes: AXIS) -> Self {
-        // ErrHandler::check_axes_in_range(self.shape().len(), axes).unwrap();
-        let axes = process_axes(axes, self.shape().len()).unwrap();
-
-        let mut new_shape = self.shape().to_vec();
-        for i in axes.iter() {
-            new_shape[*i] = self.shape()[axes[*i]];
-        }
-        let mut new_strides = self.strides().to_vec();
-        for i in axes.iter() {
-            new_strides[*i] = self.strides()[axes[*i]];
-        }
-        let new_strides: Strides = new_strides.into();
-        let new_shape = Arc::new(new_shape);
-        let outer_loop_size = (new_shape.iter().product::<i64>() as usize)
-            / (new_shape[new_shape.len() - 1] as usize);
-        let num_threads;
-        if outer_loop_size < rayon::current_num_threads() {
-            num_threads = outer_loop_size;
-        } else {
-            num_threads = rayon::current_num_threads();
-        }
-        let intervals = Arc::new(mt_intervals(outer_loop_size, num_threads));
-        let len = intervals.len();
-        self.set_intervals(intervals.clone());
-        self.set_end_index(len);
-
-        self.last_stride = new_strides[new_strides.len() - 1];
-        self.set_strides(new_strides);
-        self.set_shape(Shape::from(new_shape));
-        self
+    fn transpose<AXIS: Into<Axis>>(self, axes: AXIS) -> Self {
+        par_transpose(self, axes)
     }
 
-    fn expand<S: Into<Shape>>(mut self, shape: S) -> Self {
-        let res_shape = shape.into();
-
-        let new_strides = self.layout.expand_strides(&res_shape);
-
-        let outer_loop_size = (res_shape.iter().product::<i64>() as usize)
-            / (res_shape[res_shape.len() - 1] as usize);
-        let num_threads;
-        if outer_loop_size < rayon::current_num_threads() {
-            num_threads = outer_loop_size;
-        } else {
-            num_threads = rayon::current_num_threads();
-        }
-        let intervals = Arc::new(mt_intervals(outer_loop_size, num_threads));
-        let len = intervals.len();
-        self.set_intervals(intervals.clone());
-        self.set_end_index(len);
-        self.set_shape(res_shape.clone());
-        self.set_strides(new_strides);
-        self
+    fn expand<S: Into<Shape>>(self, shape: S) -> Self {
+        par_expand(self, shape)
     }
 }

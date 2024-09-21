@@ -1,6 +1,7 @@
 use crate::ops::cpu::binary_normal::*;
 use crate::tensor_base::_Tensor;
 use rayon::iter::ParallelIterator;
+use tensor_iterator::iterator_traits::ParStridedIteratorZip;
 use tensor_iterator::TensorIterator;
 use std::ops::AddAssign;
 use std::ops::{

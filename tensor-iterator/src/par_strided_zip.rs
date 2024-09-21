@@ -3,15 +3,11 @@ use rayon::iter::{
     ParallelIterator,
 };
 use std::sync::Arc;
-use tensor_common::{
-    shape::Shape,
-    shape_utils::{mt_intervals, predict_broadcast_shape},
-    strides::Strides,
-};
+use tensor_common::{shape::Shape, strides::Strides};
 use tensor_traits::tensor::CommonBounds;
 
 use crate::{
-    iterator_traits::{IterGetSet, ShapeManipulator},
+    iterator_traits::{Bases, IterGetSet, ParStridedIteratorZip},
     par_strided_map::ParStridedMap,
 };
 
@@ -354,6 +350,18 @@ pub struct ParStridedZip<'a, A: 'a, B: 'a> {
     pub(crate) phantom: std::marker::PhantomData<&'a ()>,
 }
 
+impl<'a, A, B> Bases for ParStridedZip<'a, A, B>
+where
+    A: IterGetSet,
+    B: IterGetSet,
+{
+    type LHS = A;
+
+    fn base(&self) -> &Self::LHS {
+        &self.a
+    }
+}
+
 impl<'a, A, B> IterGetSet for ParStridedZip<'a, A, B>
 where
     A: IterGetSet,
@@ -390,25 +398,9 @@ where
         self.a.intervals()
     }
 
-    fn strides(&self) -> &Strides {
-        self.a.strides()
-    }
-
-    fn shape(&self) -> &Shape {
-        self.a.shape()
-    }
-
     fn broadcast_set_strides(&mut self, shape: &Shape) {
         self.a.broadcast_set_strides(shape);
         self.b.broadcast_set_strides(shape);
-    }
-
-    fn outer_loop_size(&self) -> usize {
-        self.a.outer_loop_size()
-    }
-
-    fn inner_loop_size(&self) -> usize {
-        self.a.inner_loop_size()
     }
 
     fn next(&mut self) {
@@ -444,60 +436,6 @@ where
             b,
             phantom: std::marker::PhantomData,
         }
-    }
-    /// Combines this `ParStridedZip` iterator with another iterator, enabling simultaneous parallel iteration.
-    ///
-    /// This method performs shape broadcasting between `self` and `other` to ensure that both iterators
-    /// iterate over tensors with compatible shapes. It calculates the appropriate iteration intervals based
-    /// on the new broadcasted shape and configures both iterators accordingly. Finally, it returns a new
-    /// `ParStridedZip` instance that allows for synchronized parallel iteration over the combined iterators.
-    ///
-    /// # Arguments
-    ///
-    /// * `other` - The third iterator to zip with. It must implement the `IterGetSet`, `UnindexedProducer`,
-    ///             `ShapeManipulator`, and `ParallelIterator` traits, and its associated `Item` type must be `Send`.
-    ///
-    /// # Returns
-    ///
-    /// A new `ParStridedZip` instance that combines `self` and `other` for synchronized parallel iteration over all three iterators.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if the shapes of `self` and `other` cannot be broadcasted together.
-    /// Ensure that the shapes are compatible before calling this method.
-    #[track_caller]
-    pub fn zip<C>(mut self, mut other: C) -> ParStridedZip<'a, Self, C>
-    where
-        C: UnindexedProducer + IterGetSet + ShapeManipulator + ParallelIterator + IterGetSet,
-        Self: UnindexedProducer + IterGetSet + ShapeManipulator,
-        <C as IterGetSet>::Item: Send,
-        <Self as IterGetSet>::Item: Send,
-    {
-        let new_shape = predict_broadcast_shape(&self.shape(), &other.shape())
-            .expect("Cannot broadcast shapes");
-
-        let inner_loop_size = new_shape[new_shape.len() - 1] as usize;
-        let outer_loop_size = (new_shape.size() as usize) / inner_loop_size;
-
-        let num_threads;
-        if outer_loop_size < rayon::current_num_threads() {
-            num_threads = outer_loop_size;
-        } else {
-            num_threads = rayon::current_num_threads();
-        }
-        let intervals = Arc::new(mt_intervals(outer_loop_size, num_threads));
-        let len = intervals.len();
-        self.set_intervals(intervals.clone());
-        self.set_end_index(len);
-        other.set_intervals(intervals.clone());
-        other.set_end_index(len);
-
-        let mut a = self.reshape(new_shape.clone());
-        let mut b = other.reshape(new_shape.clone());
-
-        a.set_shape(new_shape.clone());
-        b.set_shape(new_shape.clone());
-        ParStridedZip::new(a, b)
     }
     /// Transforms the zipped iterators by applying a provided function to their items.
     ///
@@ -592,4 +530,13 @@ where
     {
         bridge_unindexed(self, consumer)
     }
+}
+
+impl<'a, A, B> ParStridedIteratorZip for ParStridedZip<'a, A, B>
+where
+    A: UnindexedProducer + ParallelIterator + IterGetSet,
+    B: UnindexedProducer + ParallelIterator + IterGetSet,
+    <A as IterGetSet>::Item: Send,
+    <B as IterGetSet>::Item: Send,
+{
 }

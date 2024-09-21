@@ -28,7 +28,7 @@ use tensor_common::{
     slice::Slice,
 };
 use tensor_display::display;
-use tensor_iterator::TensorIterator;
+use tensor_iterator::{iterator_traits::ParStridedIteratorZip, TensorIterator};
 use tensor_macros::match_selection;
 use tensor_traits::{
     random::Random,

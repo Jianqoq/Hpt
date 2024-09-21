@@ -8,7 +8,9 @@ use tensor_common::{shape::Shape, strides::Strides};
 use tensor_traits::tensor::{CommonBounds, TensorInfo};
 
 use crate::{
-    iterator_traits::IterGetSet, par_strided_mut::ParStridedMut, par_strided_zip::ParStridedZip,
+    iterator_traits::{Bases, IterGetSet},
+    par_strided_mut::ParStridedMut,
+    par_strided_zip::ParStridedZip,
 };
 
 /// A module for parallel strided mutable map iterator.
@@ -335,6 +337,13 @@ where
     }
 }
 
+impl<'a, T: CommonBounds> Bases for ParStridedMapMut<'a, T> {
+    type LHS = ParStridedMut<'a, T>;
+    fn base(&self) -> &Self::LHS {
+        &self.base
+    }
+}
+
 impl<'a, T: 'a + CommonBounds> IterGetSet for ParStridedMapMut<'a, T> {
     type Item = &'a mut T;
 
@@ -362,24 +371,8 @@ impl<'a, T: 'a + CommonBounds> IterGetSet for ParStridedMapMut<'a, T> {
         self.base.intervals()
     }
 
-    fn strides(&self) -> &Strides {
-        self.base.strides()
-    }
-
-    fn shape(&self) -> &Shape {
-        self.base.shape()
-    }
-
     fn broadcast_set_strides(&mut self, shape: &Shape) {
         self.base.broadcast_set_strides(shape);
-    }
-
-    fn outer_loop_size(&self) -> usize {
-        self.base.outer_loop_size()
-    }
-
-    fn inner_loop_size(&self) -> usize {
-        self.base.inner_loop_size()
     }
 
     fn next(&mut self) {

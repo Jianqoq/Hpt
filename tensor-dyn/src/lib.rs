@@ -110,10 +110,16 @@ pub mod tensor_expose {
     pub mod shape_manipulate;
     /// a module that contains all the unary operations that has floating type output
     pub mod float_out_unary;
+    /// a module that contains all the unary operations that has self type output
+    pub mod normal_out_unary;
+    /// a module that contains all normal methods to create a tensor
+    pub mod normal_creation;
 }
 
 use ctor::ctor;
 pub use tensor_iterator::iterator_traits::*;
+pub use tensor_iterator::TensorIterator;
+
 pub use tensor_macros::match_selection;
 pub use tensor_traits::*;
 pub use tensor_types::vectors::*;

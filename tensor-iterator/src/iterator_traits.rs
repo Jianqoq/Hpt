@@ -1,9 +1,31 @@
 use std::sync::Arc;
 
-use tensor_common::{ axis::Axis, shape::Shape, strides::Strides };
+use rayon::iter::{plumbing::UnindexedProducer, ParallelIterator};
+use tensor_common::{
+    axis::Axis,
+    layout::Layout,
+    shape::Shape,
+    shape_utils::{mt_intervals, predict_broadcast_shape},
+    strides::Strides,
+};
+use tensor_traits::CommonBounds;
+
+use crate::{
+    par_strided_zip::ParStridedZip,
+    strided_map::StridedMap,
+    strided_zip::{strided_zip_simd::StridedZipSimd, StridedZip},
+};
+
+/// A trait for getting base iterator, for iterator has two bases, return the first one.
+pub trait Bases {
+    /// The type of the first base iterator.
+    type LHS: IterGetSet;
+    /// get the first base iterator
+    fn base(&self) -> &Self::LHS;
+}
 
 /// A trait for getting and setting values from an iterator.
-pub trait IterGetSet {
+pub trait IterGetSet: Bases {
     /// The type of the iterator's elements.
     type Item;
     /// set the end index of the iterator, this is used when rayon perform data splitting
@@ -19,15 +41,23 @@ pub trait IterGetSet {
     /// get the intervals of the iterator
     fn intervals(&self) -> &Arc<Vec<(usize, usize)>>;
     /// get the strides of the iterator
-    fn strides(&self) -> &Strides;
+    fn strides(&self) -> &Strides {
+        self.base().strides()
+    }
     /// get the shape of the iterator
-    fn shape(&self) -> &Shape;
+    fn shape(&self) -> &Shape {
+        self.base().shape()
+    }
     /// set the strides for all the iterators
     fn broadcast_set_strides(&mut self, shape: &Shape);
     /// get the outer loop size
-    fn outer_loop_size(&self) -> usize;
+    fn outer_loop_size(&self) -> usize {
+        self.base().outer_loop_size()
+    }
     /// get the inner loop size
-    fn inner_loop_size(&self) -> usize;
+    fn inner_loop_size(&self) -> usize {
+        self.base().inner_loop_size()
+    }
     /// update the loop progress
     fn next(&mut self);
     /// get the next element of the inner loop
@@ -87,25 +117,340 @@ pub trait ShapeManipulator {
 }
 
 /// A trait for performing single thread iteration over an iterator.
-pub trait StridedIterator where Self: Sized {
-    /// The type of the iterator's elements.
-    type Item;
+pub trait StridedIterator: IterGetSet
+where
+    Self: Sized,
+{
     /// perform scalar iteration, this method is for single thread iterator
-    fn for_each<F>(self, func: F) where F: Fn(Self::Item);
+    fn for_each<F>(mut self, func: F)
+    where
+        F: Fn(Self::Item),
+    {
+        let outer_loop_size = self.outer_loop_size();
+        let inner_loop_size = self.inner_loop_size(); // we don't need to add 1 as we didn't subtract shape by 1
+        self.set_prg(vec![0; self.shape().len()]);
+        for _ in 0..outer_loop_size {
+            for idx in 0..inner_loop_size {
+                func(self.inner_loop_next(idx));
+            }
+            self.next();
+        }
+    }
     /// perform scalar iteration with init, this method is for single thread iterator
-    fn for_each_init<F, INIT, T>(self, init: INIT, func: F)
-        where F: Fn(&mut T, Self::Item), INIT: Fn() -> T;
+    fn for_each_init<F, INIT, T>(mut self, init: INIT, func: F)
+    where
+        F: Fn(&mut T, Self::Item),
+        INIT: Fn() -> T,
+    {
+        let outer_loop_size = self.outer_loop_size();
+        let inner_loop_size = self.inner_loop_size();
+        self.set_prg(vec![0; self.shape().len()]);
+        let mut init = init();
+        for _ in 0..outer_loop_size {
+            for idx in 0..inner_loop_size {
+                func(&mut init, self.inner_loop_next(idx));
+            }
+            self.next();
+        }
+    }
+}
+
+/// A trait to zip two iterators together.
+pub trait StridedIteratorZip: Sized {
+    /// Combines this iterator with another iterator, enabling simultaneous iteration.
+    ///
+    /// This method zips together `self` and `other` into a `StridedZip` iterator, allowing for synchronized
+    ///
+    /// iteration over both iterators. This is particularly useful for operations that require processing
+    ///
+    /// elements from two tensors in parallel, such as element-wise arithmetic operations.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The other iterator to zip with. It must implement the `IterGetSet` trait, and
+    ///             its associated `Item` type must be `Send`.
+    ///
+    /// # Returns
+    ///
+    /// A `StridedZip` instance that encapsulates both `self` and `other`, allowing for synchronized
+    ///
+    /// iteration over their elements.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the shapes of `self` and `other` cannot be broadcasted together.
+    #[track_caller]
+    fn zip<'a, C>(self, other: C) -> StridedZip<'a, Self, C>
+    where
+        C: IterGetSet + ShapeManipulator,
+        Self: IterGetSet + ShapeManipulator,
+        <C as IterGetSet>::Item: Send,
+        <Self as IterGetSet>::Item: Send,
+    {
+        let new_shape = predict_broadcast_shape(&self.shape(), &other.shape())
+            .expect("Cannot broadcast shapes");
+
+        let mut a = self.reshape(new_shape.clone());
+        let mut b = other.reshape(new_shape.clone());
+
+        a.set_shape(new_shape.clone());
+        b.set_shape(new_shape.clone());
+        StridedZip::new(a, b)
+    }
+}
+
+/// A trait to zip two parallel iterators together.
+pub trait ParStridedIteratorZip: Sized + IterGetSet {
+    /// Combines this iterator with another iterator, enabling simultaneous parallel iteration.
+    ///
+    /// This method performs shape broadcasting between `self` and `other` to ensure that both iterators
+    /// iterate over tensors with compatible shapes. It adjusts the strides and shapes of both iterators
+    /// to match the broadcasted shape and then returns a `ParStridedZip` that allows for synchronized
+    /// parallel iteration over both iterators.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The other iterator to zip with. It must implement the `IterGetSet`, `UnindexedProducer`,
+    ///             and `ParallelIterator` traits, and its associated `Item` type must be `Send`.
+    ///
+    /// # Returns
+    ///
+    /// A `ParStridedZip` instance that zips together `self` and `other`, enabling synchronized
+    /// parallel iteration over their elements.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the shapes of `self` and `other` cannot be broadcasted together.
+    /// Ensure that the shapes are compatible before calling this method.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn zip<'a, C>(mut self, mut other: C) -> ParStridedZip<'a, Self, C>
+    where
+        C: UnindexedProducer + 'a + IterGetSet + ParallelIterator + ShapeManipulator,
+        <C as IterGetSet>::Item: Send,
+        Self: UnindexedProducer + ParallelIterator + ShapeManipulator,
+        <Self as IterGetSet>::Item: Send,
+    {
+        let new_shape = predict_broadcast_shape(&self.shape(), &other.shape())
+            .expect("Cannot broadcast shapes");
+
+        let inner_loop_size = new_shape[new_shape.len() - 1] as usize;
+        let outer_loop_size = (new_shape.size() as usize) / inner_loop_size;
+
+        let num_threads;
+        if outer_loop_size < rayon::current_num_threads() {
+            num_threads = outer_loop_size;
+        } else {
+            num_threads = rayon::current_num_threads();
+        }
+        let intervals = Arc::new(mt_intervals(outer_loop_size, num_threads));
+        let len = intervals.len();
+        self.set_intervals(intervals.clone());
+        self.set_end_index(len);
+        other.set_intervals(intervals.clone());
+        other.set_end_index(len);
+
+        let mut a = self.reshape(new_shape.clone());
+        let mut b = other.reshape(new_shape.clone());
+
+        a.set_shape(new_shape.clone());
+        b.set_shape(new_shape.clone());
+
+        ParStridedZip::new(a, b)
+    }
+}
+
+/// A trait to zip two simd iterators together.
+pub trait StridedSimdIteratorZip: Sized {
+    /// Combines this iterator with another SIMD-optimized iterator, enabling simultaneous iteration.
+    ///
+    /// This method performs shape broadcasting between `self` and `other` to ensure that both iterators
+    /// iterate over tensors with compatible shapes. It adjusts the strides and shapes of both iterators
+    /// to match the broadcasted shape and then returns a `StridedZipSimd` that allows for synchronized
+    /// iteration over both iterators.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The other iterator to zip with. It must implement the `IterGetSetSimd`, `UnindexedProducer`,
+    ///             and `ParallelIterator` traits, and its associated `Item` type must be `Send`.
+    ///
+    /// # Returns
+    ///
+    /// A `StridedZipSimd` instance that zips together `self` and `other`, enabling synchronized
+    /// iteration over their elements.
+    #[track_caller]
+    fn zip<'a, C>(mut self, mut other: C) -> StridedZipSimd<'a, Self, C>
+    where
+        C: 'a + IterGetSetSimd,
+        <C as IterGetSetSimd>::Item: Send,
+        Self: IterGetSetSimd,
+        <Self as IterGetSetSimd>::Item: Send,
+    {
+        let new_shape =
+            predict_broadcast_shape(self.shape(), other.shape()).expect("Cannot broadcast shapes");
+
+        other.broadcast_set_strides(&new_shape);
+        self.broadcast_set_strides(&new_shape);
+
+        other.set_shape(new_shape.clone());
+        self.set_shape(new_shape.clone());
+
+        StridedZipSimd::new(self, other)
+    }
 }
 
 /// A trait for performing single thread simd iteration over an iterator.
-pub trait StridedIteratorSimd where Self: Sized {
-    /// The type of the iterator's elements.
-    type Item;
-    /// The type of the iterator's simd elements.
-    type SimdItem;
+pub trait StridedIteratorSimd
+where
+    Self: Sized + IterGetSetSimd,
+{
     /// perform simd iteration, this method is for single thread simd iterator
-    fn for_each<F, F2>(self, func: F, func2: F2) where F: Fn(Self::Item), F2: Fn(Self::SimdItem);
+    fn for_each<F, F2>(mut self, op: F, vec_op: F2)
+    where
+        F: Fn(Self::Item),
+        F2: Fn(Self::SimdItem),
+    {
+        let outer_loop_size = self.outer_loop_size();
+        let inner_loop_size = self.inner_loop_size(); // we don't need to add 1 as we didn't subtract shape by 1
+        self.set_prg(vec![0; self.shape().len()]);
+        match (self.all_last_stride_one(), self.lanes()) {
+            (true, Some(vec_size)) => {
+                let remain = inner_loop_size % vec_size;
+                let inner = inner_loop_size - remain;
+                let n = inner / vec_size;
+                let unroll = n % 4;
+                if remain > 0 {
+                    if unroll == 0 {
+                        for _ in 0..outer_loop_size {
+                            for idx in 0..n / 4 {
+                                vec_op(self.inner_loop_next_simd(idx * 4));
+                                vec_op(self.inner_loop_next_simd(idx * 4 + 1));
+                                vec_op(self.inner_loop_next_simd(idx * 4 + 2));
+                                vec_op(self.inner_loop_next_simd(idx * 4 + 3));
+                            }
+                            for idx in inner..inner_loop_size {
+                                op(self.inner_loop_next(idx));
+                            }
+                            self.next();
+                        }
+                    } else {
+                        for _ in 0..outer_loop_size {
+                            for idx in 0..n {
+                                vec_op(self.inner_loop_next_simd(idx));
+                            }
+                            for idx in inner..inner_loop_size {
+                                op(self.inner_loop_next(idx));
+                            }
+                            self.next();
+                        }
+                    }
+                } else {
+                    if unroll == 0 {
+                        for _ in 0..outer_loop_size {
+                            for idx in 0..n / 4 {
+                                vec_op(self.inner_loop_next_simd(idx * 4));
+                                vec_op(self.inner_loop_next_simd(idx * 4 + 1));
+                                vec_op(self.inner_loop_next_simd(idx * 4 + 2));
+                                vec_op(self.inner_loop_next_simd(idx * 4 + 3));
+                            }
+                            self.next();
+                        }
+                    } else {
+                        for _ in 0..outer_loop_size {
+                            for idx in 0..n {
+                                vec_op(self.inner_loop_next_simd(idx));
+                            }
+                            self.next();
+                        }
+                    }
+                }
+            }
+            _ => {
+                for _ in 0..outer_loop_size {
+                    for idx in 0..inner_loop_size {
+                        op(self.inner_loop_next(idx));
+                    }
+                    self.next();
+                }
+            }
+        }
+    }
     /// perform simd iteration with init, this method is for single thread simd iterator
-    fn for_each_init<F, INIT, T>(self, init: INIT, func: F)
-        where F: Fn(&mut T, Self::Item), INIT: Fn() -> T;
+    fn for_each_init<F, INIT, T>(mut self, init: INIT, func: F)
+    where
+        F: Fn(&mut T, Self::Item),
+        INIT: Fn() -> T,
+    {
+        let outer_loop_size = self.outer_loop_size();
+        let inner_loop_size = self.inner_loop_size();
+        let mut init = init();
+        for _ in 0..outer_loop_size {
+            for idx in 0..inner_loop_size {
+                func(&mut init, self.inner_loop_next(idx));
+            }
+            self.next();
+        }
+    }
+}
+
+/// A trait to map a function on the elements of an iterator.
+pub trait StridedIteratorMap: Sized {
+    /// Transforms the strided iterators by applying a provided function to their items.
+    ///
+    /// This method allows for element-wise operations on the zipped iterators by applying `func` to each item.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `'a` - The lifetime associated with the iterators.
+    /// * `F` - The function to apply to each item.
+    /// * `U` - The output type after applying the function.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A function that takes an item from the zipped iterator and returns a transformed value.
+    ///
+    /// # Returns
+    ///
+    /// A `StridedMap` instance that applies the provided function during iteration.
+    /// # Example
+    /// ```
+    /// use tensor_dyn::tensor::Tensor;
+    /// use tensor_dyn::TensorIterator;
+    /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
+    /// let res = a
+    ///     .iter()
+    ///     .strided_map(|x| {
+    ///         println!("{}", x);
+    ///         x
+    ///     })
+    ///     .collect::<Tensor<f64>>();
+    /// println!("{:?}", res);
+    /// ```
+    fn map<'a, T, F, U>(self, f: F) -> StridedMap<'a, Self, T, F>
+    where
+        F: Fn(T) -> U + Sync + Send + 'a,
+        U: CommonBounds,
+        Self: IterGetSet<Item = T>,
+    {
+        StridedMap {
+            iter: self,
+            f,
+            phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+pub(crate) trait StridedHelper {
+    fn _set_last_strides(&mut self, stride: i64);
+    fn _set_strides(&mut self, strides: Strides);
+    fn _set_shape(&mut self, shape: Shape);
+    fn _layout(&self) -> &Layout;
+}
+
+pub(crate) trait ParStridedHelper {
+    fn _set_last_strides(&mut self, stride: i64);
+    fn _set_strides(&mut self, strides: Strides);
+    fn _set_shape(&mut self, shape: Shape);
+    fn _layout(&self) -> &Layout;
+    fn _set_intervals(&mut self, intervals: Arc<Vec<(usize, usize)>>);
+    fn _set_end_index(&mut self, end_index: usize);
 }

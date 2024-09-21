@@ -4,7 +4,7 @@ use tensor_traits::tensor::{CommonBounds, TensorInfo};
 use tensor_types::dtype::TypeCommon;
 
 use crate::{
-    iterator_traits::{IterGetSet, StridedIterator},
+    iterator_traits::{Bases, IterGetSet, StridedIterator},
     par_strided_mut::ParStridedMut,
     strided_zip::StridedZip,
 };
@@ -71,7 +71,7 @@ pub mod strided_map_mut_simd {
         ///
         /// A `StridedZipSimd` instance that zips together `self` and `other`, enabling synchronized
         /// iteration over their elements.
-        pub fn zip<C>(self, other: C) -> StridedZipSimd<'a, Self, C>
+        pub(crate) fn zip<C>(self, other: C) -> StridedZipSimd<'a, Self, C>
         where
             C: 'a + IterGetSetSimd,
             <C as IterGetSetSimd>::Item: Send,
@@ -79,30 +79,7 @@ pub mod strided_map_mut_simd {
             StridedZipSimd::new(self, other)
         }
     }
-    impl<'a, T> StridedIteratorSimd for StridedMapMutSimd<'a, T>
-    where
-        T: 'a + CommonBounds,
-        T::Vec: Send,
-    {
-        type Item = &'a mut T;
-
-        type SimdItem = &'a mut T::Vec;
-
-        fn for_each<F, F2>(self, _: F, _: F2)
-        where
-            F: Fn(Self::Item),
-        {
-            unimplemented!()
-        }
-
-        fn for_each_init<F, INIT, I>(self, _: INIT, _: F)
-        where
-            F: Fn(&mut I, Self::Item),
-            INIT: Fn() -> I,
-        {
-            unimplemented!()
-        }
-    }
+    impl<'a, T> StridedIteratorSimd for StridedMapMutSimd<'a, T> where T: 'a + CommonBounds {}
     impl<'a, T: 'a + CommonBounds> IterGetSetSimd for StridedMapMutSimd<'a, T>
     where
         T::Vec: Send,
@@ -209,7 +186,7 @@ where
             phantom: std::marker::PhantomData,
         }
     }
-    
+
     /// Combines this `StridedMapMut` iterator with another iterator, enabling simultaneous iteration.
     ///
     /// This method zips together `self` and `other` into a `StridedZip` iterator, allowing for synchronized
@@ -234,28 +211,18 @@ where
     }
 }
 
-impl<'a, T> StridedIterator for StridedMapMut<'a, T>
+impl<'a, T> Bases for StridedMapMut<'a, T>
 where
     T: 'a + CommonBounds,
-    T::Vec: Send,
 {
-    type Item = &'a mut T;
+    type LHS = ParStridedMut<'a, T>;
 
-    fn for_each<F>(self, _: F)
-    where
-        F: Fn(Self::Item),
-    {
-        unimplemented!()
-    }
-
-    fn for_each_init<F, INIT, I>(self, _: INIT, _: F)
-    where
-        F: Fn(&mut I, Self::Item),
-        INIT: Fn() -> I,
-    {
-        unimplemented!()
+    fn base(&self) -> &Self::LHS {
+        &self.base
     }
 }
+
+impl<'a, T> StridedIterator for StridedMapMut<'a, T> where T: 'a + CommonBounds {}
 
 impl<'a, T: 'a + CommonBounds> IterGetSet for StridedMapMut<'a, T>
 where

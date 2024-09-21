@@ -1,5 +1,5 @@
 use crate::{
-    iterator_traits::{IterGetSet, StridedIterator},
+    iterator_traits::{Bases, IterGetSet, StridedIterator, StridedIteratorZip},
     strided::Strided,
     strided_zip::StridedZip,
 };
@@ -10,12 +10,11 @@ use tensor_traits::tensor::{CommonBounds, TensorInfo};
 /// Module containing SIMD-optimized implementations for strided mutability.
 pub mod simd_imports {
     use crate::{
-        iterator_traits::{IterGetSetSimd, StridedIteratorSimd},
+        iterator_traits::{IterGetSetSimd, StridedIteratorSimd, StridedSimdIteratorZip},
         strided::strided_simd::StridedSimd,
-        strided_zip::strided_zip_simd::StridedZipSimd,
     };
     use std::sync::Arc;
-    use tensor_common::{shape::Shape, shape_utils::predict_broadcast_shape};
+    use tensor_common::shape::Shape;
     use tensor_traits::{CommonBounds, TensorInfo};
     use tensor_types::dtype::TypeCommon;
     use tensor_types::vectors::traits::VecCommon;
@@ -56,84 +55,6 @@ pub mod simd_imports {
                 base,
                 last_stride,
                 phantom: std::marker::PhantomData,
-            }
-        }
-
-        /// Combines this `StridedMutSimd` iterator with another iterator, enabling simultaneous iteration.
-        ///
-        /// This method performs shape broadcasting between `self` and `other` to ensure that both iterators
-        /// iterate over tensors with compatible shapes. It adjusts the strides and shapes of both iterators
-        /// to match the broadcasted shape and then returns a `StridedZipSimd` that allows for synchronized
-        /// iteration over both iterators.
-        ///
-        /// # Arguments
-        ///
-        /// * `other` - The other iterator to zip with. It must implement the `IterGetSetSimd` trait, and
-        ///             its associated `Item` type must be `Send`.
-        ///
-        /// # Returns
-        ///
-        /// A `StridedZipSimd` instance that zips together `self` and `other`, enabling synchronized
-        /// iteration over their elements.
-        ///
-        /// # Panics
-        ///
-        /// This method will panic if the shapes of `self` and `other` cannot be broadcasted together.
-        /// Ensure that the shapes are compatible before calling this method.
-        #[track_caller]
-        pub fn zip<C>(mut self, mut other: C) -> StridedZipSimd<'a, Self, C>
-        where
-            C: 'a + IterGetSetSimd,
-            <C as IterGetSetSimd>::Item: Send,
-        {
-            let new_shape = predict_broadcast_shape(self.shape(), other.shape())
-                .expect("Cannot broadcast shapes");
-
-            other.broadcast_set_strides(&new_shape);
-            self.broadcast_set_strides(&new_shape);
-
-            other.set_shape(new_shape.clone());
-            self.set_shape(new_shape.clone());
-
-            StridedZipSimd::new(self, other)
-        }
-    }
-
-    impl<'a, T> StridedIteratorSimd for StridedMutSimd<'a, T>
-    where
-        T: CommonBounds,
-    {
-        type Item = &'a mut T;
-        type SimdItem = &'a mut T::Vec;
-
-        fn for_each<F, F2>(mut self, func: F, _: F2)
-        where
-            F: Fn(Self::Item),
-            F2: Fn(Self::SimdItem),
-        {
-            let outer_loop_size = self.outer_loop_size();
-            let inner_loop_size = self.inner_loop_size() + 1;
-            for _ in 0..outer_loop_size {
-                for idx in 0..inner_loop_size {
-                    func(self.inner_loop_next(idx));
-                }
-                self.next();
-            }
-        }
-
-        fn for_each_init<F, INIT, I>(mut self, init: INIT, func: F)
-        where
-            F: Fn(&mut I, Self::Item),
-            INIT: Fn() -> I,
-        {
-            let outer_loop_size = self.outer_loop_size();
-            let inner_loop_size = self.inner_loop_size() + 1;
-            let mut init = init();
-            for _ in 0..outer_loop_size {
-                for idx in 0..inner_loop_size {
-                    func(&mut init, self.inner_loop_next(idx));
-                }
-                self.next();
             }
         }
     }
@@ -216,6 +137,8 @@ pub mod simd_imports {
             self.base.lanes()
         }
     }
+    impl<'a, T> StridedIteratorSimd for StridedMutSimd<'a, T> where T: CommonBounds {}
+    impl<'a, T> StridedSimdIteratorZip for StridedMutSimd<'a, T> where T: CommonBounds {}
 }
 
 /// A mutable strided iterator over tensor elements.
@@ -288,42 +211,16 @@ impl<'a, T: CommonBounds> StridedMut<'a, T> {
     }
 }
 
-impl<'a, T> StridedIterator for StridedMut<'a, T>
-where
-    T: CommonBounds,
-{
-    type Item = &'a mut T;
+impl<'a, T: CommonBounds> Bases for StridedMut<'a, T> {
+    type LHS = Strided<T>;
 
-    fn for_each<F>(mut self, func: F)
-    where
-        F: Fn(Self::Item),
-    {
-        let outer_loop_size = self.outer_loop_size();
-        let inner_loop_size = self.inner_loop_size();
-        for _ in 0..outer_loop_size {
-            for idx in 0..inner_loop_size {
-                func(self.inner_loop_next(idx));
-            }
-            self.next();
-        }
-    }
-
-    fn for_each_init<F, INIT, I>(mut self, init: INIT, func: F)
-    where
-        F: Fn(&mut I, Self::Item),
-        INIT: Fn() -> I,
-    {
-        let outer_loop_size = self.outer_loop_size();
-        let inner_loop_size = self.inner_loop_size() + 1;
-        let mut init = init();
-        for _ in 0..outer_loop_size {
-            for idx in 0..inner_loop_size {
-                func(&mut init, self.inner_loop_next(idx));
-            }
-            self.next();
-        }
+    fn base(&self) -> &Self::LHS {
+        &self.base
     }
 }
+
+impl<'a, T: CommonBounds> StridedIterator for StridedMut<'a, T> {}
+impl<'a, T: CommonBounds> StridedIteratorZip for StridedMut<'a, T> {}
 
 impl<'a, T: 'a> IterGetSet for StridedMut<'a, T>
 where
@@ -355,24 +252,8 @@ where
         self.base.intervals()
     }
 
-    fn strides(&self) -> &tensor_common::strides::Strides {
-        self.base.strides()
-    }
-
-    fn shape(&self) -> &Shape {
-        self.base.shape()
-    }
-
     fn broadcast_set_strides(&mut self, shape: &Shape) {
         self.base.broadcast_set_strides(shape);
-    }
-
-    fn outer_loop_size(&self) -> usize {
-        self.base.outer_loop_size()
-    }
-
-    fn inner_loop_size(&self) -> usize {
-        self.base.inner_loop_size()
     }
 
     fn next(&mut self) {
