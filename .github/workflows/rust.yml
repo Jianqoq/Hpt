@@ -42,3 +42,8 @@ jobs:
       run: |
         cd tensor-tests
         RUST_BACKTRACE=full cargo test --verbose -- --nocapture
+    - name: Show logs on failure
+      if: failure()
+      run: |
+        dmesg | grep -i segfault
+        journalctl -xe | grep -i error
