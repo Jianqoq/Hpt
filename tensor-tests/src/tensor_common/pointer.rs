@@ -21,8 +21,8 @@ fn test_index() {
     ptr -= 1usize;
     assert_eq!(ptr[0usize], 10);
 
-    // ptr += 1i64;
-    // assert_eq!(*ptr, 11);
+    ptr += 1i64;
+    assert_eq!(*ptr, 11);
     // *ptr = 20;
     // assert_eq!(*ptr, 20);
 
