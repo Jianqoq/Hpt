@@ -208,7 +208,6 @@ impl<T: Display> Index<usize> for Pointer<T> {
                 idx = idx % self.layout.strides()[i];
             }
         }
-        println!("index: {}, ptr: {}", index, self.ptr as usize);
         unsafe { &*self.ptr.add(index) }
     }
 }

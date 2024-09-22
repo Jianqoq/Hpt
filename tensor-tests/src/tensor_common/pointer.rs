@@ -7,7 +7,6 @@ use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
 fn test_index() {
     let mut a = [10, 11, 12, 13];
     let mut ptr = Pointer::new(&mut a as *mut i32, Layout::from(Shape::from([1])));
-    println!("old {}", ptr);
     assert_eq!(ptr[0usize], 10);
     ptr += 1i64;
     assert_eq!(ptr[0usize], 11);
@@ -27,7 +26,6 @@ fn test_index() {
     *ptr = 20;
     assert_eq!(*ptr, 20);
 
-    println!("new {}", ptr);
     let string = format!("{}", ptr);
     assert_eq!(string, format!("Pointer( ptr: {}, val: {} )", ptr.ptr as usize, ptr[0usize]));
 }
