@@ -18,8 +18,9 @@ impl VecTrait<Complex64> for cplx64x1 {
         self.0.as_ptr()
     }
     #[inline(always)]
-    fn mul_add(self, _: Self, _: Self) -> Self {
-        todo!()
+    fn mul_add(self, a: Self, b: Self) -> Self {
+        self.0[0] = self.0[0] * a.0[0] + b.0[0];
+        self
     }
     #[inline(always)]
     fn as_mut_ptr(&mut self) -> *mut Complex64 {
@@ -112,6 +113,17 @@ impl std::ops::Neg for cplx64x1 {
         let mut ret = cplx64x1::default();
         for i in 0..1 {
             ret.0[i] = -self.0[i];
+        }
+        ret
+    }
+}
+impl std::ops::Rem for cplx64x1 {
+    type Output = Self;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        let mut ret = cplx64x1::default();
+        for i in 0..1 {
+            ret.0[i] = self.0[i] % rhs.0[i];
         }
         ret
     }
