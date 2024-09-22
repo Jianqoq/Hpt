@@ -256,19 +256,25 @@ impl<T: Display> IndexMut<isize> for Pointer<T> {
 
 impl<T> AddAssign<usize> for Pointer<T> {
     fn add_assign(&mut self, rhs: usize) {
-        self.add(rhs);
+        unsafe {
+            self.ptr = self.ptr.add(rhs);
+        }
     }
 }
 
 impl<T> AddAssign<isize> for Pointer<T> {
     fn add_assign(&mut self, rhs: isize) {
-        self.offset(rhs as i64);
+        unsafe {
+            self.ptr = self.ptr.offset(rhs);
+        }
     }
 }
 
 impl<T> AddAssign<i64> for Pointer<T> {
     fn add_assign(&mut self, rhs: i64) {
-        self.offset(rhs);
+        unsafe {
+            self.ptr = self.ptr.offset(rhs as isize);
+        }
     }
 }
 
@@ -280,13 +286,17 @@ impl<T> SubAssign<usize> for Pointer<T> {
 
 impl<T> SubAssign<isize> for Pointer<T> {
     fn sub_assign(&mut self, rhs: isize) {
-        self.offset(-rhs as i64);
+        unsafe {
+            self.ptr = self.ptr.offset(-rhs);
+        }
     }
 }
 
 impl<T> SubAssign<i64> for Pointer<T> {
     fn sub_assign(&mut self, rhs: i64) {
-        self.offset(-rhs);
+        unsafe {
+            self.ptr = self.ptr.offset(-rhs as isize);
+        }
     }
 }
 
