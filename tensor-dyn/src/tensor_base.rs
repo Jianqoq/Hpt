@@ -359,13 +359,10 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
     fn zeros<S: Into<Shape>>(shape: S) -> Result<Self> {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);
-        let mut size = 1;
-        let mut strides = vec![0; res_shape.len()];
-        for i in (0..res_shape.len()).rev() {
-            let tmp = res_shape[i] as usize;
-            strides[i] = size as i64;
-            size *= tmp;
-        }
+        let size = res_shape
+            .iter()
+            .try_fold(1i64, |acc, &num| acc.checked_mul(num).or(Some(i64::MAX)))
+            .unwrap_or(i64::MAX) as usize;
         let layout = std::alloc::Layout::from_size_align(size * size_of::<T>(), ALIGN)?;
         let ptr = CACHE.allocate(layout);
         assert_ne!(ptr, std::ptr::null_mut());
@@ -377,7 +374,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         slice[size - (size % 8)..size].iter_mut().for_each(|x| {
             *x = T::ZERO;
         });
-        let ly = Layout::new(res_shape.clone(), strides.clone());
+        let ly = Layout::from(res_shape.clone());
         Ok(_Tensor {
             #[cfg(feature = "bound_check")]
             data: Pointer::new(ptr as *mut T, ly.clone()),
