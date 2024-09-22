@@ -321,11 +321,11 @@ impl<T: CommonBounds> IterGetSet for Strided<T> {
             let j = j as usize;
             if self.prg[j] < self.shape()[j] - 1 {
                 self.prg[j] += 1;
-                self.ptr += self.strides()[j];
+                self.ptr.offset(self.strides()[j]);
                 break;
             } else {
                 self.prg[j] = 0;
-                self.ptr -= self.strides()[j] * (self.shape()[j] - 1);
+                self.ptr.offset(-self.strides()[j] * (self.shape()[j] - 1));
             }
         }
     }
