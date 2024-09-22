@@ -48,15 +48,7 @@ fn test_new() -> anyhow::Result<()> {
 #[test]
 #[should_panic]
 fn test_allocate_too_large() {
-    let _a = _Tensor::<f64>::empty(&[
-        10_000_000_000,
-        10_000_000_000,
-        10_000_000_000,
-        10_000_000_000,
-        10_000_000_000,
-        10_000_000_000,
-    ])
-    .unwrap();
+    let _a = _Tensor::<f64>::empty(&[i64::MAX]).unwrap();
 }
 
 #[test]
