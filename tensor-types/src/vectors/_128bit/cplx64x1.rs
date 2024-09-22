@@ -18,7 +18,7 @@ impl VecTrait<Complex64> for cplx64x1 {
         self.0.as_ptr()
     }
     #[inline(always)]
-    fn mul_add(self, a: Self, b: Self) -> Self {
+    fn mul_add(mut self, a: Self, b: Self) -> Self {
         self.0[0] = self.0[0] * a.0[0] + b.0[0];
         self
     }

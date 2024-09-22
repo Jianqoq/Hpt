@@ -19,7 +19,7 @@ impl VecTrait<Complex32> for cplx32x2 {
         self.0.as_ptr()
     }
     #[inline(always)]
-    fn mul_add(self, a: Self, b: Self) -> Self {
+    fn mul_add(mut self, a: Self, b: Self) -> Self {
         self.0[0] = self.0[0] * a.0[0] + b.0[0];
         self.0[1] = self.0[1] * a.0[1] + b.0[1];
         self
