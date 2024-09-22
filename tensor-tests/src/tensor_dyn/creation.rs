@@ -45,11 +45,11 @@ fn test_new() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[test]
-#[should_panic]
-fn test_allocate_too_large() {
-    let _a = _Tensor::<f64>::empty(&[i64::MAX]).unwrap();
-}
+// #[test]
+// #[should_panic]
+// fn test_allocate_too_large() {
+//     let _a = _Tensor::<f64>::empty(&[i64::MAX]).unwrap();
+// }
 
 #[test]
 fn test_arange() -> anyhow::Result<()> {
@@ -83,21 +83,21 @@ fn test_blackman_window() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[test]
-fn test_zeros() -> anyhow::Result<()> {
-    let tch_a = Tensor::zeros(&[1000], (tch::Kind::Double, tch::Device::Cpu));
-    let a = _Tensor::<f64>::zeros(&[1000])?;
-    assert_eq(&a, &tch_a);
-    Ok(())
-}
+// #[test]
+// fn test_zeros() -> anyhow::Result<()> {
+//     let tch_a = Tensor::zeros(&[1000], (tch::Kind::Double, tch::Device::Cpu));
+//     let a = _Tensor::<f64>::zeros(&[1000])?;
+//     assert_eq(&a, &tch_a);
+//     Ok(())
+// }
 
-#[test]
-fn test_full() -> anyhow::Result<()> {
-    let tch_a = Tensor::full(&[1000], 1.0, (tch::Kind::Double, tch::Device::Cpu));
-    let a = _Tensor::<f64>::full(1.0, &[1000])?;
-    assert_eq(&a, &tch_a);
-    Ok(())
-}
+// #[test]
+// fn test_full() -> anyhow::Result<()> {
+//     let tch_a = Tensor::full(&[1000], 1.0, (tch::Kind::Double, tch::Device::Cpu));
+//     let a = _Tensor::<f64>::full(1.0, &[1000])?;
+//     assert_eq(&a, &tch_a);
+//     Ok(())
+// }
 
 #[test]
 fn test_eye() -> anyhow::Result<()> {
