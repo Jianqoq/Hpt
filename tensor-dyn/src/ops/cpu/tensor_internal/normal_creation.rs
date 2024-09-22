@@ -79,6 +79,8 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let empty = Self::empty(shape)?;
         let ptr = empty.ptr().ptr;
         let size = empty.size();
+        let mem_size = empty.mem_layout.size() / size_of::<T>();
+        assert_eq!(size, mem_size);
         let slice = unsafe { std::slice::from_raw_parts_mut(ptr as *mut T, size) };
         slice.into_par_iter().for_each(|x| {
             *x = val;
