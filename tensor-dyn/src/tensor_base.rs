@@ -388,20 +388,9 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
     }
 
     fn full<S: Into<Shape>>(val: T, shape: S) -> Result<Self> {
-        let _shape = shape.into();
-        let res_shape = Shape::from(_shape);
-        let size = res_shape
-            .iter()
-            .try_fold(1i64, |acc, &num| acc.checked_mul(num).or(Some(i64::MAX)))
-            .unwrap_or(i64::MAX) as usize;
-        let layout = std::alloc::Layout::from_size_align(
-            size.checked_mul(size_of::<T>())
-                .or(Some(usize::MAX))
-                .unwrap_or(usize::MAX),
-            ALIGN,
-        )?;
-        let ptr = CACHE.allocate(layout);
-        assert_ne!(ptr, std::ptr::null_mut());
+        let empty = Self::empty(shape)?;
+        let ptr = empty.ptr().ptr;
+        let size = empty.size();
         let slice = unsafe { std::slice::from_raw_parts_mut(ptr as *mut T, size) };
         let vals = [val; 8];
         slice.par_chunks_exact_mut(8).for_each(|x| {
@@ -410,17 +399,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         slice[size - (size % 8)..size].iter_mut().for_each(|x| {
             *x = val;
         });
-        let ly = Layout::from(res_shape.clone());
-        Ok(_Tensor {
-            #[cfg(feature = "bound_check")]
-            data: Pointer::new(ptr as *mut T, ly.clone()),
-            #[cfg(not(feature = "bound_check"))]
-            data: Pointer::new(ptr as *mut T),
-            parent: None,
-            layout: ly,
-            mem_layout: Arc::new(layout),
-            _backend: Backend::new(ptr as u64),
-        })
+        Ok(empty)
     }
 
     fn full_like(&self, val: T) -> Result<Self> {
