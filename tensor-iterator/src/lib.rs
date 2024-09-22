@@ -52,7 +52,7 @@ where
     /// Convert the tensor into a mutable strided iterator.
     ///
     /// strided iterator is a single-threaded iterator
-    fn iter_mut(&'a self) -> StridedMut<T> {
+    fn iter_mut(&'a self) -> StridedMut<'a, T> {
         StridedMut::new(self)
     }
 
@@ -66,7 +66,7 @@ where
     /// Convert the tensor into a mutable strided simd iterator.
     ///
     /// strided simd iterator is a single-threaded simd iterator
-    fn iter_mut_simd(&'a self) -> StridedMutSimd<T> {
+    fn iter_mut_simd(&'a self) -> StridedMutSimd<'a, T> {
         StridedMutSimd::new(self)
     }
 
@@ -80,7 +80,7 @@ where
     /// Convert the tensor into a mutable parallel strided simd iterator.
     ///
     /// parallel strided simd iterator is a multi-threaded simd iterator
-    fn par_iter_mut_simd(&'a self) -> ParStridedMutSimd<T> {
+    fn par_iter_mut_simd(&'a self) -> ParStridedMutSimd<'a, T> {
         ParStridedMutSimd::new(self)
     }
 
@@ -94,7 +94,7 @@ where
     /// Convert the tensor into a mutable parallel strided iterator.
     ///
     /// parallel strided iterator is a multi-threaded iterator
-    fn par_iter_mut(&'a self) -> ParStridedMut<T> {
+    fn par_iter_mut(&'a self) -> ParStridedMut<'a, T> {
         ParStridedMut::new(self)
     }
 }

@@ -3,7 +3,7 @@ use std::ops::{Index, IndexMut};
 use std::simd::cmp::SimdPartialOrd;
 use std::simd::{cmp::SimdPartialEq, Simd};
 
-use crate::{traits::SimdCompare, vectors::_128bit::u8x16::u8x16};
+use crate::traits::SimdCompare;
 
 /// a vector of 16 bool values
 #[allow(non_camel_case_types)]
