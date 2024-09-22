@@ -396,7 +396,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         slice.par_chunks_exact_mut(8).for_each(|x| {
             x.copy_from_slice(&vals);
         });
-        slice[size - (size % 8)..size].iter_mut().for_each(|x| {
+        slice[size - (size % 8)..].iter_mut().for_each(|x| {
             *x = val;
         });
         Ok(empty)
