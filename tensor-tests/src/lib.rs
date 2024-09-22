@@ -1,5 +1,5 @@
 pub mod tensor_dyn {
-    // pub mod conv2d;
+    pub mod conv2d;
     // pub mod max_pool;
     pub mod reduce;
     // pub mod unary;

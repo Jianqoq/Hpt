@@ -17,19 +17,19 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Cache Cargo registry
-      uses: actions/cache@v4
+      uses: actions/cache@v3
       with:
         path: |
           ~/.cargo/registry
           ~/.cargo/git
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('tensor-tests/Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
           ${{ runner.os }}-cargo-registry-
-    - name: Cache Cargo build in tensor-tests
-      uses: actions/cache@v4
+    - name: Cache Cargo build
+      uses: actions/cache@v3
       with:
-        path: tensor-tests/target
-        key: ${{ runner.os }}-cargo-build-${{ hashFiles('tensor-tests/Cargo.lock') }}
+        path: target
+        key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
           ${{ runner.os }}-cargo-build-
     - name: Install Rust nightly
