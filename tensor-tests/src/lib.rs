@@ -5,7 +5,7 @@ pub mod tensor_dyn {
     pub mod unary;
     // pub mod creation;
     // pub mod shape_manipulate;
-    pub mod binary;
+    // pub mod binary;
     pub mod avg_pool2d;
     pub mod lp_pool2d;
     pub mod slice;
