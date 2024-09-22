@@ -20,9 +20,7 @@ pub mod par_strided_zip_simd {
         ParallelIterator,
     };
     use tensor_common::{
-        shape::Shape,
-        shape_utils::{mt_intervals, predict_broadcast_shape},
-        strides::Strides,
+        shape::Shape, shape_utils::{mt_intervals, predict_broadcast_shape}, simd_ref::MutVec, strides::Strides
     };
     use tensor_traits::CommonBounds;
 
@@ -251,7 +249,7 @@ pub mod par_strided_zip_simd {
         ) -> ParStridedMapSimd<'a, Self, <Self as IterGetSetSimd>::Item, F, F2>
         where
             F: Fn((&mut T, <Self as IterGetSetSimd>::Item)) + Sync + Send + 'a,
-            F2: Fn((&mut T::Vec, <Self as IterGetSetSimd>::SimdItem)) + Sync + Send + 'a,
+            F2: Fn((MutVec<'_, T::Vec>, <Self as IterGetSetSimd>::SimdItem)) + Sync + Send + 'a,
             T: CommonBounds,
             <A as IterGetSetSimd>::Item: Send,
             <B as IterGetSetSimd>::Item: Send,

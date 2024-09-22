@@ -34,6 +34,7 @@ pub mod par_strided_simd {
         pointer::Pointer,
         shape::Shape,
         shape_utils::{mt_intervals, predict_broadcast_shape, try_pad_shape},
+        simd_ref::MutVec,
         strides::Strides,
         strides_utils::preprocess_strides,
     };
@@ -148,7 +149,7 @@ pub mod par_strided_simd {
         where
             F: Fn((&mut T, <Self as IterGetSetSimd>::Item)) + Sync + Send + 'a,
             <Self as IterGetSetSimd>::Item: Send,
-            F2: Send + Sync + Copy + Fn((&mut T::Vec, <Self as IterGetSetSimd>::SimdItem)),
+            F2: Send + Sync + Copy + Fn((MutVec<'_, T::Vec>, <Self as IterGetSetSimd>::SimdItem)),
         {
             {
                 ParStridedMapSimd {
@@ -249,7 +250,7 @@ pub mod par_strided_simd {
             use tensor_types::vectors::traits::VecCommon;
             Some(T::Vec::SIZE)
         }
-        
+
         fn layout(&self) -> &Layout {
             &self.layout
         }
@@ -558,15 +559,15 @@ impl<T: CommonBounds> IterGetSet for ParStrided<T> {
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         unsafe { *self.ptr.get_ptr().add(index * (self.last_stride as usize)) }
     }
-    
+
     fn strides(&self) -> &Strides {
         self.layout.strides()
     }
-    
+
     fn shape(&self) -> &Shape {
         self.layout.shape()
     }
-    
+
     fn outer_loop_size(&self) -> usize {
         self.intervals[self.start_index].1 - self.intervals[self.start_index].0
     }
@@ -574,7 +575,7 @@ impl<T: CommonBounds> IterGetSet for ParStrided<T> {
     fn inner_loop_size(&self) -> usize {
         self.shape().last().unwrap().clone() as usize
     }
-    
+
     fn layout(&self) -> &Layout {
         &self.layout
     }

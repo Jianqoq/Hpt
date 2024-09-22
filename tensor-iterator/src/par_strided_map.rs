@@ -6,6 +6,7 @@ use crate::{iterator_traits::IterGetSet, par_strided_map_mut::ParStridedMapMut};
 /// A module for parallel strided map iterator.
 pub mod par_strided_map_simd {
     use rayon::iter::{plumbing::UnindexedProducer, ParallelIterator};
+    use tensor_common::simd_ref::MutVec;
     use tensor_traits::{CommonBounds, TensorAlloc, TensorInfo};
     use tensor_types::dtype::TypeCommon;
 
@@ -68,7 +69,7 @@ pub mod par_strided_map_simd {
                 + Copy
                 + Fn(
                     (
-                        &mut <<U as TensorAlloc>::Meta as TypeCommon>::Vec,
+                        MutVec<'_, <<U as TensorAlloc>::Meta as TypeCommon>::Vec>,
                         <I as IterGetSetSimd>::SimdItem,
                     ),
                 ),

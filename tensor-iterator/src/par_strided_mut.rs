@@ -25,7 +25,7 @@ pub mod par_strided_map_mut_simd {
     use std::sync::Arc;
     use tensor_common::{
         shape::Shape,
-        shape_utils::{mt_intervals, predict_broadcast_shape},
+        shape_utils::{mt_intervals, predict_broadcast_shape}, simd_ref::MutVec,
     };
     use tensor_traits::{CommonBounds, TensorInfo};
     use tensor_types::dtype::TypeCommon;
@@ -175,7 +175,7 @@ pub mod par_strided_map_mut_simd {
     {
         type Item = &'a mut T;
 
-        type SimdItem = &'a mut T::Vec where Self: 'a;
+        type SimdItem = MutVec<'a, T::Vec> where Self: 'a;
 
         fn set_end_index(&mut self, end_index: usize) {
             self.base.set_end_index(end_index);

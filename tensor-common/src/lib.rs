@@ -22,3 +22,5 @@ pub mod axis;
 pub mod slice;
 /// A module defines tensordot function arguments
 pub mod tensordot_args;
+/// A module defines simd vector reference, this force the user to use write unaligned and read unaligned when they use simd iterator
+pub mod simd_ref;

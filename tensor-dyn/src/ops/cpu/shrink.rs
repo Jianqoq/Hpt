@@ -4,8 +4,8 @@ use crate::{tensor::Tensor, tensor_base::_Tensor};
 use tensor_iterator::TensorIterator;
 use tensor_traits::CommonBounds;
 use tensor_types::traits::{Init, SimdSelect};
-use tensor_types::type_promote::{NormalOut, NormalOutUnary};
 use tensor_types::type_promote::SimdCmp;
+use tensor_types::type_promote::{NormalOut, NormalOutUnary};
 
 impl<T> _Tensor<T>
 where
@@ -51,14 +51,14 @@ where
                         T::ZERO
                     };
                 },
-                |(x, y)| {
+                |(mut x, y)| {
                     let gt_mask = y._gt(lambda_vec);
                     let lt_mask = y._lt(neg_lambda_vec);
                     let sub_bias = y._sub(bias_vec);
                     let add_bias = y._add(bias_vec);
                     let zero = T::Vec::splat(T::ZERO);
                     let res = gt_mask.select(sub_bias, zero);
-                    *x = lt_mask.select(add_bias, res);
+                    x.write_unaligned(lt_mask.select(add_bias, res));
                 },
             )
             .collect())
@@ -71,7 +71,7 @@ where
     T::Vec: SimdCmp + NormalOut<Output = T::Vec>,
     <T::Vec as SimdCmp>::Output: SimdSelect<T::Vec>,
 {
-        /// Applies the shrinkage operation to the input tensor.
+    /// Applies the shrinkage operation to the input tensor.
     ///
     /// The shrinkage operation is typically used in regularization techniques such as soft-thresholding.
     /// This method reduces the magnitude of the tensor's elements based on the `lambda` parameter, while

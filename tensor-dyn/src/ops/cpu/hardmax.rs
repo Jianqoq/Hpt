@@ -54,9 +54,9 @@ where
                     |(res, (a, b))| {
                         *res = a._eq(b)._mul(T::ONE);
                     },
-                    |(res, (a, b))| {
+                    |(mut res, (a, b))| {
                         let one = T::Vec::splat(T::ONE);
-                        *res = a._eq(b)._mul(one);
+                        res.write_unaligned(a._eq(b)._mul(one));
                     },
                 )
                 .collect::<_Tensor<T>>()
