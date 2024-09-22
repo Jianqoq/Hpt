@@ -369,8 +369,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let slice = unsafe { std::slice::from_raw_parts_mut(ptr as *mut T, size) };
         let zero = [T::ZERO; 8];
         slice.par_chunks_exact_mut(8).for_each(|x| {
-            let x: &mut [T; 8] = unsafe { core::mem::transmute(x.first_chunk_mut::<8>().unwrap()) };
-            *x = zero;
+            x.copy_from_slice(&zero);
         });
         slice[size - (size % 8)..size].iter_mut().for_each(|x| {
             *x = T::ZERO;
@@ -402,10 +401,9 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let ptr = CACHE.allocate(layout);
         assert_ne!(ptr, std::ptr::null_mut());
         let slice = unsafe { std::slice::from_raw_parts_mut(ptr as *mut T, size) };
-        let zero = [T::ONE; 8];
+        let one = [T::ONE; 8];
         slice.par_chunks_exact_mut(8).for_each(|x| {
-            let x: &mut [T; 8] = unsafe { core::mem::transmute(x.first_chunk_mut::<8>().unwrap()) };
-            *x = zero;
+            x.copy_from_slice(&one);
         });
         slice[size - (size % 8)..size].iter_mut().for_each(|x| {
             *x = T::ONE;
@@ -449,10 +447,9 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let ptr = CACHE.allocate(layout);
         assert_ne!(ptr, std::ptr::null_mut());
         let slice = unsafe { std::slice::from_raw_parts_mut(ptr as *mut T, size) };
-        let zero = [val; 8];
+        let vals = [val; 8];
         slice.par_chunks_exact_mut(8).for_each(|x| {
-            let x: &mut [T; 8] = unsafe { core::mem::transmute(x.first_chunk_mut::<8>().unwrap()) };
-            *x = zero;
+            x.copy_from_slice(&vals);
         });
         slice[size - (size % 8)..size].iter_mut().for_each(|x| {
             *x = val;
