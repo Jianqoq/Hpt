@@ -12,11 +12,11 @@ pub mod tensor_dyn {
 }
 
 pub mod tensor_common {
-    // pub mod shape_utils;
-    // pub mod axis;
-    // pub mod err_handler;
-    // pub mod layout;
-    // pub mod pointer;
-    // pub mod shape;
-    // pub mod strides;
+    pub mod shape_utils;
+    pub mod axis;
+    pub mod err_handler;
+    pub mod layout;
+    pub mod pointer;
+    pub mod shape;
+    pub mod strides;
 }
