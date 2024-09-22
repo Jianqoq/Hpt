@@ -42,8 +42,12 @@ jobs:
       run: |
         cd tensor-tests
         RUST_BACKTRACE=full cargo test --verbose -- --nocapture
-    - name: Show logs on failure
+    - name: Debug with GDB on failure
       if: failure()
       run: |
-        dmesg | grep -i segfault
-        journalctl -xe | grep -i error
+        for test_bin in target/debug/deps/*; do
+          if [[ -x "$test_bin" ]]; then
+            echo "Running GDB on $test_bin"
+            gdb --batch -ex "run" -ex "bt" "$test_bin"
+          fi
+        done
