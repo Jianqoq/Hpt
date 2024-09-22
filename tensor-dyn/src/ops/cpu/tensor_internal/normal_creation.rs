@@ -31,8 +31,8 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             .unwrap_or(i64::MAX) as usize;
         let layout = std::alloc::Layout::from_size_align(
             size.checked_mul(size_of::<T>())
-                .or(Some(usize::MAX))
-                .unwrap_or(usize::MAX),
+                .or(Some(usize::MAX - (ALIGN - 1)))
+                .unwrap_or(usize::MAX - (ALIGN - 1)),
             ALIGN,
         )?;
         let ptr = CACHE.allocate(layout);
