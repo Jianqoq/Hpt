@@ -8,7 +8,7 @@ pub mod tensor_dyn {
     pub mod binary;
     // pub mod avg_pool2d;
     // pub mod lp_pool2d;
-    // pub mod slice;
+    pub mod slice;
 }
 
 pub mod tensor_common {
