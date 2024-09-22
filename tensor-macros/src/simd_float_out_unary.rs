@@ -606,18 +606,18 @@ fn gen_func_arr(
                 fn #method(self) -> Self::Output {
                     #[cfg(target_feature = "avx2")]
                     let mut casted = self.to_2_f32x8();
-                    #[cfg(all(any(target_feature = "sse", target_arch = "arm"), not(target_feature = "avx2")))]
+                    #[cfg(all(any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"), not(target_feature = "avx2")))]
                     let mut casted = self.to_2_f32x4();
-                    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                    #[cfg(target_feature = "avx512f")]
                     let mut casted = self.to_2_f32x16();
                     for i in 0..2 {
                         casted[i] = casted[i].#method();
                     }
                     #[cfg(target_feature = "avx2")]
                     let ret = bf16x16::bf16x16::from_2_f32x8(casted);
-                    #[cfg(all(any(target_feature = "sse", target_arch = "arm"), not(target_feature = "avx2")))]
+                    #[cfg(all(any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"), not(target_feature = "avx2")))]
                     let ret = bf16x8::bf16x8::from_2_f32x4(casted);
-                    #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                    #[cfg(target_feature = "avx512f")]
                     let ret = bf16x32::bf16x32::from_2_f32x16(casted);
                     ret
                 }

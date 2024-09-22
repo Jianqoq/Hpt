@@ -74,11 +74,11 @@ pub fn impl_simd_eval() -> TokenStream {
                         #[cfg(target_feature = "avx2")]
                         let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
                         #[cfg(all(
-                            any(target_feature = "sse2", target_feature = "arm"),
+                            any(target_feature = "sse2", target_feature = "arm", target_arch = "aarch64"),
                             not(target_feature = "avx2")
                         ))]
                         let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
-                        #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                        #[cfg(target_feature = "avx512f")]
                         let x: Simd<u16, 32> = unsafe { std::mem::transmute(self.0) };
                         #mask_ty::#mask_ty(unsafe { std::mem::transmute(x.simd_ne(#mask_ty::#mask_ty::splat(#mask_meta_ty::ZERO).0)) })
                     }
@@ -89,11 +89,11 @@ pub fn impl_simd_eval() -> TokenStream {
                         #[cfg(target_feature = "avx2")]
                         let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
                         #[cfg(all(
-                            any(target_feature = "sse2", target_feature = "arm"),
+                            any(target_feature = "sse2", target_feature = "arm", target_arch = "aarch64"),
                             not(target_feature = "avx2")
                         ))]
                         let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
-                        #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                        #[cfg(target_feature = "avx512f")]
                         let x: Simd<u16, 32> = unsafe { std::mem::transmute(self.0) };
                         #mask_ty::#mask_ty(unsafe { std::mem::transmute(x.simd_ne(#mask_ty::#mask_ty::splat(#mask_meta_ty::ZERO).0)) })
                     }

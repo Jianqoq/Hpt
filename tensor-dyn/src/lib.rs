@@ -192,7 +192,7 @@ pub(crate) const REGNUM: usize = 32;
 
 #[cfg(target_feature = "avx2")]
 type BoolVector = tensor_types::_256bit::boolx32::boolx32;
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+#[cfg(any(target_feature = "avx512f"))]
 type BoolVector = tensor_types::_512bit::boolx64::boolx64;
 #[cfg(any(
     all(not(target_feature = "avx2"), target_feature = "sse"),
