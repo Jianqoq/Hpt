@@ -16,9 +16,9 @@ use tensor_types::dtype::TypeCommon;
 /// Performs a binary operation on two tensors with optional SIMD optimization and an output tensor.
 ///
 /// This method applies a binary function element-wise on two tensors (`lhs` and `rhs`) and returns
-/// a new tensor with the result. Optionally, SIMD (Single Instruction, Multiple Data) can be used 
-/// for vectorized operations if the sizes of the underlying data vectors align. Additionally, 
-/// the user can provide an output tensor to store the result, allowing in-place computations 
+/// a new tensor with the result. Optionally, SIMD (Single Instruction, Multiple Data) can be used
+/// for vectorized operations if the sizes of the underlying data vectors align. Additionally,
+/// the user can provide an output tensor to store the result, allowing in-place computations
 /// and reducing memory allocations.
 ///
 /// # Arguments
@@ -27,7 +27,7 @@ use tensor_types::dtype::TypeCommon;
 /// * `rhs` - A reference to the right-hand side tensor involved in the binary operation.
 /// * `f` - A binary function applied to elements of the tensors during the operation. This function
 ///   is used when SIMD is not applicable.
-/// * `f2` - A binary function that operates on vectorized data (SIMD). This function is used when 
+/// * `f2` - A binary function that operates on vectorized data (SIMD). This function is used when
 ///   SIMD is applicable.
 /// * `out` - An optional output tensor that, if provided, will store the result of the operation.
 ///   If not provided, a new tensor will be created to hold the result.
@@ -39,7 +39,7 @@ use tensor_types::dtype::TypeCommon;
 ///
 /// # SIMD Optimization
 ///
-/// If the vector sizes of the input tensors match and SIMD is enabled, the `f2` function is applied to 
+/// If the vector sizes of the input tensors match and SIMD is enabled, the `f2` function is applied to
 /// perform vectorized operations for faster computation. If not, the scalar function `f` is applied to each element.
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
@@ -251,9 +251,10 @@ where
                         |(res, (x, y))| {
                             let x_ptr = x.as_ptr();
                             let y_ptr = y.as_ptr();
-                            *res = f2(unsafe { <A as TypeCommon>::Vec::from_ptr(x_ptr) }, unsafe {
-                                <B as TypeCommon>::Vec::from_ptr(y_ptr)
-                            });
+                            res.write_unaligned(f2(
+                                unsafe { <A as TypeCommon>::Vec::from_ptr(x_ptr) },
+                                unsafe { <B as TypeCommon>::Vec::from_ptr(y_ptr) },
+                            ));
                         },
                     )
                     .collect::<_Tensor<K>>();

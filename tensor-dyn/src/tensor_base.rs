@@ -86,25 +86,7 @@ where
     }
 
     fn contiguous(&self) -> anyhow::Result<Self> {
-        use tensor_types::traits::VecTrait;
-        let res = self
-            .par_iter_simd()
-            .strided_map_simd(
-                |(res, x)| {
-                    *res = x;
-                },
-                |(res, x)| {
-                    // possibily a rust bug when we use sse vector,
-                    // so we have to use ptr directly or hope rust is able to inline the `write_unaligned`
-
-                    // let ptr = res.as_mut_ptr() as *mut T::Vec;
-                    // unsafe {
-                    //     ptr.write_unaligned(x);
-                    // }
-                    res.write_unaligned(x);
-                },
-            )
-            .collect();
+        let res = self.par_iter().strided_map(|x| x).collect();
         Ok(res)
     }
 }

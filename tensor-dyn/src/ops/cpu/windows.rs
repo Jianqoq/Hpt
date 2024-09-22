@@ -97,7 +97,7 @@ where
                 alpha_vec,
             );
             unsafe {
-                ptr.write(res);
+                ptr.write_unaligned(res);
             }
         });
         Ok(ret)
