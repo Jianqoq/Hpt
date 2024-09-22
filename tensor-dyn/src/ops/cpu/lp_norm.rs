@@ -1,6 +1,5 @@
 use tensor_traits::{CommonBounds, NormalReduce, TensorInfo};
 use tensor_types::{
-    convertion::Convertor,
     into_scalar::IntoScalar,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
@@ -31,28 +30,17 @@ impl<T> _Tensor<T, Cpu> {
     /// This function returns a `Result` containing a tensor with Lp normalization applied along the specified axis.
     pub fn lp_normalization(&self, p: u8, axis: i64) -> anyhow::Result<_Tensor<FloatBinaryType<T>>>
     where
-        T: CommonBounds
-            + NormalOut<T, Output = T>
-            + FloatOutBinary
-            + IntoScalar<<T as FloatOutBinary>::Output>
-            + Convertor,
-        T::Vec: NormalOut<T::Vec, Output = T::Vec>,
-        <T as FloatOutBinary>::Output: CommonBounds
-            + NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>
-            + FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
+        T: CommonBounds + IntoScalar<<T as FloatOutBinary>::Output>,
+        <T as FloatOutBinary>::Output:
+            CommonBounds + FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
         <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<T::Vec, Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
-            + FloatOutUnary<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
-            + NormalOut<
-                <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-                Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-            >,
-        T: NormalOut
-            + FloatOutBinary<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>,
+            + FloatOutUnary<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>,
+        T: FloatOutBinary<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>,
         <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>,
         T::Vec: NormalOut<
-                <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-                Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-            > + NormalOut<T::Vec, Output = T::Vec>,
+            <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+        >,
         T::Vec: FloatOutBinary<
             <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
             Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,

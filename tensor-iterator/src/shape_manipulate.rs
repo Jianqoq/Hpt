@@ -36,8 +36,7 @@ pub(crate) fn par_reshape<S: Into<Shape>, T: ParStridedHelper>(mut iterator: T, 
         let self_shape = try_pad_shape(iterator._layout().shape(), res_shape.len());
 
         let axes_to_broadcast =
-            get_broadcast_axes_from(&self_shape, &res_shape, Location::caller())
-                .expect("Cannot broadcast shapes");
+            get_broadcast_axes_from(&self_shape, &res_shape).expect("Cannot broadcast shapes");
 
         let mut new_strides = vec![0; res_shape.len()];
         new_strides
@@ -147,8 +146,7 @@ pub(crate) fn reshape<S: Into<Shape>, T: StridedHelper>(mut iterator: T, shape: 
         let self_shape = try_pad_shape(iterator._layout().shape(), res_shape.len());
 
         let axes_to_broadcast =
-            get_broadcast_axes_from(&self_shape, &res_shape, Location::caller())
-                .expect("Cannot broadcast shapes");
+            get_broadcast_axes_from(&self_shape, &res_shape).expect("Cannot broadcast shapes");
 
         let mut new_strides = vec![0; res_shape.len()];
         new_strides

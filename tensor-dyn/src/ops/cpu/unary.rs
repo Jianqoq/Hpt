@@ -13,7 +13,7 @@ use tensor_traits::tensor::{CommonBounds, TensorInfo, TensorLike};
 use tensor_traits::{FloatUaryOps, Neg, NormalUaryOps};
 use tensor_types::dtype::TypeCommon;
 use tensor_types::into_scalar::IntoScalar;
-use tensor_types::type_promote::{Eval, FloatOutBinary, FloatOutUnary, NormalOut};
+use tensor_types::type_promote::{Eval, FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary};
 use tensor_types::vectors::traits::*;
 use threadpool::ThreadPool;
 
@@ -27,7 +27,7 @@ where
     A: CommonBounds,
     K: CommonBounds,
     O: Borrow<_Tensor<K, Cpu>>,
-    F: Fn(<A as TypeCommon>::Vec) -> <K as TypeCommon>::Vec + Sync + Send,
+    F: Fn(A::Vec) -> K::Vec + Sync + Send,
     F2: Fn(A) -> K + Sync + Send,
 {
     let mut ret = if let Some(out) = out {
@@ -96,7 +96,6 @@ where
     f64: IntoScalar<<T as FloatOutUnary>::Output>,
     T::Vec:
         FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec, Base = FloatUnaryType<T>>,
-    <FloatUnaryType<T> as TypeCommon>::Vec: Send + Copy + Sync,
 {
     type Output = _Tensor<FloatUnaryType<T>>;
 
@@ -772,7 +771,7 @@ where
         uary_fn_with_out_simd(
             self,
             |x| x._clip(min_vec, max_vec),
-            |x| x._clip(min, max),
+            |x| <T as NormalOut<T>>::_clip(x, min, max),
             None::<_Tensor<NormalType<T>>>,
         )
     }
@@ -790,7 +789,7 @@ where
         uary_fn_with_out_simd(
             self,
             |x| x._clip(min_vec, max_vec),
-            |x| x._clip(min, max),
+            |x| <T as NormalOut<T>>::_clip(x, min, max),
             Some(out),
         )
     }

@@ -23,7 +23,7 @@ impl DerefMut for usizex4 {
 
 impl VecTrait<usize> for usizex4 {
     #[inline(always)]
-    fn _mul_add(self, a: Self, b: Self) -> Self {
+    fn mul_add(self, a: Self, b: Self) -> Self {
         Self(self.0 * a.0 + b.0)
     }
     #[inline(always)]

@@ -15,6 +15,7 @@ use crate::vectors::traits::Init;
 use crate::vectors::traits::SimdCompare;
 use half::bf16;
 use half::f16;
+use num_complex::{Complex32, Complex64};
 use num_traits::float::Float;
 use sleef::Sleef;
 use std::ops::Neg;
@@ -26,9 +27,12 @@ use std::simd::num::SimdInt;
 use std::simd::num::SimdUint;
 use std::simd::Simd;
 use tensor_macros::float_out_unary;
+use tensor_macros::impl_normal_out_binary;
 use tensor_macros::impl_normal_out_simd;
+use tensor_macros::impl_normal_out_unary;
+use tensor_macros::impl_normal_out_unary_simd;
 use tensor_macros::{
-    float_out_binary, impl_bitwise_out, impl_cmp, impl_eval, impl_normal_out, simd_cmp, simd_eval,
+    float_out_binary, impl_bitwise_out, impl_cmp, impl_eval, simd_cmp, simd_eval,
     simd_float_out_unary,
 };
 use tensor_macros::{float_out_binary_simd, simd_bitwise};
@@ -62,6 +66,20 @@ pub trait NormalOut<RHS = Self> {
     fn _pow(self, rhs: RHS) -> Self::Output;
     /// perform a % b
     fn _rem(self, rhs: RHS) -> Self::Output;
+    /// perform max(x, y)
+    fn _max(self, rhs: RHS) -> Self::Output;
+    /// perform min(x, y)
+    fn _min(self, rhs: RHS) -> Self::Output;
+    /// restrict the value of x to the range [min, max]
+    fn _clip(self, min: Self::Output, max: Self::Output) -> Self::Output;
+}
+
+impl_normal_out_binary!();
+
+impl_normal_out_simd!();
+
+/// this trait is used to perform normal unary operations that don't require type promotion
+pub trait NormalOutUnary {
     /// perform x<sup>2</sup>
     fn _square(self) -> Self;
     /// perform |x|
@@ -72,21 +90,14 @@ pub trait NormalOut<RHS = Self> {
     fn _floor(self) -> Self;
     /// perform -x
     fn _neg(self) -> Self;
-    /// get the sign of x
-    fn _sign(self) -> Self::Output;
-    /// perform max(x, y)
-    fn _max(self, rhs: RHS) -> Self::Output;
-    /// perform min(x, y)
-    fn _min(self, rhs: RHS) -> Self::Output;
-    /// restrict the value of x to the range [min, max]
-    fn _clip(self, min: Self::Output, max: Self::Output) -> Self::Output;
     /// perform rounding
     fn _round(self) -> Self;
+    /// get the sign of x
+    fn _sign(self) -> Self;
 }
 
-impl_normal_out!();
-
-impl_normal_out_simd!();
+impl_normal_out_unary!();
+impl_normal_out_unary_simd!();
 
 /// this trait is used to perform bitwise operations
 pub trait BitWiseOut<RHS = Self> {
@@ -193,7 +204,7 @@ pub trait FloatOutUnary {
     type Output;
     /// The base type, typically used for parameters like `alpha`.
     type Base;
-    
+
     /// Perform the natural exponential function: e<sup>x</sup>.
     fn _exp(self) -> Self::Output;
 
@@ -204,7 +215,7 @@ pub trait FloatOutUnary {
     fn _ln(self) -> Self::Output;
 
     /// Perform the CELU (Continuously Differentiable Exponential Linear Unit) activation function.
-    /// 
+    ///
     /// Formula: f(x) = max(0, x) + min(0, alpha * (e<sup>(x / alpha)</sup> - 1))
     fn _celu(self, alpha: Self::Base) -> Self::Output;
 
@@ -321,7 +332,6 @@ pub trait FloatOutUnary {
     /// Perform the cube root function: ∛x.
     fn _cbrt(self) -> Self::Output;
 }
-
 
 float_out_unary!();
 

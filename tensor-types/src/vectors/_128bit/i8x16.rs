@@ -28,7 +28,7 @@ impl VecTrait<i8> for i8x16 {
         self.as_array().as_ptr()
     }
     #[inline(always)]
-    fn _mul_add(self, a: Self, b: Self) -> Self {
+    fn mul_add(self, a: Self, b: Self) -> Self {
         Self(self.0 * a.0 + b.0)
     }
     #[inline(always)]

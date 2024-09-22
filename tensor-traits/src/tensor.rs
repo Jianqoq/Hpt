@@ -8,7 +8,7 @@ use tensor_types::{
     convertion::{Convertor, FromScalar},
     dtype::TypeCommon,
     into_scalar::IntoScalar,
-    type_promote::{FloatOutUnary, NormalOut},
+    type_promote::{FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary},
 };
 
 #[cfg(target_feature = "avx2")]
@@ -960,16 +960,47 @@ where
 }
 
 /// Common bounds for primitive types
-pub trait CommonBounds:
-    Sync + Send + Clone + Copy + TypeCommon + 'static + Display + IntoScalar<Self> + Convertor
+pub trait CommonBounds
 where
     <Self as TypeCommon>::Vec: Send + Sync + Copy,
+    Self: Sync
+        + Send
+        + Clone
+        + Copy
+        + TypeCommon
+        + 'static
+        + Display
+        + IntoScalar<Self>
+        + Convertor
+        + NormalOut<Self, Output = Self>
+        + FloatOutUnary
+        + NormalOut<<Self as FloatOutUnary>::Output, Output = <Self as FloatOutUnary>::Output>
+        + FloatOutBinary<<Self as FloatOutUnary>::Output, Output = <Self as FloatOutUnary>::Output>
+        + FloatOutBinary<Self>
+        + NormalOut<<Self as FloatOutBinary<Self>>::Output, Output = <Self as FloatOutBinary<Self>>::Output>
+        + NormalOutUnary,
 {
 }
-impl<
-        T: Sync + Send + Clone + Copy + TypeCommon + 'static + Display + IntoScalar<Self> + Convertor,
-    > CommonBounds for T
+impl<T> CommonBounds for T
 where
     <Self as TypeCommon>::Vec: Send + Sync + Copy,
+    Self: Sync
+        + Send
+        + Clone
+        + Copy
+        + TypeCommon
+        + 'static
+        + Display
+        + IntoScalar<Self>
+        + Convertor
+        + NormalOut<Self, Output = Self>
+        + FloatOutUnary
+        + NormalOut<<Self as FloatOutUnary>::Output, Output = <Self as FloatOutUnary>::Output>
+        + FloatOutBinary<<Self as FloatOutUnary>::Output, Output = <Self as FloatOutUnary>::Output>
+        + FloatOutBinary<Self>
+        + FloatOutBinary<<Self as FloatOutBinary<Self>>::Output, Output = <Self as FloatOutBinary<Self>>::Output>
+        + NormalOut<<Self as FloatOutBinary<Self>>::Output, Output = <Self as FloatOutBinary<Self>>::Output>
+        + NormalOutUnary,
+    
 {
 }

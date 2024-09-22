@@ -20,7 +20,7 @@ impl VecTrait<bool> for boolx16 {
         self.0.as_ptr()
     }
     #[inline(always)]
-    fn _mul_add(self, _: Self, _: Self) -> Self {
+    fn mul_add(self, _: Self, _: Self) -> Self {
         todo!()
     }
     #[inline(always)]

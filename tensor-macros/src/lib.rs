@@ -1,7 +1,7 @@
 //! # Tensor Macros
-//! 
-//! This crate provides a set of macros to generate code for tensor operations. 
-//! These macros are used to simplify and automate common tasks such as defining 
+//!
+//! This crate provides a set of macros to generate code for tensor operations.
+//! These macros are used to simplify and automate common tasks such as defining
 //! tensor operations, reducing dimensionality, and optimizing numerical computations.
 //!
 //! ## Examples
@@ -16,35 +16,42 @@
 
 use binary_float_out::impl_float_out_binary;
 use float_unary::impl_float_out_unary;
-use kernel_gen_helper::{ __gen_fast_reduce_simd_helper, __gen_reduce_dim_not_include_simd_helper };
+use kernel_gen_helper::{__gen_fast_reduce_simd_helper, __gen_reduce_dim_not_include_simd_helper};
+use normal_out::__impl_normal_out_binary;
 use proc_macro::TokenStream;
 use simd_bitwise::impl_simd_bitwise_out;
 use simd_convert::__impl_simd_convert;
 use simd_float_out_binary::impl_simd_binary_out_float;
-use syn::{ parse, parse_macro_input, Expr, Ident, Token };
-mod type_utils;
-mod list_enum;
-mod simd_normal_out;
-mod simd_convert;
-mod simd_float_out_unary;
+use syn::{parse, parse_macro_input, Expr, Ident, Token};
 mod binary_float_out;
 mod float_unary;
-mod simd_eval;
-mod simd_cmp;
-mod simd_bitwise;
-mod kernel_gen_helper;
-mod simd_float_out_binary;
 mod into_vec;
+mod kernel_gen_helper;
+mod list_enum;
+mod simd_bitwise;
+mod simd_cmp;
+mod simd_convert;
+mod simd_eval;
+mod normal_out_unary;
+mod simd_normal_unary;
+mod simd_float_out_binary;
+mod simd_float_out_unary;
+mod simd_normal_out;
+mod type_utils;
+mod normal_out;
 use crate::simd_cmp::impl_simd_cmp;
+use crate::simd_normal_out::impl_simd_normal_out;
+use proc_macro2::{TokenStream as TokenStream2, TokenTree};
 use quote::quote;
 use type_utils::TypeInfo;
-use proc_macro2::{ TokenStream as TokenStream2, TokenTree };
-use crate::simd_normal_out::impl_simd_normal_out;
 
 /// number of registers available for the target architecture
 #[cfg(target_feature = "avx2")]
 const NUM_REG: usize = 16;
-#[cfg(all(any(target_feature = "sse", target_arch = "arm"), not(target_feature = "avx2")))]
+#[cfg(all(
+    any(target_feature = "sse", target_arch = "arm"),
+    not(target_feature = "avx2")
+))]
 const NUM_REG: usize = 8;
 #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 const NUM_REG: usize = 32;
@@ -64,51 +71,41 @@ impl parse::Parse for SelectionParser {
         let mut start: Option<Expr> = None;
         let mut end: Option<Expr> = None;
         let mut step: Option<Expr> = None;
-        if
-            input.peek(syn::Lit) ||
-            input.peek(syn::Ident) ||
-            input.peek(syn::token::Paren) ||
-            input.peek(Token![-])
+        if input.peek(syn::Lit)
+            || input.peek(syn::Ident)
+            || input.peek(syn::token::Paren)
+            || input.peek(Token![-])
         {
             start = Some(input.parse::<Expr>()?);
         }
         if input.peek(Token![:]) {
             input.parse::<Token![:]>()?;
         } else if input.is_empty() {
-            return Ok(Self {
-                start,
-                end,
-                step,
-            });
+            return Ok(Self { start, end, step });
         } else {
-            return Err(
-                syn::Error::new(input.span(), "unexpected token, expected `:`, Int or Ident")
-            );
+            return Err(syn::Error::new(
+                input.span(),
+                "unexpected token, expected `:`, Int or Ident",
+            ));
         }
-        if
-            input.peek(syn::Lit) ||
-            input.peek(syn::Ident) ||
-            input.peek(syn::token::Paren) ||
-            input.peek(Token![-])
+        if input.peek(syn::Lit)
+            || input.peek(syn::Ident)
+            || input.peek(syn::token::Paren)
+            || input.peek(Token![-])
         {
             end = Some(input.parse::<Expr>()?);
         }
         if input.peek(Token![:]) {
             input.parse::<Token![:]>()?;
         }
-        if
-            input.peek(syn::Lit) ||
-            input.peek(syn::Ident) ||
-            input.peek(syn::token::Paren) ||
-            input.peek(Token![-])
+        if input.peek(syn::Lit)
+            || input.peek(syn::Ident)
+            || input.peek(syn::token::Paren)
+            || input.peek(Token![-])
         {
             step = Some(input.parse::<Expr>()?);
         }
-        Ok(Self {
-            start,
-            end,
-            step,
-        })
+        Ok(Self { start, end, step })
     }
 }
 
@@ -162,10 +159,12 @@ pub fn match_selection(input: TokenStream) -> TokenStream {
             (Some(start), None, Some(step)) => {
                 ret_stream.extend(quote!(Slice::StepByRangeFrom((#start, #step))));
             }
-            (Some(start), Some(end), None) =>
-                ret_stream.extend(quote!(Slice::Range((#start, #end)))),
-            (Some(start), Some(end), Some(step)) =>
-                ret_stream.extend(quote!(Slice::StepByRangeFromTo((#start, #end, #step)))),
+            (Some(start), Some(end), None) => {
+                ret_stream.extend(quote!(Slice::Range((#start, #end))))
+            }
+            (Some(start), Some(end), Some(step)) => {
+                ret_stream.extend(quote!(Slice::StepByRangeFromTo((#start, #end, #step))))
+            }
         }
         if idx != len - 1 {
             ret_stream.extend(quote!(,));
@@ -181,7 +180,7 @@ fn match_helper(
     mut true_true: impl FnMut() -> Expr,
     mut true_false: impl FnMut() -> Expr,
     mut false_true: impl FnMut() -> Expr,
-    mut false_false: impl FnMut() -> Expr
+    mut false_false: impl FnMut() -> Expr,
 ) -> Expr {
     match (lhs, rhs) {
         (true, true) => true_true(),
@@ -201,7 +200,9 @@ impl parse::Parse for InferEnumType {
     fn parse(input: parse::ParseStream) -> syn::Result<Self> {
         let lhs = input.parse::<Expr>().expect("lhs is not found");
         input.parse::<Token![,]>()?;
-        let rhs = input.parse::<Ident>().expect("rhs is not found, use sapce when not needed");
+        let rhs = input
+            .parse::<Ident>()
+            .expect("rhs is not found, use sapce when not needed");
         input.parse::<Token![,]>()?;
         let mode = input.parse::<Ident>()?;
         Ok(Self { lhs, rhs, mode })
@@ -220,8 +221,7 @@ pub fn infer_enum_type(input: TokenStream) -> TokenStream {
     match enum_name.as_str() {
         "normal" => {
             let tk = list_enum::list_enums();
-            let tmp =
-                quote!(
+            let tmp = quote!(
                 match (#lhs, #rhs) {
                     #tk
                     _ => todo!(),
@@ -231,8 +231,7 @@ pub fn infer_enum_type(input: TokenStream) -> TokenStream {
         }
         "binary_float" => {
             let tk = list_enum::list_enums_out_float();
-            let tmp =
-                quote!(
+            let tmp = quote!(
                 match (#lhs, #rhs) {
                     #tk
                     _ => todo!(),
@@ -242,8 +241,7 @@ pub fn infer_enum_type(input: TokenStream) -> TokenStream {
         }
         "uary_float" => {
             let tk = list_enum::list_enums_out_float_uary();
-            let tmp =
-                quote!(
+            let tmp = quote!(
                 match #lhs {
                     #tk
                     _ => todo!(),
@@ -266,7 +264,9 @@ impl parse::Parse for GenericCal {
     fn parse(input: parse::ParseStream) -> syn::Result<Self> {
         let lhs = input.parse::<Ident>().expect("lhs is not found");
         input.parse::<Token![,]>()?;
-        let rhs = input.parse::<Ident>().expect("rhs is not found, use sapce when not needed");
+        let rhs = input
+            .parse::<Ident>()
+            .expect("rhs is not found, use sapce when not needed");
         input.parse::<Token![,]>()?;
         let method = input.parse::<Ident>()?;
         Ok(Self { lhs, rhs, method })
@@ -347,331 +347,20 @@ pub fn simd_bitwise(_: TokenStream) -> TokenStream {
 
 /// generate notmal out trait
 #[proc_macro]
-pub fn impl_normal_out(_: TokenStream) -> TokenStream {
-    let mut ret = proc_macro2::TokenStream::new();
+pub fn impl_normal_out_binary(_: TokenStream) -> TokenStream {
+    __impl_normal_out_binary()
+}
 
-    let types = [
-        "bool",
-        "f16",
-        "f32",
-        "f64",
-        "i8",
-        "i16",
-        "i32",
-        "i64",
-        "u8",
-        "u16",
-        "u32",
-        "u64",
-        "bf16",
-        "isize",
-        "usize",
-    ];
+/// gemerate normal out unary trait
+#[proc_macro]
+pub fn impl_normal_out_unary(_: TokenStream) -> TokenStream {
+    normal_out_unary::__impl_normal_out_unary()
+}
 
-    for lhs in types.iter() {
-        for rhs in types.iter() {
-            let lhs_type = TypeInfo::new(lhs);
-            let rhs_type = TypeInfo::new(rhs);
-            let lhs_dtype = lhs_type.dtype;
-            let rhs_dtype = rhs_type.dtype;
-            let res_type = lhs_type.infer_normal_res_type(&rhs_type);
-
-            let mul_add_method = if res_type.is_float() {
-                quote! {
-                    #[inline(always)]
-                    fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() * a.[<to_ #res_type>]() + b.[<to_ #res_type>]()
-                        }
-                    }
-                }
-            } else if res_type.is_bool() {
-                quote! {
-                    #[inline(always)]
-                    fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
-                        self || a && b
-                    }
-                }
-            } else {
-                quote! {
-                    #[inline(always)]
-                    fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().wrapping_mul(a.[<to_ #res_type>]()) + b.[<to_ #res_type>]()
-                        }
-                    }
-                }
-            };
-
-            let neg_method = if lhs_dtype.is_float() {
-                quote! {
-                    #[inline(always)]
-                    fn _neg(self) -> Self {
-                        -self
-                    }
-                }
-            } else if lhs_dtype.is_bool() {
-                quote! {
-                    #[inline(always)]
-                    fn _neg(self) -> Self {
-                        !self
-                    }
-                }
-            } else if lhs_dtype.is_unsigned() {
-                quote! {
-                    #[inline(always)]
-                    fn _neg(self) -> Self {
-                        !self + 1
-                    }
-                }
-            } else {
-                quote! {
-                    #[inline(always)]
-                    fn _neg(self) -> Self {
-                        -self
-                    }
-                }
-            };
-
-            let pow_method = if res_type.is_float() {
-                quote! {
-                    #[inline(always)]
-                    fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().powf(rhs.[<to_ #res_type>]())
-                        }
-                    }
-                }
-            } else {
-                if res_type.is_bool() {
-                    quote! {
-                        #[inline(always)]
-                        fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
-                            self || rhs
-                        }
-                    }
-                } else {
-                    quote! {
-                        #[inline(always)]
-                        fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
-                            paste::paste! {
-                                self.[<to_ #res_type>]().pow(rhs.to_u32())
-                            }
-                        }
-                    }
-                }
-            };
-
-            let abs_method = if lhs_dtype.is_unsigned() {
-                quote! {
-                    #[inline(always)]
-                    fn _abs(self) -> Self {
-                        self
-                    }
-                }
-            } else {
-                quote! {
-                    #[inline(always)]
-                    fn _abs(self) -> Self {
-                        self.abs()
-                    }
-                }
-            };
-
-            let ceil_method = if lhs_dtype.is_float() {
-                quote! {
-                    #[inline(always)]
-                    fn _ceil(self) -> Self {
-                        self.ceil()
-                    }
-                }
-            } else {
-                quote! {
-                    #[inline(always)]
-                    fn _ceil(self) -> Self {
-                        self
-                    }
-                }
-            };
-
-            let floor_method = if lhs_dtype.is_float() {
-                quote! {
-                    #[inline(always)]
-                    fn _floor(self) -> Self {
-                        self.floor()
-                    }
-                }
-            } else {
-                quote! {
-                    #[inline(always)]
-                    fn _floor(self) -> Self {
-                        self
-                    }
-                }
-            };
-
-            let sign_method = if res_type.is_float() {
-                quote! {
-                    #[inline(always)]
-                    fn _sign(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().signum()
-                        }
-                    }
-                }
-            } else if res_type.is_unsigned() {
-                quote! {
-                    #[inline(always)]
-                    fn _sign(self) -> Self::Output {
-                        #res_type::ZERO
-                    }
-                }
-            } else {
-                quote! {
-                    #[inline(always)]
-                    fn _sign(self) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().signum()
-                        }
-                    }
-                }
-            };
-
-            let cmp_method = if res_type.is_bool() {
-                quote! {
-                    #[inline(always)]
-                    fn _max(self, rhs: #rhs_dtype) -> Self::Output {
-                        self || rhs
-                    }
-                    #[inline(always)]
-                    fn _min(self, rhs: #rhs_dtype) -> Self::Output {
-                        self && rhs
-                    }
-                }
-            } else {
-                quote! {
-                    #[inline(always)]
-                    fn _max(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().max(rhs.[<to_ #res_type>]())
-                        }
-                    }
-                    #[inline(always)]
-                    fn _min(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().min(rhs.[<to_ #res_type>]())
-                        }
-                    }
-                }
-            };
-
-            let round_method = if lhs_dtype.is_float() {
-                quote! {
-                    #[inline(always)]
-                    fn _round(self) -> Self {
-                        self.round()
-                    }
-                }
-            } else {
-                quote! {
-                    #[inline(always)]
-                    fn _round(self) -> Self {
-                        self
-                    }
-                }
-            };
-            let std_ops = if res_type.is_bool() {
-                quote! {
-                    #[inline(always)]
-                    fn _add(self, rhs: #rhs_dtype) -> Self::Output {
-                        self || rhs
-                    }
-                    #[inline(always)]
-                    fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
-                        self && !rhs
-                    }
-                    #[inline(always)]
-                    fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
-                        self && rhs
-                    }
-                    #[inline(always)]
-                    fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
-                        self && !rhs
-                    }
-                }
-            } else {
-                let op = |
-                    method: &str,
-                    op: TokenStream2,
-                    std_op: &str
-                | {
-                    let method = Ident::new(method, proc_macro2::Span::call_site());
-                    let std_op = Ident::new(std_op, proc_macro2::Span::call_site());
-                    if res_type.is_float() {
-                    quote! {
-                        #[inline(always)]
-                        fn #method(self, rhs: #rhs_dtype) -> Self::Output {
-                            paste::paste! {
-                                self.[<to_ #res_type>]() #op rhs.[<to_ #res_type>]()
-                            }
-                        }
-                    }
-                } else {
-                    quote! {
-                        #[inline(always)]
-                        fn #method(self, rhs: #rhs_dtype) -> Self::Output {
-                            paste::paste! {
-                                self.[<to_ #res_type>]().#std_op(rhs.[<to_ #res_type>]())
-                            }
-                        }
-                    }
-                }};
-                let add = op("_add", quote!(+), "wrapping_add");
-                let mul = op("_mul", quote!(*), "wrapping_mul");
-                let sub = op("_sub", quote!(-), "wrapping_sub");
-                let rem = op("_rem", quote!(%), "wrapping_rem");
-                quote! {
-                #add
-                #sub
-                #mul
-                #rem
-            }
-            };
-
-            let res =
-                quote! {
-                impl NormalOut<#rhs_dtype> for #lhs_dtype {
-                    type Output = #res_type;
-                    #pow_method
-                    #[inline(always)]
-                    fn _square(self) -> Self {
-                        self._mul(self)
-                    }
-                    #[inline(always)]
-                    fn _clip(self, min: Self::Output, max: Self::Output) -> Self::Output {
-                        paste::paste! {
-                            let a = self.[<to_ #res_type>]();
-                            let min = min.[<to_ #res_type>]();
-                            let max = max.[<to_ #res_type>]();
-                            if a < min { min } else if a > max { max } else { a }
-                        }
-                    }
-                    #mul_add_method
-                    #neg_method
-                    #std_ops
-                    #abs_method
-                    #ceil_method
-                    #floor_method
-                    #sign_method
-                    #cmp_method
-                    #round_method
-                }
-            };
-            ret.extend(res);
-        }
-    }
-
-    ret.into()
+/// gemerate normal out unary trait
+#[proc_macro]
+pub fn impl_normal_out_unary_simd(_: TokenStream) -> TokenStream {
+    simd_normal_unary::impl_simd_normal_out_unary()
 }
 
 /// implement simd normal out trait
@@ -703,7 +392,9 @@ pub fn impl_into_vec(_: TokenStream) -> TokenStream {
 pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
 
-    let types = ["bool", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "isize", "usize"];
+    let types = [
+        "bool", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "isize", "usize",
+    ];
 
     for lhs in types.iter() {
         for rhs in types.iter() {
@@ -741,8 +432,7 @@ pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
                 }
             };
 
-            let res =
-                quote! {
+            let res = quote! {
                 impl BitWiseOut<#rhs_dtype> for #lhs_dtype {
                     type Output = #res_type;
                     #[inline(always)]
@@ -785,19 +475,7 @@ pub fn impl_cmp(_: TokenStream) -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
 
     let types = [
-        "bool",
-        "f16",
-        "f32",
-        "f64",
-        "i8",
-        "i16",
-        "i32",
-        "i64",
-        "u8",
-        "u16",
-        "u32",
-        "u64",
-        "isize",
+        "bool", "f16", "f32", "f64", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "isize",
         "usize",
     ];
 
@@ -809,8 +487,7 @@ pub fn impl_cmp(_: TokenStream) -> TokenStream {
             let rhs_dtype = rhs_type.dtype;
             let res_type = lhs_type.infer_normal_res_type(&rhs_type);
 
-            let res =
-                quote! {
+            let res = quote! {
                 impl Cmp<#rhs_dtype> for #lhs_dtype {
                     fn _eq(self, rhs: #rhs_dtype) -> bool {
                         paste::paste! {
@@ -858,19 +535,7 @@ pub fn impl_eval(_: TokenStream) -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
 
     let types = [
-        "bool",
-        "f16",
-        "f32",
-        "f64",
-        "i8",
-        "i16",
-        "i32",
-        "i64",
-        "u8",
-        "u16",
-        "u32",
-        "u64",
-        "isize",
+        "bool", "f16", "f32", "f64", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "isize",
         "usize",
     ];
 
@@ -933,15 +598,14 @@ pub fn impl_eval(_: TokenStream) -> TokenStream {
             }
         };
 
-        let res =
-            quote! {
-                impl Eval for #lhs_dtype {
-                    type Output = bool;
-                    #is_nan
-                    #is_true
-                    #is_inf
-                }
-            };
+        let res = quote! {
+            impl Eval for #lhs_dtype {
+                type Output = bool;
+                #is_nan
+                #is_true
+                #is_inf
+            }
+        };
         ret.extend(res);
     }
 
@@ -953,7 +617,6 @@ pub fn impl_eval(_: TokenStream) -> TokenStream {
 pub fn gen_fast_reduce_simd_helper(input: TokenStream) -> TokenStream {
     __gen_fast_reduce_simd_helper(input)
 }
-
 
 /// generate reduce dim not include simd helper
 #[proc_macro]

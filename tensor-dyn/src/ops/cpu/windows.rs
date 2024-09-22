@@ -91,7 +91,7 @@ where
             }
             let ptr = vec as *mut _ as *mut Simd<T>;
 
-            let res = tensor_types::traits::VecTrait::_mul_add(
+            let res = tensor_types::traits::VecTrait::mul_add(
                 idxes._mul(two_pi._div(length_vec))._cos(),
                 beta_vec,
                 alpha_vec,

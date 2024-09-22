@@ -4,7 +4,7 @@ use crate::{tensor::Tensor, tensor_base::_Tensor};
 use tensor_iterator::TensorIterator;
 use tensor_traits::CommonBounds;
 use tensor_types::traits::{Init, SimdSelect};
-use tensor_types::type_promote::NormalOut;
+use tensor_types::type_promote::{NormalOut, NormalOutUnary};
 use tensor_types::type_promote::SimdCmp;
 
 impl<T> _Tensor<T>

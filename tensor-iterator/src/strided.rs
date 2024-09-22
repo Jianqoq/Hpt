@@ -325,7 +325,7 @@ impl<T: CommonBounds> IterGetSet for Strided<T> {
                 break;
             } else {
                 self.prg[j] = 0;
-                self.ptr += -self.strides()[j] * (self.shape()[j] - 1);
+                self.ptr -= self.strides()[j] * (self.shape()[j] - 1);
             }
         }
     }

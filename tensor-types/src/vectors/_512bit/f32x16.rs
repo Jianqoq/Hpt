@@ -29,7 +29,7 @@ impl VecTrait<f32> for f32x16 {
         self.as_array().as_ptr()
     }
     #[inline(always)]
-    fn _mul_add(self, a: Self, b: Self) -> Self {
+    fn mul_add(self, a: Self, b: Self) -> Self {
         f32x16(self.0.mul_add(a.0, b.0))
     }
     #[inline(always)]

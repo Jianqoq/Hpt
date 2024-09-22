@@ -23,12 +23,12 @@ impl VecTrait<half::f16> for f16x32 {
         self.0.as_ptr()
     }
     #[inline(always)]
-    fn _mul_add(self, a: Self, b: Self) -> Self {
+    fn mul_add(self, a: Self, b: Self) -> Self {
         let [x0, x1]: [f32x16; 2] = unsafe { std::mem::transmute(self.to_2_f32x16()) };
         let [a0, a1]: [f32x16; 2] = unsafe { std::mem::transmute(a.to_2_f32x16()) };
         let [b0, b1]: [f32x16; 2] = unsafe { std::mem::transmute(b.to_2_f32x16()) };
-        let res0 = x0._mul_add(a0, b0);
-        let res1 = x1._mul_add(a1, b1);
+        let res0 = x0.mul_add(a0, b0);
+        let res1 = x1.mul_add(a1, b1);
         let res0 = f32x16_to_f16x16(res0);
         let res1 = f32x16_to_f16x16(res1);
         unsafe { std::mem::transmute([res0, res1]) }

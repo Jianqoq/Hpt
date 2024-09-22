@@ -1,13 +1,17 @@
 #[cfg(target_feature = "avx512f")]
 use crate::vectors::_512bit::*;
 use crate::{
+    convertion::VecConvertor,
     into_vec::IntoVec,
-    type_promote::{BitWiseOut, Eval, FloatOutBinary, FloatOutUnary, NormalOut},
+    type_promote::{BitWiseOut, Eval, FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary},
     vectors::traits::{Init, VecCommon, VecTrait},
 };
-use half::{bf16, f16};
 use core::f32;
-use std::{fmt::{Debug, Display}, ops::{Index, IndexMut}};
+use half::{bf16, f16};
+use std::{
+    fmt::{Debug, Display},
+    ops::{Index, IndexMut},
+};
 use tensor_macros::infer_enum_type;
 
 /// enum for data type
@@ -121,15 +125,15 @@ impl Dtype {
 }
 
 /// common trait for all data types
-/// 
+///
 /// This trait is used to define the common properties of all data types
-/// 
+///
 /// # Example
-/// 
+///
 /// ```
 /// use tensor_types::Dtype;
 /// use tensor_types::TypeCommon;
-/// 
+///
 /// fn main() {
 ///    let max = f32::MAX;  // get the maximum value of f32
 ///    let min = f32::MIN;  // get the minimum value of f32
@@ -170,7 +174,17 @@ where
         + Copy
         + IntoVec<Self::Vec>
         + Sync
-        + Debug + Index<usize, Output = Self> + IndexMut<usize, Output = Self>;
+        + Debug
+        + Index<usize, Output = Self>
+        + IndexMut<usize, Output = Self>
+        + NormalOutUnary
+        + NormalOut<Self::Vec, Output = Self::Vec>
+        + FloatOutUnary
+        + FloatOutBinary
+        + FloatOutBinary<
+            <Self::Vec as FloatOutUnary>::Output,
+            Output = <Self::Vec as FloatOutUnary>::Output,
+        > + VecConvertor;
 }
 
 macro_rules! impl_type_common {
@@ -820,28 +834,6 @@ impl NormalOut for Dtype {
         infer_enum_type!(self, rhs, normal)
     }
 
-    fn _square(self) -> Self::Output {
-        self
-    }
-
-    fn _abs(self) -> Self::Output {
-        self
-    }
-
-    fn _ceil(self) -> Self::Output {
-        self
-    }
-    fn _floor(self) -> Self::Output {
-        self
-    }
-    fn _neg(self) -> Self {
-        self
-    }
-
-    fn _sign(self) -> Self::Output {
-        self
-    }
-
     fn _max(self, rhs: Self) -> Self::Output {
         infer_enum_type!(self, rhs, normal)
     }
@@ -852,10 +844,6 @@ impl NormalOut for Dtype {
 
     fn _clip(self, min: Self::Output, _: Self::Output) -> Self::Output {
         infer_enum_type!(self, min, normal)
-    }
-
-    fn _round(self) -> Self::Output {
-        self
     }
 }
 

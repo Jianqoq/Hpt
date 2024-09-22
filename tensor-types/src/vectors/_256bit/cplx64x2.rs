@@ -11,7 +11,7 @@ pub struct cplx64x2(pub(crate) [Complex64; 2]);
 
 impl VecTrait<Complex64> for cplx64x2 {
     #[inline(always)]
-    fn _mul_add(self, _: Self, _: Self) -> Self {
+    fn mul_add(self, _: Self, _: Self) -> Self {
         todo!()
     }
     #[inline(always)]
@@ -113,6 +113,18 @@ impl std::ops::Neg for cplx64x2 {
         let mut ret = cplx64x2::default();
         for i in 0..2 {
             ret.0[i] = -self.0[i];
+        }
+        ret
+    }
+}
+
+impl std::ops::Rem for cplx64x2 {
+    type Output = Self;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        let mut ret = cplx64x2::default();
+        for i in 0..2 {
+            ret.0[i] = self.0[i] % rhs.0[i];
         }
         ret
     }

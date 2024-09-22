@@ -31,7 +31,7 @@ impl VecTrait<isize> for isizex2 {
         self.as_array().as_ptr() as *const _
     }
     #[inline(always)]
-    fn _mul_add(self, a: Self, b: Self) -> Self {
+    fn mul_add(self, a: Self, b: Self) -> Self {
         Self(self.0 * a.0 + b.0)
     }
     #[inline(always)]

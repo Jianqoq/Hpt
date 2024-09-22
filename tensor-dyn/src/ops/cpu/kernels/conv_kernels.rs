@@ -161,7 +161,7 @@ macro_rules! micro_kernel {
                         &kernel[co_offset + kernel_offset + j * (T::Vec::SIZE as i64)] as *const _
                     );
                     $(
-                        outs[$idx] = [<inp_vec $idx>]._mul_add(kernel_vec, outs[$idx]);
+                        outs[$idx] = [<inp_vec $idx>].mul_add(kernel_vec, outs[$idx]);
                     )*
                 }
             }
@@ -199,7 +199,7 @@ macro_rules! micro_kernel_dynamic_regnum {
                         &kernel[co_offset + kernel_offset + j * (T::Vec::SIZE as i64)] as *const _
                     );
                     $(
-                        outs[$idx] = [<inp_vec $idx>]._mul_add(kernel_vec, outs[$idx]);
+                        outs[$idx] = [<inp_vec $idx>].mul_add(kernel_vec, outs[$idx]);
                     )*
                 }
             }
@@ -278,7 +278,7 @@ macro_rules! micro_kernel_with_buffer {
                             let [<out_vec $idx>] = res_vectors.get_mut($idx).unwrap() as *mut _ as *mut T::Vec;
                         )*
                         $(
-                            let [<res $idx>] = [<inp_vec $idx>]._mul_add(kernel_vec, [<out_vec $idx>].read_unaligned());
+                            let [<res $idx>] = [<inp_vec $idx>].mul_add(kernel_vec, [<out_vec $idx>].read_unaligned());
                         )*
                         $(
                             [<out_vec $idx>].write_unaligned([<res $idx>]);

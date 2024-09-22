@@ -1,6 +1,7 @@
 use crate::tensor_base::_Tensor;
 use tensor_common::axis::{process_axes, Axis};
 use tensor_traits::{CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce, TensorInfo};
+use tensor_types::type_promote::NormalOutUnary;
 use tensor_types::vectors::traits::Init;
 use tensor_types::{
     convertion::{Convertor, VecConvertor},
@@ -15,11 +16,7 @@ use super::{
     unary::FloatBinaryType,
 };
 
-impl<T: CommonBounds> NormalReduce<T> for _Tensor<T>
-where
-    T: NormalOut<Output = T>,
-    T::Vec: NormalOut<Output = T::Vec>,
-{
+impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
     type Output = Self;
 
     fn sum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
@@ -178,7 +175,10 @@ where
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
-            |a, b| a._add(b._abs()),
+            |a, b| {
+                let b_abs = b._abs();
+                a._add(b_abs)
+            },
             |a, b| a._add(b._abs()),
             &axes,
             T::ZERO,
@@ -206,7 +206,6 @@ where
 impl<T> EvalReduce for _Tensor<T>
 where
     T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
-    T::Vec: VecConvertor,
 {
     type BoolOutput = _Tensor<bool>;
     fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
@@ -249,9 +248,7 @@ where
 impl<T> NormalEvalReduce<T> for _Tensor<T>
 where
     T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
-    T::Vec: VecConvertor,
-    T: NormalOut<Output = T>,
-    T::Vec: NormalOut<Output = T::Vec> + Eval,
+    T::Vec: Eval,
     <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
 {
     type Output = Self;
@@ -362,19 +359,14 @@ where
 impl<T> _Tensor<T>
 where
     T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output> + Convertor,
-    <T as FloatOutBinary>::Output: CommonBounds
-        + NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>
-        + FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
+    <T as FloatOutBinary>::Output:
+        CommonBounds + FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
     <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<T::Vec, Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
         + FloatOutUnary<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
         + NormalOut<
             <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
             Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
         >,
-    T::Vec: NormalOut<
-            <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-        > + NormalOut<T::Vec, Output = T::Vec>,
 {
     /// Computes the mean (average) of elements along a specified axis.
     ///
@@ -404,12 +396,7 @@ where
     ) -> anyhow::Result<_Tensor<FloatBinaryType<T>>>
     where
         f64: IntoScalar<<T as FloatOutBinary>::Output>,
-        <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>
-            + FloatOutBinary<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>,
-        <<T as FloatOutBinary>::Output as TypeCommon>::Vec: FloatOutBinary<
-            <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-        >,
+        <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>,
     {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         let reduce_size: FloatBinaryType<T> = (axes
@@ -512,13 +499,8 @@ where
     ) -> anyhow::Result<_Tensor<FloatBinaryType<T>>>
     where
         f32: IntoScalar<<T as FloatOutBinary>::Output>,
-        T: NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>,
         <T as FloatOutBinary>::Output: TypeCommon,
         T::Vec: NormalOut<
-            <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-        >,
-        <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<
             <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
             Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
         >,
@@ -529,14 +511,13 @@ where
         reduce3(
             self,
             move |a, b| {
-                let b = b._abs();
-                let pow = b._pow(three);
+                let pow = b._abs()._pow(three);
                 a._add(pow)
             },
-            move |a, b| a._add(<FloatBinaryType<T> as NormalOut>::_abs(b)._pow(three)),
+            move |a, b| a._add(b._abs()._pow(three)),
             move |a| a,
             move |a, b| {
-                let abs = <T::Vec as NormalOut>::_abs(b);
+                let abs = b._abs();
                 let pow = abs._pow(three_vec);
                 a._add(pow)
             },
@@ -577,8 +558,7 @@ where
         _: bool,
     ) -> anyhow::Result<_Tensor<FloatBinaryType<T>>>
     where
-        T: CommonBounds + NormalOut<T, Output = T>,
-        T::Vec: NormalOut<T::Vec, Output = T::Vec>,
+        T: CommonBounds,
     {
         todo!()
         // let axes: Vec<usize> = process_axes(axis, self.ndim())?;

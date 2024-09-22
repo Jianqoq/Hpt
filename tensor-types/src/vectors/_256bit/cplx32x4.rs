@@ -12,7 +12,7 @@ pub struct cplx32x4(pub(crate) [Complex32; 4]);
 
 impl VecTrait<Complex32> for cplx32x4 {
     #[inline(always)]
-    fn _mul_add(self, _: Self, _: Self) -> Self {
+    fn mul_add(self, _: Self, _: Self) -> Self {
         todo!()
     }
     #[inline(always)]
@@ -115,6 +115,18 @@ impl std::ops::Neg for cplx32x4 {
         let mut ret = cplx32x4::default();
         for i in 0..4 {
             ret.0[i] = -self.0[i];
+        }
+        ret
+    }
+}
+
+impl std::ops::Rem for cplx32x4 {
+    type Output = Self;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        let mut ret = cplx32x4::default();
+        for i in 0..4 {
+            ret.0[i] = self.0[i] % rhs.0[i];
         }
         ret
     }

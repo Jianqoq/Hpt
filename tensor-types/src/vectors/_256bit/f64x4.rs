@@ -20,7 +20,7 @@ impl DerefMut for f64x4 {
 }
 impl VecTrait<f64> for f64x4 {
     #[inline(always)]
-    fn _mul_add(self, a: Self, b: Self) -> Self {
+    fn mul_add(self, a: Self, b: Self) -> Self {
         Self(self.0.mul_add(a.0, b.0))
     }
     #[inline(always)]

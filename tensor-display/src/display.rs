@@ -1,7 +1,7 @@
-use std::fmt::Formatter;
 use anyhow::Result;
+use std::fmt::Formatter;
 use tensor_common::pointer::Pointer;
-use tensor_traits::tensor::{ CommonBounds, TensorInfo };
+use tensor_traits::tensor::{CommonBounds, TensorInfo};
 use tensor_types::convertion::Convertor;
 
 use crate::formats::format_val;
@@ -18,10 +18,11 @@ fn main_loop_push_str<U, T>(
     col_width: &mut Vec<usize>,
     prg: &mut Vec<i64>,
     shape: &Vec<i64>,
-    mut ptr: Pointer<T>
-)
-    -> Result<()>
-    where U: TensorInfo<T>, T: CommonBounds + Convertor
+    mut ptr: Pointer<T>,
+) -> Result<()>
+where
+    U: TensorInfo<T>,
+    T: CommonBounds + Convertor,
 {
     let print = |string: &mut String, ptr: Pointer<T>, offset: &mut i64, col: usize| {
         let val = format_val(ptr[*offset], precision);
@@ -32,10 +33,7 @@ fn main_loop_push_str<U, T>(
         *offset += last_stride;
     };
     let mut outer_loop = 1;
-    for i in tensor
-        .shape()
-        .iter()
-        .take(tensor.ndim() - 1) {
+    for i in tensor.shape().iter().take(tensor.ndim() - 1) {
         if i > &(2 * (lr_elements_size as i64)) {
             outer_loop *= 2 * (lr_elements_size as i64);
         } else {
@@ -64,9 +62,8 @@ fn main_loop_push_str<U, T>(
             if prg[k] < shape[k] {
                 prg[k] += 1;
                 ptr.offset(tensor.strides()[k]);
-                if
-                    tensor.shape()[k] > 2 * (lr_elements_size as i64) &&
-                    prg[k] == (lr_elements_size as i64)
+                if tensor.shape()[k] > 2 * (lr_elements_size as i64)
+                    && prg[k] == (lr_elements_size as i64)
                 {
                     string.push_str("\n");
                     string.push_str(&" ".repeat(k + 1 + "Tensor(".len()));
@@ -75,7 +72,7 @@ fn main_loop_push_str<U, T>(
                     string.push_str(&" ".repeat(k + 1 + "Tensor(".len()));
                     string.push_str(&"[".repeat(tensor.ndim() - (k + 1)));
                     ptr.offset(
-                        tensor.strides()[k] * (tensor.shape()[k] - 2 * (lr_elements_size as i64))
+                        tensor.strides()[k] * (tensor.shape()[k] - 2 * (lr_elements_size as i64)),
                     );
                     prg[k] += tensor.shape()[k] - 2 * (lr_elements_size as i64);
                     assert!(prg[k] < tensor.shape()[k]);
@@ -111,16 +108,14 @@ fn main_loop_get_width<U, T>(
     col_width: &mut Vec<usize>,
     prg: &mut Vec<i64>,
     shape: &Vec<i64>,
-    mut ptr: Pointer<T>
-)
-    -> Result<()>
-    where U: TensorInfo<T>, T: CommonBounds + Convertor
+    mut ptr: Pointer<T>,
+) -> Result<()>
+where
+    U: TensorInfo<T>,
+    T: CommonBounds + Convertor,
 {
     let mut outer_loop = 1;
-    for i in tensor
-        .shape()
-        .iter()
-        .take(tensor.ndim() - 1) {
+    for i in tensor.shape().iter().take(tensor.ndim() - 1) {
         if i > &(2 * (lr_elements_size as i64)) {
             outer_loop *= 2 * (lr_elements_size as i64);
         } else {
@@ -151,12 +146,11 @@ fn main_loop_get_width<U, T>(
             if prg[k] < shape[k] {
                 prg[k] += 1;
                 ptr.offset(tensor.strides()[k]);
-                if
-                    tensor.shape()[k] > 2 * (lr_elements_size as i64) &&
-                    prg[k] == (lr_elements_size as i64)
+                if tensor.shape()[k] > 2 * (lr_elements_size as i64)
+                    && prg[k] == (lr_elements_size as i64)
                 {
                     ptr.offset(
-                        tensor.strides()[k] * (tensor.shape()[k] - 2 * (lr_elements_size as i64))
+                        tensor.strides()[k] * (tensor.shape()[k] - 2 * (lr_elements_size as i64)),
                     );
                     prg[k] += tensor.shape()[k] - 2 * (lr_elements_size as i64);
                     assert!(prg[k] < tensor.shape()[k]);
@@ -188,16 +182,21 @@ pub fn display<U, T>(
     f: &mut Formatter<'_>,
     lr_elements_size: usize,
     precision: usize,
-    show_backward: bool
-)
-    -> std::fmt::Result
-    where U: TensorInfo<T>, T: CommonBounds + Convertor
+    show_backward: bool,
+) -> std::fmt::Result
+where
+    U: TensorInfo<T>,
+    T: CommonBounds + Convertor,
 {
     let mut string: String = String::new();
     if tensor.size() == 0 {
         write!(f, "{}", "Tensor([])\n".to_string())
     } else if tensor.ndim() == 0 {
-        write!(f, "{}", format!("Tensor({})\n", tensor.ptr().read()))
+        write!(
+            f,
+            "{}",
+            format!("Tensor({})\n", unsafe { tensor.ptr().ptr.read() })
+        )
     } else {
         let ptr: Pointer<T> = tensor.ptr();
         if !ptr.ptr.is_null() {
@@ -208,14 +207,11 @@ pub fn display<U, T>(
                 *x -= 1;
             });
             let mut strides: Vec<i64> = tensor.strides().to_vec();
-            shape
-                .iter()
-                .enumerate()
-                .for_each(|(i, x)| {
-                    if *x == 0 {
-                        strides[i] = 0;
-                    }
-                });
+            shape.iter().enumerate().for_each(|(i, x)| {
+                if *x == 0 {
+                    strides[i] = 0;
+                }
+            });
             let last_stride = strides[tensor.ndim() - 1];
             string.push_str("Tensor(");
             for _ in 0..tensor.ndim() {
@@ -231,8 +227,9 @@ pub fn display<U, T>(
                 &mut col_width,
                 &mut prg,
                 &shape,
-                ptr.clone()
-            ).unwrap();
+                ptr.clone(),
+            )
+            .unwrap();
             main_loop_push_str(
                 &tensor,
                 lr_elements_size,
@@ -243,8 +240,9 @@ pub fn display<U, T>(
                 &mut col_width,
                 &mut prg,
                 &shape,
-                ptr.clone()
-            ).unwrap();
+                ptr.clone(),
+            )
+            .unwrap();
         }
         let shape_str = tensor
             .shape()
@@ -259,19 +257,20 @@ pub fn display<U, T>(
             .collect::<Vec<String>>()
             .join(", ");
         if !show_backward {
-            string.push_str(
-                &format!(", shape=({}), strides=({}), dtype={})\n", shape_str, strides_str, T::ID)
-            );
+            string.push_str(&format!(
+                ", shape=({}), strides=({}), dtype={})\n",
+                shape_str,
+                strides_str,
+                T::ID
+            ));
         } else {
-            string.push_str(
-                &format!(
-                    ", shape=({}), strides=({}), dtype={}, grad_fn={})\n",
-                    shape_str,
-                    strides_str,
-                    T::ID,
-                    "None"
-                )
-            );
+            string.push_str(&format!(
+                ", shape=({}), strides=({}), dtype={}, grad_fn={})\n",
+                shape_str,
+                strides_str,
+                T::ID,
+                "None"
+            ));
         }
         write!(f, "{}", format!("{}", string))
     }

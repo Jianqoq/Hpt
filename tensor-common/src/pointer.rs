@@ -77,42 +77,6 @@ impl<T> Pointer<T> {
         Self { ptr, layout }
     }
 
-    /// return the address of the pointer
-    ///
-    /// # Returns
-    /// `usize`
-    ///
-    /// # Example
-    /// ```
-    /// use tensor_pointer::Pointer;
-    /// let mut _a = 10i32;
-    /// let a = Pointer::<i32>::new(_a as *mut i32);
-    /// let b = a.address();
-    /// assert_eq!(b, _a as usize);
-    /// ```
-    pub fn address(&self) -> usize {
-        self.ptr as usize
-    }
-
-    /// read the value of the pointer in the current address
-    ///
-    /// # Returns
-    /// `T`
-    ///
-    /// # Example
-    /// ```
-    /// use tensor_pointer::Pointer;
-    /// let mut _a = unsafe { std::alloc::alloc(std::alloc::Layout::new::<i32>()) as *mut i32 };
-    /// let mut a = Pointer::<i32>::new(_a);
-    /// unsafe { _a.write(10); }
-    /// assert_eq!(a.read(), 10);
-    /// unsafe { std::alloc::dealloc(_a as *mut u8, std::alloc::Layout::new::<i32>()); }
-    /// ```
-    #[inline(always)]
-    pub fn read(&self) -> T {
-        unsafe { self.ptr.read() }
-    }
-
     /// modify the value of the pointer in the address by the specified offset
     ///
     /// # Arguments
@@ -132,27 +96,6 @@ impl<T> Pointer<T> {
     pub fn modify(&mut self, offset: i64, value: T) {
         unsafe {
             self.ptr.offset(offset as isize).write(value);
-        }
-    }
-
-    /// write the value of the pointer in the current address
-    ///
-    /// # Arguments
-    /// `value` - the value to be written
-    ///
-    /// # Example
-    /// ```
-    /// use tensor_pointer::Pointer;
-    /// let mut _a = unsafe { std::alloc::alloc(std::alloc::Layout::new::<i32>()) as *mut i32 };
-    /// let mut a = Pointer::<i32>::new(_a);
-    /// a.write(10);
-    /// assert_eq!(a.read(), 10);
-    /// unsafe { std::alloc::dealloc(_a as *mut u8, std::alloc::Layout::new::<i32>()); }
-    /// ```
-    #[inline(always)]
-    pub fn write(&mut self, value: T) {
-        unsafe {
-            self.ptr.write(value);
         }
     }
 
@@ -178,28 +121,6 @@ impl<T> Pointer<T> {
         }
     }
 
-    /// inplace decrement the value of the pointer in the current address
-    ///
-    /// # Arguments
-    /// `value` - the value to be subtracted
-    ///
-    /// # Example
-    /// ```
-    /// use tensor_pointer::Pointer;
-    /// let mut _a = unsafe { std::alloc::alloc(std::alloc::Layout::new::<i32>()) as *mut i32 };
-    /// unsafe { _a.write(10); }
-    /// let mut a = Pointer::<i32>::new(_a);
-    /// a.sub(0);
-    /// assert_eq!(a.read(), 10);
-    /// unsafe { std::alloc::dealloc(_a as *mut u8, std::alloc::Layout::new::<i32>()); }
-    /// ```
-    #[inline(always)]
-    pub fn sub(&mut self, offset: usize) {
-        unsafe {
-            self.ptr = self.ptr.sub(offset);
-        }
-    }
-
     /// inplace offset the value of the pointer in the current address
     ///
     /// # Arguments
@@ -220,26 +141,6 @@ impl<T> Pointer<T> {
         unsafe {
             self.ptr = self.ptr.offset(offset as isize);
         }
-    }
-
-    /// inplace jump the value of the pointer in the current address
-    ///
-    /// # Arguments
-    /// `offset` - the offset to be added
-    ///
-    /// # Example
-    /// ```
-    /// use tensor_pointer::Pointer;
-    /// let mut _a = unsafe { std::alloc::alloc(std::alloc::Layout::new::<i32>()) as *mut i32 };
-    /// unsafe { _a.write(10); }
-    /// let mut a = Pointer::<i32>::new(_a);
-    /// a.jump(0);
-    /// assert_eq!(a.read(), 10);
-    /// unsafe { std::alloc::dealloc(_a as *mut u8, std::alloc::Layout::new::<i32>()); }
-    /// ```
-    #[inline(always)]
-    pub fn jump(&mut self, offset: usize) -> *mut T {
-        unsafe { self.ptr.add(offset) }
     }
 }
 
@@ -373,19 +274,19 @@ impl<T> AddAssign<i64> for Pointer<T> {
 
 impl<T> SubAssign<usize> for Pointer<T> {
     fn sub_assign(&mut self, rhs: usize) {
-        self.add(rhs);
+        self.offset(-(rhs as i64));
     }
 }
 
 impl<T> SubAssign<isize> for Pointer<T> {
     fn sub_assign(&mut self, rhs: isize) {
-        self.offset(rhs as i64);
+        self.offset(-rhs as i64);
     }
 }
 
 impl<T> SubAssign<i64> for Pointer<T> {
     fn sub_assign(&mut self, rhs: i64) {
-        self.offset(rhs);
+        self.offset(-rhs);
     }
 }
 

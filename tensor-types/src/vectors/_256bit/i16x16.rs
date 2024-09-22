@@ -20,7 +20,7 @@ impl DerefMut for i16x16 {
 }
 impl VecTrait<i16> for i16x16 {
     #[inline(always)]
-    fn _mul_add(self, a: Self, b: Self) -> Self {
+    fn mul_add(self, a: Self, b: Self) -> Self {
         Self(self.0 * a.0 + b.0)
     }
     #[inline(always)]

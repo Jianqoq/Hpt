@@ -395,6 +395,15 @@ impl Type {
     pub fn is_f64(&self) -> bool {
         matches!(self, Type::F64)
     }
+    pub fn is_cplx(&self) -> bool {
+        matches!(self, Type::C32 | Type::C64 | Type::Complex32 | Type::Complex64)
+    }
+    pub fn is_cplx32(&self) -> bool {
+        matches!(self, Type::C32 | Type::Complex32)
+    }
+    pub fn is_cplx64(&self) -> bool {
+        matches!(self, Type::C64 | Type::Complex64)
+    }
 }
 
 impl ToTokens for Type {
@@ -417,8 +426,8 @@ impl ToTokens for Type {
             Type::C64 => quote!(c64),
             Type::Isize => quote!(isize),
             Type::Usize => quote!(usize),
-            Type::Complex32 => quote!(num_complex::Complex32),
-            Type::Complex64 => quote!(num_complex::Complex64),
+            Type::Complex32 => quote!(Complex32),
+            Type::Complex64 => quote!(Complex64),
         };
         tokens.extend(token);
     }

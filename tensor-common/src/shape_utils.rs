@@ -439,10 +439,10 @@ pub fn predict_broadcast_shape(a_shape: &[i64], b_shape: &[i64]) -> anyhow::Resu
 ///
 /// - Returns an error if any dimension in `res_shape` is `1` while the corresponding dimension in `a_shape` is
 ///   greater than `1`, as broadcasting cannot be performed in this case.
+#[cfg_attr(feature = "track_caller", track_caller)]
 pub fn get_broadcast_axes_from(
     a_shape: &[i64],
-    res_shape: &[i64],
-    location: &'static Location<'static>,
+    res_shape: &[i64]
 ) -> anyhow::Result<Vec<usize>> {
     assert!(a_shape.len() <= res_shape.len());
 
@@ -462,7 +462,7 @@ pub fn get_broadcast_axes_from(
                 a_shape.into(),
                 res_shape.into(),
                 i,
-                location
+                Location::caller(),
             ));
         }
     }
@@ -934,43 +934,4 @@ pub fn mt_intervals_simd(
     }
 
     intervals
-}
-
-/// check if two shapes is brocast
-pub fn is_broadcast(a_shape: &[i64], b_shape: &[i64]) -> bool {
-    let mut a_shape = a_shape.to_vec();
-    let mut b_shape = b_shape.to_vec();
-    if a_shape.len() < b_shape.len() {
-        std::mem::swap(&mut a_shape, &mut b_shape);
-    }
-    let mut a_shape = a_shape.iter().rev();
-    let mut b_shape = b_shape.iter().rev();
-    loop {
-        match (a_shape.next(), b_shape.next()) {
-            (Some(&a), Some(&b)) => {
-                if a == b || b == 1 {
-                    continue;
-                } else {
-                    return false;
-                }
-            }
-            (Some(&a), None) => {
-                if a == 1 {
-                    continue;
-                } else {
-                    return false;
-                }
-            }
-            (None, None) => {
-                return true;
-            }
-            (None, Some(&b)) => {
-                if b == 1 {
-                    continue;
-                } else {
-                    return false;
-                }
-            }
-        }
-    }
 }

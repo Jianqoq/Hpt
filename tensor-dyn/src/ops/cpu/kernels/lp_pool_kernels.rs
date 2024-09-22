@@ -3,6 +3,7 @@ use tensor_traits::CommonBounds;
 use tensor_types::traits::{ Init, VecCommon, VecTrait };
 use tensor_types::type_promote::NormalOut;
 use crate::CONV_REGNUM;
+use tensor_types::type_promote::NormalOutUnary;
 
 macro_rules! _maxpool {
     () => {

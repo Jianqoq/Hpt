@@ -18,7 +18,6 @@ where
         + FloatConst
         + FloatOutUnary
         + FloatOutBinary
-        + FloatOutBinary<<T as FloatOutUnary>::Output, Output = <T as FloatOutBinary>::Output>
         + NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>,
     <T as FloatOutBinary>::Output: FloatOutUnary<Output = <T as FloatOutBinary>::Output>
         + NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>
@@ -81,7 +80,6 @@ where
         + FloatConst
         + FloatOutUnary
         + FloatOutBinary
-        + FloatOutBinary<<T as FloatOutUnary>::Output, Output = <T as FloatOutBinary>::Output>
         + NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>,
     <T as FloatOutBinary>::Output: FloatOutUnary<Output = <T as FloatOutBinary>::Output>
         + NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>

@@ -3,7 +3,7 @@ use crate::dtype::TypeCommon;
 /// common trait for all vector types
 pub trait VecTrait<T> {
     /// peform self * a + b, fused multiply add
-    fn _mul_add(self, a: Self, b: Self) -> Self;
+    fn mul_add(self, a: Self, b: Self) -> Self;
     /// copy data from slice to self
     fn copy_from_slice(&mut self, slice: &[T]);
     /// convert self to a const pointer

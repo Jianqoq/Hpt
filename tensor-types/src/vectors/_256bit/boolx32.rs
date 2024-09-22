@@ -12,7 +12,7 @@ pub struct boolx32(pub(crate) [bool; 32]);
 
 impl VecTrait<bool> for boolx32 {
     #[inline(always)]
-    fn _mul_add(self, _: Self, _: Self) -> Self {
+    fn mul_add(self, _: Self, _: Self) -> Self {
         todo!()
     }
     #[inline(always)]

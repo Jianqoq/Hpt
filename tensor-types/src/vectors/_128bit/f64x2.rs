@@ -28,7 +28,7 @@ impl VecTrait<f64> for f64x2 {
         self.as_array().as_ptr()
     }
     #[inline(always)]
-    fn _mul_add(self, a: Self, b: Self) -> Self {
+    fn mul_add(self, a: Self, b: Self) -> Self {
         Self(self.0.mul_add(a.0, b.0))
     }
     #[inline(always)]

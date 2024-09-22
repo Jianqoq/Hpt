@@ -21,7 +21,7 @@ impl DerefMut for f32x8 {
 }
 impl VecTrait<f32> for f32x8 {
     #[inline(always)]
-    fn _mul_add(self, a: Self, b: Self) -> Self {
+    fn mul_add(self, a: Self, b: Self) -> Self {
         f32x8(self.0.mul_add(a.0, b.0))
     }
     #[inline(always)]
