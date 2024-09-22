@@ -8,7 +8,7 @@ fn test_out_of_range() {
         Ok(_) => panic!("Should panic"),
         Err(e) => {
             if e.to_string()
-                == r"tensor ndim is 2 but got index `10`, at tensor-tests\src\tensor_common\axis.rs:7:11"
+                .contains("tensor ndim is 2 but got index `10`")
             {
                 panic!("Error message is correct");
             } else {
@@ -25,7 +25,7 @@ fn test_out_of_range_cvt() {
         Ok(_) => panic!("Should panic"),
         Err(e) => {
             if e.to_string()
-                == r"tensor ndim is 2 but got converted index from `-3` to `-1`, at tensor-tests\src\tensor_common\axis.rs:24:11"
+                .contains("tensor ndim is 2 but got converted index from `-3` to `-1`")
             {
                 panic!("Error message is correct");
             } else {
