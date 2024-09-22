@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use tensor_traits::{CommonBounds, FloatUaryOps};
 use tensor_types::{dtype::TypeCommon, into_scalar::IntoScalar, type_promote::FloatOutUnary};
 
-use crate::{backend::Cpu, tensor::Tensor, tensor_base::_Tensor, tensor_internal::float_out_unary::FloatUnaryType};
+use crate::{backend::Cpu, ops::cpu::tensor_internal::float_out_unary::FloatUnaryType, tensor::Tensor, tensor_base::_Tensor};
 use anyhow::Result;
 
 impl<T> FloatUaryOps for Tensor<T>

@@ -1,8 +1,8 @@
 use std::ops::{Div, Sub};
 
 use crate::{
-    backend::Cpu, tensor::Tensor, tensor_base::_Tensor,
-    tensor_internal::float_out_unary::FloatUnaryType, BoolVector,
+    backend::Cpu, ops::cpu::tensor_internal::float_out_unary::FloatUnaryType, tensor::Tensor,
+    tensor_base::_Tensor, BoolVector,
 };
 use anyhow::Result;
 use tensor_common::shape::Shape;
