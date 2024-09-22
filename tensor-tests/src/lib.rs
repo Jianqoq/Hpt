@@ -16,7 +16,7 @@ pub mod tensor_common {
     pub mod axis;
     pub mod err_handler;
     pub mod layout;
-    // pub mod pointer;
+    pub mod pointer;
     pub mod shape;
     pub mod strides;
 }

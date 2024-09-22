@@ -41,4 +41,4 @@ jobs:
     - name: Run tests
       run: |
         cd tensor-tests
-        cargo test --verbose -- --nocapture
+        RUST_BACKTRACE=full cargo test --verbose -- --nocapture
