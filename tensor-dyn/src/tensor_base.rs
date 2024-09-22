@@ -359,10 +359,13 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
     fn zeros<S: Into<Shape>>(shape: S) -> Result<Self> {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);
-        let size = res_shape
-            .iter()
-            .try_fold(1i64, |acc, &num| acc.checked_mul(num).or(Some(i64::MAX)))
-            .unwrap_or(i64::MAX) as usize;
+        let mut size = 1;
+        let mut strides = vec![0; res_shape.len()];
+        for i in (0..res_shape.len()).rev() {
+            let tmp = res_shape[i] as usize;
+            strides[i] = size as i64;
+            size *= tmp;
+        }
         let layout = std::alloc::Layout::from_size_align(size * size_of::<T>(), ALIGN)?;
         let ptr = CACHE.allocate(layout);
         assert_ne!(ptr, std::ptr::null_mut());
@@ -374,7 +377,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         slice[size - (size % 8)..size].iter_mut().for_each(|x| {
             *x = T::ZERO;
         });
-        let ly = Layout::from(res_shape.clone());
+        let ly = Layout::new(res_shape.clone(), strides.clone());
         Ok(_Tensor {
             #[cfg(feature = "bound_check")]
             data: Pointer::new(ptr as *mut T, ly.clone()),
@@ -393,32 +396,18 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
     {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);
-        let size = res_shape
-            .iter()
-            .try_fold(1i64, |acc, &num| acc.checked_mul(num).or(Some(i64::MAX)))
-            .unwrap_or(i64::MAX) as usize;
-        let layout = std::alloc::Layout::from_size_align(size * size_of::<T>(), ALIGN)?;
-        let ptr = CACHE.allocate(layout);
-        assert_ne!(ptr, std::ptr::null_mut());
-        let slice = unsafe { std::slice::from_raw_parts_mut(ptr as *mut T, size) };
-        let one = [T::ONE; 8];
-        slice.par_chunks_exact_mut(8).for_each(|x| {
-            x.copy_from_slice(&one);
-        });
-        slice[size - (size % 8)..size].iter_mut().for_each(|x| {
-            *x = T::ONE;
-        });
-        let ly = Layout::from(res_shape.clone());
-        Ok(_Tensor {
-            #[cfg(feature = "bound_check")]
-            data: Pointer::new(ptr as *mut T, ly.clone()),
-            #[cfg(not(feature = "bound_check"))]
-            data: Pointer::new(ptr as *mut T),
-            parent: None,
-            layout: ly,
-            mem_layout: Arc::new(layout),
-            _backend: Backend::new(ptr as u64),
-        })
+        let mut size = 1;
+        let mut strides = vec![0; res_shape.len()];
+        for i in (0..res_shape.len()).rev() {
+            let tmp = res_shape[i] as usize;
+            strides[i] = size as i64;
+            size *= tmp;
+        }
+        let mut ret = _Tensor::<T>::empty(res_shape)?;
+        unsafe {
+            ret.as_raw_mut().as_mut_ptr().write_bytes(1, size);
+        }
+        Ok(ret)
     }
 
     fn empty_like(&self) -> Result<Self> {
@@ -439,32 +428,20 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
     fn full<S: Into<Shape>>(val: T, shape: S) -> Result<Self> {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);
-        let size = res_shape
-            .iter()
-            .try_fold(1i64, |acc, &num| acc.checked_mul(num).or(Some(i64::MAX)))
-            .unwrap_or(i64::MAX) as usize;
-        let layout = std::alloc::Layout::from_size_align(size * size_of::<T>(), ALIGN)?;
-        let ptr = CACHE.allocate(layout);
-        assert_ne!(ptr, std::ptr::null_mut());
-        let slice = unsafe { std::slice::from_raw_parts_mut(ptr as *mut T, size) };
-        let vals = [val; 8];
-        slice.par_chunks_exact_mut(8).for_each(|x| {
-            x.copy_from_slice(&vals);
-        });
-        slice[size - (size % 8)..size].iter_mut().for_each(|x| {
+        let mut ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let size = ret.size();
+        let slice = ret.as_raw_mut();
+        let remain = size % 8;
+        let vector = [val; 8];
+        slice[0..size - remain]
+            .par_chunks_exact_mut(8)
+            .for_each(|x| {
+                x.copy_from_slice(&vector);
+            });
+        slice[size - remain..size].iter_mut().for_each(|x| {
             *x = val;
         });
-        let ly = Layout::from(res_shape.clone());
-        Ok(_Tensor {
-            #[cfg(feature = "bound_check")]
-            data: Pointer::new(ptr as *mut T, ly.clone()),
-            #[cfg(not(feature = "bound_check"))]
-            data: Pointer::new(ptr as *mut T),
-            parent: None,
-            layout: ly,
-            mem_layout: Arc::new(layout),
-            _backend: Backend::new(ptr as u64),
-        })
+        Ok(ret)
     }
 
     fn full_like(&self, val: T) -> Result<Self> {
