@@ -85,6 +85,30 @@ pub mod ops {
             /// a module defines the reduce kernels
             pub mod reduce_kernels;
         }
+        /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
+        pub mod tensor_expose {
+            /// a module that contains all the unary operations that has floating type output
+            pub mod float_out_unary;
+            /// a module that contains all normal methods to create a tensor
+            pub mod normal_creation;
+            /// a module that contains all the unary operations that has self type output
+            pub mod normal_out_unary;
+            /// a module that contains all the random number generate functions
+            pub mod random;
+            /// a module that contains all the shape manipulation functions
+            pub mod shape_manipulate;
+        }
+        /// a module that contains all the functions only for the internal user (we may have diff tensor (differentiable tensor) in the future)
+        pub mod tensor_internal {
+            /// a module that contains all the unary operations that has floating type output
+            pub mod float_out_unary;
+            /// a module that contains all normal methods to create a tensor
+            pub mod normal_creation;
+            /// a module that contains all the random number generate functions
+            pub mod random;
+            /// a module that contains all the shape manipulation functions
+            pub mod shape_manipulate;
+        }
     }
 }
 
@@ -99,33 +123,6 @@ pub mod tensor_base;
 /// # Note
 /// for this library's developer, not necessary need to know how they works
 pub mod to_tensor;
-
-/// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
-pub mod tensor_expose {
-    /// a module that contains all the unary operations that has floating type output
-    pub mod float_out_unary;
-    /// a module that contains all normal methods to create a tensor
-    pub mod normal_creation;
-    /// a module that contains all the unary operations that has self type output
-    pub mod normal_out_unary;
-    /// a module that contains all the random number generate functions
-    pub mod random;
-    /// a module that contains all the shape manipulation functions
-    pub mod shape_manipulate;
-}
-
-/// a module that contains all the functions only for the internal user (we may have diff tensor (differentiable tensor) in the future)
-pub mod tensor_internal {
-    /// a module that contains all the unary operations that has floating type output
-    pub mod float_out_unary;
-    /// a module that contains all normal methods to create a tensor
-    pub mod normal_creation;
-    /// a module that contains all the random number generate functions
-    pub mod random;
-    /// a module that contains all the shape manipulation functions
-    pub mod shape_manipulate;
-}
-
 use ctor::ctor;
 pub use tensor_iterator::iterator_traits::*;
 pub use tensor_iterator::TensorIterator;

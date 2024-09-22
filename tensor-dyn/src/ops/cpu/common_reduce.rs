@@ -1,5 +1,5 @@
+use crate::ops::cpu::tensor_internal::float_out_unary::FloatBinaryType;
 use crate::tensor_base::_Tensor;
-use crate::tensor_internal::float_out_unary::FloatBinaryType;
 use tensor_common::axis::{process_axes, Axis};
 use tensor_traits::{CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce, TensorInfo};
 use tensor_types::type_promote::NormalOutUnary;
