@@ -392,11 +392,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let ptr = empty.ptr().ptr;
         let size = empty.size();
         let slice = unsafe { std::slice::from_raw_parts_mut(ptr as *mut T, size) };
-        let vals = [val; 8];
-        slice.par_chunks_exact_mut(8).for_each(|x| {
-            x.copy_from_slice(&vals);
-        });
-        slice[size - (size % 8)..].iter_mut().for_each(|x| {
+        slice.into_par_iter().for_each(|x|{
             *x = val;
         });
         Ok(empty)
