@@ -202,7 +202,7 @@ fn std_ops(rhs_dtype: Type, res_type: Type, to_res_type: Ident) -> proc_macro2::
             res != 0
         };
         (add, sub, mul, rem)
-    } else {
+    } else if res_type.is_cplx() || res_type.is_float() {
         let add = quote! {
             self.#to_res_type() + rhs.#to_res_type()
         };
@@ -214,6 +214,20 @@ fn std_ops(rhs_dtype: Type, res_type: Type, to_res_type: Ident) -> proc_macro2::
         };
         let rem = quote! {
             self.#to_res_type() % rhs.#to_res_type()
+        };
+        (add, sub, mul, rem)
+    } else {
+        let add = quote! {
+            self.#to_res_type().wrapping_add(rhs.#to_res_type())
+        };
+        let sub = quote! {
+            self.#to_res_type().wrapping_sub(rhs.#to_res_type())
+        };
+        let mul = quote! {
+            self.#to_res_type().wrapping_mul(rhs.#to_res_type())
+        };
+        let rem = quote! {
+            self.#to_res_type().wrapping_rem(rhs.#to_res_type())
         };
         (add, sub, mul, rem)
     };
