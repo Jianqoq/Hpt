@@ -154,13 +154,11 @@ impl _Allocator {
             }
         }
         // increment the reference count in the storage of the ptr allocated
-        unsafe {
-            if let Ok(mut storage) = CPU_STORAGE.lock() {
-                if let Some(cnt) = storage.get_mut(&ptr) {
-                    *cnt = cnt.checked_sub(1).expect("Reference count underflow");
-                } else {
-                    storage.insert(ptr, 1);
-                }
+        if let Ok(mut storage) = CPU_STORAGE.lock() {
+            if let Some(cnt) = storage.get_mut(&SafePtr { ptr }) {
+                *cnt = cnt.checked_sub(1).expect("Reference count underflow");
+            } else {
+                storage.insert(SafePtr { ptr }, 1);
             }
         }
         ptr
@@ -172,22 +170,20 @@ impl _Allocator {
     ///
     /// if the reference count is 0, remove the ptr from the storage, remove the ptr from the allocated set, and insert the ptr into the cache
     fn deallocate(&mut self, ptr: *mut u8, layout: &Layout) {
-        unsafe {
-            if let Ok(mut storage) = CPU_STORAGE.lock() {
-                if let Some(cnt) = storage.get_mut(&ptr) {
-                    *cnt = cnt.checked_sub(1).expect("Reference count underflow");
-                    if *cnt == 0 {
-                        self.allocated.remove(&SafePtr { ptr });
-                        storage.remove(&ptr);
-                        if let Some(ptrs) = self.cache.get_mut(layout) {
-                            ptrs.push(SafePtr { ptr });
-                        } else {
-                            self.cache.put(layout.clone(), vec![SafePtr { ptr }]);
-                        }
+        if let Ok(mut storage) = CPU_STORAGE.lock() {
+            if let Some(cnt) = storage.get_mut(&SafePtr { ptr }) {
+                *cnt = cnt.checked_sub(1).expect("Reference count underflow");
+                if *cnt == 0 {
+                    self.allocated.remove(&SafePtr { ptr });
+                    storage.remove(&SafePtr { ptr });
+                    if let Some(ptrs) = self.cache.get_mut(layout) {
+                        ptrs.push(SafePtr { ptr });
+                    } else {
+                        self.cache.put(layout.clone(), vec![SafePtr { ptr }]);
                     }
-                } else {
-                    panic!("ptr {:p} not found in storage", ptr);
                 }
+            } else {
+                panic!("ptr {:p} not found in storage", ptr);
             }
         }
     }
@@ -199,14 +195,11 @@ impl _Allocator {
     /// this function is used to insert the ptr into the allocated set, and increment the reference count in the storage
     fn insert_ptr(&mut self, ptr: *mut u8) {
         self.allocated.insert(SafePtr { ptr });
-        // println!("Inserting ptr {:p}", ptr);
-        unsafe {
-            if let Ok(mut storage) = CPU_STORAGE.lock() {
-                if let Some(cnt) = storage.get_mut(&ptr) {
-                    *cnt += 1;
-                } else {
-                    storage.insert(ptr, 1);
-                }
+        if let Ok(mut storage) = CPU_STORAGE.lock() {
+            if let Some(cnt) = storage.get_mut(&SafePtr { ptr }) {
+                *cnt += 1;
+            } else {
+                storage.insert(SafePtr { ptr }, 1);
             }
         }
     }
@@ -216,13 +209,11 @@ impl _Allocator {
 ///
 /// increment the reference count of the ptr in the storage
 pub fn clone_storage(ptr: *mut u8) {
-    unsafe {
-        if let Ok(mut storage) = CPU_STORAGE.lock() {
-            if let Some(cnt) = storage.get_mut(&ptr) {
-                *cnt += 1;
-            } else {
-                panic!("Pointer not found in CPU_STORAGE");
-            }
+    if let Ok(mut storage) = CPU_STORAGE.lock() {
+        if let Some(cnt) = storage.get_mut(&SafePtr { ptr }) {
+            *cnt += 1;
+        } else {
+            panic!("Pointer not found in CPU_STORAGE");
         }
     }
 }
