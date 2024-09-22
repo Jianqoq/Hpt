@@ -37,7 +37,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let ly = Layout::new(res_shape.clone(), strides.clone());
         Ok(_Tensor {
             #[cfg(feature = "bound_check")]
-            data: Pointer::new(ptr as *mut T, ly.clone()),
+            data: Pointer::new(ptr as *mut T, size as i64),
             #[cfg(not(feature = "bound_check"))]
             data: Pointer::new(ptr as *mut T),
             parent: None,

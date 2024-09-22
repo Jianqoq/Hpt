@@ -33,7 +33,24 @@ where
         let (res_shape, res_strides, offset) =
             slice_process(self.shape().to_vec(), self.strides().to_vec(), index, 1)?;
         let res_ptr: *mut T = unsafe { self.data.ptr.offset(offset as isize) };
-        Ok(self.from_slice(res_ptr, res_shape, res_strides))
+        #[cfg(feature = "bound_check")]
+        {
+            if offset < 0 || offset >= self.ptr().len as i64 {
+                panic!(
+                    "index out of bounds, got offset: {}, origin shape: {}, origin strides: {}, slices: {:?}",
+                    offset,
+                    self.shape(),
+                    self.strides(),
+                    index
+                );
+            }
+            let len = self.ptr().len - offset;
+            Ok(self.from_slice(Pointer::new(res_ptr, len), res_shape, res_strides))
+        }
+        #[cfg(not(feature = "bound_check"))]
+        {
+            Ok(self.from_slice(Pointer::new(res_ptr), res_shape, res_strides))
+        }
     }
     /// Creates a new tensor from a slice of memory.
     ///
@@ -51,7 +68,7 @@ where
     /// # Returns
     ///
     /// Returns a new `_Tensor` referencing the specified slice of memory.
-    pub fn from_slice(&self, ptr: *mut T, shape: Vec<i64>, strides: Vec<i64>) -> _Tensor<T> {
+    pub fn from_slice(&self, ptr: Pointer<T>, shape: Vec<i64>, strides: Vec<i64>) -> _Tensor<T> {
         let (shape, strides) = if shape.contains(&0) {
             let mut new_shape = Vec::new();
             let mut new_strides = Vec::new();
@@ -71,7 +88,7 @@ where
             let layout = Layout::new(shape, strides);
             Self {
                 #[cfg(feature = "bound_check")]
-                data: Pointer::new(ptr, layout.clone()),
+                data: ptr,
                 #[cfg(not(feature = "bound_check"))]
                 data: Pointer::new(ptr),
                 parent: Some(self.data.clone()),
@@ -83,7 +100,7 @@ where
             let layout = Layout::new(shape, strides);
             Self {
                 #[cfg(feature = "bound_check")]
-                data: Pointer::new(ptr, layout.clone()),
+                data: ptr,
                 #[cfg(not(feature = "bound_check"))]
                 data: Pointer::new(ptr),
                 parent: self.parent.clone(),

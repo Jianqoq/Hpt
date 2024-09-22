@@ -239,12 +239,12 @@ impl<T: CommonBounds> _Tensor<T> {
             match self.parent.clone() {
                 Some(parent) => {
                     #[cfg(feature = "bound_check")]
-                    let new_parent = Pointer::new(parent.ptr as *mut Dst, parent.layout.clone());
+                    let new_parent = Pointer::new(parent.ptr as *mut Dst, parent.len);
                     #[cfg(not(feature = "bound_check"))]
                     let new_parent = Pointer::new(parent.ptr as *mut Dst);
                     Ok(_Tensor {
                         #[cfg(feature = "bound_check")]
-                        data: Pointer::new(self.data.ptr as *mut Dst, self.layout.clone()),
+                        data: Pointer::new(self.data.ptr as *mut Dst, self.ptr().len),
                         #[cfg(not(feature = "bound_check"))]
                         data: Pointer::new(self.data.ptr as *mut Dst),
                         parent: Some(new_parent),
@@ -255,7 +255,7 @@ impl<T: CommonBounds> _Tensor<T> {
                 }
                 None => Ok(_Tensor {
                     #[cfg(feature = "bound_check")]
-                    data: Pointer::new(self.data.ptr as *mut Dst, self.layout.clone()),
+                    data: Pointer::new(self.data.ptr as *mut Dst, self.ptr().len),
                     #[cfg(not(feature = "bound_check"))]
                     data: Pointer::new(self.data.ptr as *mut Dst),
                     parent: None,
@@ -356,7 +356,7 @@ impl<'a, T> Into<_Tensor<T>> for &'a [T] {
         }
         _Tensor {
             #[cfg(feature = "bound_check")]
-            data: Pointer::new(ptr as *mut T, layout.clone()),
+            data: Pointer::new(ptr as *mut T, self.len() as i64),
             #[cfg(not(feature = "bound_check"))]
             data: Pointer::new(ptr as *mut T),
             parent: None,

@@ -1,4 +1,4 @@
-use std::panic::Location;
+use std::{fmt::Display, panic::Location};
 
 use anyhow::Result;
 
@@ -29,6 +29,22 @@ pub enum Slice {
     StepByRangeFromTo((i64, i64, i64)),
     /// load from the start index to the end index with step along the corresponding dimension
     StepByRangeTo((i64, i64)),
+}
+
+impl Display for Slice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Slice::From(index) => write!(f, "{}::", index),
+            Slice::Full => write!(f, "::"),
+            Slice::RangeFrom(index) => write!(f, "{}::", index),
+            Slice::RangeTo(index) => write!(f, ":{}:", index),
+            Slice::Range((start, end)) => write!(f, "{}:{}:", start, end),
+            Slice::StepByRangeFrom((start, step)) => write!(f, "{}::{}", start, step),
+            Slice::StepByFullRange(step) => write!(f, "::{}", step),
+            Slice::StepByRangeFromTo((start, end, step)) => write!(f, "{}:{}:{}", start, end, step),
+            Slice::StepByRangeTo((start, step)) => write!(f, ":{}:{}", start, step),
+        }
+    }
 }
 
 /// # Internal Function

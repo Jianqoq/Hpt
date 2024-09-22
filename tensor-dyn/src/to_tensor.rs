@@ -50,10 +50,10 @@ macro_rules! impl_type_num {
                         layout = Layout::from_size_align(length * std::mem::size_of::<$t>(), 8).unwrap();
                         CACHE.insert_ptr(ptr as *mut u8) ;
                     } else {
-                        layout = Layout::from_size_align(data.len() * std::mem::size_of::<$t>(), 8).unwrap();
+                        layout = Layout::from_size_align(length * std::mem::size_of::<$t>(), 8).unwrap();
                         ptr = CACHE.allocate(layout) as *mut $t;
                         unsafe {
-                            std::ptr::copy_nonoverlapping(data.as_ptr(), ptr, data.len());
+                            std::ptr::copy_nonoverlapping(data.as_ptr(), ptr, length);
                         }
                     }
                     let ly = tensor_common::layout::Layout::new(res_shape, vec![1]);
@@ -61,7 +61,7 @@ macro_rules! impl_type_num {
                         #[cfg(not(feature = "bound_check"))]
                         data: Pointer::new(ptr),
                         #[cfg(feature = "bound_check")]
-                        data: Pointer::new(ptr, ly.clone()),
+                        data: Pointer::new(ptr, length as i64),
                         parent: None,
                         layout: ly,
                         mem_layout: Arc::new(layout),
@@ -98,7 +98,7 @@ macro_rules! impl_type_num {
                         #[cfg(not(feature = "bound_check"))]
                         data: Pointer::new(ptr),
                         #[cfg(feature = "bound_check")]
-                        data: Pointer::new(ptr, ly.clone()),
+                        data: Pointer::new(ptr, length as i64),
                         parent: None,
                         layout: ly,
                         mem_layout: Arc::new(layout),
@@ -136,7 +136,7 @@ macro_rules! impl_type_num {
                     #[cfg(not(feature = "bound_check"))]
                     data: Pointer::new(ptr),
                     #[cfg(feature = "bound_check")]
-                    data: Pointer::new(ptr, ly.clone()),
+                    data: Pointer::new(ptr, length as i64),
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
@@ -218,7 +218,7 @@ macro_rules! impl_type_num {
                 #[cfg(not(feature = "bound_check"))]
                 data: Pointer::new(ptr),
                 #[cfg(feature = "bound_check")]
-                data: Pointer::new(ptr, ly.clone()),
+                data: Pointer::new(ptr, length as i64),
                 parent: None,
                 layout: ly,
                 mem_layout: Arc::new(layout),
@@ -256,7 +256,7 @@ macro_rules! impl_type_num {
                     #[cfg(not(feature = "bound_check"))]
                     data: Pointer::new(ptr),
                     #[cfg(feature = "bound_check")]
-                    data: Pointer::new(ptr, ly.clone()),
+                    data: Pointer::new(ptr, length as i64),
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
@@ -294,7 +294,7 @@ macro_rules! impl_type_num {
                     #[cfg(not(feature = "bound_check"))]
                     data: Pointer::new(ptr),
                     #[cfg(feature = "bound_check")]
-                    data: Pointer::new(ptr, ly.clone()),
+                    data: Pointer::new(ptr, length as i64),
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
