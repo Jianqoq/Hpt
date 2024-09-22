@@ -1,7 +1,8 @@
 use std::ops::{Div, Sub};
 
 use crate::{
-    backend::Cpu, ops::cpu::unary::FloatUnaryType, tensor::Tensor, tensor_base::_Tensor, BoolVector,
+    backend::Cpu, tensor::Tensor, tensor_base::_Tensor,
+    tensor_internal::float_out_unary::FloatUnaryType, BoolVector,
 };
 use anyhow::Result;
 use tensor_common::shape::Shape;
@@ -249,7 +250,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// ```
     fn arange<U>(start: U, end: U) -> Result<Self>
     where
-        T: Convertor + FromScalar<U> + NormalOut<T, Output = T>,
+        T: FromScalar<U>,
         usize: IntoScalar<T>,
         U: Convertor + IntoScalar<T> + Copy,
     {
@@ -411,16 +412,11 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// ```
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self>
     where
-        T: PartialOrd
-            + FloatOutUnary
-            + NormalOut<T, Output = T>
-            + FromScalar<FloatUnaryType<T>>
-            + std::ops::Neg<Output = T>,
+        T: PartialOrd + FloatOutUnary + FromScalar<FloatUnaryType<T>> + std::ops::Neg<Output = T>,
         FloatUnaryType<T>: Sub<Output = FloatUnaryType<T>>
             + FromScalar<usize>
             + FromScalar<f64>
             + Div<Output = FloatUnaryType<T>>
-            + NormalOut<Output = FloatUnaryType<T>>
             + CommonBounds,
     {
         Ok(_Tensor::<T, Cpu>::geomspace(start, end, n, include_end)?.into())

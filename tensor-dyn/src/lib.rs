@@ -38,8 +38,6 @@ pub mod ops {
         pub mod gather_elements;
         /// a module defines hardmax operation
         pub mod hardmax;
-        /// a module defines lp_norm operation
-        pub mod lp_norm;
         /// a module defines lp_pool2d operation
         pub mod lp_pool2d;
         /// a module defines matmul operation
@@ -90,21 +88,19 @@ pub mod ops {
     }
 }
 
-/// a module for the wgpu kernels
-pub mod wgpu_kernels {}
-
 pub mod backend;
-/// A module for random number generation.
-pub mod random;
 pub mod slice;
 /// a module that wrap the _Tensor struct
 pub mod tensor;
 /// a module that defines the _Tensor struct
 pub mod tensor_base;
 /// a module that contains the implementation of the `Into` trait for the `_Tensor` struct.
+///
+/// # Note
+/// for this library's developer, not necessary need to know how they works
 pub mod to_tensor;
 
-/// a module that contains all the exposed functions for normal tensor (we may have diff tensor (differentiable tensor) in the future)
+/// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
 pub mod tensor_expose {
     /// a module that contains all the unary operations that has floating type output
     pub mod float_out_unary;
@@ -112,6 +108,20 @@ pub mod tensor_expose {
     pub mod normal_creation;
     /// a module that contains all the unary operations that has self type output
     pub mod normal_out_unary;
+    /// a module that contains all the random number generate functions
+    pub mod random;
+    /// a module that contains all the shape manipulation functions
+    pub mod shape_manipulate;
+}
+
+/// a module that contains all the functions only for the internal user (we may have diff tensor (differentiable tensor) in the future)
+pub mod tensor_internal {
+    /// a module that contains all the unary operations that has floating type output
+    pub mod float_out_unary;
+    /// a module that contains all normal methods to create a tensor
+    pub mod normal_creation;
+    /// a module that contains all the random number generate functions
+    pub mod random;
     /// a module that contains all the shape manipulation functions
     pub mod shape_manipulate;
 }

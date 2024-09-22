@@ -8,7 +8,7 @@ use tensor_traits::{
 use tensor_types::dtype::TypeCommon;
 use tensor_types::{into_scalar::IntoScalar, type_promote::NormalOut};
 
-use super::matmul::{matmul_no_out, matmul_with_out};
+use super::matmul::matmul_with_out;
 
 /// a type alias for the output type of the binary operations of `A` and `B`
 pub(crate) type NormalType<A, B> = <A as NormalOut<B>>::Output;
@@ -130,14 +130,14 @@ where
 
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn matmul(&self, rhs: _Tensor<B>) -> anyhow::Result<Self::Output> {
-        matmul_no_out(self, &rhs)
+        matmul_with_out(self, &rhs, None::<Self::Output>)
     }
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn matmul_<U>(&self, rhs: _Tensor<B>, out: U) -> anyhow::Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
     {
-        matmul_with_out(self, &rhs, out)
+        matmul_with_out(self, &rhs, Some(out))
     }
 }
 
@@ -155,7 +155,7 @@ where
 
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn matmul(&self, rhs: &_Tensor<B>) -> anyhow::Result<Self::Output> {
-        matmul_no_out(self, rhs)
+        matmul_with_out(self, &rhs, None::<Self::Output>)
     }
 
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -163,6 +163,6 @@ where
     where
         U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
     {
-        matmul_with_out(self, rhs, out)
+        matmul_with_out(self, rhs, Some(out))
     }
 }

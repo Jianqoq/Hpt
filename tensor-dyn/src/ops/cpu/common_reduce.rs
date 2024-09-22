@@ -1,4 +1,5 @@
 use crate::tensor_base::_Tensor;
+use crate::tensor_internal::float_out_unary::FloatBinaryType;
 use tensor_common::axis::{process_axes, Axis};
 use tensor_traits::{CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce, TensorInfo};
 use tensor_types::type_promote::NormalOutUnary;
@@ -11,10 +12,7 @@ use tensor_types::{
     vectors::traits::SimdSelect,
 };
 
-use super::{
-    reduce::{reduce, reduce2, reduce3},
-    unary::FloatBinaryType,
-};
+use super::reduce::{reduce, reduce2, reduce3};
 
 impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
     type Output = Self;

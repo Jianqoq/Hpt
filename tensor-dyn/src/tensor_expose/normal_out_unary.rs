@@ -3,14 +3,13 @@ use std::borrow::Borrow;
 use crate::{ops::cpu::unary::NormalType, tensor::Tensor, tensor_base::_Tensor};
 use anyhow::Result;
 use tensor_traits::{CommonBounds, NormalUaryOps, TensorLike};
-use tensor_types::{into_scalar::IntoScalar, type_promote::NormalOut};
+use tensor_types::into_scalar::IntoScalar;
 
 impl<T> NormalUaryOps for Tensor<T>
 where
-    T: NormalOut<Output = T> + CommonBounds + IntoScalar<T>,
+    T: CommonBounds + IntoScalar<T>,
     NormalType<T>: CommonBounds,
     _Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
-    T::Vec: NormalOut<Output = T::Vec>,
 {
     type Output = Tensor<NormalType<T>>;
 
