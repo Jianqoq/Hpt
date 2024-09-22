@@ -84,7 +84,9 @@ fn test_get_broadcast_axes_from() {
     let axes = get_broadcast_axes_from(&shape1, &res_shape);
     match axes {
         Ok(_) => panic!("Should return Err"),
-        Err(err) => assert_eq!(err.to_string(), r"can't broacast lhs: shape([1, 2, 1, 3]) with rhs: shape([1, 1, 3, 2]), expect lhs_shape[1] to be 1, at tensor-tests\src\tensor_common\shape_utils.rs:84:16"),
+        Err(err) => {
+            assert!(err.to_string().contains("can't broacast lhs: shape([1, 2, 1, 3]) with rhs: shape([1, 1, 3, 2]), expect lhs_shape[1] to be 1"));
+        }
     }
 }
 
