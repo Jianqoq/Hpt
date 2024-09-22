@@ -14,7 +14,5 @@ pub use strorage::CPU_STORAGE;
 #[allow(non_snake_case)]
 #[ctor::dtor]
 fn free_pools() {
-    unsafe {
-        CACHE.clear();
-    }
+    CACHE.clear();
 }

@@ -6,8 +6,16 @@ use once_cell::sync::Lazy;
 
 use crate::strorage::CPU_STORAGE;
 
+/// just a wrapper around `*mut u8`, implementing `Send` and `Sync` trait to let the compiler know that it is safe to send and share across threads
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct SafePtr {
+    ptr: *mut u8,
+}
+unsafe impl Send for SafePtr {}
+unsafe impl Sync for SafePtr {}
+
 /// `lru` cache allocator
-pub static mut CACHE: Lazy<Allocator> = Lazy::new(|| Allocator::new(100));
+pub static CACHE: Lazy<Allocator> = Lazy::new(|| Allocator::new(100));
 
 /// # Allocator
 ///
@@ -68,7 +76,7 @@ impl Allocator {
         for (layout, ptrs) in allocator.cache.iter_mut() {
             for ptr in ptrs.iter() {
                 unsafe {
-                    std::alloc::dealloc(*ptr, layout.clone());
+                    std::alloc::dealloc(ptr.ptr, layout.clone());
                 }
             }
         }
@@ -89,8 +97,8 @@ impl Allocator {
 }
 
 struct _Allocator {
-    cache: LruCache<Layout, Vec<*mut u8>>,
-    allocated: HashSet<*mut u8>,
+    cache: LruCache<Layout, Vec<SafePtr>>,
+    allocated: HashSet<SafePtr>,
 }
 
 impl _Allocator {
@@ -111,8 +119,8 @@ impl _Allocator {
         /*check if we previously allocated same layout of memory */
         {
             // try pop the memory out, if it return None, there is no available cached memory, we need to allocate new memory
-            if let Some(ptr) = ptr.pop() {
-                ptr
+            if let Some(safe_ptr) = ptr.pop() {
+                safe_ptr.ptr
             } else {
                 let ptr = unsafe { std::alloc::alloc(layout) };
                 if ptr.is_null() {
@@ -121,7 +129,7 @@ impl _Allocator {
                         layout.size() / 1024 / 1024
                     );
                 }
-                self.allocated.insert(ptr);
+                self.allocated.insert(SafePtr { ptr });
                 ptr
             }
         } else {
@@ -132,15 +140,15 @@ impl _Allocator {
                     layout.size() / 1024 / 1024
                 );
             }
-            self.allocated.insert(ptr);
+            self.allocated.insert(SafePtr { ptr });
             ptr
         };
         // check if the cache is full, if it is full, pop the least recently used layout and deallocate the memory
         if self.cache.cap().get() == self.cache.len() {
             if let Some((layout, ptrs)) = self.cache.pop_lru() {
-                for ptr in ptrs {
+                for safe_ptr in ptrs {
                     unsafe {
-                        std::alloc::dealloc(ptr, layout);
+                        std::alloc::dealloc(safe_ptr.ptr, layout);
                     }
                 }
             }
@@ -169,12 +177,12 @@ impl _Allocator {
                 if let Some(cnt) = storage.get_mut(&ptr) {
                     *cnt = cnt.checked_sub(1).expect("Reference count underflow");
                     if *cnt == 0 {
-                        self.allocated.remove(&ptr);
+                        self.allocated.remove(&SafePtr { ptr });
                         storage.remove(&ptr);
                         if let Some(ptrs) = self.cache.get_mut(layout) {
-                            ptrs.push(ptr);
+                            ptrs.push(SafePtr { ptr });
                         } else {
-                            self.cache.put(layout.clone(), vec![ptr]);
+                            self.cache.put(layout.clone(), vec![SafePtr { ptr }]);
                         }
                     }
                 } else {
@@ -190,7 +198,7 @@ impl _Allocator {
     ///
     /// this function is used to insert the ptr into the allocated set, and increment the reference count in the storage
     fn insert_ptr(&mut self, ptr: *mut u8) {
-        self.allocated.insert(ptr);
+        self.allocated.insert(SafePtr { ptr });
         // println!("Inserting ptr {:p}", ptr);
         unsafe {
             if let Ok(mut storage) = CPU_STORAGE.lock() {

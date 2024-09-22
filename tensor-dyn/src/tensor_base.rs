@@ -78,12 +78,10 @@ where
 {
     fn drop(&mut self) {
         match B::ID {
-            0 => unsafe {
-                CACHE.deallocate(
-                    self._backend._backend.get_ptr() as *mut u8,
-                    &self.mem_layout,
-                )
-            },
+            0 => CACHE.deallocate(
+                self._backend._backend.get_ptr() as *mut u8,
+                &self.mem_layout,
+            ),
             _ => {
                 panic!("Invalid Backend ID")
             }
@@ -347,7 +345,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             size *= tmp as usize;
         }
         let layout = std::alloc::Layout::from_size_align(size * size_of::<T>(), ALIGN)?;
-        let ptr = unsafe { CACHE.allocate(layout) };
+        let ptr = CACHE.allocate(layout);
         let ly = Layout::new(res_shape.clone(), strides.clone());
         Ok(_Tensor {
             #[cfg(feature = "bound_check")]
@@ -372,7 +370,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             size *= tmp;
         }
         let layout = std::alloc::Layout::from_size_align(size * size_of::<T>(), ALIGN)?;
-        let ptr = unsafe { CACHE.allocate(layout) };
+        let ptr = CACHE.allocate(layout);
         assert_ne!(ptr, std::ptr::null_mut());
         let slice = unsafe { std::slice::from_raw_parts_mut(ptr as *mut T, size) };
         let zero = [T::ZERO; 8];
@@ -947,7 +945,11 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
     fn tile<S: Into<Axis>>(&self, repeats: S) -> Result<Self> {
         let repeats: Axis = repeats.into();
         ErrHandler::check_index_in_range(self.ndim(), (repeats.axes.len() - 1) as i64)?;
-        let repeats: Vec<i64> = repeats.axes.into_iter().map(|x| x as i64).collect::<Vec<i64>>();
+        let repeats: Vec<i64> = repeats
+            .axes
+            .into_iter()
+            .map(|x| x as i64)
+            .collect::<Vec<i64>>();
         let final_repeats;
         let mut final_shape;
         if repeats.len() > self.ndim() {
@@ -1343,7 +1345,7 @@ impl<'a, T> Into<_Tensor<T>> for &'a [T] {
         let layout = Layout::new(shape, strides);
         let mem_layout =
             std::alloc::Layout::from_size_align(self.len() * size_of::<T>(), ALIGN).unwrap();
-        let ptr = unsafe { CACHE.allocate(mem_layout.clone()) };
+        let ptr = CACHE.allocate(mem_layout.clone());
         unsafe {
             std::ptr::copy_nonoverlapping(self.as_ptr(), ptr as *mut T, self.len());
         }
