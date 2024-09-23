@@ -192,11 +192,8 @@ where
     if tensor.size() == 0 {
         write!(f, "{}", "Tensor([])\n".to_string())
     } else if tensor.ndim() == 0 {
-        write!(
-            f,
-            "{}",
-            format!("Tensor({})\n", unsafe { tensor.ptr().ptr.read() })
-        )
+        let val = format_val(unsafe { tensor.ptr().ptr.read() }, precision);
+        write!(f, "{}", format!("Tensor({})\n", val))
     } else {
         let ptr: Pointer<T> = tensor.ptr();
         if !ptr.ptr.is_null() {

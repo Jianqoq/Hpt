@@ -69,32 +69,3 @@ pub fn shape_to_strides(shape: &[i64]) -> Strides {
     }
     strides.into()
 }
-
-/// # Internal Function
-/// Checks if the strides represent an expanded (non-default) layout.
-///
-/// This function determines whether a tensor's layout in memory has been expanded,
-/// which typically occurs when certain dimensions are of size 1.
-///
-/// # Arguments
-/// - `strides`: A reference to a vector containing the strides of the tensor.
-///
-/// # Returns
-/// `true` if the tensor has an expanded layout, `false` otherwise.
-///
-/// # Examples
-/// ```
-/// use tensor_common::strides_is_expanded;
-/// let strides = vec![5, 0, 1];
-/// let is_expanded = strides_is_expanded(&strides);
-/// ```
-pub fn strides_is_expanded(strides: &[i64]) -> bool {
-    let mut expanded = false;
-    for i in (0..strides.len()).rev() {
-        if strides[i] == 0 {
-            expanded = true;
-            break;
-        }
-    }
-    expanded
-}

@@ -9,6 +9,7 @@ pub mod tensor_dyn {
     pub mod avg_pool2d;
     pub mod lp_pool2d;
     pub mod slice;
+    pub mod test_lib;
 }
 
 pub mod tensor_common {
