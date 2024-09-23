@@ -11,9 +11,10 @@ use tensor_common::{
 use tensor_traits::CommonBounds;
 
 use crate::{
-    par_strided_zip::ParStridedZip,
+    par_strided_zip::{par_strided_zip_simd::ParStridedZipSimd, ParStridedZip},
     strided_map::StridedMap,
     strided_zip::{strided_zip_simd::StridedZipSimd, StridedZip},
+    with_simd::WithSimd,
 };
 
 /// A trait for getting and setting values from an iterator.
@@ -87,10 +88,10 @@ pub trait IterGetSetSimd {
     /// get the next element of the inner loop
     fn inner_loop_next(&mut self, index: usize) -> Self::Item;
     /// get the next vector of the inner loop, this is called when we do simd iteration
-    fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem;
+    fn inner_loop_next_simd(&mut self, index: usize) -> Self::SimdItem;
     /// check if all iterators' last stride is one, only when all iterators' last stride is one, we can do simd iteration
     fn all_last_stride_one(&self) -> bool;
-    /// get the simd vector size
+    /// get the simd vector size, if any of the iterator returned different vector size, it will return None
     fn lanes(&self) -> Option<usize>;
 }
 
@@ -247,6 +248,66 @@ pub trait ParStridedIteratorZip: Sized + IterGetSet {
     }
 }
 
+/// A trait to zip two parallel iterators together.
+pub trait ParStridedIteratorSimdZip: Sized + IterGetSetSimd {
+    /// Combines this `ParStridedZipSimd` iterator with another SIMD-optimized iterator, enabling simultaneous parallel iteration.
+    ///
+    /// This method performs shape broadcasting between `self` and `other` to ensure that both iterators
+    /// iterate over tensors with compatible shapes. It calculates the appropriate iteration intervals based
+    /// on the new broadcasted shape and configures both iterators accordingly. Finally, it returns a new
+    /// `ParStridedZipSimd` instance that allows for synchronized parallel iteration over the combined iterators.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The third iterator to zip with. It must implement the `IterGetSetSimd`, `UnindexedProducer`,
+    ///             `ShapeManipulator`, and `ParallelIterator` traits,
+    ///             and its associated `Item` type must be `Send`.
+    ///
+    /// # Returns
+    ///
+    /// A new `ParStridedZipSimd` instance that combines `self` and `other` for synchronized parallel iteration over all three iterators.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the shapes of `self` and `other` cannot be broadcasted together.
+    /// Ensure that the shapes are compatible before calling this method.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn zip<'a, C>(mut self, mut other: C) -> ParStridedZipSimd<'a, Self, C>
+    where
+        C: UnindexedProducer + 'a + IterGetSetSimd + ParallelIterator + ShapeManipulator,
+        <C as IterGetSetSimd>::Item: Send,
+        Self: UnindexedProducer + ParallelIterator + ShapeManipulator,
+        <Self as IterGetSetSimd>::Item: Send,
+    {
+        let new_shape = predict_broadcast_shape(&self.shape(), &other.shape())
+            .expect("Cannot broadcast shapes");
+
+        let inner_loop_size = new_shape[new_shape.len() - 1] as usize;
+        let outer_loop_size = (new_shape.size() as usize) / inner_loop_size;
+
+        let num_threads;
+        if outer_loop_size < rayon::current_num_threads() {
+            num_threads = outer_loop_size;
+        } else {
+            num_threads = rayon::current_num_threads();
+        }
+        let intervals = Arc::new(mt_intervals(outer_loop_size, num_threads));
+        let len = intervals.len();
+        self.set_intervals(intervals.clone());
+        self.set_end_index(len);
+        other.set_intervals(intervals.clone());
+        other.set_end_index(len);
+
+        let mut a = self.reshape(new_shape.clone());
+        let mut b = other.reshape(new_shape.clone());
+
+        a.set_shape(new_shape.clone());
+        b.set_shape(new_shape.clone());
+
+        ParStridedZipSimd::new(a, b)
+    }
+}
+
 /// A trait to zip two simd iterators together.
 pub trait StridedSimdIteratorZip: Sized {
     /// Combines this iterator with another SIMD-optimized iterator, enabling simultaneous iteration.
@@ -377,6 +438,26 @@ where
             }
             self.next();
         }
+    }
+}
+
+/// A trait for performing single thread simd iteration over an iterator.
+pub trait ParStridedIteratorSimd
+where
+    Self: Sized + UnindexedProducer + IterGetSetSimd + ParallelIterator,
+{
+    /// perform simd iteration, this method is for single thread simd iterator
+    fn for_each<F, F2>(self, op: F, vec_op: F2)
+    where
+        F: Fn(<Self as IterGetSetSimd>::Item) + Sync,
+        F2: Fn(<Self as IterGetSetSimd>::SimdItem) + Sync + Send + Copy,
+        <Self as IterGetSetSimd>::SimdItem: Send,
+        <Self as IterGetSetSimd>::Item: Send,
+    {
+        let with_simd = WithSimd { base: self, vec_op };
+        with_simd.for_each(|x| {
+            op(x);
+        });
     }
 }
 

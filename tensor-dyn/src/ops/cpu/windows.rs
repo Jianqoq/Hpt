@@ -1,7 +1,7 @@
 use std::ops::{Mul, Sub};
 
 use rayon::{
-    iter::{IndexedParallelIterator, ParallelIterator},
+    iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator},
     slice::ParallelSliceMut,
 };
 use tensor_traits::{CommonBounds, TensorCreator, TensorLike};
@@ -102,6 +102,55 @@ where
         });
         Ok(ret)
     }
+
+    /// Generates a Blackman window tensor.
+    ///
+    /// A Blackman window is commonly used in signal processing to reduce spectral leakage.
+    /// This method generates a tensor representing the Blackman window, which can be used
+    /// for tasks like filtering or analysis in the frequency domain. The window can be
+    /// either periodic or symmetric, depending on the `periodic` parameter.
+    ///
+    /// # Arguments
+    ///
+    /// * `window_length` - The length of the window, specified as an `i64`. This determines
+    ///   the number of elements in the output tensor.
+    /// * `periodic` - A boolean flag indicating whether the window should be periodic or symmetric:
+    ///   - If `true`, the window will be periodic, which is typically used for spectral analysis.
+    ///   - If `false`, the window will be symmetric, which is typically used for filtering.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing a tensor of type `<T as FloatOutBinary>::Output`
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn blackman_window(
+        window_length: i64,
+        periodic: bool,
+    ) -> anyhow::Result<_Tensor<<T as FloatOutBinary>::Output>>
+    where
+        T: FloatConst,
+        i64: IntoScalar<<T as FloatOutBinary>::Output>,
+    {
+        let a0: <T as FloatOutBinary>::Output = 0.42.into_scalar();
+        let a1: <T as FloatOutBinary>::Output = 0.5.into_scalar();
+        let a2: <T as FloatOutBinary>::Output = 0.08.into_scalar();
+        let length_usize = if periodic {
+            window_length
+        } else {
+            window_length - 1
+        };
+        let length: <T as FloatOutBinary>::Output = length_usize.into_scalar();
+        let mut ret = _Tensor::<<T as FloatOutBinary>::Output>::empty(&[length_usize])?;
+        ret.as_raw_mut()
+            .par_iter_mut()
+            .enumerate()
+            .for_each(|(idx, x)| {
+                let idx: <T as FloatOutBinary>::Output = idx.into_scalar();
+                let a = a1._mul(T::TWOPI._mul(idx)._div(length)._cos());
+                let b = a2._mul(T::FOURPI._mul(idx)._div(length)._cos());
+                *x = a0._sub(a)._add(b);
+            });
+        Ok(ret)
+    }
 }
 
 impl<T> Tensor<T>
@@ -173,5 +222,35 @@ where
         Ok(Tensor::from(
             _Tensor::hann_window(window_length, periodic)?.into(),
         ))
+    }
+
+    /// Generates a Blackman window tensor.
+    ///
+    /// A Blackman window is commonly used in signal processing to reduce spectral leakage.
+    /// This method generates a tensor representing the Blackman window, which can be used
+    /// for tasks like filtering or analysis in the frequency domain. The window can be
+    /// either periodic or symmetric, depending on the `periodic` parameter.
+    ///
+    /// # Arguments
+    ///
+    /// * `window_length` - The length of the window, specified as an `i64`. This determines
+    ///   the number of elements in the output tensor.
+    /// * `periodic` - A boolean flag indicating whether the window should be periodic or symmetric:
+    ///   - If `true`, the window will be periodic, which is typically used for spectral analysis.
+    ///   - If `false`, the window will be symmetric, which is typically used for filtering.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing a tensor of type `<T as FloatOutBinary>::Output`
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn blackman_window(
+        window_length: i64,
+        periodic: bool,
+    ) -> anyhow::Result<Tensor<<T as FloatOutBinary>::Output>>
+    where
+        T: FloatConst,
+        i64: IntoScalar<<T as FloatOutBinary>::Output>,
+    {
+        Ok(_Tensor::<T>::blackman_window(window_length, periodic)?.into())
     }
 }

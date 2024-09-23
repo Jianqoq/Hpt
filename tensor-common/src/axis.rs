@@ -5,6 +5,7 @@ use crate::err_handler::ErrHandler;
 /// `Axis` struct to hold the axes for operations
 ///
 /// it stores the axes the user wants to perform operations on
+#[derive(Clone)]
 pub struct Axis {
     /// the axes to be processed
     pub axes: Vec<i64>,

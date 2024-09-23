@@ -7,6 +7,7 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::slice::{ParallelSlice, ParallelSliceMut};
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::shape_utils::mt_intervals;
+use tensor_iterator::iterator_traits::ParStridedIteratorSimdZip;
 use tensor_iterator::TensorIterator;
 use tensor_traits::tensor::TensorCreator;
 use tensor_traits::tensor::{CommonBounds, TensorInfo, TensorLike};

@@ -1,6 +1,5 @@
 use crate::{
-    iterator_traits::{ IterGetSet, ParStridedHelper, ParStridedIteratorZip, ShapeManipulator,
-    },
+    iterator_traits::{IterGetSet, ParStridedHelper, ParStridedIteratorZip, ShapeManipulator},
     par_strided::ParStrided,
     shape_manipulate::{par_expand, par_reshape, par_transpose},
 };
@@ -15,18 +14,15 @@ use tensor_traits::tensor::{CommonBounds, TensorInfo};
 /// A module for parallel mutable strided iterator.
 pub mod par_strided_map_mut_simd {
     use crate::{
-        iterator_traits::IterGetSetSimd, par_strided::par_strided_simd::ParStridedSimd,
-        par_strided_zip::par_strided_zip_simd::ParStridedZipSimd,
+        iterator_traits::{IterGetSetSimd, ParStridedIteratorSimd, ParStridedIteratorSimdZip},
+        par_strided::par_strided_simd::ParStridedSimd,
     };
     use rayon::iter::{
         plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
         ParallelIterator,
     };
     use std::sync::Arc;
-    use tensor_common::{
-        shape::Shape,
-        shape_utils::{mt_intervals, predict_broadcast_shape}, simd_ref::MutVec,
-    };
+    use tensor_common::{shape::Shape, simd_ref::MutVec};
     use tensor_traits::{CommonBounds, TensorInfo};
     use tensor_types::dtype::TypeCommon;
     use tensor_types::vectors::traits::VecCommon;
@@ -63,66 +59,10 @@ pub mod par_strided_map_mut_simd {
                 phantom: std::marker::PhantomData,
             }
         }
-        /// Combines this `ParStridedMutSimd` iterator with another SIMD-optimized iterator, enabling simultaneous parallel iteration.
-        ///
-        /// This method performs shape broadcasting between `self` and `other` to ensure that both iterators
-        /// iterate over tensors with compatible shapes. It calculates the appropriate iteration intervals based
-        /// on the new broadcasted shape and configures both iterators accordingly. Finally, it returns a new
-        /// `ParStridedZipSimd` instance that allows for synchronized parallel iteration over the combined iterators.
-        ///
-        /// **Note:** This implementation leverages Rayon for parallel execution and assumes that the iterators
-        /// support SIMD optimizations.
-        ///
-        /// # Arguments
-        ///
-        /// * `other` - The third iterator to zip with. It must implement the `IterGetSetSimd`, `UnindexedProducer`,
-        ///             `ParallelIterator` traits, and its associated `Item` type must be `Send`.
-        ///
-        /// # Returns
-        ///
-        /// A new `ParStridedZipSimd` instance that combines `self` and `other` for synchronized parallel iteration over both iterators.
-        ///
-        /// # Panics
-        ///
-        /// This method will panic if the shapes of `self` and `other` cannot be broadcasted together.
-        /// Ensure that the shapes are compatible before calling this method.
-        #[track_caller]
-        pub fn zip<C>(mut self, mut other: C) -> ParStridedZipSimd<'a, Self, C>
-        where
-            C: UnindexedProducer + 'a + IterGetSetSimd + ParallelIterator,
-            <C as IterGetSetSimd>::Item: Send,
-            T::Vec: Send,
-        {
-            let new_shape = predict_broadcast_shape(self.shape(), other.shape())
-                .expect("Cannot broadcast shapes");
-
-            let inner_loop_size = new_shape[new_shape.len() - 1] as usize;
-
-            // if collapse all is true, then the outer loop size is the product of all the elements in the shape
-            // inner_loop_size in this case will be useless
-            let outer_loop_size = (new_shape.size() as usize) / inner_loop_size;
-            let num_threads;
-            if outer_loop_size < rayon::current_num_threads() {
-                num_threads = outer_loop_size;
-            } else {
-                num_threads = rayon::current_num_threads();
-            }
-            let intervals = Arc::new(mt_intervals(outer_loop_size, num_threads));
-            let len = intervals.len();
-            self.set_intervals(intervals.clone());
-            self.set_end_index(len);
-            other.set_intervals(intervals.clone());
-            other.set_end_index(len);
-
-            other.broadcast_set_strides(&new_shape);
-            self.broadcast_set_strides(&new_shape);
-
-            other.set_shape(new_shape.clone());
-            self.set_shape(new_shape.clone());
-
-            ParStridedZipSimd::new(self, other)
-        }
     }
+
+    impl<'a, T: CommonBounds> ParStridedIteratorSimdZip for ParStridedMutSimd<'a, T> {}
+    impl<'a, T: CommonBounds> ParStridedIteratorSimd for ParStridedMutSimd<'a, T> {}
 
     impl<'a, T> ParallelIterator for ParStridedMutSimd<'a, T>
     where
@@ -240,7 +180,7 @@ pub mod par_strided_map_mut_simd {
             }
         }
 
-        fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
+        fn inner_loop_next_simd(&mut self, index: usize) -> Self::SimdItem {
             unsafe {
                 std::mem::transmute(
                     self.base
@@ -260,7 +200,7 @@ pub mod par_strided_map_mut_simd {
         fn lanes(&self) -> Option<usize> {
             self.base.lanes()
         }
-        
+
         fn layout(&self) -> &tensor_common::layout::Layout {
             self.base.layout()
         }
@@ -432,23 +372,23 @@ where
                 .unwrap()
         }
     }
-    
+
     fn strides(&self) -> &tensor_common::strides::Strides {
         self.base.strides()
     }
-    
+
     fn shape(&self) -> &Shape {
         self.base.shape()
     }
-    
+
     fn outer_loop_size(&self) -> usize {
         self.base.outer_loop_size()
     }
-    
+
     fn inner_loop_size(&self) -> usize {
         self.base.inner_loop_size()
     }
-    
+
     fn layout(&self) -> &tensor_common::layout::Layout {
         self.base.layout()
     }

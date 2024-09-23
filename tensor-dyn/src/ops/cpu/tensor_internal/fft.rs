@@ -1,18 +1,17 @@
+use crate::tensor_base::_Tensor;
+use crate::ALIGN;
+use crate::THREAD_POOL;
 use num::complex::Complex32;
 use num::complex::Complex64;
-use tensor_traits::ops::fft::FFTOps;
-use crate::tensor::Tensor;
-use crate::tensor_base::_Tensor;
-use tensor_common::axis::Axis;
-use tensor_common::axis::process_axes;
-use crate::THREAD_POOL;
-use tensor_common::shape_utils::mt_intervals;
-use tensor_traits::tensor::TensorInfo;
-use tensor_traits::tensor::TensorCreator;
 use std::sync::Arc;
 use std::sync::Barrier;
-use crate::ALIGN;
+use tensor_common::axis::process_axes;
+use tensor_common::axis::Axis;
+use tensor_common::shape_utils::mt_intervals;
+use tensor_traits::ops::fft::FFTOps;
 use tensor_traits::shape_manipulate::ShapeManipulate;
+use tensor_traits::tensor::TensorCreator;
+use tensor_traits::tensor::TensorInfo;
 
 macro_rules! impl_fftops {
     ($type:ident, $meta_type:ident) => {
@@ -151,10 +150,14 @@ macro_rules! impl_fftops {
                                     }
                                     barrier_clone.wait();
                                 });
-                                std::alloc::dealloc(raw_buffer as *mut u8, std::alloc::Layout::from_size_align(
-                                    (inner_loop_size as usize) * std::mem::size_of::<$type>(),
-                                    ALIGN,
-                                ).unwrap());
+                                std::alloc::dealloc(
+                                    raw_buffer as *mut u8,
+                                    std::alloc::Layout::from_size_align(
+                                        (inner_loop_size as usize) * std::mem::size_of::<$type>(),
+                                        ALIGN,
+                                    )
+                                    .unwrap(),
+                                );
                             }
                             barrier.wait();
                             if idx == 0 {
@@ -214,8 +217,7 @@ macro_rules! impl_fftops {
                                 local_res_ptr.offset(current_prg[j] * transposed_res.strides()[j]);
                                 local_amount /= new_self.shape()[j];
                             }
-                            amount +=
-                                ((intervals[i].1 - intervals[i].0) as i64) * inner_loop_size;
+                            amount += ((intervals[i].1 - intervals[i].0) as i64) * inner_loop_size;
                             prgs.push(current_prg);
                             ptrs.push(local_ptr);
                             res_ptrs.push(local_res_ptr);
@@ -269,10 +271,14 @@ macro_rules! impl_fftops {
                                 }
                                 barrier_clone.wait();
                             });
-                            std::alloc::dealloc(raw_buffer as *mut u8, std::alloc::Layout::from_size_align(
-                                (inner_loop_size as usize) * std::mem::size_of::<$type>(),
-                                ALIGN,
-                            ).unwrap());
+                            std::alloc::dealloc(
+                                raw_buffer as *mut u8,
+                                std::alloc::Layout::from_size_align(
+                                    (inner_loop_size as usize) * std::mem::size_of::<$type>(),
+                                    ALIGN,
+                                )
+                                .unwrap(),
+                            );
                         }
                         barrier.wait();
                         if idx == 0 {
@@ -288,69 +294,3 @@ macro_rules! impl_fftops {
 
 impl_fftops!(Complex32, f32);
 impl_fftops!(Complex64, f64);
-
-impl FFTOps for Tensor<Complex32> {
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn fft(&self, axis: i64) -> anyhow::Result<Self> {
-        self.fftn(axis)
-    }
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn ifft(&self, axis: i64) -> anyhow::Result<Self> {
-        self.ifftn(axis)
-    }
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn fft2(&self, axis1: i64, axis2: i64) -> anyhow::Result<Self> {
-        self.fftn([axis1, axis2])
-    }
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn ifft2(&self, axis1: i64, axis2: i64) -> anyhow::Result<Self> {
-        self.ifftn([axis1, axis2])
-    }
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn fftn<A: Into<Axis>>(&self, axes: A) -> anyhow::Result<Self> {
-        let inner = self.inner.fftn(axes)?;
-        Ok(Self {
-            inner: Arc::new(inner),
-        })
-    }
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn ifftn<A: Into<Axis>>(&self, axes: A) -> anyhow::Result<Self> {
-        let inner = self.inner.ifftn(axes)?;
-        Ok(Self {
-            inner: Arc::new(inner),
-        })
-    }
-}
-
-impl FFTOps for Tensor<Complex64> {
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn fft(&self, axis: i64) -> anyhow::Result<Self> {
-        self.fftn(axis)
-    }
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn ifft(&self, axis: i64) -> anyhow::Result<Self> {
-        self.ifftn(axis)
-    }
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn fft2(&self, axis1: i64, axis2: i64) -> anyhow::Result<Self> {
-        self.fftn([axis1, axis2])
-    }
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn ifft2(&self, axis1: i64, axis2: i64) -> anyhow::Result<Self> {
-        self.ifftn([axis1, axis2])
-    }
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn fftn<A: Into<Axis>>(&self, axes: A) -> anyhow::Result<Self> {
-        let inner = self.inner.fftn(axes)?;
-        Ok(Self {
-            inner: Arc::new(inner),
-        })
-    }
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn ifftn<A: Into<Axis>>(&self, axes: A) -> anyhow::Result<Self> {
-        let inner = self.inner.ifftn(axes)?;
-        Ok(Self {
-            inner: Arc::new(inner),
-        })
-    }
-}

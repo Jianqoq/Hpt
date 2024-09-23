@@ -16,8 +16,6 @@ pub mod ops {
         /// a module defines binary normal iterations,
         /// the `binary` module uses this module's function to perform computation
         pub mod binary_normal;
-        /// a module defines blackman_window operation
-        pub mod blackman_window;
         /// a module defines tensor compare operation
         pub mod cmp;
         /// a module defines all the common tensor reduce operations
@@ -30,8 +28,6 @@ pub mod ops {
         pub mod conv_config;
         /// a module defines dropout operation
         pub mod dropout;
-        /// a module defines fft operation
-        pub mod fft;
         /// a module defines gather operation
         pub mod gather;
         /// a module defines gather_elements operation
@@ -87,8 +83,12 @@ pub mod ops {
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_expose {
+            /// a module that contains all fft operations
+            pub mod fft;
             /// a module that contains all the unary operations that has floating type output
             pub mod float_out_unary;
+            /// a module that contains matrix multiplication operations
+            pub mod matmul;
             /// a module that contains all normal methods to create a tensor
             pub mod normal_creation;
             /// a module that contains all the unary operations that has self type output
@@ -100,8 +100,12 @@ pub mod ops {
         }
         /// a module that contains all the functions only for the internal user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_internal {
+            /// a module that contains all fft operations
+            pub mod fft;
             /// a module that contains all the unary operations that has floating type output
             pub mod float_out_unary;
+            /// a module that contains matrix multiplication operations
+            pub mod matmul;
             /// a module that contains all normal methods to create a tensor
             pub mod normal_creation;
             /// a module that contains all the random number generate functions

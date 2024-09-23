@@ -165,7 +165,7 @@ pub mod strided_simd {
                     .offset((index as isize) * (self.last_stride as isize))
             }
         }
-        fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
+        fn inner_loop_next_simd(&mut self, index: usize) -> Self::SimdItem {
             unsafe { Self::SimdItem::from_ptr(self.ptr.get_ptr().add(index * T::Vec::SIZE)) }
         }
         fn all_last_stride_one(&self) -> bool {

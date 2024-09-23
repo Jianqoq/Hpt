@@ -25,23 +25,23 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
     fn empty<S: Into<Shape>>(shape: S) -> Result<Self> {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);
-        let mut size = 1;
-        let mut strides = vec![0; res_shape.len()];
-        for i in (0..res_shape.len()).rev() {
-            let tmp = res_shape[i];
-            strides[i] = size as i64;
-            size *= tmp as usize;
-        }
-        let layout = std::alloc::Layout::from_size_align(size * size_of::<T>(), ALIGN)?;
+        let size = res_shape
+            .iter()
+            .try_fold(1i64, |acc, &num| acc.checked_mul(num).or(Some(i64::MAX)))
+            .unwrap_or(i64::MAX) as usize;
+        let layout = std::alloc::Layout::from_size_align(
+            size.checked_mul(size_of::<T>())
+                .unwrap_or(isize::MAX as usize - (ALIGN - 1)), // when overflow happened, we use max memory `from_size_align` accept
+            ALIGN,
+        )?;
         let ptr = CACHE.allocate(layout);
-        let ly = Layout::new(res_shape.clone(), strides.clone());
         Ok(_Tensor {
             #[cfg(feature = "bound_check")]
             data: Pointer::new(ptr as *mut T, size as i64),
             #[cfg(not(feature = "bound_check"))]
             data: Pointer::new(ptr as *mut T),
             parent: None,
-            layout: ly,
+            layout: Layout::from(res_shape.clone()),
             mem_layout: Arc::new(layout),
             _backend: Backend::new(ptr as u64),
         })

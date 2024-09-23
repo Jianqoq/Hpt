@@ -1,14 +1,9 @@
 use crate::ops::cpu::binary_normal::binary_fn_with_out_simd;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
-use std::borrow::{Borrow, BorrowMut};
-use tensor_traits::{
-    ops::binary::{Matmul, NormalBinOps},
-    tensor::CommonBounds,
-};
+use std::borrow::Borrow;
+use tensor_traits::{ops::binary::NormalBinOps, tensor::CommonBounds};
 use tensor_types::dtype::TypeCommon;
 use tensor_types::{into_scalar::IntoScalar, type_promote::NormalOut};
-
-use super::matmul::matmul_with_out;
 
 /// a type alias for the output type of the binary operations of `A` and `B`
 pub(crate) type NormalType<A, B> = <A as NormalOut<B>>::Output;
@@ -115,54 +110,3 @@ impl_bin_ops_basic!([Tensor<A>], [&Tensor<B>], Tensor);
 impl_bin_ops_basic!([Tensor<A>], [Tensor<B>], Tensor);
 impl_bin_ops_basic!([&Tensor<A>], [&Tensor<B>], Tensor);
 impl_bin_ops_basic!([&Tensor<A>], [Tensor<B>], Tensor);
-
-impl<A, B> Matmul<_Tensor<B>> for _Tensor<A>
-where
-    A: CommonBounds + NormalOut<B> + IntoScalar<<A as NormalOut<B>>::Output>,
-    B: CommonBounds + IntoScalar<<A as NormalOut<B>>::Output>,
-    <A as NormalOut<B>>::Output: CommonBounds,
-{
-    type Output = _Tensor<<A as NormalOut<B>>::Output>;
-
-    type OutputMeta = <A as NormalOut<B>>::Output;
-
-    type InplaceOutput = _Tensor<<A as NormalOut<B>>::Output>;
-
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn matmul(&self, rhs: _Tensor<B>) -> anyhow::Result<Self::Output> {
-        matmul_with_out(self, &rhs, None::<Self::Output>)
-    }
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn matmul_<U>(&self, rhs: _Tensor<B>, out: U) -> anyhow::Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
-    {
-        matmul_with_out(self, &rhs, Some(out))
-    }
-}
-
-impl<A, B> Matmul<&_Tensor<B>> for _Tensor<A>
-where
-    A: CommonBounds + NormalOut<B> + IntoScalar<<A as NormalOut<B>>::Output>,
-    B: CommonBounds + IntoScalar<<A as NormalOut<B>>::Output>,
-    <A as NormalOut<B>>::Output: CommonBounds,
-{
-    type Output = _Tensor<<A as NormalOut<B>>::Output>;
-
-    type OutputMeta = <A as NormalOut<B>>::Output;
-
-    type InplaceOutput = _Tensor<<A as NormalOut<B>>::Output>;
-
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn matmul(&self, rhs: &_Tensor<B>) -> anyhow::Result<Self::Output> {
-        matmul_with_out(self, &rhs, None::<Self::Output>)
-    }
-
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn matmul_<U>(&self, rhs: &_Tensor<B>, out: U) -> anyhow::Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
-    {
-        matmul_with_out(self, rhs, Some(out))
-    }
-}

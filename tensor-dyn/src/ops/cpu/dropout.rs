@@ -1,7 +1,7 @@
 use crate::{backend::Cpu, tensor_base::_Tensor};
 use rand_distr::Distribution;
 use rayon::iter::ParallelIterator;
-use tensor_iterator::TensorIterator;
+use tensor_iterator::{iterator_traits::ParStridedIteratorSimdZip, TensorIterator};
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 use tensor_types::{into_scalar::IntoScalar, type_promote::NormalOut};
 

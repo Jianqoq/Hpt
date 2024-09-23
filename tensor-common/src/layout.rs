@@ -395,6 +395,10 @@ impl Layout {
 // Implementing the From trait for the `Layout` struct, when the user pass any of the following types, it will be converted to `Layout` automatically
 
 impl From<Shape> for Layout {
+    /// internally, it will call `shape_to_strides` to calculate the strides
+    ///
+    /// # See Also
+    /// - [shape_to_strides](crate::strides_utils::shape_to_strides)
     fn from(shape: Shape) -> Self {
         let strides = shape_to_strides(&shape);
         Layout { shape, strides }
@@ -402,6 +406,10 @@ impl From<Shape> for Layout {
 }
 
 impl From<&Shape> for Layout {
+    /// internally, it will call `shape_to_strides` to calculate the strides
+    ///
+    /// # See Also
+    /// - [shape_to_strides](crate::strides_utils::shape_to_strides)
     fn from(shape: &Shape) -> Self {
         let strides = shape_to_strides(shape);
         Layout {

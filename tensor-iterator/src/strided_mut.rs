@@ -126,7 +126,7 @@ pub mod simd_imports {
                     .offset((index as isize) * (self.last_stride as isize))
             }
         }
-        fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
+        fn inner_loop_next_simd(&mut self, index: usize) -> Self::SimdItem {
             let vector = unsafe { self.base.ptr.ptr.add(index * T::Vec::SIZE) };
             unsafe { std::mem::transmute(vector) }
         }

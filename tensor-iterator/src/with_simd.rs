@@ -184,7 +184,7 @@ where
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         self.base.inner_loop_next(index)
     }
-    fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
+    fn inner_loop_next_simd(&mut self, index: usize) -> Self::SimdItem {
         self.base.inner_loop_next_simd(index)
     }
     fn all_last_stride_one(&self) -> bool {

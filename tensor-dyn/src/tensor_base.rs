@@ -9,7 +9,7 @@ use std::{
 use tensor_allocator::CACHE;
 use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_display::display;
-use tensor_iterator::{iterator_traits::ParStridedIteratorZip, TensorIterator};
+use tensor_iterator::{iterator_traits::{ParStridedIteratorSimdZip, ParStridedIteratorZip}, TensorIterator};
 use tensor_traits::tensor::{CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike};
 use tensor_types::{convertion::Convertor, into_scalar::IntoScalar};
 

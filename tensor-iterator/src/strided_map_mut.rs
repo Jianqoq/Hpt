@@ -139,7 +139,7 @@ pub mod strided_map_mut_simd {
             self.base.inner_loop_next(index)
         }
 
-        fn inner_loop_next_simd(&self, _: usize) -> Self::SimdItem {
+        fn inner_loop_next_simd(&mut self, _: usize) -> Self::SimdItem {
             todo!()
         }
 

@@ -45,11 +45,11 @@ fn test_new() -> anyhow::Result<()> {
     Ok(())
 }
 
-// #[test]
-// #[should_panic]
-// fn test_allocate_too_large() {
-//     let _a = _Tensor::<f64>::empty(&[i64::MAX]).unwrap();
-// }
+#[test]
+#[should_panic]
+fn test_allocate_too_large() {
+    let _a = _Tensor::<f64>::empty(&[i64::MAX]).unwrap();
+}
 
 #[test]
 fn test_arange() -> anyhow::Result<()> {

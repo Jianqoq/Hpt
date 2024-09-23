@@ -1,7 +1,5 @@
 use std::{
-    fmt::{Debug, Display},
-    ops::{Add, Deref, Mul, Rem, Sub},
-    sync::{atomic::Ordering, Arc},
+    borrow::{Borrow, BorrowMut}, fmt::{Debug, Display}, ops::{Add, Deref, Mul, Rem, Sub}, sync::{atomic::Ordering, Arc}
 };
 
 use crate::{
@@ -367,3 +365,21 @@ normal_ops_4!(Add, add);
 normal_ops_4!(Sub, sub);
 normal_ops_4!(Mul, mul);
 normal_ops_4!(Rem, rem);
+
+impl<T> Borrow<_Tensor<T, Cpu>> for Tensor<T>
+where
+    T: CommonBounds,
+{
+    fn borrow(&self) -> &_Tensor<T, Cpu> {
+        &self.inner
+    }
+}
+
+impl<T> BorrowMut<_Tensor<T, Cpu>> for Tensor<T>
+where
+    T: CommonBounds,
+{
+    fn borrow_mut(&mut self) -> &mut _Tensor<T, Cpu> {
+        Arc::make_mut(&mut self.inner)
+    }
+}

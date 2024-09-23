@@ -1,3 +1,4 @@
+use par_strided_zip_simd::ParStridedZipSimd;
 use rayon::iter::{
     plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
     ParallelIterator,
@@ -7,7 +8,7 @@ use tensor_common::{shape::Shape, strides::Strides};
 use tensor_traits::tensor::CommonBounds;
 
 use crate::{
-    iterator_traits::{IterGetSet, ParStridedIteratorZip},
+    iterator_traits::{IterGetSet, IterGetSetSimd, ParStridedIteratorZip, ShapeManipulator},
     par_strided_map::ParStridedMap,
 };
 
@@ -19,13 +20,13 @@ pub mod par_strided_zip_simd {
         plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
         ParallelIterator,
     };
-    use tensor_common::{
-        shape::Shape, shape_utils::{mt_intervals, predict_broadcast_shape}, simd_ref::MutVec, strides::Strides
-    };
+    use tensor_common::{shape::Shape, simd_ref::MutVec, strides::Strides};
     use tensor_traits::CommonBounds;
 
     use crate::{
-        iterator_traits::{IterGetSetSimd, ShapeManipulator},
+        iterator_traits::{
+            IterGetSetSimd, ParStridedIteratorSimd, ParStridedIteratorSimdZip, ShapeManipulator,
+        },
         par_strided_map::par_strided_map_simd::ParStridedMapSimd,
     };
 
@@ -118,7 +119,7 @@ pub mod par_strided_zip_simd {
             (self.a.inner_loop_next(index), self.b.inner_loop_next(index))
         }
 
-        fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
+        fn inner_loop_next_simd(&mut self, index: usize) -> Self::SimdItem {
             (
                 self.a.inner_loop_next_simd(index),
                 self.b.inner_loop_next_simd(index),
@@ -141,7 +142,7 @@ pub mod par_strided_zip_simd {
                 _ => None,
             }
         }
-        
+
         fn layout(&self) -> &tensor_common::layout::Layout {
             self.a.layout()
         }
@@ -170,65 +171,6 @@ pub mod par_strided_zip_simd {
                 phantom: std::marker::PhantomData,
             }
         }
-        /// Combines this `ParStridedZipSimd` iterator with another SIMD-optimized iterator, enabling simultaneous parallel iteration.
-        ///
-        /// This method performs shape broadcasting between `self` and `other` to ensure that both iterators
-        /// iterate over tensors with compatible shapes. It calculates the appropriate iteration intervals based
-        /// on the new broadcasted shape and configures both iterators accordingly. Finally, it returns a new
-        /// `ParStridedZipSimd` instance that allows for synchronized parallel iteration over the combined iterators.
-        ///
-        /// # Arguments
-        ///
-        /// * `other` - The third iterator to zip with. It must implement the `IterGetSetSimd`, `UnindexedProducer`,
-        ///             `ShapeManipulator`, and `ParallelIterator` traits,
-        ///             and its associated `Item` type must be `Send`.
-        ///
-        /// # Returns
-        ///
-        /// A new `ParStridedZipSimd` instance that combines `self` and `other` for synchronized parallel iteration over all three iterators.
-        ///
-        /// # Panics
-        ///
-        /// This method will panic if the shapes of `self` and `other` cannot be broadcasted together.
-        /// Ensure that the shapes are compatible before calling this method.
-        #[track_caller]
-        pub fn zip<C>(mut self, mut other: C) -> ParStridedZipSimd<'a, Self, C>
-        where
-            C: UnindexedProducer
-                + IterGetSetSimd
-                + ShapeManipulator
-                + ParallelIterator
-                + IterGetSetSimd,
-            Self: UnindexedProducer + IterGetSetSimd + ShapeManipulator,
-            <C as IterGetSetSimd>::Item: Send,
-            <Self as IterGetSetSimd>::Item: Send,
-        {
-            let new_shape = predict_broadcast_shape(&self.shape(), &other.shape())
-                .expect("Cannot broadcast shapes");
-
-            let inner_loop_size = new_shape[new_shape.len() - 1] as usize;
-            let outer_loop_size = (new_shape.size() as usize) / inner_loop_size;
-
-            let num_threads;
-            if outer_loop_size < rayon::current_num_threads() {
-                num_threads = outer_loop_size;
-            } else {
-                num_threads = rayon::current_num_threads();
-            }
-            let intervals = Arc::new(mt_intervals(outer_loop_size, num_threads));
-            let len = intervals.len();
-            self.set_intervals(intervals.clone());
-            self.set_end_index(len);
-            other.set_intervals(intervals.clone());
-            other.set_end_index(len);
-
-            let mut a = self.reshape(new_shape.clone());
-            let mut b = other.reshape(new_shape.clone());
-
-            a.set_shape(new_shape.clone());
-            b.set_shape(new_shape.clone());
-            ParStridedZipSimd::new(a, b)
-        }
         /// Transforms the zipped iterators by applying provided functions to their items.
         ///
         /// This method allows for element-wise operations on the zipped iterators by applying `func` to each pair of items.
@@ -254,6 +196,8 @@ pub mod par_strided_zip_simd {
             <A as IterGetSetSimd>::Item: Send,
             <B as IterGetSetSimd>::Item: Send,
             T::Vec: Send,
+            A: ShapeManipulator,
+            B: ShapeManipulator,
         {
             ParStridedMapSimd {
                 iter: self,
@@ -262,6 +206,19 @@ pub mod par_strided_zip_simd {
                 phantom: std::marker::PhantomData,
             }
         }
+    }
+
+    impl<'a, A, B> ParStridedIteratorSimdZip for ParStridedZipSimd<'a, A, B>
+    where
+        A: UnindexedProducer + ParallelIterator + IterGetSetSimd,
+        B: UnindexedProducer + ParallelIterator + IterGetSetSimd,
+    {
+    }
+    impl<'a, A, B> ParStridedIteratorSimd for ParStridedZipSimd<'a, A, B>
+    where
+        A: UnindexedProducer + ParallelIterator + IterGetSetSimd,
+        B: UnindexedProducer + ParallelIterator + IterGetSetSimd, <A as IterGetSetSimd>::Item: Send, <B as IterGetSetSimd>::Item: Send
+    {
     }
 
     impl<'a, A, B> UnindexedProducer for ParStridedZipSimd<'a, A, B>
@@ -417,7 +374,7 @@ where
     fn inner_loop_size(&self) -> usize {
         self.a.inner_loop_size()
     }
-    
+
     fn layout(&self) -> &tensor_common::layout::Layout {
         self.a.layout()
     }
@@ -549,4 +506,33 @@ where
     <A as IterGetSet>::Item: Send,
     <B as IterGetSet>::Item: Send,
 {
+}
+
+impl<'a, A, B> ShapeManipulator for ParStridedZipSimd<'a, A, B>
+where
+    A: UnindexedProducer + 'a + IterGetSetSimd + ParallelIterator + ShapeManipulator,
+    B: UnindexedProducer + 'a + IterGetSetSimd + ParallelIterator + ShapeManipulator,
+    <A as IterGetSetSimd>::Item: Send,
+    <B as IterGetSetSimd>::Item: Send,
+{
+    fn reshape<S: Into<Shape>>(self, shape: S) -> Self {
+        let tmp: Shape = shape.into();
+        let a = self.a.reshape(tmp.clone());
+        let b = self.b.reshape(tmp);
+        ParStridedZipSimd::new(a, b)
+    }
+
+    fn transpose<AXIS: Into<tensor_common::axis::Axis>>(self, axes: AXIS) -> Self {
+        let axes: tensor_common::axis::Axis = axes.into();
+        let a = self.a.transpose(axes.clone());
+        let b = self.b.transpose(axes);
+        ParStridedZipSimd::new(a, b)
+    }
+
+    fn expand<S: Into<Shape>>(self, shape: S) -> Self {
+        let tmp: Shape = shape.into();
+        let a = self.a.expand(tmp.clone());
+        let b = self.b.expand(tmp);
+        ParStridedZipSimd::new(a, b)
+    }
 }

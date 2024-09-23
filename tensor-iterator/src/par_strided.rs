@@ -33,7 +33,7 @@ pub mod par_strided_simd {
         layout::Layout,
         pointer::Pointer,
         shape::Shape,
-        shape_utils::{mt_intervals, predict_broadcast_shape, try_pad_shape},
+        shape_utils::{mt_intervals, try_pad_shape},
         simd_ref::MutVec,
         strides::Strides,
         strides_utils::preprocess_strides,
@@ -41,9 +41,10 @@ pub mod par_strided_simd {
     use tensor_traits::{CommonBounds, TensorInfo};
 
     use crate::{
-        iterator_traits::{IterGetSetSimd, ParStridedHelper, ShapeManipulator},
+        iterator_traits::{
+            IterGetSetSimd, ParStridedHelper, ParStridedIteratorSimd, ParStridedIteratorSimdZip, ShapeManipulator
+        },
         par_strided_map::par_strided_map_simd::ParStridedMapSimd,
-        par_strided_zip::par_strided_zip_simd::ParStridedZipSimd,
         shape_manipulate::{par_expand, par_reshape, par_transpose},
     };
 
@@ -101,45 +102,6 @@ pub mod par_strided_simd {
             }
         }
 
-        /// zip with another iterator.
-        #[cfg_attr(feature = "track_caller", track_caller)]
-        pub fn zip<'a, C>(mut self, mut other: C) -> ParStridedZipSimd<'a, Self, C>
-        where
-            C: UnindexedProducer + 'a + IterGetSetSimd + ParallelIterator,
-            <C as IterGetSetSimd>::Item: Send,
-            T::Vec: Send,
-        {
-            let new_shape = predict_broadcast_shape(self.shape(), other.shape())
-                .expect("Cannot broadcast shapes");
-
-            let inner_loop_size = new_shape[new_shape.len() - 1] as usize;
-
-            // if collapse all is true, then the outer loop size is the product of all the elements in the shape
-            // inner_loop_size in this case will be useless
-            let outer_loop_size = (new_shape.size() as usize) / inner_loop_size;
-
-            let num_threads;
-            if outer_loop_size < rayon::current_num_threads() {
-                num_threads = outer_loop_size;
-            } else {
-                num_threads = rayon::current_num_threads();
-            }
-            let intervals = Arc::new(mt_intervals(outer_loop_size, num_threads));
-            let len = intervals.len();
-            self.set_intervals(intervals.clone());
-            self.set_end_index(len);
-            other.set_intervals(intervals.clone());
-            other.set_end_index(len);
-
-            other.broadcast_set_strides(&new_shape);
-            self.broadcast_set_strides(&new_shape);
-
-            other.set_shape(new_shape.clone());
-            self.set_shape(new_shape.clone());
-
-            ParStridedZipSimd::new(self, other)
-        }
-
         /// Map the iterator with a function.
         pub fn strided_map_simd<'a, F, F2>(
             self,
@@ -161,6 +123,9 @@ pub mod par_strided_simd {
             }
         }
     }
+
+    impl<T: CommonBounds> ParStridedIteratorSimdZip for ParStridedSimd<T> {}
+    impl<T: CommonBounds> ParStridedIteratorSimd for ParStridedSimd<T> {}
 
     impl<T: CommonBounds> IterGetSetSimd for ParStridedSimd<T>
     where
@@ -236,7 +201,7 @@ pub mod par_strided_simd {
             unsafe { *self.ptr.get_ptr().add(index * (self.last_stride as usize)) }
         }
 
-        fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
+        fn inner_loop_next_simd(&mut self, index: usize) -> Self::SimdItem {
             use tensor_types::vectors::traits::Init;
             use tensor_types::vectors::traits::VecCommon;
             unsafe { T::Vec::from_ptr(self.ptr.get_ptr().add(index * T::Vec::SIZE)) }

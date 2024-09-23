@@ -3,6 +3,7 @@ use crate::tensor_base::_Tensor;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
+use tensor_iterator::iterator_traits::ParStridedIteratorSimdZip;
 use tensor_iterator::iterator_traits::ParStridedIteratorZip;
 use tensor_iterator::TensorIterator;
 use tensor_traits::tensor::CommonBounds;

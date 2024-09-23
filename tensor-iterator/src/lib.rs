@@ -22,6 +22,8 @@ pub mod par_strided_map_mut;
 pub mod par_strided_mut;
 /// A module contains simd/non-simd prallel strided zip iterator
 pub mod par_strided_zip;
+/// A module contains shape manipulation functions
+pub mod shape_manipulate;
 /// A module contains simd/non-simd strided iterator
 pub mod strided;
 /// A module contains simd/non-simd strided map iterator
@@ -32,8 +34,7 @@ pub mod strided_map_mut;
 pub mod strided_mut;
 /// A module contains simd/non-simd strided zip iterator
 pub mod strided_zip;
-/// A module contains shape manipulation functions
-pub mod shape_manipulate;
+
 mod with_simd;
 
 /// A trait for converting a tensor into an iterator.

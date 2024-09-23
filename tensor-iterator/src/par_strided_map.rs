@@ -1,7 +1,12 @@
 use rayon::iter::{plumbing::UnindexedProducer, ParallelIterator};
+use tensor_common::shape::Shape;
 use tensor_traits::tensor::{CommonBounds, TensorAlloc, TensorInfo};
 
-use crate::{iterator_traits::IterGetSet, par_strided_map_mut::ParStridedMapMut};
+use crate::{
+    iterator_traits::{IterGetSet, ShapeManipulator},
+    par_strided_map_mut::ParStridedMapMut,
+    par_strided_mut::par_strided_map_mut_simd::ParStridedMutSimd,
+};
 
 /// A module for parallel strided map iterator.
 pub mod par_strided_map_simd {
@@ -11,8 +16,9 @@ pub mod par_strided_map_simd {
     use tensor_types::dtype::TypeCommon;
 
     use crate::{
-        iterator_traits::IterGetSetSimd,
-        par_strided_mut::par_strided_map_mut_simd::ParStridedMutSimd, with_simd::WithSimd,
+        iterator_traits::{IterGetSetSimd, ParStridedIteratorSimdZip, ShapeManipulator},
+        par_strided_mut::par_strided_map_mut_simd::ParStridedMutSimd,
+        with_simd::WithSimd,
     };
     /// A parallel SIMD-optimized map iterator over tensor elements.
     ///
@@ -21,7 +27,11 @@ pub mod par_strided_map_simd {
     #[derive(Clone)]
     pub struct ParStridedMapSimd<'a, I, T: 'a, F, F2>
     where
-        I: UnindexedProducer<Item = T> + 'a + IterGetSetSimd<Item = T> + ParallelIterator,
+        I: UnindexedProducer<Item = T>
+            + 'a
+            + IterGetSetSimd<Item = T>
+            + ParallelIterator
+            + ShapeManipulator,
     {
         /// The underlying parallel SIMD-optimized strided iterator.
         pub(crate) iter: I,
@@ -35,7 +45,11 @@ pub mod par_strided_map_simd {
 
     impl<
             'a,
-            I: UnindexedProducer<Item = T> + 'a + IterGetSetSimd<Item = T> + ParallelIterator,
+            I: UnindexedProducer<Item = T>
+                + 'a
+                + IterGetSetSimd<Item = T>
+                + ParallelIterator
+                + ShapeManipulator,
             T: 'a,
             F,
             F2,
@@ -143,5 +157,34 @@ impl<
             *x = (self.f)(y);
         });
         res
+    }
+}
+
+impl<'a, T: CommonBounds> ShapeManipulator for ParStridedMutSimd<'a, T> {
+    fn reshape<S: Into<tensor_common::shape::Shape>>(self, shape: S) -> Self {
+        let shape: Shape = shape.into();
+        let new_base = self.base.reshape(shape);
+        ParStridedMutSimd {
+            base: new_base,
+            phantom: self.phantom,
+        }
+    }
+
+    fn transpose<AXIS: Into<tensor_common::axis::Axis>>(self, axes: AXIS) -> Self {
+        let axes = axes.into();
+        let new_base = self.base.transpose(axes);
+        ParStridedMutSimd {
+            base: new_base,
+            phantom: self.phantom,
+        }
+    }
+
+    fn expand<S: Into<tensor_common::shape::Shape>>(self, shape: S) -> Self {
+        let shape: Shape = shape.into();
+        let new_base = self.base.expand(shape);
+        ParStridedMutSimd {
+            base: new_base,
+            phantom: self.phantom,
+        }
     }
 }

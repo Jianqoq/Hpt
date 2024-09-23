@@ -108,7 +108,7 @@ pub mod strided_zip_simd {
         fn inner_loop_next(&mut self, index: usize) -> Self::Item {
             (self.a.inner_loop_next(index), self.b.inner_loop_next(index))
         }
-        fn inner_loop_next_simd(&self, index: usize) -> Self::SimdItem {
+        fn inner_loop_next_simd(&mut self, index: usize) -> Self::SimdItem {
             (
                 self.a.inner_loop_next_simd(index),
                 self.b.inner_loop_next_simd(index),
