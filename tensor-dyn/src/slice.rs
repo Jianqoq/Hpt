@@ -87,10 +87,7 @@ where
         if self.parent.is_none() {
             let layout = Layout::new(shape, strides);
             Self {
-                #[cfg(feature = "bound_check")]
                 data: ptr,
-                #[cfg(not(feature = "bound_check"))]
-                data: Pointer::new(ptr),
                 parent: Some(self.data.clone()),
                 mem_layout: self.mem_layout.clone(),
                 layout,
@@ -99,10 +96,7 @@ where
         } else {
             let layout = Layout::new(shape, strides);
             Self {
-                #[cfg(feature = "bound_check")]
                 data: ptr,
-                #[cfg(not(feature = "bound_check"))]
-                data: Pointer::new(ptr),
                 parent: self.parent.clone(),
                 mem_layout: self.mem_layout.clone(),
                 layout,

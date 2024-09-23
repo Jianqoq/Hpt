@@ -1,13 +1,12 @@
-use crate::{tensor::Tensor, tensor_base::_Tensor};
+use crate::{ops::cpu::tensor_internal::windows::Simd, tensor::Tensor, tensor_base::_Tensor};
 use std::ops::{Mul, Sub};
 use tensor_traits::CommonBounds;
 use tensor_types::{
-    dtype::{FloatConst, TypeCommon},
+    dtype::FloatConst,
     into_scalar::IntoScalar,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
 
-type Simd<T> = <<T as FloatOutBinary>::Output as TypeCommon>::Vec;
 type FBO<T> = <T as FloatOutBinary>::Output;
 
 impl<T> Tensor<T>

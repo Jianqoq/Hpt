@@ -13,7 +13,7 @@ use tensor_types::{
 
 use crate::tensor_base::_Tensor;
 
-type Simd<T> = <<T as FloatOutBinary>::Output as TypeCommon>::Vec;
+pub(crate) type Simd<T> = <<T as FloatOutBinary>::Output as TypeCommon>::Vec;
 type FBO<T> = <T as FloatOutBinary>::Output;
 
 impl<T> _Tensor<T>
