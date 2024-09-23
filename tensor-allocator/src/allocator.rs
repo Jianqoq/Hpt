@@ -46,8 +46,12 @@ impl Allocator {
     /// 3. if the layout is not found in the cache, allocate new memory
     ///
     /// 4. eventually, if the cache is full, pop the least recently used memory and deallocate the memory
-    pub fn allocate(&self, layout: Layout) -> *mut u8 {
-        self.allocator.lock().unwrap().allocate(layout)
+    pub fn allocate(&self, layout: Layout) -> anyhow::Result<*mut u8> {
+        if let Ok(mut allocator) = self.allocator.lock() {
+            allocator.allocate(layout)
+        } else {
+            anyhow::bail!("Failed to lock the allocator");
+        }
     }
 
     /// deallocate memory by using lru cache strategy
@@ -72,16 +76,22 @@ impl Allocator {
     ///
     /// this is used when the program exits, it will be called automatically
     pub fn clear(&self) {
-        let mut allocator = self.allocator.lock().unwrap();
-        for (layout, ptrs) in allocator.cache.iter_mut() {
-            for ptr in ptrs.iter() {
-                unsafe {
-                    std::alloc::dealloc(ptr.ptr, layout.clone());
+        match self.allocator.lock() {
+            Ok(mut allocator) => {
+                for (layout, ptrs) in allocator.cache.iter_mut() {
+                    for ptr in ptrs.iter() {
+                        unsafe {
+                            std::alloc::dealloc(ptr.ptr, layout.clone());
+                        }
+                    }
                 }
+                allocator.cache.clear();
+                assert_eq!(allocator.allocated.len(), 0);
+            }
+            Err(err) => {
+                println!("Failed to lock the allocator: {:?}", err);
             }
         }
-        allocator.cache.clear();
-        assert_eq!(allocator.allocated.len(), 0);
     }
 }
 
@@ -114,7 +124,7 @@ impl _Allocator {
     /// # Safety
     ///
     /// This function checks `null` ptr internally, any memory allocated through this method, downstream don't need to check for `null` ptr
-    fn allocate(&mut self, layout: Layout) -> *mut u8 {
+    fn allocate(&mut self, layout: Layout) -> anyhow::Result<*mut u8> {
         let ptr = if let Some(ptr) = self.cache.get_mut(&layout)
         /*check if we previously allocated same layout of memory */
         {
@@ -124,7 +134,7 @@ impl _Allocator {
             } else {
                 let ptr = unsafe { std::alloc::alloc(layout) };
                 if ptr.is_null() {
-                    panic!(
+                    anyhow::bail!(
                         "Failed to allocate memory, for {} MB",
                         layout.size() / 1024 / 1024
                     );
@@ -135,7 +145,7 @@ impl _Allocator {
         } else {
             let ptr = unsafe { std::alloc::alloc(layout) };
             if ptr.is_null() {
-                panic!(
+                anyhow::bail!(
                     "Failed to allocate memory, for {} MB",
                     layout.size() / 1024 / 1024
                 );
@@ -156,12 +166,15 @@ impl _Allocator {
         // increment the reference count in the storage of the ptr allocated
         if let Ok(mut storage) = CPU_STORAGE.lock() {
             if let Some(cnt) = storage.get_mut(&SafePtr { ptr }) {
-                *cnt = cnt.checked_sub(1).expect("Reference count underflow");
+                *cnt = match cnt.checked_add(1) {
+                    Some(cnt) => cnt,
+                    None => anyhow::bail!("Reference count overflow"),
+                };
             } else {
                 storage.insert(SafePtr { ptr }, 1);
             }
         }
-        ptr
+        Ok(ptr)
     }
 
     /// # Main Deallocation Function

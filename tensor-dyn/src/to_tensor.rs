@@ -48,10 +48,10 @@ macro_rules! impl_type_num {
                     if (ptr as usize) % 8 == 0 {
                         let _ = ManuallyDrop::new(data);
                         layout = Layout::from_size_align(length * std::mem::size_of::<$t>(), 8).unwrap();
-                        CACHE.insert_ptr(ptr as *mut u8) ;
+                        CACHE.insert_ptr(ptr as *mut u8);
                     } else {
                         layout = Layout::from_size_align(length * std::mem::size_of::<$t>(), 8).unwrap();
-                        ptr = CACHE.allocate(layout) as *mut $t;
+                        ptr = CACHE.allocate(layout).unwrap() as *mut $t;
                         unsafe {
                             std::ptr::copy_nonoverlapping(data.as_ptr(), ptr, length);
                         }
@@ -87,7 +87,7 @@ macro_rules! impl_type_num {
                         CACHE.insert_ptr(ptr as *mut u8) ;
                     } else {
                         layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                        ptr = CACHE.allocate(layout) as *mut $ct;
+                        ptr = CACHE.allocate(layout).unwrap() as *mut $ct;
                         unsafe {
                             std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                         }
@@ -124,7 +124,7 @@ macro_rules! impl_type_num {
                      CACHE.insert_ptr(ptr as *mut u8) ;
                 } else {
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    ptr = CACHE.allocate(layout) as *mut $ct;
+                    ptr = CACHE.allocate(layout).unwrap() as *mut $ct;
                     unsafe {
                         std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                     }
@@ -206,7 +206,7 @@ macro_rules! impl_type_num {
                 CACHE.insert_ptr(ptr as *mut u8);
             } else {
                 layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                ptr = CACHE.allocate(layout) as *mut $ct;
+                ptr = CACHE.allocate(layout).unwrap() as *mut $ct;
                 unsafe {
                     std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                 }
@@ -244,7 +244,7 @@ macro_rules! impl_type_num {
                     CACHE.insert_ptr(ptr as *mut u8);
                 } else {
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    ptr = CACHE.allocate(layout) as *mut $ct;
+                    ptr = CACHE.allocate(layout).unwrap() as *mut $ct;
                     unsafe {
                         std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                     }
@@ -282,7 +282,7 @@ macro_rules! impl_type_num {
                     CACHE.insert_ptr(ptr as *mut u8);
                 } else {
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    ptr = CACHE.allocate(layout) as *mut $ct;
+                    ptr = CACHE.allocate(layout).unwrap() as *mut $ct;
                     unsafe {
                         std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                     }

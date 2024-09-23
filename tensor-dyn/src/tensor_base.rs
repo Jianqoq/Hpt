@@ -332,7 +332,7 @@ impl<'a, T> Into<_Tensor<T>> for &'a [T] {
         let layout = Layout::new(shape, strides);
         let mem_layout =
             std::alloc::Layout::from_size_align(self.len() * size_of::<T>(), ALIGN).unwrap();
-        let ptr = CACHE.allocate(mem_layout.clone());
+        let ptr = CACHE.allocate(mem_layout.clone()).unwrap();
         unsafe {
             std::ptr::copy_nonoverlapping(self.as_ptr(), ptr as *mut T, self.len());
         }

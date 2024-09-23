@@ -34,7 +34,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                 .unwrap_or(isize::MAX as usize - (ALIGN - 1)), // when overflow happened, we use max memory `from_size_align` accept
             ALIGN,
         )?;
-        let ptr = CACHE.allocate(layout);
+        let ptr = CACHE.allocate(layout)?;
         Ok(_Tensor {
             #[cfg(feature = "bound_check")]
             data: Pointer::new(ptr as *mut T, size as i64),

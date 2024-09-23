@@ -16,8 +16,6 @@ pub mod ops {
         /// a module defines binary normal iterations,
         /// the `binary` module uses this module's function to perform computation
         pub mod binary_normal;
-        /// a module defines tensor compare operation
-        pub mod cmp;
         /// a module defines all the common tensor reduce operations
         pub mod common_reduce;
         /// a module defines concat operation
@@ -66,8 +64,6 @@ pub mod ops {
         pub mod topk;
         /// a module defines all the unary operations
         pub mod unary;
-        /// a module defines all the window operation
-        pub mod windows;
         /// a module defines all the kernels
         pub mod kernels {
             /// a module defines the avgpool2d kernels
@@ -83,6 +79,8 @@ pub mod ops {
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_expose {
+            /// a module that contains all the tensor compare functions
+            pub mod cmp;
             /// a module that contains all fft operations
             pub mod fft;
             /// a module that contains all the unary operations that has floating type output
@@ -97,9 +95,13 @@ pub mod ops {
             pub mod random;
             /// a module that contains all the shape manipulation functions
             pub mod shape_manipulate;
+            /// a module that contains all the windows creation functions
+            pub mod windows;
         }
         /// a module that contains all the functions only for the internal user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_internal {
+            /// a module that contains all the tensor compare functions
+            pub mod cmp;
             /// a module that contains all fft operations
             pub mod fft;
             /// a module that contains all the unary operations that has floating type output
@@ -112,6 +114,8 @@ pub mod ops {
             pub mod random;
             /// a module that contains all the shape manipulation functions
             pub mod shape_manipulate;
+            /// a module that contains all the windows creation functions
+            pub mod windows;
         }
     }
 }
