@@ -3,7 +3,7 @@
 
 // use half::bf16;
 use ops::cpu::conv_config::{ Conv2dConfig, KernelParamAlgo };
-use tch::{ Device, Kind, Tensor };
+// use tch::{ Device, Kind, Tensor };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
@@ -19,7 +19,7 @@ use tensor_dyn::*;
 fn main() -> anyhow::Result<()> {
     set_global_display_precision(7);
     set_global_display_lr_elements(6);
-    set_num_threads(8);
+    set_num_threads(16);
     let kernel = _Tensor::<f32>
         ::arange(0, 16 * 16 * 3 * 3)?
         .reshape([16, 16, 3, 3])?

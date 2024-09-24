@@ -3,8 +3,7 @@ use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
 use std::{
-    fmt::{Debug, Display},
-    sync::{atomic::Ordering, Arc},
+    borrow::BorrowMut, fmt::{Debug, Display}, sync::{atomic::Ordering, Arc}
 };
 use tensor_allocator::CACHE;
 use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
