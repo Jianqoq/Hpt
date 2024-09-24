@@ -1,6 +1,8 @@
 use crate::ops::cpu::tensor_internal::float_out_unary::FloatBinaryType;
 use crate::tensor_base::_Tensor;
 use tensor_common::axis::{process_axes, Axis};
+use tensor_iterator::iterator_traits::ParStridedIteratorSimd;
+use tensor_iterator::TensorIterator;
 use tensor_traits::{CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce, TensorInfo};
 use tensor_types::type_promote::NormalOutUnary;
 use tensor_types::vectors::traits::Init;
@@ -212,10 +214,10 @@ where
         reduce2(
             self,
             |a, b| b._is_true() & a,
-            |a, b| b | a,
+            |a, b| b & a,
             |a, b| {
                 let mask = b.to_bool();
-                mask | a
+                mask & a
             },
             &axes,
             true,
@@ -497,7 +499,7 @@ where
         keep_dims: bool,
     ) -> anyhow::Result<_Tensor<FloatBinaryType<T>>>
     where
-        f32: IntoScalar<<T as FloatOutBinary>::Output>,
+        f64: IntoScalar<<T as FloatOutBinary>::Output>,
         <T as FloatOutBinary>::Output: TypeCommon,
         T::Vec: NormalOut<
             <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
@@ -507,7 +509,7 @@ where
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         let three: <T as FloatOutBinary>::Output = (3.0).into_scalar();
         let three_vec = <<T as FloatOutBinary>::Output as TypeCommon>::Vec::splat(three);
-        reduce3(
+        let res = reduce3(
             self,
             move |a, b| {
                 let pow = b._abs()._pow(three);
@@ -526,7 +528,16 @@ where
             keep_dims,
             false,
             None,
-        )
+        )?;
+        let one_third: <T as FloatOutBinary>::Output = (1.0f64 / 3.0f64).into_scalar();
+        let one_third_vec = <<T as FloatOutBinary>::Output as TypeCommon>::Vec::splat(one_third);
+        res.par_iter_mut_simd().for_each(
+            |x| *x = x._pow(one_third),
+            |mut x| {
+                x.write_unaligned(x.read_unaligned()._pow(one_third_vec));
+            },
+        );
+        Ok(res)
     }
 
     /// Computes the logarithm of the sum of exponentials (LogSumExp) along a specified axis.

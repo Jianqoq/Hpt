@@ -281,7 +281,7 @@ where
     T::Vec: Copy,
     O::Vec: Copy,
 {
-    if a.is_contiguous() {
+    if a.is_contiguous() && a.parent().is_none() {
         contiguous_reduce::<T, F, F2, fn(O) -> O, _, fn(O::Vec) -> O::Vec, O>(
             a, op, op2, None, vec_op, None, &axes, init_val, keepdims, init_out, c,
         )
