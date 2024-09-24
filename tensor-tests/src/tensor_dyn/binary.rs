@@ -137,7 +137,7 @@ macro_rules! test_binarys {
         paste::paste! {
             #[test]
             fn [<test _ $name>]() -> anyhow::Result<()> {
-                let ((tch_a, tch_b), (a, b)) = $input_method([10, 10], [10, 10])?;
+                let ((tch_a, tch_b), (a, b)) = $input_method([13, 13], [13, 13])?;
                 let c = a.$hpt_op(&b)$($try)*;
                 let tch_c = tch_a.$tch_op(&tch_b);
                 $assert_method(&c, &tch_c);
@@ -146,12 +146,12 @@ macro_rules! test_binarys {
 
             #[test]
             fn [<test_ $name _broadcast>]() -> anyhow::Result<()> {
-                let ((tch_a, tch_b), (a, b)) = $input_method([10, 10], [10, 1])?;
+                let ((tch_a, tch_b), (a, b)) = $input_method([13, 13], [13, 1])?;
                 let c = a.$hpt_op(&b)$($try)*;
                 let tch_c = tch_a.$tch_op(&tch_b);
                 $assert_method(&c, &tch_c);
 
-                let ((tch_a, tch_b), (a, b)) = $input_method([1, 10], [10, 1])?;
+                let ((tch_a, tch_b), (a, b)) = $input_method([1, 13], [13, 1])?;
                 let c = a.$hpt_op(&b)$($try)*;
                 let tch_c = tch_a.$tch_op(&tch_b);
                 $assert_method(&c, &tch_c);
@@ -160,7 +160,7 @@ macro_rules! test_binarys {
 
             #[test]
             fn [<test_ $name _sub_tensors>]() -> anyhow::Result<()> {
-                let ((tch_a, tch_b), (a, b)) = $input_method([10, 10], [10, 10])?;
+                let ((tch_a, tch_b), (a, b)) = $input_method([13, 13], [13, 13])?;
                 let tch_a = tch_a.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
                 let a = slice!(a[2:6:1, 2:6:1])?;
                 let tch_b = tch_b.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
@@ -174,7 +174,7 @@ macro_rules! test_binarys {
             #[test]
 
             fn [<test_ $name _uncontiguous>]() -> anyhow::Result<()> {
-                let ((tch_a, tch_b), (a, b)) = $input_method([10, 10], [10, 10])?;
+                let ((tch_a, tch_b), (a, b)) = $input_method([13, 13], [13, 13])?;
                 let tch_a = tch_a.permute(&[1, 0][..]);
                 let a = a.permute([1, 0])?;
                 let tch_b = tch_b.permute(&[1, 0][..]);
@@ -187,7 +187,7 @@ macro_rules! test_binarys {
 
             #[test]
             fn [<test_ $name _uncontiguous_sub_tensors>]() -> anyhow::Result<()> {
-                let ((tch_a, tch_b), (a, b)) = $input_method([10, 10], [10, 10])?;
+                let ((tch_a, tch_b), (a, b)) = $input_method([13, 13], [13, 13])?;
                 let tch_a = tch_a.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
                 let a = slice!(a[2:6:1, 2:6:1])?;
                 let tch_b = tch_b.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
@@ -198,6 +198,96 @@ macro_rules! test_binarys {
                 let b = b.permute([1, 0])?;
                 let c = a.$hpt_op(&b)$($try)*;
                 let tch_c = tch_a.$tch_op(&tch_b).contiguous(); // torch will keep the layout, so we need contiguous
+                $assert_method(&c, &tch_c);
+                Ok(())
+            }
+        }
+    };
+}
+
+macro_rules! test_binarys_scalar {
+    (
+        $name:ident,
+        $tch_op:ident,
+        $hpt_op:ident,
+        $scalar:literal,
+        $input_method:ident,
+        $assert_method:ident $(, $try:tt)*
+    ) => {
+        paste::paste! {
+            #[test]
+            fn [<test _ $name>]() -> anyhow::Result<()> {
+                let ((tch_a, _), (a, _)) = $input_method([13, 13], [13, 13])?;
+                let c = a.clone().$hpt_op($scalar)$($try)*;
+                let tch_c = tch_a.shallow_clone().$tch_op(&Tensor::from($scalar));
+                $assert_method(&c, &tch_c);
+                let c = $scalar.$hpt_op(&a)$($try)*;
+                let tch_c = Tensor::from($scalar).$tch_op(&tch_a);
+                $assert_method(&c, &tch_c);
+                Ok(())
+            }
+
+            #[test]
+            fn [<test_ $name _broadcast>]() -> anyhow::Result<()> {
+                let ((tch_a, _), (a, _)) = $input_method([13, 13], [13, 1])?;
+                let c = a.clone().$hpt_op($scalar)$($try)*;
+                let tch_c = tch_a.shallow_clone().$tch_op(&Tensor::from($scalar));
+                $assert_method(&c, &tch_c);
+                let c = $scalar.$hpt_op(&a)$($try)*;
+                let tch_c = Tensor::from($scalar).$tch_op(&tch_a);
+                $assert_method(&c, &tch_c);
+
+                let ((tch_a, _), (a, _)) = $input_method([1, 13], [13, 1])?;
+                let c = a.clone().$hpt_op($scalar)$($try)*;
+                let tch_c = tch_a.shallow_clone().$tch_op(&Tensor::from($scalar));
+                $assert_method(&c, &tch_c);
+                let c = $scalar.$hpt_op(&a)$($try)*;
+                let tch_c = Tensor::from($scalar).$tch_op(&tch_a);
+                $assert_method(&c, &tch_c);
+                Ok(())
+            }
+
+            #[test]
+            fn [<test_ $name _sub_tensors>]() -> anyhow::Result<()> {
+                let ((tch_a, _), (a, _)) = $input_method([13, 13], [13, 13])?;
+                let tch_a = tch_a.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
+                let a = slice!(a[2:6:1, 2:6:1])?;
+                let c = a.clone().$hpt_op($scalar)$($try)*;
+                let tch_c = tch_a.shallow_clone().$tch_op(&Tensor::from($scalar));
+                $assert_method(&c, &tch_c);
+                let c = $scalar.$hpt_op(&a)$($try)*;
+                let tch_c = Tensor::from($scalar).$tch_op(&tch_a);
+                $assert_method(&c, &tch_c);
+                Ok(())
+            }
+
+            #[test]
+
+            fn [<test_ $name _uncontiguous>]() -> anyhow::Result<()> {
+                let ((tch_a, _), (a, _)) = $input_method([13, 13], [13, 13])?;
+                let tch_a = tch_a.permute(&[1, 0][..]);
+                let a = a.permute([1, 0])?;
+                let c = a.clone().$hpt_op($scalar)$($try)*;
+                let tch_c = tch_a.shallow_clone().$tch_op(&Tensor::from($scalar)).contiguous(); // torch will keep the layout, so we need contiguous
+                $assert_method(&c, &tch_c);
+                let c = $scalar.$hpt_op(&a)$($try)*;
+                let tch_c = Tensor::from($scalar).$tch_op(&tch_a).contiguous(); // torch will keep the layout, so we need contiguous
+                $assert_method(&c, &tch_c);
+                Ok(())
+            }
+
+            #[test]
+            fn [<test_ $name _uncontiguous_sub_tensors>]() -> anyhow::Result<()> {
+                let ((tch_a, _), (a, _)) = $input_method([13, 13], [13, 13])?;
+                let tch_a = tch_a.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
+                let a = slice!(a[2:6:1, 2:6:1])?;
+                let tch_a = tch_a.permute(&[1, 0][..]);
+                let a = a.permute([1, 0])?;
+                let c = a.clone().$hpt_op($scalar)$($try)*;
+                let tch_c = tch_a.shallow_clone().$tch_op(&Tensor::from($scalar)).contiguous(); // torch will keep the layout, so we need contiguous
+                $assert_method(&c, &tch_c);
+                let c = $scalar.$hpt_op(&a)$($try)*;
+                let tch_c = Tensor::from($scalar).$tch_op(&tch_a).contiguous(); // torch will keep the layout, so we need contiguous
                 $assert_method(&c, &tch_c);
                 Ok(())
             }
@@ -251,3 +341,48 @@ test_binarys!(le, le_tensor, tensor_le, common_input, assert_eq_bool, ?);
 test_binarys!(gt, gt_tensor, tensor_gt, common_input, assert_eq_bool, ?);
 test_binarys!(ge, ge_tensor, tensor_ge, common_input, assert_eq_bool, ?);
 test_binarys!(matmul, matmul, matmul, common_input, assert_eq_10, ?);
+
+test_binarys_scalar!(add_scalar, add, add, 1.0, common_input, assert_eq);
+test_binarys_scalar!(sub_scalar, sub, sub, 1.0, common_input, assert_eq);
+test_binarys_scalar!(mul_scalar, mul, mul, 1.0, common_input, assert_eq);
+test_binarys_scalar!(div_scalar, div, div, 1.0, common_input, assert_eq);
+test_binarys_scalar!(
+    bitand_scalar,
+    bitwise_and_tensor,
+    bitand,
+    1,
+    common_input_i64,
+    assert_eq_i64
+);
+test_binarys_scalar!(
+    bitor_scalar,
+    bitwise_or_tensor,
+    bitor,
+    1,
+    common_input_i64,
+    assert_eq_i64
+);
+test_binarys_scalar!(
+    bitxor_scalar,
+    bitwise_xor_tensor,
+    bitxor,
+    1,
+    common_input_i64,
+    assert_eq_i64
+);
+test_binarys_scalar!(
+    shl_scalar,
+    bitwise_left_shift,
+    shl,
+    1,
+    common_input_i64,
+    no_assert_i64
+);
+test_binarys_scalar!(
+    shr_scalar,
+    bitwise_right_shift,
+    shr,
+    1,
+    common_input_i64,
+    no_assert_i64
+);

@@ -188,9 +188,10 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
 
     fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce(
+        reduce2(
             self,
             |a, b| a._add(b._square()),
+            |a, b| a._add(b),
             |a, b| a._add(b._square()),
             &axes,
             T::ZERO,

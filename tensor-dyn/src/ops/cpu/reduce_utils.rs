@@ -59,6 +59,10 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds>(
             return Err(anyhow::Error::msg(
                 "Output array has incorrect shape".to_string(),
             ));
+        } else if !out.is_contiguous() {
+            return Err(anyhow::Error::msg(
+                "Output array is not contiguous".to_string(),
+            ));
         }
         if init_out {
             out.as_raw_mut().par_iter_mut().for_each(|x| {

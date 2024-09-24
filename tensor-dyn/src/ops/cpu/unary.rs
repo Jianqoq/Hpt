@@ -1,6 +1,8 @@
 use std::borrow::Borrow;
+use std::panic::Location;
 
 use crate::backend::Cpu;
+use crate::ops::cpu::unary::ErrHandler::InvalidOutSize;
 use crate::tensor_base::_Tensor;
 use crate::THREAD_POOL;
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
@@ -35,7 +37,12 @@ where
         if out.borrow().size() * size_of::<K>() == inp.size() * size_of::<A>() {
             out.borrow().static_cast()?
         } else {
-            _Tensor::<K, Cpu>::empty(inp.shape())?
+            return Err(InvalidOutSize(
+                inp.size() * size_of::<A>(),
+                out.borrow().size() * size_of::<K>(),
+                Location::caller(),
+            )
+            .into());
         }
     } else {
         _Tensor::<K, Cpu>::empty(inp.shape())?

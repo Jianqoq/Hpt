@@ -68,7 +68,7 @@ where
     /// # Returns
     ///
     /// Returns a new `_Tensor` referencing the specified slice of memory.
-    pub fn from_slice(&self, ptr: Pointer<T>, shape: Vec<i64>, strides: Vec<i64>) -> _Tensor<T> {
+    fn from_slice(&self, ptr: Pointer<T>, shape: Vec<i64>, strides: Vec<i64>) -> _Tensor<T> {
         let (shape, strides) = if shape.contains(&0) {
             let mut new_shape = Vec::new();
             let mut new_strides = Vec::new();
