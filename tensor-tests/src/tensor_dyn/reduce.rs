@@ -12,7 +12,7 @@ use tensor_common::slice::Slice;
 use tensor_dyn::*;
 
 #[track_caller]
-fn assert_eq(a: &_Tensor<i64>, b: &Tensor) {
+fn assert_eq(a: &tensor_dyn::tensor::Tensor<i64>, b: &Tensor) {
     let raw = a.as_raw();
     let tch_raw = unsafe { core::slice::from_raw_parts(b.data_ptr() as *const i64, a.size()) };
     let caller = core::panic::Location::caller();
@@ -24,7 +24,7 @@ fn assert_eq(a: &_Tensor<i64>, b: &Tensor) {
 }
 
 #[track_caller]
-fn assert_eq_bool(a: &_Tensor<bool>, b: &Tensor) {
+fn assert_eq_bool(a: &tensor_dyn::tensor::Tensor<bool>, b: &Tensor) {
     let raw = a.as_raw();
     let tch_raw = unsafe { core::slice::from_raw_parts(b.data_ptr() as *const bool, a.size()) };
     let caller = core::panic::Location::caller();
@@ -37,7 +37,7 @@ fn assert_eq_bool(a: &_Tensor<bool>, b: &Tensor) {
 
 #[allow(unused)]
 #[track_caller]
-fn assert_eq_f64(b: &_Tensor<f64>, a: &Tensor) {
+fn assert_eq_f64(b: &tensor_dyn::tensor::Tensor<f64>, a: &Tensor) {
     let a_raw = if b.strides().contains(&0) {
         let size = b
             .shape()
@@ -67,7 +67,7 @@ fn assert_eq_f64(b: &_Tensor<f64>, a: &Tensor) {
 
 #[allow(unused)]
 #[track_caller]
-fn assert_eq_f64_10(b: &_Tensor<f64>, a: &Tensor) {
+fn assert_eq_f64_10(b: &tensor_dyn::tensor::Tensor<f64>, a: &Tensor) {
     let a_raw = if b.strides().contains(&0) {
         let size = b
             .shape()
@@ -98,8 +98,8 @@ fn assert_eq_f64_10(b: &_Tensor<f64>, a: &Tensor) {
 fn common_input<const N: usize>(
     end: i64,
     shape: [i64; N],
-) -> anyhow::Result<(_Tensor<i64, Cpu>, Tensor)> {
-    let a = _Tensor::<i64, Cpu>::arange(0, end)?.reshape(&shape)?;
+) -> anyhow::Result<(tensor_dyn::tensor::Tensor<i64, Cpu>, Tensor)> {
+    let a = tensor_dyn::tensor::Tensor::<i64, Cpu>::arange(0, end)?.reshape(&shape)?;
     let tch_a = Tensor::arange(end, (tch::Kind::Int64, tch::Device::Cpu)).reshape(&shape);
     Ok((a, tch_a))
 }
@@ -107,9 +107,9 @@ fn common_input<const N: usize>(
 fn common_input_f64<const N: usize>(
     end: i64,
     shape: [i64; N],
-) -> anyhow::Result<(_Tensor<f64, Cpu>, Tensor)> {
+) -> anyhow::Result<(tensor_dyn::tensor::Tensor<f64, Cpu>, Tensor)> {
     let tch_a = Tensor::randn(&shape, (tch::Kind::Double, tch::Device::Cpu)).reshape(&shape);
-    let mut a = _Tensor::<f64, Cpu>::empty(&shape)?;
+    let mut a = tensor_dyn::tensor::Tensor::<f64, Cpu>::empty(&shape)?;
     let a_size = a.size();
     let raw_mut = a.as_raw_mut();
     let tch_raw = unsafe { core::slice::from_raw_parts_mut(tch_a.data_ptr() as *mut f64, a_size) };
@@ -474,6 +474,98 @@ fn test_sub_tensor_prod() -> anyhow::Result<()> {
 
 #[test]
 fn test_sub_tensor_prod_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
+    let sum = a.prod(0, false)?;
+    let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(1, false)?;
+    let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(2, false)?;
+    let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_hardmax() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let prod = a.hardmax(0)?;
+    let tch_prod = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
+    assert_eq(&prod, &tch_prod);
+    let prod = a.prod_with_init(1, 0, false)?;
+    assert_eq(&prod, &tch_prod);
+
+    let prod = a.prod(1, false)?;
+    let tch_prod = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
+    assert_eq(&prod, &tch_prod);
+    let prod = a.prod_with_init(1, 1, false)?;
+    assert_eq(&prod, &tch_prod);
+
+    let prod = a.prod(2, false)?;
+    let tch_prod = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
+    assert_eq(&prod, &tch_prod);
+    let prod = a.prod_with_init(1, 2, false)?;
+    assert_eq(&prod, &tch_prod);
+
+    Ok(())
+}
+
+#[test]
+fn test_uncontiguous_hardmax() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 0, 2])?;
+    let tch_a = tch_a.permute(&[1, 0, 2][..]);
+    let sum = a.prod(0, false)?;
+    let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(1, false)?;
+    let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(2, false)?;
+    let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_uncontiguous_hardmax2() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 2, 0])?;
+    let tch_a = tch_a.permute(&[1, 2, 0][..]);
+    let sum = a.prod(0, false)?;
+    let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(1, false)?;
+    let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(2, false)?;
+    let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_sub_tensor_hardmax() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:3, 2:5])?;
+    let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
+    let sum = a.prod(0, false)?;
+    let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(1, false)?;
+    let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(2, false)?;
+    let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
+
+#[test]
+fn test_sub_tensor_hardmax_step() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:5:2, 2:9:2])?;
     let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
@@ -1390,6 +1482,7 @@ fn test_sub_tensor_argmax_step() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[test]
 fn test_all() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let sum = a.all(0, false)?;

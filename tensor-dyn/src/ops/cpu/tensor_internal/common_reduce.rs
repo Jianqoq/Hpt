@@ -1,3 +1,6 @@
+use std::borrow::Borrow;
+
+use crate::ops::cpu::reduce::{reduce, reduce2, reduce3};
 use crate::ops::cpu::tensor_internal::float_out_unary::FloatBinaryType;
 use crate::tensor_base::_Tensor;
 use tensor_common::axis::{process_axes, Axis};
@@ -13,8 +16,6 @@ use tensor_types::{
     type_promote::{Eval, FloatOutBinary, FloatOutUnary, NormalOut},
     vectors::traits::SimdSelect,
 };
-
-use super::reduce::{reduce, reduce2, reduce3};
 
 impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
     type Output = Self;
@@ -33,13 +34,16 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         )
     }
 
-    fn sum_<S: Into<Axis>>(
+    fn sum_<S: Into<Axis>, O>(
         &self,
         axes: S,
         keep_dims: bool,
         init_out: bool,
-        out: Self::Output,
-    ) -> anyhow::Result<Self::Output> {
+        out: O,
+    ) -> anyhow::Result<Self::Output>
+    where
+        O: Borrow<Self::Output>,
+    {
         let axes = process_axes(axes, self.ndim())?;
         reduce(
             self,
@@ -49,7 +53,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
             T::ZERO,
             keep_dims,
             init_out,
-            Some(out.clone()),
+            Some(out.borrow().clone()),
         )
     }
 

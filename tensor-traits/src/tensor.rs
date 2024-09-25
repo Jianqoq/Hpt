@@ -1,4 +1,5 @@
 use std::{
+    borrow::Borrow,
     fmt::Display,
     ops::{Div, Sub},
 };
@@ -589,13 +590,15 @@ where
     ///
     /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements, with the result stored in the specified output tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn sum_<S: Into<Axis>>(
+    fn sum_<S: Into<Axis>, O>(
         &self,
         axis: S,
         keep_dims: bool,
         init_out: bool,
-        out: Self::Output,
-    ) -> anyhow::Result<Self::Output>;
+        out: O,
+    ) -> anyhow::Result<Self::Output>
+    where
+        O: Borrow<Self::Output>;
 
     /// Computes the sum of the elements along the specified axis, with an initial value.
     ///
@@ -977,7 +980,10 @@ where
         + NormalOut<<Self as FloatOutUnary>::Output, Output = <Self as FloatOutUnary>::Output>
         + FloatOutBinary<<Self as FloatOutUnary>::Output, Output = <Self as FloatOutUnary>::Output>
         + FloatOutBinary<Self>
-        + NormalOut<<Self as FloatOutBinary<Self>>::Output, Output = <Self as FloatOutBinary<Self>>::Output>
+        + NormalOut<
+            <Self as FloatOutBinary<Self>>::Output,
+            Output = <Self as FloatOutBinary<Self>>::Output,
+        >
         + NormalOutUnary,
 {
 }
@@ -998,9 +1004,14 @@ where
         + NormalOut<<Self as FloatOutUnary>::Output, Output = <Self as FloatOutUnary>::Output>
         + FloatOutBinary<<Self as FloatOutUnary>::Output, Output = <Self as FloatOutUnary>::Output>
         + FloatOutBinary<Self>
-        + FloatOutBinary<<Self as FloatOutBinary<Self>>::Output, Output = <Self as FloatOutBinary<Self>>::Output>
-        + NormalOut<<Self as FloatOutBinary<Self>>::Output, Output = <Self as FloatOutBinary<Self>>::Output>
+        + FloatOutBinary<
+            <Self as FloatOutBinary<Self>>::Output,
+            Output = <Self as FloatOutBinary<Self>>::Output,
+        >
+        + NormalOut<
+            <Self as FloatOutBinary<Self>>::Output,
+            Output = <Self as FloatOutBinary<Self>>::Output,
+        >
         + NormalOutUnary,
-    
 {
 }

@@ -11,7 +11,6 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator};
 use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator};
 use std::sync::Arc;
 use std::sync::Barrier;
-use tensor_common::axis::{process_axes, Axis};
 use tensor_common::shape_utils::{mt_intervals, mt_intervals_simd};
 use tensor_common::slice::Slice;
 use tensor_iterator::iterator_traits::StridedIterator;
@@ -19,7 +18,7 @@ use tensor_iterator::TensorIterator;
 use tensor_traits::shape_manipulate::ShapeManipulate;
 use tensor_traits::tensor::CommonBounds;
 use tensor_traits::tensor::TensorCreator;
-use tensor_traits::tensor::{IndexReduce, TensorInfo};
+use tensor_traits::tensor::TensorInfo;
 use tensor_traits::TensorLike;
 use tensor_types::convertion::Convertor;
 use tensor_types::into_scalar::IntoScalar;
@@ -360,20 +359,6 @@ register_reduction_one_axis!(
     argmin_kernel,
     where T: CommonBounds + NormalOut<T, Output = T> + Cmp
 );
-
-impl<T: CommonBounds + NormalOut<Output = T> + Cmp> IndexReduce for _Tensor<T> {
-    type Output = _Tensor<i64>;
-
-    fn argmax<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        argmax(self, axes, 0, keep_dims, None)
-    }
-
-    fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        argmin(self, axes, 0, keep_dims, None)
-    }
-}
 
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, O>(

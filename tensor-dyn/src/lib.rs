@@ -16,8 +16,6 @@ pub mod ops {
         /// a module defines binary normal iterations,
         /// the `binary` module uses this module's function to perform computation
         pub mod binary_normal;
-        /// a module defines all the common tensor reduce operations
-        pub mod common_reduce;
         /// a module defines concat operation
         pub mod concat;
         /// a module defines conv2d operation
@@ -99,6 +97,10 @@ pub mod ops {
             pub mod windows;
             /// a module that contains all the slice functions
             pub mod slice;
+            /// a module that contains all the common reduce functions
+            pub mod common_reduce;
+            /// a module that contains all the arg reduce functions
+            pub mod arg_reduce;
         }
         /// a module that contains all the functions only for the internal user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_internal {
@@ -120,6 +122,10 @@ pub mod ops {
             pub mod windows;
             /// a module that contains all the slice functions
             pub mod slice;
+            /// a module that contains all the common reduce functions
+            pub mod common_reduce;
+            /// a module that contains all the arg reduce functions
+            pub mod arg_reduce;
         }
     }
 }

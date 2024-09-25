@@ -569,14 +569,14 @@ pub fn impl_eval(_: TokenStream) -> TokenStream {
                 quote! {
                     #[inline(always)]
                     fn _is_true(&self) -> bool {
-                        self.to_bits() & 0x7FFFFFFF != 0
+                        self != &0.0
                     }
                 }
             } else {
                 quote! {
                     #[inline(always)]
                     fn _is_true(&self) -> bool {
-                        self == &#lhs_dtype::ZERO
+                        self != &#lhs_dtype::ZERO
                     }
                 }
             }
