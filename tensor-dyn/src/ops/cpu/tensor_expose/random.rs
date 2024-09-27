@@ -1,21 +1,28 @@
-use crate::{tensor::Tensor, tensor_base::_Tensor};
+use crate::{ tensor::Tensor, tensor_base::_Tensor };
 use anyhow::Result;
 use rand_distr::{
-    uniform::SampleUniform, Distribution, Exp1, Open01, OpenClosed01, Standard, StandardNormal,
+    uniform::SampleUniform,
+    Distribution,
+    Exp1,
+    Open01,
+    OpenClosed01,
+    Standard,
+    StandardNormal,
 };
 use tensor_common::shape::Shape;
-use tensor_traits::{CommonBounds, Random, RandomInt};
+use tensor_traits::{ CommonBounds, Random, RandomInt };
 use tensor_types::into_scalar::IntoScalar;
 
-impl<T> Random for Tensor<T>
-where
-    T: CommonBounds + SampleUniform + num::Float + rand_distr::num_traits::FloatConst,
-    <T as SampleUniform>::Sampler: Sync,
-    StandardNormal: Distribution<T>,
-    Open01: Distribution<T>,
-    Exp1: Distribution<T>,
-    OpenClosed01: Distribution<T>,
-    Standard: Distribution<T>,
+impl<T> Random
+    for Tensor<T>
+    where
+        T: CommonBounds + SampleUniform + num::Float + rand_distr::num_traits::FloatConst,
+        <T as SampleUniform>::Sampler: Sync,
+        StandardNormal: Distribution<T>,
+        Open01: Distribution<T>,
+        Exp1: Distribution<T>,
+        OpenClosed01: Distribution<T>,
+        Standard: Distribution<T>
 {
     type Meta = T;
 
@@ -86,7 +93,7 @@ where
     fn normal_gaussian<S: Into<Shape>>(
         mean: Self::Meta,
         std: Self::Meta,
-        shape: S,
+        shape: S
     ) -> Result<Self> {
         Ok(_Tensor::<T>::normal_gaussian(mean, std, shape)?.into())
     }
@@ -131,7 +138,7 @@ where
         low: Self::Meta,
         high: Self::Meta,
         mode: Self::Meta,
-        shape: S,
+        shape: S
     ) -> Result<Self> {
         Ok(_Tensor::<T>::triangular(low, high, mode, shape)?.into())
     }
@@ -141,30 +148,23 @@ where
     }
 
     fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self>
-    where
-        T: IntoScalar<f64>,
-        bool: IntoScalar<T>,
+        where T: IntoScalar<f64>, bool: IntoScalar<T>
     {
         Ok(_Tensor::<T>::bernoulli(shape, p)?.into())
     }
 }
 
-impl<T> RandomInt for Tensor<T>
-where
-    T: CommonBounds + SampleUniform,
-{
+impl<T> RandomInt for Tensor<T> where T: CommonBounds + SampleUniform {
     type Meta = T;
 
     fn randint<S: Into<Shape>>(low: Self::Meta, high: Self::Meta, shape: S) -> Result<Self>
-    where
-        <T as SampleUniform>::Sampler: Sync,
+        where <T as SampleUniform>::Sampler: Sync
     {
         Ok(_Tensor::<T>::randint(low, high, shape)?.into())
     }
 
     fn randint_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self>
-    where
-        <T as SampleUniform>::Sampler: Sync,
+        where <T as SampleUniform>::Sampler: Sync
     {
         Ok(_Tensor::<T>::randint_like(self, low, high)?.into())
     }

@@ -1,6 +1,6 @@
 use tensor_common::axis::Axis;
-use tensor_traits::{CommonBounds, IndexReduce};
-use tensor_types::type_promote::{Cmp, NormalOut};
+use tensor_traits::{ CommonBounds, IndexReduce };
+use tensor_types::type_promote::{ Cmp, NormalOut };
 
 use crate::tensor::Tensor;
 

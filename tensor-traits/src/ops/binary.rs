@@ -88,6 +88,7 @@ where
     /// - **Broadcasting**: For higher-dimensional tensors, the function broadcasts over the batch dimensions and performs matrix
     ///   multiplication on the last two dimensions.
     /// - **Compatibility**: The input tensors must have compatible shapes for matrix multiplication.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn matmul(&self, rhs: RHS) -> Result<Self::Output>;
 
     /// Inplace version of matmul
@@ -95,6 +96,7 @@ where
     /// # See Also
     ///
     /// - [`matmul`]: Perform matrix multiplication of `self` and `rhs`.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn matmul_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
     where
         U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>;

@@ -5,18 +5,16 @@ use crate::backend::Cpu;
 use crate::ops::cpu::unary::ErrHandler::InvalidOutSize;
 use crate::tensor_base::_Tensor;
 use crate::THREAD_POOL;
-use rayon::iter::{IndexedParallelIterator, ParallelIterator};
-use rayon::slice::{ParallelSlice, ParallelSliceMut};
+use rayon::iter::{ IndexedParallelIterator, ParallelIterator };
+use rayon::slice::{ ParallelSlice, ParallelSliceMut };
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::shape_utils::mt_intervals;
 use tensor_iterator::iterator_traits::ParStridedIteratorSimdZip;
 use tensor_iterator::TensorIterator;
 use tensor_traits::tensor::TensorCreator;
-use tensor_traits::tensor::{CommonBounds, TensorInfo, TensorLike};
-use tensor_traits::{Neg, NormalUaryOps};
+use tensor_traits::tensor::{ CommonBounds, TensorInfo, TensorLike };
 use tensor_types::dtype::TypeCommon;
-use tensor_types::into_scalar::IntoScalar;
-use tensor_types::type_promote::{Eval, NormalOut, NormalOutUnary};
+use tensor_types::type_promote::{ Eval, NormalOut };
 use tensor_types::vectors::traits::*;
 use threadpool::ThreadPool;
 
@@ -24,25 +22,27 @@ pub(crate) fn uary_fn_with_out_simd<A, O, K, F, F2>(
     inp: &_Tensor<A, Cpu>,
     f: F,
     f2: F2,
-    out: Option<O>,
-) -> anyhow::Result<_Tensor<K, Cpu>>
-where
-    A: CommonBounds,
-    K: CommonBounds,
-    O: Borrow<_Tensor<K, Cpu>>,
-    F: Fn(A::Vec) -> K::Vec + Sync + Send,
-    F2: Fn(A) -> K + Sync + Send,
+    out: Option<O>
+)
+    -> anyhow::Result<_Tensor<K, Cpu>>
+    where
+        A: CommonBounds,
+        K: CommonBounds,
+        O: Borrow<_Tensor<K, Cpu>>,
+        F: Fn(A::Vec) -> K::Vec + Sync + Send,
+        F2: Fn(A) -> K + Sync + Send
 {
     let mut ret = if let Some(out) = out {
         if out.borrow().size() * size_of::<K>() == inp.size() * size_of::<A>() {
             out.borrow().static_cast()?
         } else {
-            return Err(InvalidOutSize(
-                inp.size() * size_of::<A>(),
-                out.borrow().size() * size_of::<K>(),
-                Location::caller(),
-            )
-            .into());
+            return Err(
+                InvalidOutSize(
+                    inp.size() * size_of::<A>(),
+                    out.borrow().size() * size_of::<K>(),
+                    Location::caller()
+                ).into()
+            );
         }
     } else {
         _Tensor::<K, Cpu>::empty(inp.shape())?
@@ -58,8 +58,9 @@ where
     }
     let per_thread_len = ret.size() / rayon::current_num_threads();
     let per_thread_remain = per_thread_len % K::Vec::SIZE;
-    let total_remain = rayon::current_num_threads() * per_thread_remain
-        + (ret.size() % rayon::current_num_threads());
+    let total_remain =
+        rayon::current_num_threads() * per_thread_remain +
+        (ret.size() % rayon::current_num_threads());
     let per_thread_real_len = per_thread_len - per_thread_remain;
     if per_thread_real_len > 0 {
         ret.as_raw_mut()
@@ -77,15 +78,15 @@ where
                             std::ptr::copy_nonoverlapping(
                                 res.as_ptr(),
                                 ret.as_mut_ptr(),
-                                K::Vec::SIZE,
+                                K::Vec::SIZE
                             );
                         }
                     });
             });
     }
     if total_remain > 0 {
-        ret.as_raw_mut()[ret_size - total_remain..]
-            .iter_mut()
+        ret.as_raw_mut()
+            [ret_size - total_remain..].iter_mut()
             .zip(inp.as_raw()[ret_size - total_remain..].iter())
             .for_each(|(a, &lhs)| {
                 *a = f2(lhs);
@@ -94,173 +95,11 @@ where
     Ok(ret)
 }
 
-pub(crate) type NormalType<T> = <T as NormalOut>::Output;
-
-impl<T> NormalUaryOps for _Tensor<T>
-where
-    T: NormalOut<Output = T> + CommonBounds + IntoScalar<T>,
-    NormalType<T>: CommonBounds,
-    _Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
-    T::Vec: NormalOut<Output = T::Vec>,
-{
-    type Output = _Tensor<NormalType<T>>;
-
-    type InplaceOutput = _Tensor<NormalType<T>>;
-
-    type OutputMeta = NormalType<T>;
-
-    fn floor(&self) -> anyhow::Result<_Tensor<NormalType<T>>> {
-        uary_fn_with_out_simd(
-            self,
-            |x| x._floor(),
-            |x| x._floor(),
-            None::<_Tensor<NormalType<T>>>,
-        )
-    }
-
-    fn floor_<U>(&self, out: U) -> anyhow::Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
-        uary_fn_with_out_simd(self, |x| x._floor(), |x| x._floor(), Some(out))
-    }
-
-    fn square(&self) -> anyhow::Result<_Tensor<NormalType<T>>> {
-        uary_fn_with_out_simd(
-            self,
-            |x| x._square(),
-            |x| x._square(),
-            None::<_Tensor<NormalType<T>>>,
-        )
-    }
-
-    fn square_<U>(&self, out: U) -> anyhow::Result<_Tensor<NormalType<T>>>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
-        uary_fn_with_out_simd(self, |x| x._square(), |x| x._square(), Some(out))
-    }
-
-    fn abs(&self) -> anyhow::Result<Self> {
-        uary_fn_with_out_simd(self, |x| x._abs(), |x| x._abs(), None::<Self::Output>)
-    }
-
-    fn abs_<U>(&self, out: U) -> anyhow::Result<Self>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
-        uary_fn_with_out_simd(self, |x| x._abs(), |x| x._abs(), Some(out))
-    }
-
-    fn ceil(&self) -> anyhow::Result<_Tensor<NormalType<T>>> {
-        uary_fn_with_out_simd(
-            self,
-            |x| x._ceil(),
-            |x| x._ceil(),
-            None::<_Tensor<NormalType<T>>>,
-        )
-    }
-    fn ceil_<U>(&self, out: U) -> anyhow::Result<_Tensor<NormalType<T>>>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
-        uary_fn_with_out_simd(self, |x| x._ceil(), |x| x._ceil(), Some(out))
-    }
-
-    fn sign(&self) -> anyhow::Result<_Tensor<NormalType<T>>> {
-        uary_fn_with_out_simd(
-            self,
-            |x| x._sign(),
-            |x| x._sign(),
-            None::<_Tensor<NormalType<T>>>,
-        )
-    }
-    fn sign_<U>(&self, out: U) -> anyhow::Result<_Tensor<NormalType<T>>>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
-        uary_fn_with_out_simd(self, |x| x._sign(), |x| x._sign(), Some(out))
-    }
-    fn clip(
-        &self,
-        min: NormalType<T>,
-        max: NormalType<T>,
-    ) -> anyhow::Result<_Tensor<NormalType<T>>> {
-        let min_vec = T::Vec::splat(min);
-        let max_vec = T::Vec::splat(max);
-        uary_fn_with_out_simd(
-            self,
-            |x| x._clip(min_vec, max_vec),
-            |x| <T as NormalOut<T>>::_clip(x, min, max),
-            None::<_Tensor<NormalType<T>>>,
-        )
-    }
-    fn clip_<U>(
-        &self,
-        min: NormalType<T>,
-        max: NormalType<T>,
-        out: U,
-    ) -> anyhow::Result<_Tensor<NormalType<T>>>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
-        let min_vec = T::Vec::splat(min);
-        let max_vec = T::Vec::splat(max);
-        uary_fn_with_out_simd(
-            self,
-            |x| x._clip(min_vec, max_vec),
-            |x| <T as NormalOut<T>>::_clip(x, min, max),
-            Some(out),
-        )
-    }
-    fn round(&self) -> anyhow::Result<_Tensor<NormalType<T>>> {
-        uary_fn_with_out_simd(
-            self,
-            |x| x._round(),
-            |x| x._round(),
-            None::<_Tensor<NormalType<T>>>,
-        )
-    }
-    fn round_<U>(&self, out: U) -> anyhow::Result<_Tensor<NormalType<T>>>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
-        uary_fn_with_out_simd(self, |x| x._round(), |x| x._round(), Some(out))
-    }
-}
-
-type NegType<T> = <T as std::ops::Neg>::Output;
-
-impl<T> Neg for _Tensor<T>
-where
-    T: std::ops::Neg<Output = T> + CommonBounds,
-    NegType<T>: CommonBounds,
-    _Tensor<NegType<T>>: TensorLike<NegType<T>>,
-    T::Vec: std::ops::Neg<Output = T::Vec>,
-{
-    type Output = _Tensor<NegType<T>>;
-
-    type InplaceOutput = _Tensor<NegType<T>>;
-
-    type OutputMeta = NegType<T>;
-
-    fn neg(&self) -> anyhow::Result<_Tensor<NegType<T>>> {
-        uary_fn_with_out_simd(self, |x| -x, |x| -x, None::<_Tensor<NegType<T>>>)
-    }
-
-    fn neg_<U>(&self, out: U) -> anyhow::Result<_Tensor<NegType<T>>>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
-        uary_fn_with_out_simd(self, |x| -x, |x| -x, Some(out))
-    }
-}
-
 impl<T> _Tensor<T>
-where
-    T: CommonBounds + Eval,
-    <T as Eval>::Output: CommonBounds,
-    T::Vec: Eval<Output = <<T as Eval>::Output as TypeCommon>::Vec>,
+    where
+        T: CommonBounds + Eval,
+        <T as Eval>::Output: CommonBounds,
+        T::Vec: Eval<Output = <<T as Eval>::Output as TypeCommon>::Vec>
 {
     /// Checks for infinity (`inf`) values in the tensor.
     ///
@@ -277,7 +116,7 @@ where
             self,
             |x| x._is_inf(),
             |x| x._is_inf(),
-            None::<_Tensor<<T as Eval>::Output>>,
+            None::<_Tensor<<T as Eval>::Output>>
         )
     }
 
@@ -296,15 +135,12 @@ where
             self,
             |x| x._is_nan(),
             |x| x._is_nan(),
-            None::<_Tensor<<T as Eval>::Output>>,
+            None::<_Tensor<<T as Eval>::Output>>
         )
     }
 }
 
-impl<T> _Tensor<T>
-where
-    T: CommonBounds,
-{
+impl<T> _Tensor<T> where T: CommonBounds {
     /// Computes the cumulative sum of the elements along a specified axis.
     ///
     /// This method calculates the cumulative sum of the elements in the tensor along the given `axis`.
@@ -323,8 +159,7 @@ where
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn cumsum(&self, axis: Option<i64>) -> anyhow::Result<Self>
-    where
-        T: NormalOut<T, Output = T>,
+        where T: NormalOut<T, Output = T>
     {
         match axis {
             Some(axis) => {
@@ -461,8 +296,7 @@ where
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn cumprod(&self, axis: Option<i64>) -> anyhow::Result<Self>
-    where
-        T: NormalOut<T, Output = T>,
+        where T: NormalOut<T, Output = T>
     {
         match axis {
             Some(axis) => {

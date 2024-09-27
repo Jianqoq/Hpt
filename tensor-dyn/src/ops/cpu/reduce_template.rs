@@ -1,8 +1,8 @@
 use crate::{
-    ops::cpu::reduce_utils::{reduce_prepare, uncontiguous_reduce_prepare},
+    ops::cpu::reduce_utils::{ reduce_prepare, uncontiguous_reduce_prepare },
     tensor_base::_Tensor,
 };
-use tensor_traits::{CommonBounds, ShapeManipulate, TensorInfo};
+use tensor_traits::{ CommonBounds, ShapeManipulate, TensorInfo };
 use tensor_types::into_scalar::IntoScalar;
 
 /// Performs a reduction operation on a tensor using customizable functions.
@@ -158,18 +158,24 @@ pub(crate) fn reduce_template<T, F1, F2, F3, F4, O>(
     full_reduce: F1,
     nkd: F2,
     kdo1: F3,
-    kd: F4,
-) -> anyhow::Result<_Tensor<O>>
-where
-    T: CommonBounds + IntoScalar<O>,
-    O: CommonBounds,
-    F1: Fn(&mut O),
-    F2: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>),
-    F3: Fn(usize, usize, &_Tensor<O>),
-    F4: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>),
+    kd: F4
+)
+    -> anyhow::Result<_Tensor<O>>
+    where
+        T: CommonBounds + IntoScalar<O>,
+        O: CommonBounds,
+        F1: Fn(&mut O),
+        F2: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>),
+        F3: Fn(usize, usize, &_Tensor<O>),
+        F4: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>)
 {
-    let (keep_fast_dim, transposed_tensor, result) =
-        reduce_prepare(a, axes, init_val, init_out, c)?;
+    let (keep_fast_dim, transposed_tensor, result) = reduce_prepare(
+        a,
+        axes,
+        init_val,
+        init_out,
+        c
+    )?;
 
     let a_last_stride = if keep_fast_dim {
         transposed_tensor.strides()[a.ndim() - axes.len() - 1]
@@ -191,13 +197,7 @@ where
             } else {
                 rayon::current_num_threads()
             };
-            nkd(
-                num_threads,
-                inner_loop_size,
-                inner_loop_size_2,
-                &result,
-                &transposed_tensor,
-            );
+            nkd(num_threads, inner_loop_size, inner_loop_size_2, &result, &transposed_tensor);
         } else {
             let outer_loop_size = result.size() / inner_loop_size;
             let inner_loop_size_2 = a.size() / result.size();
@@ -207,20 +207,14 @@ where
                 } else {
                     rayon::current_num_threads()
                 };
-                kdo1(num_threads, inner_loop_size, &result)
+                kdo1(num_threads, inner_loop_size, &result);
             } else {
                 let num_threads = if outer_loop_size < rayon::current_num_threads() {
                     outer_loop_size
                 } else {
                     rayon::current_num_threads()
                 };
-                kd(
-                    num_threads,
-                    inner_loop_size,
-                    inner_loop_size_2,
-                    &result,
-                    &transposed_tensor,
-                )
+                kd(num_threads, inner_loop_size, inner_loop_size_2, &result, &transposed_tensor);
             }
         }
     }
@@ -386,18 +380,24 @@ pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O>(
     full_reduce: F1,
     nkd: F2,
     kdo1: F3,
-    kd: F4,
-) -> anyhow::Result<_Tensor<O>>
-where
-    T: CommonBounds + IntoScalar<O>,
-    O: CommonBounds,
-    F1: Fn(&mut O),
-    F2: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>),
-    F3: Fn(usize, usize, _Tensor<T>, &_Tensor<O>),
-    F4: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>),
+    kd: F4
+)
+    -> anyhow::Result<_Tensor<O>>
+    where
+        T: CommonBounds + IntoScalar<O>,
+        O: CommonBounds,
+        F1: Fn(&mut O),
+        F2: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>),
+        F3: Fn(usize, usize, _Tensor<T>, &_Tensor<O>),
+        F4: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>)
 {
-    let (keep_fast_dim, transposed_tensor, result, res_perm) =
-        uncontiguous_reduce_prepare(a, axes, init_val, init_out, c)?;
+    let (keep_fast_dim, transposed_tensor, result, res_perm) = uncontiguous_reduce_prepare(
+        a,
+        axes,
+        init_val,
+        init_out,
+        c
+    )?;
     let mut transposed_shape_sub_1 = transposed_tensor.shape().inner().clone();
     transposed_shape_sub_1.iter_mut().for_each(|x| {
         *x -= 1;
@@ -421,13 +421,7 @@ where
             } else {
                 rayon::current_num_threads()
             };
-            nkd(
-                num_threads,
-                inner_loop_size,
-                inner_loop_size_2,
-                &result,
-                &transposed_tensor,
-            );
+            nkd(num_threads, inner_loop_size, inner_loop_size_2, &result, &transposed_tensor);
         } else {
             let outer_loop_size = result.size() / inner_loop_size;
             let inner_loop_size_2 = a.size() / result.size();
@@ -441,24 +435,16 @@ where
                 let front = p.remove(0);
                 p.push(front);
                 let _a = transposed_tensor.permute(&p).unwrap();
-                kdo1(num_threads, inner_loop_size, _a, &result)
+                kdo1(num_threads, inner_loop_size, _a, &result);
             } else {
                 let num_threads = if outer_loop_size < rayon::current_num_threads() {
                     outer_loop_size
                 } else {
                     rayon::current_num_threads()
                 };
-                kd(
-                    num_threads,
-                    inner_loop_size,
-                    inner_loop_size_2,
-                    &result,
-                    &transposed_tensor,
-                )
+                kd(num_threads, inner_loop_size, inner_loop_size_2, &result, &transposed_tensor);
             }
         }
     }
-    result
-        .permute_inv(res_perm)?
-        .reshape(a.layout.reduce(axes, keepdims)?.shape())
+    result.permute_inv(res_perm)?.reshape(a.layout.reduce(axes, keepdims)?.shape())
 }

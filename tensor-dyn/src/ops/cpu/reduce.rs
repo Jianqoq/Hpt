@@ -1,17 +1,17 @@
 use crate::backend::Cpu;
 use crate::ops::cpu::reduce_template::reduce_template;
 use crate::tensor_base::_Tensor;
-use crate::{argmax_kernel, argmin_kernel};
+use crate::{ argmax_kernel, argmin_kernel };
 
-use crate::ops::cpu::reduce_utils::{ReductionPreprocessor, UCReductionPreprocessor};
+use crate::ops::cpu::reduce_utils::{ ReductionPreprocessor, UCReductionPreprocessor };
 use crate::THREAD_POOL;
 use anyhow;
 use rayon::iter::ParallelIterator;
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator};
-use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator};
+use rayon::iter::{ IndexedParallelIterator, IntoParallelRefMutIterator };
+use rayon::iter::{ IntoParallelIterator, IntoParallelRefIterator };
 use std::sync::Arc;
 use std::sync::Barrier;
-use tensor_common::shape_utils::{mt_intervals, mt_intervals_simd};
+use tensor_common::shape_utils::{ mt_intervals, mt_intervals_simd };
 use tensor_common::slice::Slice;
 use tensor_iterator::iterator_traits::StridedIterator;
 use tensor_iterator::TensorIterator;
@@ -22,7 +22,7 @@ use tensor_traits::tensor::TensorInfo;
 use tensor_traits::TensorLike;
 use tensor_types::convertion::Convertor;
 use tensor_types::into_scalar::IntoScalar;
-use tensor_types::type_promote::{Cmp, NormalOut};
+use tensor_types::type_promote::{ Cmp, NormalOut };
 
 macro_rules! init_arr {
     (
@@ -227,7 +227,8 @@ macro_rules! register_reduction_one_axis {
 use tensor_types::vectors::traits::*;
 
 use super::kernels::reduce_kernels::{
-    contiguous_reduce_dim_include, uncontiguous_reduce_dim_include,
+    contiguous_reduce_dim_include,
+    uncontiguous_reduce_dim_include,
 };
 use super::reduce_template::uncontiguos_reduce_template;
 
@@ -240,21 +241,42 @@ pub(crate) fn reduce<T, F, F2>(
     init_val: T,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<T>>,
-) -> anyhow::Result<_Tensor<T>>
-where
-    T: CommonBounds + IntoScalar<T> + Convertor,
-    F: Fn(T, T) -> T + Sync + Send + 'static + Copy,
-    F2: Fn(T::Vec, T::Vec) -> T::Vec + Sync + Send + 'static + Copy,
-    T::Vec: Copy,
+    c: Option<_Tensor<T>>
+)
+    -> anyhow::Result<_Tensor<T>>
+    where
+        T: CommonBounds + IntoScalar<T> + Convertor,
+        F: Fn(T, T) -> T + Sync + Send + 'static + Copy,
+        F2: Fn(T::Vec, T::Vec) -> T::Vec + Sync + Send + 'static + Copy,
+        T::Vec: Copy
 {
     if a.is_contiguous() && a.parent().is_none() {
         contiguous_reduce::<_, _, _, fn(T) -> T, _, fn(T::Vec) -> T::Vec, T>(
-            a, op, op, None, vec_op, None, &axes, init_val, keepdims, init_out, c,
+            a,
+            op,
+            op,
+            None,
+            vec_op,
+            None,
+            &axes,
+            init_val,
+            keepdims,
+            init_out,
+            c
         )
     } else {
         uncontiguous_reduce::<_, _, _, fn(T) -> T, _, fn(T::Vec) -> T::Vec, T>(
-            a, op, op, None, vec_op, None, &axes, init_val, keepdims, init_out, c,
+            a,
+            op,
+            op,
+            None,
+            vec_op,
+            None,
+            &axes,
+            init_val,
+            keepdims,
+            init_out,
+            c
         )
     }
 }
@@ -269,24 +291,45 @@ pub(crate) fn reduce2<T, F, F2, F3, O>(
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O>>,
-) -> anyhow::Result<_Tensor<O>>
-where
-    T: CommonBounds + IntoScalar<O> + Convertor,
-    F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
-    F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-    F3: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-    O: CommonBounds,
-    T::Vec: Copy,
-    O::Vec: Copy,
+    c: Option<_Tensor<O>>
+)
+    -> anyhow::Result<_Tensor<O>>
+    where
+        T: CommonBounds + IntoScalar<O> + Convertor,
+        F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
+        F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+        F3: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+        O: CommonBounds,
+        T::Vec: Copy,
+        O::Vec: Copy
 {
     if a.is_contiguous() && a.parent().is_none() {
         contiguous_reduce::<T, F, F2, fn(O) -> O, _, fn(O::Vec) -> O::Vec, O>(
-            a, op, op2, None, vec_op, None, &axes, init_val, keepdims, init_out, c,
+            a,
+            op,
+            op2,
+            None,
+            vec_op,
+            None,
+            &axes,
+            init_val,
+            keepdims,
+            init_out,
+            c
         )
     } else {
         uncontiguous_reduce::<T, F, F2, fn(O) -> O, _, fn(O::Vec) -> O::Vec, O>(
-            a, op, op2, None, vec_op, None, &axes, init_val, keepdims, init_out, c,
+            a,
+            op,
+            op2,
+            None,
+            vec_op,
+            None,
+            &axes,
+            init_val,
+            keepdims,
+            init_out,
+            c
         )
     }
 }
@@ -303,17 +346,18 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, O>(
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O>>,
-) -> anyhow::Result<_Tensor<O>>
-where
-    T: CommonBounds + IntoScalar<O> + Convertor,
-    F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
-    F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-    F3: Fn(O) -> O + Sync + Send + 'static + Copy,
-    F4: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-    F5: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-    O: CommonBounds,
-    O::Vec: Copy,
+    c: Option<_Tensor<O>>
+)
+    -> anyhow::Result<_Tensor<O>>
+    where
+        T: CommonBounds + IntoScalar<O> + Convertor,
+        F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
+        F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+        F3: Fn(O) -> O + Sync + Send + 'static + Copy,
+        F4: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+        F5: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+        O: CommonBounds,
+        O::Vec: Copy
 {
     if a.is_contiguous() && a.parent().is_none() {
         contiguous_reduce::<T, F, F2, F3, F4, F5, O>(
@@ -327,7 +371,7 @@ where
             init_val,
             keepdims,
             init_out,
-            c,
+            c
         )
     } else {
         uncontiguous_reduce::<T, F, F2, F3, F4, F5, O>(
@@ -341,7 +385,7 @@ where
             init_val,
             keepdims,
             init_out,
-            c,
+            c
         )
     }
 }
@@ -372,18 +416,19 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, O>(
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O>>,
-) -> anyhow::Result<_Tensor<O>>
-where
-    T: CommonBounds + IntoScalar<O> + Convertor,
-    O: CommonBounds,
-    F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
-    F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-    F3: Fn(O) -> O + Sync + Send + 'static + Copy,
-    F4: Fn(O::Vec, T::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
-    F5: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-    T::Vec: Copy,
-    O::Vec: Copy,
+    c: Option<_Tensor<O>>
+)
+    -> anyhow::Result<_Tensor<O>>
+    where
+        T: CommonBounds + IntoScalar<O> + Convertor,
+        O: CommonBounds,
+        F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
+        F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+        F3: Fn(O) -> O + Sync + Send + 'static + Copy,
+        F4: Fn(O::Vec, T::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
+        F5: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+        T::Vec: Copy,
+        O::Vec: Copy
 {
     reduce_template(
         a,
@@ -397,8 +442,14 @@ where
             let raw = unsafe { std::slice::from_raw_parts_mut(ptr.ptr, a.size() as usize) };
             let val = raw
                 .par_iter()
-                .fold(|| init_val, |acc, &x| op(acc, x))
-                .reduce(|| init_val, |a, b| op2(a, b));
+                .fold(
+                    || init_val,
+                    |acc, &x| op(acc, x)
+                )
+                .reduce(
+                    || init_val,
+                    |a, b| op2(a, b)
+                );
             if let Some(op3) = op3 {
                 *res = op3(op2(val, *res));
             } else {
@@ -415,7 +466,7 @@ where
                 transposed_tensor.strides().clone(),
                 transposed_tensor.shape().sub_one(),
                 transposed_tensor.shape().clone(),
-                result.shape().clone(),
+                result.shape().clone()
             );
             iterators.into_par_iter().for_each(|mut iterator| {
                 let result_ptr_c = iterator.res_ptrs.clone();
@@ -433,7 +484,7 @@ where
                     &mut iterator.prg,
                     shape_len,
                     op,
-                    op3,
+                    op3
                 );
             });
         },
@@ -448,8 +499,8 @@ where
                 if end - start == 0 {
                     continue;
                 }
-                slices[(a.ndim()) - 1] = Slice::Range((start as i64, end as i64));
-                slices_res[(result.ndim()) - 1] = Slice::Range((start as i64, end as i64));
+                slices[a.ndim() - 1] = Slice::Range((start as i64, end as i64));
+                slices_res[result.ndim() - 1] = Slice::Range((start as i64, end as i64));
                 sliced_tensors.push(a.slice(&slices).expect("Slice failed"));
                 sliced_res.push(result.slice(&slices_res).expect("Slice failed"));
             }
@@ -476,7 +527,7 @@ where
                             op,
                             vec_op,
                             op3,
-                            vec_post,
+                            vec_post
                         );
                     } else {
                         fast_reduce_no_simd(
@@ -487,7 +538,7 @@ where
                             inp.strides().inner(),
                             inp.shape().inner(),
                             op,
-                            op3,
+                            op3
                         );
                     }
                 });
@@ -502,7 +553,7 @@ where
                 result.ptr(),
                 transposed_tensor.strides().clone(),
                 transposed_tensor.shape().sub_one(),
-                result.shape().clone(),
+                result.shape().clone()
             );
             iterators.into_par_iter().for_each(|iterator| {
                 let result_ptr_c = iterator.res_ptrs.clone();
@@ -530,7 +581,7 @@ where
                         op,
                         op3,
                         vec_op,
-                        vec_post,
+                        vec_post
                     );
                 } else {
                     reduce_dim_not_include(
@@ -545,11 +596,11 @@ where
                         &mut prg2,
                         shape_len,
                         op,
-                        op3,
+                        op3
                     );
                 }
             });
-        },
+        }
     )
 }
 
@@ -565,18 +616,19 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O>(
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O>>,
-) -> anyhow::Result<_Tensor<O>>
-where
-    T: CommonBounds + IntoScalar<O> + Convertor,
-    O: CommonBounds,
-    F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
-    F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-    F3: Fn(O) -> O + Sync + Send + 'static + Copy,
-    F4: Fn(O::Vec, T::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
-    F5: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-    T::Vec: Copy,
-    O::Vec: Copy,
+    c: Option<_Tensor<O>>
+)
+    -> anyhow::Result<_Tensor<O>>
+    where
+        T: CommonBounds + IntoScalar<O> + Convertor,
+        O: CommonBounds,
+        F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
+        F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+        F3: Fn(O) -> O + Sync + Send + 'static + Copy,
+        F4: Fn(O::Vec, T::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
+        F5: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+        T::Vec: Copy,
+        O::Vec: Copy
 {
     uncontiguos_reduce_template(
         a,
@@ -589,7 +641,10 @@ where
             let val = a
                 .par_iter()
                 .par_strided_fold(init_val, |acc, x| op(acc, x))
-                .reduce(|| init_val, |a, b| op2(a, b));
+                .reduce(
+                    || init_val,
+                    |a, b| op2(a, b)
+                );
             if let Some(op3) = op3 {
                 *res = op3(op2(val, *res));
             } else {
@@ -608,7 +663,7 @@ where
                 transposed_tensor.shape().sub_one(),
                 transposed_tensor.shape().clone(),
                 result.shape().clone(),
-                result.strides().inner(),
+                result.strides().inner()
             );
             let res_shape = result.shape().clone();
             iterators.into_par_iter().for_each(|mut iterator| {
@@ -634,7 +689,7 @@ where
                     shape_len,
                     a_last_stride as isize,
                     op,
-                    op3,
+                    op3
                 );
             });
         },
@@ -649,8 +704,8 @@ where
                 if end - start == 0 {
                     continue;
                 }
-                slices[(ap.ndim()) - 1] = Slice::Range((start as i64, end as i64));
-                slices_res[(result.ndim()) - 1] = Slice::Range((start as i64, end as i64));
+                slices[ap.ndim() - 1] = Slice::Range((start as i64, end as i64));
+                slices_res[result.ndim() - 1] = Slice::Range((start as i64, end as i64));
                 sliced_tensors.push(ap.slice(&slices).expect("Slice failed"));
                 sliced_res.push(result.slice(&slices_res).expect("Slice failed"));
             }
@@ -658,9 +713,11 @@ where
                 .into_par_iter()
                 .zip(sliced_res.into_par_iter())
                 .for_each(move |(inp, res)| {
-                    res.iter_mut().zip(inp.iter()).for_each(|(x, y)| {
-                        *x = op(*x, y);
-                    });
+                    res.iter_mut()
+                        .zip(inp.iter())
+                        .for_each(|(x, y)| {
+                            *x = op(*x, y);
+                        });
                     if let Some(op3) = op3 {
                         res.iter_mut().for_each(|x| {
                             *x = op3(*x);
@@ -679,7 +736,7 @@ where
                 transposed_tensor.strides().clone(),
                 transposed_tensor.shape().sub_one(),
                 result.shape().clone(),
-                result.strides().inner(),
+                result.strides().inner()
             );
             let res_shape = result.shape().clone();
             iterators.into_par_iter().for_each(|mut iterator| {
@@ -709,9 +766,9 @@ where
                     a_last_stride as isize,
                     res_last_strides as isize,
                     op,
-                    op3,
+                    op3
                 );
             });
-        },
+        }
     )
 }

@@ -28,10 +28,9 @@ fn case1_helper<T, const REGNUM: usize>(
     fract_1_p_vec: T::Vec,
     inp_cpy: &Pointer<T>,
     mut out: Pointer<T>,
-    micro_kernel: fn(i64, i64, i64, i64, T::Vec, &Pointer<T>, &mut [T::Vec; REGNUM]),
-) where
-    T: CommonBounds + IntoScalar<T>,
-    T::Vec: FloatOutBinary<Output = T::Vec>,
+    micro_kernel: fn(i64, i64, i64, i64, T::Vec, &Pointer<T>, &mut [T::Vec; REGNUM])
+)
+    where T: CommonBounds + IntoScalar<T>, T::Vec: FloatOutBinary<Output = T::Vec>
 {
     for j in 0..num_co_rb {
         let mut res_buffer = [T::Vec::splat(T::ZERO); REGNUM];
@@ -48,7 +47,7 @@ fn case1_helper<T, const REGNUM: usize>(
                     isw,
                     p_vec,
                     &inp_cpy,
-                    &mut res_buffer,
+                    &mut res_buffer
                 );
             }
         }
@@ -79,9 +78,9 @@ fn case1_remain1_helper<T, const REGNUM: usize>(
     num_wo_b: i64,
     inp_cpy: &Pointer<T>,
     mut out: Pointer<T>,
-    micro_kernel: fn(i64, i64, i64, i64, T, &Pointer<T>, &mut [T; REGNUM]),
-) where
-    T: CommonBounds + IntoScalar<T> + NormalOut<Output = T> + FloatOutBinary<Output = T>,
+    micro_kernel: fn(i64, i64, i64, i64, T, &Pointer<T>, &mut [T; REGNUM])
+)
+    where T: CommonBounds + IntoScalar<T> + NormalOut<Output = T> + FloatOutBinary<Output = T>
 {
     let mut res_buffer = [T::ZERO; REGNUM];
     for n in 0..kh {
@@ -93,7 +92,7 @@ fn case1_remain1_helper<T, const REGNUM: usize>(
                 isw,
                 p,
                 &inp_cpy,
-                &mut res_buffer,
+                &mut res_buffer
             );
         }
     }
@@ -122,10 +121,11 @@ fn case3_helper<T, const REGNUM: usize>(
     store_fn: fn(i64, i64, i64, i64, &mut Vec<Vec<T::Vec>>, &mut Pointer<T>),
     fast_micro_kernel: fn(i64, i64, i64, i64, T::Vec, &Pointer<T>, &mut [T::Vec]),
     micro_kernel: fn(i64, i64, i64, i64, i64, T::Vec, &Pointer<T>, &mut Vec<Vec<T::Vec>>),
-    mut out: &mut Pointer<T>,
-) where
-    T: CommonBounds + IntoScalar<T> + NormalOut<Output = T> + FloatOutBinary<Output = T>,
-    T::Vec: FloatOutBinary<Output = T::Vec> + NormalOut<Output = T::Vec>,
+    mut out: &mut Pointer<T>
+)
+    where
+        T: CommonBounds + IntoScalar<T> + NormalOut<Output = T> + FloatOutBinary<Output = T>,
+        T::Vec: FloatOutBinary<Output = T::Vec> + NormalOut<Output = T::Vec>
 {
     let num_vec_size = co_b_remain / (<T::Vec as VecCommon>::SIZE as i64);
     let remain = co_b_remain % (<T::Vec as VecCommon>::SIZE as i64);
@@ -145,7 +145,7 @@ fn case3_helper<T, const REGNUM: usize>(
                         isw,
                         p_vec,
                         &inp,
-                        &mut res_buffer,
+                        &mut res_buffer
                     );
                 }
             }
@@ -174,7 +174,7 @@ fn case3_helper<T, const REGNUM: usize>(
                     isw,
                     p_vec,
                     &inp,
-                    &mut remain_buffer,
+                    &mut remain_buffer
                 );
             }
         }
@@ -197,23 +197,23 @@ fn case3_helper<T, const REGNUM: usize>(
             osw,
             c * co_b + b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
             &mut remain_buffer,
-            &mut out,
+            &mut out
         );
     }
 }
 
 impl<T> _Tensor<T>
-where
-    T: CommonBounds + IntoScalar<T> + NormalOut<Output = T> + FloatOutBinary<Output = T>,
-    i64: IntoScalar<T>,
-    T::Vec: VecTrait<T>
-        + Copy
-        + Init<T>
-        + Send
-        + Sync
-        + VecCommon
-        + NormalOut<Output = T::Vec>
-        + FloatOutBinary<Output = T::Vec>,
+    where
+        T: CommonBounds + IntoScalar<T> + NormalOut<Output = T> + FloatOutBinary<Output = T>,
+        i64: IntoScalar<T>,
+        T::Vec: VecTrait<T> +
+            Copy +
+            Init<T> +
+            Send +
+            Sync +
+            VecCommon +
+            NormalOut<Output = T::Vec> +
+            FloatOutBinary<Output = T::Vec>
 {
     /// Applies 2D Lp pooling to the input tensor.
     ///
@@ -245,7 +245,7 @@ where
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        config: Option<&Conv2dConfig<T>>,
+        config: Option<&Conv2dConfig<T>>
     ) -> anyhow::Result<_Tensor<T>> {
         use crate::CONV_REGNUM;
 
@@ -266,8 +266,13 @@ where
             (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1;
         let img = if !padding.iter().all(|(a, b)| *a == 0 && *b == 0) {
             self.pad(
-                &[(0, 0), (ph_start, ph_end), (pw_start, pw_end), (0, 0)],
-                T::ZERO,
+                &[
+                    (0, 0),
+                    (ph_start, ph_end),
+                    (pw_start, pw_end),
+                    (0, 0),
+                ],
+                T::ZERO
             )?
         } else {
             self.clone()
@@ -299,7 +304,7 @@ where
                         out_channels,
                         1,
                         [kernel_height, kernel_width],
-                        KernelParamAlgo::Greedy,
+                        KernelParamAlgo::Greedy
                     )
                 };
                 (config.ci_block_size, config.co_block_size)
@@ -312,14 +317,15 @@ where
         let wo_b_remain = out_width % (CONV_REGNUM as i64);
         let num_co_rb = co_b / (<T::Vec as VecCommon>::SIZE as i64);
         if !(co_b % (<T::Vec as VecCommon>::SIZE as i64) == 0 || co_b == 1) || co_b > out_channels {
-            return Err(InvalidCacheParam(
-                "co_b",
-                out_channels,
-                <T::Vec as VecCommon>::SIZE as i64,
-                co_b,
-                core::panic::Location::caller(),
-            )
-            .into());
+            return Err(
+                InvalidCacheParam(
+                    "co_b",
+                    out_channels,
+                    <T::Vec as VecCommon>::SIZE as i64,
+                    co_b,
+                    core::panic::Location::caller()
+                ).into()
+            );
         }
         let num_vec_size = co_b_remain / (<T::Vec as VecCommon>::SIZE as i64);
         let outer = batch * num_co_b * out_height;
@@ -330,20 +336,22 @@ where
 
         let inp_cpy = inp.clone();
 
-        let case0_init = move |b: i64,
-                               l: i64,
-                               c: i64,
-                               inner_size: i64,
-                               micro_kernel_fn: fn(
-            i64,
-            i64,
-            i64,
-            i64,
-            T::Vec,
-            &Pointer<T>,
-            &mut [T::Vec; CONV_REGNUM],
-        ),
-                               mut out: Pointer<T>| {
+        let case0_init = move |
+            b: i64,
+            l: i64,
+            c: i64,
+            inner_size: i64,
+            micro_kernel_fn: fn(
+                i64,
+                i64,
+                i64,
+                i64,
+                T::Vec,
+                &Pointer<T>,
+                &mut [T::Vec; CONV_REGNUM]
+            ),
+            mut out: Pointer<T>
+        | {
             for kp in 0..num_wo_b {
                 for j in 0..inner_size {
                     let mut res_buffer = [T::Vec::splat(T::ZERO); CONV_REGNUM];
@@ -360,7 +368,7 @@ where
                                 isw,
                                 p_vec,
                                 &inp_cpy,
-                                &mut res_buffer,
+                                &mut res_buffer
                             );
                         }
                     }
@@ -379,20 +387,22 @@ where
             }
         };
 
-        let case0 = move |b: i64,
-                          l: i64,
-                          c: i64,
-                          inner_size: i64,
-                          micro_kernel_fn: fn(
-            i64,
-            i64,
-            i64,
-            i64,
-            T::Vec,
-            &Pointer<T>,
-            &mut [T::Vec; CONV_REGNUM],
-        ),
-                          out: Pointer<T>| {
+        let case0 = move |
+            b: i64,
+            l: i64,
+            c: i64,
+            inner_size: i64,
+            micro_kernel_fn: fn(
+                i64,
+                i64,
+                i64,
+                i64,
+                T::Vec,
+                &Pointer<T>,
+                &mut [T::Vec; CONV_REGNUM]
+            ),
+            out: Pointer<T>
+        | {
             case0_init(b, l, c, inner_size, micro_kernel_fn, out);
         };
         let inp_cpy = inp.clone();
@@ -409,7 +419,7 @@ where
                             isw,
                             p,
                             &inp_cpy,
-                            &mut res_buffer,
+                            &mut res_buffer
                         );
                     }
                 }
@@ -422,880 +432,889 @@ where
         };
 
         let inp_cpy = inp.clone();
-        let case1 = move |b: i64, l: i64, c: i64, out: Pointer<T>| match wo_b_remain {
-            1 => {
-                case1_helper(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    [num_wo_b, num_co_rb],
-                    p_vec,
-                    fract_1_p_vec,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_1::<T, 1>,
-                );
+        let case1 = move |b: i64, l: i64, c: i64, out: Pointer<T>| {
+            match wo_b_remain {
+                1 => {
+                    case1_helper(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        [num_wo_b, num_co_rb],
+                        p_vec,
+                        fract_1_p_vec,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_1::<T, 1>
+                    );
+                }
+                2 => {
+                    case1_helper(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        [num_wo_b, num_co_rb],
+                        p_vec,
+                        fract_1_p_vec,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_2::<T, 2>
+                    );
+                }
+                3 => {
+                    case1_helper(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        [num_wo_b, num_co_rb],
+                        p_vec,
+                        fract_1_p_vec,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_3::<T, 3>
+                    );
+                }
+                4 => {
+                    case1_helper(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        [num_wo_b, num_co_rb],
+                        p_vec,
+                        fract_1_p_vec,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_4::<T, 4>
+                    );
+                }
+                5 => {
+                    case1_helper(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        [num_wo_b, num_co_rb],
+                        p_vec,
+                        fract_1_p_vec,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_5::<T, 5>
+                    );
+                }
+                6 => {
+                    case1_helper(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        [num_wo_b, num_co_rb],
+                        p_vec,
+                        fract_1_p_vec,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_6::<T, 6>
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                7 => {
+                    case1_helper(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        [num_wo_b, num_co_rb],
+                        p_vec,
+                        fract_1_p_vec,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_7::<T, 7>
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                8 => {
+                    case1_helper(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        [num_wo_b, num_co_rb],
+                        p_vec,
+                        fract_1_p_vec,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_8::<T, 8>
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                9 => {
+                    case1_helper(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        [num_wo_b, num_co_rb],
+                        p_vec,
+                        fract_1_p_vec,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_9::<T, 9>
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                10 => {
+                    case1_helper(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        [num_wo_b, num_co_rb],
+                        p_vec,
+                        fract_1_p_vec,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_10::<T, 10>
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                11 => {
+                    case1_helper(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        [num_wo_b, num_co_rb],
+                        p_vec,
+                        fract_1_p_vec,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_11::<T, 11>
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                12 => {
+                    case1_helper(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        [num_wo_b, num_co_rb],
+                        p_vec,
+                        fract_1_p_vec,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_12::<T, 12>
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                13 => {
+                    case1_helper(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        [num_wo_b, num_co_rb],
+                        p_vec,
+                        fract_1_p_vec,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_13::<T, 13>
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                14 => {
+                    case1_helper(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        [num_wo_b, num_co_rb],
+                        p_vec,
+                        fract_1_p_vec,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_14::<T, 14>
+                    );
+                }
+                _ => unimplemented!(),
             }
-            2 => {
-                case1_helper(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    [num_wo_b, num_co_rb],
-                    p_vec,
-                    fract_1_p_vec,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_2::<T, 2>,
-                );
-            }
-            3 => {
-                case1_helper(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    [num_wo_b, num_co_rb],
-                    p_vec,
-                    fract_1_p_vec,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_3::<T, 3>,
-                );
-            }
-            4 => {
-                case1_helper(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    [num_wo_b, num_co_rb],
-                    p_vec,
-                    fract_1_p_vec,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_4::<T, 4>,
-                );
-            }
-            5 => {
-                case1_helper(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    [num_wo_b, num_co_rb],
-                    p_vec,
-                    fract_1_p_vec,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_5::<T, 5>,
-                );
-            }
-            6 => {
-                case1_helper(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    [num_wo_b, num_co_rb],
-                    p_vec,
-                    fract_1_p_vec,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_6::<T, 6>,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            7 => {
-                case1_helper(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    [num_wo_b, num_co_rb],
-                    p_vec,
-                    fract_1_p_vec,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_7::<T, 7>,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            8 => {
-                case1_helper(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    [num_wo_b, num_co_rb],
-                    p_vec,
-                    fract_1_p_vec,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_8::<T, 8>,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            9 => {
-                case1_helper(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    [num_wo_b, num_co_rb],
-                    p_vec,
-                    fract_1_p_vec,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_9::<T, 9>,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            10 => {
-                case1_helper(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    [num_wo_b, num_co_rb],
-                    p_vec,
-                    fract_1_p_vec,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_10::<T, 10>,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            11 => {
-                case1_helper(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    [num_wo_b, num_co_rb],
-                    p_vec,
-                    fract_1_p_vec,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_11::<T, 11>,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            12 => {
-                case1_helper(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    [num_wo_b, num_co_rb],
-                    p_vec,
-                    fract_1_p_vec,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_12::<T, 12>,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            13 => {
-                case1_helper(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    [num_wo_b, num_co_rb],
-                    p_vec,
-                    fract_1_p_vec,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_13::<T, 13>,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            14 => {
-                case1_helper(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    [num_wo_b, num_co_rb],
-                    p_vec,
-                    fract_1_p_vec,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_14::<T, 14>,
-                );
-            }
-            _ => unimplemented!(),
         };
 
         let inp_cpy = inp.clone();
-        let case1_remain1 = move |b: i64, l: i64, c: i64, out: Pointer<T>| match wo_b_remain {
-            1 => {
-                case1_remain1_helper::<T, 1>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p,
-                    fract_1_p,
-                    num_wo_b,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_1_1::<T>,
-                );
+        let case1_remain1 = move |b: i64, l: i64, c: i64, out: Pointer<T>| {
+            match wo_b_remain {
+                1 => {
+                    case1_remain1_helper::<T, 1>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p,
+                        fract_1_p,
+                        num_wo_b,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_1_1::<T>
+                    );
+                }
+                2 => {
+                    case1_remain1_helper::<T, 2>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p,
+                        fract_1_p,
+                        num_wo_b,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_2_1::<T>
+                    );
+                }
+                3 => {
+                    case1_remain1_helper::<T, 3>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p,
+                        fract_1_p,
+                        num_wo_b,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_3_1::<T>
+                    );
+                }
+                4 => {
+                    case1_remain1_helper::<T, 4>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p,
+                        fract_1_p,
+                        num_wo_b,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_4_1::<T>
+                    );
+                }
+                5 => {
+                    case1_remain1_helper::<T, 5>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p,
+                        fract_1_p,
+                        num_wo_b,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_5_1::<T>
+                    );
+                }
+                6 => {
+                    case1_remain1_helper::<T, 6>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p,
+                        fract_1_p,
+                        num_wo_b,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_6_1::<T>
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                7 => {
+                    case1_remain1_helper::<T, 7>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p,
+                        fract_1_p,
+                        num_wo_b,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_7_1::<T>
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                8 => {
+                    case1_remain1_helper::<T, 8>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p,
+                        fract_1_p,
+                        num_wo_b,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_8_1::<T>
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                9 => {
+                    case1_remain1_helper::<T, 9>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p,
+                        fract_1_p,
+                        num_wo_b,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_9_1::<T>
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                10 => {
+                    case1_remain1_helper::<T, 10>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p,
+                        fract_1_p,
+                        num_wo_b,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_10_1::<T>
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                11 => {
+                    case1_remain1_helper::<T, 11>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p,
+                        fract_1_p,
+                        num_wo_b,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_11_1::<T>
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                12 => {
+                    case1_remain1_helper::<T, 12>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p,
+                        fract_1_p,
+                        num_wo_b,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_12_1::<T>
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                13 => {
+                    case1_remain1_helper::<T, 13>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p,
+                        fract_1_p,
+                        num_wo_b,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_13_1::<T>
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                14 => {
+                    case1_remain1_helper::<T, 14>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p,
+                        fract_1_p,
+                        num_wo_b,
+                        &inp_cpy,
+                        out,
+                        micro_kernel_14_1::<T>
+                    );
+                }
+                _ => unimplemented!(),
             }
-            2 => {
-                case1_remain1_helper::<T, 2>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p,
-                    fract_1_p,
-                    num_wo_b,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_2_1::<T>,
-                );
-            }
-            3 => {
-                case1_remain1_helper::<T, 3>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p,
-                    fract_1_p,
-                    num_wo_b,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_3_1::<T>,
-                );
-            }
-            4 => {
-                case1_remain1_helper::<T, 4>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p,
-                    fract_1_p,
-                    num_wo_b,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_4_1::<T>,
-                );
-            }
-            5 => {
-                case1_remain1_helper::<T, 5>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p,
-                    fract_1_p,
-                    num_wo_b,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_5_1::<T>,
-                );
-            }
-            6 => {
-                case1_remain1_helper::<T, 6>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p,
-                    fract_1_p,
-                    num_wo_b,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_6_1::<T>,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            7 => {
-                case1_remain1_helper::<T, 7>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p,
-                    fract_1_p,
-                    num_wo_b,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_7_1::<T>,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            8 => {
-                case1_remain1_helper::<T, 8>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p,
-                    fract_1_p,
-                    num_wo_b,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_8_1::<T>,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            9 => {
-                case1_remain1_helper::<T, 9>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p,
-                    fract_1_p,
-                    num_wo_b,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_9_1::<T>,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            10 => {
-                case1_remain1_helper::<T, 10>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p,
-                    fract_1_p,
-                    num_wo_b,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_10_1::<T>,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            11 => {
-                case1_remain1_helper::<T, 11>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p,
-                    fract_1_p,
-                    num_wo_b,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_11_1::<T>,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            12 => {
-                case1_remain1_helper::<T, 12>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p,
-                    fract_1_p,
-                    num_wo_b,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_12_1::<T>,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            13 => {
-                case1_remain1_helper::<T, 13>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p,
-                    fract_1_p,
-                    num_wo_b,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_13_1::<T>,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            14 => {
-                case1_remain1_helper::<T, 14>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p,
-                    fract_1_p,
-                    num_wo_b,
-                    &inp_cpy,
-                    out,
-                    micro_kernel_14_1::<T>,
-                );
-            }
-            _ => unimplemented!(),
         };
 
         let inp_cpy = inp.clone();
 
         let case0 = &case0;
-        let case2 =
-            move |b: i64, l: i64, c: i64, num_vec_size: i64, remain: i64, mut out: Pointer<T>| {
-                let mut res_buffer =
-                    vec![vec![T::Vec::splat(T::ZERO); CONV_REGNUM]; num_vec_size as usize + 1];
-                for kp in 0..num_wo_b {
-                    res_buffer.iter_mut().for_each(|x| {
-                        x.iter_mut().for_each(|y| {
-                            *y = T::Vec::splat(T::ZERO);
-                        })
-                    });
-                    for n in 0..kernel_height {
-                        for m in 0..kernel_width {
-                            micro_kernel_regnum_with_buffer::<T>(
-                                num_vec_size,
-                                kp,
-                                b * isb
-                                    + (l * step_height + n * dh) * ish
-                                    + m * dw * isw
-                                    + c * co_b,
-                                step_width,
-                                isw,
-                                p_vec,
-                                &inp_cpy,
-                                &mut res_buffer,
-                            );
-                        }
+        let case2 = move |
+            b: i64,
+            l: i64,
+            c: i64,
+            num_vec_size: i64,
+            remain: i64,
+            mut out: Pointer<T>
+        | {
+            let mut res_buffer =
+                vec![vec![T::Vec::splat(T::ZERO); CONV_REGNUM]; num_vec_size as usize + 1];
+            for kp in 0..num_wo_b {
+                res_buffer.iter_mut().for_each(|x| {
+                    x.iter_mut().for_each(|y| {
+                        *y = T::Vec::splat(T::ZERO);
+                    })
+                });
+                for n in 0..kernel_height {
+                    for m in 0..kernel_width {
+                        micro_kernel_regnum_with_buffer::<T>(
+                            num_vec_size,
+                            kp,
+                            b * isb + (l * step_height + n * dh) * ish + m * dw * isw + c * co_b,
+                            step_width,
+                            isw,
+                            p_vec,
+                            &inp_cpy,
+                            &mut res_buffer
+                        );
                     }
-                    for j in 0..num_vec_size {
-                        let buffers = &mut res_buffer[j as usize];
-                        for r in 0..CONV_REGNUM as i64 {
-                            buffers[r as usize] = buffers[r as usize]._pow(fract_1_p_vec);
-                        }
-                    }
-                    for r in 0..CONV_REGNUM {
-                        let buffer = &mut res_buffer[num_vec_size as usize][r];
-                        for i in 0..remain {
-                            buffer[i as usize] = buffer[i as usize]._pow(fract_1_p);
-                        }
-                    }
-                    load_store_res_buffer::<T, CONV_REGNUM, false>(
-                        num_vec_size,
-                        remain,
-                        osw,
-                        c * co_b + b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
-                        &mut res_buffer,
-                        &mut out,
-                    );
                 }
-            };
+                for j in 0..num_vec_size {
+                    let buffers = &mut res_buffer[j as usize];
+                    for r in 0..CONV_REGNUM as i64 {
+                        buffers[r as usize] = buffers[r as usize]._pow(fract_1_p_vec);
+                    }
+                }
+                for r in 0..CONV_REGNUM {
+                    let buffer = &mut res_buffer[num_vec_size as usize][r];
+                    for i in 0..remain {
+                        buffer[i as usize] = buffer[i as usize]._pow(fract_1_p);
+                    }
+                }
+                load_store_res_buffer::<T, CONV_REGNUM, false>(
+                    num_vec_size,
+                    remain,
+                    osw,
+                    c * co_b + b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
+                    &mut res_buffer,
+                    &mut out
+                );
+            }
+        };
 
         let inp_cpy = inp.clone();
         let case1 = &case1;
-        let case3 = move |b: i64, l: i64, c: i64, mut out: Pointer<T>| match wo_b_remain {
-            1 => {
-                case3_helper::<T, 1>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p_vec,
-                    fract_1_p,
-                    fract_1_p_vec,
-                    num_wo_b,
-                    co_b_remain,
-                    wo_b_remain,
-                    &inp_cpy,
-                    load_store_res_buffer::<T, 1, false>,
-                    micro_kernel_1_dyn::<T, 1>,
-                    micro_kernel_1_with_buffer::<T>,
-                    &mut out,
-                );
+        let case3 = move |b: i64, l: i64, c: i64, mut out: Pointer<T>| {
+            match wo_b_remain {
+                1 => {
+                    case3_helper::<T, 1>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p_vec,
+                        fract_1_p,
+                        fract_1_p_vec,
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        &inp_cpy,
+                        load_store_res_buffer::<T, 1, false>,
+                        micro_kernel_1_dyn::<T, 1>,
+                        micro_kernel_1_with_buffer::<T>,
+                        &mut out
+                    );
+                }
+                2 => {
+                    case3_helper::<T, 2>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p_vec,
+                        fract_1_p,
+                        fract_1_p_vec,
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        &inp_cpy,
+                        load_store_res_buffer::<T, 2, false>,
+                        micro_kernel_2_dyn::<T, 2>,
+                        micro_kernel_2_with_buffer::<T>,
+                        &mut out
+                    );
+                }
+                3 => {
+                    case3_helper::<T, 3>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p_vec,
+                        fract_1_p,
+                        fract_1_p_vec,
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        &inp_cpy,
+                        load_store_res_buffer::<T, 3, false>,
+                        micro_kernel_3_dyn::<T, 3>,
+                        micro_kernel_3_with_buffer::<T>,
+                        &mut out
+                    );
+                }
+                4 => {
+                    case3_helper::<T, 4>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p_vec,
+                        fract_1_p,
+                        fract_1_p_vec,
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        &inp_cpy,
+                        load_store_res_buffer::<T, 4, false>,
+                        micro_kernel_4_dyn::<T, 4>,
+                        micro_kernel_4_with_buffer::<T>,
+                        &mut out
+                    );
+                }
+                5 => {
+                    case3_helper::<T, 5>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p_vec,
+                        fract_1_p,
+                        fract_1_p_vec,
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        &inp_cpy,
+                        load_store_res_buffer::<T, 2, false>,
+                        micro_kernel_5_dyn::<T, 5>,
+                        micro_kernel_5_with_buffer::<T>,
+                        &mut out
+                    );
+                }
+                6 => {
+                    case3_helper::<T, 6>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p_vec,
+                        fract_1_p,
+                        fract_1_p_vec,
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        &inp_cpy,
+                        load_store_res_buffer::<T, 6, false>,
+                        micro_kernel_6_dyn::<T, 6>,
+                        micro_kernel_6_with_buffer::<T>,
+                        &mut out
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                7 => {
+                    case3_helper::<T, 7>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p_vec,
+                        fract_1_p,
+                        fract_1_p_vec,
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        &inp_cpy,
+                        load_store_res_buffer::<T, 7, false>,
+                        micro_kernel_7_dyn::<T, 7>,
+                        micro_kernel_7_with_buffer::<T>,
+                        &mut out
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                8 => {
+                    case3_helper::<T, 8>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p_vec,
+                        fract_1_p,
+                        fract_1_p_vec,
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        &inp_cpy,
+                        load_store_res_buffer::<T, 8, false>,
+                        micro_kernel_8_dyn::<T, 8>,
+                        micro_kernel_8_with_buffer::<T>,
+                        &mut out
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                9 => {
+                    case3_helper::<T, 9>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p_vec,
+                        fract_1_p,
+                        fract_1_p_vec,
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        &inp_cpy,
+                        load_store_res_buffer::<T, 9, false>,
+                        micro_kernel_9_dyn::<T, 9>,
+                        micro_kernel_9_with_buffer::<T>,
+                        &mut out
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                10 => {
+                    case3_helper::<T, 10>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p_vec,
+                        fract_1_p,
+                        fract_1_p_vec,
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        &inp_cpy,
+                        load_store_res_buffer::<T, 10, false>,
+                        micro_kernel_10_dyn::<T, 10>,
+                        micro_kernel_10_with_buffer::<T>,
+                        &mut out
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                11 => {
+                    case3_helper::<T, 11>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p_vec,
+                        fract_1_p,
+                        fract_1_p_vec,
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        &inp_cpy,
+                        load_store_res_buffer::<T, 11, false>,
+                        micro_kernel_11_dyn::<T, 11>,
+                        micro_kernel_11_with_buffer::<T>,
+                        &mut out
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                12 => {
+                    case3_helper::<T, 12>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p_vec,
+                        fract_1_p,
+                        fract_1_p_vec,
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        &inp_cpy,
+                        load_store_res_buffer::<T, 12, false>,
+                        micro_kernel_12_dyn::<T, 12>,
+                        micro_kernel_12_with_buffer::<T>,
+                        &mut out
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                13 => {
+                    case3_helper::<T, 13>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p_vec,
+                        fract_1_p,
+                        fract_1_p_vec,
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        &inp_cpy,
+                        load_store_res_buffer::<T, 13, false>,
+                        micro_kernel_13_dyn::<T, 13>,
+                        micro_kernel_13_with_buffer::<T>,
+                        &mut out
+                    );
+                }
+                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+                14 => {
+                    case3_helper::<T, 14>(
+                        [kernel_height, kernel_width],
+                        [b, l, c],
+                        [isb, ish, isw],
+                        [osb, osh, osw],
+                        [step_width, step_height],
+                        [dh, dw],
+                        co_b,
+                        p_vec,
+                        fract_1_p,
+                        fract_1_p_vec,
+                        num_wo_b,
+                        co_b_remain,
+                        wo_b_remain,
+                        &inp_cpy,
+                        load_store_res_buffer::<T, 14, false>,
+                        micro_kernel_14_dyn::<T, 14>,
+                        micro_kernel_14_with_buffer::<T>,
+                        &mut out
+                    );
+                }
+                _ => unimplemented!(),
             }
-            2 => {
-                case3_helper::<T, 2>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p_vec,
-                    fract_1_p,
-                    fract_1_p_vec,
-                    num_wo_b,
-                    co_b_remain,
-                    wo_b_remain,
-                    &inp_cpy,
-                    load_store_res_buffer::<T, 2, false>,
-                    micro_kernel_2_dyn::<T, 2>,
-                    micro_kernel_2_with_buffer::<T>,
-                    &mut out,
-                );
-            }
-            3 => {
-                case3_helper::<T, 3>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p_vec,
-                    fract_1_p,
-                    fract_1_p_vec,
-                    num_wo_b,
-                    co_b_remain,
-                    wo_b_remain,
-                    &inp_cpy,
-                    load_store_res_buffer::<T, 3, false>,
-                    micro_kernel_3_dyn::<T, 3>,
-                    micro_kernel_3_with_buffer::<T>,
-                    &mut out,
-                );
-            }
-            4 => {
-                case3_helper::<T, 4>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p_vec,
-                    fract_1_p,
-                    fract_1_p_vec,
-                    num_wo_b,
-                    co_b_remain,
-                    wo_b_remain,
-                    &inp_cpy,
-                    load_store_res_buffer::<T, 4, false>,
-                    micro_kernel_4_dyn::<T, 4>,
-                    micro_kernel_4_with_buffer::<T>,
-                    &mut out,
-                );
-            }
-            5 => {
-                case3_helper::<T, 5>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p_vec,
-                    fract_1_p,
-                    fract_1_p_vec,
-                    num_wo_b,
-                    co_b_remain,
-                    wo_b_remain,
-                    &inp_cpy,
-                    load_store_res_buffer::<T, 2, false>,
-                    micro_kernel_5_dyn::<T, 5>,
-                    micro_kernel_5_with_buffer::<T>,
-                    &mut out,
-                );
-            }
-            6 => {
-                case3_helper::<T, 6>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p_vec,
-                    fract_1_p,
-                    fract_1_p_vec,
-                    num_wo_b,
-                    co_b_remain,
-                    wo_b_remain,
-                    &inp_cpy,
-                    load_store_res_buffer::<T, 6, false>,
-                    micro_kernel_6_dyn::<T, 6>,
-                    micro_kernel_6_with_buffer::<T>,
-                    &mut out,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            7 => {
-                case3_helper::<T, 7>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p_vec,
-                    fract_1_p,
-                    fract_1_p_vec,
-                    num_wo_b,
-                    co_b_remain,
-                    wo_b_remain,
-                    &inp_cpy,
-                    load_store_res_buffer::<T, 7, false>,
-                    micro_kernel_7_dyn::<T, 7>,
-                    micro_kernel_7_with_buffer::<T>,
-                    &mut out,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            8 => {
-                case3_helper::<T, 8>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p_vec,
-                    fract_1_p,
-                    fract_1_p_vec,
-                    num_wo_b,
-                    co_b_remain,
-                    wo_b_remain,
-                    &inp_cpy,
-                    load_store_res_buffer::<T, 8, false>,
-                    micro_kernel_8_dyn::<T, 8>,
-                    micro_kernel_8_with_buffer::<T>,
-                    &mut out,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            9 => {
-                case3_helper::<T, 9>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p_vec,
-                    fract_1_p,
-                    fract_1_p_vec,
-                    num_wo_b,
-                    co_b_remain,
-                    wo_b_remain,
-                    &inp_cpy,
-                    load_store_res_buffer::<T, 9, false>,
-                    micro_kernel_9_dyn::<T, 9>,
-                    micro_kernel_9_with_buffer::<T>,
-                    &mut out,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            10 => {
-                case3_helper::<T, 10>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p_vec,
-                    fract_1_p,
-                    fract_1_p_vec,
-                    num_wo_b,
-                    co_b_remain,
-                    wo_b_remain,
-                    &inp_cpy,
-                    load_store_res_buffer::<T, 10, false>,
-                    micro_kernel_10_dyn::<T, 10>,
-                    micro_kernel_10_with_buffer::<T>,
-                    &mut out,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            11 => {
-                case3_helper::<T, 11>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p_vec,
-                    fract_1_p,
-                    fract_1_p_vec,
-                    num_wo_b,
-                    co_b_remain,
-                    wo_b_remain,
-                    &inp_cpy,
-                    load_store_res_buffer::<T, 11, false>,
-                    micro_kernel_11_dyn::<T, 11>,
-                    micro_kernel_11_with_buffer::<T>,
-                    &mut out,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            12 => {
-                case3_helper::<T, 12>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p_vec,
-                    fract_1_p,
-                    fract_1_p_vec,
-                    num_wo_b,
-                    co_b_remain,
-                    wo_b_remain,
-                    &inp_cpy,
-                    load_store_res_buffer::<T, 12, false>,
-                    micro_kernel_12_dyn::<T, 12>,
-                    micro_kernel_12_with_buffer::<T>,
-                    &mut out,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            13 => {
-                case3_helper::<T, 13>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p_vec,
-                    fract_1_p,
-                    fract_1_p_vec,
-                    num_wo_b,
-                    co_b_remain,
-                    wo_b_remain,
-                    &inp_cpy,
-                    load_store_res_buffer::<T, 13, false>,
-                    micro_kernel_13_dyn::<T, 13>,
-                    micro_kernel_13_with_buffer::<T>,
-                    &mut out,
-                );
-            }
-            #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-            14 => {
-                case3_helper::<T, 14>(
-                    [kernel_height, kernel_width],
-                    [b, l, c],
-                    [isb, ish, isw],
-                    [osb, osh, osw],
-                    [step_width, step_height],
-                    [dh, dw],
-                    co_b,
-                    p_vec,
-                    fract_1_p,
-                    fract_1_p_vec,
-                    num_wo_b,
-                    co_b_remain,
-                    wo_b_remain,
-                    &inp_cpy,
-                    load_store_res_buffer::<T, 14, false>,
-                    micro_kernel_14_dyn::<T, 14>,
-                    micro_kernel_14_with_buffer::<T>,
-                    &mut out,
-                );
-            }
-            _ => unimplemented!(),
         };
         #[rustfmt::skip]
         (0..outer).into_par_iter().for_each(|idx| {

@@ -1,15 +1,20 @@
 use std::borrow::Borrow;
 
-use crate::{ops::cpu::unary::NormalType, tensor::Tensor, tensor_base::_Tensor};
+use crate::{
+    ops::cpu::tensor_internal::normal_out_unary::NormalType,
+    tensor::Tensor,
+    tensor_base::_Tensor,
+};
 use anyhow::Result;
-use tensor_traits::{CommonBounds, NormalUaryOps, TensorLike};
+use tensor_traits::{ CommonBounds, NormalUaryOps, TensorLike };
 use tensor_types::into_scalar::IntoScalar;
 
-impl<T> NormalUaryOps for Tensor<T>
-where
-    T: CommonBounds + IntoScalar<T>,
-    NormalType<T>: CommonBounds,
-    _Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
+impl<T> NormalUaryOps
+    for Tensor<T>
+    where
+        T: CommonBounds + IntoScalar<T>,
+        NormalType<T>: CommonBounds,
+        _Tensor<NormalType<T>>: TensorLike<NormalType<T>>
 {
     type Output = Tensor<NormalType<T>>;
 
@@ -38,10 +43,7 @@ where
         Ok(_Tensor::floor(self)?.into())
     }
 
-    fn floor_<U>(&self, out: U) -> Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
+    fn floor_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
         Ok(_Tensor::floor_(self, out)?.into())
     }
 
@@ -67,10 +69,7 @@ where
         Ok(_Tensor::square(self)?.into())
     }
 
-    fn square_<U>(&self, out: U) -> Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
+    fn square_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
         Ok(_Tensor::square_(self, out)?.into())
     }
 
@@ -102,10 +101,7 @@ where
         Ok(_Tensor::abs(self)?.into())
     }
 
-    fn abs_<U>(&self, out: U) -> Result<Self>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
+    fn abs_<U>(&self, out: U) -> Result<Self> where U: Borrow<Self::InplaceOutput> {
         Ok(_Tensor::abs_(self, out)?.into())
     }
 
@@ -136,10 +132,7 @@ where
         Ok(_Tensor::ceil(self)?.into())
     }
 
-    fn ceil_<U>(&self, out: U) -> Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
+    fn ceil_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
         Ok(_Tensor::ceil_(self, out)?.into())
     }
 
@@ -173,10 +166,7 @@ where
         Ok(_Tensor::sign(self)?.into())
     }
 
-    fn sign_<U>(&self, out: U) -> Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
+    fn sign_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
         Ok(_Tensor::sign_(self, out)?.into())
     }
 
@@ -208,8 +198,7 @@ where
     }
 
     fn clip_<U>(&self, min: Self::OutputMeta, max: Self::OutputMeta, out: U) -> Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput>,
+        where U: Borrow<Self::InplaceOutput>
     {
         Ok(_Tensor::clip_(self, min, max, out)?.into())
     }
@@ -241,10 +230,15 @@ where
         Ok(_Tensor::round(self)?.into())
     }
 
-    fn round_<U>(&self, out: U) -> Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput>,
-    {
+    fn round_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
         Ok(_Tensor::round_(self, out)?.into())
+    }
+
+    fn neg(&self) -> Result<Self> {
+        Ok(_Tensor::neg(self)?.into())
+    }
+
+    fn neg_<U>(&self, out: U) -> Result<Self> where U: Borrow<Self::InplaceOutput> {
+        Ok(_Tensor::neg_(self, out)?.into())
     }
 }

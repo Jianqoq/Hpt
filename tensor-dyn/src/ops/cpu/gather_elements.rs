@@ -1,14 +1,11 @@
-use std::sync::{Arc, Barrier};
+use std::sync::{ Arc, Barrier };
 
 use tensor_common::shape_utils::mt_intervals;
-use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
+use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
 
-use crate::{backend::Cpu, tensor_base::_Tensor, THREAD_POOL};
+use crate::{ backend::Cpu, tensor_base::_Tensor, THREAD_POOL };
 
-impl<T> _Tensor<T, Cpu>
-where
-    T: CommonBounds,
-{
+impl<T> _Tensor<T, Cpu> where T: CommonBounds {
     /// Gathers elements from the tensor along a specified axis using given indices.
     ///
     /// This method extracts elements from the tensor along the specified `axis` based on the
@@ -29,11 +26,7 @@ where
     /// This function returns a `Result` containing a tensor with the gathered elements.
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn gather_elements(&self, indices: &_Tensor<i64, Cpu>, axis: i64) -> anyhow::Result<Self> {
-        let axis = (if axis < 0 {
-            (self.ndim() as i64) + axis
-        } else {
-            axis
-        }) as usize;
+        let axis = (if axis < 0 { (self.ndim() as i64) + axis } else { axis }) as usize;
         let ret = _Tensor::<T, Cpu>::empty(indices.shape())?;
         let inner_loop_size = indices.shape()[indices.ndim() - 1] as usize;
         let outer_loop_size = indices.size() / inner_loop_size;
@@ -76,8 +69,7 @@ where
                 .into_iter()
                 .zip(res_ptrs.into_iter())
                 .zip(idx_ptrs.into_iter())
-                .zip(prgs.into_iter())
-            {
+                .zip(prgs.into_iter()) {
                 let shape = ret.shape().clone();
                 let ret_strides = ret.strides().clone();
                 let indice_strides = indices.strides().clone();
@@ -90,7 +82,10 @@ where
                     if axis == (ndim as usize) - 1 {
                         let index_cal = |prg: &[i64]| {
                             let mut acc = 0;
-                            for (i, &x) in prg.iter().enumerate().take((ndim as usize) - 1) {
+                            for (i, &x) in prg
+                                .iter()
+                                .enumerate()
+                                .take((ndim as usize) - 1) {
                                 acc += x * inp_strides[i];
                             }
                             acc
@@ -119,7 +114,10 @@ where
                         let index_cal = |prg: &mut [i64]| {
                             let tmp = prg[axis];
                             let mut acc = 0;
-                            for (i, &x) in prg.iter().enumerate().take((ndim as usize) - 1) {
+                            for (i, &x) in prg
+                                .iter()
+                                .enumerate()
+                                .take((ndim as usize) - 1) {
                                 if i == axis {
                                     continue;
                                 }
@@ -132,8 +130,9 @@ where
                         for _ in start..end {
                             for i in 0..inner_loop_size as i64 {
                                 let idx = idx_ptr[i * idx_last_stride];
-                                res_ptr[i] =
-                                    inp_ptr[offset + idx * inp_idx_stride + i * inp_last_stride];
+                                res_ptr[i] = inp_ptr[
+                                    offset + idx * inp_idx_stride + i * inp_last_stride
+                                ];
                             }
                             for j in (0..ndim - 1).rev() {
                                 let j = j as usize;

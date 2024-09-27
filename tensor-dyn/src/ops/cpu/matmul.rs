@@ -1,9 +1,9 @@
 use crate::tensor_base::_Tensor;
 use crate::THREAD_POOL;
-use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
-use std::borrow::{Borrow, BorrowMut};
+use rayon::iter::{ IntoParallelRefMutIterator, ParallelIterator };
+use std::borrow::{ Borrow, BorrowMut };
 use std::panic::Location;
-use std::sync::{Arc, Barrier};
+use std::sync::{ Arc, Barrier };
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::shape_utils::compare_and_pad_shapes;
 use tensor_common::shape_utils::mt_intervals;
@@ -21,41 +21,47 @@ use tensor_types::type_promote::NormalOut;
 pub(crate) fn matmul_with_out<A, B, O, Q>(
     lhs: &_Tensor<A>,
     rhs: &_Tensor<B>,
-    out: Option<O>,
-) -> anyhow::Result<_Tensor<<A as NormalOut<B>>::Output>>
-where
-    A: CommonBounds + NormalOut<B> + IntoScalar<<A as NormalOut<B>>::Output>,
-    B: CommonBounds + IntoScalar<<A as NormalOut<B>>::Output>,
-    O: Borrow<_Tensor<Q>> + BorrowMut<_Tensor<Q>>,
-    <A as NormalOut<B>>::Output: CommonBounds,
-    Q: CommonBounds,
+    out: Option<O>
+)
+    -> anyhow::Result<_Tensor<<A as NormalOut<B>>::Output>>
+    where
+        A: CommonBounds + NormalOut<B> + IntoScalar<<A as NormalOut<B>>::Output>,
+        B: CommonBounds + IntoScalar<<A as NormalOut<B>>::Output>,
+        O: Borrow<_Tensor<Q>> + BorrowMut<_Tensor<Q>>,
+        <A as NormalOut<B>>::Output: CommonBounds,
+        Q: CommonBounds
 {
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         if lhs.shape()[1] != rhs.shape()[0] {
-            Err(ErrHandler::MatmulShapeMismatched(
-                [lhs.shape()[0], lhs.shape()[1]],
-                [rhs.shape()[0], rhs.shape()[1]],
-                lhs.shape()[1],
-                Location::caller(),
+            Err(
+                ErrHandler::MatmulShapeMismatched(
+                    [lhs.shape()[0], lhs.shape()[1]],
+                    [rhs.shape()[0], rhs.shape()[1]],
+                    lhs.shape()[1],
+                    Location::caller()
+                ).into()
             )
-            .into())
         } else {
             let res = if let Some(mut out) = out {
-                if out.borrow().size() == ((lhs.shape()[0] * rhs.shape()[1]) as usize)
-                    && out.borrow().parent().is_none()
+                if
+                    out.borrow().size() == ((lhs.shape()[0] * rhs.shape()[1]) as usize) &&
+                    out.borrow().parent().is_none()
                 {
                     let val = Q::ZERO;
-                    out.borrow_mut().as_raw_mut().par_iter_mut().for_each(|x| {
-                        *x = val;
-                    });
-                    let casted: _Tensor<<A as NormalOut<B>>::Output> =
-                        out.borrow().static_cast::<<A as NormalOut<B>>::Output>()?;
+                    out.borrow_mut()
+                        .as_raw_mut()
+                        .par_iter_mut()
+                        .for_each(|x| {
+                            *x = val;
+                        });
+                    let casted: _Tensor<<A as NormalOut<B>>::Output> = out
+                        .borrow()
+                        .static_cast::<<A as NormalOut<B>>::Output>()?;
                     casted
                 } else {
-                    _Tensor::<<A as NormalOut<B>>::Output>::zeros(vec![
-                        lhs.shape()[0],
-                        rhs.shape()[1],
-                    ])?
+                    _Tensor::<<A as NormalOut<B>>::Output>::zeros(
+                        vec![lhs.shape()[0], rhs.shape()[1]]
+                    )?
                 }
             } else {
                 _Tensor::<<A as NormalOut<B>>::Output>::zeros(vec![lhs.shape()[0], rhs.shape()[1]])?
@@ -82,7 +88,7 @@ where
                     false,
                     false,
                     false,
-                    gemm::Parallelism::Rayon(rayon::current_num_threads()),
+                    gemm::Parallelism::Rayon(rayon::current_num_threads())
                 );
             }
             Ok(res)
@@ -99,19 +105,19 @@ where
             b_shape = longer_shape;
         }
         if a_shape[a_shape.len() - 1] != b_shape[b_shape.len() - 2] {
-            Err(ErrHandler::MatmulShapeMismatched(
-                [a_shape[a_shape.len() - 2], a_shape[a_shape.len() - 1]],
-                [b_shape[b_shape.len() - 2], b_shape[b_shape.len() - 1]],
-                a_shape[a_shape.len() - 1],
-                Location::caller(),
+            Err(
+                ErrHandler::MatmulShapeMismatched(
+                    [a_shape[a_shape.len() - 2], a_shape[a_shape.len() - 1]],
+                    [b_shape[b_shape.len() - 2], b_shape[b_shape.len() - 1]],
+                    a_shape[a_shape.len() - 1],
+                    Location::caller()
+                ).into()
             )
-            .into())
         } else {
             let mut res_shape = predict_broadcast_shape(
                 &a_shape[..a_shape.len() - 2],
-                &b_shape[..b_shape.len() - 2],
-            )?
-            .to_vec();
+                &b_shape[..b_shape.len() - 2]
+            )?.to_vec();
             let mut iterate_shape = res_shape.clone();
             res_shape.push(a_shape[a_shape.len() - 2]);
             res_shape.push(b_shape[b_shape.len() - 1]);
@@ -120,9 +126,12 @@ where
             let res = if let Some(mut out) = out {
                 if out.borrow().size() == (res_shape.iter().product::<i64>() as usize) {
                     let val = Q::ZERO;
-                    out.borrow_mut().as_raw_mut().par_iter_mut().for_each(|x| {
-                        *x = val;
-                    });
+                    out.borrow_mut()
+                        .as_raw_mut()
+                        .par_iter_mut()
+                        .for_each(|x| {
+                            *x = val;
+                        });
                     out.borrow().static_cast::<<A as NormalOut<B>>::Output>()?
                 } else {
                     _Tensor::<<A as NormalOut<B>>::Output>::zeros(res_shape)?
@@ -133,8 +142,9 @@ where
             let a_strides = preprocess_strides(&a_shape, &lhs.strides());
             let b_strides = preprocess_strides(&b_shape, &rhs.strides());
             let len = iterate_shape.iter().fold(1, |acc, x| acc * (*x as usize));
-            let res_inner_matrix_size = (res.shape()[res.shape().len() - 2] as usize)
-                * (res.shape()[res.shape().len() - 1] as usize);
+            let res_inner_matrix_size =
+                (res.shape()[res.shape().len() - 2] as usize) *
+                (res.shape()[res.shape().len() - 1] as usize);
             iterate_shape.iter_mut().for_each(|x| {
                 *x -= 1;
             });
@@ -148,7 +158,9 @@ where
             };
             let mut num_threads_each: Vec<usize> = if len < rayon::current_num_threads() {
                 let vec = mt_intervals(rayon::current_num_threads(), len);
-                vec.iter().map(|x| x.1 - x.0).collect::<Vec<usize>>()
+                vec.iter()
+                    .map(|x| x.1 - x.0)
+                    .collect::<Vec<usize>>()
             } else {
                 vec![1; rayon::current_num_threads()]
             };
@@ -221,7 +233,7 @@ where
                                     false,
                                     false,
                                     false,
-                                    gemm::Parallelism::Rayon(threads),
+                                    gemm::Parallelism::Rayon(threads)
                                 );
                                 res_ptr.add(res_inner_matrix_size);
                                 for j in 0..shape.len() {

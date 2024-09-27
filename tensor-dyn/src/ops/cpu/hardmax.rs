@@ -12,13 +12,9 @@ use tensor_types::{
 
 impl<T> _Tensor<T>
 where
-    T: CommonBounds
-        + NormalOut<T, Output = T>
-        + Cmp
-        + tensor_types::into_scalar::IntoScalar<T>
-        + Convertor,
+    T: CommonBounds + Cmp + tensor_types::into_scalar::IntoScalar<T> + Convertor,
     bool: NormalOut<T, Output = T>,
-    T::Vec: SimdCmp + NormalOut<Output = T::Vec>,
+    T::Vec: SimdCmp,
     <T::Vec as SimdCmp>::Output: NormalOut<T::Vec, Output = T::Vec>,
     T: Eval<Output = bool> + IntoScalar<bool>,
     T::Vec: Eval + VecConvertor,
@@ -68,13 +64,9 @@ where
 
 impl<T> Tensor<T>
 where
-    T: CommonBounds
-        + NormalOut<T, Output = T>
-        + Cmp
-        + tensor_types::into_scalar::IntoScalar<T>
-        + Convertor,
+    T: CommonBounds + Cmp + tensor_types::into_scalar::IntoScalar<T> + Convertor,
     bool: NormalOut<T, Output = T>,
-    T::Vec: SimdCmp + NormalOut<Output = T::Vec>,
+    T::Vec: SimdCmp,
     <T::Vec as SimdCmp>::Output: NormalOut<T::Vec, Output = T::Vec>,
     T: Eval<Output = bool> + IntoScalar<bool>,
     T::Vec: Eval + VecConvertor,

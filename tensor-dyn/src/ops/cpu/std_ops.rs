@@ -5,9 +5,21 @@ use tensor_iterator::iterator_traits::ParStridedIteratorZip;
 use tensor_iterator::TensorIterator;
 use std::ops::AddAssign;
 use std::ops::{
-    Add, BitAnd, BitOr, BitXor, Div, Mul, MulAssign, Rem, RemAssign, Shl, Shr, Sub, SubAssign,
+    Add,
+    BitAnd,
+    BitOr,
+    BitXor,
+    Div,
+    Mul,
+    MulAssign,
+    Rem,
+    RemAssign,
+    Shl,
+    Shr,
+    Sub,
+    SubAssign,
 };
-use tensor_traits::tensor::{CommonBounds, TensorInfo};
+use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use tensor_types::convertion::Convertor;
 use tensor_types::dtype::TypeCommon;
 use tensor_types::into_scalar::IntoScalar;
@@ -169,33 +181,13 @@ macro_rules! normal_promote_ops_assign {
     };
 }
 
-normal_promote_ops_1!(
-    [Add, add, _add],
-    [Sub, sub, _sub],
-    [Mul, mul, _mul],
-    [Rem, rem, _rem]
-);
+normal_promote_ops_1!([Add, add, _add], [Sub, sub, _sub], [Mul, mul, _mul], [Rem, rem, _rem]);
 
-normal_promote_ops_2!(
-    [Add, add, _add],
-    [Sub, sub, _sub],
-    [Mul, mul, _mul],
-    [Rem, rem, _rem]
-);
+normal_promote_ops_2!([Add, add, _add], [Sub, sub, _sub], [Mul, mul, _mul], [Rem, rem, _rem]);
 
-normal_promote_ops_3!(
-    [Add, add, _add],
-    [Sub, sub, _sub],
-    [Mul, mul, _mul],
-    [Rem, rem, _rem]
-);
+normal_promote_ops_3!([Add, add, _add], [Sub, sub, _sub], [Mul, mul, _mul], [Rem, rem, _rem]);
 
-normal_promote_ops_4!(
-    [Add, add, _add],
-    [Sub, sub, _sub],
-    [Mul, mul, _mul],
-    [Rem, rem, _rem]
-);
+normal_promote_ops_4!([Add, add, _add], [Sub, sub, _sub], [Mul, mul, _mul], [Rem, rem, _rem]);
 
 normal_promote_ops_assign!(
     [AddAssign, add_assign, _add],
@@ -561,10 +553,9 @@ float_binary_promote_ops_2!([Div, div, _div]);
 float_binary_promote_ops_3!([Div, div, _div]);
 float_binary_promote_ops_4!([Div, div, _div]);
 
-impl<T, U> PartialEq<_Tensor<U>> for _Tensor<T>
-where
-    T: CommonBounds + Convertor,
-    U: CommonBounds + Convertor,
+impl<T, U> PartialEq<_Tensor<U>>
+    for _Tensor<T>
+    where T: CommonBounds + Convertor, U: CommonBounds + Convertor
 {
     fn eq(&self, other: &_Tensor<U>) -> bool {
         if self.size() != other.size() {

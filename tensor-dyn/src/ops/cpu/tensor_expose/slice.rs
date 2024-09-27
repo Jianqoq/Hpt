@@ -3,10 +3,7 @@ use tensor_traits::CommonBounds;
 use anyhow::Result;
 use crate::tensor::Tensor;
 
-impl<T> Tensor<T>
-where
-    T: CommonBounds,
-{
+impl<T> Tensor<T> where T: CommonBounds {
     /// Extracts a slice of the tensor based on the provided indices.
     ///
     /// This method creates a new tensor that represents a slice of the original tensor.
