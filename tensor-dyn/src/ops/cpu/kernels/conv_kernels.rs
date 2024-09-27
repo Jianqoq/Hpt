@@ -1,9 +1,8 @@
 use crate::CONV_REGNUM;
 use std::ops::Index;
-use std::ops::IndexMut;
 use tensor_common::pointer::Pointer;
 use tensor_traits::CommonBounds;
-use tensor_types::traits::{Init, VecCommon, VecTrait};
+use tensor_types::traits::{ Init, VecCommon, VecTrait };
 use tensor_types::type_promote::NormalOut;
 
 #[cfg(not(feature = "bound_check"))]
@@ -101,13 +100,14 @@ pub(crate) fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
     }
 }
 
+#[allow(unused_mut)]
 #[rustfmt::skip]
 pub(crate) fn pack_kernel<T>(
     num_co_rb: i64,
     co_b_remain: i64,
     kernel_offset: i64,
     kernel: &Pointer<T>,
-    kernel_buffer: &mut Vec<T::Vec>
+    mut kernel_buffer: &mut Vec<T::Vec>
 )
     where T: CommonBounds, T::Vec: VecCommon
 {
@@ -115,7 +115,7 @@ pub(crate) fn pack_kernel<T>(
         #[cfg(not(feature = "bound_check"))]
         let kernel_buffer = unsafe { kernel_buffer.get_unchecked_mut(j as usize) };
         #[cfg(feature = "bound_check")]
-        let kernel_buffer = kernel_buffer.index_mut(j as usize);
+        let kernel_buffer = &mut kernel_buffer[j as usize];
         unsafe {
             std::ptr::copy_nonoverlapping(
                 kernel.index(kernel_offset + j * (T::Vec::SIZE as i64)) as *const _,
@@ -376,11 +376,7 @@ micro_kernel_1!(7, regnum, [0, 1, 2, 3, 4, 5, 6]);
 #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
 micro_kernel_1!(3, regnum, [0, 1, 2]);
 #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_1!(
-    15,
-    regnum,
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-);
+micro_kernel_1!(15, regnum, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
 micro_kernel_1!(1, 1, [0]);
 micro_kernel_1!(2, 2, [0, 1]);
 micro_kernel_1!(3, 3, [0, 1, 2]);
