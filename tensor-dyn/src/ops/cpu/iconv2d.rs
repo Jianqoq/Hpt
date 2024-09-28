@@ -133,43 +133,47 @@ impl<T> _Tensor<T>
         let outer = batch * out_height * num_ow;
         let num_vec = in_channels / (T::Vec::SIZE as i64);
         // println!("{}", out_width % 7);
-        const TILE_SIZE: usize = 32; // Adjust based on your specific hardware
-
         (0..outer).into_par_iter().for_each(|idx| {
             let mut out = output.ptr();
             let b = idx / (out_height * num_ow);
             let l = (idx / num_ow) % out_height;
-            let k = (idx % num_ow) * 7;
-
+            let k = idx % num_ow;
+            let k = k * 7;
             if k + 7 <= out_width {
-                for j_tile in (0..out_channels).step_by(TILE_SIZE) {
-                    let j_end = (j_tile + TILE_SIZE as i64).min(out_channels);
-                    let mut out_regs = [[T::Vec::splat(T::ZERO); 7]; TILE_SIZE];
-
+                for j in 0..out_channels {
+                    let mut out_regs = [T::Vec::splat(T::ZERO); 7];
                     for n in 0..kernel_height {
+                        let inp_offset = b * isb + (l * step_height + n * dh) * ish;
                         for m in 0..kernel_width {
+                            let koffset = j * ks0 + n * ks1 + m * ks2;
                             for i in 0..num_vec {
-                                for j_offset in 0..(j_end - j_tile) {
-                                    let j = j_tile + j_offset;
-                                    unsafe {
-                                        let kernel_vec = T::Vec::from_ptr(&kernel[j * ks0 + n * ks1 + m * ks2 + i * T::Vec::SIZE as i64]);
-
-                                        for w in 0..7 {
-                                            let inp = T::Vec::from_ptr(&inp[b * isb + (l * step_height + n * dh) * ish + ((k + w) * step_width + m * dw) * isw + i * T::Vec::SIZE as i64]);
-                                            out_regs[j_offset as usize][w as usize] = kernel_vec.mul_add(inp, out_regs[j_offset as usize][w as usize]);
-                                        }
-                                    }
+                                unsafe {
+                                    let kernel_vec = T::Vec::from_ptr(&kernel[koffset + i * T::Vec::SIZE as i64]); // prettier-ignore
+                                    let inp0 = T::Vec::from_ptr(&inp[inp_offset + (k * step_width + m * dw) * isw + i * T::Vec::SIZE as i64]); // prettier-ignore
+                                    let inp1 = T::Vec::from_ptr(&inp[inp_offset + ((k + 1) * step_width + m * dw) * isw + i * T::Vec::SIZE as i64]); // prettier-ignore
+                                    let inp2 = T::Vec::from_ptr(&inp[inp_offset + ((k + 2) * step_width + m * dw) * isw + i * T::Vec::SIZE as i64]); // prettier-ignore
+                                    let inp3 = T::Vec::from_ptr(&inp[inp_offset + ((k + 3) * step_width + m * dw) * isw + i * T::Vec::SIZE as i64]); // prettier-ignore
+                                    let inp4 = T::Vec::from_ptr(&inp[inp_offset + ((k + 4) * step_width + m * dw) * isw + i * T::Vec::SIZE as i64]); // prettier-ignore
+                                    let inp5 = T::Vec::from_ptr(&inp[inp_offset + ((k + 5) * step_width + m * dw) * isw + i * T::Vec::SIZE as i64]); // prettier-ignore
+                                    let inp6 = T::Vec::from_ptr(&inp[inp_offset + ((k + 6) * step_width + m * dw) * isw + i * T::Vec::SIZE as i64]); // prettier-ignore
+                                    out_regs[0] = kernel_vec.mul_add(inp0, out_regs[0]);
+                                    out_regs[1] = kernel_vec.mul_add(inp1, out_regs[1]);
+                                    out_regs[2] = kernel_vec.mul_add(inp2, out_regs[2]);
+                                    out_regs[3] = kernel_vec.mul_add(inp3, out_regs[3]);
+                                    out_regs[4] = kernel_vec.mul_add(inp4, out_regs[4]);
+                                    out_regs[5] = kernel_vec.mul_add(inp5, out_regs[5]);
+                                    out_regs[6] = kernel_vec.mul_add(inp6, out_regs[6]);
                                 }
                             }
                         }
                     }
-
-                    for j_offset in 0..(j_end - j_tile) {
-                        let j = j_tile + j_offset;
-                        for w in 0..7 {
-                            out[b * osb + l * osh + (k + w) * osw + j] = out_regs[j_offset as usize][w as usize].sum();
-                        }
-                    }
+                    out[b * osb + l * osh + k * osw + j] = out_regs[0].sum();
+                    out[b * osb + l * osh + (k + 1) * osw + j] = out_regs[1].sum();
+                    out[b * osb + l * osh + (k + 2) * osw + j] = out_regs[2].sum();
+                    out[b * osb + l * osh + (k + 3) * osw + j] = out_regs[3].sum();
+                    out[b * osb + l * osh + (k + 4) * osw + j] = out_regs[4].sum();
+                    out[b * osb + l * osh + (k + 5) * osw + j] = out_regs[5].sum();
+                    out[b * osb + l * osh + (k + 6) * osw + j] = out_regs[6].sum();
                 }
             }
         });
