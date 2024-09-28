@@ -1,40 +1,43 @@
 // use std::ffi::CStr;
 // use std::hint::black_box;
 
+use std::hint::black_box;
+
 // use half::bf16;
 use ops::cpu::conv_config::{ Conv2dConfig, KernelParamAlgo };
 // use tch::{ Device, Kind, Tensor };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
-// fn assert_eq(a: &Tensor, b: &_Tensor<i64>) {
-//     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const i64, b.size()) };
-//     let b_raw = b.as_raw();
-//     for i in 0..b.size() {
-//         if a_raw[i] != b_raw[i] {
-//             println!("{} != {}", a_raw[i], b_raw[i]);
-//         }
-//     }
-// }
+const KERNEL_HEIGHT: usize = 5;
+const KERNEL_WIDTH: usize = 5;
+const IN_CHANNEL: usize = 4096;
+const OUT_CHANNEL: usize = 16;
+const IMG_HEIGHT: usize = 256;
+const IMG_WIDTH: usize = 256;
+const BATCH: usize = 1;
+
 fn main() -> anyhow::Result<()> {
-    set_global_display_precision(7);
-    set_global_display_lr_elements(6);
-    set_num_threads(16);
+    set_num_threads(8);
     let kernel = _Tensor::<f32>
-        ::arange(0, 16 * 16 * 3 * 3)?
-        .reshape([16, 16, 3, 3])?
+        ::randn(&[OUT_CHANNEL * IN_CHANNEL * KERNEL_HEIGHT * KERNEL_WIDTH])?
+        .reshape([OUT_CHANNEL as i64, IN_CHANNEL as i64, KERNEL_HEIGHT as i64, KERNEL_WIDTH as i64])?
         .permute([2, 3, 1, 0])?
         .contiguous()?;
     let a = _Tensor::<f32>
-        ::arange(0, 16 * 16 * 256 * 256)?
-        .reshape([16, 16, 256, 256])?
+        ::randn( &[BATCH * IN_CHANNEL * IMG_HEIGHT * IMG_WIDTH])?
+        .reshape([BATCH as i64, IN_CHANNEL as i64, IMG_HEIGHT as i64, IMG_WIDTH as i64])?
         .permute([0, 2, 3, 1])?
         .contiguous()?;
-    let config = Conv2dConfig::<f32>::new(16, 16, [3, 3], KernelParamAlgo::Greedy);
-    println!("config: {:?}", config);
-    let now = std::time::Instant::now();
-    for _ in 0..10 {
-        let _: _Tensor<f32> = a
+    let mut config = Conv2dConfig::<f32>::new(OUT_CHANNEL as i64, IN_CHANNEL as i64, [KERNEL_HEIGHT as i64, KERNEL_WIDTH as i64], KernelParamAlgo::Greedy);
+    // println!("config: {:?}", config);
+    {
+        let now = std::time::Instant::now();
+    config.set_ci_block_size(4096 as i64);
+    // config.set_co_block_size(16);
+    for _ in 0..5 {
+        println!("running");
+        let res = a
             .conv2d(
                 &kernel,
                 [1, 1],
@@ -44,11 +47,12 @@ fn main() -> anyhow::Result<()> {
                 ],
                 [1, 1],
                 Some(&config)
-            )?
-            .permute([0, 3, 1, 2])?;
-        // println!("{:?}", res);
+            )?;
+        // println!("{:?}", res.shape());
     }
-    println!("{:?}", now.elapsed() / 10);
+    println!("{:?}", now.elapsed() / 5);
+    };
+    
     // // println!("{:?}", res);
     Ok(())
 }

@@ -1,6 +1,6 @@
 use std::ops::{ Deref, DerefMut, Index, IndexMut };
 
-use crate::traits::{Init, VecCommon, VecTrait};
+use crate::traits::{Init, SimdSelect, VecCommon, VecTrait};
 
 /// a vector of 2 u64 values
 #[allow(non_camel_case_types)]
@@ -69,6 +69,13 @@ impl IndexMut<usize> for u64x2 {
         &mut self.as_mut_array()[idx]
     }
 }
+impl SimdSelect<u64x2> for u64x2 {
+    fn select(&self, true_val: u64x2, false_val: u64x2) -> u64x2 {
+        let mask: std::simd::mask64x2 = unsafe { std::mem::transmute(*self) };
+        u64x2(mask.select(true_val.0, false_val.0))
+    }
+}
+
 impl std::ops::Add for u64x2 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
