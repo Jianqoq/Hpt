@@ -375,6 +375,34 @@ where
     }
 }
 
+impl<T> Borrow<_Tensor<T, Cpu>> for &Tensor<T>
+where
+    T: CommonBounds,
+{
+    fn borrow(&self) -> &_Tensor<T, Cpu> {
+        &self.inner
+    }
+}
+
+impl<T> Borrow<_Tensor<T, Cpu>> for &mut Tensor<T>
+where
+    T: CommonBounds,
+{
+    fn borrow(&self) -> &_Tensor<T, Cpu> {
+        &self.inner
+    }
+}
+
+impl<T> BorrowMut<_Tensor<T, Cpu>> for &mut Tensor<T>
+where
+    T: CommonBounds,
+{
+    fn borrow_mut(&mut self) -> &mut _Tensor<T, Cpu> {
+        Arc::make_mut(&mut self.inner)
+    }
+}
+
+
 impl<T> BorrowMut<_Tensor<T, Cpu>> for Tensor<T>
 where
     T: CommonBounds,

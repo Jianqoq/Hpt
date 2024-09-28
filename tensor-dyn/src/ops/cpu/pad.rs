@@ -1,9 +1,9 @@
-use std::sync::{Arc, Barrier};
+use std::sync::{ Arc, Barrier };
 
 use tensor_common::shape_utils::mt_intervals;
-use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
+use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
 
-use crate::{tensor_base::_Tensor, THREAD_POOL};
+use crate::{ tensor_base::_Tensor, THREAD_POOL };
 
 impl<T: CommonBounds> _Tensor<T> {
     /// Converts the input tensor into a one-hot encoded tensor along a specified axis.
@@ -71,8 +71,7 @@ impl<T: CommonBounds> _Tensor<T> {
             for ((mut ptr, mut inp_prg), (start, end)) in ptrs
                 .into_iter()
                 .zip(prgs.into_iter())
-                .zip(intervals.into_iter())
-            {
+                .zip(intervals.into_iter()) {
                 let barrier_clone = barrier.clone();
                 let ndim = self.ndim();
                 let ts = self.strides().clone();
@@ -85,8 +84,10 @@ impl<T: CommonBounds> _Tensor<T> {
                     assert_eq!(tsp.len(), ndim);
                     assert_eq!(ts.len(), ndim);
                     assert_eq!(rs.len(), ndim);
-                    for (dim_idx, (&prg_idx, &stride)) in inp_prg.iter().zip(rs.iter()).enumerate()
-                    {
+                    for (dim_idx, (&prg_idx, &stride)) in inp_prg
+                        .iter()
+                        .zip(rs.iter())
+                        .enumerate() {
                         let padded_idx = prg_idx + pads[dim_idx].0;
                         let offset = padded_idx * stride;
                         res_ptr.offset(offset);

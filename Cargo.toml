@@ -18,7 +18,7 @@ members = [
 ]
 
 [dependencies]
-tensor-dyn = { path = "tensor-dyn", features = ["track_caller", "bound_check"]}
+tensor-dyn = { path = "tensor-dyn", features = ["track_caller"]}
 tensor-common = { path = "tensor-common"}
 anyhow = "1.0.40"
 half = "2.4.1"
@@ -34,21 +34,21 @@ name = "etensor"
 path = "src/main.rs"
 
 [profile.release]
-opt-level = 3
+opt-level = 0
 incremental = false
-debug = true
+debug = false
 # lto = "fat"
 # codegen-units = 1
 
 [profile.dev]
-opt-level = 3
+opt-level = 0
 incremental = false
 debug = true
 # lto = "fat"
 # codegen-units = 1
 
 [profile.test]
-opt-level = 3
+opt-level = 0
 incremental = false
 debug = true
 # lto = "fat"

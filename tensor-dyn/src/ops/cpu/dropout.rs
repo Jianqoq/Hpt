@@ -1,14 +1,14 @@
-use crate::{backend::Cpu, tensor_base::_Tensor};
+use crate::{ backend::Cpu, tensor_base::_Tensor };
 use rand_distr::Distribution;
 use rayon::iter::ParallelIterator;
-use tensor_iterator::{iterator_traits::ParStridedIteratorSimdZip, TensorIterator};
-use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
-use tensor_types::{into_scalar::IntoScalar, type_promote::NormalOut};
+use tensor_iterator::{ iterator_traits::ParStridedIteratorSimdZip, TensorIterator };
+use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
+use tensor_types::{ into_scalar::IntoScalar, type_promote::NormalOut };
 
 impl<T> _Tensor<T, Cpu>
-where
-    T: CommonBounds + NormalOut<bool, Output = T> + NormalOut<T, Output = T>,
-    f64: IntoScalar<T>,
+    where
+        T: CommonBounds + NormalOut<bool, Output = T> + NormalOut<T, Output = T>,
+        f64: IntoScalar<T>
 {
     /// Applies dropout to the tensor during training.
     ///
@@ -39,7 +39,7 @@ where
                 |rng, (ret, val)| {
                     let mask = bernoli.sample(rng);
                     *ret = val._mul(mask)._mul(scale);
-                },
+                }
             );
         Ok(ret)
     }

@@ -3,6 +3,9 @@ use crate::tensor_base::_Tensor;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
+use std::borrow::Borrow;
+use std::panic::Location;
+use tensor_common::err_handler::ErrHandler::InvalidOutSize;
 use tensor_iterator::iterator_traits::ParStridedIteratorSimdZip;
 use tensor_iterator::iterator_traits::ParStridedIteratorZip;
 use tensor_iterator::TensorIterator;
@@ -10,8 +13,6 @@ use tensor_traits::tensor::CommonBounds;
 use tensor_traits::tensor::TensorCreator;
 use tensor_traits::tensor::TensorInfo;
 use tensor_traits::TensorLike;
-
-use std::borrow::Borrow;
 use tensor_types::dtype::TypeCommon;
 
 /// Performs a binary operation on two tensors with optional SIMD optimization and an output tensor.
@@ -43,7 +44,7 @@ use tensor_types::dtype::TypeCommon;
 /// If the vector sizes of the input tensors match and SIMD is enabled, the `f2` function is applied to
 /// perform vectorized operations for faster computation. If not, the scalar function `f` is applied to each element.
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
+pub fn binary_fn_with_out_simd<A, B, O, K, F, F2>(
     lhs: &_Tensor<A>,
     rhs: &_Tensor<B>,
     f: F,
@@ -53,9 +54,8 @@ pub fn binary_fn_with_out_simd<A, B, O, Q, K, F, F2>(
 where
     A: CommonBounds,
     B: CommonBounds,
-    O: Borrow<_Tensor<Q>>,
+    O: Borrow<_Tensor<K>>,
     K: CommonBounds,
-    Q: CommonBounds,
     F: Fn(A, B) -> K + Sync + Send + Copy,
     F2: Fn(<A as TypeCommon>::Vec, <B as TypeCommon>::Vec) -> <K as TypeCommon>::Vec
         + Sync
@@ -68,127 +68,154 @@ where
         let val = lhs.as_raw()[0];
         let val_vec = <A as TypeCommon>::Vec::splat(val);
         let mut res = if let Some(out) = out {
-            if out.borrow().size() * size_of::<Q>() != rhs.size() * size_of::<B>() {
-                _Tensor::<K, Cpu>::empty(rhs.shape())?
+            if out.borrow().size() * size_of::<K>() != rhs.size() * size_of::<B>() {
+                return Err(InvalidOutSize(
+                    rhs.size() * size_of::<B>(),
+                    out.borrow().size() * size_of::<K>(),
+                    Location::caller(),
+                )
+                .into());
             } else {
                 out.borrow().static_cast::<K>()?
             }
         } else {
             _Tensor::<K, Cpu>::empty(rhs.shape())?
         };
-        if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
-            && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
-        {
-            let remain = res.size() % <A as TypeCommon>::Vec::SIZE;
-            res.as_raw_mut()
-                .par_chunks_exact_mut(<A as TypeCommon>::Vec::SIZE)
-                .zip(rhs.as_raw().par_chunks_exact(<A as TypeCommon>::Vec::SIZE))
-                .for_each(|(a, b)| {
-                    let inp = unsafe { <B as TypeCommon>::Vec::from_ptr(b.as_ptr()) };
-                    let res: *const K = f2(val_vec, inp).as_ptr();
-                    unsafe {
-                        std::ptr::copy_nonoverlapping(
-                            res,
-                            a.as_mut_ptr(),
-                            <A as TypeCommon>::Vec::SIZE,
-                        );
-                    }
-                });
-            if remain > 0 {
-                let ret_size = res.size();
-                res.as_raw_mut()[ret_size - remain..]
-                    .iter_mut()
-                    .zip(rhs.as_raw()[ret_size - remain..].iter())
+        if rhs.is_contiguous() {
+            if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
+                && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
+            {
+                let remain = res.size() % <A as TypeCommon>::Vec::SIZE;
+                res.as_raw_mut()
+                    .par_chunks_exact_mut(<A as TypeCommon>::Vec::SIZE)
+                    .zip(rhs.as_raw().par_chunks_exact(<A as TypeCommon>::Vec::SIZE))
                     .for_each(|(a, b)| {
-                        *a = f(val, *b);
+                        let inp = unsafe { <B as TypeCommon>::Vec::from_ptr(b.as_ptr()) };
+                        let res: *const K = f2(val_vec, inp).as_ptr();
+                        unsafe {
+                            std::ptr::copy_nonoverlapping(
+                                res,
+                                a.as_mut_ptr(),
+                                <A as TypeCommon>::Vec::SIZE,
+                            );
+                        }
                     });
+                if remain > 0 {
+                    let ret_size = res.size();
+                    res.as_raw_mut()[ret_size - remain..]
+                        .iter_mut()
+                        .zip(rhs.as_raw()[ret_size - remain..].iter())
+                        .for_each(|(a, b)| {
+                            *a = f(val, *b);
+                        });
+                }
+            } else {
+                res.as_raw_mut()
+                    .par_chunks_exact_mut(<K as TypeCommon>::Vec::SIZE)
+                    .zip(rhs.as_raw().par_chunks_exact(<K as TypeCommon>::Vec::SIZE))
+                    .for_each(|(a, b)| {
+                        a.iter_mut().zip(b.iter()).for_each(|(a, b)| {
+                            *a = f(val, *b);
+                        });
+                    });
+                let remain = res.size() % <K as TypeCommon>::Vec::SIZE;
+                if remain > 0 {
+                    let ret_size = res.size();
+                    res.as_raw_mut()[ret_size - remain..]
+                        .iter_mut()
+                        .zip(rhs.as_raw()[ret_size - remain..].iter())
+                        .for_each(|(a, b)| {
+                            *a = f(val, *b);
+                        });
+                }
             }
         } else {
-            res.as_raw_mut()
-                .par_chunks_exact_mut(<K as TypeCommon>::Vec::SIZE)
-                .zip(rhs.as_raw().par_chunks_exact(<K as TypeCommon>::Vec::SIZE))
-                .for_each(|(a, b)| {
-                    a.iter_mut().zip(b.iter()).for_each(|(a, b)| {
-                        *a = f(val, *b);
-                    });
-                });
-            let remain = res.size() % <K as TypeCommon>::Vec::SIZE;
-            if remain > 0 {
-                let ret_size = res.size();
-                res.as_raw_mut()[ret_size - remain..]
-                    .iter_mut()
-                    .zip(rhs.as_raw()[ret_size - remain..].iter())
-                    .for_each(|(a, b)| {
-                        *a = f(val, *b);
-                    });
-            }
+            res.par_iter_mut().zip(rhs.par_iter()).for_each(|(a, b)| {
+                *a = f(val, b);
+            });
         }
         Ok(res)
     } else if rhs.size() == 1 {
         let val = rhs.as_raw()[0];
         let val_vec = <B as TypeCommon>::Vec::splat(val);
         let mut res = if let Some(out) = out {
-            if out.borrow().size() * size_of::<Q>() != lhs.size() * size_of::<B>() {
-                _Tensor::<K, Cpu>::empty(lhs.shape())?
+            if out.borrow().size() * size_of::<K>() != lhs.size() * size_of::<B>() {
+                return Err(InvalidOutSize(
+                    lhs.size() * size_of::<B>(),
+                    out.borrow().size() * size_of::<K>(),
+                    Location::caller(),
+                )
+                .into());
             } else {
                 _Tensor::<K, Cpu>::empty(lhs.shape())?
             }
         } else {
             _Tensor::<K, Cpu>::empty(lhs.shape())?
         };
-        if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
-            && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
-        {
-            let remain = res.size() % <A as TypeCommon>::Vec::SIZE;
-            res.as_raw_mut()
-                .par_chunks_exact_mut(<A as TypeCommon>::Vec::SIZE)
-                .zip(lhs.as_raw().par_chunks_exact(<A as TypeCommon>::Vec::SIZE))
-                .for_each(|(a, lhs)| {
-                    let inp = unsafe { <A as TypeCommon>::Vec::from_ptr(lhs.as_ptr()) };
-                    let res: *const K = f2(inp, val_vec).as_ptr();
-                    unsafe {
-                        std::ptr::copy_nonoverlapping(
-                            res,
-                            a.as_mut_ptr(),
-                            <A as TypeCommon>::Vec::SIZE,
-                        );
-                    }
-                });
-            if remain > 0 {
-                let ret_size = res.size();
-                res.as_raw_mut()[ret_size - remain..]
-                    .iter_mut()
-                    .zip(lhs.as_raw()[ret_size - remain..].iter())
+        if lhs.is_contiguous() {
+            if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
+                && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
+            {
+                let remain = res.size() % <A as TypeCommon>::Vec::SIZE;
+                res.as_raw_mut()
+                    .par_chunks_exact_mut(<A as TypeCommon>::Vec::SIZE)
+                    .zip(lhs.as_raw().par_chunks_exact(<A as TypeCommon>::Vec::SIZE))
                     .for_each(|(a, lhs)| {
-                        *a = f(*lhs, val);
+                        let inp = unsafe { <A as TypeCommon>::Vec::from_ptr(lhs.as_ptr()) };
+                        let res: *const K = f2(inp, val_vec).as_ptr();
+                        unsafe {
+                            std::ptr::copy_nonoverlapping(
+                                res,
+                                a.as_mut_ptr(),
+                                <A as TypeCommon>::Vec::SIZE,
+                            );
+                        }
                     });
+                if remain > 0 {
+                    let ret_size = res.size();
+                    res.as_raw_mut()[ret_size - remain..]
+                        .iter_mut()
+                        .zip(lhs.as_raw()[ret_size - remain..].iter())
+                        .for_each(|(a, lhs)| {
+                            *a = f(*lhs, val);
+                        });
+                }
+            } else {
+                res.as_raw_mut()
+                    .par_chunks_exact_mut(<K as TypeCommon>::Vec::SIZE)
+                    .zip(lhs.as_raw().par_chunks_exact(<K as TypeCommon>::Vec::SIZE))
+                    .for_each(|(a, lhs)| {
+                        a.iter_mut().zip(lhs.iter()).for_each(|(a, lhs)| {
+                            *a = f(*lhs, val);
+                        });
+                    });
+                let remain = res.size() % <K as TypeCommon>::Vec::SIZE;
+                if remain > 0 {
+                    let ret_size = res.size();
+                    res.as_raw_mut()[ret_size - remain..]
+                        .iter_mut()
+                        .zip(lhs.as_raw()[ret_size - remain..].iter())
+                        .for_each(|(a, lhs)| {
+                            *a = f(*lhs, val);
+                        });
+                }
             }
         } else {
-            res.as_raw_mut()
-                .par_chunks_exact_mut(<K as TypeCommon>::Vec::SIZE)
-                .zip(lhs.as_raw().par_chunks_exact(<K as TypeCommon>::Vec::SIZE))
-                .for_each(|(a, lhs)| {
-                    a.iter_mut().zip(lhs.iter()).for_each(|(a, lhs)| {
-                        *a = f(*lhs, val);
-                    });
-                });
-            let remain = res.size() % <K as TypeCommon>::Vec::SIZE;
-            if remain > 0 {
-                let ret_size = res.size();
-                res.as_raw_mut()[ret_size - remain..]
-                    .iter_mut()
-                    .zip(lhs.as_raw()[ret_size - remain..].iter())
-                    .for_each(|(a, lhs)| {
-                        *a = f(*lhs, val);
-                    });
-            }
+            res.par_iter_mut().zip(lhs.par_iter()).for_each(|(a, lhs)| {
+                *a = f(lhs, val);
+            });
         }
         Ok(res)
     } else {
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
             let mut ret = if let Some(out) = out {
-                if out.borrow().size() * size_of::<Q>() != rhs.size() * size_of::<B>() {
-                    _Tensor::<K, Cpu>::empty(rhs.shape())?
+                if out.borrow().size() * size_of::<K>() != rhs.size() * size_of::<B>() {
+                    return Err(InvalidOutSize(
+                        rhs.size() * size_of::<B>(),
+                        out.borrow().size() * size_of::<K>(),
+                        Location::caller(),
+                    )
+                    .into());
                 } else {
                     out.borrow().static_cast::<K>()?
                 }

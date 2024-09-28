@@ -28,7 +28,7 @@ fn case1_helper<T, const REGNUM: usize>(
     mut out: Pointer<T>,
     micro_kernel: fn(i64, i64, i64, i64, &Pointer<T>, &mut [T::Vec; REGNUM]),
 ) where
-    T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
+    T: CommonBounds + IntoScalar<T>,
 {
     for j in 0..num_co_rb {
         let mut res_buffer = [T::Vec::splat(T::ZERO); REGNUM];

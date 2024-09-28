@@ -14,10 +14,7 @@ use tensor_traits::ShapeManipulate;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
 
-impl<T> _Tensor<T>
-where
-    T: CommonBounds + PartialOrd,
-{
+impl<T> _Tensor<T> where T: CommonBounds + PartialOrd {
     /// Returns the top `k` values and their indices along the specified dimension.
     ///
     /// This method retrieves the top `k` largest or smallest values from the tensor along the given `dim` axis,
@@ -42,7 +39,7 @@ where
         k: i64,
         dim: i64,
         largest: bool,
-        sorted: bool,
+        sorted: bool
     ) -> anyhow::Result<(_Tensor<i64>, _Tensor<T>)> {
         let mut axes = (0..self.ndim() as i64).collect::<Vec<i64>>();
         axes.swap(dim as usize, self.ndim() - 1);
@@ -116,8 +113,7 @@ where
                 .zip(res_prgs.into_iter().rev())
                 .zip(ptrs.into_iter().rev())
                 .zip(res_ptrs.into_iter().rev())
-                .zip(res_indices_ptrs.into_iter().rev())
-            {
+                .zip(res_indices_ptrs.into_iter().rev()) {
                 let inner_loop = *transposed.shape().last().unwrap() as isize;
                 let res_inner_loop = *transposed_res_shape.last().unwrap() as isize;
                 let barrier_clone = barrier.clone();
@@ -181,17 +177,11 @@ where
             }
             barrier.wait();
         });
-        Ok((
-            transposed_res_indices.permute(&axes)?,
-            transposed_res.permute(&axes)?,
-        ))
+        Ok((transposed_res_indices.permute(&axes)?, transposed_res.permute(&axes)?))
     }
 }
 
-impl<T> Tensor<T>
-where
-    T: CommonBounds + PartialOrd,
-{
+impl<T> Tensor<T> where T: CommonBounds + PartialOrd {
     /// Returns the top `k` largest or smallest elements along a specified dimension of the tensor.
     ///
     /// The `topk` function returns the top `k` elements along the specified dimension of the tensor, where `largest` determines
@@ -212,7 +202,7 @@ where
         k: i64,
         dim: i64,
         largest: bool,
-        sorted: bool,
+        sorted: bool
     ) -> anyhow::Result<(Tensor<i64>, Tensor<T>)> {
         let (a, b) = self.inner.topk(k, dim, largest, sorted)?;
         Ok((a.into(), b.into()))
@@ -220,9 +210,7 @@ where
 }
 
 fn topk_with_indices<T, F>(arr: &mut [(T, usize)], k: usize, compare: F)
-where
-    T: PartialOrd + Copy,
-    F: Fn(&T, &T) -> Ordering + Copy,
+    where T: PartialOrd + Copy, F: Fn(&T, &T) -> Ordering + Copy
 {
     let n = arr.len();
     quickselect_with_indices(arr, 0, n - 1, n - k, compare);
@@ -233,10 +221,9 @@ fn quickselect_with_indices<T, F>(
     low: usize,
     high: usize,
     k: usize,
-    compare: F,
-) where
-    T: PartialOrd + Copy,
-    F: Fn(&T, &T) -> Ordering + Copy,
+    compare: F
+)
+    where T: PartialOrd + Copy, F: Fn(&T, &T) -> Ordering + Copy
 {
     if low < high {
         let pi = partition_with_indices(arr, low, high, compare);
@@ -252,11 +239,10 @@ fn partition_with_indices<T, F>(
     arr: &mut [(T, usize)],
     low: usize,
     high: usize,
-    compare: F,
-) -> usize
-where
-    T: PartialOrd + Copy,
-    F: Fn(&T, &T) -> Ordering + Copy,
+    compare: F
+)
+    -> usize
+    where T: PartialOrd + Copy, F: Fn(&T, &T) -> Ordering + Copy
 {
     let mut rng = rand::thread_rng();
     let pivot_index = rng.gen_range(low..=high);

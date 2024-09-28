@@ -1,4 +1,3 @@
-
 /// argmax kernel
 #[macro_export]
 macro_rules! argmax_kernel {

@@ -344,7 +344,7 @@ pub fn level_to_int_expr(level: u8) -> syn::Expr {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub(crate) enum Type {
     Bool,
     I8,

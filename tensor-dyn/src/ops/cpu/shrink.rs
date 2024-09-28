@@ -1,17 +1,17 @@
-use std::ops::{Add, Neg, Sub};
+use std::ops::{ Add, Neg, Sub };
 
-use crate::{tensor::Tensor, tensor_base::_Tensor};
+use crate::{ tensor::Tensor, tensor_base::_Tensor };
 use tensor_iterator::TensorIterator;
 use tensor_traits::CommonBounds;
-use tensor_types::traits::{Init, SimdSelect};
+use tensor_types::traits::{ Init, SimdSelect };
 use tensor_types::type_promote::SimdCmp;
-use tensor_types::type_promote::{NormalOut, NormalOutUnary};
+use tensor_types::type_promote::{ NormalOut, NormalOutUnary };
 
 impl<T> _Tensor<T>
-where
-    T: CommonBounds + PartialOrd + Sub<Output = T> + Neg<Output = T> + Add<Output = T>,
-    T::Vec: SimdCmp + NormalOut<Output = T::Vec>,
-    <T::Vec as SimdCmp>::Output: SimdSelect<T::Vec>,
+    where
+        T: CommonBounds + PartialOrd + Sub<Output = T> + Neg<Output = T> + Add<Output = T>,
+        T::Vec: SimdCmp + NormalOut<Output = T::Vec>,
+        <T::Vec as SimdCmp>::Output: SimdSelect<T::Vec>
 {
     /// Applies the shrinkage operation to the input tensor.
     ///
@@ -39,37 +39,39 @@ where
         let neg_lambda_vec = lambda_vec._neg();
         let bias_vec = T::Vec::splat(bias);
 
-        Ok(self
-            .par_iter_simd()
-            .strided_map_simd(
-                |(x, y)| {
-                    *x = if y > lambda {
-                        y - bias
-                    } else if y < -lambda {
-                        y + bias
-                    } else {
-                        T::ZERO
-                    };
-                },
-                |(mut x, y)| {
-                    let gt_mask = y._gt(lambda_vec);
-                    let lt_mask = y._lt(neg_lambda_vec);
-                    let sub_bias = y._sub(bias_vec);
-                    let add_bias = y._add(bias_vec);
-                    let zero = T::Vec::splat(T::ZERO);
-                    let res = gt_mask.select(sub_bias, zero);
-                    x.write_unaligned(lt_mask.select(add_bias, res));
-                },
-            )
-            .collect())
+        Ok(
+            self
+                .par_iter_simd()
+                .strided_map_simd(
+                    |(x, y)| {
+                        *x = if y > lambda {
+                            y - bias
+                        } else if y < -lambda {
+                            y + bias
+                        } else {
+                            T::ZERO
+                        };
+                    },
+                    |(mut x, y)| {
+                        let gt_mask = y._gt(lambda_vec);
+                        let lt_mask = y._lt(neg_lambda_vec);
+                        let sub_bias = y._sub(bias_vec);
+                        let add_bias = y._add(bias_vec);
+                        let zero = T::Vec::splat(T::ZERO);
+                        let res = gt_mask.select(sub_bias, zero);
+                        x.write_unaligned(lt_mask.select(add_bias, res));
+                    }
+                )
+                .collect()
+        )
     }
 }
 
 impl<T> Tensor<T>
-where
-    T: CommonBounds + PartialOrd + Sub<Output = T> + Neg<Output = T> + Add<Output = T>,
-    T::Vec: SimdCmp + NormalOut<Output = T::Vec>,
-    <T::Vec as SimdCmp>::Output: SimdSelect<T::Vec>,
+    where
+        T: CommonBounds + PartialOrd + Sub<Output = T> + Neg<Output = T> + Add<Output = T>,
+        T::Vec: SimdCmp + NormalOut<Output = T::Vec>,
+        <T::Vec as SimdCmp>::Output: SimdSelect<T::Vec>
 {
     /// Applies the shrinkage operation to the input tensor.
     ///

@@ -4,7 +4,6 @@ use tch::Tensor;
 use tensor_common::slice;
 use tensor_common::slice::Slice;
 use tensor_dyn::FloatUaryOps;
-use tensor_dyn::Neg;
 use tensor_dyn::NormalUaryOps;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorInfo;

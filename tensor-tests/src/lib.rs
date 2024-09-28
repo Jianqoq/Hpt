@@ -10,6 +10,7 @@ pub mod tensor_dyn {
     pub mod lp_pool2d;
     pub mod slice;
     pub mod test_lib;
+    pub mod binary_out;
 }
 
 pub mod tensor_common {

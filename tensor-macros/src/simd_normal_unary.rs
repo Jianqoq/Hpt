@@ -247,7 +247,7 @@ pub(crate) fn impl_simd_normal_out_unary() -> TokenStream {
                     self
                 }
                 fn _square(self) -> Self {
-                    self
+                    self * self
                 }
             }
         };

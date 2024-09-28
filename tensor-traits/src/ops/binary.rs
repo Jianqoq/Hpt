@@ -1,4 +1,4 @@
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::{ Borrow, BorrowMut };
 
 use anyhow::Result;
 use tensor_types::dtype::TypeCommon;
@@ -7,8 +7,7 @@ use crate::tensor::CommonBounds;
 
 /// A trait for binary operations on tensors.
 pub trait NormalBinOps<RHS = Self>
-where
-    <<Self as NormalBinOps<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync,
+    where <<Self as NormalBinOps<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync
 {
     /// The output tensor type.
     type Output;
@@ -23,8 +22,7 @@ where
     ///
     /// - [`add`]: Perform addition of `self` and `rhs` element-wise, with auto broadcasting.
     fn add_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput>;
+        where U: Borrow<Self::InplaceOutput>;
 
     /// Inplace version of subtraction
     ///
@@ -32,8 +30,7 @@ where
     ///
     /// - [`sub`]: Perform subtraction of `self` and `rhs` element-wise, with auto broadcasting.
     fn sub_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput>;
+        where U: Borrow<Self::InplaceOutput>;
 
     /// Inplace version of multiplication
     ///
@@ -41,8 +38,7 @@ where
     ///
     /// - [`mul`]: Perform multiplication of `self` and `rhs` element-wise, with auto broadcasting.
     fn mul_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput>;
+        where U: Borrow<Self::InplaceOutput>;
 
     /// Inplace version of rem
     ///
@@ -50,14 +46,12 @@ where
     ///
     /// - [`div`]: Perform rem of `self` and `rhs` element-wise, with auto broadcasting.
     fn rem_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput>;
+        where U: Borrow<Self::InplaceOutput>;
 }
 
 /// A trait for matrix multiplication operations on tensors.
 pub trait Matmul<RHS = Self>
-where
-    <<Self as Matmul<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync,
+    where <<Self as Matmul<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync
 {
     /// The output tensor type.
     type Output;
@@ -88,6 +82,7 @@ where
     /// - **Broadcasting**: For higher-dimensional tensors, the function broadcasts over the batch dimensions and performs matrix
     ///   multiplication on the last two dimensions.
     /// - **Compatibility**: The input tensors must have compatible shapes for matrix multiplication.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn matmul(&self, rhs: RHS) -> Result<Self::Output>;
 
     /// Inplace version of matmul
@@ -95,7 +90,7 @@ where
     /// # See Also
     ///
     /// - [`matmul`]: Perform matrix multiplication of `self` and `rhs`.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn matmul_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
-    where
-        U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>;
+        where U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>;
 }

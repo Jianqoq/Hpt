@@ -71,7 +71,8 @@ where
         for _ in 0..outer_loop_size {
             for i in 0..inner_loop_size {
                 let item = self.iter.inner_loop_next(i);
-                folder = folder.consume((self.fold_op)(init, item));
+                let val = (self.fold_op)(init, item);
+                folder = folder.consume(val);
             }
             self.iter.next();
         }

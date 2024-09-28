@@ -1,8 +1,8 @@
 use crate::ops::cpu::concat::concat;
-use crate::{tensor::Tensor, tensor_base::_Tensor};
+use crate::{ tensor::Tensor, tensor_base::_Tensor };
 use anyhow::Result;
-use tensor_common::{axis::Axis, shape::Shape};
-use tensor_traits::{CommonBounds, ShapeManipulate};
+use tensor_common::{ axis::Axis, shape::Shape };
+use tensor_traits::{ CommonBounds, ShapeManipulate };
 
 impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     type Meta = T;
@@ -482,10 +482,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// let trimmed_tensor = tensor.trim_zeros("fb").unwrap();
     /// assert!(trimmed_tensor.allclose(&Tensor::<f64>::new(vec![1.0, 2.0]).reshape(&[2]).unwrap()));
     /// ```
-    fn trim_zeros(&self, trim: &str) -> Result<Self>
-    where
-        Self::Meta: PartialEq,
-    {
+    fn trim_zeros(&self, trim: &str) -> Result<Self> where Self::Meta: PartialEq {
         Ok(_Tensor::trim_zeros(self, trim)?.into())
     }
 
@@ -568,10 +565,13 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// ));
     /// ```
     fn split(&self, indices_or_sections: &[i64], axis: i64) -> Result<Vec<Self>> {
-        Ok(_Tensor::split(self, indices_or_sections, axis)?
-            .into_iter()
-            .map(|x| x.into())
-            .collect())
+        Ok(
+            _Tensor
+                ::split(self, indices_or_sections, axis)?
+                .into_iter()
+                .map(|x| x.into())
+                .collect()
+        )
     }
 
     /// Splits the tensor into multiple sub-tensors along the depth axis (third dimension).
@@ -611,10 +611,13 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// ));
     /// ```
     fn dsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
-        Ok(_Tensor::dsplit(self, indices)?
-            .into_iter()
-            .map(|x| x.into())
-            .collect())
+        Ok(
+            _Tensor
+                ::dsplit(self, indices)?
+                .into_iter()
+                .map(|x| x.into())
+                .collect()
+        )
     }
 
     /// Splits the tensor into multiple sub-tensors along the horizontal axis (second dimension).
@@ -654,10 +657,13 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// ));
     /// ```
     fn hsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
-        Ok(_Tensor::hsplit(self, indices)?
-            .into_iter()
-            .map(|x| x.into())
-            .collect())
+        Ok(
+            _Tensor
+                ::hsplit(self, indices)?
+                .into_iter()
+                .map(|x| x.into())
+                .collect()
+        )
     }
 
     /// Splits the tensor into multiple sub-tensors along the vertical axis (first dimension).
@@ -697,10 +703,13 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// ));
     /// ```
     fn vsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
-        Ok(_Tensor::vsplit(self, indices)?
-            .into_iter()
-            .map(|x| x.into())
-            .collect())
+        Ok(
+            _Tensor
+                ::vsplit(self, indices)?
+                .into_iter()
+                .map(|x| x.into())
+                .collect()
+        )
     }
 
     /// Swaps two axes of the tensor, effectively transposing the data along the specified axes.
@@ -761,10 +770,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// let flattened_tensor = tensor.flatten(None, None).unwrap();
     /// assert_eq!(flattened_tensor.shape().inner(), &[4]);
     /// ```
-    fn flatten<A>(&self, start: A, end: A) -> Result<Self>
-    where
-        A: Into<Option<usize>>,
-    {
+    fn flatten<A>(&self, start: A, end: A) -> Result<Self> where A: Into<Option<usize>> {
         Ok(_Tensor::flatten(self, start, end)?.into())
     }
 
@@ -805,12 +811,16 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// ));
     /// ```
     fn concat(tensors: Vec<&Self>, axis: usize, keepdims: bool) -> Result<Self> {
-        Ok(concat(
-            tensors.iter().map(|x| x.inner.as_ref()).collect(),
-            axis,
-            keepdims,
-        )?
-        .into())
+        Ok(
+            concat(
+                tensors
+                    .iter()
+                    .map(|x| x.inner.as_ref())
+                    .collect(),
+                axis,
+                keepdims
+            )?.into()
+        )
     }
     /// Stacks multiple tensors vertically (along the first axis).
     ///
@@ -846,7 +856,16 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// ));
     /// ```
     fn vstack(tensors: Vec<&Self>) -> Result<Self> {
-        Ok(concat(tensors.iter().map(|x| x.inner.as_ref()).collect(), 0, false)?.into())
+        Ok(
+            concat(
+                tensors
+                    .iter()
+                    .map(|x| x.inner.as_ref())
+                    .collect(),
+                0,
+                false
+            )?.into()
+        )
     }
 
     /// Stacks multiple tensors horizontally (along the second axis).
@@ -875,7 +894,16 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// assert!(stacked_tensor.allclose(&Tensor::<f64>::new([[1.0, 3.0], [2.0, 4.0]])));
     /// ```
     fn hstack(tensors: Vec<&Self>) -> Result<Self> {
-        Ok(concat(tensors.iter().map(|x| x.inner.as_ref()).collect(), 1, false)?.into())
+        Ok(
+            concat(
+                tensors
+                    .iter()
+                    .map(|x| x.inner.as_ref())
+                    .collect(),
+                1,
+                false
+            )?.into()
+        )
     }
 
     /// Stacks multiple tensors along the depth axis (third dimension).
@@ -904,6 +932,15 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// assert!(stacked_tensor.allclose(&Tensor::<f64>::new([[[1.0, 3.0]], [[2.0, 4.0]]])));
     /// ```
     fn dstack(tensors: Vec<&Self>) -> Result<Self> {
-        Ok(concat(tensors.iter().map(|x| x.inner.as_ref()).collect(), 2, false)?.into())
+        Ok(
+            concat(
+                tensors
+                    .iter()
+                    .map(|x| x.inner.as_ref())
+                    .collect(),
+                2,
+                false
+            )?.into()
+        )
     }
 }

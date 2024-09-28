@@ -5,9 +5,21 @@ use tensor_iterator::iterator_traits::ParStridedIteratorZip;
 use tensor_iterator::TensorIterator;
 use std::ops::AddAssign;
 use std::ops::{
-    Add, BitAnd, BitOr, BitXor, Div, Mul, MulAssign, Rem, RemAssign, Shl, Shr, Sub, SubAssign,
+    Add,
+    BitAnd,
+    BitOr,
+    BitXor,
+    Div,
+    Mul,
+    MulAssign,
+    Rem,
+    RemAssign,
+    Shl,
+    Shr,
+    Sub,
+    SubAssign,
 };
-use tensor_traits::tensor::{CommonBounds, TensorInfo};
+use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use tensor_types::convertion::Convertor;
 use tensor_types::dtype::TypeCommon;
 use tensor_types::into_scalar::IntoScalar;
@@ -169,33 +181,13 @@ macro_rules! normal_promote_ops_assign {
     };
 }
 
-normal_promote_ops_1!(
-    [Add, add, _add],
-    [Sub, sub, _sub],
-    [Mul, mul, _mul],
-    [Rem, rem, _rem]
-);
+normal_promote_ops_1!([Add, add, _add], [Sub, sub, _sub], [Mul, mul, _mul], [Rem, rem, _rem]);
 
-normal_promote_ops_2!(
-    [Add, add, _add],
-    [Sub, sub, _sub],
-    [Mul, mul, _mul],
-    [Rem, rem, _rem]
-);
+normal_promote_ops_2!([Add, add, _add], [Sub, sub, _sub], [Mul, mul, _mul], [Rem, rem, _rem]);
 
-normal_promote_ops_3!(
-    [Add, add, _add],
-    [Sub, sub, _sub],
-    [Mul, mul, _mul],
-    [Rem, rem, _rem]
-);
+normal_promote_ops_3!([Add, add, _add], [Sub, sub, _sub], [Mul, mul, _mul], [Rem, rem, _rem]);
 
-normal_promote_ops_4!(
-    [Add, add, _add],
-    [Sub, sub, _sub],
-    [Mul, mul, _mul],
-    [Rem, rem, _rem]
-);
+normal_promote_ops_4!([Add, add, _add], [Sub, sub, _sub], [Mul, mul, _mul], [Rem, rem, _rem]);
 
 normal_promote_ops_assign!(
     [AddAssign, add_assign, _add],
@@ -561,10 +553,9 @@ float_binary_promote_ops_2!([Div, div, _div]);
 float_binary_promote_ops_3!([Div, div, _div]);
 float_binary_promote_ops_4!([Div, div, _div]);
 
-impl<T, U> PartialEq<_Tensor<U>> for _Tensor<T>
-where
-    T: CommonBounds + Convertor,
-    U: CommonBounds + Convertor,
+impl<T, U> PartialEq<_Tensor<U>>
+    for _Tensor<T>
+    where T: CommonBounds + Convertor, U: CommonBounds + Convertor
 {
     fn eq(&self, other: &_Tensor<U>) -> bool {
         if self.size() != other.size() {
@@ -647,6 +638,81 @@ macro_rules! normal_scalar_rhs {
     };
 }
 
+macro_rules! bitwise_scalar_rhs {
+    (
+        $([
+            $type:ident,
+            [$($tokens:tt)*]
+        ]),*
+    ) => {
+        $(impl<T> BitAnd<$type> for $($tokens)*_Tensor<T>
+         where T: BitWiseOut<$type> + CommonBounds,
+         <T as BitWiseOut<$type>>::Output: CommonBounds,
+         <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+         T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = _Tensor<<T as BitWiseOut<$type>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn bitand(self, rhs: $type) -> Self::Output {
+                let rhs: _Tensor<$type> = rhs.into();
+                binary_fn_with_out_simd(&self, &rhs, |x, y| x._bitand(y), |x, y| x._bitand(y), None::<_Tensor<<T as BitWiseOut<$type>>::Output>>).unwrap()
+            }
+        }
+        impl<T> BitOr<$type> for $($tokens)*_Tensor<T>
+        where T: BitWiseOut<$type> + CommonBounds,
+        <T as BitWiseOut<$type>>::Output: CommonBounds,
+        <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+        T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = _Tensor<<T as BitWiseOut<$type>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn bitor(self, rhs: $type) -> Self::Output {
+                let rhs: _Tensor<$type> = rhs.into();
+                binary_fn_with_out_simd(&self, &rhs, |x, y| x._bitor(y), |x, y| x._bitor(y), None::<_Tensor<<T as BitWiseOut<$type>>::Output>>).unwrap()
+            }
+        }
+        impl<T> BitXor<$type> for $($tokens)*_Tensor<T>
+        where T: BitWiseOut<$type> + CommonBounds,
+        <T as BitWiseOut<$type>>::Output: CommonBounds,
+        <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+        T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = _Tensor<<T as BitWiseOut<$type>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn bitxor(self, rhs: $type) -> Self::Output {
+                let rhs: _Tensor<$type> = rhs.into();
+                binary_fn_with_out_simd(&self, &rhs, |x, y| x._bitxor(y), |x, y| x._bitxor(y), None::<_Tensor<<T as BitWiseOut<$type>>::Output>>).unwrap()
+            }
+        }
+        impl<T> Shl<$type> for $($tokens)*_Tensor<T>
+        where T: BitWiseOut<$type> + CommonBounds,
+        <T as BitWiseOut<$type>>::Output: CommonBounds,
+        <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+        T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = _Tensor<<T as BitWiseOut<$type>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn shl(self, rhs: $type) -> Self::Output {
+                let rhs: _Tensor<$type> = rhs.into();
+                binary_fn_with_out_simd(&self, &rhs, |x, y| x._shl(y), |x, y| x._shl(y), None::<_Tensor<<T as BitWiseOut<$type>>::Output>>).unwrap()
+            }
+        }
+        impl<T> Shr<$type> for $($tokens)*_Tensor<T>
+        where T: BitWiseOut<$type> + CommonBounds,
+        <T as BitWiseOut<$type>>::Output: CommonBounds,
+        <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+        T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = _Tensor<<T as BitWiseOut<$type>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn shr(self, rhs: $type) -> Self::Output {
+                let rhs: _Tensor<$type> = rhs.into();
+                binary_fn_with_out_simd(&self, &rhs, |x, y| x._shr(y), |x, y| x._shr(y), None::<_Tensor<<T as BitWiseOut<$type>>::Output>>).unwrap()
+            }
+        })*
+    };
+}
+
 macro_rules! normal_scalar_lhs {
     (
         $([
@@ -704,6 +770,78 @@ macro_rules! normal_scalar_lhs {
         })*
     };
 }
+
+macro_rules! bitwise_scalar_lhs {
+    (
+        $([
+            $type:ident,
+            [$($tokens:tt)*]
+        ]),*
+    ) => {
+        $(impl<T> BitAnd<$($tokens)*_Tensor<T>> for $type
+        where T: BitWiseOut<T> + CommonBounds,
+        <$type as BitWiseOut<T>>::Output: CommonBounds, $type: BitWiseOut<T>,
+        <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = _Tensor<<$type as BitWiseOut<T>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn bitand(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
+                let lhs: _Tensor<$type> = self.into();
+                binary_fn_with_out_simd(&lhs, &rhs, |x, y| x._bitand(y), |x, y| x._bitand(y), None::<_Tensor<<$type as BitWiseOut<T>>::Output>>).unwrap()
+            }
+        }
+        impl<T> BitOr<$($tokens)*_Tensor<T>> for $type
+        where T: BitWiseOut<T> + CommonBounds,
+        <$type as BitWiseOut<T>>::Output: CommonBounds, $type: BitWiseOut<T>,
+        <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = _Tensor<<$type as BitWiseOut<T>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn bitor(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
+                let lhs: _Tensor<$type> = self.into();
+                binary_fn_with_out_simd(&lhs, &rhs, |x, y| x._bitor(y), |x, y| x._bitor(y), None::<_Tensor<<$type as BitWiseOut<T>>::Output>>).unwrap()
+            }
+        }
+        impl<T> BitXor<$($tokens)*_Tensor<T>> for $type
+        where T: BitWiseOut<T> + CommonBounds,
+        <$type as BitWiseOut<T>>::Output: CommonBounds, $type: BitWiseOut<T>,
+        <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = _Tensor<<$type as BitWiseOut<T>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn bitxor(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
+                let lhs: _Tensor<$type> = self.into();
+                binary_fn_with_out_simd(&lhs, &rhs, |x, y| x._bitxor(y), |x, y| x._bitxor(y), None::<_Tensor<<$type as BitWiseOut<T>>::Output>>).unwrap()
+            }
+        }
+        impl<T> Shl<$($tokens)*_Tensor<T>> for $type
+        where T: BitWiseOut<T> + CommonBounds,
+        <$type as BitWiseOut<T>>::Output: CommonBounds, $type: BitWiseOut<T>,
+        <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = _Tensor<<$type as BitWiseOut<T>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn shl(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
+                let lhs: _Tensor<$type> = self.into();
+                binary_fn_with_out_simd(&lhs, &rhs, |x, y| x._shl(y), |x, y| x._shl(y), None::<_Tensor<<$type as BitWiseOut<T>>::Output>>).unwrap()
+            }
+        }
+        impl<T> Shr<$($tokens)*_Tensor<T>> for $type
+        where T: BitWiseOut<T> + CommonBounds,
+        <$type as BitWiseOut<T>>::Output: CommonBounds, $type: BitWiseOut<T>,
+        <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = _Tensor<<$type as BitWiseOut<T>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn shr(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
+                let lhs: _Tensor<$type> = self.into();
+                binary_fn_with_out_simd(&lhs, &rhs, |x, y| x._shr(y), |x, y| x._shr(y), None::<_Tensor<<$type as BitWiseOut<T>>::Output>>).unwrap()
+            }
+        }
+    )*
+    };
+}
+
 use half::bf16;
 use half::f16;
 use num::complex::Complex32;
@@ -726,7 +864,37 @@ normal_scalar_rhs!(
     [Complex64, []]
 );
 
+bitwise_scalar_rhs!(
+    [bool, []],
+    [i8, []],
+    [i16, []],
+    [i32, []],
+    [i64, []],
+    [u8, []],
+    [u16, []],
+    [u32, []],
+    [u64, []]
+);
+
 normal_scalar_rhs!(
+    [bool, [&]],
+    [i8, [&]],
+    [i16, [&]],
+    [i32, [&]],
+    [i64, [&]],
+    [u8, [&]],
+    [u16, [&]],
+    [u32, [&]],
+    [u64, [&]],
+    [f16, [&]],
+    [f32, [&]],
+    [f64, [&]],
+    [bf16, [&]],
+    [Complex32, [&]],
+    [Complex64, [&]]
+);
+
+bitwise_scalar_rhs!(
     [bool, [&]],
     [i8, [&]],
     [i16, [&]],
@@ -762,7 +930,37 @@ normal_scalar_lhs!(
     [Complex64, []]
 );
 
+bitwise_scalar_lhs!(
+    [bool, []],
+    [i8, []],
+    [i16, []],
+    [i32, []],
+    [i64, []],
+    [u8, []],
+    [u16, []],
+    [u32, []],
+    [u64, []]
+);
+
 normal_scalar_lhs!(
+    [bool, [&]],
+    [i8, [&]],
+    [i16, [&]],
+    [i32, [&]],
+    [i64, [&]],
+    [u8, [&]],
+    [u16, [&]],
+    [u32, [&]],
+    [u64, [&]],
+    [f16, [&]],
+    [f32, [&]],
+    [f64, [&]],
+    [bf16, [&]],
+    [Complex32, [&]],
+    [Complex64, [&]]
+);
+
+bitwise_scalar_lhs!(
     [bool, [&]],
     [i8, [&]],
     [i16, [&]],

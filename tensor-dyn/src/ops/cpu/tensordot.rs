@@ -93,4 +93,3 @@ macro_rules! impl_tensordot {
 }
 
 impl_tensordot!(_Tensor, _tensordot);
-

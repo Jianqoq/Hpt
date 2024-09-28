@@ -1,17 +1,20 @@
-use std::ops::{Div, Sub};
+use std::ops::{ Div, Sub };
 
 use crate::{
-    backend::Cpu, ops::cpu::tensor_internal::float_out_unary::FloatUnaryType, tensor::Tensor,
-    tensor_base::_Tensor, BoolVector,
+    backend::Cpu,
+    ops::cpu::tensor_internal::float_out_unary::FloatUnaryType,
+    tensor::Tensor,
+    tensor_base::_Tensor,
+    BoolVector,
 };
 use anyhow::Result;
 use tensor_common::shape::Shape;
-use tensor_traits::{CommonBounds, TensorCreator};
+use tensor_traits::{ CommonBounds, TensorCreator };
 use tensor_types::{
-    convertion::{Convertor, FromScalar},
+    convertion::{ Convertor, FromScalar },
     dtype::TypeCommon,
     into_scalar::IntoScalar,
-    type_promote::{FloatOutUnary, NormalOut},
+    type_promote::{ FloatOutUnary, NormalOut },
 };
 
 impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
@@ -86,10 +89,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// use tensor_dyn::TensorCreator;
     /// let a = Tensor::<f64>::ones([2, 3]);
     /// ```
-    fn ones<S: Into<Shape>>(shape: S) -> Result<Self>
-    where
-        u8: IntoScalar<T>,
-    {
+    fn ones<S: Into<Shape>>(shape: S) -> Result<Self> where u8: IntoScalar<T> {
         Ok(_Tensor::<T, Cpu>::ones(shape)?.into())
     }
 
@@ -167,10 +167,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// let a = Tensor::<f64>::empty([2, 3]);
     /// let b = a.ones_like();
     /// ```
-    fn ones_like(&self) -> Result<Self>
-    where
-        u8: IntoScalar<T>,
-    {
+    fn ones_like(&self) -> Result<Self> where u8: IntoScalar<T> {
         Ok(_Tensor::ones_like(self)?.into())
     }
 
@@ -249,10 +246,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// let a = Tensor::<f64>::arange(0.0, 5.0).unwrap();
     /// ```
     fn arange<U>(start: U, end: U) -> Result<Self>
-    where
-        T: FromScalar<U>,
-        usize: IntoScalar<T>,
-        U: Convertor + IntoScalar<T> + Copy,
+        where T: FromScalar<U>, usize: IntoScalar<T>, U: Convertor + IntoScalar<T> + Copy
     {
         Ok(_Tensor::<T, Cpu>::arange(start, end)?.into())
     }
@@ -282,8 +276,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// let a = Tensor::<f64>::arange_step(0.0, 5.0, 1.0).unwrap();
     /// ```
     fn arange_step(start: T, end: T, step: T) -> Result<Self>
-    where
-        T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>,
+        where T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>
     {
         Ok(_Tensor::<T, Cpu>::arange_step(start, end, step)?.into())
     }
@@ -311,10 +304,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// use tensor_dyn::TensorCreator;
     /// let a = Tensor::<f64>::eye(3, 3, 0).unwrap();
     /// ```
-    fn eye(n: usize, m: usize, k: usize) -> Result<Self>
-    where
-        u8: IntoScalar<T>,
-    {
+    fn eye(n: usize, m: usize, k: usize) -> Result<Self> where u8: IntoScalar<T> {
         Ok(_Tensor::<T, Cpu>::eye(n, m, k)?.into())
     }
 
@@ -344,10 +334,10 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// let a = Tensor::<f64>::linspace(0.0, 5.0, 5, true).unwrap();
     /// ```
     fn linspace(start: T, end: T, num: usize, include_end: bool) -> Result<Self>
-    where
-        T: Convertor + num::Float + NormalOut<T, Output = T>,
-        usize: IntoScalar<T>,
-        f64: IntoScalar<T>,
+        where
+            T: Convertor + num::Float + NormalOut<T, Output = T>,
+            usize: IntoScalar<T>,
+            f64: IntoScalar<T>
     {
         Ok(_Tensor::<T, Cpu>::linspace(start, end, num, include_end)?.into())
     }
@@ -379,8 +369,12 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// let a = Tensor::<f64>::logspace(0.0, 5.0, 5, true, 10.0).unwrap();
     /// ```
     fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> Result<Self>
-    where
-        T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64> + NormalOut<T, Output = T>,
+        where
+            T: Convertor +
+                num::Float +
+                FromScalar<usize> +
+                FromScalar<f64> +
+                NormalOut<T, Output = T>
     {
         Ok(_Tensor::<T, Cpu>::logspace(start, end, num, include_end, base)?.into())
     }
@@ -411,13 +405,16 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// let a = Tensor::<f64>::geomspace(1.0, 1000.0, 4, true).unwrap();
     /// ```
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self>
-    where
-        T: PartialOrd + FloatOutUnary + FromScalar<FloatUnaryType<T>> + std::ops::Neg<Output = T>,
-        FloatUnaryType<T>: Sub<Output = FloatUnaryType<T>>
-            + FromScalar<usize>
-            + FromScalar<f64>
-            + Div<Output = FloatUnaryType<T>>
-            + CommonBounds,
+        where
+            T: PartialOrd +
+                FloatOutUnary +
+                FromScalar<FloatUnaryType<T>> +
+                std::ops::Neg<Output = T>,
+            FloatUnaryType<T>: Sub<Output = FloatUnaryType<T>> +
+                FromScalar<usize> +
+                FromScalar<f64> +
+                Div<Output = FloatUnaryType<T>> +
+                CommonBounds
     {
         Ok(_Tensor::<T, Cpu>::geomspace(start, end, n, include_end)?.into())
     }
@@ -446,10 +443,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// use tensor_dyn::TensorCreator;
     /// let a = Tensor::<f64>::tri(3, 3, 0, true).unwrap();
     /// ```
-    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self>
-    where
-        u8: IntoScalar<T>,
-    {
+    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self> where u8: IntoScalar<T> {
         Ok(_Tensor::<T, Cpu>::tri(n, m, k, low_triangle)?.into())
     }
 
@@ -476,9 +470,9 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// let b = a.tril(1).unwrap();
     /// ```
     fn tril(&self, k: i64) -> Result<Self>
-    where
-        T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
-        T::Vec: NormalOut<BoolVector, Output = T::Vec>,
+        where
+            T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
+            T::Vec: NormalOut<BoolVector, Output = T::Vec>
     {
         Ok(_Tensor::tril(self, k)?.into())
     }
@@ -506,9 +500,9 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// let b = a.triu(1).unwrap();
     /// ```
     fn triu(&self, k: i64) -> Result<Self>
-    where
-        T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
-        T::Vec: NormalOut<BoolVector, Output = T::Vec>,
+        where
+            T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
+            T::Vec: NormalOut<BoolVector, Output = T::Vec>
     {
         Ok(_Tensor::triu(self, k)?.into())
     }
@@ -534,10 +528,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// use tensor_dyn::TensorCreator;
     /// let a = Tensor::<f64>::identity(3).unwrap();
     /// ```
-    fn identity(n: usize) -> Result<Self>
-    where
-        u8: IntoScalar<T>,
-    {
+    fn identity(n: usize) -> Result<Self> where u8: IntoScalar<T> {
         Ok(_Tensor::<T, Cpu>::identity(n)?.into())
     }
 }

@@ -1,15 +1,12 @@
-use std::{
-    panic::Location,
-    sync::{Arc, Barrier},
-};
+use std::{ panic::Location, sync::{ Arc, Barrier } };
 
-use tensor_common::{err_handler::ErrHandler, shape_utils::mt_intervals, slice::Slice};
+use tensor_common::{ err_handler::ErrHandler, shape_utils::mt_intervals, slice::Slice };
 use tensor_traits::{
     shape_manipulate::ShapeManipulate,
-    tensor::{CommonBounds, TensorCreator, TensorInfo},
+    tensor::{ CommonBounds, TensorCreator, TensorInfo },
 };
 
-use crate::{tensor_base::_Tensor, THREAD_POOL};
+use crate::{ tensor_base::_Tensor, THREAD_POOL };
 
 /// Concatenates multiple tensors along a specified axis.
 ///
@@ -34,10 +31,9 @@ use crate::{tensor_base::_Tensor, THREAD_POOL};
 pub(crate) fn concat<T>(
     tensors: Vec<&_Tensor<T>>,
     axis: usize,
-    keepdims: bool,
+    keepdims: bool
 ) -> anyhow::Result<_Tensor<T>>
-where
-    T: CommonBounds,
+    where T: CommonBounds
 {
     let length = tensors.len();
     let mut all_same_shape = true;
@@ -47,20 +43,22 @@ where
             .iter()
             .enumerate()
             .try_for_each(|(idx, x)| {
-                if idx != axis
-                    && i.shape().len() == tensors[0].shape().len()
-                    && *x != i.shape()[idx]
+                if
+                    idx != axis &&
+                    i.shape().len() == tensors[0].shape().len() &&
+                    *x != i.shape()[idx]
                 {
-                    return Err(anyhow::Error::msg(
-                        "Shapes except the axis to stack must be the same",
-                    ));
+                    return Err(
+                        anyhow::Error::msg("Shapes except the axis to stack must be the same")
+                    );
                 } else if i.shape().len() != tensors[0].shape().len() {
-                    return Err(ErrHandler::NdimMismatched(
-                        tensors[0].ndim(),
-                        i.ndim(),
-                        Location::caller(),
-                    )
-                    .into());
+                    return Err(
+                        ErrHandler::NdimMismatched(
+                            tensors[0].ndim(),
+                            i.ndim(),
+                            Location::caller()
+                        ).into()
+                    );
                 } else if idx == axis && *x != i.shape()[idx] {
                     all_same_shape = false;
                 }
@@ -71,11 +69,15 @@ where
     tensors.iter().for_each(|x| {
         new_shape[axis] += x.shape()[axis];
     });
-    tensors[0].shape().iter().enumerate().for_each(|(i, x)| {
-        if i != axis {
-            new_shape[i] = *x;
-        }
-    });
+    tensors[0]
+        .shape()
+        .iter()
+        .enumerate()
+        .for_each(|(i, x)| {
+            if i != axis {
+                new_shape[i] = *x;
+            }
+        });
     let new_tensor = _Tensor::<T>::empty(&new_shape)?;
     let mut begin = 0;
     let mut res_slices = Vec::with_capacity(length);
@@ -115,19 +117,19 @@ where
                     for _ in 0..outer_loop_size {
                         for i in 0..inner_loop_size {
                             let a_val = a_data[i * a_last_stride];
-                            res_ptr.modify(i, a_val);
+                            res_ptr[i] = a_val;
                         }
                         for j in (0..(input.ndim() as i64) - 1).rev() {
                             let j = j as usize;
                             if prg[j] < input.shape()[j] - 1 {
                                 prg[j] += 1;
-                                a_data.offset(input.strides()[j]);
-                                res_ptr.offset(res.strides()[j]);
+                                a_data += input.strides()[j];
+                                res_ptr += res.strides()[j];
                                 break;
                             } else {
                                 prg[j] = 0;
-                                a_data.offset(-(input.shape()[j] - 1) * input.strides()[j]);
-                                res_ptr.offset(-(res.shape()[j] - 1) * res.strides()[j]);
+                                a_data -= (input.shape()[j] - 1) * input.strides()[j];
+                                res_ptr -= (res.shape()[j] - 1) * res.strides()[j];
                             }
                         }
                     }

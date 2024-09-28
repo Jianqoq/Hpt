@@ -1,31 +1,30 @@
-use crate::{tensor::Tensor, tensor_base::_Tensor};
-use std::ops::{Mul, Sub};
+use crate::{ ops::cpu::tensor_internal::windows::Simd, tensor::Tensor, tensor_base::_Tensor };
+use std::ops::{ Mul, Sub };
 use tensor_traits::CommonBounds;
 use tensor_types::{
-    dtype::{FloatConst, TypeCommon},
+    dtype::FloatConst,
     into_scalar::IntoScalar,
-    type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
+    type_promote::{ FloatOutBinary, FloatOutUnary, NormalOut },
 };
 
-type Simd<T> = <<T as FloatOutBinary>::Output as TypeCommon>::Vec;
 type FBO<T> = <T as FloatOutBinary>::Output;
 
 impl<T> Tensor<T>
-where
-    f64: IntoScalar<FBO<T>>,
-    T: CommonBounds + FloatOutBinary,
-    FBO<T>: CommonBounds
-        + FloatOutUnary<Output = FBO<T>>
-        + Mul<Output = FBO<T>>
-        + Sub<Output = FBO<T>>
-        + FloatConst,
-    FBO<T>: std::ops::Neg<Output = FBO<T>>,
-    FBO<T>: NormalOut<FBO<T>, Output = FBO<T>> + FloatOutBinary<FBO<T>, Output = FBO<T>>,
-    Simd<T>: NormalOut<Simd<T>, Output = Simd<T>>
-        + FloatOutBinary<Simd<T>, Output = Simd<T>>
-        + FloatOutUnary<Output = Simd<T>>,
-    usize: IntoScalar<FBO<T>>,
-    i64: IntoScalar<T>,
+    where
+        f64: IntoScalar<FBO<T>>,
+        T: CommonBounds + FloatOutBinary,
+        FBO<T>: CommonBounds +
+            FloatOutUnary<Output = FBO<T>> +
+            Mul<Output = FBO<T>> +
+            Sub<Output = FBO<T>> +
+            FloatConst,
+        FBO<T>: std::ops::Neg<Output = FBO<T>>,
+        FBO<T>: NormalOut<FBO<T>, Output = FBO<T>> + FloatOutBinary<FBO<T>, Output = FBO<T>>,
+        Simd<T>: NormalOut<Simd<T>, Output = Simd<T>> +
+            FloatOutBinary<Simd<T>, Output = Simd<T>> +
+            FloatOutUnary<Output = Simd<T>>,
+        usize: IntoScalar<FBO<T>>,
+        i64: IntoScalar<T>
 {
     /// Generates a Hamming window of a specified length.
     ///
@@ -49,9 +48,7 @@ where
     /// - A tensor containing the Hamming window.
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn hamming_window(window_length: i64, periodic: bool) -> anyhow::Result<Tensor<FBO<T>>> {
-        Ok(Tensor::from(
-            _Tensor::hamming_window(window_length, periodic)?.into(),
-        ))
+        Ok(Tensor::from(_Tensor::hamming_window(window_length, periodic)?.into()))
     }
 
     /// Generates a Hann window of a specified length.
@@ -76,9 +73,7 @@ where
     /// - A tensor containing the Hann window.
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn hann_window(window_length: i64, periodic: bool) -> anyhow::Result<Tensor<FBO<T>>> {
-        Ok(Tensor::from(
-            _Tensor::hann_window(window_length, periodic)?.into(),
-        ))
+        Ok(Tensor::from(_Tensor::hann_window(window_length, periodic)?.into()))
     }
 
     /// Generates a Blackman window tensor.
@@ -102,11 +97,10 @@ where
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn blackman_window(
         window_length: i64,
-        periodic: bool,
-    ) -> anyhow::Result<Tensor<<T as FloatOutBinary>::Output>>
-    where
-        T: FloatConst,
-        i64: IntoScalar<<T as FloatOutBinary>::Output>,
+        periodic: bool
+    )
+        -> anyhow::Result<Tensor<<T as FloatOutBinary>::Output>>
+        where T: FloatConst, i64: IntoScalar<<T as FloatOutBinary>::Output>
     {
         Ok(_Tensor::<T>::blackman_window(window_length, periodic)?.into())
     }

@@ -16,13 +16,15 @@
 
 use binary_float_out::impl_float_out_binary;
 use float_unary::impl_float_out_unary;
-use kernel_gen_helper::{__gen_fast_reduce_simd_helper, __gen_reduce_dim_not_include_simd_helper};
+use from_scalar::__impl_from_scalar;
+use kernel_gen_helper::{ __gen_fast_reduce_simd_helper, __gen_reduce_dim_not_include_simd_helper };
 use normal_out::__impl_normal_out_binary;
 use proc_macro::TokenStream;
+use scalar_convert::__impl_scalar_convert;
 use simd_bitwise::impl_simd_bitwise_out;
 use simd_convert::__impl_simd_convert;
 use simd_float_out_binary::impl_simd_binary_out_float;
-use syn::{parse, parse_macro_input, Expr, Ident, Token};
+use syn::{ parse, parse_macro_input, Expr, Ident, Token };
 mod binary_float_out;
 mod float_unary;
 mod into_vec;
@@ -39,19 +41,18 @@ mod simd_float_out_unary;
 mod simd_normal_out;
 mod type_utils;
 mod normal_out;
+mod scalar_convert;
+mod from_scalar;
 use crate::simd_cmp::impl_simd_cmp;
 use crate::simd_normal_out::impl_simd_normal_out;
-use proc_macro2::{TokenStream as TokenStream2, TokenTree};
+use proc_macro2::{ TokenStream as TokenStream2, TokenTree };
 use quote::quote;
 use type_utils::TypeInfo;
 
 /// number of registers available for the target architecture
 #[cfg(target_feature = "avx2")]
 const NUM_REG: usize = 16;
-#[cfg(all(
-    any(target_feature = "sse", target_arch = "arm"),
-    not(target_feature = "avx2")
-))]
+#[cfg(all(any(target_feature = "sse", target_arch = "arm"), not(target_feature = "avx2")))]
 const NUM_REG: usize = 8;
 #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 const NUM_REG: usize = 32;
@@ -71,10 +72,11 @@ impl parse::Parse for SelectionParser {
         let mut start: Option<Expr> = None;
         let mut end: Option<Expr> = None;
         let mut step: Option<Expr> = None;
-        if input.peek(syn::Lit)
-            || input.peek(syn::Ident)
-            || input.peek(syn::token::Paren)
-            || input.peek(Token![-])
+        if
+            input.peek(syn::Lit) ||
+            input.peek(syn::Ident) ||
+            input.peek(syn::token::Paren) ||
+            input.peek(Token![-])
         {
             start = Some(input.parse::<Expr>()?);
         }
@@ -83,25 +85,26 @@ impl parse::Parse for SelectionParser {
         } else if input.is_empty() {
             return Ok(Self { start, end, step });
         } else {
-            return Err(syn::Error::new(
-                input.span(),
-                "unexpected token, expected `:`, Int or Ident",
-            ));
+            return Err(
+                syn::Error::new(input.span(), "unexpected token, expected `:`, Int or Ident")
+            );
         }
-        if input.peek(syn::Lit)
-            || input.peek(syn::Ident)
-            || input.peek(syn::token::Paren)
-            || input.peek(Token![-])
+        if
+            input.peek(syn::Lit) ||
+            input.peek(syn::Ident) ||
+            input.peek(syn::token::Paren) ||
+            input.peek(Token![-])
         {
             end = Some(input.parse::<Expr>()?);
         }
         if input.peek(Token![:]) {
             input.parse::<Token![:]>()?;
         }
-        if input.peek(syn::Lit)
-            || input.peek(syn::Ident)
-            || input.peek(syn::token::Paren)
-            || input.peek(Token![-])
+        if
+            input.peek(syn::Lit) ||
+            input.peek(syn::Ident) ||
+            input.peek(syn::token::Paren) ||
+            input.peek(Token![-])
         {
             step = Some(input.parse::<Expr>()?);
         }
@@ -160,10 +163,10 @@ pub fn match_selection(input: TokenStream) -> TokenStream {
                 ret_stream.extend(quote!(Slice::StepByRangeFrom((#start, #step))));
             }
             (Some(start), Some(end), None) => {
-                ret_stream.extend(quote!(Slice::Range((#start, #end))))
+                ret_stream.extend(quote!(Slice::Range((#start, #end))));
             }
             (Some(start), Some(end), Some(step)) => {
-                ret_stream.extend(quote!(Slice::StepByRangeFromTo((#start, #end, #step))))
+                ret_stream.extend(quote!(Slice::StepByRangeFromTo((#start, #end, #step))));
             }
         }
         if idx != len - 1 {
@@ -180,7 +183,7 @@ fn match_helper(
     mut true_true: impl FnMut() -> Expr,
     mut true_false: impl FnMut() -> Expr,
     mut false_true: impl FnMut() -> Expr,
-    mut false_false: impl FnMut() -> Expr,
+    mut false_false: impl FnMut() -> Expr
 ) -> Expr {
     match (lhs, rhs) {
         (true, true) => true_true(),
@@ -200,9 +203,7 @@ impl parse::Parse for InferEnumType {
     fn parse(input: parse::ParseStream) -> syn::Result<Self> {
         let lhs = input.parse::<Expr>().expect("lhs is not found");
         input.parse::<Token![,]>()?;
-        let rhs = input
-            .parse::<Ident>()
-            .expect("rhs is not found, use sapce when not needed");
+        let rhs = input.parse::<Ident>().expect("rhs is not found, use sapce when not needed");
         input.parse::<Token![,]>()?;
         let mode = input.parse::<Ident>()?;
         Ok(Self { lhs, rhs, mode })
@@ -221,7 +222,8 @@ pub fn infer_enum_type(input: TokenStream) -> TokenStream {
     match enum_name.as_str() {
         "normal" => {
             let tk = list_enum::list_enums();
-            let tmp = quote!(
+            let tmp =
+                quote!(
                 match (#lhs, #rhs) {
                     #tk
                     _ => todo!(),
@@ -231,7 +233,8 @@ pub fn infer_enum_type(input: TokenStream) -> TokenStream {
         }
         "binary_float" => {
             let tk = list_enum::list_enums_out_float();
-            let tmp = quote!(
+            let tmp =
+                quote!(
                 match (#lhs, #rhs) {
                     #tk
                     _ => todo!(),
@@ -241,7 +244,8 @@ pub fn infer_enum_type(input: TokenStream) -> TokenStream {
         }
         "uary_float" => {
             let tk = list_enum::list_enums_out_float_uary();
-            let tmp = quote!(
+            let tmp =
+                quote!(
                 match #lhs {
                     #tk
                     _ => todo!(),
@@ -264,9 +268,7 @@ impl parse::Parse for GenericCal {
     fn parse(input: parse::ParseStream) -> syn::Result<Self> {
         let lhs = input.parse::<Ident>().expect("lhs is not found");
         input.parse::<Token![,]>()?;
-        let rhs = input
-            .parse::<Ident>()
-            .expect("rhs is not found, use sapce when not needed");
+        let rhs = input.parse::<Ident>().expect("rhs is not found, use sapce when not needed");
         input.parse::<Token![,]>()?;
         let method = input.parse::<Ident>()?;
         Ok(Self { lhs, rhs, method })
@@ -375,6 +377,18 @@ pub fn impl_simd_convert(_: TokenStream) -> TokenStream {
     __impl_simd_convert()
 }
 
+/// implement scalar convert trait
+#[proc_macro]
+pub fn impl_scalar_convert(_: TokenStream) -> TokenStream {
+    __impl_scalar_convert()
+}
+
+/// implement from scalar trait
+#[proc_macro]
+pub fn impl_from_scalar(_: TokenStream) -> TokenStream {
+    __impl_from_scalar()
+}
+
 /// implement simd cmp trait
 #[proc_macro]
 pub fn simd_cmp(_: TokenStream) -> TokenStream {
@@ -392,9 +406,7 @@ pub fn impl_into_vec(_: TokenStream) -> TokenStream {
 pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
 
-    let types = [
-        "bool", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "isize", "usize",
-    ];
+    let types = ["bool", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "isize", "usize"];
 
     for lhs in types.iter() {
         for rhs in types.iter() {
@@ -432,7 +444,8 @@ pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
                 }
             };
 
-            let res = quote! {
+            let res =
+                quote! {
                 impl BitWiseOut<#rhs_dtype> for #lhs_dtype {
                     type Output = #res_type;
                     #[inline(always)]
@@ -475,7 +488,19 @@ pub fn impl_cmp(_: TokenStream) -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
 
     let types = [
-        "bool", "f16", "f32", "f64", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "isize",
+        "bool",
+        "f16",
+        "f32",
+        "f64",
+        "i8",
+        "i16",
+        "i32",
+        "i64",
+        "u8",
+        "u16",
+        "u32",
+        "u64",
+        "isize",
         "usize",
     ];
 
@@ -487,7 +512,8 @@ pub fn impl_cmp(_: TokenStream) -> TokenStream {
             let rhs_dtype = rhs_type.dtype;
             let res_type = lhs_type.infer_normal_res_type(&rhs_type);
 
-            let res = quote! {
+            let res =
+                quote! {
                 impl Cmp<#rhs_dtype> for #lhs_dtype {
                     fn _eq(self, rhs: #rhs_dtype) -> bool {
                         paste::paste! {
@@ -535,7 +561,19 @@ pub fn impl_eval(_: TokenStream) -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
 
     let types = [
-        "bool", "f16", "f32", "f64", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "isize",
+        "bool",
+        "f16",
+        "f32",
+        "f64",
+        "i8",
+        "i16",
+        "i32",
+        "i64",
+        "u8",
+        "u16",
+        "u32",
+        "u64",
+        "isize",
         "usize",
     ];
 
@@ -569,14 +607,14 @@ pub fn impl_eval(_: TokenStream) -> TokenStream {
                 quote! {
                     #[inline(always)]
                     fn _is_true(&self) -> bool {
-                        self.to_bits() & 0x7FFFFFFF != 0
+                        self != &0.0
                     }
                 }
             } else {
                 quote! {
                     #[inline(always)]
                     fn _is_true(&self) -> bool {
-                        self == &#lhs_dtype::ZERO
+                        self != &#lhs_dtype::ZERO
                     }
                 }
             }
@@ -598,7 +636,8 @@ pub fn impl_eval(_: TokenStream) -> TokenStream {
             }
         };
 
-        let res = quote! {
+        let res =
+            quote! {
             impl Eval for #lhs_dtype {
                 type Output = bool;
                 #is_nan

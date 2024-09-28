@@ -1,24 +1,23 @@
 use crate::tensor_base::_Tensor;
 use anyhow::Result;
 use std::panic::Location;
-use tensor_common::shape_utils::{try_pad_shape, yield_one_after};
+use tensor_common::shape_utils::{ try_pad_shape, yield_one_after };
 use tensor_common::slice;
 use tensor_common::slice::Slice;
 use tensor_common::{
-    axis::{process_axes, Axis},
+    axis::{ process_axes, Axis },
     err_handler::ErrHandler,
     layout::Layout,
     shape::Shape,
     shape_utils::yield_one_before,
 };
 use tensor_macros::match_selection;
-use tensor_traits::{CommonBounds, ShapeManipulate, TensorInfo, TensorLike};
+use tensor_traits::{ CommonBounds, ShapeManipulate, TensorInfo, TensorLike };
 
 impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
     type Meta = T;
     fn concat(tensors: Vec<&_Tensor<T>>, axis: usize, keepdims: bool) -> Result<Self>
-    where
-        T: 'static,
+        where T: 'static
     {
         crate::ops::cpu::concat::concat(tensors, axis, keepdims)
     }
@@ -31,11 +30,9 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
                 } else if tensor.shape().len() == 0 {
                     new_tensors.push(tensor.reshape(vec![1, 1, 1])?);
                 } else {
-                    new_tensors.push(tensor.reshape(vec![
-                        tensor.shape()[0],
-                        tensor.shape()[1],
-                        1,
-                    ])?);
+                    new_tensors.push(
+                        tensor.reshape(vec![tensor.shape()[0], tensor.shape()[1], 1])?
+                    );
                 }
             } else {
                 new_tensors.push(tensor.clone());
@@ -75,12 +72,13 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
         for i in 0..axes.len() {
             if self.shape()[axes[i]] != 1 {
-                return Err(ErrHandler::SqueezeError(
-                    axes[i],
-                    self.shape().clone(),
-                    Location::caller(),
-                )
-                .into());
+                return Err(
+                    ErrHandler::SqueezeError(
+                        axes[i],
+                        self.shape().clone(),
+                        Location::caller()
+                    ).into()
+                );
             }
         }
         let new_shape: Vec<i64> = self
@@ -104,14 +102,15 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
     fn reshape<S: Into<Shape>>(&self, shape: S) -> Result<_Tensor<T>> {
         let shape: Shape = shape.into();
         if shape.size() != (self.size() as i64) {
-            return Err(ErrHandler::ReshapeError(
-                self.shape().clone(),
-                shape.clone(),
-                self.size(),
-                shape.size() as usize,
-                Location::caller(),
-            )
-            .into());
+            return Err(
+                ErrHandler::ReshapeError(
+                    self.shape().clone(),
+                    shape.clone(),
+                    self.size(),
+                    shape.size() as usize,
+                    Location::caller()
+                ).into()
+            );
         }
         if let Ok(new_layout) = self.layout.inplace_reshape(&shape) {
             Ok(_Tensor {
@@ -128,8 +127,11 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
     fn transpose(&self, axis1: i64, axis2: i64) -> Result<_Tensor<T>> {
         if self.ndim() < 2 {
             Err(
-                ErrHandler::TransposeError(self.shape().clone(), self.ndim(), Location::caller())
-                    .into(),
+                ErrHandler::TransposeError(
+                    self.shape().clone(),
+                    self.ndim(),
+                    Location::caller()
+                ).into()
             )
         } else {
             self.permute(vec![axis1, axis2])
@@ -218,8 +220,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
     fn tile<S: Into<Axis>>(&self, repeats: S) -> Result<Self> {
         let repeats: Axis = repeats.into();
         ErrHandler::check_index_in_range(self.ndim(), (repeats.axes.len() - 1) as i64)?;
-        let repeats: Vec<i64> = repeats
-            .axes
+        let repeats: Vec<i64> = repeats.axes
             .into_iter()
             .map(|x| x as i64)
             .collect::<Vec<i64>>();
@@ -247,10 +248,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         }
         res.reshape(final_shape)
     }
-    fn trim_zeros(&self, trim: &str) -> Result<Self>
-    where
-        Self::Meta: PartialEq,
-    {
+    fn trim_zeros(&self, trim: &str) -> Result<Self> where Self::Meta: PartialEq {
         if !(trim == "fb" || trim == "f" || trim == "b") {
             return Err(anyhow::Error::msg("trim must be one of 'fb', 'f', 'b'"));
         }
@@ -326,25 +324,19 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
     }
     fn dsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
         if self.shape().len() < 3 {
-            return Err(
-                ErrHandler::NdimNotEnough(3, self.shape().len(), Location::caller()).into(),
-            );
+            return Err(ErrHandler::NdimNotEnough(3, self.shape().len(), Location::caller()).into());
         }
         self.split(indices, 2)
     }
     fn hsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
         if self.shape().len() < 2 {
-            return Err(
-                ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into(),
-            );
+            return Err(ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into());
         }
         self.split(indices, 1)
     }
     fn vsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
         if self.shape().len() < 1 {
-            return Err(
-                ErrHandler::NdimNotEnough(1, self.shape().len(), Location::caller()).into(),
-            );
+            return Err(ErrHandler::NdimNotEnough(1, self.shape().len(), Location::caller()).into());
         }
         self.split(indices, 0)
     }
@@ -364,10 +356,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             _backend: self._backend.clone(),
         })
     }
-    fn flatten<A>(&self, start_dim: A, end_dim: A) -> Result<Self>
-    where
-        A: Into<Option<usize>>,
-    {
+    fn flatten<A>(&self, start_dim: A, end_dim: A) -> Result<Self> where A: Into<Option<usize>> {
         let start = start_dim.into().unwrap_or(0);
         let end = end_dim.into().unwrap_or(self.ndim() - 1);
         let shape = self.shape();

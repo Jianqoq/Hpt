@@ -4,10 +4,7 @@ use tensor_common::shape::Shape;
 use tensor_types::into_scalar::IntoScalar;
 
 /// A trait for generating random numbers.
-pub trait Random
-where
-    Self: Sized,
-{
+pub trait Random where Self: Sized {
     /// Associated type for meta-information or parameters relevant to distributions.
     type Meta;
 
@@ -143,8 +140,7 @@ where
     /// - `std`: A value of type `Self::Meta` representing the standard deviation of the Normal distribution.
     /// - `shape`: The shape of the output array, which can be converted from `S` into `Shape`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn normal_gaussian<S: Into<Shape>>(mean: Self::Meta, std: Self::Meta, shape: S)
-        -> Result<Self>;
+    fn normal_gaussian<S: Into<Shape>>(mean: Self::Meta, std: Self::Meta, shape: S) -> Result<Self>;
 
     /// Generates a random number array following the Normal (Gaussian) distribution,
     /// with the same shape as the calling instance.
@@ -237,7 +233,7 @@ where
         low: Self::Meta,
         high: Self::Meta,
         mode: Self::Meta,
-        shape: S,
+        shape: S
     ) -> Result<Self>;
 
     /// Generates a random number array following the Triangular distribution,
@@ -251,7 +247,7 @@ where
     fn triangular_like(&self, low: Self::Meta, high: Self::Meta, mode: Self::Meta) -> Result<Self>;
 
     /// Generates a bernoulli array with values `true` or `false` following the Bernoulli distribution.
-    /// 
+    ///
     /// # Parameters
     /// - `shape`: The shape of the output array, which can be converted from `S` into `Shape`.
     /// - `p`: A value of type `Self::Meta` representing the probability of success (true) in the Bernoulli distribution.
@@ -259,16 +255,11 @@ where
     /// A random boolean array with values `true` or `false` following the Bernoulli distribution.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self>
-    where
-        Self::Meta: IntoScalar<f64>,
-        bool: IntoScalar<Self::Meta>;
+        where Self::Meta: IntoScalar<f64>, bool: IntoScalar<Self::Meta>;
 }
 
 /// A trait for generating random integers.
-pub trait RandomInt
-where
-    Self: Sized,
-{
+pub trait RandomInt where Self: Sized {
     /// Associated type for meta-information or parameters relevant to distributions.
     type Meta;
 
@@ -280,9 +271,7 @@ where
     /// - `shape`: The shape of the output array, which can be converted from `S` into `Shape`.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn randint<S: Into<Shape>>(low: Self::Meta, high: Self::Meta, shape: S) -> Result<Self>
-    where
-        Self::Meta: SampleUniform,
-        <Self::Meta as SampleUniform>::Sampler: Sync;
+        where Self::Meta: SampleUniform, <Self::Meta as SampleUniform>::Sampler: Sync;
 
     /// Generates a random integer array with values in the specified range,
     /// with the same shape as the calling instance.
@@ -292,7 +281,5 @@ where
     /// - `high`: A value of type `Self::Meta` representing the upper bound of the range (exclusive).
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn randint_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self>
-    where
-        Self::Meta: SampleUniform,
-        <Self::Meta as SampleUniform>::Sampler: Sync;
+        where Self::Meta: SampleUniform, <Self::Meta as SampleUniform>::Sampler: Sync;
 }

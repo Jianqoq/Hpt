@@ -1,10 +1,10 @@
 use std::borrow::BorrowMut;
 
-use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
-use tensor_common::{pointer::Pointer, shape::Shape, shape_utils::mt_intervals, strides::Strides};
-use tensor_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, TensorLike};
+use rayon::iter::{ IntoParallelRefMutIterator, ParallelIterator };
+use tensor_common::{ pointer::Pointer, shape::Shape, shape_utils::mt_intervals, strides::Strides };
+use tensor_traits::{ CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, TensorLike };
 
-use crate::{backend::Cpu, tensor_base::_Tensor};
+use crate::{ backend::Cpu, tensor_base::_Tensor };
 
 pub(crate) fn rearrange_array(ndim: usize, to_reduce: &[usize]) -> Vec<usize> {
     let mut origin_order = (0..ndim).collect::<Vec<usize>>();
@@ -34,7 +34,7 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds>(
     axes: &[usize],
     init_val: O,
     init_out: bool,
-    c: Option<_Tensor<O>>,
+    c: Option<_Tensor<O>>
 ) -> anyhow::Result<(bool, _Tensor<T>, _Tensor<O>)> {
     let mut keep_fast_dim = true;
     for axis in axes.iter() {
@@ -56,14 +56,16 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds>(
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
         if res_layout.shape().inner() != out.shape().inner() {
-            return Err(anyhow::Error::msg(
-                "Output array has incorrect shape".to_string(),
-            ));
+            return Err(anyhow::Error::msg("Output array has incorrect shape".to_string()));
+        } else if !out.is_contiguous() {
+            return Err(anyhow::Error::msg("Output array is not contiguous".to_string()));
         }
         if init_out {
-            out.as_raw_mut().par_iter_mut().for_each(|x| {
-                *x = init_val;
-            });
+            out.as_raw_mut()
+                .par_iter_mut()
+                .for_each(|x| {
+                    *x = init_val;
+                });
         }
         Ok(out)
     } else {
@@ -77,7 +79,7 @@ pub(crate) fn uncontiguous_reduce_prepare<T: CommonBounds, O: CommonBounds>(
     axes: &[usize],
     init_val: O,
     init_out: bool,
-    c: Option<_Tensor<O>>,
+    c: Option<_Tensor<O>>
 ) -> anyhow::Result<(bool, _Tensor<T>, _Tensor<O>, Vec<usize>)> {
     let mut keep_fast_dim = true;
     for axis in axes.iter() {
@@ -102,14 +104,14 @@ pub(crate) fn uncontiguous_reduce_prepare<T: CommonBounds, O: CommonBounds>(
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
         if res_layout.shape().inner() != out.shape().inner() {
-            return Err(anyhow::Error::msg(
-                "Output array has incorrect shape".to_string(),
-            ));
+            return Err(anyhow::Error::msg("Output array has incorrect shape".to_string()));
         }
         if init_out {
-            out.as_raw_mut().par_iter_mut().for_each(|x| {
-                *x = init_val;
-            });
+            out.as_raw_mut()
+                .par_iter_mut()
+                .for_each(|x| {
+                    *x = init_val;
+                });
         }
         Ok(out)
     } else {
@@ -289,11 +291,7 @@ pub(crate) struct ReductionPreprocessor<T, U> {
     pub a_shape: Shape,
 }
 
-impl<T, U> ReductionPreprocessor<T, U>
-where
-    T: Clone,
-    U: Clone,
-{
+impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
     pub fn new(
         num_threads: usize,
         loop_size: usize,
@@ -303,7 +301,7 @@ where
         strides: Strides,
         a_shape: Shape,
         transposed_shape: Shape,
-        res_shape: Shape,
+        res_shape: Shape
     ) -> Vec<ReductionPreprocessor<T, U>> {
         let intervals: Vec<(usize, usize)> = mt_intervals(loop_size, num_threads);
         let mut task_amout = 0;
@@ -327,7 +325,8 @@ where
             // [40, 41, 42, 43, 44, 45, 46, 47, 48, 49]     thread 4
             // where the first axis is where we are splitting the tensor
             let mut tmp1 = (task_amout * inner_loop_size) as i64;
-            let mut prg = vec![0; a_shape.len() - 1]; /* -1 because we want to escape the last axis */
+            let mut prg =
+                vec![0; a_shape.len() - 1]; /* -1 because we want to escape the last axis */
 
             // since the axis we want to reduce include the most inner axis, we will skip the iteration of the last axis
             // so we use (0..=a_shape.len() - 2).rev()
@@ -369,7 +368,7 @@ where
         mut res_ptrs: Pointer<U>,
         transposed_strides: Strides,
         transposed_shape: Shape,
-        res_shape: Shape,
+        res_shape: Shape
     ) -> Vec<ReductionPreprocessor<T, U>> {
         let intervals: Vec<(usize, usize)> = mt_intervals(loop_size, num_threads);
         let mut task_amout = 0;
@@ -389,8 +388,9 @@ where
             let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
 
             for i in (0..ndim - 1).rev() {
-                a_data_ptr_cpy
-                    .offset(progress_init_a_data[i as usize] * transposed_strides[i as usize]);
+                a_data_ptr_cpy.offset(
+                    progress_init_a_data[i as usize] * transposed_strides[i as usize]
+                );
             }
 
             let progress_init_a_data_cpy = progress_init_a_data.clone();
