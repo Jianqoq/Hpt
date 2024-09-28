@@ -6,7 +6,7 @@ use ops::cpu::conv_config::{ Conv2dConfig, KernelParamAlgo };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
-const IN: i64 = 4096;
+const IN: i64 = 2048;
 
 fn main() -> anyhow::Result<()> {
     set_num_threads(16);
@@ -27,7 +27,7 @@ fn main() -> anyhow::Result<()> {
     // println!("config: {:?}", config);
     let now = std::time::Instant::now();
     for _ in 0..10 {
-        let _: _Tensor<f32> = a
+        let res = a
             .iconv2d(
                 &kernel,
                 [1, 1],
@@ -38,7 +38,6 @@ fn main() -> anyhow::Result<()> {
                 [1, 1],
                 Some(&config)
             )?;
-        // println!("{:?}", res.shape());
     }
     println!("{:?}", now.elapsed() / 10);
     
