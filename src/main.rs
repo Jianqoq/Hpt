@@ -1,25 +1,24 @@
 // use std::ffi::CStr;
 // use std::hint::black_box;
 
+use std::hint::black_box;
+
 // use half::bf16;
 use ops::cpu::conv_config::{ Conv2dConfig, KernelParamAlgo };
 // use tch::{ Device, Kind, Tensor };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
-// fn assert_eq(a: &Tensor, b: &_Tensor<i64>) {
-//     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const i64, b.size()) };
-//     let b_raw = b.as_raw();
-//     for i in 0..b.size() {
-//         if a_raw[i] != b_raw[i] {
-//             println!("{} != {}", a_raw[i], b_raw[i]);
-//         }
-//     }
-// }
+const KERNEL_HEIGHT: usize = 5;
+const KERNEL_WIDTH: usize = 5;
+const IN_CHANNEL: usize = 4096;
+const OUT_CHANNEL: usize = 16;
+const IMG_HEIGHT: usize = 256;
+const IMG_WIDTH: usize = 256;
+const BATCH: usize = 1;
+
 fn main() -> anyhow::Result<()> {
-    set_global_display_precision(7);
-    set_global_display_lr_elements(6);
-    set_num_threads(16);
+    set_num_threads(8);
     let kernel = _Tensor::<f32>
         ::arange(0, 16 * 1024 * 3 * 3)?
         .reshape([16, 1024, 3, 3])?
@@ -47,11 +46,12 @@ fn main() -> anyhow::Result<()> {
                 ],
                 [1, 1],
                 Some(&config)
-            )?
-            .permute([0, 3, 1, 2])?;
-        // println!("{:?}", res);
+            )?;
+        // println!("{:?}", res.shape());
     }
-    println!("{:?}", now.elapsed() / 10);
+    println!("{:?}", now.elapsed() / 5);
+    };
+    
     // // println!("{:?}", res);
     Ok(())
 }
