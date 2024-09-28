@@ -122,6 +122,22 @@ impl<'a, const N: usize> From<&'a [i64; N]> for Shape {
     }
 }
 
+impl<'a, const N: usize> From<&'a [usize; N]> for Shape {
+    fn from(v: &'a [usize; N]) -> Self {
+        Shape {
+            inner: Arc::new(v.into_iter().map(|x| *x as i64).collect())
+        }
+    }
+}
+
+impl<'a, const N: usize> From<&'a [i32; N]> for Shape {
+    fn from(v: &'a [i32; N]) -> Self {
+        Shape {
+            inner: Arc::new(v.into_iter().map(|x| *x as i64).collect())
+        }
+    }
+}
+
 impl<'a> From<&'a Vec<i64>> for Shape {
     fn from(v: &'a Vec<i64>) -> Self {
         Shape {

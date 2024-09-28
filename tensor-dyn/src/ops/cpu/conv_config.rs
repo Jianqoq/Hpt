@@ -79,7 +79,7 @@ where
             ),
         };
         Self {
-            l1_cache_size: cache_size::l1_cache_size().unwrap_or(32 * 1024) / size_of::<T>(),
+            l1_cache_size: cache_size::l1_cache_size().unwrap_or(128 * 1024) / size_of::<T>(),
             out_channels,
             in_channels,
             kernel_size,

@@ -1,6 +1,6 @@
 use std::ops::{ Deref, DerefMut, Index, IndexMut };
 
-use crate::traits::{ Init, VecCommon, VecTrait };
+use crate::traits::{ Init, SimdSelect, VecCommon, VecTrait };
 
 /// a vector of 4 u32 values
 #[allow(non_camel_case_types)]
@@ -48,6 +48,14 @@ impl VecTrait<u32> for u32x4 {
         self.as_array()[idx]
     }
 }
+
+impl SimdSelect<u32x4> for u32x4 {
+    fn select(&self, true_val: u32x4, false_val: u32x4) -> u32x4 {
+        let mask: std::simd::mask32x4 = unsafe { std::mem::transmute(*self) };
+        u32x4(mask.select(true_val.0, false_val.0))
+    }
+}
+
 impl VecCommon for u32x4 {
     const SIZE: usize = 4;
     
