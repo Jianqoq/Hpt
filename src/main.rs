@@ -11,8 +11,8 @@ const IN: i64 = 4096;
 fn main() -> anyhow::Result<()> {
     set_num_threads(16);
     let kernel = _Tensor::<f32>
-        ::arange(0, IN * 16 * 3 * 3)?
-        .reshape([IN, 16, 3, 3])?
+        ::arange(0, IN * 1 * 3 * 3)?
+        .reshape([IN, 1, 3, 3])?
         .permute([1, 2, 3, 0])?
         // ::arange(0, 16 * 16 * 3 * 3)?
         // .reshape([16, 16, 3, 3])?
