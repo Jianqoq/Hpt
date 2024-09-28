@@ -26,10 +26,6 @@ cache-size = "0.7.0"
 half = { version = "2.3.1", features = ["num-traits", "rand_distr"] }
 gemm = { version = "0.18.0", features = ["rayon"] }
 num_cpus = "1.16.0"
-thiserror = "1.0.63"
-
-[dev-dependencies]
-tch = "0.17.0"
 
 [features]
 default = ["track_caller"]
