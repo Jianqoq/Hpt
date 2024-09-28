@@ -174,7 +174,7 @@ pub fn set_global_display_lr_elements(lr_elements: usize) {
 /// Set the global number of threads
 ///
 /// # Note
-/// Rayon only allows the number of threads to be set once, so this function won't have any effect if it's called more than once.
+/// Rayon only allows the number of threads to be set once, so the rayon thread pool won't have any effect if it's called more than once.
 pub fn set_num_threads(num_threads: usize) {
     THREAD_POOL.with(|x| {
         x.borrow_mut().set_num_threads(num_threads);

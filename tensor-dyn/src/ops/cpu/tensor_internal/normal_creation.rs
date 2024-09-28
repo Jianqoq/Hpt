@@ -107,7 +107,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             .into_par_iter()
             .enumerate()
             .for_each(|(i, x)| {
-                *x = start._add(T::__from(i)._mul(step));
+                *x = start._add(T::_from(i)._mul(step));
             });
         Ok(data)
     }
@@ -155,13 +155,13 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let _end = end.to_f64();
         let n = num as f64;
         let step = if include_end { (_end - _start) / (n - 1.0) } else { (_end - _start) / n };
-        let step_t = T::__from(step);
+        let step_t = T::_from(step);
         let mut data = _Tensor::<T, Cpu>::empty(Arc::new(vec![n as i64]))?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()
             .for_each(|(i, x)| {
-                *x = base._pow(start._add(T::__from(i)._mul(step_t)));
+                *x = base._pow(start._add(T::_from(i)._mul(step_t)));
             });
         Ok(data)
     }
@@ -176,26 +176,26 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                 CommonBounds
     {
         let both_negative = start < T::ZERO && end < T::ZERO;
-        let float_n = <T as FloatOutUnary>::Output::__from(n);
+        let float_n = <T as FloatOutUnary>::Output::_from(n);
         let step = if include_end {
             if start > T::ZERO && end > T::ZERO {
                 (end._log10() - start._log10()) /
-                    (float_n - <T as FloatOutUnary>::Output::__from(1f64))
+                    (float_n - <T as FloatOutUnary>::Output::_from(1f64))
             } else if start < T::ZERO && end < T::ZERO {
                 (end._abs()._log10() - start._abs()._log10()) /
-                    (float_n - <T as FloatOutUnary>::Output::__from(1.0))
+                    (float_n - <T as FloatOutUnary>::Output::_from(1.0))
             } else {
                 return Err(anyhow::Error::msg("start and end must have the same sign"));
             }
         } else if start > T::ZERO && end > T::ZERO {
-            (end._log10() - start._log10()) / <T as FloatOutUnary>::Output::__from(n)
+            (end._log10() - start._log10()) / <T as FloatOutUnary>::Output::_from(n)
         } else if start < T::ZERO && end < T::ZERO {
             (end._abs()._log10() - start._abs()._log10()) / float_n
         } else {
             return Err(anyhow::Error::msg("start and end must have the same sign"));
         };
         let mut data = _Tensor::<T>::empty(Arc::new(vec![n as i64]))?;
-        let ten: <T as FloatOutUnary>::Output = <T as FloatOutUnary>::Output::__from(10.0);
+        let ten: <T as FloatOutUnary>::Output = <T as FloatOutUnary>::Output::_from(10.0);
         let start = if start > T::ZERO { start._log10() } else { start._abs()._log10() };
         if T::ID == Dtype::F32 || T::ID == Dtype::F64 {
             if both_negative {
@@ -204,9 +204,9 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                     .enumerate()
                     .for_each(|(i, x)| {
                         let val = ten._pow(
-                            start._add(<T as FloatOutUnary>::Output::__from(i)._mul(step))
+                            start._add(<T as FloatOutUnary>::Output::_from(i)._mul(step))
                         );
-                        *x = -T::__from(val);
+                        *x = -T::_from(val);
                     });
             } else {
                 data.as_raw_mut()
@@ -214,9 +214,9 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                     .enumerate()
                     .for_each(|(i, x)| {
                         let val = ten._pow(
-                            start._add(<T as FloatOutUnary>::Output::__from(i)._mul(step))
+                            start._add(<T as FloatOutUnary>::Output::_from(i)._mul(step))
                         );
-                        *x = T::__from(val);
+                        *x = T::_from(val);
                     });
             }
             return Ok(data);
@@ -226,9 +226,9 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                 .enumerate()
                 .for_each(|(i, x)| {
                     let val = ten._pow(
-                        start._add(<T as FloatOutUnary>::Output::__from(i)._mul(step))
+                        start._add(<T as FloatOutUnary>::Output::_from(i)._mul(step))
                     );
-                    *x = -T::__from(val);
+                    *x = -T::_from(val);
                 });
         } else {
             data.as_raw_mut()
@@ -236,9 +236,9 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                 .enumerate()
                 .for_each(|(i, x)| {
                     let val = ten._pow(
-                        start._add(<T as FloatOutUnary>::Output::__from(i)._mul(step))
+                        start._add(<T as FloatOutUnary>::Output::_from(i)._mul(step))
                     );
-                    *x = T::__from(val);
+                    *x = T::_from(val);
                 });
         }
         Ok(data)

@@ -1,4 +1,4 @@
-use half::{f16, bf16};
+use half::{ f16, bf16 };
 use num_complex::{ Complex32, Complex64 };
 
 /// A trait for converting a scalar into another scalar type.

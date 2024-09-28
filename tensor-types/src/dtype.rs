@@ -3,15 +3,12 @@ use crate::vectors::_512bit::*;
 use crate::{
     convertion::VecConvertor,
     into_vec::IntoVec,
-    type_promote::{BitWiseOut, Eval, FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary},
-    vectors::traits::{Init, VecCommon, VecTrait},
+    type_promote::{ BitWiseOut, Eval, FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary },
+    vectors::traits::{ Init, VecCommon, VecTrait },
 };
 use core::f32;
-use half::{bf16, f16};
-use std::{
-    fmt::{Debug, Display},
-    ops::{Index, IndexMut},
-};
+use half::{ bf16, f16 };
+use std::{ fmt::{ Debug, Display }, ops::{ Index, IndexMut } };
 use tensor_macros::infer_enum_type;
 
 /// enum for data type
@@ -144,10 +141,7 @@ impl Dtype {
 ///    let two = f32::TWO;  // get the two value of f32
 ///    let str = f32::STR;  // get the string representation of f32
 /// }
-pub trait TypeCommon
-where
-    Self: Sized,
-{
+pub trait TypeCommon where Self: Sized {
     /// the data type id
     const ID: Dtype;
     /// the maximum value of the data type
@@ -167,24 +161,25 @@ where
     /// the string representation of the data type
     const STR: &'static str;
     /// the simd vector type of the data type
-    type Vec: VecTrait<Self>
-        + Init<Self>
-        + VecCommon
-        + Send
-        + Copy
-        + IntoVec<Self::Vec>
-        + Sync
-        + Debug
-        + Index<usize, Output = Self>
-        + IndexMut<usize, Output = Self>
-        + NormalOutUnary
-        + NormalOut<Self::Vec, Output = Self::Vec>
-        + FloatOutUnary
-        + FloatOutBinary
-        + FloatOutBinary<
+    type Vec: VecTrait<Self> +
+        Init<Self> +
+        VecCommon +
+        Send +
+        Copy +
+        IntoVec<Self::Vec> +
+        Sync +
+        Debug +
+        Index<usize, Output = Self> +
+        IndexMut<usize, Output = Self> +
+        NormalOutUnary +
+        NormalOut<Self::Vec, Output = Self::Vec> +
+        FloatOutUnary +
+        FloatOutBinary +
+        FloatOutBinary<
             <Self::Vec as FloatOutUnary>::Output,
-            Output = <Self::Vec as FloatOutUnary>::Output,
-        > + VecConvertor;
+            Output = <Self::Vec as FloatOutUnary>::Output
+        > +
+        VecConvertor;
 }
 
 macro_rules! impl_type_common {
@@ -218,10 +213,10 @@ macro_rules! impl_type_common {
 
 #[cfg(target_feature = "avx2")]
 mod type_impl {
-    use super::{Dtype, TypeCommon};
+    use super::{ Dtype, TypeCommon };
     use crate::vectors::_256bit::*;
     use half::*;
-    use num_complex::{Complex32, Complex64};
+    use num_complex::{ Complex32, Complex64 };
     impl_type_common!(
         bool,
         Bool,
@@ -235,32 +230,8 @@ mod type_impl {
         "bool",
         boolx32::boolx32
     );
-    impl_type_common!(
-        i8,
-        I8,
-        i8::MAX,
-        i8::MIN,
-        0,
-        1,
-        i8::MAX,
-        i8::MIN,
-        2,
-        "i8",
-        i8x32::i8x32
-    );
-    impl_type_common!(
-        u8,
-        U8,
-        u8::MAX,
-        u8::MIN,
-        0,
-        1,
-        u8::MAX,
-        u8::MIN,
-        2,
-        "u8",
-        u8x32::u8x32
-    );
+    impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, "i8", i8x32::i8x32);
+    impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, "u8", u8x32::u8x32);
     impl_type_common!(
         i16,
         I16,
@@ -475,15 +446,17 @@ mod type_impl {
     );
 }
 
-#[cfg(all(
-    any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
-    not(target_feature = "avx2")
-))]
+#[cfg(
+    all(
+        any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
+        not(target_feature = "avx2")
+    )
+)]
 mod type_impl {
-    use super::{Dtype, TypeCommon};
+    use super::{ Dtype, TypeCommon };
     use crate::vectors::_128bit::*;
     use half::*;
-    use num_complex::{Complex32, Complex64};
+    use num_complex::{ Complex32, Complex64 };
     impl_type_common!(
         bool,
         Bool,
@@ -497,32 +470,8 @@ mod type_impl {
         "bool",
         boolx16::boolx16
     );
-    impl_type_common!(
-        i8,
-        I8,
-        i8::MAX,
-        i8::MIN,
-        0,
-        1,
-        i8::MAX,
-        i8::MIN,
-        2,
-        "i8",
-        i8x16::i8x16
-    );
-    impl_type_common!(
-        u8,
-        U8,
-        u8::MAX,
-        u8::MIN,
-        0,
-        1,
-        u8::MAX,
-        u8::MIN,
-        2,
-        "u8",
-        u8x16::u8x16
-    );
+    impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, "i8", i8x16::i8x16);
+    impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, "u8", u8x16::u8x16);
     impl_type_common!(
         i16,
         I16,

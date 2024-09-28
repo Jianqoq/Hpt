@@ -2,10 +2,12 @@ use crate::convertion::Convertor;
 use crate::convertion::VecConvertor;
 use crate::dtype::FloatConst;
 use crate::dtype::TypeCommon;
-#[cfg(all(
-    any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
-    not(target_feature = "avx2")
-))]
+#[cfg(
+    all(
+        any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
+        not(target_feature = "avx2")
+    )
+)]
 use crate::vectors::_128bit::*;
 #[cfg(target_feature = "avx2")]
 use crate::vectors::_256bit::*;
@@ -15,7 +17,7 @@ use crate::vectors::traits::Init;
 use crate::vectors::traits::SimdCompare;
 use half::bf16;
 use half::f16;
-use num_complex::{Complex32, Complex64};
+use num_complex::{ Complex32, Complex64 };
 use num_traits::float::Float;
 use sleef::Sleef;
 use std::ops::Neg;
@@ -32,10 +34,15 @@ use tensor_macros::impl_normal_out_simd;
 use tensor_macros::impl_normal_out_unary;
 use tensor_macros::impl_normal_out_unary_simd;
 use tensor_macros::{
-    float_out_binary, impl_bitwise_out, impl_cmp, impl_eval, simd_cmp, simd_eval,
+    float_out_binary,
+    impl_bitwise_out,
+    impl_cmp,
+    impl_eval,
+    simd_cmp,
+    simd_eval,
     simd_float_out_unary,
 };
-use tensor_macros::{float_out_binary_simd, simd_bitwise};
+use tensor_macros::{ float_out_binary_simd, simd_bitwise };
 /// this trait is used to perform type promotion in dynamic graph
 pub trait FloatOutBinary<RHS = Self> {
     /// the output type

@@ -1,11 +1,8 @@
 use anyhow::Result;
-use tensor_common::{axis::Axis, shape::Shape};
+use tensor_common::{ axis::Axis, shape::Shape };
 
 /// A trait for manipulating the shape of a tensor.
-pub trait ShapeManipulate<Output = Self>
-where
-    Self: Sized,
-{
+pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// tensor data type
     type Meta;
 
@@ -310,9 +307,7 @@ where
     ///
     /// * `Self::Meta` must implement `PartialEq`, as it is used to compare the tensor elements for equality with zero.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn trim_zeros(&self, trim: &str) -> Result<Output>
-    where
-        Self::Meta: PartialEq;
+    fn trim_zeros(&self, trim: &str) -> Result<Output> where Self::Meta: PartialEq;
 
     /// Repeats the elements of the tensor along the specified axis a given number of times.
     ///
@@ -452,9 +447,7 @@ where
     ///
     /// * This function will panic if `start` or `end` are out of bounds or if `start` is greater than `end`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn flatten<A>(&self, start: A, end: A) -> Result<Output>
-    where
-        A: Into<Option<usize>>;
+    fn flatten<A>(&self, start: A, end: A) -> Result<Output> where A: Into<Option<usize>>;
 
     /// Concatenates multiple tensors along a specified axis.
     ///

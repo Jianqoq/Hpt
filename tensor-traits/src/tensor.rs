@@ -1,57 +1,64 @@
-use std::{
-    borrow::Borrow,
-    fmt::Display,
-    ops::{Div, Sub},
-};
+use std::{ borrow::Borrow, fmt::Display, ops::{ Div, Sub } };
 
-use tensor_common::{axis::Axis, layout::Layout, pointer::Pointer, shape::Shape, strides::Strides};
+use tensor_common::{ axis::Axis, layout::Layout, pointer::Pointer, shape::Shape, strides::Strides };
 use tensor_types::{
-    convertion::{Convertor, FromScalar},
+    convertion::{ Convertor, FromScalar },
     dtype::TypeCommon,
     into_scalar::IntoScalar,
-    type_promote::{FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary},
+    type_promote::{ FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary },
 };
 
 #[cfg(target_feature = "avx2")]
 type BoolVector = tensor_types::_256bit::boolx32::boolx32;
 #[cfg(target_feature = "avx512f")]
 type BoolVector = tensor_types::_512bit::boolx64::boolx64;
-#[cfg(any(
-    all(not(target_feature = "avx2"), target_feature = "sse"),
-    target_arch = "arm",
-    target_arch = "aarch64",
-    target_feature = "neon"
-))]
+#[cfg(
+    any(
+        all(not(target_feature = "avx2"), target_feature = "sse"),
+        target_arch = "arm",
+        target_arch = "aarch64",
+        target_feature = "neon"
+    )
+)]
 type BoolVector = tensor_types::_128bit::boolx16::boolx16;
 
 /// A trait for getting information of a Tensor
 pub trait TensorInfo<T> {
     /// Returns a pointer to the tensor's first data.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn ptr(&self) -> Pointer<T>;
 
     /// Returns the size of the tensor based on the shape
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn size(&self) -> usize;
 
     /// Returns the shape of the tensor.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn shape(&self) -> &Shape;
 
     /// Returns the strides of the tensor.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn strides(&self) -> &Strides;
 
     /// Returns the layout of the tensor. Layout contains shape and strides.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn layout(&self) -> &Layout;
     /// Returns the root tensor, if any.
     ///
     /// if the tensor is a view, it will return the root tensor. Otherwise, it will return None.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn parent(&self) -> Option<Pointer<T>>;
 
     /// Returns the number of dimensions of the tensor.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn ndim(&self) -> usize;
 
     /// Returns whether the tensor is contiguous in memory. View or transpose tensors are not contiguous.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn is_contiguous(&self) -> bool;
 
     /// Returns the data type memory size in bytes.
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn elsize() -> usize {
         size_of::<T>()
     }
@@ -93,10 +100,7 @@ pub trait TensorLike<T>: Sized {
 }
 
 /// A trait defines a set of functions to create tensors.
-pub trait TensorCreator<T, Output = Self>
-where
-    Self: Sized,
-{
+pub trait TensorCreator<T, Output = Self> where Self: Sized {
     /// Creates a tensor with uninitialized elements of the specified shape.
     ///
     /// This function allocates memory for a tensor of the given shape, but the values are uninitialized, meaning they may contain random data.
@@ -149,9 +153,7 @@ where
     ///
     /// * This function may panic if the requested shape is invalid or too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn ones<S: Into<Shape>>(shape: S) -> anyhow::Result<Output>
-    where
-        u8: IntoScalar<T>;
+    fn ones<S: Into<Shape>>(shape: S) -> anyhow::Result<Output> where u8: IntoScalar<T>;
 
     /// Creates a tensor with uninitialized elements, having the same shape as the input tensor.
     ///
@@ -205,9 +207,7 @@ where
     ///
     /// * This function may panic if the shape is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn ones_like(&self) -> anyhow::Result<Output>
-    where
-        u8: IntoScalar<T>;
+    fn ones_like(&self) -> anyhow::Result<Output> where u8: IntoScalar<T>;
 
     /// Creates a tensor filled with a specified value, with the specified shape.
     ///
@@ -264,10 +264,10 @@ where
     /// * This function will panic if `start` is greater than or equal to `end`, or if the range is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn arange<U>(start: U, end: U) -> anyhow::Result<Output>
-    where
-        T: Convertor + FromScalar<U> + NormalOut<T, Output = T>,
-        usize: IntoScalar<T>,
-        U: Convertor + IntoScalar<T> + Copy;
+        where
+            T: Convertor + FromScalar<U> + NormalOut<T, Output = T>,
+            usize: IntoScalar<T>,
+            U: Convertor + IntoScalar<T> + Copy;
 
     /// Creates a tensor with values within a specified range with a given step size.
     ///
@@ -289,8 +289,7 @@ where
     /// * This function will panic if `step` is zero or if the range and step values are incompatible.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn arange_step(start: T, end: T, step: T) -> anyhow::Result<Output>
-    where
-        T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>;
+        where T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>;
 
     /// Creates a 2D identity matrix with ones on a diagonal and zeros elsewhere.
     ///
@@ -310,9 +309,7 @@ where
     ///
     /// * This function will panic if `n` or `m` is zero, or if memory constraints are exceeded.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn eye(n: usize, m: usize, k: usize) -> anyhow::Result<Output>
-    where
-        u8: IntoScalar<T>;
+    fn eye(n: usize, m: usize, k: usize) -> anyhow::Result<Output> where u8: IntoScalar<T>;
 
     /// Creates a tensor with evenly spaced values between `start` and `end`.
     ///
@@ -335,10 +332,10 @@ where
     /// * This function will panic if `num` is zero or if `num` is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn linspace(start: T, end: T, num: usize, include_end: bool) -> anyhow::Result<Output>
-    where
-        T: Convertor + num::Float + NormalOut<T, Output = T>,
-        usize: IntoScalar<T>,
-        f64: IntoScalar<T>;
+        where
+            T: Convertor + num::Float + NormalOut<T, Output = T>,
+            usize: IntoScalar<T>,
+            f64: IntoScalar<T>;
 
     /// Creates a tensor with logarithmically spaced values between `start` and `end`.
     ///
@@ -362,8 +359,12 @@ where
     /// * This function will panic if `num` is zero or if `base` is less than or equal to zero.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> anyhow::Result<Output>
-    where
-        T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64> + NormalOut<T, Output = T>;
+        where
+            T: Convertor +
+                num::Float +
+                FromScalar<usize> +
+                FromScalar<f64> +
+                NormalOut<T, Output = T>;
 
     /// Creates a tensor with geometrically spaced values between `start` and `end`.
     ///
@@ -386,19 +387,19 @@ where
     /// * This function will panic if `n` is zero, if `start` or `end` is negative, or if the values result in undefined behavior.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> anyhow::Result<Output>
-    where
-        T: PartialOrd
-            + FloatOutUnary
-            + NormalOut<T, Output = T>
-            + FromScalar<<T as FloatOutUnary>::Output>
-            + std::ops::Neg<Output = T>,
-        <T as FloatOutUnary>::Output: Sub<Output = <T as FloatOutUnary>::Output>
-            + FromScalar<usize>
-            + FromScalar<f64>
-            + Div<Output = <T as FloatOutUnary>::Output>
-            + NormalOut<Output = <T as FloatOutUnary>::Output>
-            + CommonBounds,
-        <<T as FloatOutUnary>::Output as TypeCommon>::Vec: Send + Sync;
+        where
+            T: PartialOrd +
+                FloatOutUnary +
+                NormalOut<T, Output = T> +
+                FromScalar<<T as FloatOutUnary>::Output> +
+                std::ops::Neg<Output = T>,
+            <T as FloatOutUnary>::Output: Sub<Output = <T as FloatOutUnary>::Output> +
+                FromScalar<usize> +
+                FromScalar<f64> +
+                Div<Output = <T as FloatOutUnary>::Output> +
+                NormalOut<Output = <T as FloatOutUnary>::Output> +
+                CommonBounds,
+            <<T as FloatOutUnary>::Output as TypeCommon>::Vec: Send + Sync;
 
     /// Creates a 2D triangular matrix of size `n` by `m`, with ones below or on the `k`th diagonal and zeros elsewhere.
     ///
@@ -420,8 +421,7 @@ where
     /// * This function will panic if `n` or `m` is zero.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> anyhow::Result<Output>
-    where
-        u8: IntoScalar<T>;
+        where u8: IntoScalar<T>;
 
     /// Returns the lower triangular part of the matrix, with all elements above the `k`th diagonal set to zero.
     ///
@@ -440,9 +440,9 @@ where
     /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tril(&self, k: i64) -> anyhow::Result<Self>
-    where
-        T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
-        <T as TypeCommon>::Vec: NormalOut<BoolVector, Output = <T as TypeCommon>::Vec>;
+        where
+            T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
+            <T as TypeCommon>::Vec: NormalOut<BoolVector, Output = <T as TypeCommon>::Vec>;
 
     /// Returns the upper triangular part of the matrix, with all elements below the `k`th diagonal set to zero.
     ///
@@ -461,9 +461,9 @@ where
     /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn triu(&self, k: i64) -> anyhow::Result<Self>
-    where
-        T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
-        <T as TypeCommon>::Vec: NormalOut<BoolVector, Output = <T as TypeCommon>::Vec>;
+        where
+            T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
+            <T as TypeCommon>::Vec: NormalOut<BoolVector, Output = <T as TypeCommon>::Vec>;
 
     /// Creates a 2D identity matrix of size `n` by `n`.
     ///
@@ -481,9 +481,7 @@ where
     ///
     /// * This function will panic if `n` is zero.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn identity(n: usize) -> anyhow::Result<Output>
-    where
-        u8: IntoScalar<T>;
+    fn identity(n: usize) -> anyhow::Result<Output> where u8: IntoScalar<T>;
 }
 
 /// A trait for tensor memory allocation, this trait only used when we work with generic type
@@ -496,16 +494,11 @@ pub trait TensorAlloc<Output = Self> {
     ///
     /// This function doesn't initialize the tensor's elements.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn _empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Output>
-    where
-        Self: Sized;
+    fn _empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Output> where Self: Sized;
 }
 
 /// A trait typically for argmax and argmin functions.
-pub trait IndexReduce
-where
-    Self: Sized,
-{
+pub trait IndexReduce where Self: Sized {
     /// The output tensor type.
     type Output;
 
@@ -549,10 +542,7 @@ where
 }
 
 /// A trait for normal tensor reduction operations.
-pub trait NormalReduce<T>
-where
-    Self: Sized,
-{
+pub trait NormalReduce<T> where Self: Sized {
     /// The output tensor type.
     type Output;
 
@@ -595,10 +585,9 @@ where
         axis: S,
         keep_dims: bool,
         init_out: bool,
-        out: O,
+        out: O
     ) -> anyhow::Result<Self::Output>
-    where
-        O: Borrow<Self::Output>;
+        where O: Borrow<Self::Output>;
 
     /// Computes the sum of the elements along the specified axis, with an initial value.
     ///
@@ -618,7 +607,7 @@ where
         &self,
         init_val: T,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> anyhow::Result<Self::Output>;
 
     /// Computes the product of the elements along the specified axis.
@@ -658,7 +647,7 @@ where
         &self,
         init_val: T,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> anyhow::Result<Self::Output>;
 
     /// Computes the minimum value along the specified axis.
@@ -698,7 +687,7 @@ where
         &self,
         init_val: T,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> anyhow::Result<Self>;
 
     /// Computes the maximum value along the specified axis.
@@ -738,7 +727,7 @@ where
         &self,
         init_val: T,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> anyhow::Result<Self>;
 
     /// Reduces the tensor along the specified axis using the L1 norm (sum of absolute values).
@@ -852,7 +841,7 @@ pub trait NormalEvalReduce<T> {
         &self,
         init_val: T,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> anyhow::Result<Self::Output>;
 
     /// Computes the product of the elements along the specified axis, ignoring NaN values.
@@ -888,15 +877,12 @@ pub trait NormalEvalReduce<T> {
         &self,
         init_val: T,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> anyhow::Result<Self::Output>;
 }
 
 /// A trait for tensor reduction operations, the output must be a floating-point tensor.
-pub trait FloatReduce<T>
-where
-    Self: Sized,
-{
+pub trait FloatReduce<T> where Self: Sized {
     /// The output tensor type.
     type Output;
 
@@ -964,54 +950,57 @@ where
 
 /// Common bounds for primitive types
 pub trait CommonBounds
-where
-    <Self as TypeCommon>::Vec: Send + Sync + Copy,
-    Self: Sync
-        + Send
-        + Clone
-        + Copy
-        + TypeCommon
-        + 'static
-        + Display
-        + IntoScalar<Self>
-        + Convertor
-        + NormalOut<Self, Output = Self>
-        + FloatOutUnary
-        + NormalOut<<Self as FloatOutUnary>::Output, Output = <Self as FloatOutUnary>::Output>
-        + FloatOutBinary<<Self as FloatOutUnary>::Output, Output = <Self as FloatOutUnary>::Output>
-        + FloatOutBinary<Self>
-        + NormalOut<
-            <Self as FloatOutBinary<Self>>::Output,
-            Output = <Self as FloatOutBinary<Self>>::Output,
-        >
-        + NormalOutUnary,
-{
-}
-impl<T> CommonBounds for T
-where
-    <Self as TypeCommon>::Vec: Send + Sync + Copy,
-    Self: Sync
-        + Send
-        + Clone
-        + Copy
-        + TypeCommon
-        + 'static
-        + Display
-        + IntoScalar<Self>
-        + Convertor
-        + NormalOut<Self, Output = Self>
-        + FloatOutUnary
-        + NormalOut<<Self as FloatOutUnary>::Output, Output = <Self as FloatOutUnary>::Output>
-        + FloatOutBinary<<Self as FloatOutUnary>::Output, Output = <Self as FloatOutUnary>::Output>
-        + FloatOutBinary<Self>
-        + FloatOutBinary<
-            <Self as FloatOutBinary<Self>>::Output,
-            Output = <Self as FloatOutBinary<Self>>::Output,
-        >
-        + NormalOut<
-            <Self as FloatOutBinary<Self>>::Output,
-            Output = <Self as FloatOutBinary<Self>>::Output,
-        >
-        + NormalOutUnary,
-{
-}
+    where
+        <Self as TypeCommon>::Vec: Send + Sync + Copy,
+        Self: Sync +
+            Send +
+            Clone +
+            Copy +
+            TypeCommon +
+            'static +
+            Display +
+            IntoScalar<Self> +
+            Convertor +
+            NormalOut<Self, Output = Self> +
+            FloatOutUnary +
+            NormalOut<<Self as FloatOutUnary>::Output, Output = <Self as FloatOutUnary>::Output> +
+            FloatOutBinary<
+                <Self as FloatOutUnary>::Output,
+                Output = <Self as FloatOutUnary>::Output
+            > +
+            FloatOutBinary<Self> +
+            NormalOut<
+                <Self as FloatOutBinary<Self>>::Output,
+                Output = <Self as FloatOutBinary<Self>>::Output
+            > +
+            NormalOutUnary {}
+impl<T> CommonBounds
+    for T
+    where
+        <Self as TypeCommon>::Vec: Send + Sync + Copy,
+        Self: Sync +
+            Send +
+            Clone +
+            Copy +
+            TypeCommon +
+            'static +
+            Display +
+            IntoScalar<Self> +
+            Convertor +
+            NormalOut<Self, Output = Self> +
+            FloatOutUnary +
+            NormalOut<<Self as FloatOutUnary>::Output, Output = <Self as FloatOutUnary>::Output> +
+            FloatOutBinary<
+                <Self as FloatOutUnary>::Output,
+                Output = <Self as FloatOutUnary>::Output
+            > +
+            FloatOutBinary<Self> +
+            FloatOutBinary<
+                <Self as FloatOutBinary<Self>>::Output,
+                Output = <Self as FloatOutBinary<Self>>::Output
+            > +
+            NormalOut<
+                <Self as FloatOutBinary<Self>>::Output,
+                Output = <Self as FloatOutBinary<Self>>::Output
+            > +
+            NormalOutUnary {}
