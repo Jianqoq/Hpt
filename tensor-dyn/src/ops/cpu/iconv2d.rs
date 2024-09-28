@@ -1,6 +1,7 @@
 use super::conv_config::Conv2dConfig;
 use crate::ops::cpu::conv_config::KernelParamAlgo;
 use crate::tensor_base::_Tensor;
+use crate::CONV_REGNUM;
 use rayon::prelude::*;
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::err_handler::ErrHandler::InvalidInputShape;
@@ -120,11 +121,11 @@ impl<T> _Tensor<T>
             let mut out = output.ptr();
             let b = idx / num_oh;
             let lp = idx % num_oh;
-            for k in (0..out_width).step_by(3) {
-            for i in (0..in_channels).step_by(T::Vec::SIZE * 4) {
-                for l in 0..3 {
-                    let l = lp * 3 + l;
-                        for j in 0..out_channels {
+            for k in (0..out_width).step_by(4) {
+                for j in 0..out_channels {
+                    for i in (0..in_channels).step_by(T::Vec::SIZE * 2) {
+                        for l in 0..3 {
+                            let l = lp * 3 + l;
                             let mut out_regs = [T::Vec::splat(T::ZERO); 4];
                             for n in 0..kernel_height {
                                 let inp_offset = b * isb + (l * step_height + n * dh) * ish;
@@ -145,24 +146,6 @@ impl<T> _Tensor<T>
                                         let inp1 = T::Vec::from_ptr(&inp[inp_offset + ((k + 1) * step_width + m * dw) * isw + i + T::Vec::SIZE as i64]); // prettier-ignore
                                         let inp2 = T::Vec::from_ptr(&inp[inp_offset + ((k + 2) * step_width + m * dw) * isw + i + T::Vec::SIZE as i64]); // prettier-ignore
                                         let inp3 = T::Vec::from_ptr(&inp[inp_offset + ((k + 3) * step_width + m * dw) * isw + i + T::Vec::SIZE as i64]); // prettier-ignore
-                                        out_regs[0] = kernel_vec.mul_add(inp0, out_regs[0]);
-                                        out_regs[1] = kernel_vec.mul_add(inp1, out_regs[1]);
-                                        out_regs[2] = kernel_vec.mul_add(inp2, out_regs[2]);
-                                        out_regs[3] = kernel_vec.mul_add(inp3, out_regs[3]);
-                                        let kernel_vec = T::Vec::from_ptr(&kernel[koffset + i + T::Vec::SIZE as i64 * 2]); // prettier-ignore
-                                        let inp0 = T::Vec::from_ptr(&inp[inp_offset + (k * step_width + m * dw) * isw + i + T::Vec::SIZE as i64 * 2]); // prettier-ignore
-                                        let inp1 = T::Vec::from_ptr(&inp[inp_offset + ((k + 1) * step_width + m * dw) * isw + i + T::Vec::SIZE as i64 * 2]); // prettier-ignore
-                                        let inp2 = T::Vec::from_ptr(&inp[inp_offset + ((k + 2) * step_width + m * dw) * isw + i + T::Vec::SIZE as i64 * 2]); // prettier-ignore
-                                        let inp3 = T::Vec::from_ptr(&inp[inp_offset + ((k + 3) * step_width + m * dw) * isw + i + T::Vec::SIZE as i64 * 2]); // prettier-ignore
-                                        out_regs[0] = kernel_vec.mul_add(inp0, out_regs[0]);
-                                        out_regs[1] = kernel_vec.mul_add(inp1, out_regs[1]);
-                                        out_regs[2] = kernel_vec.mul_add(inp2, out_regs[2]);
-                                        out_regs[3] = kernel_vec.mul_add(inp3, out_regs[3]);
-                                        let kernel_vec = T::Vec::from_ptr(&kernel[koffset + i + T::Vec::SIZE as i64 * 3]); // prettier-ignore
-                                        let inp0 = T::Vec::from_ptr(&inp[inp_offset + (k * step_width + m * dw) * isw + i + T::Vec::SIZE as i64 * 3]); // prettier-ignore
-                                        let inp1 = T::Vec::from_ptr(&inp[inp_offset + ((k + 1) * step_width + m * dw) * isw + i + T::Vec::SIZE as i64 * 3]); // prettier-ignore
-                                        let inp2 = T::Vec::from_ptr(&inp[inp_offset + ((k + 2) * step_width + m * dw) * isw + i + T::Vec::SIZE as i64 * 3]); // prettier-ignore
-                                        let inp3 = T::Vec::from_ptr(&inp[inp_offset + ((k + 3) * step_width + m * dw) * isw + i + T::Vec::SIZE as i64 * 3]); // prettier-ignore
                                         out_regs[0] = kernel_vec.mul_add(inp0, out_regs[0]);
                                         out_regs[1] = kernel_vec.mul_add(inp1, out_regs[1]);
                                         out_regs[2] = kernel_vec.mul_add(inp2, out_regs[2]);
