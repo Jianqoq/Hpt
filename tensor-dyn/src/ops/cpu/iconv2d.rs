@@ -1,13 +1,9 @@
 use super::conv_config::Conv2dConfig;
 use crate::ops::cpu::conv_config::KernelParamAlgo;
-use crate::ops::cpu::kernels::conv_kernels::*;
 use crate::tensor_base::_Tensor;
-use crate::CONV_REGNUM;
 use rayon::prelude::*;
 use tensor_common::err_handler::ErrHandler;
-use tensor_common::err_handler::ErrHandler::InvalidCacheParam;
 use tensor_common::err_handler::ErrHandler::InvalidInputShape;
-use tensor_common::pointer::Pointer;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
@@ -136,6 +132,7 @@ impl<T> _Tensor<T>
         let num_ow = out_width / 7;
         let outer = batch * out_height * num_ow;
         let num_vec = in_channels / (T::Vec::SIZE as i64);
+        // println!("{}", out_width % 7);
         (0..outer).into_par_iter().for_each(|idx| {
             let mut out = output.ptr();
             let b = idx / (out_height * num_ow);

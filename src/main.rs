@@ -6,19 +6,21 @@ use ops::cpu::conv_config::{ Conv2dConfig, KernelParamAlgo };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
+const IN: i64 = 512;
+
 fn main() -> anyhow::Result<()> {
-    set_num_threads(16);
+    set_num_threads(8);
     let kernel = _Tensor::<f32>
-        ::arange(0, 16 * 16 * 3 * 3)?
-        .reshape([16, 16, 3, 3])?
+        ::arange(0, IN * 16 * 3 * 3)?
+        .reshape([IN, 16, 3, 3])?
         .permute([1, 2, 3, 0])?
         // ::arange(0, 16 * 16 * 3 * 3)?
         // .reshape([16, 16, 3, 3])?
         // .permute([2, 3, 1, 0])?
         .contiguous()?;
     let a = _Tensor::<f32>
-        ::arange(0, 16 * 16 * 256 * 252)?
-        .reshape([16, 16, 256, 252])?
+        ::arange(0, 1 * IN * 256 * 254)?
+        .reshape([1, IN, 256, 254])?
         .permute([0, 2, 3, 1])?
         .contiguous()?;
     let config = Conv2dConfig::<f32>::new(16, 16, [3, 3], KernelParamAlgo::Greedy);
