@@ -6,10 +6,10 @@ use ops::cpu::conv_config::{ Conv2dConfig, KernelParamAlgo };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
-const IN: i64 = 2048;
+const IN: i64 = 4096;
 
 fn main() -> anyhow::Result<()> {
-    set_num_threads(16);
+    set_num_threads(10);
     let kernel = _Tensor::<f32>
         ::arange(0, IN * 1 * 3 * 3)?
         .reshape([IN, 1, 3, 3])?
