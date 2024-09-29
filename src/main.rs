@@ -26,8 +26,8 @@ fn main() -> anyhow::Result<()> {
     let config = Conv2dConfig::<f32>::new(256, IN, [3, 3], KernelParamAlgo::Greedy);
     // println!("config: {:?}", config);
     let now = std::time::Instant::now();
-    for _ in 0..10 {
-        let res = a.iconv2d(
+    for _ in 0..1 {
+        let res = a.conv2d(
             &kernel,
             [1, 1],
             [
@@ -37,6 +37,7 @@ fn main() -> anyhow::Result<()> {
             [1, 1],
             Some(&config)
         )?;
+        println!("{:?}", res);
     }
     println!("{:?}", now.elapsed() / 10);
 

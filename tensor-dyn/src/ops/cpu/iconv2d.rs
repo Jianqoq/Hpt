@@ -156,7 +156,20 @@ impl<T> _Tensor<T>
                         let ll = ll * 4;
                         for l in 0..4 {
                             let l = ll + l;
-                            let mut results = [[T::Vec::splat(T::ZERO); 4]; 2];
+                            if l >= out_height {
+                                continue;
+                            }
+                            let mut results = if ii == 0 {
+                                [[T::Vec::splat(T::ZERO); 4]; 2]
+                            } else {
+                                let mut ret = [[T::Vec::splat(T::ZERO); 4]; 2];
+                                for v in 0..2 {
+                                    for kk in 0..4 {
+                                        ret[v as usize][kk as usize] = unsafe { T::Vec::from_ptr(&out[b * osb + l * osh + (k + kk) * osw + j + v * T::Vec::SIZE as i64] as *const T) }; // prettier-ignore
+                                    }
+                                }
+                                ret
+                            };
                             for n in 0..kernel_height {
                                 for m in 0..kernel_width {
                                     for i in 0..(T::Vec::SIZE as i64) * 2 {
