@@ -1,10 +1,8 @@
 use super::conv_config::Conv2dConfig;
-use crate::ops::cpu::conv_config::KernelParamAlgo;
 use crate::tensor_base::_Tensor;
 use rayon::prelude::*;
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::err_handler::ErrHandler::InvalidInputShape;
-use tensor_common::err_handler::ErrHandler::InvalidCacheParam;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
@@ -45,10 +43,8 @@ impl<T> _Tensor<T>
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        config: Option<&Conv2dConfig<T>>
+        _: Option<&Conv2dConfig<T>>
     ) -> anyhow::Result<_Tensor<T>> {
-        use crate::CONV_REGNUM;
-
         let img_shape = self.shape();
         if img_shape.len() != 4 {
             return Err(
@@ -117,47 +113,23 @@ impl<T> _Tensor<T>
         let ks1 = kernels.strides()[1]; // kernel_width
         let ks2 = kernels.strides()[2]; // in_channels
 
-        let (ci_b, co_b) = match config {
-            Some(config) => (config.ci_block_size, config.co_block_size),
-            None => {
-                let config = {
-                    Conv2dConfig::<T>::new(
-                        out_channels,
-                        in_channels,
-                        [kernel_height, kernel_width],
-                        KernelParamAlgo::Greedy
-                    )
-                };
-                (config.ci_block_size, config.co_block_size)
-            }
-        };
-        if !(co_b % (T::Vec::SIZE as i64) == 0 || co_b == 1) || co_b > out_channels {
-            return Err(
-                InvalidCacheParam(
-                    "co_b",
-                    out_channels,
-                    T::Vec::SIZE as i64,
-                    co_b,
-                    core::panic::Location::caller()
-                ).into()
-            );
-        }
-
         const OH_BLOCK: i64 = 4;
-        const OW_BLOCK: usize = 4;
+        const OW_BLOCK: usize = 5;
         const OC_NVEC: usize = 2;
-        const IC_NVEC: usize = 2;
+        const IC_NVEC: usize = 1;
 
         let num_oh = out_height / OH_BLOCK;
         let outer = batch * num_oh;
-
         (0..outer).into_par_iter().for_each(|idx| {
             let mut out = out.clone();
             let b = idx / num_oh;
             let ll = idx % num_oh;
             for k in (0..out_width).step_by(OW_BLOCK) {
-                for j in (0..out_channels).step_by(T::Vec::SIZE * OC_NVEC) {
-                    for ii in (0..in_channels).step_by(T::Vec::SIZE * IC_NVEC) {
+                if k + (OW_BLOCK as i64) > out_width {
+                    break;
+                }
+                for ii in (0..in_channels).step_by(T::Vec::SIZE * IC_NVEC) {
+                    for j in (0..out_channels).step_by(T::Vec::SIZE * OC_NVEC) {
                         let ll = ll * OH_BLOCK;
                         for l in 0..OH_BLOCK {
                             let l = ll + l;
@@ -184,6 +156,7 @@ impl<T> _Tensor<T>
                                             let inp1 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 1) * step_width + m) * isw + i]); // prettier-ignore
                                             let inp2 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 2) * step_width + m) * isw + i]); // prettier-ignore
                                             let inp3 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 3) * step_width + m) * isw + i]); // prettier-ignore
+                                            let inp4 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 4) * step_width + m) * isw + i]); // prettier-ignore
 
                                             for v in 0..OC_NVEC {
                                                 let kernel = T::Vec::from_ptr(&kernel[n * ks0 + m * ks1 + i * ks2 + j + v as i64 * T::Vec::SIZE as i64]); // prettier-ignore
@@ -191,6 +164,7 @@ impl<T> _Tensor<T>
                                                 results[v as usize][1] = inp1.mul_add(kernel, results[v as usize][1]); // prettier-ignore
                                                 results[v as usize][2] = inp2.mul_add(kernel, results[v as usize][2]); // prettier-ignore
                                                 results[v as usize][3] = inp3.mul_add(kernel, results[v as usize][3]); // prettier-ignore
+                                                results[v as usize][4] = inp4.mul_add(kernel, results[v as usize][4]); // prettier-ignore
                                             }
                                         }
                                     }
