@@ -121,11 +121,12 @@ impl<T> _Tensor<T>
             let mut out = output.ptr();
             let b = idx / num_oh;
             let lp = idx % num_oh;
-            for k in (0..out_width).step_by(4) {
+            for k in (0..out_width).step_by(3) {
                 for j in 0..out_channels {
+                    let mut results = [[T::ZERO; 4]; 3];
                     for i in (0..in_channels).step_by(T::Vec::SIZE * 2) {
-                        for l in 0..3 {
-                            let l = lp * 3 + l;
+                        for ll in 0..3 {
+                            let l = lp * 3 + ll as i64;
                             let mut out_regs = [T::Vec::splat(T::ZERO); 4];
                             for n in 0..kernel_height {
                                 let inp_offset = b * isb + (l * step_height + n * dh) * ish;
@@ -136,28 +137,29 @@ impl<T> _Tensor<T>
                                         let inp0 = T::Vec::from_ptr(&inp[inp_offset + (k * step_width + m * dw) * isw + i]); // prettier-ignore
                                         let inp1 = T::Vec::from_ptr(&inp[inp_offset + ((k + 1) * step_width + m * dw) * isw + i]); // prettier-ignore
                                         let inp2 = T::Vec::from_ptr(&inp[inp_offset + ((k + 2) * step_width + m * dw) * isw + i]); // prettier-ignore
-                                        let inp3 = T::Vec::from_ptr(&inp[inp_offset + ((k + 3) * step_width + m * dw) * isw + i]); // prettier-ignore
                                         out_regs[0] = kernel_vec.mul_add(inp0, out_regs[0]);
                                         out_regs[1] = kernel_vec.mul_add(inp1, out_regs[1]);
                                         out_regs[2] = kernel_vec.mul_add(inp2, out_regs[2]);
-                                        out_regs[3] = kernel_vec.mul_add(inp3, out_regs[3]);
                                         let kernel_vec = T::Vec::from_ptr(&kernel[koffset + i + T::Vec::SIZE as i64]); // prettier-ignore
                                         let inp0 = T::Vec::from_ptr(&inp[inp_offset + (k * step_width + m * dw) * isw + i + T::Vec::SIZE as i64]); // prettier-ignore
                                         let inp1 = T::Vec::from_ptr(&inp[inp_offset + ((k + 1) * step_width + m * dw) * isw + i + T::Vec::SIZE as i64]); // prettier-ignore
                                         let inp2 = T::Vec::from_ptr(&inp[inp_offset + ((k + 2) * step_width + m * dw) * isw + i + T::Vec::SIZE as i64]); // prettier-ignore
-                                        let inp3 = T::Vec::from_ptr(&inp[inp_offset + ((k + 3) * step_width + m * dw) * isw + i + T::Vec::SIZE as i64]); // prettier-ignore
                                         out_regs[0] = kernel_vec.mul_add(inp0, out_regs[0]);
                                         out_regs[1] = kernel_vec.mul_add(inp1, out_regs[1]);
                                         out_regs[2] = kernel_vec.mul_add(inp2, out_regs[2]);
-                                        out_regs[3] = kernel_vec.mul_add(inp3, out_regs[3]);
                                     }
                                 }
                             }
-                            out[b * osb + l * osh + k * osw + j] = out_regs[0].sum();
-                            out[b * osb + l * osh + (k + 1) * osw + j] = out_regs[1].sum();
-                            out[b * osb + l * osh + (k + 2) * osw + j] = out_regs[2].sum();
-                            out[b * osb + l * osh + (k + 3) * osw + j] = out_regs[3].sum();
+                            results[ll][0] = out_regs[0].sum()._add(results[ll][0]);
+                            results[ll][1] = out_regs[1].sum()._add(results[ll][1]);
+                            results[ll][2] = out_regs[2].sum()._add(results[ll][2]);
                         }
+                    }
+                    for ll in 0..3 {
+                        let l = lp * 3 + ll as i64;
+                        out[b * osb + l * osh + k * osw + j] = results[ll][0];
+                        out[b * osb + l * osh + (k + 1) * osw + j] = results[ll][1];
+                        out[b * osb + l * osh + (k + 2) * osw + j] = results[ll][2];
                     }
                 }
             }
