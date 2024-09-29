@@ -143,36 +143,41 @@ impl<T> _Tensor<T>
             );
         }
 
-        let num_oh = out_height / 4;
+        const OH_BLOCK: i64 = 4;
+        const OW_BLOCK: usize = 4;
+        const OC_NVEC: usize = 2;
+        const IC_NVEC: usize = 2;
+
+        let num_oh = out_height / OH_BLOCK;
         let outer = batch * num_oh;
 
         (0..outer).into_par_iter().for_each(|idx| {
             let mut out = out.clone();
             let b = idx / num_oh;
             let ll = idx % num_oh;
-            for k in (0..out_width).step_by(4) {
-                for j in (0..out_channels).step_by(T::Vec::SIZE * 2) {
-                    for ii in (0..in_channels).step_by(T::Vec::SIZE * 2) {
-                        let ll = ll * 4;
-                        for l in 0..4 {
+            for k in (0..out_width).step_by(OW_BLOCK) {
+                for j in (0..out_channels).step_by(T::Vec::SIZE * OC_NVEC) {
+                    for ii in (0..in_channels).step_by(T::Vec::SIZE * IC_NVEC) {
+                        let ll = ll * OH_BLOCK;
+                        for l in 0..OH_BLOCK {
                             let l = ll + l;
                             if l >= out_height {
                                 continue;
                             }
                             let mut results = if ii == 0 {
-                                [[T::Vec::splat(T::ZERO); 4]; 2]
+                                [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC]
                             } else {
-                                let mut ret = [[T::Vec::splat(T::ZERO); 4]; 2];
-                                for v in 0..2 {
-                                    for kk in 0..4 {
-                                        ret[v as usize][kk as usize] = unsafe { T::Vec::from_ptr(&out[b * osb + l * osh + (k + kk) * osw + j + v * T::Vec::SIZE as i64] as *const T) }; // prettier-ignore
+                                let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC];
+                                for v in 0..OC_NVEC {
+                                    for kk in 0..OW_BLOCK as i64 {
+                                        ret[v as usize][kk as usize] = unsafe { T::Vec::from_ptr(&out[b * osb + l * osh + (k + kk) * osw + j + v as i64 * T::Vec::SIZE as i64] as *const T) }; // prettier-ignore
                                     }
                                 }
                                 ret
                             };
                             for n in 0..kernel_height {
                                 for m in 0..kernel_width {
-                                    for i in 0..(T::Vec::SIZE as i64) * 2 {
+                                    for i in 0..(T::Vec::SIZE as i64) * (IC_NVEC as i64) {
                                         let i = ii + i;
                                         unsafe {
                                             let inp0 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]); // prettier-ignore
@@ -180,8 +185,8 @@ impl<T> _Tensor<T>
                                             let inp2 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 2) * step_width + m) * isw + i]); // prettier-ignore
                                             let inp3 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 3) * step_width + m) * isw + i]); // prettier-ignore
 
-                                            for v in 0..2 {
-                                                let kernel = T::Vec::from_ptr(&kernel[n * ks0 + m * ks1 + i * ks2 + j + v * T::Vec::SIZE as i64]); // prettier-ignore
+                                            for v in 0..OC_NVEC {
+                                                let kernel = T::Vec::from_ptr(&kernel[n * ks0 + m * ks1 + i * ks2 + j + v as i64 * T::Vec::SIZE as i64]); // prettier-ignore
                                                 results[v as usize][0] = inp0.mul_add(kernel, results[v as usize][0]); // prettier-ignore
                                                 results[v as usize][1] = inp1.mul_add(kernel, results[v as usize][1]); // prettier-ignore
                                                 results[v as usize][2] = inp2.mul_add(kernel, results[v as usize][2]); // prettier-ignore
@@ -191,8 +196,8 @@ impl<T> _Tensor<T>
                                     }
                                 }
                             }
-                            for v in 0..2 {
-                                for kk in 0..4 {
+                            for v in 0..OC_NVEC as i64 {
+                                for kk in 0..OW_BLOCK as i64 {
                                     let out_vec = &mut out[b * osb + l * osh + (k + kk) * osw + j + v * T::Vec::SIZE as i64] as *mut _ as *mut T::Vec; // prettier-ignore
                                     unsafe {
                                         out_vec.write_unaligned(results[v as usize][kk as usize]);

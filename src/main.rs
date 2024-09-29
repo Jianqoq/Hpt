@@ -27,7 +27,7 @@ fn main() -> anyhow::Result<()> {
     // println!("config: {:?}", config);
     let now = std::time::Instant::now();
     for _ in 0..1 {
-        let res = a.conv2d(
+        let res = a.iconv2d(
             &kernel,
             [1, 1],
             [
