@@ -6,7 +6,7 @@ use ops::cpu::conv_config::{ Conv2dConfig, KernelParamAlgo };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
-const IN: i64 = 32;
+const IN: i64 = 2048;
 const OUT: i64 = 1024;
 const KH: i64 = 3;
 const KW: i64 = 3;
