@@ -120,11 +120,12 @@ impl<T> _Tensor<T>
 
         let num_oh = out_height / OH_BLOCK;
         let outer = batch * num_oh;
-
         (0..outer).into_par_iter().for_each(|idx| {
             let mut out = out.clone();
             let b = idx / num_oh;
             let ll = idx % num_oh;
+            let ll = ll * OH_BLOCK;
+            let l_end = (ll + OH_BLOCK).min(out_height);
             for ii in (0..in_channels).step_by(T::Vec::SIZE * IC_NVEC) {
                 let i_end = (ii + (T::Vec::SIZE as i64) * (IC_NVEC as i64)).min(in_channels);
                 for k in (0..out_width).step_by(OW_BLOCK) {
@@ -132,7 +133,7 @@ impl<T> _Tensor<T>
                         continue;
                     }
                     for j in (0..out_channels).step_by(T::Vec::SIZE * OC_NVEC) {
-                        for l in ll..(ll * OH_BLOCK + OH_BLOCK).min(out_height) {
+                        for l in ll..l_end {
                             let mut results = if ii == 0 {
                                 [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC]
                             } else {
