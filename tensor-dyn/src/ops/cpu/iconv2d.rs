@@ -113,7 +113,7 @@ impl<T> _Tensor<T>
         let ks1 = kernels.strides()[1]; // kernel_width
         let ks2 = kernels.strides()[2]; // in_channels
 
-        const OH_BLOCK: i64 = 4;
+        const OH_BLOCK: i64 = 3;
         const OW_BLOCK: usize = 5;
         const OC_NVEC: usize = 2;
         const IC_NVEC: usize = 2;
