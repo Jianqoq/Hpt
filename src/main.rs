@@ -6,14 +6,15 @@ use ops::cpu::conv_config::{ Conv2dConfig, KernelParamAlgo };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
-const IN: i64 = 16;
-const OUT: i64 = 16;
+const IN: i64 = 32;
+const OUT: i64 = 1024;
 const KH: i64 = 3;
 const KW: i64 = 3;
-const H: i64 = 512;
-const W: i64 = 512;
+const H: i64 = 224;
+const W: i64 = 224;
 
 fn main() -> anyhow::Result<()> {
+    println!("{:?}", cache_size::l2_cache_size().unwrap() / std::mem::size_of::<f32>());
     set_num_threads(16);
     let kernel = _Tensor::<f32>
         // ::arange(0, IN * 16 * 3 * 3)?
@@ -24,8 +25,8 @@ fn main() -> anyhow::Result<()> {
         .permute([2, 3, 1, 0])?
         .contiguous()?;
     let a = _Tensor::<f32>
-        ::arange(0, 16 * IN * H * W)?
-        .reshape([16, IN, H, W])?
+        ::arange(0, 1 * IN * H * W)?
+        .reshape([1, IN, H, W])?
         .permute([0, 2, 3, 1])?
         .contiguous()?;
     let config = Conv2dConfig::<f32>::new(OUT, IN, [KH, KW], KernelParamAlgo::Greedy);

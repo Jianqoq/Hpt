@@ -131,11 +131,8 @@ impl<T> _Tensor<T>
                 for ii in (0..in_channels).step_by(T::Vec::SIZE * IC_NVEC) {
                     for j in (0..out_channels).step_by(T::Vec::SIZE * OC_NVEC) {
                         let ll = ll * OH_BLOCK;
-                        for l in 0..OH_BLOCK {
-                            let l = ll + l;
-                            if l >= out_height {
-                                continue;
-                            }
+                        let l_end = (ll + OH_BLOCK).min(out_height);
+                        for l in ll..l_end {
                             let mut results = if ii == 0 {
                                 [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC]
                             } else {
@@ -149,8 +146,10 @@ impl<T> _Tensor<T>
                             };
                             for n in 0..kernel_height {
                                 for m in 0..kernel_width {
-                                    for i in 0..(T::Vec::SIZE as i64) * (IC_NVEC as i64) {
-                                        let i = ii + i;
+                                    let i_end = (ii + (T::Vec::SIZE as i64) * (IC_NVEC as i64)).min(
+                                        in_channels
+                                    );
+                                    for i in ii..i_end {
                                         unsafe {
                                             let inp0 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]); // prettier-ignore
                                             let inp1 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 1) * step_width + m) * isw + i]); // prettier-ignore
