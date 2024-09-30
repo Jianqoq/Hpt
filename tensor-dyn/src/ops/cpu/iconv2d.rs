@@ -115,12 +115,15 @@ impl<T> _Tensor<T>
 
         let cache_size = cache_size::l1_cache_line_size().unwrap_or(64) / std::mem::size_of::<T>();
 
-        let oh_block: i64 = (cache_size as i64) / 4;
+        let oh_block: i64 = 4;
         const OW_BLOCK: usize = 7;
-        let j_block: usize = T::Vec::SIZE * 16;
+        let j_block: usize = cache_size * 16;
 
         let num_oh = out_height / oh_block;
         let outer = batch * num_oh;
+        // println!("{}", out_width % OW_BLOCK as i64);
+        // println!("{}", out_height % oh_block as i64);
+        // println!("{}", in_channels % cache_size as i64);
 
         (0..outer).into_par_iter().for_each(|idx| {
             let mut out = out.clone();
