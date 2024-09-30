@@ -64,6 +64,8 @@ pub mod ops {
         pub mod topk;
         /// a module defines all the unary operations
         pub mod unary;
+        /// a module defines xnnpack conv2d operation
+        pub mod xnnpack_conv2d;
         /// a module defines all the kernels
         pub mod kernels {
             /// a module defines the avgpool2d kernels
@@ -76,6 +78,13 @@ pub mod ops {
             pub mod maxpool_kernels;
             /// a module defines the reduce kernels
             pub mod reduce_kernels;
+            /// a module defines the conv kernels
+            pub mod conv {
+                /// a module defines the conv kernels
+                pub mod kernels;
+                /// a module defines the conv kernels for 128bit vectors
+                pub mod _128bit;
+            }
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_expose {
