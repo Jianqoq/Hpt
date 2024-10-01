@@ -116,9 +116,19 @@ impl<T> _Tensor<T>
 
         const OH_BLOCK: i64 = 3;
         const OW_BLOCK: usize = 5;
+        #[cfg(target_os = "macos")]
+        const OC_NVEC: usize = 4;
+        #[cfg(not(target_os = "macos"))]
         const OC_NVEC: usize = 2;
         const IC_NVEC: usize = 2;
 
+        let l1_cache_size = cache_size::l1_cache_size().unwrap_or(128 * 1024) / core::mem::size_of::<T>();
+        let l2_cache_size = cache_size::l2_cache_size().unwrap_or(128 * 1024 * 30) / core::mem::size_of::<T>();
+
+        let inp_used = OW_BLOCK as i64 * IC_NVEC as i64 * T::Vec::SIZE as i64 * kernel_height * kernel_width;
+        let kernel_used = OC_NVEC as i64 * T::Vec::SIZE as i64 * IC_NVEC as i64 * T::Vec::SIZE as i64 * kernel_height * kernel_width;
+        let out_used = OW_BLOCK as i64 * OC_NVEC as i64 * T::Vec::SIZE as i64 * out_height * out_width;
+        
         let num_oh = (out_height + OH_BLOCK - 1) / OH_BLOCK;
         let outer = batch * num_oh;
         (0..outer).into_par_iter().for_each(|idx| {
