@@ -237,6 +237,18 @@ impl<T> AddAssign<usize> for Pointer<T> {
     }
 }
 
+impl<T> AddAssign<usize> for &mut Pointer<T> {
+    fn add_assign(&mut self, rhs: usize) {
+        #[cfg(feature = "bound_check")]
+        {
+            self.len -= rhs as i64;
+        }
+        unsafe {
+            self.ptr = self.ptr.add(rhs);
+        }
+    }
+}
+
 impl<T> AddAssign<isize> for Pointer<T> {
     fn add_assign(&mut self, rhs: isize) {
         unsafe {
