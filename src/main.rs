@@ -1,12 +1,6 @@
-use dtype::TypeCommon;
-// use std::ffi::CStr;
-// use std::hint::black_box;
-// use half::bf16;
 use ops::cpu::conv_config::{ Conv2dConfig, KernelParamAlgo };
-// use tch::{ Device, Kind, Tensor };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
-use tensor_dyn::traits::VecCommon;
 
 const IN: i64 = 1024;
 const OUT: i64 = 1024;

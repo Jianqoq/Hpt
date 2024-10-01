@@ -37,7 +37,7 @@ path = "src/main.rs"
 [profile.release]
 opt-level = 3
 incremental = false
-debug = true
+debug = false
 lto = "fat"
 codegen-units = 1
 

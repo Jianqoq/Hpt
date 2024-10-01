@@ -7,7 +7,6 @@ use tensor_common::pointer::Pointer;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
-use tensor_types::dtype::TypeCommon;
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
@@ -99,7 +98,7 @@ impl<T> _Tensor<T>
             };
         }
         let output = _Tensor::<T>::empty([batch, out_height, out_width, out_channels])?;
-        let mut out = output.ptr();
+        let out = output.ptr();
         let inp = img.ptr();
         let kernel = kernels.ptr();
 
@@ -452,7 +451,6 @@ fn micro_kernel_1<T: CommonBounds, const OC_NVEC: usize>(
     inp: &Pointer<T>,
     kernel: &Pointer<T>
 ) {
-    const OW_BLOCK: usize = 5;
     let mut results = if ii == 0 {
         [T::Vec::splat(T::ZERO); OC_NVEC]
     } else {
