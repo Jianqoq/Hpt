@@ -119,7 +119,7 @@ impl<T> _Tensor<T>
         const OC_NVEC: usize = 4;
         const IC_NVEC: usize = 2;
 
-        let num_oh = out_height / OH_BLOCK;
+        let num_oh = (out_height + OH_BLOCK - 1) / OH_BLOCK;
         let outer = batch * num_oh;
         (0..outer).into_par_iter().for_each(|idx| {
             let mut out = out.clone();
