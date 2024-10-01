@@ -160,8 +160,6 @@ pub trait TypeCommon where Self: Sized {
     const TWO: Self;
     /// the string representation of the data type
     const STR: &'static str;
-    /// the simd vector size
-    const VECSIZE: usize;
     /// the simd vector type of the data type
     type Vec: VecTrait<Self> +
         Init<Self> +
@@ -196,7 +194,6 @@ macro_rules! impl_type_common {
         $neg_inf:expr,
         $two:expr,
         $str:expr,
-        $vec_size: literal,
         $vec:ty
     ) => {
         impl TypeCommon for $type {
@@ -209,7 +206,6 @@ macro_rules! impl_type_common {
             const NEG_INF: Self = $neg_inf;
             const TWO: Self = $two;
             const STR: &'static str = $str;
-            const VECSIZE: usize = $vec_size;
             type Vec = $vec;
         }
     };
@@ -232,11 +228,10 @@ mod type_impl {
         false,
         false,
         "bool",
-        32,
         boolx32::boolx32
     );
-    impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, "i8", 32, i8x32::i8x32);
-    impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, "u8", 32, u8x32::u8x32);
+    impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, "i8", i8x32::i8x32);
+    impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, "u8", u8x32::u8x32);
     impl_type_common!(
         i16,
         I16,
@@ -248,7 +243,6 @@ mod type_impl {
         i16::MIN,
         2,
         "i16",
-        16,
         i16x16::i16x16
     );
     impl_type_common!(
@@ -262,7 +256,6 @@ mod type_impl {
         u16::MIN,
         2,
         "u16",
-        16,
         u16x16::u16x16
     );
     impl_type_common!(
@@ -276,7 +269,6 @@ mod type_impl {
         i32::MIN,
         2,
         "i32",
-        8,
         i32x8::i32x8
     );
     impl_type_common!(
@@ -290,7 +282,6 @@ mod type_impl {
         u32::MIN,
         2,
         "u32",
-        8,
         u32x8::u32x8
     );
     impl_type_common!(
@@ -304,7 +295,6 @@ mod type_impl {
         i64::MIN,
         2,
         "i64",
-        4,
         i64x4::i64x4
     );
     impl_type_common!(
@@ -318,7 +308,6 @@ mod type_impl {
         u64::MIN,
         2,
         "u64",
-        4,
         u64x4::u64x4
     );
     impl_type_common!(
@@ -332,7 +321,6 @@ mod type_impl {
         f32::NEG_INFINITY,
         2.0,
         "f32",
-        8,
         f32x8::f32x8
     );
     impl_type_common!(
@@ -346,7 +334,6 @@ mod type_impl {
         f64::NEG_INFINITY,
         2.0,
         "f64",
-        4,
         f64x4::f64x4
     );
     #[cfg(target_pointer_width = "64")]
@@ -361,7 +348,6 @@ mod type_impl {
         isize::MIN,
         2,
         "isize",
-        4,
         isizex4::isizex4
     );
     #[cfg(target_pointer_width = "32")]
@@ -390,7 +376,6 @@ mod type_impl {
         usize::MIN,
         2,
         "usize",
-        4,
         usizex4::usizex4
     );
     #[cfg(target_pointer_width = "32")]
@@ -418,7 +403,6 @@ mod type_impl {
         f16::NEG_INFINITY,
         f16::from_f32_const(2.0),
         "f16",
-        16,
         f16x16::f16x16
     );
     impl_type_common!(
@@ -432,7 +416,6 @@ mod type_impl {
         bf16::NEG_INFINITY,
         bf16::from_f32_const(2.0),
         "bf16",
-        16,
         bf16x16::bf16x16
     );
     impl_type_common!(
@@ -446,7 +429,6 @@ mod type_impl {
         Complex32::new(f32::NEG_INFINITY, f32::NEG_INFINITY),
         Complex32::new(2.0, 0.0),
         "c32",
-        4,
         cplx32x4::cplx32x4
     );
     impl_type_common!(
@@ -460,7 +442,6 @@ mod type_impl {
         Complex64::new(f64::NEG_INFINITY, f64::NEG_INFINITY),
         Complex64::new(2.0, 0.0),
         "c64",
-        2,
         cplx64x2::cplx64x2
     );
 }
