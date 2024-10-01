@@ -43,6 +43,7 @@ mod type_utils;
 mod normal_out;
 mod scalar_convert;
 mod from_scalar;
+mod conv2d;
 use crate::simd_cmp::impl_simd_cmp;
 use crate::simd_normal_out::impl_simd_normal_out;
 use proc_macro2::{ TokenStream as TokenStream2, TokenTree };
@@ -661,4 +662,10 @@ pub fn gen_fast_reduce_simd_helper(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn gen_reduce_dim_not_include_simd_helper(input: TokenStream) -> TokenStream {
     __gen_reduce_dim_not_include_simd_helper(input)
+}
+
+/// generate conv2d helper
+#[proc_macro]
+pub fn conv2d_helper(input: TokenStream) -> TokenStream {
+    conv2d::conv2d_helper(input)
 }

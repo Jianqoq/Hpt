@@ -20,6 +20,8 @@ pub mod ops {
         pub mod concat;
         /// a module defines conv2d operation
         pub mod conv2d;
+        /// a module defines conv2d operation
+        pub mod iconv2d;
         /// a module defines conv_config struct
         pub mod conv_config;
         /// a module defines dropout operation

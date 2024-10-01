@@ -22,6 +22,7 @@ rayon = "1.8.0"
 num = "0.4.1"
 ctor = "0.2.8"
 cpuid = "0.1.1"
+unroll = "0.1.5"
 cache-size = "0.7.0"
 half = { version = "2.3.1", features = ["num-traits", "rand_distr"] }
 gemm = { version = "0.18.0", features = ["rayon"] }

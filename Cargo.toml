@@ -24,6 +24,7 @@ anyhow = "1.0.40"
 half = "2.4.1"
 tch = {version = "0.17.0", features = ["download-libtorch"]}
 rayon = "1.8.0"
+cache-size = "0.7.0"
 
 [[test]]
 name = "tensor-tests"
@@ -34,11 +35,11 @@ name = "etensor"
 path = "src/main.rs"
 
 [profile.release]
-opt-level = 0
+opt-level = 3
 incremental = false
 debug = false
-# lto = "fat"
-# codegen-units = 1
+lto = "fat"
+codegen-units = 1
 
 [profile.dev]
 opt-level = 0
