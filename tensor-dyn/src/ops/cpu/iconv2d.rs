@@ -4,7 +4,6 @@ use rayon::prelude::*;
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::err_handler::ErrHandler::InvalidInputShape;
 use tensor_common::pointer::Pointer;
-use tensor_macros::conv2d_helper;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
@@ -115,7 +114,7 @@ impl<T> _Tensor<T>
         let ks1 = kernels.strides()[1]; // kernel_width
         let ks2 = kernels.strides()[2]; // in_channels
 
-        const OH_BLOCK: i64 = 4;
+        const OH_BLOCK: i64 = 3;
         const OW_BLOCK: usize = 5;
         const OC_NVEC: usize = 2;
         const IC_NVEC: usize = 2;
@@ -132,29 +131,208 @@ impl<T> _Tensor<T>
                 let i_end = (ii + (T::Vec::SIZE as i64) * (IC_NVEC as i64)).min(in_channels);
                 for k in (0..out_width).step_by(OW_BLOCK) {
                     let oc_remain = out_channels % ((T::Vec::SIZE as i64) * (OC_NVEC as i64));
-                    if k + (OW_BLOCK as i64) <= out_width {
-                        conv2d_helper!(micro_kernel_5, micro_kernel_5_scalar);
-                    } else {
-                        let remain = out_width - k;
-                        match remain {
+                    let k_end = (k + (OW_BLOCK as i64)).min(out_width);
+                    let ow_remain = k_end - k;
+
+                    // Main loop for full OC_NVEC blocks
+                    match ow_remain {
+                        5 => {
+                            for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * OC_NVEC) {
+                                for l in ll..l_end {
+                                    micro_kernel_5::<T, OC_NVEC>(
+                                        [ii, i_end],
+                                        [kernel_height, kernel_width],
+                                        [b, l, k, j],
+                                        [osb, osh, osw],
+                                        [step_height, step_width],
+                                        [isb, ish, isw],
+                                        [ks0, ks1, ks2],
+                                        &mut out,
+                                        &inp,
+                                        &kernel
+                                    );
+                                }
+                            }
+                        }
+                        4 => {
+                            for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * OC_NVEC) {
+                                for l in ll..l_end {
+                                    micro_kernel_4::<T, OC_NVEC>(
+                                        [ii, i_end],
+                                        [kernel_height, kernel_width],
+                                        [b, l, k, j],
+                                        [osb, osh, osw],
+                                        [step_height, step_width],
+                                        [isb, ish, isw],
+                                        [ks0, ks1, ks2],
+                                        &mut out,
+                                        &inp,
+                                        &kernel
+                                    );
+                                }
+                            }
+                        }
+                        3 => {
+                            for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * OC_NVEC) {
+                                for l in ll..l_end {
+                                    micro_kernel_3::<T, OC_NVEC>(
+                                        [ii, i_end],
+                                        [kernel_height, kernel_width],
+                                        [b, l, k, j],
+                                        [osb, osh, osw],
+                                        [step_height, step_width],
+                                        [isb, ish, isw],
+                                        [ks0, ks1, ks2],
+                                        &mut out,
+                                        &inp,
+                                        &kernel
+                                    );
+                                }
+                            }
+                        }
+                        2 => {
+                            for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * OC_NVEC) {
+                                for l in ll..l_end {
+                                    micro_kernel_2::<T, OC_NVEC>(
+                                        [ii, i_end],
+                                        [kernel_height, kernel_width],
+                                        [b, l, k, j],
+                                        [osb, osh, osw],
+                                        [step_height, step_width],
+                                        [isb, ish, isw],
+                                        [ks0, ks1, ks2],
+                                        &mut out,
+                                        &inp,
+                                        &kernel
+                                    );
+                                }
+                            }
+                        }
+                        1 => {
+                            for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * OC_NVEC) {
+                                for l in ll..l_end {
+                                    micro_kernel_1::<T, OC_NVEC>(
+                                        [ii, i_end],
+                                        [kernel_height, kernel_width],
+                                        [b, l, k, j],
+                                        [osb, osh, osw],
+                                        [step_height, step_width],
+                                        [isb, ish, isw],
+                                        [ks0, ks1, ks2],
+                                        &mut out,
+                                        &inp,
+                                        &kernel
+                                    );
+                                }
+                            }
+                        }
+                        _ => unreachable!(),
+                    }
+                    // Handle remaining OC
+                    if oc_remain > 0 {
+                        let j_start = out_channels - oc_remain;
+                        match ow_remain {
                             5 => {
-                                conv2d_helper!(micro_kernel_5, micro_kernel_5_scalar);
+                                for j in (j_start..out_channels).step_by(T::Vec::SIZE) {
+                                    let oc_end = (j + (T::Vec::SIZE as i64)).min(out_channels);
+                                    for l in ll..l_end {
+                                        micro_kernel_5_scalar::<T>(
+                                            [ii, i_end],
+                                            [kernel_height, kernel_width],
+                                            [b, l, k, j],
+                                            [osb, osh, osw],
+                                            [step_height, step_width],
+                                            [isb, ish, isw],
+                                            [ks0, ks1, ks2],
+                                            oc_end - j,
+                                            &mut out,
+                                            &inp,
+                                            &kernel
+                                        );
+                                    }
+                                }
                             }
                             4 => {
-                                conv2d_helper!(micro_kernel_4, micro_kernel_4_scalar);
+                                for j in (j_start..out_channels).step_by(T::Vec::SIZE) {
+                                    let oc_end = (j + (T::Vec::SIZE as i64)).min(out_channels);
+                                    for l in ll..l_end {
+                                        micro_kernel_4_scalar::<T>(
+                                            [ii, i_end],
+                                            [kernel_height, kernel_width],
+                                            [b, l, k, j],
+                                            [osb, osh, osw],
+                                            [step_height, step_width],
+                                            [isb, ish, isw],
+                                            [ks0, ks1, ks2],
+                                            oc_end - j,
+                                            &mut out,
+                                            &inp,
+                                            &kernel
+                                        );
+                                    }
+                                }
                             }
                             3 => {
-                                conv2d_helper!(micro_kernel_3, micro_kernel_3_scalar);
+                                for j in (j_start..out_channels).step_by(T::Vec::SIZE) {
+                                    let oc_end = (j + (T::Vec::SIZE as i64)).min(out_channels);
+                                    for l in ll..l_end {
+                                        micro_kernel_3_scalar::<T>(
+                                            [ii, i_end],
+                                            [kernel_height, kernel_width],
+                                            [b, l, k, j],
+                                            [osb, osh, osw],
+                                            [step_height, step_width],
+                                            [isb, ish, isw],
+                                            [ks0, ks1, ks2],
+                                            oc_end - j,
+                                            &mut out,
+                                            &inp,
+                                            &kernel
+                                        );
+                                    }
+                                }
                             }
                             2 => {
-                                conv2d_helper!(micro_kernel_2, micro_kernel_2_scalar);
+                                for j in (j_start..out_channels).step_by(T::Vec::SIZE) {
+                                    let oc_end = (j + (T::Vec::SIZE as i64)).min(out_channels);
+                                    for l in ll..l_end {
+                                        micro_kernel_2_scalar::<T>(
+                                            [ii, i_end],
+                                            [kernel_height, kernel_width],
+                                            [b, l, k, j],
+                                            [osb, osh, osw],
+                                            [step_height, step_width],
+                                            [isb, ish, isw],
+                                            [ks0, ks1, ks2],
+                                            oc_end - j,
+                                            &mut out,
+                                            &inp,
+                                            &kernel
+                                        );
+                                    }
+                                }
                             }
                             1 => {
-                                conv2d_helper!(micro_kernel_1, micro_kernel_1_scalar);
+                                for j in (j_start..out_channels).step_by(T::Vec::SIZE) {
+                                    let oc_end = (j + (T::Vec::SIZE as i64)).min(out_channels);
+                                    for l in ll..l_end {
+                                        micro_kernel_1_scalar::<T>(
+                                            [ii, i_end],
+                                            [kernel_height, kernel_width],
+                                            [b, l, k, j],
+                                            [osb, osh, osw],
+                                            [step_height, step_width],
+                                            [isb, ish, isw],
+                                            [ks0, ks1, ks2],
+                                            oc_end - j,
+                                            &mut out,
+                                            &inp,
+                                            &kernel
+                                        );
+                                    }
+                                }
                             }
-                            _ => {
-                                unimplemented!();
-                            }
+                            _ => unreachable!(),
                         }
                     }
                 }
