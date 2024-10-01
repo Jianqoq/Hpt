@@ -2,8 +2,8 @@ use ops::cpu::conv_config::{ Conv2dConfig, KernelParamAlgo };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
-const IN: i64 = 512;
-const OUT: i64 = 512;
+const IN: i64 = 1024;
+const OUT: i64 = 1024;
 const KH: i64 = 3;
 const KW: i64 = 3;
 const H: i64 = 256;
@@ -26,8 +26,8 @@ fn main() -> anyhow::Result<()> {
     let config = Conv2dConfig::<f32>::new(OUT, IN, [KH, KW], KernelParamAlgo::Greedy);
     // println!("config: {:?}", config);
     let now = std::time::Instant::now();
-    for _ in 0..5 {
-        let res = a.iconv2d(
+    for _ in 0..1 {
+        let _ = a.iconv2d(
             &kernel,
             [1, 1],
             [
@@ -38,7 +38,7 @@ fn main() -> anyhow::Result<()> {
             Some(&config)
         )?;
     }
-    println!("{:?}", now.elapsed() / 5);
+    println!("{:?}", now.elapsed() / 1);
 
     // // println!("{:?}", res);
     Ok(())
