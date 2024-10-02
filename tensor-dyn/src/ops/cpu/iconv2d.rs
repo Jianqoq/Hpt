@@ -115,13 +115,13 @@ where
         const OH_BLOCK: i64 = 3;
         const OW_BLOCK: usize = 5;
         #[cfg(target_os = "macos")]
-        const OC_NVEC: usize = 4;
+        const OC_NVEC: usize = 8;
         #[cfg(not(target_os = "macos"))]
         const OC_NVEC: usize = 2;
         const IC_NVEC: usize = 2;
 
         let l1_cache_size =
-            cache_size::l1_cache_size().unwrap_or(64 * 1024) / core::mem::size_of::<T>();
+            cache_size::l1_cache_size().unwrap_or(131072) / core::mem::size_of::<T>();
 
         let inp_used = (OW_BLOCK as i64)
             * (IC_NVEC as i64)
@@ -139,6 +139,7 @@ where
             .div_ceil(OC_NVEC * T::Vec::SIZE)
             .max(1) as i64;
         let total = (kernel_used + out_used) * num_oc + inp_used;
+        println!("total: {}", total);
         let optimal_num_oc = if total < (l1_cache_size as i64) {
             num_oc
         } else {
@@ -178,7 +179,7 @@ where
                             5 => {
                                 for j in (jj_start..full_oc_end).step_by(T::Vec::SIZE * OC_NVEC) {
                                     for l in ll..l_end {
-                                        micro_kernel_5x2::<T, OC_NVEC>(
+                                        micro_kernel_5x4::<T>(
                                             [ii, i_end],
                                             [kernel_height, kernel_width],
                                             [b, l, k, j],
@@ -196,7 +197,7 @@ where
                             4 => {
                                 for j in (jj_start..full_oc_end).step_by(T::Vec::SIZE * OC_NVEC) {
                                     for l in ll..l_end {
-                                        micro_kernel_4x2::<T, OC_NVEC>(
+                                        micro_kernel_4x4::<T>(
                                             [ii, i_end],
                                             [kernel_height, kernel_width],
                                             [b, l, k, j],
@@ -214,7 +215,7 @@ where
                             3 => {
                                 for j in (jj_start..full_oc_end).step_by(T::Vec::SIZE * OC_NVEC) {
                                     for l in ll..l_end {
-                                        micro_kernel_3x2::<T, OC_NVEC>(
+                                        micro_kernel_3x4::<T>(
                                             [ii, i_end],
                                             [kernel_height, kernel_width],
                                             [b, l, k, j],
@@ -232,7 +233,7 @@ where
                             2 => {
                                 for j in (jj_start..full_oc_end).step_by(T::Vec::SIZE * OC_NVEC) {
                                     for l in ll..l_end {
-                                        micro_kernel_2x2::<T, OC_NVEC>(
+                                        micro_kernel_2x4::<T>(
                                             [ii, i_end],
                                             [kernel_height, kernel_width],
                                             [b, l, k, j],
@@ -250,7 +251,7 @@ where
                             1 => {
                                 for j in (jj_start..full_oc_end).step_by(T::Vec::SIZE * OC_NVEC) {
                                     for l in ll..l_end {
-                                        micro_kernel_1x4::<T, OC_NVEC>(
+                                        micro_kernel_1x4::<T>(
                                             [ii, i_end],
                                             [kernel_height, kernel_width],
                                             [b, l, k, j],
@@ -430,28 +431,25 @@ macro_rules! repeat_results_scalar {
     };
 }
 
-#[
-    duplicate_item(
-        template_function   ow_block    inp_place_holder      kernel_place_holder              oc;
-        [micro_kernel_5x2]    [5]      [[0, 1, 2, 3, 4]]       [[0, 1]]                     [[0, 1]];
-        [micro_kernel_4x2]    [4]      [[0, 1, 2, 3]]          [[0, 1]]                     [[0, 1]];
-        [micro_kernel_3x2]    [3]      [[0, 1, 2]]             [[0, 1]]                     [[0, 1]];
-        [micro_kernel_2x2]    [2]      [[0, 1]]                [[0, 1]]                     [[0, 1]];
-        [micro_kernel_1x2]    [1]      [[0]]                   [[0, 1]]                     [[0, 1]];
-        [micro_kernel_5x4]    [5]      [[0, 1, 2, 3, 4]]       [[0, 1, 2, 3]]               [[0, 1, 2, 3]];
-        [micro_kernel_4x4]    [4]      [[0, 1, 2, 3]]          [[0, 1, 2, 3]]               [[0, 1, 2, 3]];
-        [micro_kernel_3x4]    [3]      [[0, 1, 2]]             [[0, 1, 2, 3]]               [[0, 1, 2, 3]];
-        [micro_kernel_2x4]    [2]      [[0, 1]]                [[0, 1, 2, 3]]               [[0, 1, 2, 3]];
-        [micro_kernel_1x4]    [1]      [[0]]                   [[0, 1, 2, 3]]               [[0, 1, 2, 3]];
-        [micro_kernel_5x8]    [5]      [[0, 1, 2, 3, 4]]       [[0, 1, 2, 3, 4, 5, 6, 7]]   [[0, 1, 2, 3, 4, 5, 6, 7]];
-        [micro_kernel_4x8]    [4]      [[0, 1, 2, 3]]          [[0, 1, 2, 3, 4, 5, 6, 7]]   [[0, 1, 2, 3, 4, 5, 6, 7]];
-        [micro_kernel_3x8]    [3]      [[0, 1, 2]]             [[0, 1, 2, 3, 4, 5, 6, 7]]   [[0, 1, 2, 3, 4, 5, 6, 7]];
-        [micro_kernel_2x8]    [2]      [[0, 1]]                [[0, 1, 2, 3, 4, 5, 6, 7]]   [[0, 1, 2, 3, 4, 5, 6, 7]];
-        [micro_kernel_1x8]    [1]      [[0]]                   [[0, 1, 2, 3, 4, 5, 6, 7]]   [[0, 1, 2, 3, 4, 5, 6, 7]];
-    )
-]
+duplicate::duplicate!([
+    template_function   ow_block  oc_block       inp_place_holder              oc;
+    [micro_kernel_5x2]    [5]      [2]          [[0, 1, 2, 3, 4]]           [[0, 1]];
+    [micro_kernel_4x2]    [4]      [2]          [[0, 1, 2, 3]]              [[0, 1]];
+    [micro_kernel_3x2]    [3]      [2]          [[0, 1, 2]]                 [[0, 1]];
+    [micro_kernel_2x2]    [2]      [2]          [[0, 1]]                    [[0, 1]];
+    [micro_kernel_1x2]    [1]      [2]          [[0]]                       [[0, 1]];
+    [micro_kernel_5x4]    [5]      [4]          [[0, 1, 2, 3, 4]]           [[0, 1, 2, 3]];
+    [micro_kernel_4x4]    [4]      [4]          [[0, 1, 2, 3]]              [[0, 1, 2, 3]];
+    [micro_kernel_3x4]    [3]      [4]          [[0, 1, 2]]                 [[0, 1, 2, 3]];
+    [micro_kernel_2x4]    [2]      [4]          [[0, 1]]                    [[0, 1, 2, 3]];
+    [micro_kernel_1x4]    [1]      [4]          [[0]]                       [[0, 1, 2, 3]];
+    [micro_kernel_5x8]    [5]      [8]          [[0, 1, 2, 3, 4]]           [[0, 1, 2, 3, 4, 5, 6, 7]];
+    [micro_kernel_4x8]    [4]      [8]          [[0, 1, 2, 3]]              [[0, 1, 2, 3, 4, 5, 6, 7]];
+    [micro_kernel_3x8]    [3]      [8]          [[0, 1, 2]]                 [[0, 1, 2, 3, 4, 5, 6, 7]];
+    [micro_kernel_2x8]    [2]      [8]          [[0, 1]]                    [[0, 1, 2, 3, 4, 5, 6, 7]];
+    [micro_kernel_1x8]    [1]      [8]          [[0]]                       [[0, 1, 2, 3, 4, 5, 6, 7]];]
 #[inline]
-fn template_function<T: CommonBounds, const OC_NVEC: usize>(
+fn template_function<T: CommonBounds>(
     [ii, i_end]: [i64; 2],
     [kh, kw]: [i64; 2],
     [b, l, k, j]: [i64; 4],
@@ -465,10 +463,10 @@ fn template_function<T: CommonBounds, const OC_NVEC: usize>(
 ) {
     const OW_BLOCK: usize = ow_block;
     let mut results = if ii == 0 {
-        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC]
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; oc_block]
     } else {
-        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC];
-        for v in 0..OC_NVEC {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; oc_block];
+        for v in 0..oc_block {
             for kk in 0..OW_BLOCK as i64 {
                 ret[v as usize][kk as usize] = unsafe {
                     T::Vec::from_ptr(
@@ -496,12 +494,12 @@ fn template_function<T: CommonBounds, const OC_NVEC: usize>(
                 let is3 = is2 + i;
                 let kr3 = i * ks2 + kr2;
                 let inp = repeat_inp!(inp, is3, step_width * isw, inp_place_holder);
-                let kernel = repeat_kernel!(kernel, kr3, T::Vec::SIZE as i64, kernel_place_holder);
+                let kernel = repeat_kernel!(kernel, kr3, T::Vec::SIZE as i64, oc);
                 repeat_results!(results, inp, kernel, oc, inp_place_holder);
             }
         }
     }
-    for v in 0..OC_NVEC as i64 {
+    for v in 0..oc_block {
         for kk in 0..OW_BLOCK as i64 {
             let out_vec = &mut out[b * osb + l * osh + (k + kk) * osw + j + v * T::Vec::SIZE as i64]
                 as *mut _ as *mut T::Vec; // prettier-ignore
@@ -511,6 +509,7 @@ fn template_function<T: CommonBounds, const OC_NVEC: usize>(
         }
     }
 }
+    );
 
 #[
     duplicate_item(
