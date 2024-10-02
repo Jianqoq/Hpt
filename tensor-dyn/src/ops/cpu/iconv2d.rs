@@ -113,7 +113,7 @@ where
         let ks2 = kernels.strides()[2]; // in_channels
 
         const OH_BLOCK: i64 = 3;
-        const OW_BLOCK: usize = 5;
+        const OW_BLOCK: usize = 2;
         #[cfg(target_os = "macos")]
         const OC_NVEC: usize = 8;
         #[cfg(not(target_os = "macos"))]
@@ -139,7 +139,7 @@ where
             .div_ceil(OC_NVEC * T::Vec::SIZE)
             .max(1) as i64;
         let total = (kernel_used + out_used) * num_oc + inp_used;
-        println!("total: {}", total);
+        // println!("total: {}", total);
         let optimal_num_oc = if total < (l1_cache_size as i64) {
             num_oc
         } else {
@@ -179,7 +179,7 @@ where
                             5 => {
                                 for j in (jj_start..full_oc_end).step_by(T::Vec::SIZE * OC_NVEC) {
                                     for l in ll..l_end {
-                                        micro_kernel_5x4::<T>(
+                                        micro_kernel_5x8::<T>(
                                             [ii, i_end],
                                             [kernel_height, kernel_width],
                                             [b, l, k, j],
@@ -197,7 +197,7 @@ where
                             4 => {
                                 for j in (jj_start..full_oc_end).step_by(T::Vec::SIZE * OC_NVEC) {
                                     for l in ll..l_end {
-                                        micro_kernel_4x4::<T>(
+                                        micro_kernel_4x8::<T>(
                                             [ii, i_end],
                                             [kernel_height, kernel_width],
                                             [b, l, k, j],
@@ -215,7 +215,7 @@ where
                             3 => {
                                 for j in (jj_start..full_oc_end).step_by(T::Vec::SIZE * OC_NVEC) {
                                     for l in ll..l_end {
-                                        micro_kernel_3x4::<T>(
+                                        micro_kernel_3x8::<T>(
                                             [ii, i_end],
                                             [kernel_height, kernel_width],
                                             [b, l, k, j],
@@ -233,7 +233,7 @@ where
                             2 => {
                                 for j in (jj_start..full_oc_end).step_by(T::Vec::SIZE * OC_NVEC) {
                                     for l in ll..l_end {
-                                        micro_kernel_2x4::<T>(
+                                        micro_kernel_2x8::<T>(
                                             [ii, i_end],
                                             [kernel_height, kernel_width],
                                             [b, l, k, j],
@@ -251,7 +251,7 @@ where
                             1 => {
                                 for j in (jj_start..full_oc_end).step_by(T::Vec::SIZE * OC_NVEC) {
                                     for l in ll..l_end {
-                                        micro_kernel_1x4::<T>(
+                                        micro_kernel_1x8::<T>(
                                             [ii, i_end],
                                             [kernel_height, kernel_width],
                                             [b, l, k, j],
