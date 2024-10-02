@@ -2,12 +2,12 @@ use std::sync::Arc;
 
 use super::conv_config::Conv2dConfig;
 use crate::tensor_base::_Tensor;
+use duplicate::duplicate_item;
 use rayon::prelude::*;
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::err_handler::ErrHandler::InvalidInputShape;
 use tensor_common::pointer::Pointer;
 use tensor_common::shape_utils::mt_intervals;
-use tensor_macros::conv2d_microkernel_template;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
@@ -16,9 +16,9 @@ use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
 
 impl<T> _Tensor<T>
-    where
-        T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
-        T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecCommon + NormalOut<Output = T::Vec>
+where
+    T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
+    T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecCommon + NormalOut<Output = T::Vec>,
 {
     /// Performs a 2D convolution operation on the input tensor.
     ///
@@ -48,16 +48,15 @@ impl<T> _Tensor<T>
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        _: Option<&Conv2dConfig<T>>
+        _: Option<&Conv2dConfig<T>>,
     ) -> anyhow::Result<_Tensor<T>> {
         let img_shape = self.shape();
         if img_shape.len() != 4 {
-            return Err(
-                ErrHandler::Conv2dImgShapeInCorrect(
-                    img_shape.len(),
-                    core::panic::Location::caller()
-                ).into()
-            );
+            return Err(ErrHandler::Conv2dImgShapeInCorrect(
+                img_shape.len(),
+                core::panic::Location::caller(),
+            )
+            .into());
         }
         let batch = img_shape[0];
         let img_height = img_shape[1];
@@ -83,13 +82,8 @@ impl<T> _Tensor<T>
             (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1;
         let img = if !padding.iter().all(|(a, b)| *a == 0 && *b == 0) {
             self.pad(
-                &[
-                    (0, 0),
-                    (ph_start, ph_end),
-                    (pw_start, pw_end),
-                    (0, 0),
-                ],
-                T::ZERO
+                &[(0, 0), (ph_start, ph_end), (pw_start, pw_end), (0, 0)],
+                T::ZERO,
             )?
         } else {
             self.clone()
@@ -129,21 +123,21 @@ impl<T> _Tensor<T>
         let l1_cache_size =
             cache_size::l1_cache_size().unwrap_or(64 * 1024) / core::mem::size_of::<T>();
 
-        let inp_used =
-            (OW_BLOCK as i64) *
-            (IC_NVEC as i64) *
-            (T::Vec::SIZE as i64) *
-            kernel_height *
-            kernel_width *
-            OH_BLOCK;
-        let kernel_used =
-            (OW_BLOCK as i64) *
-            (OC_NVEC as i64) *
-            (T::Vec::SIZE as i64) *
-            kernel_height *
-            kernel_width;
+        let inp_used = (OW_BLOCK as i64)
+            * (IC_NVEC as i64)
+            * (T::Vec::SIZE as i64)
+            * kernel_height
+            * kernel_width
+            * OH_BLOCK;
+        let kernel_used = (OW_BLOCK as i64)
+            * (OC_NVEC as i64)
+            * (T::Vec::SIZE as i64)
+            * kernel_height
+            * kernel_width;
         let out_used = (OW_BLOCK as i64) * (OC_NVEC as i64) * (T::Vec::SIZE as i64) * OH_BLOCK;
-        let num_oc = (out_channels as usize).div_ceil(OC_NVEC * T::Vec::SIZE).max(1) as i64;
+        let num_oc = (out_channels as usize)
+            .div_ceil(OC_NVEC * T::Vec::SIZE)
+            .max(1) as i64;
         let total = (kernel_used + out_used) * num_oc + inp_used;
         let optimal_num_oc = if total < (l1_cache_size as i64) {
             num_oc
@@ -184,7 +178,7 @@ impl<T> _Tensor<T>
                             5 => {
                                 for j in (jj_start..full_oc_end).step_by(T::Vec::SIZE * OC_NVEC) {
                                     for l in ll..l_end {
-                                        micro_kernel_5::<T, OC_NVEC>(
+                                        micro_kernel_5x2::<T, OC_NVEC>(
                                             [ii, i_end],
                                             [kernel_height, kernel_width],
                                             [b, l, k, j],
@@ -194,7 +188,7 @@ impl<T> _Tensor<T>
                                             [ks0, ks1, ks2],
                                             &mut out,
                                             &inp,
-                                            &kernel
+                                            &kernel,
                                         );
                                     }
                                 }
@@ -202,7 +196,7 @@ impl<T> _Tensor<T>
                             4 => {
                                 for j in (jj_start..full_oc_end).step_by(T::Vec::SIZE * OC_NVEC) {
                                     for l in ll..l_end {
-                                        micro_kernel_4::<T, OC_NVEC>(
+                                        micro_kernel_4x2::<T, OC_NVEC>(
                                             [ii, i_end],
                                             [kernel_height, kernel_width],
                                             [b, l, k, j],
@@ -212,7 +206,7 @@ impl<T> _Tensor<T>
                                             [ks0, ks1, ks2],
                                             &mut out,
                                             &inp,
-                                            &kernel
+                                            &kernel,
                                         );
                                     }
                                 }
@@ -220,7 +214,7 @@ impl<T> _Tensor<T>
                             3 => {
                                 for j in (jj_start..full_oc_end).step_by(T::Vec::SIZE * OC_NVEC) {
                                     for l in ll..l_end {
-                                        micro_kernel_3::<T, OC_NVEC>(
+                                        micro_kernel_3x2::<T, OC_NVEC>(
                                             [ii, i_end],
                                             [kernel_height, kernel_width],
                                             [b, l, k, j],
@@ -230,7 +224,7 @@ impl<T> _Tensor<T>
                                             [ks0, ks1, ks2],
                                             &mut out,
                                             &inp,
-                                            &kernel
+                                            &kernel,
                                         );
                                     }
                                 }
@@ -238,7 +232,7 @@ impl<T> _Tensor<T>
                             2 => {
                                 for j in (jj_start..full_oc_end).step_by(T::Vec::SIZE * OC_NVEC) {
                                     for l in ll..l_end {
-                                        micro_kernel_2::<T, OC_NVEC>(
+                                        micro_kernel_2x2::<T, OC_NVEC>(
                                             [ii, i_end],
                                             [kernel_height, kernel_width],
                                             [b, l, k, j],
@@ -248,7 +242,7 @@ impl<T> _Tensor<T>
                                             [ks0, ks1, ks2],
                                             &mut out,
                                             &inp,
-                                            &kernel
+                                            &kernel,
                                         );
                                     }
                                 }
@@ -256,7 +250,7 @@ impl<T> _Tensor<T>
                             1 => {
                                 for j in (jj_start..full_oc_end).step_by(T::Vec::SIZE * OC_NVEC) {
                                     for l in ll..l_end {
-                                        micro_kernel_1::<T, OC_NVEC>(
+                                        micro_kernel_1x4::<T, OC_NVEC>(
                                             [ii, i_end],
                                             [kernel_height, kernel_width],
                                             [b, l, k, j],
@@ -266,7 +260,7 @@ impl<T> _Tensor<T>
                                             [ks0, ks1, ks2],
                                             &mut out,
                                             &inp,
-                                            &kernel
+                                            &kernel,
                                         );
                                     }
                                 }
@@ -292,7 +286,7 @@ impl<T> _Tensor<T>
                                                 oc_end - j,
                                                 &mut out,
                                                 &inp,
-                                                &kernel
+                                                &kernel,
                                             );
                                         }
                                     }
@@ -312,7 +306,7 @@ impl<T> _Tensor<T>
                                                 oc_end - j,
                                                 &mut out,
                                                 &inp,
-                                                &kernel
+                                                &kernel,
                                             );
                                         }
                                     }
@@ -332,7 +326,7 @@ impl<T> _Tensor<T>
                                                 oc_end - j,
                                                 &mut out,
                                                 &inp,
-                                                &kernel
+                                                &kernel,
                                             );
                                         }
                                     }
@@ -352,7 +346,7 @@ impl<T> _Tensor<T>
                                                 oc_end - j,
                                                 &mut out,
                                                 &inp,
-                                                &kernel
+                                                &kernel,
                                             );
                                         }
                                     }
@@ -372,7 +366,7 @@ impl<T> _Tensor<T>
                                                 oc_end - j,
                                                 &mut out,
                                                 &inp,
-                                                &kernel
+                                                &kernel,
                                             );
                                         }
                                     }
@@ -392,7 +386,7 @@ macro_rules! repeat_inp {
     ($name:ident, $is3:expr, $step_width_m:expr, [$($idx:expr),*]) => {
         paste::paste! {
             ($(
-                T::Vec::splat($name[$is3 + $idx * $step_width_m]), 
+                T::Vec::splat($name[$is3 + $idx * $step_width_m]),
             )*)
         }
     };
@@ -409,125 +403,127 @@ macro_rules! repeat_kernel {
 }
 
 macro_rules! repeat_results {
-    ($results:ident, $inp:ident, $kernel:ident, $v:literal, [$($idx:expr),*]) => {
+    ($results:ident, $inp:ident, $kernel:ident, [$vidx:literal, $($v:literal),*], [$($idx:expr),*]) => {
         paste::paste! {
             $(
-                $results[$v][$idx] = $inp.$idx.mul_add($kernel.$v, $results[$v][$idx]);
+                $results[$vidx][$idx] = $inp.$idx.mul_add($kernel.$vidx, $results[$vidx][$idx]);
+            )*
+            repeat_results!($results, $inp, $kernel, [$($v),*], [$($idx),*]);
+        }
+    };
+    ($results:ident, $inp:ident, $kernel:ident, [$vidx:literal], [$($idx:expr),*]) => {
+        paste::paste! {
+            $(
+                $results[$vidx][$idx] = $inp.$idx.mul_add($kernel.$vidx, $results[$vidx][$idx]);
             )*
         }
     };
 }
 
-macro_rules! repeat_inp_scalar {
-    ($name:ident, $is3:expr, $step_width_m:expr, [$($idx:expr),*]) => {
+macro_rules! repeat_results_scalar {
+    ($results:ident, $inp:ident, $kernel:ident, [$($idx:expr),*]) => {
         paste::paste! {
-            ($(
-                $name[$is3 + $idx * $step_width_m], 
-            )*)
+            $(
+                $results[$idx] = $inp.$idx.mul_add($kernel, $results[$idx]);
+            )*
         }
     };
 }
 
-macro_rules! repeat_kernel_scalar {
-    ($name:ident, $kr3:expr, $oc_end:expr, [$($idx:expr),*]) => {
-        paste::paste! {
-            ($(
-                {
-                    let mut ret = T::Vec::splat(T::ZERO);
-                    for v in 0..oc_end {
-                        ret[v as usize] = $name[$kr3 + $idx];
-                    }
-                    ret
-                }
-            )*)
-        }
-    };
-}
-
-
-conv2d_microkernel_template!(
-    [
-        [
-            micro_kernel_5,
-            inp_repeat(5),
-            res_repeat(2),
-        ],
-        [
-            micro_kernel_4,
-            inp_repeat(4),
-            res_repeat(2),
-        ],
-        [
-            micro_kernel_3,
-            inp_repeat(3),
-            res_repeat(2),
-        ],
-        [
-            micro_kernel_2,
-            inp_repeat(2),
-            res_repeat(2),
-        ],
-        [
-            micro_kernel_1,
-            inp_repeat(1),
-            res_repeat(2),
-        ]
-    ],
-    #[inline]
-    fn template_function<T: CommonBounds, const OC_NVEC: usize>(
-        [ii, i_end]: [i64; 2],
-        [kh, kw]: [i64; 2],
-        [b, l, k, j]: [i64; 4],
-        [osb, osh, osw]: [i64; 3],
-        [step_height, step_width]: [i64; 2],
-        [isb, ish, isw]: [i64; 3],
-        [ks0, ks1, ks2]: [i64; 3],
-        out: &mut Pointer<T>,
-        inp: &Pointer<T>,
-        kernel: &Pointer<T>
-    ) {
-        // const OW_BLOCK: usize = 5; just comment out since now this variable is defined when macro generate the code
-        let mut results = if ii == 0 {
-            [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC]
-        } else {
-            let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC];
-            for v in 0..OC_NVEC {
-                for kk in 0..OW_BLOCK as i64 {
-                    ret[v as usize][kk as usize] = unsafe { T::Vec::from_ptr(&out[b * osb + l * osh + (k + kk) * osw + j + v as i64 * T::Vec::SIZE as i64] as *const _ as *const T) }; // prettier-ignore
-                }
-            }
-            ret
-        };
-        let is0 = b * isb + l * step_height * ish + k * step_width * isw;
-        let kr0 = j;
-        for n in 0..kh {
-            let is1 = is0 + n * ish;
-            let kr1 = n * ks0 + kr0;
-            for m in 0..kw {
-                let is2 = is1 + m * isw;
-                let kr2 = kr1 + m * ks1;
-                for i in ii..i_end {
-                    let is3 = is2 + i;
-                    let kr3 = i * ks2 + kr2;
-                    let inp = repeat_inp!(inp, is3, step_width * isw, place_holder);
-                    let kernel = repeat_kernel!(kernel, kr3, T::Vec::SIZE as i64, place_holder);
-                    repeat_results!(results, inp, kernel, place_holder, place_holder);
-                }
-            }
-        }
-        for v in 0..OC_NVEC as i64 {
+#[
+    duplicate_item(
+        template_function   ow_block    inp_place_holder      kernel_place_holder              oc;
+        [micro_kernel_5x2]    [5]      [[0, 1, 2, 3, 4]]       [[0, 1]]                     [[0, 1]];
+        [micro_kernel_4x2]    [4]      [[0, 1, 2, 3]]          [[0, 1]]                     [[0, 1]];
+        [micro_kernel_3x2]    [3]      [[0, 1, 2]]             [[0, 1]]                     [[0, 1]];
+        [micro_kernel_2x2]    [2]      [[0, 1]]                [[0, 1]]                     [[0, 1]];
+        [micro_kernel_1x2]    [1]      [[0]]                   [[0, 1]]                     [[0, 1]];
+        [micro_kernel_5x4]    [5]      [[0, 1, 2, 3, 4]]       [[0, 1, 2, 3]]               [[0, 1, 2, 3]];
+        [micro_kernel_4x4]    [4]      [[0, 1, 2, 3]]          [[0, 1, 2, 3]]               [[0, 1, 2, 3]];
+        [micro_kernel_3x4]    [3]      [[0, 1, 2]]             [[0, 1, 2, 3]]               [[0, 1, 2, 3]];
+        [micro_kernel_2x4]    [2]      [[0, 1]]                [[0, 1, 2, 3]]               [[0, 1, 2, 3]];
+        [micro_kernel_1x4]    [1]      [[0]]                   [[0, 1, 2, 3]]               [[0, 1, 2, 3]];
+        [micro_kernel_5x8]    [5]      [[0, 1, 2, 3, 4]]       [[0, 1, 2, 3, 4, 5, 6, 7]]   [[0, 1, 2, 3, 4, 5, 6, 7]];
+        [micro_kernel_4x8]    [4]      [[0, 1, 2, 3]]          [[0, 1, 2, 3, 4, 5, 6, 7]]   [[0, 1, 2, 3, 4, 5, 6, 7]];
+        [micro_kernel_3x8]    [3]      [[0, 1, 2]]             [[0, 1, 2, 3, 4, 5, 6, 7]]   [[0, 1, 2, 3, 4, 5, 6, 7]];
+        [micro_kernel_2x8]    [2]      [[0, 1]]                [[0, 1, 2, 3, 4, 5, 6, 7]]   [[0, 1, 2, 3, 4, 5, 6, 7]];
+        [micro_kernel_1x8]    [1]      [[0]]                   [[0, 1, 2, 3, 4, 5, 6, 7]]   [[0, 1, 2, 3, 4, 5, 6, 7]];
+    )
+]
+#[inline]
+fn template_function<T: CommonBounds, const OC_NVEC: usize>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    [ks0, ks1, ks2]: [i64; 3],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &Pointer<T>,
+) {
+    const OW_BLOCK: usize = ow_block;
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC];
+        for v in 0..OC_NVEC {
             for kk in 0..OW_BLOCK as i64 {
-                let out_vec = &mut out[b * osb + l * osh + (k + kk) * osw + j + v * T::Vec::SIZE as i64] as *mut _ as *mut T::Vec; // prettier-ignore
-                unsafe {
-                    out_vec.write_unaligned(results[v as usize][kk as usize]);
-                }
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                }; // prettier-ignore
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    let kr0 = j;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        let kr1 = n * ks0 + kr0;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            let kr2 = kr1 + m * ks1;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let kr3 = i * ks2 + kr2;
+                let inp = repeat_inp!(inp, is3, step_width * isw, inp_place_holder);
+                let kernel = repeat_kernel!(kernel, kr3, T::Vec::SIZE as i64, kernel_place_holder);
+                repeat_results!(results, inp, kernel, oc, inp_place_holder);
             }
         }
     }
-);
+    for v in 0..OC_NVEC as i64 {
+        for kk in 0..OW_BLOCK as i64 {
+            let out_vec = &mut out[b * osb + l * osh + (k + kk) * osw + j + v * T::Vec::SIZE as i64]
+                as *mut _ as *mut T::Vec; // prettier-ignore
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
 
+#[
+    duplicate_item(
+        template_function          inp_place_holder      kernel_place_holder   oc;
+        [micro_kernel_5_scalar]    [[0, 1, 2, 3, 4]]       [[0, 1]]        [[0]];
+        [micro_kernel_4_scalar]    [[0, 1, 2, 3]]          [[0, 1]]        [[0]];
+        [micro_kernel_3_scalar]    [[0, 1, 2]]             [[0, 1]]        [[0]];
+        [micro_kernel_2_scalar]    [[0, 1]]                [[0, 1]]        [[0]];
+        [micro_kernel_1_scalar]    [[0]]                   [[0, 1]]        [[0]];
+    )
+]
 #[inline]
-fn micro_kernel_5_scalar<T: CommonBounds>(
+fn template_function<T: CommonBounds>(
     [ii, i_end]: [i64; 2],
     [kh, kw]: [i64; 2],
     [b, l, k, j]: [i64; 4],
@@ -538,7 +534,7 @@ fn micro_kernel_5_scalar<T: CommonBounds>(
     oc_end: i64,
     out: &mut Pointer<T>,
     inp: &Pointer<T>,
-    kernel: &Pointer<T>
+    kernel: &Pointer<T>,
 ) {
     const OW_BLOCK: usize = 5;
     let mut results = if ii == 0 {
@@ -563,213 +559,12 @@ fn micro_kernel_5_scalar<T: CommonBounds>(
             for i in ii..i_end {
                 let is3 = is2 + i;
                 let kr3 = i * ks2 + kr2;
-                let inp = repeat_inp!(inp, is3, step_width * isw, place_holder);
-                let inp0 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]); // prettier-ignore
-                let inp1 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 1) * step_width + m) * isw + i]); // prettier-ignore
-                let inp2 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 2) * step_width + m) * isw + i]); // prettier-ignore
-                let inp3 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 3) * step_width + m) * isw + i]); // prettier-ignore
-                let inp4 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 4) * step_width + m) * isw + i]); // prettier-ignore
-                let mut kernel_vec = T::Vec::splat(T::ZERO);
+                let inp = repeat_inp!(inp, is3, step_width * isw, inp_place_holder);
+                let mut kernel0 = T::Vec::splat(T::ZERO);
                 for v in 0..oc_end {
-                    kernel_vec[v as usize] = kernel[n * ks0 + m * ks1 + i * ks2 + j];
+                    kernel0[v as usize] = kernel[n * ks0 + m * ks1 + i * ks2 + j];
                 }
-                results[0] = inp0.mul_add(kernel_vec, results[0]); // prettier-ignore
-                results[1] = inp1.mul_add(kernel_vec, results[1]); // prettier-ignore
-                results[2] = inp2.mul_add(kernel_vec, results[2]); // prettier-ignore
-                results[3] = inp3.mul_add(kernel_vec, results[3]); // prettier-ignore
-                results[4] = inp4.mul_add(kernel_vec, results[4]); // prettier-ignore
-            }
-        }
-    }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..oc_end {
-            out[b * osb + l * osh + (k + kk) * osw + j] = results[kk as usize][v as usize];
-        }
-    }
-}
-
-#[inline]
-fn micro_kernel_4_scalar<T: CommonBounds>(
-    [ii, i_end]: [i64; 2],
-    [kh, kw]: [i64; 2],
-    [b, l, k, j]: [i64; 4],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
-    oc_end: i64,
-    out: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    kernel: &Pointer<T>
-) {
-    const OW_BLOCK: usize = 4;
-    let mut results = if ii == 0 {
-        [T::Vec::splat(T::ZERO); OW_BLOCK]
-    } else {
-        let mut ret = [T::Vec::splat(T::ZERO); OW_BLOCK];
-        for kk in 0..OW_BLOCK as i64 {
-            for v in 0..oc_end {
-                ret[kk as usize][v as usize] = out[b * osb + l * osh + (k + kk) * osw + j];
-            }
-        }
-        ret
-    };
-    for n in 0..kh {
-        for m in 0..kw {
-            for i in ii..i_end {
-                let inp0 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]); // prettier-ignore
-                let inp1 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 1) * step_width + m) * isw + i]); // prettier-ignore
-                let inp2 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 2) * step_width + m) * isw + i]); // prettier-ignore
-                let inp3 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 3) * step_width + m) * isw + i]); // prettier-ignore
-                let mut kernel_vec = T::Vec::splat(T::ZERO);
-                for v in 0..oc_end {
-                    kernel_vec[v as usize] = kernel[n * ks0 + m * ks1 + i * ks2 + j];
-                }
-                results[0] = inp0.mul_add(kernel_vec, results[0]); // prettier-ignore
-                results[1] = inp1.mul_add(kernel_vec, results[1]); // prettier-ignore
-                results[2] = inp2.mul_add(kernel_vec, results[2]); // prettier-ignore
-                results[3] = inp3.mul_add(kernel_vec, results[3]); // prettier-ignore
-            }
-        }
-    }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..oc_end {
-            out[b * osb + l * osh + (k + kk) * osw + j] = results[kk as usize][v as usize];
-        }
-    }
-}
-
-#[inline]
-fn micro_kernel_3_scalar<T: CommonBounds>(
-    [ii, i_end]: [i64; 2],
-    [kh, kw]: [i64; 2],
-    [b, l, k, j]: [i64; 4],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
-    oc_end: i64,
-    out: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    kernel: &Pointer<T>
-) {
-    const OW_BLOCK: usize = 3;
-    let mut results = if ii == 0 {
-        [T::Vec::splat(T::ZERO); OW_BLOCK]
-    } else {
-        let mut ret = [T::Vec::splat(T::ZERO); OW_BLOCK];
-        for kk in 0..OW_BLOCK as i64 {
-            for v in 0..oc_end {
-                ret[kk as usize][v as usize] = out[b * osb + l * osh + (k + kk) * osw + j];
-            }
-        }
-        ret
-    };
-    for n in 0..kh {
-        for m in 0..kw {
-            for i in ii..i_end {
-                let inp0 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]); // prettier-ignore
-                let inp1 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 1) * step_width + m) * isw + i]); // prettier-ignore
-                let inp2 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 2) * step_width + m) * isw + i]); // prettier-ignore
-                let mut kernel_vec = T::Vec::splat(T::ZERO);
-                for v in 0..oc_end {
-                    kernel_vec[v as usize] = kernel[n * ks0 + m * ks1 + i * ks2 + j];
-                }
-                results[0] = inp0.mul_add(kernel_vec, results[0]); // prettier-ignore
-                results[1] = inp1.mul_add(kernel_vec, results[1]); // prettier-ignore
-                results[2] = inp2.mul_add(kernel_vec, results[2]); // prettier-ignore
-            }
-        }
-    }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..oc_end {
-            out[b * osb + l * osh + (k + kk) * osw + j] = results[kk as usize][v as usize];
-        }
-    }
-}
-
-#[inline]
-fn micro_kernel_2_scalar<T: CommonBounds>(
-    [ii, i_end]: [i64; 2],
-    [kh, kw]: [i64; 2],
-    [b, l, k, j]: [i64; 4],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
-    oc_end: i64,
-    out: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    kernel: &Pointer<T>
-) {
-    const OW_BLOCK: usize = 2;
-    let mut results = if ii == 0 {
-        [T::Vec::splat(T::ZERO); OW_BLOCK]
-    } else {
-        let mut ret = [T::Vec::splat(T::ZERO); OW_BLOCK];
-        for kk in 0..OW_BLOCK as i64 {
-            for v in 0..oc_end {
-                ret[kk as usize][v as usize] = out[b * osb + l * osh + (k + kk) * osw + j];
-            }
-        }
-        ret
-    };
-    for n in 0..kh {
-        for m in 0..kw {
-            for i in ii..i_end {
-                let inp0 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]); // prettier-ignore
-                let inp1 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 1) * step_width + m) * isw + i]); // prettier-ignore
-                let mut kernel_vec = T::Vec::splat(T::ZERO);
-                for v in 0..oc_end {
-                    kernel_vec[v as usize] = kernel[n * ks0 + m * ks1 + i * ks2 + j];
-                }
-                results[0] = inp0.mul_add(kernel_vec, results[0]); // prettier-ignore
-                results[1] = inp1.mul_add(kernel_vec, results[1]); // prettier-ignore
-            }
-        }
-    }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..oc_end {
-            out[b * osb + l * osh + (k + kk) * osw + j] = results[kk as usize][v as usize];
-        }
-    }
-}
-
-#[inline]
-fn micro_kernel_1_scalar<T: CommonBounds>(
-    [ii, i_end]: [i64; 2],
-    [kh, kw]: [i64; 2],
-    [b, l, k, j]: [i64; 4],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
-    oc_end: i64,
-    out: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    kernel: &Pointer<T>
-) {
-    const OW_BLOCK: usize = 1;
-    let mut results = if ii == 0 {
-        [T::Vec::splat(T::ZERO); OW_BLOCK]
-    } else {
-        let mut ret = [T::Vec::splat(T::ZERO); OW_BLOCK];
-        for kk in 0..OW_BLOCK as i64 {
-            for v in 0..oc_end {
-                ret[kk as usize][v as usize] = out[b * osb + l * osh + (k + kk) * osw + j];
-            }
-        }
-        ret
-    };
-    for n in 0..kh {
-        for m in 0..kw {
-            for i in ii..i_end {
-                let inp0 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]); // prettier-ignore
-                let mut kernel_vec = T::Vec::splat(T::ZERO);
-                for v in 0..oc_end {
-                    kernel_vec[v as usize] = kernel[n * ks0 + m * ks1 + i * ks2 + j];
-                }
-                results[0] = inp0.mul_add(kernel_vec, results[0]); // prettier-ignore
+                repeat_results_scalar!(results, inp, kernel0, inp_place_holder);
             }
         }
     }
