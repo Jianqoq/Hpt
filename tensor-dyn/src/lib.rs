@@ -76,6 +76,8 @@ pub mod ops {
             pub mod maxpool_kernels;
             /// a module defines the reduce kernels
             pub mod reduce_kernels;
+            /// a module defines the iconv2d kernels
+            pub mod iconv_kernels;
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_expose {
