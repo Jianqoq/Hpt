@@ -194,6 +194,10 @@ pub(crate) fn conv2d_microkernel_template(inputs: TokenStream) -> TokenStream {
                     }
                 }
             }
+            let ow_block_def = quote! {
+                const OW_BLOCK: usize = #res_repeat_count;
+            };
+            body.block.stmts.insert(0, syn::parse2(ow_block_def).unwrap());
             body.sig.ident = fn_name.clone().unwrap();
             for stmt in &mut body.block.stmts {
                 process_stmt(stmt, inp_repeat_count, res_repeat_count);

@@ -447,7 +447,7 @@ conv2d_microkernel_template!(
         ]
     ],
     #[inline]
-    fn micro_kernel_5<T: CommonBounds, const OC_NVEC: usize>(
+    fn template_function<T: CommonBounds, const OC_NVEC: usize>(
         [ii, i_end]: [i64; 2],
         [kh, kw]: [i64; 2],
         [b, l, k, j]: [i64; 4],
@@ -459,7 +459,7 @@ conv2d_microkernel_template!(
         inp: &Pointer<T>,
         kernel: &Pointer<T>
     ) {
-        const OW_BLOCK: usize = 5;
+        // const OW_BLOCK: usize = 5; just comment out since now this variable is defined when macro generate the code
         let mut results = if ii == 0 {
             [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC]
         } else {
@@ -471,7 +471,6 @@ conv2d_microkernel_template!(
             }
             ret
         };
-        // inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]
         let is0 = b * isb + l * step_height * ish + k * step_width * isw;
         let kr0 = j;
         for n in 0..kh {
@@ -483,8 +482,8 @@ conv2d_microkernel_template!(
                 for i in ii..i_end {
                     let is3 = is2 + i;
                     let kr3 = i * ks2 + kr2;
-                    let inp = repeat_inp!(inp, is3, step_width*isw, place_holder);
-                    let kernel = repeat_kernel!(kernel,kr3, T::Vec::SIZE as i64, place_holder);
+                    let inp = repeat_inp!(inp, is3, step_width * isw, place_holder);
+                    let kernel = repeat_kernel!(kernel, kr3, T::Vec::SIZE as i64, place_holder);
                     repeat_results!(results, inp, kernel, place_holder, place_holder);
                 }
             }
