@@ -3,7 +3,7 @@ use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
 const IN: i64 = 128;
-const OUT: i64 = 512;
+const OUT: i64 = 2048;
 const KH: i64 = 3;
 const KW: i64 = 3;
 const H: i64 = 256;
@@ -37,6 +37,7 @@ fn main() -> anyhow::Result<()> {
             [1, 1],
             Some(&config)
         )?;
+        // println!("{:?}", res);
     }
     println!("{:?}", now.elapsed() / 5);
 

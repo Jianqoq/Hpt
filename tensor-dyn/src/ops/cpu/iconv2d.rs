@@ -170,10 +170,9 @@ impl<T> _Tensor<T>
             for ii in (0..in_channels).step_by(T::Vec::SIZE * IC_NVEC) {
                 let i_end = (ii + (T::Vec::SIZE as i64) * (IC_NVEC as i64)).min(in_channels);
                 for (jj_start, jj_end) in intervals.iter() {
+                    let oc_remain = ((*jj_end - *jj_start) % (T::Vec::SIZE * OC_NVEC)) as i64;
                     let jj_start = *jj_start as i64;
                     let jj_end = *jj_end as i64;
-                    let oc_remain =
-                        (jj_end - jj_start) % ((T::Vec::SIZE as i64) * (OC_NVEC as i64));
                     let full_oc_end = jj_end - oc_remain;
                     for k in (0..out_width).step_by(OW_BLOCK) {
                         let k_end = (k + (OW_BLOCK as i64)).min(out_width);
