@@ -126,7 +126,7 @@ impl<T> _Tensor<T>
         const IC_NVEC: usize = 2;
 
         let l1_cache_size =
-            (cache_size::l1_cache_size().unwrap_or(128 * 1024) / core::mem::size_of::<T>()) * 1;
+            cache_size::l1_cache_size().unwrap_or(128 * 1024) / core::mem::size_of::<T>();
 
         let inp_used =
             (OW_BLOCK as i64) *
