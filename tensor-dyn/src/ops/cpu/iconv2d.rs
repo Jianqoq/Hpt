@@ -126,7 +126,7 @@ impl<T> _Tensor<T>
         const IC_NVEC: usize = 2;
 
         let l1_cache_size =
-            cache_size::l1_cache_size().unwrap_or(128 * 1024) / core::mem::size_of::<T>();
+            cache_size::l1_cache_size().unwrap_or(64 * 1024) / core::mem::size_of::<T>();
 
         let inp_used =
             (OW_BLOCK as i64) *
@@ -142,14 +142,12 @@ impl<T> _Tensor<T>
             kernel_height *
             kernel_width;
         let out_used = (OW_BLOCK as i64) * (OC_NVEC as i64) * (T::Vec::SIZE as i64) * OH_BLOCK;
-        let num_oc =
-            (out_channels + (OC_NVEC as i64) * (T::Vec::SIZE as i64) - 1) /
-            ((OC_NVEC as i64) * (T::Vec::SIZE as i64)); // divide ceiling
+        let num_oc = (out_channels as usize).div_ceil(OC_NVEC * T::Vec::SIZE).max(1) as i64;
         let total = (kernel_used + out_used) * num_oc + inp_used;
         let optimal_num_oc = if total < (l1_cache_size as i64) {
             num_oc
         } else {
-            ((l1_cache_size as i64) - inp_used) / (kernel_used + out_used)
+            (((l1_cache_size as i64) - inp_used) / (kernel_used + out_used)).max(1)
         };
         let num_opt_oc = num_oc / optimal_num_oc;
         let mut intervals = mt_intervals(num_oc as usize, num_opt_oc as usize); // we can use thread divide algo to get the intervals
@@ -161,7 +159,7 @@ impl<T> _Tensor<T>
             }
         });
         let intervals = Arc::new(intervals);
-        let num_oh = (out_height + OH_BLOCK - 1) / OH_BLOCK;
+        let num_oh = (out_height as usize).div_ceil(OH_BLOCK as usize) as i64;
         let outer = batch * num_oh;
         (0..outer).into_par_iter().for_each(|idx| {
             let mut out = out.clone();
