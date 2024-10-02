@@ -418,6 +418,33 @@ macro_rules! repeat_results {
     };
 }
 
+macro_rules! repeat_inp_scalar {
+    ($name:ident, $is3:expr, $step_width_m:expr, [$($idx:expr),*]) => {
+        paste::paste! {
+            ($(
+                $name[$is3 + $idx * $step_width_m], 
+            )*)
+        }
+    };
+}
+
+macro_rules! repeat_kernel_scalar {
+    ($name:ident, $kr3:expr, $oc_end:expr, [$($idx:expr),*]) => {
+        paste::paste! {
+            ($(
+                {
+                    let mut ret = T::Vec::splat(T::ZERO);
+                    for v in 0..oc_end {
+                        ret[v as usize] = $name[$kr3 + $idx];
+                    }
+                    ret
+                }
+            )*)
+        }
+    };
+}
+
+
 conv2d_microkernel_template!(
     [
         [
@@ -525,10 +552,18 @@ fn micro_kernel_5_scalar<T: CommonBounds>(
         }
         ret
     };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    let kr0 = j;
     for n in 0..kh {
+        let is1 = is0 + n * ish;
+        let kr1 = n * ks0 + kr0;
         for m in 0..kw {
+            let is2 = is1 + m * isw;
+            let kr2 = kr1 + m * ks1;
             for i in ii..i_end {
-                // repeat(5)
+                let is3 = is2 + i;
+                let kr3 = i * ks2 + kr2;
+                let inp = repeat_inp!(inp, is3, step_width * isw, place_holder);
                 let inp0 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]); // prettier-ignore
                 let inp1 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 1) * step_width + m) * isw + i]); // prettier-ignore
                 let inp2 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 2) * step_width + m) * isw + i]); // prettier-ignore
