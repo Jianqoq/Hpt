@@ -128,7 +128,11 @@ impl<T> _Tensor<T>
             SIMD_WIDTH,
             REGNUM
         );
-        let ic_nvec = oc_nvec;
+        let ow_block = 2;
+        let oc_nvec = 4;
+        // println!("ow_block {}", ow_block);
+        // println!("oc_nvec {}", oc_nvec);
+        let ic_nvec = (in_channels as usize) / T::Vec::SIZE;
 
         let full_oc_fn = iconv2d_full_oc_kernel_dispatch(oc_nvec, ow_block);
         let full_oc_remain_fn = iconv2d_full_oc_kernel_dispatch(
@@ -157,6 +161,7 @@ impl<T> _Tensor<T>
             kernel_height *
             kernel_width;
         let out_used = (ow_block as i64) * (oc_nvec as i64) * (T::Vec::SIZE as i64) * OH_BLOCK;
+        // println!("inp_used: {}, kernel_used: {}, out_used: {}", inp_used, kernel_used, out_used);
         let num_oc = (out_channels as usize).div_ceil(oc_nvec * T::Vec::SIZE).max(1) as i64;
         let total = (kernel_used + out_used) * num_oc + inp_used;
         // println!("total: {}", total);
@@ -166,6 +171,7 @@ impl<T> _Tensor<T>
             (((l1_cache_size as i64) - inp_used) / (kernel_used + out_used)).max(1)
         };
         let num_opt_oc = num_oc / optimal_num_oc;
+        // println!("num_opt_oc: {}", num_opt_oc);
         let mut intervals = mt_intervals(num_oc as usize, num_opt_oc as usize); // we can use thread divide algo to get the intervals
         intervals.iter_mut().for_each(|(start, end)| {
             *start *= oc_nvec * T::Vec::SIZE;
@@ -286,13 +292,12 @@ fn optimize_ow_block_and_oc_nvec(
     reg_num: usize
 ) -> (usize, usize) {
     let initial_oc_nvec = cache_line_size / (simd_width / 8);
-    let mut best_ow_block = 4;
+    let mut best_ow_block = 2;
     let mut best_oc_nvec = 1;
     let mut best_utilization = 0;
 
-    for oc_nvec in 1..=initial_oc_nvec {
-        let max_ow_block = ((reg_num - oc_nvec) / (oc_nvec + 1)).max(4);
-        for ow_block in 4..=max_ow_block {
+    for ow_block in 2..=4 {
+        for oc_nvec in 1..=initial_oc_nvec {
             let total_regs_used = (ow_block + 1) * oc_nvec + ow_block;
             if total_regs_used <= reg_num {
                 let utilization = ow_block * oc_nvec;
