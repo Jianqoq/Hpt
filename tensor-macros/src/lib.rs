@@ -666,6 +666,6 @@ pub fn gen_reduce_dim_not_include_simd_helper(input: TokenStream) -> TokenStream
 
 /// generate conv2d helper
 #[proc_macro]
-pub fn conv2d_helper(input: TokenStream) -> TokenStream {
-    conv2d::conv2d_helper(input)
+pub fn conv2d_microkernel_template(input: TokenStream) -> TokenStream {
+    conv2d::conv2d_microkernel_template(input)
 }

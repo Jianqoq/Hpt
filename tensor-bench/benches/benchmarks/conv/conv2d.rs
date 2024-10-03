@@ -66,7 +66,7 @@ fn conv2d_benchmark(c: &mut Criterion) {
             &shapes[idx],
             |b, _| {
                 b.iter(|| {
-                    a2.conv2d(
+                    a2.iconv2d(
                         &a2_kernel,
                         [1, 1],
                         [
