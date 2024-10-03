@@ -129,8 +129,6 @@ impl<T> _Tensor<T>
             REGNUM
         );
         let ic_nvec = oc_nvec;
-        // let ow_block = 5;
-        // let oc_nvec = 2;
 
         let full_oc_fn = iconv2d_full_oc_kernel_dispatch(oc_nvec, ow_block);
         let full_oc_remain_fn = iconv2d_full_oc_kernel_dispatch(
@@ -143,7 +141,7 @@ impl<T> _Tensor<T>
         );
 
         let l1_cache_size =
-            cache_size::l1_cache_size().unwrap_or(131072) / core::mem::size_of::<T>();
+            cache_size::l1_cache_size().unwrap_or(10 * 1024 /* 10kb */) / core::mem::size_of::<T>();
 
         let inp_used =
             (ow_block as i64) *
