@@ -121,7 +121,6 @@ impl<T> _Tensor<T>
         let ks2 = kernels.strides()[2]; // in_channels
 
         const OH_BLOCK: i64 = 3;
-        const IC_NVEC: usize = 2;
 
         let cache_line_size = cache_size::l1_cache_line_size().unwrap_or(64);
         let (ow_block, oc_nvec) = optimize_ow_block_and_oc_nvec(
@@ -129,10 +128,9 @@ impl<T> _Tensor<T>
             SIMD_WIDTH,
             REGNUM
         );
-        let ow_block = 5;
-        let oc_nvec = 2;
-
-        println!("{}", (out_width as usize) % ow_block);
+        let ic_nvec = oc_nvec;
+        // let ow_block = 5;
+        // let oc_nvec = 2;
 
         let full_oc_fn = iconv2d_full_oc_kernel_dispatch(oc_nvec, ow_block);
         let full_oc_remain_fn = iconv2d_full_oc_kernel_dispatch(
@@ -149,7 +147,7 @@ impl<T> _Tensor<T>
 
         let inp_used =
             (ow_block as i64) *
-            (IC_NVEC as i64) *
+            (ic_nvec as i64) *
             (T::Vec::SIZE as i64) *
             kernel_height *
             kernel_width *
@@ -188,8 +186,8 @@ impl<T> _Tensor<T>
             let ll = idx % num_oh;
             let ll = ll * OH_BLOCK;
             let l_end = (ll + OH_BLOCK).min(out_height);
-            for ii in (0..in_channels).step_by(T::Vec::SIZE * IC_NVEC) {
-                let i_end = (ii + (T::Vec::SIZE as i64) * (IC_NVEC as i64)).min(in_channels);
+            for ii in (0..in_channels).step_by(T::Vec::SIZE * ic_nvec) {
+                let i_end = (ii + (T::Vec::SIZE as i64) * (ic_nvec as i64)).min(in_channels);
                 for (jj_start, jj_end) in intervals.iter() {
                     let oc_remain = ((*jj_end - *jj_start) % (T::Vec::SIZE * oc_nvec)) as i64;
                     let jj_start = *jj_start as i64;

@@ -242,7 +242,7 @@ pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
         .map(|x| x.get(map_kb(kb)))
         .flatten();
 
-    println!("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc(oc), map_kb(kb));
+    // println!("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc(oc), map_kb(kb));
 
     if let Some(kernel_fn) = kernel_fn {
         kernel_fn.clone()
@@ -283,7 +283,7 @@ pub(crate) fn iconv2d_remain_oc_kernel_dispatch<T: CommonBounds>(
         5
     ] = [micro_kernel_1, micro_kernel_2, micro_kernel_3, micro_kernel_4, micro_kernel_5];
 
-    println!("picked iconv2d_remain_microkernel_{} at {}", kb, map_kb(kb));
+    // println!("picked iconv2d_remain_microkernel_{} at {}", kb, map_kb(kb));
 
     let kernel_fn = kernels.get(map_kb(kb));
 
