@@ -235,3 +235,17 @@ type BoolVector = tensor_types::_512bit::boolx64::boolx64;
     )
 )]
 type BoolVector = tensor_types::_128bit::boolx16::boolx16;
+
+#[cfg(target_feature = "avx2")]
+const SIMD_WIDTH: usize = 256;
+#[cfg(any(target_feature = "avx512f"))]
+const SIMD_WIDTH: usize = 512;
+#[cfg(
+    any(
+        all(not(target_feature = "avx2"), target_feature = "sse"),
+        target_arch = "arm",
+        target_arch = "aarch64",
+        target_feature = "neon"
+    )
+)]
+const SIMD_WIDTH: usize = 128;
