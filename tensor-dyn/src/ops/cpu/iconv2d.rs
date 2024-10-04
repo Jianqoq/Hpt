@@ -116,12 +116,27 @@ impl<T> _Tensor<T>
         let ks2 = kernels.strides()[2]; // in_channels
 
         const OH_BLOCK: i64 = 3;
-        const OW_BLOCK: usize = 5;
-        const OC_NVEC: usize = 2;
-        const IC_NVEC: usize = 16;
 
+        let ic_nvec = 16;
         let mut oc_nvec = 2;
         let mut ow_block = 5;
+
+        let inp_used =
+            (ow_block as i64) *
+            (ic_nvec as i64) *
+            (T::Vec::SIZE as i64) *
+            kernel_height *
+            kernel_width *
+            OH_BLOCK;
+        let kernel_used =
+            (ow_block as i64) *
+            (oc_nvec as i64) *
+            (T::Vec::SIZE as i64) *
+            kernel_height *
+            kernel_width;
+        let out_used = (ow_block as i64) * (oc_nvec as i64) * (T::Vec::SIZE as i64) * OH_BLOCK;
+        println!("inp_used: {}, kernel_used: {}, out_used: {}", inp_used, kernel_used, out_used);
+
         let full_oc_kernel = iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block, false);
         let full_oc_kernel_ow_remain = iconv2d_full_oc_kernel_dispatch(
             &mut oc_nvec,
@@ -135,18 +150,18 @@ impl<T> _Tensor<T>
 
         let num_oh = (out_height + OH_BLOCK - 1) / OH_BLOCK;
         let outer = batch * num_oh;
-        let out_width_full_end = out_width - (out_width % (OW_BLOCK as i64));
-        let oc_remain = out_channels % ((T::Vec::SIZE as i64) * (OC_NVEC as i64));
+        let out_width_full_end = out_width - (out_width % (ow_block as i64));
+        let oc_remain = out_channels % ((T::Vec::SIZE as i64) * (oc_nvec as i64));
         (0..outer).into_par_iter().for_each(|idx| {
             let mut out = out.clone();
             let b = idx / num_oh;
             let ll = idx % num_oh;
             let ll = ll * OH_BLOCK;
             let l_end = (ll + OH_BLOCK).min(out_height);
-            for ii in (0..in_channels).step_by(T::Vec::SIZE * IC_NVEC) {
-                let i_end = (ii + (T::Vec::SIZE as i64) * (IC_NVEC as i64)).min(in_channels);
-                for k in (0..out_width_full_end).step_by(OW_BLOCK) {
-                    for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * OC_NVEC) {
+            for ii in (0..in_channels).step_by(T::Vec::SIZE * ic_nvec) {
+                let i_end = (ii + (T::Vec::SIZE as i64) * (ic_nvec as i64)).min(in_channels);
+                for k in (0..out_width_full_end).step_by(ow_block) {
+                    for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * oc_nvec) {
                         for l in ll..l_end {
                             full_oc_kernel(
                                 [ii, i_end],
@@ -163,7 +178,7 @@ impl<T> _Tensor<T>
                         }
                     }
                     for j in (out_channels - oc_remain..out_channels).step_by(
-                        T::Vec::SIZE * OC_NVEC
+                        T::Vec::SIZE * oc_nvec
                     ) {
                         for l in ll..l_end {
                             partial_oc_kernel(
@@ -182,8 +197,8 @@ impl<T> _Tensor<T>
                         }
                     }
                 }
-                for k in (out_width_full_end..out_width).step_by(OW_BLOCK) {
-                    for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * OC_NVEC) {
+                for k in (out_width_full_end..out_width).step_by(ow_block) {
+                    for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * oc_nvec) {
                         for l in ll..l_end {
                             full_oc_kernel_ow_remain(
                                 [ii, i_end],
@@ -200,7 +215,7 @@ impl<T> _Tensor<T>
                         }
                     }
                     for j in (out_channels - oc_remain..out_channels).step_by(
-                        T::Vec::SIZE * OC_NVEC
+                        T::Vec::SIZE * oc_nvec
                     ) {
                         for l in ll..l_end {
                             partial_oc_kernel_ow_remain(
