@@ -15,7 +15,7 @@ unsafe impl Send for SafePtr {}
 unsafe impl Sync for SafePtr {}
 
 /// `lru` cache allocator
-pub static CACHE: Lazy<Allocator> = Lazy::new(|| Allocator::new(100));
+pub static CACHE: Lazy<Allocator> = Lazy::new(|| Allocator::new(10));
 
 /// # Allocator
 ///

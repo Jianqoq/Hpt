@@ -199,8 +199,8 @@ fn template_function<T: CommonBounds>(
 }
 
 pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
-    oc: usize, // output channels block size
-    kb: usize // outwidth block size
+    oc: &mut usize, // output channels block size
+    kb: &mut usize // outwidth block size
 ) -> fn(
     [i64; 2],
     [i64; 2],
@@ -237,9 +237,22 @@ pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
         [micro_kernel_1x8, micro_kernel_2x8, micro_kernel_3x8, micro_kernel_4x8, micro_kernel_5x8],
     ];
 
+    let map_kb = map_kb(*kb);
+    *kb = map_kb + 1;
+    let map_oc = map_oc(*oc);
+    if map_oc == 0 {
+        *oc = 1;
+    } else if map_oc == 1 {
+        *oc = 2;
+    } else if map_oc == 2 {
+        *oc = 4;
+    } else {
+        *oc = 8;
+    }
+
     let kernel_fn = kernels
-        .get(map_oc(oc))
-        .map(|x| x.get(map_kb(kb)))
+        .get(map_oc)
+        .map(|x| x.get(map_kb))
         .flatten();
 
     // println!("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc(oc), map_kb(kb));
@@ -252,7 +265,7 @@ pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
 }
 
 pub(crate) fn iconv2d_remain_oc_kernel_dispatch<T: CommonBounds>(
-    kb: usize // outwidth block size
+    kb: &mut usize // outwidth block size
 ) -> fn(
     [i64; 2],
     [i64; 2],
@@ -284,8 +297,10 @@ pub(crate) fn iconv2d_remain_oc_kernel_dispatch<T: CommonBounds>(
     ] = [micro_kernel_1, micro_kernel_2, micro_kernel_3, micro_kernel_4, micro_kernel_5];
 
     // println!("picked iconv2d_remain_microkernel_{} at {}", kb, map_kb(kb));
+    let map_kb = map_kb(*kb);
+    *kb = map_kb + 1;
 
-    let kernel_fn = kernels.get(map_kb(kb));
+    let kernel_fn = kernels.get(map_kb);
 
     if let Some(kernel_fn) = kernel_fn {
         kernel_fn.clone()

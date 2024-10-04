@@ -52,7 +52,7 @@ fn assert_eq(
     config.set_ci_block_size(block_size[0]);
     config.set_co_block_size(block_size[1]);
     let res = a
-        .conv2d(&a_kernel, [1, 1], [(0, 0), (0, 0)], [1, 1], Some(&config))?
+        .iconv2d(&a_kernel, [1, 1], [(0, 0), (0, 0)], [1, 1], Some(&config))?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let res2 = b.conv2d(&b_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);

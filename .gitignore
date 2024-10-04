@@ -5,6 +5,7 @@ Cargo.lock
 *.ftz
 *.zip
 *.ll
+*.xlsx
 
 /src/**/target
 /src/**/true
