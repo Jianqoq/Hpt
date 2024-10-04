@@ -246,14 +246,15 @@ fn small_ic_nvec_penalty<T: CommonBounds>(
     in_channels: usize,
     lb: usize,
     oc: usize,
-    oc_b: usize,
+    oc_nvec: usize,
     ow: usize,
     owb: usize,
     b: usize,
     kernel_height: usize,
     kernel_width: usize,
     step_width: usize,
-    step_height: usize
+    step_height: usize,
+    l1_cache_line_size: usize
 ) {
     let reg_ls_penalty = 2; // register load store penalty
     let ls_penalty = 10; // load store penalty, we assume it could load store either in l1 or l2, so we use average cycle
@@ -265,7 +266,7 @@ fn small_ic_nvec_penalty<T: CommonBounds>(
     let ic_nvec = in_channels / T::Vec::SIZE;
     let outer_ic_loop_size = in_channels.div_ceil(icb);
     let res_load_from_cache_cost = lb * oc * ow * ls_penalty * outer_ic_loop_size;
-    let ic_missed = inp_cache_miss::<T>(
+    let inp_missed = inp_cache_miss::<T>(
         ow,
         lb,
         kernel_height,
@@ -273,7 +274,14 @@ fn small_ic_nvec_penalty<T: CommonBounds>(
         step_width,
         step_height
     );
-    let ic_cached = ic_missed * T::Vec::SIZE * ic_nvec; // cache used before out_channel loop
+    let ic_cached = inp_missed * T::Vec::SIZE * ic_nvec; // cache used before out_channel loop
+
+    let kernel_missed =
+        kernel_cache_miss::<T>(kernel_height, kernel_width, ic_nvec) *
+        ((T::Vec::SIZE * oc_nvec) / l1_cache_line_size);
+    let kernel_cached = kernel_missed * l1_cache_line_size; // cache used before out_channel loop
+    let kernel_load_from_cache_cost = kernel_missed * (l1_cache_line_size - 1) * l1_penalty;
+    let kernel_missed_cost = kernel_missed * main_mem_penalty;
 }
 
 fn inp_cache_miss<T: CommonBounds>(
@@ -305,4 +313,8 @@ fn inp_cache_miss<T: CommonBounds>(
         exceed + kh
     };
     width_miss + height_miss
+}
+
+fn kernel_cache_miss<T: CommonBounds>(kh: usize, kw: usize, ic_nvec: usize) -> usize {
+    ic_nvec * T::Vec::SIZE * kh * kw
 }
