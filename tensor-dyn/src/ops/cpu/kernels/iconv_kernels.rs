@@ -17,7 +17,7 @@ macro_rules! repeat_kernel {
     ($name:ident, $kr3:expr, $vec_size:expr, [$($idx:expr),*]) => {
         paste::paste! {
             ($(
-                T::Vec::splat($name[$kr3 + $idx * $vec_size]),
+                unsafe { T::Vec::from_ptr(&$name[$kr3 + $idx * $vec_size]) },
             )*)
         }
     };
@@ -142,12 +142,12 @@ fn template_function<T: CommonBounds>(
 );
 
 #[duplicate_item(
-        template_function   inp_place_holder      kernel_place_holder   oc;
-        [micro_kernel_5]    [[0, 1, 2, 3, 4]]       [[0, 1]]           [[0]];
-        [micro_kernel_4]    [[0, 1, 2, 3]]          [[0, 1]]           [[0]];
-        [micro_kernel_3]    [[0, 1, 2]]             [[0, 1]]           [[0]];
-        [micro_kernel_2]    [[0, 1]]                [[0, 1]]           [[0]];
-        [micro_kernel_1]    [[0]]                   [[0, 1]]           [[0]];
+        template_function  ow_block  inp_place_holder      kernel_place_holder   oc;
+        [micro_kernel_5]    [5]       [[0, 1, 2, 3, 4]]       [[0, 1]]           [[0]];
+        [micro_kernel_4]    [4]       [[0, 1, 2, 3]]          [[0, 1]]           [[0]];
+        [micro_kernel_3]    [3]       [[0, 1, 2]]             [[0, 1]]           [[0]];
+        [micro_kernel_2]    [2]       [[0, 1]]                [[0, 1]]           [[0]];
+        [micro_kernel_1]    [1]       [[0]]                   [[0, 1]]           [[0]];
 )]
 #[inline]
 fn template_function<T: CommonBounds>(
@@ -163,14 +163,13 @@ fn template_function<T: CommonBounds>(
     inp: &Pointer<T>,
     kernel: &Pointer<T>
 ) {
-    const OW_BLOCK: usize = 5;
     let mut results = if ii == 0 {
-        [T::Vec::splat(T::ZERO); OW_BLOCK]
+        [T::Vec::splat(T::ZERO); ow_block]
     } else {
-        let mut ret = [T::Vec::splat(T::ZERO); OW_BLOCK];
-        for kk in 0..OW_BLOCK as i64 {
+        let mut ret = [T::Vec::splat(T::ZERO); ow_block];
+        for kk in 0..ow_block as i64 {
             for v in 0..oc_end {
-                ret[kk as usize][v as usize] = out[b * osb + l * osh + (k + kk) * osw + j];
+                ret[kk as usize][v as usize] = out[b * osb + l * osh + (k + kk) * osw + j + v];
             }
         }
         ret
@@ -191,16 +190,17 @@ fn template_function<T: CommonBounds>(
             }
         }
     }
-    for kk in 0..OW_BLOCK as i64 {
+    for kk in 0..ow_block as i64 {
         for v in 0..oc_end {
-            out[b * osb + l * osh + (k + kk) * osw + j] = results[kk as usize][v as usize];
+            out[b * osb + l * osh + (k + kk) * osw + j + v] = results[kk as usize][v as usize];
         }
     }
 }
 
 pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
     oc: &mut usize, // output channels block size
-    kb: &mut usize // outwidth block size
+    kb: &mut usize, // outwidth block size
+    remain: bool
 ) -> fn(
     [i64; 2],
     [i64; 2],
@@ -238,6 +238,9 @@ pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
     ];
 
     let map_kb = map_kb(*kb);
+    if remain && map_kb +1 != *kb {
+        panic!("unable to find iconv2d_microkernel_{}x{} for remain outwidth", kb, oc);
+    }
     *kb = map_kb + 1;
     let map_oc = map_oc(*oc);
     if map_oc == 0 {
@@ -255,7 +258,7 @@ pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
         .map(|x| x.get(map_kb))
         .flatten();
 
-    // println!("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc(oc), map_kb(kb));
+    println!("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc, map_kb);
 
     if let Some(kernel_fn) = kernel_fn {
         kernel_fn.clone()

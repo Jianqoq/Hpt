@@ -1,9 +1,10 @@
 use super::conv_config::Conv2dConfig;
+use crate::ops::cpu::kernels::iconv_kernels::iconv2d_full_oc_kernel_dispatch;
+use crate::ops::cpu::kernels::iconv_kernels::iconv2d_remain_oc_kernel_dispatch;
 use crate::tensor_base::_Tensor;
 use rayon::prelude::*;
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::err_handler::ErrHandler::InvalidInputShape;
-use tensor_common::pointer::Pointer;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
@@ -117,10 +118,25 @@ impl<T> _Tensor<T>
         const OH_BLOCK: i64 = 3;
         const OW_BLOCK: usize = 5;
         const OC_NVEC: usize = 2;
-        const IC_NVEC: usize = 8;
+        const IC_NVEC: usize = 16;
+
+        let mut oc_nvec = 2;
+        let mut ow_block = 5;
+        let full_oc_kernel = iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block, false);
+        let full_oc_kernel_ow_remain = iconv2d_full_oc_kernel_dispatch(
+            &mut oc_nvec,
+            &mut ((out_width as usize) % ow_block),
+            true
+        );
+        let partial_oc_kernel = iconv2d_remain_oc_kernel_dispatch(&mut ow_block);
+        let partial_oc_kernel_ow_remain = iconv2d_remain_oc_kernel_dispatch(
+            &mut ((out_width as usize) % ow_block)
+        );
 
         let num_oh = (out_height + OH_BLOCK - 1) / OH_BLOCK;
         let outer = batch * num_oh;
+        let out_width_full_end = out_width - (out_width % (OW_BLOCK as i64));
+        let oc_remain = out_channels % ((T::Vec::SIZE as i64) * (OC_NVEC as i64));
         (0..outer).into_par_iter().for_each(|idx| {
             let mut out = out.clone();
             let b = idx / num_oh;
@@ -129,720 +145,82 @@ impl<T> _Tensor<T>
             let l_end = (ll + OH_BLOCK).min(out_height);
             for ii in (0..in_channels).step_by(T::Vec::SIZE * IC_NVEC) {
                 let i_end = (ii + (T::Vec::SIZE as i64) * (IC_NVEC as i64)).min(in_channels);
-                for k in (0..out_width).step_by(OW_BLOCK) {
-                    let oc_remain = out_channels % ((T::Vec::SIZE as i64) * (OC_NVEC as i64));
-                    let k_end = (k + (OW_BLOCK as i64)).min(out_width);
-                    let ow_remain = k_end - k;
-
-                    // Main loop for full OC_NVEC blocks
-                    match ow_remain {
-                        5 => {
-                            for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * OC_NVEC) {
-                                for l in ll..l_end {
-                                    micro_kernel_5::<T, OC_NVEC>(
-                                        [ii, i_end],
-                                        [kernel_height, kernel_width],
-                                        [b, l, k, j],
-                                        [osb, osh, osw],
-                                        [step_height, step_width],
-                                        [isb, ish, isw],
-                                        [ks0, ks1, ks2],
-                                        &mut out,
-                                        &inp,
-                                        &kernel
-                                    );
-                                }
-                            }
+                for k in (0..out_width_full_end).step_by(OW_BLOCK) {
+                    for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * OC_NVEC) {
+                        for l in ll..l_end {
+                            full_oc_kernel(
+                                [ii, i_end],
+                                [kernel_height, kernel_width],
+                                [b, l, k, j],
+                                [osb, osh, osw],
+                                [step_height, step_width],
+                                [isb, ish, isw],
+                                [ks0, ks1, ks2],
+                                &mut out,
+                                &inp,
+                                &kernel
+                            );
                         }
-                        4 => {
-                            for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * OC_NVEC) {
-                                for l in ll..l_end {
-                                    micro_kernel_4::<T, OC_NVEC>(
-                                        [ii, i_end],
-                                        [kernel_height, kernel_width],
-                                        [b, l, k, j],
-                                        [osb, osh, osw],
-                                        [step_height, step_width],
-                                        [isb, ish, isw],
-                                        [ks0, ks1, ks2],
-                                        &mut out,
-                                        &inp,
-                                        &kernel
-                                    );
-                                }
-                            }
-                        }
-                        3 => {
-                            for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * OC_NVEC) {
-                                for l in ll..l_end {
-                                    micro_kernel_3::<T, OC_NVEC>(
-                                        [ii, i_end],
-                                        [kernel_height, kernel_width],
-                                        [b, l, k, j],
-                                        [osb, osh, osw],
-                                        [step_height, step_width],
-                                        [isb, ish, isw],
-                                        [ks0, ks1, ks2],
-                                        &mut out,
-                                        &inp,
-                                        &kernel
-                                    );
-                                }
-                            }
-                        }
-                        2 => {
-                            for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * OC_NVEC) {
-                                for l in ll..l_end {
-                                    micro_kernel_2::<T, OC_NVEC>(
-                                        [ii, i_end],
-                                        [kernel_height, kernel_width],
-                                        [b, l, k, j],
-                                        [osb, osh, osw],
-                                        [step_height, step_width],
-                                        [isb, ish, isw],
-                                        [ks0, ks1, ks2],
-                                        &mut out,
-                                        &inp,
-                                        &kernel
-                                    );
-                                }
-                            }
-                        }
-                        1 => {
-                            for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * OC_NVEC) {
-                                for l in ll..l_end {
-                                    micro_kernel_1::<T, OC_NVEC>(
-                                        [ii, i_end],
-                                        [kernel_height, kernel_width],
-                                        [b, l, k, j],
-                                        [osb, osh, osw],
-                                        [step_height, step_width],
-                                        [isb, ish, isw],
-                                        [ks0, ks1, ks2],
-                                        &mut out,
-                                        &inp,
-                                        &kernel
-                                    );
-                                }
-                            }
-                        }
-                        _ => unreachable!(),
                     }
-                    // Handle remaining OC
-                    if oc_remain > 0 {
-                        let j_start = out_channels - oc_remain;
-                        match ow_remain {
-                            5 => {
-                                for j in (j_start..out_channels).step_by(T::Vec::SIZE) {
-                                    let oc_end = (j + (T::Vec::SIZE as i64)).min(out_channels);
-                                    for l in ll..l_end {
-                                        micro_kernel_5_scalar::<T>(
-                                            [ii, i_end],
-                                            [kernel_height, kernel_width],
-                                            [b, l, k, j],
-                                            [osb, osh, osw],
-                                            [step_height, step_width],
-                                            [isb, ish, isw],
-                                            [ks0, ks1, ks2],
-                                            oc_end - j,
-                                            &mut out,
-                                            &inp,
-                                            &kernel
-                                        );
-                                    }
-                                }
-                            }
-                            4 => {
-                                for j in (j_start..out_channels).step_by(T::Vec::SIZE) {
-                                    let oc_end = (j + (T::Vec::SIZE as i64)).min(out_channels);
-                                    for l in ll..l_end {
-                                        micro_kernel_4_scalar::<T>(
-                                            [ii, i_end],
-                                            [kernel_height, kernel_width],
-                                            [b, l, k, j],
-                                            [osb, osh, osw],
-                                            [step_height, step_width],
-                                            [isb, ish, isw],
-                                            [ks0, ks1, ks2],
-                                            oc_end - j,
-                                            &mut out,
-                                            &inp,
-                                            &kernel
-                                        );
-                                    }
-                                }
-                            }
-                            3 => {
-                                for j in (j_start..out_channels).step_by(T::Vec::SIZE) {
-                                    let oc_end = (j + (T::Vec::SIZE as i64)).min(out_channels);
-                                    for l in ll..l_end {
-                                        micro_kernel_3_scalar::<T>(
-                                            [ii, i_end],
-                                            [kernel_height, kernel_width],
-                                            [b, l, k, j],
-                                            [osb, osh, osw],
-                                            [step_height, step_width],
-                                            [isb, ish, isw],
-                                            [ks0, ks1, ks2],
-                                            oc_end - j,
-                                            &mut out,
-                                            &inp,
-                                            &kernel
-                                        );
-                                    }
-                                }
-                            }
-                            2 => {
-                                for j in (j_start..out_channels).step_by(T::Vec::SIZE) {
-                                    let oc_end = (j + (T::Vec::SIZE as i64)).min(out_channels);
-                                    for l in ll..l_end {
-                                        micro_kernel_2_scalar::<T>(
-                                            [ii, i_end],
-                                            [kernel_height, kernel_width],
-                                            [b, l, k, j],
-                                            [osb, osh, osw],
-                                            [step_height, step_width],
-                                            [isb, ish, isw],
-                                            [ks0, ks1, ks2],
-                                            oc_end - j,
-                                            &mut out,
-                                            &inp,
-                                            &kernel
-                                        );
-                                    }
-                                }
-                            }
-                            1 => {
-                                for j in (j_start..out_channels).step_by(T::Vec::SIZE) {
-                                    let oc_end = (j + (T::Vec::SIZE as i64)).min(out_channels);
-                                    for l in ll..l_end {
-                                        micro_kernel_1_scalar::<T>(
-                                            [ii, i_end],
-                                            [kernel_height, kernel_width],
-                                            [b, l, k, j],
-                                            [osb, osh, osw],
-                                            [step_height, step_width],
-                                            [isb, ish, isw],
-                                            [ks0, ks1, ks2],
-                                            oc_end - j,
-                                            &mut out,
-                                            &inp,
-                                            &kernel
-                                        );
-                                    }
-                                }
-                            }
-                            _ => unreachable!(),
+                    for j in (out_channels - oc_remain..out_channels).step_by(
+                        T::Vec::SIZE * OC_NVEC
+                    ) {
+                        for l in ll..l_end {
+                            partial_oc_kernel(
+                                [ii, i_end],
+                                [kernel_height, kernel_width],
+                                [b, l, k, j],
+                                [osb, osh, osw],
+                                [step_height, step_width],
+                                [isb, ish, isw],
+                                [ks0, ks1, ks2],
+                                oc_remain,
+                                &mut out,
+                                &inp,
+                                &kernel
+                            );
+                        }
+                    }
+                }
+                for k in (out_width_full_end..out_width).step_by(OW_BLOCK) {
+                    for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * OC_NVEC) {
+                        for l in ll..l_end {
+                            full_oc_kernel_ow_remain(
+                                [ii, i_end],
+                                [kernel_height, kernel_width],
+                                [b, l, k, j],
+                                [osb, osh, osw],
+                                [step_height, step_width],
+                                [isb, ish, isw],
+                                [ks0, ks1, ks2],
+                                &mut out,
+                                &inp,
+                                &kernel
+                            );
+                        }
+                    }
+                    for j in (out_channels - oc_remain..out_channels).step_by(
+                        T::Vec::SIZE * OC_NVEC
+                    ) {
+                        for l in ll..l_end {
+                            partial_oc_kernel_ow_remain(
+                                [ii, i_end],
+                                [kernel_height, kernel_width],
+                                [b, l, k, j],
+                                [osb, osh, osw],
+                                [step_height, step_width],
+                                [isb, ish, isw],
+                                [ks0, ks1, ks2],
+                                oc_remain,
+                                &mut out,
+                                &inp,
+                                &kernel
+                            );
                         }
                     }
                 }
             }
         });
         Ok(output)
-    }
-}
-
-#[inline]
-fn micro_kernel_5<T: CommonBounds, const OC_NVEC: usize>(
-    [ii, i_end]: [i64; 2],
-    [kh, kw]: [i64; 2],
-    [b, l, k, j]: [i64; 4],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
-    out: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    kernel: &Pointer<T>
-) {
-    const OW_BLOCK: usize = 5;
-    let mut results = if ii == 0 {
-        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC]
-    } else {
-        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC];
-        for v in 0..OC_NVEC {
-            for kk in 0..OW_BLOCK as i64 {
-                ret[v as usize][kk as usize] = unsafe { T::Vec::from_ptr(&out[b * osb + l * osh + (k + kk) * osw + j + v as i64 * T::Vec::SIZE as i64] as *const _ as *const T) }; // prettier-ignore
-            }
-        }
-        ret
-    };
-    for n in 0..kh {
-        for m in 0..kw {
-            for i in ii..i_end {
-                unsafe {
-                    let inp0 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]); // prettier-ignore
-                    let inp1 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 1) * step_width + m) * isw + i]); // prettier-ignore
-                    let inp2 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 2) * step_width + m) * isw + i]); // prettier-ignore
-                    let inp3 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 3) * step_width + m) * isw + i]); // prettier-ignore
-                    let inp4 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 4) * step_width + m) * isw + i]); // prettier-ignore
-
-                    for v in 0..OC_NVEC {
-                        let kernel = T::Vec::from_ptr(&kernel[n * ks0 + m * ks1 + i * ks2 + j + v as i64 * T::Vec::SIZE as i64]); // prettier-ignore
-                        results[v as usize][0] = inp0.mul_add(kernel, results[v as usize][0]); // prettier-ignore
-                        results[v as usize][1] = inp1.mul_add(kernel, results[v as usize][1]); // prettier-ignore
-                        results[v as usize][2] = inp2.mul_add(kernel, results[v as usize][2]); // prettier-ignore
-                        results[v as usize][3] = inp3.mul_add(kernel, results[v as usize][3]); // prettier-ignore
-                        results[v as usize][4] = inp4.mul_add(kernel, results[v as usize][4]); // prettier-ignore
-                    }
-                }
-            }
-        }
-    }
-    for v in 0..OC_NVEC as i64 {
-        for kk in 0..OW_BLOCK as i64 {
-            let out_vec = &mut out[b * osb + l * osh + (k + kk) * osw + j + v * T::Vec::SIZE as i64] as *mut _ as *mut T::Vec; // prettier-ignore
-            unsafe {
-                out_vec.write_unaligned(results[v as usize][kk as usize]);
-            }
-        }
-    }
-}
-
-#[inline]
-fn micro_kernel_5_scalar<T: CommonBounds>(
-    [ii, i_end]: [i64; 2],
-    [kh, kw]: [i64; 2],
-    [b, l, k, j]: [i64; 4],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
-    oc_end: i64,
-    out: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    kernel: &Pointer<T>
-) {
-    const OW_BLOCK: usize = 5;
-    let mut results = if ii == 0 {
-        [T::Vec::splat(T::ZERO); OW_BLOCK]
-    } else {
-        let mut ret = [T::Vec::splat(T::ZERO); OW_BLOCK];
-        for kk in 0..OW_BLOCK as i64 {
-            for v in 0..oc_end {
-                ret[kk as usize][v as usize] = out[b * osb + l * osh + (k + kk) * osw + j + v];
-            }
-        }
-        ret
-    };
-    for n in 0..kh {
-        for m in 0..kw {
-            for i in ii..i_end {
-                let inp0 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]); // prettier-ignore
-                let inp1 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 1) * step_width + m) * isw + i]); // prettier-ignore
-                let inp2 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 2) * step_width + m) * isw + i]); // prettier-ignore
-                let inp3 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 3) * step_width + m) * isw + i]); // prettier-ignore
-                let inp4 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 4) * step_width + m) * isw + i]); // prettier-ignore
-                let mut kernel_vec = T::Vec::splat(T::ZERO);
-                for v in 0..oc_end {
-                    kernel_vec[v as usize] = kernel[n * ks0 + m * ks1 + i * ks2 + j + v];
-                }
-                results[0] = inp0.mul_add(kernel_vec, results[0]); // prettier-ignore
-                results[1] = inp1.mul_add(kernel_vec, results[1]); // prettier-ignore
-                results[2] = inp2.mul_add(kernel_vec, results[2]); // prettier-ignore
-                results[3] = inp3.mul_add(kernel_vec, results[3]); // prettier-ignore
-                results[4] = inp4.mul_add(kernel_vec, results[4]); // prettier-ignore
-            }
-        }
-    }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..oc_end {
-            out[b * osb + l * osh + (k + kk) * osw + j + v] = results[kk as usize][v as usize];
-        }
-    }
-}
-
-#[inline]
-fn micro_kernel_4<T: CommonBounds, const OC_NVEC: usize>(
-    [ii, i_end]: [i64; 2],
-    [kh, kw]: [i64; 2],
-    [b, l, k, j]: [i64; 4],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
-    out: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    kernel: &Pointer<T>
-) {
-    const OW_BLOCK: usize = 4;
-    let mut results = if ii == 0 {
-        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC]
-    } else {
-        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC];
-        for v in 0..OC_NVEC {
-            for kk in 0..OW_BLOCK as i64 {
-                ret[v as usize][kk as usize] = unsafe { T::Vec::from_ptr(&out[b * osb + l * osh + (k + kk) * osw + j + v as i64 * T::Vec::SIZE as i64] as *const _ as *const T) }; // prettier-ignore
-            }
-        }
-        ret
-    };
-    for n in 0..kh {
-        for m in 0..kw {
-            for i in ii..i_end {
-                unsafe {
-                    let inp0 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]); // prettier-ignore
-                    let inp1 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 1) * step_width + m) * isw + i]); // prettier-ignore
-                    let inp2 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 2) * step_width + m) * isw + i]); // prettier-ignore
-                    let inp3 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 3) * step_width + m) * isw + i]); // prettier-ignore
-
-                    for v in 0..OC_NVEC {
-                        let kernel = T::Vec::from_ptr(&kernel[n * ks0 + m * ks1 + i * ks2 + j + v as i64 * T::Vec::SIZE as i64]); // prettier-ignore
-                        results[v as usize][0] = inp0.mul_add(kernel, results[v as usize][0]); // prettier-ignore
-                        results[v as usize][1] = inp1.mul_add(kernel, results[v as usize][1]); // prettier-ignore
-                        results[v as usize][2] = inp2.mul_add(kernel, results[v as usize][2]); // prettier-ignore
-                        results[v as usize][3] = inp3.mul_add(kernel, results[v as usize][3]); // prettier-ignore
-                    }
-                }
-            }
-        }
-    }
-    for v in 0..OC_NVEC as i64 {
-        for kk in 0..OW_BLOCK as i64 {
-            let out_vec = &mut out[b * osb + l * osh + (k + kk) * osw + j + v * T::Vec::SIZE as i64] as *mut _ as *mut T::Vec; // prettier-ignore
-            unsafe {
-                out_vec.write_unaligned(results[v as usize][kk as usize]);
-            }
-        }
-    }
-}
-
-#[inline]
-fn micro_kernel_4_scalar<T: CommonBounds>(
-    [ii, i_end]: [i64; 2],
-    [kh, kw]: [i64; 2],
-    [b, l, k, j]: [i64; 4],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
-    oc_end: i64,
-    out: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    kernel: &Pointer<T>
-) {
-    const OW_BLOCK: usize = 4;
-    let mut results = if ii == 0 {
-        [T::Vec::splat(T::ZERO); OW_BLOCK]
-    } else {
-        let mut ret = [T::Vec::splat(T::ZERO); OW_BLOCK];
-        for kk in 0..OW_BLOCK as i64 {
-            for v in 0..oc_end {
-                ret[kk as usize][v as usize] = out[b * osb + l * osh + (k + kk) * osw + j + v];
-            }
-        }
-        ret
-    };
-    for n in 0..kh {
-        for m in 0..kw {
-            for i in ii..i_end {
-                let inp0 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]); // prettier-ignore
-                let inp1 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 1) * step_width + m) * isw + i]); // prettier-ignore
-                let inp2 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 2) * step_width + m) * isw + i]); // prettier-ignore
-                let inp3 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 3) * step_width + m) * isw + i]); // prettier-ignore
-                let mut kernel_vec = T::Vec::splat(T::ZERO);
-                for v in 0..oc_end {
-                    kernel_vec[v as usize] = kernel[n * ks0 + m * ks1 + i * ks2 + j + v];
-                }
-                results[0] = inp0.mul_add(kernel_vec, results[0]); // prettier-ignore
-                results[1] = inp1.mul_add(kernel_vec, results[1]); // prettier-ignore
-                results[2] = inp2.mul_add(kernel_vec, results[2]); // prettier-ignore
-                results[3] = inp3.mul_add(kernel_vec, results[3]); // prettier-ignore
-            }
-        }
-    }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..oc_end {
-            out[b * osb + l * osh + (k + kk) * osw + j + v] = results[kk as usize][v as usize];
-        }
-    }
-}
-
-#[inline]
-fn micro_kernel_3<T: CommonBounds, const OC_NVEC: usize>(
-    [ii, i_end]: [i64; 2],
-    [kh, kw]: [i64; 2],
-    [b, l, k, j]: [i64; 4],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
-    out: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    kernel: &Pointer<T>
-) {
-    const OW_BLOCK: usize = 3;
-    let mut results = if ii == 0 {
-        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC]
-    } else {
-        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC];
-        for v in 0..OC_NVEC {
-            for kk in 0..OW_BLOCK as i64 {
-                ret[v as usize][kk as usize] = unsafe { T::Vec::from_ptr(&out[b * osb + l * osh + (k + kk) * osw + j + v as i64 * T::Vec::SIZE as i64] as *const _ as *const T) }; // prettier-ignore
-            }
-        }
-        ret
-    };
-    for n in 0..kh {
-        for m in 0..kw {
-            for i in ii..i_end {
-                unsafe {
-                    let inp0 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]); // prettier-ignore
-                    let inp1 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 1) * step_width + m) * isw + i]); // prettier-ignore
-                    let inp2 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 2) * step_width + m) * isw + i]); // prettier-ignore
-
-                    for v in 0..OC_NVEC {
-                        let kernel = T::Vec::from_ptr(&kernel[n * ks0 + m * ks1 + i * ks2 + j + v as i64 * T::Vec::SIZE as i64]); // prettier-ignore
-                        results[v as usize][0] = inp0.mul_add(kernel, results[v as usize][0]); // prettier-ignore
-                        results[v as usize][1] = inp1.mul_add(kernel, results[v as usize][1]); // prettier-ignore
-                        results[v as usize][2] = inp2.mul_add(kernel, results[v as usize][2]); // prettier-ignore
-                    }
-                }
-            }
-        }
-    }
-    for v in 0..OC_NVEC as i64 {
-        for kk in 0..OW_BLOCK as i64 {
-            let out_vec = &mut out[b * osb + l * osh + (k + kk) * osw + j + v * T::Vec::SIZE as i64] as *mut _ as *mut T::Vec; // prettier-ignore
-            unsafe {
-                out_vec.write_unaligned(results[v as usize][kk as usize]);
-            }
-        }
-    }
-}
-
-#[inline]
-fn micro_kernel_3_scalar<T: CommonBounds>(
-    [ii, i_end]: [i64; 2],
-    [kh, kw]: [i64; 2],
-    [b, l, k, j]: [i64; 4],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
-    oc_end: i64,
-    out: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    kernel: &Pointer<T>
-) {
-    const OW_BLOCK: usize = 3;
-    let mut results = if ii == 0 {
-        [T::Vec::splat(T::ZERO); OW_BLOCK]
-    } else {
-        let mut ret = [T::Vec::splat(T::ZERO); OW_BLOCK];
-        for kk in 0..OW_BLOCK as i64 {
-            for v in 0..oc_end {
-                ret[kk as usize][v as usize] = out[b * osb + l * osh + (k + kk) * osw + j + v];
-            }
-        }
-        ret
-    };
-    for n in 0..kh {
-        for m in 0..kw {
-            for i in ii..i_end {
-                let inp0 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]); // prettier-ignore
-                let inp1 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 1) * step_width + m) * isw + i]); // prettier-ignore
-                let inp2 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 2) * step_width + m) * isw + i]); // prettier-ignore
-                let mut kernel_vec = T::Vec::splat(T::ZERO);
-                for v in 0..oc_end {
-                    kernel_vec[v as usize] = kernel[n * ks0 + m * ks1 + i * ks2 + j + v];
-                }
-                results[0] = inp0.mul_add(kernel_vec, results[0]); // prettier-ignore
-                results[1] = inp1.mul_add(kernel_vec, results[1]); // prettier-ignore
-                results[2] = inp2.mul_add(kernel_vec, results[2]); // prettier-ignore
-            }
-        }
-    }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..oc_end {
-            out[b * osb + l * osh + (k + kk) * osw + j + v] = results[kk as usize][v as usize];
-        }
-    }
-}
-
-#[inline]
-fn micro_kernel_2<T: CommonBounds, const OC_NVEC: usize>(
-    [ii, i_end]: [i64; 2],
-    [kh, kw]: [i64; 2],
-    [b, l, k, j]: [i64; 4],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
-    out: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    kernel: &Pointer<T>
-) {
-    const OW_BLOCK: usize = 2;
-    let mut results = if ii == 0 {
-        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC]
-    } else {
-        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_NVEC];
-        for v in 0..OC_NVEC {
-            for kk in 0..OW_BLOCK as i64 {
-                ret[v as usize][kk as usize] = unsafe { T::Vec::from_ptr(&out[b * osb + l * osh + (k + kk) * osw + j + v as i64 * T::Vec::SIZE as i64] as *const _ as *const T) }; // prettier-ignore
-            }
-        }
-        ret
-    };
-    for n in 0..kh {
-        for m in 0..kw {
-            for i in ii..i_end {
-                unsafe {
-                    let inp0 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]); // prettier-ignore
-                    let inp1 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 1) * step_width + m) * isw + i]); // prettier-ignore
-
-                    for v in 0..OC_NVEC {
-                        let kernel = T::Vec::from_ptr(&kernel[n * ks0 + m * ks1 + i * ks2 + j + v as i64 * T::Vec::SIZE as i64]); // prettier-ignore
-                        results[v as usize][0] = inp0.mul_add(kernel, results[v as usize][0]); // prettier-ignore
-                        results[v as usize][1] = inp1.mul_add(kernel, results[v as usize][1]); // prettier-ignore
-                    }
-                }
-            }
-        }
-    }
-    for v in 0..OC_NVEC as i64 {
-        for kk in 0..OW_BLOCK as i64 {
-            let out_vec = &mut out[b * osb + l * osh + (k + kk) * osw + j + v * T::Vec::SIZE as i64] as *mut _ as *mut T::Vec; // prettier-ignore
-            unsafe {
-                out_vec.write_unaligned(results[v as usize][kk as usize]);
-            }
-        }
-    }
-}
-
-#[inline]
-fn micro_kernel_2_scalar<T: CommonBounds>(
-    [ii, i_end]: [i64; 2],
-    [kh, kw]: [i64; 2],
-    [b, l, k, j]: [i64; 4],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
-    oc_end: i64,
-    out: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    kernel: &Pointer<T>
-) {
-    const OW_BLOCK: usize = 2;
-    let mut results = if ii == 0 {
-        [T::Vec::splat(T::ZERO); OW_BLOCK]
-    } else {
-        let mut ret = [T::Vec::splat(T::ZERO); OW_BLOCK];
-        for kk in 0..OW_BLOCK as i64 {
-            for v in 0..oc_end {
-                ret[kk as usize][v as usize] = out[b * osb + l * osh + (k + kk) * osw + j + v];
-            }
-        }
-        ret
-    };
-    for n in 0..kh {
-        for m in 0..kw {
-            for i in ii..i_end {
-                let inp0 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]); // prettier-ignore
-                let inp1 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + ((k + 1) * step_width + m) * isw + i]); // prettier-ignore
-                let mut kernel_vec = T::Vec::splat(T::ZERO);
-                for v in 0..oc_end {
-                    kernel_vec[v as usize] = kernel[n * ks0 + m * ks1 + i * ks2 + j + v];
-                }
-                results[0] = inp0.mul_add(kernel_vec, results[0]); // prettier-ignore
-                results[1] = inp1.mul_add(kernel_vec, results[1]); // prettier-ignore
-            }
-        }
-    }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..oc_end {
-            out[b * osb + l * osh + (k + kk) * osw + j + v] = results[kk as usize][v as usize];
-        }
-    }
-}
-
-#[inline]
-fn micro_kernel_1<T: CommonBounds, const OC_NVEC: usize>(
-    [ii, i_end]: [i64; 2],
-    [kh, kw]: [i64; 2],
-    [b, l, k, j]: [i64; 4],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
-    out: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    kernel: &Pointer<T>
-) {
-    let mut results = if ii == 0 {
-        [T::Vec::splat(T::ZERO); OC_NVEC]
-    } else {
-        let mut ret = [T::Vec::splat(T::ZERO); OC_NVEC];
-        for v in 0..OC_NVEC {
-            ret[v as usize] = unsafe { T::Vec::from_ptr(&out[b * osb + l * osh + k * osw + j + v as i64 * T::Vec::SIZE as i64] as *const _ as *const T) }; // prettier-ignore
-        }
-        ret
-    };
-    for n in 0..kh {
-        for m in 0..kw {
-            for i in ii..i_end {
-                unsafe {
-                    let inp0 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]); // prettier-ignore
-
-                    for v in 0..OC_NVEC {
-                        let kernel = T::Vec::from_ptr(&kernel[n * ks0 + m * ks1 + i * ks2 + j + v as i64 * T::Vec::SIZE as i64]); // prettier-ignore
-                        results[v as usize] = inp0.mul_add(kernel, results[v as usize]); // prettier-ignore
-                    }
-                }
-            }
-        }
-    }
-    for v in 0..OC_NVEC as i64 {
-        let out_vec = &mut out[b * osb + l * osh + k * osw + j + v * T::Vec::SIZE as i64] as *mut _ as *mut T::Vec; // prettier-ignore
-        unsafe {
-            out_vec.write_unaligned(results[v as usize]);
-        }
-    }
-}
-
-#[inline]
-fn micro_kernel_1_scalar<T: CommonBounds>(
-    [ii, i_end]: [i64; 2],
-    [kh, kw]: [i64; 2],
-    [b, l, k, j]: [i64; 4],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
-    oc_end: i64,
-    out: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    kernel: &Pointer<T>
-) {
-    const OW_BLOCK: usize = 1;
-    let mut results = if ii == 0 {
-        [T::Vec::splat(T::ZERO); OW_BLOCK]
-    } else {
-        let mut ret = [T::Vec::splat(T::ZERO); OW_BLOCK];
-        for kk in 0..OW_BLOCK as i64 {
-            for v in 0..oc_end {
-                ret[kk as usize][v as usize] = out[b * osb + l * osh + (k + kk) * osw + j + v];
-            }
-        }
-        ret
-    };
-    for n in 0..kh {
-        for m in 0..kw {
-            for i in ii..i_end {
-                let inp0 = T::Vec::splat(inp[b * isb + (l * step_height + n) * ish + (k * step_width + m) * isw + i]); // prettier-ignore
-                let mut kernel_vec = T::Vec::splat(T::ZERO);
-                for v in 0..oc_end {
-                    kernel_vec[v as usize] = kernel[n * ks0 + m * ks1 + i * ks2 + j + v];
-                }
-                results[0] = inp0.mul_add(kernel_vec, results[0]); // prettier-ignore
-            }
-        }
-    }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..oc_end {
-            out[b * osb + l * osh + (k + kk) * osw + j + v] = results[kk as usize][v as usize];
-        }
     }
 }
