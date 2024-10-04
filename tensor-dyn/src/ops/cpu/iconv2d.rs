@@ -117,27 +117,31 @@ impl<T> _Tensor<T>
 
         const OH_BLOCK: i64 = 3;
 
-        let ic_nvec = 2;
+        let ic_nvec = 16;
         let mut oc_nvec = 2;
-        let mut ow_block = 5;
+        let mut ow_block = 4;
 
-        let inp_used =
-            (ow_block as i64) *
-            (ic_nvec as i64) *
-            (T::Vec::SIZE as i64) *
-            kernel_height *
-            kernel_width *
-            OH_BLOCK;
-        let kernel_used =
-            (ow_block as i64) *
-            (oc_nvec as i64) *
-            (T::Vec::SIZE as i64) *
-            kernel_height *
-            kernel_width;
-        let out_used = (ow_block as i64) * (oc_nvec as i64) * (T::Vec::SIZE as i64) * OH_BLOCK;
-        println!("inp_used: {}, kernel_used: {}, out_used: {}", inp_used, kernel_used, out_used);
+        // let inp_used =
+        //     (ow_block as i64) *
+        //     (ic_nvec as i64) *
+        //     (T::Vec::SIZE as i64) *
+        //     kernel_height *
+        //     kernel_width *
+        //     OH_BLOCK;
+        // let kernel_used =
+        //     (ow_block as i64) *
+        //     (oc_nvec as i64) *
+        //     (T::Vec::SIZE as i64) *
+        //     kernel_height *
+        //     kernel_width;
+        // let out_used = (ow_block as i64) * (oc_nvec as i64) * (T::Vec::SIZE as i64) * OH_BLOCK;
+        // println!("inp_used: {}, kernel_used: {}, out_used: {}", inp_used, kernel_used, out_used);
 
-        let full_oc_kernel = iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block, false);
+        let full_oc_kernel = iconv2d_full_oc_kernel_dispatch(
+            &mut oc_nvec,
+            &mut ow_block,
+            false
+        ).expect(&format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec));
         let full_oc_kernel_ow_remain = iconv2d_full_oc_kernel_dispatch(
             &mut oc_nvec,
             &mut ((out_width as usize) % ow_block),
@@ -158,9 +162,9 @@ impl<T> _Tensor<T>
             let ll = idx % num_oh;
             let ll = ll * OH_BLOCK;
             let l_end = (ll + OH_BLOCK).min(out_height);
-            for ii in (0..in_channels).step_by(T::Vec::SIZE * ic_nvec) {
-                let i_end = (ii + (T::Vec::SIZE as i64) * (ic_nvec as i64)).min(in_channels);
-                for k in (0..out_width_full_end).step_by(ow_block) {
+            for k in (0..out_width_full_end).step_by(ow_block) {
+                for ii in (0..in_channels).step_by(T::Vec::SIZE * ic_nvec) {
+                    let i_end = (ii + (T::Vec::SIZE as i64) * (ic_nvec as i64)).min(in_channels);
                     for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * oc_nvec) {
                         for l in ll..l_end {
                             full_oc_kernel(
@@ -177,60 +181,71 @@ impl<T> _Tensor<T>
                             );
                         }
                     }
-                    for j in (out_channels - oc_remain..out_channels).step_by(
-                        T::Vec::SIZE * oc_nvec
-                    ) {
-                        for l in ll..l_end {
-                            partial_oc_kernel(
-                                [ii, i_end],
-                                [kernel_height, kernel_width],
-                                [b, l, k, j],
-                                [osb, osh, osw],
-                                [step_height, step_width],
-                                [isb, ish, isw],
-                                [ks0, ks1, ks2],
-                                oc_remain,
-                                &mut out,
-                                &inp,
-                                &kernel
-                            );
+                    if let Some(partial_oc_kernel) = partial_oc_kernel {
+                        for j in (out_channels - oc_remain..out_channels).step_by(
+                            T::Vec::SIZE * oc_nvec
+                        ) {
+                            for l in ll..l_end {
+                                partial_oc_kernel(
+                                    [ii, i_end],
+                                    [kernel_height, kernel_width],
+                                    [b, l, k, j],
+                                    [osb, osh, osw],
+                                    [step_height, step_width],
+                                    [isb, ish, isw],
+                                    [ks0, ks1, ks2],
+                                    oc_remain,
+                                    &mut out,
+                                    &inp,
+                                    &kernel
+                                );
+                            }
                         }
                     }
                 }
-                for k in (out_width_full_end..out_width).step_by(ow_block) {
-                    for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * oc_nvec) {
-                        for l in ll..l_end {
-                            full_oc_kernel_ow_remain(
-                                [ii, i_end],
-                                [kernel_height, kernel_width],
-                                [b, l, k, j],
-                                [osb, osh, osw],
-                                [step_height, step_width],
-                                [isb, ish, isw],
-                                [ks0, ks1, ks2],
-                                &mut out,
-                                &inp,
-                                &kernel
+                if let Some(full_oc_kernel_ow_remain) = full_oc_kernel_ow_remain {
+                    for k in (out_width_full_end..out_width).step_by(ow_block) {
+                        for ii in (0..in_channels).step_by(T::Vec::SIZE * ic_nvec) {
+                            let i_end = (ii + (T::Vec::SIZE as i64) * (ic_nvec as i64)).min(
+                                in_channels
                             );
-                        }
-                    }
-                    for j in (out_channels - oc_remain..out_channels).step_by(
-                        T::Vec::SIZE * oc_nvec
-                    ) {
-                        for l in ll..l_end {
-                            partial_oc_kernel_ow_remain(
-                                [ii, i_end],
-                                [kernel_height, kernel_width],
-                                [b, l, k, j],
-                                [osb, osh, osw],
-                                [step_height, step_width],
-                                [isb, ish, isw],
-                                [ks0, ks1, ks2],
-                                oc_remain,
-                                &mut out,
-                                &inp,
-                                &kernel
-                            );
+                            for j in (0..out_channels - oc_remain).step_by(T::Vec::SIZE * oc_nvec) {
+                                for l in ll..l_end {
+                                    full_oc_kernel_ow_remain(
+                                        [ii, i_end],
+                                        [kernel_height, kernel_width],
+                                        [b, l, k, j],
+                                        [osb, osh, osw],
+                                        [step_height, step_width],
+                                        [isb, ish, isw],
+                                        [ks0, ks1, ks2],
+                                        &mut out,
+                                        &inp,
+                                        &kernel
+                                    );
+                                }
+                            }
+                            if let Some(partial_oc_kernel_ow_remain) = partial_oc_kernel_ow_remain {
+                                for j in (out_channels - oc_remain..out_channels).step_by(
+                                    T::Vec::SIZE * oc_nvec
+                                ) {
+                                    for l in ll..l_end {
+                                        partial_oc_kernel_ow_remain(
+                                            [ii, i_end],
+                                            [kernel_height, kernel_width],
+                                            [b, l, k, j],
+                                            [osb, osh, osw],
+                                            [step_height, step_width],
+                                            [isb, ish, isw],
+                                            [ks0, ks1, ks2],
+                                            oc_remain,
+                                            &mut out,
+                                            &inp,
+                                            &kernel
+                                        );
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -250,6 +265,7 @@ fn small_ic_nvec_penalty<T: CommonBounds>(
     ow: usize,
     owb: usize,
     b: usize,
+    j_block: usize,
     kernel_height: usize,
     kernel_width: usize,
     step_width: usize,
@@ -281,7 +297,9 @@ fn small_ic_nvec_penalty<T: CommonBounds>(
         ((T::Vec::SIZE * oc_nvec) / l1_cache_line_size);
     let kernel_cached = kernel_missed * l1_cache_line_size; // cache used before out_channel loop
     let kernel_load_from_cache_cost = kernel_missed * (l1_cache_line_size - 1) * l1_penalty;
-    let kernel_missed_cost = kernel_missed * main_mem_penalty;
+    let kernel_missed_cost = kernel_missed * main_mem_penalty; // first time load from main memory
+
+    // calculate the first time cache used
 }
 
 fn inp_cache_miss<T: CommonBounds>(

@@ -201,18 +201,20 @@ pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
     oc: &mut usize, // output channels block size
     kb: &mut usize, // outwidth block size
     remain: bool
-) -> fn(
-    [i64; 2],
-    [i64; 2],
-    [i64; 4],
-    [i64; 3],
-    [i64; 2],
-    [i64; 3],
-    [i64; 3],
-    &mut Pointer<T>,
-    &Pointer<T>,
-    &Pointer<T>
-) {
+) -> Option<
+    fn(
+        [i64; 2],
+        [i64; 2],
+        [i64; 4],
+        [i64; 3],
+        [i64; 2],
+        [i64; 3],
+        [i64; 3],
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &Pointer<T>
+    )
+> {
     let kernels: [
         [
             fn(
@@ -238,9 +240,6 @@ pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
     ];
 
     let map_kb = map_kb(*kb);
-    if remain && map_kb +1 != *kb {
-        panic!("unable to find iconv2d_microkernel_{}x{} for remain outwidth", kb, oc);
-    }
     *kb = map_kb + 1;
     let map_oc = map_oc(*oc);
     if map_oc == 0 {
@@ -258,30 +257,28 @@ pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
         .map(|x| x.get(map_kb))
         .flatten();
 
-    println!("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc, map_kb);
+    // println!("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc, map_kb);
 
-    if let Some(kernel_fn) = kernel_fn {
-        kernel_fn.clone()
-    } else {
-        panic!("unable to find iconv2d_microkernel_{}x{}", kb, oc);
-    }
+    kernel_fn.cloned()
 }
 
 pub(crate) fn iconv2d_remain_oc_kernel_dispatch<T: CommonBounds>(
     kb: &mut usize // outwidth block size
-) -> fn(
-    [i64; 2],
-    [i64; 2],
-    [i64; 4],
-    [i64; 3],
-    [i64; 2],
-    [i64; 3],
-    [i64; 3],
-    i64,
-    &mut Pointer<T>,
-    &Pointer<T>,
-    &Pointer<T>
-) {
+) -> Option<
+    fn(
+        [i64; 2],
+        [i64; 2],
+        [i64; 4],
+        [i64; 3],
+        [i64; 2],
+        [i64; 3],
+        [i64; 3],
+        i64,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &Pointer<T>
+    )
+> {
     let kernels: [
         fn(
             [i64; 2],
@@ -305,11 +302,7 @@ pub(crate) fn iconv2d_remain_oc_kernel_dispatch<T: CommonBounds>(
 
     let kernel_fn = kernels.get(map_kb);
 
-    if let Some(kernel_fn) = kernel_fn {
-        kernel_fn.clone()
-    } else {
-        panic!("unable to find iconv2d_microkernel_remain_{}", kb);
-    }
+    kernel_fn.cloned()
 }
 
 fn map_kb(kb: usize) -> usize {
