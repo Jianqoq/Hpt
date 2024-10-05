@@ -200,7 +200,6 @@ fn template_function<T: CommonBounds>(
 pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
     oc: &mut usize, // output channels block size
     kb: &mut usize, // outwidth block size
-    remain: bool
 ) -> Option<
     fn(
         [i64; 2],

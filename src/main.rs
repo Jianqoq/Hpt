@@ -74,7 +74,7 @@ fn main() -> anyhow::Result<()> {
     // evaluate_combinations();
     set_num_threads(16);
     let oc = 128;
-    let ic = 8192;
+    let ic = 4096*4;
     let kh = 3;
     let kw = 3;
     let h = 256;
@@ -92,7 +92,7 @@ fn main() -> anyhow::Result<()> {
         .contiguous()?;
     let config = Conv2dConfig::<f32>::new(oc, ic, [kh, kw], KernelParamAlgo::Greedy);
     let now = std::time::Instant::now();
-    let res = a.iconv2d(
+    let res = black_box(a.iconv2d(
         &kernel,
         [1, 1],
         [
@@ -101,7 +101,7 @@ fn main() -> anyhow::Result<()> {
         ],
         [1, 1],
         Some(&config)
-    )?;
+    )?);
     println!("{:?}", now.elapsed());
     // println!("{:?}", res);
     // conv2d()?;

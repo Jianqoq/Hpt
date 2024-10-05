@@ -13,9 +13,9 @@ use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
 
 impl<T> _Tensor<T>
-where
-    T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
-    T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecCommon + NormalOut<Output = T::Vec>,
+    where
+        T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
+        T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecCommon + NormalOut<Output = T::Vec>
 {
     /// Performs a 2D convolution operation on the input tensor.
     ///
@@ -45,15 +45,16 @@ where
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        _: Option<&Conv2dConfig<T>>,
+        _: Option<&Conv2dConfig<T>>
     ) -> anyhow::Result<_Tensor<T>> {
         let img_shape = self.shape();
         if img_shape.len() != 4 {
-            return Err(ErrHandler::Conv2dImgShapeInCorrect(
-                img_shape.len(),
-                core::panic::Location::caller(),
-            )
-            .into());
+            return Err(
+                ErrHandler::Conv2dImgShapeInCorrect(
+                    img_shape.len(),
+                    core::panic::Location::caller()
+                ).into()
+            );
         }
         let batch = img_shape[0];
         let img_height = img_shape[1];
@@ -79,8 +80,13 @@ where
             (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1;
         let img = if !padding.iter().all(|(a, b)| *a == 0 && *b == 0) {
             self.pad(
-                &[(0, 0), (ph_start, ph_end), (pw_start, pw_end), (0, 0)],
-                T::ZERO,
+                &[
+                    (0, 0),
+                    (ph_start, ph_end),
+                    (pw_start, pw_end),
+                    (0, 0),
+                ],
+                T::ZERO
             )?
         } else {
             self.clone()
@@ -131,22 +137,20 @@ where
         // let out_used = (ow_block as i64) * (oc_nvec as i64) * (T::Vec::SIZE as i64) * OH_BLOCK;
         // println!("inp_used: {}, kernel_used: {}, out_used: {}", inp_used, kernel_used, out_used);
 
-        let full_oc_kernel = iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block, false)
-            .expect(&format!(
-                "unable to find iconv2d_microkernel_{}x{}",
-                ow_block, oc_nvec
-            ));
+        let full_oc_kernel = iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(
+            &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec)
+        );
         let full_oc_kernel_ow_remain = iconv2d_full_oc_kernel_dispatch(
             &mut oc_nvec,
-            &mut ((out_width as usize) % ow_block),
-            true,
+            &mut ((out_width as usize) % ow_block)
         );
         if full_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
         }
         let partial_oc_kernel = iconv2d_remain_oc_kernel_dispatch(&mut ow_block);
-        let partial_oc_kernel_ow_remain =
-            iconv2d_remain_oc_kernel_dispatch(&mut ((out_width as usize) % ow_block));
+        let partial_oc_kernel_ow_remain = iconv2d_remain_oc_kernel_dispatch(
+            &mut ((out_width as usize) % ow_block)
+        );
         if partial_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
         }
@@ -176,14 +180,14 @@ where
                                 [ks0, ks1, ks2],
                                 &mut out,
                                 &inp,
-                                &kernel,
+                                &kernel
                             );
                         }
                     }
                     if let Some(partial_oc_kernel) = partial_oc_kernel {
-                        for j in
-                            (out_channels - oc_remain..out_channels).step_by(T::Vec::SIZE * oc_nvec)
-                        {
+                        for j in (out_channels - oc_remain..out_channels).step_by(
+                            T::Vec::SIZE * oc_nvec
+                        ) {
                             for l in ll..l_end {
                                 partial_oc_kernel(
                                     [ii, i_end],
@@ -196,7 +200,7 @@ where
                                     oc_remain,
                                     &mut out,
                                     &inp,
-                                    &kernel,
+                                    &kernel
                                 );
                             }
                         }
@@ -216,14 +220,14 @@ where
                                     [ks0, ks1, ks2],
                                     &mut out,
                                     &inp,
-                                    &kernel,
+                                    &kernel
                                 );
                             }
                         }
                         if let Some(partial_oc_kernel_ow_remain) = partial_oc_kernel_ow_remain {
-                            for j in (out_channels - oc_remain..out_channels)
-                                .step_by(T::Vec::SIZE * oc_nvec)
-                            {
+                            for j in (out_channels - oc_remain..out_channels).step_by(
+                                T::Vec::SIZE * oc_nvec
+                            ) {
                                 for l in ll..l_end {
                                     partial_oc_kernel_ow_remain(
                                         [ii, i_end],
@@ -236,7 +240,7 @@ where
                                         oc_remain,
                                         &mut out,
                                         &inp,
-                                        &kernel,
+                                        &kernel
                                     );
                                 }
                             }
@@ -259,7 +263,7 @@ fn inp_used(
     ic_nvec: usize,
     kh: usize,
     kw: usize,
-    line_size: usize,
+    line_size: usize
 ) -> usize {
     owb * ic_nvec * kh * kw * line_size * lb
 }
