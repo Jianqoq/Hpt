@@ -74,7 +74,7 @@ fn main() -> anyhow::Result<()> {
     // evaluate_combinations();
     set_num_threads(16);
     let oc = 128;
-    let ic = 4096*4;
+    let ic = 4096*2;
     let kh = 3;
     let kw = 3;
     let h = 256;
@@ -94,7 +94,7 @@ fn main() -> anyhow::Result<()> {
     let now = std::time::Instant::now();
     let res = black_box(a.iconv2d(
         &kernel,
-        [1, 1],
+        [2, 2],
         [
             (0, 0),
             (0, 0),

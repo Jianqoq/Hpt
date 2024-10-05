@@ -2,6 +2,8 @@ use super::conv_config::Conv2dConfig;
 use crate::ops::cpu::kernels::iconv_kernels::iconv2d_full_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::iconv_kernels::iconv2d_remain_oc_kernel_dispatch;
 use crate::tensor_base::_Tensor;
+use crate::SIMD_WIDTH;
+use num::integer::gcd;
 use rayon::prelude::*;
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::err_handler::ErrHandler::InvalidInputShape;
@@ -117,25 +119,37 @@ impl<T> _Tensor<T>
 
         const OH_BLOCK: i64 = 3;
 
-        let ic_nvec = 16;
+        let ic_nvec = 32;
         let mut oc_nvec = 2;
         let mut ow_block = 5;
 
-        // let inp_used =
-        //     (ow_block as i64) *
-        //     (ic_nvec as i64) *
-        //     (T::Vec::SIZE as i64) *
-        //     kernel_height *
-        //     kernel_width *
-        //     OH_BLOCK;
-        // let kernel_used =
-        //     (ow_block as i64) *
-        //     (oc_nvec as i64) *
-        //     (T::Vec::SIZE as i64) *
-        //     kernel_height *
-        //     kernel_width;
-        // let out_used = (ow_block as i64) * (oc_nvec as i64) * (T::Vec::SIZE as i64) * OH_BLOCK;
-        // println!("inp_used: {}, kernel_used: {}, out_used: {}", inp_used, kernel_used, out_used);
+        let inp_used = inp_used::<T>(
+            OH_BLOCK as usize,
+            ow_block,
+            ic_nvec,
+            kernel_height as usize,
+            kernel_width as usize,
+            step_height as usize,
+            step_width as usize,
+            cache_size::l1_cache_line_size().unwrap_or(64) / core::mem::size_of::<T>()
+        );
+        let kernel_used = kernel_used::<T>(
+            oc_nvec,
+            ic_nvec,
+            kernel_height as usize,
+            kernel_width as usize,
+            cache_size::l1_cache_line_size().unwrap_or(64) / core::mem::size_of::<T>()
+        );
+        let out_used = out_used::<T>(
+            OH_BLOCK as usize,
+            out_channels as usize,
+            oc_nvec,
+            ow_block,
+            cache_size::l1_cache_line_size().unwrap_or(64) / core::mem::size_of::<T>()
+        );
+        println!("out_used: {}", out_used);
+        println!("inp_used: {}", inp_used);
+        println!("kernel_used: {}", kernel_used);
 
         let full_oc_kernel = iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(
             &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec)
@@ -253,21 +267,56 @@ impl<T> _Tensor<T>
     }
 }
 
-fn out_used(lb: usize, jb: usize, oc_nvec: usize, owb: usize, line_size: usize) -> usize {
-    lb * jb * oc_nvec * owb * line_size
+fn out_used<T: CommonBounds>(
+    lb: usize,
+    jb: usize,
+    oc_nvec: usize,
+    owb: usize,
+    line_size: usize
+) -> usize {
+    let nv = line_size / (SIMD_WIDTH / 8 / core::mem::size_of::<T>());
+    lb * jb * oc_nvec.div_ceil(nv) * owb * line_size
 }
 
-fn inp_used(
+fn inp_used<T: CommonBounds>(
     lb: usize,
     owb: usize,
     ic_nvec: usize,
     kh: usize,
     kw: usize,
+    step_height: usize,
+    step_width: usize,
     line_size: usize
 ) -> usize {
-    owb * ic_nvec * kh * kw * line_size * lb
+    let nv = line_size / (SIMD_WIDTH / 8 / core::mem::size_of::<T>());
+    let mut in_range_num = 0;
+    for idx in 0..owb {
+        let start = idx * step_width;
+        if start < kw {
+            in_range_num += 1;
+        } else {
+            break;
+        }
+    }
+    in_range_num = 0;
+    for idx in 0..lb {
+        let start = idx * step_height;
+        if start < kh {
+            in_range_num += 1;
+        } else {
+            break;
+        }
+    }
+    owb * ic_nvec.div_ceil(nv) * (kh + lb - in_range_num) * (kw + owb - in_range_num) * line_size
 }
 
-fn kernel_used(oc_nvec: usize, ic_nvec: usize, kh: usize, kw: usize, line_size: usize) -> usize {
-    oc_nvec * ic_nvec * kh * kw * line_size
+fn kernel_used<T: CommonBounds>(
+    oc_nvec: usize,
+    ic_nvec: usize,
+    kh: usize,
+    kw: usize,
+    line_size: usize
+) -> usize {
+    let nv = line_size / (SIMD_WIDTH / 8 / core::mem::size_of::<T>());
+    oc_nvec.div_ceil(nv) * ic_nvec * T::Vec::SIZE * kh * kw * line_size
 }
