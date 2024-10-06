@@ -7,58 +7,57 @@ use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
 fn main() -> anyhow::Result<()> {
-    set_num_threads(16);
-    let oc = 8192;
-    let ic = 128;
-    let kh = 3;
-    let kw = 3;
-    let h = 256;
-    let w = 256;
-    let kernel = _Tensor::<f32>
-        ::arange(0, oc * ic * kh * kw)?
-        .reshape([oc, ic, kh, kw])?
-        // .permute([0, 2, 3, 1])?
-        .permute([2, 3, 1, 0])?
-        .contiguous()?;
-    let a = _Tensor::<f32>
-        ::arange(0, 1 * ic * h * w)?
-        .reshape([1, ic, h, w])?
-        .permute([0, 2, 3, 1])?
-        .contiguous()?;
-    let config = Conv2dConfig::<f32>::new(oc, ic, [kh, kw], KernelParamAlgo::Greedy);
-    let now = std::time::Instant::now();
-    for _ in 0..1 {
-        let res = a.iconv2d(
-            &kernel,
-            [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
-            [1, 1],
-            Some(&config)
-        )?;
-        // let res2 = a.conv2d(
-        //     &kernel,
-        //     [1, 1],
-        //     [
-        //         (0, 0),
-        //         (0, 0),
-        //     ],
-        //     [1, 1],
-        //     Some(&config)
-        // )?;
-        // println!("{:?}", res);
-        // assert_eq!(res, res2);
-    }
-    println!("{:?}", now.elapsed() / 1);
-    // conv2d()?;
+    // set_num_threads(16);
+    // let oc = 8192;
+    // let ic = 128;
+    // let kh = 3;
+    // let kw = 3;
+    // let h = 256;
+    // let w = 256;
+    // let kernel = _Tensor::<f32>
+    //     ::arange(0, oc * ic * kh * kw)?
+    //     .reshape([oc, ic, kh, kw])?
+    //     // .permute([0, 2, 3, 1])?
+    //     .permute([2, 3, 1, 0])?
+    //     .contiguous()?;
+    // let a = _Tensor::<f32>
+    //     ::arange(0, 1 * ic * h * w)?
+    //     .reshape([1, ic, h, w])?
+    //     .permute([0, 2, 3, 1])?
+    //     .contiguous()?;
+    // let config = Conv2dConfig::<f32>::new(oc, ic, [kh, kw], KernelParamAlgo::Greedy);
+    // let now = std::time::Instant::now();
+    // for _ in 0..1 {
+    //     let res = a.iconv2d(
+    //         &kernel,
+    //         [1, 1],
+    //         [
+    //             (0, 0),
+    //             (0, 0),
+    //         ],
+    //         [1, 1],
+    //         Some(&config)
+    //     )?;
+    //     // let res2 = a.conv2d(
+    //     //     &kernel,
+    //     //     [1, 1],
+    //     //     [
+    //     //         (0, 0),
+    //     //         (0, 0),
+    //     //     ],
+    //     //     [1, 1],
+    //     //     Some(&config)
+    //     // )?;
+    //     // assert_eq!(res, res2);
+    // }
+    // println!("{:?}", now.elapsed() / 1);
+    conv2d()?;
 
     Ok(())
 }
 
 fn conv2d() -> Result<(), anyhow::Error> {
-    let oc_sets = [64, 128, 256, 512, 1024, 2048, 4096, 8192];
+    let oc_sets = [8192];
     let ic_sets = [128];
     let kh_sets = [3];
     let kw_sets = [3];

@@ -105,7 +105,6 @@ impl<T> _Tensor<T>
         let output = _Tensor::<T>::empty([batch, out_height, out_width, out_channels])?;
         let out = output.ptr();
         let inp = img.ptr();
-        let kernel = kernels.ptr();
 
         let osb = output.strides()[0]; // batch
         let osh = output.strides()[1]; // height
@@ -195,6 +194,7 @@ impl<T> _Tensor<T>
                             kernel +=
                                 kernel_height *
                                 kernel_width *
+                                (i_end - ii) *
                                 (oc_nvec as i64) *
                                 (T::Vec::SIZE as i64);
                         }
@@ -223,11 +223,7 @@ impl<T> _Tensor<T>
                                     }
                                     kernel = original.clone();
                                 }
-                                kernel +=
-                                    kernel_height *
-                                    kernel_width *
-                                    (oc_remain as i64) *
-                                    (T::Vec::SIZE as i64);
+                                kernel += kernel_height * kernel_width * oc_remain * (i_end - ii);
                             }
                         }
                         kernel = kernel_k.clone();
@@ -253,6 +249,7 @@ impl<T> _Tensor<T>
                                 kernel +=
                                     kernel_height *
                                     kernel_width *
+                                    (i_end - ii) *
                                     (oc_nvec as i64) *
                                     (T::Vec::SIZE as i64);
                             }
@@ -281,17 +278,14 @@ impl<T> _Tensor<T>
                                             kernel = original.clone();
                                         }
                                         kernel +=
-                                            kernel_height *
-                                            kernel_width *
-                                            (oc_remain as i64) *
-                                            (T::Vec::SIZE as i64);
+                                            kernel_height * kernel_width * oc_remain * (i_end - ii);
                                     }
                                 }
                             }
                             kernel = kernel_k.clone();
                         }
                     }
-                    kernel += kernel_height * kernel_width * (jj_end - jj_start);
+                    kernel += kernel_height * kernel_width * (jj_end - jj_start) * (i_end - ii);
                 }
             }
         });
@@ -299,6 +293,7 @@ impl<T> _Tensor<T>
     }
 }
 
+#[allow(unused)]
 fn out_used<T: CommonBounds>(
     lb: usize,
     jb: usize,
@@ -309,7 +304,7 @@ fn out_used<T: CommonBounds>(
     let nv = line_size / (SIMD_WIDTH / 8 / core::mem::size_of::<T>());
     lb * jb * oc_nvec.div_ceil(nv) * owb * line_size
 }
-
+#[allow(unused)]
 fn inp_used<T: CommonBounds>(
     lb: usize,
     owb: usize,
@@ -329,7 +324,7 @@ fn inp_used<T: CommonBounds>(
         (kw + owb - in_range_num_w) *
         line_size
 }
-
+#[allow(unused)]
 fn kernel_used<T: CommonBounds>(
     oc_nvec: usize,
     ic_nvec: usize,
@@ -362,19 +357,15 @@ fn reorder_kernel<T: CommonBounds>(
                 let jj_start = jj;
                 let jj_end = (jj + T::Vec::SIZE * oc_nvec * jb).min(out_channel);
                 for j in (jj_start..jj_end).step_by(T::Vec::SIZE * oc_nvec) {
-                    let kr0 = j;
                     for n in 0..kh {
-                        let kr1 = n * ks0 + kr0;
                         for m in 0..kw {
-                            let kr2 = kr1 + m * ks1;
                             for i in ii..i_end {
-                                let kr3 = i * ks2 + kr2;
                                 for v in 0..oc_nvec {
                                     let ptr = reordered.ptr as *mut _ as *mut T::Vec;
                                     unsafe {
                                         ptr.write_unaligned(
-                                            T::Vec::from_ptr(&kernel[kr3 + v * T::Vec::SIZE])
-                                        );
+                                            T::Vec::from_ptr(&kernel[i * ks2 + n * ks0 + m * ks1 + j + v * T::Vec::SIZE])
+                                        ); // prettier-ignore
                                     }
                                     reordered += T::Vec::SIZE;
                                 }
