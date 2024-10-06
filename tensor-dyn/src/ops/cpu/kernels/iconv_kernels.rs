@@ -14,10 +14,12 @@ macro_rules! repeat_inp {
 }
 
 macro_rules! repeat_kernel {
-    ($name:ident, $kr3:expr, $vec_size:expr, [$($idx:expr),*]) => {
+    ($name:ident, [$($idx:expr),*]) => {
         paste::paste! {
             ($(
-                unsafe { T::Vec::from_ptr(&$name[$kr3 + $idx * $vec_size]) },
+                unsafe {
+                    T::Vec::from_ptr(&$name[$idx * T::Vec::SIZE])
+                 },
             )*)
         }
     };
@@ -87,17 +89,16 @@ fn template_function<T: CommonBounds>(
     [osb, osh, osw]: [i64; 3],
     [step_height, step_width]: [i64; 2],
     [isb, ish, isw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
     out: &mut Pointer<T>,
     inp: &Pointer<T>,
-    kernel: &Pointer<T>,
+    kernel: &mut Pointer<T>,
 ) {
     let mut results = if ii == 0 {
         [[T::Vec::splat(T::ZERO); ow_block]; oc_block]
     } else {
         let mut ret = [[T::Vec::splat(T::ZERO); ow_block]; oc_block];
-        for v in 0..oc_block {
-            for kk in 0..ow_block as i64 {
+        for kk in 0..ow_block as i64 {
+            for v in 0..oc_block {
                 ret[v as usize][kk as usize] = unsafe {
                     T::Vec::from_ptr(
                         &out[b * osb
@@ -113,24 +114,21 @@ fn template_function<T: CommonBounds>(
         ret
     };
     let is0 = b * isb + l * step_height * ish + k * step_width * isw;
-    let kr0 = j;
     for n in 0..kh {
         let is1 = is0 + n * ish;
-        let kr1 = n * ks0 + kr0;
         for m in 0..kw {
             let is2 = is1 + m * isw;
-            let kr2 = kr1 + m * ks1;
             for i in ii..i_end {
                 let is3 = is2 + i;
-                let kr3 = i * ks2 + kr2;
                 let inp = repeat_inp!(inp, is3, step_width * isw, inp_place_holder);
-                let kernel = repeat_kernel!(kernel, kr3, T::Vec::SIZE as i64, oc);
-                repeat_results!(results, inp, kernel, oc, inp_place_holder);
+                let kernel_vecs = repeat_kernel!(kernel, oc);
+                repeat_results!(results, inp, kernel_vecs, oc, inp_place_holder);
+                kernel.add(oc_block * T::Vec::SIZE);
             }
         }
     }
-    for v in 0..oc_block {
-        for kk in 0..ow_block as i64 {
+    for kk in 0..ow_block as i64 {
+        for v in 0..oc_block {
             let out_vec = &mut out[b * osb + l * osh + (k + kk) * osw + j + v * T::Vec::SIZE as i64]
                 as *mut _ as *mut T::Vec; // prettier-ignore
             unsafe {
@@ -157,11 +155,10 @@ fn template_function<T: CommonBounds>(
     [osb, osh, osw]: [i64; 3],
     [step_height, step_width]: [i64; 2],
     [isb, ish, isw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
     oc_end: i64,
     out: &mut Pointer<T>,
     inp: &Pointer<T>,
-    kernel: &Pointer<T>
+    kernel: &mut Pointer<T>
 ) {
     let mut results = if ii == 0 {
         [T::Vec::splat(T::ZERO); ow_block]
@@ -184,9 +181,10 @@ fn template_function<T: CommonBounds>(
                 let inp = repeat_inp!(inp, is3, step_width * isw, inp_place_holder);
                 let mut kernel0 = T::Vec::splat(T::ZERO);
                 for v in 0..oc_end {
-                    kernel0[v as usize] = kernel[n * ks0 + m * ks1 + i * ks2 + j + v];
+                    kernel0[v as usize] = kernel[v as usize];
                 }
                 repeat_results_scalar!(results, inp, kernel0, inp_place_holder);
+                kernel.add(oc_end as usize);
             }
         }
     }
@@ -199,7 +197,7 @@ fn template_function<T: CommonBounds>(
 
 pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
     oc: &mut usize, // output channels block size
-    kb: &mut usize, // outwidth block size
+    kb: &mut usize // outwidth block size
 ) -> Option<
     fn(
         [i64; 2],
@@ -208,10 +206,9 @@ pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
         [i64; 3],
         [i64; 2],
         [i64; 3],
-        [i64; 3],
         &mut Pointer<T>,
         &Pointer<T>,
-        &Pointer<T>
+        &mut Pointer<T>
     )
 > {
     let kernels: [
@@ -223,10 +220,9 @@ pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
                 [i64; 3],
                 [i64; 2],
                 [i64; 3],
-                [i64; 3],
                 &mut Pointer<T>,
                 &Pointer<T>,
-                &Pointer<T>
+                &mut Pointer<T>
             );
             5
         ];
@@ -271,11 +267,10 @@ pub(crate) fn iconv2d_remain_oc_kernel_dispatch<T: CommonBounds>(
         [i64; 3],
         [i64; 2],
         [i64; 3],
-        [i64; 3],
         i64,
         &mut Pointer<T>,
         &Pointer<T>,
-        &Pointer<T>
+        &mut Pointer<T>
     )
 > {
     let kernels: [
@@ -286,11 +281,10 @@ pub(crate) fn iconv2d_remain_oc_kernel_dispatch<T: CommonBounds>(
             [i64; 3],
             [i64; 2],
             [i64; 3],
-            [i64; 3],
             i64,
             &mut Pointer<T>,
             &Pointer<T>,
-            &Pointer<T>
+            &mut Pointer<T>
         );
         5
     ] = [micro_kernel_1, micro_kernel_2, micro_kernel_3, micro_kernel_4, micro_kernel_5];

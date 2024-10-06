@@ -1,6 +1,6 @@
 use std::{
-    fmt::{Debug, Display, Formatter},
-    ops::{AddAssign, Deref, DerefMut, Index, IndexMut, SubAssign},
+    fmt::{ Debug, Display, Formatter },
+    ops::{ Add, AddAssign, Deref, DerefMut, Index, IndexMut, SubAssign },
 };
 
 /// Pointer wrapper struct for raw pointers
@@ -152,11 +152,7 @@ impl<T: Display> Index<i64> for Pointer<T> {
         #[cfg(feature = "bound_check")]
         {
             if index < 0 || index >= (self.len as i64) {
-                panic!(
-                    "index out of bounds. index: {}, len: {}",
-                    index,
-                    self.len
-                );
+                panic!("index out of bounds. index: {}, len: {}", index, self.len);
             }
         }
         unsafe { &*self.ptr.offset(index as isize) }
@@ -168,12 +164,8 @@ impl<T: Display> Index<isize> for Pointer<T> {
     fn index(&self, index: isize) -> &Self::Output {
         #[cfg(feature = "bound_check")]
         {
-            if index < 0 || index as i64 >= (self.len as i64) {
-                panic!(
-                    "index out of bounds. index: {}, len: {}",
-                    index,
-                    self.len
-                );
+            if index < 0 || (index as i64) >= (self.len as i64) {
+                panic!("index out of bounds. index: {}, len: {}", index, self.len);
             }
         }
         unsafe { &*self.ptr.offset(index) }
@@ -185,12 +177,8 @@ impl<T: Display> Index<usize> for Pointer<T> {
     fn index(&self, index: usize) -> &Self::Output {
         #[cfg(feature = "bound_check")]
         {
-            if index as i64 >= (self.len as i64) {
-                panic!(
-                    "index out of bounds. index: {}, len: {}",
-                    index,
-                    self.len
-                );
+            if (index as i64) >= (self.len as i64) {
+                panic!("index out of bounds. index: {}, len: {}", index, self.len);
             }
         }
         unsafe { &*self.ptr.add(index) }
@@ -202,11 +190,7 @@ impl<T: Display> IndexMut<i64> for Pointer<T> {
         #[cfg(feature = "bound_check")]
         {
             if index < 0 || index >= (self.len as i64) {
-                panic!(
-                    "index out of bounds. index: {}, len: {}",
-                    index,
-                    self.len
-                );
+                panic!("index out of bounds. index: {}, len: {}", index, self.len);
             }
         }
         unsafe { &mut *self.ptr.offset(index as isize) }
@@ -217,15 +201,23 @@ impl<T: Display> IndexMut<isize> for Pointer<T> {
     fn index_mut(&mut self, index: isize) -> &mut Self::Output {
         #[cfg(feature = "bound_check")]
         {
-            if index < 0 || index as i64 >= (self.len as i64) {
-                panic!(
-                    "index out of bounds. index: {}, len: {}",
-                    index,
-                    self.len
-                );
+            if index < 0 || (index as i64) >= (self.len as i64) {
+                panic!("index out of bounds. index: {}, len: {}", index, self.len);
             }
         }
         unsafe { &mut *self.ptr.offset(index) }
+    }
+}
+
+impl<T: Display> IndexMut<usize> for Pointer<T> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        #[cfg(feature = "bound_check")]
+        {
+            if (index as i64) >= (self.len as i64) {
+                panic!("index out of bounds. index: {}, len: {}", index, self.len);
+            }
+        }
+        unsafe { &mut *self.ptr.add(index) }
     }
 }
 
@@ -234,6 +226,16 @@ impl<T> AddAssign<usize> for Pointer<T> {
         unsafe {
             self.ptr = self.ptr.add(rhs);
         }
+    }
+}
+
+impl<T> Add<usize> for Pointer<T> {
+    type Output = Self;
+    fn add(self, rhs: usize) -> Self::Output {
+        #[cfg(feature = "bound_check")]
+        unsafe { Self { ptr: self.ptr.add(rhs), len: self.len } }
+        #[cfg(not(feature = "bound_check"))]
+        unsafe { Self { ptr: self.ptr.add(rhs) } }
     }
 }
 
@@ -249,6 +251,20 @@ impl<T> AddAssign<usize> for &mut Pointer<T> {
     }
 }
 
+impl<T> Add<usize> for &mut Pointer<T> {
+    type Output = Pointer<T>;
+    fn add(self, rhs: usize) -> Self::Output {
+        #[cfg(feature = "bound_check")]
+        unsafe {
+            Pointer::new(self.ptr.add(rhs), self.len)
+        }
+        #[cfg(not(feature = "bound_check"))]
+        unsafe {
+            Pointer::new(self.ptr.add(rhs))
+        }
+    }
+}
+
 impl<T> AddAssign<isize> for Pointer<T> {
     fn add_assign(&mut self, rhs: isize) {
         unsafe {
@@ -257,11 +273,31 @@ impl<T> AddAssign<isize> for Pointer<T> {
     }
 }
 
+impl<T> Add<isize> for Pointer<T> {
+    type Output = Self;
+    fn add(self, rhs: isize) -> Self::Output {
+        #[cfg(feature = "bound_check")]
+        unsafe { Self { ptr: self.ptr.offset(rhs), len: self.len } }
+        #[cfg(not(feature = "bound_check"))]
+        unsafe { Self { ptr: self.ptr.offset(rhs) } }
+    }
+}
+
 impl<T> AddAssign<i64> for Pointer<T> {
     fn add_assign(&mut self, rhs: i64) {
         unsafe {
             self.ptr = self.ptr.offset(rhs as isize);
         }
+    }
+}
+
+impl<T> Add<i64> for Pointer<T> {
+    type Output = Self;
+    fn add(self, rhs: i64) -> Self::Output {
+        #[cfg(feature = "bound_check")]
+        unsafe { Self { ptr: self.ptr.offset(rhs as isize), len: self.len } }
+        #[cfg(not(feature = "bound_check"))]
+        unsafe { Self { ptr: self.ptr.offset(rhs as isize) } }
     }
 }
 
@@ -304,11 +340,6 @@ unsafe impl<T> Sync for Pointer<T> {}
 
 impl<T: Display> Display for Pointer<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Pointer( ptr: {}, val: {} )",
-            self.ptr as usize,
-            unsafe { self.ptr.read() }
-        )
+        write!(f, "Pointer( ptr: {}, val: {} )", self.ptr as usize, unsafe { self.ptr.read() })
     }
 }
