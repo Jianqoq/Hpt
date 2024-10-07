@@ -134,6 +134,49 @@ fn template_function<T: CommonBounds>(
     }
 }
 
+/// This struct carries the micro kernel function and the corresponding info
+pub struct ConvKernel<T: CommonBounds> {
+    pub(crate) kernel: fn(
+        [i64; 2],
+        [i64; 2],
+        [i64; 4],
+        [i64; 3],
+        [i64; 2],
+        [i64; 3],
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &mut Pointer<T>
+    ),
+    pub(crate) oc_block: usize,
+    pub(crate) ow_block: usize,
+}
+
+impl<T: CommonBounds> ConvKernel<T> {
+    pub(crate) fn new(
+        kernel: fn(
+            [i64; 2],
+            [i64; 2],
+            [i64; 4],
+            [i64; 3],
+            [i64; 2],
+            [i64; 3],
+            &mut Pointer<T>,
+            &Pointer<T>,
+            &mut Pointer<T>
+        ),
+        oc_block: usize,
+        ow_block: usize
+    ) -> Self {
+        Self { kernel, oc_block, ow_block }
+    }
+    pub(crate) fn register_used(&self) -> usize {
+        let res_used = self.oc_block * self.ow_block;
+        let inp_used = self.ow_block;
+        let kernel_used = 1;
+        res_used + inp_used + kernel_used
+    }
+}
+
 #[duplicate_item(
         template_function;
         [micro_kernel_5_1];
@@ -199,19 +242,7 @@ fn template_function<T: CommonBounds>(
 pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
     oc: &mut usize, // output channels block size
     kb: &mut usize // outwidth block size
-) -> Option<
-    fn(
-        [i64; 2],
-        [i64; 2],
-        [i64; 4],
-        [i64; 3],
-        [i64; 2],
-        [i64; 3],
-        &mut Pointer<T>,
-        &Pointer<T>,
-        &mut Pointer<T>
-    )
-> {
+) -> Option<ConvKernel<T>> {
     let kernels: [
         [
             fn(
@@ -255,7 +286,32 @@ pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
 
     // println!("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc, map_kb);
 
-    kernel_fn.cloned()
+    kernel_fn.cloned().map(|kernel| ConvKernel::new(kernel, *oc, *kb))
+}
+
+pub(crate) fn full_oc_kernels<T: CommonBounds>() -> [ConvKernel<T>; 20] {
+    [
+        ConvKernel::new(micro_kernel_1x1, 1, 1),
+        ConvKernel::new(micro_kernel_2x1, 1, 2),
+        ConvKernel::new(micro_kernel_3x1, 1, 3),
+        ConvKernel::new(micro_kernel_4x1, 1, 4),
+        ConvKernel::new(micro_kernel_5x1, 1, 5),
+        ConvKernel::new(micro_kernel_1x2, 2, 1),
+        ConvKernel::new(micro_kernel_2x2, 2, 2),
+        ConvKernel::new(micro_kernel_3x2, 2, 3),
+        ConvKernel::new(micro_kernel_4x2, 2, 4),
+        ConvKernel::new(micro_kernel_5x2, 2, 5),
+        ConvKernel::new(micro_kernel_1x4, 4, 1),
+        ConvKernel::new(micro_kernel_2x4, 4, 2),
+        ConvKernel::new(micro_kernel_3x4, 4, 3),
+        ConvKernel::new(micro_kernel_4x4, 4, 4),
+        ConvKernel::new(micro_kernel_5x4, 4, 5),
+        ConvKernel::new(micro_kernel_1x8, 8, 1),
+        ConvKernel::new(micro_kernel_2x8, 8, 2),
+        ConvKernel::new(micro_kernel_3x8, 8, 3),
+        ConvKernel::new(micro_kernel_4x8, 8, 4),
+        ConvKernel::new(micro_kernel_5x8, 8, 5),
+    ]
 }
 
 pub(crate) fn iconv2d_remain_oc_kernel_dispatch<T: CommonBounds>(
