@@ -78,7 +78,6 @@ macro_rules! repeat_results {
     [micro_kernel_2x8];
     [micro_kernel_1x8];
 )]
-#[inline]
 fn template_function<T: CommonBounds>(
     [ii, i_end]: [i64; 2],
     [kh, kw]: [i64; 2],

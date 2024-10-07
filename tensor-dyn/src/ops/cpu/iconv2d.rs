@@ -120,7 +120,7 @@ impl<T> _Tensor<T>
         const OH_BLOCK: i64 = 3;
 
         let ic_nvec = ((in_channels as usize) / T::Vec::SIZE).max(1);
-        let mut oc_nvec = 2;
+        let mut oc_nvec = 4;
         let jb = 2;
         let mut ow_block = 5;
 
