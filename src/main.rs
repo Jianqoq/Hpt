@@ -7,13 +7,13 @@ use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
 fn main() -> anyhow::Result<()> {
-    set_num_threads(16);
-    let oc = 512;
-    let ic = 512;
+    set_num_threads(10);
+    let oc = 1024;
+    let ic = 1024;
     let kh = 3;
     let kw = 3;
-    let h = 512;
-    let w = 512;
+    let h = 256;
+    let w = 256;
     let kernel = _Tensor::<f32>
         ::arange(0, oc * ic * kh * kw)?
         .reshape([oc, ic, kh, kw])?
