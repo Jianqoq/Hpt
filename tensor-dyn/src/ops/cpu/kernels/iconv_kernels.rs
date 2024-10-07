@@ -100,14 +100,7 @@ fn template_function<T: CommonBounds>(
         for kk in 0..ow_block as i64 {
             for v in 0..oc_block {
                 ret[v as usize][kk as usize] = unsafe {
-                    T::Vec::from_ptr(
-                        &out[b * osb
-                            + l * osh
-                            + (k + kk) * osw
-                            + j
-                            + v as i64 * T::Vec::SIZE as i64] as *const _
-                            as *const T,
-                    )
+                    T::Vec::from_ptr(&out[b * osb + l * osh + (k + kk) * osw + j + v as i64 * T::Vec::SIZE as i64] as *const _ as *const T)
                 }; // prettier-ignore
             }
         }

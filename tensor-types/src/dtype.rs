@@ -160,6 +160,8 @@ pub trait TypeCommon where Self: Sized {
     const TWO: Self;
     /// the string representation of the data type
     const STR: &'static str;
+    /// the bit size of the data type, alias of `std::mem::size_of()`
+    const BIT_SIZE: usize;
     /// the simd vector type of the data type
     type Vec: VecTrait<Self> +
         Init<Self> +
@@ -206,6 +208,7 @@ macro_rules! impl_type_common {
             const NEG_INF: Self = $neg_inf;
             const TWO: Self = $two;
             const STR: &'static str = $str;
+            const BIT_SIZE: usize = size_of::<$type>();
             type Vec = $vec;
         }
     };

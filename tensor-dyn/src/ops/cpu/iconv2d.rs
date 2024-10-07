@@ -3,7 +3,6 @@ use crate::ops::cpu::kernels::iconv_kernels::iconv2d_full_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::iconv_kernels::iconv2d_remain_oc_kernel_dispatch;
 use crate::tensor_base::_Tensor;
 use crate::SIMD_WIDTH;
-use num::integer::gcd;
 use rayon::prelude::*;
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::err_handler::ErrHandler::InvalidInputShape;
@@ -120,10 +119,20 @@ impl<T> _Tensor<T>
 
         const OH_BLOCK: i64 = 3;
 
-        let jb = 16;
-        let ic_nvec = 16;
+        let ic_nvec = ((in_channels as usize) / T::Vec::SIZE).max(1);
         let mut oc_nvec = 2;
+        let jb = 2;
         let mut ow_block = 5;
+
+        eval_micro_kernel::<T>(
+            [ic_nvec, oc_nvec],
+            [kernel_height as usize, kernel_width as usize],
+            [step_height as usize, step_width as usize],
+            [OH_BLOCK as usize, ow_block],
+            [out_height as usize, out_width as usize],
+            [in_channels as usize, out_channels as usize],
+            jb
+        );
 
         let full_oc_kernel = iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(
             &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec)
@@ -333,8 +342,72 @@ fn kernel_used<T: CommonBounds>(
     kw: usize,
     line_size: usize
 ) -> usize {
-    let nv = line_size / (SIMD_WIDTH / 8 / core::mem::size_of::<T>());
-    oc_nvec.div_ceil(nv) * ic_nvec * T::Vec::SIZE * kh * kw * line_size * jb
+    oc_nvec * ic_nvec * T::Vec::SIZE * kh * kw * jb
+}
+
+fn eval_micro_kernel<T: CommonBounds>(
+    [ic_nvec, oc_nvec]: [usize; 2],
+    [kh, kw]: [usize; 2],
+    [step_height, step_width]: [usize; 2],
+    [oh_block, ow_block]: [usize; 2],
+    [out_height, out_width]: [usize; 2],
+    [in_channels, out_channels]: [usize; 2],
+    jb: usize
+) {
+    let (cache_line_size, l1_cache, l2_cache) = if cfg!(target_arch = "x86_64") {
+        (
+            cache_size::l1_cache_line_size().unwrap_or(64) / T::BIT_SIZE,
+            cache_size::l1_cache_size().unwrap_or(32 * 1024) / T::BIT_SIZE,
+            cache_size::l2_cache_size().unwrap_or(2 * 1024 * 1024) / T::BIT_SIZE,
+        )
+    } else if cfg!(target_os = "macos") && cfg!(target_arch = "aarch64") {
+        (
+            128 / T::BIT_SIZE,
+            cache_size::l1_cache_size().unwrap_or(32 * 1024) / T::BIT_SIZE,
+            (4 * 1024 * 1024) / T::BIT_SIZE,
+        ) // need to implement
+    } else {
+        panic!("Unsupported architecture");
+    };
+    let total_cache = l1_cache + l2_cache;
+    // calculate when jb = 1, how much cache is used
+    let inp_used = inp_used::<T>(
+        oh_block,
+        ow_block,
+        ic_nvec,
+        kh,
+        kw,
+        step_height,
+        step_width,
+        cache_line_size
+    );
+    let out_used = out_used::<T>(oh_block, 1, oc_nvec, ow_block, cache_line_size);
+    let kernel_used = kernel_used::<T>(oc_nvec, ic_nvec, 1, kh, kw, cache_line_size);
+
+    // calculate how many jb will fill the cache, since output and kernel will keep loading data into the cache
+    let nj = if inp_used > total_cache {
+        0.0
+    } else {
+        (((total_cache - inp_used) as f64) / ((kernel_used as f64) + (out_used as f64))).min(
+            jb as f64
+        )
+    };
+    // check how many input data will be reused
+    let inp_reused = ((nj * (inp_used as f64)) as usize) * oc_nvec;
+    let kernel_reused =
+        ((nj * (kernel_used as f64)) as usize) *
+        ow_block *
+        oh_block *
+        (0..in_channels).step_by(T::Vec::SIZE * ic_nvec).count();
+    let out_reg_reused = ((nj * (out_used as f64)) as usize) * ic_nvec * kh * kw;
+    let out_loads =
+        (0..out_channels).step_by(T::Vec::SIZE * oc_nvec * jb).count() *
+        out_height *
+        (0..in_channels).step_by(T::Vec::SIZE * ic_nvec).count();
+    println!("inp_reused: {}", inp_reused);
+    println!("kernel_reused: {}", kernel_reused);
+    println!("out_reg_reused: {}", out_reg_reused);
+    println!("out_loads: {}", out_loads);
 }
 
 fn reorder_kernel<T: CommonBounds>(
