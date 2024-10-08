@@ -2,6 +2,7 @@ use super::conv_config::Conv2dConfig;
 use crate::ops::cpu::kernels::iconv_kernels::iconv2d_full_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::iconv_kernels::iconv2d_remain_oc_kernel_dispatch;
 use crate::tensor_base::_Tensor;
+use crate::REGNUM;
 use crate::SIMD_WIDTH;
 use rayon::prelude::*;
 use tensor_common::err_handler::ErrHandler;
@@ -118,13 +119,14 @@ impl<T> _Tensor<T>
         let ks2 = kernels.strides()[2]; // in_channels
 
         const OH_BLOCK: i64 = 3;
-        let mut ow_block = 5;
 
         let ic_nvec = 16;
+
         let mut oc_nvec =
-            cache_size::l1_cache_line_size().unwrap_or(64) /
+            cache_size::l1_cache_line_size().unwrap_or(crate::CACHE_LINE_SIZE) /
             core::mem::size_of::<T>() /
             T::Vec::SIZE;
+        let mut ow_block = predict_ow_block(oc_nvec);
         let jb = 16;
 
         eval_micro_kernel::<T>(
@@ -350,6 +352,7 @@ fn kernel_used<T: CommonBounds>(
     oc_nvec * ic_nvec * T::Vec::SIZE * kh * kw * jb
 }
 
+#[allow(unused)]
 fn eval_micro_kernel<T: CommonBounds>(
     [ic_nvec, oc_nvec]: [usize; 2],
     [kh, kw]: [usize; 2],
@@ -463,4 +466,8 @@ fn reorder_kernel<T: CommonBounds>(
                 }
             }
         });
+}
+
+fn predict_ow_block(oc_block: usize) -> usize {
+    REGNUM / oc_block - 1
 }

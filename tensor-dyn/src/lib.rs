@@ -249,3 +249,8 @@ const SIMD_WIDTH: usize = 512;
     )
 )]
 const SIMD_WIDTH: usize = 128;
+
+#[cfg(target_arch = "x86_64")]
+pub(crate) const CACHE_LINE_SIZE: usize = 64;
+#[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+pub(crate) const CACHE_LINE_SIZE: usize = 128;

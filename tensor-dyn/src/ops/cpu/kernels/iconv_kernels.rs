@@ -1,3 +1,4 @@
+#![allow(unused)]
 use duplicate::duplicate_item;
 use tensor_common::pointer::Pointer;
 use tensor_macros::{

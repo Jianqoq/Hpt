@@ -10,7 +10,7 @@ use tensor_dyn::*;
 fn main() -> anyhow::Result<()> {
     set_num_threads(16);
     let oc = 1024;
-    let ic = 1024 * 4;
+    let ic = 1024;
     let kh = 3;
     let kw = 3;
     let h = 256;
