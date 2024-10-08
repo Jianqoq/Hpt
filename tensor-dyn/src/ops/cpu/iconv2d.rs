@@ -128,15 +128,15 @@ impl<T> _Tensor<T>
         let ic_nvec = (16).min((in_channels as usize) / T::Vec::SIZE);
         let jb = (16).min((out_channels as usize) / (T::Vec::SIZE * oc_nvec));
 
-        eval_micro_kernel::<T>(
-            [ic_nvec, oc_nvec],
-            [kernel_height as usize, kernel_width as usize],
-            [step_height as usize, step_width as usize],
-            [OH_BLOCK as usize, ow_block],
-            [out_height as usize, out_width as usize],
-            [in_channels as usize, out_channels as usize],
-            jb
-        );
+        // eval_micro_kernel::<T>(
+        //     [ic_nvec, oc_nvec],
+        //     [kernel_height as usize, kernel_width as usize],
+        //     [step_height as usize, step_width as usize],
+        //     [OH_BLOCK as usize, ow_block],
+        //     [out_height as usize, out_width as usize],
+        //     [in_channels as usize, out_channels as usize],
+        //     jb
+        // );
 
         let full_oc_kernel = iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(
             &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec)
