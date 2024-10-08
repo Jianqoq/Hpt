@@ -137,6 +137,8 @@ impl<T> _Tensor<T>
         let full_oc_kernel = iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(
             &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec)
         );
+        println!("reg_used: {}", full_oc_kernel.register_used());
+        let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
         let full_oc_kernel_ow_remain = iconv2d_full_oc_kernel_dispatch(
             &mut oc_nvec,
             &mut ((out_width as usize) % ow_block)
@@ -187,7 +189,7 @@ impl<T> _Tensor<T>
                         for j in (jj_start..jj_end).step_by(T::Vec::SIZE * oc_nvec) {
                             let original = kernel.clone();
                             for l in ll..l_end {
-                                full_oc_kernel(
+                                full_oc_kernel_fn(
                                     [ii, i_end],
                                     [kernel_height, kernel_width],
                                     [b, l, k, j],
@@ -238,12 +240,12 @@ impl<T> _Tensor<T>
                         }
                         kernel = kernel_k.clone();
                     }
-                    if let Some(full_oc_kernel_ow_remain) = full_oc_kernel_ow_remain {
+                    if let Some(full_oc_kernel_ow_remain) = &full_oc_kernel_ow_remain {
                         for k in (out_width_full_end..out_width).step_by(ow_block) {
                             for j in (jj_start..jj_end).step_by(T::Vec::SIZE * oc_nvec) {
                                 let original = kernel.clone();
                                 for l in ll..l_end {
-                                    full_oc_kernel_ow_remain(
+                                    (full_oc_kernel_ow_remain.kernel)(
                                         [ii, i_end],
                                         [kernel_height, kernel_width],
                                         [b, l, k, j],

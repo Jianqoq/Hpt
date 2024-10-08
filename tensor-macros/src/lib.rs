@@ -666,6 +666,24 @@ pub fn gen_reduce_dim_not_include_simd_helper(input: TokenStream) -> TokenStream
 
 /// generate conv2d helper
 #[proc_macro]
-pub fn conv2d_microkernel_template(input: TokenStream) -> TokenStream {
-    conv2d::conv2d_microkernel_template(input)
+pub fn conv2d_microkernel_declare_const(input: TokenStream) -> TokenStream {
+    conv2d::conv2d_microkernel_declare_const(input)
+}
+
+/// generate conv2d inps
+#[proc_macro]
+pub fn conv2d_microkernel_gen_inps(input: TokenStream) -> TokenStream {
+    conv2d::conv2d_microkernel_gen_inps(input)
+}
+
+/// generate conv2d kernels
+#[proc_macro]
+pub fn conv2d_microkernel_gen_kernels(input: TokenStream) -> TokenStream {
+    conv2d::conv2d_microkernel_gen_kernels(input)
+}
+
+/// generate conv2d repeat results
+#[proc_macro]
+pub fn conv2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
+    conv2d::conv2d_microkernel_gen_results(input)
 }
