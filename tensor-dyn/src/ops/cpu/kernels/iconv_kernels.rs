@@ -86,6 +86,89 @@ fn template_function<T: CommonBounds>(
     [osb, osh, osw]: [i64; 3],
     [step_height, step_width]: [i64; 2],
     [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>
+) {
+    conv2d_microkernel_declare_const!(template_function);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(&out[b * osb + l * osh + (k + kk) * osw + j + v as i64 * T::Vec::SIZE as i64] as *const _ as *const T)
+                }; // prettier-ignore
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp = conv2d_microkernel_gen_inps!(
+                    inp,
+                    is3,
+                    step_width * isw,
+                    template_function
+                );
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, template_function);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, template_function);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec; // prettier-ignore
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+
+#[duplicate_item(
+    template_function;
+    [pmicro_kernel_5x1];
+    [pmicro_kernel_4x1];
+    [pmicro_kernel_3x1];
+    [pmicro_kernel_2x1];
+    [pmicro_kernel_1x1];
+    [pmicro_kernel_5x2];
+    [pmicro_kernel_4x2];
+    [pmicro_kernel_3x2];
+    [pmicro_kernel_2x2];
+    [pmicro_kernel_1x2];
+    [pmicro_kernel_5x4];
+    [pmicro_kernel_4x4];
+    [pmicro_kernel_3x4];
+    [pmicro_kernel_2x4];
+    [pmicro_kernel_1x4];
+    [pmicro_kernel_5x8];
+    [pmicro_kernel_4x8];
+    [pmicro_kernel_3x8];
+    [pmicro_kernel_2x8];
+    [pmicro_kernel_1x8];
+)]
+fn template_function<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    [ph_start, pw_start]: [i64; 2],
+    [dh, dw]: [i64; 2],
     out: &mut Pointer<T>,
     inp: &Pointer<T>,
     kernel: &mut Pointer<T>
@@ -144,6 +227,8 @@ pub struct ConvKernel<T: CommonBounds> {
         [i64; 3],
         [i64; 2],
         [i64; 3],
+        [i64; 2],
+        [i64; 2],
         &mut Pointer<T>,
         &Pointer<T>,
         &mut Pointer<T>
@@ -161,6 +246,8 @@ impl<T: CommonBounds> ConvKernel<T> {
             [i64; 3],
             [i64; 2],
             [i64; 3],
+            [i64; 2],
+            [i64; 2],
             &mut Pointer<T>,
             &Pointer<T>,
             &mut Pointer<T>
@@ -194,6 +281,8 @@ fn template_function<T: CommonBounds>(
     [osb, osh, osw]: [i64; 3],
     [step_height, step_width]: [i64; 2],
     [isb, ish, isw]: [i64; 3],
+    [ph_start, pw_start]: [i64; 2],
+    [dh, dw]: [i64; 2],
     oc_end: i64,
     out: &mut Pointer<T>,
     inp: &Pointer<T>,
@@ -253,6 +342,8 @@ pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
                 [i64; 3],
                 [i64; 2],
                 [i64; 3],
+                [i64; 2],
+                [i64; 2],
                 &mut Pointer<T>,
                 &Pointer<T>,
                 &mut Pointer<T>
@@ -325,6 +416,8 @@ pub(crate) fn iconv2d_remain_oc_kernel_dispatch<T: CommonBounds>(
         [i64; 3],
         [i64; 2],
         [i64; 3],
+        [i64; 2],
+        [i64; 2],
         i64,
         &mut Pointer<T>,
         &Pointer<T>,
@@ -339,6 +432,8 @@ pub(crate) fn iconv2d_remain_oc_kernel_dispatch<T: CommonBounds>(
             [i64; 3],
             [i64; 2],
             [i64; 3],
+            [i64; 2],
+            [i64; 2],
             i64,
             &mut Pointer<T>,
             &Pointer<T>,
