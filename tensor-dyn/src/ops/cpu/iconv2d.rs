@@ -140,7 +140,6 @@ impl<T> _Tensor<T>
         let full_oc_kernel = iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(
             &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec)
         );
-        println!("reg_used: {}", full_oc_kernel.register_used());
         let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
         let full_oc_kernel_ow_remain = iconv2d_full_oc_kernel_dispatch(
             &mut oc_nvec,
