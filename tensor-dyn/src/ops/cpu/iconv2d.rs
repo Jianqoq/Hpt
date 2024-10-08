@@ -118,11 +118,14 @@ impl<T> _Tensor<T>
         let ks2 = kernels.strides()[2]; // in_channels
 
         const OH_BLOCK: i64 = 3;
+        let mut ow_block = 5;
 
         let ic_nvec = 16;
-        let mut oc_nvec = 2;
+        let mut oc_nvec =
+            cache_size::l1_cache_line_size().unwrap_or(64) /
+            core::mem::size_of::<T>() /
+            T::Vec::SIZE;
         let jb = 16;
-        let mut ow_block = 5;
 
         eval_micro_kernel::<T>(
             [ic_nvec, oc_nvec],
@@ -392,33 +395,14 @@ fn eval_micro_kernel<T: CommonBounds>(
         0.0
     } else {
         (((total_cache - inp_used) as f64) / ((kernel_used as f64) + (out_used as f64))).min(
-            (out_channels as f64) / (T::Vec::SIZE as f64)
+            (out_channels as f64) / ((T::Vec::SIZE as f64) * (oc_nvec as f64))
         )
     };
-    // check how many input data will be reused
-    let inp_reused = ((nj * (inp_used as f64)) as usize) * oc_nvec;
-    let kernel_reused =
-        ((nj * (kernel_used as f64)) as usize) *
-        ow_block *
-        oh_block *
-        (0..in_channels).step_by(T::Vec::SIZE * ic_nvec).count();
-    let out_reg_reused = ((nj * (out_used as f64)) as usize) * ic_nvec * kh * kw;
-    let out_loads =
-        (0..out_channels).step_by(T::Vec::SIZE * oc_nvec * jb).count() *
-        out_height *
-        (0..in_channels).step_by(T::Vec::SIZE * ic_nvec).count();
-    println!("inp_reused: {}", inp_reused);
-    println!("kernel_reused: {}", kernel_reused);
-    println!("out_reg_reused: {}", out_reg_reused);
-    println!("out_loads: {}", out_loads);
     println!("nj: {}", nj);
-    println!("cache_line_size: {}", cache_line_size);
-    println!("l1_cache: {}", l1_cache);
-    println!("l2_cache: {}", l2_cache);
-    println!("total_cache: {}", total_cache);
+    println!("jb: {}", jb);
     println!("inp_used: {}", inp_used);
-    println!("out_used: {}", out_used);
-    println!("kernel_used: {}", kernel_used);
+    println!("out_used: {}", out_used * jb);
+    println!("kernel_used: {}", kernel_used * jb);
 }
 
 fn reorder_kernel<T: CommonBounds>(
