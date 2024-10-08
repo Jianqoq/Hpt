@@ -59,8 +59,8 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn conv2d() -> Result<(), anyhow::Error> {
-    let oc_sets = [128, 256, 512, 1024];
-    let ic_sets = [128, 256, 512, 1024];
+    let oc_sets = [128, 256, 512, 1024, 2048];
+    let ic_sets = [128, 256, 512, 1024, 2048];
     let kh_sets = [3];
     let kw_sets = [3];
     let h_sets = [256];
