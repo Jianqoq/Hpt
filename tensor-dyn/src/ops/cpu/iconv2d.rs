@@ -121,13 +121,13 @@ impl<T> _Tensor<T>
         const OH_BLOCK: i64 = 3;
 
         let ic_nvec = 16;
+        let jb = 16;
 
         let mut oc_nvec =
             cache_size::l1_cache_line_size().unwrap_or(crate::CACHE_LINE_SIZE) /
             core::mem::size_of::<T>() /
             T::Vec::SIZE;
         let mut ow_block = predict_ow_block(oc_nvec);
-        let jb = 16;
 
         eval_micro_kernel::<T>(
             [ic_nvec, oc_nvec],
