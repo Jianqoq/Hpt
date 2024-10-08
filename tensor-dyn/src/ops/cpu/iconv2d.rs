@@ -119,9 +119,9 @@ impl<T> _Tensor<T>
 
         const OH_BLOCK: i64 = 3;
 
-        let ic_nvec = ((in_channels as usize) / T::Vec::SIZE).max(1);
+        let ic_nvec = 16;
         let mut oc_nvec = 2;
-        let jb = 2;
+        let jb = 16;
         let mut ow_block = 5;
 
         eval_micro_kernel::<T>(
@@ -229,10 +229,11 @@ impl<T> _Tensor<T>
                                             &inp,
                                             &mut kernel
                                         );
+                                        kernel = original.clone();
                                     }
-                                    kernel = original.clone();
+                                    kernel +=
+                                        kernel_height * kernel_width * oc_remain * (i_end - ii);
                                 }
-                                kernel += kernel_height * kernel_width * oc_remain * (i_end - ii);
                             }
                         }
                         kernel = kernel_k.clone();
@@ -389,7 +390,7 @@ fn eval_micro_kernel<T: CommonBounds>(
         0.0
     } else {
         (((total_cache - inp_used) as f64) / ((kernel_used as f64) + (out_used as f64))).min(
-            jb as f64
+            (out_channels as f64) / (T::Vec::SIZE as f64)
         )
     };
     // check how many input data will be reused
@@ -408,6 +409,14 @@ fn eval_micro_kernel<T: CommonBounds>(
     println!("kernel_reused: {}", kernel_reused);
     println!("out_reg_reused: {}", out_reg_reused);
     println!("out_loads: {}", out_loads);
+    println!("nj: {}", nj);
+    println!("cache_line_size: {}", cache_line_size);
+    println!("l1_cache: {}", l1_cache);
+    println!("l2_cache: {}", l2_cache);
+    println!("total_cache: {}", total_cache);
+    println!("inp_used: {}", inp_used);
+    println!("out_used: {}", out_used);
+    println!("kernel_used: {}", kernel_used);
 }
 
 fn reorder_kernel<T: CommonBounds>(

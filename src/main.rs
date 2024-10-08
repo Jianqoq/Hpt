@@ -8,25 +8,25 @@ use tensor_dyn::*;
 
 fn main() -> anyhow::Result<()> {
     set_num_threads(16);
-    let oc = 512;
-    let ic = 512;
+    let oc = 1024;
+    let ic = 1024 * 8;
     let kh = 3;
     let kw = 3;
-    let h = 512;
-    let w = 512;
-    let kernel = _Tensor::<f32>
-        ::arange(0, oc * ic * kh * kw)?
-        .reshape([oc, ic, kh, kw])?
-        // .permute([0, 2, 3, 1])?
-        .permute([2, 3, 1, 0])?
-        .contiguous()?;
-    // let kernel = _Tensor::<f32>::randn([kh, kw, ic, oc])?;
-    let a = _Tensor::<f32>
-        ::arange(0, 1 * ic * h * w)?
-        .reshape([1, ic, h, w])?
-        .permute([0, 2, 3, 1])?
-        .contiguous()?;
-    // let a = _Tensor::<f32>::randn([1, h, w, ic])?;
+    let h = 256;
+    let w = 256;
+    // let kernel = _Tensor::<f32>
+    //     ::arange(0, oc * ic * kh * kw)?
+    //     .reshape([oc, ic, kh, kw])?
+    //     // .permute([0, 2, 3, 1])?
+    //     .permute([2, 3, 1, 0])?
+    //     .contiguous()?;
+    let kernel = _Tensor::<f32>::randn([kh, kw, ic, oc])?;
+    // let a = _Tensor::<f32>
+    //     ::arange(0, 1 * ic * h * w)?
+    //     .reshape([1, ic, h, w])?
+    //     .permute([0, 2, 3, 1])?
+    //     .contiguous()?;
+    let a = _Tensor::<f32>::randn([1, h, w, ic])?;
     let config = Conv2dConfig::<f32>::new(oc, ic, [kh, kw], KernelParamAlgo::Greedy);
     let now = std::time::Instant::now();
     for _ in 0..1 {
