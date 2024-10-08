@@ -469,5 +469,5 @@ fn reorder_kernel<T: CommonBounds>(
 }
 
 fn predict_ow_block(oc_block: usize) -> usize {
-    REGNUM / oc_block - 1
+    REGNUM / (oc_block + 1)
 }
