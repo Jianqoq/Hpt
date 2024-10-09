@@ -16,9 +16,9 @@ use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
 
 impl<T> _Tensor<T>
-    where
-        T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
-        T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecCommon + NormalOut<Output = T::Vec>
+where
+    T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
+    T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecCommon + NormalOut<Output = T::Vec>,
 {
     /// Performs a 2D convolution operation on the input tensor.
     ///
@@ -49,16 +49,15 @@ impl<T> _Tensor<T>
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        _: Option<&Conv2dConfig<T>>
+        _: Option<&Conv2dConfig<T>>,
     ) -> anyhow::Result<_Tensor<T>> {
         let img_shape = self.shape();
         if img_shape.len() != 4 {
-            return Err(
-                ErrHandler::Conv2dImgShapeInCorrect(
-                    img_shape.len(),
-                    core::panic::Location::caller()
-                ).into()
-            );
+            return Err(ErrHandler::Conv2dImgShapeInCorrect(
+                img_shape.len(),
+                core::panic::Location::caller(),
+            )
+            .into());
         }
         let batch = img_shape[0];
         let img_height = img_shape[1];
@@ -84,13 +83,8 @@ impl<T> _Tensor<T>
             (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1;
         let img = if !padding.iter().all(|(a, b)| *a == 0 && *b == 0) {
             self.pad(
-                &[
-                    (0, 0),
-                    (ph_start, ph_end),
-                    (pw_start, pw_end),
-                    (0, 0),
-                ],
-                T::ZERO
+                &[(0, 0), (ph_start, ph_end), (pw_start, pw_end), (0, 0)],
+                T::ZERO,
             )?
         } else {
             self.clone()
@@ -120,39 +114,38 @@ impl<T> _Tensor<T>
 
         const OH_BLOCK: i64 = 3;
 
-        let mut oc_nvec =
-            cache_size::l1_cache_line_size().unwrap_or(crate::CACHE_LINE_SIZE) /
-            core::mem::size_of::<T>() /
-            T::Vec::SIZE;
+        let mut oc_nvec = cache_size::l1_cache_line_size().unwrap_or(crate::CACHE_LINE_SIZE)
+            / core::mem::size_of::<T>()
+            / T::Vec::SIZE;
         let mut ow_block = predict_ow_block(oc_nvec);
         let ic_nvec = (16).min((in_channels as usize) / T::Vec::SIZE);
         let jb = (16).min((out_channels as usize) / (T::Vec::SIZE * oc_nvec));
 
-        // eval_micro_kernel::<T>(
-        //     [ic_nvec, oc_nvec],
-        //     [kernel_height as usize, kernel_width as usize],
-        //     [step_height as usize, step_width as usize],
-        //     [OH_BLOCK as usize, ow_block],
-        //     [out_height as usize, out_width as usize],
-        //     [in_channels as usize, out_channels as usize],
-        //     jb
-        // );
+        eval_micro_kernel::<T>(
+            [ic_nvec, oc_nvec],
+            [kernel_height as usize, kernel_width as usize],
+            [step_height as usize, step_width as usize],
+            [OH_BLOCK as usize, ow_block],
+            [out_height as usize, out_width as usize],
+            [in_channels as usize, out_channels as usize],
+            jb,
+        );
 
-        let full_oc_kernel = iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(
-            &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec)
-        );
+        let full_oc_kernel =
+            iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(&format!(
+                "unable to find iconv2d_microkernel_{}x{}",
+                ow_block, oc_nvec
+            ));
+        println!("reg_used: {}", full_oc_kernel.register_used());
         let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
-        let full_oc_kernel_ow_remain = iconv2d_full_oc_kernel_dispatch(
-            &mut oc_nvec,
-            &mut ((out_width as usize) % ow_block)
-        );
+        let full_oc_kernel_ow_remain =
+            iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ((out_width as usize) % ow_block));
         if full_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
         }
         let partial_oc_kernel = iconv2d_remain_oc_kernel_dispatch(&mut ow_block);
-        let partial_oc_kernel_ow_remain = iconv2d_remain_oc_kernel_dispatch(
-            &mut ((out_width as usize) % ow_block)
-        );
+        let partial_oc_kernel_ow_remain =
+            iconv2d_remain_oc_kernel_dispatch(&mut ((out_width as usize) % ow_block));
         if partial_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
         }
@@ -170,7 +163,7 @@ impl<T> _Tensor<T>
             [in_channels as usize, ic_nvec],
             [out_channels as usize, oc_nvec],
             [ks0 as usize, ks1 as usize, ks2 as usize],
-            [kernel_height as usize, kernel_width as usize]
+            [kernel_height as usize, kernel_width as usize],
         );
 
         (0..outer).into_par_iter().for_each(|idx| {
@@ -184,9 +177,8 @@ impl<T> _Tensor<T>
                 let i_end = (ii + (T::Vec::SIZE as i64) * (ic_nvec as i64)).min(in_channels);
                 for jj in (0..out_channels).step_by(T::Vec::SIZE * oc_nvec * (jb as usize)) {
                     let jj_start = jj;
-                    let jj_end = (jj + (T::Vec::SIZE as i64) * (oc_nvec as i64) * (jb as i64)).min(
-                        out_channels
-                    );
+                    let jj_end = (jj + (T::Vec::SIZE as i64) * (oc_nvec as i64) * (jb as i64))
+                        .min(out_channels);
                     let kernel_k = kernel.clone();
                     for k in (0..out_width_full_end).step_by(ow_block) {
                         for j in (jj_start..jj_end).step_by(T::Vec::SIZE * oc_nvec) {
@@ -203,25 +195,23 @@ impl<T> _Tensor<T>
                                     [dh, dw],
                                     &mut out,
                                     &inp,
-                                    &mut kernel
+                                    &mut kernel,
                                 );
                                 kernel = original.clone();
                             }
-                            kernel +=
-                                kernel_height *
-                                kernel_width *
-                                (i_end - ii) *
-                                (oc_nvec as i64) *
-                                (T::Vec::SIZE as i64);
+                            kernel += kernel_height
+                                * kernel_width
+                                * (i_end - ii)
+                                * (oc_nvec as i64)
+                                * (T::Vec::SIZE as i64);
                         }
-                        if
-                            jj_end - jj_start <
-                            (T::Vec::SIZE as i64) * (oc_nvec as i64) * (jb as i64)
+                        if jj_end - jj_start
+                            < (T::Vec::SIZE as i64) * (oc_nvec as i64) * (jb as i64)
                         {
                             if let Some(partial_oc_kernel) = partial_oc_kernel {
-                                for j in (out_channels - oc_remain..out_channels).step_by(
-                                    T::Vec::SIZE * oc_nvec
-                                ) {
+                                for j in (out_channels - oc_remain..out_channels)
+                                    .step_by(T::Vec::SIZE * oc_nvec)
+                                {
                                     let original = kernel.clone();
                                     for l in ll..l_end {
                                         partial_oc_kernel(
@@ -236,7 +226,7 @@ impl<T> _Tensor<T>
                                             oc_remain,
                                             &mut out,
                                             &inp,
-                                            &mut kernel
+                                            &mut kernel,
                                         );
                                         kernel = original.clone();
                                     }
@@ -263,25 +253,23 @@ impl<T> _Tensor<T>
                                         [dh, dw],
                                         &mut out,
                                         &inp,
-                                        &mut kernel
+                                        &mut kernel,
                                     );
                                     kernel = original.clone();
                                 }
-                                kernel +=
-                                    kernel_height *
-                                    kernel_width *
-                                    (i_end - ii) *
-                                    (oc_nvec as i64) *
-                                    (T::Vec::SIZE as i64);
+                                kernel += kernel_height
+                                    * kernel_width
+                                    * (i_end - ii)
+                                    * (oc_nvec as i64)
+                                    * (T::Vec::SIZE as i64);
                             }
-                            if
-                                jj_end - jj_start <
-                                (T::Vec::SIZE as i64) * (oc_nvec as i64) * (jb as i64)
+                            if jj_end - jj_start
+                                < (T::Vec::SIZE as i64) * (oc_nvec as i64) * (jb as i64)
                             {
                                 if let Some(partial_oc_ow_remain) = partial_oc_kernel_ow_remain {
-                                    for j in (out_channels - oc_remain..out_channels).step_by(
-                                        T::Vec::SIZE * oc_nvec
-                                    ) {
+                                    for j in (out_channels - oc_remain..out_channels)
+                                        .step_by(T::Vec::SIZE * oc_nvec)
+                                    {
                                         let original = kernel.clone();
                                         for l in ll..l_end {
                                             partial_oc_ow_remain(
@@ -296,7 +284,7 @@ impl<T> _Tensor<T>
                                                 oc_remain,
                                                 &mut out,
                                                 &inp,
-                                                &mut kernel
+                                                &mut kernel,
                                             );
                                             kernel = original.clone();
                                         }
@@ -322,7 +310,7 @@ fn out_used<T: CommonBounds>(
     jb: usize,
     oc_nvec: usize,
     owb: usize,
-    line_size: usize
+    line_size: usize,
 ) -> usize {
     let nv = line_size / (SIMD_WIDTH / 8 / core::mem::size_of::<T>());
     lb * jb * oc_nvec.div_ceil(nv) * owb * line_size
@@ -336,16 +324,15 @@ fn inp_used<T: CommonBounds>(
     kw: usize,
     step_height: usize,
     step_width: usize,
-    line_size: usize
+    line_size: usize,
 ) -> usize {
     let nv = line_size / (SIMD_WIDTH / 8 / core::mem::size_of::<T>());
     let in_range_num_w = (0..owb).take_while(|&idx| idx * step_width < kw).count();
     let in_range_num_h = (0..lb).take_while(|&idx| idx * step_height < kh).count();
-    owb *
-        ic_nvec.div_ceil(nv) *
-        (kh + lb - in_range_num_h) *
-        (kw + owb - in_range_num_w) *
-        line_size
+    owb * ic_nvec.div_ceil(nv)
+        * (kh + lb - in_range_num_h)
+        * (kw + owb - in_range_num_w)
+        * line_size
 }
 #[allow(unused)]
 fn kernel_used<T: CommonBounds>(
@@ -354,7 +341,6 @@ fn kernel_used<T: CommonBounds>(
     jb: usize,
     kh: usize,
     kw: usize,
-    line_size: usize
 ) -> usize {
     oc_nvec * ic_nvec * T::Vec::SIZE * kh * kw * jb
 }
@@ -367,7 +353,7 @@ fn eval_micro_kernel<T: CommonBounds>(
     [oh_block, ow_block]: [usize; 2],
     [out_height, out_width]: [usize; 2],
     [in_channels, out_channels]: [usize; 2],
-    jb: usize
+    jb: usize,
 ) {
     let (cache_line_size, l1_cache, l2_cache) = if cfg!(target_arch = "x86_64") {
         (
@@ -394,24 +380,36 @@ fn eval_micro_kernel<T: CommonBounds>(
         kw,
         step_height,
         step_width,
-        cache_line_size
+        cache_line_size,
     );
     let out_used = out_used::<T>(oh_block, 1, oc_nvec, ow_block, cache_line_size);
-    let kernel_used = kernel_used::<T>(oc_nvec, ic_nvec, 1, kh, kw, cache_line_size);
+    let kernel_used = kernel_used::<T>(oc_nvec, ic_nvec, 1, kh, kw);
 
     // calculate how many jb will fill the cache, since output and kernel will keep loading data into the cache
     let nj = if inp_used > total_cache {
         0.0
     } else {
-        (((total_cache - inp_used) as f64) / ((kernel_used as f64) + (out_used as f64))).min(
-            (out_channels as f64) / ((T::Vec::SIZE as f64) * (oc_nvec as f64))
-        )
+        (((total_cache - inp_used) as f64) / ((kernel_used as f64) + (out_used as f64)))
+            .min((out_channels as f64) / ((T::Vec::SIZE as f64) * (oc_nvec as f64)))
     };
+    println!("l2: {}", l2_cache);
+    println!("l1: {}", l1_cache);
+    println!("kk: {}", (0..out_width).step_by(ow_block).count());
     println!("nj: {}", nj);
     println!("jb: {}", jb);
     println!("inp_used: {}", inp_used);
     println!("out_used: {}", out_used * jb);
     println!("kernel_used: {}", kernel_used * jb);
+    println!("total: {}", inp_used + out_used * jb + kernel_used * jb);
+    if nj >= jb as f64 {
+        let remain_cache = total_cache - inp_used - out_used * jb - kernel_used * jb;
+        let nk = (remain_cache - kernel_used * jb) as f64 / (out_used * jb + inp_used) as f64;
+        println!("nk: {}", nk);
+        println!(
+            "full times: {}",
+            (0..out_width).step_by(ow_block).count() as f64 / nk
+        );
+    }
 }
 
 fn reorder_kernel<T: CommonBounds>(
@@ -421,7 +419,7 @@ fn reorder_kernel<T: CommonBounds>(
     [in_channel, ic_nvec]: [usize; 2],
     [out_channel, oc_nvec]: [usize; 2],
     [ks0, ks1, ks2]: [usize; 3],
-    [kh, kw]: [usize; 2]
+    [kh, kw]: [usize; 2],
 ) {
     let oc_remain = out_channel % (T::Vec::SIZE * oc_nvec);
     (0..in_channel)
@@ -440,9 +438,13 @@ fn reorder_kernel<T: CommonBounds>(
                                 for v in 0..oc_nvec {
                                     let ptr = reordered.ptr as *mut _ as *mut T::Vec;
                                     unsafe {
-                                        ptr.write_unaligned(
-                                            T::Vec::from_ptr(&kernel[i * ks2 + n * ks0 + m * ks1 + j + v * T::Vec::SIZE])
-                                        ); // prettier-ignore
+                                        ptr.write_unaligned(T::Vec::from_ptr(
+                                            &kernel[i * ks2
+                                                + n * ks0
+                                                + m * ks1
+                                                + j
+                                                + v * T::Vec::SIZE],
+                                        )); // prettier-ignore
                                     }
                                     reordered += T::Vec::SIZE;
                                 }
@@ -451,9 +453,8 @@ fn reorder_kernel<T: CommonBounds>(
                     }
                 }
                 if jj_end - jj_start < T::Vec::SIZE * oc_nvec * jb {
-                    for j in (out_channel - oc_remain..out_channel).step_by(
-                        T::Vec::SIZE * oc_nvec
-                    ) {
+                    for j in (out_channel - oc_remain..out_channel).step_by(T::Vec::SIZE * oc_nvec)
+                    {
                         for n in 0..kh {
                             for m in 0..kw {
                                 for i in ii..i_end {
@@ -462,7 +463,7 @@ fn reorder_kernel<T: CommonBounds>(
                                         std::ptr::copy_nonoverlapping(
                                             &kernel[n * ks0 + m * ks1 + i * ks2 + j] as *const T,
                                             ptr,
-                                            oc_remain
+                                            oc_remain,
                                         );
                                     }
                                     reordered += oc_remain;
@@ -489,7 +490,7 @@ fn find_optimal_jb<T: CommonBounds>(
     ow_block: usize,
     cache_line_size: usize,
     l1_cache: usize,
-    l2_cache: usize
+    l2_cache: usize,
 ) -> usize {
     let max_jb = (out_channels as usize) / (T::Vec::SIZE * oc_nvec);
     let mut best_jb = 1;
@@ -497,20 +498,22 @@ fn find_optimal_jb<T: CommonBounds>(
     let total_cache = l1_cache + l2_cache;
 
     for jb in 1..=max_jb {
-        let kernel_used = kernel_used::<T>(oc_nvec, ic_nvec, jb, kh, kw, cache_line_size);
+        let kernel_used = kernel_used::<T>(oc_nvec, ic_nvec, jb, kh, kw);
         let inp_used = inp_used::<T>(oh_block, ow_block, ic_nvec, kh, kw, 1, 1, cache_line_size);
         let out_used = out_used::<T>(oh_block, jb, oc_nvec, ow_block, cache_line_size);
 
         let total_used = kernel_used + inp_used + out_used;
-        
+
         // Calculate reuse factors
-        let kernel_reuse = (out_channels * in_channels) as f64 / (jb * oc_nvec * ic_nvec * T::Vec::SIZE * T::Vec::SIZE) as f64;
+        let kernel_reuse = (out_channels * in_channels) as f64
+            / (jb * oc_nvec * ic_nvec * T::Vec::SIZE * T::Vec::SIZE) as f64;
         let input_reuse = out_channels as f64 / (jb * oc_nvec * T::Vec::SIZE) as f64;
 
         // Calculate effective cache usage
         let effective_kernel_cache = kernel_used as f64 / kernel_reuse;
         let effective_input_cache = inp_used as f64 / input_reuse;
-        let effective_total_cache = effective_kernel_cache + effective_input_cache + out_used as f64;
+        let effective_total_cache =
+            effective_kernel_cache + effective_input_cache + out_used as f64;
 
         // Calculate cache utilization
         let cache_utilization = effective_total_cache / total_cache as f64;
@@ -529,8 +532,13 @@ fn find_optimal_jb<T: CommonBounds>(
             best_jb = jb;
         }
 
-        println!("jb: {}, score: {:.4}, utilization: {:.2}%, parallelism: {:.2}", 
-                 jb, score, cache_utilization * 100.0, parallelism_score);
+        println!(
+            "jb: {}, score: {:.4}, utilization: {:.2}%, parallelism: {:.2}",
+            jb,
+            score,
+            cache_utilization * 100.0,
+            parallelism_score
+        );
     }
 
     println!("Best jb: {}", best_jb);
