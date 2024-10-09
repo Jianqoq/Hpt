@@ -478,3 +478,61 @@ fn reorder_kernel<T: CommonBounds>(
 fn predict_ow_block(oc_block: usize) -> usize {
     REGNUM / (oc_block + 1)
 }
+fn find_optimal_jb<T: CommonBounds>(
+    oc_nvec: usize,
+    ic_nvec: usize,
+    out_channels: usize,
+    in_channels: usize,
+    kh: usize,
+    kw: usize,
+    oh_block: usize,
+    ow_block: usize,
+    cache_line_size: usize,
+    l1_cache: usize,
+    l2_cache: usize
+) -> usize {
+    let max_jb = (out_channels as usize) / (T::Vec::SIZE * oc_nvec);
+    let mut best_jb = 1;
+    let mut best_score = f64::MAX;
+    let total_cache = l1_cache + l2_cache;
+
+    for jb in 1..=max_jb {
+        let kernel_used = kernel_used::<T>(oc_nvec, ic_nvec, jb, kh, kw, cache_line_size);
+        let inp_used = inp_used::<T>(oh_block, ow_block, ic_nvec, kh, kw, 1, 1, cache_line_size);
+        let out_used = out_used::<T>(oh_block, jb, oc_nvec, ow_block, cache_line_size);
+
+        let total_used = kernel_used + inp_used + out_used;
+        
+        // Calculate reuse factors
+        let kernel_reuse = (out_channels * in_channels) as f64 / (jb * oc_nvec * ic_nvec * T::Vec::SIZE * T::Vec::SIZE) as f64;
+        let input_reuse = out_channels as f64 / (jb * oc_nvec * T::Vec::SIZE) as f64;
+
+        // Calculate effective cache usage
+        let effective_kernel_cache = kernel_used as f64 / kernel_reuse;
+        let effective_input_cache = inp_used as f64 / input_reuse;
+        let effective_total_cache = effective_kernel_cache + effective_input_cache + out_used as f64;
+
+        // Calculate cache utilization
+        let cache_utilization = effective_total_cache / total_cache as f64;
+
+        // Penalize both under-utilization and over-utilization
+        let utilization_penalty = (cache_utilization - 0.8).abs();
+
+        // Calculate parallelism score (higher is better)
+        let parallelism_score = jb as f64 / max_jb as f64;
+
+        // Combine scores (lower is better)
+        let score = utilization_penalty + (1.0 - parallelism_score);
+
+        if score < best_score {
+            best_score = score;
+            best_jb = jb;
+        }
+
+        println!("jb: {}, score: {:.4}, utilization: {:.2}%, parallelism: {:.2}", 
+                 jb, score, cache_utilization * 100.0, parallelism_score);
+    }
+
+    println!("Best jb: {}", best_jb);
+    best_jb
+}
