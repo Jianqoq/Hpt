@@ -121,16 +121,7 @@ where
         let mut ow_block = predict_ow_block(oc_nvec);
         let ic_nvec = (16).min((in_channels as usize) / T::Vec::SIZE);
 
-        let cache = Cache::<T>::new();
-        let jb = find_optimal_jb::<T>(
-            oc_nvec,
-            ic_nvec,
-            out_channels as usize,
-            in_channels as usize,
-            kernel_height as usize,
-            kernel_width as usize,
-            &cache,
-        );
+        let jb = (16).min((out_channels as usize) / (T::Vec::SIZE * oc_nvec));
 
         let full_oc_kernel =
             iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(&format!(
@@ -445,7 +436,7 @@ fn find_optimal_jb<T: CommonBounds>(
     cache: &Cache<T>,
 ) -> usize {
     let mut best_jb = 1;
-    let mut best_conflict_penalty = 1.0;
+    let mut best_conflict_penalty = f64::INFINITY;
     for jb in [4, 8, 16, 32] {
         let kernel_used = kernel_used::<T>(oc_nvec, ic_nvec, jb, kh, kw);
         let inp_used = inp_used::<T>(

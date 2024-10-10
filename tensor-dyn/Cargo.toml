@@ -20,7 +20,6 @@ paste = "1.0.15"
 anyhow = "1.0.75"
 rayon = "1.8.0"
 num = "0.4.1"
-raw-cpuid = "9.0.0"
 duplicate = "2.0.0"
 ctor = "0.2.8"
 cpuid = "0.1.1"
@@ -29,6 +28,9 @@ cache-size = "0.7.0"
 half = { version = "2.3.1", features = ["num-traits", "rand_distr"] }
 gemm = { version = "0.18.0", features = ["rayon"] }
 num_cpus = "1.16.0"
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+raw-cpuid = "9.0.0"
 
 [features]
 default = ["track_caller"]
