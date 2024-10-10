@@ -133,6 +133,12 @@ pub mod ops {
             /// a module that contains all the unary operations that has self type output
             pub mod normal_out_unary;
         }
+
+        /// a module contains cpu L1, L2, L3 cache helper
+        pub(crate) mod cache_utils {
+            /// a module contains cache utils
+            pub(crate) mod cache;
+        }
     }
 }
 

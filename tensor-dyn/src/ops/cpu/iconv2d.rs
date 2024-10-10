@@ -1,4 +1,5 @@
 use super::conv_config::Conv2dConfig;
+use crate::ops::cpu::cache_utils::cache::Cache;
 use crate::ops::cpu::kernels::iconv_kernels::iconv2d_full_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::iconv_kernels::iconv2d_remain_oc_kernel_dispatch;
 use crate::tensor_base::_Tensor;
@@ -119,16 +120,16 @@ where
             / T::Vec::SIZE;
         let mut ow_block = predict_ow_block(oc_nvec);
         let ic_nvec = (16).min((in_channels as usize) / T::Vec::SIZE);
-        let jb = (16).min((out_channels as usize) / (T::Vec::SIZE * oc_nvec));
 
-        eval_micro_kernel::<T>(
-            [ic_nvec, oc_nvec],
-            [kernel_height as usize, kernel_width as usize],
-            [step_height as usize, step_width as usize],
-            [OH_BLOCK as usize, ow_block],
-            [out_height as usize, out_width as usize],
-            [in_channels as usize, out_channels as usize],
-            jb,
+        let cache = Cache::<T>::new();
+        let jb = find_optimal_jb::<T>(
+            oc_nvec,
+            ic_nvec,
+            out_channels as usize,
+            in_channels as usize,
+            kernel_height as usize,
+            kernel_width as usize,
+            &cache,
         );
 
         let full_oc_kernel =
@@ -136,7 +137,7 @@ where
                 "unable to find iconv2d_microkernel_{}x{}",
                 ow_block, oc_nvec
             ));
-        println!("reg_used: {}", full_oc_kernel.register_used());
+        // println!("reg_used: {}", full_oc_kernel.register_used());
         let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
         let full_oc_kernel_ow_remain =
             iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ((out_width as usize) % ow_block));
@@ -353,63 +354,18 @@ fn eval_micro_kernel<T: CommonBounds>(
     [oh_block, ow_block]: [usize; 2],
     [out_height, out_width]: [usize; 2],
     [in_channels, out_channels]: [usize; 2],
+    [osb, osh, osw]: [usize; 3],
     jb: usize,
+    out: &Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &Pointer<T>,
 ) {
-    let (cache_line_size, l1_cache, l2_cache) = if cfg!(target_arch = "x86_64") {
-        (
-            cache_size::l1_cache_line_size().unwrap_or(64) / T::BIT_SIZE,
-            cache_size::l1_cache_size().unwrap_or(32 * 1024) / T::BIT_SIZE,
-            cache_size::l2_cache_size().unwrap_or(2 * 1024 * 1024) / T::BIT_SIZE,
-        )
-    } else if cfg!(target_os = "macos") && cfg!(target_arch = "aarch64") {
-        (
-            128 / T::BIT_SIZE,
-            cache_size::l1_cache_size().unwrap_or(32 * 1024) / T::BIT_SIZE,
-            (4 * 1024 * 1024) / T::BIT_SIZE,
-        ) // need to implement
-    } else {
-        panic!("Unsupported architecture");
-    };
-    let total_cache = l1_cache + l2_cache;
-    // calculate when jb = 1, how much cache is used
-    let inp_used = inp_used::<T>(
-        oh_block,
-        ow_block,
-        ic_nvec,
-        kh,
-        kw,
-        step_height,
-        step_width,
-        cache_line_size,
-    );
-    let out_used = out_used::<T>(oh_block, 1, oc_nvec, ow_block, cache_line_size);
-    let kernel_used = kernel_used::<T>(oc_nvec, ic_nvec, 1, kh, kw);
-
-    // calculate how many jb will fill the cache, since output and kernel will keep loading data into the cache
-    let nj = if inp_used > total_cache {
-        0.0
-    } else {
-        (((total_cache - inp_used) as f64) / ((kernel_used as f64) + (out_used as f64)))
-            .min((out_channels as f64) / ((T::Vec::SIZE as f64) * (oc_nvec as f64)))
-    };
-    println!("l2: {}", l2_cache);
-    println!("l1: {}", l1_cache);
-    println!("kk: {}", (0..out_width).step_by(ow_block).count());
-    println!("nj: {}", nj);
-    println!("jb: {}", jb);
-    println!("inp_used: {}", inp_used);
-    println!("out_used: {}", out_used * jb);
-    println!("kernel_used: {}", kernel_used * jb);
-    println!("total: {}", inp_used + out_used * jb + kernel_used * jb);
-    if nj >= jb as f64 {
-        let remain_cache = total_cache - inp_used - out_used * jb - kernel_used * jb;
-        let nk = (remain_cache - kernel_used * jb) as f64 / (out_used * jb + inp_used) as f64;
-        println!("nk: {}", nk);
-        println!(
-            "full times: {}",
-            (0..out_width).step_by(ow_block).count() as f64 / nk
-        );
-    }
+    let mut cache = Cache::<T>::new();
+    println!("{}", cache);
+    let (set_idx, way_idx) = cache.load_l2_cache(&out[0usize] as *const _ as *const T as usize);
+    println!("set_idx: {}, way_idx: {}", set_idx, way_idx);
+    let (set_idx, way_idx) = cache.load_l2_cache(&out[osw] as *const _ as *const T as usize);
+    println!("set_idx: {}, way_idx: {}", set_idx, way_idx);
 }
 
 fn reorder_kernel<T: CommonBounds>(
@@ -482,65 +438,70 @@ fn predict_ow_block(oc_block: usize) -> usize {
 fn find_optimal_jb<T: CommonBounds>(
     oc_nvec: usize,
     ic_nvec: usize,
-    out_channels: usize,
-    in_channels: usize,
     kh: usize,
     kw: usize,
     oh_block: usize,
     ow_block: usize,
-    cache_line_size: usize,
-    l1_cache: usize,
-    l2_cache: usize,
+    cache: &Cache<T>,
 ) -> usize {
-    let max_jb = (out_channels as usize) / (T::Vec::SIZE * oc_nvec);
     let mut best_jb = 1;
-    let mut best_score = f64::MAX;
-    let total_cache = l1_cache + l2_cache;
-
-    for jb in 1..=max_jb {
+    let mut best_conflict_penalty = 1.0;
+    for jb in [4, 8, 16, 32] {
         let kernel_used = kernel_used::<T>(oc_nvec, ic_nvec, jb, kh, kw);
-        let inp_used = inp_used::<T>(oh_block, ow_block, ic_nvec, kh, kw, 1, 1, cache_line_size);
-        let out_used = out_used::<T>(oh_block, jb, oc_nvec, ow_block, cache_line_size);
-
-        let total_used = kernel_used + inp_used + out_used;
-
-        // Calculate reuse factors
-        let kernel_reuse = (out_channels * in_channels) as f64
-            / (jb * oc_nvec * ic_nvec * T::Vec::SIZE * T::Vec::SIZE) as f64;
-        let input_reuse = out_channels as f64 / (jb * oc_nvec * T::Vec::SIZE) as f64;
-
-        // Calculate effective cache usage
-        let effective_kernel_cache = kernel_used as f64 / kernel_reuse;
-        let effective_input_cache = inp_used as f64 / input_reuse;
-        let effective_total_cache =
-            effective_kernel_cache + effective_input_cache + out_used as f64;
-
-        // Calculate cache utilization
-        let cache_utilization = effective_total_cache / total_cache as f64;
-
-        // Penalize both under-utilization and over-utilization
-        let utilization_penalty = (cache_utilization - 0.8).abs();
-
-        // Calculate parallelism score (higher is better)
-        let parallelism_score = jb as f64 / max_jb as f64;
-
-        // Combine scores (lower is better)
-        let score = utilization_penalty + (1.0 - parallelism_score);
-
-        if score < best_score {
-            best_score = score;
-            best_jb = jb;
-        }
-
-        println!(
-            "jb: {}, score: {:.4}, utilization: {:.2}%, parallelism: {:.2}",
-            jb,
-            score,
-            cache_utilization * 100.0,
-            parallelism_score
+        let inp_used = inp_used::<T>(
+            oh_block,
+            ow_block,
+            ic_nvec,
+            kh,
+            kw,
+            1,
+            1,
+            cache.l2_line_size,
         );
+        let out_used = out_used::<T>(oh_block, jb, oc_nvec, ow_block, cache.l2_line_size);
+
+        let (kernel_conflicts, inp_conflicts, out_conflicts) =
+            calculate_cache_conflicts(kernel_used, inp_used, out_used, cache);
+
+        let conflict_penalty = (kernel_conflicts + inp_conflicts + out_conflicts) as f64
+            / (cache.l2_sets * cache.l2_associativity) as f64;
+
+        // println!("jb: {}, conflicts: {:.2}%", jb, conflict_penalty * 100.0,);
+        if conflict_penalty <= best_conflict_penalty {
+            best_jb = jb;
+            best_conflict_penalty = conflict_penalty;
+        } else {
+            break;
+        }
     }
 
-    println!("Best jb: {}", best_jb);
+    println!("Best jb: {}, {}", best_jb, cache.l2);
     best_jb
+}
+
+fn calculate_cache_conflicts<T: CommonBounds>(
+    kernel_used: usize,
+    inp_used: usize,
+    out_used: usize,
+    cache: &Cache<T>,
+) -> (usize, usize, usize) {
+    let kernel_conflicts = count_conflicts(kernel_used, cache);
+    let inp_conflicts = count_conflicts(inp_used, cache);
+    let out_conflicts = count_conflicts(out_used, cache);
+    (kernel_conflicts, inp_conflicts, out_conflicts)
+}
+
+fn count_conflicts<T: CommonBounds>(size: usize, cache: &Cache<T>) -> usize {
+    let mut conflicts = 0;
+    let mut set_usage = vec![0; cache.l2_sets];
+
+    for i in (0..size).step_by(cache.l2_line_size) {
+        let addr = i * cache.l2_line_size;
+        let (set_index, _) = cache.load_l2_cache(addr);
+        set_usage[set_index] += 1;
+        if set_usage[set_index] > cache.l2_associativity {
+            conflicts += 1;
+        }
+    }
+    conflicts
 }
