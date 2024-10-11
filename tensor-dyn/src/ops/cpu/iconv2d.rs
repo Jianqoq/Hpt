@@ -1,5 +1,4 @@
 use super::cache_utils::cache::Cache;
-use super::conv_config::Conv2dConfig;
 use crate::ops::cpu::kernels::iconv_kernels::iconv2d_full_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::iconv_kernels::iconv2d_remain_oc_kernel_dispatch;
 use crate::tensor_base::_Tensor;
@@ -50,7 +49,6 @@ where
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        _: Option<&Conv2dConfig<T>>,
     ) -> anyhow::Result<_Tensor<T>> {
         let img_shape = self.shape();
         if img_shape.len() != 4 {
