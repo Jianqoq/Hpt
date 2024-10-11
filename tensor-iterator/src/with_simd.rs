@@ -162,6 +162,10 @@ where
         self.base.shape()
     }
 
+    fn layout(&self) -> &tensor_common::layout::Layout {
+        self.base.layout()
+    }
+
     fn broadcast_set_strides(&mut self, shape: &Shape) {
         self.base.broadcast_set_strides(shape);
     }
@@ -177,7 +181,6 @@ where
     fn next(&mut self) {
         self.base.next();
     }
-
     fn next_simd(&mut self) {
         todo!()
     }
@@ -190,11 +193,8 @@ where
     fn all_last_stride_one(&self) -> bool {
         self.base.all_last_stride_one()
     }
+
     fn lanes(&self) -> Option<usize> {
         self.base.lanes()
-    }
-
-    fn layout(&self) -> &tensor_common::layout::Layout {
-        self.base.layout()
     }
 }

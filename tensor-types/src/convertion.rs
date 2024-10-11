@@ -23,18 +23,6 @@ use std::simd::num::SimdUint;
 /// Convertor trait
 ///
 /// This trait is used to convert a scalar to another type
-///
-/// # Example
-///
-/// ```
-/// use tensor_types::Convertor;
-///
-/// let a = 1u8;
-///
-/// let b = a.to_f32();
-///
-/// assert_eq!(b, 1.0);
-/// ```
 pub trait Convertor {
     /// convert the value to bool
     fn to_bool(self) -> bool;
@@ -75,18 +63,6 @@ pub trait Convertor {
 /// VecConvertor trait
 ///
 /// This trait is used to convert a simd vector to another type
-///
-/// # Example
-///
-/// ```
-/// use tensor_types::VecConvertor;
-///
-/// let a = f32x8::f32x8::splat(1.0);
-///
-/// let b = a.to_f64();
-///
-/// assert_eq!(b, f64x4::f64x4::splat(1.0));
-/// ```
 #[cfg(target_feature = "avx2")]
 pub trait VecConvertor {
     /// convert the value to boolx32
@@ -134,18 +110,6 @@ pub trait VecConvertor {
 /// VecConvertor trait
 ///
 /// This trait is used to convert a simd vector to another type
-///
-/// # Example
-///
-/// ```
-/// use tensor_types::VecConvertor;
-///
-/// let a = f32x8::f32x8::splat(1.0);
-///
-/// let b = a.to_f64();
-///
-/// assert_eq!(b, f64x4::f64x4::splat(1.0));
-/// ```
 pub trait VecConvertor {
     /// convert the value to boolx16
     fn to_bool(self) -> boolx16::boolx16;

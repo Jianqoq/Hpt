@@ -1,5 +1,4 @@
-//! This crate is dynamic graph based tensor library
-
+//! This crate is dynamic graph based tensor libraryz
 #![feature(portable_simd)]
 #![deny(missing_docs)]
 
@@ -20,8 +19,6 @@ pub mod ops {
         pub mod concat;
         /// a module defines conv2d operation
         pub mod conv2d;
-        /// a module defines conv2d operation
-        pub mod iconv2d;
         /// a module defines conv_config struct
         pub mod conv_config;
         /// a module defines dropout operation
@@ -32,6 +29,8 @@ pub mod ops {
         pub mod gather_elements;
         /// a module defines hardmax operation
         pub mod hardmax;
+        /// a module defines conv2d operation
+        pub mod iconv2d;
         /// a module defines lp_pool2d operation
         pub mod lp_pool2d;
         /// a module defines matmul operation
@@ -70,19 +69,23 @@ pub mod ops {
             pub mod avgpool_kernels;
             /// a module defines the conv2d kernels
             pub mod conv_kernels;
+            /// a module defines the iconv2d kernels
+            pub mod iconv_kernels;
             /// a module defines the lp_pool2d kernels
             pub mod lp_pool_kernels;
             /// a module defines the maxpool2d kernels
             pub mod maxpool_kernels;
             /// a module defines the reduce kernels
             pub mod reduce_kernels;
-            /// a module defines the iconv2d kernels
-            pub mod iconv_kernels;
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_expose {
+            /// a module that contains all the arg reduce functions
+            pub mod arg_reduce;
             /// a module that contains all the tensor compare functions
             pub mod cmp;
+            /// a module that contains all the common reduce functions
+            pub mod common_reduce;
             /// a module that contains all fft operations
             pub mod fft;
             /// a module that contains all the unary operations that has floating type output
@@ -97,19 +100,19 @@ pub mod ops {
             pub mod random;
             /// a module that contains all the shape manipulation functions
             pub mod shape_manipulate;
-            /// a module that contains all the windows creation functions
-            pub mod windows;
             /// a module that contains all the slice functions
             pub mod slice;
-            /// a module that contains all the common reduce functions
-            pub mod common_reduce;
-            /// a module that contains all the arg reduce functions
-            pub mod arg_reduce;
+            /// a module that contains all the windows creation functions
+            pub mod windows;
         }
         /// a module that contains all the functions only for the internal user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_internal {
+            /// a module that contains all the arg reduce functions
+            pub mod arg_reduce;
             /// a module that contains all the tensor compare functions
             pub mod cmp;
+            /// a module that contains all the common reduce functions
+            pub mod common_reduce;
             /// a module that contains all fft operations
             pub mod fft;
             /// a module that contains all the unary operations that has floating type output
@@ -118,20 +121,22 @@ pub mod ops {
             pub mod matmul;
             /// a module that contains all normal methods to create a tensor
             pub mod normal_creation;
+            /// a module that contains all the unary operations that has self type output
+            pub mod normal_out_unary;
             /// a module that contains all the random number generate functions
             pub mod random;
             /// a module that contains all the shape manipulation functions
             pub mod shape_manipulate;
-            /// a module that contains all the windows creation functions
-            pub mod windows;
             /// a module that contains all the slice functions
             pub mod slice;
-            /// a module that contains all the common reduce functions
-            pub mod common_reduce;
-            /// a module that contains all the arg reduce functions
-            pub mod arg_reduce;
-            /// a module that contains all the unary operations that has self type output
-            pub mod normal_out_unary;
+            /// a module that contains all the windows creation functions
+            pub mod windows;
+        }
+
+        /// a module contains cpu L1, L2, L3 cache helper
+        pub(crate) mod cache_utils {
+            /// a module contains cache utils
+            pub(crate) mod cache;
         }
     }
 }
@@ -155,7 +160,7 @@ pub use tensor_traits::*;
 pub use tensor_types::vectors::*;
 pub use tensor_types::*;
 
-use std::{ cell::RefCell, sync::atomic::AtomicUsize };
+use std::{cell::RefCell, sync::atomic::AtomicUsize};
 thread_local! {
     static THREAD_POOL: RefCell<threadpool::ThreadPool> = RefCell::new(
         threadpool::ThreadPool::new(num_cpus::get_physical())
@@ -183,12 +188,10 @@ pub fn set_num_threads(num_threads: usize) {
     THREAD_POOL.with(|x| {
         x.borrow_mut().set_num_threads(num_threads);
     });
-    match
-        rayon::ThreadPoolBuilder
-            ::new()
-            .num_threads(num_threads)
-            .stack_size(4 * 1024 * 1024)
-            .build_global()
+    match rayon::ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .stack_size(4 * 1024 * 1024)
+        .build_global()
     {
         Ok(_) => {}
         Err(_) => {}
@@ -226,26 +229,27 @@ pub(crate) const REGNUM: usize = 32;
 type BoolVector = tensor_types::_256bit::boolx32::boolx32;
 #[cfg(any(target_feature = "avx512f"))]
 type BoolVector = tensor_types::_512bit::boolx64::boolx64;
-#[cfg(
-    any(
-        all(not(target_feature = "avx2"), target_feature = "sse"),
-        target_arch = "arm",
-        target_arch = "aarch64",
-        target_feature = "neon"
-    )
-)]
+#[cfg(any(
+    all(not(target_feature = "avx2"), target_feature = "sse"),
+    target_arch = "arm",
+    target_arch = "aarch64",
+    target_feature = "neon"
+))]
 type BoolVector = tensor_types::_128bit::boolx16::boolx16;
 
 #[cfg(target_feature = "avx2")]
 const SIMD_WIDTH: usize = 256;
 #[cfg(any(target_feature = "avx512f"))]
 const SIMD_WIDTH: usize = 512;
-#[cfg(
-    any(
-        all(not(target_feature = "avx2"), target_feature = "sse"),
-        target_arch = "arm",
-        target_arch = "aarch64",
-        target_feature = "neon"
-    )
-)]
+#[cfg(any(
+    all(not(target_feature = "avx2"), target_feature = "sse"),
+    target_arch = "arm",
+    target_arch = "aarch64",
+    target_feature = "neon"
+))]
 const SIMD_WIDTH: usize = 128;
+
+#[cfg(target_arch = "x86_64")]
+pub(crate) const CACHE_LINE_SIZE: usize = 64;
+#[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+pub(crate) const CACHE_LINE_SIZE: usize = 128;

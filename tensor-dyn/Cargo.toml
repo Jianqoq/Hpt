@@ -23,12 +23,13 @@ num = "0.4.1"
 duplicate = "2.0.0"
 ctor = "0.2.8"
 cpuid = "0.1.1"
-unroll = "0.1.5"
 cache-size = "0.7.0"
-log = "0.4.22"
 half = { version = "2.3.1", features = ["num-traits", "rand_distr"] }
 gemm = { version = "0.18.0", features = ["rayon"] }
 num_cpus = "1.16.0"
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+raw-cpuid = { version = "11.2.0", default-features = false }
 
 [features]
 default = ["track_caller"]

@@ -149,6 +149,10 @@ pub mod par_strided_map_mut_simd {
             self.base.shape()
         }
 
+        fn layout(&self) -> &tensor_common::layout::Layout {
+            self.base.layout()
+        }
+
         fn broadcast_set_strides(&mut self, shape: &Shape) {
             self.base.broadcast_set_strides(shape);
         }
@@ -199,10 +203,6 @@ pub mod par_strided_map_mut_simd {
 
         fn lanes(&self) -> Option<usize> {
             self.base.lanes()
-        }
-
-        fn layout(&self) -> &tensor_common::layout::Layout {
-            self.base.layout()
         }
     }
 }
@@ -354,8 +354,28 @@ where
         self.base.intervals()
     }
 
+    fn strides(&self) -> &tensor_common::strides::Strides {
+        self.base.strides()
+    }
+
+    fn shape(&self) -> &Shape {
+        self.base.shape()
+    }
+
+    fn layout(&self) -> &tensor_common::layout::Layout {
+        self.base.layout()
+    }
+
     fn broadcast_set_strides(&mut self, shape: &Shape) {
         self.base.broadcast_set_strides(shape);
+    }
+
+    fn outer_loop_size(&self) -> usize {
+        self.base.outer_loop_size()
+    }
+
+    fn inner_loop_size(&self) -> usize {
+        self.base.inner_loop_size()
     }
 
     fn next(&mut self) {
@@ -371,25 +391,5 @@ where
                 .as_mut()
                 .unwrap()
         }
-    }
-
-    fn strides(&self) -> &tensor_common::strides::Strides {
-        self.base.strides()
-    }
-
-    fn shape(&self) -> &Shape {
-        self.base.shape()
-    }
-
-    fn outer_loop_size(&self) -> usize {
-        self.base.outer_loop_size()
-    }
-
-    fn inner_loop_size(&self) -> usize {
-        self.base.inner_loop_size()
-    }
-
-    fn layout(&self) -> &tensor_common::layout::Layout {
-        self.base.layout()
     }
 }

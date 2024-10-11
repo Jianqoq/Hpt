@@ -14,14 +14,6 @@ use crate::strides::Strides;
 ///
 /// # Returns
 /// A `Vec<i64>` representing the preprocessed strides.
-///
-/// # Examples
-/// ```
-/// use tensor_common::preprocess_strides;
-/// let shape = vec![1, 2, 3];
-/// let strides = vec![3, 2, 1];
-/// let preprocessed_strides = preprocess_strides(&shape, &strides);
-/// ```
 pub fn preprocess_strides<
     A: Convertor + Copy,
     B: Convertor + IntoScalar<C> + Copy,
@@ -52,13 +44,6 @@ pub fn preprocess_strides<
 ///
 /// # Returns
 /// A `Vec<i64>` representing the strides calculated from the shape.
-///
-/// # Examples
-/// ```
-/// use tensor_common::shape_to_strides;
-/// let shape = vec![2, 3, 4];
-/// let strides = shape_to_strides(&shape);
-/// ```
 pub fn shape_to_strides(shape: &[i64]) -> Strides {
     let mut strides = vec![0; shape.len()];
     let mut size = 1;

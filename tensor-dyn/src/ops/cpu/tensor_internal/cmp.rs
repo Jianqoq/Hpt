@@ -9,8 +9,8 @@ use crate::{ tensor::Tensor, tensor_base::_Tensor, BoolVector };
 use anyhow::Result;
 
 impl<T> TensorCmp<T> for _Tensor<T> where T: CommonBounds {
-    type Output = _Tensor<bool>;
     type RHS<C> = _Tensor<C>;
+    type Output = _Tensor<bool>;
     type BoolVector = BoolVector;
     /// perform element-wise not equal operation between two tensors
     ///

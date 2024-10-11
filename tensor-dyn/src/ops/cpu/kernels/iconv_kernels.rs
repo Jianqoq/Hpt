@@ -1,9 +1,8 @@
+#![allow(unused)]
 use duplicate::duplicate_item;
 use tensor_common::pointer::Pointer;
 use tensor_macros::{
-    conv2d_microkernel_declare_const,
-    conv2d_microkernel_gen_inps,
-    conv2d_microkernel_gen_kernels,
+    conv2d_microkernel_declare_const, conv2d_microkernel_gen_inps, conv2d_microkernel_gen_kernels,
     conv2d_microkernel_gen_results,
 };
 use tensor_traits::CommonBounds;
@@ -55,28 +54,1246 @@ macro_rules! repeat_results {
     };
 }
 
+fn micro_kernel_5x1<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_5x1);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_5x1);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_5x1);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_5x1);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_4x1<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_4x1);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_4x1);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_4x1);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_4x1);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_3x1<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_3x1);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_3x1);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_3x1);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_3x1);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_2x1<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_2x1);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_2x1);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_2x1);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_2x1);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_1x1<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_1x1);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_1x1);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_1x1);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_1x1);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_5x2<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_5x2);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp = (
+                    T::Vec::splat(inp[is3 + 0i64 * (step_width * isw)]),
+                    T::Vec::splat(inp[is3 + 1i64 * (step_width * isw)]),
+                    T::Vec::splat(inp[is3 + 2i64 * (step_width * isw)]),
+                    T::Vec::splat(inp[is3 + 3i64 * (step_width * isw)]),
+                    T::Vec::splat(inp[is3 + 4i64 * (step_width * isw)]),
+                );
+                let kernel_vecs = (
+                    unsafe { T::Vec::from_ptr(&kernel[0usize * T::Vec::SIZE]) },
+                    unsafe { T::Vec::from_ptr(&kernel[1usize * T::Vec::SIZE]) },
+                );
+                results[0][0] = inp.0.mul_add(kernel_vecs.0, results[0][0]);
+                results[0][1] = inp.1.mul_add(kernel_vecs.0, results[0][1]);
+                results[0][2] = inp.2.mul_add(kernel_vecs.0, results[0][2]);
+                results[0][3] = inp.3.mul_add(kernel_vecs.0, results[0][3]);
+                results[0][4] = inp.4.mul_add(kernel_vecs.0, results[0][4]);
+                results[1][0] = inp.0.mul_add(kernel_vecs.1, results[1][0]);
+                results[1][1] = inp.1.mul_add(kernel_vecs.1, results[1][1]);
+                results[1][2] = inp.2.mul_add(kernel_vecs.1, results[1][2]);
+                results[1][3] = inp.3.mul_add(kernel_vecs.1, results[1][3]);
+                results[1][4] = inp.4.mul_add(kernel_vecs.1, results[1][4]);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_4x2<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_4x2);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_4x2);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_4x2);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_4x2);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_3x2<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_3x2);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_3x2);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_3x2);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_3x2);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_2x2<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_2x2);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_2x2);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_2x2);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_2x2);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_1x2<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_1x2);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_1x2);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_1x2);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_1x2);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_5x4<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_5x4);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_5x4);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_5x4);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_5x4);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_4x4<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_4x4);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_4x4);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_4x4);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_4x4);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_3x4<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_3x4);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_3x4);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_3x4);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_3x4);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_2x4<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_2x4);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_2x4);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_2x4);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_2x4);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_1x4<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_1x4);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_1x4);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_1x4);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_1x4);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_5x8<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_5x8);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_5x8);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_5x8);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_5x8);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_4x8<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_4x8);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_4x8);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_4x8);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_4x8);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_3x8<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_3x8);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_3x8);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_3x8);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_3x8);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_2x8<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_2x8);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_2x8);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_2x8);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_2x8);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+fn micro_kernel_1x8<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    _: [i64; 2],
+    _: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
+) {
+    conv2d_microkernel_declare_const!(micro_kernel_1x8);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                };
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, micro_kernel_1x8);
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, micro_kernel_1x8);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, micro_kernel_1x8);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec;
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
+            }
+        }
+    }
+}
+
 #[duplicate_item(
     template_function;
-    [micro_kernel_5x1];
-    [micro_kernel_4x1];
-    [micro_kernel_3x1];
-    [micro_kernel_2x1];
-    [micro_kernel_1x1];
-    [micro_kernel_5x2];
-    [micro_kernel_4x2];
-    [micro_kernel_3x2];
-    [micro_kernel_2x2];
-    [micro_kernel_1x2];
-    [micro_kernel_5x4];
-    [micro_kernel_4x4];
-    [micro_kernel_3x4];
-    [micro_kernel_2x4];
-    [micro_kernel_1x4];
-    [micro_kernel_5x8];
-    [micro_kernel_4x8];
-    [micro_kernel_3x8];
-    [micro_kernel_2x8];
-    [micro_kernel_1x8];
+    [pmicro_kernel_5x1];
+    [pmicro_kernel_4x1];
+    [pmicro_kernel_3x1];
+    [pmicro_kernel_2x1];
+    [pmicro_kernel_1x1];
+    [pmicro_kernel_5x2];
+    [pmicro_kernel_4x2];
+    [pmicro_kernel_3x2];
+    [pmicro_kernel_2x2];
+    [pmicro_kernel_1x2];
+    [pmicro_kernel_5x4];
+    [pmicro_kernel_4x4];
+    [pmicro_kernel_3x4];
+    [pmicro_kernel_2x4];
+    [pmicro_kernel_1x4];
+    [pmicro_kernel_5x8];
+    [pmicro_kernel_4x8];
+    [pmicro_kernel_3x8];
+    [pmicro_kernel_2x8];
+    [pmicro_kernel_1x8];
 )]
 fn template_function<T: CommonBounds>(
     [ii, i_end]: [i64; 2],
@@ -85,9 +1302,11 @@ fn template_function<T: CommonBounds>(
     [osb, osh, osw]: [i64; 3],
     [step_height, step_width]: [i64; 2],
     [isb, ish, isw]: [i64; 3],
+    [ph_start, pw_start]: [i64; 2],
+    [dh, dw]: [i64; 2],
     out: &mut Pointer<T>,
     inp: &Pointer<T>,
-    kernel: &mut Pointer<T>
+    kernel: &mut Pointer<T>,
 ) {
     conv2d_microkernel_declare_const!(template_function);
     let mut results = if ii == 0 {
@@ -97,7 +1316,14 @@ fn template_function<T: CommonBounds>(
         for kk in 0..OW_BLOCK as i64 {
             for v in 0..OC_BLOCK {
                 ret[v as usize][kk as usize] = unsafe {
-                    T::Vec::from_ptr(&out[b * osb + l * osh + (k + kk) * osw + j + v as i64 * T::Vec::SIZE as i64] as *const _ as *const T)
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
                 }; // prettier-ignore
             }
         }
@@ -110,12 +1336,8 @@ fn template_function<T: CommonBounds>(
             let is2 = is1 + m * isw;
             for i in ii..i_end {
                 let is3 = is2 + i;
-                let inp = conv2d_microkernel_gen_inps!(
-                    inp,
-                    is3,
-                    step_width * isw,
-                    template_function
-                );
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, template_function);
                 let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, template_function);
                 conv2d_microkernel_gen_results!(results, inp, kernel_vecs, template_function);
                 kernel.add(OC_BLOCK * T::Vec::SIZE);
@@ -131,6 +1353,57 @@ fn template_function<T: CommonBounds>(
                 out_vec.write_unaligned(results[v as usize][kk as usize]);
             }
         }
+    }
+}
+
+/// This struct carries the micro kernel function and the corresponding info
+pub struct ConvKernel<T: CommonBounds> {
+    pub(crate) kernel: fn(
+        [i64; 2],
+        [i64; 2],
+        [i64; 4],
+        [i64; 3],
+        [i64; 2],
+        [i64; 3],
+        [i64; 2],
+        [i64; 2],
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &mut Pointer<T>,
+    ),
+    pub(crate) oc_block: usize,
+    pub(crate) ow_block: usize,
+}
+
+impl<T: CommonBounds> ConvKernel<T> {
+    pub(crate) fn new(
+        kernel: fn(
+            [i64; 2],
+            [i64; 2],
+            [i64; 4],
+            [i64; 3],
+            [i64; 2],
+            [i64; 3],
+            [i64; 2],
+            [i64; 2],
+            &mut Pointer<T>,
+            &Pointer<T>,
+            &mut Pointer<T>,
+        ),
+        oc_block: usize,
+        ow_block: usize,
+    ) -> Self {
+        Self {
+            kernel,
+            oc_block,
+            ow_block,
+        }
+    }
+    pub(crate) fn register_used(&self) -> usize {
+        let res_used = self.oc_block * self.ow_block;
+        let inp_used = self.ow_block;
+        let kernel_used = 1;
+        res_used + inp_used + kernel_used
     }
 }
 
@@ -150,10 +1423,12 @@ fn template_function<T: CommonBounds>(
     [osb, osh, osw]: [i64; 3],
     [step_height, step_width]: [i64; 2],
     [isb, ish, isw]: [i64; 3],
+    [ph_start, pw_start]: [i64; 2],
+    [dh, dw]: [i64; 2],
     oc_end: i64,
     out: &mut Pointer<T>,
     inp: &Pointer<T>,
-    kernel: &mut Pointer<T>
+    kernel: &mut Pointer<T>,
 ) {
     conv2d_microkernel_declare_const!(template_function);
     let mut results = if ii == 0 {
@@ -174,12 +1449,8 @@ fn template_function<T: CommonBounds>(
             let is2 = is1 + m * isw;
             for i in ii..i_end {
                 let is3 = is2 + i;
-                let inp = conv2d_microkernel_gen_inps!(
-                    inp,
-                    is3,
-                    step_width * isw,
-                    template_function
-                );
+                let inp =
+                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, template_function);
                 let mut kernel0 = (T::Vec::splat(T::ZERO),);
                 for v in 0..oc_end {
                     kernel0.0[v as usize] = kernel[v as usize];
@@ -198,41 +1469,49 @@ fn template_function<T: CommonBounds>(
 
 pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
     oc: &mut usize, // output channels block size
-    kb: &mut usize // outwidth block size
-) -> Option<
-    fn(
+    kb: &mut usize, // outwidth block size
+) -> Option<ConvKernel<T>> {
+    let kernels: [[fn(
         [i64; 2],
         [i64; 2],
         [i64; 4],
         [i64; 3],
         [i64; 2],
         [i64; 3],
+        [i64; 2],
+        [i64; 2],
         &mut Pointer<T>,
         &Pointer<T>,
-        &mut Pointer<T>
-    )
-> {
-    let kernels: [
+        &mut Pointer<T>,
+    ); 5]; 4] = [
         [
-            fn(
-                [i64; 2],
-                [i64; 2],
-                [i64; 4],
-                [i64; 3],
-                [i64; 2],
-                [i64; 3],
-                &mut Pointer<T>,
-                &Pointer<T>,
-                &mut Pointer<T>
-            );
-            5
-        ];
-        4
-    ] = [
-        [micro_kernel_1x1, micro_kernel_2x1, micro_kernel_3x1, micro_kernel_4x1, micro_kernel_5x1],
-        [micro_kernel_1x2, micro_kernel_2x2, micro_kernel_3x2, micro_kernel_4x2, micro_kernel_5x2],
-        [micro_kernel_1x4, micro_kernel_2x4, micro_kernel_3x4, micro_kernel_4x4, micro_kernel_5x4],
-        [micro_kernel_1x8, micro_kernel_2x8, micro_kernel_3x8, micro_kernel_4x8, micro_kernel_5x8],
+            micro_kernel_1x1,
+            micro_kernel_2x1,
+            micro_kernel_3x1,
+            micro_kernel_4x1,
+            micro_kernel_5x1,
+        ],
+        [
+            micro_kernel_1x2,
+            micro_kernel_2x2,
+            micro_kernel_3x2,
+            micro_kernel_4x2,
+            micro_kernel_5x2,
+        ],
+        [
+            micro_kernel_1x4,
+            micro_kernel_2x4,
+            micro_kernel_3x4,
+            micro_kernel_4x4,
+            micro_kernel_5x4,
+        ],
+        [
+            micro_kernel_1x8,
+            micro_kernel_2x8,
+            micro_kernel_3x8,
+            micro_kernel_4x8,
+            micro_kernel_5x8,
+        ],
     ];
 
     let map_kb = map_kb(*kb);
@@ -248,18 +1527,42 @@ pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
         *oc = 8;
     }
 
-    let kernel_fn = kernels
-        .get(map_oc)
-        .map(|x| x.get(map_kb))
-        .flatten();
+    let kernel_fn = kernels.get(map_oc).map(|x| x.get(map_kb)).flatten();
 
     // println!("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc, map_kb);
 
-    kernel_fn.cloned()
+    kernel_fn
+        .cloned()
+        .map(|kernel| ConvKernel::new(kernel, *oc, *kb))
+}
+
+pub(crate) fn full_oc_kernels<T: CommonBounds>() -> [ConvKernel<T>; 20] {
+    [
+        ConvKernel::new(micro_kernel_1x1, 1, 1),
+        ConvKernel::new(micro_kernel_2x1, 1, 2),
+        ConvKernel::new(micro_kernel_3x1, 1, 3),
+        ConvKernel::new(micro_kernel_4x1, 1, 4),
+        ConvKernel::new(micro_kernel_5x1, 1, 5),
+        ConvKernel::new(micro_kernel_1x2, 2, 1),
+        ConvKernel::new(micro_kernel_2x2, 2, 2),
+        ConvKernel::new(micro_kernel_3x2, 2, 3),
+        ConvKernel::new(micro_kernel_4x2, 2, 4),
+        ConvKernel::new(micro_kernel_5x2, 2, 5),
+        ConvKernel::new(micro_kernel_1x4, 4, 1),
+        ConvKernel::new(micro_kernel_2x4, 4, 2),
+        ConvKernel::new(micro_kernel_3x4, 4, 3),
+        ConvKernel::new(micro_kernel_4x4, 4, 4),
+        ConvKernel::new(micro_kernel_5x4, 4, 5),
+        ConvKernel::new(micro_kernel_1x8, 8, 1),
+        ConvKernel::new(micro_kernel_2x8, 8, 2),
+        ConvKernel::new(micro_kernel_3x8, 8, 3),
+        ConvKernel::new(micro_kernel_4x8, 8, 4),
+        ConvKernel::new(micro_kernel_5x8, 8, 5),
+    ]
 }
 
 pub(crate) fn iconv2d_remain_oc_kernel_dispatch<T: CommonBounds>(
-    kb: &mut usize // outwidth block size
+    kb: &mut usize, // outwidth block size
 ) -> Option<
     fn(
         [i64; 2],
@@ -268,27 +1571,34 @@ pub(crate) fn iconv2d_remain_oc_kernel_dispatch<T: CommonBounds>(
         [i64; 3],
         [i64; 2],
         [i64; 3],
+        [i64; 2],
+        [i64; 2],
         i64,
         &mut Pointer<T>,
         &Pointer<T>,
-        &mut Pointer<T>
-    )
+        &mut Pointer<T>,
+    ),
 > {
-    let kernels: [
-        fn(
-            [i64; 2],
-            [i64; 2],
-            [i64; 4],
-            [i64; 3],
-            [i64; 2],
-            [i64; 3],
-            i64,
-            &mut Pointer<T>,
-            &Pointer<T>,
-            &mut Pointer<T>
-        );
-        5
-    ] = [micro_kernel_1_1, micro_kernel_2_1, micro_kernel_3_1, micro_kernel_4_1, micro_kernel_5_1];
+    let kernels: [fn(
+        [i64; 2],
+        [i64; 2],
+        [i64; 4],
+        [i64; 3],
+        [i64; 2],
+        [i64; 3],
+        [i64; 2],
+        [i64; 2],
+        i64,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &mut Pointer<T>,
+    ); 5] = [
+        micro_kernel_1_1,
+        micro_kernel_2_1,
+        micro_kernel_3_1,
+        micro_kernel_4_1,
+        micro_kernel_5_1,
+    ];
 
     // println!("picked iconv2d_remain_microkernel_{} at {}", kb, map_kb(kb));
     let map_kb = map_kb(*kb);
@@ -300,9 +1610,27 @@ pub(crate) fn iconv2d_remain_oc_kernel_dispatch<T: CommonBounds>(
 }
 
 fn map_kb(kb: usize) -> usize {
-    if kb <= 1 { 0 } else if kb <= 2 { 1 } else if kb <= 3 { 2 } else if kb <= 4 { 3 } else { 4 }
+    if kb <= 1 {
+        0
+    } else if kb <= 2 {
+        1
+    } else if kb <= 3 {
+        2
+    } else if kb <= 4 {
+        3
+    } else {
+        4
+    }
 }
 
 fn map_oc(oc: usize) -> usize {
-    if oc <= 1 { 0 } else if oc <= 2 { 1 } else if oc <= 4 { 2 } else { 3 }
+    if oc <= 1 {
+        0
+    } else if oc <= 2 {
+        1
+    } else if oc <= 4 {
+        2
+    } else {
+        3
+    }
 }

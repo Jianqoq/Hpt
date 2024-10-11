@@ -92,6 +92,10 @@ pub mod par_strided_zip_simd {
             self.a.shape()
         }
 
+        fn layout(&self) -> &tensor_common::layout::Layout {
+            self.a.layout()
+        }
+
         fn broadcast_set_strides(&mut self, shape: &Shape) {
             self.a.broadcast_set_strides(shape);
             self.b.broadcast_set_strides(shape);
@@ -141,10 +145,6 @@ pub mod par_strided_zip_simd {
                 }
                 _ => None,
             }
-        }
-
-        fn layout(&self) -> &tensor_common::layout::Layout {
-            self.a.layout()
         }
     }
     impl<'a, A, B> ParStridedZipSimd<'a, A, B>
@@ -345,26 +345,21 @@ where
         self.a.intervals()
     }
 
-    fn broadcast_set_strides(&mut self, shape: &Shape) {
-        self.a.broadcast_set_strides(shape);
-        self.b.broadcast_set_strides(shape);
-    }
-
-    fn next(&mut self) {
-        self.a.next();
-        self.b.next();
-    }
-
-    fn inner_loop_next(&mut self, index: usize) -> Self::Item {
-        (self.a.inner_loop_next(index), self.b.inner_loop_next(index))
-    }
-
     fn strides(&self) -> &Strides {
         self.a.strides()
     }
 
     fn shape(&self) -> &Shape {
         self.a.shape()
+    }
+
+    fn layout(&self) -> &tensor_common::layout::Layout {
+        self.a.layout()
+    }
+
+    fn broadcast_set_strides(&mut self, shape: &Shape) {
+        self.a.broadcast_set_strides(shape);
+        self.b.broadcast_set_strides(shape);
     }
 
     fn outer_loop_size(&self) -> usize {
@@ -375,8 +370,13 @@ where
         self.a.inner_loop_size()
     }
 
-    fn layout(&self) -> &tensor_common::layout::Layout {
-        self.a.layout()
+    fn next(&mut self) {
+        self.a.next();
+        self.b.next();
+    }
+
+    fn inner_loop_next(&mut self, index: usize) -> Self::Item {
+        (self.a.inner_loop_next(index), self.b.inner_loop_next(index))
     }
 }
 

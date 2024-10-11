@@ -186,6 +186,10 @@ pub mod par_strided_map_mut_simd {
             self.base.shape()
         }
 
+        fn layout(&self) -> &tensor_common::layout::Layout {
+            self.base.layout()
+        }
+
         fn broadcast_set_strides(&mut self, shape: &Shape) {
             self.base.broadcast_set_strides(shape);
         }
@@ -220,10 +224,6 @@ pub mod par_strided_map_mut_simd {
 
         fn lanes(&self) -> Option<usize> {
             self.base.lanes()
-        }
-        
-        fn layout(&self) -> &tensor_common::layout::Layout {
-            self.base.layout()
         }
     }
 }
@@ -366,21 +366,25 @@ impl<'a, T: 'a + CommonBounds> IterGetSet for ParStridedMapMut<'a, T> {
         self.base.intervals()
     }
 
-    fn inner_loop_size(&self) -> usize {
-        self.base.inner_loop_size()
-    }
-    fn outer_loop_size(&self) -> usize {
-        self.base.outer_loop_size()
+    fn strides(&self) -> &Strides {
+        self.base.strides()
     }
     fn shape(&self) -> &Shape {
         self.base.shape()
     }
-    fn strides(&self) -> &Strides {
-        self.base.strides()
+    fn layout(&self) -> &tensor_common::layout::Layout {
+        self.base.layout()
     }
-
     fn broadcast_set_strides(&mut self, shape: &Shape) {
         self.base.broadcast_set_strides(shape);
+    }
+
+    fn outer_loop_size(&self) -> usize {
+        self.base.outer_loop_size()
+    }
+
+    fn inner_loop_size(&self) -> usize {
+        self.base.inner_loop_size()
     }
 
     fn next(&mut self) {
@@ -389,9 +393,5 @@ impl<'a, T: 'a + CommonBounds> IterGetSet for ParStridedMapMut<'a, T> {
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         self.base.inner_loop_next(index)
-    }
-    
-    fn layout(&self) -> &tensor_common::layout::Layout {
-        self.base.layout()
     }
 }
