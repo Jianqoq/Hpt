@@ -128,6 +128,7 @@ where
             OH_BLOCK as usize,
             [kernel_height as usize, kernel_width as usize],
         );
+        // println!("{}, {}", params.0, params.1);
         let (ic_nvec, jb) = params;
         println!("{}, {}", ic_nvec, jb);
         let full_oc_kernel =
