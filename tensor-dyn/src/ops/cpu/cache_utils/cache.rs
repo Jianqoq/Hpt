@@ -1,4 +1,4 @@
-use std::{ fmt::Display, marker::PhantomData };
+use std::{fmt::Display, marker::PhantomData};
 
 use tensor_traits::CommonBounds;
 
@@ -39,11 +39,10 @@ impl<T: CommonBounds> Cache<T> {
             let cpuid = CpuId::new();
             if let Some(cparams) = cpuid.get_cache_parameters() {
                 for cache in cparams {
-                    let size =
-                        cache.associativity() *
-                        cache.physical_line_partitions() *
-                        cache.coherency_line_size() *
-                        cache.sets();
+                    let size = cache.associativity()
+                        * cache.physical_line_partitions()
+                        * cache.coherency_line_size()
+                        * cache.sets();
                     if cache.level() == 1 {
                         l1 = size;
                         l1_line_size = cache.coherency_line_size();
@@ -63,89 +62,6 @@ impl<T: CommonBounds> Cache<T> {
                 }
             }
         }
-        #[cfg(target_os = "macos")]
-        {
-            use std::process::Command;
-            l1_line_size = std::str
-                ::from_utf8(
-                    &Command::new("sysctl")
-                        .arg("hw.cachelinesize")
-                        .output()
-                        .expect("Failed to execute command").stdout
-                )
-                .unwrap()
-                .split(":")
-                .last()
-                .unwrap()
-                .trim()
-                .parse::<usize>()
-                .unwrap_or(64);
-            l1 = std::str
-                ::from_utf8(
-                    &Command::new("sysctl")
-                        .arg("hw.l1dcachesize")
-                        .output()
-                        .expect("Failed to execute command").stdout
-                )
-                .unwrap()
-                .split(":")
-                .last()
-                .unwrap()
-                .trim()
-                .parse::<usize>()
-                .unwrap();
-            let l2_per_core = std::str
-                ::from_utf8(
-                    &Command::new("sysctl")
-                        .arg("hw.perflevel0.cpusperl2")
-                        .output()
-                        .expect("Failed to execute command").stdout
-                )
-                .unwrap()
-                .split(":")
-                .last()
-                .unwrap()
-                .trim()
-                .parse::<usize>()
-                .unwrap();
-            l2 =
-                std::str
-                    ::from_utf8(
-                        &Command::new("sysctl")
-                            .arg("hw.l2cachesize")
-                            .output()
-                            .expect("Failed to execute command").stdout
-                    )
-                    .unwrap()
-                    .split(":")
-                    .last()
-                    .unwrap()
-                    .trim()
-                    .parse::<usize>()
-                    .unwrap() / l2_per_core;
-            l1_line_size = std::str
-                ::from_utf8(
-                    &Command::new("sysctl")
-                        .arg("hw.cachelinesize")
-                        .output()
-                        .expect("Failed to execute command").stdout
-                )
-                .unwrap()
-                .split(":")
-                .last()
-                .unwrap()
-                .trim()
-                .parse::<usize>()
-                .unwrap();
-            l2_line_size = l1_line_size;
-            l3_line_size = l2_line_size;
-            l1_associativity = 24;
-            l2_associativity = 24;
-            l3_associativity = 24;
-            l1_sets = l1 / l1_associativity / l1_line_size;
-            l2_sets = l2 / l2_associativity / l2_line_size;
-            l3_sets = l3 / l3_associativity / l3_line_size;
-        }
         Self {
             l1: l1 / T::BIT_SIZE,
             l2: l2 / T::BIT_SIZE,
@@ -161,13 +77,6 @@ impl<T: CommonBounds> Cache<T> {
             l3_sets,
             _marker: PhantomData,
         }
-    }
-
-    pub(crate) fn load_l2_cache(&self, addr: usize) -> (usize, usize) {
-        let block_offset_bits = self.l2_line_size.trailing_zeros();
-        let set_index = (addr >> block_offset_bits) & (self.l2_sets - 1);
-        let way_index = ((addr >> block_offset_bits) / self.l2_sets) % self.l2_associativity;
-        (set_index, way_index)
     }
 }
 

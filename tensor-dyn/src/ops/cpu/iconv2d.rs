@@ -1,5 +1,5 @@
+use super::cache_utils::cache::Cache;
 use super::conv_config::Conv2dConfig;
-use crate::ops::cpu::cache_utils::cache::Cache;
 use crate::ops::cpu::kernels::iconv_kernels::iconv2d_full_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::iconv_kernels::iconv2d_remain_oc_kernel_dispatch;
 use crate::tensor_base::_Tensor;
@@ -119,10 +119,16 @@ where
             / core::mem::size_of::<T>()
             / T::Vec::SIZE;
         let mut ow_block = predict_ow_block(oc_nvec);
-        let ic_nvec = (16).min((in_channels as usize) / T::Vec::SIZE);
 
-        let jb = (16).min((out_channels as usize) / (T::Vec::SIZE * oc_nvec));
-
+        let params = kernel_params::<T>(
+            out_channels as usize,
+            in_channels as usize,
+            ow_block,
+            oc_nvec,
+            OH_BLOCK as usize,
+            [kernel_height as usize, kernel_width as usize],
+        );
+        let (ic_nvec, jb) = params;
         let full_oc_kernel =
             iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(&format!(
                 "unable to find iconv2d_microkernel_{}x{}",
@@ -337,28 +343,6 @@ fn kernel_used<T: CommonBounds>(
     oc_nvec * ic_nvec * T::Vec::SIZE * kh * kw * jb
 }
 
-#[allow(unused)]
-fn eval_micro_kernel<T: CommonBounds>(
-    [ic_nvec, oc_nvec]: [usize; 2],
-    [kh, kw]: [usize; 2],
-    [step_height, step_width]: [usize; 2],
-    [oh_block, ow_block]: [usize; 2],
-    [out_height, out_width]: [usize; 2],
-    [in_channels, out_channels]: [usize; 2],
-    [osb, osh, osw]: [usize; 3],
-    jb: usize,
-    out: &Pointer<T>,
-    inp: &Pointer<T>,
-    kernel: &Pointer<T>,
-) {
-    let mut cache = Cache::<T>::new();
-    println!("{}", cache);
-    let (set_idx, way_idx) = cache.load_l2_cache(&out[0usize] as *const _ as *const T as usize);
-    println!("set_idx: {}, way_idx: {}", set_idx, way_idx);
-    let (set_idx, way_idx) = cache.load_l2_cache(&out[osw] as *const _ as *const T as usize);
-    println!("set_idx: {}, way_idx: {}", set_idx, way_idx);
-}
-
 fn reorder_kernel<T: CommonBounds>(
     kernel: &Pointer<T>,
     reordered: Pointer<T>,
@@ -426,73 +410,41 @@ fn reorder_kernel<T: CommonBounds>(
 fn predict_ow_block(oc_block: usize) -> usize {
     REGNUM / (oc_block + 1)
 }
-fn find_optimal_jb<T: CommonBounds>(
-    oc_nvec: usize,
-    ic_nvec: usize,
-    kh: usize,
-    kw: usize,
-    oh_block: usize,
+
+fn kernel_params<T: CommonBounds>(
+    out_channels: usize,
+    in_channels: usize,
     ow_block: usize,
-    cache: &Cache<T>,
-) -> usize {
-    let mut best_jb = 1;
-    let mut best_conflict_penalty = f64::INFINITY;
-    for jb in [4, 8, 16, 32] {
-        let kernel_used = kernel_used::<T>(oc_nvec, ic_nvec, jb, kh, kw);
-        let inp_used = inp_used::<T>(
-            oh_block,
-            ow_block,
-            ic_nvec,
-            kh,
-            kw,
-            1,
-            1,
-            cache.l2_line_size,
-        );
-        let out_used = out_used::<T>(oh_block, jb, oc_nvec, ow_block, cache.l2_line_size);
+    oc_nvec: usize,
+    oh_block: usize,
+    [kh, kw]: [usize; 2],
+) -> (usize, usize) {
+    let cache = Cache::<T>::new();
+    let l1 = cache.l1;
+    let l2 = cache.l2;
+    let mut best_params = (1, 1);
+    let mut best_balance = f64::MAX;
+    for ic in 1..in_channels as usize / T::Vec::SIZE {
+        for jb in 1..(out_channels as usize / (T::Vec::SIZE * oc_nvec)) {
+            let gemm_kernel_used = oc_nvec * T::Vec::SIZE * ic * T::Vec::SIZE;
+            let gemm_inp_used = ow_block * ic * T::Vec::SIZE;
+            let gemm_out_used = ow_block * oc_nvec * T::Vec::SIZE;
+            let gemm_used = gemm_kernel_used + gemm_inp_used + gemm_out_used;
+            let k_kernel_used = gemm_kernel_used * kh * kw;
+            let k_inp_used = kh * kw * gemm_inp_used;
+            let jb_k_kernel_used = jb * k_kernel_used;
+            let jb_out_used = jb * gemm_out_used;
+            let jb_inp_used = oh_block * k_inp_used;
+            let total_used = jb_k_kernel_used + jb_out_used + jb_inp_used;
+            if gemm_used <= l1 && total_used <= l2 {
+                let balance = (ic as f64 / jb as f64).max(jb as f64 / ic as f64);
 
-        let (kernel_conflicts, inp_conflicts, out_conflicts) =
-            calculate_cache_conflicts(kernel_used, inp_used, out_used, cache);
-
-        let conflict_penalty = (kernel_conflicts + inp_conflicts + out_conflicts) as f64
-            / (cache.l2_sets * cache.l2_associativity) as f64;
-
-        // println!("jb: {}, conflicts: {:.2}%", jb, conflict_penalty * 100.0,);
-        if conflict_penalty <= best_conflict_penalty {
-            best_jb = jb;
-            best_conflict_penalty = conflict_penalty;
-        } else {
-            break;
+                if balance <= best_balance && (ic >= best_params.0 || jb >= best_params.1) {
+                    best_balance = balance;
+                    best_params = (ic, jb);
+                }
+            }
         }
     }
-
-    println!("Best jb: {}, {}", best_jb, cache.l2);
-    best_jb
-}
-
-fn calculate_cache_conflicts<T: CommonBounds>(
-    kernel_used: usize,
-    inp_used: usize,
-    out_used: usize,
-    cache: &Cache<T>,
-) -> (usize, usize, usize) {
-    let kernel_conflicts = count_conflicts(kernel_used, cache);
-    let inp_conflicts = count_conflicts(inp_used, cache);
-    let out_conflicts = count_conflicts(out_used, cache);
-    (kernel_conflicts, inp_conflicts, out_conflicts)
-}
-
-fn count_conflicts<T: CommonBounds>(size: usize, cache: &Cache<T>) -> usize {
-    let mut conflicts = 0;
-    let mut set_usage = vec![0; cache.l2_sets];
-
-    for i in (0..size).step_by(cache.l2_line_size) {
-        let addr = i * cache.l2_line_size;
-        let (set_index, _) = cache.load_l2_cache(addr);
-        set_usage[set_index] += 1;
-        if set_usage[set_index] > cache.l2_associativity {
-            conflicts += 1;
-        }
-    }
-    conflicts
+    best_params
 }
