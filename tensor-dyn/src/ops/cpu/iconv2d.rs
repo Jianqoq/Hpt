@@ -129,6 +129,7 @@ where
             [kernel_height as usize, kernel_width as usize],
         );
         let (ic_nvec, jb) = params;
+        println!("{}, {}", ic_nvec, jb);
         let full_oc_kernel =
             iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(&format!(
                 "unable to find iconv2d_microkernel_{}x{}",
@@ -445,18 +446,25 @@ fn kernel_params<T: CommonBounds>(
 
             if gemm_used <= l1 && total_used <= l2 {
                 let balance = (ic as f64 / jb as f64).max(jb as f64 / ic as f64);
-                Some((ic, jb, balance))
+                let cache_utilization = total_used as f64 / l2 as f64;
+                Some((ic, jb, balance, cache_utilization))
             } else {
                 None
             }
         })
         .reduce(
-            || (1, 1, f64::MAX),
-            |(best_ic, best_jb, best_balance), (ic, jb, balance)| {
-                if balance <= best_balance && (ic >= best_ic || jb >= best_jb) {
-                    (ic, jb, balance)
+            || (1, 1, f64::MAX, 0.0),
+            |(best_ic, best_jb, best_balance, best_util), (ic, jb, balance, util)| {
+                const BALANCE_WEIGHT: f64 = 0.6;
+                const UTIL_WEIGHT: f64 = 0.4;
+
+                let current_score = BALANCE_WEIGHT * (1.0 / balance) + UTIL_WEIGHT * util;
+                let best_score = BALANCE_WEIGHT * (1.0 / best_balance) + UTIL_WEIGHT * best_util;
+
+                if current_score > best_score {
+                    (ic, jb, balance, util)
                 } else {
-                    (best_ic, best_jb, best_balance)
+                    (best_ic, best_jb, best_balance, best_util)
                 }
             },
         );
