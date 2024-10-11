@@ -32,16 +32,6 @@ pub mod strided_simd {
     use super::{expand, reshape, transpose, StridedHelper};
 
     /// A single thread SIMD-optimized strided iterator
-    ///
-    /// # Example
-    /// ```
-    /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::StridedIteratorSimd;
-    /// use tensor_dyn::TensorIterator;
-    /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
-    /// let strided = a.iter_simd();
-    /// strided.for_each(|x| println!("{}", x), |x| println!("{:?}", x));
-    /// ```
     #[derive(Clone)]
     pub struct StridedSimd<T: TypeCommon> {
         /// A pointer to the tensor's data.
@@ -126,6 +116,10 @@ pub mod strided_simd {
             self.layout.shape()
         }
 
+        fn layout(&self) -> &Layout {
+            &self.layout
+        }
+
         fn broadcast_set_strides(&mut self, shape: &Shape) {
             let self_shape = try_pad_shape(self.shape(), shape.len());
             self.set_strides(preprocess_strides(&self_shape, self.strides()).into());
@@ -135,10 +129,10 @@ pub mod strided_simd {
         fn outer_loop_size(&self) -> usize {
             (self.shape().iter().product::<i64>() as usize) / self.inner_loop_size()
         }
-
         fn inner_loop_size(&self) -> usize {
             self.shape().last().unwrap().clone() as usize
         }
+
         fn next(&mut self) {
             for j in (0..(self.shape().len() as i64) - 1).rev() {
                 let j = j as usize;
@@ -152,7 +146,6 @@ pub mod strided_simd {
                 }
             }
         }
-
         fn next_simd(&mut self) {
             todo!()
         }
@@ -171,12 +164,9 @@ pub mod strided_simd {
         fn all_last_stride_one(&self) -> bool {
             self.last_stride == 1
         }
+
         fn lanes(&self) -> Option<usize> {
             Some(T::Vec::SIZE)
-        }
-        
-        fn layout(&self) -> &Layout {
-            &self.layout
         }
     }
 
@@ -199,14 +189,14 @@ pub mod strided_simd {
         fn _set_last_strides(&mut self, stride: i64) {
             self.last_stride = stride;
         }
-        fn _layout(&self) -> &Layout {
-            &self.layout
-        }
         fn _set_strides(&mut self, strides: Strides) {
             self.layout.set_strides(strides);
         }
         fn _set_shape(&mut self, shape: Shape) {
             self.layout.set_shape(shape);
+        }
+        fn _layout(&self) -> &Layout {
+            &self.layout
         }
     }
     impl<T: CommonBounds> StridedIteratorMap for StridedSimd<T> {}
@@ -215,16 +205,6 @@ pub mod strided_simd {
 }
 
 /// A single-threaded strided iterator over tensor elements.
-///
-/// # Example
-/// ```
-/// use tensor_dyn::tensor::Tensor;
-/// use tensor_dyn::StridedIterator;
-/// use tensor_dyn::TensorIterator;
-/// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
-/// let strided = a.iter();
-/// strided.for_each(|x| println!("{}", x));
-/// ```
 #[derive(Clone)]
 pub struct Strided<T> {
     /// A pointer points to the tensor's data.
@@ -302,6 +282,18 @@ impl<T: CommonBounds> IterGetSet for Strided<T> {
     fn intervals(&self) -> &Arc<Vec<(usize, usize)>> {
         panic!("single thread iterator does not support intervals");
     }
+    fn strides(&self) -> &Strides {
+        self.layout.strides()
+    }
+
+    fn shape(&self) -> &Shape {
+        self.layout.shape()
+    }
+
+    fn layout(&self) -> &Layout {
+        &self.layout
+    }
+
     fn broadcast_set_strides(&mut self, shape: &Shape) {
         let self_shape = try_pad_shape(self.shape(), shape.len());
         self.set_strides(preprocess_strides(&self_shape, self.strides()).into());
@@ -333,18 +325,6 @@ impl<T: CommonBounds> IterGetSet for Strided<T> {
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         unsafe { *self.ptr.get_ptr().add(index * (self.last_stride as usize)) }
     }
-
-    fn strides(&self) -> &Strides {
-        self.layout.strides()
-    }
-
-    fn shape(&self) -> &Shape {
-        self.layout.shape()
-    }
-    
-    fn layout(&self) -> &Layout {
-        &self.layout
-    }
 }
 
 impl<T: CommonBounds> ShapeManipulator for Strided<T> {
@@ -368,13 +348,13 @@ impl<T> StridedHelper for Strided<T> {
     fn _set_last_strides(&mut self, stride: i64) {
         self.last_stride = stride;
     }
-    fn _layout(&self) -> &Layout {
-        &self.layout
-    }
     fn _set_strides(&mut self, strides: Strides) {
         self.layout.set_strides(strides);
     }
     fn _set_shape(&mut self, shape: Shape) {
         self.layout.set_shape(shape);
+    }
+    fn _layout(&self) -> &Layout {
+        &self.layout
     }
 }

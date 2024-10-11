@@ -124,23 +124,6 @@ impl Dtype {
 /// common trait for all data types
 ///
 /// This trait is used to define the common properties of all data types
-///
-/// # Example
-///
-/// ```
-/// use tensor_types::Dtype;
-/// use tensor_types::TypeCommon;
-///
-/// fn main() {
-///    let max = f32::MAX;  // get the maximum value of f32
-///    let min = f32::MIN;  // get the minimum value of f32
-///    let zero = f32::ZERO;  // get the zero value of f32
-///    let one = f32::ONE;  // get the one value of f32
-///    let inf = f32::INF;  // get the infinity value of f32
-///    let neg_inf = f32::NEG_INF;  // get the negative infinity value of f32
-///    let two = f32::TWO;  // get the two value of f32
-///    let str = f32::STR;  // get the string representation of f32
-/// }
 pub trait TypeCommon where Self: Sized {
     /// the data type id
     const ID: Dtype;

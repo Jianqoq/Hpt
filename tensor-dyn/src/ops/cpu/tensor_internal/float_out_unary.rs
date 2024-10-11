@@ -101,15 +101,6 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn erf(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
-        uary_fn_with_out_simd(
-            self,
-            |x| x._erf(),
-            |x| x._erf(),
-            None::<_Tensor<FloatUnaryType<T>>>
-        )
-    }
-
     fn tanh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         uary_fn_with_out_simd(
             self,
@@ -421,8 +412,8 @@ impl<T> FloatUaryOps
     fn celu(&self, alpha: FloatUnaryType<T>) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         uary_fn_with_out_simd(
             self,
-            |x| x._celu(alpha),
-            |x| x._celu(alpha),
+            move |x| x._celu(alpha),
+            move |x| x._celu(alpha),
             None::<_Tensor<FloatUnaryType<T>>>
         )
     }
@@ -483,6 +474,44 @@ impl<T> FloatUaryOps
             |x| x._elu(alpha),
             |x| x._elu(alpha),
             Some(out)
+        )
+    }
+
+    fn relu(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+        uary_fn_with_out_simd(
+            self,
+            |x| x._relu(),
+            |x| x._relu(),
+            None::<_Tensor<FloatUnaryType<T>>>
+        )
+    }
+
+    fn relu_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+        where U: Borrow<Self::InplaceOutput>
+    {
+        uary_fn_with_out_simd(
+            self,
+            |x| x._relu(),
+            |x| x._relu(),
+            Some(out)
+        )
+    }
+
+    fn erf(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+        uary_fn_with_out_simd(
+            self,
+            |x| x._erf(),
+            |x| x._erf(),
+            None::<_Tensor<FloatUnaryType<T>>>
+        )
+    }
+
+    fn fast_hard_sigmoid(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+        uary_fn_with_out_simd(
+            self,
+            |x| x._fast_hard_sigmoid(),
+            |x| x._fast_hard_sigmoid(),
+            None::<_Tensor<FloatUnaryType<T>>>
         )
     }
 
@@ -568,15 +597,6 @@ impl<T> FloatUaryOps
             self,
             |x| x._hard_sigmoid(),
             |x| x._hard_sigmoid(),
-            None::<_Tensor<FloatUnaryType<T>>>
-        )
-    }
-
-    fn fast_hard_sigmoid(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
-        uary_fn_with_out_simd(
-            self,
-            |x| x._fast_hard_sigmoid(),
-            |x| x._fast_hard_sigmoid(),
             None::<_Tensor<FloatUnaryType<T>>>
         )
     }
@@ -688,26 +708,6 @@ impl<T> FloatUaryOps
             self,
             |x| x._mish(),
             |x| x._mish(),
-            Some(out)
-        )
-    }
-
-    fn relu(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
-        uary_fn_with_out_simd(
-            self,
-            |x| x._relu(),
-            |x| x._relu(),
-            None::<_Tensor<FloatUnaryType<T>>>
-        )
-    }
-
-    fn relu_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: Borrow<Self::InplaceOutput>
-    {
-        uary_fn_with_out_simd(
-            self,
-            |x| x._relu(),
-            |x| x._relu(),
             Some(out)
         )
     }

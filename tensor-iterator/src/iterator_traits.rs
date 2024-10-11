@@ -480,20 +480,6 @@ pub trait StridedIteratorMap: Sized {
     /// # Returns
     ///
     /// A `StridedMap` instance that applies the provided function during iteration.
-    /// # Example
-    /// ```
-    /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::TensorIterator;
-    /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
-    /// let res = a
-    ///     .iter()
-    ///     .strided_map(|x| {
-    ///         println!("{}", x);
-    ///         x
-    ///     })
-    ///     .collect::<Tensor<f64>>();
-    /// println!("{:?}", res);
-    /// ```
     fn map<'a, T, F, U>(self, f: F) -> StridedMap<'a, Self, T, F>
     where
         F: Fn(T) -> U + Sync + Send + 'a,

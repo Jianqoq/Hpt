@@ -128,15 +128,15 @@ impl ErrHandler {
             index
         };
         if indedx < 0 || indedx >= (ndim as i64) {
-            if index < 0 {
-                return Err(ErrHandler::IndexOutOfRangeCvt(
+            return if index < 0 {
+                Err(ErrHandler::IndexOutOfRangeCvt(
                     ndim,
                     index,
                     indedx,
                     Location::caller(),
-                ));
+                ))
             } else {
-                return Err(ErrHandler::IndexOutOfRange(ndim, index, Location::caller()));
+                Err(ErrHandler::IndexOutOfRange(ndim, index, Location::caller()))
             }
         }
         Ok(())
@@ -151,19 +151,19 @@ impl ErrHandler {
             *index
         };
         if indedx < 0 || indedx >= (ndim as i64) {
-            if *index < 0 {
-                return Err(ErrHandler::IndexOutOfRangeCvt(
+            return if *index < 0 {
+                Err(ErrHandler::IndexOutOfRangeCvt(
                     ndim,
                     *index,
                     indedx,
                     Location::caller(),
-                ));
+                ))
             } else {
-                return Err(ErrHandler::IndexOutOfRange(
+                Err(ErrHandler::IndexOutOfRange(
                     ndim,
                     *index,
                     Location::caller(),
-                ));
+                ))
             }
         }
         *index = indedx;

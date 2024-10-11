@@ -16,58 +16,6 @@ use tensor_traits::{ CommonBounds, ShapeManipulate, TensorInfo, TensorLike };
 
 impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
     type Meta = T;
-    fn concat(tensors: Vec<&_Tensor<T>>, axis: usize, keepdims: bool) -> Result<Self>
-        where T: 'static
-    {
-        crate::ops::cpu::concat::concat(tensors, axis, keepdims)
-    }
-    fn dstack(mut tensors: Vec<&_Tensor<T>>) -> Result<_Tensor<T>> {
-        let mut new_tensors = Vec::with_capacity(tensors.len());
-        for tensor in tensors.iter_mut() {
-            if tensor.shape().len() < 3 {
-                if tensor.shape().len() == 1 {
-                    new_tensors.push(tensor.reshape(vec![1, tensor.shape()[0], 1])?);
-                } else if tensor.shape().len() == 0 {
-                    new_tensors.push(tensor.reshape(vec![1, 1, 1])?);
-                } else {
-                    new_tensors.push(
-                        tensor.reshape(vec![tensor.shape()[0], tensor.shape()[1], 1])?
-                    );
-                }
-            } else {
-                new_tensors.push(tensor.clone());
-            }
-        }
-        let mut tensors_ref = Vec::with_capacity(new_tensors.len());
-        for tensor in new_tensors.iter() {
-            tensors_ref.push(tensor);
-        }
-        crate::ops::cpu::concat::concat(tensors_ref, 2, false)
-    }
-    fn vstack(tensors: Vec<&_Tensor<T>>) -> Result<_Tensor<T>> {
-        crate::ops::cpu::concat::concat(tensors, 0, false)
-    }
-    fn hstack(mut tensors: Vec<&_Tensor<T>>) -> Result<_Tensor<T>> {
-        for tensor in tensors.iter_mut() {
-            if tensor.shape().len() < 2 {
-                return if tensor.shape().len() == 1 {
-                    crate::ops::cpu::concat::concat(tensors, 0, false)
-                } else {
-                    // scalar
-                    let mut tensors_ref = Vec::with_capacity(tensors.len());
-                    let mut tensors_holder = Vec::with_capacity(tensors.len());
-                    for tensor in tensors {
-                        tensors_holder.push(tensor.reshape(vec![1])?);
-                    }
-                    for tensor in tensors_holder.iter() {
-                        tensors_ref.push(tensor);
-                    }
-                    crate::ops::cpu::concat::concat(tensors_ref, 0, false)
-                };
-            }
-        }
-        crate::ops::cpu::concat::concat(tensors, 1, false)
-    }
     fn squeeze<A: Into<Axis>>(&self, axes: A) -> Result<_Tensor<T>> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
         for i in 0..axes.len() {
@@ -90,7 +38,6 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             .collect();
         self.reshape(new_shape)
     }
-
     fn unsqueeze<A: Into<Axis>>(&self, axes: A) -> Result<_Tensor<T>> {
         let mut res_shape: Vec<i64> = self.shape().to_vec();
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
@@ -147,6 +94,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             _backend: self._backend.clone(),
         })
     }
+
     fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
         let permuted_layout = self.layout.permute_inv(axes)?;
         Ok(_Tensor {
@@ -374,5 +322,57 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             }
         }
         self.reshape(new_shape)
+    }
+    fn concat(tensors: Vec<&_Tensor<T>>, axis: usize, keepdims: bool) -> Result<Self>
+        where T: 'static
+    {
+        crate::ops::cpu::concat::concat(tensors, axis, keepdims)
+    }
+    fn vstack(tensors: Vec<&_Tensor<T>>) -> Result<_Tensor<T>> {
+        crate::ops::cpu::concat::concat(tensors, 0, false)
+    }
+    fn hstack(mut tensors: Vec<&_Tensor<T>>) -> Result<_Tensor<T>> {
+        for tensor in tensors.iter_mut() {
+            if tensor.shape().len() < 2 {
+                return if tensor.shape().len() == 1 {
+                    crate::ops::cpu::concat::concat(tensors, 0, false)
+                } else {
+                    // scalar
+                    let mut tensors_ref = Vec::with_capacity(tensors.len());
+                    let mut tensors_holder = Vec::with_capacity(tensors.len());
+                    for tensor in tensors {
+                        tensors_holder.push(tensor.reshape(vec![1])?);
+                    }
+                    for tensor in tensors_holder.iter() {
+                        tensors_ref.push(tensor);
+                    }
+                    crate::ops::cpu::concat::concat(tensors_ref, 0, false)
+                };
+            }
+        }
+        crate::ops::cpu::concat::concat(tensors, 1, false)
+    }
+    fn dstack(mut tensors: Vec<&_Tensor<T>>) -> Result<_Tensor<T>> {
+        let mut new_tensors = Vec::with_capacity(tensors.len());
+        for tensor in tensors.iter_mut() {
+            if tensor.shape().len() < 3 {
+                if tensor.shape().len() == 1 {
+                    new_tensors.push(tensor.reshape(vec![1, tensor.shape()[0], 1])?);
+                } else if tensor.shape().len() == 0 {
+                    new_tensors.push(tensor.reshape(vec![1, 1, 1])?);
+                } else {
+                    new_tensors.push(
+                        tensor.reshape(vec![tensor.shape()[0], tensor.shape()[1], 1])?
+                    );
+                }
+            } else {
+                new_tensors.push(tensor.clone());
+            }
+        }
+        let mut tensors_ref = Vec::with_capacity(new_tensors.len());
+        for tensor in new_tensors.iter() {
+            tensors_ref.push(tensor);
+        }
+        crate::ops::cpu::concat::concat(tensors_ref, 2, false)
     }
 }
