@@ -128,6 +128,7 @@ where
             OH_BLOCK as usize,
             [kernel_height as usize, kernel_width as usize],
         );
+        // println!("{}, {}", params.0, params.1);
         let (ic_nvec, jb) = params;
         let full_oc_kernel =
             iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(&format!(

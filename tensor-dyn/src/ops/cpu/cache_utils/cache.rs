@@ -20,6 +20,8 @@ pub(crate) struct Cache<T: CommonBounds> {
 }
 
 impl<T: CommonBounds> Cache<T> {
+    #[allow(unused_mut)]
+    #[allow(unused_assignments)]
     pub(crate) fn new() -> Self {
         let mut l1 = 0;
         let mut l2 = 0;
