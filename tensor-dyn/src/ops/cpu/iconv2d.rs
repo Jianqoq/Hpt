@@ -422,10 +422,16 @@ fn kernel_params<T: CommonBounds>(
     let cache = Cache::<T>::new();
     let l1 = cache.l1;
     let l2 = cache.l2;
-    let mut best_params = (1, 1);
-    let mut best_balance = f64::MAX;
-    for ic in 1..in_channels as usize / T::Vec::SIZE {
-        for jb in 1..(out_channels as usize / (T::Vec::SIZE * oc_nvec)) {
+
+    let ic_range = 1..in_channels as usize / T::Vec::SIZE;
+    let jb_range = 1..(out_channels as usize / (T::Vec::SIZE * oc_nvec));
+
+    let best_params = ic_range
+        .into_par_iter()
+        .flat_map(|ic| {
+            jb_range.clone().into_par_iter().map(move |jb| (ic, jb))
+        })
+        .filter_map(|(ic, jb)| {
             let gemm_kernel_used = oc_nvec * T::Vec::SIZE * ic * T::Vec::SIZE;
             let gemm_inp_used = ow_block * ic * T::Vec::SIZE;
             let gemm_out_used = ow_block * oc_nvec * T::Vec::SIZE;
@@ -436,15 +442,24 @@ fn kernel_params<T: CommonBounds>(
             let jb_out_used = jb * gemm_out_used;
             let jb_inp_used = oh_block * k_inp_used;
             let total_used = jb_k_kernel_used + jb_out_used + jb_inp_used;
+
             if gemm_used <= l1 && total_used <= l2 {
                 let balance = (ic as f64 / jb as f64).max(jb as f64 / ic as f64);
-
-                if balance <= best_balance && (ic >= best_params.0 || jb >= best_params.1) {
-                    best_balance = balance;
-                    best_params = (ic, jb);
-                }
+                Some((ic, jb, balance))
+            } else {
+                None
             }
-        }
-    }
-    best_params
+        })
+        .reduce(
+            || (1, 1, f64::MAX),
+            |(best_ic, best_jb, best_balance), (ic, jb, balance)| {
+                if balance <= best_balance && (ic >= best_ic || jb >= best_jb) {
+                    (ic, jb, balance)
+                } else {
+                    (best_ic, best_jb, best_balance)
+                }
+            },
+        );
+
+    (best_params.0, best_params.1)
 }
