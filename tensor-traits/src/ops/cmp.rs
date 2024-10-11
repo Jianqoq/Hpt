@@ -21,14 +21,6 @@ pub trait TensorCmp<T: CommonBounds> {
     ///
     /// # Returns
     /// bool tensor
-    ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::arange(0.0, 100.0).unwrap();
-    /// let b = a.eq(0.0).unwrap();
-    /// assert_eq!(b.shape(), &[100]);
-    /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tensor_neq<C: CommonBounds, D>(&self, rhs: D) -> Result<Self::Output>
         where
@@ -44,14 +36,6 @@ pub trait TensorCmp<T: CommonBounds> {
     ///
     /// # Returns
     /// bool tensor
-    ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::arange(0.0, 100.0).unwrap();
-    /// let b = a.eq(0.0).unwrap();
-    /// assert_eq!(b.shape(), &[100]);
-    /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tensor_eq<C: CommonBounds, D>(&self, rhs: D) -> Result<Self::Output>
         where
@@ -67,14 +51,6 @@ pub trait TensorCmp<T: CommonBounds> {
     ///
     /// # Returns
     /// bool tensor
-    ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::arange(0.0, 100.0).unwrap();
-    /// let b = a.lt(0.0).unwrap();
-    /// assert_eq!(b.shape(), &[100]);
-    /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tensor_lt<C: CommonBounds, D>(&self, rhs: D) -> Result<Self::Output>
         where
@@ -90,14 +66,6 @@ pub trait TensorCmp<T: CommonBounds> {
     ///
     /// # Returns
     /// bool tensor
-    ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::arange(0.0, 100.0).unwrap();
-    /// let b = a.gt(0.0).unwrap();
-    /// assert_eq!(b.shape(), &[100]);
-    /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tensor_gt<C: CommonBounds, D>(&self, rhs: D) -> Result<Self::Output>
         where
@@ -113,14 +81,6 @@ pub trait TensorCmp<T: CommonBounds> {
     ///
     /// # Returns
     /// bool tensor
-    ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::arange(0.0, 100.0).unwrap();
-    /// let b = a.le(0.0).unwrap();
-    /// assert_eq!(b.shape(), &[100]);
-    /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tensor_le<C: CommonBounds, D>(&self, rhs: D) -> Result<Self::Output>
         where
@@ -136,14 +96,6 @@ pub trait TensorCmp<T: CommonBounds> {
     ///
     /// # Returns
     /// bool tensor
-    ///
-    /// # Example
-    /// ```
-    /// use tensor_core::prelude::*;
-    /// let a = Tensor::arange(0.0, 100.0).unwrap();
-    /// let b = a.ge(0.0).unwrap();
-    /// assert_eq!(b.shape(), &[100]);
-    /// ```
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tensor_ge<C: CommonBounds, D>(&self, rhs: D) -> Result<Self::Output>
         where

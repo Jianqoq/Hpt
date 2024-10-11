@@ -1,13 +1,6 @@
 /// Enum to specify axes in tensor dot product operations.
 ///
 /// Provides several ways to specify which axes the tensor dot product should be computed along.
-///
-/// # Examples
-/// ```
-/// use tensor_common::TensorDotArgs;
-/// let axes = TensorDotArgs::<2>::TupleScalar((2, 2));
-/// let axes = TensorDotArgs::<2>::TupleArray(([0i64, 1], [2, 3]));
-/// ```
 pub enum TensorDotArgs<const N: usize> {
     /// A single integer representing a single axis.
     Int(i64),

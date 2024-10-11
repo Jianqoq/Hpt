@@ -167,6 +167,10 @@ pub mod par_strided_simd {
             self.layout.shape()
         }
 
+        fn layout(&self) -> &Layout {
+            &self.layout
+        }
+
         fn broadcast_set_strides(&mut self, shape: &Shape) {
             let self_shape = try_pad_shape(self.shape(), shape.len());
             self.set_strides(preprocess_strides(&self_shape, self.strides()).into());
@@ -214,10 +218,6 @@ pub mod par_strided_simd {
         fn lanes(&self) -> Option<usize> {
             use tensor_types::vectors::traits::VecCommon;
             Some(T::Vec::SIZE)
-        }
-
-        fn layout(&self) -> &Layout {
-            &self.layout
         }
     }
 
@@ -501,10 +501,30 @@ impl<T: CommonBounds> IterGetSet for ParStrided<T> {
         &self.intervals
     }
 
+    fn strides(&self) -> &Strides {
+        self.layout.strides()
+    }
+
+    fn shape(&self) -> &Shape {
+        self.layout.shape()
+    }
+
+    fn layout(&self) -> &Layout {
+        &self.layout
+    }
+
     fn broadcast_set_strides(&mut self, shape: &Shape) {
         let self_shape = try_pad_shape(self.shape(), shape.len());
         self.set_strides(preprocess_strides(&self_shape, self.strides()).into());
         self.last_stride = self.strides()[self.strides().len() - 1];
+    }
+
+    fn outer_loop_size(&self) -> usize {
+        self.intervals[self.start_index].1 - self.intervals[self.start_index].0
+    }
+
+    fn inner_loop_size(&self) -> usize {
+        self.shape().last().unwrap().clone() as usize
     }
 
     fn next(&mut self) {
@@ -523,26 +543,6 @@ impl<T: CommonBounds> IterGetSet for ParStrided<T> {
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         unsafe { *self.ptr.get_ptr().add(index * (self.last_stride as usize)) }
-    }
-
-    fn strides(&self) -> &Strides {
-        self.layout.strides()
-    }
-
-    fn shape(&self) -> &Shape {
-        self.layout.shape()
-    }
-
-    fn outer_loop_size(&self) -> usize {
-        self.intervals[self.start_index].1 - self.intervals[self.start_index].0
-    }
-
-    fn inner_loop_size(&self) -> usize {
-        self.shape().last().unwrap().clone() as usize
-    }
-
-    fn layout(&self) -> &Layout {
-        &self.layout
     }
 }
 
@@ -623,10 +623,6 @@ where
 }
 
 impl<T> ParStridedHelper for ParStrided<T> {
-    fn _layout(&self) -> &Layout {
-        &self.layout
-    }
-
     fn _set_last_strides(&mut self, last_stride: i64) {
         self.last_stride = last_stride;
     }
@@ -637,6 +633,10 @@ impl<T> ParStridedHelper for ParStrided<T> {
 
     fn _set_shape(&mut self, shape: Shape) {
         self.layout.set_shape(shape);
+    }
+
+    fn _layout(&self) -> &Layout {
+        &self.layout
     }
 
     fn _set_intervals(&mut self, intervals: Arc<Vec<(usize, usize)>>) {

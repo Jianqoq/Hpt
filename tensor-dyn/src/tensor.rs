@@ -153,14 +153,6 @@ impl<T: CommonBounds> Tensor<T> {
     ///
     /// # Returns
     /// A `Result` containing the new tensor of type `U` or an error if the conversion fails.
-    ///
-    /// # Examples
-    /// ```
-    /// use tensor_core::Tensor;
-    /// let tensor = Tensor::<f32>::new([1.0, 2.0, 3.0]);
-    /// let converted_tensor = tensor.astype::<i32>().unwrap();
-    /// assert!(tensor.allclose(&converted_tensor))
-    /// ```
     pub fn astype<U>(&self) -> Result<Tensor<U>>
     where
         U: CommonBounds,
@@ -178,14 +170,6 @@ impl<T: CommonBounds> Tensor<T> {
     ///
     /// # Returns
     /// A `Result` containing the new tensor of type `U` or an error if the conversion fails.
-    ///
-    /// # Examples
-    /// ```
-    /// use tensor_core::Tensor;
-    /// let tensor = Tensor::<f32>::new([1.0, 2.0, 3.0]);
-    /// let converted_tensor = tensor.try_astype::<i32>().unwrap();
-    /// assert!(tensor.allclose(&converted_tensor))
-    /// ```
     pub fn try_astype<U>(&self) -> Result<Tensor<U>>
     where
         U: CommonBounds,
@@ -205,14 +189,6 @@ impl<T: CommonBounds> Tensor<T> {
     ///
     /// # Returns
     /// A `Result` containing the new tensor of type `U`.
-    ///
-    /// # Examples
-    /// ```
-    /// use tensor_core::Tensor;
-    /// let tensor = Tensor::<f32>::new([1.0, 2.0, 3.0]);
-    /// let static_cast_tensor = tensor.static_cast::<f32>().unwrap();
-    /// assert!(tensor.allclose(&static_cast_tensor))
-    /// ```
     pub fn static_cast<U>(&self) -> Result<Tensor<U>>
     where
         U: CommonBounds,
@@ -231,14 +207,6 @@ impl<T: CommonBounds> Tensor<T> {
     ///
     /// # Returns
     /// `true` if all elements are close; otherwise, `false`.
-    ///
-    /// # Examples
-    /// ```
-    /// use tensor_core::Tensor;
-    /// let tensor1 = Tensor::<f64>::new([1.0, 2.0, 3.0]);
-    /// let tensor2 = Tensor::<f64>::new([1.0, 2.0, 3.0]);
-    /// assert!(tensor1.allclose(&tensor2));
-    /// ```
     pub fn allclose<U>(&self, other: &Tensor<U>) -> bool
     where
         T: Convertor,

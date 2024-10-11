@@ -115,6 +115,10 @@ pub mod strided_map_mut_simd {
             self.base.shape()
         }
 
+        fn layout(&self) -> &tensor_common::layout::Layout {
+            self.base.layout()
+        }
+
         fn broadcast_set_strides(&mut self, shape: &Shape) {
             self.base.broadcast_set_strides(shape);
         }
@@ -149,10 +153,6 @@ pub mod strided_map_mut_simd {
 
         fn lanes(&self) -> Option<usize> {
             todo!()
-        }
-        
-        fn layout(&self) -> &tensor_common::layout::Layout {
-            self.base.layout()
         }
     }
 }
@@ -251,6 +251,10 @@ where
         self.base.shape()
     }
 
+    fn layout(&self) -> &tensor_common::layout::Layout {
+        self.base.layout()
+    }
+
     fn broadcast_set_strides(&mut self, shape: &Shape) {
         self.base.broadcast_set_strides(shape);
     }
@@ -269,9 +273,5 @@ where
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         self.base.inner_loop_next(index)
-    }
-    
-    fn layout(&self) -> &tensor_common::layout::Layout {
-        self.base.layout()
     }
 }

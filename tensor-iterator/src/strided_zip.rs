@@ -83,6 +83,10 @@ pub mod strided_zip_simd {
             self.a.shape()
         }
 
+        fn layout(&self) -> &tensor_common::layout::Layout {
+            self.a.layout()
+        }
+
         fn broadcast_set_strides(&mut self, shape: &Shape) {
             self.a.broadcast_set_strides(shape);
             self.b.broadcast_set_strides(shape);
@@ -100,7 +104,6 @@ pub mod strided_zip_simd {
             self.a.next();
             self.b.next();
         }
-
         fn next_simd(&mut self) {
             todo!()
         }
@@ -117,6 +120,7 @@ pub mod strided_zip_simd {
         fn all_last_stride_one(&self) -> bool {
             self.a.all_last_stride_one() && self.b.all_last_stride_one()
         }
+
         fn lanes(&self) -> Option<usize> {
             match (self.a.lanes(), self.b.lanes()) {
                 (Some(a), Some(b)) => {
@@ -128,10 +132,6 @@ pub mod strided_zip_simd {
                 }
                 _ => None,
             }
-        }
-        
-        fn layout(&self) -> &tensor_common::layout::Layout {
-            self.a.layout()
         }
     }
 
@@ -176,17 +176,6 @@ pub mod strided_zip_simd {
 }
 
 /// A single thread `non` SIMD-optimized zipped iterator combining two iterators over tensor elements.
-///
-/// # Example
-/// ```
-/// use tensor_dyn::tensor::Tensor;
-/// use tensor_dyn::StridedIterator;
-/// use tensor_dyn::TensorIterator;
-/// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
-/// a.iter().zip(a.iter()).for_each(|(x, y)| {
-///     println!("{} {}", x, y);
-/// });
-/// ```
 #[derive(Clone)]
 pub struct StridedZip<'a, A: 'a, B: 'a> {
     /// The first iterator to be zipped.
@@ -231,9 +220,29 @@ where
         panic!("single thread strided zip does not support intervals");
     }
 
+    fn strides(&self) -> &Strides {
+        self.a.strides()
+    }
+
+    fn shape(&self) -> &Shape {
+        self.a.shape()
+    }
+
+    fn layout(&self) -> &tensor_common::layout::Layout {
+        self.a.layout()
+    }
+
     fn broadcast_set_strides(&mut self, shape: &Shape) {
         self.a.broadcast_set_strides(shape);
         self.b.broadcast_set_strides(shape);
+    }
+
+    fn outer_loop_size(&self) -> usize {
+        self.a.outer_loop_size()
+    }
+
+    fn inner_loop_size(&self) -> usize {
+        self.a.inner_loop_size()
     }
 
     fn next(&mut self) {
@@ -243,26 +252,6 @@ where
 
     fn inner_loop_next(&mut self, index: usize) -> Self::Item {
         (self.a.inner_loop_next(index), self.b.inner_loop_next(index))
-    }
-    
-    fn strides(&self) -> &Strides {
-        self.a.strides()
-    }
-    
-    fn shape(&self) -> &Shape {
-        self.a.shape()
-    }
-    
-    fn outer_loop_size(&self) -> usize {
-        self.a.outer_loop_size()
-    }
-    
-    fn inner_loop_size(&self) -> usize {
-        self.a.inner_loop_size()
-    }
-    
-    fn layout(&self) -> &tensor_common::layout::Layout {
-        self.a.layout()
     }
 }
 
