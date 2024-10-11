@@ -128,9 +128,7 @@ where
             OH_BLOCK as usize,
             [kernel_height as usize, kernel_width as usize],
         );
-        // println!("{}, {}", params.0, params.1);
         let (ic_nvec, jb) = params;
-        println!("{}, {}", ic_nvec, jb);
         let full_oc_kernel =
             iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(&format!(
                 "unable to find iconv2d_microkernel_{}x{}",
@@ -430,9 +428,7 @@ fn kernel_params<T: CommonBounds>(
 
     let best_params = ic_range
         .into_par_iter()
-        .flat_map(|ic| {
-            jb_range.clone().into_par_iter().map(move |jb| (ic, jb))
-        })
+        .flat_map(|ic| jb_range.clone().into_par_iter().map(move |jb| (ic, jb)))
         .filter_map(|(ic, jb)| {
             let gemm_kernel_used = oc_nvec * T::Vec::SIZE * ic * T::Vec::SIZE;
             let gemm_inp_used = ow_block * ic * T::Vec::SIZE;
