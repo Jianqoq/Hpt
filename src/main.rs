@@ -87,7 +87,7 @@ fn conv2d() -> Result<(), anyhow::Error> {
                             // let a = Tensor::randn(1.0, 1.0, &[1, ic, h, w], &device)?;
                             // let kernel = Tensor::randn(1.0, 1.0, &[oc, ic, kh, kw], &device)?;
                             let now = std::time::Instant::now();
-                            let _ = a.iconv2d(&kernel, [1, 1], [(0, 0), (0, 0)], [1, 1])?;
+                            let _ = a.conv2d(&kernel, [1, 1], [(0, 0), (0, 0)], [1, 1])?;
                             worksheet.write_number(
                                 row,
                                 0,

@@ -49,7 +49,7 @@ fn assert_eq(
     block_size: [i64; 2],
 ) -> anyhow::Result<()> {
     let res = a
-        .iconv2d(&a_kernel, [1, 1], [(0, 0), (0, 0)], [1, 1])?
+        .conv2d(&a_kernel, [1, 1], [(0, 0), (0, 0)], [1, 1])?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let res2 = b.conv2d(&b_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);

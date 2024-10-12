@@ -664,7 +664,11 @@ pub fn gen_reduce_dim_not_include_simd_helper(input: TokenStream) -> TokenStream
     __gen_reduce_dim_not_include_simd_helper(input)
 }
 
-/// generate conv2d helper
+/// declare const values
+/// 
+/// const OW_BLOCK: usize = ?;
+/// 
+/// const OC_BLOCK: usize = ?;
 #[proc_macro]
 pub fn conv2d_microkernel_declare_const(input: TokenStream) -> TokenStream {
     conv2d::conv2d_microkernel_declare_const(input)

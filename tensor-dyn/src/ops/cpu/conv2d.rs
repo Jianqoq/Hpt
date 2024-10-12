@@ -1,11 +1,13 @@
-use super::conv_config::Conv2dConfig;
-use crate::ops::cpu::conv_config::KernelParamAlgo;
-use crate::ops::cpu::kernels::conv_kernels::*;
+use super::cache_utils::cache::Cache;
+use crate::ops::cpu::kernels::conv_kernels::iconv2d_full_oc_kernel_dispatch;
+use crate::ops::cpu::kernels::conv_kernels::iconv2d_remain_oc_kernel_dispatch;
+use crate::ops::cpu::kernels::conv_kernels::ConvKernel;
+use crate::ops::cpu::kernels::conv_kernels::ConvPartialKernel;
 use crate::tensor_base::_Tensor;
-use crate::CONV_REGNUM;
+use crate::REGNUM;
+use crate::SIMD_WIDTH;
 use rayon::prelude::*;
 use tensor_common::err_handler::ErrHandler;
-use tensor_common::err_handler::ErrHandler::InvalidCacheParam;
 use tensor_common::err_handler::ErrHandler::InvalidInputShape;
 use tensor_common::pointer::Pointer;
 use tensor_traits::CommonBounds;
@@ -14,368 +16,6 @@ use tensor_traits::TensorInfo;
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
-
-fn case1_helper<T, const REGNUM: usize>(
-    [kh, kw, ci_b_remain]: [i64; 3],
-    [ip, b, l, c]: [i64; 4],
-    [isb, ish, isw]: [i64; 3],
-    [osb, osh, osw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
-    [step_width, step_height]: [i64; 2],
-    [dh, dw]: [i64; 2],
-    [ci_b, co_b]: [i64; 2],
-    [num_wo_b, num_co_rb]: [i64; 2],
-    [inp_cpy, kernel_cpy]: [&Pointer<T>; 2],
-    mut out: Pointer<T>,
-    micro_kernel: fn(
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        &Pointer<T>,
-        &mut [T::Vec; REGNUM],
-        &Pointer<T>
-    )
-)
-    where T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>
-{
-    if ip == 0 {
-        for j in 0..num_co_rb {
-            let mut res_buffer = [T::Vec::splat(T::ZERO); REGNUM];
-            for n in 0..kh {
-                for m in 0..kw {
-                    for ii in 0..ci_b_remain {
-                        let i = ip * ci_b + ii;
-                        micro_kernel(
-                            j,
-                            num_wo_b,
-                            i,
-                            b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                            c * co_b,
-                            n * ks0 + m * ks1 + i * ks2,
-                            step_width,
-                            isw,
-                            &inp_cpy,
-                            &mut res_buffer,
-                            &kernel_cpy
-                        );
-                    }
-                }
-            }
-            for h in 0..REGNUM as i64 {
-                let out_vec = &mut out[c * co_b
-                    + b * osb
-                    + l * osh
-                    + (num_wo_b * (CONV_REGNUM as i64) + h) * osw
-                    + j * (T::Vec::SIZE as i64)] as *mut _
-                    as *mut T::Vec; // prettier-ignore
-                unsafe {
-                    out_vec.write_unaligned(res_buffer[h as usize]);
-                }
-            }
-        }
-    } else {
-        let mut res_buffer = [T::Vec::splat(T::ZERO); REGNUM];
-        for j in 0..num_co_rb {
-            for h in 0..REGNUM as i64 {
-                let out_vec = &mut out[c * co_b
-                    + b * osb
-                    + l * osh
-                    + (num_wo_b * (CONV_REGNUM as i64) + h) * osw
-                    + j * (T::Vec::SIZE as i64)] as *mut _
-                    as *mut T::Vec; // prettier-ignore
-                res_buffer[h as usize] = unsafe { out_vec.read_unaligned() };
-            }
-            for n in 0..kh {
-                for m in 0..kw {
-                    for ii in 0..ci_b_remain {
-                        let i = ip * ci_b + ii;
-                        micro_kernel(
-                            j,
-                            num_wo_b,
-                            i,
-                            b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                            c * co_b,
-                            n * ks0 + m * ks1 + i * ks2,
-                            step_width,
-                            isw,
-                            &inp_cpy,
-                            &mut res_buffer,
-                            &kernel_cpy
-                        );
-                    }
-                }
-            }
-            for h in 0..REGNUM as i64 {
-                let out_vec = &mut out[c * co_b
-                    + b * osb
-                    + l * osh
-                    + (num_wo_b * (CONV_REGNUM as i64) + h) * osw
-                    + j * (T::Vec::SIZE as i64)] as *mut _
-                    as *mut T::Vec; // prettier-ignore
-                unsafe {
-                    out_vec.write_unaligned(res_buffer[h as usize]);
-                }
-            }
-        }
-    }
-}
-
-fn case1_remain1_helper<T, const REGNUM: usize>(
-    [kh, kw, ci_b_remain]: [i64; 3],
-    [ip, b, l, c]: [i64; 4],
-    [isb, ish, isw]: [i64; 3],
-    [osb, osh, osw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
-    [step_width, step_height]: [i64; 2],
-    [dh, dw]: [i64; 2],
-    [ci_b, co_b]: [i64; 2],
-    num_wo_b: i64,
-    [inp_cpy, kernel_cpy]: [&Pointer<T>; 2],
-    mut out: Pointer<T>,
-    micro_kernel: fn(i64, i64, i64, i64, i64, i64, i64, &Pointer<T>, &mut [T; REGNUM], &Pointer<T>)
-)
-    where T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>
-{
-    if ip == 0 {
-        let mut res_buffer = [T::ZERO; REGNUM];
-        for n in 0..kh {
-            for m in 0..kw {
-                for ii in 0..ci_b_remain {
-                    let i = ip * ci_b + ii;
-                    micro_kernel(
-                        num_wo_b,
-                        i,
-                        b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                        c * co_b,
-                        n * ks0 + m * ks1 + i * ks2,
-                        step_width,
-                        isw,
-                        &inp_cpy,
-                        &mut res_buffer,
-                        &kernel_cpy
-                    );
-                }
-            }
-        }
-        for h in 0..REGNUM as i64 {
-            let out_vec =
-                &mut out
-                    [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw];
-            *out_vec = res_buffer[h as usize];
-        }
-    } else {
-        let mut res_buffer = [T::ZERO; REGNUM];
-        for h in 0..REGNUM as i64 {
-            let out_vec =
-                &mut out
-                    [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw];
-            res_buffer[h as usize] = *out_vec;
-        }
-        for n in 0..kh {
-            for m in 0..kw {
-                for ii in 0..ci_b_remain {
-                    let i = ip * ci_b + ii;
-                    micro_kernel(
-                        num_wo_b,
-                        i,
-                        b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                        c * co_b,
-                        n * ks0 + m * ks1 + i * ks2,
-                        step_width,
-                        isw,
-                        &inp_cpy,
-                        &mut res_buffer,
-                        &kernel_cpy
-                    );
-                }
-            }
-        }
-        for h in 0..REGNUM as i64 {
-            let out_vec =
-                &mut out
-                    [c * co_b + b * osb + l * osh + (num_wo_b * (CONV_REGNUM as i64) + h) * osw];
-            *out_vec = res_buffer[h as usize];
-        }
-    }
-}
-
-fn case3_helper<T, const REGNUM: usize>(
-    [kh, kw, ci_b_remain]: [i64; 3],
-    [ip, b, l, c]: [i64; 4],
-    [isb, ish, isw]: [i64; 3],
-    [osb, osh, osw]: [i64; 3],
-    [ks0, ks1, ks2]: [i64; 3],
-    [step_width, step_height]: [i64; 2],
-    [dh, dw]: [i64; 2],
-    [ci_b, co_b]: [i64; 2],
-    num_wo_b: i64,
-    co_b_remain: i64,
-    wo_b_remain: i64,
-    [inp, kernel]: [&Pointer<T>; 2],
-    pack_kernel: fn(i64, i64, i64, &Pointer<T>, &mut Vec<T::Vec>),
-    load_fn: fn(i64, i64, i64, i64, &mut Vec<Vec<T::Vec>>, &mut Pointer<T>),
-    store_fn: fn(i64, i64, i64, i64, &mut Vec<Vec<T::Vec>>, &mut Pointer<T>),
-    fast_micro_kernel: fn(
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        &Pointer<T>,
-        &mut [T::Vec],
-        &Pointer<T>
-    ),
-    micro_kernel: fn(i64, i64, i64, i64, i64, i64, &Pointer<T>, &mut Vec<Vec<T::Vec>>, &[T::Vec]),
-    mut out: &mut Pointer<T>
-)
-    where T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>
-{
-    let num_vec_size = co_b_remain / (T::Vec::SIZE as i64);
-    let remain = co_b_remain % (T::Vec::SIZE as i64);
-    if remain == 0 {
-        if ip == 0 {
-            for j in 0..num_vec_size {
-                let mut res_buffer = [T::Vec::splat(T::ZERO); REGNUM];
-                for n in 0..kh {
-                    for m in 0..kw {
-                        for ii in 0..ci_b_remain {
-                            let i = ip * ci_b + ii;
-                            fast_micro_kernel(
-                                j,
-                                num_wo_b,
-                                i,
-                                b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                                c * co_b,
-                                b * osb + l * osh + num_wo_b * CONV_REGNUM as i64 * osw, // prettier-ignore
-                                n * ks0 + m * ks1 + i * ks2,
-                                step_width,
-                                isw,
-                                osw,
-                                &inp,
-                                &mut res_buffer,
-                                &kernel
-                            );
-                        }
-                    }
-                }
-                for h in 0..REGNUM as i64 {
-                    let out_vec = &mut out[c * co_b
-                        + b * osb
-                        + l * osh
-                        + (num_wo_b * (CONV_REGNUM as i64) + h) * osw
-                        + j * T::Vec::SIZE as i64] as *mut _
-                        as *mut T::Vec; // prettier-ignore
-                    unsafe {
-                        *out_vec = res_buffer[h as usize];
-                    }
-                }
-            }
-        } else {
-            let mut res_buffer = [T::Vec::splat(T::ZERO); REGNUM];
-            for j in 0..num_vec_size {
-                for h in 0..REGNUM as i64 {
-                    let out_vec = &mut out[c * co_b
-                        + b * osb
-                        + l * osh
-                        + (num_wo_b * (CONV_REGNUM as i64) + h) * osw
-                        + j * T::Vec::SIZE as i64] as *mut _
-                        as *mut T::Vec; // prettier-ignore
-                    res_buffer[h as usize] = unsafe { out_vec.read_unaligned() };
-                }
-                for n in 0..kh {
-                    for m in 0..kw {
-                        for ii in 0..ci_b_remain {
-                            let i = ip * ci_b + ii;
-                            fast_micro_kernel(
-                                j,
-                                num_wo_b,
-                                i,
-                                b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                                c * co_b,
-                                b * osb + l * osh + num_wo_b * CONV_REGNUM as i64 * osw, // prettier-ignore
-                                n * ks0 + m * ks1 + i * ks2,
-                                step_width,
-                                isw,
-                                osw,
-                                &inp,
-                                &mut res_buffer,
-                                &kernel
-                            );
-                        }
-                    }
-                }
-                for h in 0..REGNUM as i64 {
-                    let out_vec = &mut out[c * co_b
-                        + b * osb
-                        + l * osh
-                        + (num_wo_b * (CONV_REGNUM as i64) + h) * osw
-                        + j * T::Vec::SIZE as i64] as *mut _
-                        as *mut T::Vec; // prettier-ignore
-                    unsafe {
-                        *out_vec = res_buffer[h as usize];
-                    }
-                }
-            }
-        }
-    } else {
-        let mut kernel_buffer = vec![T::Vec::splat(T::ZERO); num_vec_size as usize + 1];
-        let mut remain_buffer =
-            vec![vec![T::Vec::splat(T::ZERO); wo_b_remain as usize]; num_vec_size as usize + 1];
-        if ip > 0 {
-            load_fn(
-                num_vec_size,
-                remain,
-                osw,
-                c * co_b + b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
-                &mut remain_buffer,
-                &mut out
-            );
-        }
-        for n in 0..kh {
-            for m in 0..kw {
-                for ii in 0..ci_b_remain {
-                    let i = ip * ci_b + ii;
-                    pack_kernel(
-                        num_vec_size,
-                        remain,
-                        c * co_b + n * ks0 + m * ks1 + i * ks2,
-                        &kernel,
-                        &mut kernel_buffer
-                    );
-                    micro_kernel(
-                        num_vec_size,
-                        num_wo_b,
-                        i,
-                        b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                        step_width,
-                        isw,
-                        &inp,
-                        &mut remain_buffer,
-                        &kernel_buffer
-                    );
-                }
-            }
-        }
-        store_fn(
-            num_vec_size,
-            remain,
-            osw,
-            c * co_b + b * osb + l * osh + num_wo_b * (CONV_REGNUM as i64) * osw,
-            &mut remain_buffer,
-            &mut out
-        );
-    }
-}
 
 impl<T> _Tensor<T>
     where
@@ -397,23 +37,19 @@ impl<T> _Tensor<T>
     ///   Each tuple specifies the amount of padding added before and after the data along the respective axis.
     /// * `dilation` - A 2-element array specifying the dilation factor for the convolution along the height and width dimensions.
     ///   Dilation allows the kernel to be applied to inputs with gaps, increasing the receptive field of the kernel.
-    /// * `config` - An optional reference to a `Conv2dConfig` structure that holds additional configuration parameters for optimization.
-    ///   If not provided, a default configuration is used.
     ///
     /// # Returns
     ///
     /// This function returns a `Result` containing the output tensor after applying the 2D convolution operation.
     #[cfg_attr(feature = "track_caller", track_caller)]
+    #[inline(never)]
     pub fn conv2d(
         &self,
         kernels: &_Tensor<T>,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
-        dilation: [i64; 2],
-        config: Option<&Conv2dConfig<T>>
+        dilation: [i64; 2]
     ) -> anyhow::Result<_Tensor<T>> {
-        use crate::CONV_REGNUM;
-
         let img_shape = self.shape();
         if img_shape.len() != 4 {
             return Err(
@@ -468,7 +104,6 @@ impl<T> _Tensor<T>
         let output = _Tensor::<T>::empty([batch, out_height, out_width, out_channels])?;
         let out = output.ptr();
         let inp = img.ptr();
-        let kernel = kernels.ptr();
 
         let osb = output.strides()[0]; // batch
         let osh = output.strides()[1]; // height
@@ -482,1341 +117,458 @@ impl<T> _Tensor<T>
         let ks1 = kernels.strides()[1]; // kernel_width
         let ks2 = kernels.strides()[2]; // in_channels
 
-        let (ci_b, co_b) = match config {
-            Some(config) => (config.ci_block_size, config.co_block_size),
-            None => {
-                let config = {
-                    Conv2dConfig::<T>::new(
-                        out_channels,
-                        in_channels,
-                        [kernel_height, kernel_width],
-                        KernelParamAlgo::Greedy
-                    )
-                };
-                (config.ci_block_size, config.co_block_size)
-            }
-        };
-        let num_co_b = out_channels / co_b;
-        let num_wo_b = out_width / (CONV_REGNUM as i64);
-        let num_ci_b = in_channels / ci_b;
+        const OH_BLOCK: i64 = 3;
 
-        let co_b_remain = out_channels % co_b;
-        let wo_b_remain = out_width % (CONV_REGNUM as i64);
-        let ci_b_remain = in_channels % ci_b;
-        let num_co_rb = co_b / (T::Vec::SIZE as i64);
-        if !(co_b % (T::Vec::SIZE as i64) == 0 || co_b == 1) || co_b > out_channels {
-            return Err(
-                InvalidCacheParam(
-                    "co_b",
-                    out_channels,
-                    T::Vec::SIZE as i64,
-                    co_b,
-                    core::panic::Location::caller()
-                ).into()
-            );
+        let mut oc_nvec =
+            cache_size::l1_cache_line_size().unwrap_or(crate::CACHE_LINE_SIZE) /
+            core::mem::size_of::<T>() /
+            T::Vec::SIZE;
+        let mut ow_block = predict_ow_block(oc_nvec);
+
+        let params = kernel_params::<T>(
+            out_channels as usize,
+            in_channels as usize,
+            ow_block,
+            oc_nvec,
+            OH_BLOCK as usize,
+            [kernel_height as usize, kernel_width as usize]
+        );
+        let (ic_nvec, jb) = params;
+        let full_oc_kernel = iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(
+            &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec)
+        );
+        // println!("reg_used: {}", full_oc_kernel.register_used());
+        let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
+        let full_oc_kernel_ow_remain = iconv2d_full_oc_kernel_dispatch::<T>(
+            &mut oc_nvec,
+            &mut ((out_width as usize) % ow_block)
+        );
+        if full_oc_kernel_ow_remain.is_none() {
+            assert_eq!((out_width as usize) % ow_block, 0);
         }
-        let num_vec_size = co_b_remain / (T::Vec::SIZE as i64);
-        let outer = batch * num_co_b * out_height;
+        let partial_oc_kernel = iconv2d_remain_oc_kernel_dispatch::<T>(&mut ow_block);
+        if let Some(partial_oc_kernel) = partial_oc_kernel {
+            assert_eq!(ow_block, partial_oc_kernel.ow_block);
+        }
+        let partial_oc_kernel_ow_remain = iconv2d_remain_oc_kernel_dispatch::<T>(
+            &mut ((out_width as usize) % ow_block)
+        );
+        if partial_oc_kernel_ow_remain.is_none() {
+            assert_eq!((out_width as usize) % ow_block, 0);
+        }
+        let full_oc_kernel_fn_1_oc = iconv2d_full_oc_kernel_dispatch::<T>(&mut 1, &mut ow_block);
+        let full_oc_kernel_fn_1_oc_ow_remain = iconv2d_full_oc_kernel_dispatch::<T>(
+            &mut 1,
+            &mut ((out_width as usize) % ow_block)
+        );
+        let num_oh = (out_height + OH_BLOCK - 1) / OH_BLOCK;
+        let outer = batch * num_oh;
+        let out_width_full_end = out_width - (out_width % (ow_block as i64));
 
-        let inp_cpy = inp.clone();
-        let kernel_cpy = kernel.clone();
+        let ro_kernel = kernels.empty_like()?;
+        let ro_ptr = ro_kernel.ptr();
+        reorder_kernel(
+            &kernels.ptr(),
+            ro_ptr.clone(),
+            jb,
+            [in_channels as usize, ic_nvec],
+            [out_channels as usize, oc_nvec],
+            [ks0 as usize, ks1 as usize, ks2 as usize],
+            [kernel_height as usize, kernel_width as usize]
+        );
 
-        let case0_init = move |
-            b: i64,
-            l: i64,
-            c: i64,
-            ip: i64,
-            ci_b_remain: i64,
-            inner_size: i64,
-            micro_kernel_fn: fn(
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                &Pointer<T>,
-                &mut [T::Vec; CONV_REGNUM],
-                &Pointer<T>
-            ),
-            mut out: Pointer<T>
-        | {
-            for kp in 0..num_wo_b {
-                for j in 0..inner_size {
-                    let mut res_buffer = [T::Vec::splat(T::ZERO); CONV_REGNUM];
-                    for n in 0..kernel_height {
-                        for m in 0..kernel_width {
-                            for ii in 0..ci_b_remain {
-                                let i = ip * ci_b + ii;
-                                micro_kernel_fn(
-                                    j,
-                                    kp,
-                                    i,
-                                    b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                                    c * co_b,
-                                    n * ks0 + m * ks1 + i * ks2,
-                                    step_width,
-                                    isw,
-                                    &inp_cpy,
-                                    &mut res_buffer,
-                                    &kernel_cpy
-                                );
-                            }
-                        }
-                    }
-                    for h in 0..CONV_REGNUM as i64 {
-                        unsafe {
-                            let out_vec = &mut out[c * co_b
-                                + b * osb
-                                + l * osh
-                                + (kp * (CONV_REGNUM as i64) + h) * osw
-                                + j * (T::Vec::SIZE as i64)]
-                                as *mut _ as *mut T::Vec; // prettier-ignore
-                            out_vec.write_unaligned(res_buffer[h as usize]);
-                        }
-                    }
-                }
-            }
-        };
+        let ic_block_size = ic_nvec * T::Vec::SIZE; // in channel block size
+        let oc_block_size = oc_nvec * T::Vec::SIZE; // out channel block size, but this is only caculated based on cache line size, we have another block size `jb`
 
-        let inp_cpy = inp.clone();
-        let kernel_cpy = kernel.clone();
-        let case0_no_init = move |
-            b: i64,
-            l: i64,
-            c: i64,
-            ip: i64,
-            ci_b_remain: i64,
-            inner_size: i64,
-            micro_kernel_fn: fn(
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                &Pointer<T>,
-                &mut [T::Vec; CONV_REGNUM],
-                &Pointer<T>
-            ),
-            mut out: Pointer<T>
-        | {
-            let mut res_buffer = [T::Vec::splat(T::ZERO); CONV_REGNUM];
-            for kp in 0..num_wo_b {
-                for j in 0..inner_size {
-                    for h in 0..CONV_REGNUM as i64 {
-                        unsafe {
-                            let out_vec = &mut out[c * co_b
-                                + b * osb
-                                + l * osh
-                                + (kp * (CONV_REGNUM as i64) + h) * osw
-                                + j * (T::Vec::SIZE as i64)]
-                                as *mut _ as *mut T::Vec; // prettier-ignore
-                            res_buffer[h as usize] = out_vec.read_unaligned();
-                        }
-                    }
-                    for n in 0..kernel_height {
-                        for m in 0..kernel_width {
-                            for ii in 0..ci_b_remain {
-                                let i = ip * ci_b + ii;
-                                micro_kernel_fn(
-                                    j,
-                                    kp,
-                                    i,
-                                    b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                                    c * co_b,
-                                    n * ks0 + m * ks1 + i * ks2,
-                                    step_width,
-                                    isw,
-                                    &inp_cpy,
-                                    &mut res_buffer,
-                                    &kernel_cpy
-                                );
-                            }
-                        }
-                    }
-                    for h in 0..CONV_REGNUM as i64 {
-                        unsafe {
-                            let out_vec = &mut out[c * co_b
-                                + b * osb
-                                + l * osh
-                                + (kp * (CONV_REGNUM as i64) + h) * osw
-                                + j * (T::Vec::SIZE as i64)]
-                                as *mut _ as *mut T::Vec; // prettier-ignore
-                            out_vec.write_unaligned(res_buffer[h as usize]);
-                        }
-                    }
-                }
-            }
-        };
-
-        let case0 = move |
-            b: i64,
-            l: i64,
-            c: i64,
-            ip: i64,
-            ci_b_remain: i64,
-            inner_size: i64,
-            micro_kernel_fn: fn(
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                i64,
-                &Pointer<T>,
-                &mut [T::Vec; CONV_REGNUM],
-                &Pointer<T>
-            ),
-            out: Pointer<T>
-        | {
-            if ip > 0 {
-                case0_no_init(b, l, c, ip, ci_b_remain, inner_size, micro_kernel_fn, out);
-            } else {
-                case0_init(b, l, c, ip, ci_b_remain, inner_size, micro_kernel_fn, out);
-            }
-        };
-        let inp_cpy = inp.clone();
-        let kernel_cpy = kernel.clone();
-
-        let case0_remain1 = move |
-            b: i64,
-            l: i64,
-            c: i64,
-            ip: i64,
-            ci_b_remain: i64,
-            mut out: Pointer<T>
-        | {
-            if ip == 0 {
-                for kp in 0..num_wo_b {
-                    let mut res_buffer = [<T>::ZERO; CONV_REGNUM];
-                    for n in 0..kernel_height {
-                        for m in 0..kernel_width {
-                            for ii in 0..ci_b_remain {
-                                let i = ip * ci_b + ii;
-                                micro_kernel_regnum_1::<T>(
-                                    kp,
-                                    i,
-                                    b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                                    c * co_b,
-                                    n * ks0 + m * ks1 + i * ks2,
-                                    step_width,
-                                    isw,
-                                    &inp_cpy,
-                                    &mut res_buffer,
-                                    &kernel_cpy
-                                );
-                            }
-                        }
-                    }
-                    for h in 0..CONV_REGNUM as i64 {
-                        let out_vec = &mut out
-                            [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw]; // prettier-ignore
-                        *out_vec = res_buffer[h as usize];
-                    }
-                }
-            } else {
-                let mut res_buffer = [<T>::ZERO; CONV_REGNUM];
-                for kp in 0..num_wo_b {
-                    for h in 0..CONV_REGNUM as i64 {
-                        let out_vec = &out
-                            [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw]; // prettier-ignore
-                        res_buffer[h as usize] = *out_vec;
-                    }
-                    for n in 0..kernel_height {
-                        for m in 0..kernel_width {
-                            for ii in 0..ci_b_remain {
-                                let i = ip * ci_b + ii;
-                                micro_kernel_regnum_1::<T>(
-                                    kp,
-                                    i,
-                                    b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                                    c * co_b,
-                                    n * ks0 + m * ks1 + i * ks2,
-                                    step_width,
-                                    isw,
-                                    &inp_cpy,
-                                    &mut res_buffer,
-                                    &kernel_cpy
-                                );
-                            }
-                        }
-                    }
-                    for h in 0..CONV_REGNUM as i64 {
-                        let out_vec = &mut out
-                            [c * co_b + b * osb + l * osh + (kp * (CONV_REGNUM as i64) + h) * osw]; // prettier-ignore
-                        *out_vec = res_buffer[h as usize];
-                    }
-                }
-            }
-        };
-
-        let inp_cpy = inp.clone();
-        let kernel_cpy = kernel.clone();
-        let case1 = move |b: i64, l: i64, c: i64, ip: i64, ci_b_remain: i64, out: Pointer<T>| {
-            match wo_b_remain {
-                1 => {
-                    case1_helper(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        [num_wo_b, num_co_rb],
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_1::<T, 1>
-                    );
-                }
-                2 => {
-                    case1_helper(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        [num_wo_b, num_co_rb],
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_2::<T, 2>
-                    );
-                }
-                3 => {
-                    case1_helper(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        [num_wo_b, num_co_rb],
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_3::<T, 3>
-                    );
-                }
-                4 => {
-                    case1_helper(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        [num_wo_b, num_co_rb],
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_4::<T, 4>
-                    );
-                }
-                5 => {
-                    case1_helper(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        [num_wo_b, num_co_rb],
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_5::<T, 5>
-                    );
-                }
-                6 => {
-                    case1_helper(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        [num_wo_b, num_co_rb],
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_6::<T, 6>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                7 => {
-                    case1_helper(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        [num_wo_b, num_co_rb],
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_7::<T, 7>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                8 => {
-                    case1_helper(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        [num_wo_b, num_co_rb],
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_8::<T, 8>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                9 => {
-                    case1_helper(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        [num_wo_b, num_co_rb],
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_9::<T, 9>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                10 => {
-                    case1_helper(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        [num_wo_b, num_co_rb],
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_10::<T, 10>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                11 => {
-                    case1_helper(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        [num_wo_b, num_co_rb],
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_11::<T, 11>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                12 => {
-                    case1_helper(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        [num_wo_b, num_co_rb],
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_12::<T, 12>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                13 => {
-                    case1_helper(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        [num_wo_b, num_co_rb],
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_13::<T, 13>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                14 => {
-                    case1_helper(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        [num_wo_b, num_co_rb],
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_14::<T, 14>
-                    );
-                }
-                _ => unimplemented!(),
-            }
-        };
-
-        let inp_cpy = inp.clone();
-        let kernel_cpy = kernel.clone();
-        let case1_remain1 = move |
-            b: i64,
-            l: i64,
-            c: i64,
-            ip: i64,
-            ci_b_remain: i64,
-            out: Pointer<T>
-        | {
-            match wo_b_remain {
-                1 => {
-                    case1_remain1_helper::<T, 1>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_1_1::<T>
-                    );
-                }
-                2 => {
-                    case1_remain1_helper::<T, 2>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_2_1::<T>
-                    );
-                }
-                3 => {
-                    case1_remain1_helper::<T, 3>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_3_1::<T>
-                    );
-                }
-                4 => {
-                    case1_remain1_helper::<T, 4>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_4_1::<T>
-                    );
-                }
-                5 => {
-                    case1_remain1_helper::<T, 5>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_5_1::<T>
-                    );
-                }
-                6 => {
-                    case1_remain1_helper::<T, 6>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_6_1::<T>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                7 => {
-                    case1_remain1_helper::<T, 7>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_7_1::<T>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                8 => {
-                    case1_remain1_helper::<T, 8>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_8_1::<T>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                9 => {
-                    case1_remain1_helper::<T, 9>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_9_1::<T>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                10 => {
-                    case1_remain1_helper::<T, 10>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_10_1::<T>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                11 => {
-                    case1_remain1_helper::<T, 11>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_11_1::<T>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                12 => {
-                    case1_remain1_helper::<T, 12>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_12_1::<T>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                13 => {
-                    case1_remain1_helper::<T, 13>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_13_1::<T>
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                14 => {
-                    case1_remain1_helper::<T, 14>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        [&inp_cpy, &kernel_cpy],
-                        out,
-                        micro_kernel_14_1::<T>
-                    );
-                }
-                _ => unimplemented!(),
-            }
-        };
-
-        let inp_cpy = inp.clone();
-        let kernel_cpy = kernel.clone();
-
-        let case0 = &case0;
-        let case2 = move |
-            b: i64,
-            l: i64,
-            c: i64,
-            ip: i64,
-            num_vec_size: i64,
-            remain: i64,
-            ci_b_remain: i64,
-            mut out: Pointer<T>
-        | {
-            let mut kernel_buffer = vec![T::Vec::splat(T::ZERO); num_vec_size as usize + 1];
-            let mut res_buffer =
-                vec![vec![T::Vec::splat(T::ZERO); CONV_REGNUM]; num_vec_size as usize + 1];
-            for kp in 0..num_wo_b {
-                if ip > 0 {
-                    load_store_res_buffer::<T, CONV_REGNUM, true>(
-                        num_vec_size,
-                        remain,
-                        osw,
-                        c * co_b + b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
-                        &mut res_buffer,
-                        &mut out
-                    );
-                } else {
-                    res_buffer.iter_mut().for_each(|x| {
-                        x.iter_mut().for_each(|y| {
-                            *y = T::Vec::splat(T::ZERO);
-                        })
-                    });
-                }
-                for n in 0..kernel_height {
-                    for m in 0..kernel_width {
-                        for ii in 0..ci_b_remain {
-                            let i = ip * ci_b + ii;
-                            pack_kernel(
-                                num_vec_size,
-                                remain,
-                                c * co_b + n * ks0 + m * ks1 + i * ks2,
-                                &kernel_cpy,
-                                &mut kernel_buffer
-                            );
-                            micro_kernel_regnum_with_buffer::<T>(
-                                num_vec_size,
-                                kp,
-                                i,
-                                b * isb + (l * step_height + n * dh) * ish + m * dw * isw,
-                                step_width,
-                                isw,
-                                &inp_cpy,
-                                &mut res_buffer,
-                                &kernel_buffer
-                            );
-                        }
-                    }
-                }
-                load_store_res_buffer::<T, CONV_REGNUM, false>(
-                    num_vec_size,
-                    remain,
-                    osw,
-                    c * co_b + b * osb + l * osh + kp * (CONV_REGNUM as i64) * osw,
-                    &mut res_buffer,
-                    &mut out
-                );
-            }
-        };
-
-        let inp_cpy = inp.clone();
-        let kernel_cpy = kernel.clone();
-        let case1 = &case1;
-        let case3 = move |b: i64, l: i64, c: i64, ip: i64, ci_b_remain: i64, mut out: Pointer<T>| {
-            match wo_b_remain {
-                1 => {
-                    case3_helper::<T, 1>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 1, true>,
-                        load_store_res_buffer::<T, 1, false>,
-                        micro_kernel_1_dyn::<T, 1>,
-                        micro_kernel_1_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                2 => {
-                    case3_helper::<T, 2>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 2, true>,
-                        load_store_res_buffer::<T, 2, false>,
-                        micro_kernel_2_dyn::<T, 2>,
-                        micro_kernel_2_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                3 => {
-                    case3_helper::<T, 3>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 3, true>,
-                        load_store_res_buffer::<T, 3, false>,
-                        micro_kernel_3_dyn::<T, 3>,
-                        micro_kernel_3_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                4 => {
-                    case3_helper::<T, 4>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 4, true>,
-                        load_store_res_buffer::<T, 4, false>,
-                        micro_kernel_4_dyn::<T, 4>,
-                        micro_kernel_4_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                5 => {
-                    case3_helper::<T, 5>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 5, true>,
-                        load_store_res_buffer::<T, 5, false>,
-                        micro_kernel_5_dyn::<T, 5>,
-                        micro_kernel_5_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                6 => {
-                    case3_helper::<T, 6>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 6, true>,
-                        load_store_res_buffer::<T, 6, false>,
-                        micro_kernel_6_dyn::<T, 6>,
-                        micro_kernel_6_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                7 => {
-                    case3_helper::<T, 7>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 7, true>,
-                        load_store_res_buffer::<T, 7, false>,
-                        micro_kernel_7_dyn::<T, 7>,
-                        micro_kernel_7_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                8 => {
-                    case3_helper::<T, 8>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 8, true>,
-                        load_store_res_buffer::<T, 8, false>,
-                        micro_kernel_8_dyn::<T, 8>,
-                        micro_kernel_8_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                9 => {
-                    case3_helper::<T, 9>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 9, true>,
-                        load_store_res_buffer::<T, 9, false>,
-                        micro_kernel_9_dyn::<T, 9>,
-                        micro_kernel_9_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                10 => {
-                    case3_helper::<T, 10>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 10, true>,
-                        load_store_res_buffer::<T, 10, false>,
-                        micro_kernel_10_dyn::<T, 10>,
-                        micro_kernel_10_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                11 => {
-                    case3_helper::<T, 11>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 11, true>,
-                        load_store_res_buffer::<T, 11, false>,
-                        micro_kernel_11_dyn::<T, 11>,
-                        micro_kernel_11_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                12 => {
-                    case3_helper::<T, 12>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 12, true>,
-                        load_store_res_buffer::<T, 12, false>,
-                        micro_kernel_12_dyn::<T, 12>,
-                        micro_kernel_12_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                13 => {
-                    case3_helper::<T, 13>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 13, true>,
-                        load_store_res_buffer::<T, 13, false>,
-                        micro_kernel_13_dyn::<T, 13>,
-                        micro_kernel_13_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-                14 => {
-                    case3_helper::<T, 14>(
-                        [kernel_height, kernel_width, ci_b_remain],
-                        [ip, b, l, c],
-                        [isb, ish, isw],
-                        [osb, osh, osw],
-                        [ks0, ks1, ks2],
-                        [step_width, step_height],
-                        [dh, dw],
-                        [ci_b, co_b],
-                        num_wo_b,
-                        co_b_remain,
-                        wo_b_remain,
-                        [&inp_cpy, &kernel_cpy],
-                        pack_kernel::<T>,
-                        load_store_res_buffer::<T, 14, true>,
-                        load_store_res_buffer::<T, 14, false>,
-                        micro_kernel_14_dyn::<T, 14>,
-                        micro_kernel_14_with_buffer::<T>,
-                        &mut out
-                    );
-                }
-                _ => unimplemented!(),
-            }
-        };
-        #[rustfmt::skip]
         (0..outer).into_par_iter().for_each(|idx| {
-            let b = idx / (num_co_b * out_height);
-            let l = (idx / num_co_b) % out_height;
-            let c = idx % num_co_b;
-            // println!("co_b_remain == 0: {}, wo_b_remain == 0: {}, ci_b_remain == 0: {}", co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0);
-            match (co_b_remain == 0, wo_b_remain == 0, ci_b_remain == 0) {
-                (true, true, true) => {
-                    if co_b > 1 {
-                        for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                        }
-                    } else {
-                        assert_eq!(co_b, 1);
-                        for ip in 0..num_ci_b {
-                            case0_remain1(b, l, c, ip, ci_b, out.clone());
+            let mut out = out.clone();
+            let mut kernel = ro_ptr.clone();
+            let b = idx / num_oh;
+            let ll = idx % num_oh;
+            let ll = ll * OH_BLOCK;
+            let l_end = (ll + OH_BLOCK).min(out_height);
+            match (partial_oc_kernel, full_oc_kernel_ow_remain, partial_oc_kernel_ow_remain) {
+                (None, None, None) => {
+                    for ii in (0..in_channels).step_by(ic_block_size) {
+                        let i_end = (ii + (ic_block_size as i64)).min(in_channels);
+                        for jj in (0..out_channels).step_by(oc_block_size * (jb as usize)) {
+                            let jj_start = jj;
+                            let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(
+                                out_channels
+                            );
+                            let kernel_k = kernel.clone();
+                            for k in (0..out_width_full_end).step_by(ow_block) {
+                                for j in (jj_start..jj_end).step_by(oc_block_size) {
+                                    let original = kernel.clone();
+                                    for l in ll..l_end {
+                                        full_oc_kernel_fn(
+                                            [ii, i_end],
+                                            [kernel_height, kernel_width],
+                                            [b, l, k, j],
+                                            [osb, osh, osw],
+                                            [step_height, step_width],
+                                            [isb, ish, isw],
+                                            [ph_start, pw_start],
+                                            [dh, dw],
+                                            &mut out,
+                                            &inp,
+                                            &mut kernel
+                                        );
+                                        kernel = original.clone();
+                                    }
+                                    kernel +=
+                                        kernel_height *
+                                        kernel_width *
+                                        (i_end - ii) *
+                                        (oc_block_size as i64);
+                                }
+                                kernel = kernel_k.clone();
+                            }
+                            kernel +=
+                                kernel_height * kernel_width * (jj_end - jj_start) * (i_end - ii);
                         }
                     }
                 }
-                (true, true, false) => {
-                    if co_b > 1 {
-                        for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
+                _ => {
+                    for ii in (0..in_channels).step_by(ic_block_size) {
+                        let i_end = (ii + (ic_block_size as i64)).min(in_channels);
+                        for jj in (0..out_channels).step_by(oc_block_size * (jb as usize)) {
+                            let jj_start = jj;
+                            let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(
+                                out_channels
+                            );
+                            let remain = (jj_end - jj_start) % (oc_block_size as i64);
+                            let kernel_k = kernel.clone();
+                            let func = |
+                                k: i64,
+                                full_oc: fn(
+                                    [i64; 2],
+                                    [i64; 2],
+                                    [i64; 4],
+                                    [i64; 3],
+                                    [i64; 2],
+                                    [i64; 3],
+                                    [i64; 2],
+                                    [i64; 2],
+                                    &mut Pointer<T>,
+                                    &Pointer<T>,
+                                    &mut Pointer<T>
+                                ),
+                                one_oc: Option<ConvKernel<T>>,
+                                partial_oc: Option<ConvPartialKernel<T>>,
+                                out: &mut Pointer<T>,
+                                kernel: &mut Pointer<T>,
+                                inp: &Pointer<T>
+                            | {
+                                for j in (jj_start..jj_end - remain).step_by(oc_block_size) {
+                                    let original = kernel.clone();
+                                    for l in ll..l_end {
+                                        full_oc(
+                                            [ii, i_end],
+                                            [kernel_height, kernel_width],
+                                            [b, l, k, j],
+                                            [osb, osh, osw],
+                                            [step_height, step_width],
+                                            [isb, ish, isw],
+                                            [ph_start, pw_start],
+                                            [dh, dw],
+                                            out,
+                                            inp,
+                                            kernel
+                                        );
+                                        *kernel = original.clone();
+                                    }
+                                    *kernel +=
+                                        kernel_height *
+                                        kernel_width *
+                                        (i_end - ii) *
+                                        (oc_block_size as i64);
+                                }
+                                if remain > 0 {
+                                    let oc_remain = remain % (T::Vec::SIZE as i64);
+                                    // loop over the remain part that are multiple of T::Vec::SIZE
+                                    if let Some(one_oc) = &one_oc {
+                                        for j in (out_channels - remain..out_channels -
+                                            oc_remain).step_by(T::Vec::SIZE) {
+                                            let original = kernel.clone();
+                                            for l in ll..l_end {
+                                                (one_oc.kernel)(
+                                                    [ii, i_end],
+                                                    [kernel_height, kernel_width],
+                                                    [b, l, k, j],
+                                                    [osb, osh, osw],
+                                                    [step_height, step_width],
+                                                    [isb, ish, isw],
+                                                    [ph_start, pw_start],
+                                                    [dh, dw],
+                                                    out,
+                                                    inp,
+                                                    kernel
+                                                );
+                                                *kernel = original.clone();
+                                            }
+                                            *kernel +=
+                                                kernel_height *
+                                                kernel_width *
+                                                (T::Vec::SIZE as i64) *
+                                                (i_end - ii);
+                                        }
+                                    }
+                                    let partial_oc = partial_oc.expect(
+                                        "unable to find partial_oc_kernel"
+                                    ).kernel;
+                                    // loop over the remain part that are less than T::Vec::SIZE
+                                    for j in (out_channels - oc_remain..out_channels).step_by(
+                                        T::Vec::SIZE
+                                    ) {
+                                        let original = kernel.clone();
+                                        for l in ll..l_end {
+                                            partial_oc(
+                                                [ii, i_end],
+                                                [kernel_height, kernel_width],
+                                                [b, l, k, j],
+                                                [osb, osh, osw],
+                                                [step_height, step_width],
+                                                [isb, ish, isw],
+                                                [ph_start, pw_start],
+                                                [dh, dw],
+                                                oc_remain,
+                                                out,
+                                                inp,
+                                                kernel
+                                            );
+                                            *kernel = original.clone();
+                                        }
+                                        *kernel +=
+                                            kernel_height * kernel_width * oc_remain * (i_end - ii);
+                                    }
+                                }
+                            };
+                            for k in (0..out_width_full_end).step_by(ow_block) {
+                                func(
+                                    k,
+                                    full_oc_kernel_fn,
+                                    full_oc_kernel_fn_1_oc,
+                                    partial_oc_kernel,
+                                    &mut out,
+                                    &mut kernel,
+                                    &inp
+                                );
+                                kernel = kernel_k.clone();
+                            }
+                            if let Some(full_oc_kernel_ow_remain) = &full_oc_kernel_ow_remain {
+                                for k in (out_width_full_end..out_width).step_by(ow_block) {
+                                    func(
+                                        k,
+                                        full_oc_kernel_ow_remain.kernel,
+                                        full_oc_kernel_fn_1_oc_ow_remain,
+                                        partial_oc_kernel_ow_remain,
+                                        &mut out,
+                                        &mut kernel,
+                                        &inp
+                                    );
+                                    kernel = kernel_k.clone();
+                                }
+                            }
+                            kernel +=
+                                kernel_height * kernel_width * (jj_end - jj_start) * (i_end - ii);
                         }
-                        case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                    } else {
-                        assert_eq!(co_b, 1);
-                        for ip in 0..num_ci_b {
-                            case0_remain1(b, l, c, ip, ci_b, out.clone());
-                        }
-                        case0_remain1(b, l, c, num_ci_b, ci_b_remain, out.clone());
                     }
                 }
-                (true, false, true) => {
-                    if co_b > 1 {
-                        for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                            case1(b, l, c, ip, ci_b, out.clone());
-                        }
-                    } else {
-                        for ip in 0..num_ci_b {
-                            case0_remain1(b, l, c, ip, ci_b, out.clone());
-                            case1_remain1(b, l, c, ip, ci_b, out.clone());
-                        }
-                    }
-                }
-                (true, false, false) => {
-                    if co_b > 1 {
-                        for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                            case1(b, l, c, ip, ci_b, out.clone());
-                        }
-                        case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                        case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
-                    } else {
-                        for ip in 0..num_ci_b {
-                            case0_remain1(b, l, c, ip, ci_b, out.clone());
-                            case1_remain1(b, l, c, ip, ci_b, out.clone());
-                        }
-                        case0_remain1(b, l, c, num_ci_b, ci_b_remain, out.clone());
-                        case1_remain1(b, l, c, num_ci_b, ci_b_remain, out.clone());
-                    }
-                }
-                (false, true, true) => {
-                    // co_b_remain must be 0 if co_b is 1
-                    assert!(co_b > 1);
-                    if c < num_co_b - 1 {
-                        for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
-                        }
-                    } else {
-                        let remain = co_b_remain % (T::Vec::SIZE as i64);
-                        if remain == 0 {
-                            for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
-                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
-                            }
-                        } else {
-                            for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
-                                case2(b, l, num_co_b, ip, num_vec_size, remain, ci_b, out.clone());
-                            }
-                        }
-                    }
-                }
-                (false, true, false) => {
-                    // co_b_remain must be 0 if co_b is 1
-                    assert!(co_b > 1);
-                    if c < num_co_b - 1 {
-                        for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
-                        }
-                        case0(b, l, c, num_ci_b, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                    } else {
-                        let remain = co_b_remain % (T::Vec::SIZE as i64);
-                        if remain == 0 {
-                            for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
-                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
-                            }
-                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
-                            case0(b, l, num_co_b, num_ci_b, ci_b_remain, num_vec_size, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                        } else {
-                            for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
-                                case2(b, l, num_co_b, ip, num_vec_size, remain, ci_b, out.clone());
-                            }
-                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                            case2(b, l, num_co_b, num_ci_b, num_vec_size, remain, ci_b_remain, out.clone());
-                        }
-                    }
-                }
-                (false, false, true) => {
-                    // co_b_remain must be 0 if co_b is 1
-                    assert!(co_b > 1);
-                    if c < num_co_b - 1 {
-                        for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                            case1(b, l, c, ip, ci_b, out.clone());
-                        }
-                    } else {
-                        let remain = co_b_remain % (T::Vec::SIZE as i64);
-                        if remain == 0 {
-                            for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>, out.clone());
-                                case1(b, l, c, ip, ci_b, out.clone());
-                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                                case3(b, l, num_co_b, ip, ci_b, out.clone());
-                            }
-                        } else {
-                            for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                                case1(b, l, c, ip, ci_b, out.clone());
-                                case2(b, l, num_co_b, ip, num_vec_size, remain, ci_b, out.clone());
-                                case3(b, l, num_co_b, ip, ci_b, out.clone());
+            };
+        });
+        Ok(output)
+    }
+}
+
+#[allow(unused)]
+fn out_used<T: CommonBounds>(
+    lb: usize,
+    jb: usize,
+    oc_nvec: usize,
+    owb: usize,
+    line_size: usize
+) -> usize {
+    let nv = line_size / (SIMD_WIDTH / 8 / core::mem::size_of::<T>());
+    lb * jb * oc_nvec.div_ceil(nv) * owb * line_size
+}
+#[allow(unused)]
+fn inp_used<T: CommonBounds>(
+    lb: usize,
+    owb: usize,
+    ic_nvec: usize,
+    kh: usize,
+    kw: usize,
+    step_height: usize,
+    step_width: usize,
+    line_size: usize
+) -> usize {
+    let nv = line_size / (SIMD_WIDTH / 8 / core::mem::size_of::<T>());
+    let in_range_num_w = (0..owb).take_while(|&idx| idx * step_width < kw).count();
+    let in_range_num_h = (0..lb).take_while(|&idx| idx * step_height < kh).count();
+    owb *
+        ic_nvec.div_ceil(nv) *
+        (kh + lb - in_range_num_h) *
+        (kw + owb - in_range_num_w) *
+        line_size
+}
+#[allow(unused)]
+fn kernel_used<T: CommonBounds>(
+    oc_nvec: usize,
+    ic_nvec: usize,
+    jb: usize,
+    kh: usize,
+    kw: usize
+) -> usize {
+    oc_nvec * ic_nvec * T::Vec::SIZE * kh * kw * jb
+}
+
+fn reorder_kernel<T: CommonBounds>(
+    kernel: &Pointer<T>,
+    reordered: Pointer<T>,
+    jb: usize,
+    [in_channel, ic_nvec]: [usize; 2],
+    [out_channel, oc_nvec]: [usize; 2],
+    [ks0, ks1, ks2]: [usize; 3],
+    [kh, kw]: [usize; 2]
+) {
+    (0..in_channel)
+        .into_par_iter()
+        .step_by(T::Vec::SIZE * ic_nvec)
+        .for_each(|ii| {
+            let i_end = (ii + T::Vec::SIZE * ic_nvec).min(in_channel);
+            let mut reordered = reordered.clone() + ii * out_channel * kh * kw;
+            for jj in (0..out_channel).step_by(T::Vec::SIZE * oc_nvec * jb) {
+                let jj_start = jj;
+                let jj_end = (jj + T::Vec::SIZE * oc_nvec * jb).min(out_channel);
+                let remain = (jj_end - jj_start) % (T::Vec::SIZE * oc_nvec);
+                let oc_remain = remain % T::Vec::SIZE;
+                for j in (jj_start..jj_end - remain).step_by(T::Vec::SIZE * oc_nvec) {
+                    for n in 0..kh {
+                        for m in 0..kw {
+                            for i in ii..i_end {
+                                for v in 0..oc_nvec {
+                                    let ptr = reordered.ptr as *mut _ as *mut T::Vec;
+                                    unsafe {
+                                        ptr.write_unaligned(T::Vec::from_ptr(
+                                            &kernel[i * ks2
+                                                + n * ks0
+                                                + m * ks1
+                                                + j
+                                                + v * T::Vec::SIZE],
+                                        )); // prettier-ignore
+                                    }
+                                    reordered += T::Vec::SIZE;
+                                }
                             }
                         }
                     }
                 }
-                (false, false, false) => {
-                    // co_b_remain must be 0 if co_b is 1
-                    assert!(co_b > 1);
-                    if c < num_co_b - 1 {
-                        for ip in 0..num_ci_b {
-                            case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                            case1(b, l, c, ip, ci_b, out.clone());
+                if remain > 0 {
+                    for j in (out_channel - remain..out_channel - oc_remain).step_by(T::Vec::SIZE) {
+                        for n in 0..kh {
+                            for m in 0..kw {
+                                for i in ii..i_end {
+                                    let ptr = reordered.ptr as *mut _ as *mut T::Vec;
+                                    unsafe {
+                                        ptr.write_unaligned(
+                                            T::Vec::from_ptr(
+                                                &kernel[n * ks0 + m * ks1 + i * ks2 + j]
+                                            )
+                                        );
+                                    }
+                                    reordered += T::Vec::SIZE;
+                                }
+                            }
                         }
-                        case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                        case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
-                    } else {
-                        let remain = co_b_remain % (T::Vec::SIZE as i64);
-                        if remain == 0 {
-                            for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                                case1(b, l, c, ip, ci_b, out.clone());
-                                case0(b, l, num_co_b, ip, ci_b, num_vec_size, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                                case3(b, l, num_co_b, ip, ci_b, out.clone());
+                    }
+                    for j in (out_channel - oc_remain..out_channel).step_by(T::Vec::SIZE) {
+                        for n in 0..kh {
+                            for m in 0..kw {
+                                for i in ii..i_end {
+                                    let ptr: *mut T = reordered.ptr;
+                                    unsafe {
+                                        std::ptr::copy_nonoverlapping(
+                                            &kernel[n * ks0 + m * ks1 + i * ks2 + j] as *const T,
+                                            ptr,
+                                            oc_remain
+                                        );
+                                    }
+                                    reordered += oc_remain;
+                                }
                             }
-                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                            case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
-                            case0(b, l, num_co_b, num_ci_b, ci_b_remain, num_vec_size, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                            case3(b, l, num_co_b, num_ci_b, ci_b_remain, out.clone());
-                        } else {
-                            for ip in 0..num_ci_b {
-                                case0(b, l, c, ip, ci_b, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                                case1(b, l, c, ip, ci_b, out.clone());
-                                case2(b, l, num_co_b, ip, num_vec_size, remain, ci_b, out.clone());
-                                case3(b, l, num_co_b, ip, ci_b, out.clone());
-                            }
-                            case0(b, l, c, num_ci_b, ci_b_remain, num_co_rb, micro_kernel_regnum::<T, CONV_REGNUM>,  out.clone());
-                            case1(b, l, c, num_ci_b, ci_b_remain, out.clone());
-                            case2(b, l, num_co_b, num_ci_b, num_vec_size, remain, ci_b_remain, out.clone());
-                            case3(b, l, num_co_b, num_ci_b, ci_b_remain, out.clone());
                         }
                     }
                 }
             }
         });
+}
 
-        Ok(output)
-    }
+fn predict_ow_block(oc_block: usize) -> usize {
+    REGNUM / (oc_block + 1)
+}
+
+/// calculate sub-optimal in channel block size and out channel block size,
+/// to maximize the cache utilization and balance the memory access
+fn kernel_params<T: CommonBounds>(
+    out_channels: usize,
+    in_channels: usize,
+    ow_block: usize,
+    oc_nvec: usize,
+    oh_block: usize,
+    [kh, kw]: [usize; 2]
+) -> (usize, usize) {
+    let cache = Cache::<T>::new();
+    let l1 = cache.l1;
+    let l2 = cache.l2;
+
+    let ic_range = 1..(in_channels as usize) / T::Vec::SIZE;
+    let jb_range = 1..(out_channels as usize) / (T::Vec::SIZE * oc_nvec);
+
+    let best_params = ic_range
+        .into_par_iter()
+        .flat_map(|ic|
+            jb_range
+                .clone()
+                .into_par_iter()
+                .map(move |jb| (ic, jb))
+        )
+        .filter_map(|(ic, jb)| {
+            let gemm_kernel_used = oc_nvec * T::Vec::SIZE * ic * T::Vec::SIZE;
+            let gemm_inp_used = ow_block * ic * T::Vec::SIZE;
+            let gemm_out_used = ow_block * oc_nvec * T::Vec::SIZE;
+            let gemm_used = gemm_kernel_used + gemm_inp_used + gemm_out_used;
+            let k_kernel_used = gemm_kernel_used * kh * kw;
+            let k_inp_used = kh * kw * gemm_inp_used;
+            let jb_k_kernel_used = jb * k_kernel_used;
+            let jb_out_used = jb * gemm_out_used;
+            let jb_inp_used = oh_block * k_inp_used;
+            let total_used = jb_k_kernel_used + jb_out_used + jb_inp_used;
+
+            if gemm_used <= l1 && total_used <= l2 {
+                let balance = ((ic as f64) / (jb as f64)).max((jb as f64) / (ic as f64));
+                let cache_utilization = (total_used as f64) / (l2 as f64);
+                Some((ic, jb, balance, cache_utilization))
+            } else {
+                None
+            }
+        })
+        .reduce(
+            || (1, 1, f64::MAX, 0.0),
+            |(best_ic, best_jb, best_balance, best_util), (ic, jb, balance, util)| {
+                const BALANCE_WEIGHT: f64 = 0.6;
+                const UTIL_WEIGHT: f64 = 0.4;
+
+                let current_score = BALANCE_WEIGHT * (1.0 / balance) + UTIL_WEIGHT * util;
+                let best_score = BALANCE_WEIGHT * (1.0 / best_balance) + UTIL_WEIGHT * best_util;
+
+                if current_score > best_score {
+                    (ic, jb, balance, util)
+                } else {
+                    (best_ic, best_jb, best_balance, best_util)
+                }
+            }
+        );
+
+    (best_params.0, best_params.1)
 }

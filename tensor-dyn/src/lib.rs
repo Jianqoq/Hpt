@@ -29,8 +29,6 @@ pub mod ops {
         pub mod gather_elements;
         /// a module defines hardmax operation
         pub mod hardmax;
-        /// a module defines conv2d operation
-        pub mod iconv2d;
         /// a module defines lp_pool2d operation
         pub mod lp_pool2d;
         /// a module defines matmul operation
@@ -69,8 +67,6 @@ pub mod ops {
             pub mod avgpool_kernels;
             /// a module defines the conv2d kernels
             pub mod conv_kernels;
-            /// a module defines the iconv2d kernels
-            pub mod iconv_kernels;
             /// a module defines the lp_pool2d kernels
             pub mod lp_pool_kernels;
             /// a module defines the maxpool2d kernels
