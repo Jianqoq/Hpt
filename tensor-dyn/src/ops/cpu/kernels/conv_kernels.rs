@@ -1,401 +1,496 @@
-use crate::CONV_REGNUM;
-use std::ops::Index;
+#![allow(unused)]
+use duplicate::duplicate_item;
 use tensor_common::pointer::Pointer;
+use tensor_macros::{
+    conv2d_microkernel_declare_const,
+    conv2d_microkernel_gen_inps,
+    conv2d_microkernel_gen_kernels,
+    conv2d_microkernel_gen_results,
+};
 use tensor_traits::CommonBounds;
-use tensor_types::traits::{ Init, VecCommon, VecTrait };
-use tensor_types::type_promote::NormalOut;
+use tensor_types::traits::*;
 
-#[cfg(not(feature = "bound_check"))]
-#[rustfmt::skip]
-pub(crate) fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
-    num_co_rb: i64,
-    co_b_remain: i64,
-    osw: i64,
-    out_offset: i64,
-    res_buffer: &mut Vec<Vec<T::Vec>>,
-    out: &mut Pointer<T>
-)
-    where T: CommonBounds, T::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
-{
-    for j in 0..num_co_rb {
-        let buffers = unsafe { res_buffer.get_unchecked_mut(j as usize) };
-        for r in 0..REGNUM as i64 {
-            unsafe {
-                let out_ptr = &mut out[out_offset + j * (T::Vec::SIZE as i64) + r * osw] as *mut _ as *mut T;
-                let buffer = buffers.get_unchecked_mut(r as usize) as *mut _ as *mut T;
-                if LOAD {
-                    std::ptr::copy_nonoverlapping(
-                        out_ptr,
-                        buffer,
-                        T::Vec::SIZE
-                    );
-                } else {
-                    std::ptr::copy_nonoverlapping(
-                        buffer,
-                        out_ptr,
-                        T::Vec::SIZE
-                    );
-                }
+macro_rules! repeat_inp {
+    ($name:ident, $is3:expr, $step_width_m:expr, [$($idx:expr),*]) => {
+        paste::paste! {
+            ($(
+                T::Vec::splat($name[$is3 + $idx * $step_width_m]),
+            )*)
+        }
+    };
+}
+
+macro_rules! repeat_kernel {
+    ($name:ident, [$($idx:expr),*]) => {
+        paste::paste! {
+            ($(
+                unsafe {
+                    T::Vec::from_ptr(&$name[$idx * T::Vec::SIZE])
+                 },
+            )*)
+        }
+    };
+}
+
+macro_rules! repeat_results {
+    (
+        $results:ident,
+        $inp:ident,
+        $kernel:ident,
+        [$vidx:literal, $($v:literal),*],
+        [$($idx:expr),*]
+    ) => {
+        paste::paste! {
+            $(
+                $results[$vidx][$idx] = $inp.$idx.mul_add($kernel.$vidx, $results[$vidx][$idx]);
+            )*
+            repeat_results!($results, $inp, $kernel, [$($v),*], [$($idx),*]);
+        }
+    };
+    ($results:ident, $inp:ident, $kernel:ident, [$vidx:literal], [$($idx:expr),*]) => {
+        paste::paste! {
+            $(
+                $results[$vidx][$idx] = $inp.$idx.mul_add($kernel.$vidx, $results[$vidx][$idx]);
+            )*
+        }
+    };
+}
+
+#[duplicate_item(
+    template_function;
+    [micro_kernel_5x1];
+    [micro_kernel_4x1];
+    [micro_kernel_3x1];
+    [micro_kernel_2x1];
+    [micro_kernel_1x1];
+    [micro_kernel_5x2];
+    [micro_kernel_4x2];
+    [micro_kernel_3x2];
+    [micro_kernel_2x2];
+    [micro_kernel_1x2];
+    [micro_kernel_5x4];
+    [micro_kernel_4x4];
+    [micro_kernel_3x4];
+    [micro_kernel_2x4];
+    [micro_kernel_1x4];
+    [micro_kernel_5x8];
+    [micro_kernel_4x8];
+    [micro_kernel_3x8];
+    [micro_kernel_2x8];
+    [micro_kernel_1x8];
+)]
+fn template_function<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    [ph_start, pw_start]: [i64; 2],
+    [dh, dw]: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>
+) {
+    conv2d_microkernel_declare_const!(template_function);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                }; // prettier-ignore
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp = conv2d_microkernel_gen_inps!(
+                    inp,
+                    is3,
+                    step_width * isw,
+                    template_function
+                );
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, template_function);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, template_function);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
             }
         }
     }
-    let buffers = unsafe { res_buffer.get_unchecked_mut(num_co_rb as usize) };
-    for r in 0..REGNUM as i64 {
-        unsafe {
-            let out_ptr = &mut out[out_offset + num_co_rb * (T::Vec::SIZE as i64) + r * osw] as *mut _ as *mut T;
-            let buffer = buffers.get_unchecked_mut(r as usize) as *mut _ as *mut T;
-            if LOAD {
-                std::ptr::copy_nonoverlapping(out_ptr, buffer, co_b_remain as usize);
-            } else {
-                std::ptr::copy_nonoverlapping(buffer, out_ptr, co_b_remain as usize);
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec; // prettier-ignore
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
             }
         }
     }
 }
 
-#[cfg(feature = "bound_check")]
-#[rustfmt::skip]
-pub(crate) fn load_store_res_buffer<T, const REGNUM: usize, const LOAD: bool>(
-    num_co_rb: i64,
-    co_b_remain: i64,
-    osw: i64,
-    out_offset: i64,
-    res_buffer: &mut Vec<Vec<T::Vec>>,
-    out: &mut Pointer<T>
-)
-    where T: CommonBounds, T::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
-{
-    for j in 0..num_co_rb {
-        let buffers = &mut res_buffer[j as usize];
-        for r in 0..REGNUM as i64 {
-            unsafe {
-                let out_ptr = &mut out[out_offset + j * (T::Vec::SIZE as i64) + r * osw] as *mut _;
-                let buffer = &mut buffers[r as usize];
-                if LOAD {
-                    buffer.copy_from_slice(
-                        core::slice::from_raw_parts(out_ptr, T::Vec::SIZE)
-                    );
-                } else {
-                    for i in 0..T::Vec::SIZE as i64 {
-                        out[out_offset + j * (T::Vec::SIZE as i64) + r * osw + i] = buffer.extract(i as usize);
-                    }
-                }
+#[duplicate_item(
+    template_function;
+    [pmicro_kernel_5x1];
+    [pmicro_kernel_4x1];
+    [pmicro_kernel_3x1];
+    [pmicro_kernel_2x1];
+    [pmicro_kernel_1x1];
+    [pmicro_kernel_5x2];
+    [pmicro_kernel_4x2];
+    [pmicro_kernel_3x2];
+    [pmicro_kernel_2x2];
+    [pmicro_kernel_1x2];
+    [pmicro_kernel_5x4];
+    [pmicro_kernel_4x4];
+    [pmicro_kernel_3x4];
+    [pmicro_kernel_2x4];
+    [pmicro_kernel_1x4];
+    [pmicro_kernel_5x8];
+    [pmicro_kernel_4x8];
+    [pmicro_kernel_3x8];
+    [pmicro_kernel_2x8];
+    [pmicro_kernel_1x8];
+)]
+fn template_function<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    [ph_start, pw_start]: [i64; 2],
+    [dh, dw]: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>
+) {
+    conv2d_microkernel_declare_const!(template_function);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                ret[v as usize][kk as usize] = unsafe {
+                    T::Vec::from_ptr(
+                        &out[b * osb
+                            + l * osh
+                            + (k + kk) * osw
+                            + j
+                            + v as i64 * T::Vec::SIZE as i64] as *const _
+                            as *const T,
+                    )
+                }; // prettier-ignore
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp = conv2d_microkernel_gen_inps!(
+                    inp,
+                    is3,
+                    step_width * isw,
+                    template_function
+                );
+                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, template_function);
+                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, template_function);
+                kernel.add(OC_BLOCK * T::Vec::SIZE);
             }
         }
     }
-    let buffers = &mut res_buffer[num_co_rb as usize];
-    for r in 0..REGNUM as i64 {
-        unsafe {
-            let out_ptr = &mut out[out_offset + num_co_rb * (T::Vec::SIZE as i64) + r * osw];
-            let buffer = &mut buffers[r as usize];
-            if LOAD {
-                assert!(co_b_remain as usize <= T::Vec::SIZE);
-                core::ptr::copy_nonoverlapping(out_ptr, buffer.as_mut_ptr(), co_b_remain as usize);
-            } else {
-                for i in 0..co_b_remain {
-                    out[out_offset + num_co_rb * (T::Vec::SIZE as i64) + r * osw + i] = buffer.extract(i as usize);
-                }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..OC_BLOCK {
+            let out_vec = &mut out
+                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                as *mut _ as *mut T::Vec; // prettier-ignore
+            unsafe {
+                out_vec.write_unaligned(results[v as usize][kk as usize]);
             }
         }
     }
 }
 
-#[allow(unused_mut)]
-#[rustfmt::skip]
-pub(crate) fn pack_kernel<T>(
-    num_co_rb: i64,
-    co_b_remain: i64,
-    kernel_offset: i64,
-    kernel: &Pointer<T>,
-    mut kernel_buffer: &mut Vec<T::Vec>
-)
-    where T: CommonBounds, T::Vec: VecCommon
-{
-    for j in 0..num_co_rb {
-        #[cfg(not(feature = "bound_check"))]
-        let kernel_buffer = unsafe { kernel_buffer.get_unchecked_mut(j as usize) };
-        #[cfg(feature = "bound_check")]
-        let kernel_buffer = &mut kernel_buffer[j as usize];
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                kernel.index(kernel_offset + j * (T::Vec::SIZE as i64)) as *const _,
-                kernel_buffer as *mut _ as *mut T,
-                T::Vec::SIZE
+/// This struct carries the micro kernel function and the corresponding info
+#[derive(Clone, Copy)]
+pub struct ConvKernel<T: CommonBounds> {
+    pub(crate) kernel: fn(
+        [i64; 2],
+        [i64; 2],
+        [i64; 4],
+        [i64; 3],
+        [i64; 2],
+        [i64; 3],
+        [i64; 2],
+        [i64; 2],
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &mut Pointer<T>
+    ),
+    pub(crate) oc_block: usize,
+    pub(crate) ow_block: usize,
+}
+
+/// This struct carries the micro kernel function and the corresponding info
+#[derive(Clone, Copy)]
+pub struct ConvPartialKernel<T: CommonBounds> {
+    pub(crate) kernel: fn(
+        [i64; 2],
+        [i64; 2],
+        [i64; 4],
+        [i64; 3],
+        [i64; 2],
+        [i64; 3],
+        [i64; 2],
+        [i64; 2],
+        i64,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &mut Pointer<T>
+    ),
+    pub(crate) ow_block: usize,
+}
+
+impl<T: CommonBounds> ConvKernel<T> {
+    pub(crate) fn new(
+        kernel: fn(
+            [i64; 2],
+            [i64; 2],
+            [i64; 4],
+            [i64; 3],
+            [i64; 2],
+            [i64; 3],
+            [i64; 2],
+            [i64; 2],
+            &mut Pointer<T>,
+            &Pointer<T>,
+            &mut Pointer<T>
+        ),
+        oc_block: usize,
+        ow_block: usize
+    ) -> Self {
+        Self {
+            kernel,
+            oc_block,
+            ow_block,
+        }
+    }
+    pub(crate) fn register_used(&self) -> usize {
+        let res_used = self.oc_block * self.ow_block;
+        let inp_used = self.ow_block;
+        let kernel_used = 1;
+        res_used + inp_used + kernel_used
+    }
+}
+
+impl<T: CommonBounds> ConvPartialKernel<T> {
+    pub(crate) fn new(
+        kernel: fn(
+            [i64; 2],
+            [i64; 2],
+            [i64; 4],
+            [i64; 3],
+            [i64; 2],
+            [i64; 3],
+            [i64; 2],
+            [i64; 2],
+            i64,
+            &mut Pointer<T>,
+            &Pointer<T>,
+            &mut Pointer<T>
+        ),
+        ow_block: usize
+    ) -> Self {
+        Self { kernel, ow_block }
+    }
+}
+
+#[duplicate_item(
+        template_function;
+        [micro_kernel_5_1];
+        [micro_kernel_4_1];
+        [micro_kernel_3_1];
+        [micro_kernel_2_1];
+        [micro_kernel_1_1];
+)]
+#[inline]
+fn template_function<T: CommonBounds>(
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    [ph_start, pw_start]: [i64; 2],
+    [dh, dw]: [i64; 2],
+    oc_end: i64,
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    kernel: &mut Pointer<T>
+) {
+    conv2d_microkernel_declare_const!(template_function);
+    let mut results = if ii == 0 {
+        [[T::Vec::splat(T::ZERO); OW_BLOCK]; 1]
+    } else {
+        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; 1];
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..oc_end {
+                ret[0][kk as usize][v as usize] = out[b * osb + l * osh + (k + kk) * osw + j + v];
+            }
+        }
+        ret
+    };
+    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
+    for n in 0..kh {
+        let is1 = is0 + n * ish;
+        for m in 0..kw {
+            let is2 = is1 + m * isw;
+            for i in ii..i_end {
+                let is3 = is2 + i;
+                let inp = conv2d_microkernel_gen_inps!(
+                    inp,
+                    is3,
+                    step_width * isw,
+                    template_function
+                );
+                let mut kernel0 = (T::Vec::splat(T::ZERO),);
+                for v in 0..oc_end {
+                    kernel0.0[v as usize] = kernel[v as usize];
+                }
+                conv2d_microkernel_gen_results!(results, inp, kernel0, template_function);
+                kernel.add(oc_end as usize);
+            }
+        }
+    }
+    for kk in 0..OW_BLOCK as i64 {
+        for v in 0..oc_end {
+            out[b * osb + l * osh + (k + kk) * osw + j + v] = results[0][kk as usize][v as usize];
+        }
+    }
+}
+
+pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
+    oc: &mut usize, // output channels block size
+    kb: &mut usize // outwidth block size
+) -> Option<ConvKernel<T>> {
+    let kernels: [
+        [
+            fn(
+                [i64; 2],
+                [i64; 2],
+                [i64; 4],
+                [i64; 3],
+                [i64; 2],
+                [i64; 3],
+                [i64; 2],
+                [i64; 2],
+                &mut Pointer<T>,
+                &Pointer<T>,
+                &mut Pointer<T>
             );
-        }
+            5
+        ];
+        4
+    ] = [
+        [micro_kernel_1x1, micro_kernel_2x1, micro_kernel_3x1, micro_kernel_4x1, micro_kernel_5x1],
+        [micro_kernel_1x2, micro_kernel_2x2, micro_kernel_3x2, micro_kernel_4x2, micro_kernel_5x2],
+        [micro_kernel_1x4, micro_kernel_2x4, micro_kernel_3x4, micro_kernel_4x4, micro_kernel_5x4],
+        [micro_kernel_1x8, micro_kernel_2x8, micro_kernel_3x8, micro_kernel_4x8, micro_kernel_5x8],
+    ];
+
+    let map_kb = map_kb(*kb);
+    *kb = map_kb + 1;
+    let map_oc = map_oc(*oc);
+    if map_oc == 0 {
+        *oc = 1;
+    } else if map_oc == 1 {
+        *oc = 2;
+    } else if map_oc == 2 {
+        *oc = 4;
+    } else {
+        *oc = 8;
     }
-    unsafe {
-        std::ptr::copy_nonoverlapping(
-            kernel.index(kernel_offset + num_co_rb * (T::Vec::SIZE as i64)) as *const _,
-            kernel_buffer.get_unchecked_mut(num_co_rb as usize) as *mut _ as *mut T,
-            co_b_remain as usize
-        );
-    }
+
+    let kernel_fn = kernels
+        .get(map_oc)
+        .map(|x| x.get(map_kb))
+        .flatten();
+
+    // println!("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc, map_kb);
+
+    kernel_fn.cloned().map(|kernel| ConvKernel::new(kernel, *oc, *kb))
 }
 
-macro_rules! micro_kernel {
-    ($num:tt, [$($idx:expr),*]) => {
-        paste::paste! {
-            #[rustfmt::skip]
-            pub(crate) fn [<micro_kernel_ $num>]<T, const REGNUM: usize>(
-                j: i64,
-                kp: i64,
-                i: i64,
-                inp_offset: i64,
-                co_offset: i64,
-                kernel_offset: i64,
-                step_width: i64,
-                isw: i64,
-                inp: &Pointer<T>,
-                outs: &mut [T::Vec; REGNUM],
-                kernel: &Pointer<T>,
-            )
-                where T: CommonBounds, T::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
-            {
-                $(
-                    let _k = kp * (CONV_REGNUM as i64) + $idx;
-                    let [<inp_vec $idx>] = T::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-                )*
-                unsafe {
-                    let kernel_vec = T::Vec::from_ptr(
-                        &kernel[co_offset + kernel_offset + j * (T::Vec::SIZE as i64)] as *const _
-                    );
-                    $(
-                        outs[$idx] = [<inp_vec $idx>].mul_add(kernel_vec, outs[$idx]);
-                    )*
-                }
-            }
-        }
-    };
+pub(crate) fn full_oc_kernels<T: CommonBounds>() -> [ConvKernel<T>; 20] {
+    [
+        ConvKernel::new(micro_kernel_1x1, 1, 1),
+        ConvKernel::new(micro_kernel_2x1, 1, 2),
+        ConvKernel::new(micro_kernel_3x1, 1, 3),
+        ConvKernel::new(micro_kernel_4x1, 1, 4),
+        ConvKernel::new(micro_kernel_5x1, 1, 5),
+        ConvKernel::new(micro_kernel_1x2, 2, 1),
+        ConvKernel::new(micro_kernel_2x2, 2, 2),
+        ConvKernel::new(micro_kernel_3x2, 2, 3),
+        ConvKernel::new(micro_kernel_4x2, 2, 4),
+        ConvKernel::new(micro_kernel_5x2, 2, 5),
+        ConvKernel::new(micro_kernel_1x4, 4, 1),
+        ConvKernel::new(micro_kernel_2x4, 4, 2),
+        ConvKernel::new(micro_kernel_3x4, 4, 3),
+        ConvKernel::new(micro_kernel_4x4, 4, 4),
+        ConvKernel::new(micro_kernel_5x4, 4, 5),
+        ConvKernel::new(micro_kernel_1x8, 8, 1),
+        ConvKernel::new(micro_kernel_2x8, 8, 2),
+        ConvKernel::new(micro_kernel_3x8, 8, 3),
+        ConvKernel::new(micro_kernel_4x8, 8, 4),
+        ConvKernel::new(micro_kernel_5x8, 8, 5),
+    ]
 }
 
-macro_rules! micro_kernel_dynamic_regnum {
-    ($num:tt, [$($idx:expr),*]) => {
-        paste::paste! {
-            #[rustfmt::skip]
-            pub(crate) fn [<micro_kernel_ $num _dyn>]<T, const REGNUM: usize>(
-                j: i64,
-                kp: i64,
-                i: i64,
-                inp_offset: i64,
-                co_offset: i64,
-                _: i64,
-                kernel_offset: i64,
-                step_width: i64,
-                isw: i64,
-                _: i64,
-                inp: &Pointer<T>,
-                outs: &mut [T::Vec],
-                kernel: &Pointer<T>,
-            )
-                where T: CommonBounds, T::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
-            {
-                $(
-                    let _k = kp * (CONV_REGNUM as i64) + $idx;
-                    let [<inp_vec $idx>] = T::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-                )*
-                unsafe {
-                    let kernel_vec = T::Vec::from_ptr(
-                        &kernel[co_offset + kernel_offset + j * (T::Vec::SIZE as i64)] as *const _
-                    );
-                    $(
-                        outs[$idx] = [<inp_vec $idx>].mul_add(kernel_vec, outs[$idx]);
-                    )*
-                }
-            }
-        }
-    };
+pub(crate) fn iconv2d_remain_oc_kernel_dispatch<T: CommonBounds>(
+    kb: &mut usize // outwidth block size
+) -> Option<ConvPartialKernel<T>> {
+    let kernels: [ConvPartialKernel<T>; 5] = [
+        ConvPartialKernel::new(micro_kernel_1_1, 1),
+        ConvPartialKernel::new(micro_kernel_2_1, 2),
+        ConvPartialKernel::new(micro_kernel_3_1, 3),
+        ConvPartialKernel::new(micro_kernel_4_1, 4),
+        ConvPartialKernel::new(micro_kernel_5_1, 5),
+    ];
+
+    // println!("picked iconv2d_remain_microkernel_{} at {}", kb, map_kb(kb));
+    let map_kb = map_kb(*kb);
+    *kb = map_kb + 1;
+
+    let kernel_fn = kernels.get(map_kb);
+
+    kernel_fn.cloned()
 }
 
-macro_rules! micro_kernel_1 {
-    ($number:expr, $num:tt, [$($idx:expr),*]) => {
-        paste::paste! {
-            #[rustfmt::skip]
-            pub(crate) fn [<micro_kernel_ $num _1>]<T>(
-                kp: i64,
-                i: i64,
-                inp_offset: i64,
-                co_offset: i64,
-                kernel_offset: i64,
-                step_width: i64,
-                isw: i64,
-                inp: &Pointer<T>,
-                out: &mut [T; $number],
-                kernel: &Pointer<T>
-            )
-                where T: CommonBounds + NormalOut<Output = T>, T::Vec: VecTrait<T> + Copy + Init<T> + VecCommon
-            {
-                $(
-                    let _k = kp * (CONV_REGNUM as i64) + $idx;
-                    let [<inp $idx>] = inp[inp_offset + _k * step_width * isw + i];
-                )*
-                let kernel_val = kernel[co_offset + kernel_offset];
-                $(
-                    out[$idx] = [<inp $idx>]._mul(kernel_val)._add(out[$idx]);
-                )*
-            }
-        }
-    };
+fn map_kb(kb: usize) -> usize {
+    if kb <= 1 { 0 } else if kb <= 2 { 1 } else if kb <= 3 { 2 } else if kb <= 4 { 3 } else { 4 }
 }
 
-macro_rules! micro_kernel_with_buffer {
-    ($num:tt, [$($idx:expr),*]) => {
-        paste::paste! {
-            #[rustfmt::skip]
-            pub(crate) fn [<micro_kernel_ $num _with_buffer>]<T>(
-                num_co_rb: i64,
-                kp: i64,
-                i: i64,
-                inp_offset: i64,
-                step_width: i64,
-                isw: i64,
-                inp: &Pointer<T>,
-                res_buffer: &mut Vec<Vec<T::Vec>>,
-                kernel: &[T::Vec]
-            )
-                where T: CommonBounds, T::Vec: VecTrait<T> + Copy + Init<T>
-            {
-                let inp: &Pointer<T> = &inp;
-                $(
-                    let _k = kp * (CONV_REGNUM as i64) + $idx;
-                    let [<inp_vec $idx>] = T::Vec::splat(inp[inp_offset + _k * step_width * isw + i]);
-                )*
-                for j in 0..num_co_rb + 1 {
-                    unsafe {
-                        #[cfg(not(feature = "bound_check"))]
-                        let kernel_vec = *kernel.get_unchecked(j as usize);
-                        #[cfg(feature = "bound_check")]
-                        let kernel_vec = *kernel.get(j as usize).unwrap();
-                        #[cfg(not(feature = "bound_check"))]
-                        let res_vectors = res_buffer.get_unchecked_mut(j as usize);
-                        #[cfg(feature = "bound_check")]
-                        let res_vectors = res_buffer.get_mut(j as usize).unwrap();
-
-                        $(
-                            #[cfg(not(feature = "bound_check"))]
-                            let [<out_vec $idx>] = res_vectors.get_unchecked_mut($idx) as *mut _ as *mut T::Vec;
-                            #[cfg(feature = "bound_check")]
-                            let [<out_vec $idx>] = res_vectors.get_mut($idx).unwrap() as *mut _ as *mut T::Vec;
-                        )*
-                        $(
-                            let [<res $idx>] = [<inp_vec $idx>].mul_add(kernel_vec, [<out_vec $idx>].read_unaligned());
-                        )*
-                        $(
-                            [<out_vec $idx>].write_unaligned([<res $idx>]);
-                        )*
-                    }
-                }
-            }
-        }
-    };
+fn map_oc(oc: usize) -> usize {
+    if oc <= 1 { 0 } else if oc <= 2 { 1 } else if oc <= 4 { 2 } else { 3 }
 }
-
-#[cfg(target_feature = "avx2")]
-micro_kernel!(regnum, [0, 1, 2, 3, 4, 5, 6]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel!(regnum, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
-#[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
-micro_kernel!(regnum, [0, 1, 2]);
-micro_kernel!(1, [0]);
-micro_kernel!(2, [0, 1]);
-micro_kernel!(3, [0, 1, 2]);
-micro_kernel!(4, [0, 1, 2, 3]);
-micro_kernel!(5, [0, 1, 2, 3, 4]);
-micro_kernel!(6, [0, 1, 2, 3, 4, 5]);
-micro_kernel_dynamic_regnum!(1, [0]);
-micro_kernel_dynamic_regnum!(2, [0, 1]);
-micro_kernel_dynamic_regnum!(3, [0, 1, 2]);
-micro_kernel_dynamic_regnum!(4, [0, 1, 2, 3]);
-micro_kernel_dynamic_regnum!(5, [0, 1, 2, 3, 4]);
-micro_kernel_dynamic_regnum!(6, [0, 1, 2, 3, 4, 5]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_dynamic_regnum!(7, [0, 1, 2, 3, 4, 5, 6]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_dynamic_regnum!(8, [0, 1, 2, 3, 4, 5, 6, 7]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_dynamic_regnum!(9, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_dynamic_regnum!(10, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_dynamic_regnum!(11, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_dynamic_regnum!(12, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_dynamic_regnum!(13, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_dynamic_regnum!(14, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
-
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel!(7, [0, 1, 2, 3, 4, 5, 6]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel!(8, [0, 1, 2, 3, 4, 5, 6, 7]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel!(9, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel!(10, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel!(11, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel!(12, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel!(13, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel!(14, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
-
-#[cfg(target_feature = "avx2")]
-micro_kernel_with_buffer!(regnum, [0, 1, 2, 3, 4, 5, 6]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_with_buffer!(regnum, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
-#[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
-micro_kernel_with_buffer!(regnum, [0, 1, 2]);
-micro_kernel_with_buffer!(1, [0]);
-micro_kernel_with_buffer!(2, [0, 1]);
-micro_kernel_with_buffer!(3, [0, 1, 2]);
-micro_kernel_with_buffer!(4, [0, 1, 2, 3]);
-micro_kernel_with_buffer!(5, [0, 1, 2, 3, 4]);
-micro_kernel_with_buffer!(6, [0, 1, 2, 3, 4, 5]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_with_buffer!(7, [0, 1, 2, 3, 4, 5, 6]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_with_buffer!(8, [0, 1, 2, 3, 4, 5, 6, 7]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_with_buffer!(9, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_with_buffer!(10, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_with_buffer!(11, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_with_buffer!(12, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_with_buffer!(13, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_with_buffer!(14, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
-
-#[cfg(target_feature = "avx2")]
-micro_kernel_1!(7, regnum, [0, 1, 2, 3, 4, 5, 6]);
-#[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
-micro_kernel_1!(3, regnum, [0, 1, 2]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_1!(15, regnum, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
-micro_kernel_1!(1, 1, [0]);
-micro_kernel_1!(2, 2, [0, 1]);
-micro_kernel_1!(3, 3, [0, 1, 2]);
-micro_kernel_1!(4, 4, [0, 1, 2, 3]);
-micro_kernel_1!(5, 5, [0, 1, 2, 3, 4]);
-micro_kernel_1!(6, 6, [0, 1, 2, 3, 4, 5]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_1!(7, 7, [0, 1, 2, 3, 4, 5, 6]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_1!(8, 8, [0, 1, 2, 3, 4, 5, 6, 7]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_1!(9, 9, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_1!(10, 10, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_1!(11, 11, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_1!(12, 12, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_1!(13, 13, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-micro_kernel_1!(14, 14, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);

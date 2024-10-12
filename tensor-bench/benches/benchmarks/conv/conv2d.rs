@@ -65,7 +65,7 @@ fn conv2d_benchmark(c: &mut Criterion) {
             &shapes[idx],
             |b, _| {
                 b.iter(|| {
-                    a2.iconv2d(&a2_kernel, [1, 1], [(0, 0), (0, 0)], [1, 1])
+                    a2.conv2d(&a2_kernel, [1, 1], [(0, 0), (0, 0)], [1, 1])
                         .unwrap()
                 });
             },
