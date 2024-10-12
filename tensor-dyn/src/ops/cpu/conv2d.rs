@@ -119,10 +119,9 @@ impl<T> _Tensor<T>
 
         const OH_BLOCK: i64 = 3;
 
-        let mut oc_nvec =
-            cache_size::l1_cache_line_size().unwrap_or(crate::CACHE_LINE_SIZE) /
-            core::mem::size_of::<T>() /
-            T::Vec::SIZE;
+        let cache = Cache::<T>::new();
+
+        let mut oc_nvec = cache.l1_line_size / T::Vec::SIZE;
         let mut ow_block = predict_ow_block(oc_nvec);
 
         let params = kernel_params::<T>(
@@ -131,18 +130,18 @@ impl<T> _Tensor<T>
             ow_block,
             oc_nvec,
             OH_BLOCK as usize,
-            [kernel_height as usize, kernel_width as usize]
+            [kernel_height as usize, kernel_width as usize],
+            cache
         );
         let (ic_nvec, jb) = params;
         let full_oc_kernel = iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(
             &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec)
-        );
-        // println!("reg_used: {}", full_oc_kernel.register_used());
+        ); // get the micro kernel for the full part of out width and full part of out channel
         let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
         let full_oc_kernel_ow_remain = iconv2d_full_oc_kernel_dispatch::<T>(
             &mut oc_nvec,
             &mut ((out_width as usize) % ow_block)
-        );
+        ); // get the micro kernel for the remain part of out width that is not a multiple of ow_block, and full part of out channel
         if full_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
         }
@@ -161,12 +160,15 @@ impl<T> _Tensor<T>
             &mut 1,
             &mut ((out_width as usize) % ow_block)
         );
-        let num_oh = (out_height + OH_BLOCK - 1) / OH_BLOCK;
+        let num_oh = (out_height + OH_BLOCK - 1) / OH_BLOCK; // div ceil, i.e. ceiling of out_height / OH_BLOCK
         let outer = batch * num_oh;
-        let out_width_full_end = out_width - (out_width % (ow_block as i64));
+        let out_width_full_end = out_width - (out_width % (ow_block as i64)); // the end of the out width that is a multiple of ow_block
 
+        // create new memory space to store the reordered kernel filter
         let ro_kernel = kernels.empty_like()?;
         let ro_ptr = ro_kernel.ptr();
+
+        // reorder the kernel filter, so that when we do convolution, we can simply increment the pointer and get the data, this can significantly reduce cache miss rate and improve performance
         reorder_kernel(
             &kernels.ptr(),
             ro_ptr.clone(),
@@ -541,9 +543,9 @@ fn kernel_params<T: CommonBounds>(
     ow_block: usize,
     oc_nvec: usize,
     oh_block: usize,
-    [kh, kw]: [usize; 2]
+    [kh, kw]: [usize; 2],
+    cache: Cache<T>
 ) -> (usize, usize) {
-    let cache = Cache::<T>::new();
     let l1 = cache.l1;
     let l2 = cache.l2;
 

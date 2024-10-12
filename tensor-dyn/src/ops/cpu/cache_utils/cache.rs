@@ -63,6 +63,8 @@ impl<T: CommonBounds> Cache<T> {
                         l3_sets = cache.sets();
                     }
                 }
+            } else {
+                panic!("Failed to get cache parameters");
             }
         }
         #[cfg(target_os = "macos")]
