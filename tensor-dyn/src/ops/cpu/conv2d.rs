@@ -119,10 +119,9 @@ impl<T> _Tensor<T>
 
         const OH_BLOCK: i64 = 3;
 
-        let mut oc_nvec =
-            cache_size::l1_cache_line_size().unwrap_or(crate::CACHE_LINE_SIZE) /
-            core::mem::size_of::<T>() /
-            T::Vec::SIZE;
+        let cache = Cache::<T>::new();
+
+        let mut oc_nvec = cache.l1_line_size / T::Vec::SIZE;
         let mut ow_block = predict_ow_block(oc_nvec);
 
         let params = kernel_params::<T>(
@@ -131,7 +130,8 @@ impl<T> _Tensor<T>
             ow_block,
             oc_nvec,
             OH_BLOCK as usize,
-            [kernel_height as usize, kernel_width as usize]
+            [kernel_height as usize, kernel_width as usize],
+            cache
         );
         let (ic_nvec, jb) = params;
         let full_oc_kernel = iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(
@@ -543,9 +543,9 @@ fn kernel_params<T: CommonBounds>(
     ow_block: usize,
     oc_nvec: usize,
     oh_block: usize,
-    [kh, kw]: [usize; 2]
+    [kh, kw]: [usize; 2],
+    cache: Cache<T>
 ) -> (usize, usize) {
-    let cache = Cache::<T>::new();
     let l1 = cache.l1;
     let l2 = cache.l2;
 
