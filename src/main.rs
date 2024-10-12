@@ -74,20 +74,20 @@ fn conv2d() -> Result<(), anyhow::Error> {
                 for kw in kw_sets {
                     for h in h_sets {
                         for w in w_sets {
-                            // let kernel = _Tensor::<f32>::arange(0, oc * ic * kh * kw)?
-                            //     .reshape([oc, ic, kh, kw])?
-                            //     // .permute([0, 2, 3, 1])?
-                            //     .permute([2, 3, 1, 0])?
-                            //     .contiguous()?;
-                            // let a = _Tensor::<f32>::arange(0, 1 * ic * h * w)?
-                            //     .reshape([1, ic, h, w])?
-                            //     .permute([0, 2, 3, 1])?
-                            //     .contiguous()?;
-                            let device = Device::Cpu;
-                            let a = Tensor::randn(1.0, 1.0, &[1, ic, h, w], &device)?;
-                            let kernel = Tensor::randn(1.0, 1.0, &[oc, ic, kh, kw], &device)?;
+                            let kernel = _Tensor::<f32>::arange(0, oc * ic * kh * kw)?
+                                .reshape([oc, ic, kh, kw])?
+                                // .permute([0, 2, 3, 1])?
+                                .permute([2, 3, 1, 0])?
+                                .contiguous()?;
+                            let a = _Tensor::<f32>::arange(0, 1 * ic * h * w)?
+                                .reshape([1, ic, h, w])?
+                                .permute([0, 2, 3, 1])?
+                                .contiguous()?;
+                            // let device = Device::Cpu;
+                            // let a = Tensor::randn(1.0, 1.0, &[1, ic, h, w], &device)?;
+                            // let kernel = Tensor::randn(1.0, 1.0, &[oc, ic, kh, kw], &device)?;
                             let now = std::time::Instant::now();
-                            let _ = a.conv2d(&kernel, 0, 1, 1, 1)?;
+                            let _ = a.iconv2d(&kernel, [1, 1], [(0, 0), (0, 0)], [1, 1])?;
                             worksheet.write_number(
                                 row,
                                 0,
