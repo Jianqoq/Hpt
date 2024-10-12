@@ -2,7 +2,9 @@
 use duplicate::duplicate_item;
 use tensor_common::pointer::Pointer;
 use tensor_macros::{
-    conv2d_microkernel_declare_const, conv2d_microkernel_gen_inps, conv2d_microkernel_gen_kernels,
+    conv2d_microkernel_declare_const,
+    conv2d_microkernel_gen_inps,
+    conv2d_microkernel_gen_kernels,
     conv2d_microkernel_gen_results,
 };
 use tensor_traits::CommonBounds;
@@ -88,7 +90,7 @@ fn template_function<T: CommonBounds>(
     [dh, dw]: [i64; 2],
     out: &mut Pointer<T>,
     inp: &Pointer<T>,
-    kernel: &mut Pointer<T>,
+    kernel: &mut Pointer<T>
 ) {
     conv2d_microkernel_declare_const!(template_function);
     let mut results = if ii == 0 {
@@ -118,8 +120,12 @@ fn template_function<T: CommonBounds>(
             let is2 = is1 + m * isw;
             for i in ii..i_end {
                 let is3 = is2 + i;
-                let inp =
-                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, template_function);
+                let inp = conv2d_microkernel_gen_inps!(
+                    inp,
+                    is3,
+                    step_width * isw,
+                    template_function
+                );
                 let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, template_function);
                 conv2d_microkernel_gen_results!(results, inp, kernel_vecs, template_function);
                 kernel.add(OC_BLOCK * T::Vec::SIZE);
@@ -172,7 +178,7 @@ fn template_function<T: CommonBounds>(
     [dh, dw]: [i64; 2],
     out: &mut Pointer<T>,
     inp: &Pointer<T>,
-    kernel: &mut Pointer<T>,
+    kernel: &mut Pointer<T>
 ) {
     conv2d_microkernel_declare_const!(template_function);
     let mut results = if ii == 0 {
@@ -202,8 +208,12 @@ fn template_function<T: CommonBounds>(
             let is2 = is1 + m * isw;
             for i in ii..i_end {
                 let is3 = is2 + i;
-                let inp =
-                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, template_function);
+                let inp = conv2d_microkernel_gen_inps!(
+                    inp,
+                    is3,
+                    step_width * isw,
+                    template_function
+                );
                 let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, template_function);
                 conv2d_microkernel_gen_results!(results, inp, kernel_vecs, template_function);
                 kernel.add(OC_BLOCK * T::Vec::SIZE);
@@ -236,7 +246,7 @@ pub struct ConvKernel<T: CommonBounds> {
         [i64; 2],
         &mut Pointer<T>,
         &Pointer<T>,
-        &mut Pointer<T>,
+        &mut Pointer<T>
     ),
     pub(crate) oc_block: usize,
     pub(crate) ow_block: usize,
@@ -257,7 +267,7 @@ pub struct ConvPartialKernel<T: CommonBounds> {
         i64,
         &mut Pointer<T>,
         &Pointer<T>,
-        &mut Pointer<T>,
+        &mut Pointer<T>
     ),
     pub(crate) ow_block: usize,
 }
@@ -275,10 +285,10 @@ impl<T: CommonBounds> ConvKernel<T> {
             [i64; 2],
             &mut Pointer<T>,
             &Pointer<T>,
-            &mut Pointer<T>,
+            &mut Pointer<T>
         ),
         oc_block: usize,
-        ow_block: usize,
+        ow_block: usize
     ) -> Self {
         Self {
             kernel,
@@ -308,9 +318,9 @@ impl<T: CommonBounds> ConvPartialKernel<T> {
             i64,
             &mut Pointer<T>,
             &Pointer<T>,
-            &mut Pointer<T>,
+            &mut Pointer<T>
         ),
-        ow_block: usize,
+        ow_block: usize
     ) -> Self {
         Self { kernel, ow_block }
     }
@@ -337,7 +347,7 @@ fn template_function<T: CommonBounds>(
     oc_end: i64,
     out: &mut Pointer<T>,
     inp: &Pointer<T>,
-    kernel: &mut Pointer<T>,
+    kernel: &mut Pointer<T>
 ) {
     conv2d_microkernel_declare_const!(template_function);
     let mut results = if ii == 0 {
@@ -358,8 +368,12 @@ fn template_function<T: CommonBounds>(
             let is2 = is1 + m * isw;
             for i in ii..i_end {
                 let is3 = is2 + i;
-                let inp =
-                    conv2d_microkernel_gen_inps!(inp, is3, step_width * isw, template_function);
+                let inp = conv2d_microkernel_gen_inps!(
+                    inp,
+                    is3,
+                    step_width * isw,
+                    template_function
+                );
                 let mut kernel0 = (T::Vec::splat(T::ZERO),);
                 for v in 0..oc_end {
                     kernel0.0[v as usize] = kernel[v as usize];
@@ -378,49 +392,31 @@ fn template_function<T: CommonBounds>(
 
 pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
     oc: &mut usize, // output channels block size
-    kb: &mut usize, // outwidth block size
+    kb: &mut usize // outwidth block size
 ) -> Option<ConvKernel<T>> {
-    let kernels: [[fn(
-        [i64; 2],
-        [i64; 2],
-        [i64; 4],
-        [i64; 3],
-        [i64; 2],
-        [i64; 3],
-        [i64; 2],
-        [i64; 2],
-        &mut Pointer<T>,
-        &Pointer<T>,
-        &mut Pointer<T>,
-    ); 5]; 4] = [
+    let kernels: [
         [
-            micro_kernel_1x1,
-            micro_kernel_2x1,
-            micro_kernel_3x1,
-            micro_kernel_4x1,
-            micro_kernel_5x1,
-        ],
-        [
-            micro_kernel_1x2,
-            micro_kernel_2x2,
-            micro_kernel_3x2,
-            micro_kernel_4x2,
-            micro_kernel_5x2,
-        ],
-        [
-            micro_kernel_1x4,
-            micro_kernel_2x4,
-            micro_kernel_3x4,
-            micro_kernel_4x4,
-            micro_kernel_5x4,
-        ],
-        [
-            micro_kernel_1x8,
-            micro_kernel_2x8,
-            micro_kernel_3x8,
-            micro_kernel_4x8,
-            micro_kernel_5x8,
-        ],
+            fn(
+                [i64; 2],
+                [i64; 2],
+                [i64; 4],
+                [i64; 3],
+                [i64; 2],
+                [i64; 3],
+                [i64; 2],
+                [i64; 2],
+                &mut Pointer<T>,
+                &Pointer<T>,
+                &mut Pointer<T>
+            );
+            5
+        ];
+        4
+    ] = [
+        [micro_kernel_1x1, micro_kernel_2x1, micro_kernel_3x1, micro_kernel_4x1, micro_kernel_5x1],
+        [micro_kernel_1x2, micro_kernel_2x2, micro_kernel_3x2, micro_kernel_4x2, micro_kernel_5x2],
+        [micro_kernel_1x4, micro_kernel_2x4, micro_kernel_3x4, micro_kernel_4x4, micro_kernel_5x4],
+        [micro_kernel_1x8, micro_kernel_2x8, micro_kernel_3x8, micro_kernel_4x8, micro_kernel_5x8],
     ];
 
     let map_kb = map_kb(*kb);
@@ -436,13 +432,14 @@ pub(crate) fn iconv2d_full_oc_kernel_dispatch<T: CommonBounds>(
         *oc = 8;
     }
 
-    let kernel_fn = kernels.get(map_oc).map(|x| x.get(map_kb)).flatten();
+    let kernel_fn = kernels
+        .get(map_oc)
+        .map(|x| x.get(map_kb))
+        .flatten();
 
     // println!("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc, map_kb);
 
-    kernel_fn
-        .cloned()
-        .map(|kernel| ConvKernel::new(kernel, *oc, *kb))
+    kernel_fn.cloned().map(|kernel| ConvKernel::new(kernel, *oc, *kb))
 }
 
 pub(crate) fn full_oc_kernels<T: CommonBounds>() -> [ConvKernel<T>; 20] {
@@ -471,7 +468,7 @@ pub(crate) fn full_oc_kernels<T: CommonBounds>() -> [ConvKernel<T>; 20] {
 }
 
 pub(crate) fn iconv2d_remain_oc_kernel_dispatch<T: CommonBounds>(
-    kb: &mut usize, // outwidth block size
+    kb: &mut usize // outwidth block size
 ) -> Option<ConvPartialKernel<T>> {
     let kernels: [ConvPartialKernel<T>; 5] = [
         ConvPartialKernel::new(micro_kernel_1_1, 1),
@@ -491,27 +488,9 @@ pub(crate) fn iconv2d_remain_oc_kernel_dispatch<T: CommonBounds>(
 }
 
 fn map_kb(kb: usize) -> usize {
-    if kb <= 1 {
-        0
-    } else if kb <= 2 {
-        1
-    } else if kb <= 3 {
-        2
-    } else if kb <= 4 {
-        3
-    } else {
-        4
-    }
+    if kb <= 1 { 0 } else if kb <= 2 { 1 } else if kb <= 3 { 2 } else if kb <= 4 { 3 } else { 4 }
 }
 
 fn map_oc(oc: usize) -> usize {
-    if oc <= 1 {
-        0
-    } else if oc <= 2 {
-        1
-    } else if oc <= 4 {
-        2
-    } else {
-        3
-    }
+    if oc <= 1 { 0 } else if oc <= 2 { 1 } else if oc <= 4 { 2 } else { 3 }
 }
