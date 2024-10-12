@@ -191,16 +191,28 @@ impl<T> _Tensor<T>
                 (None, None, None) => {
                     for ii in (0..in_channels).step_by(ic_block_size) {
                         let i_end = (ii + (ic_block_size as i64)).min(in_channels);
+
+                        // out channel has two levels of blocking:
+                        // 1. it first blocks by oc_block_size * jb
+                        // 2. it then blocks by oc_block_size (cache line size)
                         for jj in (0..out_channels).step_by(oc_block_size * (jb as usize)) {
                             let jj_start = jj;
+
+                            // make sure jj_end is in the range of out_channels
                             let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(
                                 out_channels
                             );
+
+                            // the kernel filter has nothing to do with out height, hence, when iterate over (0..out_width_full_end), kernel pointer should reset in each iteration
                             let kernel_k = kernel.clone();
+
+                            // since the out width is multiple of ow_block, we don't need to handle the remain part
                             for k in (0..out_width_full_end).step_by(ow_block) {
                                 for j in (jj_start..jj_end).step_by(oc_block_size) {
+                                    // the kernel filter has nothing to do with out height, hence, when iterate over (l..l_end), kernel pointer should reset in each iteration
                                     let original = kernel.clone();
                                     for l in ll..l_end {
+                                        // execute micro kernel, see `iconv2d_full_oc_kernel_dispatch` for more details
                                         full_oc_kernel_fn(
                                             [ii, i_end],
                                             [kernel_height, kernel_width],
@@ -216,6 +228,7 @@ impl<T> _Tensor<T>
                                         );
                                         kernel = original.clone();
                                     }
+                                    // update the kernel pointer
                                     kernel +=
                                         kernel_height *
                                         kernel_width *
@@ -232,13 +245,22 @@ impl<T> _Tensor<T>
                 _ => {
                     for ii in (0..in_channels).step_by(ic_block_size) {
                         let i_end = (ii + (ic_block_size as i64)).min(in_channels);
+
+                        // out channel has two levels of blocking:
+                        // 1. it first blocks by oc_block_size * jb
+                        // 2. it then blocks by oc_block_size (cache line size)
                         for jj in (0..out_channels).step_by(oc_block_size * (jb as usize)) {
                             let jj_start = jj;
+
+                            // make sure jj_end is in the range of out_channels
                             let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(
                                 out_channels
                             );
+
+                            // calculate the remain part that are less than T::Vec::SIZE * oc_nvec
                             let remain = (jj_end - jj_start) % (oc_block_size as i64);
                             let kernel_k = kernel.clone();
+                            // define a closure to avoid the repeated code
                             let func = |
                                 k: i64,
                                 full_oc: fn(
@@ -344,6 +366,8 @@ impl<T> _Tensor<T>
                                     }
                                 }
                             };
+
+                            // handle the out width full part
                             for k in (0..out_width_full_end).step_by(ow_block) {
                                 func(
                                     k,
@@ -356,6 +380,7 @@ impl<T> _Tensor<T>
                                 );
                                 kernel = kernel_k.clone();
                             }
+                            // handle the out width remain part
                             if let Some(full_oc_kernel_ow_remain) = &full_oc_kernel_ow_remain {
                                 for k in (out_width_full_end..out_width).step_by(ow_block) {
                                     func(
