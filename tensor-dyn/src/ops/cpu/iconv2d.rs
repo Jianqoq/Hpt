@@ -179,6 +179,9 @@ impl<T> _Tensor<T>
             [kernel_height as usize, kernel_width as usize]
         );
 
+        let ic_block_size = ic_nvec * T::Vec::SIZE; // in channel block size
+        let oc_block_size = oc_nvec * T::Vec::SIZE; // out channel block size, but this is only caculated based on cache line size, we have another block size `jb`
+
         (0..outer).into_par_iter().for_each(|idx| {
             let mut out = out.clone();
             let mut kernel = ro_ptr.clone();
@@ -188,21 +191,16 @@ impl<T> _Tensor<T>
             let l_end = (ll + OH_BLOCK).min(out_height);
             match (partial_oc_kernel, full_oc_kernel_ow_remain, partial_oc_kernel_ow_remain) {
                 (None, None, None) => {
-                    for ii in (0..in_channels).step_by(T::Vec::SIZE * ic_nvec) {
-                        let i_end = (ii + (T::Vec::SIZE as i64) * (ic_nvec as i64)).min(
-                            in_channels
-                        );
-                        for jj in (0..out_channels).step_by(
-                            T::Vec::SIZE * oc_nvec * (jb as usize)
-                        ) {
+                    for ii in (0..in_channels).step_by(ic_block_size) {
+                        let i_end = (ii + (ic_block_size as i64)).min(in_channels);
+                        for jj in (0..out_channels).step_by(oc_block_size * (jb as usize)) {
                             let jj_start = jj;
-                            let jj_end = (
-                                jj +
-                                (T::Vec::SIZE as i64) * (oc_nvec as i64) * (jb as i64)
-                            ).min(out_channels);
+                            let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(
+                                out_channels
+                            );
                             let kernel_k = kernel.clone();
                             for k in (0..out_width_full_end).step_by(ow_block) {
-                                for j in (jj_start..jj_end).step_by(T::Vec::SIZE * oc_nvec) {
+                                for j in (jj_start..jj_end).step_by(oc_block_size) {
                                     let original = kernel.clone();
                                     for l in ll..l_end {
                                         full_oc_kernel_fn(
@@ -224,8 +222,7 @@ impl<T> _Tensor<T>
                                         kernel_height *
                                         kernel_width *
                                         (i_end - ii) *
-                                        (oc_nvec as i64) *
-                                        (T::Vec::SIZE as i64);
+                                        (oc_block_size as i64);
                                 }
                                 kernel = kernel_k.clone();
                             }
@@ -235,19 +232,14 @@ impl<T> _Tensor<T>
                     }
                 }
                 _ => {
-                    for ii in (0..in_channels).step_by(T::Vec::SIZE * ic_nvec) {
-                        let i_end = (ii + (T::Vec::SIZE as i64) * (ic_nvec as i64)).min(
-                            in_channels
-                        );
-                        for jj in (0..out_channels).step_by(
-                            T::Vec::SIZE * oc_nvec * (jb as usize)
-                        ) {
+                    for ii in (0..in_channels).step_by(ic_block_size) {
+                        let i_end = (ii + (ic_block_size as i64)).min(in_channels);
+                        for jj in (0..out_channels).step_by(oc_block_size * (jb as usize)) {
                             let jj_start = jj;
-                            let jj_end = (
-                                jj +
-                                (T::Vec::SIZE as i64) * (oc_nvec as i64) * (jb as i64)
-                            ).min(out_channels);
-                            let remain = (jj_end - jj_start) % ((T::Vec::SIZE * oc_nvec) as i64);
+                            let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(
+                                out_channels
+                            );
+                            let remain = (jj_end - jj_start) % (oc_block_size as i64);
                             let kernel_k = kernel.clone();
                             let func = |
                                 k: i64,
@@ -270,9 +262,7 @@ impl<T> _Tensor<T>
                                 kernel: &mut Pointer<T>,
                                 inp: &Pointer<T>
                             | {
-                                for j in (jj_start..jj_end - remain).step_by(
-                                    T::Vec::SIZE * oc_nvec
-                                ) {
+                                for j in (jj_start..jj_end - remain).step_by(oc_block_size) {
                                     let original = kernel.clone();
                                     for l in ll..l_end {
                                         full_oc(
@@ -294,8 +284,7 @@ impl<T> _Tensor<T>
                                         kernel_height *
                                         kernel_width *
                                         (i_end - ii) *
-                                        (oc_nvec as i64) *
-                                        (T::Vec::SIZE as i64);
+                                        (oc_block_size as i64);
                                 }
                                 if remain > 0 {
                                     let oc_remain = remain % (T::Vec::SIZE as i64);
@@ -521,6 +510,8 @@ fn predict_ow_block(oc_block: usize) -> usize {
     REGNUM / (oc_block + 1)
 }
 
+/// calculate sub-optimal in channel block size and out channel block size,
+/// to maximize the cache utilization and balance the memory access
 fn kernel_params<T: CommonBounds>(
     out_channels: usize,
     in_channels: usize,
