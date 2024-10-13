@@ -268,6 +268,7 @@ impl<T> _Tensor<T>
                 _ => {
                     for ii in (0..in_channels).step_by(ic_block_size) {
                         let i_end = (ii + (ic_block_size as i64)).min(in_channels);
+                        let bias_kernel = i_end == in_channels && has_bias;
                         // out channel has two levels of blocking:
                         // 1. it first blocks by oc_block_size * jb
                         // 2. it then blocks by oc_block_size (cache line size)
