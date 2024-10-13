@@ -1,6 +1,4 @@
 use std::io::Write;
-
-use candle_core::{ Device, Tensor };
 use rust_xlsxwriter::{ Format, Workbook };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;

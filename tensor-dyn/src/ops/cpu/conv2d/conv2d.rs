@@ -145,7 +145,7 @@ impl<T> _Tensor<T>
             &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec)
         );
         let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
-        let full_oc_kernel_ow_remain = conv2d_full_oc_kernel_dispatch::<T, _>(
+        let full_oc_kernel_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
             &mut oc_nvec,
             &mut ((out_width as usize) % ow_block)
         );
@@ -162,19 +162,19 @@ impl<T> _Tensor<T>
         if partial_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
         }
-        let full_oc_kernel_fn_1_oc = conv2d_full_oc_kernel_dispatch::<T, _>(&mut 1, &mut ow_block);
-        let full_oc_kernel_fn_1_oc_ow_remain = conv2d_full_oc_kernel_dispatch::<T, _>(
+        let full_oc_kernel_fn_1_oc = conv2d_full_oc_kernel_dispatch::<T>(&mut 1, &mut ow_block);
+        let full_oc_kernel_fn_1_oc_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
             &mut 1,
             &mut ((out_width as usize) % ow_block)
         );
         let has_bias = bias.is_some();
         let bias_full_oc_kernel = if has_bias {
-            Some(conv2d_full_oc_bias_kernel_dispatch::<T, _>(&mut oc_nvec, &mut ow_block).unwrap())
+            Some(conv2d_full_oc_bias_kernel_dispatch::<T>(&mut oc_nvec, &mut ow_block).unwrap())
         } else {
             None
         };
         let bias_one_oc_kernel = if has_bias {
-            Some(conv2d_full_oc_bias_kernel_dispatch::<T, _>(&mut 1, &mut ow_block).unwrap())
+            Some(conv2d_full_oc_bias_kernel_dispatch::<T>(&mut 1, &mut ow_block).unwrap())
         } else {
             None
         };
@@ -185,7 +185,7 @@ impl<T> _Tensor<T>
         };
         let bias_full_oc_ow_remain = if has_bias {
             Some(
-                conv2d_full_oc_bias_kernel_dispatch::<T, _>(
+                conv2d_full_oc_bias_kernel_dispatch::<T>(
                     &mut oc_nvec,
                     &mut ((out_width as usize) % ow_block)
                 ).unwrap()
@@ -195,7 +195,7 @@ impl<T> _Tensor<T>
         };
         let bias_one_oc_ow_remain = if has_bias {
             Some(
-                conv2d_full_oc_bias_kernel_dispatch::<T, _>(
+                conv2d_full_oc_bias_kernel_dispatch::<T>(
                     &mut 1,
                     &mut ((out_width as usize) % ow_block)
                 ).unwrap()

@@ -65,15 +65,15 @@ pub struct ConvPartialKernel<T: CommonBounds> {
 
 /// This struct carries the micro kernel function and the corresponding info
 #[derive(Clone, Copy)]
-pub struct ConvKernel<T: CommonBounds, F: Fn(T::Vec) -> T::Vec> {
-    pub(crate) kernel: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, F),
+pub struct ConvKernel<T: CommonBounds> {
+    pub(crate) kernel: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
     pub(crate) oc_block: usize,
     pub(crate) ow_block: usize,
 }
 
-impl<T: CommonBounds, F: Fn(T::Vec) -> T::Vec> ConvKernel<T, F> {
+impl<T: CommonBounds> ConvKernel<T> {
     pub(crate) fn new(
-        kernel: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, F),
+        kernel: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
         oc_block: usize,
         ow_block: usize
     ) -> Self {
@@ -175,12 +175,12 @@ macro_rules! repeat_results {
     [micro_kernel_2x8];
     [micro_kernel_1x8];
 )]
-fn template_function<T: CommonBounds, F: Fn(T::Vec) -> T::Vec>(
+fn template_function<T: CommonBounds>(
     params: Params,
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
-    activation: F
+    activation: fn(T::Vec) -> T::Vec
 ) {
     let Params {
         arg1: [ii, i_end],
@@ -267,13 +267,13 @@ fn template_function<T: CommonBounds, F: Fn(T::Vec) -> T::Vec>(
     [bias_micro_kernel_2x8];
     [bias_micro_kernel_1x8];
 )]
-fn template_function<T: CommonBounds, F: Fn(T::Vec) -> T::Vec>(
+fn template_function<T: CommonBounds>(
     params: Params,
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
     bias: &Pointer<T>,
-    activation: F
+    activation: fn(T::Vec) -> T::Vec
 ) {
     let Params {
         arg1: [ii, i_end],
@@ -572,11 +572,11 @@ fn template_function<T: CommonBounds>(
     }
 }
 
-pub(crate) fn conv2d_full_oc_kernel_dispatch<T: CommonBounds, F: Fn(T::Vec) -> T::Vec>(
+pub(crate) fn conv2d_full_oc_kernel_dispatch<T: CommonBounds>(
     oc: &mut usize, // output channels block size
     kb: &mut usize // outwidth block size
-) -> Option<ConvKernel<T, F>> {
-    let kernels: [[fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, F); 5]; 4] = [
+) -> Option<ConvKernel<T>> {
+    let kernels: [[fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec); 5]; 4] = [
         [micro_kernel_1x1, micro_kernel_2x1, micro_kernel_3x1, micro_kernel_4x1, micro_kernel_5x1],
         [micro_kernel_1x2, micro_kernel_2x2, micro_kernel_3x2, micro_kernel_4x2, micro_kernel_5x2],
         [micro_kernel_1x4, micro_kernel_2x4, micro_kernel_3x4, micro_kernel_4x4, micro_kernel_5x4],
@@ -606,12 +606,12 @@ pub(crate) fn conv2d_full_oc_kernel_dispatch<T: CommonBounds, F: Fn(T::Vec) -> T
     kernel_fn.cloned().map(|kernel| ConvKernel::new(kernel, *oc, *kb))
 }
 
-pub(crate) fn conv2d_full_oc_bias_kernel_dispatch<T: CommonBounds, F: Fn(T::Vec) -> T::Vec>(
+pub(crate) fn conv2d_full_oc_bias_kernel_dispatch<T: CommonBounds>(
     oc: &mut usize, // output channels block size
     kb: &mut usize // outwidth block size
-) -> Option<fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, F)> {
+) -> Option<fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)> {
     let kernels: [
-        [fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, F); 5];
+        [fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec); 5];
         4
     ] = [
         [
@@ -665,8 +665,8 @@ pub(crate) fn conv2d_full_oc_bias_kernel_dispatch<T: CommonBounds, F: Fn(T::Vec)
     kernel_fn.cloned()
 }
 
-pub(crate) fn full_oc_kernels<T: CommonBounds, F: Fn(T::Vec) -> T::Vec>() -> [
-    ConvKernel<T, F>;
+pub(crate) fn full_oc_kernels<T: CommonBounds>() -> [
+    ConvKernel<T>;
     20
 ] {
     [
