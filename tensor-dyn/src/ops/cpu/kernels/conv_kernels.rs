@@ -11,61 +11,63 @@ use tensor_types::type_promote::NormalOut;
 use tensor_traits::CommonBounds;
 use tensor_types::traits::*;
 
+pub(crate) struct Params {
+    pub(crate) arg1: [i64; 2],
+    pub(crate) arg2: [i64; 2],
+    pub(crate) arg3: [i64; 4],
+    pub(crate) arg4: [i64; 3],
+    pub(crate) arg5: [i64; 2],
+    pub(crate) arg6: [i64; 3],
+    pub(crate) arg7: [i64; 2],
+    pub(crate) arg8: [i64; 2],
+}
+
+pub(crate) struct PartialParams {
+    pub(crate) arg1: [i64; 2],
+    pub(crate) arg2: [i64; 2],
+    pub(crate) arg3: [i64; 4],
+    pub(crate) arg4: [i64; 3],
+    pub(crate) arg5: [i64; 2],
+    pub(crate) arg6: [i64; 3],
+    pub(crate) arg7: [i64; 2],
+    pub(crate) arg8: [i64; 2],
+    pub(crate) oc_remain: i64,
+}
+
+impl PartialParams {
+    pub(crate) fn replace_arg3(&self, new_arg3: [i64; 4]) -> Self {
+        Self {
+            arg1: self.arg1,
+            arg2: self.arg2,
+            arg3: new_arg3,
+            arg4: self.arg4,
+            arg5: self.arg5,
+            arg6: self.arg6,
+            arg7: self.arg7,
+            arg8: self.arg8,
+            oc_remain: self.oc_remain,
+        }
+    }
+}
+
 /// This struct carries the micro kernel function and the corresponding info
 #[derive(Clone, Copy)]
 pub struct ConvPartialKernel<T: CommonBounds> {
-    pub(crate) kernel: fn(
-        [i64; 2],
-        [i64; 2],
-        [i64; 4],
-        [i64; 3],
-        [i64; 2],
-        [i64; 3],
-        [i64; 2],
-        [i64; 2],
-        i64,
-        &mut Pointer<T>,
-        &Pointer<T>,
-        &mut Pointer<T>
-    ),
+    pub(crate) kernel: fn(PartialParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>),
     pub(crate) ow_block: usize,
 }
 
 /// This struct carries the micro kernel function and the corresponding info
 #[derive(Clone, Copy)]
 pub struct ConvKernel<T: CommonBounds> {
-    pub(crate) kernel: fn(
-        [i64; 2],
-        [i64; 2],
-        [i64; 4],
-        [i64; 3],
-        [i64; 2],
-        [i64; 3],
-        [i64; 2],
-        [i64; 2],
-        &mut Pointer<T>,
-        &Pointer<T>,
-        &mut Pointer<T>
-    ),
+    pub(crate) kernel: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>),
     pub(crate) oc_block: usize,
     pub(crate) ow_block: usize,
 }
 
 impl<T: CommonBounds> ConvKernel<T> {
     pub(crate) fn new(
-        kernel: fn(
-            [i64; 2],
-            [i64; 2],
-            [i64; 4],
-            [i64; 3],
-            [i64; 2],
-            [i64; 3],
-            [i64; 2],
-            [i64; 2],
-            &mut Pointer<T>,
-            &Pointer<T>,
-            &mut Pointer<T>
-        ),
+        kernel: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>),
         oc_block: usize,
         ow_block: usize
     ) -> Self {
@@ -85,20 +87,7 @@ impl<T: CommonBounds> ConvKernel<T> {
 
 impl<T: CommonBounds> ConvPartialKernel<T> {
     pub(crate) fn new(
-        kernel: fn(
-            [i64; 2],
-            [i64; 2],
-            [i64; 4],
-            [i64; 3],
-            [i64; 2],
-            [i64; 3],
-            [i64; 2],
-            [i64; 2],
-            i64,
-            &mut Pointer<T>,
-            &Pointer<T>,
-            &mut Pointer<T>
-        ),
+        kernel: fn(PartialParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>),
         ow_block: usize
     ) -> Self {
         Self { kernel, ow_block }
@@ -175,18 +164,21 @@ macro_rules! repeat_results {
     [micro_kernel_1x8];
 )]
 fn template_function<T: CommonBounds>(
-    [ii, i_end]: [i64; 2],
-    [kh, kw]: [i64; 2],
-    [b, l, k, j]: [i64; 4],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ph_start, pw_start]: [i64; 2],
-    [dh, dw]: [i64; 2],
+    params: Params,
     out: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    kernel: &mut Pointer<T>
+    kernel: &mut Pointer<T>,
+    inp: &Pointer<T>
 ) {
+    let Params {
+        arg1: [ii, i_end],
+        arg2: [kh, kw],
+        arg3: [b, l, k, j],
+        arg4: [osb, osh, osw],
+        arg5: [step_height, step_width],
+        arg6: [isb, ish, isw],
+        arg7: [ph_start, pw_start],
+        arg8: [dh, dw],
+    } = params;
     conv2d_microkernel_declare_const!(template_function);
     let mut results = if ii == 0 {
         [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
@@ -263,19 +255,22 @@ fn template_function<T: CommonBounds>(
     [bias_micro_kernel_1x8];
 )]
 fn template_function<T: CommonBounds>(
-    [ii, i_end]: [i64; 2],
-    [kh, kw]: [i64; 2],
-    [b, l, k, j]: [i64; 4],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ph_start, pw_start]: [i64; 2],
-    [dh, dw]: [i64; 2],
-    bias: &Pointer<T>,
+    params: Params,
     out: &mut Pointer<T>,
+    kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
-    kernel: &mut Pointer<T>
+    bias: &Pointer<T>
 ) {
+    let Params {
+        arg1: [ii, i_end],
+        arg2: [kh, kw],
+        arg3: [b, l, k, j],
+        arg4: [osb, osh, osw],
+        arg5: [step_height, step_width],
+        arg6: [isb, ish, isw],
+        arg7: [ph_start, pw_start],
+        arg8: [dh, dw],
+    } = params;
     conv2d_microkernel_declare_const!(template_function);
     let mut results = if ii == 0 {
         [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
@@ -429,26 +424,29 @@ fn template_function<T: CommonBounds>(
 )]
 #[inline]
 fn template_function<T: CommonBounds>(
-    [ii, i_end]: [i64; 2],
-    [kh, kw]: [i64; 2],
-    [b, l, k, j]: [i64; 4],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ph_start, pw_start]: [i64; 2],
-    [dh, dw]: [i64; 2],
-    oc_end: i64,
+    params: PartialParams,
     out: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    kernel: &mut Pointer<T>
+    kernel: &mut Pointer<T>,
+    inp: &Pointer<T>
 ) {
+    let PartialParams {
+        arg1: [ii, i_end],
+        arg2: [kh, kw],
+        arg3: [b, l, k, j],
+        arg4: [osb, osh, osw],
+        arg5: [step_height, step_width],
+        arg6: [isb, ish, isw],
+        arg7: [ph_start, pw_start],
+        arg8: [dh, dw],
+        oc_remain,
+    } = params;
     conv2d_microkernel_declare_const!(template_function);
     let mut results = if ii == 0 {
         [[T::Vec::splat(T::ZERO); OW_BLOCK]; 1]
     } else {
         let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; 1];
         for kk in 0..OW_BLOCK as i64 {
-            for v in 0..oc_end {
+            for v in 0..oc_remain {
                 ret[0][kk as usize][v as usize] = out[b * osb + l * osh + (k + kk) * osw + j + v];
             }
         }
@@ -468,16 +466,16 @@ fn template_function<T: CommonBounds>(
                     template_function
                 );
                 let mut kernel0 = (T::Vec::splat(T::ZERO),);
-                for v in 0..oc_end {
+                for v in 0..oc_remain {
                     kernel0.0[v as usize] = kernel[v as usize];
                 }
                 conv2d_microkernel_gen_results!(results, inp, kernel0, template_function);
-                kernel.add(oc_end as usize);
+                kernel.add(oc_remain as usize);
             }
         }
     }
     for kk in 0..OW_BLOCK as i64 {
-        for v in 0..oc_end {
+        for v in 0..oc_remain {
             out[b * osb + l * osh + (k + kk) * osw + j + v] = results[0][kk as usize][v as usize];
         }
     }
@@ -493,27 +491,30 @@ fn template_function<T: CommonBounds>(
 )]
 #[inline]
 fn template_function<T: CommonBounds>(
-    [ii, i_end]: [i64; 2],
-    [kh, kw]: [i64; 2],
-    [b, l, k, j]: [i64; 4],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ph_start, pw_start]: [i64; 2],
-    [dh, dw]: [i64; 2],
-    oc_end: i64,
-    bias: &Pointer<T>,
+    params: PartialParams,
     out: &mut Pointer<T>,
+    kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
-    kernel: &mut Pointer<T>
+    bias: &Pointer<T>
 ) {
+    let PartialParams {
+        arg1: [ii, i_end],
+        arg2: [kh, kw],
+        arg3: [b, l, k, j],
+        arg4: [osb, osh, osw],
+        arg5: [step_height, step_width],
+        arg6: [isb, ish, isw],
+        arg7: [ph_start, pw_start],
+        arg8: [dh, dw],
+        oc_remain,
+    } = params;
     conv2d_microkernel_declare_const!(template_function);
     let mut results = if ii == 0 {
         [[T::Vec::splat(T::ZERO); OW_BLOCK]; 1]
     } else {
         let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; 1];
         for kk in 0..OW_BLOCK as i64 {
-            for v in 0..oc_end {
+            for v in 0..oc_remain {
                 ret[0][kk as usize][v as usize] = out[b * osb + l * osh + (k + kk) * osw + j + v];
             }
         }
@@ -533,16 +534,16 @@ fn template_function<T: CommonBounds>(
                     template_function
                 );
                 let mut kernel0 = (T::Vec::splat(T::ZERO),);
-                for v in 0..oc_end {
+                for v in 0..oc_remain {
                     kernel0.0[v as usize] = kernel[v as usize];
                 }
                 conv2d_microkernel_gen_results!(results, inp, kernel0, template_function);
-                kernel.add(oc_end as usize);
+                kernel.add(oc_remain as usize);
             }
         }
     }
     for kk in 0..OW_BLOCK as i64 {
-        for v in 0..oc_end {
+        for v in 0..oc_remain {
             out[b * osb + l * osh + (k + kk) * osw + j + v] = results[0][kk as usize][
                 v as usize
             ]._add(bias[j + v]);
@@ -554,25 +555,7 @@ pub(crate) fn conv2d_full_oc_kernel_dispatch<T: CommonBounds>(
     oc: &mut usize, // output channels block size
     kb: &mut usize // outwidth block size
 ) -> Option<ConvKernel<T>> {
-    let kernels: [
-        [
-            fn(
-                [i64; 2],
-                [i64; 2],
-                [i64; 4],
-                [i64; 3],
-                [i64; 2],
-                [i64; 3],
-                [i64; 2],
-                [i64; 2],
-                &mut Pointer<T>,
-                &Pointer<T>,
-                &mut Pointer<T>
-            );
-            5
-        ];
-        4
-    ] = [
+    let kernels: [[fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>); 5]; 4] = [
         [micro_kernel_1x1, micro_kernel_2x1, micro_kernel_3x1, micro_kernel_4x1, micro_kernel_5x1],
         [micro_kernel_1x2, micro_kernel_2x2, micro_kernel_3x2, micro_kernel_4x2, micro_kernel_5x2],
         [micro_kernel_1x4, micro_kernel_2x4, micro_kernel_3x4, micro_kernel_4x4, micro_kernel_5x4],
@@ -605,40 +588,9 @@ pub(crate) fn conv2d_full_oc_kernel_dispatch<T: CommonBounds>(
 pub(crate) fn conv2d_full_oc_bias_kernel_dispatch<T: CommonBounds>(
     oc: &mut usize, // output channels block size
     kb: &mut usize // outwidth block size
-) -> Option<
-    fn(
-        [i64; 2],
-        [i64; 2],
-        [i64; 4],
-        [i64; 3],
-        [i64; 2],
-        [i64; 3],
-        [i64; 2],
-        [i64; 2],
-        &Pointer<T>,
-        &mut Pointer<T>,
-        &Pointer<T>,
-        &mut Pointer<T>
-    )
-> {
+) -> Option<fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>)> {
     let kernels: [
-        [
-            fn(
-                [i64; 2],
-                [i64; 2],
-                [i64; 4],
-                [i64; 3],
-                [i64; 2],
-                [i64; 3],
-                [i64; 2],
-                [i64; 2],
-                &Pointer<T>,
-                &mut Pointer<T>,
-                &Pointer<T>,
-                &mut Pointer<T>
-            );
-            5
-        ];
+        [fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>); 5];
         4
     ] = [
         [
@@ -717,7 +669,7 @@ pub(crate) fn full_oc_kernels<T: CommonBounds>() -> [ConvKernel<T>; 20] {
     ]
 }
 
-pub(crate) fn conv2d_remain_oc_kernel_dispatch<T: CommonBounds>(
+pub(crate) fn remain_oc_kernel_dispatch<T: CommonBounds>(
     kb: &mut usize // outwidth block size
 ) -> Option<ConvPartialKernel<T>> {
     let kernels: [ConvPartialKernel<T>; 5] = [
@@ -726,6 +678,26 @@ pub(crate) fn conv2d_remain_oc_kernel_dispatch<T: CommonBounds>(
         ConvPartialKernel::new(micro_kernel_3_1, 3),
         ConvPartialKernel::new(micro_kernel_4_1, 4),
         ConvPartialKernel::new(micro_kernel_5_1, 5),
+    ];
+
+    // println!("picked iconv2d_remain_microkernel_{} at {}", kb, map_kb(kb));
+    let map_kb = map_kb(*kb);
+    *kb = map_kb + 1;
+
+    let kernel_fn = kernels.get(map_kb);
+
+    kernel_fn.cloned()
+}
+
+pub(crate) fn bias_remain_oc_kernel_dispatch<T: CommonBounds>(
+    kb: &mut usize // outwidth block size
+) -> Option<fn(PartialParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>)> {
+    let kernels: [fn(PartialParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>); 5] = [
+        bias_micro_kernel_1_1,
+        bias_micro_kernel_2_1,
+        bias_micro_kernel_3_1,
+        bias_micro_kernel_4_1,
+        bias_micro_kernel_5_1,
     ];
 
     // println!("picked iconv2d_remain_microkernel_{} at {}", kb, map_kb(kb));
