@@ -53,21 +53,27 @@ impl PartialParams {
 /// This struct carries the micro kernel function and the corresponding info
 #[derive(Clone, Copy)]
 pub struct ConvPartialKernel<T: CommonBounds> {
-    pub(crate) kernel: fn(PartialParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>),
+    pub(crate) kernel: fn(
+        PartialParams,
+        &mut Pointer<T>,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        fn(T::Vec) -> T::Vec
+    ),
     pub(crate) ow_block: usize,
 }
 
 /// This struct carries the micro kernel function and the corresponding info
 #[derive(Clone, Copy)]
-pub struct ConvKernel<T: CommonBounds> {
-    pub(crate) kernel: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>),
+pub struct ConvKernel<T: CommonBounds, F: Fn(T::Vec) -> T::Vec> {
+    pub(crate) kernel: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, F),
     pub(crate) oc_block: usize,
     pub(crate) ow_block: usize,
 }
 
-impl<T: CommonBounds> ConvKernel<T> {
+impl<T: CommonBounds, F: Fn(T::Vec) -> T::Vec> ConvKernel<T, F> {
     pub(crate) fn new(
-        kernel: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>),
+        kernel: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, F),
         oc_block: usize,
         ow_block: usize
     ) -> Self {
@@ -87,7 +93,13 @@ impl<T: CommonBounds> ConvKernel<T> {
 
 impl<T: CommonBounds> ConvPartialKernel<T> {
     pub(crate) fn new(
-        kernel: fn(PartialParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>),
+        kernel: fn(
+            PartialParams,
+            &mut Pointer<T>,
+            &mut Pointer<T>,
+            &Pointer<T>,
+            fn(T::Vec) -> T::Vec
+        ),
         ow_block: usize
     ) -> Self {
         Self { kernel, ow_block }
@@ -163,11 +175,12 @@ macro_rules! repeat_results {
     [micro_kernel_2x8];
     [micro_kernel_1x8];
 )]
-fn template_function<T: CommonBounds>(
+fn template_function<T: CommonBounds, F: Fn(T::Vec) -> T::Vec>(
     params: Params,
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
-    inp: &Pointer<T>
+    inp: &Pointer<T>,
+    activation: F
 ) {
     let Params {
         arg1: [ii, i_end],
@@ -225,7 +238,7 @@ fn template_function<T: CommonBounds>(
                 [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
                 as *mut _ as *mut T::Vec; // prettier-ignore
             unsafe {
-                out_vec.write_unaligned(results[v as usize][kk as usize]);
+                out_vec.write_unaligned(activation(results[v as usize][kk as usize]));
             }
         }
     }
@@ -254,12 +267,13 @@ fn template_function<T: CommonBounds>(
     [bias_micro_kernel_2x8];
     [bias_micro_kernel_1x8];
 )]
-fn template_function<T: CommonBounds>(
+fn template_function<T: CommonBounds, F: Fn(T::Vec) -> T::Vec>(
     params: Params,
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
-    bias: &Pointer<T>
+    bias: &Pointer<T>,
+    activation: F
 ) {
     let Params {
         arg1: [ii, i_end],
@@ -320,7 +334,9 @@ fn template_function<T: CommonBounds>(
                 T::Vec::from_ptr(&bias[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
             };
             unsafe {
-                out_vec.write_unaligned(results[v as usize][kk as usize]._add(bias_vec));
+                out_vec.write_unaligned(
+                    activation(results[v as usize][kk as usize]._add(bias_vec))
+                );
             }
         }
     }
@@ -427,7 +443,8 @@ fn template_function<T: CommonBounds>(
     params: PartialParams,
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
-    inp: &Pointer<T>
+    inp: &Pointer<T>,
+    activation: fn(T::Vec) -> T::Vec
 ) {
     let PartialParams {
         arg1: [ii, i_end],
@@ -476,7 +493,8 @@ fn template_function<T: CommonBounds>(
     }
     for kk in 0..OW_BLOCK as i64 {
         for v in 0..oc_remain {
-            out[b * osb + l * osh + (k + kk) * osw + j + v] = results[0][kk as usize][v as usize];
+            let res = activation(results[0][kk as usize]);
+            out[b * osb + l * osh + (k + kk) * osw + j + v] = res[v as usize];
         }
     }
 }
@@ -495,7 +513,8 @@ fn template_function<T: CommonBounds>(
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
-    bias: &Pointer<T>
+    bias: &Pointer<T>,
+    activation: fn(T::Vec) -> T::Vec
 ) {
     let PartialParams {
         arg1: [ii, i_end],
@@ -543,19 +562,21 @@ fn template_function<T: CommonBounds>(
         }
     }
     for kk in 0..OW_BLOCK as i64 {
-        for v in 0..oc_remain {
-            out[b * osb + l * osh + (k + kk) * osw + j + v] = results[0][kk as usize][
-                v as usize
-            ]._add(bias[j + v]);
+        for v in 0..oc_remain as usize {
+            results[0][kk as usize][v] = results[0][kk as usize][v]._add(bias[j + (v as i64)]);
+        }
+        let res = activation(results[0][kk as usize]);
+        for v in 0..oc_remain as usize {
+            out[b * osb + l * osh + (k + kk) * osw + j + (v as i64)] = res[v];
         }
     }
 }
 
-pub(crate) fn conv2d_full_oc_kernel_dispatch<T: CommonBounds>(
+pub(crate) fn conv2d_full_oc_kernel_dispatch<T: CommonBounds, F: Fn(T::Vec) -> T::Vec>(
     oc: &mut usize, // output channels block size
     kb: &mut usize // outwidth block size
-) -> Option<ConvKernel<T>> {
-    let kernels: [[fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>); 5]; 4] = [
+) -> Option<ConvKernel<T, F>> {
+    let kernels: [[fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, F); 5]; 4] = [
         [micro_kernel_1x1, micro_kernel_2x1, micro_kernel_3x1, micro_kernel_4x1, micro_kernel_5x1],
         [micro_kernel_1x2, micro_kernel_2x2, micro_kernel_3x2, micro_kernel_4x2, micro_kernel_5x2],
         [micro_kernel_1x4, micro_kernel_2x4, micro_kernel_3x4, micro_kernel_4x4, micro_kernel_5x4],
@@ -585,12 +606,12 @@ pub(crate) fn conv2d_full_oc_kernel_dispatch<T: CommonBounds>(
     kernel_fn.cloned().map(|kernel| ConvKernel::new(kernel, *oc, *kb))
 }
 
-pub(crate) fn conv2d_full_oc_bias_kernel_dispatch<T: CommonBounds>(
+pub(crate) fn conv2d_full_oc_bias_kernel_dispatch<T: CommonBounds, F: Fn(T::Vec) -> T::Vec>(
     oc: &mut usize, // output channels block size
     kb: &mut usize // outwidth block size
-) -> Option<fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>)> {
+) -> Option<fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, F)> {
     let kernels: [
-        [fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>); 5];
+        [fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, F); 5];
         4
     ] = [
         [
@@ -644,7 +665,10 @@ pub(crate) fn conv2d_full_oc_bias_kernel_dispatch<T: CommonBounds>(
     kernel_fn.cloned()
 }
 
-pub(crate) fn full_oc_kernels<T: CommonBounds>() -> [ConvKernel<T>; 20] {
+pub(crate) fn full_oc_kernels<T: CommonBounds, F: Fn(T::Vec) -> T::Vec>() -> [
+    ConvKernel<T, F>;
+    20
+] {
     [
         ConvKernel::new(micro_kernel_1x1, 1, 1),
         ConvKernel::new(micro_kernel_2x1, 1, 2),
@@ -691,8 +715,27 @@ pub(crate) fn remain_oc_kernel_dispatch<T: CommonBounds>(
 
 pub(crate) fn bias_remain_oc_kernel_dispatch<T: CommonBounds>(
     kb: &mut usize // outwidth block size
-) -> Option<fn(PartialParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>)> {
-    let kernels: [fn(PartialParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>); 5] = [
+) -> Option<
+    fn(
+        PartialParams,
+        &mut Pointer<T>,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &Pointer<T>,
+        fn(T::Vec) -> T::Vec
+    )
+> {
+    let kernels: [
+        fn(
+            PartialParams,
+            &mut Pointer<T>,
+            &mut Pointer<T>,
+            &Pointer<T>,
+            &Pointer<T>,
+            fn(T::Vec) -> T::Vec
+        );
+        5
+    ] = [
         bias_micro_kernel_1_1,
         bias_micro_kernel_2_1,
         bias_micro_kernel_3_1,

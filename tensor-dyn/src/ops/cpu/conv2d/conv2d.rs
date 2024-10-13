@@ -51,7 +51,8 @@ impl<T> _Tensor<T>
         bias: Option<&_Tensor<T>>,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
-        dilation: [i64; 2]
+        dilation: [i64; 2],
+        activation: fn(T::Vec) -> T::Vec
     ) -> anyhow::Result<_Tensor<T>> {
         let img_shape = self.shape();
         if img_shape.len() != 4 {
@@ -144,7 +145,7 @@ impl<T> _Tensor<T>
             &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec)
         );
         let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
-        let full_oc_kernel_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
+        let full_oc_kernel_ow_remain = conv2d_full_oc_kernel_dispatch::<T, _>(
             &mut oc_nvec,
             &mut ((out_width as usize) % ow_block)
         );
@@ -161,19 +162,19 @@ impl<T> _Tensor<T>
         if partial_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
         }
-        let full_oc_kernel_fn_1_oc = conv2d_full_oc_kernel_dispatch::<T>(&mut 1, &mut ow_block);
-        let full_oc_kernel_fn_1_oc_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
+        let full_oc_kernel_fn_1_oc = conv2d_full_oc_kernel_dispatch::<T, _>(&mut 1, &mut ow_block);
+        let full_oc_kernel_fn_1_oc_ow_remain = conv2d_full_oc_kernel_dispatch::<T, _>(
             &mut 1,
             &mut ((out_width as usize) % ow_block)
         );
         let has_bias = bias.is_some();
         let bias_full_oc_kernel = if has_bias {
-            Some(conv2d_full_oc_bias_kernel_dispatch::<T>(&mut oc_nvec, &mut ow_block).unwrap())
+            Some(conv2d_full_oc_bias_kernel_dispatch::<T, _>(&mut oc_nvec, &mut ow_block).unwrap())
         } else {
             None
         };
         let bias_one_oc_kernel = if has_bias {
-            Some(conv2d_full_oc_bias_kernel_dispatch::<T>(&mut 1, &mut ow_block).unwrap())
+            Some(conv2d_full_oc_bias_kernel_dispatch::<T, _>(&mut 1, &mut ow_block).unwrap())
         } else {
             None
         };
@@ -184,7 +185,7 @@ impl<T> _Tensor<T>
         };
         let bias_full_oc_ow_remain = if has_bias {
             Some(
-                conv2d_full_oc_bias_kernel_dispatch::<T>(
+                conv2d_full_oc_bias_kernel_dispatch::<T, _>(
                     &mut oc_nvec,
                     &mut ((out_width as usize) % ow_block)
                 ).unwrap()
@@ -194,7 +195,7 @@ impl<T> _Tensor<T>
         };
         let bias_one_oc_ow_remain = if has_bias {
             Some(
-                conv2d_full_oc_bias_kernel_dispatch::<T>(
+                conv2d_full_oc_bias_kernel_dispatch::<T, _>(
                     &mut 1,
                     &mut ((out_width as usize) % ow_block)
                 ).unwrap()
@@ -244,7 +245,7 @@ impl<T> _Tensor<T>
                 (None, None, None) => {
                     for ii in (0..in_channels).step_by(ic_block_size) {
                         let i_end = (ii + (ic_block_size as i64)).min(in_channels);
-                        let bias_kernel = i_end == in_channels && has_bias;
+                        let end = i_end == in_channels;
                         let params = Params {
                             arg1: [ii, i_end],
                             arg2: [kernel_height, kernel_width],
@@ -255,33 +256,61 @@ impl<T> _Tensor<T>
                             arg7: [ph_start, pw_start],
                             arg8: [dh, dw],
                         };
-                        if bias_kernel {
-                            let bias = bias.unwrap().ptr();
-                            let bias_full_oc_kernel = bias_full_oc_kernel.unwrap();
-                            conv_perfect(
-                                out_channels,
-                                oc_block_size,
-                                ow_block,
-                                out_width_full_end,
-                                [kernel_height, kernel_width],
-                                [ll, l_end],
-                                i_end - ii,
-                                jb,
-                                &mut kernel,
-                                &mut out,
-                                |l, k, j, kernel, out| {
-                                    bias_full_oc_kernel(
-                                        Params {
-                                            arg3: [b, l, k, j],
-                                            ..params
-                                        },
-                                        out,
-                                        kernel,
-                                        &inp,
-                                        &bias
-                                    );
-                                }
-                            );
+                        if end {
+                            if has_bias {
+                                let bias = bias.unwrap().ptr();
+                                let bias_full_oc_kernel = bias_full_oc_kernel.unwrap();
+                                conv_perfect(
+                                    out_channels,
+                                    oc_block_size,
+                                    ow_block,
+                                    out_width_full_end,
+                                    [kernel_height, kernel_width],
+                                    [ll, l_end],
+                                    i_end - ii,
+                                    jb,
+                                    &mut kernel,
+                                    &mut out,
+                                    |l, k, j, kernel, out| {
+                                        bias_full_oc_kernel(
+                                            Params {
+                                                arg3: [b, l, k, j],
+                                                ..params
+                                            },
+                                            out,
+                                            kernel,
+                                            &inp,
+                                            &bias,
+                                            activation
+                                        );
+                                    }
+                                );
+                            } else {
+                                conv_perfect(
+                                    out_channels,
+                                    oc_block_size,
+                                    ow_block,
+                                    out_width_full_end,
+                                    [kernel_height, kernel_width],
+                                    [ll, l_end],
+                                    i_end - ii,
+                                    jb,
+                                    &mut kernel,
+                                    &mut out,
+                                    |l, k, j, kernel, out| {
+                                        full_oc_kernel_fn(
+                                            Params {
+                                                arg3: [b, l, k, j],
+                                                ..params
+                                            },
+                                            out,
+                                            kernel,
+                                            &inp,
+                                            activation
+                                        );
+                                    }
+                                );
+                            }
                         } else {
                             conv_perfect(
                                 out_channels,
@@ -302,7 +331,8 @@ impl<T> _Tensor<T>
                                         },
                                         out,
                                         kernel,
-                                        &inp
+                                        &inp,
+                                        |x| x
                                     );
                                 }
                             );
@@ -312,117 +342,56 @@ impl<T> _Tensor<T>
                 _ => {
                     for ii in (0..in_channels).step_by(ic_block_size) {
                         let i_end = (ii + (ic_block_size as i64)).min(in_channels);
-                        let bias_kernel = i_end == in_channels && has_bias;
-                        if i_end == in_channels && bias_kernel {
-                            let bias = bias.unwrap().ptr();
-                            let bias_full_oc_kernel = bias_full_oc_kernel.unwrap();
-                            // out channel has two levels of blocking:
-                            // 1. it first blocks by oc_block_size * jb
-                            // 2. it then blocks by oc_block_size (cache line size)
-                            for jj in (0..out_channels).step_by(oc_block_size * (jb as usize)) {
-                                let jj_start = jj;
+                        if i_end == in_channels {
+                            if has_bias {
+                                let bias = bias.unwrap().ptr();
+                                let bias_full_oc_kernel = bias_full_oc_kernel.unwrap();
+                                // out channel has two levels of blocking:
+                                // 1. it first blocks by oc_block_size * jb
+                                // 2. it then blocks by oc_block_size (cache line size)
+                                for jj in (0..out_channels).step_by(oc_block_size * (jb as usize)) {
+                                    let jj_start = jj;
 
-                                // make sure jj_end is in the range of out_channels
-                                let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(
-                                    out_channels
-                                );
-
-                                // calculate the remain part that are less than T::Vec::SIZE * oc_nvec
-                                let remain = (jj_end - jj_start) % (oc_block_size as i64);
-                                let kernel_k = kernel.clone();
-                                let params = Params {
-                                    arg1: [ii, i_end],
-                                    arg2: [kernel_height, kernel_width],
-                                    arg3: [b, 0, 0, 0],
-                                    arg4: [osb, osh, osw],
-                                    arg5: [step_height, step_width],
-                                    arg6: [isb, ish, isw],
-                                    arg7: [ph_start, pw_start],
-                                    arg8: [dh, dw],
-                                };
-
-                                let partial_params = PartialParams {
-                                    arg1: [ii, i_end],
-                                    arg2: [kernel_height, kernel_width],
-                                    arg3: [b, 0, 0, 0],
-                                    arg4: [osb, osh, osw],
-                                    arg5: [step_height, step_width],
-                                    arg6: [isb, ish, isw],
-                                    arg7: [ph_start, pw_start],
-                                    arg8: [dh, dw],
-                                    oc_remain: remain % (T::Vec::SIZE as i64),
-                                };
-                                if remain > 0 {
-                                    let partial_oc = bias_remain_oc_kernel.unwrap();
-                                    let one_oc = bias_one_oc_kernel.expect(
-                                        &format!(
-                                            "unable to find iconv2d_microkernel_{}x{}",
-                                            ow_block,
-                                            1
-                                        )
+                                    // make sure jj_end is in the range of out_channels
+                                    let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(
+                                        out_channels
                                     );
-                                    for k in (0..out_width_full_end).step_by(ow_block) {
-                                        handle_remain(
-                                            [jj_start, jj_end],
-                                            [out_channels, oc_block_size as i64],
-                                            [ll, l_end],
-                                            [ii, i_end],
-                                            [kernel_height, kernel_width],
-                                            remain,
-                                            &mut out,
-                                            &mut kernel,
-                                            |j, l, out, kernel| {
-                                                bias_full_oc_kernel(
-                                                    Params {
-                                                        arg3: [b, l, k, j],
-                                                        ..params
-                                                    },
-                                                    out,
-                                                    kernel,
-                                                    &inp,
-                                                    &bias
-                                                )
-                                            },
-                                            |j, l, out, kernel| {
-                                                one_oc(
-                                                    Params {
-                                                        arg3: [b, l, k, j],
-                                                        ..params
-                                                    },
-                                                    out,
-                                                    kernel,
-                                                    &inp,
-                                                    &bias
-                                                )
-                                            },
-                                            |j, l, out, kernel| {
-                                                partial_oc(
-                                                    PartialParams {
-                                                        arg3: [b, l, k, j],
-                                                        ..partial_params
-                                                    },
-                                                    out,
-                                                    kernel,
-                                                    &inp,
-                                                    &bias
-                                                );
-                                            }
-                                        );
-                                        kernel = kernel_k.clone();
-                                    }
-                                    // handle the out width remain part
-                                    if let Some(full_oc_kernel_ow_remain) = &bias_full_oc_ow_remain {
-                                        let one_oc_ow_remain = bias_one_oc_ow_remain.expect(
+
+                                    // calculate the remain part that are less than T::Vec::SIZE * oc_nvec
+                                    let remain = (jj_end - jj_start) % (oc_block_size as i64);
+                                    let kernel_k = kernel.clone();
+                                    let params = Params {
+                                        arg1: [ii, i_end],
+                                        arg2: [kernel_height, kernel_width],
+                                        arg3: [b, 0, 0, 0],
+                                        arg4: [osb, osh, osw],
+                                        arg5: [step_height, step_width],
+                                        arg6: [isb, ish, isw],
+                                        arg7: [ph_start, pw_start],
+                                        arg8: [dh, dw],
+                                    };
+
+                                    let partial_params = PartialParams {
+                                        arg1: [ii, i_end],
+                                        arg2: [kernel_height, kernel_width],
+                                        arg3: [b, 0, 0, 0],
+                                        arg4: [osb, osh, osw],
+                                        arg5: [step_height, step_width],
+                                        arg6: [isb, ish, isw],
+                                        arg7: [ph_start, pw_start],
+                                        arg8: [dh, dw],
+                                        oc_remain: remain % (T::Vec::SIZE as i64),
+                                    };
+                                    if remain > 0 {
+                                        let partial_oc = bias_remain_oc_kernel.unwrap();
+                                        let one_oc = bias_one_oc_kernel.expect(
                                             &format!(
                                                 "unable to find iconv2d_microkernel_{}x{}",
                                                 ow_block,
                                                 1
                                             )
                                         );
-                                        let partial_oc_ow_remain = bias_partial_oc_ow_remain.expect(
-                                            &format!("unable to find oconv2d_microkernel_{}", ow_block)
-                                        );
-                                        for k in (out_width_full_end..out_width).step_by(ow_block) {
+                                        for k in (0..out_width_full_end).step_by(ow_block) {
                                             handle_remain(
                                                 [jj_start, jj_end],
                                                 [out_channels, oc_block_size as i64],
@@ -433,7 +402,7 @@ impl<T> _Tensor<T>
                                                 &mut out,
                                                 &mut kernel,
                                                 |j, l, out, kernel| {
-                                                    full_oc_kernel_ow_remain(
+                                                    bias_full_oc_kernel(
                                                         Params {
                                                             arg3: [b, l, k, j],
                                                             ..params
@@ -441,11 +410,12 @@ impl<T> _Tensor<T>
                                                         out,
                                                         kernel,
                                                         &inp,
-                                                        &bias
+                                                        &bias,
+                                                        activation
                                                     )
                                                 },
                                                 |j, l, out, kernel| {
-                                                    one_oc_ow_remain(
+                                                    one_oc(
                                                         Params {
                                                             arg3: [b, l, k, j],
                                                             ..params
@@ -453,11 +423,12 @@ impl<T> _Tensor<T>
                                                         out,
                                                         kernel,
                                                         &inp,
-                                                        &bias
+                                                        &bias,
+                                                        activation
                                                     )
                                                 },
                                                 |j, l, out, kernel| {
-                                                    partial_oc_ow_remain(
+                                                    partial_oc(
                                                         PartialParams {
                                                             arg3: [b, l, k, j],
                                                             ..partial_params
@@ -465,47 +436,87 @@ impl<T> _Tensor<T>
                                                         out,
                                                         kernel,
                                                         &inp,
-                                                        &bias
+                                                        &bias,
+                                                        activation
                                                     );
                                                 }
                                             );
                                             kernel = kernel_k.clone();
                                         }
-                                    }
-                                } else {
-                                    // handle the out width full part
-                                    for k in (0..out_width_full_end).step_by(ow_block) {
-                                        handle_normal(
-                                            jj_start,
-                                            jj_end,
-                                            remain,
-                                            oc_block_size,
-                                            ll,
-                                            l_end,
-                                            [ii, i_end],
-                                            [kernel_height, kernel_width],
-                                            &mut out,
-                                            &mut kernel,
-                                            |j, l, out, kernel| {
-                                                full_oc_kernel_fn(
-                                                    Params {
-                                                        arg3: [b, l, k, j],
-                                                        ..params
-                                                    },
-                                                    out,
-                                                    kernel,
-                                                    &inp
+                                        // handle the out width remain part
+                                        if
+                                            let Some(full_oc_kernel_ow_remain) =
+                                                &bias_full_oc_ow_remain
+                                        {
+                                            let one_oc_ow_remain = bias_one_oc_ow_remain.expect(
+                                                &format!(
+                                                    "unable to find iconv2d_microkernel_{}x{}",
+                                                    ow_block,
+                                                    1
                                                 )
+                                            );
+                                            let partial_oc_ow_remain =
+                                                bias_partial_oc_ow_remain.expect(
+                                                    &format!("unable to find oconv2d_microkernel_{}", ow_block)
+                                                );
+                                            for k in (out_width_full_end..out_width).step_by(
+                                                ow_block
+                                            ) {
+                                                handle_remain(
+                                                    [jj_start, jj_end],
+                                                    [out_channels, oc_block_size as i64],
+                                                    [ll, l_end],
+                                                    [ii, i_end],
+                                                    [kernel_height, kernel_width],
+                                                    remain,
+                                                    &mut out,
+                                                    &mut kernel,
+                                                    |j, l, out, kernel| {
+                                                        full_oc_kernel_ow_remain(
+                                                            Params {
+                                                                arg3: [b, l, k, j],
+                                                                ..params
+                                                            },
+                                                            out,
+                                                            kernel,
+                                                            &inp,
+                                                            &bias,
+                                                            activation
+                                                        )
+                                                    },
+                                                    |j, l, out, kernel| {
+                                                        one_oc_ow_remain(
+                                                            Params {
+                                                                arg3: [b, l, k, j],
+                                                                ..params
+                                                            },
+                                                            out,
+                                                            kernel,
+                                                            &inp,
+                                                            &bias,
+                                                            activation
+                                                        )
+                                                    },
+                                                    |j, l, out, kernel| {
+                                                        partial_oc_ow_remain(
+                                                            PartialParams {
+                                                                arg3: [b, l, k, j],
+                                                                ..partial_params
+                                                            },
+                                                            out,
+                                                            kernel,
+                                                            &inp,
+                                                            &bias,
+                                                            activation
+                                                        );
+                                                    }
+                                                );
+                                                kernel = kernel_k.clone();
                                             }
-                                        );
-                                        kernel = kernel_k.clone();
-                                    }
-                                    // handle the out width remain part
-                                    if
-                                        let Some(full_oc_kernel_ow_remain) =
-                                            &full_oc_kernel_ow_remain
-                                    {
-                                        for k in (out_width_full_end..out_width).step_by(ow_block) {
+                                        }
+                                    } else {
+                                        // handle the out width full part
+                                        for k in (0..out_width_full_end).step_by(ow_block) {
                                             handle_normal(
                                                 jj_start,
                                                 jj_end,
@@ -518,26 +529,299 @@ impl<T> _Tensor<T>
                                                 &mut out,
                                                 &mut kernel,
                                                 |j, l, out, kernel| {
-                                                    (full_oc_kernel_ow_remain.kernel)(
+                                                    full_oc_kernel_fn(
                                                         Params {
                                                             arg3: [b, l, k, j],
                                                             ..params
                                                         },
                                                         out,
                                                         kernel,
-                                                        &inp
+                                                        &inp,
+                                                        activation
                                                     )
                                                 }
                                             );
                                             kernel = kernel_k.clone();
                                         }
+                                        // handle the out width remain part
+                                        if
+                                            let Some(full_oc_kernel_ow_remain) =
+                                                &full_oc_kernel_ow_remain
+                                        {
+                                            for k in (out_width_full_end..out_width).step_by(
+                                                ow_block
+                                            ) {
+                                                handle_normal(
+                                                    jj_start,
+                                                    jj_end,
+                                                    remain,
+                                                    oc_block_size,
+                                                    ll,
+                                                    l_end,
+                                                    [ii, i_end],
+                                                    [kernel_height, kernel_width],
+                                                    &mut out,
+                                                    &mut kernel,
+                                                    |j, l, out, kernel| {
+                                                        (full_oc_kernel_ow_remain.kernel)(
+                                                            Params {
+                                                                arg3: [b, l, k, j],
+                                                                ..params
+                                                            },
+                                                            out,
+                                                            kernel,
+                                                            &inp,
+                                                            activation
+                                                        )
+                                                    }
+                                                );
+                                                kernel = kernel_k.clone();
+                                            }
+                                        }
                                     }
+                                    kernel +=
+                                        kernel_height *
+                                        kernel_width *
+                                        (jj_end - jj_start) *
+                                        (i_end - ii);
                                 }
-                                kernel +=
-                                    kernel_height *
-                                    kernel_width *
-                                    (jj_end - jj_start) *
-                                    (i_end - ii);
+                            } else {
+                                // out channel has two levels of blocking:
+                                // 1. it first blocks by oc_block_size * jb
+                                // 2. it then blocks by oc_block_size (cache line size)
+                                for jj in (0..out_channels).step_by(oc_block_size * (jb as usize)) {
+                                    let jj_start = jj;
+
+                                    // make sure jj_end is in the range of out_channels
+                                    let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(
+                                        out_channels
+                                    );
+
+                                    // calculate the remain part that are less than T::Vec::SIZE * oc_nvec
+                                    let remain = (jj_end - jj_start) % (oc_block_size as i64);
+                                    let kernel_k = kernel.clone();
+                                    let params = Params {
+                                        arg1: [ii, i_end],
+                                        arg2: [kernel_height, kernel_width],
+                                        arg3: [b, 0, 0, 0],
+                                        arg4: [osb, osh, osw],
+                                        arg5: [step_height, step_width],
+                                        arg6: [isb, ish, isw],
+                                        arg7: [ph_start, pw_start],
+                                        arg8: [dh, dw],
+                                    };
+
+                                    let partial_params = PartialParams {
+                                        arg1: [ii, i_end],
+                                        arg2: [kernel_height, kernel_width],
+                                        arg3: [b, 0, 0, 0],
+                                        arg4: [osb, osh, osw],
+                                        arg5: [step_height, step_width],
+                                        arg6: [isb, ish, isw],
+                                        arg7: [ph_start, pw_start],
+                                        arg8: [dh, dw],
+                                        oc_remain: remain % (T::Vec::SIZE as i64),
+                                    };
+                                    if remain > 0 {
+                                        let one_oc = full_oc_kernel_fn_1_oc.expect(
+                                            &format!(
+                                                "unable to find iconv2d_microkernel_{}x{}",
+                                                ow_block,
+                                                1
+                                            )
+                                        ).kernel;
+                                        let partial_oc = partial_oc_kernel.expect(
+                                            &format!("unable to find oconv2d_microkernel_{}", ow_block)
+                                        ).kernel;
+                                        for k in (0..out_width_full_end).step_by(ow_block) {
+                                            handle_remain(
+                                                [jj_start, jj_end],
+                                                [out_channels, oc_block_size as i64],
+                                                [ll, l_end],
+                                                [ii, i_end],
+                                                [kernel_height, kernel_width],
+                                                remain,
+                                                &mut out,
+                                                &mut kernel,
+                                                |j, l, out, kernel| {
+                                                    full_oc_kernel_fn(
+                                                        Params {
+                                                            arg3: [b, l, k, j],
+                                                            ..params
+                                                        },
+                                                        out,
+                                                        kernel,
+                                                        &inp,
+                                                        activation
+                                                    )
+                                                },
+                                                |j, l, out, kernel| {
+                                                    one_oc(
+                                                        Params {
+                                                            arg3: [b, l, k, j],
+                                                            ..params
+                                                        },
+                                                        out,
+                                                        kernel,
+                                                        &inp,
+                                                        activation
+                                                    )
+                                                },
+                                                |j, l, out, kernel| {
+                                                    partial_oc(
+                                                        PartialParams {
+                                                            arg3: [b, l, k, j],
+                                                            ..partial_params
+                                                        },
+                                                        out,
+                                                        kernel,
+                                                        &inp,
+                                                        activation
+                                                    );
+                                                }
+                                            );
+                                            kernel = kernel_k.clone();
+                                        }
+                                        // handle the out width remain part
+                                        if
+                                            let Some(full_oc_kernel_ow_remain) =
+                                                &full_oc_kernel_ow_remain
+                                        {
+                                            let one_oc_ow_remain =
+                                                full_oc_kernel_fn_1_oc_ow_remain.expect(
+                                                    &format!(
+                                                        "unable to find iconv2d_microkernel_{}x{}",
+                                                        ow_block,
+                                                        1
+                                                    )
+                                                ).kernel;
+                                            let partial_oc_ow_remain =
+                                                partial_oc_kernel_ow_remain.expect(
+                                                    &format!("unable to find oconv2d_microkernel_{}", ow_block)
+                                                ).kernel;
+                                            for k in (out_width_full_end..out_width).step_by(
+                                                ow_block
+                                            ) {
+                                                handle_remain(
+                                                    [jj_start, jj_end],
+                                                    [out_channels, oc_block_size as i64],
+                                                    [ll, l_end],
+                                                    [ii, i_end],
+                                                    [kernel_height, kernel_width],
+                                                    remain,
+                                                    &mut out,
+                                                    &mut kernel,
+                                                    |j, l, out, kernel| {
+                                                        (full_oc_kernel_ow_remain.kernel)(
+                                                            Params {
+                                                                arg3: [b, l, k, j],
+                                                                ..params
+                                                            },
+                                                            out,
+                                                            kernel,
+                                                            &inp,
+                                                            activation
+                                                        )
+                                                    },
+                                                    |j, l, out, kernel| {
+                                                        one_oc_ow_remain(
+                                                            Params {
+                                                                arg3: [b, l, k, j],
+                                                                ..params
+                                                            },
+                                                            out,
+                                                            kernel,
+                                                            &inp,
+                                                            activation
+                                                        )
+                                                    },
+                                                    |j, l, out, kernel| {
+                                                        partial_oc_ow_remain(
+                                                            PartialParams {
+                                                                arg3: [b, l, k, j],
+                                                                ..partial_params
+                                                            },
+                                                            out,
+                                                            kernel,
+                                                            &inp,
+                                                            activation
+                                                        );
+                                                    }
+                                                );
+                                                kernel = kernel_k.clone();
+                                            }
+                                        }
+                                    } else {
+                                        // handle the out width full part
+                                        for k in (0..out_width_full_end).step_by(ow_block) {
+                                            handle_normal(
+                                                jj_start,
+                                                jj_end,
+                                                remain,
+                                                oc_block_size,
+                                                ll,
+                                                l_end,
+                                                [ii, i_end],
+                                                [kernel_height, kernel_width],
+                                                &mut out,
+                                                &mut kernel,
+                                                |j, l, out, kernel| {
+                                                    full_oc_kernel_fn(
+                                                        Params {
+                                                            arg3: [b, l, k, j],
+                                                            ..params
+                                                        },
+                                                        out,
+                                                        kernel,
+                                                        &inp,
+                                                        activation
+                                                    )
+                                                }
+                                            );
+                                            kernel = kernel_k.clone();
+                                        }
+                                        // handle the out width remain part
+                                        if
+                                            let Some(full_oc_kernel_ow_remain) =
+                                                &full_oc_kernel_ow_remain
+                                        {
+                                            for k in (out_width_full_end..out_width).step_by(
+                                                ow_block
+                                            ) {
+                                                handle_normal(
+                                                    jj_start,
+                                                    jj_end,
+                                                    remain,
+                                                    oc_block_size,
+                                                    ll,
+                                                    l_end,
+                                                    [ii, i_end],
+                                                    [kernel_height, kernel_width],
+                                                    &mut out,
+                                                    &mut kernel,
+                                                    |j, l, out, kernel| {
+                                                        (full_oc_kernel_ow_remain.kernel)(
+                                                            Params {
+                                                                arg3: [b, l, k, j],
+                                                                ..params
+                                                            },
+                                                            out,
+                                                            kernel,
+                                                            &inp,
+                                                            activation
+                                                        )
+                                                    }
+                                                );
+                                                kernel = kernel_k.clone();
+                                            }
+                                        }
+                                    }
+                                    kernel +=
+                                        kernel_height *
+                                        kernel_width *
+                                        (jj_end - jj_start) *
+                                        (i_end - ii);
+                                }
                             }
                         } else {
                             // out channel has two levels of blocking:
@@ -605,7 +889,8 @@ impl<T> _Tensor<T>
                                                     },
                                                     out,
                                                     kernel,
-                                                    &inp
+                                                    &inp,
+                                                    |x| x
                                                 )
                                             },
                                             |j, l, out, kernel| {
@@ -616,7 +901,8 @@ impl<T> _Tensor<T>
                                                     },
                                                     out,
                                                     kernel,
-                                                    &inp
+                                                    &inp,
+                                                    |x| x
                                                 )
                                             },
                                             |j, l, out, kernel| {
@@ -627,7 +913,8 @@ impl<T> _Tensor<T>
                                                     },
                                                     out,
                                                     kernel,
-                                                    &inp
+                                                    &inp,
+                                                    |x| x
                                                 );
                                             }
                                         );
@@ -668,7 +955,8 @@ impl<T> _Tensor<T>
                                                         },
                                                         out,
                                                         kernel,
-                                                        &inp
+                                                        &inp,
+                                                        |x| x
                                                     )
                                                 },
                                                 |j, l, out, kernel| {
@@ -679,7 +967,8 @@ impl<T> _Tensor<T>
                                                         },
                                                         out,
                                                         kernel,
-                                                        &inp
+                                                        &inp,
+                                                        |x| x
                                                     )
                                                 },
                                                 |j, l, out, kernel| {
@@ -690,7 +979,8 @@ impl<T> _Tensor<T>
                                                         },
                                                         out,
                                                         kernel,
-                                                        &inp
+                                                        &inp,
+                                                        |x| x
                                                     );
                                                 }
                                             );
@@ -719,7 +1009,8 @@ impl<T> _Tensor<T>
                                                     },
                                                     out,
                                                     kernel,
-                                                    &inp
+                                                    &inp,
+                                                    |x| x
                                                 )
                                             }
                                         );
@@ -750,7 +1041,8 @@ impl<T> _Tensor<T>
                                                         },
                                                         out,
                                                         kernel,
-                                                        &inp
+                                                        &inp,
+                                                        |x| x
                                                     )
                                                 }
                                             );

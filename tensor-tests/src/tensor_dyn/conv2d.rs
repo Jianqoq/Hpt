@@ -1,42 +1,45 @@
 #![allow(unused)]
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{ IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator };
 use tch;
-use tensor_dyn::ops::cpu::conv_config::{Conv2dConfig, KernelParamAlgo};
+use tensor_dyn::ops::cpu::conv_config::{ Conv2dConfig, KernelParamAlgo };
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
-use tensor_dyn::{set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo};
-use tensor_dyn::{tensor_base::_Tensor, TensorCreator};
-use tensor_types::convertion::{Convertor, FromScalar};
+use tensor_dyn::{ set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo };
+use tensor_dyn::{ tensor_base::_Tensor, TensorCreator };
+use tensor_types::convertion::{ Convertor, FromScalar };
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::NormalOut;
 
-fn common_input<T>(
-    [batch, out_channel, in_channel, kernel_height, kernel_width, height, width]: [i64; 7],
-) -> anyhow::Result<(_Tensor<T>, _Tensor<T>, tch::Tensor, tch::Tensor)>
-where
-    T: Convertor + FromScalar<i64> + NormalOut<T, Output = T> + CommonBounds,
-    usize: IntoScalar<T>,
-    i64: IntoScalar<T>,
+fn common_input<T>([batch, out_channel, in_channel, kernel_height, kernel_width, height, width]: [
+    i64;
+    7
+])
+    -> anyhow::Result<(_Tensor<T>, _Tensor<T>, tch::Tensor, tch::Tensor)>
+    where
+        T: Convertor + FromScalar<i64> + NormalOut<T, Output = T> + CommonBounds,
+        usize: IntoScalar<T>,
+        i64: IntoScalar<T>
 {
-    let kernel = _Tensor::<T>::arange(0, in_channel * out_channel * kernel_height * kernel_width)?
+    let kernel = _Tensor::<T>
+        ::arange(0, in_channel * out_channel * kernel_height * kernel_width)?
         .reshape([out_channel, in_channel, kernel_height, kernel_width])?
         .permute([2, 3, 1, 0])?
         .contiguous()?;
-    let a = _Tensor::<T>::arange(0, batch * in_channel * height * width)?
+    let a = _Tensor::<T>
+        ::arange(0, batch * in_channel * height * width)?
         .reshape([batch, in_channel, height, width])?
         .permute([0, 2, 3, 1])?
         .contiguous()?;
 
-    let tch_kernel = tch::Tensor::arange(
-        in_channel * out_channel * kernel_height * kernel_width,
-        (tch::Kind::Int64, tch::Device::Cpu),
-    )
-    .reshape(&[out_channel, in_channel, kernel_height, kernel_width]);
-    let tch_a = tch::Tensor::arange(
-        batch * in_channel * height * width,
-        (tch::Kind::Int64, tch::Device::Cpu),
-    )
-    .reshape(&[batch, in_channel, height, width]);
+    let tch_kernel = tch::Tensor
+        ::arange(in_channel * out_channel * kernel_height * kernel_width, (
+            tch::Kind::Int64,
+            tch::Device::Cpu,
+        ))
+        .reshape(&[out_channel, in_channel, kernel_height, kernel_width]);
+    let tch_a = tch::Tensor
+        ::arange(batch * in_channel * height * width, (tch::Kind::Int64, tch::Device::Cpu))
+        .reshape(&[batch, in_channel, height, width]);
     Ok((kernel, a, tch_kernel, tch_a))
 }
 
@@ -46,10 +49,20 @@ fn assert_eq(
     a_kernel: &_Tensor<i64>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor,
-    block_size: [i64; 2],
+    block_size: [i64; 2]
 ) -> anyhow::Result<()> {
     let res = a
-        .conv2d(&a_kernel, None, [1, 1], [(0, 0), (0, 0)], [1, 1])?
+        .conv2d(
+            &a_kernel,
+            None,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            |x| x
+        )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let res2 = b.conv2d(&b_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
