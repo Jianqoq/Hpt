@@ -283,60 +283,218 @@ impl<T> _Tensor<T>
                             // calculate the remain part that are less than T::Vec::SIZE * oc_nvec
                             let remain = (jj_end - jj_start) % (oc_block_size as i64);
                             let kernel_k = kernel.clone();
-                            // handle the out width full part
-                            for k in (0..out_width_full_end).step_by(ow_block) {
-                                func(
-                                    jj_start,
-                                    jj_end,
-                                    remain,
-                                    oc_block_size,
-                                    &mut kernel,
-                                    full_oc_kernel_fn,
-                                    &full_oc_kernel_fn_1_oc,
-                                    &partial_oc_kernel,
-                                    [ii, i_end],
-                                    [kernel_height, kernel_width],
-                                    [b, k],
-                                    [osb, osh, osw],
-                                    [step_height, step_width],
-                                    [isb, ish, isw],
-                                    [ph_start, pw_start],
-                                    [dh, dw],
-                                    &mut out,
-                                    &inp,
-                                    ll,
-                                    l_end,
-                                    out_channels
-                                );
-                                kernel = kernel_k.clone();
-                            }
-                            // handle the out width remain part
-                            if let Some(full_oc_kernel_ow_remain) = &full_oc_kernel_ow_remain {
-                                for k in (out_width_full_end..out_width).step_by(ow_block) {
-                                    func(
+                            if remain > 0 {
+                                let one_oc = full_oc_kernel_fn_1_oc.expect(
+                                    &format!(
+                                        "unable to find iconv2d_microkernel_{}x{}",
+                                        ow_block,
+                                        1
+                                    )
+                                ).kernel;
+                                let partial_oc = partial_oc_kernel.expect(
+                                    &format!("unable to find oconv2d_microkernel_{}", ow_block)
+                                ).kernel;
+                                for k in (0..out_width_full_end).step_by(ow_block) {
+                                    handle_remain(
                                         jj_start,
                                         jj_end,
                                         remain,
                                         oc_block_size,
-                                        &mut kernel,
-                                        full_oc_kernel_ow_remain.kernel,
-                                        &full_oc_kernel_fn_1_oc_ow_remain,
-                                        &partial_oc_kernel_ow_remain,
-                                        [ii, i_end],
-                                        [kernel_height, kernel_width],
-                                        [b, k],
-                                        [osb, osh, osw],
-                                        [step_height, step_width],
-                                        [isb, ish, isw],
-                                        [ph_start, pw_start],
-                                        [dh, dw],
-                                        &mut out,
-                                        &inp,
                                         ll,
                                         l_end,
-                                        out_channels
+                                        out_channels,
+                                        [ii, i_end],
+                                        [kernel_height, kernel_width],
+                                        &mut out,
+                                        &mut kernel,
+                                        |j, l, out, kernel| {
+                                            full_oc_kernel_fn(
+                                                [ii, i_end],
+                                                [kernel_height, kernel_width],
+                                                [b, l, k, j],
+                                                [osb, osh, osw],
+                                                [step_height, step_width],
+                                                [isb, ish, isw],
+                                                [ph_start, pw_start],
+                                                [dh, dw],
+                                                out,
+                                                &inp,
+                                                kernel
+                                            )
+                                        },
+                                        |j, l, out, kernel| {
+                                            one_oc(
+                                                [ii, i_end],
+                                                [kernel_height, kernel_width],
+                                                [b, l, k, j],
+                                                [osb, osh, osw],
+                                                [step_height, step_width],
+                                                [isb, ish, isw],
+                                                [ph_start, pw_start],
+                                                [dh, dw],
+                                                out,
+                                                &inp,
+                                                kernel
+                                            )
+                                        },
+                                        |j, l, oc_remain, out, kernel| {
+                                            partial_oc(
+                                                [ii, i_end],
+                                                [kernel_height, kernel_width],
+                                                [b, l, k, j],
+                                                [osb, osh, osw],
+                                                [step_height, step_width],
+                                                [isb, ish, isw],
+                                                [ph_start, pw_start],
+                                                [dh, dw],
+                                                oc_remain,
+                                                out,
+                                                &inp,
+                                                kernel
+                                            );
+                                        }
                                     );
                                     kernel = kernel_k.clone();
+                                }
+                                // handle the out width remain part
+                                if let Some(full_oc_kernel_ow_remain) = &full_oc_kernel_ow_remain {
+                                    let one_oc_ow_remain = full_oc_kernel_fn_1_oc_ow_remain.expect(
+                                        &format!(
+                                            "unable to find iconv2d_microkernel_{}x{}",
+                                            ow_block,
+                                            1
+                                        )
+                                    ).kernel;
+                                    let partial_oc_ow_remain = partial_oc_kernel_ow_remain.expect(
+                                        &format!("unable to find oconv2d_microkernel_{}", ow_block)
+                                    ).kernel;
+                                    for k in (out_width_full_end..out_width).step_by(ow_block) {
+                                        handle_remain(
+                                            jj_start,
+                                            jj_end,
+                                            remain,
+                                            oc_block_size,
+                                            ll,
+                                            l_end,
+                                            out_channels,
+                                            [ii, i_end],
+                                            [kernel_height, kernel_width],
+                                            &mut out,
+                                            &mut kernel,
+                                            |j, l, out, kernel| {
+                                                (full_oc_kernel_ow_remain.kernel)(
+                                                    [ii, i_end],
+                                                    [kernel_height, kernel_width],
+                                                    [b, l, k, j],
+                                                    [osb, osh, osw],
+                                                    [step_height, step_width],
+                                                    [isb, ish, isw],
+                                                    [ph_start, pw_start],
+                                                    [dh, dw],
+                                                    out,
+                                                    &inp,
+                                                    kernel
+                                                )
+                                            },
+                                            |j, l, out, kernel| {
+                                                one_oc_ow_remain(
+                                                    [ii, i_end],
+                                                    [kernel_height, kernel_width],
+                                                    [b, l, k, j],
+                                                    [osb, osh, osw],
+                                                    [step_height, step_width],
+                                                    [isb, ish, isw],
+                                                    [ph_start, pw_start],
+                                                    [dh, dw],
+                                                    out,
+                                                    &inp,
+                                                    kernel
+                                                )
+                                            },
+                                            |j, l, oc_remain, out, kernel| {
+                                                partial_oc_ow_remain(
+                                                    [ii, i_end],
+                                                    [kernel_height, kernel_width],
+                                                    [b, l, k, j],
+                                                    [osb, osh, osw],
+                                                    [step_height, step_width],
+                                                    [isb, ish, isw],
+                                                    [ph_start, pw_start],
+                                                    [dh, dw],
+                                                    oc_remain,
+                                                    out,
+                                                    &inp,
+                                                    kernel
+                                                );
+                                            }
+                                        );
+                                        kernel = kernel_k.clone();
+                                    }
+                                }
+                            } else {
+                                // handle the out width full part
+                                for k in (0..out_width_full_end).step_by(ow_block) {
+                                    handle_normal(
+                                        jj_start,
+                                        jj_end,
+                                        remain,
+                                        oc_block_size,
+                                        ll,
+                                        l_end,
+                                        [ii, i_end],
+                                        [kernel_height, kernel_width],
+                                        &mut out,
+                                        &mut kernel,
+                                        |j, l, out, kernel| {
+                                            full_oc_kernel_fn(
+                                                [ii, i_end],
+                                                [kernel_height, kernel_width],
+                                                [b, l, k, j],
+                                                [osb, osh, osw],
+                                                [step_height, step_width],
+                                                [isb, ish, isw],
+                                                [ph_start, pw_start],
+                                                [dh, dw],
+                                                out,
+                                                &inp,
+                                                kernel
+                                            )
+                                        }
+                                    );
+                                    kernel = kernel_k.clone();
+                                }
+                                // handle the out width remain part
+                                if let Some(full_oc_kernel_ow_remain) = &full_oc_kernel_ow_remain {
+                                    for k in (out_width_full_end..out_width).step_by(ow_block) {
+                                        handle_normal(
+                                            jj_start,
+                                            jj_end,
+                                            remain,
+                                            oc_block_size,
+                                            ll,
+                                            l_end,
+                                            [ii, i_end],
+                                            [kernel_height, kernel_width],
+                                            &mut out,
+                                            &mut kernel,
+                                            |j, l, out, kernel| {
+                                                (full_oc_kernel_ow_remain.kernel)(
+                                                    [ii, i_end],
+                                                    [kernel_height, kernel_width],
+                                                    [b, l, k, j],
+                                                    [osb, osh, osw],
+                                                    [step_height, step_width],
+                                                    [isb, ish, isw],
+                                                    [ph_start, pw_start],
+                                                    [dh, dw],
+                                                    out,
+                                                    &inp,
+                                                    kernel
+                                                )
+                                            }
+                                        );
+                                        kernel = kernel_k.clone();
+                                    }
                                 }
                             }
                             kernel +=
@@ -542,109 +700,78 @@ fn kernel_params<T: CommonBounds>(
     (best_params.0, best_params.1)
 }
 
-fn func<T: CommonBounds>(
+fn handle_remain<T: CommonBounds, F, F2, F3>(
     jj_start: i64,
     jj_end: i64,
     remain: i64,
     oc_block_size: usize,
-    kernel: &mut Pointer<T>,
-    full_oc: fn(
-        [i64; 2],
-        [i64; 2],
-        [i64; 4],
-        [i64; 3],
-        [i64; 2],
-        [i64; 3],
-        [i64; 2],
-        [i64; 2],
-        &mut Pointer<T>,
-        &Pointer<T>,
-        &mut Pointer<T>
-    ),
-    one_oc: &Option<ConvKernel<T>>,
-    partial_oc: &Option<ConvPartialKernel<T>>,
-    [ii, i_end]: [i64; 2],
-    [kernel_height, kernel_width]: [i64; 2],
-    [b, k]: [i64; 2],
-    [osb, osh, osw]: [i64; 3],
-    [step_height, step_width]: [i64; 2],
-    [isb, ish, isw]: [i64; 3],
-    [ph_start, pw_start]: [i64; 2],
-    [dh, dw]: [i64; 2],
-    out: &mut Pointer<T>,
-    inp: &Pointer<T>,
     ll: i64,
     l_end: i64,
-    out_channels: i64
-) {
+    out_channels: i64,
+    [ii, i_end]: [i64; 2],
+    [kernel_height, kernel_width]: [i64; 2],
+    out: &mut Pointer<T>,
+    kernel: &mut Pointer<T>,
+    full_oc: F,
+    one_oc: F2,
+    partial_oc: F3
+)
+    where
+        F: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>),
+        F2: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>),
+        F3: Fn(i64, i64, i64, &mut Pointer<T>, &mut Pointer<T>)
+{
     for j in (jj_start..jj_end - remain).step_by(oc_block_size) {
         let original = kernel.clone();
         for l in ll..l_end {
-            full_oc(
-                [ii, i_end],
-                [kernel_height, kernel_width],
-                [b, l, k, j],
-                [osb, osh, osw],
-                [step_height, step_width],
-                [isb, ish, isw],
-                [ph_start, pw_start],
-                [dh, dw],
-                out,
-                inp,
-                kernel
-            );
+            full_oc(j, l, out, kernel);
             *kernel = original.clone();
         }
         *kernel += kernel_height * kernel_width * (i_end - ii) * (oc_block_size as i64);
     }
-    if remain > 0 {
-        let oc_remain = remain % (T::Vec::SIZE as i64);
-        // loop over the remain part that are multiple of T::Vec::SIZE
-        if let Some(one_oc) = &one_oc {
-            for j in (out_channels - remain..out_channels - oc_remain).step_by(T::Vec::SIZE) {
-                let original = kernel.clone();
-                for l in ll..l_end {
-                    (one_oc.kernel)(
-                        [ii, i_end],
-                        [kernel_height, kernel_width],
-                        [b, l, k, j],
-                        [osb, osh, osw],
-                        [step_height, step_width],
-                        [isb, ish, isw],
-                        [ph_start, pw_start],
-                        [dh, dw],
-                        out,
-                        inp,
-                        kernel
-                    );
-                    *kernel = original.clone();
-                }
-                *kernel += kernel_height * kernel_width * (T::Vec::SIZE as i64) * (i_end - ii);
-            }
+    let oc_remain = remain % (T::Vec::SIZE as i64);
+    // loop over the remain part that are multiple of T::Vec::SIZE
+    for j in (out_channels - remain..out_channels - oc_remain).step_by(T::Vec::SIZE) {
+        let original = kernel.clone();
+        for l in ll..l_end {
+            one_oc(j, l, out, kernel);
+            *kernel = original.clone();
         }
-        let partial_oc = partial_oc.expect("unable to find partial_oc_kernel").kernel;
-        // loop over the remain part that are less than T::Vec::SIZE
-        for j in (out_channels - oc_remain..out_channels).step_by(T::Vec::SIZE) {
-            let original = kernel.clone();
-            for l in ll..l_end {
-                partial_oc(
-                    [ii, i_end],
-                    [kernel_height, kernel_width],
-                    [b, l, k, j],
-                    [osb, osh, osw],
-                    [step_height, step_width],
-                    [isb, ish, isw],
-                    [ph_start, pw_start],
-                    [dh, dw],
-                    oc_remain,
-                    out,
-                    inp,
-                    kernel
-                );
-                *kernel = original.clone();
-            }
-            *kernel += kernel_height * kernel_width * oc_remain * (i_end - ii);
+        *kernel += kernel_height * kernel_width * (T::Vec::SIZE as i64) * (i_end - ii);
+    }
+    // loop over the remain part that are less than T::Vec::SIZE
+    for j in (out_channels - oc_remain..out_channels).step_by(T::Vec::SIZE) {
+        let original = kernel.clone();
+        for l in ll..l_end {
+            partial_oc(j, l, oc_remain, out, kernel);
+            *kernel = original.clone();
         }
+        *kernel += kernel_height * kernel_width * oc_remain * (i_end - ii);
+    }
+}
+
+fn handle_normal<T: CommonBounds, F>(
+    jj_start: i64,
+    jj_end: i64,
+    remain: i64,
+    oc_block_size: usize,
+    ll: i64,
+    l_end: i64,
+    [ii, i_end]: [i64; 2],
+    [kernel_height, kernel_width]: [i64; 2],
+    out: &mut Pointer<T>,
+    kernel: &mut Pointer<T>,
+    full_oc: F
+)
+    where F: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>)
+{
+    for j in (jj_start..jj_end - remain).step_by(oc_block_size) {
+        let original = kernel.clone();
+        for l in ll..l_end {
+            full_oc(j, l, out, kernel);
+            *kernel = original.clone();
+        }
+        *kernel += kernel_height * kernel_width * (i_end - ii) * (oc_block_size as i64);
     }
 }
 
