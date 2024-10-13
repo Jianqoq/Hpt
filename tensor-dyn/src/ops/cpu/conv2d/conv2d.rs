@@ -1,6 +1,7 @@
-use super::cache_utils::cache::Cache;
-use crate::ops::cpu::kernels::conv_kernels::iconv2d_full_oc_kernel_dispatch;
-use crate::ops::cpu::kernels::conv_kernels::iconv2d_remain_oc_kernel_dispatch;
+use crate::ops::cpu::cache_utils::cache::Cache;
+use crate::ops::cpu::kernels::conv_kernels::conv2d_full_oc_bias_kernel_dispatch;
+use crate::ops::cpu::kernels::conv_kernels::conv2d_full_oc_kernel_dispatch;
+use crate::ops::cpu::kernels::conv_kernels::conv2d_remain_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::conv_kernels::ConvKernel;
 use crate::ops::cpu::kernels::conv_kernels::ConvPartialKernel;
 use crate::tensor_base::_Tensor;
@@ -46,6 +47,7 @@ impl<T> _Tensor<T>
     pub fn conv2d(
         &self,
         kernels: &_Tensor<T>,
+        bias: Option<&_Tensor<T>>,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2]
@@ -134,29 +136,29 @@ impl<T> _Tensor<T>
             cache
         );
         let (ic_nvec, jb) = params;
-        let full_oc_kernel = iconv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(
+        let full_oc_kernel = conv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(
             &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec)
         ); // get the micro kernel for the full part of out width and full part of out channel
         let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
-        let full_oc_kernel_ow_remain = iconv2d_full_oc_kernel_dispatch::<T>(
+        let full_oc_kernel_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
             &mut oc_nvec,
             &mut ((out_width as usize) % ow_block)
         ); // get the micro kernel for the remain part of out width that is not a multiple of ow_block, and full part of out channel
         if full_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
         }
-        let partial_oc_kernel = iconv2d_remain_oc_kernel_dispatch::<T>(&mut ow_block);
+        let partial_oc_kernel = conv2d_remain_oc_kernel_dispatch::<T>(&mut ow_block);
         if let Some(partial_oc_kernel) = partial_oc_kernel {
             assert_eq!(ow_block, partial_oc_kernel.ow_block);
         }
-        let partial_oc_kernel_ow_remain = iconv2d_remain_oc_kernel_dispatch::<T>(
+        let partial_oc_kernel_ow_remain = conv2d_remain_oc_kernel_dispatch::<T>(
             &mut ((out_width as usize) % ow_block)
         );
         if partial_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
         }
-        let full_oc_kernel_fn_1_oc = iconv2d_full_oc_kernel_dispatch::<T>(&mut 1, &mut ow_block);
-        let full_oc_kernel_fn_1_oc_ow_remain = iconv2d_full_oc_kernel_dispatch::<T>(
+        let full_oc_kernel_fn_1_oc = conv2d_full_oc_kernel_dispatch::<T>(&mut 1, &mut ow_block);
+        let full_oc_kernel_fn_1_oc_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
             &mut 1,
             &mut ((out_width as usize) % ow_block)
         );
@@ -182,6 +184,12 @@ impl<T> _Tensor<T>
         let ic_block_size = ic_nvec * T::Vec::SIZE; // in channel block size
         let oc_block_size = oc_nvec * T::Vec::SIZE; // out channel block size, but this is only caculated based on cache line size, we have another block size `jb`
 
+        let has_bias = bias.is_some();
+        let bias_full_oc_kernel = if has_bias {
+            Some(conv2d_full_oc_bias_kernel_dispatch::<T>(&mut 1, &mut oc_nvec).unwrap())
+        } else {
+            None
+        };
         (0..outer).into_par_iter().for_each(|idx| {
             let mut out = out.clone();
             let mut kernel = ro_ptr.clone();
@@ -193,61 +201,73 @@ impl<T> _Tensor<T>
                 (None, None, None) => {
                     for ii in (0..in_channels).step_by(ic_block_size) {
                         let i_end = (ii + (ic_block_size as i64)).min(in_channels);
+                        let bias_kernel = i_end == in_channels && has_bias;
 
-                        // out channel has two levels of blocking:
-                        // 1. it first blocks by oc_block_size * jb
-                        // 2. it then blocks by oc_block_size (cache line size)
-                        for jj in (0..out_channels).step_by(oc_block_size * (jb as usize)) {
-                            let jj_start = jj;
-
-                            // make sure jj_end is in the range of out_channels
-                            let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(
-                                out_channels
-                            );
-
-                            // the kernel filter has nothing to do with out height, hence, when iterate over (0..out_width_full_end), kernel pointer should reset in each iteration
-                            let kernel_k = kernel.clone();
-
-                            // since the out width is multiple of ow_block, we don't need to handle the remain part
-                            for k in (0..out_width_full_end).step_by(ow_block) {
-                                for j in (jj_start..jj_end).step_by(oc_block_size) {
-                                    // the kernel filter has nothing to do with out height, hence, when iterate over (l..l_end), kernel pointer should reset in each iteration
-                                    let original = kernel.clone();
-                                    for l in ll..l_end {
-                                        // execute micro kernel, see `iconv2d_full_oc_kernel_dispatch` for more details
-                                        full_oc_kernel_fn(
-                                            [ii, i_end],
-                                            [kernel_height, kernel_width],
-                                            [b, l, k, j],
-                                            [osb, osh, osw],
-                                            [step_height, step_width],
-                                            [isb, ish, isw],
-                                            [ph_start, pw_start],
-                                            [dh, dw],
-                                            &mut out,
-                                            &inp,
-                                            &mut kernel
-                                        );
-                                        kernel = original.clone();
-                                    }
-                                    // update the kernel pointer
-                                    kernel +=
-                                        kernel_height *
-                                        kernel_width *
-                                        (i_end - ii) *
-                                        (oc_block_size as i64);
+                        if bias_kernel {
+                            let bias = bias.unwrap().ptr();
+                            let bias_full_oc_kernel = bias_full_oc_kernel.unwrap();
+                            conv_perfect(
+                                out_channels,
+                                oc_block_size,
+                                ow_block,
+                                out_width_full_end,
+                                [kernel_height, kernel_width],
+                                [ll, l_end],
+                                i_end - ii,
+                                jb,
+                                &mut kernel,
+                                &mut out,
+                                |l, k, j, kernel, out| {
+                                    bias_full_oc_kernel(
+                                        [ii, i_end],
+                                        [kernel_height, kernel_width],
+                                        [b, l, k, j],
+                                        [osb, osh, osw],
+                                        [step_height, step_width],
+                                        [isb, ish, isw],
+                                        [ph_start, pw_start],
+                                        [dh, dw],
+                                        &bias,
+                                        out,
+                                        &inp,
+                                        kernel
+                                    );
                                 }
-                                kernel = kernel_k.clone();
-                            }
-                            kernel +=
-                                kernel_height * kernel_width * (jj_end - jj_start) * (i_end - ii);
+                            );
+                        } else {
+                            conv_perfect(
+                                out_channels,
+                                oc_block_size,
+                                ow_block,
+                                out_width_full_end,
+                                [kernel_height, kernel_width],
+                                [ll, l_end],
+                                i_end - ii,
+                                jb,
+                                &mut kernel,
+                                &mut out,
+                                |l, k, j, kernel, out| {
+                                    full_oc_kernel_fn(
+                                        [ii, i_end],
+                                        [kernel_height, kernel_width],
+                                        [b, l, k, j],
+                                        [osb, osh, osw],
+                                        [step_height, step_width],
+                                        [isb, ish, isw],
+                                        [ph_start, pw_start],
+                                        [dh, dw],
+                                        out,
+                                        &inp,
+                                        kernel
+                                    );
+                                }
+                            );
                         }
                     }
                 }
                 _ => {
                     for ii in (0..in_channels).step_by(ic_block_size) {
                         let i_end = (ii + (ic_block_size as i64)).min(in_channels);
-
                         // out channel has two levels of blocking:
                         // 1. it first blocks by oc_block_size * jb
                         // 2. it then blocks by oc_block_size (cache line size)
@@ -262,123 +282,30 @@ impl<T> _Tensor<T>
                             // calculate the remain part that are less than T::Vec::SIZE * oc_nvec
                             let remain = (jj_end - jj_start) % (oc_block_size as i64);
                             let kernel_k = kernel.clone();
-                            // define a closure to avoid the repeated code
-                            let func = |
-                                k: i64,
-                                full_oc: fn(
-                                    [i64; 2],
-                                    [i64; 2],
-                                    [i64; 4],
-                                    [i64; 3],
-                                    [i64; 2],
-                                    [i64; 3],
-                                    [i64; 2],
-                                    [i64; 2],
-                                    &mut Pointer<T>,
-                                    &Pointer<T>,
-                                    &mut Pointer<T>
-                                ),
-                                one_oc: Option<ConvKernel<T>>,
-                                partial_oc: Option<ConvPartialKernel<T>>,
-                                out: &mut Pointer<T>,
-                                kernel: &mut Pointer<T>,
-                                inp: &Pointer<T>
-                            | {
-                                for j in (jj_start..jj_end - remain).step_by(oc_block_size) {
-                                    let original = kernel.clone();
-                                    for l in ll..l_end {
-                                        full_oc(
-                                            [ii, i_end],
-                                            [kernel_height, kernel_width],
-                                            [b, l, k, j],
-                                            [osb, osh, osw],
-                                            [step_height, step_width],
-                                            [isb, ish, isw],
-                                            [ph_start, pw_start],
-                                            [dh, dw],
-                                            out,
-                                            inp,
-                                            kernel
-                                        );
-                                        *kernel = original.clone();
-                                    }
-                                    *kernel +=
-                                        kernel_height *
-                                        kernel_width *
-                                        (i_end - ii) *
-                                        (oc_block_size as i64);
-                                }
-                                if remain > 0 {
-                                    let oc_remain = remain % (T::Vec::SIZE as i64);
-                                    // loop over the remain part that are multiple of T::Vec::SIZE
-                                    if let Some(one_oc) = &one_oc {
-                                        for j in (out_channels - remain..out_channels -
-                                            oc_remain).step_by(T::Vec::SIZE) {
-                                            let original = kernel.clone();
-                                            for l in ll..l_end {
-                                                (one_oc.kernel)(
-                                                    [ii, i_end],
-                                                    [kernel_height, kernel_width],
-                                                    [b, l, k, j],
-                                                    [osb, osh, osw],
-                                                    [step_height, step_width],
-                                                    [isb, ish, isw],
-                                                    [ph_start, pw_start],
-                                                    [dh, dw],
-                                                    out,
-                                                    inp,
-                                                    kernel
-                                                );
-                                                *kernel = original.clone();
-                                            }
-                                            *kernel +=
-                                                kernel_height *
-                                                kernel_width *
-                                                (T::Vec::SIZE as i64) *
-                                                (i_end - ii);
-                                        }
-                                    }
-                                    let partial_oc = partial_oc.expect(
-                                        "unable to find partial_oc_kernel"
-                                    ).kernel;
-                                    // loop over the remain part that are less than T::Vec::SIZE
-                                    for j in (out_channels - oc_remain..out_channels).step_by(
-                                        T::Vec::SIZE
-                                    ) {
-                                        let original = kernel.clone();
-                                        for l in ll..l_end {
-                                            partial_oc(
-                                                [ii, i_end],
-                                                [kernel_height, kernel_width],
-                                                [b, l, k, j],
-                                                [osb, osh, osw],
-                                                [step_height, step_width],
-                                                [isb, ish, isw],
-                                                [ph_start, pw_start],
-                                                [dh, dw],
-                                                oc_remain,
-                                                out,
-                                                inp,
-                                                kernel
-                                            );
-                                            *kernel = original.clone();
-                                        }
-                                        *kernel +=
-                                            kernel_height * kernel_width * oc_remain * (i_end - ii);
-                                    }
-                                }
-                            };
-
                             // handle the out width full part
                             for k in (0..out_width_full_end).step_by(ow_block) {
                                 func(
-                                    k,
-                                    full_oc_kernel_fn,
-                                    full_oc_kernel_fn_1_oc,
-                                    partial_oc_kernel,
-                                    &mut out,
+                                    jj_start,
+                                    jj_end,
+                                    remain,
+                                    oc_block_size,
                                     &mut kernel,
-                                    &inp
+                                    full_oc_kernel_fn,
+                                    &full_oc_kernel_fn_1_oc,
+                                    &partial_oc_kernel,
+                                    [ii, i_end],
+                                    [kernel_height, kernel_width],
+                                    [b, k],
+                                    [osb, osh, osw],
+                                    [step_height, step_width],
+                                    [isb, ish, isw],
+                                    [ph_start, pw_start],
+                                    [dh, dw],
+                                    &mut out,
+                                    &inp,
+                                    ll,
+                                    l_end,
+                                    out_channels
                                 );
                                 kernel = kernel_k.clone();
                             }
@@ -386,13 +313,27 @@ impl<T> _Tensor<T>
                             if let Some(full_oc_kernel_ow_remain) = &full_oc_kernel_ow_remain {
                                 for k in (out_width_full_end..out_width).step_by(ow_block) {
                                     func(
-                                        k,
-                                        full_oc_kernel_ow_remain.kernel,
-                                        full_oc_kernel_fn_1_oc_ow_remain,
-                                        partial_oc_kernel_ow_remain,
-                                        &mut out,
+                                        jj_start,
+                                        jj_end,
+                                        remain,
+                                        oc_block_size,
                                         &mut kernel,
-                                        &inp
+                                        full_oc_kernel_ow_remain.kernel,
+                                        &full_oc_kernel_fn_1_oc_ow_remain,
+                                        &partial_oc_kernel_ow_remain,
+                                        [ii, i_end],
+                                        [kernel_height, kernel_width],
+                                        [b, k],
+                                        [osb, osh, osw],
+                                        [step_height, step_width],
+                                        [isb, ish, isw],
+                                        [ph_start, pw_start],
+                                        [dh, dw],
+                                        &mut out,
+                                        &inp,
+                                        ll,
+                                        l_end,
+                                        out_channels
                                     );
                                     kernel = kernel_k.clone();
                                 }
@@ -598,4 +539,156 @@ fn kernel_params<T: CommonBounds>(
         );
 
     (best_params.0, best_params.1)
+}
+
+fn func<T: CommonBounds>(
+    jj_start: i64,
+    jj_end: i64,
+    remain: i64,
+    oc_block_size: usize,
+    kernel: &mut Pointer<T>,
+    full_oc: fn(
+        [i64; 2],
+        [i64; 2],
+        [i64; 4],
+        [i64; 3],
+        [i64; 2],
+        [i64; 3],
+        [i64; 2],
+        [i64; 2],
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &mut Pointer<T>
+    ),
+    one_oc: &Option<ConvKernel<T>>,
+    partial_oc: &Option<ConvPartialKernel<T>>,
+    [ii, i_end]: [i64; 2],
+    [kernel_height, kernel_width]: [i64; 2],
+    [b, k]: [i64; 2],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    [ph_start, pw_start]: [i64; 2],
+    [dh, dw]: [i64; 2],
+    out: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    ll: i64,
+    l_end: i64,
+    out_channels: i64
+) {
+    for j in (jj_start..jj_end - remain).step_by(oc_block_size) {
+        let original = kernel.clone();
+        for l in ll..l_end {
+            full_oc(
+                [ii, i_end],
+                [kernel_height, kernel_width],
+                [b, l, k, j],
+                [osb, osh, osw],
+                [step_height, step_width],
+                [isb, ish, isw],
+                [ph_start, pw_start],
+                [dh, dw],
+                out,
+                inp,
+                kernel
+            );
+            *kernel = original.clone();
+        }
+        *kernel += kernel_height * kernel_width * (i_end - ii) * (oc_block_size as i64);
+    }
+    if remain > 0 {
+        let oc_remain = remain % (T::Vec::SIZE as i64);
+        // loop over the remain part that are multiple of T::Vec::SIZE
+        if let Some(one_oc) = &one_oc {
+            for j in (out_channels - remain..out_channels - oc_remain).step_by(T::Vec::SIZE) {
+                let original = kernel.clone();
+                for l in ll..l_end {
+                    (one_oc.kernel)(
+                        [ii, i_end],
+                        [kernel_height, kernel_width],
+                        [b, l, k, j],
+                        [osb, osh, osw],
+                        [step_height, step_width],
+                        [isb, ish, isw],
+                        [ph_start, pw_start],
+                        [dh, dw],
+                        out,
+                        inp,
+                        kernel
+                    );
+                    *kernel = original.clone();
+                }
+                *kernel += kernel_height * kernel_width * (T::Vec::SIZE as i64) * (i_end - ii);
+            }
+        }
+        let partial_oc = partial_oc.expect("unable to find partial_oc_kernel").kernel;
+        // loop over the remain part that are less than T::Vec::SIZE
+        for j in (out_channels - oc_remain..out_channels).step_by(T::Vec::SIZE) {
+            let original = kernel.clone();
+            for l in ll..l_end {
+                partial_oc(
+                    [ii, i_end],
+                    [kernel_height, kernel_width],
+                    [b, l, k, j],
+                    [osb, osh, osw],
+                    [step_height, step_width],
+                    [isb, ish, isw],
+                    [ph_start, pw_start],
+                    [dh, dw],
+                    oc_remain,
+                    out,
+                    inp,
+                    kernel
+                );
+                *kernel = original.clone();
+            }
+            *kernel += kernel_height * kernel_width * oc_remain * (i_end - ii);
+        }
+    }
+}
+
+fn conv_perfect<T: CommonBounds, F>(
+    out_channels: i64,
+    oc_block_size: usize,
+    ow_block: usize,
+    out_width_full_end: i64,
+    [kh, kw]: [i64; 2],
+    [ll, l_end]: [i64; 2],
+    i_range: i64,
+    jb: usize,
+    kernel: &mut Pointer<T>,
+    out: &mut Pointer<T>,
+    kernel_func: F
+)
+    where F: Fn(i64, i64, i64, &mut Pointer<T>, &mut Pointer<T>)
+{
+    // out channel has two levels of blocking:
+    // 1. it first blocks by oc_block_size * jb
+    // 2. it then blocks by oc_block_size (cache line size)
+    for jj in (0..out_channels).step_by(oc_block_size * (jb as usize)) {
+        let jj_start = jj;
+
+        // make sure jj_end is in the range of out_channels
+        let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(out_channels);
+
+        // the kernel filter has nothing to do with out height, hence, when iterate over (0..out_width_full_end), kernel pointer should reset in each iteration
+        let kernel_k = kernel.clone();
+
+        for k in (0..out_width_full_end).step_by(ow_block) {
+            for j in (jj_start..jj_end).step_by(oc_block_size) {
+                // the kernel filter has nothing to do with out height, hence, when iterate over (l..l_end), kernel pointer should reset in each iteration
+                let original = kernel.clone();
+                for l in ll..l_end {
+                    // execute micro kernel, see `iconv2d_full_oc_kernel_dispatch` for more details
+                    kernel_func(l, k, j, kernel, out);
+                    *kernel = original.clone();
+                }
+                // update the kernel pointer
+                *kernel += kh * kw * i_range * (oc_block_size as i64);
+            }
+            *kernel = kernel_k.clone();
+        }
+
+        *kernel += kh * kw * (jj_end - jj_start) * i_range;
+    }
 }

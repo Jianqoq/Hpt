@@ -18,7 +18,10 @@ pub mod ops {
         /// a module defines concat operation
         pub mod concat;
         /// a module defines conv2d operation
-        pub mod conv2d;
+        pub mod conv2d {
+            /// a module defines conv2d operation
+            pub mod conv2d;
+        }
         /// a module defines conv_config struct
         pub mod conv_config;
         /// a module defines dropout operation
@@ -156,7 +159,7 @@ pub use tensor_traits::*;
 pub use tensor_types::vectors::*;
 pub use tensor_types::*;
 
-use std::{cell::RefCell, sync::atomic::AtomicUsize};
+use std::{ cell::RefCell, sync::atomic::AtomicUsize };
 thread_local! {
     static THREAD_POOL: RefCell<threadpool::ThreadPool> = RefCell::new(
         threadpool::ThreadPool::new(num_cpus::get_physical())
@@ -184,10 +187,12 @@ pub fn set_num_threads(num_threads: usize) {
     THREAD_POOL.with(|x| {
         x.borrow_mut().set_num_threads(num_threads);
     });
-    match rayon::ThreadPoolBuilder::new()
-        .num_threads(num_threads)
-        .stack_size(4 * 1024 * 1024)
-        .build_global()
+    match
+        rayon::ThreadPoolBuilder
+            ::new()
+            .num_threads(num_threads)
+            .stack_size(4 * 1024 * 1024)
+            .build_global()
     {
         Ok(_) => {}
         Err(_) => {}
@@ -225,27 +230,26 @@ pub(crate) const REGNUM: usize = 32;
 type BoolVector = tensor_types::_256bit::boolx32::boolx32;
 #[cfg(any(target_feature = "avx512f"))]
 type BoolVector = tensor_types::_512bit::boolx64::boolx64;
-#[cfg(any(
-    all(not(target_feature = "avx2"), target_feature = "sse"),
-    target_arch = "arm",
-    target_arch = "aarch64",
-    target_feature = "neon"
-))]
+#[cfg(
+    any(
+        all(not(target_feature = "avx2"), target_feature = "sse"),
+        target_arch = "arm",
+        target_arch = "aarch64",
+        target_feature = "neon"
+    )
+)]
 type BoolVector = tensor_types::_128bit::boolx16::boolx16;
 
 #[cfg(target_feature = "avx2")]
 const SIMD_WIDTH: usize = 256;
 #[cfg(any(target_feature = "avx512f"))]
 const SIMD_WIDTH: usize = 512;
-#[cfg(any(
-    all(not(target_feature = "avx2"), target_feature = "sse"),
-    target_arch = "arm",
-    target_arch = "aarch64",
-    target_feature = "neon"
-))]
+#[cfg(
+    any(
+        all(not(target_feature = "avx2"), target_feature = "sse"),
+        target_arch = "arm",
+        target_arch = "aarch64",
+        target_feature = "neon"
+    )
+)]
 const SIMD_WIDTH: usize = 128;
-
-#[cfg(target_arch = "x86_64")]
-pub(crate) const CACHE_LINE_SIZE: usize = 64;
-#[cfg(all(target_arch = "aarch64", target_os = "macos"))]
-pub(crate) const CACHE_LINE_SIZE: usize = 128;
