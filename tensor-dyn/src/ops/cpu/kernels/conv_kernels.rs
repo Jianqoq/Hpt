@@ -250,9 +250,9 @@ fn template_function<T: CommonBounds>(
     };
     let is0 = b * isb + l * step_height * ish + k * step_width * isw;
     for n in 0..kh {
-        let is1 = is0 + n * ish;
+        let is1 = is0 + n * dh * ish;
         for m in 0..kw {
-            let is2 = is1 + m * isw;
+            let is2 = is1 + m * dw * isw;
             for i in ii..i_end {
                 let is3 = is2 + i;
                 let inp = conv2d_microkernel_gen_inps!(
@@ -343,9 +343,9 @@ fn template_function<T: CommonBounds>(
     };
     let is0 = b * isb + l * step_height * ish + k * step_width * isw;
     for n in 0..kh {
-        let is1 = is0 + n * ish;
+        let is1 = is0 + n * dh * ish;
         for m in 0..kw {
-            let is2 = is1 + m * isw;
+            let is2 = is1 + m * dw * isw;
             for i in ii..i_end {
                 let is3 = is2 + i;
                 let inp = conv2d_microkernel_gen_inps!(
@@ -440,9 +440,9 @@ fn template_function<T: CommonBounds>(
     };
     let is0 = b * isb + l * step_height * ish + k * step_width * isw;
     for n in 0..kh {
-        let is1 = is0 + n * ish;
+        let is1 = is0 + n * dh * ish;
         for m in 0..kw {
-            let is2 = is1 + m * isw;
+            let is2 = is1 + m * dw * isw;
             let l_in_range =
                 l * step_height + n * dh >= ph_start &&
                 l * step_height + n * dh < img_height + ph_start;
@@ -536,9 +536,9 @@ fn template_function<T: CommonBounds>(
     };
     let is0 = b * isb + l * step_height * ish + k * step_width * isw;
     for n in 0..kh {
-        let is1 = is0 + n * ish;
+        let is1 = is0 + n * dh * ish;
         for m in 0..kw {
-            let is2 = is1 + m * isw;
+            let is2 = is1 + m * dw * isw;
             let l_in_range =
                 l * step_height + n * dh >= ph_start &&
                 l * step_height + n * dh < img_height + ph_start;
@@ -614,9 +614,9 @@ fn template_function<T: CommonBounds>(
     };
     let is0 = b * isb + l * step_height * ish + k * step_width * isw;
     for n in 0..kh {
-        let is1 = is0 + n * ish;
+        let is1 = is0 + n * dh * ish;
         for m in 0..kw {
-            let is2 = is1 + m * isw;
+            let is2 = is1 + m * dw * isw;
             for i in ii..i_end {
                 let is3 = is2 + i;
                 let inp = conv2d_microkernel_gen_inps!(
@@ -684,9 +684,9 @@ fn template_function<T: CommonBounds>(
     };
     let is0 = b * isb + l * step_height * ish + k * step_width * isw;
     for n in 0..kh {
-        let is1 = is0 + n * ish;
+        let is1 = is0 + n * dh * ish;
         for m in 0..kw {
-            let is2 = is1 + m * isw;
+            let is2 = is1 + m * dw * isw;
             for i in ii..i_end {
                 let is3 = is2 + i;
                 let inp = conv2d_microkernel_gen_inps!(
