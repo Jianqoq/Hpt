@@ -14,7 +14,7 @@ members = [
     "tensor-macros",
     "tensor-iterator",
     "tensor-display", "tensor-bench",
-    "tensor-tests",
+    "tensor-tests", "tensor-dataloader"
 ]
 
 [dependencies]

@@ -353,18 +353,16 @@ impl<T> _Tensor<T>
                             // 1. it first blocks by oc_block_size * jb
                             // 2. it then blocks by oc_block_size (cache line size)
                             for jj in (0..out_channels).step_by(oc_block_size * (jb as usize)) {
-                                let jj_start = jj;
-
                                 // make sure jj_end is in the range of out_channels
                                 let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(
                                     out_channels
                                 );
 
                                 // calculate the remain part that are less than T::Vec::SIZE * oc_nvec
-                                let remain = (jj_end - jj_start) % (oc_block_size as i64);
+                                let remain = (jj_end - jj) % (oc_block_size as i64);
                                 if remain > 0 {
                                     handle_bias_remain(
-                                        [jj_start, jj_end],
+                                        [jj, jj_end],
                                         [out_channels, oc_block_size as i64],
                                         [out_width, ow_block as i64],
                                         [ll, l_end],
@@ -391,7 +389,7 @@ impl<T> _Tensor<T>
                                     );
                                 } else {
                                     handle_normal(
-                                        [jj_start, jj_end],
+                                        [jj, jj_end],
                                         [out_width, ow_block as i64],
                                         [ll, l_end],
                                         [ii, i_end],
@@ -418,17 +416,15 @@ impl<T> _Tensor<T>
                             // 1. it first blocks by oc_block_size * jb
                             // 2. it then blocks by oc_block_size (cache line size)
                             for jj in (0..out_channels).step_by(oc_block_size * (jb as usize)) {
-                                let jj_start = jj;
-
                                 // make sure jj_end is in the range of out_channels
                                 let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(
                                     out_channels
                                 );
                                 // calculate the remain part that are less than T::Vec::SIZE * oc_nvec
-                                let remain = (jj_end - jj_start) % (oc_block_size as i64);
+                                let remain = (jj_end - jj) % (oc_block_size as i64);
                                 if remain > 0 {
                                     handle_normal_remain(
-                                        [jj_start, jj_end],
+                                        [jj, jj_end],
                                         [out_channels, oc_block_size as i64],
                                         [out_width, ow_block as i64],
                                         [ll, l_end],
@@ -454,7 +450,7 @@ impl<T> _Tensor<T>
                                     );
                                 } else {
                                     handle_normal(
-                                        [jj_start, jj_end],
+                                        [jj, jj_end],
                                         [out_width, ow_block as i64],
                                         [ll, l_end],
                                         [ii, i_end],
@@ -858,8 +854,6 @@ fn conv_perfect<T: CommonBounds, F>(
     // 1. it first blocks by oc_block_size * jb
     // 2. it then blocks by oc_block_size (cache line size)
     for jj in (0..out_channels).step_by(oc_block_size * (jb as usize)) {
-        let jj_start = jj;
-
         // make sure jj_end is in the range of out_channels
         let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(out_channels);
 
@@ -867,7 +861,7 @@ fn conv_perfect<T: CommonBounds, F>(
         let kernel_k = kernel.clone();
 
         for k in (0..out_width_full_end).step_by(ow_block) {
-            for j in (jj_start..jj_end).step_by(oc_block_size) {
+            for j in (jj..jj_end).step_by(oc_block_size) {
                 // the kernel filter has nothing to do with out height, hence, when iterate over (l..l_end), kernel pointer should reset in each iteration
                 let original = kernel.clone();
                 for l in ll..l_end {
@@ -881,7 +875,7 @@ fn conv_perfect<T: CommonBounds, F>(
             *kernel = kernel_k.clone();
         }
 
-        *kernel += kh * kw * (jj_end - jj_start) * i_range;
+        *kernel += kh * kw * (jj_end - jj) * i_range;
     }
 }
 
