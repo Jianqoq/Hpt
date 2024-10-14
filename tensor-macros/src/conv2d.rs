@@ -2,10 +2,7 @@ use proc_macro::TokenStream;
 use proc_macro2::Literal;
 use quote::quote;
 use regex::Regex;
-use syn::{
-    parse::{Parse, ParseStream},
-    parse_macro_input, Expr, Ident, Token,
-};
+use syn::{ parse::{ Parse, ParseStream }, parse_macro_input, Expr, Ident, Token };
 
 pub(crate) fn conv2d_microkernel_declare_const(inputs: TokenStream) -> TokenStream {
     let fn_name = parse_macro_input!(inputs as Ident);
@@ -17,20 +14,20 @@ pub(crate) fn conv2d_microkernel_declare_const(inputs: TokenStream) -> TokenStre
         let after_x = captures.get(2).unwrap().as_str();
         let before_x = before_x.parse::<Literal>().unwrap();
         let after_x = after_x.parse::<Literal>().unwrap();
-        return quote! {
+        return (
+            quote! {
             const OW_BLOCK: usize = #before_x;
             const OC_BLOCK: usize = #after_x;
         }
-        .into();
+        ).into();
     } else {
         let re = Regex::new(r"(\d+)_(\d+)").unwrap();
         if let Some(captures) = re.captures(&text) {
             let before_x = captures.get(1).unwrap().as_str();
             let before_x = before_x.parse::<Literal>().unwrap();
-            return quote! {
+            return (quote! {
                 const OW_BLOCK: usize = #before_x;
-            }
-            .into();
+            }).into();
         } else {
             panic!("Invalid input format, must contains format like 5x1 or 5_1");
         }
@@ -120,17 +117,17 @@ pub(crate) fn conv2d_microkernel_gen_inps(inputs: TokenStream) -> TokenStream {
         let inp = inp_args.name;
         let is3 = inp_args.is3;
         let step_width_m = inp_args.step_width_m;
-        return quote! {
+        return (quote! {
             repeat_inp!(#inp, #is3, #step_width_m, [#arr])
-        }
-        .into();
+        }).into();
     } else {
         let re = Regex::new(r"(\d+)_(\d+)").unwrap();
         if let Some(captures) = re.captures(&text) {
             let before_x = captures.get(1).unwrap().as_str();
             let before_x = before_x.parse::<i64>().unwrap();
             let arr = (0..before_x).map(|i| i);
-            let arr = quote! {
+            let arr =
+                quote! {
                 #(
                     #arr
                 ),*
@@ -138,10 +135,78 @@ pub(crate) fn conv2d_microkernel_gen_inps(inputs: TokenStream) -> TokenStream {
             let inp = inp_args.name;
             let is3 = inp_args.is3;
             let step_width_m = inp_args.step_width_m;
-            return quote! {
+            return (
+                quote! {
                 repeat_inp!(#inp, #is3, #step_width_m, [#arr])
             }
-            .into();
+            ).into();
+        } else {
+            panic!("Invalid input format, must contains format like 5x1 or 5_1");
+        }
+    }
+}
+
+pub(crate) fn conv2d_microkernel_gen_pad_inps(inputs: TokenStream) -> TokenStream {
+    let inp_args = parse_macro_input!(inputs as ParseInpArgs);
+    let text = inp_args.template_name.to_string();
+    let re = Regex::new(r"(\d+)x(\d+)").unwrap();
+    if let Some(captures) = re.captures(&text) {
+        let before_x = captures.get(1).unwrap().as_str();
+        let before_x = before_x.parse::<i64>().unwrap();
+        let arr = (0..before_x).map(|i| i);
+        let arr = quote! {
+            #(
+                #arr
+            ),*
+        };
+        let inp = inp_args.name;
+        let is3 = inp_args.is3;
+        return (
+            quote! {
+            repeat_pad_inp!(
+                #inp,
+                #is3,
+                k,
+                step_width,
+                m,
+                dw,
+                img_width,
+                pw_start,
+                l_in_range,
+                [#arr]
+            )
+        }
+        ).into();
+    } else {
+        let re = Regex::new(r"(\d+)_(\d+)").unwrap();
+        if let Some(captures) = re.captures(&text) {
+            let before_x = captures.get(1).unwrap().as_str();
+            let before_x = before_x.parse::<i64>().unwrap();
+            let arr = (0..before_x).map(|i| i);
+            let arr =
+                quote! {
+                #(
+                    #arr
+                ),*
+            };
+            let inp = inp_args.name;
+            let is3 = inp_args.is3;
+            return (
+                quote! {
+                repeat_pad_inp!(
+                    #inp,
+                    #is3,
+                    k,
+                    step_width,
+                    m,
+                    dw,
+                    img_width,
+                    pw_start,
+                    l_in_range,
+                    [#arr]
+                )
+            }
+            ).into();
         } else {
             panic!("Invalid input format, must contains format like 5x1 or 5_1");
         }
@@ -162,10 +227,9 @@ pub(crate) fn conv2d_microkernel_gen_kernels(inputs: TokenStream) -> TokenStream
             ),*
         };
         let inp = inp_args.name;
-        return quote! {
+        return (quote! {
             repeat_kernel!(#inp, [#arr])
-        }
-        .into();
+        }).into();
     } else {
         panic!("Invalid input format, must contains format like 5x1 or 5_1");
     }
@@ -205,10 +269,11 @@ pub(crate) fn conv2d_microkernel_gen_results(inputs: TokenStream) -> TokenStream
         let results = inp_args.name;
         let inp = inp_args.inp;
         let kernel_vecs = inp_args.kernel_vecs;
-        return quote! {
+        return (
+            quote! {
             repeat_results!(#results, #inp, #kernel_vecs, [#oc_arr], [#ow_arr])
         }
-        .into();
+        ).into();
     } else {
         let re = Regex::new(r"(\d+)_(\d+)").unwrap();
         if let Some(captures) = re.captures(&text) {
@@ -220,7 +285,8 @@ pub(crate) fn conv2d_microkernel_gen_results(inputs: TokenStream) -> TokenStream
                     #unsuffixed
                 }
             });
-            let ow_arr = quote! {
+            let ow_arr =
+                quote! {
                 #(
                     #ow_arr
                 ),*
@@ -228,10 +294,11 @@ pub(crate) fn conv2d_microkernel_gen_results(inputs: TokenStream) -> TokenStream
             let results = inp_args.name;
             let inp = inp_args.inp;
             let kernel_vecs = inp_args.kernel_vecs;
-            return quote! {
+            return (
+                quote! {
                 repeat_results!(#results, #inp, #kernel_vecs, [0], [#ow_arr])
             }
-            .into();
+            ).into();
         } else {
             panic!("Invalid input format, must contains format like 5x1 or 5_1");
         }

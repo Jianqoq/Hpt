@@ -1,30 +1,28 @@
-use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use criterion::{ black_box, criterion_group, BenchmarkId, Criterion };
+use rayon::iter::{ IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator };
 use std::time::Duration;
-use tch::{Device, Kind, Tensor};
+use tch::{ Device, Kind, Tensor };
 use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
-use tensor_dyn::{tensor_base::_Tensor, Random};
+use tensor_dyn::{ tensor_base::_Tensor, Random };
 
 #[allow(unused)]
 fn assert_eq_i64(a: &Tensor, b: &_Tensor<i64>) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const i64, b.size()) };
     let b_raw = b.as_raw();
-    a_raw.par_iter().zip(b_raw.par_iter()).for_each(|(a, b)| {
-        assert_eq!(a, b);
-    });
+    a_raw
+        .par_iter()
+        .zip(b_raw.par_iter())
+        .for_each(|(a, b)| {
+            assert_eq!(a, b);
+        });
 }
 
 fn conv2d_benchmark(c: &mut Criterion) {
     tch::set_num_threads(num_cpus::get_physical() as i32);
     let shapes = [
         (
-            [
-                1,   /* batch */
-                64,  /* in channel */
-                256, /* height */
-                256, /* width */
-            ],
+            [1 /* batch */, 64 /* in channel */, 256 /* height */, 256 /* width */],
             [64 /* in channel */, 128 /* out channel */],
         ),
         ([1, 16, 256, 256], [16, 16]),
@@ -36,39 +34,44 @@ fn conv2d_benchmark(c: &mut Criterion) {
         ([1, 512, 7, 7], [512, 512]),
     ];
     let mut group = c.benchmark_group(concat!("conv2d", " Benchmarks"));
-    group
-        .warm_up_time(Duration::new(1, 0))
-        .measurement_time(Duration::new(3, 0))
-        .sample_size(10);
+    group.warm_up_time(Duration::new(1, 0)).measurement_time(Duration::new(3, 0)).sample_size(10);
     for idx in 0..shapes.len() {
         let (inp_shape, [in_channels, out_channels]) = shapes[idx];
         let a = black_box(Tensor::randn(inp_shape, (Kind::Float, Device::Cpu)));
-        let a_kernel = black_box(Tensor::randn(
-            [out_channels, in_channels, 3, 3],
-            (Kind::Float, Device::Cpu),
-        ));
-        let a2 = black_box(
-            _Tensor::<f32>::randn([inp_shape[0], inp_shape[2], inp_shape[3], inp_shape[1]])
-                .unwrap(),
+        let a_kernel = black_box(
+            Tensor::randn([out_channels, in_channels, 3, 3], (Kind::Float, Device::Cpu))
         );
-        let a2_kernel =
-            black_box(_Tensor::<f32>::randn([3, 3, in_channels, out_channels]).unwrap());
+        let a2 = black_box(
+            _Tensor::<f32>::randn([inp_shape[0], inp_shape[2], inp_shape[3], inp_shape[1]]).unwrap()
+        );
+        let a2_kernel = black_box(
+            _Tensor::<f32>::randn([3, 3, in_channels, out_channels]).unwrap()
+        );
         group.bench_with_input(
             BenchmarkId::new("torch", format!("tch {}", idx)),
             &shapes[idx],
             |b, _| {
                 b.iter(|| a.conv2d(&a_kernel, None::<Tensor>, [1, 1], [0, 0], [1, 1], 1));
-            },
+            }
         );
         group.bench_with_input(
             BenchmarkId::new("hpt", format!("hpt {}", idx)),
             &shapes[idx],
             |b, _| {
                 b.iter(|| {
-                    a2.conv2d(&a2_kernel, [1, 1], [(0, 0), (0, 0)], [1, 1])
-                        .unwrap()
+                    a2.conv2d(
+                        &a2_kernel,
+                        None,
+                        [1, 1],
+                        [
+                            (0, 0),
+                            (0, 0),
+                        ],
+                        [1, 1],
+                        |x| x
+                    ).unwrap()
                 });
-            },
+            }
         );
     }
     group.finish();

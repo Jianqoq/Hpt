@@ -680,6 +680,13 @@ pub fn conv2d_microkernel_gen_inps(input: TokenStream) -> TokenStream {
     conv2d::conv2d_microkernel_gen_inps(input)
 }
 
+/// generate conv2d inps
+#[proc_macro]
+pub fn conv2d_microkernel_gen_pad_inps(input: TokenStream) -> TokenStream {
+    conv2d::conv2d_microkernel_gen_pad_inps(input)
+}
+
+
 /// generate conv2d kernels
 #[proc_macro]
 pub fn conv2d_microkernel_gen_kernels(input: TokenStream) -> TokenStream {
