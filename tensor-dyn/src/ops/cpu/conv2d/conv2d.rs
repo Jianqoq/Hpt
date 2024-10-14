@@ -1,8 +1,14 @@
 use crate::ops::cpu::cache_utils::cache::Cache;
 use crate::ops::cpu::kernels::conv_kernels::bias_remain_oc_kernel_dispatch;
-use crate::ops::cpu::kernels::conv_kernels::conv2d_full_oc_bias_kernel_dispatch;
-use crate::ops::cpu::kernels::conv_kernels::conv2d_full_oc_kernel_dispatch;
+use crate::ops::cpu::kernels::conv_kernels::full_oc_bias_kernel_dispatch;
+use crate::ops::cpu::kernels::conv_kernels::full_oc_kernel_dispatch;
+use crate::ops::cpu::kernels::conv_kernels::padded_bias_remain_oc_kernel_dispatch;
+use crate::ops::cpu::kernels::conv_kernels::padded_full_oc_bias_kernel_dispatch;
+use crate::ops::cpu::kernels::conv_kernels::padded_full_oc_kernel_dispatch;
+use crate::ops::cpu::kernels::conv_kernels::padded_remain_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::conv_kernels::remain_oc_kernel_dispatch;
+use crate::ops::cpu::kernels::conv_kernels::PaddedParams;
+use crate::ops::cpu::kernels::conv_kernels::PaddedPartialParams;
 use crate::ops::cpu::kernels::conv_kernels::Params;
 use crate::ops::cpu::kernels::conv_kernels::PartialParams;
 use crate::tensor_base::_Tensor;
@@ -53,7 +59,9 @@ impl<T> _Tensor<T>
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         activation: fn(T::Vec) -> T::Vec
-    ) -> anyhow::Result<_Tensor<T>> {
+    ) -> anyhow::Result<_Tensor<T>>
+        where bool: IntoScalar<T>
+    {
         let img_shape = self.shape();
         if img_shape.len() != 4 {
             return Err(
@@ -85,19 +93,6 @@ impl<T> _Tensor<T>
             (img_height + ph_start + ph_end - dh * (kernel_height - 1) - 1) / step_height + 1;
         let out_width =
             (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1;
-        let img = if !padding.iter().all(|(a, b)| *a == 0 && *b == 0) {
-            self.pad(
-                &[
-                    (0, 0),
-                    (ph_start, ph_end),
-                    (pw_start, pw_end),
-                    (0, 0),
-                ],
-                T::ZERO
-            )?
-        } else {
-            self.clone()
-        };
         if out_height <= 0 || out_width <= 0 {
             return if out_height <= 0 {
                 Err(InvalidInputShape(out_height, core::panic::Location::caller()).into())
@@ -107,15 +102,15 @@ impl<T> _Tensor<T>
         }
         let output = _Tensor::<T>::empty([batch, out_height, out_width, out_channels])?;
         let out = output.ptr();
-        let inp = img.ptr();
+        let inp = self.ptr();
 
         let osb = output.strides()[0]; // batch
         let osh = output.strides()[1]; // height
         let osw = output.strides()[2]; // width
 
-        let isb = img.strides()[0]; // batch
-        let ish = img.strides()[1]; // height
-        let isw = img.strides()[2]; // width
+        let isb = self.strides()[0]; // batch
+        let ish = self.strides()[1]; // height
+        let isw = self.strides()[2]; // width
 
         let ks0 = kernels.strides()[0]; // kernel_height
         let ks1 = kernels.strides()[1]; // kernel_width
@@ -141,40 +136,70 @@ impl<T> _Tensor<T>
 
         // retrieve micro kernels start
 
-        let full_oc_kernel = conv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(
+        let full_oc_kernel = full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(
             &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec)
         );
-        let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
-        let full_oc_kernel_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
+        let padded_full_oc_kernel = padded_full_oc_kernel_dispatch(
+            &mut oc_nvec,
+            &mut ow_block
+        ).expect(&format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec));
+        let full_oc_kernel = full_oc_kernel.kernel.clone();
+        let full_oc_kernel_ow_remain = full_oc_kernel_dispatch::<T>(
             &mut oc_nvec,
             &mut ((out_width as usize) % ow_block)
         );
         if full_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
         }
+        let padded_full_oc_ow_remain = padded_full_oc_kernel_dispatch::<T>(
+            &mut oc_nvec,
+            &mut ((out_width as usize) % ow_block)
+        );
         let partial_oc_kernel = remain_oc_kernel_dispatch::<T>(&mut ow_block);
         if let Some(partial_oc_kernel) = partial_oc_kernel {
             assert_eq!(ow_block, partial_oc_kernel.ow_block);
         }
+        let padded_partial_oc_kernel = padded_remain_oc_kernel_dispatch::<T>(&mut ow_block);
         let partial_oc_kernel_ow_remain = remain_oc_kernel_dispatch::<T>(
             &mut ((out_width as usize) % ow_block)
         );
         if partial_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
         }
-        let full_oc_kernel_fn_1_oc = conv2d_full_oc_kernel_dispatch::<T>(&mut 1, &mut ow_block);
-        let full_oc_kernel_fn_1_oc_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
+        let padded_partial_oc_kernel_ow_remain = padded_remain_oc_kernel_dispatch::<T>(
+            &mut ((out_width as usize) % ow_block)
+        );
+        let full_oc_kernel_fn_1_oc = full_oc_kernel_dispatch::<T>(&mut 1, &mut ow_block);
+        let padded_full_oc_kernel_fn_1_oc = padded_full_oc_kernel_dispatch::<T>(
+            &mut 1,
+            &mut ow_block
+        );
+        let full_oc_kernel_fn_1_oc_ow_remain = full_oc_kernel_dispatch::<T>(
+            &mut 1,
+            &mut ((out_width as usize) % ow_block)
+        );
+        let padded_full_oc_kernel_fn_1_oc_ow_remain = padded_full_oc_kernel_dispatch::<T>(
             &mut 1,
             &mut ((out_width as usize) % ow_block)
         );
         let has_bias = bias.is_some();
         let bias_full_oc_kernel = if has_bias {
-            Some(conv2d_full_oc_bias_kernel_dispatch::<T>(&mut oc_nvec, &mut ow_block).unwrap())
+            Some(full_oc_bias_kernel_dispatch::<T>(&mut oc_nvec, &mut ow_block).unwrap())
+        } else {
+            None
+        };
+        let padded_bias_full_oc_kernel = if has_bias {
+            Some(padded_full_oc_bias_kernel_dispatch(&mut oc_nvec, &mut ow_block).unwrap())
         } else {
             None
         };
         let bias_one_oc_kernel = if has_bias {
-            Some(conv2d_full_oc_bias_kernel_dispatch::<T>(&mut 1, &mut ow_block).unwrap())
+            Some(full_oc_bias_kernel_dispatch::<T>(&mut 1, &mut ow_block).unwrap())
+        } else {
+            None
+        };
+        let padded_bias_one_oc_kernel = if has_bias {
+            Some(padded_full_oc_bias_kernel_dispatch::<T>(&mut 1, &mut ow_block).unwrap())
         } else {
             None
         };
@@ -183,9 +208,24 @@ impl<T> _Tensor<T>
         } else {
             None
         };
+        let padded_bias_remain_oc_kernel = if has_bias {
+            Some(padded_bias_remain_oc_kernel_dispatch::<T>(&mut ow_block).unwrap())
+        } else {
+            None
+        };
         let bias_full_oc_ow_remain = if has_bias {
             Some(
-                conv2d_full_oc_bias_kernel_dispatch::<T>(
+                full_oc_bias_kernel_dispatch::<T>(
+                    &mut oc_nvec,
+                    &mut ((out_width as usize) % ow_block)
+                ).unwrap()
+            )
+        } else {
+            None
+        };
+        let padded_bias_full_oc_ow_remain = if has_bias {
+            Some(
+                padded_full_oc_bias_kernel_dispatch::<T>(
                     &mut oc_nvec,
                     &mut ((out_width as usize) % ow_block)
                 ).unwrap()
@@ -195,7 +235,17 @@ impl<T> _Tensor<T>
         };
         let bias_one_oc_ow_remain = if has_bias {
             Some(
-                conv2d_full_oc_bias_kernel_dispatch::<T>(
+                full_oc_bias_kernel_dispatch::<T>(
+                    &mut 1,
+                    &mut ((out_width as usize) % ow_block)
+                ).unwrap()
+            )
+        } else {
+            None
+        };
+        let padded_bias_one_oc_ow_remain = if has_bias {
+            Some(
+                padded_full_oc_bias_kernel_dispatch::<T>(
                     &mut 1,
                     &mut ((out_width as usize) % ow_block)
                 ).unwrap()
@@ -206,6 +256,15 @@ impl<T> _Tensor<T>
         let bias_partial_oc_ow_remain = if has_bias {
             Some(
                 bias_remain_oc_kernel_dispatch::<T>(&mut ((out_width as usize) % ow_block)).unwrap()
+            )
+        } else {
+            None
+        };
+        let padded_bias_partial_oc_ow_remain = if has_bias {
+            Some(
+                padded_bias_remain_oc_kernel_dispatch::<T>(
+                    &mut ((out_width as usize) % ow_block)
+                ).unwrap()
             )
         } else {
             None
@@ -241,6 +300,27 @@ impl<T> _Tensor<T>
             let ll = idx % num_oh;
             let ll = ll * OH_BLOCK;
             let l_end = (ll + OH_BLOCK).min(out_height);
+            let params = Params {
+                arg1: [0, 0],
+                arg2: [kernel_height, kernel_width],
+                arg3: [b, 0, 0, 0],
+                arg4: [osb, osh, osw],
+                arg5: [step_height, step_width],
+                arg6: [isb, ish, isw],
+                arg7: [ph_start, pw_start],
+                arg8: [dh, dw],
+            };
+            let padded_params = PaddedParams {
+                arg1: [0, 0],
+                arg2: [kernel_height, kernel_width],
+                arg3: [b, 0, 0, 0],
+                arg4: [osb, osh, osw],
+                arg5: [step_height, step_width],
+                arg6: [isb, ish, isw],
+                arg7: [ph_start, pw_start],
+                arg8: [dh, dw],
+                arg9: [img_height, img_width],
+            };
             match (partial_oc_kernel, full_oc_kernel_ow_remain, partial_oc_kernel_ow_remain) {
                 (None, None, None) => {
                     for ii in (0..in_channels).step_by(ic_block_size) {
@@ -248,18 +328,18 @@ impl<T> _Tensor<T>
                         let end = i_end == in_channels;
                         let params = Params {
                             arg1: [ii, i_end],
-                            arg2: [kernel_height, kernel_width],
-                            arg3: [b, 0, 0, 0],
-                            arg4: [osb, osh, osw],
-                            arg5: [step_height, step_width],
-                            arg6: [isb, ish, isw],
-                            arg7: [ph_start, pw_start],
-                            arg8: [dh, dw],
+                            ..params
+                        };
+                        let padded_params = PaddedParams {
+                            arg1: [ii, i_end],
+                            ..padded_params
                         };
                         if end {
                             if has_bias {
                                 let bias = bias.unwrap().ptr();
                                 let bias_full_oc_kernel = bias_full_oc_kernel.unwrap();
+                                let padded_bias_full_oc_kernel =
+                                    padded_bias_full_oc_kernel.unwrap();
                                 conv_perfect(
                                     out_channels,
                                     oc_block_size,
@@ -267,6 +347,9 @@ impl<T> _Tensor<T>
                                     out_width_full_end,
                                     [kernel_height, kernel_width],
                                     [ll, l_end],
+                                    [step_height, step_width],
+                                    [img_height, img_width],
+                                    [ph_start, pw_start],
                                     i_end - ii,
                                     jb,
                                     &mut kernel,
@@ -276,6 +359,19 @@ impl<T> _Tensor<T>
                                             Params {
                                                 arg3: [b, l, k, j],
                                                 ..params
+                                            },
+                                            out,
+                                            kernel,
+                                            &inp,
+                                            &bias,
+                                            activation
+                                        );
+                                    },
+                                    |l, k, j, kernel, out| {
+                                        padded_bias_full_oc_kernel(
+                                            PaddedParams {
+                                                arg3: [b, l, k, j],
+                                                ..padded_params
                                             },
                                             out,
                                             kernel,
@@ -293,15 +389,30 @@ impl<T> _Tensor<T>
                                     out_width_full_end,
                                     [kernel_height, kernel_width],
                                     [ll, l_end],
+                                    [step_height, step_width],
+                                    [img_height, img_width],
+                                    [ph_start, pw_start],
                                     i_end - ii,
                                     jb,
                                     &mut kernel,
                                     &mut out,
                                     |l, k, j, kernel, out| {
-                                        full_oc_kernel_fn(
+                                        full_oc_kernel(
                                             Params {
                                                 arg3: [b, l, k, j],
                                                 ..params
+                                            },
+                                            out,
+                                            kernel,
+                                            &inp,
+                                            activation
+                                        );
+                                    },
+                                    |l, k, j, kernel, out| {
+                                        padded_full_oc_kernel(
+                                            PaddedParams {
+                                                arg3: [b, l, k, j],
+                                                ..padded_params
                                             },
                                             out,
                                             kernel,
@@ -319,15 +430,30 @@ impl<T> _Tensor<T>
                                 out_width_full_end,
                                 [kernel_height, kernel_width],
                                 [ll, l_end],
+                                [step_height, step_width],
+                                [img_height, img_width],
+                                [ph_start, pw_start],
                                 i_end - ii,
                                 jb,
                                 &mut kernel,
                                 &mut out,
                                 |l, k, j, kernel, out| {
-                                    full_oc_kernel_fn(
+                                    full_oc_kernel(
                                         Params {
                                             arg3: [b, l, k, j],
                                             ..params
+                                        },
+                                        out,
+                                        kernel,
+                                        &inp,
+                                        |x| x
+                                    );
+                                },
+                                |l, k, j, kernel, out| {
+                                    padded_full_oc_kernel(
+                                        PaddedParams {
+                                            arg3: [b, l, k, j],
+                                            ..padded_params
                                         },
                                         out,
                                         kernel,
@@ -346,6 +472,8 @@ impl<T> _Tensor<T>
                             if has_bias {
                                 let bias = bias.unwrap().ptr();
                                 let bias_full_oc_kernel = bias_full_oc_kernel.unwrap();
+                                let padded_bias_full_oc_kernel =
+                                    padded_bias_full_oc_kernel.unwrap();
                                 // out channel has two levels of blocking:
                                 // 1. it first blocks by oc_block_size * jb
                                 // 2. it then blocks by oc_block_size (cache line size)
@@ -382,8 +510,33 @@ impl<T> _Tensor<T>
                                         arg8: [dh, dw],
                                         oc_remain: remain % (T::Vec::SIZE as i64),
                                     };
+                                    let padded_params = PaddedParams {
+                                        arg1: [ii, i_end],
+                                        arg2: [kernel_height, kernel_width],
+                                        arg3: [b, 0, 0, 0],
+                                        arg4: [osb, osh, osw],
+                                        arg5: [step_height, step_width],
+                                        arg6: [isb, ish, isw],
+                                        arg7: [ph_start, pw_start],
+                                        arg8: [dh, dw],
+                                        arg9: [img_height, img_width],
+                                    };
+                                    let padded_partial_params = PaddedPartialParams {
+                                        arg1: [ii, i_end],
+                                        arg2: [kernel_height, kernel_width],
+                                        arg3: [b, 0, 0, 0],
+                                        arg4: [osb, osh, osw],
+                                        arg5: [step_height, step_width],
+                                        arg6: [isb, ish, isw],
+                                        arg7: [ph_start, pw_start],
+                                        arg8: [dh, dw],
+                                        arg9: [img_height, img_width],
+                                        oc_remain: remain % (T::Vec::SIZE as i64),
+                                    };
                                     if remain > 0 {
                                         let partial_oc = bias_remain_oc_kernel.unwrap();
+                                        let padded_partial_oc =
+                                            padded_bias_remain_oc_kernel.unwrap();
                                         let one_oc = bias_one_oc_kernel.expect(
                                             &format!(
                                                 "unable to find iconv2d_microkernel_{}x{}",
@@ -391,14 +544,22 @@ impl<T> _Tensor<T>
                                                 1
                                             )
                                         );
+                                        let padded_one_oc = padded_bias_one_oc_kernel.unwrap();
                                         for k in (0..out_width_full_end).step_by(ow_block) {
+                                            let w_in_range =
+                                                k * step_width >= pw_start &&
+                                                k * step_width < pw_start + img_width;
                                             handle_remain(
                                                 [jj_start, jj_end],
                                                 [out_channels, oc_block_size as i64],
                                                 [ll, l_end],
                                                 [ii, i_end],
                                                 [kernel_height, kernel_width],
+                                                step_height,
+                                                ph_start,
+                                                img_height,
                                                 remain,
+                                                w_in_range,
                                                 &mut out,
                                                 &mut kernel,
                                                 |j, l, out, kernel| {
@@ -406,6 +567,19 @@ impl<T> _Tensor<T>
                                                         Params {
                                                             arg3: [b, l, k, j],
                                                             ..params
+                                                        },
+                                                        out,
+                                                        kernel,
+                                                        &inp,
+                                                        &bias,
+                                                        activation
+                                                    )
+                                                },
+                                                |j, l, out, kernel| {
+                                                    padded_bias_full_oc_kernel(
+                                                        PaddedParams {
+                                                            arg3: [b, l, k, j],
+                                                            ..padded_params
                                                         },
                                                         out,
                                                         kernel,
@@ -428,10 +602,36 @@ impl<T> _Tensor<T>
                                                     )
                                                 },
                                                 |j, l, out, kernel| {
+                                                    padded_one_oc(
+                                                        PaddedParams {
+                                                            arg3: [b, l, k, j],
+                                                            ..padded_params
+                                                        },
+                                                        out,
+                                                        kernel,
+                                                        &inp,
+                                                        &bias,
+                                                        activation
+                                                    )
+                                                },
+                                                |j, l, out, kernel| {
                                                     partial_oc(
                                                         PartialParams {
                                                             arg3: [b, l, k, j],
                                                             ..partial_params
+                                                        },
+                                                        out,
+                                                        kernel,
+                                                        &inp,
+                                                        &bias,
+                                                        activation
+                                                    );
+                                                },
+                                                |j, l, out, kernel| {
+                                                    padded_partial_oc(
+                                                        PaddedPartialParams {
+                                                            arg3: [b, l, k, j],
+                                                            ..padded_partial_params
                                                         },
                                                         out,
                                                         kernel,
@@ -448,27 +648,43 @@ impl<T> _Tensor<T>
                                             let Some(full_oc_kernel_ow_remain) =
                                                 &bias_full_oc_ow_remain
                                         {
-                                            let one_oc_ow_remain = bias_one_oc_ow_remain.expect(
-                                                &format!(
-                                                    "unable to find iconv2d_microkernel_{}x{}",
-                                                    ow_block,
-                                                    1
-                                                )
-                                            );
+                                            let bias_one_oc_ow_remain =
+                                                bias_one_oc_ow_remain.expect(
+                                                    &format!(
+                                                        "unable to find iconv2d_microkernel_{}x{}",
+                                                        ow_block,
+                                                        1
+                                                    )
+                                                );
                                             let partial_oc_ow_remain =
                                                 bias_partial_oc_ow_remain.expect(
                                                     &format!("unable to find oconv2d_microkernel_{}", ow_block)
                                                 );
+                                            let padded_partial_oc_ow_remain =
+                                                padded_bias_partial_oc_ow_remain.expect(
+                                                    &format!("unable to find oconv2d_microkernel_{}", ow_block)
+                                                );
+                                            let padded_full_oc_kernel_ow_remain =
+                                                padded_bias_full_oc_ow_remain.unwrap();
+                                            let padded_bias_one_oc_ow_remain =
+                                                padded_bias_one_oc_ow_remain.unwrap();
                                             for k in (out_width_full_end..out_width).step_by(
                                                 ow_block
                                             ) {
+                                                let w_in_range =
+                                                    k * step_width >= pw_start &&
+                                                    k * step_width < pw_start + img_width;
                                                 handle_remain(
                                                     [jj_start, jj_end],
                                                     [out_channels, oc_block_size as i64],
                                                     [ll, l_end],
                                                     [ii, i_end],
                                                     [kernel_height, kernel_width],
+                                                    step_height,
+                                                    ph_start,
+                                                    img_height,
                                                     remain,
+                                                    w_in_range,
                                                     &mut out,
                                                     &mut kernel,
                                                     |j, l, out, kernel| {
@@ -485,10 +701,36 @@ impl<T> _Tensor<T>
                                                         )
                                                     },
                                                     |j, l, out, kernel| {
-                                                        one_oc_ow_remain(
+                                                        padded_full_oc_kernel_ow_remain(
+                                                            PaddedParams {
+                                                                arg3: [b, l, k, j],
+                                                                ..padded_params
+                                                            },
+                                                            out,
+                                                            kernel,
+                                                            &inp,
+                                                            &bias,
+                                                            activation
+                                                        )
+                                                    },
+                                                    |j, l, out, kernel| {
+                                                        bias_one_oc_ow_remain(
                                                             Params {
                                                                 arg3: [b, l, k, j],
                                                                 ..params
+                                                            },
+                                                            out,
+                                                            kernel,
+                                                            &inp,
+                                                            &bias,
+                                                            activation
+                                                        )
+                                                    },
+                                                    |j, l, out, kernel| {
+                                                        padded_bias_one_oc_ow_remain(
+                                                            PaddedParams {
+                                                                arg3: [b, l, k, j],
+                                                                ..padded_params
                                                             },
                                                             out,
                                                             kernel,
@@ -502,6 +744,19 @@ impl<T> _Tensor<T>
                                                             PartialParams {
                                                                 arg3: [b, l, k, j],
                                                                 ..partial_params
+                                                            },
+                                                            out,
+                                                            kernel,
+                                                            &inp,
+                                                            &bias,
+                                                            activation
+                                                        );
+                                                    },
+                                                    |j, l, out, kernel| {
+                                                        padded_partial_oc_ow_remain(
+                                                            PaddedPartialParams {
+                                                                arg3: [b, l, k, j],
+                                                                ..padded_partial_params
                                                             },
                                                             out,
                                                             kernel,
@@ -529,7 +784,7 @@ impl<T> _Tensor<T>
                                                 &mut out,
                                                 &mut kernel,
                                                 |j, l, out, kernel| {
-                                                    full_oc_kernel_fn(
+                                                    full_oc_kernel(
                                                         Params {
                                                             arg3: [b, l, k, j],
                                                             ..params
@@ -622,6 +877,18 @@ impl<T> _Tensor<T>
                                         arg8: [dh, dw],
                                         oc_remain: remain % (T::Vec::SIZE as i64),
                                     };
+                                    let padded_partial_params = PaddedPartialParams {
+                                        arg1: [ii, i_end],
+                                        arg2: [kernel_height, kernel_width],
+                                        arg3: [b, 0, 0, 0],
+                                        arg4: [osb, osh, osw],
+                                        arg5: [step_height, step_width],
+                                        arg6: [isb, ish, isw],
+                                        arg7: [ph_start, pw_start],
+                                        arg8: [dh, dw],
+                                        arg9: [img_height, img_width],
+                                        oc_remain: remain % (T::Vec::SIZE as i64),
+                                    };
                                     if remain > 0 {
                                         let one_oc = full_oc_kernel_fn_1_oc.expect(
                                             &format!(
@@ -630,24 +897,53 @@ impl<T> _Tensor<T>
                                                 1
                                             )
                                         ).kernel;
+                                        let padded_one_oc = padded_full_oc_kernel_fn_1_oc.expect(
+                                            &format!(
+                                                "unable to find iconv2d_microkernel_{}x{}",
+                                                ow_block,
+                                                1
+                                            )
+                                        );
                                         let partial_oc = partial_oc_kernel.expect(
                                             &format!("unable to find oconv2d_microkernel_{}", ow_block)
                                         ).kernel;
+                                        let padded_partial_oc = padded_partial_oc_kernel.expect(
+                                            &format!("unable to find oconv2d_microkernel_{}", ow_block)
+                                        );
                                         for k in (0..out_width_full_end).step_by(ow_block) {
+                                            let w_in_range =
+                                                k * step_width >= pw_start &&
+                                                k * step_width < pw_start + img_width;
                                             handle_remain(
                                                 [jj_start, jj_end],
                                                 [out_channels, oc_block_size as i64],
                                                 [ll, l_end],
                                                 [ii, i_end],
                                                 [kernel_height, kernel_width],
+                                                step_height,
+                                                ph_start,
+                                                img_height,
                                                 remain,
+                                                w_in_range,
                                                 &mut out,
                                                 &mut kernel,
                                                 |j, l, out, kernel| {
-                                                    full_oc_kernel_fn(
+                                                    full_oc_kernel(
                                                         Params {
                                                             arg3: [b, l, k, j],
                                                             ..params
+                                                        },
+                                                        out,
+                                                        kernel,
+                                                        &inp,
+                                                        activation
+                                                    )
+                                                },
+                                                |j, l, out, kernel| {
+                                                    padded_full_oc_kernel(
+                                                        PaddedParams {
+                                                            arg3: [b, l, k, j],
+                                                            ..padded_params
                                                         },
                                                         out,
                                                         kernel,
@@ -668,10 +964,34 @@ impl<T> _Tensor<T>
                                                     )
                                                 },
                                                 |j, l, out, kernel| {
+                                                    padded_one_oc(
+                                                        PaddedParams {
+                                                            arg3: [b, l, k, j],
+                                                            ..padded_params
+                                                        },
+                                                        out,
+                                                        kernel,
+                                                        &inp,
+                                                        activation
+                                                    )
+                                                },
+                                                |j, l, out, kernel| {
                                                     partial_oc(
                                                         PartialParams {
                                                             arg3: [b, l, k, j],
                                                             ..partial_params
+                                                        },
+                                                        out,
+                                                        kernel,
+                                                        &inp,
+                                                        activation
+                                                    );
+                                                },
+                                                |j, l, out, kernel| {
+                                                    padded_partial_oc(
+                                                        PaddedPartialParams {
+                                                            arg3: [b, l, k, j],
+                                                            ..padded_partial_params
                                                         },
                                                         out,
                                                         kernel,
@@ -699,16 +1019,29 @@ impl<T> _Tensor<T>
                                                 partial_oc_kernel_ow_remain.expect(
                                                     &format!("unable to find oconv2d_microkernel_{}", ow_block)
                                                 ).kernel;
+                                            let padded_full_oc_kernel_ow_remain =
+                                                padded_full_oc_ow_remain.unwrap();
+                                            let padded_one_oc_ow_remain =
+                                                padded_full_oc_kernel_fn_1_oc_ow_remain.unwrap();
+                                            let padded_partial_oc_ow_remain =
+                                                padded_partial_oc_kernel_ow_remain.unwrap();
                                             for k in (out_width_full_end..out_width).step_by(
                                                 ow_block
                                             ) {
+                                                let w_in_range =
+                                                    k * step_width >= pw_start &&
+                                                    k * step_width < pw_start + img_width;
                                                 handle_remain(
                                                     [jj_start, jj_end],
                                                     [out_channels, oc_block_size as i64],
                                                     [ll, l_end],
                                                     [ii, i_end],
                                                     [kernel_height, kernel_width],
+                                                    step_height,
+                                                    ph_start,
+                                                    img_height,
                                                     remain,
+                                                    w_in_range,
                                                     &mut out,
                                                     &mut kernel,
                                                     |j, l, out, kernel| {
@@ -716,6 +1049,18 @@ impl<T> _Tensor<T>
                                                             Params {
                                                                 arg3: [b, l, k, j],
                                                                 ..params
+                                                            },
+                                                            out,
+                                                            kernel,
+                                                            &inp,
+                                                            activation
+                                                        )
+                                                    },
+                                                    |j, l, out, kernel| {
+                                                        padded_full_oc_kernel_ow_remain(
+                                                            PaddedParams {
+                                                                arg3: [b, l, k, j],
+                                                                ..padded_params
                                                             },
                                                             out,
                                                             kernel,
@@ -736,10 +1081,34 @@ impl<T> _Tensor<T>
                                                         )
                                                     },
                                                     |j, l, out, kernel| {
+                                                        padded_one_oc_ow_remain(
+                                                            PaddedParams {
+                                                                arg3: [b, l, k, j],
+                                                                ..padded_params
+                                                            },
+                                                            out,
+                                                            kernel,
+                                                            &inp,
+                                                            activation
+                                                        )
+                                                    },
+                                                    |j, l, out, kernel| {
                                                         partial_oc_ow_remain(
                                                             PartialParams {
                                                                 arg3: [b, l, k, j],
                                                                 ..partial_params
+                                                            },
+                                                            out,
+                                                            kernel,
+                                                            &inp,
+                                                            activation
+                                                        );
+                                                    },
+                                                    |j, l, out, kernel| {
+                                                        padded_partial_oc_ow_remain(
+                                                            PaddedPartialParams {
+                                                                arg3: [b, l, k, j],
+                                                                ..padded_partial_params
                                                             },
                                                             out,
                                                             kernel,
@@ -766,7 +1135,7 @@ impl<T> _Tensor<T>
                                                 &mut out,
                                                 &mut kernel,
                                                 |j, l, out, kernel| {
-                                                    full_oc_kernel_fn(
+                                                    full_oc_kernel(
                                                         Params {
                                                             arg3: [b, l, k, j],
                                                             ..params
@@ -860,6 +1229,18 @@ impl<T> _Tensor<T>
                                     arg8: [dh, dw],
                                     oc_remain: remain % (T::Vec::SIZE as i64),
                                 };
+                                let padded_partial_params = PaddedPartialParams {
+                                    arg1: [ii, i_end],
+                                    arg2: [kernel_height, kernel_width],
+                                    arg3: [b, 0, 0, 0],
+                                    arg4: [osb, osh, osw],
+                                    arg5: [step_height, step_width],
+                                    arg6: [isb, ish, isw],
+                                    arg7: [ph_start, pw_start],
+                                    arg8: [dh, dw],
+                                    arg9: [img_height, img_width],
+                                    oc_remain: remain % (T::Vec::SIZE as i64),
+                                };
                                 if remain > 0 {
                                     let one_oc = full_oc_kernel_fn_1_oc.expect(
                                         &format!(
@@ -868,24 +1249,45 @@ impl<T> _Tensor<T>
                                             1
                                         )
                                     ).kernel;
+                                    let padded_one_oc = padded_full_oc_kernel_fn_1_oc.unwrap();
                                     let partial_oc = partial_oc_kernel.expect(
                                         &format!("unable to find oconv2d_microkernel_{}", ow_block)
                                     ).kernel;
+                                    let padded_partial_oc = padded_partial_oc_kernel.unwrap();
                                     for k in (0..out_width_full_end).step_by(ow_block) {
+                                        let w_in_range =
+                                            k * step_width >= pw_start &&
+                                            k * step_width < pw_start + img_width;
                                         handle_remain(
                                             [jj_start, jj_end],
                                             [out_channels, oc_block_size as i64],
                                             [ll, l_end],
                                             [ii, i_end],
                                             [kernel_height, kernel_width],
+                                            step_height,
+                                            ph_start,
+                                            img_height,
                                             remain,
+                                            w_in_range,
                                             &mut out,
                                             &mut kernel,
                                             |j, l, out, kernel| {
-                                                full_oc_kernel_fn(
+                                                full_oc_kernel(
                                                     Params {
                                                         arg3: [b, l, k, j],
                                                         ..params
+                                                    },
+                                                    out,
+                                                    kernel,
+                                                    &inp,
+                                                    |x| x
+                                                )
+                                            },
+                                            |j, l, out, kernel| {
+                                                padded_full_oc_kernel(
+                                                    PaddedParams {
+                                                        arg3: [b, l, k, j],
+                                                        ..padded_params
                                                     },
                                                     out,
                                                     kernel,
@@ -906,10 +1308,34 @@ impl<T> _Tensor<T>
                                                 )
                                             },
                                             |j, l, out, kernel| {
+                                                padded_one_oc(
+                                                    PaddedParams {
+                                                        arg3: [b, l, k, j],
+                                                        ..padded_params
+                                                    },
+                                                    out,
+                                                    kernel,
+                                                    &inp,
+                                                    |x| x
+                                                )
+                                            },
+                                            |j, l, out, kernel| {
                                                 partial_oc(
                                                     PartialParams {
                                                         arg3: [b, l, k, j],
                                                         ..partial_params
+                                                    },
+                                                    out,
+                                                    kernel,
+                                                    &inp,
+                                                    |x| x
+                                                );
+                                            },
+                                            |j, l, out, kernel| {
+                                                padded_partial_oc(
+                                                    PaddedPartialParams {
+                                                        arg3: [b, l, k, j],
+                                                        ..padded_partial_params
                                                     },
                                                     out,
                                                     kernel,
@@ -933,18 +1359,31 @@ impl<T> _Tensor<T>
                                                     1
                                                 )
                                             ).kernel;
+                                        let padded_one_oc_ow_remain =
+                                            padded_full_oc_kernel_fn_1_oc_ow_remain.unwrap();
                                         let partial_oc_ow_remain =
                                             partial_oc_kernel_ow_remain.expect(
                                                 &format!("unable to find oconv2d_microkernel_{}", ow_block)
                                             ).kernel;
+                                        let padded_partial_oc_ow_remain =
+                                            padded_partial_oc_kernel_ow_remain.unwrap();
+                                        let padded_full_oc_ow_remain =
+                                            padded_full_oc_ow_remain.unwrap();
                                         for k in (out_width_full_end..out_width).step_by(ow_block) {
+                                            let w_in_range =
+                                                k * step_width >= pw_start &&
+                                                k * step_width < pw_start + img_width;
                                             handle_remain(
                                                 [jj_start, jj_end],
                                                 [out_channels, oc_block_size as i64],
                                                 [ll, l_end],
                                                 [ii, i_end],
                                                 [kernel_height, kernel_width],
+                                                step_height,
+                                                ph_start,
+                                                img_height,
                                                 remain,
+                                                w_in_range,
                                                 &mut out,
                                                 &mut kernel,
                                                 |j, l, out, kernel| {
@@ -952,6 +1391,18 @@ impl<T> _Tensor<T>
                                                         Params {
                                                             arg3: [b, l, k, j],
                                                             ..params
+                                                        },
+                                                        out,
+                                                        kernel,
+                                                        &inp,
+                                                        |x| x
+                                                    )
+                                                },
+                                                |j, l, out, kernel| {
+                                                    padded_full_oc_ow_remain(
+                                                        PaddedParams {
+                                                            arg3: [b, l, k, j],
+                                                            ..padded_params
                                                         },
                                                         out,
                                                         kernel,
@@ -972,10 +1423,34 @@ impl<T> _Tensor<T>
                                                     )
                                                 },
                                                 |j, l, out, kernel| {
+                                                    padded_one_oc_ow_remain(
+                                                        PaddedParams {
+                                                            arg3: [b, l, k, j],
+                                                            ..padded_params
+                                                        },
+                                                        out,
+                                                        kernel,
+                                                        &inp,
+                                                        |x| x
+                                                    )
+                                                },
+                                                |j, l, out, kernel| {
                                                     partial_oc_ow_remain(
                                                         PartialParams {
                                                             arg3: [b, l, k, j],
                                                             ..partial_params
+                                                        },
+                                                        out,
+                                                        kernel,
+                                                        &inp,
+                                                        |x| x
+                                                    );
+                                                },
+                                                |j, l, out, kernel| {
+                                                    padded_partial_oc_ow_remain(
+                                                        PaddedPartialParams {
+                                                            arg3: [b, l, k, j],
+                                                            ..padded_partial_params
                                                         },
                                                         out,
                                                         kernel,
@@ -1002,7 +1477,7 @@ impl<T> _Tensor<T>
                                             &mut out,
                                             &mut kernel,
                                             |j, l, out, kernel| {
-                                                full_oc_kernel_fn(
+                                                full_oc_kernel(
                                                     Params {
                                                         arg3: [b, l, k, j],
                                                         ..params
@@ -1257,23 +1732,33 @@ fn kernel_params<T: CommonBounds>(
     (best_params.0, best_params.1)
 }
 
-fn handle_remain<T: CommonBounds, F, F2, F3>(
+fn handle_remain<T: CommonBounds, F, F2, F3, F4, F5, F6>(
     [jj_start, jj_end]: [i64; 2],
     [out_channels, oc_block_size]: [i64; 2],
     [ll, l_end]: [i64; 2],
     [ii, i_end]: [i64; 2],
     [kernel_height, kernel_width]: [i64; 2],
+    step_height: i64,
+    ph_start: i64,
+    img_height: i64,
     remain: i64,
+    w_in_range: bool,
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     full_oc: F,
-    one_oc: F2,
-    partial_oc: F3
+    padded_full_oc: F2,
+    one_oc: F3,
+    padded_one_oc: F4,
+    partial_oc: F5,
+    padded_partial_oc: F6
 )
     where
         F: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>),
         F2: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>),
-        F3: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>)
+        F3: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>),
+        F4: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>),
+        F5: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>),
+        F6: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>)
 {
     for j in (jj_start..jj_end - remain).step_by(oc_block_size as usize) {
         let original = kernel.clone();
@@ -1288,7 +1773,12 @@ fn handle_remain<T: CommonBounds, F, F2, F3>(
     for j in (out_channels - remain..out_channels - oc_remain).step_by(T::Vec::SIZE) {
         let original = kernel.clone();
         for l in ll..l_end {
-            one_oc(j, l, out, kernel);
+            let h_in_range = l * step_height >= ph_start && l * step_height < ph_start + img_height;
+            let no_pad = h_in_range && w_in_range;
+            if no_pad {
+                one_oc(j, l, out, kernel);
+            } else {
+            }
             *kernel = original.clone();
         }
         *kernel += kernel_height * kernel_width * (T::Vec::SIZE as i64) * (i_end - ii);
@@ -1329,20 +1819,26 @@ fn handle_normal<T: CommonBounds, F>(
     }
 }
 
-fn conv_perfect<T: CommonBounds, F>(
+fn conv_perfect<T: CommonBounds, F, F2>(
     out_channels: i64,
     oc_block_size: usize,
     ow_block: usize,
     out_width_full_end: i64,
     [kh, kw]: [i64; 2],
     [ll, l_end]: [i64; 2],
+    [step_height, step_width]: [i64; 2],
+    [img_height, img_width]: [i64; 2],
+    [ph_start, pw_start]: [i64; 2],
     i_range: i64,
     jb: usize,
     kernel: &mut Pointer<T>,
     out: &mut Pointer<T>,
-    mut kernel_func: F
+    mut kernel_func: F,
+    mut padded_kernel_func: F2
 )
-    where F: FnMut(i64, i64, i64, &mut Pointer<T>, &mut Pointer<T>)
+    where
+        F: FnMut(i64, i64, i64, &mut Pointer<T>, &mut Pointer<T>),
+        F2: FnMut(i64, i64, i64, &mut Pointer<T>, &mut Pointer<T>)
 {
     // out channel has two levels of blocking:
     // 1. it first blocks by oc_block_size * jb
@@ -1357,12 +1853,19 @@ fn conv_perfect<T: CommonBounds, F>(
         let kernel_k = kernel.clone();
 
         for k in (0..out_width_full_end).step_by(ow_block) {
+            let w_in_range = k * step_width >= pw_start && k * step_width < pw_start + img_width;
             for j in (jj_start..jj_end).step_by(oc_block_size) {
                 // the kernel filter has nothing to do with out height, hence, when iterate over (l..l_end), kernel pointer should reset in each iteration
                 let original = kernel.clone();
                 for l in ll..l_end {
-                    // execute micro kernel, see `iconv2d_full_oc_kernel_dispatch` for more details
-                    kernel_func(l, k, j, kernel, out);
+                    let h_in_range =
+                        l * step_height >= ph_start && l * step_height < ph_start + img_height;
+                    let no_pad = h_in_range && w_in_range;
+                    if no_pad {
+                        kernel_func(l, k, j, kernel, out);
+                    } else {
+                        padded_kernel_func(l, k, j, kernel, out);
+                    }
                     *kernel = original.clone();
                 }
                 // update the kernel pointer

@@ -57,15 +57,15 @@ fn assert_eq(
             None,
             [1, 1],
             [
-                (0, 0),
-                (0, 0),
+                (2, 2),
+                (2, 2),
             ],
             [1, 1],
             |x| x
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
-    let res2 = b.conv2d(&b_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
+    let res2 = b.conv2d(&b_kernel, None::<tch::Tensor>, &[1, 1], &[2, 2], &[1, 1], 1);
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
     res_slice

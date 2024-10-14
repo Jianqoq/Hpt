@@ -4,59 +4,54 @@ use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
 fn main() -> anyhow::Result<()> {
-    // set_num_threads(16);
-    // let oc = 16;
-    // let ic = 16;
-    // let kh = 3;
-    // let kw = 3;
-    // let h = 256;
-    // let w = 256;
-    // let device = Device::Cpu;
-    // let a = Tensor::randn(1.0, 1.0, &[1, ic, h, w], &device)?;
-    // let kernel = Tensor::randn(1.0, 1.0, &[oc, ic, kh, kw], &device)?;
-    // let now = std::time::Instant::now();
-    // let res = a.conv2d(&kernel, 0, 1, 1, 1)?;
-    // println!("{:?}", now.elapsed());
-    // let kernel = _Tensor::<f32>
-    //     ::arange(0, oc * ic * kh * kw)?
-    //     .reshape(&[oc, ic, kh, kw])?
-    //     // .permute([0, 2, 3, 1])?
-    //     .permute([2, 3, 1, 0])?
-    //     .contiguous()?;
-    // // let kernel = _Tensor::<f32>::randn([kh, kw, ic, oc])?;
-    // let a = _Tensor::<f32>
-    //     ::arange(0, 1 * ic * h * w)?
-    //     .reshape(&[1, ic, h, w])?
-    //     .permute([0, 2, 3, 1])?
-    //     .contiguous()?;
-    // // let a = _Tensor::<f32>::randn([1, h, w, ic])?;
-    // let now = std::time::Instant::now();
-    // for _ in 0..1 {
-    //     let res = a.conv2d(
-    //         &kernel,
-    //         None,
-    //         [1, 1],
-    //         [
-    //             (0, 0),
-    //             (0, 0),
-    //         ],
-    //         [1, 1]
-    //     )?;
-    //     // println!("{:?}", res);
-    //     // let res2 = a.conv2d(
-    //     //     &kernel,
-    //     //     [1, 1],
-    //     //     [
-    //     //         (0, 0),
-    //     //         (0, 0),
-    //     //     ],
-    //     //     [1, 1],
-    //     //     Some(&config)
-    //     // )?;
-    //     // assert_eq!(res, res2);
-    // }
-    // println!("{:?}", now.elapsed() / 1);
-    conv2d()?;
+    set_num_threads(1);
+    let oc = 16;
+    let ic = 16;
+    let kh = 3;
+    let kw = 3;
+    let h = 256;
+    let w = 256;
+    let kernel = _Tensor::<f32>
+        ::arange(0, oc * ic * kh * kw)?
+        .reshape(&[oc, ic, kh, kw])?
+        // .permute([0, 2, 3, 1])?
+        .permute([2, 3, 1, 0])?
+        .contiguous()?;
+    // let kernel = _Tensor::<f32>::randn([kh, kw, ic, oc])?;
+    let a = _Tensor::<f32>
+        ::arange(0, 1 * ic * h * w)?
+        .reshape(&[1, ic, h, w])?
+        .permute([0, 2, 3, 1])?
+        .contiguous()?;
+    // let a = _Tensor::<f32>::randn([1, h, w, ic])?;
+    let now = std::time::Instant::now();
+    for _ in 0..1 {
+        let res = a.conv2d(
+            &kernel,
+            None,
+            [1, 1],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [1, 1],
+            |x| x
+        )?;
+        // println!("{:?}", res);
+        // let res2 = a.conv2d(
+        //     &kernel,
+        //     [1, 1],
+        //     [
+        //         (0, 0),
+        //         (0, 0),
+        //     ],
+        //     [1, 1],
+        //     Some(&config)
+        // )?;
+        // assert_eq!(res, res2);
+    }
+    println!("{:?}", now.elapsed() / 1);
+    // conv2d()?;
 
     Ok(())
 }
