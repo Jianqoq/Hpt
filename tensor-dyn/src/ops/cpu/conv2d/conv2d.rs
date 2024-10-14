@@ -412,11 +412,6 @@ impl<T> _Tensor<T>
                                         full_oc_kernel_ow_remain.map(|x| x.kernel)
                                     );
                                 }
-                                kernel +=
-                                    kernel_height *
-                                    kernel_width *
-                                    (jj_end - jj_start) *
-                                    (i_end - ii);
                             }
                         } else {
                             // out channel has two levels of blocking:
@@ -480,11 +475,6 @@ impl<T> _Tensor<T>
                                         full_oc_kernel_ow_remain.map(|x| x.kernel)
                                     );
                                 }
-                                kernel +=
-                                    kernel_height *
-                                    kernel_width *
-                                    (jj_end - jj_start) *
-                                    (i_end - ii);
                             }
                         }
                     }
@@ -846,6 +836,7 @@ fn handle_normal<T: CommonBounds, F>(
             *kernel = kernel_k.clone();
         }
     }
+    *kernel += kernel_height * kernel_width * (jj_end - jj_start) * (i_end - ii);
 }
 
 fn conv_perfect<T: CommonBounds, F>(
@@ -1130,6 +1121,8 @@ fn handle_bias_remain<T: CommonBounds>(
             partial_oc_ow_remain
         );
     }
+
+    *kernel += kernel_height * kernel_width * (jj_end - jj_start) * (i_end - ii);
 }
 
 fn with_normal_remain<T: CommonBounds>(
@@ -1330,4 +1323,5 @@ fn handle_normal_remain<T: CommonBounds>(
             partial_oc_ow_remain
         );
     }
+    *kernel += kernel_height * kernel_width * (jj_end - jj_start) * (i_end - ii);
 }
