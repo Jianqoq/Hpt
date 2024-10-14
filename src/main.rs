@@ -1,5 +1,5 @@
+use rust_xlsxwriter::{Format, Workbook};
 use std::io::Write;
-use rust_xlsxwriter::{ Format, Workbook };
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
@@ -11,32 +11,20 @@ fn main() -> anyhow::Result<()> {
     let kw = 3;
     let h = 256;
     let w = 256;
-    let kernel = _Tensor::<f32>
-        ::arange(0, oc * ic * kh * kw)?
+    let kernel = _Tensor::<f32>::arange(0, oc * ic * kh * kw)?
         .reshape(&[oc, ic, kh, kw])?
         // .permute([0, 2, 3, 1])?
         .permute([2, 3, 1, 0])?
         .contiguous()?;
     // let kernel = _Tensor::<f32>::randn([kh, kw, ic, oc])?;
-    let a = _Tensor::<f32>
-        ::arange(0, 1 * ic * h * w)?
+    let a = _Tensor::<f32>::arange(0, 1 * ic * h * w)?
         .reshape(&[1, ic, h, w])?
         .permute([0, 2, 3, 1])?
         .contiguous()?;
     // let a = _Tensor::<f32>::randn([1, h, w, ic])?;
     let now = std::time::Instant::now();
     for _ in 0..1 {
-        let res = a.conv2d(
-            &kernel,
-            None,
-            [1, 1],
-            [
-                (2, 2),
-                (2, 2),
-            ],
-            [1, 1],
-            |x| x
-        )?;
+        let res = a.conv2d(&kernel, None, [1, 1], [(2, 2), (2, 2)], [1, 1], |x| x)?;
         // println!("{:?}", res);
         // let res2 = a.conv2d(
         //     &kernel,
@@ -77,14 +65,12 @@ fn conv2d() -> Result<(), anyhow::Error> {
                 for kw in kw_sets {
                     for h in h_sets {
                         for w in w_sets {
-                            let kernel = _Tensor::<f32>
-                                ::arange(0, oc * ic * kh * kw)?
+                            let kernel = _Tensor::<f32>::arange(0, oc * ic * kh * kw)?
                                 .reshape([oc, ic, kh, kw])?
                                 // .permute([0, 2, 3, 1])?
                                 .permute([2, 3, 1, 0])?
                                 .contiguous()?;
-                            let a = _Tensor::<f32>
-                                ::arange(0, 1 * ic * h * w)?
+                            let a = _Tensor::<f32>::arange(0, 1 * ic * h * w)?
                                 .reshape([1, ic, h, w])?
                                 .permute([0, 2, 3, 1])?
                                 .contiguous()?;
@@ -92,40 +78,30 @@ fn conv2d() -> Result<(), anyhow::Error> {
                             // let a = Tensor::randn(1.0, 1.0, &[1, ic, h, w], &device)?;
                             // let kernel = Tensor::randn(1.0, 1.0, &[oc, ic, kh, kw], &device)?;
                             let now = std::time::Instant::now();
-                            let _ = a.conv2d(
-                                &kernel,
-                                None,
-                                [1, 1],
-                                [
-                                    (0, 0),
-                                    (0, 0),
-                                ],
-                                [1, 1],
-                                |x| x
-                            )?;
+                            let _ =
+                                a.conv2d(&kernel, None, [1, 1], [(0, 0), (0, 0)], [1, 1], |x| x)?;
                             worksheet.write_number(
                                 row,
                                 0,
                                 now.elapsed().as_micros() as f64,
-                                &decimal_format
+                                &decimal_format,
                             )?;
                             worksheet.write_string(
                                 row,
                                 1,
                                 &format!("({}, {}, {}, {}, {}, {})", ic, oc, kh, kw, h, w),
-                                &format
+                                &format,
                             )?;
                             print!(
                                 "\rprogress: {}%",
-                                ((row + 1) * 100) /
-                                    (
-                                        (ic_sets.len() *
-                                            oc_sets.len() *
-                                            kh_sets.len() *
-                                            kw_sets.len() *
-                                            h_sets.len() *
-                                            w_sets.len()) as u32
-                                    )
+                                ((row + 1) * 100)
+                                    / ((ic_sets.len()
+                                        * oc_sets.len()
+                                        * kh_sets.len()
+                                        * kw_sets.len()
+                                        * h_sets.len()
+                                        * w_sets.len())
+                                        as u32)
                             );
                             std::io::stdout().flush().expect("Failed to flush stdout");
                             row += 1;

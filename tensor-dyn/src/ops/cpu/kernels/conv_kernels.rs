@@ -23,18 +23,6 @@ pub(crate) struct Params {
     pub(crate) arg8: [i64; 2],
 }
 
-pub(crate) struct PaddedParams {
-    pub(crate) arg1: [i64; 2],
-    pub(crate) arg2: [i64; 2],
-    pub(crate) arg3: [i64; 4],
-    pub(crate) arg4: [i64; 3],
-    pub(crate) arg5: [i64; 2],
-    pub(crate) arg6: [i64; 3],
-    pub(crate) arg7: [i64; 2],
-    pub(crate) arg8: [i64; 2],
-    pub(crate) arg9: [i64; 2],
-}
-
 pub(crate) struct PartialParams {
     pub(crate) arg1: [i64; 2],
     pub(crate) arg2: [i64; 2],
@@ -61,19 +49,6 @@ impl PartialParams {
             oc_remain: self.oc_remain,
         }
     }
-}
-
-pub(crate) struct PaddedPartialParams {
-    pub(crate) arg1: [i64; 2],
-    pub(crate) arg2: [i64; 2],
-    pub(crate) arg3: [i64; 4],
-    pub(crate) arg4: [i64; 3],
-    pub(crate) arg5: [i64; 2],
-    pub(crate) arg6: [i64; 3],
-    pub(crate) arg7: [i64; 2],
-    pub(crate) arg8: [i64; 2],
-    pub(crate) arg9: [i64; 2],
-    pub(crate) oc_remain: i64,
 }
 
 /// This struct carries the micro kernel function and the corresponding info
@@ -426,25 +401,22 @@ fn template_function<T: CommonBounds>(
     [pmicro_kernel_1x8];
 )]
 fn template_function<T: CommonBounds>(
-    params: PaddedParams,
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    [ph_start, pw_start]: [i64; 2],
+    [dh, dw]: [i64; 2],
+    [img_height, img_width]: [i64; 2],
     out: &mut Pointer<T>,
-    kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
+    kernel: &mut Pointer<T>,
     activation: fn(T::Vec) -> T::Vec
 )
     where bool: IntoScalar<T>
 {
-    let PaddedParams {
-        arg1: [ii, i_end],
-        arg2: [kh, kw],
-        arg3: [b, l, k, j],
-        arg4: [osb, osh, osw],
-        arg5: [step_height, step_width],
-        arg6: [isb, ish, isw],
-        arg7: [ph_start, pw_start],
-        arg8: [dh, dw],
-        arg9: [img_height, img_width],
-    } = params;
     conv2d_microkernel_declare_const!(template_function);
     let mut results = if ii == 0 {
         [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
@@ -524,7 +496,15 @@ fn template_function<T: CommonBounds>(
     [bias_pmicro_kernel_1x8];
 )]
 fn template_function<T: CommonBounds>(
-    params: PaddedParams,
+    [ii, i_end]: [i64; 2],
+    [kh, kw]: [i64; 2],
+    [b, l, k, j]: [i64; 4],
+    [osb, osh, osw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [isb, ish, isw]: [i64; 3],
+    [ph_start, pw_start]: [i64; 2],
+    [dh, dw]: [i64; 2],
+    [img_height, img_width]: [i64; 2],
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
@@ -533,17 +513,6 @@ fn template_function<T: CommonBounds>(
 )
     where bool: IntoScalar<T>
 {
-    let PaddedParams {
-        arg1: [ii, i_end],
-        arg2: [kh, kw],
-        arg3: [b, l, k, j],
-        arg4: [osb, osh, osw],
-        arg5: [step_height, step_width],
-        arg6: [isb, ish, isw],
-        arg7: [ph_start, pw_start],
-        arg8: [dh, dw],
-        arg9: [img_height, img_width],
-    } = params;
     conv2d_microkernel_declare_const!(template_function);
     let mut results = if ii == 0 {
         [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
@@ -675,81 +644,6 @@ fn template_function<T: CommonBounds>(
 
 #[duplicate_item(
     template_function;
-    [pmicro_kernel_5_1];
-    [pmicro_kernel_4_1];
-    [pmicro_kernel_3_1];
-    [pmicro_kernel_2_1];
-    [pmicro_kernel_1_1];
-)]
-#[inline]
-fn template_function<T: CommonBounds>(
-    params: PaddedPartialParams,
-    out: &mut Pointer<T>,
-    kernel: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    activation: fn(T::Vec) -> T::Vec
-)
-    where bool: IntoScalar<T>
-{
-    let PaddedPartialParams {
-        arg1: [ii, i_end],
-        arg2: [kh, kw],
-        arg3: [b, l, k, j],
-        arg4: [osb, osh, osw],
-        arg5: [step_height, step_width],
-        arg6: [isb, ish, isw],
-        arg7: [ph_start, pw_start],
-        arg8: [dh, dw],
-        arg9: [img_height, img_width],
-        oc_remain,
-    } = params;
-    conv2d_microkernel_declare_const!(template_function);
-    let mut results = if ii == 0 {
-        [[T::Vec::splat(T::ZERO); OW_BLOCK]; 1]
-    } else {
-        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; 1];
-        for kk in 0..OW_BLOCK as i64 {
-            for v in 0..oc_remain {
-                ret[0][kk as usize][v as usize] = out[b * osb + l * osh + (k + kk) * osw + j + v];
-            }
-        }
-        ret
-    };
-    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
-    for n in 0..kh {
-        let is1 = is0 + n * ish;
-        for m in 0..kw {
-            let is2 = is1 + m * isw;
-            let l_in_range =
-                l * step_height + n * dh >= ph_start &&
-                l * step_height + n * dh < img_height + ph_start;
-            for i in ii..i_end {
-                let is3 = is2 + i;
-                let inp = conv2d_microkernel_gen_pad_inps!(
-                    inp,
-                    is3,
-                    step_width * isw,
-                    template_function
-                );
-                let mut kernel0 = (T::Vec::splat(T::ZERO),);
-                for v in 0..oc_remain {
-                    kernel0.0[v as usize] = kernel[v as usize];
-                }
-                conv2d_microkernel_gen_results!(results, inp, kernel0, template_function);
-                kernel.add(oc_remain as usize);
-            }
-        }
-    }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..oc_remain {
-            let res = activation(results[0][kk as usize]);
-            out[b * osb + l * osh + (k + kk) * osw + j + v] = res[v as usize];
-        }
-    }
-}
-
-#[duplicate_item(
-    template_function;
     [bias_micro_kernel_5_1];
     [bias_micro_kernel_4_1];
     [bias_micro_kernel_3_1];
@@ -821,86 +715,7 @@ fn template_function<T: CommonBounds>(
     }
 }
 
-#[duplicate_item(
-    template_function;
-    [p_bias_micro_kernel_5_1];
-    [p_bias_micro_kernel_4_1];
-    [p_bias_micro_kernel_3_1];
-    [p_bias_micro_kernel_2_1];
-    [p_bias_micro_kernel_1_1];
-)]
-#[inline]
-fn template_function<T: CommonBounds>(
-    params: PaddedPartialParams,
-    out: &mut Pointer<T>,
-    kernel: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    bias: &Pointer<T>,
-    activation: fn(T::Vec) -> T::Vec
-)
-    where bool: IntoScalar<T>
-{
-    let PaddedPartialParams {
-        arg1: [ii, i_end],
-        arg2: [kh, kw],
-        arg3: [b, l, k, j],
-        arg4: [osb, osh, osw],
-        arg5: [step_height, step_width],
-        arg6: [isb, ish, isw],
-        arg7: [ph_start, pw_start],
-        arg8: [dh, dw],
-        arg9: [img_height, img_width],
-        oc_remain,
-    } = params;
-    conv2d_microkernel_declare_const!(template_function);
-    let mut results = if ii == 0 {
-        [[T::Vec::splat(T::ZERO); OW_BLOCK]; 1]
-    } else {
-        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; 1];
-        for kk in 0..OW_BLOCK as i64 {
-            for v in 0..oc_remain {
-                ret[0][kk as usize][v as usize] = out[b * osb + l * osh + (k + kk) * osw + j + v];
-            }
-        }
-        ret
-    };
-    let is0 = b * isb + l * step_height * ish + k * step_width * isw;
-    for n in 0..kh {
-        let is1 = is0 + n * ish;
-        for m in 0..kw {
-            let is2 = is1 + m * isw;
-            let l_in_range =
-                l * step_height + n * dh >= ph_start &&
-                l * step_height + n * dh < img_height + ph_start;
-            for i in ii..i_end {
-                let is3 = is2 + i;
-                let inp = conv2d_microkernel_gen_pad_inps!(
-                    inp,
-                    is3,
-                    step_width * isw,
-                    template_function
-                );
-                let mut kernel0 = (T::Vec::splat(T::ZERO),);
-                for v in 0..oc_remain {
-                    kernel0.0[v as usize] = kernel[v as usize];
-                }
-                conv2d_microkernel_gen_results!(results, inp, kernel0, template_function);
-                kernel.add(oc_remain as usize);
-            }
-        }
-    }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..oc_remain as usize {
-            results[0][kk as usize][v] = results[0][kk as usize][v]._add(bias[j + (v as i64)]);
-        }
-        let res = activation(results[0][kk as usize]);
-        for v in 0..oc_remain as usize {
-            out[b * osb + l * osh + (k + kk) * osw + j + (v as i64)] = res[v];
-        }
-    }
-}
-
-pub(crate) fn full_oc_kernel_dispatch<T: CommonBounds>(
+pub(crate) fn conv2d_full_oc_kernel_dispatch<T: CommonBounds>(
     oc: &mut usize, // output channels block size
     kb: &mut usize // outwidth block size
 ) -> Option<ConvKernel<T>> {
@@ -937,68 +752,7 @@ pub(crate) fn full_oc_kernel_dispatch<T: CommonBounds>(
     kernel_fn.cloned().map(|kernel| ConvKernel::new(kernel, *oc, *kb))
 }
 
-pub(crate) fn padded_full_oc_kernel_dispatch<T: CommonBounds>(
-    oc: &mut usize, // output channels block size
-    kb: &mut usize // outwidth block size
-) -> Option<fn(PaddedParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)>
-    where bool: IntoScalar<T>
-{
-    let kernels: [
-        [fn(PaddedParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec); 5];
-        4
-    ] = [
-        [
-            pmicro_kernel_1x1,
-            pmicro_kernel_2x1,
-            pmicro_kernel_3x1,
-            pmicro_kernel_4x1,
-            pmicro_kernel_5x1,
-        ],
-        [
-            pmicro_kernel_1x2,
-            pmicro_kernel_2x2,
-            pmicro_kernel_3x2,
-            pmicro_kernel_4x2,
-            pmicro_kernel_5x2,
-        ],
-        [
-            pmicro_kernel_1x4,
-            pmicro_kernel_2x4,
-            pmicro_kernel_3x4,
-            pmicro_kernel_4x4,
-            pmicro_kernel_5x4,
-        ],
-        [
-            pmicro_kernel_1x8,
-            pmicro_kernel_2x8,
-            pmicro_kernel_3x8,
-            pmicro_kernel_4x8,
-            pmicro_kernel_5x8,
-        ],
-    ];
-
-    let map_kb = map_kb(*kb);
-    *kb = map_kb + 1;
-    let map_oc = map_oc(*oc);
-    if map_oc == 0 {
-        *oc = 1;
-    } else if map_oc == 1 {
-        *oc = 2;
-    } else if map_oc == 2 {
-        *oc = 4;
-    } else {
-        *oc = 8;
-    }
-
-    let kernel_fn = kernels
-        .get(map_oc)
-        .map(|x| x.get(map_kb))
-        .flatten();
-
-    kernel_fn.cloned()
-}
-
-pub(crate) fn full_oc_bias_kernel_dispatch<T: CommonBounds>(
+pub(crate) fn conv2d_full_oc_bias_kernel_dispatch<T: CommonBounds>(
     oc: &mut usize, // output channels block size
     kb: &mut usize // outwidth block size
 ) -> Option<
@@ -1069,84 +823,29 @@ pub(crate) fn full_oc_bias_kernel_dispatch<T: CommonBounds>(
     kernel_fn.cloned()
 }
 
-pub(crate) fn padded_full_oc_bias_kernel_dispatch<T: CommonBounds>(
-    oc: &mut usize, // output channels block size
-    kb: &mut usize // outwidth block size
-) -> Option<
-        fn(
-            PaddedParams,
-            &mut Pointer<T>,
-            &mut Pointer<T>,
-            &Pointer<T>,
-            &Pointer<T>,
-            fn(T::Vec) -> T::Vec
-        )
-    >
-    where bool: IntoScalar<T>
-{
-    let kernels: [
-        [
-            fn(
-                PaddedParams,
-                &mut Pointer<T>,
-                &mut Pointer<T>,
-                &Pointer<T>,
-                &Pointer<T>,
-                fn(T::Vec) -> T::Vec
-            );
-            5
-        ];
-        4
-    ] = [
-        [
-            bias_pmicro_kernel_1x1,
-            bias_pmicro_kernel_2x1,
-            bias_pmicro_kernel_3x1,
-            bias_pmicro_kernel_4x1,
-            bias_pmicro_kernel_5x1,
-        ],
-        [
-            bias_pmicro_kernel_1x2,
-            bias_pmicro_kernel_2x2,
-            bias_pmicro_kernel_3x2,
-            bias_pmicro_kernel_4x2,
-            bias_pmicro_kernel_5x2,
-        ],
-        [
-            bias_pmicro_kernel_1x4,
-            bias_pmicro_kernel_2x4,
-            bias_pmicro_kernel_3x4,
-            bias_pmicro_kernel_4x4,
-            bias_pmicro_kernel_5x4,
-        ],
-        [
-            bias_pmicro_kernel_1x8,
-            bias_pmicro_kernel_2x8,
-            bias_pmicro_kernel_3x8,
-            bias_pmicro_kernel_4x8,
-            bias_pmicro_kernel_5x8,
-        ],
-    ];
-
-    let map_kb = map_kb(*kb);
-    *kb = map_kb + 1;
-    let map_oc = map_oc(*oc);
-    if map_oc == 0 {
-        *oc = 1;
-    } else if map_oc == 1 {
-        *oc = 2;
-    } else if map_oc == 2 {
-        *oc = 4;
-    } else {
-        *oc = 8;
-    }
-
-    let kernel_fn = kernels
-        .get(map_oc)
-        .map(|x| x.get(map_kb))
-        .flatten();
-
-    kernel_fn.cloned()
+pub(crate) fn full_oc_kernels<T: CommonBounds>() -> [ConvKernel<T>; 20] {
+    [
+        ConvKernel::new(micro_kernel_1x1, 1, 1),
+        ConvKernel::new(micro_kernel_2x1, 1, 2),
+        ConvKernel::new(micro_kernel_3x1, 1, 3),
+        ConvKernel::new(micro_kernel_4x1, 1, 4),
+        ConvKernel::new(micro_kernel_5x1, 1, 5),
+        ConvKernel::new(micro_kernel_1x2, 2, 1),
+        ConvKernel::new(micro_kernel_2x2, 2, 2),
+        ConvKernel::new(micro_kernel_3x2, 2, 3),
+        ConvKernel::new(micro_kernel_4x2, 2, 4),
+        ConvKernel::new(micro_kernel_5x2, 2, 5),
+        ConvKernel::new(micro_kernel_1x4, 4, 1),
+        ConvKernel::new(micro_kernel_2x4, 4, 2),
+        ConvKernel::new(micro_kernel_3x4, 4, 3),
+        ConvKernel::new(micro_kernel_4x4, 4, 4),
+        ConvKernel::new(micro_kernel_5x4, 4, 5),
+        ConvKernel::new(micro_kernel_1x8, 8, 1),
+        ConvKernel::new(micro_kernel_2x8, 8, 2),
+        ConvKernel::new(micro_kernel_3x8, 8, 3),
+        ConvKernel::new(micro_kernel_4x8, 8, 4),
+        ConvKernel::new(micro_kernel_5x8, 8, 5),
+    ]
 }
 
 pub(crate) fn remain_oc_kernel_dispatch<T: CommonBounds>(
@@ -1158,39 +857,6 @@ pub(crate) fn remain_oc_kernel_dispatch<T: CommonBounds>(
         ConvPartialKernel::new(micro_kernel_3_1, 3),
         ConvPartialKernel::new(micro_kernel_4_1, 4),
         ConvPartialKernel::new(micro_kernel_5_1, 5),
-    ];
-
-    // println!("picked iconv2d_remain_microkernel_{} at {}", kb, map_kb(kb));
-    let map_kb = map_kb(*kb);
-    *kb = map_kb + 1;
-
-    let kernel_fn = kernels.get(map_kb);
-
-    kernel_fn.cloned()
-}
-
-pub(crate) fn padded_remain_oc_kernel_dispatch<T: CommonBounds>(
-    kb: &mut usize // outwidth block size
-) -> Option<
-        fn(PaddedPartialParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
-    >
-    where bool: IntoScalar<T>
-{
-    let kernels: [
-        fn(
-            PaddedPartialParams,
-            &mut Pointer<T>,
-            &mut Pointer<T>,
-            &Pointer<T>,
-            fn(T::Vec) -> T::Vec
-        );
-        5
-    ] = [
-        pmicro_kernel_5_1,
-        pmicro_kernel_2_1,
-        pmicro_kernel_3_1,
-        pmicro_kernel_4_1,
-        pmicro_kernel_5_1,
     ];
 
     // println!("picked iconv2d_remain_microkernel_{} at {}", kb, map_kb(kb));
@@ -1230,47 +896,6 @@ pub(crate) fn bias_remain_oc_kernel_dispatch<T: CommonBounds>(
         bias_micro_kernel_3_1,
         bias_micro_kernel_4_1,
         bias_micro_kernel_5_1,
-    ];
-
-    // println!("picked iconv2d_remain_microkernel_{} at {}", kb, map_kb(kb));
-    let map_kb = map_kb(*kb);
-    *kb = map_kb + 1;
-
-    let kernel_fn = kernels.get(map_kb);
-
-    kernel_fn.cloned()
-}
-
-pub(crate) fn padded_bias_remain_oc_kernel_dispatch<T: CommonBounds>(
-    kb: &mut usize // outwidth block size
-) -> Option<
-        fn(
-            PaddedPartialParams,
-            &mut Pointer<T>,
-            &mut Pointer<T>,
-            &Pointer<T>,
-            &Pointer<T>,
-            fn(T::Vec) -> T::Vec
-        )
-    >
-    where bool: IntoScalar<T>
-{
-    let kernels: [
-        fn(
-            PaddedPartialParams,
-            &mut Pointer<T>,
-            &mut Pointer<T>,
-            &Pointer<T>,
-            &Pointer<T>,
-            fn(T::Vec) -> T::Vec
-        );
-        5
-    ] = [
-        p_bias_micro_kernel_1_1,
-        p_bias_micro_kernel_2_1,
-        p_bias_micro_kernel_3_1,
-        p_bias_micro_kernel_4_1,
-        p_bias_micro_kernel_5_1,
     ];
 
     // println!("picked iconv2d_remain_microkernel_{} at {}", kb, map_kb(kb));
