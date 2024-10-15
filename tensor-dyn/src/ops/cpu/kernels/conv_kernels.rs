@@ -242,7 +242,7 @@ fn template_function<T: CommonBounds>(
     };
     let is0 =
         b * isb + l * step_height * ish + k * step_width * isw - pw_start * isw - ph_start * ish;
-    let m_possibly_in_range =
+    let m_must_in_range =
         k * step_width >= pw_start &&
         (k + (OW_BLOCK as i64)) * step_width + (kw - 1) * dw < img_width + pw_start;
     for n in 0..kh {
@@ -251,7 +251,7 @@ fn template_function<T: CommonBounds>(
             l * step_height + n * dh < img_height + ph_start;
         let is1 = is0 + n * dh * ish;
         if l_in_range {
-            if m_possibly_in_range {
+            if m_must_in_range {
                 for m in 0..kw {
                     let is2 = is1 + m * dw * isw;
                     for i in ii..i_end {
@@ -383,7 +383,7 @@ fn template_function<T: CommonBounds>(
     };
     let is0 =
         b * isb + l * step_height * ish + k * step_width * isw - pw_start * isw - ph_start * ish;
-    let m_possibly_in_range =
+    let m_must_in_range =
         k * step_width >= pw_start &&
         (k + (OW_BLOCK as i64)) * step_width + (kw - 1) * dw < img_width + pw_start;
     for n in 0..kh {
@@ -392,7 +392,7 @@ fn template_function<T: CommonBounds>(
             l * step_height + n * dh < img_height + ph_start;
         let is1 = is0 + n * dh * ish;
         if l_in_range {
-            if m_possibly_in_range {
+            if m_must_in_range {
                 for m in 0..kw {
                     let is2 = is1 + m * dw * isw;
                     for i in ii..i_end {
@@ -506,7 +506,7 @@ fn template_function<T: CommonBounds>(
     };
     let is0 =
         b * isb + l * step_height * ish + k * step_width * isw - pw_start * isw - ph_start * ish;
-    let m_possibly_in_range =
+    let m_must_in_range =
         k * step_width >= pw_start &&
         (k + (OW_BLOCK as i64)) * step_width + (kw - 1) * dw < img_width + pw_start;
     for n in 0..kh {
@@ -515,7 +515,7 @@ fn template_function<T: CommonBounds>(
             l * step_height + n * dh < img_height + ph_start;
         let is1 = is0 + n * dh * ish;
         if l_in_range {
-            if m_possibly_in_range {
+            if m_must_in_range {
                 for m in 0..kw {
                     let is2 = is1 + m * dw * isw;
                     for i in ii..i_end {
@@ -611,7 +611,7 @@ fn template_function<T: CommonBounds>(
     };
     let is0 =
         b * isb + l * step_height * ish + k * step_width * isw - pw_start * isw - ph_start * ish;
-    let m_possibly_in_range =
+    let m_must_in_range =
         k * step_width >= pw_start &&
         (k + (OW_BLOCK as i64)) * step_width + (kw - 1) * dw < img_width + pw_start;
     for n in 0..kh {
@@ -620,7 +620,7 @@ fn template_function<T: CommonBounds>(
             l * step_height + n * dh >= ph_start &&
             l * step_height + n * dh < img_height + ph_start;
         if l_in_range {
-            if m_possibly_in_range {
+            if m_must_in_range {
                 for m in 0..kw {
                     let is2 = is1 + m * dw * isw;
                     for i in ii..i_end {
