@@ -40,6 +40,7 @@ fn main() -> anyhow::Result<()> {
     // }
     // println!("{:?}", now.elapsed() / 1);
     conv2d()?;
+    // println!("{}", 1u32 & 31u32);
 
     Ok(())
 }

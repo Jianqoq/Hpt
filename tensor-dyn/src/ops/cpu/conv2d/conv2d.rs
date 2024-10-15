@@ -22,7 +22,8 @@ use tensor_types::vectors::traits::*;
 impl<T> _Tensor<T>
     where
         T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
-        T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecCommon + NormalOut<Output = T::Vec>
+        T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecCommon + NormalOut<Output = T::Vec>,
+        bool: IntoScalar<T>
 {
     /// Performs a 2D convolution operation on the input tensor.
     ///
@@ -85,19 +86,7 @@ impl<T> _Tensor<T>
             (img_height + ph_start + ph_end - dh * (kernel_height - 1) - 1) / step_height + 1;
         let out_width =
             (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1;
-        let img = if !padding.iter().all(|(a, b)| *a == 0 && *b == 0) {
-            self.pad(
-                &[
-                    (0, 0),
-                    (ph_start, ph_end),
-                    (pw_start, pw_end),
-                    (0, 0),
-                ],
-                T::ZERO
-            )?
-        } else {
-            self.clone()
-        };
+        let img = self.clone();
         if out_height <= 0 || out_width <= 0 {
             return if out_height <= 0 {
                 Err(InvalidInputShape(out_height, core::panic::Location::caller()).into())
@@ -121,7 +110,7 @@ impl<T> _Tensor<T>
         let ks1 = kernels.strides()[1]; // kernel_width
         let ks2 = kernels.strides()[2]; // in_channels
 
-        const OH_BLOCK: i64 = 3;
+        let oh_block = (3).min(out_height).max(1);
 
         let cache = Cache::<T>::new();
 
@@ -133,7 +122,7 @@ impl<T> _Tensor<T>
             in_channels as usize,
             ow_block,
             oc_nvec,
-            OH_BLOCK as usize,
+            oh_block as usize,
             [kernel_height as usize, kernel_width as usize],
             cache
         );
@@ -213,7 +202,7 @@ impl<T> _Tensor<T>
 
         // retrieve micro kernels end
 
-        let num_oh = (out_height + OH_BLOCK - 1) / OH_BLOCK; // div ceil, i.e. ceiling of out_height / OH_BLOCK
+        let num_oh = (out_height + oh_block - 1) / oh_block; // div ceil, i.e. ceiling of out_height / oh_block
         let outer = batch * num_oh;
         let out_width_full_end = out_width - (out_width % (ow_block as i64)); // the end of the out width that is a multiple of ow_block
 
@@ -239,8 +228,8 @@ impl<T> _Tensor<T>
             let mut kernel = ro_ptr.clone();
             let b = idx / num_oh;
             let ll = idx % num_oh;
-            let ll = ll * OH_BLOCK;
-            let l_end = (ll + OH_BLOCK).min(out_height);
+            let ll = ll * oh_block;
+            let l_end = (ll + oh_block).min(out_height);
             let params = Params {
                 arg1: [0, 0],
                 arg2: [kernel_height, kernel_width],
@@ -248,8 +237,9 @@ impl<T> _Tensor<T>
                 arg4: [osb, osh, osw],
                 arg5: [step_height, step_width],
                 arg6: [isb, ish, isw],
-                arg7: [ph_start, pw_start],
+                pads: [ph_start, pw_start],
                 arg8: [dh, dw],
+                arg9: [img_height, img_width],
             };
             match (partial_oc_kernel, full_oc_kernel_ow_remain, partial_oc_kernel_ow_remain) {
                 (None, None, None) => {
@@ -373,6 +363,7 @@ impl<T> _Tensor<T>
                                         [step_height, step_width],
                                         [ph_start, pw_start],
                                         [dh, dw],
+                                        [img_height, img_width],
                                         b,
                                         remain,
                                         &mut out,
@@ -399,6 +390,7 @@ impl<T> _Tensor<T>
                                         [step_height, step_width],
                                         [ph_start, pw_start],
                                         [dh, dw],
+                                        [img_height, img_width],
                                         b,
                                         remain,
                                         oc_block_size,
@@ -435,6 +427,7 @@ impl<T> _Tensor<T>
                                         [step_height, step_width],
                                         [ph_start, pw_start],
                                         [dh, dw],
+                                        [img_height, img_width],
                                         b,
                                         remain,
                                         &mut out,
@@ -460,6 +453,7 @@ impl<T> _Tensor<T>
                                         [step_height, step_width],
                                         [ph_start, pw_start],
                                         [dh, dw],
+                                        [img_height, img_width],
                                         b,
                                         remain,
                                         oc_block_size,
@@ -754,6 +748,7 @@ fn handle_normal<T: CommonBounds, F>(
     [step_height, step_width]: [i64; 2],
     [ph_start, pw_start]: [i64; 2],
     [dh, dw]: [i64; 2],
+    [img_height, img_width]: [i64; 2],
     batch: i64,
     remain: i64,
     oc_block_size: usize,
@@ -773,8 +768,9 @@ fn handle_normal<T: CommonBounds, F>(
         arg4: [osb, osh, osw],
         arg5: [step_height, step_width],
         arg6: [isb, ish, isw],
-        arg7: [ph_start, pw_start],
+        pads: [ph_start, pw_start],
         arg8: [dh, dw],
+        arg9: [img_height, img_width],
     };
     let out_width_full_end = out_width - (out_width % (ow_block as i64));
     let kernel_k = kernel.clone();
@@ -891,6 +887,7 @@ fn with_bias_remain<T: CommonBounds>(
     [step_height, step_width]: [i64; 2],
     [ph_start, pw_start]: [i64; 2],
     [dh, dw]: [i64; 2],
+    [img_height, img_width]: [i64; 2],
     batch: i64,
     remain: i64,
     out: &mut Pointer<T>,
@@ -930,8 +927,9 @@ fn with_bias_remain<T: CommonBounds>(
         arg4: [osb, osh, osw],
         arg5: [step_height, step_width],
         arg6: [isb, ish, isw],
-        arg7: [ph_start, pw_start],
+        pads: [ph_start, pw_start],
         arg8: [dh, dw],
+        arg9: [img_height, img_width],
     };
     let partial_params = PartialParams {
         arg1: [ii, i_end],
@@ -942,6 +940,7 @@ fn with_bias_remain<T: CommonBounds>(
         arg6: [isb, ish, isw],
         arg7: [ph_start, pw_start],
         arg8: [dh, dw],
+        arg9: [img_height, img_width],
         oc_remain: remain % (T::Vec::SIZE as i64),
     };
     let kernel_k = kernel.clone();
@@ -1011,6 +1010,7 @@ fn handle_bias_remain<T: CommonBounds>(
     [step_height, step_width]: [i64; 2],
     [ph_start, pw_start]: [i64; 2],
     [dh, dw]: [i64; 2],
+    [img_height, img_width]: [i64; 2],
     batch: i64,
     remain: i64,
     out: &mut Pointer<T>,
@@ -1072,6 +1072,7 @@ fn handle_bias_remain<T: CommonBounds>(
         [step_height, step_width],
         [ph_start, pw_start],
         [dh, dw],
+        [img_height, img_width],
         batch,
         remain,
         out,
@@ -1103,6 +1104,7 @@ fn handle_bias_remain<T: CommonBounds>(
             [step_height, step_width],
             [ph_start, pw_start],
             [dh, dw],
+            [img_height, img_width],
             batch,
             remain,
             out,
@@ -1131,6 +1133,7 @@ fn with_normal_remain<T: CommonBounds>(
     [step_height, step_width]: [i64; 2],
     [ph_start, pw_start]: [i64; 2],
     [dh, dw]: [i64; 2],
+    [img_height, img_width]: [i64; 2],
     batch: i64,
     remain: i64,
     out: &mut Pointer<T>,
@@ -1160,8 +1163,9 @@ fn with_normal_remain<T: CommonBounds>(
         arg4: [osb, osh, osw],
         arg5: [step_height, step_width],
         arg6: [isb, ish, isw],
-        arg7: [ph_start, pw_start],
+        pads: [ph_start, pw_start],
         arg8: [dh, dw],
+        arg9: [img_height, img_width],
     };
     let partial_params = PartialParams {
         arg1: [ii, i_end],
@@ -1172,6 +1176,7 @@ fn with_normal_remain<T: CommonBounds>(
         arg6: [isb, ish, isw],
         arg7: [ph_start, pw_start],
         arg8: [dh, dw],
+        arg9: [img_height, img_width],
         oc_remain: remain % (T::Vec::SIZE as i64),
     };
     let kernel_k = kernel.clone();
@@ -1238,6 +1243,7 @@ fn handle_normal_remain<T: CommonBounds>(
     [step_height, step_width]: [i64; 2],
     [ph_start, pw_start]: [i64; 2],
     [dh, dw]: [i64; 2],
+    [img_height, img_width]: [i64; 2],
     batch: i64,
     remain: i64,
     out: &mut Pointer<T>,
@@ -1276,6 +1282,7 @@ fn handle_normal_remain<T: CommonBounds>(
         [step_height, step_width],
         [ph_start, pw_start],
         [dh, dw],
+        [img_height, img_width],
         batch,
         remain,
         out,
@@ -1306,6 +1313,7 @@ fn handle_normal_remain<T: CommonBounds>(
             [step_height, step_width],
             [ph_start, pw_start],
             [dh, dw],
+            [img_height, img_width],
             batch,
             remain,
             out,

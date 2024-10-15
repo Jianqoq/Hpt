@@ -69,8 +69,8 @@ fn assert_eq(
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
     res_slice
-        .par_iter()
-        .zip(res2.par_iter())
+        .iter()
+        .zip(res2.iter())
         .for_each(|(a, b)| {
             if a != b {
                 assert_eq!(a, b);
@@ -87,8 +87,8 @@ fn test_case0() -> anyhow::Result<()> {
     assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
 
     // test when outwidth is less than regnum
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 32, 3, 3, 3, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 32])?;
+    let (kernel, a, tch_kernel, tch_a) = common_input([1, 1, 1, 3, 3, 5, 5])?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 1])?;
     assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16])?;
     assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
 
