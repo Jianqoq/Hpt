@@ -110,7 +110,7 @@ impl<T> _Tensor<T>
         let ks1 = kernels.strides()[1]; // kernel_width
         let ks2 = kernels.strides()[2]; // in_channels
 
-        const OH_BLOCK: i64 = 3;
+        let oh_block = (3).min(out_height).max(1);
 
         let cache = Cache::<T>::new();
 
@@ -122,7 +122,7 @@ impl<T> _Tensor<T>
             in_channels as usize,
             ow_block,
             oc_nvec,
-            OH_BLOCK as usize,
+            oh_block as usize,
             [kernel_height as usize, kernel_width as usize],
             cache
         );
@@ -202,7 +202,7 @@ impl<T> _Tensor<T>
 
         // retrieve micro kernels end
 
-        let num_oh = (out_height + OH_BLOCK - 1) / OH_BLOCK; // div ceil, i.e. ceiling of out_height / OH_BLOCK
+        let num_oh = (out_height + oh_block - 1) / oh_block; // div ceil, i.e. ceiling of out_height / oh_block
         let outer = batch * num_oh;
         let out_width_full_end = out_width - (out_width % (ow_block as i64)); // the end of the out width that is a multiple of ow_block
 
@@ -228,8 +228,8 @@ impl<T> _Tensor<T>
             let mut kernel = ro_ptr.clone();
             let b = idx / num_oh;
             let ll = idx % num_oh;
-            let ll = ll * OH_BLOCK;
-            let l_end = (ll + OH_BLOCK).min(out_height);
+            let ll = ll * oh_block;
+            let l_end = (ll + oh_block).min(out_height);
             let params = Params {
                 arg1: [0, 0],
                 arg2: [kernel_height, kernel_width],
