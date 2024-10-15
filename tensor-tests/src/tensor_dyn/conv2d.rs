@@ -61,7 +61,7 @@ fn assert_eq(
                 (2, 2),
             ],
             [1, 1],
-            |x| x
+            None
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;

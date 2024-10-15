@@ -53,7 +53,7 @@ impl<T> _Tensor<T>
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        activation: fn(T::Vec) -> T::Vec
+        activation: Option<fn(T::Vec) -> T::Vec>
     ) -> anyhow::Result<_Tensor<T>> {
         let img_shape = self.shape();
         if img_shape.len() != 4 {
@@ -94,6 +94,7 @@ impl<T> _Tensor<T>
                 Err(InvalidInputShape(out_width, core::panic::Location::caller()).into())
             };
         }
+        let activation = activation.unwrap_or(|x| x);
         let output = _Tensor::<T>::empty([batch, out_height, out_width, out_channels])?;
         let out = output.ptr();
         let inp = img.ptr();
