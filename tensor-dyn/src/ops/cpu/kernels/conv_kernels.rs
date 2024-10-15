@@ -130,8 +130,7 @@ macro_rules! repeat_pad_inp {
                 {
                     let mask =
                     ($k + $idx) * $step_width + $m * $dw >= $pw_start &&
-                    ($k + $idx) * $step_width + $m * $dw < $img_width + $pw_start &&
-                    $l_in_range;
+                    ($k + $idx) * $step_width + $m * $dw < $img_width + $pw_start;
                     let tmp_mask: T = mask.into_scalar();
                     let val = $name[($is3 + $idx * $step_width * $isw) * mask as i64];
                     T::Vec::splat(tmp_mask._mul(val))
@@ -301,6 +300,8 @@ fn template_function<T: CommonBounds>(
                     }
                 }
             }
+        } else {
+            kernel.add(OC_BLOCK * T::Vec::SIZE * kw as usize * (i_end - ii) as usize);
         }
     }
     for kk in 0..OW_BLOCK as i64 {
@@ -440,6 +441,8 @@ fn template_function<T: CommonBounds>(
                     }
                 }
             }
+        } else {
+            kernel.add(OC_BLOCK * T::Vec::SIZE * kw as usize * (i_end - ii) as usize);
         }
     }
     for kk in 0..OW_BLOCK as i64 {
@@ -551,6 +554,8 @@ fn template_function<T: CommonBounds>(
                     }
                 }
             }
+        } else {
+            kernel.add(oc_remain as usize * kw as usize * (i_end - ii) as usize);
         }
     }
     for kk in 0..OW_BLOCK as i64 {
@@ -654,6 +659,8 @@ fn template_function<T: CommonBounds>(
                     }
                 }
             }
+        } else {
+            kernel.add(oc_remain as usize * kw as usize * (i_end - ii) as usize);
         }
     }
     for kk in 0..OW_BLOCK as i64 {
