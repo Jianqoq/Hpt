@@ -68,7 +68,7 @@ fn conv2d_benchmark(c: &mut Criterion) {
                             (0, 0),
                         ],
                         [1, 1],
-                        |x| x
+                        None
                     ).unwrap()
                 });
             }
