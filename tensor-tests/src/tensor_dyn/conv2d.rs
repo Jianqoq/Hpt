@@ -48,8 +48,42 @@ fn assert_eq(
     a: &_Tensor<i64>,
     a_kernel: &_Tensor<i64>,
     b: &tch::Tensor,
-    b_kernel: &tch::Tensor,
-    block_size: [i64; 2]
+    b_kernel: &tch::Tensor
+) -> anyhow::Result<()> {
+    let res = a
+        .conv2d(
+            &a_kernel,
+            None,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            None
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let res2 = b.conv2d(&b_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
+    let res_slice = res.as_raw();
+    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            if a != b {
+                assert_eq!(a, b);
+            }
+        });
+    Ok(())
+}
+
+#[track_caller]
+fn assert_eq_pad(
+    a: &_Tensor<i64>,
+    a_kernel: &_Tensor<i64>,
+    b: &tch::Tensor,
+    b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
     let res = a
         .conv2d(
@@ -79,119 +113,210 @@ fn assert_eq(
     Ok(())
 }
 
+#[track_caller]
+fn assert_eq_bias(
+    a: &_Tensor<i64>,
+    a_kernel: &_Tensor<i64>,
+    b: &tch::Tensor,
+    b_kernel: &tch::Tensor
+) -> anyhow::Result<()> {
+    let bias = _Tensor::<i64>::arange(0i64, a_kernel.shape()[-1])?;
+    let res = a
+        .conv2d(
+            &a_kernel,
+            Some(&bias),
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [1, 1],
+            None
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let tch_bias = tch::Tensor::arange(b_kernel.size()[0], (tch::Kind::Int64, tch::Device::Cpu));
+    let res2 = b.conv2d(&b_kernel, Some(tch_bias), &[1, 1], &[0, 0], &[1, 1], 1);
+    let res_slice = res.as_raw();
+    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            if a != b {
+                assert_eq!(a, b);
+            }
+        });
+    Ok(())
+}
+
+#[track_caller]
+fn assert_eq_bias_pad(
+    a: &_Tensor<i64>,
+    a_kernel: &_Tensor<i64>,
+    b: &tch::Tensor,
+    b_kernel: &tch::Tensor
+) -> anyhow::Result<()> {
+    let bias = _Tensor::<i64>::arange(0i64, a_kernel.shape()[-1])?;
+    let res = a
+        .conv2d(
+            &a_kernel,
+            Some(&bias),
+            [1, 1],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [1, 1],
+            None
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let tch_bias = tch::Tensor::arange(b_kernel.size()[0], (tch::Kind::Int64, tch::Device::Cpu));
+    let res2 = b.conv2d(&b_kernel, Some(tch_bias), &[1, 1], &[2, 2], &[1, 1], 1);
+    let res_slice = res.as_raw();
+    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            if a != b {
+                assert_eq!(a, b);
+            }
+        });
+    Ok(())
+}
+
 #[test]
 fn test_case0() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 32, 3, 3, 3, 16, 16])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 32])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
 
     // test when outwidth is less than regnum
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 1, 1, 3, 3, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 1])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
-
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 2, 3, 3, 3, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 1])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+
     Ok(())
 }
 
 #[test]
 fn test_case1() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 32, 3, 3, 3, 20, 20])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 32])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
 
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 32, 3, 3, 3, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 32])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
     Ok(())
 }
 
 #[test]
 fn test_case2() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 32, 3, 3, 3, 20, 20])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 20])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
-
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 32, 3, 3, 3, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 20])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
     Ok(())
 }
 
 #[test]
 fn test_case3() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 32, 3, 3, 3, 20, 20])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 28])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
 
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 32, 3, 3, 3, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 32])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
     Ok(())
 }
 
 #[test]
 fn test_case4() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 32, 3, 3, 3, 20, 20])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [2, 32])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
 
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 32, 3, 3, 3, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 32])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
     Ok(())
 }
 
 #[test]
 fn test_case5() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 32, 3, 3, 3, 19, 19])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [2, 32])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
 
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 32, 3, 3, 3, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 32])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
     Ok(())
 }
 
 #[test]
 fn test_case6() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 30, 3, 3, 3, 20, 20])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [2, 28])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
 
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 30, 3, 3, 3, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 30])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
     Ok(())
 }
 
 #[test]
 fn test_case7() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 30, 3, 3, 3, 20, 20])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [2, 28])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
 
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 30, 3, 3, 3, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [3, 30])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 16])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, [1, 1])?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
     Ok(())
 }

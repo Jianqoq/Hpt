@@ -1,10 +1,6 @@
-use std::{
-    fmt::Display,
-    ops::{Deref, DerefMut},
-    sync::Arc,
-};
+use std::{ fmt::Display, ops::{ Deref, DerefMut, Index, RangeInclusive, RangeTo }, sync::Arc };
 
-use crate::{strides::Strides, strides_utils::shape_to_strides};
+use crate::{ strides::Strides, strides_utils::shape_to_strides };
 
 /// Represents the shape of a multi-dimensional structure, such as a tensor or an array.
 ///
@@ -46,7 +42,10 @@ impl Shape {
 
     /// Returns a new Shape with all elements decreased by 1
     pub fn sub_one(&self) -> Shape {
-        self.iter().map(|x| *x - 1).collect::<Vec<i64>>().into()
+        self.iter()
+            .map(|x| *x - 1)
+            .collect::<Vec<i64>>()
+            .into()
     }
 }
 
@@ -125,7 +124,12 @@ impl<'a, const N: usize> From<&'a [i64; N]> for Shape {
 impl<'a, const N: usize> From<&'a [usize; N]> for Shape {
     fn from(v: &'a [usize; N]) -> Self {
         Shape {
-            inner: Arc::new(v.into_iter().map(|x| *x as i64).collect())
+            inner: Arc::new(
+                v
+                    .into_iter()
+                    .map(|x| *x as i64)
+                    .collect()
+            ),
         }
     }
 }
@@ -133,7 +137,12 @@ impl<'a, const N: usize> From<&'a [usize; N]> for Shape {
 impl<'a, const N: usize> From<&'a [i32; N]> for Shape {
     fn from(v: &'a [i32; N]) -> Self {
         Shape {
-            inner: Arc::new(v.into_iter().map(|x| *x as i64).collect())
+            inner: Arc::new(
+                v
+                    .into_iter()
+                    .map(|x| *x as i64)
+                    .collect()
+            ),
         }
     }
 }
@@ -166,6 +175,66 @@ impl From<&[i64]> for Shape {
     fn from(v: &[i64]) -> Self {
         Shape {
             inner: Arc::new(v.to_vec()),
+        }
+    }
+}
+
+impl Index<usize> for Shape {
+    type Output = i64;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.inner[index]
+    }
+}
+
+impl Index<RangeTo<usize>> for Shape {
+    type Output = [i64];
+
+    fn index(&self, index: RangeTo<usize>) -> &Self::Output {
+        &self.inner[index]
+    }
+}
+
+impl Index<RangeInclusive<usize>> for Shape {
+    type Output = [i64];
+
+    fn index(&self, index: RangeInclusive<usize>) -> &Self::Output {
+        &self.inner[index]
+    }
+}
+
+impl Index<isize> for Shape {
+    type Output = i64;
+
+    fn index(&self, index: isize) -> &Self::Output {
+        if index < 0 {
+            &self.inner[((self.inner.len() as isize) + index) as usize]
+        } else {
+            &self.inner[index as usize]
+        }
+    }
+}
+
+impl Index<i64> for Shape {
+    type Output = i64;
+
+    fn index(&self, index: i64) -> &Self::Output {
+        if index < 0 {
+            &self.inner[((self.inner.len() as i64) + index) as usize]
+        } else {
+            &self.inner[index as usize]
+        }
+    }
+}
+
+impl Index<i32> for Shape {
+    type Output = i64;
+
+    fn index(&self, index: i32) -> &Self::Output {
+        if index < 0 {
+            &self.inner[((self.inner.len() as i32) + index) as usize]
+        } else {
+            &self.inner[index as usize]
         }
     }
 }
