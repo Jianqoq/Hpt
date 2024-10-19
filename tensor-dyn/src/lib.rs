@@ -8,8 +8,6 @@ pub mod ops {
     pub mod cpu {
         /// a module defines affine_grid operation
         pub mod affine_grid;
-        /// a module defines avg_pool2d operation
-        pub mod avg_pool2d;
         /// a module defines all normal binary operation
         pub mod binary;
         /// a module defines binary normal iterations,
@@ -21,6 +19,8 @@ pub mod ops {
         pub mod conv2d {
             /// a module defines conv2d operation
             pub mod conv2d;
+            /// a module defines dwconv2d operation
+            pub mod dwconv2d;
         }
         /// a module defines conv_config struct
         pub mod conv_config;
@@ -32,14 +32,10 @@ pub mod ops {
         pub mod gather_elements;
         /// a module defines hardmax operation
         pub mod hardmax;
-        /// a module defines lp_pool2d operation
-        pub mod lp_pool2d;
         /// a module defines matmul operation
         pub mod matmul;
         /// a module defines max_roi_pool operation
         pub mod max_roi_pool;
-        /// a module defines max_pool2d operation
-        pub mod maxpool2d;
         /// a module defines onehot operation
         pub mod onehot;
         /// a module defines pad operation
@@ -76,6 +72,8 @@ pub mod ops {
             pub mod maxpool_kernels;
             /// a module defines the reduce kernels
             pub mod reduce_kernels;
+            /// a module defines the dwconv2d kernels
+            pub mod dwconv_kernels;
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_expose {

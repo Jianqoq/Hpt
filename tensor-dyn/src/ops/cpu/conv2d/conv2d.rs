@@ -380,7 +380,7 @@ impl<T> _Tensor<T>
                                         bias_one_oc_ow_remain
                                     );
                                 } else {
-                                    handle_normal(
+                                    handle_bias_normal(
                                         [jj, jj_end],
                                         [out_width, ow_block as i64],
                                         [ll, l_end],
@@ -392,15 +392,15 @@ impl<T> _Tensor<T>
                                         [ph_start, pw_start],
                                         [dh, dw],
                                         [img_height, img_width],
+                                        oc_block_size as i64,
                                         b,
-                                        remain,
-                                        oc_block_size,
                                         &mut out,
                                         &mut kernel,
                                         &inp,
+                                        &bias,
                                         activation,
-                                        full_oc_kernel_fn,
-                                        full_oc_kernel_ow_remain.map(|x| x.kernel)
+                                        bias_full_oc_kernel,
+                                        bias_full_oc_ow_remain
                                     );
                                 }
                             }
@@ -456,7 +456,6 @@ impl<T> _Tensor<T>
                                         [dh, dw],
                                         [img_height, img_width],
                                         b,
-                                        remain,
                                         oc_block_size,
                                         &mut out,
                                         &mut kernel,
@@ -718,17 +717,16 @@ fn handle_remain<T: CommonBounds, F, F2, F3>(
 fn _handle_normal<T: CommonBounds, F>(
     [jj_start, jj_end]: [i64; 2],
     [ll, l_end]: [i64; 2],
-    remain: i64,
-    oc_block_size: usize,
     [ii, i_end]: [i64; 2],
     [kernel_height, kernel_width]: [i64; 2],
+    oc_block_size: usize,
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     full_oc: F
 )
     where F: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>)
 {
-    for j in (jj_start..jj_end - remain).step_by(oc_block_size) {
+    for j in (jj_start..jj_end).step_by(oc_block_size) {
         let original = kernel.clone();
         for l in ll..l_end {
             full_oc(j, l, out, kernel);
@@ -751,7 +749,6 @@ fn handle_normal<T: CommonBounds, F>(
     [dh, dw]: [i64; 2],
     [img_height, img_width]: [i64; 2],
     batch: i64,
-    remain: i64,
     oc_block_size: usize,
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
@@ -780,10 +777,9 @@ fn handle_normal<T: CommonBounds, F>(
         _handle_normal(
             [jj_start, jj_end],
             [ll, l_end],
-            remain,
-            oc_block_size,
             [ii, i_end],
             [kernel_height, kernel_width],
+            oc_block_size,
             out,
             kernel,
             |j, l, out, kernel| {
@@ -807,10 +803,9 @@ fn handle_normal<T: CommonBounds, F>(
             _handle_normal(
                 [jj_start, jj_end],
                 [ll, l_end],
-                remain,
-                oc_block_size,
                 [ii, i_end],
                 [kernel_height, kernel_width],
+                oc_block_size,
                 out,
                 kernel,
                 |j, l, out, kernel| {
@@ -999,6 +994,73 @@ fn with_bias_remain<T: CommonBounds>(
     }
 }
 
+fn with_bias_normal<T: CommonBounds>(
+    [jj_start, jj_end]: [i64; 2],
+    [start, end, ow_block]: [i64; 3],
+    [ll, l_end]: [i64; 2],
+    [ii, i_end]: [i64; 2],
+    [kernel_height, kernel_width]: [i64; 2],
+    [osb, osh, osw]: [i64; 3],
+    [isb, ish, isw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [ph_start, pw_start]: [i64; 2],
+    [dh, dw]: [i64; 2],
+    [img_height, img_width]: [i64; 2],
+    oc_block_size: i64,
+    batch: i64,
+    out: &mut Pointer<T>,
+    kernel: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    bias: &Pointer<T>,
+    activation: fn(T::Vec) -> T::Vec,
+    bias_full_oc_kernel: fn(
+        Params,
+        &mut Pointer<T>,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &Pointer<T>,
+        fn(T::Vec) -> T::Vec
+    )
+) {
+    let params = Params {
+        arg1: [ii, i_end],
+        arg2: [kernel_height, kernel_width],
+        arg3: [batch, 0, 0, 0],
+        arg4: [osb, osh, osw],
+        arg5: [step_height, step_width],
+        arg6: [isb, ish, isw],
+        pads: [ph_start, pw_start],
+        arg8: [dh, dw],
+        arg9: [img_height, img_width],
+    };
+    let kernel_k = kernel.clone();
+    for k in (start..end).step_by(ow_block as usize) {
+        _handle_normal(
+            [jj_start, jj_end],
+            [ll, l_end],
+            [ii, i_end],
+            [kernel_height, kernel_width],
+            oc_block_size as usize,
+            out,
+            kernel,
+            |j, l, out, kernel| {
+                bias_full_oc_kernel(
+                    Params {
+                        arg3: [batch, l, k, j],
+                        ..params
+                    },
+                    out,
+                    kernel,
+                    &inp,
+                    &bias,
+                    activation
+                )
+            }
+        );
+        *kernel = kernel_k.clone();
+    }
+}
+
 fn handle_bias_remain<T: CommonBounds>(
     [jj_start, jj_end]: [i64; 2],
     [out_channels, oc_block_size]: [i64; 2],
@@ -1116,6 +1178,87 @@ fn handle_bias_remain<T: CommonBounds>(
             *full_oc_kernel_ow_remain,
             one_oc_ow_remain,
             partial_oc_ow_remain
+        );
+    }
+
+    *kernel += kernel_height * kernel_width * (jj_end - jj_start) * (i_end - ii);
+}
+
+fn handle_bias_normal<T: CommonBounds>(
+    [jj_start, jj_end]: [i64; 2],
+    [out_width, ow_block]: [i64; 2],
+    [ll, l_end]: [i64; 2],
+    [ii, i_end]: [i64; 2],
+    [kernel_height, kernel_width]: [i64; 2],
+    [osb, osh, osw]: [i64; 3],
+    [isb, ish, isw]: [i64; 3],
+    [step_height, step_width]: [i64; 2],
+    [ph_start, pw_start]: [i64; 2],
+    [dh, dw]: [i64; 2],
+    [img_height, img_width]: [i64; 2],
+    oc_block_size: i64,
+    batch: i64,
+    out: &mut Pointer<T>,
+    kernel: &mut Pointer<T>,
+    inp: &Pointer<T>,
+    bias: &Pointer<T>,
+    activation: fn(T::Vec) -> T::Vec,
+    bias_full_oc: fn(
+        Params,
+        &mut Pointer<T>,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &Pointer<T>,
+        fn(T::Vec) -> T::Vec
+    ),
+    bias_full_oc_ow_remain: Option<
+        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+    >
+) {
+    let out_width_full_end = out_width - (out_width % (ow_block as i64));
+    with_bias_normal(
+        [jj_start, jj_end],
+        [0, out_width_full_end, ow_block as i64],
+        [ll, l_end],
+        [ii, i_end],
+        [kernel_height, kernel_width],
+        [osb, osh, osw],
+        [isb, ish, isw],
+        [step_height, step_width],
+        [ph_start, pw_start],
+        [dh, dw],
+        [img_height, img_width],
+        oc_block_size,
+        batch,
+        out,
+        kernel,
+        &inp,
+        &bias,
+        activation,
+        bias_full_oc
+    );
+    // handle the out width remain part
+    if let Some(full_oc_kernel_ow_remain) = &bias_full_oc_ow_remain {
+        with_bias_normal(
+            [jj_start, jj_end],
+            [out_width_full_end, out_width, ow_block as i64],
+            [ll, l_end],
+            [ii, i_end],
+            [kernel_height, kernel_width],
+            [osb, osh, osw],
+            [isb, ish, isw],
+            [step_height, step_width],
+            [ph_start, pw_start],
+            [dh, dw],
+            [img_height, img_width],
+            oc_block_size,
+            batch,
+            out,
+            kernel,
+            &inp,
+            &bias,
+            activation,
+            *full_oc_kernel_ow_remain
         );
     }
 

@@ -47,8 +47,8 @@ where
         if shape.len() == 4 {
             if self.ndim() != 3
                 || theta_shape[0] != shape[0]
-                || theta_shape[1] != 2
-                || theta_shape[2] != 3
+                || theta_shape[1] != 2i64
+                || theta_shape[2] != 3i64
             {
                 anyhow::bail!("Theta shape must be [n, 2, 3]");
             }
