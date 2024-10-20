@@ -120,7 +120,7 @@ fn assert_eq_bias(
     b: &tch::Tensor,
     b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
-    let bias = _Tensor::<i64>::arange(0i64, a_kernel.shape()[-1])?;
+    let bias = _Tensor::<i64>::arange(0i64, *a_kernel.shape().last().unwrap())?;
     let res = a
         .conv2d(
             &a_kernel,
@@ -157,7 +157,7 @@ fn assert_eq_bias_pad(
     b: &tch::Tensor,
     b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
-    let bias = _Tensor::<i64>::arange(0i64, a_kernel.shape()[-1])?;
+    let bias = _Tensor::<i64>::arange(0i64, *a_kernel.shape().last().unwrap())?;
     let res = a
         .conv2d(
             &a_kernel,

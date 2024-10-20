@@ -1,4 +1,4 @@
-use std::{ fmt::Display, ops::{ Deref, DerefMut, Index, RangeInclusive, RangeTo }, sync::Arc };
+use std::{ fmt::Display, ops::{ Deref, DerefMut }, sync::Arc };
 
 use crate::{ strides::Strides, strides_utils::shape_to_strides };
 
@@ -175,66 +175,6 @@ impl From<&[i64]> for Shape {
     fn from(v: &[i64]) -> Self {
         Shape {
             inner: Arc::new(v.to_vec()),
-        }
-    }
-}
-
-impl Index<usize> for Shape {
-    type Output = i64;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.inner[index]
-    }
-}
-
-impl Index<RangeTo<usize>> for Shape {
-    type Output = [i64];
-
-    fn index(&self, index: RangeTo<usize>) -> &Self::Output {
-        &self.inner[index]
-    }
-}
-
-impl Index<RangeInclusive<usize>> for Shape {
-    type Output = [i64];
-
-    fn index(&self, index: RangeInclusive<usize>) -> &Self::Output {
-        &self.inner[index]
-    }
-}
-
-impl Index<isize> for Shape {
-    type Output = i64;
-
-    fn index(&self, index: isize) -> &Self::Output {
-        if index < 0 {
-            &self.inner[((self.inner.len() as isize) + index) as usize]
-        } else {
-            &self.inner[index as usize]
-        }
-    }
-}
-
-impl Index<i64> for Shape {
-    type Output = i64;
-
-    fn index(&self, index: i64) -> &Self::Output {
-        if index < 0 {
-            &self.inner[((self.inner.len() as i64) + index) as usize]
-        } else {
-            &self.inner[index as usize]
-        }
-    }
-}
-
-impl Index<i32> for Shape {
-    type Output = i64;
-
-    fn index(&self, index: i32) -> &Self::Output {
-        if index < 0 {
-            &self.inner[((self.inner.len() as i32) + index) as usize]
-        } else {
-            &self.inner[index as usize]
         }
     }
 }
