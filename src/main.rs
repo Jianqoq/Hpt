@@ -9,14 +9,14 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn conv2d() -> Result<(), anyhow::Error> {
-    let oc_sets = [2048];
+    let oc_sets = [128, 256, 512, 1024, 2048];
     let ic_sets = [2048];
     let kh_sets = [3];
     let kw_sets = [3];
     let h_sets = [256];
     let w_sets = [256];
 
-    set_num_threads(1);
+    set_num_threads(16);
     let mut workbook = Workbook::new();
     let decimal_format = Format::new().set_num_format("0.0000000000");
     let format = Format::new();
@@ -43,7 +43,7 @@ fn conv2d() -> Result<(), anyhow::Error> {
                             // let a = Tensor::randn(1.0, 1.0, &[1, ic, h, w], &device)?;
                             // let kernel = Tensor::randn(1.0, 1.0, &[oc, ic, kh, kw], &device)?;
                             let now = std::time::Instant::now();
-                            let res = a.conv2d_group(
+                            let _ = a.dwconv2d(
                                 &kernel,
                                 None,
                                 [1, 1],
@@ -52,7 +52,6 @@ fn conv2d() -> Result<(), anyhow::Error> {
                                     (0, 0),
                                 ],
                                 [1, 1],
-                                ic,
                                 None
                             )?;
                             // println!("{:?}", res.shape());
