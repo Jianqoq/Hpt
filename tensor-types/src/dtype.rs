@@ -231,12 +231,13 @@ mod type_impl {
         true,
         false,
         false,
+        true,
         "bool",
         boolx32::boolx32,
         u8
     );
-    impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, "i8", i8x32::i8x32, u8);
-    impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, "u8", u8x32::u8x32, u8);
+    impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, 6, "i8", i8x32::i8x32, u8);
+    impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, 6, "u8", u8x32::u8x32, u8);
     impl_type_common!(
         i16,
         I16,
@@ -247,6 +248,7 @@ mod type_impl {
         i16::MAX,
         i16::MIN,
         2,
+        6,
         "i16",
         i16x16::i16x16,
         u16
@@ -261,6 +263,7 @@ mod type_impl {
         u16::MAX,
         u16::MIN,
         2,
+        6,
         "u16",
         u16x16::u16x16,
         u16
@@ -275,6 +278,7 @@ mod type_impl {
         i32::MAX,
         i32::MIN,
         2,
+        6,
         "i32",
         i32x8::i32x8,
         u32
@@ -289,6 +293,7 @@ mod type_impl {
         u32::MAX,
         u32::MIN,
         2,
+        6,
         "u32",
         u32x8::u32x8,
         u32
@@ -303,6 +308,7 @@ mod type_impl {
         i64::MAX,
         i64::MIN,
         2,
+        6,
         "i64",
         i64x4::i64x4,
         u64
@@ -317,6 +323,7 @@ mod type_impl {
         u64::MAX,
         u64::MIN,
         2,
+        6,
         "u64",
         u64x4::u64x4,
         u64
@@ -331,6 +338,7 @@ mod type_impl {
         f32::INFINITY,
         f32::NEG_INFINITY,
         2.0,
+        6.0,
         "f32",
         f32x8::f32x8,
         u32
@@ -345,6 +353,7 @@ mod type_impl {
         f64::INFINITY,
         f64::NEG_INFINITY,
         2.0,
+        6.0,
         "f64",
         f64x4::f64x4,
         u64
@@ -360,6 +369,7 @@ mod type_impl {
         isize::MAX,
         isize::MIN,
         2,
+        6,
         "isize",
         isizex4::isizex4,
         usize
@@ -375,6 +385,7 @@ mod type_impl {
         isize::MAX,
         isize::MIN,
         2,
+        6,
         "isize",
         isizex8::isizex8,
         usize
@@ -390,6 +401,7 @@ mod type_impl {
         usize::MAX,
         usize::MIN,
         2,
+        6,
         "usize",
         usizex4::usizex4,
         usize
@@ -405,6 +417,7 @@ mod type_impl {
         usize::MAX,
         usize::MIN,
         2,
+        6,
         "usize",
         usizex8::usizex8,
         usize
@@ -419,6 +432,7 @@ mod type_impl {
         f16::INFINITY,
         f16::NEG_INFINITY,
         f16::from_f32_const(2.0),
+        f16::from_f32_const(6.0),
         "f16",
         f16x16::f16x16,
         u16
@@ -433,6 +447,7 @@ mod type_impl {
         bf16::INFINITY,
         bf16::NEG_INFINITY,
         bf16::from_f32_const(2.0),
+        bf16::from_f32_const(6.0),
         "bf16",
         bf16x16::bf16x16,
         u16
@@ -447,6 +462,7 @@ mod type_impl {
         Complex32::new(f32::INFINITY, f32::INFINITY),
         Complex32::new(f32::NEG_INFINITY, f32::NEG_INFINITY),
         Complex32::new(2.0, 0.0),
+        Complex32::new(6.0, 0.0),
         "c32",
         cplx32x4::cplx32x4,
         (u32, u32)
@@ -461,6 +477,7 @@ mod type_impl {
         Complex64::new(f64::INFINITY, f64::INFINITY),
         Complex64::new(f64::NEG_INFINITY, f64::NEG_INFINITY),
         Complex64::new(2.0, 0.0),
+        Complex64::new(6.0, 0.0),
         "c64",
         cplx64x2::cplx64x2,
         (u64, u64)
