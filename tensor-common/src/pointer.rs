@@ -223,6 +223,10 @@ impl<T: Display> IndexMut<usize> for Pointer<T> {
 
 impl<T> AddAssign<usize> for Pointer<T> {
     fn add_assign(&mut self, rhs: usize) {
+        #[cfg(feature = "bound_check")]
+        {
+            self.len -= rhs as i64;
+        }
         unsafe {
             self.ptr = self.ptr.add(rhs);
         }
@@ -233,9 +237,13 @@ impl<T> Add<usize> for Pointer<T> {
     type Output = Self;
     fn add(self, rhs: usize) -> Self::Output {
         #[cfg(feature = "bound_check")]
-        unsafe { Self { ptr: self.ptr.add(rhs), len: self.len } }
+        unsafe {
+            Self { ptr: self.ptr.add(rhs), len: self.len }
+        }
         #[cfg(not(feature = "bound_check"))]
-        unsafe { Self { ptr: self.ptr.add(rhs) } }
+        unsafe {
+            Self { ptr: self.ptr.add(rhs) }
+        }
     }
 }
 
@@ -267,6 +275,10 @@ impl<T> Add<usize> for &mut Pointer<T> {
 
 impl<T> AddAssign<isize> for Pointer<T> {
     fn add_assign(&mut self, rhs: isize) {
+        #[cfg(feature = "bound_check")]
+        {
+            self.len -= rhs as i64;
+        }
         unsafe {
             self.ptr = self.ptr.offset(rhs);
         }
@@ -277,14 +289,22 @@ impl<T> Add<isize> for Pointer<T> {
     type Output = Self;
     fn add(self, rhs: isize) -> Self::Output {
         #[cfg(feature = "bound_check")]
-        unsafe { Self { ptr: self.ptr.offset(rhs), len: self.len } }
+        unsafe {
+            Self { ptr: self.ptr.offset(rhs), len: self.len }
+        }
         #[cfg(not(feature = "bound_check"))]
-        unsafe { Self { ptr: self.ptr.offset(rhs) } }
+        unsafe {
+            Self { ptr: self.ptr.offset(rhs) }
+        }
     }
 }
 
 impl<T> AddAssign<i64> for Pointer<T> {
     fn add_assign(&mut self, rhs: i64) {
+        #[cfg(feature = "bound_check")]
+        {
+            self.len -= rhs as i64;
+        }
         unsafe {
             self.ptr = self.ptr.offset(rhs as isize);
         }
@@ -295,20 +315,34 @@ impl<T> Add<i64> for Pointer<T> {
     type Output = Self;
     fn add(self, rhs: i64) -> Self::Output {
         #[cfg(feature = "bound_check")]
-        unsafe { Self { ptr: self.ptr.offset(rhs as isize), len: self.len } }
+        unsafe {
+            Self { ptr: self.ptr.offset(rhs as isize), len: self.len }
+        }
         #[cfg(not(feature = "bound_check"))]
-        unsafe { Self { ptr: self.ptr.offset(rhs as isize) } }
+        unsafe {
+            Self { ptr: self.ptr.offset(rhs as isize) }
+        }
     }
 }
 
 impl<T> SubAssign<usize> for Pointer<T> {
     fn sub_assign(&mut self, rhs: usize) {
-        self.offset(-(rhs as i64));
+        #[cfg(feature = "bound_check")]
+        {
+            self.len += rhs as i64;
+        }
+        unsafe {
+            self.ptr = self.ptr.offset(-(rhs as isize));
+        }
     }
 }
 
 impl<T> SubAssign<isize> for Pointer<T> {
     fn sub_assign(&mut self, rhs: isize) {
+        #[cfg(feature = "bound_check")]
+        {
+            self.len += rhs as i64;
+        }
         unsafe {
             self.ptr = self.ptr.offset(-rhs);
         }
@@ -317,6 +351,10 @@ impl<T> SubAssign<isize> for Pointer<T> {
 
 impl<T> SubAssign<i64> for Pointer<T> {
     fn sub_assign(&mut self, rhs: i64) {
+        #[cfg(feature = "bound_check")]
+        {
+            self.len += rhs as i64;
+        }
         unsafe {
             self.ptr = self.ptr.offset(-rhs as isize);
         }

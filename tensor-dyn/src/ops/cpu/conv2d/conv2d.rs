@@ -28,8 +28,7 @@ impl<T> _Tensor<T>
     /// Performs a 2D convolution operation on the input tensor.
     ///
     /// This method applies a 2D convolution operation on the tensor using the specified kernel,
-    /// strides (steps), padding, and dilation factors. It optionally accepts a configuration (`Conv2dConfig`)
-    /// to fine-tune the performance, such as optimizing for cache usage and block sizes.
+    /// strides (steps), padding, and dilation factors.
     ///
     /// # Arguments
     ///

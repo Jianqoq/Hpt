@@ -272,12 +272,35 @@ pub(crate) fn impl_simd_normal_out_unary() -> TokenStream {
             }
         };
 
+        let relu = quote! {
+            fn _relu(self) -> Self {
+                self._max(Self::splat(Self::Base::ZERO))
+            }
+        };
+
+        let relu6 = quote! {
+            fn _relu6(self) -> Self {
+                self._max(Self::splat(Self::Base::ZERO))._min(Self::splat(Self::Base::SIX))
+            }
+        };
+
+        let leaky_relu = quote! {
+            fn _leaky_relu(self, alpha: Self::Base) -> Self {
+                let zero = Self::splat(Self::Base::ZERO);
+                self._max(zero)._add(Self::splat(alpha)._mul(self._min(zero)))
+            }
+        };
+
         let res = quote! {
             impl NormalOutUnary for #lhs_simd {
+                type Base = #lhs_dtype;
                 #neg_method
                 #abs_method
                 #unary_no_change_ty_method
                 #sign_method
+                #relu
+                #relu6
+                #leaky_relu
             }
         };
         ret.extend(res);

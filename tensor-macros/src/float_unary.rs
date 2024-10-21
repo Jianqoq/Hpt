@@ -186,25 +186,6 @@ pub fn impl_float_out_unary() -> TokenStream {
                 }
             }
         };
-        let leaky_relu = if res_type.is_cplx() {
-            quote! {
-                fn _leaky_relu(self, alpha: Self::Base) -> Self::Output {
-                    panic!("leaky_relu is not supported for complex numbers")
-                }
-            }
-        } else {
-            quote! {
-                fn _leaky_relu(self, alpha: Self::Base) -> Self::Output {
-                    let x = self.#to_res_type();
-                    let alpha = alpha.#to_res_type();
-                    if x >= #res_type::ZERO {
-                        x
-                    } else {
-                        alpha * x
-                    }
-                }
-            }
-        };
         let _fast_hard_sigmoid = if res_type.is_cplx() {
             quote! {
                 fn _fast_hard_sigmoid(self) -> Self::Output {
@@ -236,32 +217,6 @@ pub fn impl_float_out_unary() -> TokenStream {
                 fn _hard_sigmoid(self) -> Self::Output {
                     let x = self.#to_res_type();
                     #res_type::ZERO.max(#res_type::ONE.min(#res_type::POINT_TWO * x + #res_type::HALF))
-                }
-            }
-        };
-        let relu6 = if res_type.is_cplx() {
-            quote! {
-                fn _relu6(self) -> Self::Output {
-                    panic!("relu6 is not supported for complex numbers")
-                }
-            }
-        } else {
-            quote! {
-                fn _relu6(self) -> Self::Output {
-                    self.#to_res_type().max(#res_type::ZERO).min(#res_type::SIX)
-                }
-            }
-        };
-        let relu = if res_type.is_cplx() {
-            quote! {
-                fn _relu(self) -> Self::Output {
-                    panic!("relu is not supported for complex numbers")
-                }
-            }
-        } else {
-            quote! {
-                fn _relu(self) -> Self::Output {
-                    self.#to_res_type().max(#res_type::ZERO)
                 }
             }
         };
@@ -358,15 +313,12 @@ pub fn impl_float_out_unary() -> TokenStream {
                     #res_type::ONE / (#res_type::ONE + (-self.#to_res_type()).exp())
                 }
                 #elu
-                #leaky_relu
-                #relu
                 #gelu
                 fn _selu(self, alpha: Self::Base, scale: Self::Base) -> Self::Output {
                     #selu
                 }
                 #hard_sigmoid
                 #_fast_hard_sigmoid
-                #relu6
                 #hard_swish
                 fn _softplus(self) -> Self::Output {
                     let x = self.#to_res_type();

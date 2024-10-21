@@ -228,28 +228,12 @@ pub fn impl_float_out_unary() -> TokenStream {
                 Ident::new("_sqrt", proc_macro2::Span::call_site()),
                 to_res_type.clone(),
             );
-            let relu = gen_func_arr(
-                lhs_type,
-                lhs_lanes,
-                res_type,
-                res_simd_ty.clone(),
-                Ident::new("_relu", proc_macro2::Span::call_site()),
-                to_res_type.clone(),
-            );
             let gelu = gen_func_arr(
                 lhs_type,
                 lhs_lanes,
                 res_type,
                 res_simd_ty.clone(),
                 Ident::new("_gelu", proc_macro2::Span::call_site()),
-                to_res_type.clone(),
-            );
-            let relu6 = gen_func_arr(
-                lhs_type,
-                lhs_lanes,
-                res_type,
-                res_simd_ty.clone(),
-                Ident::new("_relu6", proc_macro2::Span::call_site()),
                 to_res_type.clone(),
             );
             let _hard_swish = gen_func_arr(
@@ -337,21 +321,6 @@ pub fn impl_float_out_unary() -> TokenStream {
                     }
                 }
             };
-            let leaky_relu = {
-                let unroll = (0..lhs_lanes as usize).map(|i| {
-                    quote! {
-                        arr[#i] = self_arr[#i]._leaky_relu(alpha);
-                    }
-                });
-                quote! {
-                    fn _leaky_relu(self, alpha: Self::Base) -> Self::Output {
-                        let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                        let self_arr = self.0;
-                        #(#unroll)*
-                        #res_simd_ty::#res_simd_ty(arr.into())
-                    }
-                }
-            };
             let hard_sigmoid = {
                 let unroll = (0..lhs_lanes as usize).map(|i| {
                     quote! {
@@ -387,8 +356,8 @@ pub fn impl_float_out_unary() -> TokenStream {
                     type Output = #res_simd_ty::#res_simd_ty;
                     type Base = #res_type;
                     #exp #exp2 #ln #log2 #log10 #sqrt #sin #cos #tan #asin #acos #atan #sinh #cosh #tanh #asinh #acosh
-                    #atanh #recip #erf #sigmoid #relu #gelu #relu6 #_hard_swish #soft_plus #softsign #mish #cbrt
-                    #celu #selu #elu #leaky_relu #hard_sigmoid #fast_hard_sigmoid
+                    #atanh #recip #erf #sigmoid #gelu #_hard_swish #soft_plus #softsign #mish #cbrt
+                    #celu #selu #elu #hard_sigmoid #fast_hard_sigmoid
                 }
             };
             ret.extend(res);
@@ -452,31 +421,12 @@ pub fn impl_float_out_unary() -> TokenStream {
                         )
                     }
                     #[inline(always)]
-                    fn _relu(self) -> Self::Output {
-                        let x = self.#to_res_type().0;
-                        let mask = x.simd_gt(#res_simd_ty::#res_simd_ty::splat(#res_type::ZERO).0);
-                        #res_simd_ty::#res_simd_ty(
-                            mask.select(
-                                x,
-                                #res_simd_ty::#res_simd_ty::splat(#res_type::ZERO).0
-                        ))
-                    }
-                    #[inline(always)]
                     fn _gelu(self) -> Self::Output {
                         let x = self.#to_res_type();
                         let erf = (x * #res_simd_ty::#res_simd_ty::splat(#res_type::FRAC_1_SQRT_2))._erf() + #res_simd_ty::#res_simd_ty::splat(#res_type::ONE);
                         let half = #res_simd_ty::#res_simd_ty::splat(#res_type::HALF);
                         #res_simd_ty::#res_simd_ty(
                             half.0 * x.0 * erf.0
-                        )
-                    }
-                    #[inline(always)]
-                    fn _relu6(self) -> Self::Output {
-                        let relu = self._relu();
-                        let six = #res_simd_ty::#res_simd_ty::splat(#res_type::SIX);
-                        let min_mask = relu.simd_gt(six.0);
-                        #res_simd_ty::#res_simd_ty(
-                            min_mask.select(six.0, relu.0)
                         )
                     }
                     #[inline(always)]
@@ -518,15 +468,6 @@ pub fn impl_float_out_unary() -> TokenStream {
                         let mask = x.simd_gt(#res_simd_ty::#res_simd_ty::splat(#res_type::ZERO).0);
                         #res_simd_ty::#res_simd_ty(
                             mask.select(x.0, alpha.0 * (x.exp_m1()))
-                        )
-                    }
-                    #[inline(always)]
-                    fn _leaky_relu(self, alpha: Self::Base) -> Self::Output {
-                        let x = self.#to_res_type();
-                        let alpha = #res_simd_ty::#res_simd_ty::splat(alpha);
-                        let mask = x.simd_gt(#res_simd_ty::#res_simd_ty::splat(#res_type::ZERO).0);
-                        #res_simd_ty::#res_simd_ty(
-                            mask.select(x.0, (alpha.0 * x.0))
                         )
                     }
                     #[inline(always)]
@@ -668,13 +609,10 @@ fn unreachable_impl(
             fn _erf(self) -> Self::Output {unreachable!()}
             fn _sigmoid(self) -> Self::Output {unreachable!()}
             fn _elu(self, alpha: Self::Base) -> Self::Output {unreachable!()}
-            fn _leaky_relu(self, alpha: Self::Base) -> Self::Output {unreachable!()}
-            fn _relu(self) -> Self::Output {unreachable!()}
             fn _gelu(self) -> Self::Output {unreachable!()}
             fn _selu(self, alpha: Self::Base, scale: Self::Base) -> Self::Output {unreachable!()}
             fn _hard_sigmoid(self) -> Self::Output {unreachable!()}
             fn _fast_hard_sigmoid(self) -> Self::Output {unreachable!()}
-            fn _relu6(self) -> Self::Output {unreachable!()}
             fn _hard_swish(self) -> Self::Output {unreachable!()}
             fn _softplus(self) -> Self::Output {unreachable!()}
             fn _softsign(self) -> Self::Output {unreachable!()}

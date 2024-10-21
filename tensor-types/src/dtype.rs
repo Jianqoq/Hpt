@@ -141,6 +141,8 @@ pub trait TypeCommon where Self: Sized {
     const NEG_INF: Self;
     /// the two value of the data type
     const TWO: Self;
+    /// the six value of the data type
+    const SIX: Self;
     /// the string representation of the data type
     const STR: &'static str;
     /// the bit size of the data type, alias of `std::mem::size_of()`
@@ -184,6 +186,7 @@ macro_rules! impl_type_common {
         $inf:expr,
         $neg_inf:expr,
         $two:expr,
+        $six:expr,
         $str:expr,
         $vec:ty,
         $mask:ty
@@ -197,6 +200,7 @@ macro_rules! impl_type_common {
             const INF: Self = $inf;
             const NEG_INF: Self = $neg_inf;
             const TWO: Self = $two;
+            const SIX: Self = $six;
             const STR: &'static str = $str;
             const BIT_SIZE: usize = size_of::<$type>();
             type Vec = $vec;
@@ -227,12 +231,13 @@ mod type_impl {
         true,
         false,
         false,
+        true,
         "bool",
         boolx32::boolx32,
         u8
     );
-    impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, "i8", i8x32::i8x32, u8);
-    impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, "u8", u8x32::u8x32, u8);
+    impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, 6, "i8", i8x32::i8x32, u8);
+    impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, 6, "u8", u8x32::u8x32, u8);
     impl_type_common!(
         i16,
         I16,
@@ -243,6 +248,7 @@ mod type_impl {
         i16::MAX,
         i16::MIN,
         2,
+        6,
         "i16",
         i16x16::i16x16,
         u16
@@ -257,6 +263,7 @@ mod type_impl {
         u16::MAX,
         u16::MIN,
         2,
+        6,
         "u16",
         u16x16::u16x16,
         u16
@@ -271,6 +278,7 @@ mod type_impl {
         i32::MAX,
         i32::MIN,
         2,
+        6,
         "i32",
         i32x8::i32x8,
         u32
@@ -285,6 +293,7 @@ mod type_impl {
         u32::MAX,
         u32::MIN,
         2,
+        6,
         "u32",
         u32x8::u32x8,
         u32
@@ -299,6 +308,7 @@ mod type_impl {
         i64::MAX,
         i64::MIN,
         2,
+        6,
         "i64",
         i64x4::i64x4,
         u64
@@ -313,6 +323,7 @@ mod type_impl {
         u64::MAX,
         u64::MIN,
         2,
+        6,
         "u64",
         u64x4::u64x4,
         u64
@@ -327,6 +338,7 @@ mod type_impl {
         f32::INFINITY,
         f32::NEG_INFINITY,
         2.0,
+        6.0,
         "f32",
         f32x8::f32x8,
         u32
@@ -341,6 +353,7 @@ mod type_impl {
         f64::INFINITY,
         f64::NEG_INFINITY,
         2.0,
+        6.0,
         "f64",
         f64x4::f64x4,
         u64
@@ -356,6 +369,7 @@ mod type_impl {
         isize::MAX,
         isize::MIN,
         2,
+        6,
         "isize",
         isizex4::isizex4,
         usize
@@ -371,6 +385,7 @@ mod type_impl {
         isize::MAX,
         isize::MIN,
         2,
+        6,
         "isize",
         isizex8::isizex8,
         usize
@@ -386,6 +401,7 @@ mod type_impl {
         usize::MAX,
         usize::MIN,
         2,
+        6,
         "usize",
         usizex4::usizex4,
         usize
@@ -401,6 +417,7 @@ mod type_impl {
         usize::MAX,
         usize::MIN,
         2,
+        6,
         "usize",
         usizex8::usizex8,
         usize
@@ -415,6 +432,7 @@ mod type_impl {
         f16::INFINITY,
         f16::NEG_INFINITY,
         f16::from_f32_const(2.0),
+        f16::from_f32_const(6.0),
         "f16",
         f16x16::f16x16,
         u16
@@ -429,6 +447,7 @@ mod type_impl {
         bf16::INFINITY,
         bf16::NEG_INFINITY,
         bf16::from_f32_const(2.0),
+        bf16::from_f32_const(6.0),
         "bf16",
         bf16x16::bf16x16,
         u16
@@ -443,6 +462,7 @@ mod type_impl {
         Complex32::new(f32::INFINITY, f32::INFINITY),
         Complex32::new(f32::NEG_INFINITY, f32::NEG_INFINITY),
         Complex32::new(2.0, 0.0),
+        Complex32::new(6.0, 0.0),
         "c32",
         cplx32x4::cplx32x4,
         (u32, u32)
@@ -457,6 +477,7 @@ mod type_impl {
         Complex64::new(f64::INFINITY, f64::INFINITY),
         Complex64::new(f64::NEG_INFINITY, f64::NEG_INFINITY),
         Complex64::new(2.0, 0.0),
+        Complex64::new(6.0, 0.0),
         "c64",
         cplx64x2::cplx64x2,
         (u64, u64)
@@ -484,12 +505,13 @@ mod type_impl {
         true,
         false,
         false,
+        true,
         "bool",
         boolx16::boolx16,
         u8
     );
-    impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, "i8", i8x16::i8x16, u8);
-    impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, "u8", u8x16::u8x16, u8);
+    impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, 6, "i8", i8x16::i8x16, u8);
+    impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, 6, "u8", u8x16::u8x16, u8);
     impl_type_common!(
         i16,
         I16,
@@ -500,6 +522,7 @@ mod type_impl {
         i16::MAX,
         i16::MIN,
         2,
+        6,
         "i16",
         i16x8::i16x8,
         u16
@@ -514,6 +537,7 @@ mod type_impl {
         u16::MAX,
         u16::MIN,
         2,
+        6,
         "u16",
         u16x8::u16x8,
         u16
@@ -528,6 +552,7 @@ mod type_impl {
         i32::MAX,
         i32::MIN,
         2,
+        6,
         "i32",
         i32x4::i32x4,
         u32
@@ -542,6 +567,7 @@ mod type_impl {
         u32::MAX,
         u32::MIN,
         2,
+        6,
         "u32",
         u32x4::u32x4,
         u32
@@ -556,6 +582,7 @@ mod type_impl {
         i64::MAX,
         i64::MIN,
         2,
+        6,
         "i64",
         i64x2::i64x2,
         u64
@@ -570,6 +597,7 @@ mod type_impl {
         u64::MAX,
         u64::MIN,
         2,
+        6,
         "u64",
         u64x2::u64x2,
         u64
@@ -584,6 +612,7 @@ mod type_impl {
         f32::INFINITY,
         f32::NEG_INFINITY,
         2.0,
+        6.0,
         "f32",
         f32x4::f32x4,
         u32
@@ -598,6 +627,7 @@ mod type_impl {
         f64::INFINITY,
         f64::NEG_INFINITY,
         2.0,
+        6.0,
         "f64",
         f64x2::f64x2,
         u64
@@ -613,6 +643,7 @@ mod type_impl {
         isize::MAX,
         isize::MIN,
         2,
+        6,
         "isize",
         isizex2::isizex2,
         u64
@@ -628,6 +659,7 @@ mod type_impl {
         isize::MAX,
         isize::MIN,
         2,
+        6,
         "isize",
         isizex4::isizex4,
         u32
@@ -643,6 +675,7 @@ mod type_impl {
         usize::MAX,
         usize::MIN,
         2,
+        6,
         "usize",
         usizex2::usizex2,
         usize
@@ -658,6 +691,7 @@ mod type_impl {
         usize::MAX,
         usize::MIN,
         2,
+        6,
         "usize",
         usizex4::usizex4,
         usize
@@ -672,6 +706,7 @@ mod type_impl {
         f16::INFINITY,
         f16::NEG_INFINITY,
         f16::from_f32_const(2.0),
+        f16::from_f32_const(6.0),
         "f16",
         f16x8::f16x8,
         u16
@@ -686,6 +721,7 @@ mod type_impl {
         bf16::INFINITY,
         bf16::NEG_INFINITY,
         bf16::from_f32_const(2.0),
+        bf16::from_f32_const(6.0),
         "bf16",
         bf16x8::bf16x8,
         u16
@@ -700,6 +736,7 @@ mod type_impl {
         Complex32::new(f32::INFINITY, f32::INFINITY),
         Complex32::new(f32::NEG_INFINITY, f32::NEG_INFINITY),
         Complex32::new(2.0, 0.0),
+        Complex32::new(6.0, 0.0),
         "c32",
         cplx32x2::cplx32x2,
         (u32, u32)
@@ -714,6 +751,7 @@ mod type_impl {
         Complex64::new(f64::INFINITY, f64::INFINITY),
         Complex64::new(f64::NEG_INFINITY, f64::NEG_INFINITY),
         Complex64::new(2.0, 0.0),
+        Complex64::new(6.0, 0.0),
         "c64",
         cplx64x1::cplx64x1,
         (u64, u64)
@@ -730,8 +768,6 @@ pub trait FloatConst {
     const PI: Self;
     /// 3.0
     const THREE: Self;
-    /// 6.0
-    const SIX: Self;
     /// 2π
     const TWOPI: Self;
     /// 4π
@@ -747,7 +783,6 @@ impl FloatConst for f32 {
     const E: Self = f32::consts::E;
     const PI: Self = f32::consts::PI;
     const THREE: Self = 3.0;
-    const SIX: Self = 6.0;
     const TWOPI: Self = f32::consts::PI * 2.0;
     const FOURPI: Self = f32::consts::PI * 4.0;
     const POINT_TWO: Self = 0.2;
@@ -759,7 +794,6 @@ impl FloatConst for f64 {
     const E: Self = std::f64::consts::E;
     const PI: Self = std::f64::consts::PI;
     const THREE: Self = 3.0;
-    const SIX: Self = 6.0;
     const TWOPI: Self = std::f64::consts::PI * 2.0;
     const FOURPI: Self = std::f64::consts::PI * 4.0;
     const POINT_TWO: Self = 0.2;
@@ -771,7 +805,6 @@ impl FloatConst for f16 {
     const E: Self = f16::from_f32_const(f32::consts::E);
     const PI: Self = f16::from_f32_const(f32::consts::PI);
     const THREE: Self = f16::from_f32_const(3.0);
-    const SIX: Self = f16::from_f32_const(6.0);
     const TWOPI: Self = f16::from_f32_const(f32::consts::PI * 2.0);
     const FOURPI: Self = f16::from_f32_const(f32::consts::PI * 4.0);
     const POINT_TWO: Self = f16::from_f32_const(0.2);
@@ -783,7 +816,6 @@ impl FloatConst for bf16 {
     const E: Self = bf16::from_f32_const(f32::consts::E);
     const PI: Self = bf16::from_f32_const(f32::consts::PI);
     const THREE: Self = bf16::from_f32_const(3.0);
-    const SIX: Self = bf16::from_f32_const(6.0);
     const TWOPI: Self = bf16::from_f32_const(f32::consts::PI * 2.0);
     const FOURPI: Self = bf16::from_f32_const(f32::consts::PI * 4.0);
     const POINT_TWO: Self = bf16::from_f32_const(0.2);
@@ -930,12 +962,6 @@ impl FloatOutUnary for Dtype {
     fn _elu(self, _: Self::Output) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
-    fn _leaky_relu(self, _: Self::Output) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _relu(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
     fn _gelu(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
@@ -946,9 +972,6 @@ impl FloatOutUnary for Dtype {
         infer_enum_type!(self, null, uary_float)
     }
     fn _fast_hard_sigmoid(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _relu6(self) -> Self::Output {
         infer_enum_type!(self, null, uary_float)
     }
     fn _hard_swish(self) -> Self::Output {

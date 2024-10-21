@@ -15,6 +15,8 @@ impl<T> NormalUaryOps
     where
         T: CommonBounds + IntoScalar<T>,
         NormalType<T>: CommonBounds,
+        T::Vec: NormalOutUnary<Base = NormalType<T>>,
+        T: NormalOutUnary<Base = NormalType<T>>,
         _Tensor<NormalType<T>>: TensorLike<NormalType<T>>
 {
     type Output = _Tensor<NormalType<T>>;
@@ -182,6 +184,62 @@ impl<T> NormalUaryOps
             self,
             |x| x._neg(),
             |x| x._neg(),
+            Some(out)
+        )
+    }
+    
+    fn relu(&self) -> anyhow::Result<Self::Output> {
+        uary_fn_with_out_simd(
+            self,
+            |x| x._relu(),
+            |x| x._relu(),
+            None::<_Tensor<NormalType<T>>>
+        )
+    }
+    
+    fn relu_<U>(&self, out: U) -> anyhow::Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
+        uary_fn_with_out_simd(
+            self,
+            |x| x._relu(),
+            |x| x._relu(),
+            Some(out)
+        )
+    }
+    
+    fn leaky_relu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
+        uary_fn_with_out_simd(
+            self,
+            |x| x._leaky_relu(alpha),
+            |x| x._leaky_relu(alpha),
+            None::<_Tensor<NormalType<T>>>
+        )
+    }
+    
+    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
+        where U: Borrow<Self::InplaceOutput>
+    {
+        uary_fn_with_out_simd(
+            self,
+            |x| x._leaky_relu(alpha),
+            |x| x._leaky_relu(alpha),
+            Some(out)
+        )
+    }
+    
+    fn relu6(&self) -> anyhow::Result<Self::Output> {
+        uary_fn_with_out_simd(
+            self,
+            |x| x._relu6(),
+            |x| x._relu6(),
+            None::<_Tensor<NormalType<T>>>
+        )
+    }
+    
+    fn relu6_<U>(&self, out: U) -> anyhow::Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
+        uary_fn_with_out_simd(
+            self,
+            |x| x._relu6(),
+            |x| x._relu6(),
             Some(out)
         )
     }

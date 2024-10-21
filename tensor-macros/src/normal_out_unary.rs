@@ -35,9 +35,12 @@ pub(crate) fn __impl_normal_out_unary() -> TokenStream {
         let floor_method = ceil_floor_round(lhs_dtype, 2);
         let sign_method = sign(lhs_dtype);
         let round_method = ceil_floor_round(lhs_dtype, 0);
-
+        let relu_method = relu();
+        let relu6_method = relu6();
+        let leaky_relu_method = leaky_relu();
         let res = quote! {
             impl NormalOutUnary for #lhs_dtype {
+                type Base = Self;
                 #[inline(always)]
                 fn _square(self) -> Self {
                     self._mul(self)
@@ -48,6 +51,9 @@ pub(crate) fn __impl_normal_out_unary() -> TokenStream {
                 #floor_method
                 #sign_method
                 #round_method
+                #relu_method
+                #relu6_method
+                #leaky_relu_method
             }
         };
         ret.extend(res);
@@ -160,6 +166,33 @@ fn sign(res_type: Type) -> proc_macro2::TokenStream {
         #[inline(always)]
         fn _sign(self) -> Self {
             #sign_body
+        }
+    }
+}
+
+fn relu() -> proc_macro2::TokenStream {
+    quote! {
+        #[inline(always)]
+        fn _relu(self) -> Self {
+            self._max(Self::ZERO)
+        }
+    }
+}
+
+fn relu6() -> proc_macro2::TokenStream {
+    quote! {
+        #[inline(always)]
+        fn _relu6(self) -> Self {
+            self._max(Self::ZERO)._min(Self::SIX)
+        }
+    }
+}
+
+fn leaky_relu() -> proc_macro2::TokenStream {
+    quote! {
+        #[inline(always)]
+        fn _leaky_relu(self, alpha: Self::Base) -> Self {
+            self._max(Self::ZERO)._add(alpha._mul(self._min(Self::ZERO)))
         }
     }
 }
