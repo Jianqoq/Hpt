@@ -296,30 +296,8 @@ fn test_case5() -> anyhow::Result<()> {
 
 #[test]
 fn test_case6() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 30, 3, 3, 3, 20, 20, 3])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 30, 3, 3, 3, 5, 5, 3])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    Ok(())
-}
-
-#[test]
-fn test_case7() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 30, 3, 3, 3, 20, 20, 3])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 30, 3, 3, 3, 5, 5, 3])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 3)?;
+    let (kernel, a, tch_kernel, tch_a) = common_input([1, 30, 30, 3, 3, 20, 20, 30])?;
+    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 30)?;
     // assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
     // assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
     // assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
