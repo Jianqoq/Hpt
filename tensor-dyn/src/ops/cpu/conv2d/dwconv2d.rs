@@ -25,11 +25,10 @@ impl<T> _Tensor<T>
         T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecCommon + NormalOut<Output = T::Vec>,
         bool: IntoScalar<T>
 {
-    /// Performs a 2D convolution operation on the input tensor.
+    /// Performs a Depth-wise 2D convolution operation on the input tensor.
     ///
-    /// This method applies a 2D convolution operation on the tensor using the specified kernel,
-    /// strides (steps), padding, and dilation factors. It optionally accepts a configuration (`Conv2dConfig`)
-    /// to fine-tune the performance, such as optimizing for cache usage and block sizes.
+    /// This method applies a Depth-wise 2D convolution operation on the tensor using the specified kernel,
+    /// strides (steps), padding, and dilation factors.
     ///
     /// # Arguments
     ///
