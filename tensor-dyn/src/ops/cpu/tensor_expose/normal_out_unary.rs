@@ -7,13 +7,15 @@ use crate::{
 };
 use anyhow::Result;
 use tensor_traits::{ CommonBounds, NormalUaryOps, TensorLike };
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::{ into_scalar::IntoScalar, type_promote::NormalOutUnary };
 
 impl<T> NormalUaryOps
     for Tensor<T>
     where
         T: CommonBounds + IntoScalar<T>,
         NormalType<T>: CommonBounds,
+        T::Vec: NormalOutUnary<Base = NormalType<T>>,
+        T: NormalOutUnary<Base = NormalType<T>>,
         _Tensor<NormalType<T>>: TensorLike<NormalType<T>>
 {
     type Output = Tensor<NormalType<T>>;
@@ -240,5 +242,31 @@ impl<T> NormalUaryOps
 
     fn neg_<U>(&self, out: U) -> Result<Self> where U: Borrow<Self::InplaceOutput> {
         Ok(_Tensor::neg_(self, out)?.into())
+    }
+
+    fn relu(&self) -> Result<Self::Output> {
+        Ok(_Tensor::relu(self)?.into())
+    }
+
+    fn relu_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
+        Ok(_Tensor::relu_(self, out)?.into())
+    }
+
+    fn leaky_relu(&self, alpha: Self::OutputMeta) -> Result<Self::Output> {
+        Ok(_Tensor::leaky_relu(self, alpha)?.into())
+    }
+
+    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
+        where U: Borrow<Self::InplaceOutput>
+    {
+        Ok(_Tensor::leaky_relu_(self, alpha, out)?.into())
+    }
+
+    fn relu6(&self) -> Result<Self::Output> {
+        Ok(_Tensor::relu6(self)?.into())
+    }
+
+    fn relu6_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
+        Ok(_Tensor::relu6_(self, out)?.into())
     }
 }

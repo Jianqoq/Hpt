@@ -87,6 +87,8 @@ impl_normal_out_simd!();
 
 /// this trait is used to perform normal unary operations that don't require type promotion
 pub trait NormalOutUnary {
+    /// the base type,
+    type Base;
     /// perform x<sup>2</sup>
     fn _square(self) -> Self;
     /// perform |x|
@@ -101,6 +103,21 @@ pub trait NormalOutUnary {
     fn _round(self) -> Self;
     /// get the sign of x
     fn _sign(self) -> Self;
+
+        /// Perform the leaky ReLU (Rectified Linear Unit) activation function.
+    ///
+    /// Formula: f(x) = x if x > 0 else alpha * x
+    fn _leaky_relu(self, alpha: Self::Base) -> Self;
+
+    /// Perform the ReLU (Rectified Linear Unit) activation function.
+    ///
+    /// Formula: f(x) = max(0, x)
+    fn _relu(self) -> Self;
+
+    /// Perform the ReLU6 activation function.
+    ///
+    /// Formula: f(x) = min(6, max(0, x))
+    fn _relu6(self) -> Self;
 }
 
 impl_normal_out_unary!();
@@ -285,16 +302,6 @@ pub trait FloatOutUnary {
     /// Formula: f(x) = x if x > 0 else alpha * (e<sup>x</sup> - 1)
     fn _elu(self, alpha: Self::Base) -> Self::Output;
 
-    /// Perform the leaky ReLU (Rectified Linear Unit) activation function.
-    ///
-    /// Formula: f(x) = x if x > 0 else alpha * x
-    fn _leaky_relu(self, alpha: Self::Base) -> Self::Output;
-
-    /// Perform the ReLU (Rectified Linear Unit) activation function.
-    ///
-    /// Formula: f(x) = max(0, x)
-    fn _relu(self) -> Self::Output;
-
     /// Perform the GELU (Gaussian Error Linear Unit) activation function.
     fn _gelu(self) -> Self::Output;
 
@@ -310,11 +317,6 @@ pub trait FloatOutUnary {
 
     /// Perform the fast approximation of the hard sigmoid activation function.
     fn _fast_hard_sigmoid(self) -> Self::Output;
-
-    /// Perform the ReLU6 activation function.
-    ///
-    /// Formula: f(x) = min(6, max(0, x))
-    fn _relu6(self) -> Self::Output;
 
     /// Perform the hard swish activation function.
     ///

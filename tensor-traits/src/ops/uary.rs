@@ -554,30 +554,6 @@ pub trait FloatUaryOps {
     fn elu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
         where U: Borrow<Self::InplaceOutput>;
 
-    /// Computes the element-wise Rectified Linear Unit (ReLU) activation function.
-    ///
-    /// The ReLU function is defined as:
-    ///
-    /// `relu(x) = max(0, x)`
-    ///
-    /// # Arguments
-    ///
-    /// This function takes no arguments.
-    ///
-    /// # Returns
-    ///
-    /// * A new tensor where the ReLU activation function has been applied to each element.
-    ///
-    /// # Panics
-    ///
-    /// * This function should not panic under normal conditions.
-    fn relu(&self) -> Result<Self::Output>;
-
-    /// relu method with output tensor, this method will write the result to the output tensor
-    /// # See Also
-    /// - [`relu`]: Computes the element-wise Rectified Linear Unit (ReLU).
-    fn relu_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput>;
-
     /// Computes the element-wise error function (erf) of the tensor.
     ///
     /// The error function is used in probability, statistics, and partial differential equations.
@@ -616,33 +592,6 @@ pub trait FloatUaryOps {
     ///
     /// * This function should not panic under normal conditions.
     fn fast_hard_sigmoid(&self) -> Result<Self::Output>;
-
-    /// Computes the element-wise Leaky Rectified Linear Unit (Leaky ReLU) activation function.
-    ///
-    /// This function applies the Leaky ReLU activation function with the given `alpha` parameter:
-    ///
-    /// `leaky_relu(x) = x if x > 0 else alpha * x`
-    ///
-    /// # Arguments
-    ///
-    /// * `alpha` - A parameter controlling the slope for negative input values. This value is applied element-wise.
-    ///
-    /// # Returns
-    ///
-    /// * A new tensor where the Leaky ReLU activation function has been applied to each element.
-    ///
-    /// # Panics
-    ///
-    /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn leaky_relu(&self, alpha: Self::OutputMeta) -> Result<Self::Output>;
-
-    /// leaky_relu method with output tensor, this method will write the result to the output tensor
-    /// # See Also
-    /// - [`leaky_relu`]: Computes the element-wise Leaky Rectified Linear Unit (Leaky ReLU).
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
-        where U: Borrow<Self::InplaceOutput>;
 
     /// Computes the element-wise Gaussian Error Linear Unit (GELU) activation function.
     ///
@@ -759,32 +708,6 @@ pub trait FloatUaryOps {
     /// - [`hard_swish`]: Computes the element-wise Hard Swish.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn hard_swish_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput>;
-
-    /// Computes the element-wise Rectified Linear Unit 6 (ReLU6) activation function.
-    ///
-    /// The ReLU6 function is a variant of the ReLU function, defined as:
-    ///
-    /// `relu6(x) = min(max(0, x), 6)`
-    ///
-    /// # Arguments
-    ///
-    /// This function takes no arguments.
-    ///
-    /// # Returns
-    ///
-    /// * A new tensor where the ReLU6 activation function has been applied to each element.
-    ///
-    /// # Panics
-    ///
-    /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn relu6(&self) -> Result<Self::Output>;
-
-    /// relu6 method with output tensor, this method will write the result to the output tensor
-    /// # See Also
-    /// - [`relu6`]: Computes the element-wise Rectified Linear Unit 6 (ReLU6).
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn relu6_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput>;
 
     /// Computes the element-wise Softplus activation function.
     ///
@@ -1081,6 +1004,83 @@ pub trait NormalUaryOps where Self: Sized {
     /// - [`neg`]: Computes the element-wise negation of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn neg_<U>(&self, out: U) -> Result<Self> where U: Borrow<Self::InplaceOutput>;
+
+    /// Computes the element-wise Rectified Linear Unit (ReLU) activation function.
+    ///
+    /// The ReLU function is defined as:
+    ///
+    /// `relu(x) = max(0, x)`
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
+    ///
+    /// # Returns
+    ///
+    /// * A new tensor where the ReLU activation function has been applied to each element.
+    ///
+    /// # Panics
+    ///
+    /// * This function should not panic under normal conditions.
+    fn relu(&self) -> Result<Self::Output>;
+
+    /// relu method with output tensor, this method will write the result to the output tensor
+    /// # See Also
+    /// - [`relu`]: Computes the element-wise Rectified Linear Unit (ReLU).
+    fn relu_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput>;
+
+    /// Computes the element-wise Leaky Rectified Linear Unit (Leaky ReLU) activation function.
+    ///
+    /// This function applies the Leaky ReLU activation function with the given `alpha` parameter:
+    ///
+    /// `leaky_relu(x) = x if x > 0 else alpha * x`
+    ///
+    /// # Arguments
+    ///
+    /// * `alpha` - A parameter controlling the slope for negative input values. This value is applied element-wise.
+    ///
+    /// # Returns
+    ///
+    /// * A new tensor where the Leaky ReLU activation function has been applied to each element.
+    ///
+    /// # Panics
+    ///
+    /// * This function should not panic under normal conditions.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn leaky_relu(&self, alpha: Self::OutputMeta) -> Result<Self::Output>;
+
+    /// leaky_relu method with output tensor, this method will write the result to the output tensor
+    /// # See Also
+    /// - [`leaky_relu`]: Computes the element-wise Leaky Rectified Linear Unit (Leaky ReLU).
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
+        where U: Borrow<Self::InplaceOutput>;
+
+    /// Computes the element-wise Rectified Linear Unit 6 (ReLU6) activation function.
+    ///
+    /// The ReLU6 function is a variant of the ReLU function, defined as:
+    ///
+    /// `relu6(x) = min(max(0, x), 6)`
+    ///
+    /// # Arguments
+    ///
+    /// This function takes no arguments.
+    ///
+    /// # Returns
+    ///
+    /// * A new tensor where the ReLU6 activation function has been applied to each element.
+    ///
+    /// # Panics
+    ///
+    /// * This function should not panic under normal conditions.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn relu6(&self) -> Result<Self::Output>;
+
+    /// relu6 method with output tensor, this method will write the result to the output tensor
+    /// # See Also
+    /// - [`relu6`]: Computes the element-wise Rectified Linear Unit 6 (ReLU6).
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn relu6_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput>;
 }
 
 /// A trait for accumulative operations.

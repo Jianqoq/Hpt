@@ -701,41 +701,6 @@ impl<T> FloatUaryOps
     {
         Ok(_Tensor::<T, Cpu>::elu_(self, alpha, out)?.into())
     }
-
-    /// Computes the element-wise Rectified Linear Unit (ReLU) activation function.
-    ///
-    /// The ReLU function is defined as:
-    ///
-    /// `relu(x) = max(0, x)`
-    ///
-    /// # Arguments
-    ///
-    /// This function takes no arguments.
-    ///
-    /// # Returns
-    ///
-    /// * A new tensor where the ReLU activation function has been applied to each element.
-    ///
-    /// # Panics
-    ///
-    /// * This function should not panic under normal conditions.
-    /// # Example
-    /// ```
-    /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
-    /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
-    /// let b = a.relu().unwrap();
-    /// ```
-    fn relu(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::relu(self)?.into())
-    }
-
-    fn relu_<U>(&self, out: U) -> Result<Self::Output>
-        where U: std::borrow::Borrow<Self::InplaceOutput>
-    {
-        Ok(_Tensor::<T, Cpu>::relu_(self, out.borrow())?.into())
-    }
-
     /// Computes the element-wise error function (erf) of the tensor.
     ///
     /// The error function is used in probability, statistics, and partial differential equations.
@@ -791,40 +756,6 @@ impl<T> FloatUaryOps
     /// ```
     fn fast_hard_sigmoid(&self) -> Result<Self::Output> {
         Ok(_Tensor::<T, Cpu>::fast_hard_sigmoid(self)?.into())
-    }
-
-    /// Computes the element-wise Leaky Rectified Linear Unit (Leaky ReLU) activation function.
-    ///
-    /// This function applies the Leaky ReLU activation function with the given `alpha` parameter:
-    ///
-    /// `leaky_relu(x) = x if x > 0 else alpha * x`
-    ///
-    /// # Arguments
-    ///
-    /// * `alpha` - A parameter controlling the slope for negative input values. This value is applied element-wise.
-    ///
-    /// # Returns
-    ///
-    /// * A new tensor where the Leaky ReLU activation function has been applied to each element.
-    ///
-    /// # Panics
-    ///
-    /// * This function should not panic under normal conditions.
-    /// # Example
-    /// ```
-    /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
-    /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
-    /// let b = a.leaky_relu(0.1).unwrap();
-    /// ```
-    fn leaky_relu(&self, alpha: Self::OutputMeta) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::leaky_relu(self, alpha)?.into())
-    }
-
-    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
-        where U: Borrow<Self::InplaceOutput>
-    {
-        Ok(_Tensor::<T, Cpu>::leaky_relu_(self, alpha, out)?.into())
     }
 
     /// Computes the element-wise Gaussian Error Linear Unit (GELU) activation function.
@@ -966,38 +897,6 @@ impl<T> FloatUaryOps
 
     fn hard_swish_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
         Ok(_Tensor::<T, Cpu>::hard_swish_(self, out)?.into())
-    }
-
-    /// Computes the element-wise Rectified Linear Unit 6 (ReLU6) activation function.
-    ///
-    /// The ReLU6 function is a variant of the ReLU function, defined as:
-    ///
-    /// `relu6(x) = min(max(0, x), 6)`
-    ///
-    /// # Arguments
-    ///
-    /// This function takes no arguments.
-    ///
-    /// # Returns
-    ///
-    /// * A new tensor where the ReLU6 activation function has been applied to each element.
-    ///
-    /// # Panics
-    ///
-    /// * This function should not panic under normal conditions.
-    /// # Example
-    /// ```
-    /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
-    /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 7.0]);
-    /// let b = a.relu6().unwrap();
-    /// ```
-    fn relu6(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::relu6(self)?.into())
-    }
-
-    fn relu6_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::relu6_(self, out)?.into())
     }
 
     /// Computes the element-wise Softplus activation function.

@@ -477,26 +477,6 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn relu(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
-        uary_fn_with_out_simd(
-            self,
-            |x| x._relu(),
-            |x| x._relu(),
-            None::<_Tensor<FloatUnaryType<T>>>
-        )
-    }
-
-    fn relu_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: Borrow<Self::InplaceOutput>
-    {
-        uary_fn_with_out_simd(
-            self,
-            |x| x._relu(),
-            |x| x._relu(),
-            Some(out)
-        )
-    }
-
     fn erf(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
         uary_fn_with_out_simd(
             self,
@@ -512,30 +492,6 @@ impl<T> FloatUaryOps
             |x| x._fast_hard_sigmoid(),
             |x| x._fast_hard_sigmoid(),
             None::<_Tensor<FloatUnaryType<T>>>
-        )
-    }
-
-    fn leaky_relu(&self, alpha: FloatUnaryType<T>) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
-        uary_fn_with_out_simd(
-            self,
-            |x| x._leaky_relu(alpha),
-            |x| x._leaky_relu(alpha),
-            None::<_Tensor<FloatUnaryType<T>>>
-        )
-    }
-
-    fn leaky_relu_<U>(
-        &self,
-        alpha: FloatUnaryType<T>,
-        out: U
-    ) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: Borrow<Self::InplaceOutput>
-    {
-        uary_fn_with_out_simd(
-            self,
-            |x| x._leaky_relu(alpha),
-            |x| x._leaky_relu(alpha),
-            Some(out)
         )
     }
 
@@ -628,26 +584,6 @@ impl<T> FloatUaryOps
             self,
             |x| x._hard_swish(),
             |x| x._hard_swish(),
-            Some(out)
-        )
-    }
-
-    fn relu6(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
-        uary_fn_with_out_simd(
-            self,
-            |x| x._relu6(),
-            |x| x._relu6(),
-            None::<_Tensor<FloatUnaryType<T>>>
-        )
-    }
-
-    fn relu6_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
-        where U: Borrow<Self::InplaceOutput>
-    {
-        uary_fn_with_out_simd(
-            self,
-            |x| x._relu6(),
-            |x| x._relu6(),
             Some(out)
         )
     }
