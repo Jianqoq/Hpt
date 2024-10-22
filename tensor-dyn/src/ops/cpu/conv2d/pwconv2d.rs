@@ -100,9 +100,7 @@ impl<T> _Tensor<T>
         let ish = img.strides()[1]; // height
         let isw = img.strides()[2]; // width
 
-        let ks0 = kernels.strides()[0]; // kernel_height
-        let ks1 = kernels.strides()[1]; // kernel_width
-        let ks2 = kernels.strides()[2]; // in_channels
+        let ks2 = kernels.strides()[0]; // in_channels
 
         let oh_block = (3).min(out_height).max(1);
 
@@ -211,8 +209,7 @@ impl<T> _Tensor<T>
             jb,
             [in_channels as usize, ic_nvec],
             [out_channels as usize, oc_nvec],
-            [ks0 as usize, ks1 as usize, ks2 as usize],
-            [1, 1]
+            ks2 as usize
         );
 
         let ic_block_size = ic_nvec * T::Vec::SIZE; // in channel block size
@@ -250,7 +247,6 @@ impl<T> _Tensor<T>
                                     oc_block_size,
                                     ow_block,
                                     out_width_full_end,
-                                    [1, 1],
                                     [ll, l_end],
                                     i_end - ii,
                                     jb,
@@ -276,7 +272,6 @@ impl<T> _Tensor<T>
                                     oc_block_size,
                                     ow_block,
                                     out_width_full_end,
-                                    [1, 1],
                                     [ll, l_end],
                                     i_end - ii,
                                     jb,
@@ -302,7 +297,6 @@ impl<T> _Tensor<T>
                                 oc_block_size,
                                 ow_block,
                                 out_width_full_end,
-                                [1, 1],
                                 [ll, l_end],
                                 i_end - ii,
                                 jb,
@@ -501,74 +495,53 @@ fn reorder_kernel<T: CommonBounds>(
     jb: usize,
     [in_channel, ic_nvec]: [usize; 2],
     [out_channel, oc_nvec]: [usize; 2],
-    [ks0, ks1, ks2]: [usize; 3],
-    [kh, kw]: [usize; 2]
+    ks2: usize
 ) {
     (0..in_channel)
         .into_par_iter()
         .step_by(T::Vec::SIZE * ic_nvec)
         .for_each(|ii| {
             let i_end = (ii + T::Vec::SIZE * ic_nvec).min(in_channel);
-            let mut reordered = reordered.clone() + ii * out_channel * kh * kw;
+            let mut reordered = reordered.clone() + ii * out_channel;
             for jj in (0..out_channel).step_by(T::Vec::SIZE * oc_nvec * jb) {
                 let jj_start = jj;
                 let jj_end = (jj + T::Vec::SIZE * oc_nvec * jb).min(out_channel);
                 let remain = (jj_end - jj_start) % (T::Vec::SIZE * oc_nvec);
                 let oc_remain = remain % T::Vec::SIZE;
                 for j in (jj_start..jj_end - remain).step_by(T::Vec::SIZE * oc_nvec) {
-                    for n in 0..kh {
-                        for m in 0..kw {
-                            for i in ii..i_end {
-                                for v in 0..oc_nvec {
-                                    let ptr = reordered.ptr as *mut _ as *mut T::Vec;
-                                    unsafe {
-                                        ptr.write_unaligned(T::Vec::from_ptr(
-                                            &kernel[i * ks2
-                                                + n * ks0
-                                                + m * ks1
-                                                + j
-                                                + v * T::Vec::SIZE],
-                                        )); // prettier-ignore
-                                    }
-                                    reordered += T::Vec::SIZE;
-                                }
+                    for i in ii..i_end {
+                        for v in 0..oc_nvec {
+                            let ptr = reordered.ptr as *mut _ as *mut T::Vec;
+                            unsafe {
+                                ptr.write_unaligned(
+                                    T::Vec::from_ptr(&kernel[i * ks2 + j + v * T::Vec::SIZE])
+                                );
                             }
+                            reordered += T::Vec::SIZE;
                         }
                     }
                 }
                 if remain > 0 {
                     for j in (out_channel - remain..out_channel - oc_remain).step_by(T::Vec::SIZE) {
-                        for n in 0..kh {
-                            for m in 0..kw {
-                                for i in ii..i_end {
-                                    let ptr = reordered.ptr as *mut _ as *mut T::Vec;
-                                    unsafe {
-                                        ptr.write_unaligned(
-                                            T::Vec::from_ptr(
-                                                &kernel[n * ks0 + m * ks1 + i * ks2 + j]
-                                            )
-                                        );
-                                    }
-                                    reordered += T::Vec::SIZE;
-                                }
+                        for i in ii..i_end {
+                            let ptr = reordered.ptr as *mut _ as *mut T::Vec;
+                            unsafe {
+                                ptr.write_unaligned(T::Vec::from_ptr(&kernel[i * ks2 + j]));
                             }
+                            reordered += T::Vec::SIZE;
                         }
                     }
                     for j in (out_channel - oc_remain..out_channel).step_by(T::Vec::SIZE) {
-                        for n in 0..kh {
-                            for m in 0..kw {
-                                for i in ii..i_end {
-                                    let ptr: *mut T = reordered.ptr;
-                                    unsafe {
-                                        std::ptr::copy_nonoverlapping(
-                                            &kernel[n * ks0 + m * ks1 + i * ks2 + j] as *const T,
-                                            ptr,
-                                            oc_remain
-                                        );
-                                    }
-                                    reordered += oc_remain;
-                                }
+                        for i in ii..i_end {
+                            let ptr: *mut T = reordered.ptr;
+                            unsafe {
+                                std::ptr::copy_nonoverlapping(
+                                    &kernel[i * ks2 + j] as *const T,
+                                    ptr,
+                                    oc_remain
+                                );
                             }
+                            reordered += oc_remain;
                         }
                     }
                 }
@@ -800,7 +773,6 @@ fn conv_perfect<T: CommonBounds, F>(
     oc_block_size: usize,
     ow_block: usize,
     out_width_full_end: i64,
-    [kh, kw]: [i64; 2],
     [ll, l_end]: [i64; 2],
     i_range: i64,
     jb: usize,
@@ -830,12 +802,12 @@ fn conv_perfect<T: CommonBounds, F>(
                     *kernel = original.clone();
                 }
                 // update the kernel pointer
-                *kernel += kh * kw * i_range * (oc_block_size as i64);
+                *kernel += i_range * (oc_block_size as i64);
             }
             *kernel = kernel_k.clone();
         }
 
-        *kernel += kh * kw * (jj_end - jj) * i_range;
+        *kernel += (jj_end - jj) * i_range;
     }
 }
 
