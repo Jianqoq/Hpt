@@ -23,6 +23,8 @@ pub mod ops {
             pub mod conv2d_group;
             /// a module defines dwconv2d operation
             pub mod dwconv2d;
+            /// a module defines pwconv2d operation
+            pub mod pwconv2d;
         }
         /// a module defines conv_config struct
         pub mod conv_config;
@@ -78,6 +80,8 @@ pub mod ops {
             pub mod conv_group_kernels;
             /// a module defines the dwconv2d kernels
             pub mod dwconv_kernels;
+            /// a module defines the pwconv2d kernels
+            pub mod pwconv_kernels;
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_expose {
