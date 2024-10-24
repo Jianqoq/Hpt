@@ -1,8 +1,14 @@
 use crate::ops::cpu::cache_utils::cache::Cache;
 use crate::ops::cpu::kernels::pwconv_kernels::bias_remain_oc_kernel_dispatch;
+use crate::ops::cpu::kernels::pwconv_kernels::bias_remain_oc_pad_kernel_dispatch;
 use crate::ops::cpu::kernels::pwconv_kernels::conv2d_full_oc_bias_kernel_dispatch;
+use crate::ops::cpu::kernels::pwconv_kernels::conv2d_full_oc_bias_pad_kernel_dispatch;
 use crate::ops::cpu::kernels::pwconv_kernels::conv2d_full_oc_kernel_dispatch;
+use crate::ops::cpu::kernels::pwconv_kernels::conv2d_full_oc_pad_kernel_dispatch;
 use crate::ops::cpu::kernels::pwconv_kernels::remain_oc_kernel_dispatch;
+use crate::ops::cpu::kernels::pwconv_kernels::remain_oc_pad_kernel_dispatch;
+use crate::ops::cpu::kernels::pwconv_kernels::PadParams;
+use crate::ops::cpu::kernels::pwconv_kernels::PadPartialParams;
 use crate::ops::cpu::kernels::pwconv_kernels::Params;
 use crate::ops::cpu::kernels::pwconv_kernels::PartialParams;
 use crate::tensor_base::_Tensor;
@@ -126,6 +132,11 @@ impl<T> _Tensor<T>
             &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec)
         );
         let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
+        let full_oc_pad_kernel = conv2d_full_oc_pad_kernel_dispatch(
+            &mut oc_nvec,
+            &mut ow_block
+        ).expect(&format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec));
+
         let full_oc_kernel_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
             &mut oc_nvec,
             &mut ((out_width as usize) % ow_block)
@@ -133,24 +144,56 @@ impl<T> _Tensor<T>
         if full_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
         }
+        let full_oc_pad_kernel_ow_remain = conv2d_full_oc_pad_kernel_dispatch::<T>(
+            &mut oc_nvec,
+            &mut ((out_width as usize) % ow_block)
+        );
+        if full_oc_pad_kernel_ow_remain.is_none() {
+            assert_eq!((out_width as usize) % ow_block, 0);
+        }
+
         let partial_oc_kernel = remain_oc_kernel_dispatch::<T>(&mut ow_block);
         if let Some(partial_oc_kernel) = partial_oc_kernel {
             assert_eq!(ow_block, partial_oc_kernel.ow_block);
         }
+        let partial_oc_pad_kernel = remain_oc_pad_kernel_dispatch::<T>(&mut ow_block);
+
         let partial_oc_kernel_ow_remain = remain_oc_kernel_dispatch::<T>(
             &mut ((out_width as usize) % ow_block)
         );
         if partial_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
         }
+        let partial_oc_pad_kernel_ow_remain = remain_oc_pad_kernel_dispatch::<T>(
+            &mut ((out_width as usize) % ow_block)
+        );
+        if partial_oc_pad_kernel_ow_remain.is_none() {
+            assert_eq!((out_width as usize) % ow_block, 0);
+        }
+
         let full_oc_kernel_fn_1_oc = conv2d_full_oc_kernel_dispatch::<T>(&mut 1, &mut ow_block);
+        let full_oc_pad_kernel_fn_1_oc = conv2d_full_oc_pad_kernel_dispatch::<T>(
+            &mut 1,
+            &mut ow_block
+        );
+
         let full_oc_kernel_fn_1_oc_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
             &mut 1,
             &mut ((out_width as usize) % ow_block)
         );
+        let full_oc_pad_kernel_fn_1_oc_ow_remain = conv2d_full_oc_pad_kernel_dispatch::<T>(
+            &mut 1,
+            &mut ((out_width as usize) % ow_block)
+        );
+
         let has_bias = bias.is_some();
         let bias_full_oc_kernel = if has_bias {
             Some(conv2d_full_oc_bias_kernel_dispatch::<T>(&mut oc_nvec, &mut ow_block).unwrap())
+        } else {
+            None
+        };
+        let bias_full_oc_pad_kernel = if has_bias {
+            Some(conv2d_full_oc_bias_pad_kernel_dispatch::<T>(&mut oc_nvec, &mut ow_block).unwrap())
         } else {
             None
         };
@@ -159,14 +202,34 @@ impl<T> _Tensor<T>
         } else {
             None
         };
+        let bias_one_oc_pad_kernel = if has_bias {
+            Some(conv2d_full_oc_bias_pad_kernel_dispatch::<T>(&mut 1, &mut ow_block).unwrap())
+        } else {
+            None
+        };
         let bias_remain_oc_kernel = if has_bias {
             Some(bias_remain_oc_kernel_dispatch::<T>(&mut ow_block).unwrap())
+        } else {
+            None
+        };
+        let bias_remain_oc_pad_kernel = if has_bias {
+            Some(bias_remain_oc_pad_kernel_dispatch::<T>(&mut ow_block).unwrap())
         } else {
             None
         };
         let bias_full_oc_ow_remain = if has_bias {
             Some(
                 conv2d_full_oc_bias_kernel_dispatch::<T>(
+                    &mut oc_nvec,
+                    &mut ((out_width as usize) % ow_block)
+                ).unwrap()
+            )
+        } else {
+            None
+        };
+        let bias_full_oc_pad_ow_remain = if has_bias {
+            Some(
+                conv2d_full_oc_bias_pad_kernel_dispatch::<T>(
                     &mut oc_nvec,
                     &mut ((out_width as usize) % ow_block)
                 ).unwrap()
@@ -184,9 +247,28 @@ impl<T> _Tensor<T>
         } else {
             None
         };
+        let bias_one_oc_pad_ow_remain = if has_bias {
+            Some(
+                conv2d_full_oc_bias_pad_kernel_dispatch::<T>(
+                    &mut 1,
+                    &mut ((out_width as usize) % ow_block)
+                ).unwrap()
+            )
+        } else {
+            None
+        };
         let bias_partial_oc_ow_remain = if has_bias {
             Some(
                 bias_remain_oc_kernel_dispatch::<T>(&mut ((out_width as usize) % ow_block)).unwrap()
+            )
+        } else {
+            None
+        };
+        let bias_partial_oc_pad_ow_remain = if has_bias {
+            Some(
+                bias_remain_oc_pad_kernel_dispatch::<T>(
+                    &mut ((out_width as usize) % ow_block)
+                ).unwrap()
             )
         } else {
             None
@@ -229,6 +311,15 @@ impl<T> _Tensor<T>
                 arg6: [isb, ish, isw],
                 pads: [ph_start, pw_start],
             };
+            let pad_params = PadParams {
+                arg1: [0, 0],
+                arg3: [b, 0, 0, 0],
+                arg4: [osb, osh, osw],
+                arg5: [step_height, step_width],
+                arg6: [isb, ish, isw],
+                pads: [ph_start, pw_start],
+                img_width,
+            };
             match (partial_oc_kernel, full_oc_kernel_ow_remain, partial_oc_kernel_ow_remain) {
                 (None, None, None) => {
                     for ii in (0..in_channels).step_by(ic_block_size) {
@@ -242,6 +333,7 @@ impl<T> _Tensor<T>
                             if has_bias {
                                 let bias = bias.unwrap().ptr();
                                 let bias_full_oc_kernel = bias_full_oc_kernel.unwrap();
+                                let bias_full_oc_pad_kernel = bias_full_oc_pad_kernel.unwrap();
                                 conv_perfect(
                                     out_channels,
                                     oc_block_size,
@@ -259,6 +351,19 @@ impl<T> _Tensor<T>
                                             Params {
                                                 arg3: [b, l, k, j],
                                                 ..params
+                                            },
+                                            out,
+                                            kernel,
+                                            &inp,
+                                            &bias,
+                                            activation
+                                        );
+                                    },
+                                    |l, k, j, kernel, out| {
+                                        bias_full_oc_pad_kernel(
+                                            PadParams {
+                                                arg3: [b, l, k, j],
+                                                ..pad_params
                                             },
                                             out,
                                             kernel,
@@ -292,6 +397,18 @@ impl<T> _Tensor<T>
                                             &inp,
                                             activation
                                         );
+                                    },
+                                    |l, k, j, kernel, out| {
+                                        full_oc_pad_kernel(
+                                            PadParams {
+                                                arg3: [b, l, k, j],
+                                                ..pad_params
+                                            },
+                                            out,
+                                            kernel,
+                                            &inp,
+                                            activation
+                                        );
                                     }
                                 );
                             }
@@ -319,6 +436,18 @@ impl<T> _Tensor<T>
                                         &inp,
                                         |x| x
                                     );
+                                },
+                                |l, k, j, kernel, out| {
+                                    full_oc_pad_kernel(
+                                        PadParams {
+                                            arg3: [b, l, k, j],
+                                            ..pad_params
+                                        },
+                                        out,
+                                        kernel,
+                                        &inp,
+                                        |x| x
+                                    );
                                 }
                             );
                         }
@@ -330,6 +459,9 @@ impl<T> _Tensor<T>
                         if i_end == in_channels && has_bias {
                             let bias = bias.unwrap().ptr();
                             let bias_full_oc_kernel = bias_full_oc_kernel.unwrap();
+                            let bias_full_oc_pad_kernel = bias_full_oc_pad_kernel.unwrap();
+                            let bias_one_oc_pad_kernel = bias_one_oc_pad_kernel.unwrap();
+                            let bias_partial_oc_pad_kernel = bias_remain_oc_pad_kernel.unwrap();
                             // out channel has two levels of blocking:
                             // 1. it first blocks by oc_block_size * jb
                             // 2. it then blocks by oc_block_size (cache line size)
@@ -365,7 +497,13 @@ impl<T> _Tensor<T>
                                         bias_one_oc_kernel.unwrap(),
                                         bias_full_oc_ow_remain,
                                         bias_partial_oc_ow_remain,
-                                        bias_one_oc_ow_remain
+                                        bias_one_oc_ow_remain,
+                                        bias_full_oc_pad_kernel,
+                                        bias_partial_oc_pad_kernel,
+                                        bias_one_oc_pad_kernel,
+                                        bias_full_oc_pad_ow_remain,
+                                        bias_partial_oc_pad_ow_remain,
+                                        bias_one_oc_pad_ow_remain
                                     );
                                 } else {
                                     handle_bias_normal(
@@ -386,7 +524,9 @@ impl<T> _Tensor<T>
                                         &bias,
                                         activation,
                                         bias_full_oc_kernel,
-                                        bias_full_oc_ow_remain
+                                        bias_full_oc_ow_remain,
+                                        bias_full_oc_pad_kernel,
+                                        bias_full_oc_pad_ow_remain
                                     );
                                 }
                             }
@@ -424,7 +564,13 @@ impl<T> _Tensor<T>
                                         full_oc_kernel_fn_1_oc.unwrap().kernel,
                                         full_oc_kernel_ow_remain.map(|x| x.kernel),
                                         partial_oc_kernel_ow_remain.map(|x| x.kernel),
-                                        full_oc_kernel_fn_1_oc_ow_remain.map(|x| x.kernel)
+                                        full_oc_kernel_fn_1_oc_ow_remain.map(|x| x.kernel),
+                                        full_oc_pad_kernel,
+                                        partial_oc_pad_kernel.unwrap(),
+                                        full_oc_pad_kernel_fn_1_oc.unwrap(),
+                                        full_oc_pad_kernel_ow_remain,
+                                        partial_oc_pad_kernel_ow_remain,
+                                        full_oc_pad_kernel_fn_1_oc_ow_remain
                                     );
                                 } else {
                                     handle_normal(
@@ -444,7 +590,9 @@ impl<T> _Tensor<T>
                                         &inp,
                                         |x| x,
                                         full_oc_kernel_fn,
-                                        full_oc_kernel_ow_remain.map(|x| x.kernel)
+                                        full_oc_kernel_ow_remain.map(|x| x.kernel),
+                                        full_oc_pad_kernel,
+                                        full_oc_pad_kernel_ow_remain
                                     );
                                 }
                             }
@@ -713,7 +861,7 @@ fn _handle_normal<T: CommonBounds, F>(
     }
 }
 
-fn handle_normal<T: CommonBounds, F>(
+fn handle_normal<T: CommonBounds, F, F2>(
     [jj_start, jj_end]: [i64; 2],
     [out_width, ow_block]: [i64; 2],
     [ll, l_end]: [i64; 2],
@@ -730,9 +878,13 @@ fn handle_normal<T: CommonBounds, F>(
     inp: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec,
     full_oc_kernel_fn: F,
-    full_oc_kernel_ow_remain: Option<F>
+    full_oc_kernel_ow_remain: Option<F>,
+    full_oc_pad_kernel_fn: F2,
+    full_oc_pad_kernel_ow_remain: Option<F2>
 )
-    where F: Fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+    where
+        F: Fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
+        F2: Fn(PadParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
 {
     let params = Params {
         arg1: [ii, i_end],
@@ -741,6 +893,15 @@ fn handle_normal<T: CommonBounds, F>(
         arg5: [step_height, step_width],
         arg6: [isb, ish, isw],
         pads: [ph_start, pw_start],
+    };
+    let pad_params = PadParams {
+        arg1: [ii, i_end],
+        arg3: [batch, 0, 0, 0],
+        arg4: [osb, osh, osw],
+        arg5: [step_height, step_width],
+        arg6: [isb, ish, isw],
+        pads: [ph_start, pw_start],
+        img_width,
     };
     let out_width_full_end = out_width - (out_width % (ow_block as i64));
     let kernel_k = kernel.clone();
@@ -771,11 +932,33 @@ fn handle_normal<T: CommonBounds, F>(
                 }
             );
         } else {
+            _handle_normal(
+                [jj_start, jj_end],
+                [ll, l_end],
+                [ii, i_end],
+                [img_height, ph_start, step_height],
+                oc_block_size,
+                out,
+                kernel,
+                |j, l, out, kernel| {
+                    full_oc_pad_kernel_fn(
+                        PadParams {
+                            arg3: [batch, l, k, j],
+                            ..pad_params
+                        },
+                        out,
+                        kernel,
+                        &inp,
+                        activation
+                    )
+                }
+            );
         }
         *kernel = kernel_k.clone();
     }
     // handle the out width remain part
     if let Some(full_oc_kernel_ow_remain) = &full_oc_kernel_ow_remain {
+        let full_oc_pad_kernel_ow_remain = full_oc_pad_kernel_ow_remain.unwrap();
         for k in (out_width_full_end..out_width).step_by(ow_block as usize) {
             let must_in_range =
                 k * step_width - pw_start >= 0 &&
@@ -803,6 +986,27 @@ fn handle_normal<T: CommonBounds, F>(
                     }
                 );
             } else {
+                _handle_normal(
+                    [jj_start, jj_end],
+                    [ll, l_end],
+                    [ii, i_end],
+                    [img_height, ph_start, step_height],
+                    oc_block_size,
+                    out,
+                    kernel,
+                    |j, l, out, kernel| {
+                        full_oc_pad_kernel_ow_remain(
+                            PadParams {
+                                arg3: [batch, l, k, j],
+                                ..pad_params
+                            },
+                            out,
+                            kernel,
+                            &inp,
+                            activation
+                        )
+                    }
+                );
             }
             *kernel = kernel_k.clone();
         }
@@ -810,7 +1014,7 @@ fn handle_normal<T: CommonBounds, F>(
     *kernel += (jj_end - jj_start) * (i_end - ii);
 }
 
-fn conv_perfect<T: CommonBounds, F>(
+fn conv_perfect<T: CommonBounds, F, F2>(
     out_channels: i64,
     oc_block_size: usize,
     ow_block: usize,
@@ -822,9 +1026,12 @@ fn conv_perfect<T: CommonBounds, F>(
     jb: usize,
     kernel: &mut Pointer<T>,
     out: &mut Pointer<T>,
-    mut kernel_func: F
+    mut kernel_func: F,
+    mut pad_kernel_func: F2
 )
-    where F: FnMut(i64, i64, i64, &mut Pointer<T>, &mut Pointer<T>)
+    where
+        F: FnMut(i64, i64, i64, &mut Pointer<T>, &mut Pointer<T>),
+        F2: FnMut(i64, i64, i64, &mut Pointer<T>, &mut Pointer<T>)
 {
     // out channel has two levels of blocking:
     // 1. it first blocks by oc_block_size * jb
@@ -858,6 +1065,22 @@ fn conv_perfect<T: CommonBounds, F>(
                     *kernel += i_range * (oc_block_size as i64);
                 }
             } else {
+                for j in (jj..jj_end).step_by(oc_block_size) {
+                    // the kernel filter has nothing to do with out height, hence, when iterate over (l..l_end), kernel pointer should reset in each iteration
+                    let original = kernel.clone();
+                    for l in ll..l_end {
+                        // execute micro kernel, see `iconv2d_full_oc_kernel_dispatch` for more details
+                        let in_range =
+                            l * step_height - pad_height >= 0 &&
+                            l * step_height - pad_height < img_height;
+                        if in_range {
+                            pad_kernel_func(l, k, j, kernel, out);
+                            *kernel = original.clone();
+                        }
+                    }
+                    // update the kernel pointer
+                    *kernel += i_range * (oc_block_size as i64);
+                }
             }
             *kernel = kernel_k.clone();
         }
@@ -907,6 +1130,30 @@ fn with_bias_remain<T: CommonBounds>(
         &Pointer<T>,
         &Pointer<T>,
         fn(T::Vec) -> T::Vec
+    ),
+    bias_full_oc_pad_kernel: fn(
+        PadParams,
+        &mut Pointer<T>,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &Pointer<T>,
+        fn(T::Vec) -> T::Vec
+    ),
+    one_oc_pad: fn(
+        PadParams,
+        &mut Pointer<T>,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &Pointer<T>,
+        fn(T::Vec) -> T::Vec
+    ),
+    partial_oc_pad: fn(
+        PadPartialParams,
+        &mut Pointer<T>,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &Pointer<T>,
+        fn(T::Vec) -> T::Vec
     )
 ) {
     let params = Params {
@@ -917,6 +1164,15 @@ fn with_bias_remain<T: CommonBounds>(
         arg6: [isb, ish, isw],
         pads: [ph_start, pw_start],
     };
+    let pad_params = PadParams {
+        arg1: [ii, i_end],
+        arg3: [batch, 0, 0, 0],
+        arg4: [osb, osh, osw],
+        arg5: [step_height, step_width],
+        arg6: [isb, ish, isw],
+        pads: [ph_start, pw_start],
+        img_width,
+    };
     let partial_params = PartialParams {
         arg1: [ii, i_end],
         arg3: [batch, 0, 0, 0],
@@ -925,6 +1181,16 @@ fn with_bias_remain<T: CommonBounds>(
         arg6: [isb, ish, isw],
         arg7: [ph_start, pw_start],
         oc_remain: remain % (T::Vec::SIZE as i64),
+    };
+    let pad_partial_params = PadPartialParams {
+        arg1: [ii, i_end],
+        arg3: [batch, 0, 0, 0],
+        arg4: [osb, osh, osw],
+        arg5: [step_height, step_width],
+        arg6: [isb, ish, isw],
+        arg7: [ph_start, pw_start],
+        oc_remain: remain % (T::Vec::SIZE as i64),
+        img_width,
     };
     let kernel_k = kernel.clone();
     for k in (start..end).step_by(ow_block as usize) {
@@ -982,6 +1248,55 @@ fn with_bias_remain<T: CommonBounds>(
                 }
             );
         } else {
+            handle_remain(
+                [jj_start, jj_end],
+                [out_channels, oc_block_size as i64],
+                [ll, l_end],
+                [ii, i_end],
+                [img_height, ph_start, step_height],
+                remain,
+                out,
+                kernel,
+                |j, l, out, kernel| {
+                    bias_full_oc_pad_kernel(
+                        PadParams {
+                            arg3: [batch, l, k, j],
+                            ..pad_params
+                        },
+                        out,
+                        kernel,
+                        &inp,
+                        &bias,
+                        activation
+                    )
+                },
+                |j, l, out, kernel| {
+                    one_oc_pad(
+                        PadParams {
+                            arg3: [batch, l, k, j],
+                            ..pad_params
+                        },
+                        out,
+                        kernel,
+                        &inp,
+                        &bias,
+                        activation
+                    )
+                },
+                |j, l, out, kernel| {
+                    partial_oc_pad(
+                        PadPartialParams {
+                            arg3: [batch, l, k, j],
+                            ..pad_partial_params
+                        },
+                        out,
+                        kernel,
+                        &inp,
+                        &bias,
+                        activation
+                    );
+                }
+            );
         }
         *kernel = kernel_k.clone();
     }
@@ -1011,6 +1326,14 @@ fn with_bias_normal<T: CommonBounds>(
         &Pointer<T>,
         &Pointer<T>,
         fn(T::Vec) -> T::Vec
+    ),
+    bias_full_oc_pad: fn(
+        PadParams,
+        &mut Pointer<T>,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &Pointer<T>,
+        fn(T::Vec) -> T::Vec
     )
 ) {
     let params = Params {
@@ -1020,6 +1343,15 @@ fn with_bias_normal<T: CommonBounds>(
         arg5: [step_height, step_width],
         arg6: [isb, ish, isw],
         pads: [ph_start, pw_start],
+    };
+    let pad_params = PadParams {
+        arg1: [ii, i_end],
+        arg3: [batch, 0, 0, 0],
+        arg4: [osb, osh, osw],
+        arg5: [step_height, step_width],
+        arg6: [isb, ish, isw],
+        pads: [ph_start, pw_start],
+        img_width,
     };
     let kernel_k = kernel.clone();
     for k in (start..end).step_by(ow_block as usize) {
@@ -1050,6 +1382,28 @@ fn with_bias_normal<T: CommonBounds>(
                 }
             );
         } else {
+            _handle_normal(
+                [jj_start, jj_end],
+                [ll, l_end],
+                [ii, i_end],
+                [img_height, ph_start, step_height],
+                oc_block_size as usize,
+                out,
+                kernel,
+                |j, l, out, kernel| {
+                    bias_full_oc_pad(
+                        PadParams {
+                            arg3: [batch, l, k, j],
+                            ..pad_params
+                        },
+                        out,
+                        kernel,
+                        &inp,
+                        &bias,
+                        activation
+                    )
+                }
+            );
         }
         *kernel = kernel_k.clone();
     }
@@ -1081,7 +1435,7 @@ fn handle_bias_remain<T: CommonBounds>(
         &Pointer<T>,
         fn(T::Vec) -> T::Vec
     ),
-    partial_oc: fn(
+    bias_partial_oc: fn(
         PartialParams,
         &mut Pointer<T>,
         &mut Pointer<T>,
@@ -1112,6 +1466,60 @@ fn handle_bias_remain<T: CommonBounds>(
     >,
     bias_one_oc_ow_remain: Option<
         fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+    >,
+    bias_full_oc_pad: fn(
+        PadParams,
+        &mut Pointer<T>,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &Pointer<T>,
+        fn(T::Vec) -> T::Vec
+    ),
+    bias_partial_oc_pad: fn(
+        PadPartialParams,
+        &mut Pointer<T>,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &Pointer<T>,
+        fn(T::Vec) -> T::Vec
+    ),
+    bias_one_oc_pad: fn(
+        PadParams,
+        &mut Pointer<T>,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &Pointer<T>,
+        fn(T::Vec) -> T::Vec
+    ),
+    bias_full_oc_pad_ow_remain: Option<
+        fn(
+            PadParams,
+            &mut Pointer<T>,
+            &mut Pointer<T>,
+            &Pointer<T>,
+            &Pointer<T>,
+            fn(T::Vec) -> T::Vec
+        )
+    >,
+    bias_partial_oc_pad_ow_remain: Option<
+        fn(
+            PadPartialParams,
+            &mut Pointer<T>,
+            &mut Pointer<T>,
+            &Pointer<T>,
+            &Pointer<T>,
+            fn(T::Vec) -> T::Vec
+        )
+    >,
+    bias_one_oc_pad_ow_remain: Option<
+        fn(
+            PadParams,
+            &mut Pointer<T>,
+            &mut Pointer<T>,
+            &Pointer<T>,
+            &Pointer<T>,
+            fn(T::Vec) -> T::Vec
+        )
     >
 ) {
     let out_width_full_end = out_width - (out_width % (ow_block as i64));
@@ -1135,7 +1543,10 @@ fn handle_bias_remain<T: CommonBounds>(
         activation,
         bias_full_oc,
         bias_one_oc,
-        partial_oc
+        bias_partial_oc,
+        bias_full_oc_pad,
+        bias_one_oc_pad,
+        bias_partial_oc_pad
     );
     // handle the out width remain part
     if let Some(full_oc_kernel_ow_remain) = &bias_full_oc_ow_remain {
@@ -1144,6 +1555,15 @@ fn handle_bias_remain<T: CommonBounds>(
         );
         let partial_oc_ow_remain = bias_partial_oc_ow_remain.expect(
             &format!("unable to find oconv2d_microkernel_{}", ow_block)
+        );
+        let bias_full_oc_pad_ow_remain = bias_full_oc_pad_ow_remain.expect(
+            &format!("unable to find bias_full_oc_pad_ow_remain")
+        );
+        let bias_partial_oc_pad_ow_remain = bias_partial_oc_pad_ow_remain.expect(
+            &format!("unable to find bias_partial_oc_pad_ow_remain")
+        );
+        let bias_one_oc_pad_ow_remain = bias_one_oc_pad_ow_remain.expect(
+            &format!("unable to find bias_one_oc_pad_ow_remain")
         );
         with_bias_remain(
             [jj_start, jj_end],
@@ -1165,7 +1585,10 @@ fn handle_bias_remain<T: CommonBounds>(
             activation,
             *full_oc_kernel_ow_remain,
             one_oc_ow_remain,
-            partial_oc_ow_remain
+            partial_oc_ow_remain,
+            bias_full_oc_pad_ow_remain,
+            bias_one_oc_pad_ow_remain,
+            bias_partial_oc_pad_ow_remain
         );
     }
 
@@ -1199,6 +1622,24 @@ fn handle_bias_normal<T: CommonBounds>(
     ),
     bias_full_oc_ow_remain: Option<
         fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+    >,
+    bias_full_oc_pad: fn(
+        PadParams,
+        &mut Pointer<T>,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &Pointer<T>,
+        fn(T::Vec) -> T::Vec
+    ),
+    bias_full_oc_pad_ow_remain: Option<
+        fn(
+            PadParams,
+            &mut Pointer<T>,
+            &mut Pointer<T>,
+            &Pointer<T>,
+            &Pointer<T>,
+            fn(T::Vec) -> T::Vec
+        )
     >
 ) {
     let out_width_full_end = out_width - (out_width % (ow_block as i64));
@@ -1219,10 +1660,14 @@ fn handle_bias_normal<T: CommonBounds>(
         &inp,
         &bias,
         activation,
-        bias_full_oc
+        bias_full_oc,
+        bias_full_oc_pad
     );
     // handle the out width remain part
     if let Some(full_oc_kernel_ow_remain) = &bias_full_oc_ow_remain {
+        let bias_full_oc_pad_ow_remain = bias_full_oc_pad_ow_remain.expect(
+            &format!("unable to find bias_full_oc_pad_ow_remain")
+        );
         with_bias_normal(
             [jj_start, jj_end],
             [out_width_full_end, out_width, ow_block as i64],
@@ -1240,7 +1685,8 @@ fn handle_bias_normal<T: CommonBounds>(
             &inp,
             &bias,
             activation,
-            *full_oc_kernel_ow_remain
+            *full_oc_kernel_ow_remain,
+            bias_full_oc_pad_ow_remain
         );
     }
 
@@ -1278,6 +1724,21 @@ fn with_normal_remain<T: CommonBounds>(
         &mut Pointer<T>,
         &Pointer<T>,
         fn(T::Vec) -> T::Vec
+    ),
+    bias_full_oc_pad: fn(
+        PadParams,
+        &mut Pointer<T>,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        fn(T::Vec) -> T::Vec
+    ),
+    one_oc_pad: fn(PadParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
+    partial_oc_pad: fn(
+        PadPartialParams,
+        &mut Pointer<T>,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        fn(T::Vec) -> T::Vec
     )
 ) {
     let params = Params {
@@ -1288,6 +1749,15 @@ fn with_normal_remain<T: CommonBounds>(
         arg6: [isb, ish, isw],
         pads: [ph_start, pw_start],
     };
+    let pad_params = PadParams {
+        arg1: [ii, i_end],
+        arg3: [batch, 0, 0, 0],
+        arg4: [osb, osh, osw],
+        arg5: [step_height, step_width],
+        arg6: [isb, ish, isw],
+        pads: [ph_start, pw_start],
+        img_width,
+    };
     let partial_params = PartialParams {
         arg1: [ii, i_end],
         arg3: [batch, 0, 0, 0],
@@ -1296,6 +1766,16 @@ fn with_normal_remain<T: CommonBounds>(
         arg6: [isb, ish, isw],
         arg7: [ph_start, pw_start],
         oc_remain: remain % (T::Vec::SIZE as i64),
+    };
+    let pad_partial_params = PadPartialParams {
+        arg1: [ii, i_end],
+        arg3: [batch, 0, 0, 0],
+        arg4: [osb, osh, osw],
+        arg5: [step_height, step_width],
+        arg6: [isb, ish, isw],
+        arg7: [ph_start, pw_start],
+        oc_remain: remain % (T::Vec::SIZE as i64),
+        img_width,
     };
     let kernel_k = kernel.clone();
     for k in (start..end).step_by(ow_block as usize) {
@@ -1350,6 +1830,52 @@ fn with_normal_remain<T: CommonBounds>(
                 }
             );
         } else {
+            handle_remain(
+                [jj_start, jj_end],
+                [out_channels, oc_block_size as i64],
+                [ll, l_end],
+                [ii, i_end],
+                [img_height, ph_start, step_height],
+                remain,
+                out,
+                kernel,
+                |j, l, out, kernel| {
+                    bias_full_oc_pad(
+                        PadParams {
+                            arg3: [batch, l, k, j],
+                            ..pad_params
+                        },
+                        out,
+                        kernel,
+                        &inp,
+                        activation
+                    )
+                },
+                |j, l, out, kernel| {
+                    one_oc_pad(
+                        PadParams {
+                            arg3: [batch, l, k, j],
+                            ..pad_params
+                        },
+                        out,
+                        kernel,
+                        &inp,
+                        activation
+                    )
+                },
+                |j, l, out, kernel| {
+                    partial_oc_pad(
+                        PadPartialParams {
+                            arg3: [batch, l, k, j],
+                            ..pad_partial_params
+                        },
+                        out,
+                        kernel,
+                        &inp,
+                        activation
+                    );
+                }
+            );
         }
         *kernel = kernel_k.clone();
     }
@@ -1389,6 +1915,24 @@ fn handle_normal_remain<T: CommonBounds>(
     >,
     one_oc_ow_remain: Option<
         fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+    >,
+    full_oc_pad: fn(PadParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
+    partial_oc_pad: fn(
+        PadPartialParams,
+        &mut Pointer<T>,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        fn(T::Vec) -> T::Vec
+    ),
+    one_oc_pad: fn(PadParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
+    full_oc_pad_ow_remain: Option<
+        fn(PadParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+    >,
+    partial_oc_pad_ow_remain: Option<
+        fn(PadPartialParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+    >,
+    one_oc_pad_ow_remain: Option<
+        fn(PadParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
     >
 ) {
     let out_width_full_end = out_width - (out_width % (ow_block as i64));
@@ -1411,7 +1955,10 @@ fn handle_normal_remain<T: CommonBounds>(
         activation,
         full_oc,
         one_oc,
-        partial_oc
+        partial_oc,
+        full_oc_pad,
+        one_oc_pad,
+        partial_oc_pad
     );
     // handle the out width remain part
     if let Some(full_oc_kernel_ow_remain) = &full_oc_ow_remain {
@@ -1420,6 +1967,15 @@ fn handle_normal_remain<T: CommonBounds>(
         );
         let partial_oc_ow_remain = partial_oc_ow_remain.expect(
             &format!("unable to find oconv2d_microkernel_{}", ow_block)
+        );
+        let full_oc_pad_ow_remain = full_oc_pad_ow_remain.expect(
+            &format!("unable to find bias_full_oc_pad_ow_remain")
+        );
+        let partial_oc_pad_ow_remain = partial_oc_pad_ow_remain.expect(
+            &format!("unable to find bias_partial_oc_pad_ow_remain")
+        );
+        let one_oc_pad_ow_remain = one_oc_pad_ow_remain.expect(
+            &format!("unable to find one_oc_pad_ow_remain")
         );
         with_normal_remain(
             [jj_start, jj_end],
@@ -1440,7 +1996,10 @@ fn handle_normal_remain<T: CommonBounds>(
             activation,
             *full_oc_kernel_ow_remain,
             one_oc_ow_remain,
-            partial_oc_ow_remain
+            partial_oc_ow_remain,
+            full_oc_pad_ow_remain,
+            one_oc_pad_ow_remain,
+            partial_oc_pad_ow_remain
         );
     }
     *kernel += (jj_end - jj_start) * (i_end - ii);
