@@ -100,7 +100,7 @@ impl<T> _Tensor<T>
         let ish = img.strides()[1]; // height
         let isw = img.strides()[2]; // width
 
-        let ks2 = kernels.strides()[2]; // in_channels
+        let ks2 = kernels.strides()[0]; // in_channels
 
         let oh_block = (3).min(out_height).max(1);
 
