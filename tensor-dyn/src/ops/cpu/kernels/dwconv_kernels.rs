@@ -46,21 +46,13 @@ pub struct ConvPartialKernel<T: CommonBounds> {
 pub struct ConvKernel<T: CommonBounds> {
     pub(crate) kernel:
         fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
-    pub(crate) oc_block: usize,
-    pub(crate) ow_block: usize,
 }
 
 impl<T: CommonBounds> ConvKernel<T> {
     pub(crate) fn new(
         kernel: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
-        oc_block: usize,
-        ow_block: usize,
     ) -> Self {
-        Self {
-            kernel,
-            oc_block,
-            ow_block,
-        }
+        Self { kernel }
     }
 }
 
@@ -597,9 +589,7 @@ where
 
     // println!("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc, map_kb);
 
-    kernel_fn
-        .cloned()
-        .map(|kernel| ConvKernel::new(kernel, *ic, *kb))
+    kernel_fn.cloned().map(|kernel| ConvKernel::new(kernel))
 }
 
 pub(crate) fn conv2d_full_oc_bias_kernel_dispatch<T: CommonBounds>(

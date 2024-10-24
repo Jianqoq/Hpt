@@ -75,6 +75,9 @@ impl<T> _Tensor<T>
         if 1 != k_in_channels {
             panic!("kernel in_channel must equal to 1, got {}", k_in_channels);
         }
+        if out_channels != in_channels {
+            panic!("depth-wise conv2d requires kernel out_channel equal to input in_channel, got kernel: {}, inp: {}", out_channels, in_channels);
+        }
         let (step_width, step_height) = (steps[0], steps[1]);
         let ((ph_start, ph_end), (pw_start, pw_end)) = (padding[0], padding[1]);
         let (dh, dw) = (dilation[0], dilation[1]);
