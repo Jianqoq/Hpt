@@ -5,8 +5,8 @@ use tensor_macros::{
     conv2d_microkernel_declare_const,
     conv2d_microkernel_gen_inps,
     conv2d_microkernel_gen_kernels,
-    conv2d_microkernel_gen_pad_inps,
     conv2d_microkernel_gen_results,
+    pwconv2d_microkernel_gen_pad_inps,
 };
 use tensor_traits::CommonBounds;
 use tensor_types::traits::*;
@@ -113,8 +113,6 @@ macro_rules! repeat_pad_inp {
         $is3:expr,
         $k:ident,
         $step_width:ident,
-        $m:ident,
-        $dw:ident,
         $isw:ident,
         $img_width:ident,
         $pw_start:ident,
@@ -125,8 +123,8 @@ macro_rules! repeat_pad_inp {
             ($(
                 {
                     let mask =
-                    ($k + $idx) * $step_width + $m * $dw >= $pw_start &&
-                    ($k + $idx) * $step_width + $m * $dw < $img_width + $pw_start;
+                    ($k + $idx) * $step_width >= $pw_start &&
+                    ($k + $idx) * $step_width < $img_width + $pw_start;
                     let tmp_mask: T = mask.into_scalar();
                     let val = $name[($is3 + $idx * $step_width * $isw) * mask as i64];
                     T::Vec::splat(tmp_mask._mul(val))
@@ -240,14 +238,10 @@ fn template_function<T: CommonBounds>(
     let m_must_in_range =
         k * step_width >= pw_start && (k + (OW_BLOCK as i64)) * step_width < img_width + pw_start;
     let l_in_range = l * step_height >= ph_start && l * step_height < img_height + ph_start;
-    #[allow(non_upper_case_globals)]
-    const m: i64 = 1;
-    let is1 = is0;
     if l_in_range {
         if m_must_in_range {
-            let is2 = is1;
             for i in ii..i_end {
-                let is3 = is2 + i;
+                let is3 = is0 + i;
                 let inp = conv2d_microkernel_gen_inps!(
                     inp,
                     is3,
@@ -259,10 +253,9 @@ fn template_function<T: CommonBounds>(
                 kernel.add(OC_BLOCK * T::Vec::SIZE);
             }
         } else {
-            let is2 = is1;
             for i in ii..i_end {
-                let is3 = is2 + i;
-                let inp = conv2d_microkernel_gen_pad_inps!(
+                let is3 = is0 + i;
+                let inp = pwconv2d_microkernel_gen_pad_inps!(
                     inp,
                     is3,
                     step_width * isw,
@@ -357,14 +350,10 @@ fn template_function<T: CommonBounds>(
     let m_must_in_range =
         k * step_width >= pw_start && (k + (OW_BLOCK as i64)) * step_width < img_width + pw_start;
     let l_in_range = l * step_height >= ph_start && l * step_height < img_height + ph_start;
-    let is1 = is0;
-    #[allow(non_upper_case_globals)]
-    const m: i64 = 0;
     if l_in_range {
         if m_must_in_range {
-            let is2 = is1;
             for i in ii..i_end {
-                let is3 = is2 + i;
+                let is3 = is0 + i;
                 let inp = conv2d_microkernel_gen_inps!(
                     inp,
                     is3,
@@ -376,10 +365,9 @@ fn template_function<T: CommonBounds>(
                 kernel.add(OC_BLOCK * T::Vec::SIZE);
             }
         } else {
-            let is2 = is1;
             for i in ii..i_end {
-                let is3 = is2 + i;
-                let inp = conv2d_microkernel_gen_pad_inps!(
+                let is3 = is0 + i;
+                let inp = pwconv2d_microkernel_gen_pad_inps!(
                     inp,
                     is3,
                     step_width * isw,
@@ -456,14 +444,10 @@ fn template_function<T: CommonBounds>(
     let m_must_in_range =
         k * step_width >= pw_start && (k + (OW_BLOCK as i64)) * step_width < img_width + pw_start;
     let l_in_range = l * step_height >= ph_start && l * step_height < img_height + ph_start;
-    let is1 = is0;
-    #[allow(non_upper_case_globals)]
-    const m: i64 = 0;
     if l_in_range {
         if m_must_in_range {
-            let is2 = is1;
             for i in ii..i_end {
-                let is3 = is2 + i;
+                let is3 = is0 + i;
                 let inp = conv2d_microkernel_gen_inps!(
                     inp,
                     is3,
@@ -478,10 +462,9 @@ fn template_function<T: CommonBounds>(
                 kernel.add(oc_remain as usize);
             }
         } else {
-            let is2 = is1;
             for i in ii..i_end {
-                let is3 = is2 + i;
-                let inp = conv2d_microkernel_gen_pad_inps!(
+                let is3 = is0 + i;
+                let inp = pwconv2d_microkernel_gen_pad_inps!(
                     inp,
                     is3,
                     step_width * isw,
@@ -553,15 +536,11 @@ fn template_function<T: CommonBounds>(
     let m_must_in_range =
         k * step_width >= pw_start && (k + (OW_BLOCK as i64)) * step_width < img_width + pw_start;
 
-    let is1 = is0;
     let l_in_range = l * step_height >= ph_start && l * step_height < img_height + ph_start;
-    #[allow(non_upper_case_globals)]
-    const m: i64 = 0;
     if l_in_range {
         if m_must_in_range {
-            let is2 = is1 + m * dw * isw;
             for i in ii..i_end {
-                let is3 = is2 + i;
+                let is3 = is0 + i;
                 let inp = conv2d_microkernel_gen_inps!(
                     inp,
                     is3,
@@ -576,10 +555,9 @@ fn template_function<T: CommonBounds>(
                 kernel.add(oc_remain as usize);
             }
         } else {
-            let is2 = is1 + m * dw * isw;
             for i in ii..i_end {
-                let is3 = is2 + i;
-                let inp = conv2d_microkernel_gen_pad_inps!(
+                let is3 = is0 + i;
+                let inp = pwconv2d_microkernel_gen_pad_inps!(
                     inp,
                     is3,
                     step_width * isw,

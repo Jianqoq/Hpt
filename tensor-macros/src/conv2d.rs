@@ -286,6 +286,72 @@ pub(crate) fn dwconv2d_microkernel_gen_pad_inps(inputs: TokenStream) -> TokenStr
     }
 }
 
+pub(crate) fn pwconv2d_microkernel_gen_pad_inps(inputs: TokenStream) -> TokenStream {
+    let inp_args = parse_macro_input!(inputs as ParseInpArgs);
+    let text = inp_args.template_name.to_string();
+    let re = Regex::new(r"(\d+)x(\d+)").unwrap();
+    if let Some(captures) = re.captures(&text) {
+        let before_x = captures.get(1).unwrap().as_str();
+        let before_x = before_x.parse::<i64>().unwrap();
+        let arr = (0..before_x).map(|i| i);
+        let arr = quote! {
+            #(
+                #arr
+            ),*
+        };
+        let inp = inp_args.name;
+        let is3 = inp_args.is3;
+        return (
+            quote! {
+            repeat_pad_inp!(
+                #inp,
+                #is3,
+                k,
+                step_width,
+                isw,
+                img_width,
+                pw_start,
+                l_in_range,
+                [#arr]
+            )
+        }
+        ).into();
+    } else {
+        let re = Regex::new(r"(\d+)_(\d+)").unwrap();
+        if let Some(captures) = re.captures(&text) {
+            let before_x = captures.get(1).unwrap().as_str();
+            let before_x = before_x.parse::<i64>().unwrap();
+            let arr = (0..before_x).map(|i| i);
+            let arr =
+                quote! {
+                #(
+                    #arr
+                ),*
+            };
+            let inp = inp_args.name;
+            let is3 = inp_args.is3;
+            return (
+                quote! {
+                repeat_pad_inp!(
+                    #inp,
+                    #is3,
+                    k,
+                    step_width,
+                    isw,
+                    img_width,
+                    pw_start,
+                    l_in_range,
+                    [#arr]
+                )
+            }
+            ).into();
+        } else {
+            panic!("Invalid input format, must contains format like 5x1 or 5_1");
+        }
+    }
+}
+
+
 pub(crate) fn conv2d_microkernel_gen_kernels(inputs: TokenStream) -> TokenStream {
     let inp_args = parse_macro_input!(inputs as ParseKernelArgs);
     let text = inp_args.template_name.to_string();
