@@ -1,4 +1,3 @@
-#![allow(unused)]
 use duplicate::duplicate_item;
 use tensor_common::pointer::Pointer;
 use tensor_macros::{
@@ -19,7 +18,6 @@ pub(crate) struct Params {
     pub(crate) arg5: [i64; 2],
     pub(crate) arg6: [i64; 3],
     pub(crate) pads: [i64; 2],
-    pub(crate) arg8: [i64; 2],
     pub(crate) arg9: [i64; 2],
 }
 
@@ -30,7 +28,6 @@ pub(crate) struct PartialParams {
     pub(crate) arg5: [i64; 2],
     pub(crate) arg6: [i64; 3],
     pub(crate) arg7: [i64; 2],
-    pub(crate) arg8: [i64; 2],
     pub(crate) arg9: [i64; 2],
     pub(crate) oc_remain: i64,
 }
@@ -58,27 +55,15 @@ pub struct ConvKernel<T: CommonBounds> {
         &Pointer<T>,
         fn(T::Vec) -> T::Vec
     ),
-    pub(crate) oc_block: usize,
-    pub(crate) ow_block: usize,
 }
 
 impl<T: CommonBounds> ConvKernel<T> {
     pub(crate) fn new(
-        kernel: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
-        oc_block: usize,
-        ow_block: usize
+        kernel: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
     ) -> Self {
         Self {
             kernel,
-            oc_block,
-            ow_block,
         }
-    }
-    pub(crate) fn register_used(&self) -> usize {
-        let res_used = self.oc_block * self.ow_block;
-        let inp_used = self.ow_block;
-        let kernel_used = 1;
-        res_used + inp_used + kernel_used
     }
 }
 
@@ -209,7 +194,6 @@ fn template_function<T: CommonBounds>(
         arg5: [step_height, step_width],
         arg6: [isb, ish, isw],
         pads: [ph_start, pw_start],
-        arg8: [dh, dw],
         arg9: [img_height, img_width],
     } = params;
     conv2d_microkernel_declare_const!(template_function);
@@ -321,7 +305,6 @@ fn template_function<T: CommonBounds>(
         arg5: [step_height, step_width],
         arg6: [isb, ish, isw],
         pads: [ph_start, pw_start],
-        arg8: [dh, dw],
         arg9: [img_height, img_width],
     } = params;
     conv2d_microkernel_declare_const!(template_function);
@@ -423,7 +406,6 @@ fn template_function<T: CommonBounds>(
         arg5: [step_height, step_width],
         arg6: [isb, ish, isw],
         arg7: [ph_start, pw_start],
-        arg8: [dh, dw],
         arg9: [img_height, img_width],
         oc_remain,
     } = params;
@@ -515,7 +497,6 @@ fn template_function<T: CommonBounds>(
         arg5: [step_height, step_width],
         arg6: [isb, ish, isw],
         arg7: [ph_start, pw_start],
-        arg8: [dh, dw],
         arg9: [img_height, img_width],
         oc_remain,
     } = params;
@@ -621,7 +602,7 @@ pub(crate) fn conv2d_full_oc_kernel_dispatch<T: CommonBounds>(
 
     // println!("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc, map_kb);
 
-    kernel_fn.cloned().map(|kernel| ConvKernel::new(kernel, *oc, *kb))
+    kernel_fn.cloned().map(|kernel| ConvKernel::new(kernel))
 }
 
 pub(crate) fn conv2d_full_oc_bias_kernel_dispatch<T: CommonBounds>(
