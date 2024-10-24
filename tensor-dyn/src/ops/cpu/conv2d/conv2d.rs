@@ -68,8 +68,8 @@ impl<T> _Tensor<T>
         let img_width = img_shape[2];
         let img_channels = img_shape[3];
         let kernel_shape = kernels.shape();
-        let kernel_height = kernel_shape[0];
-        let kernel_width = kernel_shape[1];
+        let kh = kernel_shape[0];
+        let kw = kernel_shape[1];
         let in_channels = kernel_shape[2];
         let out_channels = kernel_shape[3];
         if in_channels != img_channels {
@@ -81,10 +81,8 @@ impl<T> _Tensor<T>
         let ((ph_start, ph_end), (pw_start, pw_end)) = (padding[0], padding[1]);
         let (dh, dw) = (dilation[0], dilation[1]);
 
-        let out_height =
-            (img_height + ph_start + ph_end - dh * (kernel_height - 1) - 1) / step_height + 1;
-        let out_width =
-            (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1;
+        let out_height = (img_height + ph_start + ph_end - dh * (kh - 1) - 1) / step_height + 1;
+        let out_width = (img_width + pw_start + pw_end - dw * (kw - 1) - 1) / step_width + 1;
         let img = self.clone();
         if out_height <= 0 || out_width <= 0 {
             return if out_height <= 0 {
@@ -123,58 +121,74 @@ impl<T> _Tensor<T>
             ow_block,
             oc_nvec,
             oh_block as usize,
-            [kernel_height as usize, kernel_width as usize],
+            [kh as usize, kw as usize],
             cache
         );
         let (ic_nvec, jb) = params;
 
         // retrieve micro kernels start
 
-        let full_oc_kernel = conv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(
-            &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec)
-        );
+        let full_oc_kernel = conv2d_full_oc_kernel_dispatch(
+            [kh, kw],
+            &mut oc_nvec,
+            &mut ow_block
+        ).expect(&format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec));
         let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
         let full_oc_kernel_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
+            [kh, kw],
             &mut oc_nvec,
             &mut ((out_width as usize) % ow_block)
         );
         if full_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
         }
-        let partial_oc_kernel = remain_oc_kernel_dispatch::<T>(&mut ow_block);
+        let partial_oc_kernel = remain_oc_kernel_dispatch::<T>([kh, kw], &mut ow_block);
         if let Some(partial_oc_kernel) = partial_oc_kernel {
             assert_eq!(ow_block, partial_oc_kernel.ow_block);
         }
         let partial_oc_kernel_ow_remain = remain_oc_kernel_dispatch::<T>(
+            [kh, kw],
             &mut ((out_width as usize) % ow_block)
         );
         if partial_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
         }
-        let full_oc_kernel_fn_1_oc = conv2d_full_oc_kernel_dispatch::<T>(&mut 1, &mut ow_block);
+        let full_oc_kernel_fn_1_oc = conv2d_full_oc_kernel_dispatch::<T>(
+            [kh, kw],
+            &mut 1,
+            &mut ow_block
+        );
         let full_oc_kernel_fn_1_oc_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
+            [kh, kw],
             &mut 1,
             &mut ((out_width as usize) % ow_block)
         );
         let has_bias = bias.is_some();
         let bias_full_oc_kernel = if has_bias {
-            Some(conv2d_full_oc_bias_kernel_dispatch::<T>(&mut oc_nvec, &mut ow_block).unwrap())
+            Some(
+                conv2d_full_oc_bias_kernel_dispatch::<T>(
+                    [kh, kw],
+                    &mut oc_nvec,
+                    &mut ow_block
+                ).unwrap()
+            )
         } else {
             None
         };
         let bias_one_oc_kernel = if has_bias {
-            Some(conv2d_full_oc_bias_kernel_dispatch::<T>(&mut 1, &mut ow_block).unwrap())
+            Some(conv2d_full_oc_bias_kernel_dispatch::<T>([kh, kw], &mut 1, &mut ow_block).unwrap())
         } else {
             None
         };
         let bias_remain_oc_kernel = if has_bias {
-            Some(bias_remain_oc_kernel_dispatch::<T>(&mut ow_block).unwrap())
+            Some(bias_remain_oc_kernel_dispatch::<T>([kh, kw], &mut ow_block).unwrap())
         } else {
             None
         };
         let bias_full_oc_ow_remain = if has_bias {
             Some(
                 conv2d_full_oc_bias_kernel_dispatch::<T>(
+                    [kh, kw],
                     &mut oc_nvec,
                     &mut ((out_width as usize) % ow_block)
                 ).unwrap()
@@ -185,6 +199,7 @@ impl<T> _Tensor<T>
         let bias_one_oc_ow_remain = if has_bias {
             Some(
                 conv2d_full_oc_bias_kernel_dispatch::<T>(
+                    [kh, kw],
                     &mut 1,
                     &mut ((out_width as usize) % ow_block)
                 ).unwrap()
@@ -194,7 +209,10 @@ impl<T> _Tensor<T>
         };
         let bias_partial_oc_ow_remain = if has_bias {
             Some(
-                bias_remain_oc_kernel_dispatch::<T>(&mut ((out_width as usize) % ow_block)).unwrap()
+                bias_remain_oc_kernel_dispatch::<T>(
+                    [kh, kw],
+                    &mut ((out_width as usize) % ow_block)
+                ).unwrap()
             )
         } else {
             None
@@ -218,7 +236,7 @@ impl<T> _Tensor<T>
             [in_channels as usize, ic_nvec],
             [out_channels as usize, oc_nvec],
             [ks0 as usize, ks1 as usize, ks2 as usize],
-            [kernel_height as usize, kernel_width as usize]
+            [kh as usize, kw as usize]
         );
 
         let ic_block_size = ic_nvec * T::Vec::SIZE; // in channel block size
@@ -232,7 +250,7 @@ impl<T> _Tensor<T>
             let l_end = (ll + oh_block).min(out_height);
             let params = Params {
                 arg1: [0, 0],
-                arg2: [kernel_height, kernel_width],
+                arg2: [kh, kw],
                 arg3: [b, 0, 0, 0],
                 arg4: [osb, osh, osw],
                 arg5: [step_height, step_width],
@@ -259,7 +277,7 @@ impl<T> _Tensor<T>
                                     oc_block_size,
                                     ow_block,
                                     out_width_full_end,
-                                    [kernel_height, kernel_width],
+                                    [kh, kw],
                                     [ll, l_end],
                                     i_end - ii,
                                     jb,
@@ -285,7 +303,7 @@ impl<T> _Tensor<T>
                                     oc_block_size,
                                     ow_block,
                                     out_width_full_end,
-                                    [kernel_height, kernel_width],
+                                    [kh, kw],
                                     [ll, l_end],
                                     i_end - ii,
                                     jb,
@@ -311,7 +329,7 @@ impl<T> _Tensor<T>
                                 oc_block_size,
                                 ow_block,
                                 out_width_full_end,
-                                [kernel_height, kernel_width],
+                                [kh, kw],
                                 [ll, l_end],
                                 i_end - ii,
                                 jb,
@@ -357,7 +375,7 @@ impl<T> _Tensor<T>
                                         [out_width, ow_block as i64],
                                         [ll, l_end],
                                         [ii, i_end],
-                                        [kernel_height, kernel_width],
+                                        [kh, kw],
                                         [osb, osh, osw],
                                         [isb, ish, isw],
                                         [step_height, step_width],
@@ -384,7 +402,7 @@ impl<T> _Tensor<T>
                                         [out_width, ow_block as i64],
                                         [ll, l_end],
                                         [ii, i_end],
-                                        [kernel_height, kernel_width],
+                                        [kh, kw],
                                         [osb, osh, osw],
                                         [isb, ish, isw],
                                         [step_height, step_width],
@@ -421,7 +439,7 @@ impl<T> _Tensor<T>
                                         [out_width, ow_block as i64],
                                         [ll, l_end],
                                         [ii, i_end],
-                                        [kernel_height, kernel_width],
+                                        [kh, kw],
                                         [osb, osh, osw],
                                         [isb, ish, isw],
                                         [step_height, step_width],
@@ -447,7 +465,7 @@ impl<T> _Tensor<T>
                                         [out_width, ow_block as i64],
                                         [ll, l_end],
                                         [ii, i_end],
-                                        [kernel_height, kernel_width],
+                                        [kh, kw],
                                         [osb, osh, osw],
                                         [isb, ish, isw],
                                         [step_height, step_width],

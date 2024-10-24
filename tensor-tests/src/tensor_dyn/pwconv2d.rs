@@ -11,10 +11,7 @@ use tensor_types::convertion::{ Convertor, FromScalar };
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::NormalOut;
 
-fn common_input<T>([batch, out_channel, in_channel, height, width]: [
-    i64;
-    5
-])
+fn common_input<T>([batch, out_channel, in_channel, height, width]: [i64; 5])
     -> anyhow::Result<(_Tensor<T>, _Tensor<T>, tch::Tensor, tch::Tensor)>
     where
         T: Convertor + FromScalar<i64> + NormalOut<T, Output = T> + CommonBounds,
@@ -23,8 +20,8 @@ fn common_input<T>([batch, out_channel, in_channel, height, width]: [
 {
     let kernel = _Tensor::<T>
         ::arange(0, in_channel * out_channel)?
-        .reshape([out_channel, in_channel])?
-        .permute([1, 0])?
+        .reshape([out_channel, in_channel, 1, 1])?
+        .permute([2, 3, 1, 0])?
         .contiguous()?;
     let a = _Tensor::<T>
         ::arange(0, batch * in_channel * height * width)?
@@ -33,10 +30,7 @@ fn common_input<T>([batch, out_channel, in_channel, height, width]: [
         .contiguous()?;
 
     let tch_kernel = tch::Tensor
-        ::arange(in_channel * out_channel, (
-            tch::Kind::Int64,
-            tch::Device::Cpu,
-        ))
+        ::arange(in_channel * out_channel, (tch::Kind::Int64, tch::Device::Cpu))
         .reshape(&[out_channel, in_channel, 1, 1]);
     let tch_a = tch::Tensor
         ::arange(batch * in_channel * height * width, (tch::Kind::Int64, tch::Device::Cpu))
@@ -52,7 +46,7 @@ fn assert_eq(
     b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
     let res = a
-        .pwconv2d(
+        .conv2d(
             &a_kernel,
             None,
             [1, 1],
@@ -60,6 +54,7 @@ fn assert_eq(
                 (0, 0),
                 (0, 0),
             ],
+            [1, 1],
             None
         )?
         .permute([0, 3, 1, 2])?
@@ -86,7 +81,7 @@ fn assert_eq_pad(
     b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
     let res = a
-        .pwconv2d(
+        .conv2d(
             &a_kernel,
             None,
             [1, 1],
@@ -94,6 +89,7 @@ fn assert_eq_pad(
                 (2, 2),
                 (2, 2),
             ],
+            [1, 1],
             None
         )?
         .permute([0, 3, 1, 2])?
@@ -121,7 +117,7 @@ fn assert_eq_bias(
 ) -> anyhow::Result<()> {
     let bias = _Tensor::<i64>::arange(0i64, *a_kernel.shape().last().unwrap())?;
     let res = a
-        .pwconv2d(
+        .conv2d(
             &a_kernel,
             Some(&bias),
             [1, 1],
@@ -129,6 +125,7 @@ fn assert_eq_bias(
                 (0, 0),
                 (0, 0),
             ],
+            [1, 1],
             None
         )?
         .permute([0, 3, 1, 2])?
@@ -157,7 +154,7 @@ fn assert_eq_bias_pad(
 ) -> anyhow::Result<()> {
     let bias = _Tensor::<i64>::arange(0i64, *a_kernel.shape().last().unwrap())?;
     let res = a
-        .pwconv2d(
+        .conv2d(
             &a_kernel,
             Some(&bias),
             [1, 1],
@@ -165,6 +162,7 @@ fn assert_eq_bias_pad(
                 (2, 2),
                 (2, 2),
             ],
+            [1, 1],
             None
         )?
         .permute([0, 3, 1, 2])?
@@ -193,7 +191,7 @@ fn assert_eq_bias_pad_relu6(
 ) -> anyhow::Result<()> {
     let bias = _Tensor::<i64>::arange(0i64, *a_kernel.shape().last().unwrap())?;
     let res = a
-        .pwconv2d(
+        .conv2d(
             &a_kernel,
             Some(&bias),
             [1, 1],
@@ -201,6 +199,7 @@ fn assert_eq_bias_pad_relu6(
                 (2, 2),
                 (2, 2),
             ],
+            [1, 1],
             Some(|x| x._relu6())
         )?
         .permute([0, 3, 1, 2])?
