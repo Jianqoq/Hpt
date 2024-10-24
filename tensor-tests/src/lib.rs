@@ -2,6 +2,7 @@ pub mod tensor_dyn {
     pub mod conv2d_group;
     pub mod conv2d;
     pub mod dwconv2d;
+    pub mod pwconv2d;
     pub mod reduce;
     pub mod unary;
     pub mod creation;
