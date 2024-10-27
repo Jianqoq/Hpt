@@ -2,15 +2,16 @@ use tensor_common::pointer::Pointer;
 use tensor_traits::CommonBounds;
 
 use paste::paste;
-use tensor_macros::{gen_fast_reduce_simd_helper, gen_reduce_dim_not_include_simd_helper};
+use tensor_macros::{ gen_fast_reduce_simd_helper, gen_reduce_dim_not_include_simd_helper };
 use tensor_types::dtype::TypeCommon;
 use tensor_types::vectors::traits::*;
 
 #[inline]
 fn update_prg<T>(prg: &mut [i64], inp_ptr: &mut Pointer<T>, strides: &[i64], shape: &[i64]) {
     for j in (0..strides.len() - 1).rev() {
-        if prg[j] < shape[j] - 1
-        /*we need to subtract one because we didn't subtract it before we execute the kernel*/
+        if
+            prg[j] < shape[j] - 1
+            /*we need to subtract one because we didn't subtract it before we execute the kernel*/
         {
             prg[j] += 1;
             inp_ptr.offset(strides[j]);
@@ -29,7 +30,7 @@ fn update_prg2<T>(
     shape_len: i64,
     inp_ptr: &mut tensor_common::pointer::Pointer<T>,
     strides: &[i64],
-    shape: &[i64],
+    shape: &[i64]
 ) {
     for j in (shape_len..shape.len() as i64).rev() {
         let j = j as usize;
@@ -51,7 +52,7 @@ fn update_prg3<T>(
     shape_len: i64,
     inp_ptr: &mut Pointer<T>,
     strides: &[i64],
-    shape: &[i64],
+    shape: &[i64]
 ) {
     for j in (0..shape_len - 1).rev() {
         let j = j as usize;
@@ -69,8 +70,9 @@ fn update_prg3<T>(
 #[inline]
 fn update_prg4<T>(prg: &mut [i64], inp_ptr: &mut Pointer<T>, strides: &[i64], shape: &[i64]) {
     for j in (0..strides.len()).rev() {
-        if prg[j] < shape[j] - 1
-        /*we need to subtract one because we didn't subtract it before we execute the kernel*/
+        if
+            prg[j] < shape[j] - 1
+            /*we need to subtract one because we didn't subtract it before we execute the kernel*/
         {
             prg[j] += 1;
             inp_ptr.offset(strides[j]);
@@ -159,14 +161,15 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
     op: F,
     vec_op: F2,
     op_post: Option<F3>,
-    vec_op_post: Option<F4>,
-) where
-    T: CommonBounds,
-    O: CommonBounds,
-    F: Fn(O, T) -> O,
-    F2: Fn(O::Vec, T::Vec) -> O::Vec,
-    F3: Fn(O) -> O,
-    F4: Fn(O::Vec) -> O::Vec,
+    vec_op_post: Option<F4>
+)
+    where
+        T: CommonBounds,
+        O: CommonBounds,
+        F: Fn(O, T) -> O,
+        F2: Fn(O::Vec, T::Vec) -> O::Vec,
+        F3: Fn(O) -> O,
+        F4: Fn(O::Vec) -> O::Vec
 {
     use crate::REGNUM;
 
@@ -177,8 +180,8 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
     let remain = inner_loop_size % vec_size; // get inner loop size remainder
     let inner = inner_loop_size - remain; // get inner loop size that is multiple of vec_size
     let num_vecs = inner / vec_size; // get number of vectors
-    let remain_vec = num_vecs % REGNUM as isize;
-    let num_largest_vecs = (num_vecs - remain_vec) / REGNUM as isize;
+    let remain_vec = num_vecs % (REGNUM as isize);
+    let num_largest_vecs = (num_vecs - remain_vec) / (REGNUM as isize);
     #[cfg(target_feature = "avx2")]
     gen_kernel!(
         num_largest_vecs,
@@ -209,7 +212,7 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
         vec_op_post,
         [
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-            25, 26, 27, 28, 29, 30, 31, 32
+            25, 26, 27, 28, 29, 30, 31, 32,
         ]
     );
     #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
@@ -230,8 +233,8 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
     let remain_vec = remain_vec as u32;
     inp_ptr = origin.clone(); // reset inp_ptr
     res_ptr = origin_res.clone(); // reset res_ptr
-    inp_ptr.offset((num_largest_vecs as i64) * (REGNUM as i64) * (vec_size as i64));
-    res_ptr.offset((num_largest_vecs as i64) * (REGNUM as i64) * (vec_size as i64));
+    inp_ptr += (num_largest_vecs as i64) * (REGNUM as i64) * (vec_size as i64);
+    res_ptr += (num_largest_vecs as i64) * (REGNUM as i64) * (vec_size as i64);
     gen_fast_reduce_simd_helper!(remain_vec);
     if remain > 0 {
         inp_ptr = origin; // reset inp_ptr
@@ -260,12 +263,9 @@ pub(crate) fn fast_reduce_no_simd<T, O, F, F2>(
     inp_strides: &[i64],
     inp_shape: &[i64],
     op: F,
-    op_post: Option<F2>,
-) where
-    T: CommonBounds,
-    O: CommonBounds,
-    F: Fn(O, T) -> O,
-    F2: Fn(O) -> O,
+    op_post: Option<F2>
+)
+    where T: CommonBounds, O: CommonBounds, F: Fn(O, T) -> O, F2: Fn(O) -> O
 {
     let ndim = inp_strides.len();
     let mut prg = vec![0; ndim]; // intialize loop progress
@@ -402,14 +402,15 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
     op: F,
     op_post: Option<F3>,
     vec_op: F2,
-    vec_post: Option<F4>,
-) where
-    T: CommonBounds,
-    O: CommonBounds,
-    F: Fn(O, T) -> O,
-    F2: Fn(O::Vec, T::Vec) -> O::Vec,
-    F3: Fn(O) -> O,
-    F4: Fn(O::Vec) -> O::Vec,
+    vec_post: Option<F4>
+)
+    where
+        T: CommonBounds,
+        O: CommonBounds,
+        F: Fn(O, T) -> O,
+        F2: Fn(O::Vec, T::Vec) -> O::Vec,
+        F3: Fn(O) -> O,
+        F4: Fn(O::Vec) -> O::Vec
 {
     use std::ops::IndexMut;
 
@@ -420,8 +421,8 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
     let remain = inner_loop_size % (O::Vec::SIZE as isize); // get inner loop size remainder
     let inner = inner_loop_size - remain; // get inner loop size that is multiple of vec_size
     let num_vecs = inner / (O::Vec::SIZE as isize); // get number of vectors
-    let remain_vec = num_vecs % REGNUM as isize;
-    let num_largest_vecs = (num_vecs - remain_vec) / REGNUM as isize;
+    let remain_vec = num_vecs % (REGNUM as isize);
+    let num_largest_vecs = (num_vecs - remain_vec) / (REGNUM as isize);
     let origin_prg2 = prg2.iter().cloned().collect::<Vec<_>>();
     if num_largest_vecs > 0 {
         for _ in 0..outer_loop_size {
@@ -457,7 +458,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
                 vec_post,
                 [
                     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-                    23, 24, 25, 26, 27, 28, 29, 30, 31, 32
+                    23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
                 ]
             );
             #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
@@ -482,7 +483,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
                     for j in 0..REGNUM as isize {
                         let mut_ref = unsafe {
                             res_ptr.ptr.offset(
-                                (i * REGNUM as isize + j) * (O::Vec::SIZE as isize),
+                                (i * (REGNUM as isize) + j) * (O::Vec::SIZE as isize)
                             ) as *mut O::Vec
                         };
                         unsafe {
@@ -500,19 +501,21 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
     let remain_vec = remain_vec as u32;
     inp_ptr = origin.clone(); // reset inp_ptr
     res_ptr = origin_res.clone(); // reset res_ptr
-    inp_ptr.offset(
-        (num_largest_vecs as i64) * (REGNUM as i64) * (O::Vec::SIZE as i64),
-    );
-    res_ptr.offset(
-        (num_largest_vecs as i64) * (REGNUM as i64) * (O::Vec::SIZE as i64),
-    );
-    origin_prg2.iter().enumerate().for_each(|(i, x)| {
-        *prg2.index_mut(i) = *x;
-    });
+    inp_ptr.offset((num_largest_vecs as i64) * (REGNUM as i64) * (O::Vec::SIZE as i64));
+    res_ptr.offset((num_largest_vecs as i64) * (REGNUM as i64) * (O::Vec::SIZE as i64));
+    origin_prg2
+        .iter()
+        .enumerate()
+        .for_each(|(i, x)| {
+            *prg2.index_mut(i) = *x;
+        });
     gen_reduce_dim_not_include_simd_helper!(remain_vec);
-    origin_prg2.iter().enumerate().for_each(|(i, x)| {
-        *prg2.index_mut(i) = *x;
-    });
+    origin_prg2
+        .iter()
+        .enumerate()
+        .for_each(|(i, x)| {
+            *prg2.index_mut(i) = *x;
+        });
     if remain > 0 {
         inp_ptr = origin; // reset inp_ptr
         res_ptr = origin_res; // reset res_ptr
@@ -532,7 +535,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
                     *mut_ref = op_post(*mut_ref);
                 }
             }
-            res_ptr.add(inner_loop_size as usize);
+            res_ptr += inner_loop_size as usize;
             prg1.iter_mut().for_each(|x| {
                 *x = 0;
             });
@@ -553,12 +556,9 @@ pub(crate) fn reduce_dim_not_include<T, O, F, F2>(
     prg2: &mut [i64],
     shape_len: i64,
     op: F,
-    op_post: Option<F2>,
-) where
-    T: CommonBounds,
-    O: CommonBounds,
-    F: Fn(O, T) -> O,
-    F2: Fn(O) -> O,
+    op_post: Option<F2>
+)
+    where T: CommonBounds, O: CommonBounds, F: Fn(O, T) -> O, F2: Fn(O) -> O
 {
     for _ in 0..outer_loop_size {
         for _ in 0..intermediate_size {
@@ -596,12 +596,9 @@ pub(crate) fn contiguous_reduce_dim_include<T, O, F, F2>(
     prg1: &mut [i64],
     shape_len: i64,
     op: F,
-    op_post: Option<F2>,
-) where
-    T: CommonBounds,
-    O: CommonBounds,
-    F: Fn(O, T) -> O,
-    F2: Fn(O) -> O,
+    op_post: Option<F2>
+)
+    where T: CommonBounds, O: CommonBounds, F: Fn(O, T) -> O, F2: Fn(O) -> O
 {
     for _ in 0..outer_loop_size {
         for _ in 0..intermediate_size {
@@ -618,7 +615,7 @@ pub(crate) fn contiguous_reduce_dim_include<T, O, F, F2>(
             let tmp = op_post(tmp);
             res_ptr[0isize] = tmp;
         }
-        res_ptr.add(1);
+        res_ptr += 1usize;
     }
 }
 
@@ -638,12 +635,9 @@ pub(crate) fn uncontiguous_reduce_dim_include<T, O, F, F2>(
     shape_len: i64,
     inp_last_stride: isize,
     op: F,
-    op_post: Option<F2>,
-) where
-    T: CommonBounds,
-    O: CommonBounds,
-    F: Fn(O, T) -> O,
-    F2: Fn(O) -> O,
+    op_post: Option<F2>
+)
+    where T: CommonBounds, O: CommonBounds, F: Fn(O, T) -> O, F2: Fn(O) -> O
 {
     for _ in 0..outer_loop_size {
         for _ in 0..intermediate_size {
@@ -680,18 +674,17 @@ pub(crate) fn uncontiguous_reduce_dim_not_include<T, O, F, F2>(
     inp_last_stride: isize,
     res_last_strides: isize,
     op: F,
-    op_post: Option<F2>,
-) where
-    T: CommonBounds,
-    O: CommonBounds,
-    F: Fn(O, T) -> O,
-    F2: Fn(O) -> O,
+    op_post: Option<F2>
+)
+    where T: CommonBounds, O: CommonBounds, F: Fn(O, T) -> O, F2: Fn(O) -> O
 {
     for _ in 0..outer_loop_size {
         for _ in 0..intermediate_size {
             for i in 0..inner_loop_size {
-                res_ptr[i * res_last_strides] =
-                    op(res_ptr[i * res_last_strides], inp_ptr[i * inp_last_stride]);
+                res_ptr[i * res_last_strides] = op(
+                    res_ptr[i * res_last_strides],
+                    inp_ptr[i * inp_last_stride]
+                );
             }
             update_prg2(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
         }
