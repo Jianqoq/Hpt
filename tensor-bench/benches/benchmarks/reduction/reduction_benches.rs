@@ -89,7 +89,7 @@ reduction_bench_mark!(
         [4096, 2048, 8],
         [8192, 2048, 8],
     ],
-    [vec![0], vec![1], vec![2], vec![0, 1], vec![0, 2], vec![1, 2], vec![0, 1, 2]],
+    [vec![2]],
     assert_eq_i64,
     sum_dim_intlist(false, Kind::Float),
     sum(false)

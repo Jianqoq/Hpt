@@ -74,6 +74,9 @@ fn main() {
     #[cfg(any(feature = "clip", feature = "unary"))]
     benchmarks::unary::unary_benches::clip_benches();
 
+    #[cfg(feature = "softmax")]
+    benchmarks::softmax::softmax::softmax_benches();
+
     #[cfg(feature = "cat")]
     benchmarks::shape_manipulate::concat::cat_benches();
     #[cfg(any(feature = "sum", feature = "reduction"))]

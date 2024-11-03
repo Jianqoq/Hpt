@@ -45,7 +45,7 @@ pub mod ops {
         /// a module defines internal reduce functions
         pub mod reduce;
         /// a module defines reduce kernels
-        pub mod reduce_kernels;
+        pub mod argreduce_kernels;
         /// a module defines reduce template
         pub mod reduce_template;
         /// a module contains all the reduce computation utils
@@ -78,6 +78,8 @@ pub mod ops {
             pub mod conv_group_kernels;
             /// a module defines the dwconv2d kernels
             pub mod dwconv_kernels;
+            /// a module defines the softmax kernels
+            pub mod softmax_kernel;
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_expose {

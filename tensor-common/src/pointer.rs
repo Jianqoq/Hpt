@@ -17,6 +17,19 @@ pub struct Pointer<T> {
 }
 
 impl<T> Pointer<T> {
+    /// cast the pointer to a new type
+    ///
+    /// # Arguments
+    /// `U` - the new type
+    ///
+    /// # Returns
+    /// `Pointer<U>`
+    pub fn cast<U>(&self) -> Pointer<U> {
+        #[cfg(feature = "bound_check")]
+        return Pointer::new(self.ptr as *mut U, self.len);
+        #[cfg(not(feature = "bound_check"))]
+        return Pointer::new(self.ptr as *mut U);
+    }
     /// return raw pointer
     ///
     /// # Returns

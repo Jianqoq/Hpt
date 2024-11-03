@@ -1,19 +1,26 @@
 use std::{
-    borrow::{Borrow, BorrowMut}, fmt::{Debug, Display}, ops::{Add, Deref, Mul, Rem, Sub}, sync::{atomic::Ordering, Arc}
+    borrow::{ Borrow, BorrowMut },
+    fmt::{ Debug, Display },
+    ops::{ Add, Deref, Mul, Rem, Sub, Div },
+    sync::{ atomic::Ordering, Arc },
 };
 
 use crate::{
-    backend::{BackendTy, Buffer, Cpu},
+    backend::{ BackendTy, Buffer, Cpu },
     tensor_base::_Tensor,
-    DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION,
+    DISPLAY_LR_ELEMENTS,
+    DISPLAY_PRECISION,
 };
 use anyhow::Result;
-use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
+use tensor_common::{ layout::Layout, pointer::Pointer, shape::Shape };
 use tensor_display::display;
 use tensor_iterator::TensorIterator;
-use tensor_traits::tensor::{CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike};
+use tensor_traits::tensor::{ CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike };
 use tensor_types::{
-    convertion::Convertor, dtype::TypeCommon, into_scalar::IntoScalar, type_promote::NormalOut,
+    convertion::Convertor,
+    dtype::TypeCommon,
+    into_scalar::IntoScalar,
+    type_promote::{ NormalOut, FloatOutBinary },
 };
 
 /// A wrapper of `Tensor` for user.
@@ -22,17 +29,11 @@ use tensor_types::{
 /// # Properties
 /// - `basic`: The pointer of `Tensor`.
 #[derive(Clone)]
-pub struct Tensor<T, B = Cpu>
-where
-    B: BackendTy + Buffer,
-{
+pub struct Tensor<T, B = Cpu> where B: BackendTy + Buffer {
     pub(crate) inner: Arc<_Tensor<T, B>>,
 }
 
-impl<T, B> Deref for Tensor<T, B>
-where
-    B: BackendTy + Buffer,
-{
+impl<T, B> Deref for Tensor<T, B> where B: BackendTy + Buffer {
     type Target = _Tensor<T, B>;
 
     fn deref(&self) -> &Self::Target {
@@ -40,17 +41,15 @@ where
     }
 }
 
-impl<T> TensorLike<T> for Tensor<T>
-where
-    T: CommonBounds,
-{
+impl<T> TensorLike<T> for Tensor<T> where T: CommonBounds {
     fn as_raw(&self) -> &[T] {
         self.inner.as_raw()
     }
 
     fn as_raw_mut(&mut self) -> &mut [T] {
-        let slice =
-            unsafe { std::slice::from_raw_parts_mut(self.inner.ptr().ptr as *mut T, self.size()) };
+        let slice = unsafe {
+            std::slice::from_raw_parts_mut(self.inner.ptr().ptr as *mut T, self.size())
+        };
         slice
     }
 
@@ -61,10 +60,7 @@ where
 
 impl<T: CommonBounds> TensorIterator<'_, T> for Tensor<T> {}
 
-impl<T> TensorInfo<T> for Tensor<T>
-where
-    T: CommonBounds,
-{
+impl<T> TensorInfo<T> for Tensor<T> where T: CommonBounds {
     fn ptr(&self) -> Pointer<T> {
         self.data.clone()
     }
@@ -98,10 +94,7 @@ where
     }
 }
 
-impl<T> TensorInfo<T> for &Tensor<T>
-where
-    T: CommonBounds,
-{
+impl<T> TensorInfo<T> for &Tensor<T> where T: CommonBounds {
     fn ptr(&self) -> Pointer<T> {
         self.data.clone()
     }
@@ -137,10 +130,7 @@ where
 
 impl<T: CommonBounds> TensorAlloc for Tensor<T> {
     type Meta = T;
-    fn _empty<S: Into<Shape>>(shape: S) -> Result<Self>
-    where
-        Self: Sized,
-    {
+    fn _empty<S: Into<Shape>>(shape: S) -> Result<Self> where Self: Sized {
         Self::empty(shape)
     }
 }
@@ -153,11 +143,7 @@ impl<T: CommonBounds> Tensor<T> {
     ///
     /// # Returns
     /// A `Result` containing the new tensor of type `U` or an error if the conversion fails.
-    pub fn astype<U>(&self) -> Result<Tensor<U>>
-    where
-        U: CommonBounds,
-        T: IntoScalar<U>,
-    {
+    pub fn astype<U>(&self) -> Result<Tensor<U>> where U: CommonBounds, T: IntoScalar<U> {
         Ok(_Tensor::<T, Cpu>::astype(self)?.into())
     }
 
@@ -170,16 +156,8 @@ impl<T: CommonBounds> Tensor<T> {
     ///
     /// # Returns
     /// A `Result` containing the new tensor of type `U` or an error if the conversion fails.
-    pub fn try_astype<U>(&self) -> Result<Tensor<U>>
-    where
-        U: CommonBounds,
-        T: IntoScalar<U>,
-    {
-        if U::ID == T::ID {
-            Ok(self.static_cast()?)
-        } else {
-            Ok(self.astype::<U>()?)
-        }
+    pub fn try_astype<U>(&self) -> Result<Tensor<U>> where U: CommonBounds, T: IntoScalar<U> {
+        if U::ID == T::ID { Ok(self.static_cast()?) } else { Ok(self.astype::<U>()?) }
     }
 
     /// Performs a static cast of the tensor to a new type without actual data conversion.
@@ -189,10 +167,7 @@ impl<T: CommonBounds> Tensor<T> {
     ///
     /// # Returns
     /// A `Result` containing the new tensor of type `U`.
-    pub fn static_cast<U>(&self) -> Result<Tensor<U>>
-    where
-        U: CommonBounds,
-    {
+    pub fn static_cast<U>(&self) -> Result<Tensor<U>> where U: CommonBounds {
         Ok(_Tensor::<T, Cpu>::static_cast(self)?.into())
     }
 
@@ -208,18 +183,13 @@ impl<T: CommonBounds> Tensor<T> {
     /// # Returns
     /// `true` if all elements are close; otherwise, `false`.
     pub fn allclose<U>(&self, other: &Tensor<U>) -> bool
-    where
-        T: Convertor,
-        U: Convertor + CommonBounds,
+        where T: Convertor, U: Convertor + CommonBounds
     {
         self.inner.allclose(&other.inner)
     }
 }
 
-impl<T> Display for Tensor<T>
-where
-    T: CommonBounds + Convertor,
-{
+impl<T> Display for Tensor<T> where T: CommonBounds + Convertor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
         let lr_element_size = DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed);
@@ -227,10 +197,7 @@ where
     }
 }
 
-impl<T> Debug for Tensor<T>
-where
-    T: CommonBounds + Convertor,
-{
+impl<T> Debug for Tensor<T> where T: CommonBounds + Convertor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
         let lr_element_size = DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed);
@@ -270,7 +237,7 @@ macro_rules! normal_ops_2 {
             type Output = Tensor<<T as NormalOut<U>>::Output>;
 
             fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
-                (self.inner.as_ref() + rhs.inner.as_ref().clone()).into()
+                (self.inner.as_ref().$op2(rhs.inner.as_ref().clone())).into()
             }
         }
     };
@@ -289,7 +256,7 @@ macro_rules! normal_ops_3 {
             type Output = Tensor<<T as NormalOut<U>>::Output>;
 
             fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
-                (self.inner.as_ref() + rhs.inner.as_ref().clone()).into()
+                (self.inner.as_ref().$op2(rhs.inner.as_ref().clone())).into()
             }
         }
     };
@@ -308,7 +275,83 @@ macro_rules! normal_ops_4 {
             type Output = Tensor<<T as NormalOut<U>>::Output>;
 
             fn $op2(self, rhs: Tensor<U>) -> Self::Output {
-                (self.inner.as_ref() + rhs.inner.as_ref().clone()).into()
+                (self.inner.as_ref().$op2(rhs.inner.as_ref().clone())).into()
+            }
+        }
+    };
+}
+
+macro_rules! float_ops_1 {
+    ($op:ident, $op2:ident) => {
+        impl<T, U> $op<Tensor<U>> for Tensor<T>
+        where
+            T: CommonBounds + FloatOutBinary<U>,
+            U: CommonBounds,
+            <T as FloatOutBinary<U>>::Output: CommonBounds,
+            <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+            T::Vec: FloatOutBinary<U::Vec, Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec>,
+        {
+            type Output = Tensor<<T as FloatOutBinary<U>>::Output>;
+
+            fn $op2(self, rhs: Tensor<U>) -> Self::Output {
+                (self.inner.as_ref().$op2(rhs.inner.as_ref().clone())).into()
+            }
+        }
+    };
+}
+
+macro_rules! float_ops_2 {
+    ($op:ident, $op2:ident) => {
+        impl<'a, T, U> std::ops::$op<&'a Tensor<U>> for Tensor<T>
+        where
+            T: CommonBounds + FloatOutBinary<U>,
+            U: CommonBounds,
+            <T as FloatOutBinary<U>>::Output: CommonBounds,
+            <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+            T::Vec: FloatOutBinary<U::Vec, Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec>,
+        {
+            type Output = Tensor<<T as FloatOutBinary<U>>::Output>;
+
+            fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
+                (self.inner.as_ref().$op2(rhs.inner.as_ref().clone())).into()
+            }
+        }
+    };
+}
+
+macro_rules! float_ops_3 {
+    ($op:ident, $op2:ident) => {
+        impl<'a, T, U> std::ops::$op<&'a Tensor<U>> for &'a Tensor<T>
+        where
+            T: CommonBounds + FloatOutBinary<U>,
+            U: CommonBounds,
+            <T as FloatOutBinary<U>>::Output: CommonBounds,
+            <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+            T::Vec: FloatOutBinary<U::Vec, Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec>,
+        {
+            type Output = Tensor<<T as FloatOutBinary<U>>::Output>;
+
+            fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
+                (self.inner.as_ref().$op2(rhs.inner.as_ref().clone())).into()
+            }
+        }
+    };
+}
+
+macro_rules! float_ops_4 {
+    ($op:ident, $op2:ident) => {
+        impl<'a, T, U> std::ops::$op<Tensor<U>> for &'a Tensor<T>
+        where
+            T: CommonBounds + FloatOutBinary<U>,
+            U: CommonBounds,
+            <T as FloatOutBinary<U>>::Output: CommonBounds,
+            <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+            T::Vec: FloatOutBinary<U::Vec, Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec>,
+        {
+            type Output = Tensor<<T as FloatOutBinary<U>>::Output>;
+
+            fn $op2(self, rhs: Tensor<U>) -> Self::Output {
+                (self.inner.as_ref().$op2(rhs.inner.as_ref().clone())).into()
             }
         }
     };
@@ -318,63 +361,51 @@ normal_ops_1!(Add, add);
 normal_ops_1!(Sub, sub);
 normal_ops_1!(Mul, mul);
 normal_ops_1!(Rem, rem);
+float_ops_1!(Div, div);
 
 normal_ops_2!(Add, add);
 normal_ops_2!(Sub, sub);
 normal_ops_2!(Mul, mul);
 normal_ops_2!(Rem, rem);
+float_ops_2!(Div, div);
 
 normal_ops_3!(Add, add);
 normal_ops_3!(Sub, sub);
 normal_ops_3!(Mul, mul);
 normal_ops_3!(Rem, rem);
+float_ops_3!(Div, div);
 
 normal_ops_4!(Add, add);
 normal_ops_4!(Sub, sub);
 normal_ops_4!(Mul, mul);
 normal_ops_4!(Rem, rem);
+float_ops_4!(Div, div);
 
-impl<T> Borrow<_Tensor<T, Cpu>> for Tensor<T>
-where
-    T: CommonBounds,
-{
+impl<T> Borrow<_Tensor<T, Cpu>> for Tensor<T> where T: CommonBounds {
     fn borrow(&self) -> &_Tensor<T, Cpu> {
         &self.inner
     }
 }
 
-impl<T> Borrow<_Tensor<T, Cpu>> for &Tensor<T>
-where
-    T: CommonBounds,
-{
+impl<T> Borrow<_Tensor<T, Cpu>> for &Tensor<T> where T: CommonBounds {
     fn borrow(&self) -> &_Tensor<T, Cpu> {
         &self.inner
     }
 }
 
-impl<T> Borrow<_Tensor<T, Cpu>> for &mut Tensor<T>
-where
-    T: CommonBounds,
-{
+impl<T> Borrow<_Tensor<T, Cpu>> for &mut Tensor<T> where T: CommonBounds {
     fn borrow(&self) -> &_Tensor<T, Cpu> {
         &self.inner
     }
 }
 
-impl<T> BorrowMut<_Tensor<T, Cpu>> for &mut Tensor<T>
-where
-    T: CommonBounds,
-{
+impl<T> BorrowMut<_Tensor<T, Cpu>> for &mut Tensor<T> where T: CommonBounds {
     fn borrow_mut(&mut self) -> &mut _Tensor<T, Cpu> {
         Arc::make_mut(&mut self.inner)
     }
 }
 
-
-impl<T> BorrowMut<_Tensor<T, Cpu>> for Tensor<T>
-where
-    T: CommonBounds,
-{
+impl<T> BorrowMut<_Tensor<T, Cpu>> for Tensor<T> where T: CommonBounds {
     fn borrow_mut(&mut self) -> &mut _Tensor<T, Cpu> {
         Arc::make_mut(&mut self.inner)
     }
