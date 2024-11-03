@@ -485,6 +485,7 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, O>(
                 let shape_len = iterator.a_shape.len() as i64;
                 if T::ID == O::ID {
                     contiguous_reduce_dim_include_simd(
+                        init_val,
                         inner_loop_size as isize,
                         current_size as isize,
                         inner_loop_size_2 as isize,

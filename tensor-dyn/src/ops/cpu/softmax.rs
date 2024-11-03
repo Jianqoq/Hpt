@@ -15,7 +15,14 @@ use rayon::iter::{
 };
 use tensor_common::{ pointer::Pointer, shape::Shape, shape_utils::mt_intervals, strides::Strides };
 use tensor_iterator::{ iterator_traits::ParStridedIteratorZip, TensorIterator };
-use tensor_traits::{ CommonBounds, NormalReduce, ShapeManipulate, TensorCreator, TensorInfo };
+use tensor_traits::{
+    CommonBounds,
+    NormalReduce,
+    ShapeManipulate,
+    TensorCreator,
+    TensorInfo,
+    TensorLike,
+};
 use tensor_types::{
     convertion::Convertor,
     dtype::TypeCommon,
@@ -358,6 +365,76 @@ impl<T, U> SoftmaxPreprocessor<T, U> where T: Clone, U: Clone {
     }
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct UCSoftmaxPreprocessor<T, U> {
+    pub ptrs: Pointer<T>,
+    pub res_ptrs: Pointer<U>,
+    pub strides: Strides,
+    pub start: usize,
+    pub end: usize,
+    pub prg: Vec<i64>,
+    pub a_prg: Vec<i64>,
+    pub shape: Shape,
+    pub a_shape: Shape,
+}
+
+impl<T, U> UCSoftmaxPreprocessor<T, U> where T: Clone, U: Clone {
+    pub fn new2(
+        num_threads: usize,
+        loop_size: usize,
+        ptrs: Pointer<T>,
+        res_ptrs: Pointer<U>,
+        transposed_strides: Strides,
+        transposed_shape: Shape,
+        reduce_shape: Shape,
+        res_strides: Strides
+    ) -> Vec<UCSoftmaxPreprocessor<T, U>> {
+        let intervals: Vec<(usize, usize)> = mt_intervals(loop_size, num_threads);
+        let mut task_amout = 0;
+        let mut iterators = Vec::with_capacity(num_threads);
+        let mut progress_init_a_data = vec![0; reduce_shape.len()];
+        let ndim = reduce_shape.len() as i64;
+        for id in 0..num_threads {
+            let mut a_data_ptr_cpy = ptrs.clone();
+            let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
+            let mut res_ptrs_cpy = res_ptrs.clone();
+            let res_ptrs_cpy = res_ptrs_cpy.borrow_mut();
+
+            for i in (0..ndim - 1).rev() {
+                a_data_ptr_cpy.offset(
+                    progress_init_a_data[i as usize] * transposed_strides[i as usize]
+                );
+                res_ptrs_cpy.offset(progress_init_a_data[i as usize] * res_strides[i as usize]);
+            }
+
+            let progress_init_a_data_cpy = progress_init_a_data.clone();
+
+            task_amout += intervals[id].1 - intervals[id].0;
+
+            let prg = vec![0; transposed_shape.len()];
+
+            let mut tmp = task_amout as i64;
+            for j in (0..ndim - 1).rev() {
+                progress_init_a_data[j as usize] = tmp % reduce_shape[j as usize];
+                tmp /= reduce_shape[j as usize];
+            }
+
+            iterators.push(UCSoftmaxPreprocessor {
+                ptrs: a_data_ptr_cpy.clone(),
+                res_ptrs: res_ptrs_cpy.clone(),
+                strides: transposed_strides.clone(),
+                start: intervals[id].0,
+                end: intervals[id].1,
+                prg,
+                a_prg: progress_init_a_data_cpy,
+                shape: reduce_shape.clone(),
+                a_shape: transposed_shape.clone(),
+            });
+        }
+        iterators
+    }
+}
+
 pub(crate) fn softmax_prepare<T: CommonBounds, O: CommonBounds>(
     a: &_Tensor<T>,
     axis: usize,
@@ -461,17 +538,15 @@ pub(crate) fn uncontiguous_softmax_template<T, F1, F2, F3, O>(
 {
     let (keep_fast_dim, transposed_tensor, result) = softmax_prepare(a, axis, c)?;
 
-    let a_last_stride = if keep_fast_dim {
-        transposed_tensor.strides()[a.ndim() - 2]
-    } else {
-        transposed_tensor.strides()[a.ndim() - 1]
-    };
-    assert_eq!(a_last_stride, 1);
     let result_data = result.ptr();
     if a.ndim() == 1 {
         full_reduce(unsafe { result_data.get_ptr().as_mut().unwrap() });
     } else {
-        let inner_loop_size = *a.shape().last().unwrap() as usize;
+        let inner_loop_size = (if keep_fast_dim {
+            transposed_tensor.shape()[a.ndim() - 2]
+        } else {
+            transposed_tensor.shape()[a.ndim() - 1]
+        }) as usize;
         if !keep_fast_dim {
             let num_threads = if result.size() < rayon::current_num_threads() {
                 result.size()
@@ -656,6 +731,7 @@ pub(crate) fn uncontiguous_softmax<T, O>(
         axis,
         c,
         move |res| {
+            let a = a.contiguous().unwrap();
             let ptr = a.ptr();
             let raw = unsafe { std::slice::from_raw_parts_mut(ptr.ptr, a.size() as usize) };
             let max = raw
@@ -742,17 +818,18 @@ pub(crate) fn uncontiguous_softmax<T, O>(
             axes.push(axis);
             let transposed_res_layout = result.layout.permute(axes).unwrap();
             let transposed_res_strides = transposed_res_layout.strides();
-            let iterators = SoftmaxPreprocessor::new2(
+            let iterators = UCSoftmaxPreprocessor::new2(
                 num_threads,
                 outer_loop_size,
                 a.ptr(),
                 result.ptr(),
                 transposed_tensor.strides().clone(),
-                transposed_res_strides.clone(),
                 transposed_tensor.shape().sub_one(),
-                reduce_shape
+                reduce_shape,
+                transposed_res_strides.clone()
             );
-            let a_last_stride = transposed_tensor.strides()[a.ndim() - 1];
+            let a_last_stride = transposed_tensor.strides()[a.ndim() - 2];
+            let res_last_strides = transposed_res_strides[result.ndim() - 2];
             iterators.into_par_iter().for_each(|mut iterator| {
                 let result_ptr_c = iterator.res_ptrs.clone();
                 let a_data_ptr = iterator.ptrs.clone();
@@ -770,7 +847,8 @@ pub(crate) fn uncontiguous_softmax<T, O>(
                     &mut iterator.a_prg,
                     &transposed_res_strides,
                     shape_len,
-                    a_last_stride as isize
+                    a_last_stride as isize,
+                    res_last_strides as isize
                 );
             });
         }

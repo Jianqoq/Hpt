@@ -3,7 +3,6 @@ use tensor_traits::CommonBounds;
 use tensor_types::type_promote::{ FloatOutUnary, NormalOut, FloatOutBinary };
 use tensor_types::utils::{ array_vec_reduce, vec_sum };
 use tensor_types::vectors::traits::*;
-
 use crate::ALIGN;
 
 /// used for updating prg and inp_ptr for case2, first next
@@ -238,6 +237,7 @@ pub(crate) fn contiguous_dim_include<T, O>(
             };
             let max = array_vec_reduce(
                 inp_arr,
+                T::NEG_INF,
                 |x, y| x._max(y),
                 |x, y| x._max(y)
             );
@@ -264,6 +264,9 @@ pub(crate) fn contiguous_dim_include<T, O>(
             res_vecs.iter_mut().for_each(|res_vec| {
                 res_vec.write_unaligned(res_vec.read_unaligned()._div(sum_vec));
             });
+            for i in (inner_loop_size as usize) - remain..inner_loop_size as usize {
+                res_ptr[i] = res_ptr[i]._div(sum);
+            }
             update_prg3_softmax(
                 prg1,
                 shape_len,
@@ -287,6 +290,7 @@ pub(crate) fn contiguous_dim_include<T, O>(
             };
             let max = array_vec_reduce(
                 inp_arr,
+                T::NEG_INF,
                 |x, y| x._max(y),
                 |x, y| x._max(y)
             );
@@ -301,6 +305,9 @@ pub(crate) fn contiguous_dim_include<T, O>(
             res_vecs.iter_mut().for_each(|res_vec| {
                 res_vec.write_unaligned(res_vec.read_unaligned()._div(sum_vec));
             });
+            for i in (inner_loop_size as usize) - remain..inner_loop_size as usize {
+                res_ptr[i] = res_ptr[i]._div(sum);
+            }
             update_prg3_softmax(
                 prg1,
                 shape_len,
@@ -371,7 +378,8 @@ pub(crate) fn uncontiguous_softmax_dim_not_include<T, O>(
     prg2: &mut [i64],
     res_strides: &[i64],
     shape_len: i64,
-    inp_last_stride: isize
+    inp_last_stride: isize,
+    res_last_strides: isize
 )
     where
         T: CommonBounds + FloatOutUnary<Output = O>,
@@ -422,7 +430,9 @@ pub(crate) fn uncontiguous_softmax_dim_not_include<T, O>(
         for _ in 0..intermediate_size {
             for i in 0..inner_loop_size as i64 {
                 let max = unsafe { max_buffer.offset(i as isize).read() };
-                res_ptr[i] = inp_ptr[i * (inp_last_stride as i64)]._sub(max)._exp();
+                res_ptr[i * (res_last_strides as i64)] = inp_ptr[i * (inp_last_stride as i64)]
+                    ._sub(max)
+                    ._exp();
             }
             update_prg2_softmax(
                 prg1,
@@ -443,7 +453,9 @@ pub(crate) fn uncontiguous_softmax_dim_not_include<T, O>(
             for i in 0..inner_loop_size as i64 {
                 unsafe {
                     let buffer_val = sum_buffer.offset(i as isize).read();
-                    sum_buffer.offset(i as isize).write(res_ptr[i]._add(buffer_val));
+                    sum_buffer
+                        .offset(i as isize)
+                        .write(res_ptr[i * (res_last_strides as i64)]._add(buffer_val));
                 }
             }
             update_prg2(prg1, shape_len, &mut res_ptr, res_strides, inp_shape);
@@ -457,7 +469,8 @@ pub(crate) fn uncontiguous_softmax_dim_not_include<T, O>(
             for i in 0..inner_loop_size as i64 {
                 unsafe {
                     let sum = sum_buffer.offset(i as isize).read();
-                    res_ptr[i] = res_ptr[i]._div(sum);
+                    res_ptr[i * (res_last_strides as i64)] =
+                        res_ptr[i * (res_last_strides as i64)]._div(sum);
                 }
             }
             update_prg2(prg1, shape_len, &mut res_ptr, res_strides, inp_shape);

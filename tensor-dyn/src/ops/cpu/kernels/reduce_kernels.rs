@@ -587,6 +587,7 @@ pub(crate) fn reduce_dim_not_include<T, O, F, F2>(
 
 #[inline]
 pub(crate) fn contiguous_reduce_dim_include_simd<T, F, F2, F3>(
+    init: T,
     inner_loop_size: isize,
     outer_loop_size: isize,
     intermediate_size: isize,
@@ -607,7 +608,7 @@ pub(crate) fn contiguous_reduce_dim_include_simd<T, F, F2, F3>(
             let inp_arr = unsafe {
                 std::slice::from_raw_parts(inp_ptr.ptr as *const T, inner_loop_size as usize)
             };
-            let res = array_vec_reduce(inp_arr, &vec_op, &op);
+            let res = array_vec_reduce(inp_arr, init, &vec_op, &op);
             res_ptr[0isize] = unsafe { std::mem::transmute(res) };
             update_prg3(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
         }
@@ -721,6 +722,7 @@ pub(crate) fn uncontiguous_reduce_dim_not_include<T, O, F, F2>(
     for _ in 0..outer_loop_size {
         for _ in 0..intermediate_size {
             for i in 0..inner_loop_size {
+                // println!("sum: {}", inp_ptr[i * inp_last_stride]);
                 res_ptr[i * res_last_strides] = op(
                     res_ptr[i * res_last_strides],
                     inp_ptr[i * inp_last_stride]

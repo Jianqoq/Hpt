@@ -39,6 +39,7 @@ pub fn array_vec_sum<T: TypeCommon + VecCommon + NormalOut<T, Output = T> + Copy
 #[inline(always)]
 pub fn array_vec_reduce<T: TypeCommon + NormalOut<T, Output = T> + Copy>(
     array: &[T],
+    init: T,
     vec_op: impl Fn(T::Vec, T::Vec) -> T::Vec,
     scalar_op: impl Fn(T, T) -> T
 ) -> T {
@@ -46,16 +47,16 @@ pub fn array_vec_reduce<T: TypeCommon + NormalOut<T, Output = T> + Copy>(
     let vecs = unsafe {
         std::slice::from_raw_parts(array as *const _ as *const T::Vec, array.len() / T::Vec::SIZE)
     };
-    let mut sum_vec = T::Vec::splat(T::ZERO);
+    let mut red_vec = T::Vec::splat(init);
     for vec in vecs.iter() {
-        sum_vec = vec_op(sum_vec, vec.read_unaligned());
+        red_vec = vec_op(red_vec, vec.read_unaligned());
     }
-    let mut sum = T::ZERO;
+    let mut red = init;
     for i in array.len() - remain..array.len() {
-        sum = scalar_op(sum, array[i]);
+        red = scalar_op(red, array[i]);
     }
     for i in 0..T::Vec::SIZE {
-        sum = sum._add(sum_vec.extract(i));
+        red = scalar_op(red, red_vec.extract(i));
     }
-    sum
+    red
 }
