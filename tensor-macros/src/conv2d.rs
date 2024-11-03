@@ -301,9 +301,9 @@ pub(crate) fn pwconv2d_microkernel_gen_pad_inps(inputs: TokenStream) -> TokenStr
         };
         let inp = inp_args.name;
         let is3 = inp_args.is3;
-        return (
+        (
             quote! {
-            repeat_pad_inp!(
+                repeat_pw_pad_inp!(
                 #inp,
                 #is3,
                 k,
@@ -315,7 +315,7 @@ pub(crate) fn pwconv2d_microkernel_gen_pad_inps(inputs: TokenStream) -> TokenStr
                 [#arr]
             )
         }
-        ).into();
+        ).into()
     } else {
         let re = Regex::new(r"(\d+)_(\d+)").unwrap();
         if let Some(captures) = re.captures(&text) {
@@ -330,9 +330,9 @@ pub(crate) fn pwconv2d_microkernel_gen_pad_inps(inputs: TokenStream) -> TokenStr
             };
             let inp = inp_args.name;
             let is3 = inp_args.is3;
-            return (
+            (
                 quote! {
-                repeat_pad_inp!(
+                    repeat_pw_pad_inp!(
                     #inp,
                     #is3,
                     k,
@@ -344,13 +344,12 @@ pub(crate) fn pwconv2d_microkernel_gen_pad_inps(inputs: TokenStream) -> TokenStr
                     [#arr]
                 )
             }
-            ).into();
+            ).into()
         } else {
             panic!("Invalid input format, must contains format like 5x1 or 5_1");
         }
     }
 }
-
 
 pub(crate) fn conv2d_microkernel_gen_kernels(inputs: TokenStream) -> TokenStream {
     let inp_args = parse_macro_input!(inputs as ParseKernelArgs);

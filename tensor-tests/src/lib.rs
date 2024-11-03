@@ -12,6 +12,7 @@ pub mod tensor_dyn {
     pub mod slice;
     pub mod test_lib;
     pub mod binary_out;
+    pub mod softmax;
 }
 
 pub mod tensor_common {

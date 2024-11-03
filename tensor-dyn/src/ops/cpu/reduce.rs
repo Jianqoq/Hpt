@@ -226,8 +226,9 @@ macro_rules! register_reduction_one_axis {
 
 use tensor_types::vectors::traits::*;
 
-use super::kernels::reduce_kernels::{
+use super::kernels::reduce::{
     contiguous_reduce_dim_include,
+    contiguous_reduce_dim_include_simd,
     uncontiguous_reduce_dim_include,
 };
 use super::reduce_template::uncontiguos_reduce_template;
@@ -251,11 +252,12 @@ pub(crate) fn reduce<T, F, F2>(
         T::Vec: Copy
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<_, _, _, fn(T) -> T, _, fn(T::Vec) -> T::Vec, T>(
+        contiguous_reduce::<_, _, _, fn(T) -> T, _, _, fn(T::Vec) -> T::Vec, T>(
             a,
             op,
             op,
             None,
+            vec_op,
             vec_op,
             None,
             &axes,
@@ -282,11 +284,12 @@ pub(crate) fn reduce<T, F, F2>(
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn reduce2<T, F, F2, F3, O>(
+pub(crate) fn reduce2<T, F, F2, F3, F4, O>(
     a: &_Tensor<T>,
     op: F,
     op2: F2,
     vec_op: F3,
+    vec_op2: F4,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -299,17 +302,19 @@ pub(crate) fn reduce2<T, F, F2, F3, O>(
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
         F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
         F3: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+        F4: Fn(O::Vec, O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
         O: CommonBounds,
         T::Vec: Copy,
         O::Vec: Copy
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<T, F, F2, fn(O) -> O, _, fn(O::Vec) -> O::Vec, O>(
+        contiguous_reduce::<T, F, F2, fn(O) -> O, _, _, fn(O::Vec) -> O::Vec, O>(
             a,
             op,
             op2,
             None,
             vec_op,
+            vec_op2,
             None,
             &axes,
             init_val,
@@ -335,13 +340,14 @@ pub(crate) fn reduce2<T, F, F2, F3, O>(
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn reduce3<T, F, F2, F3, F4, F5, O>(
+pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, O>(
     a: &_Tensor<T>,
     op: F,
     op2: F2,
     op3: F3,
-    op4: F4,
-    op5: F5,
+    vec_op: F4,
+    vec_op2: F5,
+    op5: F6,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -355,17 +361,19 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, O>(
         F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
         F3: Fn(O) -> O + Sync + Send + 'static + Copy,
         F4: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-        F5: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+        F5: Fn(O::Vec, O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+        F6: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
         O: CommonBounds,
         O::Vec: Copy
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<T, F, F2, F3, F4, F5, O>(
+        contiguous_reduce::<T, F, F2, F3, F4, F5, F6, O>(
             a,
             op,
             op2,
             Some(op3),
-            op4,
+            vec_op,
+            vec_op2,
             Some(op5),
             &axes,
             init_val,
@@ -374,12 +382,12 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, O>(
             c
         )
     } else {
-        uncontiguous_reduce::<T, F, F2, F3, F4, F5, O>(
+        uncontiguous_reduce::<T, F, F2, F3, F4, F6, O>(
             a,
             op,
             op2,
             Some(op3),
-            op4,
+            vec_op,
             Some(op5),
             &axes,
             init_val,
@@ -405,13 +413,14 @@ register_reduction_one_axis!(
 );
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, O>(
+pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, O>(
     a: &_Tensor<T>,
     op: F,
     op2: F2,
     op3: Option<F3>,
     vec_op: F4,
-    vec_post: Option<F5>,
+    vec_op2: F5,
+    vec_post: Option<F6>,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -426,7 +435,8 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, O>(
         F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
         F3: Fn(O) -> O + Sync + Send + 'static + Copy,
         F4: Fn(O::Vec, T::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
-        F5: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+        F5: Fn(O::Vec, O::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
+        F6: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
         T::Vec: Copy,
         O::Vec: Copy
 {
@@ -473,19 +483,37 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, O>(
                 let a_data_ptr = iterator.ptrs.clone();
                 let current_size = iterator.end - iterator.start;
                 let shape_len = iterator.a_shape.len() as i64;
-                contiguous_reduce_dim_include(
-                    inner_loop_size as isize,
-                    current_size as isize,
-                    inner_loop_size_2 as isize,
-                    a_data_ptr,
-                    result_ptr_c,
-                    &iterator.strides,
-                    &iterator.a_shape,
-                    &mut iterator.prg,
-                    shape_len,
-                    op,
-                    op3
-                );
+                if T::ID == O::ID {
+                    contiguous_reduce_dim_include_simd(
+                        init_val,
+                        inner_loop_size as isize,
+                        current_size as isize,
+                        inner_loop_size_2 as isize,
+                        a_data_ptr.cast::<O>(),
+                        result_ptr_c,
+                        &iterator.strides,
+                        &iterator.a_shape,
+                        &mut iterator.prg,
+                        shape_len,
+                        op2,
+                        vec_op2,
+                        op3
+                    );
+                } else {
+                    contiguous_reduce_dim_include(
+                        inner_loop_size as isize,
+                        current_size as isize,
+                        inner_loop_size_2 as isize,
+                        a_data_ptr,
+                        result_ptr_c,
+                        &iterator.strides,
+                        &iterator.a_shape,
+                        &mut iterator.prg,
+                        shape_len,
+                        op,
+                        op3
+                    );
+                }
             });
         },
         move |num_threads, inner_loop_size, result| {
@@ -513,8 +541,8 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, O>(
 
                     let inner_loop_size = *res.shape().last().unwrap() as isize;
                     let outer_loop_size = (inp.size() as isize) / inner_loop_size;
-                    use crate::ops::cpu::kernels::reduce_kernels::fast_reduce_no_simd;
-                    use crate::ops::cpu::kernels::reduce_kernels::fast_reduce_simd;
+                    use crate::ops::cpu::kernels::reduce::fast_reduce_no_simd;
+                    use crate::ops::cpu::kernels::reduce::fast_reduce_simd;
                     if O::Vec::SIZE == T::Vec::SIZE {
                         fast_reduce_simd(
                             inner_loop_size,
@@ -564,8 +592,8 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, O>(
                 let inp_shape = &iterator.a_shape;
                 let mut prg1 = iterator.prg.clone();
                 let mut prg2 = iterator.a_prg.clone();
-                use crate::ops::cpu::kernels::reduce_kernels::reduce_dim_not_include;
-                use crate::ops::cpu::kernels::reduce_kernels::reduce_dim_not_include_simd;
+                use crate::ops::cpu::kernels::reduce::reduce_dim_not_include;
+                use crate::ops::cpu::kernels::reduce::reduce_dim_not_include_simd;
                 if O::Vec::SIZE == T::Vec::SIZE {
                     reduce_dim_not_include_simd(
                         inner_loop_size as isize,
@@ -748,7 +776,7 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O>(
                 let res_strides = result.strides().clone();
                 let res_shape = res_shape.clone();
                 let shape_len = iterator.shape.len() as i64;
-                use crate::ops::cpu::kernels::reduce_kernels::uncontiguous_reduce_dim_not_include;
+                use crate::ops::cpu::kernels::reduce::uncontiguous_reduce_dim_not_include;
                 uncontiguous_reduce_dim_not_include(
                     inner_loop_size as isize,
                     current_size as isize,

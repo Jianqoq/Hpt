@@ -16,3 +16,6 @@ pub mod signals {
     #[cfg(feature = "hamming")]
     pub mod hamming_window;
 }
+pub mod softmax {
+    pub mod softmax;
+}

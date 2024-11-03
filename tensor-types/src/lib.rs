@@ -140,5 +140,7 @@ pub mod vectors {
     }
     /// A module defines a set of traits for vector
     pub mod traits;
+    /// A module defines a set of utils for vector
+    pub mod utils;
 }
 pub use vectors::*;

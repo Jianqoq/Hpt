@@ -198,6 +198,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
             |a, b| a._add(b._square()),
             |a, b| a._add(b),
             |a, b| a._add(b._square()),
+            |a, b| a._add(b._square()),
             &axes,
             T::ZERO,
             keep_dims,
@@ -219,6 +220,7 @@ impl<T> EvalReduce for _Tensor<T> where T: CommonBounds + Eval<Output = bool> + 
                 let mask = b.to_bool();
                 mask & a
             },
+            |a, b| { b & a },
             &axes,
             true,
             keep_dims,
@@ -237,6 +239,7 @@ impl<T> EvalReduce for _Tensor<T> where T: CommonBounds + Eval<Output = bool> + 
                 let mask = b.to_bool();
                 mask | a
             },
+            |a, b| { b | a },
             &axes,
             false,
             keep_dims,
@@ -399,6 +402,7 @@ impl<T> _Tensor<T>
             |a, b| a._add(b),
             move |a| a._div(reduce_size),
             |a, b| a._add(b),
+            |a, b| a._add(b),
             move |a| a._div(reduce_vec),
             &axes,
             <T as FloatOutBinary>::Output::ZERO,
@@ -448,6 +452,7 @@ impl<T> _Tensor<T>
             },
             |a, b| a._add(b._mul(b)),
             move |a| a._sqrt(),
+            |a, b| a._add(b._mul(b)),
             |a, b| a._add(b._mul(b)),
             |a| a._sqrt(),
             &axes,
@@ -506,6 +511,11 @@ impl<T> _Tensor<T>
             },
             move |a, b| a._add(b._abs()._pow(three)),
             move |a| a,
+            move |a, b| {
+                let abs = b._abs();
+                let pow = abs._pow(three_vec);
+                a._add(pow)
+            },
             move |a, b| {
                 let abs = b._abs();
                 let pow = abs._pow(three_vec);

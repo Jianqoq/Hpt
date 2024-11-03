@@ -23,8 +23,6 @@ pub mod ops {
             pub mod conv2d_group;
             /// a module defines dwconv2d operation
             pub mod dwconv2d;
-            /// a module defines pwconv2d operation
-            pub mod pwconv2d;
         }
         /// a module defines conv_config struct
         pub mod conv_config;
@@ -47,15 +45,22 @@ pub mod ops {
         /// a module defines internal reduce functions
         pub mod reduce;
         /// a module defines reduce kernels
-        pub mod reduce_kernels;
+        pub mod argreduce_kernels;
         /// a module defines reduce template
         pub mod reduce_template;
         /// a module contains all the reduce computation utils
         pub mod reduce_utils;
         /// a module defines shrink operation
         pub mod shrink;
-        /// a module defines softmax operation
-        pub mod softmax;
+        /// a module defines softmax operations
+        pub mod softmaxs {
+            /// a module defines softmax
+            pub mod softmax;
+            /// a module defines softmax utils
+            pub mod softmax_utils;
+            /// a module defines log_softmax
+            pub mod log_softmax;
+        }
         /// a module defines all the std::ops operations
         pub mod std_ops;
         /// a module defines tensordot operation
@@ -69,19 +74,21 @@ pub mod ops {
             /// a module defines the avgpool2d kernels
             pub mod avgpool_kernels;
             /// a module defines the conv2d kernels
-            pub mod conv_kernels;
+            pub mod conv;
             /// a module defines the lp_pool2d kernels
             pub mod lp_pool_kernels;
             /// a module defines the maxpool2d kernels
             pub mod maxpool_kernels;
             /// a module defines the reduce kernels
-            pub mod reduce_kernels;
+            pub mod reduce;
             /// a module defines the dwconv2d kernels
-            pub mod conv_group_kernels;
+            pub mod conv_group;
             /// a module defines the dwconv2d kernels
-            pub mod dwconv_kernels;
-            /// a module defines the pwconv2d kernels
-            pub mod pwconv_kernels;
+            pub mod dwconv;
+            /// a module defines the softmax kernels
+            pub mod softmax;
+            /// a module defines the logsoftmax kernels
+            pub mod logsoftmax;
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_expose {

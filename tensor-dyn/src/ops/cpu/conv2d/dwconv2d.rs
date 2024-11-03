@@ -1,10 +1,10 @@
 use crate::ops::cpu::cache_utils::cache::Cache;
-use crate::ops::cpu::kernels::dwconv_kernels::bias_remain_oc_kernel_dispatch;
-use crate::ops::cpu::kernels::dwconv_kernels::conv2d_full_oc_bias_kernel_dispatch;
-use crate::ops::cpu::kernels::dwconv_kernels::conv2d_full_oc_kernel_dispatch;
-use crate::ops::cpu::kernels::dwconv_kernels::remain_oc_kernel_dispatch;
-use crate::ops::cpu::kernels::dwconv_kernels::Params;
-use crate::ops::cpu::kernels::dwconv_kernels::PartialParams;
+use crate::ops::cpu::kernels::dwconv::bias_remain_oc_kernel_dispatch;
+use crate::ops::cpu::kernels::dwconv::conv2d_full_oc_bias_kernel_dispatch;
+use crate::ops::cpu::kernels::dwconv::conv2d_full_oc_kernel_dispatch;
+use crate::ops::cpu::kernels::dwconv::remain_oc_kernel_dispatch;
+use crate::ops::cpu::kernels::dwconv::Params;
+use crate::ops::cpu::kernels::dwconv::PartialParams;
 use crate::tensor_base::_Tensor;
 use crate::REGNUM;
 use crate::SIMD_WIDTH;

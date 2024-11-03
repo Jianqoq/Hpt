@@ -25,6 +25,15 @@ pub trait VecTrait<T> {
         let ptr = self.as_mut_ptr() as *mut T::Vec;
         unsafe { ptr.write_unaligned(vec) }
     }
+    /// read a value from vector
+    #[inline(always)]
+    fn read_unaligned(&self) -> T::Vec
+    where
+        T: TypeCommon,
+    {
+        let ptr = self.as_ptr() as *const T::Vec;
+        unsafe { ptr.read_unaligned() }
+    }
 }
 
 /// a trait for vector initialization
