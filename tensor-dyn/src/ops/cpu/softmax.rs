@@ -2,7 +2,7 @@ use std::borrow::BorrowMut;
 
 use crate::{
     backend::Cpu,
-    ops::cpu::reduce_utils::reduce_prepare,
+    ops::cpu::kernels::softmax_kernel::uncontiguous_softmax_dim_not_include,
     tensor::Tensor,
     tensor_base::_Tensor,
 };
@@ -13,33 +13,19 @@ use rayon::iter::{
     IntoParallelRefMutIterator,
     ParallelIterator,
 };
-use tensor_common::{
-    pointer::Pointer,
-    shape::Shape,
-    shape_utils::{ mt_intervals, mt_intervals_simd },
-    slice::Slice,
-    strides::Strides,
-};
+use tensor_common::{ pointer::Pointer, shape::Shape, shape_utils::mt_intervals, strides::Strides };
 use tensor_iterator::{ iterator_traits::ParStridedIteratorZip, TensorIterator };
-use tensor_traits::{
-    CommonBounds,
-    NormalReduce,
-    ShapeManipulate,
-    TensorCreator,
-    TensorInfo,
-    TensorLike,
-};
+use tensor_traits::{ CommonBounds, NormalReduce, ShapeManipulate, TensorCreator, TensorInfo };
 use tensor_types::{
     convertion::Convertor,
     dtype::TypeCommon,
     into_scalar::IntoScalar,
     type_promote::{ Cmp, FloatOutBinary, FloatOutUnary, NormalOut },
 };
-use tensor_types::traits::VecCommon;
 
 use super::{
-    kernels::softmax_kernel::contiguous_dim_include,
-    reduce_utils::{ rearrange_array, ReductionPreprocessor },
+    kernels::softmax_kernel::{ contiguous_dim_include, uncontiguous_softmax_dim_include },
+    reduce_utils::rearrange_array,
 };
 
 impl<T> _Tensor<T> {
@@ -72,7 +58,11 @@ impl<T> _Tensor<T> {
             T::Vec: FloatOutUnary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
             <<T as FloatOutUnary>::Output as TypeCommon>::Vec: FloatOutBinary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>
     {
-        let res = contiguous_softmax(self, axis, None::<_Tensor<<T as FloatOutUnary>::Output>>)?;
+        let res = if self.is_contiguous() && self.parent().is_none() {
+            contiguous_softmax(self, axis, None::<_Tensor<<T as FloatOutUnary>::Output>>)?
+        } else {
+            uncontiguous_softmax(self, axis, None::<_Tensor<<T as FloatOutUnary>::Output>>)?
+        };
         Ok(res)
     }
 }
@@ -661,7 +651,7 @@ pub(crate) fn uncontiguous_softmax<T, O>(
         O::Vec: FloatOutBinary<Output = O::Vec>
 {
     let axis = (if axis < 0 { axis + (a.ndim() as i64) } else { axis }) as usize;
-    contiguous_softmax_template(
+    uncontiguous_softmax_template(
         a,
         axis,
         c,
@@ -720,21 +710,23 @@ pub(crate) fn uncontiguous_softmax<T, O>(
                 transposed_tensor.shape().clone(),
                 reduce_shape
             );
+            let a_last_stride = transposed_tensor.strides()[a.ndim() - 1];
             iterators.into_par_iter().for_each(|mut iterator| {
                 let result_ptr_c = iterator.res_ptrs.clone();
                 let a_data_ptr = iterator.ptrs.clone();
                 let current_size = iterator.end - iterator.start;
                 let shape_len = iterator.a_shape.len() as i64;
-                contiguous_dim_include(
+                uncontiguous_softmax_dim_include(
                     inner_loop_size as isize,
                     current_size as isize,
                     a_data_ptr,
                     result_ptr_c,
                     &iterator.strides,
-                    &transposed_res_strides,
                     &iterator.a_shape,
                     &mut iterator.prg,
-                    shape_len
+                    &transposed_res_strides,
+                    shape_len,
+                    a_last_stride as isize
                 );
             });
         },
@@ -760,29 +752,25 @@ pub(crate) fn uncontiguous_softmax<T, O>(
                 transposed_tensor.shape().sub_one(),
                 reduce_shape
             );
-            iterators.into_par_iter().for_each(|iterator| {
+            let a_last_stride = transposed_tensor.strides()[a.ndim() - 1];
+            iterators.into_par_iter().for_each(|mut iterator| {
                 let result_ptr_c = iterator.res_ptrs.clone();
                 let a_data_ptr = iterator.ptrs.clone();
                 let current_size = iterator.end - iterator.start;
                 let shape_len = iterator.shape.len() as i64;
-                let inp_strides = &iterator.strides;
-
-                let inp_shape = &iterator.a_shape;
-                let mut prg1 = iterator.prg.clone();
-                let mut prg2 = iterator.a_prg.clone();
-                use crate::ops::cpu::kernels::softmax_kernel::softmax_dim_not_include;
-                softmax_dim_not_include(
+                uncontiguous_softmax_dim_not_include(
                     inner_loop_size as isize,
                     current_size as isize,
                     inner_loop_size_2 as isize,
                     a_data_ptr,
                     result_ptr_c,
-                    &inp_strides,
+                    &iterator.strides,
+                    &iterator.a_shape,
+                    &mut iterator.prg,
+                    &mut iterator.a_prg,
                     &transposed_res_strides,
-                    &inp_shape,
-                    &mut prg1,
-                    &mut prg2,
-                    shape_len
+                    shape_len,
+                    a_last_stride as isize
                 );
             });
         }
