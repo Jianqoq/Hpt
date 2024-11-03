@@ -22,7 +22,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
 
     fn sum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes = process_axes(axes, self.ndim())?;
-        reduce::<_, true, _, _>(
+        reduce(
             self,
             |a, b| a._add(b),
             |a, b| a._add(b),
@@ -44,7 +44,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         where O: Borrow<Self::Output>
     {
         let axes = process_axes(axes, self.ndim())?;
-        reduce::<_, true, _, _>(
+        reduce(
             self,
             |a, b| a._add(b),
             |a, b| a._add(b),
@@ -63,7 +63,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         keep_dims: bool
     ) -> anyhow::Result<Self::Output> {
         let axes = process_axes(axes, self.ndim())?;
-        reduce::<_, true, _, _>(
+        reduce(
             self,
             |a, b| a._add(b),
             |a, b| a._add(b),
@@ -77,7 +77,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
 
     fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes = process_axes(axis, self.ndim())?;
-        reduce::<_, true, _, _>(
+        reduce(
             self,
             |a, b| a._mul(b),
             |a, b| a._mul(b),
@@ -96,7 +96,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         keep_dims: bool
     ) -> anyhow::Result<Self::Output> {
         let axes = process_axes(axes, self.ndim())?;
-        reduce::<_, true, _, _>(
+        reduce(
             self,
             |a, b| a._mul(b),
             |a, b| a._mul(b),
@@ -110,7 +110,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
 
     fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce::<_, true, _, _>(
+        reduce(
             self,
             |a, b| a._min(b),
             |a, b| a._min(b),
@@ -129,7 +129,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         keep_dims: bool
     ) -> anyhow::Result<Self> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce::<_, true, _, _>(
+        reduce(
             self,
             |a, b| a._min(b),
             |a, b| a._min(b),
@@ -143,7 +143,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
 
     fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce::<_, true, _, _>(
+        reduce(
             self,
             |a, b| a._max(b),
             |a, b| a._max(b),
@@ -162,7 +162,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         keep_dims: bool
     ) -> anyhow::Result<Self> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce::<_, true, _, _>(
+        reduce(
             self,
             |a, b| a._max(b),
             |a, b| a._max(b),
@@ -176,7 +176,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
 
     fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce::<_, true, _, _>(
+        reduce(
             self,
             |a, b| {
                 let b_abs = b._abs();
@@ -193,7 +193,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
 
     fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce2::<_, true, _, _, _, _, _>(
+        reduce2(
             self,
             |a, b| a._add(b._square()),
             |a, b| a._add(b),
@@ -212,7 +212,7 @@ impl<T> EvalReduce for _Tensor<T> where T: CommonBounds + Eval<Output = bool> + 
     type BoolOutput = _Tensor<bool>;
     fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce2::<_, true, _, _, _, _, _>(
+        reduce2(
             self,
             |a, b| b._is_true() & a,
             |a, b| b & a,
@@ -231,7 +231,7 @@ impl<T> EvalReduce for _Tensor<T> where T: CommonBounds + Eval<Output = bool> + 
 
     fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce2::<_, true, _, _, _, _, _>(
+        reduce2(
             self,
             |a, b| b._is_true() | a,
             |a, b| b | a,
@@ -260,7 +260,7 @@ impl<T> NormalEvalReduce<T>
 
     fn nansum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes = process_axes(axes, self.ndim())?;
-        reduce::<_, true, _, _>(
+        reduce(
             self,
             |a, b| {
                 if b._is_nan() { a } else { b._add(a) }
@@ -284,7 +284,7 @@ impl<T> NormalEvalReduce<T>
         keep_dims: bool
     ) -> anyhow::Result<Self::Output> {
         let axes = process_axes(axes, self.ndim())?;
-        reduce::<_, true, _, _>(
+        reduce(
             self,
             |a, b| {
                 if b._is_nan() { a } else { b._add(a) }
@@ -303,7 +303,7 @@ impl<T> NormalEvalReduce<T>
 
     fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce::<_, true, _, _>(
+        reduce(
             self,
             |a, b| {
                 if b._is_nan() { a } else { b._mul(a) }
@@ -327,7 +327,7 @@ impl<T> NormalEvalReduce<T>
         keep_dims: bool
     ) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce::<_, true, _, _>(
+        reduce(
             self,
             |a, b| {
                 if b._is_nan() { a } else { b._mul(a) }
@@ -396,7 +396,7 @@ impl<T> _Tensor<T>
             axes.iter().fold(1, |acc, &x| acc * (self.shape()[x] as usize)) as f64
         ).into_scalar();
         let reduce_vec = <FloatBinaryType<T> as TypeCommon>::Vec::splat(reduce_size);
-        reduce3::<_, true, _, _, _, _, _, _, _>(
+        reduce3(
             self,
             |a, b| a._add(b),
             |a, b| a._add(b),
@@ -444,7 +444,7 @@ impl<T> _Tensor<T>
             <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>
     {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce3::<_, true, _, _, _, _, _, _, _>(
+        reduce3(
             self,
             |a, b| {
                 let b = b._square();
@@ -503,7 +503,7 @@ impl<T> _Tensor<T>
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         let three: <T as FloatOutBinary>::Output = (3.0).into_scalar();
         let three_vec = <<T as FloatOutBinary>::Output as TypeCommon>::Vec::splat(three);
-        let res = reduce3::<_, true, _, _, _, _, _, _, _>(
+        let res = reduce3(
             self,
             move |a, b| {
                 let pow = b._abs()._pow(three);
