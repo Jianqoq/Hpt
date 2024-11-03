@@ -113,3 +113,63 @@ fn test_softmax_axis_2_step() -> anyhow::Result<()> {
     assert_eq_f64(&res, &tch_res);
     Ok(())
 }
+
+#[test]
+fn test_logsoftmax_axis_0() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let res = a.log_softmax(0)?;
+    let tch_res = tch_a.log_softmax(0, tch::Kind::Double);
+    assert_eq_f64(&res, &tch_res);
+    Ok(())
+}
+
+#[test]
+fn test_logsoftmax_axis_1() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let res = a.log_softmax(1)?;
+    let tch_res = tch_a.log_softmax(1, tch::Kind::Double);
+    assert_eq_f64(&res, &tch_res);
+    Ok(())
+}
+
+#[test]
+fn test_logsoftmax_axis_2() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 2 * 5, [2, 2, 5])?;
+    let res = a.log_softmax(2)?;
+    let tch_res = tch_a.log_softmax(2, tch::Kind::Double);
+    assert_eq_f64(&res, &tch_res);
+    Ok(())
+}
+
+#[test]
+fn test_logsoftmax_axis_0_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
+    let res = a.log_softmax(0)?;
+    let tch_res = tch_a.log_softmax(0, tch::Kind::Double);
+    assert_eq_f64(&res, &tch_res);
+    Ok(())
+}
+
+#[test]
+fn test_logsoftmax_axis_1_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
+    let res = a.log_softmax(1)?;
+    let tch_res = tch_a.log_softmax(1, tch::Kind::Double);
+    assert_eq_f64(&res, &tch_res);
+    Ok(())
+}
+
+#[test]
+fn test_logsoftmax_axis_2_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
+    let res = a.log_softmax(2)?;
+    let tch_res = tch_a.log_softmax(2, tch::Kind::Double);
+    assert_eq_f64(&res, &tch_res);
+    Ok(())
+}

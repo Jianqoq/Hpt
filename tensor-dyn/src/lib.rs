@@ -58,6 +58,8 @@ pub mod ops {
             pub mod softmax;
             /// a module defines softmax utils
             pub mod softmax_utils;
+            /// a module defines log_softmax
+            pub mod log_softmax;
         }
         /// a module defines all the std::ops operations
         pub mod std_ops;
@@ -85,6 +87,8 @@ pub mod ops {
             pub mod dwconv;
             /// a module defines the softmax kernels
             pub mod softmax;
+            /// a module defines the logsoftmax kernels
+            pub mod logsoftmax;
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_expose {

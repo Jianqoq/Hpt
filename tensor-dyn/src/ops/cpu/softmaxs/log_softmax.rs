@@ -1,9 +1,9 @@
 use crate::{
-    ops::cpu::kernels::softmax::{
+    ops::cpu::kernels::logsoftmax::{
         contiguous_dim_include,
-        softmax_dim_not_include,
-        uncontiguous_softmax_dim_include,
-        uncontiguous_softmax_dim_not_include,
+        logsoftmax_dim_not_include,
+        uncontiguous_logsoftmax_dim_include,
+        uncontiguous_logsoftmax_dim_not_include,
     },
     tensor::Tensor,
     tensor_base::_Tensor,
@@ -21,6 +21,7 @@ use tensor_types::{
     convertion::Convertor,
     dtype::TypeCommon,
     into_scalar::IntoScalar,
+    into_vec::IntoVec,
     type_promote::{ FloatOutBinary, FloatOutUnary, NormalOut },
 };
 
@@ -52,19 +53,25 @@ impl<T> _Tensor<T> {
     /// This function returns a `Result` containing a tensor with the softmax values computed along
     /// the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn softmax(&self, axis: i64) -> anyhow::Result<_Tensor<<T as FloatOutUnary>::Output>>
+    pub fn log_softmax(&self, axis: i64) -> anyhow::Result<_Tensor<<T as FloatOutUnary>::Output>>
         where
-            T: CommonBounds + IntoScalar<<T as FloatOutUnary>::Output> + Convertor + FloatOutUnary,
+            T: CommonBounds +
+                IntoScalar<<T as FloatOutUnary>::Output> +
+                Convertor +
+                FloatOutUnary +
+                IntoScalar<<T as FloatOutUnary>::Output>,
             <T as FloatOutUnary>::Output: CommonBounds +
                 NormalOut<T, Output = <T as FloatOutUnary>::Output> +
                 FloatOutUnary<Output = <T as FloatOutUnary>::Output>,
-            T::Vec: FloatOutUnary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
-            <<T as FloatOutUnary>::Output as TypeCommon>::Vec: FloatOutBinary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>
+            T::Vec: FloatOutUnary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec> +
+                IntoVec<<<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
+            <<T as FloatOutUnary>::Output as TypeCommon>::Vec: FloatOutBinary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec> +
+                FloatOutUnary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>
     {
         let res = if self.is_contiguous() && self.parent().is_none() {
-            contiguous_softmax(self, axis, None::<_Tensor<<T as FloatOutUnary>::Output>>)?
+            contiguous_log_softmax(self, axis, None::<_Tensor<<T as FloatOutUnary>::Output>>)?
         } else {
-            uncontiguous_softmax(self, axis, None::<_Tensor<<T as FloatOutUnary>::Output>>)?
+            uncontiguous_log_softmax(self, axis, None::<_Tensor<<T as FloatOutUnary>::Output>>)?
         };
         Ok(res)
     }
@@ -91,31 +98,37 @@ impl<T> Tensor<T> {
     /// This function returns a `Result` containing a tensor with the softmax values computed along
     /// the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn softmax(&self, axis: i64) -> anyhow::Result<Tensor<<T as FloatOutUnary>::Output>>
+    pub fn log_softmax(&self, axis: i64) -> anyhow::Result<Tensor<<T as FloatOutUnary>::Output>>
         where
-            T: CommonBounds + IntoScalar<<T as FloatOutUnary>::Output> + Convertor + FloatOutUnary,
+            T: CommonBounds +
+                IntoScalar<<T as FloatOutUnary>::Output> +
+                Convertor +
+                FloatOutUnary +
+                IntoScalar<<T as FloatOutUnary>::Output>,
             <T as FloatOutUnary>::Output: CommonBounds +
                 NormalOut<T, Output = <T as FloatOutUnary>::Output> +
                 FloatOutUnary<Output = <T as FloatOutUnary>::Output>,
-            T::Vec: FloatOutUnary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
-            <<T as FloatOutUnary>::Output as TypeCommon>::Vec: FloatOutBinary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>
+            T::Vec: FloatOutUnary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec> +
+                IntoVec<<<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
+            <<T as FloatOutUnary>::Output as TypeCommon>::Vec: FloatOutBinary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec> +
+                FloatOutUnary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>
     {
-        Ok(Tensor::from(_Tensor::softmax(self, axis)?.into()))
+        Ok(Tensor::from(_Tensor::log_softmax(self, axis)?.into()))
     }
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn contiguous_softmax<T, O>(
+pub(crate) fn contiguous_log_softmax<T, O>(
     a: &_Tensor<T>,
     axis: i64,
     c: Option<_Tensor<O>>
 )
     -> anyhow::Result<_Tensor<O>>
     where
-        T: CommonBounds + IntoScalar<O> + Convertor + FloatOutUnary<Output = O>,
+        T: CommonBounds + IntoScalar<O> + Convertor + FloatOutUnary<Output = O> + IntoScalar<O>,
         O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
-        T::Vec: FloatOutUnary<Output = O::Vec>,
-        O::Vec: FloatOutBinary<Output = O::Vec>
+        T::Vec: FloatOutUnary<Output = O::Vec> + IntoVec<O::Vec>,
+        O::Vec: FloatOutBinary<Output = O::Vec> + FloatOutUnary<Output = O::Vec>
 {
     let axis = (if axis < 0 { axis + (a.ndim() as i64) } else { axis }) as usize;
     contiguous_softmax_template(
@@ -227,7 +240,7 @@ pub(crate) fn contiguous_softmax<T, O>(
                 let inp_shape = &iterator.a_shape;
                 let mut prg1 = iterator.prg.clone();
                 let mut prg2 = iterator.a_prg.clone();
-                softmax_dim_not_include(
+                logsoftmax_dim_not_include(
                     inner_loop_size as isize,
                     current_size as isize,
                     inner_loop_size_2 as isize,
@@ -246,7 +259,7 @@ pub(crate) fn contiguous_softmax<T, O>(
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn uncontiguous_softmax<T, O>(
+pub(crate) fn uncontiguous_log_softmax<T, O>(
     a: &_Tensor<T>,
     axis: i64,
     c: Option<_Tensor<O>>
@@ -325,7 +338,7 @@ pub(crate) fn uncontiguous_softmax<T, O>(
                 let a_data_ptr = iterator.ptrs.clone();
                 let current_size = iterator.end - iterator.start;
                 let shape_len = iterator.a_shape.len() as i64;
-                uncontiguous_softmax_dim_include(
+                uncontiguous_logsoftmax_dim_include(
                     inner_loop_size as isize,
                     current_size as isize,
                     a_data_ptr,
@@ -368,7 +381,7 @@ pub(crate) fn uncontiguous_softmax<T, O>(
                 let a_data_ptr = iterator.ptrs.clone();
                 let current_size = iterator.end - iterator.start;
                 let shape_len = iterator.shape.len() as i64;
-                uncontiguous_softmax_dim_not_include(
+                uncontiguous_logsoftmax_dim_not_include(
                     inner_loop_size as isize,
                     current_size as isize,
                     inner_loop_size_2 as isize,
