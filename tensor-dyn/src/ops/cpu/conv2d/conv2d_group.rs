@@ -1,10 +1,10 @@
 use crate::ops::cpu::cache_utils::cache::Cache;
-use crate::ops::cpu::kernels::conv_group_kernels::bias_remain_oc_kernel_dispatch;
-use crate::ops::cpu::kernels::conv_group_kernels::conv2d_full_oc_bias_kernel_dispatch;
-use crate::ops::cpu::kernels::conv_group_kernels::conv2d_full_oc_kernel_dispatch;
-use crate::ops::cpu::kernels::conv_group_kernels::remain_oc_kernel_dispatch;
-use crate::ops::cpu::kernels::conv_group_kernels::Params;
-use crate::ops::cpu::kernels::conv_group_kernels::PartialParams;
+use crate::ops::cpu::kernels::conv_group::bias_remain_oc_kernel_dispatch;
+use crate::ops::cpu::kernels::conv_group::conv2d_full_oc_bias_kernel_dispatch;
+use crate::ops::cpu::kernels::conv_group::conv2d_full_oc_kernel_dispatch;
+use crate::ops::cpu::kernels::conv_group::remain_oc_kernel_dispatch;
+use crate::ops::cpu::kernels::conv_group::Params;
+use crate::ops::cpu::kernels::conv_group::PartialParams;
 use crate::tensor_base::_Tensor;
 use crate::REGNUM;
 use crate::SIMD_WIDTH;

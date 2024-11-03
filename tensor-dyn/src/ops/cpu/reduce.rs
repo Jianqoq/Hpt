@@ -226,7 +226,7 @@ macro_rules! register_reduction_one_axis {
 
 use tensor_types::vectors::traits::*;
 
-use super::kernels::reduce_kernels::{
+use super::kernels::reduce::{
     contiguous_reduce_dim_include,
     contiguous_reduce_dim_include_simd,
     uncontiguous_reduce_dim_include,
@@ -541,8 +541,8 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, O>(
 
                     let inner_loop_size = *res.shape().last().unwrap() as isize;
                     let outer_loop_size = (inp.size() as isize) / inner_loop_size;
-                    use crate::ops::cpu::kernels::reduce_kernels::fast_reduce_no_simd;
-                    use crate::ops::cpu::kernels::reduce_kernels::fast_reduce_simd;
+                    use crate::ops::cpu::kernels::reduce::fast_reduce_no_simd;
+                    use crate::ops::cpu::kernels::reduce::fast_reduce_simd;
                     if O::Vec::SIZE == T::Vec::SIZE {
                         fast_reduce_simd(
                             inner_loop_size,
@@ -592,8 +592,8 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, O>(
                 let inp_shape = &iterator.a_shape;
                 let mut prg1 = iterator.prg.clone();
                 let mut prg2 = iterator.a_prg.clone();
-                use crate::ops::cpu::kernels::reduce_kernels::reduce_dim_not_include;
-                use crate::ops::cpu::kernels::reduce_kernels::reduce_dim_not_include_simd;
+                use crate::ops::cpu::kernels::reduce::reduce_dim_not_include;
+                use crate::ops::cpu::kernels::reduce::reduce_dim_not_include_simd;
                 if O::Vec::SIZE == T::Vec::SIZE {
                     reduce_dim_not_include_simd(
                         inner_loop_size as isize,
@@ -776,7 +776,7 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O>(
                 let res_strides = result.strides().clone();
                 let res_shape = res_shape.clone();
                 let shape_len = iterator.shape.len() as i64;
-                use crate::ops::cpu::kernels::reduce_kernels::uncontiguous_reduce_dim_not_include;
+                use crate::ops::cpu::kernels::reduce::uncontiguous_reduce_dim_not_include;
                 uncontiguous_reduce_dim_not_include(
                     inner_loop_size as isize,
                     current_size as isize,
