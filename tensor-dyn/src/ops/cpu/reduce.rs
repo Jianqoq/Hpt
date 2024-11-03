@@ -234,7 +234,7 @@ use super::kernels::reduce_kernels::{
 use super::reduce_template::uncontiguos_reduce_template;
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn reduce<T, const SIMPLE_REDUCE: bool, F, F2>(
+pub(crate) fn reduce<T, F, F2>(
     a: &_Tensor<T>,
     op: F,
     vec_op: F2,
@@ -252,7 +252,7 @@ pub(crate) fn reduce<T, const SIMPLE_REDUCE: bool, F, F2>(
         T::Vec: Copy
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<_, SIMPLE_REDUCE, _, _, fn(T) -> T, _, _, fn(T::Vec) -> T::Vec, T>(
+        contiguous_reduce::<_, _, _, fn(T) -> T, _, _, fn(T::Vec) -> T::Vec, T>(
             a,
             op,
             op,
@@ -284,7 +284,7 @@ pub(crate) fn reduce<T, const SIMPLE_REDUCE: bool, F, F2>(
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn reduce2<T, const SIMPLE_REDUCE: bool, F, F2, F3, F4, O>(
+pub(crate) fn reduce2<T, F, F2, F3, F4, O>(
     a: &_Tensor<T>,
     op: F,
     op2: F2,
@@ -308,7 +308,7 @@ pub(crate) fn reduce2<T, const SIMPLE_REDUCE: bool, F, F2, F3, F4, O>(
         O::Vec: Copy
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<T, SIMPLE_REDUCE, F, F2, fn(O) -> O, _, _, fn(O::Vec) -> O::Vec, O>(
+        contiguous_reduce::<T, F, F2, fn(O) -> O, _, _, fn(O::Vec) -> O::Vec, O>(
             a,
             op,
             op2,
@@ -340,7 +340,7 @@ pub(crate) fn reduce2<T, const SIMPLE_REDUCE: bool, F, F2, F3, F4, O>(
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn reduce3<T, const SIMPLE_REDUCE: bool, F, F2, F3, F4, F5, F6, O>(
+pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, O>(
     a: &_Tensor<T>,
     op: F,
     op2: F2,
@@ -367,7 +367,7 @@ pub(crate) fn reduce3<T, const SIMPLE_REDUCE: bool, F, F2, F3, F4, F5, F6, O>(
         O::Vec: Copy
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<T, SIMPLE_REDUCE, F, F2, F3, F4, F5, F6, O>(
+        contiguous_reduce::<T, F, F2, F3, F4, F5, F6, O>(
             a,
             op,
             op2,
@@ -413,7 +413,7 @@ register_reduction_one_axis!(
 );
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn contiguous_reduce<T, const SIMPLE_REDUCE: bool, F, F2, F3, F4, F5, F6, O>(
+pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, O>(
     a: &_Tensor<T>,
     op: F,
     op2: F2,
@@ -483,7 +483,7 @@ pub(crate) fn contiguous_reduce<T, const SIMPLE_REDUCE: bool, F, F2, F3, F4, F5,
                 let a_data_ptr = iterator.ptrs.clone();
                 let current_size = iterator.end - iterator.start;
                 let shape_len = iterator.a_shape.len() as i64;
-                if T::ID == O::ID && !SIMPLE_REDUCE {
+                if T::ID == O::ID {
                     contiguous_reduce_dim_include_simd(
                         inner_loop_size as isize,
                         current_size as isize,
