@@ -23,9 +23,9 @@ pub mod ops {
             pub mod conv2d_group;
             /// a module defines dwconv2d operation
             pub mod dwconv2d;
+            /// a module defines transpose_conv2d operation
+            pub mod trasnpose_conv2d;
         }
-        /// a module defines conv_config struct
-        pub mod conv_config;
         /// a module defines dropout operation
         pub mod dropout;
         /// a module defines gather operation
@@ -89,6 +89,8 @@ pub mod ops {
             pub mod softmax;
             /// a module defines the logsoftmax kernels
             pub mod logsoftmax;
+            /// a module defines the transpose_conv2d kernels
+            pub mod transpose_conv2d;
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_expose {
@@ -225,12 +227,6 @@ fn init() {
 }
 
 static ALIGN: usize = 64;
-#[cfg(target_feature = "avx2")]
-pub(crate) const CONV_REGNUM: usize = 7;
-#[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
-pub(crate) const CONV_REGNUM: usize = 3;
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-pub(crate) const CONV_REGNUM: usize = 15;
 
 #[cfg(target_feature = "avx2")]
 pub(crate) const REGNUM: usize = 16;

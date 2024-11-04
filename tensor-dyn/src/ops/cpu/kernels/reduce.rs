@@ -608,8 +608,7 @@ pub(crate) fn contiguous_reduce_dim_include_simd<T, F, F2, F3>(
             let inp_arr = unsafe {
                 std::slice::from_raw_parts(inp_ptr.ptr as *const T, inner_loop_size as usize)
             };
-            let res = array_vec_reduce(inp_arr, init, &vec_op, &op);
-            res_ptr[0isize] = unsafe { std::mem::transmute(res) };
+            res_ptr[0isize] = op(res_ptr[0isize], array_vec_reduce(inp_arr, init, &vec_op, &op));
             update_prg3(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
         }
         if let Some(op_post) = &op_post {

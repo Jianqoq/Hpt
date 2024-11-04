@@ -1,7 +1,6 @@
 #![allow(unused)]
 use rayon::iter::{ IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator };
 use tch;
-use tensor_dyn::ops::cpu::conv_config::{ Conv2dConfig, KernelParamAlgo };
 use tensor_dyn::type_promote::NormalOutUnary;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
