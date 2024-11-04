@@ -33,14 +33,14 @@ use super::softmax_utils::{
 };
 
 impl<T> _Tensor<T> {
-    /// Applies the softmax function along a specified axis.
+    /// Applies the logsoftmax function along a specified axis.
     ///
-    /// The softmax function normalizes the elements along the specified axis such that they sum to 1.
+    /// The logsoftmax function normalizes the elements along the specified axis such that they sum to 1.
     /// It is commonly used in machine learning models, particularly for multi-class classification tasks.
-    /// The softmax function transforms each element `x_i` in the input tensor into a probability by computing:
+    /// The logsoftmax function transforms each element `x_i` in the input tensor into a probability by computing:
     ///
     /// ```text
-    /// softmax(x_i) = exp(x_i) / sum(exp(x_j)) for all j along the specified axis
+    /// logsoftmax(x_i) = log(exp(x_i) / sum(exp(x_j))) for all j along the specified axis
     /// ```
     ///
     /// # Arguments
@@ -78,14 +78,14 @@ impl<T> _Tensor<T> {
 }
 
 impl<T> Tensor<T> {
-    /// Applies the softmax function along a specified axis.
+    /// Applies the logsoftmax function along a specified axis.
     ///
-    /// The softmax function normalizes the elements along the specified axis such that they sum to 1.
+    /// The logsoftmax function normalizes the elements along the specified axis such that they sum to 1.
     /// It is commonly used in machine learning models, particularly for multi-class classification tasks.
-    /// The softmax function transforms each element `x_i` in the input tensor into a probability by computing:
+    /// The logsoftmax function transforms each element `x_i` in the input tensor into a probability by computing:
     ///
     /// ```text
-    /// softmax(x_i) = exp(x_i) / sum(exp(x_j)) for all j along the specified axis
+    /// logsoftmax(x_i) = log(exp(x_i) / sum(exp(x_j))) for all j along the specified axis
     /// ```
     ///
     /// # Arguments

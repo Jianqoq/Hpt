@@ -211,11 +211,8 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
         inp_shape,
         prg,
         vec_op_post,
-        [
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-            25, 26, 27, 28, 29, 30, 31, 32,
-        ]
-    );
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
+    ); // prettier-ignore
     #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
     gen_kernel!(
         num_largest_vecs,
@@ -457,11 +454,8 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
                 prg1,
                 shape_len,
                 vec_post,
-                [
-                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-                    23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-                ]
-            );
+                [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
+            ); // prettier-ignore
             #[cfg(all(target_feature = "sse", not(target_feature = "avx2")))]
             gen_kernel2!(
                 num_largest_vecs,
@@ -608,8 +602,7 @@ pub(crate) fn contiguous_reduce_dim_include_simd<T, F, F2, F3>(
             let inp_arr = unsafe {
                 std::slice::from_raw_parts(inp_ptr.ptr as *const T, inner_loop_size as usize)
             };
-            let res = array_vec_reduce(inp_arr, init, &vec_op, &op);
-            res_ptr[0isize] = unsafe { std::mem::transmute(res) };
+            res_ptr[0isize] = op(res_ptr[0isize], array_vec_reduce(inp_arr, init, &vec_op, &op));
             update_prg3(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
         }
         if let Some(op_post) = &op_post {
