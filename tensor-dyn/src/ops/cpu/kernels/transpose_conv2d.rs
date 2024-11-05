@@ -8,9 +8,9 @@ use tensor_macros::{
     conv2d_microkernel_gen_results,
     pwconv2d_microkernel_gen_pad_inps,
 };
-use tensor_types::{ into_scalar::IntoScalar, type_promote::NormalOut };
 use tensor_traits::CommonBounds;
 use tensor_types::traits::*;
+use tensor_types::{ into_scalar::IntoScalar, type_promote::NormalOut };
 
 pub(crate) struct Params {
     pub(crate) arg1: [i64; 2],
@@ -66,9 +66,7 @@ impl<T: CommonBounds> ConvKernel<T> {
     pub(crate) fn new(
         kernel: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
     ) -> Self {
-        Self {
-            kernel,
-        }
+        Self { kernel }
     }
 }
 
@@ -214,7 +212,7 @@ macro_rules! repeat_results {
 )]
 fn template_function<T: CommonBounds>(
     params: Params,
-    out: &mut Pointer<T>,
+    mut out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec
@@ -233,28 +231,6 @@ fn template_function<T: CommonBounds>(
         arg9: [img_height, img_width],
     } = params;
     conv2d_microkernel_declare_const!(template_function);
-    let mut results = if ii == 0 {
-        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
-    } else {
-        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
-        for kk in 0..OW_BLOCK as i64 {
-            for v in 0..OC_BLOCK {
-                ret[v as usize][kk as usize] = unsafe {
-                    T::Vec::from_ptr(
-                        &out[b * osb
-                            + l * osh
-                            + (k + kk) * osw
-                            + j
-                            + v as i64 * T::Vec::SIZE as i64] as *const _
-                            as *const T,
-                    )
-                }; // prettier-ignore
-            }
-        }
-        ret
-    };
-    let is0 =
-        b * isb + l * step_height * ish + k * step_width * isw - pw_start * isw - ph_start * ish;
     let m_must_in_range =
         k * step_width >= pw_start &&
         (k + (OW_BLOCK as i64)) * step_width + (kw - 1) * dw < img_width + pw_start;
@@ -262,70 +238,53 @@ fn template_function<T: CommonBounds>(
         let l_in_range =
             l * step_height + n * dh >= ph_start &&
             l * step_height + n * dh < img_height + ph_start;
-        let is1 = is0 + n * dh * ish;
-        if l_in_range {
-            if m_must_in_range {
+        // if l_in_range {
+        //     if m_must_in_range {
                 for m in 0..kw {
-                    let is2 = is1 + m * dw * isw;
-                    for i in ii..i_end {
-                        let is3 = is2 + i;
-                        let inp = conv2d_microkernel_gen_inps!(
-                            inp,
-                            is3,
-                            step_width * isw,
-                            template_function
-                        );
-                        let kernel_vecs = conv2d_microkernel_gen_kernels!(
-                            kernel,
-                            template_function
-                        );
-                        conv2d_microkernel_gen_results!(
-                            results,
-                            inp,
-                            kernel_vecs,
-                            template_function
-                        );
-                        kernel.add(OC_BLOCK * T::Vec::SIZE);
+                    for v in 0..OC_BLOCK {
+                        for i in ii..i_end {
+                            for kk in 0..OW_BLOCK as i64 {
+                                let out_idx =
+                                    b * osb +
+                                    (l * step_height + n * dh - ph_start) * osh +
+                                    ((k + kk) * step_width + m * dw - pw_start) * osw +
+                                    j +
+                                    (v as i64);
+                                let inp_idx = b * isb + l * ish + (k + kk) * isw + i;
+                                out[out_idx] = inp[inp_idx]._mul_add(kernel[0usize], out[out_idx]);
+                            }
+                            kernel.add(1);
+                        }
                     }
                 }
-            } else {
-                for m in 0..kw {
-                    let is2 = is1 + m * dw * isw;
-                    for i in ii..i_end {
-                        let is3 = is2 + i;
-                        let inp = conv2d_microkernel_gen_pad_inps!(
-                            inp,
-                            is3,
-                            step_width * isw,
-                            template_function
-                        );
-                        let kernel_vecs = conv2d_microkernel_gen_kernels!(
-                            kernel,
-                            template_function
-                        );
-                        conv2d_microkernel_gen_results!(
-                            results,
-                            inp,
-                            kernel_vecs,
-                            template_function
-                        );
-                        kernel.add(OC_BLOCK * T::Vec::SIZE);
-                    }
-                }
-            }
-        } else {
-            kernel.add(OC_BLOCK * T::Vec::SIZE * (kw as usize) * ((i_end - ii) as usize));
-        }
-    }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..OC_BLOCK {
-            let out_vec = &mut out
-                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
-                as *mut _ as *mut T::Vec; // prettier-ignore
-            unsafe {
-                out_vec.write_unaligned(activation(results[v as usize][kk as usize]));
-            }
-        }
+            // } else {
+            //     for m in 0..kw {
+            //         for v in 0..OC_BLOCK {
+            //             for i in ii..i_end {
+            //                 for kk in 0..OW_BLOCK as i64 {
+            //                     let out_idx =
+            //                         b * osb +
+            //                         (l * step_height + n * dh - ph_start) * osh +
+            //                         ((k + kk) * step_width + m * dw - pw_start) * osw +
+            //                         j +
+            //                         (v as i64);
+            //                     let inp_idx = b * isb + l * ish + (k + kk) * isw + i;
+            //                     let mask =
+            //                         (k + kk) * step_width >= pw_start &&
+            //                         (k + kk) * step_width < img_width + pw_start;
+            //                     let tmp_mask: T = mask.into_scalar();
+            //                     out[out_idx] = tmp_mask
+            //                         ._mul(inp[inp_idx])
+            //                         ._mul_add(kernel[0usize], out[out_idx * (mask as i64)]);
+            //                 }
+            //                 kernel.add(1);
+            //             }
+            //         }
+            //     }
+            // }
+        // } else {
+        //     kernel.add(OC_BLOCK * (kw as usize) * ((i_end - ii) as usize));
+        // }
     }
 }
 
@@ -354,7 +313,7 @@ fn template_function<T: CommonBounds>(
 )]
 fn template_function<T: CommonBounds>(
     params: Params,
-    out: &mut Pointer<T>,
+    mut out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec
@@ -373,72 +332,52 @@ fn template_function<T: CommonBounds>(
         arg9: [img_height, img_width],
     } = params;
     conv2d_microkernel_declare_const!(template_function);
-    let mut results = if ii == 0 {
-        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
-    } else {
-        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
-        for kk in 0..OW_BLOCK as i64 {
-            for v in 0..OC_BLOCK {
-                ret[v as usize][kk as usize] = unsafe {
-                    T::Vec::from_ptr(
-                        &out[b * osb
-                            + l * osh
-                            + (k + kk) * osw
-                            + j
-                            + v as i64 * T::Vec::SIZE as i64] as *const _
-                            as *const T,
-                    )
-                }; // prettier-ignore
-            }
-        }
-        ret
-    };
-    let is0 =
-        b * isb + l * step_height * ish + k * step_width * isw - pw_start * isw - ph_start * ish;
     let m_must_in_range =
         k * step_width >= pw_start && (k + (OW_BLOCK as i64)) * step_width < img_width + pw_start;
 
     let l_in_range = l * step_height >= ph_start && l * step_height < img_height + ph_start;
     if l_in_range {
         if m_must_in_range {
-            for i in ii..i_end {
-                let is3 = is0 + i;
-                let inp = conv2d_microkernel_gen_inps!(
-                    inp,
-                    is3,
-                    step_width * isw,
-                    template_function
-                );
-                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, template_function);
-                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, template_function);
-                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            for v in 0..OC_BLOCK {
+                for i in ii..i_end {
+                    for kk in 0..OW_BLOCK as i64 {
+                        let out_idx =
+                            b * osb +
+                            (l * step_height - ph_start) * osh +
+                            ((k + kk) * step_width - pw_start) * osw +
+                            j +
+                            (v as i64);
+                        let inp_idx = b * isb + l * ish + (k + kk) * isw + i;
+                        out[out_idx] = inp[inp_idx]._mul_add(kernel[0usize], out[out_idx]);
+                    }
+                    kernel.add(1);
+                }
             }
         } else {
-            for i in ii..i_end {
-                let is3 = is0 + i;
-                let inp = pwconv2d_microkernel_gen_pad_inps!(
-                    inp,
-                    is3,
-                    step_width * isw,
-                    template_function
-                );
-                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, template_function);
-                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, template_function);
-                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            for v in 0..OC_BLOCK {
+                for i in ii..i_end {
+                    for kk in 0..OW_BLOCK as i64 {
+                        let out_idx =
+                            b * osb +
+                            (l * step_height - ph_start) * osh +
+                            ((k + kk) * step_width - pw_start) * osw +
+                            j +
+                            (v as i64);
+                        let inp_idx = b * isb + l * ish + (k + kk) * isw + i;
+                        let mask =
+                            (k + kk) * step_width >= pw_start &&
+                            (k + kk) * step_width < img_width + pw_start;
+                        let tmp_mask: T = mask.into_scalar();
+                        out[out_idx] = tmp_mask
+                            ._mul(inp[inp_idx])
+                            ._mul_add(kernel[0usize], out[out_idx * (mask as i64)]);
+                    }
+                    kernel.add(1);
+                }
             }
         }
     } else {
-        kernel.add(OC_BLOCK * T::Vec::SIZE * ((i_end - ii) as usize));
-    }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..OC_BLOCK {
-            let out_vec = &mut out
-                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
-                as *mut _ as *mut T::Vec; // prettier-ignore
-            unsafe {
-                out_vec.write_unaligned(activation(results[v as usize][kk as usize]));
-            }
-        }
+        kernel.add(OC_BLOCK * ((i_end - ii) as usize));
     }
 }
 
@@ -467,7 +406,7 @@ fn template_function<T: CommonBounds>(
 )]
 fn template_function<T: CommonBounds>(
     params: Params,
-    out: &mut Pointer<T>,
+    mut out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
     bias: &Pointer<T>,
@@ -487,28 +426,6 @@ fn template_function<T: CommonBounds>(
         arg9: [img_height, img_width],
     } = params;
     conv2d_microkernel_declare_const!(template_function);
-    let mut results = if ii == 0 {
-        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
-    } else {
-        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
-        for kk in 0..OW_BLOCK as i64 {
-            for v in 0..OC_BLOCK {
-                ret[v as usize][kk as usize] = unsafe {
-                    T::Vec::from_ptr(
-                        &out[b * osb
-                            + l * osh
-                            + (k + kk) * osw
-                            + j
-                            + v as i64 * T::Vec::SIZE as i64] as *const _
-                            as *const T,
-                    )
-                }; // prettier-ignore
-            }
-        }
-        ret
-    };
-    let is0 =
-        b * isb + l * step_height * ish + k * step_width * isw - pw_start * isw - ph_start * ish;
     let m_must_in_range =
         k * step_width >= pw_start &&
         (k + (OW_BLOCK as i64)) * step_width + (kw - 1) * dw < img_width + pw_start;
@@ -516,74 +433,52 @@ fn template_function<T: CommonBounds>(
         let l_in_range =
             l * step_height + n * dh >= ph_start &&
             l * step_height + n * dh < img_height + ph_start;
-        let is1 = is0 + n * dh * ish;
         if l_in_range {
             if m_must_in_range {
                 for m in 0..kw {
-                    let is2 = is1 + m * dw * isw;
-                    for i in ii..i_end {
-                        let is3 = is2 + i;
-                        let inp = conv2d_microkernel_gen_inps!(
-                            inp,
-                            is3,
-                            step_width * isw,
-                            template_function
-                        );
-                        let kernel_vecs = conv2d_microkernel_gen_kernels!(
-                            kernel,
-                            template_function
-                        );
-                        conv2d_microkernel_gen_results!(
-                            results,
-                            inp,
-                            kernel_vecs,
-                            template_function
-                        );
-                        kernel.add(OC_BLOCK * T::Vec::SIZE);
+                    for v in 0..OC_BLOCK {
+                        for i in ii..i_end {
+                            for kk in 0..OW_BLOCK as i64 {
+                                let out_idx =
+                                    b * osb +
+                                    (l * step_height + n * dh - ph_start) * osh +
+                                    ((k + kk) * step_width + m * dw - pw_start) * osw +
+                                    j +
+                                    (v as i64);
+                                let inp_idx = b * isb + l * ish + (k + kk) * isw + i;
+                                out[out_idx] = inp[inp_idx]._mul_add(kernel[0usize], out[out_idx]);
+                            }
+                            kernel.add(1);
+                        }
                     }
                 }
             } else {
                 for m in 0..kw {
-                    let is2 = is1 + m * dw * isw;
-                    for i in ii..i_end {
-                        let is3 = is2 + i;
-                        let inp = conv2d_microkernel_gen_pad_inps!(
-                            inp,
-                            is3,
-                            step_width * isw,
-                            template_function
-                        );
-                        let kernel_vecs = conv2d_microkernel_gen_kernels!(
-                            kernel,
-                            template_function
-                        );
-                        conv2d_microkernel_gen_results!(
-                            results,
-                            inp,
-                            kernel_vecs,
-                            template_function
-                        );
-                        kernel.add(OC_BLOCK * T::Vec::SIZE);
+                    for v in 0..OC_BLOCK {
+                        for i in ii..i_end {
+                            for kk in 0..OW_BLOCK as i64 {
+                                let out_idx =
+                                    b * osb +
+                                    (l * step_height + n * dh - ph_start) * osh +
+                                    ((k + kk) * step_width + m * dw - pw_start) * osw +
+                                    j +
+                                    (v as i64);
+                                let inp_idx = b * isb + l * ish + (k + kk) * isw + i;
+                                let mask =
+                                    (k + kk) * step_width >= pw_start &&
+                                    (k + kk) * step_width < img_width + pw_start;
+                                let tmp_mask: T = mask.into_scalar();
+                                out[out_idx] = tmp_mask
+                                    ._mul(inp[inp_idx])
+                                    ._mul_add(kernel[0usize], out[out_idx * (mask as i64)]);
+                            }
+                            kernel.add(1);
+                        }
                     }
                 }
             }
         } else {
-            kernel.add(OC_BLOCK * T::Vec::SIZE * (kw as usize) * ((i_end - ii) as usize));
-        }
-    }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..OC_BLOCK {
-            let out_vec = &mut out
-                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
-                as *mut _ as *mut T::Vec; // prettier-ignore
-            let bias_vec = unsafe {
-                T::Vec::from_ptr(&bias[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
-            };
-            unsafe {
-                out_vec.write_unaligned(
-                    activation(results[v as usize][kk as usize]._add(bias_vec))
-                );
-            }
+            kernel.add(OC_BLOCK * (kw as usize) * ((i_end - ii) as usize));
         }
     }
 }
@@ -613,7 +508,7 @@ fn template_function<T: CommonBounds>(
 )]
 fn template_function<T: CommonBounds>(
     params: Params,
-    out: &mut Pointer<T>,
+    mut out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
     bias: &Pointer<T>,
@@ -633,76 +528,51 @@ fn template_function<T: CommonBounds>(
         arg9: [img_height, img_width],
     } = params;
     conv2d_microkernel_declare_const!(template_function);
-    let mut results = if ii == 0 {
-        [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK]
-    } else {
-        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; OC_BLOCK];
-        for kk in 0..OW_BLOCK as i64 {
-            for v in 0..OC_BLOCK {
-                ret[v as usize][kk as usize] = unsafe {
-                    T::Vec::from_ptr(
-                        &out[b * osb
-                            + l * osh
-                            + (k + kk) * osw
-                            + j
-                            + v as i64 * T::Vec::SIZE as i64] as *const _
-                            as *const T,
-                    )
-                }; // prettier-ignore
-            }
-        }
-        ret
-    };
-    let is0 =
-        b * isb + l * step_height * ish + k * step_width * isw - pw_start * isw - ph_start * ish;
     let m_must_in_range =
         k * step_width >= pw_start && (k + (OW_BLOCK as i64)) * step_width < img_width + pw_start;
     let l_in_range = l * step_height >= ph_start && l * step_height < img_height + ph_start;
     if l_in_range {
         if m_must_in_range {
-            for i in ii..i_end {
-                let is3 = is0 + i;
-                let inp = conv2d_microkernel_gen_inps!(
-                    inp,
-                    is3,
-                    step_width * isw,
-                    template_function
-                );
-                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, template_function);
-                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, template_function);
-                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            for v in 0..OC_BLOCK {
+                for i in ii..i_end {
+                    for kk in 0..OW_BLOCK as i64 {
+                        let out_idx =
+                            b * osb +
+                            (l * step_height - ph_start) * osh +
+                            ((k + kk) * step_width - pw_start) * osw +
+                            j +
+                            (v as i64);
+                        let inp_idx = b * isb + l * ish + (k + kk) * isw + i;
+                        out[out_idx] = inp[inp_idx]._mul_add(kernel[0usize], out[out_idx]);
+                    }
+                    kernel.add(1);
+                }
             }
         } else {
-            for i in ii..i_end {
-                let is3 = is0 + i;
-                let inp = pwconv2d_microkernel_gen_pad_inps!(
-                    inp,
-                    is3,
-                    step_width * isw,
-                    template_function
-                );
-                let kernel_vecs = conv2d_microkernel_gen_kernels!(kernel, template_function);
-                conv2d_microkernel_gen_results!(results, inp, kernel_vecs, template_function);
-                kernel.add(OC_BLOCK * T::Vec::SIZE);
+            for v in 0..OC_BLOCK {
+                for i in ii..i_end {
+                    for kk in 0..OW_BLOCK as i64 {
+                        let out_idx =
+                            b * osb +
+                            (l * step_height - ph_start) * osh +
+                            ((k + kk) * step_width - pw_start) * osw +
+                            j +
+                            (v as i64);
+                        let inp_idx = b * isb + l * ish + (k + kk) * isw + i;
+                        let mask =
+                            (k + kk) * step_width >= pw_start &&
+                            (k + kk) * step_width < img_width + pw_start;
+                        let tmp_mask: T = mask.into_scalar();
+                        out[out_idx] = tmp_mask
+                            ._mul(inp[inp_idx])
+                            ._mul_add(kernel[0usize], out[out_idx * (mask as i64)]);
+                    }
+                    kernel.add(1);
+                }
             }
         }
     } else {
-        kernel.add(OC_BLOCK * T::Vec::SIZE * ((i_end - ii) as usize));
-    }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..OC_BLOCK {
-            let out_vec = &mut out
-                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
-                as *mut _ as *mut T::Vec; // prettier-ignore
-            let bias_vec = unsafe {
-                T::Vec::from_ptr(&bias[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
-            };
-            unsafe {
-                out_vec.write_unaligned(
-                    activation(results[v as usize][kk as usize]._add(bias_vec))
-                );
-            }
-        }
+        kernel.add(OC_BLOCK * ((i_end - ii) as usize));
     }
 }
 
@@ -717,7 +587,7 @@ fn template_function<T: CommonBounds>(
 #[inline]
 fn template_function<T: CommonBounds>(
     params: PartialParams,
-    out: &mut Pointer<T>,
+    mut out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec
@@ -737,19 +607,6 @@ fn template_function<T: CommonBounds>(
         oc_remain,
     } = params;
     conv2d_microkernel_declare_const!(template_function);
-    let mut results = if ii == 0 {
-        [[T::Vec::splat(T::ZERO); OW_BLOCK]; 1]
-    } else {
-        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; 1];
-        for kk in 0..OW_BLOCK as i64 {
-            for v in 0..oc_remain {
-                ret[0][kk as usize][v as usize] = out[b * osb + l * osh + (k + kk) * osw + j + v];
-            }
-        }
-        ret
-    };
-    let is0 =
-        b * isb + l * step_height * ish + k * step_width * isw - pw_start * isw - ph_start * ish;
     let m_must_in_range =
         k * step_width >= pw_start &&
         (k + (OW_BLOCK as i64)) * step_width + (kw - 1) * dw < img_width + pw_start;
@@ -757,55 +614,52 @@ fn template_function<T: CommonBounds>(
         let l_in_range =
             l * step_height + n * dh >= ph_start &&
             l * step_height + n * dh < img_height + ph_start;
-        let is1 = is0 + n * dh * ish;
         if l_in_range {
             if m_must_in_range {
                 for m in 0..kw {
-                    let is2 = is1 + m * dw * isw;
-                    for i in ii..i_end {
-                        let is3 = is2 + i;
-                        let inp = conv2d_microkernel_gen_inps!(
-                            inp,
-                            is3,
-                            step_width * isw,
-                            template_function
-                        );
-                        let mut kernel0 = (T::Vec::splat(T::ZERO),);
-                        for v in 0..oc_remain {
-                            kernel0.0[v as usize] = kernel[v as usize];
+                    for v in 0..oc_remain {
+                        for i in ii..i_end {
+                            for kk in 0..OW_BLOCK as i64 {
+                                let out_idx =
+                                    b * osb +
+                                    (l * step_height + n * dh - ph_start) * osh +
+                                    ((k + kk) * step_width + m * dw - pw_start) * osw +
+                                    j +
+                                    (v as i64);
+                                let inp_idx = b * isb + l * ish + (k + kk) * isw + i;
+                                out[out_idx] = inp[inp_idx]._mul_add(kernel[0usize], out[out_idx]);
+                            }
+                            kernel.add(1);
                         }
-                        conv2d_microkernel_gen_results!(results, inp, kernel0, template_function);
-                        kernel.add(oc_remain as usize);
                     }
                 }
             } else {
                 for m in 0..kw {
-                    let is2 = is1 + m * dw * isw;
-                    for i in ii..i_end {
-                        let is3 = is2 + i;
-                        let inp = conv2d_microkernel_gen_pad_inps!(
-                            inp,
-                            is3,
-                            step_width * isw,
-                            template_function
-                        );
-                        let mut kernel0 = (T::Vec::splat(T::ZERO),);
-                        for v in 0..oc_remain {
-                            kernel0.0[v as usize] = kernel[v as usize];
+                    for v in 0..oc_remain {
+                        for i in ii..i_end {
+                            for kk in 0..OW_BLOCK as i64 {
+                                let out_idx =
+                                    b * osb +
+                                    (l * step_height + n * dh - ph_start) * osh +
+                                    ((k + kk) * step_width + m * dw - pw_start) * osw +
+                                    j +
+                                    (v as i64);
+                                let inp_idx = b * isb + l * ish + (k + kk) * isw + i;
+                                let mask =
+                                    (k + kk) * step_width >= pw_start &&
+                                    (k + kk) * step_width < img_width + pw_start;
+                                let tmp_mask: T = mask.into_scalar();
+                                out[out_idx] = tmp_mask
+                                    ._mul(inp[inp_idx])
+                                    ._mul_add(kernel[0usize], out[out_idx * (mask as i64)]);
+                            }
+                            kernel.add(1);
                         }
-                        conv2d_microkernel_gen_results!(results, inp, kernel0, template_function);
-                        kernel.add(oc_remain as usize);
                     }
                 }
             }
         } else {
             kernel.add((oc_remain as usize) * (kw as usize) * ((i_end - ii) as usize));
-        }
-    }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..oc_remain {
-            let res = activation(results[0][kk as usize]);
-            out[b * osb + l * osh + (k + kk) * osw + j + v] = res[v as usize];
         }
     }
 }
@@ -821,7 +675,7 @@ fn template_function<T: CommonBounds>(
 #[inline]
 fn template_function<T: CommonBounds>(
     params: PartialParams,
-    out: &mut Pointer<T>,
+    mut out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec
@@ -841,65 +695,50 @@ fn template_function<T: CommonBounds>(
         oc_remain,
     } = params;
     conv2d_microkernel_declare_const!(template_function);
-    let mut results = if ii == 0 {
-        [[T::Vec::splat(T::ZERO); OW_BLOCK]; 1]
-    } else {
-        let mut ret = [[T::Vec::splat(T::ZERO); OW_BLOCK]; 1];
-        for kk in 0..OW_BLOCK as i64 {
-            for v in 0..oc_remain {
-                ret[0][kk as usize][v as usize] = out[b * osb + l * osh + (k + kk) * osw + j + v];
-            }
-        }
-        ret
-    };
-    let is0 =
-        b * isb + l * step_height * ish + k * step_width * isw - pw_start * isw - ph_start * ish;
     let m_must_in_range =
         k * step_width >= pw_start && (k + (OW_BLOCK as i64)) * step_width < img_width + pw_start;
 
     let l_in_range = l * step_height >= ph_start && l * step_height < img_height + ph_start;
     if l_in_range {
         if m_must_in_range {
-            for i in ii..i_end {
-                let is3 = is0 + i;
-                let inp = conv2d_microkernel_gen_inps!(
-                    inp,
-                    is3,
-                    step_width * isw,
-                    template_function
-                );
-                let mut kernel0 = (T::Vec::splat(T::ZERO),);
-                for v in 0..oc_remain {
-                    kernel0.0[v as usize] = kernel[v as usize];
+            for v in 0..oc_remain {
+                for i in ii..i_end {
+                    for kk in 0..OW_BLOCK as i64 {
+                        let out_idx =
+                            b * osb +
+                            (l * step_height - ph_start) * osh +
+                            ((k + kk) * step_width - pw_start) * osw +
+                            j +
+                            (v as i64);
+                        let inp_idx = b * isb + l * ish + k * isw + i;
+                        out[out_idx] = inp[inp_idx]._mul_add(kernel[0usize], out[out_idx]);
+                    }
+                    kernel.add(1);
                 }
-                conv2d_microkernel_gen_results!(results, inp, kernel0, template_function);
-                kernel.add(oc_remain as usize);
             }
         } else {
-            for i in ii..i_end {
-                let is3 = is0 + i;
-                let inp = pwconv2d_microkernel_gen_pad_inps!(
-                    inp,
-                    is3,
-                    step_width * isw,
-                    template_function
-                );
-                let mut kernel0 = (T::Vec::splat(T::ZERO),);
-                for v in 0..oc_remain {
-                    kernel0.0[v as usize] = kernel[v as usize];
+            for v in 0..oc_remain {
+                for i in ii..i_end {
+                    for kk in 0..OW_BLOCK as i64 {
+                        let out_idx =
+                            b * osb +
+                            (l * step_height - ph_start) * osh +
+                            ((k + kk) * step_width - pw_start) * osw +
+                            j +
+                            (v as i64);
+                        let inp_idx = b * isb + l * ish + (k + kk) * isw + i;
+                        let mask =
+                            (k + kk) * step_width >= pw_start &&
+                            (k + kk) * step_width < img_width + pw_start;
+                        let tmp_mask: T = mask.into_scalar();
+                        out[out_idx] = tmp_mask._mul(inp[inp_idx])._mul_add(kernel[0usize], out[out_idx * (mask as i64)]);
+                    }
+                    kernel.add(1);
                 }
-                conv2d_microkernel_gen_results!(results, inp, kernel0, template_function);
-                kernel.add(oc_remain as usize);
             }
         }
     } else {
         kernel.add((oc_remain as usize) * ((i_end - ii) as usize));
-    }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..oc_remain {
-            let res = activation(results[0][kk as usize]);
-            out[b * osb + l * osh + (k + kk) * osw + j + v] = res[v as usize];
-        }
     }
 }
 
