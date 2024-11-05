@@ -215,7 +215,7 @@ pub(crate) fn conv2d_microkernel_gen_pad_inps(inputs: TokenStream) -> TokenStrea
     }
 }
 
-pub(crate) fn transpose_conv2d_microkernel_gen_pad_inps(inputs: TokenStream) -> TokenStream {
+pub(crate) fn transpose_conv2d_microkernel_gen_masks(inputs: TokenStream) -> TokenStream {
     let inp_args = parse_macro_input!(inputs as ParseInpArgs);
     let text = inp_args.template_name.to_string();
     let re = Regex::new(r"(\d+)x(\d+)").unwrap();
@@ -228,21 +228,15 @@ pub(crate) fn transpose_conv2d_microkernel_gen_pad_inps(inputs: TokenStream) -> 
                 #arr
             ),*
         };
-        let inp = inp_args.name;
-        let is3 = inp_args.is3;
         return (
             quote! {
-            repeat_pad_inp!(
-                #inp,
-                #is3,
+                repeat_pad_mask!(
                 k,
                 step_width,
                 m,
                 dw,
-                isw,
                 out_width,
                 pw_start,
-                l_in_range,
                 [#arr]
             )
         }
@@ -259,21 +253,80 @@ pub(crate) fn transpose_conv2d_microkernel_gen_pad_inps(inputs: TokenStream) -> 
                     #arr
                 ),*
             };
-            let inp = inp_args.name;
-            let is3 = inp_args.is3;
             return (
                 quote! {
-                repeat_pad_inp!(
-                    #inp,
-                    #is3,
+                    repeat_pad_mask!(
                     k,
                     step_width,
                     m,
                     dw,
-                    isw,
                     out_width,
                     pw_start,
-                    l_in_range,
+                    [#arr]
+                )
+            }
+            ).into();
+        } else {
+            panic!("Invalid input format, must contains format like 5x1 or 5_1");
+        }
+    }
+}
+
+pub(crate) fn transpose_conv2d_microkernel_gen_outs(inputs: TokenStream) -> TokenStream {
+    let inp_args = parse_macro_input!(inputs as ParseInpArgs);
+    let text = inp_args.template_name.to_string();
+    let re = Regex::new(r"(\d+)x(\d+)").unwrap();
+    if let Some(captures) = re.captures(&text) {
+        let before_x = captures.get(1).unwrap().as_str();
+        let before_x = before_x.parse::<i64>().unwrap();
+        let arr = (0..before_x).map(|i| {
+            let unsuffixed = Literal::i64_unsuffixed(i);
+            quote! {
+                #unsuffixed
+            }
+        });
+        let arr = quote! {
+            #(
+                #arr
+            ),*
+        };
+        return (
+            quote! {
+                repeat_pad_outs!(
+                out,
+                masks,
+                is3,
+                step_width,
+                osw,
+                [#arr]
+            )
+        }
+        ).into();
+    } else {
+        let re = Regex::new(r"(\d+)_(\d+)").unwrap();
+        if let Some(captures) = re.captures(&text) {
+            let before_x = captures.get(1).unwrap().as_str();
+            let before_x = before_x.parse::<i64>().unwrap();
+            let arr = (0..before_x).map(|i| {
+                let unsuffixed = Literal::i64_unsuffixed(i);
+                quote! {
+                    #unsuffixed
+                }
+            });
+            let arr =
+                quote! {
+                #(
+                    #arr
+                ),*
+            };
+            return (
+                quote! {
+                    repeat_pad_outs!(
+                    out,
+                    masks,
+                    is3,
+                    step_width,
+                    osw,
                     [#arr]
                 )
             }
@@ -511,6 +564,148 @@ pub(crate) fn conv2d_microkernel_gen_results(inputs: TokenStream) -> TokenStream
         }
     }
 }
+
+pub(crate) fn transpose_conv2d_microkernel_gen_results(inputs: TokenStream) -> TokenStream {
+    let inp_args = parse_macro_input!(inputs as ParseResultsArgs);
+    let text = inp_args.template_name.to_string();
+    let re = Regex::new(r"(\d+)x(\d+)").unwrap();
+    if let Some(captures) = re.captures(&text) {
+        let before_x = captures.get(1).unwrap().as_str();
+        let before_x = before_x.parse::<usize>().unwrap();
+        let after_x = captures.get(2).unwrap().as_str();
+        let after_x = after_x.parse::<usize>().unwrap();
+        let ow_arr = (0..before_x).map(|i| {
+            let unsuffixed = Literal::usize_unsuffixed(i);
+            quote! {
+                #unsuffixed
+            }
+        });
+        let ow_arr = quote! {
+            #(
+                #ow_arr
+            ),*
+        };
+        let oc_arr = (0..after_x).map(|i| {
+            let unsuffixed = Literal::usize_unsuffixed(i);
+            quote! {
+                #unsuffixed
+            }
+        });
+        let oc_arr = quote! {
+            #(
+                #oc_arr
+            ),*
+        };
+        let results = inp_args.name;
+        let inp = inp_args.inp;
+        let kernel_vecs = inp_args.kernel_vecs;
+        return (
+            quote! {
+                repeat_transpose_results!(outs, #results, #inp, #kernel_vecs, is3, step_width, osw, [#oc_arr], [#ow_arr])
+        }
+        ).into();
+    } else {
+        let re = Regex::new(r"(\d+)_(\d+)").unwrap();
+        if let Some(captures) = re.captures(&text) {
+            let before_x = captures.get(1).unwrap().as_str();
+            let before_x = before_x.parse::<usize>().unwrap();
+            let ow_arr = (0..before_x).map(|i| {
+                let unsuffixed = Literal::usize_unsuffixed(i);
+                quote! {
+                    #unsuffixed
+                }
+            });
+            let ow_arr =
+                quote! {
+                #(
+                    #ow_arr
+                ),*
+            };
+            let results = inp_args.name;
+            let inp = inp_args.inp;
+            let kernel_vecs = inp_args.kernel_vecs;
+            return (
+                quote! {
+                    repeat_transpose_results!(outs, #results, #inp, #kernel_vecs, is3, step_width, osw, [0], [#ow_arr])
+            }
+            ).into();
+        } else {
+            panic!("Invalid input format, must contains format like 5x1 or 5_1");
+        }
+    }
+}
+
+pub(crate) fn transpose_conv2d_microkernel_gen_pad_results(inputs: TokenStream) -> TokenStream {
+    let inp_args = parse_macro_input!(inputs as ParseResultsArgs);
+    let text = inp_args.template_name.to_string();
+    let re = Regex::new(r"(\d+)x(\d+)").unwrap();
+    if let Some(captures) = re.captures(&text) {
+        let before_x = captures.get(1).unwrap().as_str();
+        let before_x = before_x.parse::<usize>().unwrap();
+        let after_x = captures.get(2).unwrap().as_str();
+        let after_x = after_x.parse::<usize>().unwrap();
+        let ow_arr = (0..before_x).map(|i| {
+            let unsuffixed = Literal::usize_unsuffixed(i);
+            quote! {
+                #unsuffixed
+            }
+        });
+        let ow_arr = quote! {
+            #(
+                #ow_arr
+            ),*
+        };
+        let oc_arr = (0..after_x).map(|i| {
+            let unsuffixed = Literal::usize_unsuffixed(i);
+            quote! {
+                #unsuffixed
+            }
+        });
+        let oc_arr = quote! {
+            #(
+                #oc_arr
+            ),*
+        };
+        let results = inp_args.name;
+        let inp = inp_args.inp;
+        let kernel_vecs = inp_args.kernel_vecs;
+        return (
+            quote! {
+                repeat_transpose_pad_results!(outs, #results, #inp, #kernel_vecs, is3, step_width, osw, masks, [#oc_arr], [#ow_arr])
+        }
+        ).into();
+    } else {
+        let re = Regex::new(r"(\d+)_(\d+)").unwrap();
+        if let Some(captures) = re.captures(&text) {
+            let before_x = captures.get(1).unwrap().as_str();
+            let before_x = before_x.parse::<usize>().unwrap();
+            let ow_arr = (0..before_x).map(|i| {
+                let unsuffixed = Literal::usize_unsuffixed(i);
+                quote! {
+                    #unsuffixed
+                }
+            });
+            let ow_arr =
+                quote! {
+                #(
+                    #ow_arr
+                ),*
+            };
+            let results = inp_args.name;
+            let inp = inp_args.inp;
+            let kernel_vecs = inp_args.kernel_vecs;
+            return (
+                quote! {
+                    repeat_transpose_pad_results!(outs, #results, #inp, #kernel_vecs, is3, step_width, osw, masks, [0], [#ow_arr])
+            }
+            ).into();
+        } else {
+            panic!("Invalid input format, must contains format like 5x1 or 5_1");
+        }
+    }
+}
+
+
 
 pub(crate) fn dwconv2d_microkernel_gen_results(inputs: TokenStream) -> TokenStream {
     let inp_args = parse_macro_input!(inputs as ParseResultsArgs);

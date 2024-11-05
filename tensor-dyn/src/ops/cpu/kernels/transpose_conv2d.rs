@@ -4,9 +4,12 @@ use tensor_macros::{
     conv2d_microkernel_declare_const,
     conv2d_microkernel_gen_inps,
     conv2d_microkernel_gen_kernels,
-    transpose_conv2d_microkernel_gen_pad_inps,
     conv2d_microkernel_gen_results,
     pwconv2d_microkernel_gen_pad_inps,
+    transpose_conv2d_microkernel_gen_masks,
+    transpose_conv2d_microkernel_gen_outs,
+    transpose_conv2d_microkernel_gen_pad_results,
+    transpose_conv2d_microkernel_gen_results,
 };
 use tensor_types::{ into_scalar::IntoScalar, type_promote::NormalOut };
 use tensor_traits::CommonBounds;
@@ -126,6 +129,43 @@ macro_rules! repeat_pad_inp {
     };
 }
 
+macro_rules! repeat_pad_mask {
+    (
+        $k:ident,
+        $step_width:ident,
+        $m:ident,
+        $dw:ident,
+        $img_width:ident,
+        $pw_start:ident,
+        [$($idx:expr),*]
+    ) => {
+        paste::paste! {
+            ($(
+                {
+                    let mask =
+                    ($k + $idx) * $step_width + $m * $dw >= $pw_start &&
+                    ($k + $idx) * $step_width + $m * $dw < $img_width + $pw_start;
+                    let tmp_mask: T = mask.into_scalar();
+                    (tmp_mask, mask)
+                },
+            )*)
+        }
+    };
+}
+
+macro_rules! repeat_pad_outs {
+    ($name:ident, $masks:ident, $is3:expr, $step_width:ident, $osw:ident, [$($idx:expr),*]) => {
+        paste::paste! {
+            ($(
+                {
+                    let val = $name[($is3 + $idx * $step_width * $osw) * ($masks.$idx.1 as i64)];
+                    T::Vec::splat($masks.$idx.0._mul(val))
+                },
+            )*)
+        }
+    };
+}
+
 macro_rules! repeat_pw_pad_inp {
     (
         $name:ident,
@@ -184,6 +224,84 @@ macro_rules! repeat_results {
         paste::paste! {
             $(
                 $results[$vidx][$idx] = $inp.$idx.mul_add($kernel.$vidx, $results[$vidx][$idx]);
+            )*
+        }
+    };
+}
+
+macro_rules! repeat_transpose_results {
+    (
+        $results_vec:ident,
+        $results:ident,
+        $inp:ident,
+        $kernel:ident,
+        $is3:expr,
+        $step_width:ident,
+        $osw:ident,
+        [$vidx:literal, $($v:literal),*],
+        [$($idx:expr),*]
+    ) => {
+        paste::paste! {
+            $(
+                $results[$is3 + $idx * ($step_width * $osw)] = $inp[$vidx][$idx].mul_add($kernel.$vidx, $results_vec.$idx).sum();
+            )*
+            repeat_transpose_results!($results_vec, $results, $inp, $kernel, $is3, $step_width, $osw, [$($v),*], [$($idx),*]);
+        }
+    };
+    (
+        $results_vec:ident,
+        $results:ident,
+        $inp:ident,
+        $kernel:ident,
+        $is3:expr,
+        $step_width:ident,
+        $osw:ident,
+        [$vidx:literal],
+        [$($idx:expr),*]
+    ) => {
+        paste::paste! {
+            $(
+                $results[$is3 + $idx * ($step_width * $osw)] = $inp[$vidx][$idx].mul_add($kernel.$vidx, $results_vec.$idx).sum();
+            )*
+        }
+    };
+}
+
+macro_rules! repeat_transpose_pad_results {
+    (
+        $results_vec:ident,
+        $results:ident,
+        $inp:ident,
+        $kernel:ident,
+        $is3:expr,
+        $step_width:ident,
+        $osw:ident,
+        $masks:ident,
+        [$vidx:literal, $($v:literal),*],
+        [$($idx:expr),*]
+    ) => {
+        paste::paste! {
+            $(
+                $results[($is3 + $idx * ($step_width * $osw)) * ($masks.$idx.1 as i64)] = $inp[$vidx][$idx].mul_add($kernel.$vidx, $results_vec.$idx).sum();
+            )*
+            repeat_transpose_pad_results!($results_vec, $results, $inp, $kernel, $is3, $step_width, $osw, $masks, [$($v),*], [$($idx),*]);
+        }
+    };
+    (
+        $results_vec:ident,
+        $results:ident,
+        $inp:ident,
+        $kernel:ident,
+        $is3:expr,
+        $step_width:ident,
+        $osw:ident,
+        $masks:ident,
+        [$vidx:literal],
+        [$($idx:expr),*]
+    ) => {
+        paste::paste! {
+            $(
+                $results[($is3 + $idx * ($step_width * $osw)) * ($masks.$idx.1 as i64)] = $inp[$vidx][$idx].mul_add($kernel.$vidx, $results_vec.$idx).sum();
             )*
         }
     };
@@ -264,8 +382,8 @@ fn template_function<T: CommonBounds>(
                     let is2 = is1 + m * dw * osw;
                     for j in jj..j_end {
                         let is3 = is2 + j;
-                        let inp = conv2d_microkernel_gen_inps!(
-                            inp,
+                        let outs = conv2d_microkernel_gen_inps!(
+                            out,
                             is3,
                             step_width * osw,
                             template_function
@@ -274,9 +392,9 @@ fn template_function<T: CommonBounds>(
                             kernel,
                             template_function
                         );
-                        conv2d_microkernel_gen_results!(
-                            results,
-                            inp,
+                        transpose_conv2d_microkernel_gen_results!(
+                            out,
+                            inps,
                             kernel_vecs,
                             template_function
                         );
@@ -288,7 +406,13 @@ fn template_function<T: CommonBounds>(
                     let is2 = is1 + m * dw * osw;
                     for i in jj..j_end {
                         let is3 = is2 + i;
-                        let inp = transpose_conv2d_microkernel_gen_pad_inps!(
+                        let masks = transpose_conv2d_microkernel_gen_masks!(
+                            inp,
+                            is3,
+                            step_width * osw,
+                            template_function
+                        );
+                        let outs = transpose_conv2d_microkernel_gen_outs!(
                             inp,
                             is3,
                             step_width * osw,
@@ -298,9 +422,9 @@ fn template_function<T: CommonBounds>(
                             kernel,
                             template_function
                         );
-                        conv2d_microkernel_gen_results!(
-                            results,
-                            inp,
+                        transpose_conv2d_microkernel_gen_pad_results!(
+                            out,
+                            inps,
                             kernel_vecs,
                             template_function
                         );
@@ -310,16 +434,6 @@ fn template_function<T: CommonBounds>(
             }
         } else {
             kernel.add(OC_BLOCK * T::Vec::SIZE * (kw as usize) * ((j_end - jj) as usize));
-        }
-    }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..OC_BLOCK {
-            let out_vec = &mut out
-                [b * isb + l * ish + (k + kk) * isw + i + (v * T::Vec::SIZE) as i64]
-                as *mut _ as *mut T::Vec; // prettier-ignore
-            unsafe {
-                out_vec.write_unaligned(activation(results[v as usize][kk as usize]));
-            }
         }
     }
 }

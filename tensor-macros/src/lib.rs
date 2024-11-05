@@ -688,8 +688,14 @@ pub fn conv2d_microkernel_gen_pad_inps(input: TokenStream) -> TokenStream {
 
 /// generate transpose conv2d inps
 #[proc_macro]
-pub fn transpose_conv2d_microkernel_gen_pad_inps(input: TokenStream) -> TokenStream {
-    conv2d::transpose_conv2d_microkernel_gen_pad_inps(input)
+pub fn transpose_conv2d_microkernel_gen_masks(input: TokenStream) -> TokenStream {
+    conv2d::transpose_conv2d_microkernel_gen_masks(input)
+}
+
+/// generate transpose conv2d inps
+#[proc_macro]
+pub fn transpose_conv2d_microkernel_gen_outs(input: TokenStream) -> TokenStream {
+    conv2d::transpose_conv2d_microkernel_gen_outs(input)
 }
 
 /// generate pwconv2d inps
@@ -714,6 +720,18 @@ pub fn conv2d_microkernel_gen_kernels(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn conv2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
     conv2d::conv2d_microkernel_gen_results(input)
+}
+
+/// generate transpose conv2d repeat results
+#[proc_macro]
+pub fn transpose_conv2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
+    conv2d::transpose_conv2d_microkernel_gen_results(input)
+}
+
+/// generate transpose conv2d repeat results
+#[proc_macro]
+pub fn transpose_conv2d_microkernel_gen_pad_results(input: TokenStream) -> TokenStream {
+    conv2d::transpose_conv2d_microkernel_gen_pad_results(input)
 }
 
 /// generate conv2d repeat results
