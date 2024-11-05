@@ -52,7 +52,7 @@ impl<T> _Tensor<T>
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        activation: Option<fn(T::Vec) -> T::Vec>
+        activation: Option<fn(T) -> T>
     ) -> anyhow::Result<_Tensor<T>> {
         let img_shape = self.shape();
         if img_shape.len() != 4 {
@@ -770,11 +770,11 @@ fn handle_normal<T: CommonBounds, F>(
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
-    activation: fn(T::Vec) -> T::Vec,
+    activation: fn(T) -> T,
     full_ic_kernel_fn: F,
     full_ic_kernel_iw_remain: Option<F>
 )
-    where F: Fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+    where F: Fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T) -> T)
 {
     let params = Params {
         arg1: [jj, j_end],
@@ -907,14 +907,14 @@ fn with_bias_remain<T: CommonBounds>(
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
     bias: &Pointer<T>,
-    activation: fn(T::Vec) -> T::Vec,
+    activation: fn(T) -> T,
     bias_full_ic_kernel: fn(
         Params,
         &mut Pointer<T>,
         &mut Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T) -> T
     ),
     one_ic: fn(
         Params,
@@ -922,7 +922,7 @@ fn with_bias_remain<T: CommonBounds>(
         &mut Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T) -> T
     ),
     partial_ic: fn(
         PartialParams,
@@ -930,7 +930,7 @@ fn with_bias_remain<T: CommonBounds>(
         &mut Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T) -> T
     )
 ) {
     let params = Params {
@@ -1029,14 +1029,14 @@ fn with_bias_normal<T: CommonBounds>(
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
     bias: &Pointer<T>,
-    activation: fn(T::Vec) -> T::Vec,
+    activation: fn(T) -> T,
     bias_full_ic_kernel: fn(
         Params,
         &mut Pointer<T>,
         &mut Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T) -> T
     )
 ) {
     let params = Params {
@@ -1097,14 +1097,14 @@ fn handle_bias_remain<T: CommonBounds>(
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
     bias: &Pointer<T>,
-    activation: fn(T::Vec) -> T::Vec,
+    activation: fn(T) -> T,
     bias_full_ic: fn(
         Params,
         &mut Pointer<T>,
         &mut Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T) -> T
     ),
     partial_ic: fn(
         PartialParams,
@@ -1112,7 +1112,7 @@ fn handle_bias_remain<T: CommonBounds>(
         &mut Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T) -> T
     ),
     bias_one_ic: fn(
         Params,
@@ -1120,10 +1120,10 @@ fn handle_bias_remain<T: CommonBounds>(
         &mut Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T) -> T
     ),
     bias_full_ic_iw_remain: Option<
-        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, fn(T) -> T)
     >,
     bias_partial_ic_iw_remain: Option<
         fn(
@@ -1132,11 +1132,11 @@ fn handle_bias_remain<T: CommonBounds>(
             &mut Pointer<T>,
             &Pointer<T>,
             &Pointer<T>,
-            fn(T::Vec) -> T::Vec
+            fn(T) -> T
         )
     >,
     bias_one_ic_iw_remain: Option<
-        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, fn(T) -> T)
     >
 ) {
     let in_width_full_end = in_width - (in_width % (iw_block as i64));
@@ -1219,17 +1219,17 @@ fn handle_bias_normal<T: CommonBounds>(
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
     bias: &Pointer<T>,
-    activation: fn(T::Vec) -> T::Vec,
+    activation: fn(T) -> T,
     bias_full_ic: fn(
         Params,
         &mut Pointer<T>,
         &mut Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T) -> T
     ),
     bias_full_ic_iw_remain: Option<
-        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, fn(T) -> T)
     >
 ) {
     let out_width_full_end = in_width - (in_width % (iw_block as i64));
@@ -1300,21 +1300,21 @@ fn with_normal_remain<T: CommonBounds>(
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
-    activation: fn(T::Vec) -> T::Vec,
+    activation: fn(T) -> T,
     bias_full_ic_kernel: fn(
         Params,
         &mut Pointer<T>,
         &mut Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T) -> T
     ),
-    one_ic: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
+    one_ic: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T) -> T),
     partial_ic: fn(
         PartialParams,
         &mut Pointer<T>,
         &mut Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T) -> T
     )
 ) {
     let params = Params {
@@ -1410,24 +1410,24 @@ fn handle_normal_remain<T: CommonBounds>(
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
-    activation: fn(T::Vec) -> T::Vec,
-    full_ic: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
+    activation: fn(T) -> T,
+    full_ic: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T) -> T),
     partial_ic: fn(
         PartialParams,
         &mut Pointer<T>,
         &mut Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T) -> T
     ),
-    one_ic: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
+    one_ic: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T) -> T),
     full_ic_iw_remain: Option<
-        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T) -> T)
     >,
     partial_ic_iw_remain: Option<
-        fn(PartialParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+        fn(PartialParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T) -> T)
     >,
     one_ic_iw_remain: Option<
-        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T) -> T)
     >
 ) {
     let in_width_full_end = in_width - (in_width % (iw_block as i64));
