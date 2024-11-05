@@ -22,7 +22,7 @@ fn common_input<T>([batch, out_channel, in_channel, kernel_height, kernel_width,
 {
     let kernel = _Tensor::<T>
         ::arange(0, in_channel * out_channel * kernel_height * kernel_width)?
-        .reshape([out_channel, in_channel, kernel_height, kernel_width])?
+        .reshape([in_channel, out_channel, kernel_height, kernel_width])?
         .permute([2, 3, 1, 0])?
         .contiguous()?;
     let a = _Tensor::<T>

@@ -72,7 +72,7 @@ impl<T> _Tensor<T>
         let kw = kernel_shape[1];
         let out_channels = kernel_shape[2];
         let in_channels = kernel_shape[3];
-        if out_channels != img_channels {
+        if in_channels != img_channels {
             panic!(
                 "The number of input channels in the image must be equal to the number of input channels in the kernel."
             );
@@ -92,17 +92,17 @@ impl<T> _Tensor<T>
             };
         }
         let activation = activation.unwrap_or(|x| x);
-        let output = _Tensor::<T>::empty([batch, out_height, out_width, in_channels])?;
+        let output = _Tensor::<T>::zeros([batch, out_height, out_width, out_channels])?;
         let out = output.ptr();
         let inp = img.ptr();
 
-        let isb = output.strides()[0]; // batch
-        let ish = output.strides()[1]; // height
-        let isw = output.strides()[2]; // width
+        let isb = img.strides()[0]; // batch
+        let ish = img.strides()[1]; // height
+        let isw = img.strides()[2]; // width
 
-        let osb = img.strides()[0]; // batch
-        let osh = img.strides()[1]; // height
-        let osw = img.strides()[2]; // width
+        let osb = output.strides()[0]; // batch
+        let osh = output.strides()[1]; // height
+        let osw = output.strides()[2]; // width
 
         let ks0 = kernels.strides()[0]; // kernel_height
         let ks1 = kernels.strides()[1]; // kernel_width
@@ -438,7 +438,7 @@ impl<T> _Tensor<T>
                                         [in_channels, ic_block_size as i64],
                                         [img_width, iw_block as i64],
                                         [ll, l_end],
-                                        [ii, ii_end],
+                                        [jj, jj_end],
                                         [kh, kw],
                                         [isb, ish, isw],
                                         [osb, osh, osw],
