@@ -855,7 +855,8 @@ fn conv_perfect<T: CommonBounds, F>(
     ib: usize,
     kernel: &mut Pointer<T>,
     out: &mut Pointer<T>,
-    mut kernel_func: F
+    mut kernel_func: F,
+
 )
     where F: FnMut(i64, i64, i64, &mut Pointer<T>, &mut Pointer<T>)
 {
