@@ -3,6 +3,18 @@ use std::io::Write;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
+#[fuse]
+fn feedforward(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
+    let c = &a + &b;
+    let d = c.sin()?;
+    let d = a
+        .par_iter()
+        .zip(b.par_iter())
+        .strided_map(|(a, b)| a + b)
+        .collect();
+    Ok(d)
+}
+
 fn main() -> anyhow::Result<()> {
     conv2d()?;
     Ok(())
@@ -10,7 +22,7 @@ fn main() -> anyhow::Result<()> {
 
 fn conv2d() -> Result<(), anyhow::Error> {
     let oc_sets = [128];
-    let ic_sets = [128, 256, 512, 1024, 2048, 4096, 8192];
+    let ic_sets = [4096];
     let kh_sets = [3];
     let kw_sets = [3];
     let h_sets = [256];
@@ -30,8 +42,8 @@ fn conv2d() -> Result<(), anyhow::Error> {
                     for h in h_sets {
                         for w in w_sets {
                             let kernel = _Tensor::<f32>
-                                ::arange(0, 1 * ic * kh * kw)?
-                                .reshape([ic, 1, kh, kw])?
+                                ::arange(0, oc * ic * kh * kw)?
+                                .reshape([ic, oc, kh, kw])?
                                 .permute([2, 3, 1, 0])?
                                 .contiguous()?;
                             let a = _Tensor::<f32>
@@ -43,7 +55,7 @@ fn conv2d() -> Result<(), anyhow::Error> {
                             // let a = Tensor::randn(1.0, 1.0, &[1, ic, h, w], &device)?;
                             // let kernel = Tensor::randn(1.0, 1.0, &[oc, ic, kh, kw], &device)?;
                             let now = std::time::Instant::now();
-                            let _ = a.dwconv2d(
+                            let _ = a.conv2d(
                                 &kernel,
                                 None,
                                 [1, 1],

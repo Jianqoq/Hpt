@@ -23,8 +23,6 @@ pub mod ops {
             pub mod conv2d_group;
             /// a module defines dwconv2d operation
             pub mod dwconv2d;
-            /// a module defines transpose_conv2d operation
-            pub mod trasnpose_conv2d;
         }
         /// a module defines dropout operation
         pub mod dropout;
@@ -89,8 +87,6 @@ pub mod ops {
             pub mod softmax;
             /// a module defines the logsoftmax kernels
             pub mod logsoftmax;
-            /// a module defines the transpose_conv2d kernels
-            pub mod transpose_conv2d;
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_expose {
@@ -170,6 +166,7 @@ pub use tensor_iterator::iterator_traits::*;
 pub use tensor_iterator::TensorIterator;
 
 pub use tensor_macros::match_selection;
+pub use tensor_macros::fuse;
 pub use tensor_traits::*;
 pub use tensor_types::vectors::*;
 pub use tensor_types::*;

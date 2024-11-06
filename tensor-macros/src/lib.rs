@@ -44,6 +44,14 @@ mod normal_out;
 mod scalar_convert;
 mod from_scalar;
 mod conv2d;
+
+mod fuse {
+    pub(crate) mod start;
+    pub(crate) mod dag;
+    pub(crate) mod visitor;
+    pub(crate) mod node;
+}
+
 use crate::simd_cmp::impl_simd_cmp;
 use crate::simd_normal_out::impl_simd_normal_out;
 use proc_macro2::{ TokenStream as TokenStream2, TokenTree };
@@ -750,4 +758,11 @@ pub fn transpose_conv2d_microkernel_pad_flush_results(input: TokenStream) -> Tok
 #[proc_macro]
 pub fn dwconv2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
     conv2d::dwconv2d_microkernel_gen_results(input)
+}
+
+/// perform fuse optimization
+#[proc_macro_attribute]
+pub fn fuse(attr: TokenStream, item: TokenStream) -> TokenStream
+{
+    fuse::start::fuse_impl(attr, item)
 }
