@@ -440,14 +440,24 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, O>(
         T::Vec: Copy,
         O::Vec: Copy
 {
-    reduce_template(
-        a,
+    let max_axis = *axes.iter().max().unwrap();
+    let (a, fused_dims) = if max_axis == a.ndim() - 1 {
+        (a.clone(), vec![])
+    } else {
+        let prod = a.shape()[max_axis + 1..].iter().product::<i64>();
+        let new_shape: Vec<i64> = a.shape()[..=max_axis].to_vec();
+        let mut new_shape = new_shape;
+        new_shape.push(prod);
+        (a.reshape(&new_shape)?, a.shape()[max_axis + 1..].to_vec())
+    };
+    let res = reduce_template(
+        &a,
         axes,
         init_val,
         keepdims,
         init_out,
         c,
-        move |res| {
+        |res| {
             let ptr = a.ptr();
             let raw = unsafe { std::slice::from_raw_parts_mut(ptr.ptr, a.size() as usize) };
             let val = raw
@@ -466,7 +476,7 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, O>(
                 *res = op2(val, *res);
             }
         },
-        move |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
+        |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
             let iterators = ReductionPreprocessor::new(
                 num_threads,
                 result.size(),
@@ -516,7 +526,7 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, O>(
                 }
             });
         },
-        move |num_threads, inner_loop_size, result| {
+        |num_threads, inner_loop_size, result| {
             let intervals = mt_intervals_simd(inner_loop_size, num_threads, O::Vec::SIZE);
             let mut slices = vec![Slice::Full; a.ndim()];
             let mut slices_res = vec![Slice::Full; result.ndim()];
@@ -571,8 +581,14 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, O>(
                     }
                 });
         },
-        move |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
-            let outer_loop_size = result.size() / inner_loop_size;
+        |
+            num_threads,
+            outer_loop_size,
+            inner_loop_size,
+            inner_loop_size_2,
+            result,
+            transposed_tensor
+        | {
             let iterators = ReductionPreprocessor::new2(
                 num_threads,
                 outer_loop_size,
@@ -629,7 +645,16 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, O>(
                 }
             });
         }
-    )
+    )?;
+    if !fused_dims.is_empty() {
+        let res_shape = res.shape().clone();
+        let mut new_shape = res_shape.clone();
+        new_shape.pop();
+        new_shape.extend(fused_dims.iter());
+        res.reshape(&new_shape)
+    } else {
+        Ok(res)
+    }
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]

@@ -167,10 +167,10 @@ pub(crate) fn reduce_template<T, F1, F2, F3, F4, O>(
         F1: Fn(&mut O),
         F2: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>),
         F3: Fn(usize, usize, &_Tensor<O>),
-        F4: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>)
+        F4: Fn(usize, usize, usize, usize, &_Tensor<O>, &_Tensor<T>)
 {
     let (keep_fast_dim, transposed_tensor, result) = reduce_prepare(
-        a,
+        &a,
         axes,
         init_val,
         init_out,
@@ -214,7 +214,14 @@ pub(crate) fn reduce_template<T, F1, F2, F3, F4, O>(
                 } else {
                     rayon::current_num_threads()
                 };
-                kd(num_threads, inner_loop_size, inner_loop_size_2, &result, &transposed_tensor);
+                kd(
+                    num_threads,
+                    outer_loop_size,
+                    inner_loop_size,
+                    inner_loop_size_2,
+                    &result,
+                    &transposed_tensor
+                );
             }
         }
     }

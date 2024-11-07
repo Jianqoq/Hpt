@@ -84,12 +84,12 @@ macro_rules! reduction_bench_mark {
 reduction_bench_mark!(
     "sum",
     [
-        [1024, 2048, 8],
-        [2048, 2048, 8],
-        [4096, 2048, 8],
-        [8192, 2048, 8],
+        // [1024, 2048, 8],
+        // [2048, 2048, 8],
+        // [4096, 2048, 8],
+        [8192, 2048, 64],
     ],
-    [vec![2]],
+    [vec![0], vec![1], vec![2], vec![0, 1], vec![0, 2], vec![1, 2], vec![0, 1, 2]],
     assert_eq_i64,
     sum_dim_intlist(false, Kind::Float),
     sum(false)

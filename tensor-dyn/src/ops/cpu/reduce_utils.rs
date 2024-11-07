@@ -55,8 +55,8 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds>(
     let res = if let Some(mut out) = c {
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
-        if res_layout.shape().inner() != out.shape().inner() {
-            return Err(anyhow::Error::msg("Output array has incorrect shape".to_string()));
+        if res_layout.size() != out.layout().size() {
+            return Err(anyhow::Error::msg(format!("Output array has incorrect size, expected {}, got {}", res_layout.size(), out.layout().size())));
         } else if !out.is_contiguous() {
             return Err(anyhow::Error::msg("Output array is not contiguous".to_string()));
         }
@@ -67,7 +67,7 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds>(
                     *x = init_val;
                 });
         }
-        Ok(out)
+        Ok(out.reshape(res_layout.shape())?)
     } else {
         _Tensor::<O, Cpu>::full(init_val, res_layout.shape())
     };
