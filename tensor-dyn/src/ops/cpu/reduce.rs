@@ -234,10 +234,11 @@ use super::kernels::reduce::{
 use super::reduce_template::uncontiguos_reduce_template;
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn reduce<T, F, F2>(
+pub(crate) fn reduce<T, F, F2, F3>(
     a: &_Tensor<T>,
     op: F,
-    vec_op: F2,
+    op_no_cast: F2,
+    vec_op: F3,
     axes: &[usize],
     init_val: T,
     keepdims: bool,
@@ -248,13 +249,15 @@ pub(crate) fn reduce<T, F, F2>(
     where
         T: CommonBounds + IntoScalar<T> + Convertor,
         F: Fn(T, T) -> T + Sync + Send + 'static + Copy,
-        F2: Fn(T::Vec, T::Vec) -> T::Vec + Sync + Send + 'static + Copy,
+        F2: Fn(T, T) -> T + Sync + Send + 'static + Copy,
+        F3: Fn(T::Vec, T::Vec) -> T::Vec + Sync + Send + 'static + Copy,
         T::Vec: Copy
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<_, _, _, fn(T) -> T, _, _, fn(T::Vec) -> T::Vec, T>(
+        contiguous_reduce::<_, _, _, _, fn(T) -> T, _, _, fn(T::Vec) -> T::Vec, T>(
             a,
             op,
+            op_no_cast,
             op,
             None,
             vec_op,
@@ -284,12 +287,13 @@ pub(crate) fn reduce<T, F, F2>(
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn reduce2<T, F, F2, F3, F4, O>(
+pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O>(
     a: &_Tensor<T>,
     op: F,
-    op2: F2,
-    vec_op: F3,
-    vec_op2: F4,
+    op_no_cast: F2,
+    op2: F3,
+    vec_op: F4,
+    vec_op2: F5,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -301,16 +305,18 @@ pub(crate) fn reduce2<T, F, F2, F3, F4, O>(
         T: CommonBounds + IntoScalar<O> + Convertor,
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
         F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-        F3: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-        F4: Fn(O::Vec, O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+        F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+        F4: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+        F5: Fn(O::Vec, O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
         O: CommonBounds,
         T::Vec: Copy,
         O::Vec: Copy
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<T, F, F2, fn(O) -> O, _, _, fn(O::Vec) -> O::Vec, O>(
+        contiguous_reduce::<T, F, F2, F3, fn(O) -> O, _, _, fn(O::Vec) -> O::Vec, O>(
             a,
             op,
+            op_no_cast,
             op2,
             None,
             vec_op,
@@ -323,7 +329,7 @@ pub(crate) fn reduce2<T, F, F2, F3, F4, O>(
             c
         )
     } else {
-        uncontiguous_reduce::<T, F, F2, fn(O) -> O, _, fn(O::Vec) -> O::Vec, O>(
+        uncontiguous_reduce::<T, F, F3, fn(O) -> O, _, fn(O::Vec) -> O::Vec, O>(
             a,
             op,
             op2,
@@ -340,14 +346,15 @@ pub(crate) fn reduce2<T, F, F2, F3, F4, O>(
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, O>(
+pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O>(
     a: &_Tensor<T>,
     op: F,
-    op2: F2,
-    op3: F3,
-    vec_op: F4,
-    vec_op2: F5,
-    op5: F6,
+    op_no_cast: F2,
+    op2: F3,
+    op3: F4,
+    vec_op: F5,
+    vec_op2: F6,
+    op5: F7,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -359,17 +366,19 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, O>(
         T: CommonBounds + IntoScalar<O> + Convertor,
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
         F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-        F3: Fn(O) -> O + Sync + Send + 'static + Copy,
-        F4: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-        F5: Fn(O::Vec, O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-        F6: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+        F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+        F4: Fn(O) -> O + Sync + Send + 'static + Copy,
+        F5: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+        F6: Fn(O::Vec, O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+        F7: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
         O: CommonBounds,
         O::Vec: Copy
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<T, F, F2, F3, F4, F5, F6, O>(
+        contiguous_reduce::<T, F, F2, F3, F4, F5, F6, F7, O>(
             a,
             op,
+            op_no_cast,
             op2,
             Some(op3),
             vec_op,
@@ -382,7 +391,7 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, O>(
             c
         )
     } else {
-        uncontiguous_reduce::<T, F, F2, F3, F4, F6, O>(
+        uncontiguous_reduce::<T, F, F3, F4, F5, F7, O>(
             a,
             op,
             op2,
@@ -413,14 +422,15 @@ register_reduction_one_axis!(
 );
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, O>(
+pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O>(
     a: &_Tensor<T>,
     op: F,
-    op2: F2,
-    op3: Option<F3>,
-    vec_op: F4,
-    vec_op2: F5,
-    vec_post: Option<F6>,
+    op_no_cast: F2,
+    op2: F3,
+    op3: Option<F4>,
+    vec_op: F5,
+    vec_op2: F6,
+    vec_post: Option<F7>,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -433,10 +443,11 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, O>(
         O: CommonBounds,
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
         F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-        F3: Fn(O) -> O + Sync + Send + 'static + Copy,
-        F4: Fn(O::Vec, T::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
-        F5: Fn(O::Vec, O::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
-        F6: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+        F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+        F4: Fn(O) -> O + Sync + Send + 'static + Copy,
+        F5: Fn(O::Vec, T::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
+        F6: Fn(O::Vec, O::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
+        F7: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
         T::Vec: Copy,
         O::Vec: Copy
 {
@@ -505,6 +516,7 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, O>(
                         &iterator.a_shape,
                         &mut iterator.prg,
                         shape_len,
+                        op_no_cast,
                         op2,
                         vec_op2,
                         op3

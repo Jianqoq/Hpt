@@ -26,6 +26,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
             self,
             |a, b| a._add(b),
             |a, b| a._add(b),
+            |a, b| a._add(b),
             &axes,
             T::ZERO,
             keep_dims,
@@ -48,6 +49,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
             self,
             |a, b| a._add(b),
             |a, b| a._add(b),
+            |a, b| a._add(b),
             &axes,
             T::ZERO,
             keep_dims,
@@ -67,6 +69,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
             self,
             |a, b| a._add(b),
             |a, b| a._add(b),
+            |a, b| a._add(b),
             &axes,
             init_val,
             keep_dims,
@@ -79,6 +82,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         let axes = process_axes(axis, self.ndim())?;
         reduce(
             self,
+            |a, b| a._mul(b),
             |a, b| a._mul(b),
             |a, b| a._mul(b),
             &axes,
@@ -100,6 +104,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
             self,
             |a, b| a._mul(b),
             |a, b| a._mul(b),
+            |a, b| a._mul(b),
             &axes,
             init_val,
             keep_dims,
@@ -112,6 +117,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
+            |a, b| a._min(b),
             |a, b| a._min(b),
             |a, b| a._min(b),
             &axes,
@@ -133,6 +139,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
             self,
             |a, b| a._min(b),
             |a, b| a._min(b),
+            |a, b| a._min(b),
             &axes,
             init_val,
             keep_dims,
@@ -145,6 +152,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
+            |a, b| a._max(b),
             |a, b| a._max(b),
             |a, b| a._max(b),
             &axes,
@@ -166,6 +174,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
             self,
             |a, b| a._max(b),
             |a, b| a._max(b),
+            |a, b| a._max(b),
             &axes,
             init_val,
             keep_dims,
@@ -178,6 +187,10 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
+            |a, b| {
+                let b_abs = b._abs();
+                a._add(b_abs)
+            },
             |a, b| {
                 let b_abs = b._abs();
                 a._add(b_abs)
@@ -195,6 +208,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce2(
             self,
+            |a, b| a._add(b._square()),
             |a, b| a._add(b._square()),
             |a, b| a._add(b),
             |a, b| a._add(b._square()),
@@ -215,6 +229,7 @@ impl<T> EvalReduce for _Tensor<T> where T: CommonBounds + Eval<Output = bool> + 
         reduce2(
             self,
             |a, b| b._is_true() & a,
+            |a, b| b._is_true() & a,
             |a, b| b & a,
             |a, b| {
                 let mask = b.to_bool();
@@ -233,6 +248,7 @@ impl<T> EvalReduce for _Tensor<T> where T: CommonBounds + Eval<Output = bool> + 
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce2(
             self,
+            |a, b| b._is_true() | a,
             |a, b| b._is_true() | a,
             |a, b| b | a,
             |a, b| {
@@ -266,6 +282,9 @@ impl<T> NormalEvalReduce<T>
                 if b._is_nan() { a } else { b._add(a) }
             },
             |a, b| {
+                if b._is_nan() { a } else { b._add(a) }
+            },
+            |a, b| {
                 let mask = b._is_nan();
                 mask.select(a, b._add(a))
             },
@@ -290,6 +309,9 @@ impl<T> NormalEvalReduce<T>
                 if b._is_nan() { a } else { b._add(a) }
             },
             |a, b| {
+                if b._is_nan() { a } else { b._add(a) }
+            },
+            |a, b| {
                 let mask = b._is_nan();
                 mask.select(a, b._add(a))
             },
@@ -305,6 +327,9 @@ impl<T> NormalEvalReduce<T>
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
+            |a, b| {
+                if b._is_nan() { a } else { b._mul(a) }
+            },
             |a, b| {
                 if b._is_nan() { a } else { b._mul(a) }
             },
@@ -329,6 +354,9 @@ impl<T> NormalEvalReduce<T>
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
         reduce(
             self,
+            |a, b| {
+                if b._is_nan() { a } else { b._mul(a) }
+            },
             |a, b| {
                 if b._is_nan() { a } else { b._mul(a) }
             },
@@ -400,6 +428,7 @@ impl<T> _Tensor<T>
             self,
             |a, b| a._add(b),
             |a, b| a._add(b),
+            |a, b| a._add(b),
             move |a| a._div(reduce_size),
             |a, b| a._add(b),
             |a, b| a._add(b),
@@ -446,11 +475,9 @@ impl<T> _Tensor<T>
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce3(
             self,
-            |a, b| {
-                let b = b._square();
-                a._add(b)
-            },
-            |a, b| a._add(b._mul(b)),
+            |a, b| { a._add(b._square()) },
+            |a, b| { a._add(b._square()) },
+            |a, b| a._add(b),
             move |a| a._sqrt(),
             |a, b| a._add(b._mul(b)),
             |a, b| a._add(b._mul(b)),
@@ -509,7 +536,11 @@ impl<T> _Tensor<T>
                 let pow = b._abs()._pow(three);
                 a._add(pow)
             },
-            move |a, b| a._add(b._abs()._pow(three)),
+            move |a, b| {
+                let pow = b._abs()._pow(three);
+                a._add(pow)
+            },
+            move |a, b| a._add(b),
             move |a| a,
             move |a, b| {
                 let abs = b._abs();

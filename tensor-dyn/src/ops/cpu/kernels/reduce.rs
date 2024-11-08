@@ -580,7 +580,7 @@ pub(crate) fn reduce_dim_not_include<T, O, F, F2>(
 }
 
 #[inline]
-pub(crate) fn contiguous_reduce_dim_include_simd<T, F, F2, F3>(
+pub(crate) fn contiguous_reduce_dim_include_simd<T, F, F2, F3, F4>(
     init: T,
     inner_loop_size: isize,
     outer_loop_size: isize,
@@ -592,17 +592,26 @@ pub(crate) fn contiguous_reduce_dim_include_simd<T, F, F2, F3>(
     prg1: &mut [i64],
     shape_len: i64,
     op: F,
-    vec_op: F2,
-    op_post: Option<F3>
+    op2: F2,
+    vec_op: F3,
+    op_post: Option<F4>
 )
-    where T: CommonBounds, F: Fn(T, T) -> T, F2: Fn(T::Vec, T::Vec) -> T::Vec, F3: Fn(T) -> T
+    where
+        T: CommonBounds,
+        F: Fn(T, T) -> T,
+        F2: Fn(T, T) -> T,
+        F3: Fn(T::Vec, T::Vec) -> T::Vec,
+        F4: Fn(T) -> T
 {
     for _ in 0..outer_loop_size {
         for _ in 0..intermediate_size {
             let inp_arr = unsafe {
                 std::slice::from_raw_parts(inp_ptr.ptr as *const T, inner_loop_size as usize)
             };
-            res_ptr[0isize] = op(res_ptr[0isize], array_vec_reduce(inp_arr, init, &vec_op, &op));
+            res_ptr[0isize] = op2(
+                res_ptr[0isize],
+                array_vec_reduce(inp_arr, init, &vec_op, &op, &op2)
+            );
             update_prg3(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
         }
         if let Some(op_post) = &op_post {
@@ -628,11 +637,7 @@ pub(crate) fn contiguous_reduce_dim_include<T, O, F, F2>(
     op: F,
     op_post: Option<F2>
 )
-    where
-        T: CommonBounds,
-        O: CommonBounds,
-        F: Fn(O, T) -> O,
-        F2: Fn(O) -> O
+    where T: CommonBounds, O: CommonBounds, F: Fn(O, T) -> O, F2: Fn(O) -> O
 {
     for _ in 0..outer_loop_size {
         for _ in 0..intermediate_size {

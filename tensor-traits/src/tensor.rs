@@ -1,5 +1,5 @@
 use std::{ borrow::Borrow, fmt::Display, ops::{ Div, Sub } };
-
+use std::fmt::Debug;
 use tensor_common::{ axis::Axis, layout::Layout, pointer::Pointer, shape::Shape, strides::Strides };
 use tensor_types::{
     convertion::{ Convertor, FromScalar },
@@ -959,6 +959,7 @@ pub trait CommonBounds
             TypeCommon +
             'static +
             Display +
+            Debug +
             IntoScalar<Self> +
             Convertor +
             NormalOut<Self, Output = Self> +
@@ -985,6 +986,7 @@ impl<T> CommonBounds
             TypeCommon +
             'static +
             Display +
+            Debug +
             IntoScalar<Self> +
             Convertor +
             NormalOut<Self, Output = Self> +
