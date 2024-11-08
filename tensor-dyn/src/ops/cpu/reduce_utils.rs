@@ -35,14 +35,7 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds>(
     init_val: O,
     init_out: bool,
     c: Option<_Tensor<O>>
-) -> anyhow::Result<(bool, _Tensor<T>, _Tensor<O>)> {
-    let mut keep_fast_dim = true;
-    for axis in axes.iter() {
-        if a.strides()[*axis] == 1 {
-            keep_fast_dim = false;
-            break;
-        }
-    }
+) -> anyhow::Result<(_Tensor<T>, _Tensor<O>)> {
     // get permute order, we move to_reduce axes to the end
     let mut transposed_axis = rearrange_array(a.ndim(), axes);
 
@@ -71,7 +64,7 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds>(
     } else {
         _Tensor::<O, Cpu>::full(init_val, res_layout.shape())
     };
-    Ok((keep_fast_dim, a.permute(transposed_axis)?, res?))
+    Ok((a.permute(transposed_axis)?, res?))
 }
 
 pub(crate) fn uncontiguous_reduce_prepare<T: CommonBounds, O: CommonBounds>(

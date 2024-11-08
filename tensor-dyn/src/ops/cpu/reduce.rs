@@ -1,5 +1,5 @@
 use crate::backend::Cpu;
-use crate::ops::cpu::reduce_template::reduce_template;
+use crate::ops::cpu::reduce_template::contiguous_reduce_template;
 use crate::tensor_base::_Tensor;
 use crate::{ argmax_kernel, argmin_kernel };
 
@@ -450,7 +450,7 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, O>(
         new_shape.push(prod);
         (a.reshape(&new_shape)?, a.shape()[max_axis + 1..].to_vec())
     };
-    let res = reduce_template(
+    let res = contiguous_reduce_template(
         &a,
         axes,
         init_val,
