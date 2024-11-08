@@ -122,7 +122,7 @@ fn common_input_f64<const N: usize>(
 
 #[test]
 fn test_sum() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let (a, tch_a) = common_input(2 * 5 * 5 * 10, [2, 5, 5, 10])?;
     let sum = a.sum(0, false)?;
     let tch_sum = tch_a.sum_dim_intlist(0, false, tch::Kind::Int64);
     assert_eq(&sum, &tch_sum);

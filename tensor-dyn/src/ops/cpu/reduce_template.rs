@@ -148,7 +148,7 @@ use tensor_types::into_scalar::IntoScalar;
 ///
 /// This function provides a flexible template for reduction operations on tensors, allowing for optimized implementations of various reduction functions.
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn reduce_template<T, F1, F2, F3, F4, O>(
+pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O>(
     a: &_Tensor<T>,
     axes: &[usize],
     init_val: O,
@@ -167,15 +167,50 @@ pub(crate) fn reduce_template<T, F1, F2, F3, F4, O>(
         F1: Fn(&mut O),
         F2: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>),
         F3: Fn(usize, usize, &_Tensor<O>),
-        F4: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>)
+        F4: Fn(usize, usize, usize, usize, &_Tensor<O>, &_Tensor<T>)
 {
-    let (keep_fast_dim, transposed_tensor, result) = reduce_prepare(
-        a,
-        axes,
-        init_val,
-        init_out,
-        c
-    )?;
+    let mut keep_fast_dim = true;
+    for axis in axes.iter() {
+        if a.strides()[*axis] == 1 {
+            keep_fast_dim = false;
+            break;
+        }
+    }
+    let mut fused_dims: Vec<usize> = vec![];
+    let (a, axes) = if !keep_fast_dim {
+        let mut consec_axes = vec![];
+        let mut new_axes = axes.to_vec();
+        let mut max = a.ndim() - 1;
+        let mut last_removed = max;
+        while max > 0 {
+            if !axes.contains(&max) {
+                break;
+            } else {
+                consec_axes.push(max);
+                let removed = new_axes.remove(
+                    new_axes
+                        .iter()
+                        .position(|&x| x == max)
+                        .unwrap()
+                );
+                last_removed = removed;
+            }
+            max -= 1;
+        }
+        new_axes.push(last_removed);
+        fused_dims.extend(consec_axes.iter());
+        let mut new_shape = a.shape().to_vec();
+        let mut prod = 1;
+        for dim in fused_dims.iter() {
+            prod *= new_shape[*dim];
+            new_shape.remove(*dim);
+        }
+        new_shape.push(prod);
+        (a.reshape(&new_shape)?, new_axes)
+    } else {
+        (a.clone(), axes.to_vec())
+    };
+    let (transposed_tensor, result) = reduce_prepare(&a, &axes, init_val, init_out, c)?;
 
     let a_last_stride = if keep_fast_dim {
         transposed_tensor.strides()[a.ndim() - axes.len() - 1]
@@ -214,7 +249,14 @@ pub(crate) fn reduce_template<T, F1, F2, F3, F4, O>(
                 } else {
                     rayon::current_num_threads()
                 };
-                kd(num_threads, inner_loop_size, inner_loop_size_2, &result, &transposed_tensor);
+                kd(
+                    num_threads,
+                    outer_loop_size,
+                    inner_loop_size,
+                    inner_loop_size_2,
+                    &result,
+                    &transposed_tensor
+                );
             }
         }
     }

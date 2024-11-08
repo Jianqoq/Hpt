@@ -35,14 +35,7 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds>(
     init_val: O,
     init_out: bool,
     c: Option<_Tensor<O>>
-) -> anyhow::Result<(bool, _Tensor<T>, _Tensor<O>)> {
-    let mut keep_fast_dim = true;
-    for axis in axes.iter() {
-        if a.strides()[*axis] == 1 {
-            keep_fast_dim = false;
-            break;
-        }
-    }
+) -> anyhow::Result<(_Tensor<T>, _Tensor<O>)> {
     // get permute order, we move to_reduce axes to the end
     let mut transposed_axis = rearrange_array(a.ndim(), axes);
 
@@ -55,8 +48,8 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds>(
     let res = if let Some(mut out) = c {
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
-        if res_layout.shape().inner() != out.shape().inner() {
-            return Err(anyhow::Error::msg("Output array has incorrect shape".to_string()));
+        if res_layout.size() != out.layout().size() {
+            return Err(anyhow::Error::msg(format!("Output array has incorrect size, expected {}, got {}", res_layout.size(), out.layout().size())));
         } else if !out.is_contiguous() {
             return Err(anyhow::Error::msg("Output array is not contiguous".to_string()));
         }
@@ -67,11 +60,11 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds>(
                     *x = init_val;
                 });
         }
-        Ok(out)
+        Ok(out.reshape(res_layout.shape())?)
     } else {
         _Tensor::<O, Cpu>::full(init_val, res_layout.shape())
     };
-    Ok((keep_fast_dim, a.permute(transposed_axis)?, res?))
+    Ok((a.permute(transposed_axis)?, res?))
 }
 
 pub(crate) fn uncontiguous_reduce_prepare<T: CommonBounds, O: CommonBounds>(

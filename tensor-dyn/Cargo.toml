@@ -39,3 +39,7 @@ track_caller = [
     "tensor-iterator/track_caller",
 ]
 bound_check = ["tensor-common/bound_check", "tensor-iterator/bound_check"]
+
+[package.metadata.rust-analyzer]
+rustc_private = true
+proc_macro_srv = true
