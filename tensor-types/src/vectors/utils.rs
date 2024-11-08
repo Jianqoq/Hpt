@@ -41,7 +41,8 @@ pub fn array_vec_reduce<T: TypeCommon + NormalOut<T, Output = T> + Copy>(
     array: &[T],
     init: T,
     vec_op: impl Fn(T::Vec, T::Vec) -> T::Vec,
-    scalar_op: impl Fn(T, T) -> T
+    scalar_op: impl Fn(T, T) -> T,
+    vec_reduce_op: impl Fn(T, T) -> T
 ) -> T {
     let remain = array.len() % T::Vec::SIZE;
     let vecs = unsafe {
@@ -56,7 +57,7 @@ pub fn array_vec_reduce<T: TypeCommon + NormalOut<T, Output = T> + Copy>(
         red = scalar_op(red, array[i]);
     }
     for i in 0..T::Vec::SIZE {
-        red = scalar_op(red, red_vec.extract(i));
+        red = vec_reduce_op(red, red_vec.extract(i));
     }
     red
 }

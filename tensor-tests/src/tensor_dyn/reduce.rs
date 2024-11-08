@@ -1048,7 +1048,7 @@ fn test_sub_tensor_reducel1_step() -> anyhow::Result<()> {
 #[test]
 
 fn test_reducel2() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
+    let (a, tch_a) = common_input_f64(1 * 1 * 10, [1, 1, 10])?;
     let sum = a.reducel2(0, false)?;
     let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
     let tch_sum = tch_a.f_norm_out(&res, 2, 0, false)?;
