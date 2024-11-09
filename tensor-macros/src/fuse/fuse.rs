@@ -1,4 +1,4 @@
-use std::{ cell::{ RefCell, RefMut }, collections::{ HashMap, HashSet } };
+use std::{ cell::{ RefCell, RefMut }, collections::HashSet };
 
 use quote::ToTokens;
 
@@ -30,9 +30,11 @@ pub(crate) fn fuse<'ast>(candidates: &'ast Graph<'ast>) -> Vec<HashSet<Var2>> {
                     fuse_parents(&pred, kernel_type, &mut block, candidates);
                 }
             }
+            Node::Input(input) => {
+                block.insert(Var2 { ident: input.ident.clone() });
+            }
         }
-        let b_clone = block.clone();
-        b_clone.iter().for_each(|node| {
+        block.iter().for_each(|node| {
             unfused.borrow_mut().map.remove(node);
         });
         results.push(block);
@@ -72,6 +74,17 @@ pub fn fuse_parents<'ast>(
 ) {
     match pred_kernel_fusable(next_kernel_type, pred) {
         Ok(Some(kernel_type)) => {
+            match pred {
+                Node::Unary(unary, _) => {
+                    block.insert(Var2 { ident: unary.output.clone() });
+                }
+                Node::Binary(binary, _) => {
+                    block.insert(Var2 { ident: binary.output.clone() });
+                }
+                Node::Input(input) => {
+                    block.insert(Var2 { ident: input.ident.clone() });
+                }
+            }
             for next in parents(pred, graph) {
                 fuse_parents(next, kernel_type, block, graph);
             }
@@ -96,6 +109,9 @@ pub fn fuse_children<'ast>(
                 Node::Binary(node, _) => {
                     block.insert(Var2 { ident: node.output.clone() });
                 }
+                Node::Input(input) => {
+                    block.insert(Var2 { ident: input.ident.clone() });
+                }
             }
             for next in children(succ, graph) {
                 fuse_children(next, kernel_type, block, graph);
@@ -113,6 +129,7 @@ pub fn pred_kernel_fusable<'ast>(
     let pred_kernel_type = match pred {
         Node::Unary(..) => KernelType::Unary,
         Node::Binary(..) => KernelType::Binary,
+        Node::Input(..) => KernelType::Unary,
     };
     Ok(pred_kernel_type.infer_pred_kernel(&next_kernel_type))
 }
@@ -124,6 +141,7 @@ pub fn suc_kernel_fusable<'ast>(
     let next_kernel_type = match next {
         Node::Unary(..) => KernelType::Unary,
         Node::Binary(..) => KernelType::Binary,
+        Node::Input(..) => KernelType::Unary,
     };
     Ok(kernel_type.infer_suc_kernel(&next_kernel_type))
 }
@@ -144,6 +162,7 @@ pub fn parents<'a, 'ast>(node: &Node<'ast>, graph: &'a Graph<'ast>) -> HashSet<&
                 parents.insert(*parent);
             }
         }
+        Node::Input(..) => {}
     }
     parents
 }
@@ -160,6 +179,7 @@ pub fn children<'a, 'ast>(node: &Node<'ast>, graph: &'a Graph<'ast>) -> HashSet<
                                 unary.output.to_token_stream().to_string(),
                         Node::Binary(binary, _) =>
                             binary.left == unary.output || binary.right == unary.output,
+                        Node::Input(..) => false,
                     }
                 })
                 .map(|(_, node)| *node)
@@ -173,8 +193,24 @@ pub fn children<'a, 'ast>(node: &Node<'ast>, graph: &'a Graph<'ast>) -> HashSet<
                         Node::Unary(u, _) =>
                             u.operand.to_token_stream().to_string() ==
                                 binary.output.to_token_stream().to_string(),
-                        Node::Binary(binary, _) =>
-                            binary.left == binary.output || binary.right == binary.output,
+                        Node::Binary(bi, _) =>
+                            bi.left == binary.output || bi.right == binary.output,
+                        Node::Input(..) => false,
+                    }
+                })
+                .map(|(_, node)| *node)
+                .collect()
+        }
+        Node::Input(input) => {
+            graph.map
+                .iter()
+                .filter(|(_, node)| {
+                    match node {
+                        Node::Unary(u, _) =>
+                            u.operand.to_token_stream().to_string() ==
+                                input.ident.to_token_stream().to_string(),
+                        Node::Binary(bi, _) => &bi.left == input.ident || &bi.right == input.ident,
+                        Node::Input(..) => false,
                     }
                 })
                 .map(|(_, node)| *node)

@@ -1,4 +1,4 @@
-#[derive(Clone, Eq, PartialEq, Hash, Copy)]
+#[derive(Clone, Eq, PartialEq, Hash, Copy, Debug)]
 pub(crate) enum KernelType {
     Unary,
     Binary,

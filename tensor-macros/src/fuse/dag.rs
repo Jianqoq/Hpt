@@ -48,6 +48,9 @@ impl<'ast> Graph<'ast> {
                 Node::Binary(binary, ..) => {
                     map.insert(Var { ident: &binary.output }, node);
                 },
+                Node::Input(input) => {
+                    map.insert(Var { ident: &input.ident }, node);
+                },
             }
         }
         Self { map }

@@ -1,5 +1,7 @@
 use quote::ToTokens;
 
+use super::dag::Var;
+
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub(crate) struct Unary<'ast> {
     pub(crate) method: &'ast syn::Ident,
@@ -46,6 +48,7 @@ impl std::fmt::Debug for Binary {
 pub(crate) enum Node<'ast> {
     Unary(Unary<'ast>, usize),
     Binary(Binary, usize),
+    Input(Var<'ast>),
 }
 
 impl<'ast> std::fmt::Debug for Node<'ast> {
@@ -53,6 +56,7 @@ impl<'ast> std::fmt::Debug for Node<'ast> {
         match self {
             Node::Unary(unary, ..) => write!(f, "{:#?}", unary),
             Node::Binary(binary, ..) => write!(f, "{:#?}", binary),
+            Node::Input(input) => write!(f, "{:#?}", input),
         }
     }
 }
