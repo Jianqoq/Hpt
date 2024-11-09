@@ -1,23 +1,14 @@
 use quote::ToTokens;
-use syn::{ spanned::Spanned, visit::{visit_expr_path, Visit}, ExprBinary, ExprMethodCall };
+use syn::{ spanned::Spanned, visit::{ visit_expr_path, Visit } };
 
 use super::node::{ Binary, Node, Unary };
 
-pub enum Operations<'ast> {
-    ExprBinary(&'ast ExprBinary),
-    Call(&'ast ExprMethodCall),
-}
-
-struct Graph<'ast> {
-    operations: Vec<Operations<'ast>>,
-}
-
 pub(crate) struct Visitor<'ast> {
-    nodes: Vec<Node<'ast>>,
-    var_cnt: usize,
-    current_var: proc_macro2::Ident,
-    code: proc_macro2::TokenStream,
-    current_assignment: Option<proc_macro2::Ident>,
+    pub(crate) nodes: Vec<Node<'ast>>,
+    pub(crate) var_cnt: usize,
+    pub(crate) current_var: proc_macro2::Ident,
+    pub(crate) code: proc_macro2::TokenStream,
+    pub(crate) current_assignment: Option<proc_macro2::Ident>,
 }
 
 impl<'ast> Visitor<'ast> {
@@ -73,11 +64,17 @@ impl<'ast> Visit<'ast> for Visitor<'ast> {
         };
         let method = match node.method.to_string().as_str() {
             "sin" => {
-                Node::Unary(Unary {
-                    method: &node.method,
-                    operand: &node.receiver,
-                    outputs: vec![out.clone()],
-                })
+                Node::Unary(
+                    Unary {
+                        method: &node.method,
+                        operand: proc_macro2::Ident::new(
+                            &node.receiver.to_token_stream().to_string(),
+                            node.span()
+                        ),
+                        output: out.clone(),
+                    },
+                    0
+                )
             }
             _ => todo!(),
         };
@@ -148,12 +145,15 @@ impl<'ast> Visit<'ast> for Visitor<'ast> {
             out
         };
         self.nodes.push(
-            Node::Binary(Binary {
-                method: proc_macro2::Ident::new(method, i.span()),
-                left: left_var,
-                right: right_var,
-                outputs: vec![out.clone()],
-            })
+            Node::Binary(
+                Binary {
+                    method: proc_macro2::Ident::new(method, i.span()),
+                    left: left_var,
+                    right: right_var,
+                    output: out.clone(),
+                },
+                0
+            )
         );
         self.current_var = out;
         self.var_cnt += 1;
