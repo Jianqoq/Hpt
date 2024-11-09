@@ -1,3 +1,4 @@
+use crate::TokenStream2;
 use quote::ToTokens;
 use syn::visit::Visit;
 
@@ -33,9 +34,20 @@ pub(crate) fn fuse_impl(
         let graph = Graph::from_nodes(&visitor.nodes);
         println!("{:#?}", graph);
         let fused = fuse(&graph);
-        println!("{:#?}", fused);
-        let fused_codes = gen_fuse(&graph, &fused);
-        fused_codes[0].clone()
+        // println!("{:#?}", fused);
+        let (fused_codes, fused_outs) = gen_fuse(&graph, &fused);
+        println!("len: {:#?}", fused_codes.len());
+        // for code in fused_codes.iter() {
+        //     println!("{:#?}", code.to_string());
+        // }
+        let mut codes = TokenStream2::new();
+        for (i, code) in fused_codes.iter().enumerate() {
+            let out = &fused_outs[i];
+            codes.extend(quote::quote!(
+                let #out = #code;
+            ));
+        }
+        codes
     } else {
         visitor.code.clone()
     };
@@ -47,7 +59,6 @@ pub(crate) fn fuse_impl(
             Ok(#code)
         }
     );
-    println!("{:#?}", ret.to_string());
     (ret).into()
 }
 

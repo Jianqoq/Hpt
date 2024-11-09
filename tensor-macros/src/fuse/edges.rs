@@ -10,21 +10,11 @@ pub(crate) struct Edges<'ast> {
 }
 
 impl<'ast> Edges<'ast> {
-    pub fn new() -> Self {
-        Edges {
-            inner: HashMap::new(),
-        }
-    }
-
-    pub fn inner(&self) -> &HashMap<Var<'ast>, HashSet<syn::Ident>> {
-        &self.inner
-    }
-
     pub fn invert(&'ast self) -> Edges<'ast> {
         let mut inverted: HashMap<Var<'ast>, HashSet<syn::Ident>> = HashMap::new();
         for (key, value) in self.inner.iter() {
             for i in value {
-                if let Some(set) = inverted.get_mut(&Var { ident: i }) {
+                if let Some(set) = inverted.get_mut(&(Var { ident: i })) {
                     set.insert(key.ident.clone());
                 } else {
                     let mut set = HashSet::new();
