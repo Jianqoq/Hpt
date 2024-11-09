@@ -118,14 +118,12 @@ impl<'ast> Graph<'ast> {
                 }
             }
         }
-        println!("in_degree: {:#?}", in_degree);
         // push nodes with in degree 0 to queue
         for (node_id, &degree) in &in_degree {
             if degree == 0 {
                 queue.push_back(node_id.ident);
             }
         }
-        println!("queue: {:#?}", queue);
         // topological sort
         while let Some(node_id) = queue.pop_front() {
             order.push_back(node_id.clone());
@@ -142,9 +140,6 @@ impl<'ast> Graph<'ast> {
                 }
             }
         }
-
-        println!("order: {:#?}", order);
-
         // check if there is a cycle
         if order.len() == self.map.len() {
             Some(order)

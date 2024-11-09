@@ -2,13 +2,15 @@ use rust_xlsxwriter::{ Format, Workbook };
 use std::io::Write;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
+use tensor_dyn::type_promote::NormalOut;
+use tensor_dyn::type_promote::FloatOutUnary;
 
-#[fuse]
+fuse_proc_macro!(
 fn feedforward(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
     let c = &a + &b;
     let d = c.sin()?;
     Ok(d)
-}
+});
 
 fn main() -> anyhow::Result<()> {
     conv2d()?;

@@ -6,10 +6,9 @@ use crate::fuse::{ dag::Graph, fuse::fuse, gen_fuse::gen_fuse };
 use super::{ dag::Var, node::Node, visitor::Visitor };
 
 pub(crate) fn fuse_impl(
-    attr: proc_macro::TokenStream,
     item: proc_macro::TokenStream
 ) -> proc_macro::TokenStream {
-    let mut func = syn::parse_macro_input!(item as syn::ItemFn);
+    let func = syn::parse_macro_input!(item as syn::ItemFn);
     let mut visitor = Visitor::new();
     visitor.visit_item_fn(&func);
     for arg in func.sig.inputs.iter() {
@@ -35,16 +34,25 @@ pub(crate) fn fuse_impl(
         println!("{:#?}", graph);
         let fused = fuse(&graph);
         println!("{:#?}", fused);
-        gen_fuse(&graph, &fused);
-        visitor.code.clone()
+        let fused_codes = gen_fuse(&graph, &fused);
+        fused_codes[0].clone()
     } else {
         visitor.code.clone()
     };
 
-    // 创建新的函数名
-    let new_name = syn::Ident::new("test", func.sig.ident.span());
-    func.sig.ident = new_name;
-    (quote::quote! {
-        #func
-    }).into()
+    let vis = func.vis.clone();
+    let sig = func.sig.clone();
+    let ret = quote::quote!(
+        #vis #sig {
+            Ok(#code)
+        }
+    );
+    println!("{:#?}", ret.to_string());
+    (ret).into()
+}
+
+pub(crate) fn fuse_proc_macro(
+    item: proc_macro::TokenStream
+) -> proc_macro::TokenStream {
+    fuse_impl(item)
 }

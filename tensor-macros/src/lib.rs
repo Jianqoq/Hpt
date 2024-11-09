@@ -766,7 +766,13 @@ pub fn dwconv2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
 
 /// perform fuse optimization
 #[proc_macro_attribute]
-pub fn fuse(attr: TokenStream, item: TokenStream) -> TokenStream
+pub fn fuse(_: TokenStream, item: TokenStream) -> TokenStream
 {
-    fuse::start::fuse_impl(attr, item)
+    fuse::start::fuse_impl(item)
+}
+
+/// fuse proc macro
+#[proc_macro]
+pub fn fuse_proc_macro(item: TokenStream) -> TokenStream {
+    fuse::start::fuse_proc_macro(item)
 }
