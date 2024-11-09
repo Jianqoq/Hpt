@@ -1,7 +1,7 @@
 use quote::ToTokens;
 use syn::visit::Visit;
 
-use crate::fuse::{ dag::Graph, fuse::fuse };
+use crate::fuse::{ dag::Graph, fuse::fuse, gen_fuse::gen_fuse };
 
 use super::{ dag::Var, node::Node, visitor::Visitor };
 
@@ -35,6 +35,7 @@ pub(crate) fn fuse_impl(
         println!("{:#?}", graph);
         let fused = fuse(&graph);
         println!("{:#?}", fused);
+        gen_fuse(&graph, &fused);
         visitor.code.clone()
     } else {
         visitor.code.clone()

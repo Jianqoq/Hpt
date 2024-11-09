@@ -20,6 +20,12 @@ impl<'ast> std::fmt::Debug for Var<'ast> {
     }
 }
 
+impl<'ast> ToTokens for Var<'ast> {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        self.ident.to_tokens(tokens);
+    }
+}
+
 impl std::fmt::Debug for Var2 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.ident.to_token_stream().to_string())
