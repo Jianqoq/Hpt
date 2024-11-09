@@ -21,6 +21,17 @@ impl<'ast> std::fmt::Debug for Unary<'ast> {
     }
 }
 
+impl<'ast> ToTokens for Unary<'ast> {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let method = proc_macro2::Ident::new(&format!("_{}", self.method), self.method.span());
+        let operand = proc_macro2::Ident::new(&format!("{}", self.operand), self.operand.span());
+        let output = proc_macro2::Ident::new(&format!("{}", self.output), self.output.span());
+        tokens.extend(quote::quote!(
+             let #output = #operand.#method();
+        ));
+    }
+}
+
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub(crate) struct Binary {
     pub(crate) method: syn::Ident,
@@ -41,6 +52,18 @@ impl std::fmt::Debug for Binary {
             self.left.to_token_stream().to_string(),
             self.right.to_token_stream().to_string()
         )
+    }
+}
+
+impl<'ast> ToTokens for Binary {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let method = proc_macro2::Ident::new(&format!("_{}", self.method), self.method.span());
+        let left = proc_macro2::Ident::new(&format!("{}", self.left), self.left.span());
+        let right = proc_macro2::Ident::new(&format!("{}", self.right), self.right.span());
+        let output = proc_macro2::Ident::new(&format!("{}", self.output), self.output.span());
+        tokens.extend(quote::quote!(
+             let #output = #left.#method(#right);
+        ));
     }
 }
 
