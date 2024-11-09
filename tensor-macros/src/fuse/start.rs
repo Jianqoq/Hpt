@@ -1,8 +1,14 @@
+use syn::visit::Visit;
+
+use super::visitor::Visitor;
+
 pub(crate) fn fuse_impl(
     attr: proc_macro::TokenStream,
     item: proc_macro::TokenStream
 ) -> proc_macro::TokenStream {
     let mut func = syn::parse_macro_input!(item as syn::ItemFn);
+    let mut visitor = Visitor::new();
+    visitor.visit_item_fn(&func);
     
     // 创建新的函数名
     let new_name = syn::Ident::new("test", func.sig.ident.span());

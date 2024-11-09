@@ -7,11 +7,6 @@ use tensor_dyn::*;
 fn feedforward(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
     let c = &a + &b;
     let d = c.sin()?;
-    let d = a
-        .par_iter()
-        .zip(b.par_iter())
-        .strided_map(|(a, b)| a + b)
-        .collect();
     Ok(d)
 }
 
