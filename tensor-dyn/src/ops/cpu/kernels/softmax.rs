@@ -223,18 +223,8 @@ pub(crate) fn contiguous_dim_include<T, O>(
             let inp_arr = unsafe {
                 std::slice::from_raw_parts(inp_ptr.ptr as *const T, inner_loop_size as usize)
             };
-            let inp_vecs = unsafe {
-                std::slice::from_raw_parts(
-                    inp_ptr.ptr as *const T::Vec,
-                    (inner_loop_size as usize) / T::Vec::SIZE
-                )
-            };
-            let res_vecs = unsafe {
-                std::slice::from_raw_parts_mut(
-                    res_ptr.ptr as *mut O::Vec,
-                    (inner_loop_size as usize) / O::Vec::SIZE
-                )
-            };
+            let inp_vecs = inp_ptr.ptr as *const T::Vec;
+            let res_vecs = res_ptr.ptr as *mut O::Vec;
             let max = array_vec_reduce(
                 inp_arr,
                 T::NEG_INF,
@@ -245,14 +235,13 @@ pub(crate) fn contiguous_dim_include<T, O>(
             let max_vec = T::Vec::splat(max);
 
             let mut sum_vec = O::Vec::splat(O::ZERO);
-            inp_vecs
-                .iter()
-                .zip(res_vecs.iter_mut())
-                .for_each(|(inp_vec, res_vec)| {
-                    let val = inp_vec.read_unaligned()._sub(max_vec)._exp();
-                    res_vec.write_unaligned(val);
-                    sum_vec = sum_vec._add(val);
-                });
+
+            for i in 0..(inner_loop_size as usize) / T::Vec::SIZE {
+                let inp_vec = unsafe { inp_vecs.offset(i as isize).read_unaligned() };
+                let val = inp_vec._sub(max_vec)._exp();
+                unsafe { res_vecs.offset(i as isize).write_unaligned(val) };
+                sum_vec = sum_vec._add(val);
+            }
 
             let mut sum = O::ZERO;
             for i in (inner_loop_size as usize) - remain..inner_loop_size as usize {
@@ -262,9 +251,14 @@ pub(crate) fn contiguous_dim_include<T, O>(
             }
             sum = sum._add(vec_sum::<O>(sum_vec));
             let sum_vec = O::Vec::splat(sum);
-            res_vecs.iter_mut().for_each(|res_vec| {
-                res_vec.write_unaligned(res_vec.read_unaligned()._div(sum_vec));
-            });
+
+            for i in 0..(inner_loop_size as usize) / T::Vec::SIZE {
+                unsafe {
+                    res_vecs.offset(i as isize).write_unaligned(
+                        res_vecs.offset(i as isize).read_unaligned()._div(sum_vec)
+                    );
+                }
+            }
             for i in (inner_loop_size as usize) - remain..inner_loop_size as usize {
                 res_ptr[i] = res_ptr[i]._div(sum);
             }
@@ -283,12 +277,7 @@ pub(crate) fn contiguous_dim_include<T, O>(
             let inp_arr = unsafe {
                 std::slice::from_raw_parts(inp_ptr.ptr as *const T, inner_loop_size as usize)
             };
-            let res_vecs = unsafe {
-                std::slice::from_raw_parts_mut(
-                    res_ptr.ptr as *mut O::Vec,
-                    (inner_loop_size as usize) / O::Vec::SIZE
-                )
-            };
+            let res_vecs = res_ptr.ptr as *mut O::Vec;
             let max = array_vec_reduce(
                 inp_arr,
                 T::NEG_INF,
@@ -304,9 +293,13 @@ pub(crate) fn contiguous_dim_include<T, O>(
                 sum = sum._add(val);
             }
             let sum_vec = O::Vec::splat(sum);
-            res_vecs.iter_mut().for_each(|res_vec| {
-                res_vec.write_unaligned(res_vec.read_unaligned()._div(sum_vec));
-            });
+            for i in 0..(inner_loop_size as usize) / T::Vec::SIZE {
+                unsafe {
+                    res_vecs.offset(i as isize).write_unaligned(
+                        res_vecs.offset(i as isize).read_unaligned()._div(sum_vec)
+                    );
+                }
+            }
             for i in (inner_loop_size as usize) - remain..inner_loop_size as usize {
                 res_ptr[i] = res_ptr[i]._div(sum);
             }

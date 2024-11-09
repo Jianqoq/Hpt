@@ -45,12 +45,10 @@ pub fn array_vec_reduce<T: TypeCommon + NormalOut<T, Output = T> + Copy>(
     vec_reduce_op: impl Fn(T, T) -> T
 ) -> T {
     let remain = array.len() % T::Vec::SIZE;
-    let vecs = unsafe {
-        std::slice::from_raw_parts(array as *const _ as *const T::Vec, array.len() / T::Vec::SIZE)
-    };
+    let vecs = array as *const _ as *const T::Vec;
     let mut red_vec = T::Vec::splat(init);
-    for vec in vecs.iter() {
-        red_vec = vec_op(red_vec, vec.read_unaligned());
+    for i in 0..array.len() / T::Vec::SIZE {
+        red_vec = vec_op(red_vec, unsafe { vecs.offset(i as isize).read_unaligned() });
     }
     let mut red = init;
     for i in array.len() - remain..array.len() {
