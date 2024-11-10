@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use quote::ToTokens;
 use syn::{ spanned::Spanned, visit::* };
 
-use super::{node::{ Binary, Node, Unary }, ssa::SSAContext};
+use super::{ node::{ Binary, Node, Unary }, ssa::SSAContext };
 
 pub(crate) struct Visitor<'ast> {
     pub(crate) visitor: _Visitor<'ast>,
@@ -84,6 +84,7 @@ impl<'ast> _Visitor<'ast> {
 
     pub(crate) fn remove_unused(&mut self) {
         let unused = self.get_unused_vars();
+        println!("unused: {:#?}", unused);
         self.nodes.retain(|node| {
             match node {
                 Node::Unary(unary) => !unused.contains(&unary.output),
@@ -104,9 +105,11 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
                 syn::Pat::Const(_) => todo!(),
                 syn::Pat::Ident(pat_ident) => {
                     let ssa_name = self.ssa_ctx.fresh_name(&pat_ident.ident.to_string());
-                    self.current_assignment = Some(proc_macro2::Ident::new(&ssa_name, pat_ident.ident.span()));
+                    self.current_assignment = Some(
+                        proc_macro2::Ident::new(&ssa_name, pat_ident.ident.span())
+                    );
                     self.declare_variable(pat_ident.ident.clone());
-                },
+                }
                 syn::Pat::Lit(_) => todo!(),
                 syn::Pat::Macro(_) => todo!(),
                 syn::Pat::Or(_) => todo!(),
@@ -122,10 +125,12 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
                 syn::Pat::Type(pat_type) => {
                     if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
                         let ssa_name = self.ssa_ctx.fresh_name(&pat_ident.ident.to_string());
-                        self.current_assignment = Some(proc_macro2::Ident::new(&ssa_name, pat_ident.ident.span()));
+                        self.current_assignment = Some(
+                            proc_macro2::Ident::new(&ssa_name, pat_ident.ident.span())
+                        );
                         self.declare_variable(pat_ident.ident.clone());
                     }
-                },
+                }
                 syn::Pat::Verbatim(_) => todo!(),
                 syn::Pat::Wild(_) => todo!(),
                 _ => todo!(),
@@ -164,12 +169,17 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
             self.current_assignment = None;
             current_assignment
         } else {
-            let out = proc_macro2::Ident::new(&format!("__out{}", self.intermidiate_var_cnt), node.span());
+            let out = proc_macro2::Ident::new(
+                &format!("__out{}", self.intermidiate_var_cnt),
+                node.span()
+            );
             self.current_var = out.clone();
             self.intermidiate_var_cnt += 1;
             out
         };
-        let operand = self.ssa_ctx.current_name(&node.receiver.to_token_stream().to_string()).expect("not found");
+        let operand = self.ssa_ctx
+            .current_name(&node.receiver.to_token_stream().to_string())
+            .expect("not found");
         let method = match node.method.to_string().as_str() {
             | "sin"
             | "cos"
@@ -276,7 +286,10 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
             self.current_assignment = None;
             current_assignment
         } else {
-            let out = proc_macro2::Ident::new(&format!("__out{}", self.intermidiate_var_cnt), i.span());
+            let out = proc_macro2::Ident::new(
+                &format!("__out{}", self.intermidiate_var_cnt),
+                i.span()
+            );
             self.current_var = out.clone();
             self.intermidiate_var_cnt += 1;
             out
@@ -291,5 +304,21 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
         );
         self.current_var = out;
         self.intermidiate_var_cnt += 1;
+    }
+
+    fn visit_stmt_macro(&mut self, node: &'ast syn::StmtMacro) {
+        for it in &node.attrs {
+            self.visit_attribute(it);
+        }
+        for token in node.mac.tokens.clone() {
+            println!("{:#?}", token);
+            match token {
+                proc_macro2::TokenTree::Ident(ident) => {
+                    self.mark_used(&ident);
+                }
+                _ => {}
+            }
+        }
+        self.visit_macro(&node.mac);
     }
 }
