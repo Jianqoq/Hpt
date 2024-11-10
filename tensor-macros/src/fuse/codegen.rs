@@ -121,10 +121,16 @@ impl<'ast> Visit<'ast> for _Codegen<'ast> {
                             if self.fused_codes.contains_key(&ssa_name) {
                                 self.push_tokens(self.fused_codes[&ssa_name].clone());
                             } else if let Some(visitor) = self._visitor {
+                                let used = visitor
+                                    .variables()
+                                    .get(&ssa_name)
+                                    .map(|(used, _)| *used)
+                                    .unwrap_or(false);
                                 if
                                     !visitor.is_tensor_ident(
                                         &proc_macro2::Ident::new(&name, pat_ident.ident.span())
-                                    )
+                                    ) &&
+                                    used
                                 {
                                     let mut stmt = stmt.clone();
                                     let tokens = self.convert_stmt_to_ssa(&mut stmt);
