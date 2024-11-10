@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{ HashMap, HashSet };
 
-use crate::fuse::{ codegen::Codegen, ssa::SSAContext, visitor::Visitor };
+use crate::fuse::{ codegen::{ Codegen, _Codegen }, ssa::SSAContext, visitor::Visitor };
 use quote::ToTokens;
 use syn::visit::Visit;
 
@@ -12,25 +12,27 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
     let func = syn::parse_macro_input!(item as syn::ItemFn);
     // println!("func: {:#?}", func);
     let mut visitor = Visitor::new();
-    visitor.visit_item_fn(&func);
     for arg in func.sig.inputs.iter() {
         if let syn::FnArg::Typed(pat_type) = arg {
             let string = pat_type.ty.to_token_stream().to_string();
             if string.contains("Tensor") || string.contains("_Tensor") {
+                let ident = if let syn::Pat::Ident(ident) = &pat_type.pat.as_ref() {
+                    &ident.ident
+                } else {
+                    panic!("not an ident")
+                };
                 visitor.visitor.nodes.push(
                     Node::Input(Var {
-                        ident: {
-                            if let syn::Pat::Ident(ident) = &pat_type.pat.as_ref() {
-                                &ident.ident
-                            } else {
-                                panic!("not an ident")
-                            }
-                        },
+                        ident,
                     })
                 );
+                visitor.visitor.declare_variable(ident.clone(), true);
             }
         }
     }
+    visitor.visit_item_fn(&func);
+    // let variables = visitor.visitor.variables();
+    // println!("variables: {:#?}", variables);
     visitor.remove_unused();
     let graph = Graph::from_nodes(&visitor.visitor.nodes);
     println!("{:#?}", graph);
@@ -38,17 +40,17 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
     println!("fused: {:#?}", fused);
     let (fused_codes, fused_outs, fused_inputs) = gen_fuse(&graph, &fused);
     let mut to_remove = vec![];
-    for ((code, input), out) in fused_codes.iter().zip(fused_inputs.iter()).zip(fused_outs.iter()) {
-        println!(
-            "input: {:#?}",
-            input
-                .iter()
-                .map(|i| i.to_string())
-                .collect::<Vec<String>>()
-        );
-        println!("code: {:#?}", code.to_string());
-        println!("out: {:#?}", out.to_string());
-    }
+    // for ((code, input), out) in fused_codes.iter().zip(fused_inputs.iter()).zip(fused_outs.iter()) {
+    //     println!(
+    //         "input: {:#?}",
+    //         input
+    //             .iter()
+    //             .map(|i| i.to_string())
+    //             .collect::<Vec<String>>()
+    //     );
+    //     println!("code: {:#?}", code.to_string());
+    //     println!("out: {:#?}", out.to_string());
+    // }
 
     for ((input, total), out) in fused_inputs.iter().zip(fused.iter()).zip(fused_outs.iter()) {
         let mut intermediate = total
@@ -82,14 +84,20 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
     //         .collect::<Vec<Vec<String>>>()
     // );
     // println!("fused_outs: {:#?}", fused_outs);
+    let box_visitor = Box::new(visitor.visitor);
     let mut codegen = Codegen {
-        fused_codes: codes,
-        to_remove,
-        current_tokens: Vec::new(),
-        ssa_ctx: SSAContext::new(),
+        _codegen: _Codegen {
+            fused_codes: &codes,
+            to_remove: &to_remove,
+            current_tokens: Vec::new(),
+            ssa_ctx: SSAContext::new(),
+            _visitor: Some(&box_visitor),
+            next_codegen: None,
+        },
     };
     codegen.visit_item_fn(&func);
     let code = codegen.get_code();
+    println!("code: {:#?}", code.to_string());
 
     let vis = func.vis.clone();
     let sig = func.sig.clone();

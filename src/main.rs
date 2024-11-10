@@ -12,8 +12,8 @@ fn feedforward1(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>
     let c: _Tensor<f32> = &a + &b / &a;
     let d = c.sin()?;
     let e = d.relu()?;
-    // let val = 3;
-    // println!("{}", val);
+    let val = 3;
+    println!("{}", val);
     let d = e.cos()?;
     Ok(d)
 });

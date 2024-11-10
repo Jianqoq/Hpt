@@ -3,16 +3,40 @@ use std::collections::{ HashMap, HashSet };
 use syn::{ visit::*, visit_mut::VisitMut };
 use crate::TokenStream2;
 
-use super::ssa::SSAContext;
+use super::{ ssa::SSAContext, visitor::_Visitor };
 
-pub(crate) struct Codegen {
-    pub(crate) fused_codes: HashMap<syn::Ident, TokenStream2>,
-    pub(crate) to_remove: Vec<HashSet<syn::Ident>>,
-    pub(crate) current_tokens: Vec<TokenStream2>,
-    pub(crate) ssa_ctx: SSAContext,
+pub(crate) struct Codegen<'ast> {
+    pub(crate) _codegen: _Codegen<'ast>,
 }
 
-impl Codegen {
+impl<'ast> Codegen<'ast> {
+    pub(crate) fn get_code(&mut self) -> TokenStream2 {
+        if let Some(next_codegen) = &mut self._codegen.next_codegen {
+            let mut token_stream = TokenStream2::new();
+            token_stream.extend(next_codegen.get_code());
+            token_stream
+        } else {
+            self._codegen.get_code()
+        }
+    }
+}
+
+impl<'ast> Visit<'ast> for Codegen<'ast> {
+    fn visit_block(&mut self, i: &'ast syn::Block) {
+        visit_block(&mut self._codegen, i);
+    }
+}
+
+pub(crate) struct _Codegen<'ast> {
+    pub(crate) fused_codes: &'ast HashMap<syn::Ident, TokenStream2>,
+    pub(crate) to_remove: &'ast Vec<HashSet<syn::Ident>>,
+    pub(crate) current_tokens: Vec<TokenStream2>,
+    pub(crate) ssa_ctx: SSAContext,
+    pub(crate) _visitor: Option<&'ast Box<_Visitor<'ast>>>,
+    pub(crate) next_codegen: Option<Box<_Codegen<'ast>>>,
+}
+
+impl<'ast> _Codegen<'ast> {
     fn push_tokens(&mut self, tokens: TokenStream2) {
         self.current_tokens.push(tokens);
     }
@@ -60,7 +84,10 @@ impl Codegen {
                     let it = el.value_mut();
                     if let Some(current_name) = self.ssa_ctx.current_name_expr(it) {
                         if let syn::Expr::Path(path) = it {
-                            path.path.segments[0].ident = syn::Ident::new(current_name, path.path.segments[0].ident.span());
+                            path.path.segments[0].ident = syn::Ident::new(
+                                current_name,
+                                path.path.segments[0].ident.span()
+                            );
                         }
                     } else {
                         self.visit_expr_mut(it);
@@ -78,23 +105,34 @@ impl Codegen {
     }
 }
 
-impl<'ast> Visit<'ast> for Codegen {
+impl<'ast> Visit<'ast> for _Codegen<'ast> {
     fn visit_stmt(&mut self, stmt: &'ast syn::Stmt) {
         match stmt {
             syn::Stmt::Local(local) => {
                 match &local.pat {
                     syn::Pat::Const(_) => todo!("codegen::const"),
                     syn::Pat::Ident(pat_ident) => {
+                        let name = pat_ident.ident.to_string();
                         let ssa_name = proc_macro2::Ident::new(
-                            &self.ssa_ctx.fresh_name(&pat_ident.ident.to_string()),
+                            &self.ssa_ctx.fresh_name(&name),
                             pat_ident.ident.span()
                         );
                         if !self.to_remove.iter().any(|set| set.contains(&ssa_name)) {
                             if self.fused_codes.contains_key(&ssa_name) {
                                 self.push_tokens(self.fused_codes[&ssa_name].clone());
+                            } else if let Some(visitor) = self._visitor {
+                                if
+                                    !visitor.is_tensor_ident(
+                                        &proc_macro2::Ident::new(&name, pat_ident.ident.span())
+                                    )
+                                {
+                                    let mut stmt = stmt.clone();
+                                    let tokens = self.convert_stmt_to_ssa(&mut stmt);
+                                    self.push_tokens(tokens);
+                                }
                             }
                         }
-                    },
+                    }
                     syn::Pat::Lit(_) => todo!("codegen::lit"),
                     syn::Pat::Macro(_) => todo!("codegen::macro"),
                     syn::Pat::Or(_) => todo!("codegen::or"),
@@ -123,14 +161,14 @@ impl<'ast> Visit<'ast> for Codegen {
                             let tokens = self.convert_stmt_to_ssa(&mut stmt);
                             self.push_tokens(tokens);
                         }
-                    },
+                    }
                     syn::Pat::Verbatim(_) => todo!("codegen::verbatim"),
                     syn::Pat::Wild(_) => todo!("codegen::wild"),
                     _ => {
                         let mut stmt = stmt.clone();
                         let tokens = self.convert_stmt_to_ssa(&mut stmt);
                         self.push_tokens(tokens);
-                    },
+                    }
                 }
             }
             _ => {
@@ -139,5 +177,21 @@ impl<'ast> Visit<'ast> for Codegen {
                 self.push_tokens(tokens);
             }
         }
+    }
+    fn visit_block(&mut self, block: &'ast syn::Block) {
+        let mut new_codegen = _Codegen {
+            fused_codes: self.fused_codes,
+            to_remove: self.to_remove,
+            current_tokens: Vec::new(),
+            ssa_ctx: SSAContext::new(),
+            _visitor: if let Some(visitor) = self._visitor {
+                visitor.next_visitor.as_ref()
+            } else {
+                None
+            },
+            next_codegen: None,
+        };
+        syn::visit::visit_block(&mut new_codegen, block);
+        self.next_codegen = Some(Box::new(new_codegen));
     }
 }

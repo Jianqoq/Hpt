@@ -26,7 +26,7 @@ impl SSAContext {
         self.current_names.insert(base_name.to_string(), ssa_name.clone());
         ssa_name
     }
-
+    #[allow(unused)]
     pub(crate) fn fresh_expr(&mut self, expr: &syn::Expr) {
         if let syn::Expr::Path(path) = expr {
             if let Some(ident) = path.path.get_ident() {

@@ -29,7 +29,7 @@ pub(crate) struct _Visitor<'ast> {
     pub(crate) intermidiate_var_cnt: usize,
     pub(crate) current_var: proc_macro2::Ident,
     pub(crate) current_assignment: Option<proc_macro2::Ident>,
-    pub(crate) variables: HashMap<syn::Ident, bool>,
+    pub(crate) variables: HashMap<syn::Ident, (bool, bool)>,
     pub(crate) next_visitor: Option<Box<_Visitor<'ast>>>,
     pub(crate) ssa_ctx: SSAContext,
 }
@@ -47,11 +47,15 @@ impl<'ast> _Visitor<'ast> {
             ssa_ctx: SSAContext::new(),
         }
     }
-    pub(crate) fn declare_variable(&mut self, ident: syn::Ident) {
-        self.variables.insert(ident, false);
+    #[allow(unused)]
+    pub(crate) fn variables(&self) -> &HashMap<syn::Ident, (bool, bool)> {
+        &self.variables
+    }
+    pub(crate) fn declare_variable(&mut self, ident: syn::Ident, is_tensor: bool) {
+        self.variables.insert(ident, (false, is_tensor));
     }
     pub(crate) fn mark_used(&mut self, name: &syn::Ident) {
-        if let Some(usage) = self.variables.get_mut(name) {
+        if let Some((usage, _)) = self.variables.get_mut(name) {
             *usage = true;
         }
     }
@@ -74,7 +78,7 @@ impl<'ast> _Visitor<'ast> {
     }
     pub(crate) fn get_unused_vars(&self) -> Vec<syn::Ident> {
         let mut unused = Vec::new();
-        for (ident, usage) in &self.variables {
+        for (ident, (usage, _)) in &self.variables {
             if !*usage {
                 unused.push(ident.clone());
             }
@@ -96,6 +100,66 @@ impl<'ast> _Visitor<'ast> {
             next_visitor.remove_unused();
         }
     }
+
+    pub(crate)fn is_tensor_expr(&self, expr: &syn::Expr) -> bool {
+        match expr {
+            syn::Expr::Binary(node) => {
+                self.is_tensor_expr(&*node.left) || self.is_tensor_expr(&*node.right)
+            }
+            syn::Expr::Block(_) => unimplemented!("is_tensor_expr::block"),
+            syn::Expr::Call(_) => unimplemented!("is_tensor_expr::call"),
+            syn::Expr::If(_) => unimplemented!("is_tensor_expr::if"),
+            syn::Expr::Macro(_) => unimplemented!("is_tensor_expr::macro"),
+            syn::Expr::Match(_) => unimplemented!("is_tensor_expr::match"),
+            syn::Expr::MethodCall(method_call) => {
+                if self.is_tensor_expr(&method_call.receiver) {
+                    match method_call.method.to_string().as_str() {
+                        | "sin"
+                        | "cos"
+                        | "tan"
+                        | "asin"
+                        | "acos"
+                        | "atan"
+                        | "sinh"
+                        | "cosh"
+                        | "tanh"
+                        | "asinh"
+                        | "acosh"
+                        | "atanh"
+                        | "relu" => true,
+                        _ =>
+                            unimplemented!(
+                                "is_tensor_expr::method_call::{}",
+                                method_call.method.to_string().as_str()
+                            ),
+                    }
+                } else {
+                    false
+                }
+            }
+            syn::Expr::Paren(_) => unimplemented!("is_tensor_expr::paren"),
+            syn::Expr::Reference(reference) => { self.is_tensor_expr(&reference.expr) }
+            syn::Expr::Try(try_expr) => {
+                // println!("try_expr: {:#?}", try_expr.expr);
+                self.is_tensor_expr(&try_expr.expr)
+            }
+            syn::Expr::Path(path) => {
+                if let Some(ident) = path.path.get_ident() {
+                    self.variables
+                        .get(ident)
+                        .map(|(_, is_tensor)| *is_tensor)
+                        .unwrap_or(false)
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
+
+    pub(crate) fn is_tensor_ident(&self, ident: &syn::Ident) -> bool {
+        self.variables.get(ident).map(|(_, is_tensor)| *is_tensor).unwrap_or(false)
+    }
 }
 
 impl<'ast> Visit<'ast> for _Visitor<'ast> {
@@ -108,7 +172,7 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
                     self.current_assignment = Some(
                         proc_macro2::Ident::new(&ssa_name, pat_ident.ident.span())
                     );
-                    self.declare_variable(pat_ident.ident.clone());
+                    self.declare_variable(pat_ident.ident.clone(), self.is_tensor_expr(&init.expr));
                 }
                 syn::Pat::Lit(_) => todo!(),
                 syn::Pat::Macro(_) => todo!(),
@@ -128,7 +192,10 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
                         self.current_assignment = Some(
                             proc_macro2::Ident::new(&ssa_name, pat_ident.ident.span())
                         );
-                        self.declare_variable(pat_ident.ident.clone());
+                        self.declare_variable(
+                            pat_ident.ident.clone(),
+                            self.is_tensor_expr(&init.expr)
+                        );
                     }
                 }
                 syn::Pat::Verbatim(_) => todo!(),
@@ -205,7 +272,6 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
         self.nodes.push(method);
         // println!("{:#?}", self.nodes);
     }
-
     fn visit_expr_call(&mut self, node: &'ast syn::ExprCall) {
         for it in &node.attrs {
             self.visit_attribute(it);
@@ -217,7 +283,6 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
             self.visit_expr(it);
         }
     }
-
     fn visit_expr_tuple(&mut self, tuple: &'ast syn::ExprTuple) {
         for it in &tuple.attrs {
             self.visit_attribute(it);
@@ -228,11 +293,9 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
             self.visit_expr(it);
         }
     }
-
     fn visit_ident(&mut self, i: &'ast proc_macro2::Ident) {
         self.current_var = i.clone();
     }
-
     fn visit_expr_path(&mut self, i: &'ast syn::ExprPath) {
         if i.path.get_ident().is_some() {
             self.visit_ident(&i.path.segments[0].ident);
@@ -240,7 +303,6 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
             visit_expr_path(self, i);
         }
     }
-
     fn visit_expr_binary(&mut self, i: &'ast syn::ExprBinary) {
         let current_assignment = self.current_assignment.clone();
         self.current_assignment = None;
@@ -305,7 +367,6 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
         self.current_var = out;
         self.intermidiate_var_cnt += 1;
     }
-
     fn visit_stmt_macro(&mut self, node: &'ast syn::StmtMacro) {
         for it in &node.attrs {
             self.visit_attribute(it);
