@@ -5,23 +5,24 @@ use tensor_dyn::*;
 use tensor_dyn::type_promote::NormalOut;
 use tensor_dyn::type_promote::FloatOutUnary;
 use tensor_dyn::type_promote::NormalOutUnary;
+use tensor_dyn::type_promote::FloatOutBinary;
 
 fuse_proc_macro!(
-fn feedforward(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
-    let c = &a + &b;
+fn feedforward1(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<(_Tensor<f32>, _Tensor<f32>)> {
+    let c = &a + &b / &a;
     let d = c.sin()?;
     let e = d.relu()?;
     let f = &a * &b;
-    Ok(f)
+    Ok((f, e))
 });
 
 #[fuse]
-fn feedforward2(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
-    let c = &a + &b;
+fn feedforward2(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<(_Tensor<f32>, _Tensor<f32>)> {
+    let c = &a + &b / &a;
     let d = c.sin()?;
     let e = d.relu()?;
     let f = &a * &b;
-    Ok(f)
+    Ok((f, e))
 }
 
 fn main() -> anyhow::Result<()> {

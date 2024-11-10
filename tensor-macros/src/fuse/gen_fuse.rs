@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use crate::{ fuse::{ dag::Var, node::Node }, TokenStream2 };
 use super::dag::{ Graph, Var2 };
 
-pub(crate) fn gen_fuse(graph: &Graph, groups: &Vec<HashSet<Var2>>) -> (Vec<TokenStream2>, Vec<TokenStream2>) {
+pub(crate) fn gen_fuse(graph: &Graph, groups: &Vec<HashSet<Var2>>) -> (Vec<TokenStream2>, Vec<syn::Ident>, Vec<HashSet<syn::Ident>>) {
     let inputs_vec = groups
         .iter()
         .map(|group| {
@@ -10,7 +10,7 @@ pub(crate) fn gen_fuse(graph: &Graph, groups: &Vec<HashSet<Var2>>) -> (Vec<Token
             for var in group {
                 if let Some(node) = graph.map.get(&(Var { ident: &var.ident })) {
                     if let Node::Input(input) = node {
-                        inputs.push(input);
+                        inputs.push(input.ident.clone());
                     }
                 }
             }
@@ -57,7 +57,7 @@ pub(crate) fn gen_fuse(graph: &Graph, groups: &Vec<HashSet<Var2>>) -> (Vec<Token
     let mut fused_vec = vec![];
     let mut fused_outs = vec![];
     for (i, sorted) in sorted_groups.iter().enumerate() {
-        let mut output = proc_macro2::TokenStream::new();
+        let mut output = syn::Ident::new("__out0", proc_macro2::Span::call_site());
         let mut comp_tokens = TokenStream2::new();
         for ident in sorted {
             if let Some(node) = graph.map.get(&(Var { ident: &ident })) {
@@ -68,10 +68,7 @@ pub(crate) fn gen_fuse(graph: &Graph, groups: &Vec<HashSet<Var2>>) -> (Vec<Token
                         #unary
                     )
                         );
-                        let out = unary.output.clone();
-                        output = quote::quote!(
-                        #out
-                    );
+                        output = unary.output.clone();
                     }
                     Node::Binary(binary, _) => {
                         comp_tokens.extend(
@@ -79,10 +76,7 @@ pub(crate) fn gen_fuse(graph: &Graph, groups: &Vec<HashSet<Var2>>) -> (Vec<Token
                         #binary
                     )
                         );
-                        let out = binary.output.clone();
-                        output = quote::quote!(
-                        #out
-                    );
+                        output = binary.output.clone();
                     }
                     Node::Input(_) => {}
                 }
@@ -100,12 +94,17 @@ pub(crate) fn gen_fuse(graph: &Graph, groups: &Vec<HashSet<Var2>>) -> (Vec<Token
             #zipped.strided_map(|#tuple| {
                 #comp_tokens
             }
-            ).collect()
+            ).collect::<_Tensor<_>>()
         );
         fused_vec.push(fused);
     }
 
-    (fused_vec, fused_outs)
+    let inputs_vec = inputs_vec
+        .iter()
+        .map(|input| input.iter().map(|i| i.clone()).collect::<HashSet<_>>())
+        .collect::<Vec<_>>();
+
+    (fused_vec, fused_outs, inputs_vec)
 }
 
 fn gen_zip(iters: &mut Vec<TokenStream2>) -> TokenStream2 {
@@ -123,7 +122,7 @@ fn gen_zip(iters: &mut Vec<TokenStream2>) -> TokenStream2 {
     }
 }
 
-fn gen_tuple(iters: &mut Vec<&Var>) -> TokenStream2 {
+fn gen_tuple(iters: &mut Vec<syn::Ident>) -> TokenStream2 {
     if iters.is_empty() {
         quote::quote!()
     } else if iters.len() == 1 {

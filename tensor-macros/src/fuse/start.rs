@@ -1,4 +1,6 @@
-use crate::TokenStream2;
+use std::collections::HashSet;
+
+use crate::{ fuse::codegen::Codegen, TokenStream2 };
 use quote::ToTokens;
 use syn::visit::Visit;
 
@@ -6,9 +8,7 @@ use crate::fuse::{ dag::Graph, fuse::fuse, gen_fuse::gen_fuse };
 
 use super::{ dag::Var, node::Node, visitor::Visitor };
 
-pub(crate) fn fuse_impl(
-    item: proc_macro::TokenStream
-) -> proc_macro::TokenStream {
+pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let func = syn::parse_macro_input!(item as syn::ItemFn);
     let mut visitor = Visitor::new();
     visitor.visit_item_fn(&func);
@@ -30,40 +30,75 @@ pub(crate) fn fuse_impl(
             }
         }
     }
-    let code = if visitor.nodes.len() > 1 {
-        let graph = Graph::from_nodes(&visitor.nodes);
-        println!("{:#?}", graph);
-        let fused = fuse(&graph);
-        // println!("{:#?}", fused);
-        let (fused_codes, fused_outs) = gen_fuse(&graph, &fused);
-        println!("len: {:#?}", fused_codes.len());
-        // for code in fused_codes.iter() {
-        //     println!("{:#?}", code.to_string());
-        // }
-        let mut codes = TokenStream2::new();
-        for (i, code) in fused_codes.iter().enumerate() {
-            let out = &fused_outs[i];
-            codes.extend(quote::quote!(
+    // println!("{:#?}", visitor.nodes);
+    let graph = Graph::from_nodes(&visitor.nodes);
+    // println!("{:#?}", graph);
+    let fused = fuse(&graph);
+    // println!("{:#?}", fused);
+    let (fused_codes, fused_outs, fused_inputs) = gen_fuse(&graph, &fused);
+    let mut to_remove = vec![];
+    // for ((code, input), out) in fused_codes.iter().zip(fused_inputs.iter()).zip(fused_outs.iter()) {
+    //     println!(
+    //         "input: {:#?}",
+    //         input
+    //             .iter()
+    //             .map(|i| i.to_string())
+    //             .collect::<Vec<String>>()
+    //     );
+    //     println!("code: {:#?}", code.to_string());
+    //     println!("out: {:#?}", out.to_string());
+    // }
+
+    for (input, total) in fused_inputs.iter().zip(fused.iter()) {
+        let mut intermediate = total
+            .iter()
+            .map(|i| i.ident.clone())
+            .collect::<HashSet<_>>();
+        for input in input {
+            intermediate.remove(input);
+        }
+        to_remove.push(intermediate);
+    }
+
+    let mut codes = Vec::new();
+    for (i, code) in fused_codes.iter().enumerate() {
+        let out = &fused_outs[i];
+        codes.push(quote::quote!(
                 let #out = #code;
             ));
-        }
-        codes
-    } else {
-        visitor.code.clone()
+    }
+    // println!(
+    //     "intermediates: {:#?}",
+    //     to_remove
+    //         .iter()
+    //         .map(|i|
+    //             i
+    //                 .iter()
+    //                 .map(|i| i.to_string())
+    //                 .collect::<Vec<String>>()
+    //         )
+    //         .collect::<Vec<Vec<String>>>()
+    // );
+    // println!("fused_outs: {:#?}", fused_outs);
+    let mut codegen = Codegen {
+        fused_codes: codes,
+        to_remove,
+        current_tokens: Vec::new(),
+        current_idx: 0,
     };
+    codegen.visit_item_fn(&func);
+    let code = codegen.get_code();
 
     let vis = func.vis.clone();
     let sig = func.sig.clone();
     let ret = quote::quote!(
         #vis #sig {
-            Ok(#code)
+            #code
         }
     );
-    (ret).into()
+    ret.into()
 }
 
-pub(crate) fn fuse_proc_macro(
-    item: proc_macro::TokenStream
-) -> proc_macro::TokenStream {
+pub(crate) fn fuse_proc_macro(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     fuse_impl(item)
 }
