@@ -64,13 +64,13 @@ impl<'ast> Graph<'ast> {
         for node_id in map.keys() {
             if let Some(neighbors) = map.get(node_id) {
                 match neighbors {
-                    Node::Unary(unary, _) => {
+                    Node::Unary(unary) => {
                         edges
                             .entry(node_id.clone())
                             .or_insert(HashSet::new())
                             .insert(unary.operand.clone());
                     }
-                    Node::Binary(binary, _) => {
+                    Node::Binary(binary) => {
                         edges
                             .entry(node_id.clone())
                             .or_insert(HashSet::new())

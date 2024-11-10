@@ -37,7 +37,9 @@ impl<'ast> Visit<'ast> for Codegen {
                             self.to_remove[self.current_idx].is_empty()
                         {
                             self.push_tokens(self.fused_codes[self.current_idx].clone());
-                            self.current_idx += 1;
+                            if self.current_idx + 1 < self.to_remove.len() {
+                                self.current_idx += 1;
+                            }
                         }
                     }
                 } else {

@@ -1,22 +1,23 @@
 use std::collections::HashSet;
 
-use crate::{ fuse::codegen::Codegen, TokenStream2 };
+use crate::fuse::{ codegen::Codegen, visitor::Visitor };
 use quote::ToTokens;
 use syn::visit::Visit;
 
 use crate::fuse::{ dag::Graph, fuse::fuse, gen_fuse::gen_fuse };
 
-use super::{ dag::Var, node::Node, visitor::Visitor };
+use super::{ dag::Var, node::Node };
 
 pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let func = syn::parse_macro_input!(item as syn::ItemFn);
+    // println!("func: {:#?}", func);
     let mut visitor = Visitor::new();
     visitor.visit_item_fn(&func);
     for arg in func.sig.inputs.iter() {
         if let syn::FnArg::Typed(pat_type) = arg {
             let string = pat_type.ty.to_token_stream().to_string();
             if string.contains("Tensor") || string.contains("_Tensor") {
-                visitor.nodes.push(
+                visitor.visitor.nodes.push(
                     Node::Input(Var {
                         ident: {
                             if let syn::Pat::Ident(ident) = &pat_type.pat.as_ref() {
@@ -30,24 +31,24 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
             }
         }
     }
-    // println!("{:#?}", visitor.nodes);
-    let graph = Graph::from_nodes(&visitor.nodes);
-    // println!("{:#?}", graph);
+    visitor.remove_unused();
+    let graph = Graph::from_nodes(&visitor.visitor.nodes);
+    println!("{:#?}", graph);
     let fused = fuse(&graph);
-    // println!("{:#?}", fused);
+    println!("fused: {:#?}", fused);
     let (fused_codes, fused_outs, fused_inputs) = gen_fuse(&graph, &fused);
     let mut to_remove = vec![];
-    // for ((code, input), out) in fused_codes.iter().zip(fused_inputs.iter()).zip(fused_outs.iter()) {
-    //     println!(
-    //         "input: {:#?}",
-    //         input
-    //             .iter()
-    //             .map(|i| i.to_string())
-    //             .collect::<Vec<String>>()
-    //     );
-    //     println!("code: {:#?}", code.to_string());
-    //     println!("out: {:#?}", out.to_string());
-    // }
+    for ((code, input), out) in fused_codes.iter().zip(fused_inputs.iter()).zip(fused_outs.iter()) {
+        println!(
+            "input: {:#?}",
+            input
+                .iter()
+                .map(|i| i.to_string())
+                .collect::<Vec<String>>()
+        );
+        println!("code: {:#?}", code.to_string());
+        println!("out: {:#?}", out.to_string());
+    }
 
     for (input, total) in fused_inputs.iter().zip(fused.iter()) {
         let mut intermediate = total

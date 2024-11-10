@@ -69,8 +69,8 @@ impl<'ast> ToTokens for Binary {
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub(crate) enum Node<'ast> {
-    Unary(Unary<'ast>, usize),
-    Binary(Binary, usize),
+    Unary(Unary<'ast>),
+    Binary(Binary),
     Input(Var<'ast>),
 }
 

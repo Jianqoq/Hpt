@@ -62,7 +62,7 @@ pub(crate) fn gen_fuse(graph: &Graph, groups: &Vec<HashSet<Var2>>) -> (Vec<Token
         for ident in sorted {
             if let Some(node) = graph.map.get(&(Var { ident: &ident })) {
                 match node {
-                    Node::Unary(unary, _) => {
+                    Node::Unary(unary) => {
                         comp_tokens.extend(
                             quote::quote!(
                         #unary
@@ -70,7 +70,7 @@ pub(crate) fn gen_fuse(graph: &Graph, groups: &Vec<HashSet<Var2>>) -> (Vec<Token
                         );
                         output = unary.output.clone();
                     }
-                    Node::Binary(binary, _) => {
+                    Node::Binary(binary) => {
                         comp_tokens.extend(
                             quote::quote!(
                         #binary
