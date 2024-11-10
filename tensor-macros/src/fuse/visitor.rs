@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use quote::ToTokens;
 use syn::{ spanned::Spanned, visit::* };
 
-use super::node::{ Binary, Node, Unary };
+use super::{node::{ Binary, Node, Unary }, ssa::SSAContext};
 
 pub(crate) struct Visitor<'ast> {
     pub(crate) visitor: _Visitor<'ast>,
@@ -26,11 +26,12 @@ impl<'ast> Visit<'ast> for Visitor<'ast> {
 
 pub(crate) struct _Visitor<'ast> {
     pub(crate) nodes: Vec<Node<'ast>>,
-    pub(crate) var_cnt: usize,
+    pub(crate) intermidiate_var_cnt: usize,
     pub(crate) current_var: proc_macro2::Ident,
     pub(crate) current_assignment: Option<proc_macro2::Ident>,
     pub(crate) variables: HashMap<syn::Ident, bool>,
     pub(crate) next_visitor: Option<Box<_Visitor<'ast>>>,
+    pub(crate) ssa_ctx: SSAContext,
 }
 
 impl<'ast> _Visitor<'ast> {
@@ -38,11 +39,12 @@ impl<'ast> _Visitor<'ast> {
         use proc_macro2::Span;
         Self {
             nodes: vec![],
-            var_cnt: 0,
+            intermidiate_var_cnt: 0,
             current_var: proc_macro2::Ident::new("__out0", Span::call_site()),
             current_assignment: None,
             variables: HashMap::new(),
             next_visitor: None,
+            ssa_ctx: SSAContext::new(),
         }
     }
     pub(crate) fn declare_variable(&mut self, ident: syn::Ident) {
@@ -99,7 +101,8 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
     fn visit_local(&mut self, local: &'ast syn::Local) {
         if let Some(init) = &local.init {
             if let syn::Pat::Ident(syn::PatIdent { ident, .. }) = &local.pat {
-                self.current_assignment = Some(ident.clone());
+                let ssa_name = self.ssa_ctx.fresh_name(&ident.to_string());
+                self.current_assignment = Some(proc_macro2::Ident::new(&ssa_name, ident.span()));
                 self.declare_variable(ident.clone());
             }
             self.visit_expr(&init.expr);
@@ -136,11 +139,12 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
             self.current_assignment = None;
             current_assignment
         } else {
-            let out = proc_macro2::Ident::new(&format!("__out{}", self.var_cnt), node.span());
+            let out = proc_macro2::Ident::new(&format!("__out{}", self.intermidiate_var_cnt), node.span());
             self.current_var = out.clone();
-            self.var_cnt += 1;
+            self.intermidiate_var_cnt += 1;
             out
         };
+        let operand = self.ssa_ctx.current_name(&node.receiver.to_token_stream().to_string()).unwrap();
         let method = match node.method.to_string().as_str() {
             | "sin"
             | "cos"
@@ -157,10 +161,7 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
             | "relu" => {
                 Node::Unary(Unary {
                     method: &node.method,
-                    operand: proc_macro2::Ident::new(
-                        &node.receiver.to_token_stream().to_string(),
-                        node.span()
-                    ),
+                    operand: proc_macro2::Ident::new(&operand, node.span()),
                     output: out.clone(),
                 })
             }
@@ -195,10 +196,6 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
 
     fn visit_ident(&mut self, i: &'ast proc_macro2::Ident) {
         self.current_var = i.clone();
-    }
-
-    fn visit_expr_reference(&mut self, i: &'ast syn::ExprReference) {
-        self.visit_expr(&i.expr);
     }
 
     fn visit_expr_path(&mut self, i: &'ast syn::ExprPath) {
@@ -254,9 +251,9 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
             self.current_assignment = None;
             current_assignment
         } else {
-            let out = proc_macro2::Ident::new(&format!("__out{}", self.var_cnt), i.span());
+            let out = proc_macro2::Ident::new(&format!("__out{}", self.intermidiate_var_cnt), i.span());
             self.current_var = out.clone();
-            self.var_cnt += 1;
+            self.intermidiate_var_cnt += 1;
             out
         };
         self.nodes.push(
@@ -268,6 +265,6 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
             })
         );
         self.current_var = out;
-        self.var_cnt += 1;
+        self.intermidiate_var_cnt += 1;
     }
 }

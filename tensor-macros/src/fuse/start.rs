@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::fuse::{ codegen::Codegen, visitor::Visitor };
+use crate::fuse::{ codegen::Codegen, ssa::SSAContext, visitor::Visitor };
 use quote::ToTokens;
 use syn::visit::Visit;
 
@@ -86,6 +86,7 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
         fused_codes: codes,
         to_remove,
         current_tokens: Vec::new(),
+        ssa_ctx: SSAContext::new(),
     };
     codegen.visit_item_fn(&func);
     let code = codegen.get_code();

@@ -55,6 +55,7 @@ mod fuse {
     pub(crate) mod gen_fuse;
     pub(crate) mod edges;
     pub(crate) mod codegen;
+    pub(crate) mod ssa;
 }
 
 use crate::simd_cmp::impl_simd_cmp;

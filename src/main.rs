@@ -10,23 +10,19 @@ use tensor_dyn::type_promote::FloatOutBinary;
 fuse_proc_macro!(
 fn feedforward1(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<(_Tensor<f32>, _Tensor<f32>)> {
     let c = &a + &b / &a;
-    let e = a.relu()?;
     let d = c.sin()?;
-    let f = e.relu()?;
-    let g = &a * &d;
-    let h = g.sin()?;
-    Ok((f, h))
+    let e = d.relu()?;
+    let d = e.cos()?;
+    Ok(d)
 });
 
 // #[fuse]
 // fn feedforward2(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<(_Tensor<f32>, _Tensor<f32>)> {
 //     let c = &a + &b / &a;
-//     let e = a.relu()?;
 //     let d = c.sin()?;
-//     let f = e.relu()?;
-//     let g = &a * &d;
-//     let h = g.sin()?;
-//     Ok((f, h))
+//     let e = d.relu()?;
+//     let d = e.cos()?;
+//     Ok(d)
 // }
 
 fn main() -> anyhow::Result<()> {
