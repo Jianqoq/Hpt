@@ -100,10 +100,35 @@ impl<'ast> _Visitor<'ast> {
 impl<'ast> Visit<'ast> for _Visitor<'ast> {
     fn visit_local(&mut self, local: &'ast syn::Local) {
         if let Some(init) = &local.init {
-            if let syn::Pat::Ident(syn::PatIdent { ident, .. }) = &local.pat {
-                let ssa_name = self.ssa_ctx.fresh_name(&ident.to_string());
-                self.current_assignment = Some(proc_macro2::Ident::new(&ssa_name, ident.span()));
-                self.declare_variable(ident.clone());
+            match &local.pat {
+                syn::Pat::Const(_) => todo!(),
+                syn::Pat::Ident(pat_ident) => {
+                    let ssa_name = self.ssa_ctx.fresh_name(&pat_ident.ident.to_string());
+                    self.current_assignment = Some(proc_macro2::Ident::new(&ssa_name, pat_ident.ident.span()));
+                    self.declare_variable(pat_ident.ident.clone());
+                },
+                syn::Pat::Lit(_) => todo!(),
+                syn::Pat::Macro(_) => todo!(),
+                syn::Pat::Or(_) => todo!(),
+                syn::Pat::Paren(_) => todo!(),
+                syn::Pat::Path(_) => todo!(),
+                syn::Pat::Range(_) => todo!(),
+                syn::Pat::Reference(_) => todo!(),
+                syn::Pat::Rest(_) => todo!(),
+                syn::Pat::Slice(_) => todo!(),
+                syn::Pat::Struct(_) => todo!(),
+                syn::Pat::Tuple(_) => todo!(),
+                syn::Pat::TupleStruct(_) => todo!(),
+                syn::Pat::Type(pat_type) => {
+                    if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
+                        let ssa_name = self.ssa_ctx.fresh_name(&pat_ident.ident.to_string());
+                        self.current_assignment = Some(proc_macro2::Ident::new(&ssa_name, pat_ident.ident.span()));
+                        self.declare_variable(pat_ident.ident.clone());
+                    }
+                },
+                syn::Pat::Verbatim(_) => todo!(),
+                syn::Pat::Wild(_) => todo!(),
+                _ => todo!(),
             }
             self.visit_expr(&init.expr);
             self.current_assignment = None;
@@ -144,7 +169,7 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
             self.intermidiate_var_cnt += 1;
             out
         };
-        let operand = self.ssa_ctx.current_name(&node.receiver.to_token_stream().to_string()).unwrap();
+        let operand = self.ssa_ctx.current_name(&node.receiver.to_token_stream().to_string()).expect("not found");
         let method = match node.method.to_string().as_str() {
             | "sin"
             | "cos"

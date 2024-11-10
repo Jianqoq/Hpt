@@ -82,20 +82,55 @@ impl<'ast> Visit<'ast> for Codegen {
     fn visit_stmt(&mut self, stmt: &'ast syn::Stmt) {
         match stmt {
             syn::Stmt::Local(local) => {
-                if let syn::Pat::Ident(pat_ident) = &local.pat {
-                    let ssa_name = proc_macro2::Ident::new(
-                        &self.ssa_ctx.fresh_name(&pat_ident.ident.to_string()),
-                        pat_ident.ident.span()
-                    );
-                    if !self.to_remove.iter().any(|set| set.contains(&ssa_name)) {
-                        if self.fused_codes.contains_key(&ssa_name) {
-                            self.push_tokens(self.fused_codes[&ssa_name].clone());
+                match &local.pat {
+                    syn::Pat::Const(_) => todo!("codegen::const"),
+                    syn::Pat::Ident(pat_ident) => {
+                        let ssa_name = proc_macro2::Ident::new(
+                            &self.ssa_ctx.fresh_name(&pat_ident.ident.to_string()),
+                            pat_ident.ident.span()
+                        );
+                        if !self.to_remove.iter().any(|set| set.contains(&ssa_name)) {
+                            if self.fused_codes.contains_key(&ssa_name) {
+                                self.push_tokens(self.fused_codes[&ssa_name].clone());
+                            }
                         }
-                    }
-                } else {
-                    let mut stmt = stmt.clone();
-                    let tokens = self.convert_stmt_to_ssa(&mut stmt);
-                    self.push_tokens(tokens);
+                    },
+                    syn::Pat::Lit(_) => todo!("codegen::lit"),
+                    syn::Pat::Macro(_) => todo!("codegen::macro"),
+                    syn::Pat::Or(_) => todo!("codegen::or"),
+                    syn::Pat::Paren(_) => todo!("codegen::paren"),
+                    syn::Pat::Path(_) => todo!("codegen::path"),
+                    syn::Pat::Range(_) => todo!("codegen::range"),
+                    syn::Pat::Reference(_) => todo!("codegen::reference"),
+                    syn::Pat::Rest(_) => todo!("codegen::rest"),
+                    syn::Pat::Slice(_) => todo!("codegen::slice"),
+                    syn::Pat::Struct(_) => todo!("codegen::struct"),
+                    syn::Pat::Tuple(_) => todo!("codegen::tuple"),
+                    syn::Pat::TupleStruct(_) => todo!("codegen::tuple_struct"),
+                    syn::Pat::Type(pat_type) => {
+                        if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
+                            let ssa_name = proc_macro2::Ident::new(
+                                &self.ssa_ctx.fresh_name(&pat_ident.ident.to_string()),
+                                pat_ident.ident.span()
+                            );
+                            if !self.to_remove.iter().any(|set| set.contains(&ssa_name)) {
+                                if self.fused_codes.contains_key(&ssa_name) {
+                                    self.push_tokens(self.fused_codes[&ssa_name].clone());
+                                }
+                            }
+                        } else {
+                            let mut stmt = stmt.clone();
+                            let tokens = self.convert_stmt_to_ssa(&mut stmt);
+                            self.push_tokens(tokens);
+                        }
+                    },
+                    syn::Pat::Verbatim(_) => todo!("codegen::verbatim"),
+                    syn::Pat::Wild(_) => todo!("codegen::wild"),
+                    _ => {
+                        let mut stmt = stmt.clone();
+                        let tokens = self.convert_stmt_to_ssa(&mut stmt);
+                        self.push_tokens(tokens);
+                    },
                 }
             }
             _ => {

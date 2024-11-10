@@ -8,8 +8,8 @@ use tensor_dyn::type_promote::NormalOutUnary;
 use tensor_dyn::type_promote::FloatOutBinary;
 
 fuse_proc_macro!(
-fn feedforward1(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<(_Tensor<f32>, _Tensor<f32>)> {
-    let c = &a + &b / &a;
+fn feedforward1(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
+    let c: _Tensor<f32> = &a + &b / &a;
     let d = c.sin()?;
     let e = d.relu()?;
     let d = e.cos()?;
