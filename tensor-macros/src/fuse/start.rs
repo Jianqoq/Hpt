@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::fuse::{ codegen::Codegen, visitor::Visitor };
 use quote::ToTokens;
@@ -50,7 +50,7 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
         println!("out: {:#?}", out.to_string());
     }
 
-    for (input, total) in fused_inputs.iter().zip(fused.iter()) {
+    for ((input, total), out) in fused_inputs.iter().zip(fused.iter()).zip(fused_outs.iter()) {
         let mut intermediate = total
             .iter()
             .map(|i| i.ident.clone())
@@ -58,13 +58,14 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
         for input in input {
             intermediate.remove(input);
         }
+        intermediate.remove(out);
         to_remove.push(intermediate);
     }
 
-    let mut codes = Vec::new();
+    let mut codes = HashMap::new();
     for (i, code) in fused_codes.iter().enumerate() {
         let out = &fused_outs[i];
-        codes.push(quote::quote!(
+        codes.insert(out.clone(), quote::quote!(
                 let #out = #code;
             ));
     }
@@ -85,7 +86,6 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
         fused_codes: codes,
         to_remove,
         current_tokens: Vec::new(),
-        current_idx: 0,
     };
     codegen.visit_item_fn(&func);
     let code = codegen.get_code();
