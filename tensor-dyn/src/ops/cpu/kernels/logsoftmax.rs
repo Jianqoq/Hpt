@@ -226,18 +226,8 @@ pub(crate) fn contiguous_dim_include<T, O>(
             let inp_arr = unsafe {
                 std::slice::from_raw_parts(inp_ptr.ptr as *const T, inner_loop_size as usize)
             };
-            let inp_vecs = unsafe {
-                std::slice::from_raw_parts(
-                    inp_ptr.ptr as *const T::Vec,
-                    (inner_loop_size as usize) / T::Vec::SIZE
-                )
-            };
-            let res_vecs = unsafe {
-                std::slice::from_raw_parts_mut(
-                    res_ptr.ptr as *mut O::Vec,
-                    (inner_loop_size as usize) / O::Vec::SIZE
-                )
-            };
+            let inp_vecs = inp_ptr.ptr as *const T::Vec;
+            let res_vecs = res_ptr.ptr as *mut O::Vec;
             let max = array_vec_reduce(
                 inp_arr,
                 T::NEG_INF,
@@ -246,17 +236,12 @@ pub(crate) fn contiguous_dim_include<T, O>(
                 |x, y| x._max(y)
             );
             let max_vec = T::Vec::splat(max);
-
             let mut sum_vec = O::Vec::splat(O::ZERO);
-            inp_vecs
-                .iter()
-                .zip(res_vecs.iter_mut())
-                .for_each(|(inp_vec, res_vec)| {
-                    let val: T::Vec = inp_vec.read_unaligned()._sub(max_vec);
-                    let val: O::Vec = val.into_vec();
-                    res_vec.write_unaligned(val);
-                    sum_vec = sum_vec._add(val._exp());
-                });
+            for i in 0..(inner_loop_size as usize) / T::Vec::SIZE {
+                let inp_vec = unsafe { inp_vecs.offset(i as isize).read_unaligned()._sub(max_vec) };
+                unsafe { res_vecs.offset(i as isize).write_unaligned(inp_vec.into_vec()) };
+                sum_vec = sum_vec._add(inp_vec._exp());
+            }
 
             let mut sum = O::ZERO;
             for i in (inner_loop_size as usize) - remain..inner_loop_size as usize {
@@ -267,9 +252,13 @@ pub(crate) fn contiguous_dim_include<T, O>(
             sum = sum._add(vec_sum::<O>(sum_vec));
             let log_sum = sum._ln();
             let sum_vec = O::Vec::splat(log_sum);
-            res_vecs.iter_mut().for_each(|res_vec| {
-                res_vec.write_unaligned(res_vec.read_unaligned()._sub(sum_vec));
-            });
+            for i in 0..(inner_loop_size as usize) / T::Vec::SIZE {
+                unsafe {
+                    res_vecs.offset(i as isize).write_unaligned(
+                        res_vecs.offset(i as isize).read_unaligned()._sub(sum_vec)
+                    );
+                }
+            }
             for i in (inner_loop_size as usize) - remain..inner_loop_size as usize {
                 res_ptr[i] = res_ptr[i]._sub(log_sum);
             }
@@ -288,12 +277,7 @@ pub(crate) fn contiguous_dim_include<T, O>(
             let inp_arr = unsafe {
                 std::slice::from_raw_parts(inp_ptr.ptr as *const T, inner_loop_size as usize)
             };
-            let res_vecs = unsafe {
-                std::slice::from_raw_parts_mut(
-                    res_ptr.ptr as *mut O::Vec,
-                    (inner_loop_size as usize) / O::Vec::SIZE
-                )
-            };
+            let res_vecs = res_ptr.ptr as *mut O::Vec;
             let max = array_vec_reduce(
                 inp_arr,
                 T::NEG_INF,
@@ -309,10 +293,15 @@ pub(crate) fn contiguous_dim_include<T, O>(
                 sum = sum._add(val._exp());
             }
             let log_sum = sum._ln();
+            println!("log_sum: {:?}", log_sum);
             let sum_vec = O::Vec::splat(log_sum);
-            res_vecs.iter_mut().for_each(|res_vec| {
-                res_vec.write_unaligned(res_vec.read_unaligned()._sub(sum_vec));
-            });
+            for i in 0..(inner_loop_size as usize) / T::Vec::SIZE {
+                unsafe {
+                    res_vecs.offset(i as isize).write_unaligned(
+                        res_vecs.offset(i as isize).read_unaligned()._sub(sum_vec)
+                    );
+                }
+            }
             for i in (inner_loop_size as usize) - remain..inner_loop_size as usize {
                 res_ptr[i] = res_ptr[i]._sub(log_sum);
             }

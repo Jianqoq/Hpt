@@ -50,6 +50,12 @@ mod fuse {
     pub(crate) mod dag;
     pub(crate) mod visitor;
     pub(crate) mod node;
+    pub(crate) mod fuse;
+    pub(crate) mod kernel_type;
+    pub(crate) mod gen_fuse;
+    pub(crate) mod edges;
+    pub(crate) mod codegen;
+    pub(crate) mod ssa;
 }
 
 use crate::simd_cmp::impl_simd_cmp;
@@ -762,7 +768,13 @@ pub fn dwconv2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
 
 /// perform fuse optimization
 #[proc_macro_attribute]
-pub fn fuse(attr: TokenStream, item: TokenStream) -> TokenStream
+pub fn fuse(_: TokenStream, item: TokenStream) -> TokenStream
 {
-    fuse::start::fuse_impl(attr, item)
+    fuse::start::fuse_impl(item)
+}
+
+/// fuse proc macro
+#[proc_macro]
+pub fn fuse_proc_macro(item: TokenStream) -> TokenStream {
+    fuse::start::fuse_proc_macro(item)
 }
