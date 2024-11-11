@@ -515,11 +515,13 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn selu(
+    fn selu<U>(
         &self,
-        alpha: Option<FloatUnaryType<T>>,
-        gamma: Option<FloatUnaryType<T>>
-    ) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+        alpha: U,
+        gamma: U,
+    ) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> where U: Into<Option<Self::OutputMeta>> {
+        let alpha = alpha.into();
+        let gamma = gamma.into();
         let alpha = alpha.unwrap_or((1.6732632423543772848170429916717).into_scalar());
         let gamma = gamma.unwrap_or((1.0507009873554804934193349852946).into_scalar());
         uary_fn_with_out_simd(

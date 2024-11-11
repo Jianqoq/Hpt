@@ -6,6 +6,7 @@ use super::dag::Var;
 pub(crate) struct Unary<'ast> {
     pub(crate) method: &'ast syn::Ident,
     pub(crate) operand: syn::Ident,
+    pub(crate) args: Vec<syn::Expr>,
     pub(crate) output: syn::Ident,
 }
 
@@ -13,10 +14,15 @@ impl<'ast> std::fmt::Debug for Unary<'ast> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{} = {}({})",
+            "{} = {}({}, {})",
             self.output.to_token_stream().to_string(),
             self.method.to_token_stream().to_string(),
-            self.operand.to_token_stream().to_string()
+            self.operand.to_token_stream().to_string(),
+            self.args
+                .iter()
+                .map(|arg| arg.to_token_stream().to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
         )
     }
 }
@@ -26,9 +32,16 @@ impl<'ast> ToTokens for Unary<'ast> {
         let method = proc_macro2::Ident::new(&format!("_{}", self.method), self.method.span());
         let operand = proc_macro2::Ident::new(&format!("{}", self.operand), self.operand.span());
         let output = proc_macro2::Ident::new(&format!("{}", self.output), self.output.span());
-        tokens.extend(quote::quote!(
-             let #output = #operand.#method();
-        ));
+        if self.args.is_empty() {
+            tokens.extend(quote::quote!(
+                let #output = #operand.#method();
+            ));
+        } else {
+            let args = self.args.iter();
+            tokens.extend(quote::quote!(
+                let #output = #operand.#method(#(#args),*);
+            ));
+        }
     }
 }
 

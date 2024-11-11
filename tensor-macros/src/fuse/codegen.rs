@@ -1,5 +1,6 @@
 use std::collections::{ HashMap, HashSet };
 
+use quote::ToTokens;
 use syn::{ visit::*, visit_mut::VisitMut };
 use crate::TokenStream2;
 
@@ -49,8 +50,45 @@ impl<'ast> _Codegen<'ast> {
         struct SSAReplacer<'a> {
             ssa_ctx: &'a SSAContext,
         }
+        // println!("stmt: {:#?}", stmt);
 
         impl<'a> VisitMut for SSAReplacer<'a> {
+            fn visit_stmt_mut(&mut self, stmt: &mut syn::Stmt) {
+                match stmt {
+                    syn::Stmt::Local(local) => {
+                        match &mut local.pat {
+                            syn::Pat::Const(_) => todo!("codegen::const"),
+                            syn::Pat::Ident(pat_ident) => {
+                                let name = pat_ident.ident.to_string();
+                                let ssa_name = self.ssa_ctx.current_name(&name).unwrap();
+                                pat_ident.ident = syn::Ident::new(
+                                    &ssa_name,
+                                    pat_ident.ident.span()
+                                );
+                            }
+                            syn::Pat::Lit(_) => todo!("codegen::lit"),
+                            syn::Pat::Macro(_) => todo!("codegen::macro"),
+                            syn::Pat::Or(_) => todo!("codegen::or"),
+                            syn::Pat::Paren(_) => todo!("codegen::paren"),
+                            syn::Pat::Path(_) => todo!("codegen::path"),
+                            syn::Pat::Range(_) => todo!("codegen::range"),
+                            syn::Pat::Reference(_) => todo!("codegen::reference"),
+                            syn::Pat::Rest(_) => todo!("codegen::rest"),
+                            syn::Pat::Slice(_) => todo!("codegen::slice"),
+                            syn::Pat::Struct(_) => todo!("codegen::struct"),
+                            syn::Pat::Tuple(_) => todo!("codegen::tuple"),
+                            syn::Pat::TupleStruct(_) => todo!("codegen::tuple_struct"),
+                            syn::Pat::Type(_) => {}
+                            syn::Pat::Verbatim(_) => todo!("codegen::verbatim"),
+                            syn::Pat::Wild(_) => todo!("codegen::wild"),
+                            _ => {}
+                        }
+                    }
+                    _ => {
+                        syn::visit_mut::visit_stmt_mut(self, stmt);
+                    }
+                }
+            }
             fn visit_expr_path_mut(&mut self, expr: &mut syn::ExprPath) {
                 if expr.path.segments.len() == 1 {
                     let ident = &expr.path.segments[0].ident;
@@ -66,6 +104,7 @@ impl<'ast> _Codegen<'ast> {
                 self.visit_expr_mut(&mut *expr.receiver);
                 for mut el in syn::punctuated::Punctuated::pairs_mut(&mut expr.args) {
                     let it = el.value_mut();
+                    // println!("expr: {}", it.to_token_stream().to_string());
                     if let Some(current_name) = self.ssa_ctx.current_name_expr(it) {
                         if let syn::Expr::Path(path) = it {
                             path.path.segments[0].ident = syn::Ident::new(
@@ -82,6 +121,24 @@ impl<'ast> _Codegen<'ast> {
             fn visit_expr_tuple_mut(&mut self, tuple: &mut syn::ExprTuple) {
                 for mut el in syn::punctuated::Punctuated::pairs_mut(&mut tuple.elems) {
                     let it = el.value_mut();
+                    if let Some(current_name) = self.ssa_ctx.current_name_expr(it) {
+                        if let syn::Expr::Path(path) = it {
+                            path.path.segments[0].ident = syn::Ident::new(
+                                current_name,
+                                path.path.segments[0].ident.span()
+                            );
+                        }
+                    } else {
+                        self.visit_expr_mut(it);
+                    }
+                }
+            }
+
+            fn visit_expr_call_mut(&mut self, expr: &mut syn::ExprCall) {
+                println!("expr: {:#?}", expr);
+                for mut el in syn::punctuated::Punctuated::pairs_mut(&mut expr.args) {
+                    let it = el.value_mut();
+                    println!("expr: {}", it.to_token_stream().to_string());
                     if let Some(current_name) = self.ssa_ctx.current_name_expr(it) {
                         if let syn::Expr::Path(path) = it {
                             path.path.segments[0].ident = syn::Ident::new(
@@ -121,16 +178,10 @@ impl<'ast> Visit<'ast> for _Codegen<'ast> {
                             if self.fused_codes.contains_key(&ssa_name) {
                                 self.push_tokens(self.fused_codes[&ssa_name].clone());
                             } else if let Some(visitor) = self._visitor {
-                                let used = visitor
-                                    .variables()
-                                    .get(&ssa_name)
-                                    .map(|(used, _)| *used)
-                                    .unwrap_or(false);
                                 if
                                     !visitor.is_tensor_ident(
                                         &proc_macro2::Ident::new(&name, pat_ident.ident.span())
-                                    ) &&
-                                    used
+                                    )
                                 {
                                     let mut stmt = stmt.clone();
                                     let tokens = self.convert_stmt_to_ssa(&mut stmt);

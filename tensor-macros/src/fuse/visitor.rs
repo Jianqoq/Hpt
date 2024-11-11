@@ -101,7 +101,7 @@ impl<'ast> _Visitor<'ast> {
         }
     }
 
-    pub(crate)fn is_tensor_expr(&self, expr: &syn::Expr) -> bool {
+    pub(crate) fn is_tensor_expr(&self, expr: &syn::Expr) -> bool {
         match expr {
             syn::Expr::Binary(node) => {
                 self.is_tensor_expr(&*node.left) || self.is_tensor_expr(&*node.right)
@@ -126,7 +126,8 @@ impl<'ast> _Visitor<'ast> {
                         | "asinh"
                         | "acosh"
                         | "atanh"
-                        | "relu" => true,
+                        | "relu"
+                        | "selu" => true,
                         _ =>
                             unimplemented!(
                                 "is_tensor_expr::method_call::{}",
@@ -158,7 +159,10 @@ impl<'ast> _Visitor<'ast> {
     }
 
     pub(crate) fn is_tensor_ident(&self, ident: &syn::Ident) -> bool {
-        self.variables.get(ident).map(|(_, is_tensor)| *is_tensor).unwrap_or(false)
+        self.variables
+            .get(ident)
+            .map(|(_, is_tensor)| *is_tensor)
+            .unwrap_or(false)
     }
 }
 
@@ -169,6 +173,7 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
                 syn::Pat::Const(_) => todo!(),
                 syn::Pat::Ident(pat_ident) => {
                     let ssa_name = self.ssa_ctx.fresh_name(&pat_ident.ident.to_string());
+                    println!("ssa_name: {}", ssa_name);
                     self.current_assignment = Some(
                         proc_macro2::Ident::new(&ssa_name, pat_ident.ident.span())
                     );
@@ -260,14 +265,48 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
             | "asinh"
             | "acosh"
             | "atanh"
-            | "relu" => {
+            | "relu"
+            | "selu" => {
                 Node::Unary(Unary {
                     method: &node.method,
                     operand: proc_macro2::Ident::new(&operand, node.span()),
+                    args: node.args
+                        .iter()
+                        .map(|arg| {
+                            match arg {
+                                syn::Expr::Path(expr_path) => {
+                                    syn::Expr::Path(syn::ExprPath {
+                                        attrs: expr_path.attrs.clone(),
+                                        qself: expr_path.qself.clone(),
+                                        path: {
+                                            if expr_path.path.get_ident().is_some() {
+                                                let mut path = expr_path.path.clone();
+                                                path.segments[0].ident = syn::Ident::new(
+                                                    &self.ssa_ctx
+                                                        .current_name_expr(arg)
+                                                        .unwrap()
+                                                        .clone(),
+                                                    expr_path.span()
+                                                );
+                                                path
+                                            } else {
+                                                expr_path.path.clone()
+                                            }
+                                        },
+                                    })
+                                }
+                                _ => arg.clone(),
+                            }
+                        })
+                        .collect(),
                     output: out.clone(),
                 })
             }
-            _ => todo!(),
+            _ =>
+                unimplemented!(
+                    "_visitor::visit_expr_method_call::{}",
+                    node.method.to_string().as_str()
+                ),
         };
         self.nodes.push(method);
         // println!("{:#?}", self.nodes);
