@@ -5,6 +5,13 @@ use syn::{ spanned::Spanned, visit::* };
 
 use super::{ dag::Var2, node::{ Binary, Node, Unary }, ssa::SSAContext };
 
+macro_rules! check_error {
+    ($self:ident) => {
+        if $self.errors.is_some() {
+            return;
+        }
+    };
+}
 pub(crate) struct Visitor<'ast> {
     pub(crate) visitor: _Visitor<'ast>,
 }
@@ -36,6 +43,7 @@ pub(crate) struct _Visitor<'ast> {
     pub(crate) variables: HashMap<syn::Ident, (bool, bool)>,
     pub(crate) next_visitor: Option<Box<_Visitor<'ast>>>,
     pub(crate) ssa_ctx: SSAContext,
+    pub(crate) errors: Option<syn::Error>,
 }
 
 impl<'ast> _Visitor<'ast> {
@@ -48,6 +56,7 @@ impl<'ast> _Visitor<'ast> {
             variables: HashMap::new(),
             next_visitor: None,
             ssa_ctx: SSAContext::new(),
+            errors: None,
         }
     }
     #[allow(unused)]
@@ -170,6 +179,14 @@ impl<'ast> _Visitor<'ast> {
 }
 
 impl<'ast> Visit<'ast> for _Visitor<'ast> {
+    fn visit_expr(&mut self, i: &'ast syn::Expr) {
+        check_error!(self);
+        syn::visit::visit_expr(self, i);
+    }
+    fn visit_stmt(&mut self, i: &'ast syn::Stmt) {
+        check_error!(self);
+        syn::visit::visit_stmt(self, i);
+    }
     fn visit_signature(&mut self, sig: &'ast syn::Signature) {
         for arg in sig.inputs.iter() {
             if let syn::FnArg::Typed(pat_type) = arg {
@@ -209,7 +226,6 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
         }
         syn::visit::visit_signature(self, sig);
     }
-
     fn visit_local(&mut self, local: &'ast syn::Local) {
         if let Some(init) = &local.init {
             match &local.pat {
@@ -315,30 +331,37 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
                         .map(|arg| {
                             match arg {
                                 syn::Expr::Path(expr_path) => {
-                                    syn::Expr::Path(syn::ExprPath {
-                                        attrs: expr_path.attrs.clone(),
-                                        qself: expr_path.qself.clone(),
-                                        path: {
-                                            if expr_path.path.get_ident().is_some() {
-                                                let mut path = expr_path.path.clone();
+                                    let mut expr_path = expr_path.clone();
+                                    let path = if expr_path.path.get_ident().is_some() {
+                                        let mut path = expr_path.path.clone();
+                                        let current_name = &self.ssa_ctx
+                                            .current_name_expr(arg)
+                                            .ok_or_else(|| {
+                                                syn::Error::new(
+                                                    arg.span(),
+                                                    format!(
+                                                        "visit_expr_method_call::current_name_expr: Cannot find {} in current scope.",
+                                                        arg.to_token_stream().to_string()
+                                                    )
+                                                )
+                                            });
+                                        match current_name {
+                                            Ok(name) => {
                                                 path.segments[0].ident = syn::Ident::new(
-                                                    &self.ssa_ctx
-                                                        .current_name_expr(arg)
-                                                        .expect(
-                                                            format!(
-                                                                "visit_expr_method_call::current_name_expr::{}",
-                                                                arg.to_token_stream().to_string()
-                                                            ).as_str()
-                                                        )
-                                                        .clone(),
-                                                    expr_path.span()
+                                                    &name,
+                                                    arg.span()
                                                 );
-                                                path
-                                            } else {
-                                                expr_path.path.clone()
                                             }
-                                        },
-                                    })
+                                            Err(error) => {
+                                                self.errors = Some(error.clone());
+                                            }
+                                        }
+                                        path
+                                    } else {
+                                        expr_path.path.clone()
+                                    };
+                                    expr_path.path = path;
+                                    syn::Expr::Path(expr_path)
                                 }
                                 _ => arg.clone(),
                             }

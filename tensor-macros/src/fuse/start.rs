@@ -10,6 +10,9 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
     // println!("func: {:#?}", func);
     let mut visitor = Visitor::new();
     visitor.visit_item_fn(&func);
+    if let Some(error) = visitor.visitor.errors {
+        return error.to_compile_error().into();
+    }
     // let variables = visitor.visitor.variables();
     // println!("variables: {:#?}", variables);
     visitor.remove_unused();

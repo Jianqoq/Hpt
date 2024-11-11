@@ -7,24 +7,23 @@ use tensor_dyn::type_promote::FloatOutUnary;
 use tensor_dyn::type_promote::NormalOutUnary;
 use tensor_dyn::type_promote::FloatOutBinary;
 
-fuse_proc_macro!(
-fn feedforward1(a: _Tensor<f32>, b: _Tensor<f32>, f: f32) -> anyhow::Result<_Tensor<f32>> {
+// fuse_proc_macro!(
+// fn feedforward1(a: _Tensor<f32>, b: _Tensor<f32>, f: f32) -> anyhow::Result<_Tensor<f32>> {
+//     let c: _Tensor<f32> = &a + &b / &a;
+//     let d = c.sin()?;
+//     let e = d.relu()?;
+//     let d = e.selu(f, f)?;
+//     Ok(d)
+// });
+
+#[fuse]
+fn feedforward2(a: _Tensor<f32>, b: _Tensor<f32>, f: f32) -> anyhow::Result<_Tensor<f32>> {
     let c: _Tensor<f32> = &a + &b / &a;
     let d = c.sin()?;
     let e = d.relu()?;
     let d = e.selu(f, f)?;
     Ok(d)
-});
-
-// #[fuse]
-// fn feedforward2(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
-//     let c: _Tensor<f32> = &a + &b / &a;
-//     let d = c.sin()?;
-//     let e = d.relu()?;
-//     let val = 4.0;
-//     let d = e.selu(val, val)?;
-//     Ok(d)
-// }
+}
 
 fn main() -> anyhow::Result<()> {
     conv2d()?;
