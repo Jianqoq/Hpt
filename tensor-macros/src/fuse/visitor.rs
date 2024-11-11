@@ -5,13 +5,6 @@ use syn::{ spanned::Spanned, visit::* };
 
 use super::{ dag::Var2, node::{ Binary, Node, Unary }, ssa::SSAContext };
 
-macro_rules! check_error {
-    ($self:ident) => {
-        if $self.errors.is_some() {
-            return;
-        }
-    };
-}
 pub(crate) struct Visitor<'ast> {
     pub(crate) visitor: _Visitor<'ast>,
 }
@@ -43,7 +36,7 @@ pub(crate) struct _Visitor<'ast> {
     pub(crate) variables: HashMap<syn::Ident, (bool, bool)>,
     pub(crate) next_visitor: Option<Box<_Visitor<'ast>>>,
     pub(crate) ssa_ctx: SSAContext,
-    pub(crate) errors: Option<syn::Error>,
+    pub(crate) errors: Vec<syn::Error>,
 }
 
 impl<'ast> _Visitor<'ast> {
@@ -56,7 +49,7 @@ impl<'ast> _Visitor<'ast> {
             variables: HashMap::new(),
             next_visitor: None,
             ssa_ctx: SSAContext::new(),
-            errors: None,
+            errors: vec![],
         }
     }
     #[allow(unused)]
@@ -179,14 +172,6 @@ impl<'ast> _Visitor<'ast> {
 }
 
 impl<'ast> Visit<'ast> for _Visitor<'ast> {
-    fn visit_expr(&mut self, i: &'ast syn::Expr) {
-        check_error!(self);
-        syn::visit::visit_expr(self, i);
-    }
-    fn visit_stmt(&mut self, i: &'ast syn::Stmt) {
-        check_error!(self);
-        syn::visit::visit_stmt(self, i);
-    }
     fn visit_signature(&mut self, sig: &'ast syn::Signature) {
         for arg in sig.inputs.iter() {
             if let syn::FnArg::Typed(pat_type) = arg {
@@ -353,7 +338,7 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
                                                 );
                                             }
                                             Err(error) => {
-                                                self.errors = Some(error.clone());
+                                                self.errors.push(error.clone());
                                             }
                                         }
                                         path

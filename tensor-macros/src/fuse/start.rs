@@ -10,11 +10,16 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
     // println!("func: {:#?}", func);
     let mut visitor = Visitor::new();
     visitor.visit_item_fn(&func);
-    if let Some(error) = visitor.visitor.errors {
-        return error.to_compile_error().into();
+    if !visitor.visitor.errors.is_empty() {
+        // 合并所有错误
+        let combined_error = visitor.visitor.errors.into_iter()
+            .reduce(|mut acc, e| {
+                acc.combine(e);
+                acc
+            })
+            .unwrap();
+        return combined_error.to_compile_error().into();
     }
-    // let variables = visitor.visitor.variables();
-    // println!("variables: {:#?}", variables);
     visitor.remove_unused();
     let graph = Graph::from_nodes(&visitor.visitor.nodes);
     println!("{:#?}", graph);
