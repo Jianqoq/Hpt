@@ -2,16 +2,16 @@ use std::{ cell::{ RefCell, RefMut }, collections::HashSet };
 
 use quote::ToTokens;
 
-use super::{ dag::{ Graph, Graph2, Var, Var2 }, kernel_type::KernelType, node::Node };
+use super::{ dag::{ Graph, Graph2, Var }, kernel_type::KernelType, node::Node };
 
-pub(crate) fn fuse<'ast>(candidates: &'ast Graph<'ast>) -> Vec<HashSet<Var2>> {
+pub(crate) fn fuse<'ast>(candidates: &'ast Graph<'ast>) -> Vec<HashSet<Var>> {
     let unfused = RefCell::new(candidates.to_graph2());
     let mut results = Vec::new();
     while let Some(next) = yield_candidate(unfused.borrow_mut()) {
         let mut block = HashSet::new();
         match next {
             Node::Unary(unary) => {
-                block.insert(Var2 { ident: unary.output.clone() });
+                block.insert(Var { ident: unary.output.clone() });
                 let kernel_type = KernelType::Unary;
                 for succ in children(&next, candidates) {
                     fuse_children(&succ, kernel_type, &mut block, candidates);
@@ -21,7 +21,7 @@ pub(crate) fn fuse<'ast>(candidates: &'ast Graph<'ast>) -> Vec<HashSet<Var2>> {
                 }
             }
             Node::Binary(binary) => {
-                block.insert(Var2 { ident: binary.output.clone() });
+                block.insert(Var { ident: binary.output.clone() });
                 let kernel_type = KernelType::Binary;
                 for succ in children(&next, candidates) {
                     fuse_children(&succ, kernel_type, &mut block, candidates);
@@ -31,7 +31,7 @@ pub(crate) fn fuse<'ast>(candidates: &'ast Graph<'ast>) -> Vec<HashSet<Var2>> {
                 }
             }
             Node::Input(input) => {
-                block.insert(Var2 { ident: input.ident.clone() });
+                block.insert(Var { ident: input.ident.clone() });
             }
         }
         block.iter().for_each(|node| {
@@ -69,20 +69,20 @@ pub(crate) fn yield_candidate<'a, 'ast>(
 pub fn fuse_parents<'ast>(
     pred: &Node<'ast>,
     next_kernel_type: KernelType,
-    block: &mut HashSet<Var2>,
+    block: &mut HashSet<Var>,
     graph: &'ast Graph<'ast>
 ) {
     match pred_kernel_fusable(next_kernel_type, pred) {
         Ok(Some(kernel_type)) => {
             match pred {
                 Node::Unary(unary) => {
-                    block.insert(Var2 { ident: unary.output.clone() });
+                    block.insert(Var { ident: unary.output.clone() });
                 }
                 Node::Binary(binary) => {
-                    block.insert(Var2 { ident: binary.output.clone() });
+                    block.insert(Var { ident: binary.output.clone() });
                 }
                 Node::Input(input) => {
-                    block.insert(Var2 { ident: input.ident.clone() });
+                    block.insert(Var { ident: input.ident.clone() });
                 }
             }
             for next in parents(pred, graph) {
@@ -97,20 +97,20 @@ pub fn fuse_parents<'ast>(
 pub fn fuse_children<'ast>(
     succ: &'ast Node<'ast>,
     prev_kernel_type: KernelType,
-    block: &mut HashSet<Var2>,
+    block: &mut HashSet<Var>,
     graph: &'ast Graph<'ast>
 ) {
     match suc_kernel_fusable(prev_kernel_type, succ) {
         Ok(Some(kernel_type)) => {
             match succ {
                 Node::Unary(node) => {
-                    block.insert(Var2 { ident: node.output.clone() });
+                    block.insert(Var { ident: node.output.clone() });
                 }
                 Node::Binary(node) => {
-                    block.insert(Var2 { ident: node.output.clone() });
+                    block.insert(Var { ident: node.output.clone() });
                 }
                 Node::Input(input) => {
-                    block.insert(Var2 { ident: input.ident.clone() });
+                    block.insert(Var { ident: input.ident.clone() });
                 }
             }
             for next in children(succ, graph) {
@@ -150,15 +150,15 @@ pub fn parents<'a, 'ast>(node: &Node<'ast>, graph: &'a Graph<'ast>) -> HashSet<&
     let mut parents = HashSet::new();
     match node {
         Node::Unary(unary) => {
-            if let Some(parent) = graph.map.get(&(Var { ident: &unary.operand })) {
+            if let Some(parent) = graph.map.get(&unary.operand) {
                 parents.insert(*parent);
             }
         }
         Node::Binary(binary) => {
-            if let Some(parent) = graph.map.get(&(Var { ident: &binary.left })) {
+            if let Some(parent) = graph.map.get(&binary.left) {
                 parents.insert(*parent);
             }
-            if let Some(parent) = graph.map.get(&(Var { ident: &binary.right })) {
+            if let Some(parent) = graph.map.get(&binary.right) {
                 parents.insert(*parent);
             }
         }

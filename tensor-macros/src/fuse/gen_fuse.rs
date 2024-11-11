@@ -1,14 +1,17 @@
 use std::collections::HashSet;
-use crate::{ fuse::{ dag::Var, node::Node }, TokenStream2 };
-use super::dag::{ Graph, Var2 };
+use crate::{ fuse::node::Node, TokenStream2 };
+use super::dag::{ Graph, Var };
 
-pub(crate) fn gen_fuse(graph: &Graph, groups: &Vec<HashSet<Var2>>) -> (Vec<TokenStream2>, Vec<syn::Ident>, Vec<HashSet<syn::Ident>>) {
+pub(crate) fn gen_fuse(
+    graph: &Graph,
+    groups: &Vec<HashSet<Var>>
+) -> (Vec<TokenStream2>, Vec<syn::Ident>, Vec<HashSet<syn::Ident>>) {
     let inputs_vec = groups
         .iter()
         .map(|group| {
             let mut inputs = Vec::new();
             for var in group {
-                if let Some(node) = graph.map.get(&(Var { ident: &var.ident })) {
+                if let Some(node) = graph.map.get(&var.ident) {
                     if let Node::Input(input) = node {
                         inputs.push(input.ident.clone());
                     }
@@ -47,7 +50,7 @@ pub(crate) fn gen_fuse(graph: &Graph, groups: &Vec<HashSet<Var2>>) -> (Vec<Token
     for group in groups.iter() {
         sorted_groups.push(vec![]);
         for sorted in sorteds.iter() {
-            if group.contains(&(Var2 { ident: sorted.clone() })) {
+            if group.contains(&(Var { ident: sorted.clone() })) {
                 sorted_groups.last_mut().expect("gen_fuse::last_mut").push(sorted.clone());
             }
         }
@@ -60,7 +63,7 @@ pub(crate) fn gen_fuse(graph: &Graph, groups: &Vec<HashSet<Var2>>) -> (Vec<Token
         let mut output = syn::Ident::new("__out0", proc_macro2::Span::call_site());
         let mut comp_tokens = TokenStream2::new();
         for ident in sorted {
-            if let Some(node) = graph.map.get(&(Var { ident: &ident })) {
+            if let Some(node) = graph.map.get(&ident) {
                 match node {
                     Node::Unary(unary) => {
                         comp_tokens.extend(
@@ -85,8 +88,8 @@ pub(crate) fn gen_fuse(graph: &Graph, groups: &Vec<HashSet<Var2>>) -> (Vec<Token
         comp_tokens.extend(quote::quote!(
         #output
     ));
-    fused_outs.push(output);
-    // println!("{:#?}", comp_tokens.to_string());
+        fused_outs.push(output);
+        // println!("{:#?}", comp_tokens.to_string());
         let zipped = &zipped_vec[i];
         let tuple = &tuple_vec[i];
         let fused =
@@ -101,7 +104,12 @@ pub(crate) fn gen_fuse(graph: &Graph, groups: &Vec<HashSet<Var2>>) -> (Vec<Token
 
     let inputs_vec = inputs_vec
         .iter()
-        .map(|input| input.iter().map(|i| i.clone()).collect::<HashSet<_>>())
+        .map(|input|
+            input
+                .iter()
+                .map(|i| i.clone())
+                .collect::<HashSet<_>>()
+        )
         .collect::<Vec<_>>();
 
     (fused_vec, fused_outs, inputs_vec)

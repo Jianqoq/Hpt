@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use quote::ToTokens;
 use syn::{ spanned::Spanned, visit::* };
 
-use super::{ dag::Var2, node::{ Binary, Node, Unary }, ssa::SSAContext };
+use super::{ dag::Var, node::{ Binary, Node, Unary }, ssa::SSAContext };
 
 pub(crate) struct Visitor<'ast> {
     pub(crate) visitor: _Visitor<'ast>,
@@ -183,7 +183,7 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
                         let new_name = self.ssa_ctx.fresh_name(&pat_ident.ident.to_string());
                         if is_tensor {
                             self.nodes.push(
-                                Node::Input(Var2 {
+                                Node::Input(Var {
                                     ident: syn::Ident::new(&new_name, pat_ident.ident.span()),
                                 })
                             );

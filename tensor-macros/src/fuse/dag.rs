@@ -5,28 +5,11 @@ use quote::ToTokens;
 use super::{ edges::Edges, node::Node };
 
 #[derive(Eq, Hash, PartialEq, Clone)]
-pub(crate) struct Var<'ast> {
-    pub(crate) ident: &'ast proc_macro2::Ident,
-}
-
-#[derive(Eq, Hash, PartialEq, Clone)]
-pub(crate) struct Var2 {
+pub(crate) struct Var {
     pub(crate) ident: proc_macro2::Ident,
 }
 
-impl<'ast> std::fmt::Debug for Var<'ast> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.ident.to_token_stream().to_string())
-    }
-}
-
-impl<'ast> ToTokens for Var<'ast> {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        self.ident.to_tokens(tokens);
-    }
-}
-
-impl std::fmt::Debug for Var2 {
+impl std::fmt::Debug for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.ident.to_token_stream().to_string())
     }
@@ -34,7 +17,7 @@ impl std::fmt::Debug for Var2 {
 
 #[derive(Clone)]
 pub(crate) struct Graph<'ast> {
-    pub(crate) map: HashMap<Var<'ast>, &'ast Node<'ast>>,
+    pub(crate) map: HashMap<&'ast syn::Ident, &'ast Node<'ast>>,
     pub(crate) edges: Edges<'ast>,
 }
 
@@ -50,38 +33,38 @@ impl<'ast> Graph<'ast> {
         for node in nodes {
             match node {
                 Node::Unary(unary, ..) => {
-                    map.insert(Var { ident: &unary.output }, node);
+                    map.insert(&unary.output, node);
                 }
                 Node::Binary(binary, ..) => {
-                    map.insert(Var { ident: &binary.output }, node);
+                    map.insert(&binary.output, node);
                 }
                 Node::Input(input) => {
-                    map.insert(Var { ident: &input.ident }, node);
+                    map.insert(&input.ident, node);
                 }
             }
         }
         let mut edges = HashMap::new();
-        for node_id in map.keys() {
+        for &node_id in map.keys() {
             if let Some(neighbors) = map.get(node_id) {
                 match neighbors {
                     Node::Unary(unary) => {
                         edges
-                            .entry(node_id.clone())
+                            .entry(node_id)
                             .or_insert(HashSet::new())
-                            .insert(unary.operand.clone());
+                            .insert(&unary.operand);
                     }
                     Node::Binary(binary) => {
                         edges
-                            .entry(node_id.clone())
+                            .entry(node_id)
                             .or_insert(HashSet::new())
-                            .insert(binary.left.clone());
+                            .insert(&binary.left);
                         edges
-                            .entry(node_id.clone())
+                            .entry(node_id)
                             .or_insert(HashSet::new())
-                            .insert(binary.right.clone());
+                            .insert(&binary.right);
                     }
                     Node::Input(_) => {
-                        edges.entry(node_id.clone()).or_insert(HashSet::new());
+                        edges.entry(node_id).or_insert(HashSet::new());
                     }
                 }
             }
@@ -91,8 +74,8 @@ impl<'ast> Graph<'ast> {
 
     pub(crate) fn to_graph2(&self) -> Graph2<'ast> {
         let mut map = HashMap::new();
-        for (k, v) in self.map.iter() {
-            map.insert(Var2 { ident: k.ident.clone() }, *v);
+        for (&k, v) in self.map.iter() {
+            map.insert(Var { ident: k.clone() }, *v);
         }
         Graph2 { map }
     }
@@ -109,29 +92,29 @@ impl<'ast> Graph<'ast> {
         let mut order = VecDeque::new();
         let edges = self.edges.invert();
         // calculate in degree
-        for (node_id, _) in self.map.iter() {
-            in_degree.entry(node_id.clone()).or_insert(0);
+        for (&node_id, _) in self.map.iter() {
+            in_degree.entry(node_id).or_insert(0);
             let edges = edges.get(node_id);
             if let Some(edges) = edges {
                 for target in edges {
-                    *in_degree.entry(Var { ident: target }).or_insert(0) += 1;
+                    *in_degree.entry(target).or_insert(0) += 1;
                 }
             }
         }
         // push nodes with in degree 0 to queue
-        for (node_id, &degree) in &in_degree {
+        for (&node_id, &degree) in &in_degree {
             if degree == 0 {
-                queue.push_back(node_id.ident);
+                queue.push_back(node_id);
             }
         }
         // topological sort
         while let Some(node_id) = queue.pop_front() {
             order.push_back(node_id.clone());
-            if let Some(_) = self.map.get(&(Var { ident: node_id })) {
-                let edges = edges.get(&(Var { ident: node_id }));
+            if let Some(_) = self.map.get(&node_id) {
+                let edges = edges.get(&node_id);
                 if let Some(edges) = edges {
-                    for target in edges {
-                        let degree = in_degree.get_mut(&(Var { ident: target })).expect("topological_sort::degree");
+                    for &target in edges {
+                        let degree = in_degree.get_mut(target).expect("topological_sort::degree");
                         *degree -= 1;
                         if *degree == 0 {
                             queue.push_back(target);
@@ -151,5 +134,5 @@ impl<'ast> Graph<'ast> {
 
 #[derive(Clone)]
 pub(crate) struct Graph2<'ast> {
-    pub(crate) map: HashMap<Var2, &'ast Node<'ast>>,
+    pub(crate) map: HashMap<Var, &'ast Node<'ast>>,
 }
