@@ -131,7 +131,7 @@ impl<'ast> Graph<'ast> {
                 let edges = edges.get(&(Var { ident: node_id }));
                 if let Some(edges) = edges {
                     for target in edges {
-                        let degree = in_degree.get_mut(&(Var { ident: target })).unwrap();
+                        let degree = in_degree.get_mut(&(Var { ident: target })).expect("topological_sort::degree");
                         *degree -= 1;
                         if *degree == 0 {
                             queue.push_back(target);

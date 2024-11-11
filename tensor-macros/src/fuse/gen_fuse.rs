@@ -40,7 +40,7 @@ pub(crate) fn gen_fuse(graph: &Graph, groups: &Vec<HashSet<Var2>>) -> (Vec<Token
         tuple_vec.push(tokens);
     }
 
-    let sorteds = graph.topological_sort().unwrap();
+    let sorteds = graph.topological_sort().expect("gen_fuse::topological_sort");
 
     let mut sorted_groups = Vec::new();
 
@@ -48,7 +48,7 @@ pub(crate) fn gen_fuse(graph: &Graph, groups: &Vec<HashSet<Var2>>) -> (Vec<Token
         sorted_groups.push(vec![]);
         for sorted in sorteds.iter() {
             if group.contains(&(Var2 { ident: sorted.clone() })) {
-                sorted_groups.last_mut().unwrap().push(sorted.clone());
+                sorted_groups.last_mut().expect("gen_fuse::last_mut").push(sorted.clone());
             }
         }
     }

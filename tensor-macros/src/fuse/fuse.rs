@@ -209,7 +209,7 @@ pub fn children<'a, 'ast>(node: &Node<'ast>, graph: &'a Graph<'ast>) -> HashSet<
                         Node::Unary(u) =>
                             u.operand.to_token_stream().to_string() ==
                                 input.ident.to_token_stream().to_string(),
-                        Node::Binary(bi) => &bi.left == input.ident || &bi.right == input.ident,
+                        Node::Binary(bi) => &bi.left == &input.ident || &bi.right == &input.ident,
                         Node::Input(..) => false,
                     }
                 })

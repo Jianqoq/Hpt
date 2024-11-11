@@ -1,6 +1,6 @@
 use quote::ToTokens;
 
-use super::dag::Var;
+use super::dag::Var2;
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub(crate) struct Unary<'ast> {
@@ -84,7 +84,7 @@ impl<'ast> ToTokens for Binary {
 pub(crate) enum Node<'ast> {
     Unary(Unary<'ast>),
     Binary(Binary),
-    Input(Var<'ast>),
+    Input(Var2),
 }
 
 impl<'ast> std::fmt::Debug for Node<'ast> {

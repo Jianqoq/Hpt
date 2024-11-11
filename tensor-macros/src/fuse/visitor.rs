@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use quote::ToTokens;
 use syn::{ spanned::Spanned, visit::* };
 
-use super::{ node::{ Binary, Node, Unary }, ssa::SSAContext };
+use super::{ dag::Var2, node::{ Binary, Node, Unary }, ssa::SSAContext };
 
 pub(crate) struct Visitor<'ast> {
     pub(crate) visitor: _Visitor<'ast>,
@@ -19,14 +19,18 @@ impl<'ast> Visitor<'ast> {
 }
 
 impl<'ast> Visit<'ast> for Visitor<'ast> {
-    fn visit_block(&mut self, i: &'ast syn::Block) {
-        visit_block(&mut self.visitor, i);
+    fn visit_item_fn(&mut self, node: &'ast syn::ItemFn) {
+        for it in &node.attrs {
+            self.visitor.visit_attribute(it);
+        }
+        self.visitor.visit_visibility(&node.vis);
+        self.visitor.visit_signature(&node.sig);
+        syn::visit::visit_block(&mut self.visitor, &*node.block);
     }
 }
 
 pub(crate) struct _Visitor<'ast> {
     pub(crate) nodes: Vec<Node<'ast>>,
-    pub(crate) intermidiate_var_cnt: usize,
     pub(crate) current_var: proc_macro2::Ident,
     pub(crate) current_assignment: Option<proc_macro2::Ident>,
     pub(crate) variables: HashMap<syn::Ident, (bool, bool)>,
@@ -39,7 +43,6 @@ impl<'ast> _Visitor<'ast> {
         use proc_macro2::Span;
         Self {
             nodes: vec![],
-            intermidiate_var_cnt: 0,
             current_var: proc_macro2::Ident::new("__out0", Span::call_site()),
             current_assignment: None,
             variables: HashMap::new(),
@@ -167,13 +170,52 @@ impl<'ast> _Visitor<'ast> {
 }
 
 impl<'ast> Visit<'ast> for _Visitor<'ast> {
+    fn visit_signature(&mut self, sig: &'ast syn::Signature) {
+        for arg in sig.inputs.iter() {
+            if let syn::FnArg::Typed(pat_type) = arg {
+                let string = pat_type.ty.to_token_stream().to_string();
+                let is_tensor = string.contains("Tensor") || string.contains("_Tensor");
+                match pat_type.pat.as_ref() {
+                    syn::Pat::Const(_) => unimplemented!("fuse_impl::const"),
+                    syn::Pat::Ident(pat_ident) => {
+                        let new_name = self.ssa_ctx.fresh_name(&pat_ident.ident.to_string());
+                        if is_tensor {
+                            self.nodes.push(
+                                Node::Input(Var2 {
+                                    ident: syn::Ident::new(&new_name, pat_ident.ident.span()),
+                                })
+                            );
+                        }
+                        self.declare_variable(pat_ident.ident.clone(), is_tensor);
+                    }
+                    syn::Pat::Lit(_) => unimplemented!("fuse_impl::lit"),
+                    syn::Pat::Macro(_) => unimplemented!("fuse_impl::macro"),
+                    syn::Pat::Or(_) => unimplemented!("fuse_impl::or"),
+                    syn::Pat::Paren(_) => unimplemented!("fuse_impl::paren"),
+                    syn::Pat::Path(_) => unimplemented!("fuse_impl::path"),
+                    syn::Pat::Range(_) => unimplemented!("fuse_impl::range"),
+                    syn::Pat::Reference(_) => unimplemented!("fuse_impl::reference"),
+                    syn::Pat::Rest(_) => unimplemented!("fuse_impl::rest"),
+                    syn::Pat::Slice(_) => unimplemented!("fuse_impl::slice"),
+                    syn::Pat::Struct(_) => unimplemented!("fuse_impl::struct"),
+                    syn::Pat::Tuple(_) => unimplemented!("fuse_impl::tuple"),
+                    syn::Pat::TupleStruct(_) => unimplemented!("fuse_impl::tuple_struct"),
+                    syn::Pat::Type(_) => unimplemented!("fuse_impl::type"),
+                    syn::Pat::Verbatim(_) => unimplemented!("fuse_impl::verbatim"),
+                    syn::Pat::Wild(_) => unimplemented!("fuse_impl::wild"),
+                    _ => todo!(),
+                }
+            }
+        }
+        syn::visit::visit_signature(self, sig);
+    }
+
     fn visit_local(&mut self, local: &'ast syn::Local) {
         if let Some(init) = &local.init {
             match &local.pat {
                 syn::Pat::Const(_) => todo!(),
                 syn::Pat::Ident(pat_ident) => {
                     let ssa_name = self.ssa_ctx.fresh_name(&pat_ident.ident.to_string());
-                    println!("ssa_name: {}", ssa_name);
                     self.current_assignment = Some(
                         proc_macro2::Ident::new(&ssa_name, pat_ident.ident.span())
                     );
@@ -241,12 +283,10 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
             self.current_assignment = None;
             current_assignment
         } else {
-            let out = proc_macro2::Ident::new(
-                &format!("__out{}", self.intermidiate_var_cnt),
-                node.span()
-            );
-            self.current_var = out.clone();
-            self.intermidiate_var_cnt += 1;
+            let out = self.ssa_ctx.fresh_name("__out");
+            let out = proc_macro2::Ident::new(&out, node.span());
+            self.declare_variable(out.clone(), false);
+            self.mark_used(&out);
             out
         };
         let operand = self.ssa_ctx
@@ -284,7 +324,12 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
                                                 path.segments[0].ident = syn::Ident::new(
                                                     &self.ssa_ctx
                                                         .current_name_expr(arg)
-                                                        .unwrap()
+                                                        .expect(
+                                                            format!(
+                                                                "visit_expr_method_call::current_name_expr::{}",
+                                                                arg.to_token_stream().to_string()
+                                                            ).as_str()
+                                                        )
                                                         .clone(),
                                                     expr_path.span()
                                                 );
@@ -347,11 +392,34 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
         self.current_assignment = None;
         self.mark_expr_used(&i.left);
         self.visit_expr(&i.left);
-        let left_var = self.current_var.clone();
+        let left_var = syn::Ident::new(
+            &self.ssa_ctx
+                .current_name(&self.current_var.to_string())
+                .expect(
+                    format!(
+                        "visit_expr_binary::current_name_expr::{}",
+                        self.current_var.to_string()
+                    ).as_str()
+                )
+                .clone(),
+            i.left.span()
+        );
         self.current_assignment = None;
         self.mark_expr_used(&i.right);
         self.visit_expr(&i.right);
-        let right_var = self.current_var.clone();
+        let right_var = syn::Ident::new(
+            &self.ssa_ctx
+                .current_name(&self.current_var.to_string())
+                .expect(
+                    format!(
+                        "visit_expr_binary::current_name_expr::{}",
+                        self.current_var.to_string()
+                    ).as_str()
+                )
+                .clone(),
+            i.right.span()
+        );
+        let out_is_tensor = self.is_tensor_expr(&i.left) || self.is_tensor_expr(&i.right);
         let method = match i.op {
             syn::BinOp::Add(_) => "add",
             syn::BinOp::Sub(_) => "sub",
@@ -385,14 +453,14 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
         };
         let out = if let Some(current_assignment) = current_assignment {
             self.current_assignment = None;
+            self.current_var = current_assignment.clone();
             current_assignment
         } else {
-            let out = proc_macro2::Ident::new(
-                &format!("__out{}", self.intermidiate_var_cnt),
-                i.span()
-            );
-            self.current_var = out.clone();
-            self.intermidiate_var_cnt += 1;
+            let out = self.ssa_ctx.fresh_name("__out");
+            self.current_var = proc_macro2::Ident::new("__out", i.span());
+            let out = proc_macro2::Ident::new(&out, i.span());
+            self.declare_variable(out.clone(), out_is_tensor);
+            self.mark_used(&out);
             out
         };
         self.nodes.push(
@@ -403,8 +471,6 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
                 output: out.clone(),
             })
         );
-        self.current_var = out;
-        self.intermidiate_var_cnt += 1;
     }
     fn visit_stmt_macro(&mut self, node: &'ast syn::StmtMacro) {
         for it in &node.attrs {

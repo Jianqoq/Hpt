@@ -1,6 +1,4 @@
 use std::collections::{ HashMap, HashSet };
-
-use quote::ToTokens;
 use syn::{ visit::*, visit_mut::VisitMut };
 use crate::TokenStream2;
 
@@ -23,8 +21,13 @@ impl<'ast> Codegen<'ast> {
 }
 
 impl<'ast> Visit<'ast> for Codegen<'ast> {
-    fn visit_block(&mut self, i: &'ast syn::Block) {
-        visit_block(&mut self._codegen, i);
+    fn visit_item_fn(&mut self, node: &'ast syn::ItemFn) {
+        for it in &node.attrs {
+            self._codegen.visit_attribute(it);
+        }
+        self._codegen.visit_visibility(&node.vis);
+        self._codegen.visit_signature(&node.sig);
+        syn::visit::visit_block(&mut self._codegen, &*node.block);
     }
 }
 
@@ -46,13 +49,14 @@ impl<'ast> _Codegen<'ast> {
         self.current_tokens.drain(..).collect::<TokenStream2>()
     }
 
-    fn convert_stmt_to_ssa(&self, stmt: &mut syn::Stmt) -> TokenStream2 {
+    pub(crate) fn convert_stmt_to_ssa(&self, stmt: &mut syn::Stmt) -> TokenStream2 {
         struct SSAReplacer<'a> {
             ssa_ctx: &'a SSAContext,
         }
         // println!("stmt: {:#?}", stmt);
 
         impl<'a> VisitMut for SSAReplacer<'a> {
+
             fn visit_stmt_mut(&mut self, stmt: &mut syn::Stmt) {
                 match stmt {
                     syn::Stmt::Local(local) => {
@@ -60,7 +64,9 @@ impl<'ast> _Codegen<'ast> {
                             syn::Pat::Const(_) => todo!("codegen::const"),
                             syn::Pat::Ident(pat_ident) => {
                                 let name = pat_ident.ident.to_string();
-                                let ssa_name = self.ssa_ctx.current_name(&name).unwrap();
+                                let ssa_name = self.ssa_ctx
+                                    .current_name(&name)
+                                    .expect("codegen::current_name");
                                 pat_ident.ident = syn::Ident::new(
                                     &ssa_name,
                                     pat_ident.ident.span()
@@ -135,10 +141,10 @@ impl<'ast> _Codegen<'ast> {
             }
 
             fn visit_expr_call_mut(&mut self, expr: &mut syn::ExprCall) {
-                println!("expr: {:#?}", expr);
+                // println!("expr: {:#?}", expr);
                 for mut el in syn::punctuated::Punctuated::pairs_mut(&mut expr.args) {
                     let it = el.value_mut();
-                    println!("expr: {}", it.to_token_stream().to_string());
+                    // println!("expr: {}", it.to_token_stream().to_string());
                     if let Some(current_name) = self.ssa_ctx.current_name_expr(it) {
                         if let syn::Expr::Path(path) = it {
                             path.path.segments[0].ident = syn::Ident::new(
@@ -160,9 +166,87 @@ impl<'ast> _Codegen<'ast> {
 
         quote::quote! { #stmt }
     }
+
+    pub(crate) fn convert_signature_to_ssa(&self, sig: &mut syn::Signature) {
+        struct SSAReplacer<'a> {
+            ssa_ctx: &'a SSAContext,
+        }
+        impl<'a> VisitMut for SSAReplacer<'a> {
+            fn visit_signature_mut(&mut self, sig: &mut syn::Signature) {
+                for arg in sig.inputs.iter_mut() {
+                    if let syn::FnArg::Typed(pat_type) = arg {
+                        match pat_type.pat.as_mut() {
+                            syn::Pat::Const(_) => unimplemented!("fuse_impl::const"),
+                            syn::Pat::Ident(pat_ident) => {
+                                if
+                                    let Some(current_name) = self.ssa_ctx.current_name(
+                                        &pat_ident.ident.to_string()
+                                    )
+                                {
+                                    pat_ident.ident = syn::Ident::new(
+                                        current_name,
+                                        pat_ident.ident.span()
+                                    );
+                                }
+                            }
+                            syn::Pat::Lit(_) => unimplemented!("fuse_impl::lit"),
+                            syn::Pat::Macro(_) => unimplemented!("fuse_impl::macro"),
+                            syn::Pat::Or(_) => unimplemented!("fuse_impl::or"),
+                            syn::Pat::Paren(_) => unimplemented!("fuse_impl::paren"),
+                            syn::Pat::Path(_) => unimplemented!("fuse_impl::path"),
+                            syn::Pat::Range(_) => unimplemented!("fuse_impl::range"),
+                            syn::Pat::Reference(_) => unimplemented!("fuse_impl::reference"),
+                            syn::Pat::Rest(_) => unimplemented!("fuse_impl::rest"),
+                            syn::Pat::Slice(_) => unimplemented!("fuse_impl::slice"),
+                            syn::Pat::Struct(_) => unimplemented!("fuse_impl::struct"),
+                            syn::Pat::Tuple(_) => unimplemented!("fuse_impl::tuple"),
+                            syn::Pat::TupleStruct(_) => unimplemented!("fuse_impl::tuple_struct"),
+                            syn::Pat::Type(_) => unimplemented!("fuse_impl::type"),
+                            syn::Pat::Verbatim(_) => unimplemented!("fuse_impl::verbatim"),
+                            syn::Pat::Wild(_) => unimplemented!("fuse_impl::wild"),
+                            _ => todo!(),
+                        }
+                    }
+                }
+                syn::visit_mut::visit_signature_mut(self, sig);
+            }
+        }
+        let mut replacer = SSAReplacer { ssa_ctx: &self.ssa_ctx };
+        replacer.visit_signature_mut(sig);
+    }
 }
 
 impl<'ast> Visit<'ast> for _Codegen<'ast> {
+    fn visit_signature(&mut self, sig: &'ast syn::Signature) {
+        for arg in sig.inputs.iter() {
+            if let syn::FnArg::Typed(pat_type) = arg {
+                match pat_type.pat.as_ref() {
+                    syn::Pat::Const(_) => unimplemented!("fuse_impl::const"),
+                    syn::Pat::Ident(pat_ident) => {
+                        self.ssa_ctx.fresh_name(&pat_ident.ident.to_string());
+                    }
+                    syn::Pat::Lit(_) => unimplemented!("fuse_impl::lit"),
+                    syn::Pat::Macro(_) => unimplemented!("fuse_impl::macro"),
+                    syn::Pat::Or(_) => unimplemented!("fuse_impl::or"),
+                    syn::Pat::Paren(_) => unimplemented!("fuse_impl::paren"),
+                    syn::Pat::Path(_) => unimplemented!("fuse_impl::path"),
+                    syn::Pat::Range(_) => unimplemented!("fuse_impl::range"),
+                    syn::Pat::Reference(_) => unimplemented!("fuse_impl::reference"),
+                    syn::Pat::Rest(_) => unimplemented!("fuse_impl::rest"),
+                    syn::Pat::Slice(_) => unimplemented!("fuse_impl::slice"),
+                    syn::Pat::Struct(_) => unimplemented!("fuse_impl::struct"),
+                    syn::Pat::Tuple(_) => unimplemented!("fuse_impl::tuple"),
+                    syn::Pat::TupleStruct(_) => unimplemented!("fuse_impl::tuple_struct"),
+                    syn::Pat::Type(_) => unimplemented!("fuse_impl::type"),
+                    syn::Pat::Verbatim(_) => unimplemented!("fuse_impl::verbatim"),
+                    syn::Pat::Wild(_) => unimplemented!("fuse_impl::wild"),
+                    _ => todo!(),
+                }
+            }
+        }
+        syn::visit::visit_signature(self, sig);
+    }
+
     fn visit_stmt(&mut self, stmt: &'ast syn::Stmt) {
         match stmt {
             syn::Stmt::Local(local) => {

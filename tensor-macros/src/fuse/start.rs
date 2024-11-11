@@ -1,35 +1,14 @@
 use std::collections::{ HashMap, HashSet };
 
 use crate::fuse::{ codegen::{ Codegen, _Codegen }, ssa::SSAContext, visitor::Visitor };
-use quote::ToTokens;
 use syn::visit::Visit;
 
 use crate::fuse::{ dag::Graph, fuse::fuse, gen_fuse::gen_fuse };
-
-use super::{ dag::Var, node::Node };
 
 pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let func = syn::parse_macro_input!(item as syn::ItemFn);
     // println!("func: {:#?}", func);
     let mut visitor = Visitor::new();
-    for arg in func.sig.inputs.iter() {
-        if let syn::FnArg::Typed(pat_type) = arg {
-            let string = pat_type.ty.to_token_stream().to_string();
-            if string.contains("Tensor") || string.contains("_Tensor") {
-                let ident = if let syn::Pat::Ident(ident) = &pat_type.pat.as_ref() {
-                    &ident.ident
-                } else {
-                    panic!("not an ident")
-                };
-                visitor.visitor.nodes.push(
-                    Node::Input(Var {
-                        ident,
-                    })
-                );
-                visitor.visitor.declare_variable(ident.clone(), true);
-            }
-        }
-    }
     visitor.visit_item_fn(&func);
     // let variables = visitor.visitor.variables();
     // println!("variables: {:#?}", variables);
@@ -100,7 +79,8 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
     println!("code: {:#?}", code.to_string());
 
     let vis = func.vis.clone();
-    let sig = func.sig.clone();
+    let mut sig = func.sig.clone();
+    codegen._codegen.convert_signature_to_ssa(&mut sig);
     let ret = quote::quote!(
         #vis #sig {
             #code
