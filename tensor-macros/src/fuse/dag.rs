@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{ HashMap, HashSet, VecDeque };
 
-use super::{edges::Edges, node::Node, visitor::_Visitor};
+use super::{ edges::Edges, node::Node, visitor::_Visitor };
 
 #[derive(Debug)]
 pub(crate) struct Graph<'ast> {
@@ -33,10 +33,15 @@ impl<'ast> std::fmt::Debug for _Graph<'ast> {
                 f.write_str(&format!("{}", self.0.to_string()))
             }
         }
-        let map = self.map.iter().map(|(ident, node)| {
-            (Var(ident), node)
-        }).collect::<HashMap<_, _>>();
-        f.debug_struct("Graph").field("map", &map).finish()
+        let map = self.map
+            .iter()
+            .map(|(ident, node)| { (Var(ident), node) })
+            .collect::<HashMap<_, _>>();
+        if let Some(next_graph) = &self.next_graph {
+            f.debug_struct("Graph").field("map", &map).field("next_graph", &next_graph).finish()
+        } else {
+            f.debug_struct("Graph").field("map", &map).finish()
+        }
     }
 }
 
@@ -61,20 +66,11 @@ impl<'ast> _Graph<'ast> {
             if let Some(neighbors) = map.get(node_id) {
                 match neighbors {
                     Node::Unary(unary) => {
-                        edges
-                            .entry(node_id)
-                            .or_insert(HashSet::new())
-                            .insert(&unary.operand);
+                        edges.entry(node_id).or_insert(HashSet::new()).insert(&unary.operand);
                     }
                     Node::Binary(binary) => {
-                        edges
-                            .entry(node_id)
-                            .or_insert(HashSet::new())
-                            .insert(&binary.left);
-                        edges
-                            .entry(node_id)
-                            .or_insert(HashSet::new())
-                            .insert(&binary.right);
+                        edges.entry(node_id).or_insert(HashSet::new()).insert(&binary.left);
+                        edges.entry(node_id).or_insert(HashSet::new()).insert(&binary.right);
                     }
                     Node::Input(_) => {
                         edges.entry(node_id).or_insert(HashSet::new());

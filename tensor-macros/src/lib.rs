@@ -57,6 +57,7 @@ mod fuse {
     pub(crate) mod codegen;
     pub(crate) mod ssa;
     pub(crate) mod rcmut;
+    pub(crate) mod to_remove;
 }
 
 use crate::simd_cmp::impl_simd_cmp;

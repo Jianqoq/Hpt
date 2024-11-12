@@ -2,19 +2,18 @@ use std::{ cell::{ RefCell, RefMut }, collections::HashSet };
 
 use quote::ToTokens;
 
-use super::{ dag::{ Graph, Graph2, _Graph}, kernel_type::KernelType, node::Node };
+use super::{ dag::{ Graph, Graph2, _Graph }, kernel_type::KernelType, node::Node };
 
 pub(crate) struct FusionGroup {
     pub(crate) vars: Vec<HashSet<syn::Ident>>,
-    pub(crate) _next_group: Option<Box<FusionGroup>>
+    pub(crate) _next_group: Option<Box<FusionGroup>>,
 }
 
-pub(crate) fn fuse_graph<'ast>(candidates: &'ast Graph<'ast>) -> FusionGroup {
-    
-    todo!()
+pub(crate) fn fuse_graph<'ast>(graph: &'ast Graph<'ast>) -> FusionGroup {
+    fuse(&graph._graph)
 }
 
-pub(crate) fn fuse<'ast>(candidates: &'ast _Graph<'ast>) -> Vec<HashSet<syn::Ident>> {
+pub(crate) fn fuse<'ast>(candidates: &'ast _Graph<'ast>) -> FusionGroup {
     let unfused = RefCell::new(candidates.to_graph2());
     let mut results = Vec::new();
     while let Some(next) = yield_candidate(unfused.borrow_mut()) {
@@ -49,7 +48,15 @@ pub(crate) fn fuse<'ast>(candidates: &'ast _Graph<'ast>) -> Vec<HashSet<syn::Ide
         });
         results.push(block);
     }
-    results
+    println!("results: {:#?}", results);
+    let mut ret = FusionGroup {
+        vars: results,
+        _next_group: None,
+    };
+    if let Some(next_graph) = &candidates.next_graph {
+        ret._next_group = Some(Box::new(fuse(&next_graph)));
+    }
+    ret
 }
 
 pub(crate) fn yield_candidate<'a, 'ast>(
@@ -203,8 +210,7 @@ pub fn children<'a, 'ast>(node: &Node<'ast>, graph: &'a _Graph<'ast>) -> HashSet
                         Node::Unary(u) =>
                             u.operand.to_token_stream().to_string() ==
                                 binary.output.to_token_stream().to_string(),
-                        Node::Binary(bi) =>
-                            bi.left == binary.output || bi.right == binary.output,
+                        Node::Binary(bi) => bi.left == binary.output || bi.right == binary.output,
                         Node::Input(..) => false,
                     }
                 })

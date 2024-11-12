@@ -1,9 +1,14 @@
-use std::collections::{ HashMap, HashSet };
-
-use crate::fuse::{ codegen::{ Codegen, _Codegen }, dag::Graph, rcmut::RCMut, ssa::SSAContext, visitor::Visitor };
+use crate::fuse::{
+    codegen::{ Codegen, _Codegen },
+    dag::Graph,
+    fuse::fuse_graph,
+    gen_fuse::gen_fuse,
+    rcmut::RCMut,
+    ssa::SSAContext,
+    to_remove::gen_to_remove,
+    visitor::Visitor,
+};
 use syn::visit::Visit;
-
-use crate::fuse::{ dag::_Graph, fuse::fuse, gen_fuse::gen_fuse };
 
 pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let func = syn::parse_macro_input!(item as syn::ItemFn);
@@ -11,7 +16,8 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
     visitor.visit_item_fn(&func);
     if !visitor.visitor.errors.is_empty() {
         // 合并所有错误
-        let combined_error = visitor.visitor.errors.into_iter()
+        let combined_error = visitor.visitor.errors
+            .into_iter()
             .reduce(|mut acc, e| {
                 acc.combine(e);
                 acc
@@ -21,63 +27,17 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
     }
     visitor.remove_unused();
     let graph = Graph::from_visitor(&visitor.visitor);
-    println!("{:#?}", graph);
-    let fused = fuse(&graph);
-    println!("fused: {:#?}", fused);
-    let (fused_codes, fused_outs, fused_inputs) = gen_fuse(&graph, &fused);
-    let mut to_remove = vec![];
-    // for ((code, input), out) in fused_codes.iter().zip(fused_inputs.iter()).zip(fused_outs.iter()) {
-    //     println!(
-    //         "input: {:#?}",
-    //         input
-    //             .iter()
-    //             .map(|i| i.to_string())
-    //             .collect::<Vec<String>>()
-    //     );
-    //     println!("code: {:#?}", code.to_string());
-    //     println!("out: {:#?}", out.to_string());
-    // }
+    let fused = fuse_graph(&graph);
+    let gen_fuse = gen_fuse(&graph._graph, &fused);
+    let to_remove = gen_to_remove(&gen_fuse, &fused);
 
-    for ((input, total), out) in fused_inputs.iter().zip(fused.iter()).zip(fused_outs.iter()) {
-        let mut intermediate = total
-            .iter()
-            .map(|i| i.clone())
-            .collect::<HashSet<_>>();
-        for input in input {
-            intermediate.remove(input);
-        }
-        intermediate.remove(out);
-        to_remove.push(intermediate);
-    }
-
-    let mut codes = HashMap::new();
-    for (i, code) in fused_codes.iter().enumerate() {
-        let out = &fused_outs[i];
-        codes.insert(out.clone(), quote::quote!(
-                #out = #code;
-            ));
-    }
-    // println!(
-    //     "intermediates: {:#?}",
-    //     to_remove
-    //         .iter()
-    //         .map(|i|
-    //             i
-    //                 .iter()
-    //                 .map(|i| i.to_string())
-    //                 .collect::<Vec<String>>()
-    //         )
-    //         .collect::<Vec<Vec<String>>>()
-    // );
-    // println!("fused_outs: {:#?}", fused_outs);
-    let box_visitor = Box::new(visitor.visitor);
     let mut codegen = Codegen {
         _codegen: _Codegen {
-            fused_codes: &codes,
+            fused_codes: &gen_fuse,
             to_remove: &to_remove,
             current_tokens: Vec::new(),
             ssa_ctx: RCMut::new(SSAContext::new()),
-            _visitor: Some(&box_visitor),
+            _visitor: &visitor.visitor,
             next_codegen: None,
             pat_ident_need_remove: false,
             pat_ident_is_ret: false,

@@ -31,14 +31,18 @@ impl<'ast> ToTokens for Unary<'ast> {
         let operand = proc_macro2::Ident::new(&format!("{}", self.operand), self.operand.span());
         let output = proc_macro2::Ident::new(&format!("{}", self.output), self.output.span());
         if self.args.is_empty() {
-            tokens.extend(quote::quote!(
+            tokens.extend(
+                quote::quote!(
                 let #output = #operand.#method();
-            ));
+            )
+            );
         } else {
             let args = self.args.iter();
-            tokens.extend(quote::quote!(
+            tokens.extend(
+                quote::quote!(
                 let #output = #operand.#method(#(#args),*);
-            ));
+            )
+            );
         }
     }
 }
@@ -90,7 +94,7 @@ impl<'ast> std::fmt::Debug for Node<'ast> {
         match self {
             Node::Unary(unary, ..) => write!(f, "{:#?}", unary),
             Node::Binary(binary, ..) => write!(f, "{:#?}", binary),
-            Node::Input(input) => write!(f, "{:#?}", input),
+            Node::Input(input) => write!(f, "{}", input.to_string()),
         }
     }
 }

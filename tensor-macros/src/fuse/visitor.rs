@@ -5,6 +5,12 @@ use syn::{ spanned::Spanned, visit::* };
 
 use super::{ node::{ Binary, Node, Unary }, rcmut::RCMut, ssa::SSAContext };
 
+#[derive(Clone)]
+pub(crate) struct Variables {
+    pub(crate) vars: HashMap<syn::Ident, (bool, bool)>,
+    pub(crate) prev_vars: Option<RCMut<Variables>>,
+}
+
 pub(crate) struct Visitor<'ast> {
     pub(crate) visitor: _Visitor<'ast>,
 }
@@ -33,7 +39,7 @@ pub(crate) struct _Visitor<'ast> {
     pub(crate) nodes: Vec<Node<'ast>>,
     pub(crate) current_var: proc_macro2::Ident,
     pub(crate) current_assignment: Option<proc_macro2::Ident>,
-    pub(crate) variables: HashMap<syn::Ident, (bool, bool)>,
+    pub(crate) variables: RCMut<Variables>,
     pub(crate) next_visitor: Option<Box<_Visitor<'ast>>>,
     pub(crate) ssa_ctx: RCMut<SSAContext>,
     pub(crate) errors: Vec<syn::Error>,
@@ -46,22 +52,29 @@ impl<'ast> _Visitor<'ast> {
             nodes: vec![],
             current_var: proc_macro2::Ident::new("__out0", Span::call_site()),
             current_assignment: None,
-            variables: HashMap::new(),
+            variables: RCMut::new(Variables {
+                vars: HashMap::new(),
+                prev_vars: None,
+            }),
             next_visitor: None,
             ssa_ctx: RCMut::new(SSAContext::new()),
             errors: vec![],
         }
     }
-    #[allow(unused)]
-    pub(crate) fn variables(&self) -> &HashMap<syn::Ident, (bool, bool)> {
-        &self.variables
-    }
     pub(crate) fn declare_variable(&mut self, ident: syn::Ident, is_tensor: bool) {
-        self.variables.insert(ident, (false, is_tensor));
+        self.variables.borrow_mut().vars.insert(ident, (false, is_tensor));
     }
     pub(crate) fn mark_used(&mut self, name: &syn::Ident) {
-        if let Some((usage, _)) = self.variables.get_mut(name) {
-            *usage = true;
+        let mut prev_vars = Some(self.variables.clone());
+        let mut updated = false;
+        while !updated {
+            if let Some(prev) = prev_vars {
+                if let Some((usage, _)) = prev.borrow_mut().vars.get_mut(name) {
+                    *usage = true;
+                    updated = true;
+                }
+                prev_vars = prev.borrow().prev_vars.clone();
+            }
         }
     }
     pub(crate) fn mark_path_used(&mut self, path: &syn::Path) {
@@ -83,7 +96,7 @@ impl<'ast> _Visitor<'ast> {
     }
     pub(crate) fn get_unused_vars(&self) -> Vec<syn::Ident> {
         let mut unused = Vec::new();
-        for (ident, (usage, _)) in &self.variables {
+        for (ident, (usage, _)) in self.variables.borrow().vars.iter() {
             if !*usage {
                 unused.push(ident.clone());
             }
@@ -151,10 +164,19 @@ impl<'ast> _Visitor<'ast> {
             }
             syn::Expr::Path(path) => {
                 if let Some(ident) = path.path.get_ident() {
-                    self.variables
-                        .get(ident)
+                    let mut current_scope = self.variables
+                        .borrow()
+                        .vars.get(ident)
                         .map(|(_, is_tensor)| *is_tensor)
-                        .unwrap_or(false)
+                        .unwrap_or(false);
+                    let mut prev_vars = Some(self.variables.clone());
+                    while let Some(prev) = prev_vars {
+                        if let Some((_, is_tensor)) = prev.borrow().vars.get(ident) {
+                            current_scope |= *is_tensor;
+                        }
+                        prev_vars = prev.borrow().prev_vars.clone();
+                    }
+                    current_scope
                 } else {
                     false
                 }
@@ -295,6 +317,7 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
     }
     fn visit_block(&mut self, i: &'ast syn::Block) {
         let mut next_visitor = _Visitor::new();
+        next_visitor.variables.borrow_mut().prev_vars = Some(self.variables.clone());
         next_visitor.ssa_ctx.borrow_mut().prev_ssa_ctx = Some(self.ssa_ctx.clone());
         visit_block(&mut next_visitor, i);
         self.next_visitor = Some(Box::new(next_visitor));
@@ -422,7 +445,28 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
                 .clone(),
             i.left.span()
         );
-        self.current_assignment = None;
+        if !self.variables.borrow().vars.contains_key(&self.current_var) {
+            let current_var = self.current_var.clone();
+            self.declare_variable(current_var.clone(), self.is_tensor_expr(&i.left));
+            self.mark_used(&current_var);
+            let ssa_name = self.ssa_ctx
+                .borrow_mut()
+                .current_name(&current_var.to_string())
+                .expect("not found")
+                .clone();
+            let ssa_ident = syn::Ident::new(&ssa_name, i.right.span());
+            let contains = self.nodes.iter().any(|node| {
+                match node {
+                    Node::Input(ident) => ident == &ssa_ident,
+                    Node::Binary(binary) => binary.output == ssa_ident,
+                    Node::Unary(unary) => unary.output == ssa_ident,
+                }
+            });
+            if !contains {
+                let node = Node::Input(ssa_ident);
+                self.nodes.push(node);
+            }
+        }
         self.mark_expr_used(&i.right);
         self.visit_expr(&i.right);
         let right_var = syn::Ident::new(
@@ -438,6 +482,28 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
                 .clone(),
             i.right.span()
         );
+        if !self.variables.borrow().vars.contains_key(&self.current_var) {
+            let current_var = self.current_var.clone();
+            self.declare_variable(current_var.clone(), self.is_tensor_expr(&i.left));
+            self.mark_used(&current_var);
+            let ssa_name = self.ssa_ctx
+                .borrow_mut()
+                .current_name(&current_var.to_string())
+                .expect("not found")
+                .clone();
+            let ssa_ident = syn::Ident::new(&ssa_name, i.right.span());
+            let contains = self.nodes.iter().any(|node| {
+                match node {
+                    Node::Input(ident) => ident == &ssa_ident,
+                    Node::Binary(binary) => binary.output == ssa_ident,
+                    Node::Unary(unary) => unary.output == ssa_ident,
+                }
+            });
+            if !contains {
+                let node = Node::Input(ssa_ident);
+                self.nodes.push(node);
+            }
+        }
         let out_is_tensor = self.is_tensor_expr(&i.left) || self.is_tensor_expr(&i.right);
         let method = match i.op {
             syn::BinOp::Add(_) => "add",

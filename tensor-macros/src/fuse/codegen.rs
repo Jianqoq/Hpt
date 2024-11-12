@@ -1,9 +1,14 @@
-use std::collections::{ HashMap, HashSet };
 use quote::ToTokens;
 use syn::visit::*;
 use crate::TokenStream2;
 
-use super::{ rcmut::RCMut, ssa::SSAContext, visitor::_Visitor };
+use super::{
+    gen_fuse::GenFuse,
+    rcmut::RCMut,
+    ssa::SSAContext,
+    to_remove::ToRemove,
+    visitor::_Visitor,
+};
 
 pub(crate) struct Codegen<'ast> {
     pub(crate) _codegen: _Codegen<'ast>,
@@ -36,11 +41,11 @@ impl<'ast> Visit<'ast> for Codegen<'ast> {
 }
 
 pub(crate) struct _Codegen<'ast> {
-    pub(crate) fused_codes: &'ast HashMap<syn::Ident, TokenStream2>,
-    pub(crate) to_remove: &'ast Vec<HashSet<syn::Ident>>,
+    pub(crate) fused_codes: &'ast GenFuse,
+    pub(crate) to_remove: &'ast ToRemove,
     pub(crate) current_tokens: Vec<TokenStream2>,
     pub(crate) ssa_ctx: RCMut<SSAContext>,
-    pub(crate) _visitor: Option<&'ast Box<_Visitor<'ast>>>,
+    pub(crate) _visitor: &'ast _Visitor<'ast>,
     pub(crate) next_codegen: Option<Box<_Codegen<'ast>>>,
     pub(crate) pat_ident_need_remove: bool,
     pub(crate) pat_ident_is_ret: bool,
@@ -870,25 +875,26 @@ impl<'ast> Visit<'ast> for _Codegen<'ast> {
     }
 
     fn visit_block(&mut self, block: &'ast syn::Block) {
-        let mut new_codegen = _Codegen {
-            fused_codes: self.fused_codes,
-            to_remove: self.to_remove,
-            current_tokens: Vec::new(),
-            ssa_ctx: RCMut::new(SSAContext::new()),
-            _visitor: if let Some(visitor) = self._visitor {
-                visitor.next_visitor.as_ref()
-            } else {
-                None
-            },
-            next_codegen: None,
-            pat_ident_need_remove: false,
-            pat_ident_is_ret: false,
-        };
-        new_codegen.ssa_ctx.borrow_mut().prev_ssa_ctx = Some(self.ssa_ctx.clone());
-        syn::visit::visit_block(&mut new_codegen, block);
-        let code = new_codegen.current_tokens.drain(..).collect::<TokenStream2>();
-        self.current_tokens.push(quote::quote! {{#code}});
-        self.next_codegen = Some(Box::new(new_codegen));
+        match (&self.fused_codes.next_gen_fuse, &self.to_remove.next, &self._visitor.next_visitor) {
+            (Some(fused_codes), Some(to_remove), Some(_visitor)) => {
+                let mut new_codegen = _Codegen {
+                    fused_codes,
+                    to_remove,
+                    current_tokens: Vec::new(),
+                    ssa_ctx: RCMut::new(SSAContext::new()),
+                    _visitor,
+                    next_codegen: None,
+                    pat_ident_need_remove: false,
+                    pat_ident_is_ret: false,
+                };
+                new_codegen.ssa_ctx.borrow_mut().prev_ssa_ctx = Some(self.ssa_ctx.clone());
+                syn::visit::visit_block(&mut new_codegen, block);
+                let code = new_codegen.current_tokens.drain(..).collect::<TokenStream2>();
+                self.current_tokens.push(quote::quote! { {#code} });
+                self.next_codegen = Some(Box::new(new_codegen));
+            }
+            _ => {}
+        }
     }
 
     fn visit_local(&mut self, node: &'ast syn::Local) {
@@ -923,9 +929,9 @@ impl<'ast> Visit<'ast> for _Codegen<'ast> {
             &self.ssa_ctx.borrow_mut().fresh_name(&name),
             node.ident.span()
         );
-        if !self.to_remove.iter().any(|set| set.contains(&ssa_name)) {
-            if self.fused_codes.contains_key(&ssa_name) {
-                self.push_tokens(self.fused_codes[&ssa_name].clone());
+        if !self.to_remove.to_remove.iter().any(|set| set.contains(&ssa_name)) {
+            if self.fused_codes.codes.contains_key(&ssa_name) {
+                self.push_tokens(self.fused_codes.codes[&ssa_name].clone());
                 self.pat_ident_is_ret = true;
             } else {
                 self.push_tokens(ssa_name.to_token_stream());

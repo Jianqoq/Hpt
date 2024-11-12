@@ -48,7 +48,6 @@ impl SSAContext {
     }
 
     pub(crate) fn current_name(&self, base_name: &str) -> Option<String> {
-        // println!("current_name: {:#?}", self.current_names);
         if let Some(name) = self.current_names.get(base_name) {
             Some(name.clone())
         } else if let Some(prev_ssa_ctx) = &self.prev_ssa_ctx {

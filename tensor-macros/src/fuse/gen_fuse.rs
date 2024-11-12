@@ -1,8 +1,35 @@
-use std::collections::HashSet;
+use std::collections::{ HashMap, HashSet };
 use crate::{ fuse::node::Node, TokenStream2 };
-use super::dag::_Graph;
+use super::{ dag::_Graph, fuse::FusionGroup };
 
-pub(crate) fn gen_fuse(
+pub(crate) struct GenFuse {
+    pub(crate) fused_outs: Vec<syn::Ident>,
+    pub(crate) fused_inputs: Vec<HashSet<syn::Ident>>,
+    pub(crate) codes: HashMap<syn::Ident, TokenStream2>,
+    pub(crate) next_gen_fuse: Option<Box<GenFuse>>,
+}
+
+pub(crate) fn gen_fuse(graph: &_Graph, groups: &FusionGroup) -> GenFuse {
+    let (fused_codes, fused_outs, fused_inputs) = _gen_fuse(&graph, &groups.vars);
+    let mut codes = HashMap::new();
+    for (i, code) in fused_codes.iter().enumerate() {
+        let out = &fused_outs[i];
+        codes.insert(out.clone(), quote::quote!(
+                #out = #code;
+            ));
+    }
+    let mut ret = GenFuse { fused_outs, fused_inputs, next_gen_fuse: None, codes };
+    match (&graph.next_graph, &groups._next_group) {
+        (Some(next_graph), Some(next_group)) => {
+            let next_gen_fuse = Some(Box::new(gen_fuse(&next_graph, &next_group)));
+            ret.next_gen_fuse = next_gen_fuse;
+        }
+        _ => {}
+    }
+    ret
+}
+
+pub(crate) fn _gen_fuse(
     graph: &_Graph,
     groups: &Vec<HashSet<syn::Ident>>
 ) -> (Vec<TokenStream2>, Vec<syn::Ident>, Vec<HashSet<syn::Ident>>) {
