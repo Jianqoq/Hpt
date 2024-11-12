@@ -1,9 +1,9 @@
 use std::collections::{ HashMap, HashSet };
 
-use crate::fuse::{ codegen::{ Codegen, _Codegen }, rcmut::RCMut, ssa::SSAContext, visitor::Visitor };
+use crate::fuse::{ codegen::{ Codegen, _Codegen }, dag::Graph, rcmut::RCMut, ssa::SSAContext, visitor::Visitor };
 use syn::visit::Visit;
 
-use crate::fuse::{ dag::Graph, fuse::fuse, gen_fuse::gen_fuse };
+use crate::fuse::{ dag::_Graph, fuse::fuse, gen_fuse::gen_fuse };
 
 pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let func = syn::parse_macro_input!(item as syn::ItemFn);
@@ -20,7 +20,7 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
         return combined_error.to_compile_error().into();
     }
     visitor.remove_unused();
-    let graph = Graph::from_nodes(&visitor.visitor.nodes);
+    let graph = Graph::from_visitor(&visitor.visitor);
     println!("{:#?}", graph);
     let fused = fuse(&graph);
     println!("fused: {:#?}", fused);

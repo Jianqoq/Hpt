@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 use crate::{ fuse::node::Node, TokenStream2 };
-use super::dag::Graph;
+use super::dag::_Graph;
 
 pub(crate) fn gen_fuse(
-    graph: &Graph,
+    graph: &_Graph,
     groups: &Vec<HashSet<syn::Ident>>
 ) -> (Vec<TokenStream2>, Vec<syn::Ident>, Vec<HashSet<syn::Ident>>) {
     let inputs_vec = groups

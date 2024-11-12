@@ -2,9 +2,19 @@ use std::{ cell::{ RefCell, RefMut }, collections::HashSet };
 
 use quote::ToTokens;
 
-use super::{ dag::{ Graph, Graph2}, kernel_type::KernelType, node::Node };
+use super::{ dag::{ Graph, Graph2, _Graph}, kernel_type::KernelType, node::Node };
 
-pub(crate) fn fuse<'ast>(candidates: &'ast Graph<'ast>) -> Vec<HashSet<syn::Ident>> {
+pub(crate) struct FusionGroup {
+    pub(crate) vars: Vec<HashSet<syn::Ident>>,
+    pub(crate) _next_group: Option<Box<FusionGroup>>
+}
+
+pub(crate) fn fuse_graph<'ast>(candidates: &'ast Graph<'ast>) -> FusionGroup {
+    
+    todo!()
+}
+
+pub(crate) fn fuse<'ast>(candidates: &'ast _Graph<'ast>) -> Vec<HashSet<syn::Ident>> {
     let unfused = RefCell::new(candidates.to_graph2());
     let mut results = Vec::new();
     while let Some(next) = yield_candidate(unfused.borrow_mut()) {
@@ -70,7 +80,7 @@ pub fn fuse_parents<'ast>(
     pred: &Node<'ast>,
     next_kernel_type: KernelType,
     block: &mut HashSet<syn::Ident>,
-    graph: &'ast Graph<'ast>
+    graph: &'ast _Graph<'ast>
 ) {
     match pred_kernel_fusable(next_kernel_type, pred) {
         Ok(Some(kernel_type)) => {
@@ -98,7 +108,7 @@ pub fn fuse_children<'ast>(
     succ: &'ast Node<'ast>,
     prev_kernel_type: KernelType,
     block: &mut HashSet<syn::Ident>,
-    graph: &'ast Graph<'ast>
+    graph: &'ast _Graph<'ast>
 ) {
     match suc_kernel_fusable(prev_kernel_type, succ) {
         Ok(Some(kernel_type)) => {
@@ -146,7 +156,7 @@ pub fn suc_kernel_fusable<'ast>(
     Ok(kernel_type.infer_suc_kernel(&next_kernel_type))
 }
 
-pub fn parents<'a, 'ast>(node: &Node<'ast>, graph: &'a Graph<'ast>) -> HashSet<&'a Node<'ast>> {
+pub fn parents<'a, 'ast>(node: &Node<'ast>, graph: &'a _Graph<'ast>) -> HashSet<&'a Node<'ast>> {
     let mut parents = HashSet::new();
     match node {
         Node::Unary(unary) => {
@@ -167,7 +177,7 @@ pub fn parents<'a, 'ast>(node: &Node<'ast>, graph: &'a Graph<'ast>) -> HashSet<&
     parents
 }
 
-pub fn children<'a, 'ast>(node: &Node<'ast>, graph: &'a Graph<'ast>) -> HashSet<&'a Node<'ast>> {
+pub fn children<'a, 'ast>(node: &Node<'ast>, graph: &'a _Graph<'ast>) -> HashSet<&'a Node<'ast>> {
     match node {
         Node::Unary(unary) => {
             graph.map

@@ -1,20 +1,46 @@
-use std::collections::{ HashMap, HashSet, VecDeque };
+use std::collections::{HashMap, HashSet, VecDeque};
 
-use super::{ edges::Edges, node::Node };
+use super::{edges::Edges, node::Node, visitor::_Visitor};
 
-#[derive(Clone)]
+#[derive(Debug)]
 pub(crate) struct Graph<'ast> {
-    pub(crate) map: HashMap<&'ast syn::Ident, &'ast Node<'ast>>,
-    pub(crate) edges: Edges<'ast>,
-}
-
-impl<'ast> std::fmt::Debug for Graph<'ast> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Graph").field("map", &self.map).finish()
-    }
+    pub(crate) _graph: _Graph<'ast>,
 }
 
 impl<'ast> Graph<'ast> {
+    pub(crate) fn from_visitor(visitor: &'ast _Visitor<'ast>) -> Self {
+        let mut _graph = _Graph::from_nodes(&visitor.nodes);
+        if let Some(next_visitor) = &visitor.next_visitor {
+            _graph.next_graph = Some(Box::new(Graph::from_visitor(&next_visitor)._graph));
+        }
+        Self { _graph }
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct _Graph<'ast> {
+    pub(crate) map: HashMap<&'ast syn::Ident, &'ast Node<'ast>>,
+    pub(crate) edges: Edges<'ast>,
+    pub(crate) next_graph: Option<Box<_Graph<'ast>>>,
+}
+
+impl<'ast> std::fmt::Debug for _Graph<'ast> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        #[derive(Eq, PartialEq, Hash)]
+        struct Var<'ast>(&'ast syn::Ident);
+        impl<'ast> std::fmt::Debug for Var<'ast> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str(&format!("{}", self.0.to_string()))
+            }
+        }
+        let map = self.map.iter().map(|(ident, node)| {
+            (Var(ident), node)
+        }).collect::<HashMap<_, _>>();
+        f.debug_struct("Graph").field("map", &map).finish()
+    }
+}
+
+impl<'ast> _Graph<'ast> {
     pub(crate) fn from_nodes(nodes: &'ast Vec<Node<'ast>>) -> Self {
         let mut map = HashMap::new();
         for node in nodes {
@@ -35,11 +61,20 @@ impl<'ast> Graph<'ast> {
             if let Some(neighbors) = map.get(node_id) {
                 match neighbors {
                     Node::Unary(unary) => {
-                        edges.entry(node_id).or_insert(HashSet::new()).insert(&unary.operand);
+                        edges
+                            .entry(node_id)
+                            .or_insert(HashSet::new())
+                            .insert(&unary.operand);
                     }
                     Node::Binary(binary) => {
-                        edges.entry(node_id).or_insert(HashSet::new()).insert(&binary.left);
-                        edges.entry(node_id).or_insert(HashSet::new()).insert(&binary.right);
+                        edges
+                            .entry(node_id)
+                            .or_insert(HashSet::new())
+                            .insert(&binary.left);
+                        edges
+                            .entry(node_id)
+                            .or_insert(HashSet::new())
+                            .insert(&binary.right);
                     }
                     Node::Input(_) => {
                         edges.entry(node_id).or_insert(HashSet::new());
@@ -47,7 +82,11 @@ impl<'ast> Graph<'ast> {
                 }
             }
         }
-        Self { map, edges: Edges::from(edges) }
+        Self {
+            map,
+            edges: Edges::from(edges),
+            next_graph: None,
+        }
     }
 
     pub(crate) fn to_graph2(&self) -> Graph2<'ast> {
