@@ -41,7 +41,7 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
     for ((input, total), out) in fused_inputs.iter().zip(fused.iter()).zip(fused_outs.iter()) {
         let mut intermediate = total
             .iter()
-            .map(|i| i.ident.clone())
+            .map(|i| i.clone())
             .collect::<HashSet<_>>();
         for input in input {
             intermediate.remove(input);

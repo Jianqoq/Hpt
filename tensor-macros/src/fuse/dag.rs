@@ -1,19 +1,6 @@
 use std::collections::{ HashMap, HashSet, VecDeque };
 
-use quote::ToTokens;
-
 use super::{ edges::Edges, node::Node };
-
-#[derive(Eq, Hash, PartialEq, Clone)]
-pub(crate) struct Var {
-    pub(crate) ident: proc_macro2::Ident,
-}
-
-impl std::fmt::Debug for Var {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.ident.to_token_stream().to_string())
-    }
-}
 
 #[derive(Clone)]
 pub(crate) struct Graph<'ast> {
@@ -39,7 +26,7 @@ impl<'ast> Graph<'ast> {
                     map.insert(&binary.output, node);
                 }
                 Node::Input(input) => {
-                    map.insert(&input.ident, node);
+                    map.insert(&input, node);
                 }
             }
         }
@@ -48,20 +35,11 @@ impl<'ast> Graph<'ast> {
             if let Some(neighbors) = map.get(node_id) {
                 match neighbors {
                     Node::Unary(unary) => {
-                        edges
-                            .entry(node_id)
-                            .or_insert(HashSet::new())
-                            .insert(&unary.operand);
+                        edges.entry(node_id).or_insert(HashSet::new()).insert(&unary.operand);
                     }
                     Node::Binary(binary) => {
-                        edges
-                            .entry(node_id)
-                            .or_insert(HashSet::new())
-                            .insert(&binary.left);
-                        edges
-                            .entry(node_id)
-                            .or_insert(HashSet::new())
-                            .insert(&binary.right);
+                        edges.entry(node_id).or_insert(HashSet::new()).insert(&binary.left);
+                        edges.entry(node_id).or_insert(HashSet::new()).insert(&binary.right);
                     }
                     Node::Input(_) => {
                         edges.entry(node_id).or_insert(HashSet::new());
@@ -75,7 +53,7 @@ impl<'ast> Graph<'ast> {
     pub(crate) fn to_graph2(&self) -> Graph2<'ast> {
         let mut map = HashMap::new();
         for (&k, v) in self.map.iter() {
-            map.insert(Var { ident: k.clone() }, *v);
+            map.insert(k.clone(), *v);
         }
         Graph2 { map }
     }
@@ -134,5 +112,5 @@ impl<'ast> Graph<'ast> {
 
 #[derive(Clone)]
 pub(crate) struct Graph2<'ast> {
-    pub(crate) map: HashMap<Var, &'ast Node<'ast>>,
+    pub(crate) map: HashMap<syn::Ident, &'ast Node<'ast>>,
 }

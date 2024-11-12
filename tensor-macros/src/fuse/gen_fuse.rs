@@ -1,19 +1,19 @@
 use std::collections::HashSet;
 use crate::{ fuse::node::Node, TokenStream2 };
-use super::dag::{ Graph, Var };
+use super::dag::Graph;
 
 pub(crate) fn gen_fuse(
     graph: &Graph,
-    groups: &Vec<HashSet<Var>>
+    groups: &Vec<HashSet<syn::Ident>>
 ) -> (Vec<TokenStream2>, Vec<syn::Ident>, Vec<HashSet<syn::Ident>>) {
     let inputs_vec = groups
         .iter()
         .map(|group| {
             let mut inputs = Vec::new();
-            for var in group {
-                if let Some(node) = graph.map.get(&var.ident) {
+            for ident in group {
+                if let Some(node) = graph.map.get(&ident) {
                     if let Node::Input(input) = node {
-                        inputs.push(input.ident.clone());
+                        inputs.push(input.clone());
                     }
                 }
             }
@@ -51,7 +51,7 @@ pub(crate) fn gen_fuse(
     for group in groups.iter() {
         sorted_groups.push(vec![]);
         for sorted in sorteds.iter() {
-            if group.contains(&(Var { ident: sorted.clone() })) {
+            if group.contains(sorted) {
                 sorted_groups.last_mut().expect("gen_fuse::last_mut").push(sorted.clone());
             }
         }
