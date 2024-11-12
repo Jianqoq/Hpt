@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 
+use super::rcmut::RCMut;
+
 pub(crate) struct SSAContext {
     // 记录每个基础变量名当前的版本号
-    counters: HashMap<String, usize>,
+    pub(crate) counters: HashMap<String, usize>,
     // 记录变量的最新 SSA 名称
-    current_names: HashMap<String, String>,
+    pub(crate) current_names: HashMap<String, String>,
+    pub(crate) prev_ssa_ctx: Option<RCMut<SSAContext>>,
 }
 
 impl SSAContext {
@@ -12,6 +15,7 @@ impl SSAContext {
         Self {
             counters: HashMap::new(),
             current_names: HashMap::new(),
+            prev_ssa_ctx: None,
         }
     }
 
@@ -43,11 +47,18 @@ impl SSAContext {
         }
     }
 
-    pub(crate) fn current_name(&self, base_name: &str) -> Option<&String> {
-        self.current_names.get(base_name)
+    pub(crate) fn current_name(&self, base_name: &str) -> Option<String> {
+        // println!("current_name: {:#?}", self.current_names);
+        if let Some(name) = self.current_names.get(base_name) {
+            Some(name.clone())
+        } else if let Some(prev_ssa_ctx) = &self.prev_ssa_ctx {
+            prev_ssa_ctx.borrow().current_name(base_name)
+        } else {
+            None
+        }
     }
 
-    pub(crate) fn current_name_expr(&self, expr: &syn::Expr) -> Option<&String> {
+    pub(crate) fn current_name_expr(&self, expr: &syn::Expr) -> Option<String> {
         if let syn::Expr::Path(path) = expr {
             if let Some(ident) = path.path.get_ident() {
                 self.current_name(&ident.to_string())

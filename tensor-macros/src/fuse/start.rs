@@ -1,6 +1,6 @@
 use std::collections::{ HashMap, HashSet };
 
-use crate::fuse::{ codegen::{ Codegen, _Codegen }, ssa::SSAContext, visitor::Visitor };
+use crate::fuse::{ codegen::{ Codegen, _Codegen }, rcmut::RCMut, ssa::SSAContext, visitor::Visitor };
 use syn::visit::Visit;
 
 use crate::fuse::{ dag::Graph, fuse::fuse, gen_fuse::gen_fuse };
@@ -54,7 +54,7 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
     for (i, code) in fused_codes.iter().enumerate() {
         let out = &fused_outs[i];
         codes.insert(out.clone(), quote::quote!(
-                let #out = #code;
+                #out = #code;
             ));
     }
     // println!(
@@ -76,22 +76,18 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
             fused_codes: &codes,
             to_remove: &to_remove,
             current_tokens: Vec::new(),
-            ssa_ctx: SSAContext::new(),
+            ssa_ctx: RCMut::new(SSAContext::new()),
             _visitor: Some(&box_visitor),
             next_codegen: None,
+            pat_ident_need_remove: false,
+            pat_ident_is_ret: false,
         },
     };
     codegen.visit_item_fn(&func);
     let code = codegen.get_code();
-    println!("code: {:#?}", code.to_string());
 
-    let vis = func.vis.clone();
-    let mut sig = func.sig.clone();
-    codegen._codegen.convert_signature_to_ssa(&mut sig);
     let ret = quote::quote!(
-        #vis #sig {
             #code
-        }
     );
     ret.into()
 }
