@@ -169,6 +169,45 @@ impl<'ast> _Visitor<'ast> {
             .map(|(_, is_tensor)| *is_tensor)
             .unwrap_or(false)
     }
+
+    pub(crate) fn process_expr_method_call_args(
+        &mut self,
+        args: &syn::punctuated::Punctuated<syn::Expr, syn::Token![,]>
+    ) -> Vec<syn::Expr> {
+        args.iter()
+            .map(|arg| {
+                match arg {
+                    syn::Expr::Path(expr_path) => {
+                        let mut expr_path = expr_path.clone();
+                        expr_path.path = if expr_path.path.get_ident().is_some() {
+                            let mut path = expr_path.path.clone();
+                            let current_name = &self.ssa_ctx
+                                .current_name_expr(arg)
+                                .ok_or_else(|| {
+                                    syn::Error::new(
+                                        arg.span(),
+                                        format!(
+                                            "visit_expr_method_call::current_name_expr: Cannot find {} in current scope.",
+                                            arg.to_token_stream().to_string()
+                                        )
+                                    )
+                                });
+                            if let Ok(name) = current_name {
+                                path.segments[0].ident = syn::Ident::new(&name, arg.span());
+                            } else {
+                                self.errors.push(current_name.as_ref().unwrap_err().clone());
+                            }
+                            path
+                        } else {
+                            expr_path.path.clone()
+                        };
+                        syn::Expr::Path(expr_path)
+                    }
+                    _ => arg.clone(),
+                }
+            })
+            .collect()
+    }
 }
 
 impl<'ast> Visit<'ast> for _Visitor<'ast> {
@@ -292,8 +331,9 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
         };
         let operand = self.ssa_ctx
             .current_name(&node.receiver.to_token_stream().to_string())
-            .expect("not found");
-        let method = match node.method.to_string().as_str() {
+            .expect("not found")
+            .clone();
+        let args = match node.method.to_string().as_str() {
             | "sin"
             | "cos"
             | "tan"
@@ -306,54 +346,17 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
             | "asinh"
             | "acosh"
             | "atanh"
-            | "relu"
-            | "selu" => {
-                Node::Unary(Unary {
-                    method: &node.method,
-                    operand: proc_macro2::Ident::new(&operand, node.span()),
-                    args: node.args
-                        .iter()
-                        .map(|arg| {
-                            match arg {
-                                syn::Expr::Path(expr_path) => {
-                                    let mut expr_path = expr_path.clone();
-                                    let path = if expr_path.path.get_ident().is_some() {
-                                        let mut path = expr_path.path.clone();
-                                        let current_name = &self.ssa_ctx
-                                            .current_name_expr(arg)
-                                            .ok_or_else(|| {
-                                                syn::Error::new(
-                                                    arg.span(),
-                                                    format!(
-                                                        "visit_expr_method_call::current_name_expr: Cannot find {} in current scope.",
-                                                        arg.to_token_stream().to_string()
-                                                    )
-                                                )
-                                            });
-                                        match current_name {
-                                            Ok(name) => {
-                                                path.segments[0].ident = syn::Ident::new(
-                                                    &name,
-                                                    arg.span()
-                                                );
-                                            }
-                                            Err(error) => {
-                                                self.errors.push(error.clone());
-                                            }
-                                        }
-                                        path
-                                    } else {
-                                        expr_path.path.clone()
-                                    };
-                                    expr_path.path = path;
-                                    syn::Expr::Path(expr_path)
-                                }
-                                _ => arg.clone(),
-                            }
-                        })
-                        .collect(),
-                    output: out.clone(),
-                })
+            | "relu" => {
+                vec![]
+            }
+            "selu" => {
+                for i in node.args.iter() {
+                    self.mark_expr_used(i);
+                    if self.is_tensor_expr(i) {
+                        self.errors.push(syn::Error::new(i.span(), "selu only accept scalar"));
+                    }
+                }
+                self.process_expr_method_call_args(&node.args)
             }
             _ =>
                 unimplemented!(
@@ -361,6 +364,12 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
                     node.method.to_string().as_str()
                 ),
         };
+        let method = Node::Unary(Unary {
+            method: &node.method,
+            operand: proc_macro2::Ident::new(&operand, node.span()),
+            args,
+            output: out.clone(),
+        });
         self.nodes.push(method);
         // println!("{:#?}", self.nodes);
     }

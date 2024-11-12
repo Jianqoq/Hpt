@@ -7,8 +7,8 @@ pub struct MutVec<'a, T> {
 impl<T> MutVec<'_, T> {
     /// perform write unaligned operation
     #[inline(always)]
-    pub fn write_unaligned(&mut self, value: T) {
-        let ptr = self.vec as *mut T;
+    pub fn write_unaligned(&self, value: T) {
+        let ptr = self.vec as *const _ as *mut T;
         unsafe {
             ptr.write_unaligned(value);
         }

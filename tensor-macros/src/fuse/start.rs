@@ -7,7 +7,6 @@ use crate::fuse::{ dag::Graph, fuse::fuse, gen_fuse::gen_fuse };
 
 pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let func = syn::parse_macro_input!(item as syn::ItemFn);
-    // println!("func: {:#?}", func);
     let mut visitor = Visitor::new();
     visitor.visit_item_fn(&func);
     if !visitor.visitor.errors.is_empty() {

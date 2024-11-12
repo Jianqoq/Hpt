@@ -288,6 +288,8 @@ pub mod par_strided_zip_simd {
             bridge_unindexed(self, consumer)
         }
     }
+
+    
 }
 
 /// A parallel zipped iterator combining two iterators over tensor elements.

@@ -25,7 +25,7 @@ pub(crate) fn gen_fuse(
         let mut iters = Vec::new();
         for input in inputs {
             iters.push(quote::quote!(
-                    #input.par_iter()
+                    #input.par_iter_simd()
                 ));
         }
         iters_vec.push(iters);
@@ -39,8 +39,9 @@ pub(crate) fn gen_fuse(
     let mut tuple_vec = vec![];
     for mut iters in inputs_vec.clone() {
         let tokens = gen_tuple(&mut iters);
-        // println!("{:#?}", tokens.to_string());
-        tuple_vec.push(tokens);
+        tuple_vec.push(quote::quote!(
+            (res, #tokens)
+        ));
     }
 
     let sorteds = graph.topological_sort().expect("gen_fuse::topological_sort");
@@ -56,7 +57,6 @@ pub(crate) fn gen_fuse(
         }
     }
 
-    // println!("{:#?}", sorted_groups);
     let mut fused_vec = vec![];
     let mut fused_outs = vec![];
     for (i, sorted) in sorted_groups.iter().enumerate() {
@@ -85,19 +85,23 @@ pub(crate) fn gen_fuse(
                 }
             }
         }
+        let mut vec_comp_tokens = comp_tokens.clone();
         comp_tokens.extend(quote::quote!(
-        #output
-    ));
+            *res = #output
+        ));
+        vec_comp_tokens.extend(quote::quote!(
+            res.write_unaligned(#output)
+        ));
         fused_outs.push(output);
-        // println!("{:#?}", comp_tokens.to_string());
         let zipped = &zipped_vec[i];
         let tuple = &tuple_vec[i];
         let fused =
             quote::quote!(
             #zipped.strided_map(|#tuple| {
                 #comp_tokens
-            }
-            ).collect::<_Tensor<_>>()
+            },|#tuple| {
+                #vec_comp_tokens
+            }).collect::<_Tensor<_>>()
         );
         fused_vec.push(fused);
     }

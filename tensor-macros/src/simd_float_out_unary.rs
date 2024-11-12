@@ -381,8 +381,27 @@ pub fn impl_float_out_unary() -> TokenStream {
                     }
                 }
             };
-            let sin = sleef("_sin", "sin_u10");
-            let cos = sleef("_cos", "cos_u10");
+            let non_sleef = |func_name: &str, non_sleef_func: &str| {
+                let func_name = Ident::new(func_name, proc_macro2::Span::call_site());
+                let non_sleef_func = Ident::new(non_sleef_func, proc_macro2::Span::call_site());
+                if res_type.is_f32() {
+                    quote! {
+                        #[inline(always)]
+                        fn #func_name(self) -> Self::Output {
+                            #res_simd_ty::#res_simd_ty(std::simd::StdFloat::#non_sleef_func(self.#to_res_type().0))
+                        }
+                    }
+                } else {
+                    quote! {
+                        #[inline(always)]
+                        fn #func_name(self) -> Self::Output {
+                            #res_simd_ty::#res_simd_ty(std::simd::StdFloat::#non_sleef_func(self.#to_res_type().0))
+                        }
+                    }
+                }
+            };
+            let sin = non_sleef("_sin", "sin");
+            let cos = non_sleef("_cos", "cos");
             let tan = sleef("_tan", "tan_u10");
             let asin = sleef("_asin", "asin_u10");
             let acos = sleef("_acos", "acos_u10");
