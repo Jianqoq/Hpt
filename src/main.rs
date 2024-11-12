@@ -15,9 +15,9 @@ fn compute(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
     let alpha = 1.673263242354358;
     let gamma = 1.050700987355822;
     let d = e.selu(alpha, gamma)?;
-    // for _ in 0..1000000 {
-    //     let f = &d + &a;
-    // }
+    for _ in 0..1000000 {
+        let f = &d + &a;
+    }
     Ok(d)
 });
 

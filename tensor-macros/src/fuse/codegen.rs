@@ -11,13 +11,12 @@ pub(crate) struct Codegen<'ast> {
 
 impl<'ast> Codegen<'ast> {
     pub(crate) fn get_code(&mut self) -> TokenStream2 {
+        let mut token_stream = TokenStream2::new();
+        token_stream.extend(self._codegen.get_code());
         if let Some(next_codegen) = &mut self._codegen.next_codegen {
-            let mut token_stream = TokenStream2::new();
             token_stream.extend(next_codegen.get_code());
-            token_stream
-        } else {
-            self._codegen.get_code()
         }
+        token_stream
     }
 }
 
@@ -147,8 +146,8 @@ impl<'ast> Visit<'ast> for _Codegen<'ast> {
         unimplemented!("codegen::bare_variadic");
     }
 
-    fn visit_bin_op(&mut self, _: &'ast syn::BinOp) {
-        unimplemented!("codegen::bin_op");
+    fn visit_bin_op(&mut self, op: &'ast syn::BinOp) {
+        self.push_tokens(op.to_token_stream());
     }
 
     fn visit_bound_lifetimes(&mut self, _: &'ast syn::BoundLifetimes) {
@@ -242,8 +241,18 @@ impl<'ast> Visit<'ast> for _Codegen<'ast> {
         unimplemented!("codegen::expr_field");
     }
 
-    fn visit_expr_for_loop(&mut self, _: &'ast syn::ExprForLoop) {
-        unimplemented!("codegen::expr_for_loop");
+    fn visit_expr_for_loop(&mut self, node: &'ast syn::ExprForLoop) {
+        for it in &node.attrs {
+            self.visit_attribute(it);
+        }
+        if let Some(it) = &node.label {
+            self.visit_label(it);
+        }
+        self.push_tokens(node.for_token.to_token_stream());
+        self.visit_pat(&*node.pat);
+        self.push_tokens(node.in_token.to_token_stream());
+        self.visit_expr(&*node.expr);
+        self.visit_block(&node.body);
     }
 
     fn visit_expr_group(&mut self, _: &'ast syn::ExprGroup) {
@@ -309,16 +318,23 @@ impl<'ast> Visit<'ast> for _Codegen<'ast> {
         unimplemented!("codegen::expr_paren");
     }
 
-    fn visit_expr_range(&mut self, _: &'ast syn::ExprRange) {
-        unimplemented!("codegen::expr_range");
+    fn visit_expr_range(&mut self, range: &'ast syn::ExprRange) {
+        self.push_tokens(range.to_token_stream());
     }
 
     fn visit_expr_raw_addr(&mut self, _: &'ast syn::ExprRawAddr) {
         unimplemented!("codegen::expr_raw_addr");
     }
 
-    fn visit_expr_reference(&mut self, _: &'ast syn::ExprReference) {
-        unimplemented!("codegen::expr_reference");
+    fn visit_expr_reference(&mut self, node: &'ast syn::ExprReference) {
+        for it in &node.attrs {
+            self.visit_attribute(it);
+        }
+        self.push_tokens(node.and_token.to_token_stream());
+        if let Some(it) = &node.mutability {
+            self.push_tokens(it.to_token_stream());
+        }
+        self.visit_expr(&*node.expr);
     }
 
     fn visit_expr_repeat(&mut self, _: &'ast syn::ExprRepeat) {
@@ -636,8 +652,11 @@ impl<'ast> Visit<'ast> for _Codegen<'ast> {
         self.push_tokens(node.ty.to_token_stream());
     }
 
-    fn visit_pat_wild(&mut self, _: &'ast syn::PatWild) {
-        unimplemented!("codegen::pat_wild");
+    fn visit_pat_wild(&mut self, node: &'ast syn::PatWild) {
+        for it in &node.attrs {
+            self.visit_attribute(it);
+        }
+        self.push_tokens(node.underscore_token.to_token_stream());
     }
 
     fn visit_path(&mut self, node: &'ast syn::Path) {
@@ -845,9 +864,6 @@ impl<'ast> Visit<'ast> for _Codegen<'ast> {
     fn visit_where_predicate(&mut self, _: &'ast syn::WherePredicate) {
         unimplemented!("codegen::where_predicate");
     }
-    fn visit_expr_binary(&mut self, _: &'ast syn::ExprBinary) {
-        unimplemented!("codegen::expr_binary");
-    }
 
     fn visit_expr_block(&mut self, _: &'ast syn::ExprBlock) {
         unimplemented!("codegen::expr_block");
@@ -870,6 +886,8 @@ impl<'ast> Visit<'ast> for _Codegen<'ast> {
         };
         new_codegen.ssa_ctx.borrow_mut().prev_ssa_ctx = Some(self.ssa_ctx.clone());
         syn::visit::visit_block(&mut new_codegen, block);
+        let code = new_codegen.current_tokens.drain(..).collect::<TokenStream2>();
+        self.current_tokens.push(quote::quote! {{#code}});
         self.next_codegen = Some(Box::new(new_codegen));
     }
 
