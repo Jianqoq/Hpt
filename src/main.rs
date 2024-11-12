@@ -7,26 +7,19 @@ use tensor_dyn::type_promote::FloatOutUnary;
 use tensor_dyn::type_promote::NormalOutUnary;
 use tensor_dyn::type_promote::FloatOutBinary;
 
-fn compute(a_1:_Tensor<f32> ,b_1:_Tensor<f32>) -> anyhow::Result<_Tensor<f32> >{
-    let alpha_1 = 1.673263242354358;
-    let gamma_1 = 1.050700987355822;
-    let d_2 = b_1.par_iter_simd().zip(a_1.par_iter_simd()).strided_map(|(res,(b_1,a_1))|{
-        let __out_1 = b_1._div(a_1);
-        let c_1 = a_1._add(__out_1);
-        let d_1 = c_1._sin();
-        let e_1 = d_1._relu();
-        let d_2 = e_1._selu(alpha_1,gamma_1);
-        *res = d_2
-    }, |(res,(b_1,a_1))|{
-        let __out_1 = b_1._div(a_1);
-        let c_1 = a_1._add(__out_1);
-        let d_1 = c_1._sin();
-        let e_1 = d_1._relu();
-        let d_2 = e_1._selu(alpha_1,gamma_1);
-        res.write_unaligned(d_2)
-    }).collect:: <_Tensor<_>>();
-    Ok(d_2)
-}
+fuse_proc_macro!(
+fn compute(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
+    let c = &a + &b / &a;
+    let d = c.sin()?;
+    let e = d.relu()?;
+    let alpha = 1.673263242354358;
+    let gamma = 1.050700987355822;
+    let d = e.selu(alpha, gamma)?;
+    // for _ in 0..1000000 {
+    //     let f = &d + &a;
+    // }
+    Ok(d)
+});
 
 // #[fuse]
 // fn compute(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
