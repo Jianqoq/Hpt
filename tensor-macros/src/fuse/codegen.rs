@@ -934,6 +934,7 @@ impl<'ast> Visit<'ast> for _Codegen<'ast> {
                 self.pat_ident_is_ret = true;
             } else {
                 self.push_tokens(ssa_name.to_token_stream());
+                self.pat_ident_is_ret = false;
             }
             self.pat_ident_need_remove = false;
         } else {

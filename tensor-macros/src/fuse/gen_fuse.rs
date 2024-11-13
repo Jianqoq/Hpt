@@ -39,8 +39,18 @@ pub(crate) fn _gen_fuse(
             let mut inputs = Vec::new();
             for ident in group {
                 if let Some(node) = graph.map.get(&ident) {
-                    if let Node::Input(input) = node {
-                        inputs.push(input.clone());
+                    match node {
+                        Node::Unary(unary) => {
+                            if !group.contains(&unary.operand) {
+                                inputs.push(unary.output.clone());
+                            }
+                        }
+                        Node::Binary(binary) => {
+                            if !group.contains(&binary.left) && !group.contains(&binary.right) {
+                                inputs.push(binary.output.clone());
+                            }
+                        }
+                        Node::Input(ident) => inputs.push(ident.clone()),
                     }
                 }
             }
@@ -93,19 +103,23 @@ pub(crate) fn _gen_fuse(
             if let Some(node) = graph.map.get(&ident) {
                 match node {
                     Node::Unary(unary) => {
-                        comp_tokens.extend(
-                            quote::quote!(
-                        #unary
-                    )
-                        );
+                        if sorted.contains(&unary.operand) {
+                            comp_tokens.extend(
+                                quote::quote!(
+                                #unary
+                            )
+                            );
+                        }
                         output = unary.output.clone();
                     }
                     Node::Binary(binary) => {
-                        comp_tokens.extend(
-                            quote::quote!(
-                        #binary
-                    )
-                        );
+                        if !(!sorted.contains(&binary.left) && !sorted.contains(&binary.right)) {
+                            comp_tokens.extend(
+                                quote::quote!(
+                                    #binary
+                                )
+                            );
+                        }
                         output = binary.output.clone();
                     }
                     Node::Input(_) => {}
@@ -124,12 +138,12 @@ pub(crate) fn _gen_fuse(
         let tuple = &tuple_vec[i];
         let fused =
             quote::quote!(
-            #zipped.strided_map(|#tuple| {
-                #comp_tokens
-            },|#tuple| {
-                #vec_comp_tokens
-            }).collect::<_Tensor<_>>()
-        );
+                #zipped.strided_map_simd(|#tuple| {
+                    #comp_tokens
+                },|#tuple| {
+                    #vec_comp_tokens
+                }).collect::<_Tensor<_>>()
+            );
         fused_vec.push(fused);
     }
 

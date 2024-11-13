@@ -81,32 +81,31 @@ pub(crate) fn _out_degree<'ast>(
 
 pub(crate) fn fuse<'ast>(candidates: &'ast _Graph<'ast>) -> FusionGroup {
     let out_degree = out_degree(candidates);
-    // println!("out_degree: {:#?}", out_degree);
 
     let unfused = RefCell::new(candidates.to_graph2());
 
     let mut results = Vec::new();
-    while let Some(node) = yield_candidate(unfused.borrow_mut()) {
+    while let Some(node) = yield_candidate(unfused.borrow_mut(), &out_degree) {
         let mut block = HashSet::new();
         match node {
             Node::Unary(unary) => {
                 block.insert(unary.output.clone());
                 let kernel_type = KernelType::Unary;
-                for succ in children(&node, candidates) {
-                    fuse_children(&succ, kernel_type, &mut block, candidates);
+                for succ in children(&node, candidates, &out_degree) {
+                    fuse_children(&succ, kernel_type, &mut block, candidates, &out_degree);
                 }
-                for pred in parents(&node, candidates) {
-                    fuse_parents(&pred, kernel_type, &mut block, candidates)
+                for pred in parents(&node, candidates, &out_degree) {
+                    fuse_parents(&pred, kernel_type, &mut block, candidates, &out_degree);
                 }
             }
             Node::Binary(binary) => {
                 block.insert(binary.output.clone());
                 let kernel_type = KernelType::Binary;
-                for succ in children(&node, candidates) {
-                    fuse_children(&succ, kernel_type, &mut block, candidates);
+                for succ in children(&node, candidates, &out_degree) {
+                    fuse_children(&succ, kernel_type, &mut block, candidates, &out_degree);
                 }
-                for pred in parents(&node, candidates) {
-                    fuse_parents(&pred, kernel_type, &mut block, candidates)
+                for pred in parents(&node, candidates, &out_degree) {
+                    fuse_parents(&pred, kernel_type, &mut block, candidates, &out_degree);
                 }
             }
             Node::Input(input) => {
@@ -129,11 +128,19 @@ pub(crate) fn fuse<'ast>(candidates: &'ast _Graph<'ast>) -> FusionGroup {
 }
 
 pub(crate) fn yield_candidate<'a, 'ast>(
-    unfused_candidates: RefMut<'a, Graph2<'ast>>
+    unfused_candidates: RefMut<'a, Graph2<'ast>>,
+    out_degree: &HashMap<syn::Ident, usize>
 ) -> Option<&'a Node<'ast>> {
     let uary = unfused_candidates.map.iter().find(|(_, node)| {
         match node {
-            Node::Unary(_) => true,
+            Node::Unary(unary) => {
+                if let Some(degree) = out_degree.get(&unary.output) {
+                    if *degree > 1 {
+                        return false;
+                    }
+                }
+                true
+            },
             _ => false,
         }
     });
@@ -144,6 +151,14 @@ pub(crate) fn yield_candidate<'a, 'ast>(
                 .find(|(_, node)| {
                     match node {
                         Node::Unary(_) => false,
+                        Node::Binary(binary) => {
+                            if let Some(degree) = out_degree.get(&binary.output) {
+                                if *degree > 1 {
+                                    return false;
+                                }
+                            }
+                            true
+                        }
                         _ => true,
                     }
                 })
@@ -156,7 +171,8 @@ pub fn fuse_parents<'ast>(
     pred: &Node<'ast>,
     next_kernel_type: KernelType,
     block: &mut HashSet<syn::Ident>,
-    graph: &'ast _Graph<'ast>
+    graph: &'ast _Graph<'ast>,
+    out_degree: &HashMap<syn::Ident, usize>
 ) {
     match pred_kernel_fusable(next_kernel_type, pred) {
         Ok(Some(kernel_type)) => {
@@ -171,8 +187,8 @@ pub fn fuse_parents<'ast>(
                     block.insert(input.clone());
                 }
             }
-            for next in parents(pred, graph) {
-                fuse_parents(next, kernel_type, block, graph);
+            for next in parents(pred, graph, &out_degree) {
+                fuse_parents(next, kernel_type, block, graph, &out_degree);
             }
         }
         Ok(None) => {}
@@ -184,7 +200,8 @@ pub fn fuse_children<'ast>(
     succ: &'ast Node<'ast>,
     prev_kernel_type: KernelType,
     block: &mut HashSet<syn::Ident>,
-    graph: &'ast _Graph<'ast>
+    graph: &'ast _Graph<'ast>,
+    out_degree: &HashMap<syn::Ident, usize>
 ) {
     match suc_kernel_fusable(prev_kernel_type, succ) {
         Ok(Some(kernel_type)) => {
@@ -199,8 +216,8 @@ pub fn fuse_children<'ast>(
                     block.insert(input.clone());
                 }
             }
-            for next in children(succ, graph) {
-                fuse_children(next, kernel_type, block, graph);
+            for next in children(succ, graph, &out_degree) {
+                fuse_children(next, kernel_type, block, graph, &out_degree);
             }
         }
         Ok(None) => {}
@@ -232,20 +249,36 @@ pub fn suc_kernel_fusable<'ast>(
     Ok(kernel_type.infer_suc_kernel(&next_kernel_type))
 }
 
-pub fn parents<'a, 'ast>(node: &Node<'ast>, graph: &'a _Graph<'ast>) -> HashSet<&'a Node<'ast>> {
+pub fn parents<'a, 'ast>(
+    node: &Node<'ast>,
+    graph: &'a _Graph<'ast>,
+    out_degree: &HashMap<syn::Ident, usize>
+) -> HashSet<&'a Node<'ast>> {
     let mut parents = HashSet::new();
     match node {
         Node::Unary(unary) => {
             if let Some(parent) = graph.map.get(&unary.operand) {
-                parents.insert(*parent);
+                if let Some(degree) = out_degree.get(&unary.output) {
+                    if *degree <= 1 {
+                        parents.insert(*parent);
+                    }
+                }
             }
         }
         Node::Binary(binary) => {
             if let Some(parent) = graph.map.get(&binary.left) {
-                parents.insert(*parent);
+                if let Some(degree) = out_degree.get(&binary.output) {
+                    if *degree <= 1 {
+                        parents.insert(*parent);
+                    }
+                }
             }
             if let Some(parent) = graph.map.get(&binary.right) {
-                parents.insert(*parent);
+                if let Some(degree) = out_degree.get(&binary.output) {
+                    if *degree <= 1 {
+                        parents.insert(*parent);
+                    }
+                }
             }
         }
         Node::Input(..) => {}
@@ -253,9 +286,18 @@ pub fn parents<'a, 'ast>(node: &Node<'ast>, graph: &'a _Graph<'ast>) -> HashSet<
     parents
 }
 
-pub fn children<'a, 'ast>(node: &Node<'ast>, graph: &'a _Graph<'ast>) -> HashSet<&'a Node<'ast>> {
+pub fn children<'a, 'ast>(
+    node: &Node<'ast>,
+    graph: &'a _Graph<'ast>,
+    out_degree: &HashMap<syn::Ident, usize>
+) -> HashSet<&'a Node<'ast>> {
     match node {
         Node::Unary(unary) => {
+            if let Some(degree) = out_degree.get(&unary.output) {
+                if *degree > 1 && !(*node).is_input() {
+                    return HashSet::new();
+                }
+            }
             graph.map
                 .iter()
                 .filter(|(_, node)| {
@@ -272,6 +314,11 @@ pub fn children<'a, 'ast>(node: &Node<'ast>, graph: &'a _Graph<'ast>) -> HashSet
                 .collect()
         }
         Node::Binary(binary) => {
+            if let Some(degree) = out_degree.get(&binary.output) {
+                if *degree > 1 && !(*node).is_input() {
+                    return HashSet::new();
+                }
+            }
             graph.map
                 .iter()
                 .filter(|(_, node)| {

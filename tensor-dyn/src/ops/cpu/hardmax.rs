@@ -47,7 +47,7 @@ where
             use tensor_types::traits::Init;
             self.par_iter_simd()
                 .zip(max.par_iter_simd())
-                .strided_map(
+                .strided_map_simd(
                     |(res, (a, b))| {
                         *res = a._eq(b)._mul(T::ONE);
                     },

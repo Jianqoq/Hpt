@@ -272,7 +272,7 @@ where
                 let ret = lhs
                     .par_iter_simd()
                     .zip(rhs.par_iter_simd())
-                    .strided_map(
+                    .strided_map_simd(
                         |(res, (x, y))| {
                             *res = f(x, y);
                         },
