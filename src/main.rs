@@ -7,21 +7,21 @@ use tensor_dyn::type_promote::FloatOutUnary;
 use tensor_dyn::type_promote::NormalOutUnary;
 use tensor_dyn::type_promote::FloatOutBinary;
 
-// fuse_proc_macro!(
-// fn compute(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
-//     let c = &a + &b / &a;
-//     let d = c.sin()?;
-//     let e = d.relu()?;
-//     let alpha = 1.673263242354358;
-//     let gamma = 1.050700987355822;
-//     let d = e.selu(alpha, gamma)?;
-//     for _ in 0..1000000 {
-//         let f = &d + &c;
-//     }
-//     Ok(d)
-// });
+fuse_proc_macro!(
+fn compute2(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
+    let c = &a + &b / &a;
+    let d = c.sin()?;
+    let e = d.relu()?;
+    let alpha = 1.673263242354358;
+    let gamma = 1.050700987355822;
+    let d = e.selu(alpha, gamma)?;
+    for _ in 0..1000000 {
+        let f = &d + &c;
+    }
+    Ok(d)
+});
 
-#[fuse]
+// #[fuse]
 fn compute(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
     let c = &a + &b / &a;
     let d = c.sin()?;
@@ -36,6 +36,7 @@ fn compute(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
 }
 
 fn main() -> anyhow::Result<()> {
+    
     // conv2d()?;
     let a = _Tensor::<f32>::arange(0, 10000)?;
     let b = _Tensor::<f32>::arange(0, 10000)?;
