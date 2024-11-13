@@ -106,7 +106,6 @@ impl<'ast> _Visitor<'ast> {
 
     pub(crate) fn remove_unused(&mut self) {
         let unused = self.get_unused_vars();
-        println!("unused: {:#?}", unused);
         self.nodes.retain(|node| {
             match node {
                 Node::Unary(unary) => !unused.contains(&unary.output),
@@ -158,10 +157,7 @@ impl<'ast> _Visitor<'ast> {
             }
             syn::Expr::Paren(_) => unimplemented!("is_tensor_expr::paren"),
             syn::Expr::Reference(reference) => { self.is_tensor_expr(&reference.expr) }
-            syn::Expr::Try(try_expr) => {
-                // println!("try_expr: {:#?}", try_expr.expr);
-                self.is_tensor_expr(&try_expr.expr)
-            }
+            syn::Expr::Try(try_expr) => { self.is_tensor_expr(&try_expr.expr) }
             syn::Expr::Path(path) => {
                 if let Some(ident) = path.path.get_ident() {
                     let mut current_scope = self.variables
@@ -394,7 +390,6 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
             output: out.clone(),
         });
         self.nodes.push(method);
-        // println!("{:#?}", self.nodes);
     }
     fn visit_expr_call(&mut self, node: &'ast syn::ExprCall) {
         for it in &node.attrs {
@@ -562,7 +557,6 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
             self.visit_attribute(it);
         }
         for token in node.mac.tokens.clone() {
-            println!("{:#?}", token);
             match token {
                 proc_macro2::TokenTree::Ident(ident) => {
                     self.mark_used(&ident);

@@ -1,4 +1,4 @@
-use std::{ cell::{ RefCell, RefMut }, collections::HashSet };
+use std::{ cell::{ RefCell, RefMut }, collections::{ HashMap, HashSet } };
 
 use quote::ToTokens;
 
@@ -9,34 +9,104 @@ pub(crate) struct FusionGroup {
     pub(crate) _next_group: Option<Box<FusionGroup>>,
 }
 
+impl std::fmt::Debug for FusionGroup {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let vars = self.vars
+            .iter()
+            .map(|v|
+                v
+                    .iter()
+                    .map(|i| i.to_string())
+                    .collect::<Vec<_>>()
+            )
+            .collect::<Vec<_>>();
+        if let Some(next_group) = &self._next_group {
+            f.debug_struct("FusionGroup")
+                .field("vars", &vars)
+                .field("next_group", &next_group)
+                .finish()
+        } else {
+            write!(f, "FusionGroup {{ vars: {:?} }}", vars)
+        }
+    }
+}
+
 pub(crate) fn fuse_graph<'ast>(graph: &'ast Graph<'ast>) -> FusionGroup {
     fuse(&graph._graph)
 }
 
+pub(crate) fn out_degree<'ast>(graph: &'ast _Graph<'ast>) -> HashMap<syn::Ident, usize> {
+    let mut out_degree = HashMap::new();
+    let mut current_graph = Some(graph);
+    while let Some(next_graph) = current_graph {
+        _out_degree(&next_graph.map, &mut out_degree);
+        if let Some(next_graph) = &next_graph.next_graph {
+            current_graph = Some(next_graph);
+        } else {
+            break;
+        }
+    }
+    out_degree
+}
+
+pub(crate) fn _out_degree<'ast>(
+    map: &'ast HashMap<&'ast syn::Ident, &'ast Node<'ast>>,
+    out_degree: &mut HashMap<syn::Ident, usize>
+) {
+    for out in map.keys() {
+        let mut degree = 0;
+        for node in map.values() {
+            match node {
+                Node::Unary(unary) => {
+                    if &unary.operand == *out {
+                        degree += 1;
+                    }
+                }
+                Node::Binary(binary) => {
+                    if &binary.left == *out || &binary.right == *out {
+                        degree += 1;
+                    }
+                }
+                Node::Input(_) => {}
+            }
+        }
+        out_degree
+            .entry((*out).clone())
+            .and_modify(|d| {
+                *d += degree;
+            })
+            .or_insert(degree);
+    }
+}
+
 pub(crate) fn fuse<'ast>(candidates: &'ast _Graph<'ast>) -> FusionGroup {
+    let out_degree = out_degree(candidates);
+    // println!("out_degree: {:#?}", out_degree);
+
     let unfused = RefCell::new(candidates.to_graph2());
+
     let mut results = Vec::new();
-    while let Some(next) = yield_candidate(unfused.borrow_mut()) {
+    while let Some(node) = yield_candidate(unfused.borrow_mut()) {
         let mut block = HashSet::new();
-        match next {
+        match node {
             Node::Unary(unary) => {
                 block.insert(unary.output.clone());
                 let kernel_type = KernelType::Unary;
-                for succ in children(&next, candidates) {
+                for succ in children(&node, candidates) {
                     fuse_children(&succ, kernel_type, &mut block, candidates);
                 }
-                for pred in parents(&next, candidates) {
-                    fuse_parents(&pred, kernel_type, &mut block, candidates);
+                for pred in parents(&node, candidates) {
+                    fuse_parents(&pred, kernel_type, &mut block, candidates)
                 }
             }
             Node::Binary(binary) => {
                 block.insert(binary.output.clone());
                 let kernel_type = KernelType::Binary;
-                for succ in children(&next, candidates) {
+                for succ in children(&node, candidates) {
                     fuse_children(&succ, kernel_type, &mut block, candidates);
                 }
-                for pred in parents(&next, candidates) {
-                    fuse_parents(&pred, kernel_type, &mut block, candidates);
+                for pred in parents(&node, candidates) {
+                    fuse_parents(&pred, kernel_type, &mut block, candidates)
                 }
             }
             Node::Input(input) => {
@@ -48,7 +118,6 @@ pub(crate) fn fuse<'ast>(candidates: &'ast _Graph<'ast>) -> FusionGroup {
         });
         results.push(block);
     }
-    println!("results: {:#?}", results);
     let mut ret = FusionGroup {
         vars: results,
         _next_group: None,

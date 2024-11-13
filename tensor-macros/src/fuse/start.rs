@@ -27,7 +27,9 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
     }
     visitor.remove_unused();
     let graph = Graph::from_visitor(&visitor.visitor);
+    println!("graph: {:#?}", graph);
     let fused = fuse_graph(&graph);
+    println!("fused: {:#?}", fused);
     let gen_fuse = gen_fuse(&graph._graph, &fused);
     let to_remove = gen_to_remove(&gen_fuse, &fused);
 

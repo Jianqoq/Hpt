@@ -215,7 +215,6 @@ impl<'ast> Visit<'ast> for _Codegen<'ast> {
         let mut current_token = self.current_tokens.drain(..).collect::<Vec<_>>();
         for el in syn::punctuated::Punctuated::pairs(&node.args) {
             let it = el.value();
-            println!("visit_expr_call: {:#?}", it);
             self.visit_expr(it);
             if let Some(comma) = el.punct() {
                 self.push_tokens(comma.to_token_stream());
