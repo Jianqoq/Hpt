@@ -939,6 +939,7 @@ impl<'ast> Visit<'ast> for _Codegen<'ast> {
             self.pat_ident_need_remove = false;
         } else {
             self.pat_ident_need_remove = true;
+            self.pat_ident_is_ret = false;
         }
     }
 
