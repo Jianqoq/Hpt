@@ -19,9 +19,9 @@ fn compute2(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
     } else {
         let g = d.selu(alpha, gamma)?;
     }
-    // for _ in 0..1000000 {
-    //     let c = &d + &c;
-    // }
+    for _ in 0..1000000 {
+        let c = &d + &c;
+    }
     Ok(c)
 });
 

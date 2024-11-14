@@ -35,6 +35,8 @@ struct PhiFunction {
 pub(crate) struct CFG {
     pub(crate) graph: Graph<BasicBlock, ()>,
     pub(crate) entry: NodeIndex,
+    pub(crate) live_in: HashMap<NodeIndex, HashSet<String>>,
+    pub(crate) live_out: HashMap<NodeIndex, HashSet<String>>,
 }
 
 impl CFG {
@@ -46,7 +48,7 @@ impl CFG {
             origin_vars: HashSet::new(),
         };
         let entry = graph.add_node(entry_block);
-        CFG { graph, entry }
+        CFG { graph, entry, live_in: HashMap::new(), live_out: HashMap::new() }
     }
 
     fn add_block(&mut self, block: BasicBlock) -> NodeIndex {
@@ -502,13 +504,13 @@ impl<'a> CFGBuilder<'a> {
         // 创建 `let pat = expr` 语句
         let pat = &expr_for.pat;
         let local = quote::quote! {
-            let pat = #pat;
+            #[for_loop_var]
+            let #pat;
         };
-        let local: Stmt = syn::parse2(local).unwrap();
-        self.cfg.graph
-            .node_weight_mut(init_block)
-            .unwrap()
-            .statements.push(CustomStmt { stmt: local });
+        let stmt: Stmt = syn::parse2(local).expect("cfg::handle_for_loop::local");
+        if let Some(block) = self.cfg.graph.node_weight_mut(init_block) {
+            block.statements.push(CustomStmt { stmt });
+        }
 
         // 连接初始化块到条件检查块
         self.connect_to(condition_block);
@@ -516,9 +518,8 @@ impl<'a> CFGBuilder<'a> {
         // 处理条件检查
         self.set_current_block(condition_block);
         if let Some(block) = self.cfg.graph.node_weight_mut(condition_block) {
-            // 在 `for` 循环中，条件检查通常是迭代器的 `next` 方法调用
-            // 这里简化为添加整个表达式
-            block.statements.push(CustomStmt { stmt: Stmt::Expr(*expr_for.expr.clone(), None) });
+            let expr = &expr_for.expr;
+            block.statements.push(CustomStmt { stmt: Stmt::Expr(*(*expr).clone(), None) });
         }
 
         // 创建连接：条件为真进入循环体块，条件为假进入循环后的块
