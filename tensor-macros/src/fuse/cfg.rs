@@ -29,6 +29,7 @@ pub(crate) struct BasicBlock {
 #[derive(Debug, Clone)]
 struct PhiFunction {
     variable: String,
+    arguments: Vec<String>,
 }
 
 // CFG 结构
@@ -100,8 +101,8 @@ impl CFG {
                             );
                             let phi_stmt: syn::Stmt =
                                 parse_quote! {
-                                let #phi_ident = __phi();
-                            };
+                                    let #phi_ident = __phi();
+                                };
                             self.graph
                                 .node_weight_mut(*frontier)
                                 .unwrap()
@@ -111,13 +112,14 @@ impl CFG {
                                 .unwrap()
                                 .phi_functions.push(PhiFunction {
                                     variable: var.clone(),
+                                    arguments: vec![],
                                 });
-                            if let Some(var_set) = has_already.get_mut(var) {
-                                var_set.insert(*frontier);
-                            }
+                            has_already.get_mut(var).unwrap().insert(*frontier);
 
-                            // 将 Φ 函数的所在基本块添加到工作列表
-                            work.push(*frontier);
+                            // **只有当变量 v 不在 frontier 的 orig 中时，才将 frontier 加入工作集**
+                            if !self.graph[*frontier].origin_vars.contains(var) {
+                                work.push(*frontier);
+                            }
                         }
                     }
                 }
@@ -187,8 +189,20 @@ pub(crate) fn rename_variables(
         stacks: &mut HashMap<String, Vec<String>>,
         versions: &mut HashMap<String, usize>
     ) {
+        println!("node: {:?}", node);
+        for pred in cfg.graph.neighbors_directed(node, petgraph::Direction::Incoming) {
+            if let Some(block) = cfg.graph.node_weight(pred) {
+                for var in &block.origin_vars {
+                    if let Some(stack) = stacks.get_mut(var) {
+                        if let Some(latest_var) = stack.last() {
+                            println!("latest_var: {}", latest_var);
+                        }
+                    }
+                }
+            }
+        }
         // 处理 Φ 函数
-        for PhiFunction { variable } in cfg.graph[node].phi_functions.iter_mut() {
+        for PhiFunction { variable, arguments } in cfg.graph[node].phi_functions.iter_mut() {
             // 为 Φ 函数分配新版本
             let count = versions.get_mut(variable).unwrap();
             *count += 1;
@@ -207,16 +221,16 @@ pub(crate) fn rename_variables(
                         *count += 1;
                         let new_var = format!("{}{}", var, count);
                         pat_ident.ident = syn::Ident::new(&new_var, pat_ident.ident.span());
-                        // 推入栈
-                        stacks
-                            .get_mut(&var)
-                            .expect(&format!("{} not found 2", var))
-                            .push(new_var.clone());
 
                         // 更新赋值表达式
                         if let Some(expr) = &mut local.init {
                             expr.expr = Box::new(replace_vars(&expr.expr, stacks));
                         }
+                        // 推入栈
+                        stacks
+                            .get_mut(&var)
+                            .expect(&format!("{} not found 2", var))
+                            .push(new_var.clone());
                     }
                 }
                 CustomStmt { stmt: syn::Stmt::Expr(expr, ..) } => {
