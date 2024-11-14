@@ -9,49 +9,52 @@ use tensor_dyn::type_promote::FloatOutBinary;
 
 fuse_proc_macro!(
 fn compute2(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
-    let c = &a + &b / &a;
+    let mut c = &a + &b;
     let d = c.sin()?;
     let e = d.relu()?;
     let alpha = 1.673263242354358;
     let gamma = 1.050700987355822;
-    let d = e.selu(alpha, gamma)?;
-    for _ in 0..1000000 {
-        let f = &d + &c;
+    if alpha > 0.0 {
+        let d = e.selu(alpha, gamma)?;
+    } else {
+        let g = d.selu(alpha, gamma)?;
     }
-    Ok(d)
+    // for _ in 0..1000000 {
+    //     let c = &d + &c;
+    // }
+    Ok(c)
 });
 
-// #[fuse]
-fn compute(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
-    let c = &a + &b / &a;
-    let d = c.sin()?;
-    let e = d.relu()?;
-    let alpha = 1.673263242354358;
-    let gamma = 1.050700987355822;
-    let d = e.selu(alpha, gamma)?;
-    for _ in 0..1000000 {
-        let f = &d + &c;
-    }
-    Ok(d)
-}
+// // #[fuse]
+// fn compute(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
+//     let c = &a + &b / &a;
+//     let d = c.sin()?;
+//     let e = d.relu()?;
+//     let alpha = 1.673263242354358;
+//     let gamma = 1.050700987355822;
+//     let d = e.selu(alpha, gamma)?;
+//     for _ in 0..1000000 {
+//         let f = &d + &c;
+//     }
+//     Ok(d)
+// }
 
 fn main() -> anyhow::Result<()> {
-    
     // conv2d()?;
-    let a = _Tensor::<f32>::arange(0, 10000)?;
-    let b = _Tensor::<f32>::arange(0, 10000)?;
-    let now = std::time::Instant::now();
+    // let a = _Tensor::<f32>::arange(0, 10000)?;
+    // let b = _Tensor::<f32>::arange(0, 10000)?;
+    // let now = std::time::Instant::now();
     // let c = compute(a, b)?;
     Ok(())
 }
 
 fn conv2d() -> Result<(), anyhow::Error> {
-    let oc_sets = [128];
-    let ic_sets = [4096];
-    let kh_sets = [3];
-    let kw_sets = [3];
-    let h_sets = [256];
-    let w_sets = [256];
+    let oc_sets = [80];
+    let ic_sets = [8];
+    let kh_sets = [4];
+    let kw_sets = [4];
+    let h_sets = [1260];
+    let w_sets = [1260];
 
     set_num_threads(16);
     let mut workbook = Workbook::new();
@@ -68,7 +71,7 @@ fn conv2d() -> Result<(), anyhow::Error> {
                         for w in w_sets {
                             let kernel = _Tensor::<f32>
                                 ::arange(0, oc * ic * kh * kw)?
-                                .reshape([ic, oc, kh, kw])?
+                                .reshape([oc, ic, kh, kw])?
                                 .permute([2, 3, 1, 0])?
                                 .contiguous()?;
                             let a = _Tensor::<f32>

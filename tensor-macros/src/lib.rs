@@ -58,6 +58,8 @@ mod fuse {
     pub(crate) mod ssa;
     pub(crate) mod rcmut;
     pub(crate) mod to_remove;
+    pub(crate) mod ssa_visitor;
+    pub(crate) mod cfg;
 }
 
 use crate::simd_cmp::impl_simd_cmp;

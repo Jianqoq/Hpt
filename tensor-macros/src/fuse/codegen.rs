@@ -263,8 +263,17 @@ impl<'ast> Visit<'ast> for _Codegen<'ast> {
         unimplemented!("codegen::expr_group");
     }
 
-    fn visit_expr_if(&mut self, _: &'ast syn::ExprIf) {
-        unimplemented!("codegen::expr_if");
+    fn visit_expr_if(&mut self, node: &'ast syn::ExprIf) {
+        for it in &node.attrs {
+            self.visit_attribute(it);
+        }
+        self.push_tokens(node.if_token.to_token_stream());
+        self.visit_expr(&*node.cond);
+        self.visit_block(&node.then_branch);
+        if let Some(it) = &node.else_branch {
+            self.push_tokens(it.0.to_token_stream());
+            self.visit_expr(&*(it).1);
+        }
     }
 
     fn visit_expr_index(&mut self, _: &'ast syn::ExprIndex) {
@@ -869,8 +878,27 @@ impl<'ast> Visit<'ast> for _Codegen<'ast> {
         unimplemented!("codegen::where_predicate");
     }
 
-    fn visit_expr_block(&mut self, _: &'ast syn::ExprBlock) {
-        unimplemented!("codegen::expr_block");
+    fn visit_expr_block(&mut self, block: &'ast syn::ExprBlock) {
+        match (&self.fused_codes.next_gen_fuse, &self.to_remove.next, &self._visitor.next_visitor) {
+            (Some(fused_codes), Some(to_remove), Some(_visitor)) => {
+                let mut new_codegen = _Codegen {
+                    fused_codes,
+                    to_remove,
+                    current_tokens: Vec::new(),
+                    ssa_ctx: RCMut::new(SSAContext::new()),
+                    _visitor,
+                    next_codegen: None,
+                    pat_ident_need_remove: false,
+                    pat_ident_is_ret: false,
+                };
+                new_codegen.ssa_ctx.borrow_mut().prev_ssa_ctx = Some(self.ssa_ctx.clone());
+                syn::visit::visit_expr_block(&mut new_codegen, block);
+                let code = new_codegen.current_tokens.drain(..).collect::<TokenStream2>();
+                self.current_tokens.push(quote::quote! { {#code} });
+                self.next_codegen = Some(Box::new(new_codegen));
+            }
+            _ => {}
+        }
     }
 
     fn visit_block(&mut self, block: &'ast syn::Block) {

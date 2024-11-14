@@ -39,6 +39,7 @@ pub(crate) struct _Visitor<'ast> {
     pub(crate) nodes: Vec<Node<'ast>>,
     pub(crate) current_var: proc_macro2::Ident,
     pub(crate) current_assignment: Option<proc_macro2::Ident>,
+    pub(crate) current_type: Option<syn::Type>,
     pub(crate) variables: RCMut<Variables>,
     pub(crate) next_visitor: Option<Box<_Visitor<'ast>>>,
     pub(crate) ssa_ctx: RCMut<SSAContext>,
@@ -52,6 +53,7 @@ impl<'ast> _Visitor<'ast> {
             nodes: vec![],
             current_var: proc_macro2::Ident::new("__out0", Span::call_site()),
             current_assignment: None,
+            current_type: None,
             variables: RCMut::new(Variables {
                 vars: HashMap::new(),
                 prev_vars: None,
@@ -223,92 +225,674 @@ impl<'ast> _Visitor<'ast> {
 }
 
 impl<'ast> Visit<'ast> for _Visitor<'ast> {
-    fn visit_signature(&mut self, sig: &'ast syn::Signature) {
-        for arg in sig.inputs.iter() {
-            if let syn::FnArg::Typed(pat_type) = arg {
-                let string = pat_type.ty.to_token_stream().to_string();
-                let is_tensor = string.contains("Tensor") || string.contains("_Tensor");
-                match pat_type.pat.as_ref() {
-                    syn::Pat::Const(_) => unimplemented!("fuse_impl::const"),
-                    syn::Pat::Ident(pat_ident) => {
-                        let new_name = self.ssa_ctx
-                            .borrow_mut()
-                            .fresh_name(&pat_ident.ident.to_string());
-                        if is_tensor {
-                            self.nodes.push(
-                                Node::Input(syn::Ident::new(&new_name, pat_ident.ident.span()))
-                            );
-                        }
-                        self.declare_variable(pat_ident.ident.clone(), is_tensor);
-                    }
-                    syn::Pat::Lit(_) => unimplemented!("fuse_impl::lit"),
-                    syn::Pat::Macro(_) => unimplemented!("fuse_impl::macro"),
-                    syn::Pat::Or(_) => unimplemented!("fuse_impl::or"),
-                    syn::Pat::Paren(_) => unimplemented!("fuse_impl::paren"),
-                    syn::Pat::Path(_) => unimplemented!("fuse_impl::path"),
-                    syn::Pat::Range(_) => unimplemented!("fuse_impl::range"),
-                    syn::Pat::Reference(_) => unimplemented!("fuse_impl::reference"),
-                    syn::Pat::Rest(_) => unimplemented!("fuse_impl::rest"),
-                    syn::Pat::Slice(_) => unimplemented!("fuse_impl::slice"),
-                    syn::Pat::Struct(_) => unimplemented!("fuse_impl::struct"),
-                    syn::Pat::Tuple(_) => unimplemented!("fuse_impl::tuple"),
-                    syn::Pat::TupleStruct(_) => unimplemented!("fuse_impl::tuple_struct"),
-                    syn::Pat::Type(_) => unimplemented!("fuse_impl::type"),
-                    syn::Pat::Verbatim(_) => unimplemented!("fuse_impl::verbatim"),
-                    syn::Pat::Wild(_) => unimplemented!("fuse_impl::wild"),
-                    _ => todo!(),
-                }
-            }
+    fn visit_abi(&mut self, i: &'ast syn::Abi) {
+        unimplemented!("visitor::visit_abi");
+    }
+
+    fn visit_angle_bracketed_generic_arguments(
+        &mut self,
+        i: &'ast syn::AngleBracketedGenericArguments
+    ) {
+        unimplemented!("visitor::visit_angle_bracketed_generic_arguments");
+    }
+
+    fn visit_arm(&mut self, i: &'ast syn::Arm) {
+        unimplemented!("visitor::visit_arm");
+    }
+
+    fn visit_assoc_const(&mut self, i: &'ast syn::AssocConst) {
+        unimplemented!("visitor::visit_assoc_const");
+    }
+
+    fn visit_assoc_type(&mut self, i: &'ast syn::AssocType) {
+        unimplemented!("visitor::visit_assoc_type");
+    }
+
+    fn visit_attr_style(&mut self, i: &'ast syn::AttrStyle) {
+        unimplemented!("visitor::visit_attr_style");
+    }
+
+    fn visit_attribute(&mut self, i: &'ast syn::Attribute) {
+        unimplemented!("visitor::visit_attribute");
+    }
+
+    fn visit_bare_fn_arg(&mut self, i: &'ast syn::BareFnArg) {
+        unimplemented!("visitor::visit_bare_fn_arg");
+    }
+
+    fn visit_bare_variadic(&mut self, i: &'ast syn::BareVariadic) {
+        unimplemented!("visitor::visit_bare_variadic");
+    }
+
+    fn visit_bin_op(&mut self, i: &'ast syn::BinOp) {
+        unimplemented!("visitor::visit_bin_op");
+    }
+
+    fn visit_bound_lifetimes(&mut self, i: &'ast syn::BoundLifetimes) {
+        unimplemented!("visitor::visit_bound_lifetimes");
+    }
+
+    fn visit_captured_param(&mut self, i: &'ast syn::CapturedParam) {
+        unimplemented!("visitor::visit_captured_param");
+    }
+
+    fn visit_const_param(&mut self, i: &'ast syn::ConstParam) {
+        unimplemented!("visitor::visit_const_param");
+    }
+
+    fn visit_constraint(&mut self, i: &'ast syn::Constraint) {
+        unimplemented!("visitor::visit_constraint");
+    }
+
+    fn visit_data(&mut self, i: &'ast syn::Data) {
+        unimplemented!("visitor::visit_data");
+    }
+
+    fn visit_data_enum(&mut self, i: &'ast syn::DataEnum) {
+        unimplemented!("visitor::visit_data_enum");
+    }
+
+    fn visit_data_struct(&mut self, i: &'ast syn::DataStruct) {
+        unimplemented!("visitor::visit_data_struct");
+    }
+
+    fn visit_data_union(&mut self, i: &'ast syn::DataUnion) {
+        unimplemented!("visitor::visit_data_union");
+    }
+
+    fn visit_derive_input(&mut self, i: &'ast syn::DeriveInput) {
+        unimplemented!("visitor::visit_derive_input");
+    }
+
+    fn visit_expr_array(&mut self, i: &'ast syn::ExprArray) {
+        unimplemented!("visitor::visit_expr_array");
+    }
+
+    fn visit_expr_assign(&mut self, i: &'ast syn::ExprAssign) {
+        unimplemented!("visitor::visit_expr_assign");
+    }
+
+    fn visit_expr_async(&mut self, i: &'ast syn::ExprAsync) {
+        unimplemented!("visitor::visit_expr_async");
+    }
+
+    fn visit_expr_await(&mut self, i: &'ast syn::ExprAwait) {
+        unimplemented!("visitor::visit_expr_await");
+    }
+
+    fn visit_expr_block(&mut self, i: &'ast syn::ExprBlock) {
+        let mut next_visitor = _Visitor::new();
+        next_visitor.variables.borrow_mut().prev_vars = Some(self.variables.clone());
+        next_visitor.ssa_ctx.borrow_mut().prev_ssa_ctx = Some(self.ssa_ctx.clone());
+        visit_expr_block(&mut next_visitor, i);
+        self.next_visitor = Some(Box::new(next_visitor));
+    }
+
+    fn visit_expr_break(&mut self, i: &'ast syn::ExprBreak) {
+        unimplemented!("visitor::visit_expr_break");
+    }
+
+    fn visit_expr_cast(&mut self, i: &'ast syn::ExprCast) {
+        unimplemented!("visitor::visit_expr_cast");
+    }
+
+    fn visit_expr_closure(&mut self, i: &'ast syn::ExprClosure) {
+        unimplemented!("visitor::visit_expr_closure");
+    }
+
+    fn visit_expr_const(&mut self, i: &'ast syn::ExprConst) {
+        unimplemented!("visitor::visit_expr_const");
+    }
+
+    fn visit_expr_continue(&mut self, i: &'ast syn::ExprContinue) {
+        unimplemented!("visitor::visit_expr_continue");
+    }
+
+    fn visit_expr_field(&mut self, i: &'ast syn::ExprField) {
+        unimplemented!("visitor::visit_expr_field");
+    }
+
+    fn visit_expr_for_loop(&mut self, i: &'ast syn::ExprForLoop) {
+        unimplemented!("visitor::visit_expr_for_loop");
+    }
+
+    fn visit_expr_group(&mut self, i: &'ast syn::ExprGroup) {
+        unimplemented!("visitor::visit_expr_group");
+    }
+
+    fn visit_expr_index(&mut self, i: &'ast syn::ExprIndex) {
+        unimplemented!("visitor::visit_expr_index");
+    }
+
+    fn visit_expr_infer(&mut self, i: &'ast syn::ExprInfer) {
+        unimplemented!("visitor::visit_expr_infer");
+    }
+
+    fn visit_expr_let(&mut self, i: &'ast syn::ExprLet) {
+        unimplemented!("visitor::visit_expr_let");
+    }
+
+    fn visit_expr_loop(&mut self, i: &'ast syn::ExprLoop) {
+        unimplemented!("visitor::visit_expr_loop");
+    }
+
+    fn visit_expr_macro(&mut self, i: &'ast syn::ExprMacro) {
+        unimplemented!("visitor::visit_expr_macro");
+    }
+
+    fn visit_expr_match(&mut self, i: &'ast syn::ExprMatch) {
+        unimplemented!("visitor::visit_expr_match");
+    }
+
+    fn visit_expr_paren(&mut self, i: &'ast syn::ExprParen) {
+        unimplemented!("visitor::visit_expr_paren");
+    }
+
+    fn visit_expr_range(&mut self, i: &'ast syn::ExprRange) {
+        unimplemented!("visitor::visit_expr_range");
+    }
+
+    fn visit_expr_raw_addr(&mut self, i: &'ast syn::ExprRawAddr) {
+        unimplemented!("visitor::visit_expr_raw_addr");
+    }
+
+    fn visit_expr_repeat(&mut self, i: &'ast syn::ExprRepeat) {
+        unimplemented!("visitor::visit_expr_repeat");
+    }
+
+    fn visit_expr_return(&mut self, i: &'ast syn::ExprReturn) {
+        unimplemented!("visitor::visit_expr_return");
+    }
+
+    fn visit_expr_struct(&mut self, i: &'ast syn::ExprStruct) {
+        unimplemented!("visitor::visit_expr_struct");
+    }
+
+    fn visit_expr_try_block(&mut self, i: &'ast syn::ExprTryBlock) {
+        unimplemented!("visitor::visit_expr_try_block");
+    }
+
+    fn visit_expr_unary(&mut self, i: &'ast syn::ExprUnary) {
+        unimplemented!("visitor::visit_expr_unary");
+    }
+
+    fn visit_expr_unsafe(&mut self, i: &'ast syn::ExprUnsafe) {
+        unimplemented!("visitor::visit_expr_unsafe");
+    }
+
+    fn visit_expr_while(&mut self, i: &'ast syn::ExprWhile) {
+        unimplemented!("visitor::visit_expr_while");
+    }
+
+    fn visit_expr_yield(&mut self, i: &'ast syn::ExprYield) {
+        unimplemented!("visitor::visit_expr_yield");
+    }
+
+    fn visit_field(&mut self, i: &'ast syn::Field) {
+        unimplemented!("visitor::visit_field");
+    }
+
+    fn visit_field_mutability(&mut self, i: &'ast syn::FieldMutability) {
+        unimplemented!("visitor::visit_field_mutability");
+    }
+
+    fn visit_field_pat(&mut self, i: &'ast syn::FieldPat) {
+        unimplemented!("visitor::visit_field_pat");
+    }
+
+    fn visit_field_value(&mut self, i: &'ast syn::FieldValue) {
+        unimplemented!("visitor::visit_field_value");
+    }
+
+    fn visit_fields(&mut self, i: &'ast syn::Fields) {
+        unimplemented!("visitor::visit_fields");
+    }
+
+    fn visit_fields_named(&mut self, i: &'ast syn::FieldsNamed) {
+        unimplemented!("visitor::visit_fields_named");
+    }
+
+    fn visit_fields_unnamed(&mut self, i: &'ast syn::FieldsUnnamed) {
+        unimplemented!("visitor::visit_fields_unnamed");
+    }
+
+    fn visit_file(&mut self, i: &'ast syn::File) {
+        unimplemented!("visitor::visit_file");
+    }
+
+    fn visit_foreign_item(&mut self, i: &'ast syn::ForeignItem) {
+        unimplemented!("visitor::visit_foreign_item");
+    }
+
+    fn visit_foreign_item_fn(&mut self, i: &'ast syn::ForeignItemFn) {
+        unimplemented!("visitor::visit_foreign_item_fn");
+    }
+
+    fn visit_foreign_item_macro(&mut self, i: &'ast syn::ForeignItemMacro) {
+        unimplemented!("visitor::visit_foreign_item_macro");
+    }
+
+    fn visit_foreign_item_static(&mut self, i: &'ast syn::ForeignItemStatic) {
+        unimplemented!("visitor::visit_foreign_item_static");
+    }
+
+    fn visit_foreign_item_type(&mut self, i: &'ast syn::ForeignItemType) {
+        unimplemented!("visitor::visit_foreign_item_type");
+    }
+
+    fn visit_generic_argument(&mut self, i: &'ast syn::GenericArgument) {
+        unimplemented!("visitor::visit_generic_argument");
+    }
+
+    fn visit_generic_param(&mut self, i: &'ast syn::GenericParam) {
+        unimplemented!("visitor::visit_generic_param");
+    }
+
+    fn visit_impl_item(&mut self, i: &'ast syn::ImplItem) {
+        unimplemented!("visitor::visit_impl_item");
+    }
+
+    fn visit_impl_item_const(&mut self, i: &'ast syn::ImplItemConst) {
+        unimplemented!("visitor::visit_impl_item_const");
+    }
+
+    fn visit_impl_item_fn(&mut self, i: &'ast syn::ImplItemFn) {
+        unimplemented!("visitor::visit_impl_item_fn");
+    }
+
+    fn visit_impl_item_macro(&mut self, i: &'ast syn::ImplItemMacro) {
+        unimplemented!("visitor::visit_impl_item_macro");
+    }
+
+    fn visit_impl_item_type(&mut self, i: &'ast syn::ImplItemType) {
+        unimplemented!("visitor::visit_impl_item_type");
+    }
+
+    fn visit_impl_restriction(&mut self, i: &'ast syn::ImplRestriction) {
+        unimplemented!("visitor::visit_impl_restriction");
+    }
+
+    fn visit_index(&mut self, i: &'ast syn::Index) {
+        unimplemented!("visitor::visit_index");
+    }
+
+    fn visit_item(&mut self, i: &'ast syn::Item) {
+        unimplemented!("visitor::visit_item");
+    }
+
+    fn visit_item_const(&mut self, i: &'ast syn::ItemConst) {
+        unimplemented!("visitor::visit_item_const");
+    }
+
+    fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum) {
+        unimplemented!("visitor::visit_item_enum");
+    }
+
+    fn visit_item_extern_crate(&mut self, i: &'ast syn::ItemExternCrate) {
+        unimplemented!("visitor::visit_item_extern_crate");
+    }
+
+    fn visit_item_fn(&mut self, i: &'ast syn::ItemFn) {
+        unimplemented!("visitor::visit_item_fn");
+    }
+
+    fn visit_item_foreign_mod(&mut self, i: &'ast syn::ItemForeignMod) {
+        unimplemented!("visitor::visit_item_foreign_mod");
+    }
+
+    fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl) {
+        unimplemented!("visitor::visit_item_impl");
+    }
+
+    fn visit_item_macro(&mut self, i: &'ast syn::ItemMacro) {
+        unimplemented!("visitor::visit_item_macro");
+    }
+
+    fn visit_item_mod(&mut self, i: &'ast syn::ItemMod) {
+        unimplemented!("visitor::visit_item_mod");
+    }
+
+    fn visit_item_static(&mut self, i: &'ast syn::ItemStatic) {
+        unimplemented!("visitor::visit_item_static");
+    }
+
+    fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct) {
+        unimplemented!("visitor::visit_item_struct");
+    }
+
+    fn visit_item_trait(&mut self, i: &'ast syn::ItemTrait) {
+        unimplemented!("visitor::visit_item_trait");
+    }
+
+    fn visit_item_trait_alias(&mut self, i: &'ast syn::ItemTraitAlias) {
+        unimplemented!("visitor::visit_item_trait_alias");
+    }
+
+    fn visit_item_type(&mut self, i: &'ast syn::ItemType) {
+        unimplemented!("visitor::visit_item_type");
+    }
+
+    fn visit_item_union(&mut self, i: &'ast syn::ItemUnion) {
+        unimplemented!("visitor::visit_item_union");
+    }
+
+    fn visit_item_use(&mut self, i: &'ast syn::ItemUse) {
+        unimplemented!("visitor::visit_item_use");
+    }
+
+    fn visit_label(&mut self, i: &'ast syn::Label) {
+        unimplemented!("visitor::visit_label");
+    }
+
+    fn visit_macro(&mut self, i: &'ast syn::Macro) {
+        unimplemented!("visitor::visit_macro");
+    }
+
+    fn visit_macro_delimiter(&mut self, i: &'ast syn::MacroDelimiter) {
+        unimplemented!("visitor::visit_macro_delimiter");
+    }
+
+    fn visit_member(&mut self, i: &'ast syn::Member) {
+        unimplemented!("visitor::visit_member");
+    }
+
+    fn visit_meta(&mut self, i: &'ast syn::Meta) {
+        unimplemented!("visitor::visit_meta");
+    }
+
+    fn visit_meta_list(&mut self, i: &'ast syn::MetaList) {
+        unimplemented!("visitor::visit_meta_list");
+    }
+
+    fn visit_meta_name_value(&mut self, i: &'ast syn::MetaNameValue) {
+        unimplemented!("visitor::visit_meta_name_value");
+    }
+
+    fn visit_parenthesized_generic_arguments(
+        &mut self,
+        i: &'ast syn::ParenthesizedGenericArguments
+    ) {
+        unimplemented!("visitor::visit_parenthesized_generic_arguments");
+    }
+
+    fn visit_pat_or(&mut self, i: &'ast syn::PatOr) {
+        unimplemented!("visitor::visit_pat_or");
+    }
+
+    fn visit_pat_paren(&mut self, i: &'ast syn::PatParen) {
+        unimplemented!("visitor::visit_pat_paren");
+    }
+
+    fn visit_pat_reference(&mut self, i: &'ast syn::PatReference) {
+        unimplemented!("visitor::visit_pat_reference");
+    }
+
+    fn visit_pat_rest(&mut self, i: &'ast syn::PatRest) {
+        unimplemented!("visitor::visit_pat_rest");
+    }
+
+    fn visit_pat_slice(&mut self, i: &'ast syn::PatSlice) {
+        unimplemented!("visitor::visit_pat_slice");
+    }
+
+    fn visit_pat_struct(&mut self, i: &'ast syn::PatStruct) {
+        unimplemented!("visitor::visit_pat_struct");
+    }
+
+    fn visit_pat_tuple(&mut self, i: &'ast syn::PatTuple) {
+        unimplemented!("visitor::visit_pat_tuple");
+    }
+
+    fn visit_pat_tuple_struct(&mut self, i: &'ast syn::PatTupleStruct) {
+        unimplemented!("visitor::visit_pat_tuple_struct");
+    }
+
+    fn visit_pat_type(&mut self, node: &'ast syn::PatType) {
+        for it in &node.attrs {
+            self.visit_attribute(it);
         }
-        syn::visit::visit_signature(self, sig);
+        match node.pat.as_ref() {
+            syn::Pat::Const(..) => unimplemented!("visitor::visit_pat_type::Const"),
+            syn::Pat::Ident(pat_ident) => {
+                self.visit_pat_ident(pat_ident);
+                let ty = node.ty.to_token_stream().to_string();
+                let is_tensor = ty.contains("Tensor") || ty.contains("_Tensor");
+                self.ssa_ctx.borrow_mut().fresh_name(&self.current_var.to_string());
+                self.declare_variable(self.current_var.clone(), is_tensor);
+            }
+            syn::Pat::Lit(_) => unimplemented!("visitor::visit_pat_type::Lit"),
+            syn::Pat::Macro(_) => unimplemented!("visitor::visit_pat_type::Macro"),
+            syn::Pat::Or(_) => unimplemented!("visitor::visit_pat_type::Or"),
+            syn::Pat::Paren(_) => unimplemented!("visitor::visit_pat_type::Paren"),
+            syn::Pat::Path(_) => unimplemented!("visitor::visit_pat_type::Path"),
+            syn::Pat::Range(_) => unimplemented!("visitor::visit_pat_type::Range"),
+            syn::Pat::Reference(_) => unimplemented!("visitor::visit_pat_type::Reference"),
+            syn::Pat::Rest(_) => unimplemented!("visitor::visit_pat_type::Rest"),
+            syn::Pat::Slice(_) => unimplemented!("visitor::visit_pat_type::Slice"),
+            syn::Pat::Struct(_) => unimplemented!("visitor::visit_pat_type::Struct"),
+            syn::Pat::Tuple(_) => unimplemented!("visitor::visit_pat_type::Tuple"),
+            syn::Pat::TupleStruct(_) => unimplemented!("visitor::visit_pat_type::TupleStruct"),
+            syn::Pat::Type(_) => unimplemented!("visitor::visit_pat_type::Type"),
+            syn::Pat::Verbatim(_) => unimplemented!("visitor::visit_pat_type::Verbatim"),
+            syn::Pat::Wild(_) => unimplemented!("visitor::visit_pat_type::Wild"),
+            _ => unimplemented!("visitor::visit_pat_type::Other"),
+        }
+    }
+
+    fn visit_pat_wild(&mut self, i: &'ast syn::PatWild) {
+        unimplemented!("visitor::visit_pat_wild");
+    }
+
+    fn visit_path(&mut self, i: &'ast syn::Path) {
+        unimplemented!("visitor::visit_path");
+    }
+
+    fn visit_path_arguments(&mut self, i: &'ast syn::PathArguments) {
+        unimplemented!("visitor::visit_path_arguments");
+    }
+
+    fn visit_path_segment(&mut self, i: &'ast syn::PathSegment) {
+        unimplemented!("visitor::visit_path_segment");
+    }
+
+    fn visit_pointer_mutability(&mut self, i: &'ast syn::PointerMutability) {
+        unimplemented!("visitor::visit_pointer_mutability");
+    }
+
+    fn visit_precise_capture(&mut self, i: &'ast syn::PreciseCapture) {
+        unimplemented!("visitor::visit_precise_capture");
+    }
+
+    fn visit_predicate_lifetime(&mut self, i: &'ast syn::PredicateLifetime) {
+        unimplemented!("visitor::visit_predicate_lifetime");
+    }
+
+    fn visit_predicate_type(&mut self, i: &'ast syn::PredicateType) {
+        unimplemented!("visitor::visit_predicate_type");
+    }
+
+    fn visit_qself(&mut self, i: &'ast syn::QSelf) {
+        unimplemented!("visitor::visit_qself");
+    }
+
+    fn visit_range_limits(&mut self, i: &'ast syn::RangeLimits) {
+        unimplemented!("visitor::visit_range_limits");
+    }
+
+    fn visit_receiver(&mut self, i: &'ast syn::Receiver) {
+        unimplemented!("visitor::visit_receiver");
+    }
+
+    fn visit_span(&mut self, i: &proc_macro2::Span) {
+        unimplemented!("visitor::visit_span");
+    }
+
+    fn visit_static_mutability(&mut self, i: &'ast syn::StaticMutability) {
+        unimplemented!("visitor::visit_static_mutability");
+    }
+
+    fn visit_trait_bound(&mut self, i: &'ast syn::TraitBound) {
+        unimplemented!("visitor::visit_trait_bound");
+    }
+
+    fn visit_trait_bound_modifier(&mut self, i: &'ast syn::TraitBoundModifier) {
+        unimplemented!("visitor::visit_trait_bound_modifier");
+    }
+
+    fn visit_trait_item(&mut self, i: &'ast syn::TraitItem) {
+        unimplemented!("visitor::visit_trait_item");
+    }
+
+    fn visit_trait_item_const(&mut self, i: &'ast syn::TraitItemConst) {
+        unimplemented!("visitor::visit_trait_item_const");
+    }
+
+    fn visit_trait_item_fn(&mut self, i: &'ast syn::TraitItemFn) {
+        unimplemented!("visitor::visit_trait_item_fn");
+    }
+
+    fn visit_trait_item_macro(&mut self, i: &'ast syn::TraitItemMacro) {
+        unimplemented!("visitor::visit_trait_item_macro");
+    }
+
+    fn visit_trait_item_type(&mut self, i: &'ast syn::TraitItemType) {
+        unimplemented!("visitor::visit_trait_item_type");
+    }
+
+    fn visit_type(&mut self, i: &'ast syn::Type) {
+        self.current_type = Some(i.clone());
+    }
+
+    fn visit_type_array(&mut self, i: &'ast syn::TypeArray) {
+        unimplemented!("visitor::visit_type_array");
+    }
+
+    fn visit_type_bare_fn(&mut self, i: &'ast syn::TypeBareFn) {
+        unimplemented!("visitor::visit_type_bare_fn");
+    }
+
+    fn visit_type_group(&mut self, i: &'ast syn::TypeGroup) {
+        unimplemented!("visitor::visit_type_group");
+    }
+
+    fn visit_type_impl_trait(&mut self, i: &'ast syn::TypeImplTrait) {
+        unimplemented!("visitor::visit_type_impl_trait");
+    }
+
+    fn visit_type_infer(&mut self, i: &'ast syn::TypeInfer) {
+        unimplemented!("visitor::visit_type_infer");
+    }
+
+    fn visit_type_macro(&mut self, i: &'ast syn::TypeMacro) {
+        unimplemented!("visitor::visit_type_macro");
+    }
+
+    fn visit_type_never(&mut self, i: &'ast syn::TypeNever) {
+        unimplemented!("visitor::visit_type_never");
+    }
+
+    fn visit_type_param(&mut self, i: &'ast syn::TypeParam) {
+        unimplemented!("visitor::visit_type_param");
+    }
+
+    fn visit_type_param_bound(&mut self, i: &'ast syn::TypeParamBound) {
+        unimplemented!("visitor::visit_type_param_bound");
+    }
+
+    fn visit_type_paren(&mut self, i: &'ast syn::TypeParen) {
+        unimplemented!("visitor::visit_type_paren");
+    }
+
+    fn visit_type_path(&mut self, i: &'ast syn::TypePath) {
+        unimplemented!("visitor::visit_type_path");
+    }
+
+    fn visit_type_ptr(&mut self, i: &'ast syn::TypePtr) {
+        unimplemented!("visitor::visit_type_ptr");
+    }
+
+    fn visit_type_reference(&mut self, i: &'ast syn::TypeReference) {
+        unimplemented!("visitor::visit_type_reference");
+    }
+
+    fn visit_type_slice(&mut self, i: &'ast syn::TypeSlice) {
+        unimplemented!("visitor::visit_type_slice");
+    }
+
+    fn visit_type_trait_object(&mut self, i: &'ast syn::TypeTraitObject) {
+        unimplemented!("visitor::visit_type_trait_object");
+    }
+
+    fn visit_type_tuple(&mut self, i: &'ast syn::TypeTuple) {
+        unimplemented!("visitor::visit_type_tuple");
+    }
+
+    fn visit_un_op(&mut self, i: &'ast syn::UnOp) {
+        unimplemented!("visitor::visit_un_op");
+    }
+
+    fn visit_use_glob(&mut self, i: &'ast syn::UseGlob) {
+        unimplemented!("visitor::visit_use_glob");
+    }
+
+    fn visit_use_group(&mut self, i: &'ast syn::UseGroup) {
+        unimplemented!("visitor::visit_use_group");
+    }
+
+    fn visit_use_name(&mut self, i: &'ast syn::UseName) {
+        unimplemented!("visitor::visit_use_name");
+    }
+
+    fn visit_use_path(&mut self, i: &'ast syn::UsePath) {
+        unimplemented!("visitor::visit_use_path");
+    }
+
+    fn visit_use_rename(&mut self, i: &'ast syn::UseRename) {
+        unimplemented!("visitor::visit_use_rename");
+    }
+
+    fn visit_use_tree(&mut self, i: &'ast syn::UseTree) {
+        unimplemented!("visitor::visit_use_tree");
+    }
+
+    fn visit_variadic(&mut self, i: &'ast syn::Variadic) {
+        unimplemented!("visitor::visit_variadic");
+    }
+
+    fn visit_variant(&mut self, i: &'ast syn::Variant) {
+        unimplemented!("visitor::visit_variant");
+    }
+
+    fn visit_vis_restricted(&mut self, i: &'ast syn::VisRestricted) {
+        unimplemented!("visitor::visit_vis_restricted");
+    }
+
+    fn visit_where_clause(&mut self, i: &'ast syn::WhereClause) {
+        unimplemented!("visitor::visit_where_clause");
+    }
+
+    fn visit_where_predicate(&mut self, i: &'ast syn::WherePredicate) {
+        unimplemented!("visitor::visit_where_predicate");
     }
     fn visit_local(&mut self, local: &'ast syn::Local) {
-        if let Some(init) = &local.init {
-            match &local.pat {
-                syn::Pat::Const(_) => todo!(),
-                syn::Pat::Ident(pat_ident) => {
-                    let ssa_name = self.ssa_ctx
-                        .borrow_mut()
-                        .fresh_name(&pat_ident.ident.to_string());
-                    self.current_assignment = Some(
-                        proc_macro2::Ident::new(&ssa_name, pat_ident.ident.span())
-                    );
-                    self.declare_variable(pat_ident.ident.clone(), self.is_tensor_expr(&init.expr));
+        for it in &local.attrs {
+            self.visit_attribute(it);
+        }
+        match &local.pat {
+            syn::Pat::Ident(pat_ident) => {
+                self.visit_pat_ident(pat_ident);
+                self.ssa_ctx.borrow_mut().fresh_name(&pat_ident.ident.to_string());
+                if let Some(it) = &local.init {
+                    self.visit_local_init(it);
+                    self.declare_variable(pat_ident.ident.clone(), self.is_tensor_expr(&it.expr));
                 }
-                syn::Pat::Lit(_) => todo!(),
-                syn::Pat::Macro(_) => todo!(),
-                syn::Pat::Or(_) => todo!(),
-                syn::Pat::Paren(_) => todo!(),
-                syn::Pat::Path(_) => todo!(),
-                syn::Pat::Range(_) => todo!(),
-                syn::Pat::Reference(_) => todo!(),
-                syn::Pat::Rest(_) => todo!(),
-                syn::Pat::Slice(_) => todo!(),
-                syn::Pat::Struct(_) => todo!(),
-                syn::Pat::Tuple(_) => todo!(),
-                syn::Pat::TupleStruct(_) => todo!(),
-                syn::Pat::Type(pat_type) => {
-                    if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
-                        let ssa_name = self.ssa_ctx
-                            .borrow_mut()
-                            .fresh_name(&pat_ident.ident.to_string());
-                        self.current_assignment = Some(
-                            proc_macro2::Ident::new(&ssa_name, pat_ident.ident.span())
-                        );
-                        self.declare_variable(
-                            pat_ident.ident.clone(),
-                            self.is_tensor_expr(&init.expr)
-                        );
-                    }
-                }
-                syn::Pat::Verbatim(_) => todo!(),
-                syn::Pat::Wild(_) => todo!(),
-                _ => todo!(),
             }
-            self.visit_expr(&init.expr);
-            self.current_assignment = None;
-        } else {
-            unimplemented!("only support assignment for now");
+            _ => {
+                syn::visit::visit_pat(self, &local.pat);
+                if let Some(it) = &local.init {
+                    self.visit_local_init(it);
+                }
+            }
         }
     }
     fn visit_block(&mut self, i: &'ast syn::Block) {
@@ -414,6 +998,7 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
     }
     fn visit_ident(&mut self, i: &'ast proc_macro2::Ident) {
         self.current_var = i.clone();
+        self.mark_used(i);
     }
     fn visit_expr_path(&mut self, i: &'ast syn::ExprPath) {
         if i.path.get_ident().is_some() {
@@ -425,7 +1010,6 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
     fn visit_expr_binary(&mut self, i: &'ast syn::ExprBinary) {
         let current_assignment = self.current_assignment.clone();
         self.current_assignment = None;
-        self.mark_expr_used(&i.left);
         self.visit_expr(&i.left);
         let left_var = syn::Ident::new(
             &self.ssa_ctx
@@ -462,7 +1046,6 @@ impl<'ast> Visit<'ast> for _Visitor<'ast> {
                 self.nodes.push(node);
             }
         }
-        self.mark_expr_used(&i.right);
         self.visit_expr(&i.right);
         let right_var = syn::Ident::new(
             &self.ssa_ctx
