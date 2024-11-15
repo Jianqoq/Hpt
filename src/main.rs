@@ -7,26 +7,26 @@ use tensor_dyn::type_promote::FloatOutUnary;
 use tensor_dyn::type_promote::NormalOutUnary;
 use tensor_dyn::type_promote::FloatOutBinary;
 
-fuse_proc_macro!(
-fn compute2(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
-    let mut c = &a + &b;
-    let d = c.sin()?;
-    let e = d.relu()?;
-    let alpha = 1.673263242354358;
-    let gamma = 1.050700987355822;
-    if alpha > 0.0 {
-        let d = e.selu(alpha, gamma)?;
-    } else {
-        let g = d.selu(alpha, gamma)?;
-    }
-    for _ in 0..1000000 {
-        let c = &d + &c;
-    }
-    while true {
-        let c = &d + &c;
-    }
-    Ok(c)
-});
+// fuse_proc_macro!(
+// fn compute2(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
+//     let mut c = &a + &b;
+//     let d = c.sin()?;
+//     let e = d.relu()?;
+//     let alpha = 1.673263242354358;
+//     let gamma = 1.050700987355822;
+//     if alpha > 0.0 {
+//         let d = e.selu(alpha, gamma)?;
+//     } else {
+//         let g = d.selu(alpha, gamma)?;
+//     }
+//     for _ in 0..1000000 {
+//         let c = &d + &c;
+//     }
+//     while true {
+//         let c = &d + &c;
+//     }
+//     Ok(c)
+// });
 
 // // #[fuse]
 // fn compute(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
@@ -43,7 +43,7 @@ fn compute2(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
 // }
 
 fn main() -> anyhow::Result<()> {
-    // conv2d()?;
+    conv2d()?;
     // let a = _Tensor::<f32>::arange(0, 10000)?;
     // let b = _Tensor::<f32>::arange(0, 10000)?;
     // let now = std::time::Instant::now();
@@ -52,12 +52,12 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn conv2d() -> Result<(), anyhow::Error> {
-    let oc_sets = [80];
-    let ic_sets = [8];
+    let oc_sets = [128, 256, 512, 1024, 2048, 4096, 8192];
+    let ic_sets = [128, 256, 512, 1024, 2048, 4096, 8192];
     let kh_sets = [4];
     let kw_sets = [4];
-    let h_sets = [1260];
-    let w_sets = [1260];
+    let h_sets = [256];
+    let w_sets = [256];
 
     set_num_threads(16);
     let mut workbook = Workbook::new();
@@ -72,11 +72,6 @@ fn conv2d() -> Result<(), anyhow::Error> {
                 for kw in kw_sets {
                     for h in h_sets {
                         for w in w_sets {
-                            let kernel = _Tensor::<f32>
-                                ::arange(0, oc * ic * kh * kw)?
-                                .reshape([oc, ic, kh, kw])?
-                                .permute([2, 3, 1, 0])?
-                                .contiguous()?;
                             let a = _Tensor::<f32>
                                 ::arange(0, 1 * ic * h * w)?
                                 .reshape([1, ic, h, w])?
@@ -86,8 +81,8 @@ fn conv2d() -> Result<(), anyhow::Error> {
                             // let a = Tensor::randn(1.0, 1.0, &[1, ic, h, w], &device)?;
                             // let kernel = Tensor::randn(1.0, 1.0, &[oc, ic, kh, kw], &device)?;
                             let now = std::time::Instant::now();
-                            let _ = a.conv2d(
-                                &kernel,
+                            let _ = a.maxpool2d(
+                                &[kh, kw].into(),
                                 None,
                                 [1, 1],
                                 [

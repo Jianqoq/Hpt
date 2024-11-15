@@ -86,6 +86,8 @@ fn main() {
 
     #[cfg(all(feature = "f32", feature = "conv2d"))]
     benchmarks::conv::conv2d::conv2d_benches();
+    #[cfg(any(feature = "f32", feature = "maxpool"))]
+    benchmarks::conv::maxpool::maxpool_benches();
 
     #[cfg(feature = "hamming")]
     benchmarks::signals::hamming_window::benches();

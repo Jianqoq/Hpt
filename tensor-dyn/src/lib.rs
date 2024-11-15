@@ -23,6 +23,8 @@ pub mod ops {
             pub mod conv2d_group;
             /// a module defines dwconv2d operation
             pub mod dwconv2d;
+            /// a module defines maxpool2d operation
+            pub mod max_pool;
         }
         /// a module defines dropout operation
         pub mod dropout;
@@ -76,7 +78,7 @@ pub mod ops {
             /// a module defines the lp_pool2d kernels
             pub mod lp_pool_kernels;
             /// a module defines the maxpool2d kernels
-            pub mod maxpool_kernels;
+            pub mod maxpool;
             /// a module defines the reduce kernels
             pub mod reduce;
             /// a module defines the dwconv2d kernels
@@ -166,8 +168,8 @@ pub use tensor_iterator::iterator_traits::*;
 pub use tensor_iterator::TensorIterator;
 
 pub use tensor_macros::match_selection;
-pub use tensor_macros::fuse;
-pub use tensor_macros::fuse_proc_macro;
+// pub use tensor_macros::fuse;
+// pub use tensor_macros::fuse_proc_macro;
 pub use tensor_traits::*;
 pub use tensor_types::vectors::*;
 pub use tensor_types::*;

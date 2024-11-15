@@ -826,3 +826,55 @@ pub(crate) fn dwconv2d_microkernel_gen_results(inputs: TokenStream) -> TokenStre
         }
     }
 }
+pub(crate) fn maxpool2d_microkernel_gen_results(inputs: TokenStream) -> TokenStream {
+    let inp_args = parse_macro_input!(inputs as ParseResultsArgs);
+    let text = inp_args.template_name.to_string();
+    let re = Regex::new(r"(\d+)x(\d+)").unwrap();
+    if let Some(captures) = re.captures(&text) {
+        let before_x = captures.get(1).unwrap().as_str();
+        let before_x = before_x.parse::<usize>().unwrap();
+        let ow_arr = (0..before_x).map(|i| {
+            let unsuffixed = Literal::usize_unsuffixed(i);
+            quote! {
+                #unsuffixed
+            }
+        });
+        let ow_arr = quote! {
+            #(
+                #ow_arr
+            ),*
+        };
+        let results = inp_args.name;
+        let inp = inp_args.inp;
+        (quote! {
+            repeat_results!(#results, #inp, i, [#ow_arr])
+        })
+        .into()
+    } else {
+        let re = Regex::new(r"(\d+)_(\d+)").unwrap();
+        if let Some(captures) = re.captures(&text) {
+            let before_x = captures.get(1).unwrap().as_str();
+            let before_x = before_x.parse::<usize>().unwrap();
+            let ow_arr = (0..before_x).map(|i| {
+                let unsuffixed = Literal::usize_unsuffixed(i);
+                quote! {
+                    #unsuffixed
+                }
+            });
+            let ow_arr = quote! {
+                #(
+                    #ow_arr
+                ),*
+            };
+            let results = inp_args.name;
+            let inp = inp_args.inp;
+            (quote! {
+                repeat_results!(#results, #inp, i, [#ow_arr])
+            })
+            .into()
+        } else {
+            panic!("Invalid input format, must contains format like 5x1 or 5_1");
+        }
+    }
+}
+

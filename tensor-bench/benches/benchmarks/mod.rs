@@ -11,6 +11,8 @@ pub mod reduction {
 pub mod conv {
     #[cfg(any(feature = "f32", feature = "conv2d"))]
     pub mod conv2d;
+    #[cfg(any(feature = "f32", feature = "maxpool"))]
+    pub mod maxpool;
 }
 pub mod signals {
     #[cfg(feature = "hamming")]
