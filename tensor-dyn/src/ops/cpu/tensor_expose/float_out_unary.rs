@@ -816,11 +816,9 @@ impl<T> FloatUaryOps
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.selu(None, None).unwrap();
     /// ```
-    fn selu(
-        &self,
-        alpha: Option<Self::OutputMeta>,
-        gamma: Option<Self::OutputMeta>
-    ) -> Result<Self::Output> {
+    fn selu<U>(&self, alpha: U, gamma: U) -> anyhow::Result<Tensor<FloatUnaryType<T>>>
+        where U: Into<Option<Self::OutputMeta>>
+    {
         Ok(_Tensor::<T, Cpu>::selu(self, alpha, gamma)?.into())
     }
 

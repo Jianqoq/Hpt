@@ -639,11 +639,11 @@ pub trait FloatUaryOps {
     ///
     /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn selu(
+    fn selu<U>(
         &self,
-        alpha: Option<Self::OutputMeta>,
-        gamma: Option<Self::OutputMeta>
-    ) -> Result<Self::Output>;
+        alpha: U,
+        gamma: U
+    ) -> Result<Self::Output> where U: Into<Option<Self::OutputMeta>>;
 
     /// selu method with output tensor, this method will write the result to the output tensor
     /// # See Also

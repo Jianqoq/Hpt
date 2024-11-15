@@ -2,24 +2,22 @@ use std::ops::{ Deref, DerefMut };
 
 use std::collections::{ HashMap, HashSet };
 
-use super::dag::Var;
-
 #[derive(Default, Debug, Clone)]
 pub(crate) struct Edges<'ast> {
-    inner: HashMap<Var<'ast>, HashSet<syn::Ident>>,
+    inner: HashMap<&'ast syn::Ident, HashSet<&'ast syn::Ident>>,
 }
 
 impl<'ast> Edges<'ast> {
     pub fn invert(&'ast self) -> Edges<'ast> {
-        let mut inverted: HashMap<Var<'ast>, HashSet<syn::Ident>> = HashMap::new();
-        for (key, value) in self.inner.iter() {
+        let mut inverted: HashMap<&'ast syn::Ident, HashSet<&'ast syn::Ident>> = HashMap::new();
+        for (&key, value) in self.inner.iter() {
             for i in value {
-                if let Some(set) = inverted.get_mut(&(Var { ident: i })) {
-                    set.insert(key.ident.clone());
+                if let Some(set) = inverted.get_mut(i) {
+                    set.insert(key);
                 } else {
                     let mut set = HashSet::new();
-                    set.insert(key.ident.clone());
-                    inverted.insert(Var { ident: i }, set);
+                    set.insert(key);
+                    inverted.insert(i, set);
                 }
             }
         }
@@ -27,14 +25,14 @@ impl<'ast> Edges<'ast> {
     }
 }
 
-impl<'ast> From<HashMap<Var<'ast>, HashSet<syn::Ident>>> for Edges<'ast> {
-    fn from(inner: HashMap<Var<'ast>, HashSet<syn::Ident>>) -> Self {
+impl<'ast> From<HashMap<&'ast syn::Ident, HashSet<&'ast syn::Ident>>> for Edges<'ast> {
+    fn from(inner: HashMap<&'ast syn::Ident, HashSet<&'ast syn::Ident>>) -> Self {
         Edges { inner }
     }
 }
 
 impl<'ast> Deref for Edges<'ast> {
-    type Target = HashMap<Var<'ast>, HashSet<syn::Ident>>;
+    type Target = HashMap<&'ast syn::Ident, HashSet<&'ast syn::Ident>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner

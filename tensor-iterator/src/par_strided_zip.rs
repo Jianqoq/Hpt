@@ -184,7 +184,7 @@ pub mod par_strided_zip_simd {
         ///
         /// A `ParStridedMapSimd` instance that applies the provided functions during iteration.
         ///
-        pub fn strided_map<F, F2, T>(
+        pub fn strided_map_simd<F, F2, T>(
             self,
             func: F,
             func2: F2,
@@ -288,6 +288,8 @@ pub mod par_strided_zip_simd {
             bridge_unindexed(self, consumer)
         }
     }
+
+    
 }
 
 /// A parallel zipped iterator combining two iterators over tensor elements.

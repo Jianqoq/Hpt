@@ -12,8 +12,10 @@ gnuplot = "0.0.43"
 num_cpus = "1.13.0"
 paste = "1.0.15"
 rayon = "1.8.0"
+syn =  {version = "2.0.82", default-features = false, features = ["derive", "full", "visit", "visit-mut"] }
 
 [features]
+maxpool = []
 softmax = []
 hamming = []
 unary = []
@@ -124,17 +126,3 @@ default = [
 name = "main"
 path = "benches/benchmarks_main.rs"
 harness = false
-
-[profile.dev]
-opt-level = 3
-incremental = true
-debug = false
-lto = "fat"
-codegen-units = 1
-
-[profile.release]
-opt-level = 3
-incremental = true
-debug = false
-lto = "fat"
-codegen-units = 1

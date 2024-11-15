@@ -272,11 +272,11 @@ where
                 let ret = lhs
                     .par_iter_simd()
                     .zip(rhs.par_iter_simd())
-                    .strided_map(
+                    .strided_map_simd(
                         |(res, (x, y))| {
                             *res = f(x, y);
                         },
-                        |(mut res, (x, y))| {
+                        |(res, (x, y))| {
                             let x_ptr = x.as_ptr();
                             let y_ptr = y.as_ptr();
                             res.write_unaligned(f2(

@@ -45,18 +45,23 @@ mod scalar_convert;
 mod from_scalar;
 mod conv2d;
 
-mod fuse {
-    pub(crate) mod start;
-    pub(crate) mod dag;
-    pub(crate) mod visitor;
-    pub(crate) mod node;
-    pub(crate) mod fuse;
-    pub(crate) mod kernel_type;
-    pub(crate) mod gen_fuse;
-    pub(crate) mod edges;
-    pub(crate) mod codegen;
-    pub(crate) mod ssa;
-}
+// mod fuse {
+//     pub(crate) mod start;
+//     pub(crate) mod dag;
+//     pub(crate) mod visitor;
+//     pub(crate) mod node;
+//     pub(crate) mod fuse;
+//     pub(crate) mod kernel_type;
+//     pub(crate) mod gen_fuse;
+//     pub(crate) mod edges;
+//     pub(crate) mod codegen;
+//     pub(crate) mod ssa;
+//     pub(crate) mod rcmut;
+//     pub(crate) mod to_remove;
+//     pub(crate) mod ssa_visitor;
+//     pub(crate) mod cfg;
+//     pub(crate) mod ty_infer;
+// }
 
 use crate::simd_cmp::impl_simd_cmp;
 use crate::simd_normal_out::impl_simd_normal_out;
@@ -766,15 +771,22 @@ pub fn dwconv2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
     conv2d::dwconv2d_microkernel_gen_results(input)
 }
 
-/// perform fuse optimization
-#[proc_macro_attribute]
-pub fn fuse(_: TokenStream, item: TokenStream) -> TokenStream
-{
-    fuse::start::fuse_impl(item)
+/// generate maxpool2d kernels
+/// generate conv2d repeat results
+#[proc_macro]
+pub fn maxpool2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
+    conv2d::maxpool2d_microkernel_gen_results(input)
 }
 
-/// fuse proc macro
-#[proc_macro]
-pub fn fuse_proc_macro(item: TokenStream) -> TokenStream {
-    fuse::start::fuse_proc_macro(item)
-}
+// /// perform fuse optimization
+// #[proc_macro_attribute]
+// pub fn fuse(_: TokenStream, item: TokenStream) -> TokenStream
+// {
+//     fuse::start::fuse_impl(item)
+// }
+
+// /// fuse proc macro
+// #[proc_macro]
+// pub fn fuse_proc_macro(item: TokenStream) -> TokenStream {
+//     fuse::start::fuse_proc_macro(item)
+// }

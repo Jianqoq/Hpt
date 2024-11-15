@@ -45,6 +45,7 @@ pub trait Init<T> {
     /// # Safety
     ///
     /// This function is unsafe because it can cause undefined behavior if the pointer is invalid or the data len is less than the vector size
+    #[inline(always)]
     unsafe fn from_ptr(ptr: *const T) -> Self
     where
         Self: Sized,

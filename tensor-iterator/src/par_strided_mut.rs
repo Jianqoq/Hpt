@@ -184,6 +184,7 @@ pub mod par_strided_map_mut_simd {
             }
         }
 
+        #[inline(always)]
         fn inner_loop_next_simd(&mut self, index: usize) -> Self::SimdItem {
             unsafe {
                 std::mem::transmute(
@@ -192,7 +193,7 @@ pub mod par_strided_map_mut_simd {
                         .get_ptr()
                         .add(index * T::Vec::SIZE)
                         .as_mut()
-                        .unwrap(),
+                        .unwrap_unchecked(),
                 )
             }
         }

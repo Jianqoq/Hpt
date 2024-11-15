@@ -1,11 +1,10 @@
 use quote::ToTokens;
 
-use super::dag::Var;
-
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub(crate) struct Unary<'ast> {
     pub(crate) method: &'ast syn::Ident,
     pub(crate) operand: syn::Ident,
+    pub(crate) args: Vec<syn::Expr>,
     pub(crate) output: syn::Ident,
 }
 
@@ -13,10 +12,15 @@ impl<'ast> std::fmt::Debug for Unary<'ast> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{} = {}({})",
+            "{} = {}({}, {})",
             self.output.to_token_stream().to_string(),
             self.method.to_token_stream().to_string(),
-            self.operand.to_token_stream().to_string()
+            self.operand.to_token_stream().to_string(),
+            self.args
+                .iter()
+                .map(|arg| arg.to_token_stream().to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
         )
     }
 }
@@ -26,9 +30,20 @@ impl<'ast> ToTokens for Unary<'ast> {
         let method = proc_macro2::Ident::new(&format!("_{}", self.method), self.method.span());
         let operand = proc_macro2::Ident::new(&format!("{}", self.operand), self.operand.span());
         let output = proc_macro2::Ident::new(&format!("{}", self.output), self.output.span());
-        tokens.extend(quote::quote!(
-             let #output = #operand.#method();
-        ));
+        if self.args.is_empty() {
+            tokens.extend(
+                quote::quote!(
+                let #output = #operand.#method();
+            )
+            );
+        } else {
+            let args = self.args.iter();
+            tokens.extend(
+                quote::quote!(
+                let #output = #operand.#method(#(#args),*);
+            )
+            );
+        }
     }
 }
 
@@ -71,7 +86,13 @@ impl<'ast> ToTokens for Binary {
 pub(crate) enum Node<'ast> {
     Unary(Unary<'ast>),
     Binary(Binary),
-    Input(Var<'ast>),
+    Input(syn::Ident),
+}
+
+impl<'ast> Node<'ast> {
+    pub fn is_input(&self) -> bool {
+        matches!(self, Node::Input(_))
+    }
 }
 
 impl<'ast> std::fmt::Debug for Node<'ast> {
@@ -79,7 +100,7 @@ impl<'ast> std::fmt::Debug for Node<'ast> {
         match self {
             Node::Unary(unary, ..) => write!(f, "{:#?}", unary),
             Node::Binary(binary, ..) => write!(f, "{:#?}", binary),
-            Node::Input(input) => write!(f, "{:#?}", input),
+            Node::Input(input) => write!(f, "{}", input.to_string()),
         }
     }
 }
