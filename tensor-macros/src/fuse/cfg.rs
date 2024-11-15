@@ -343,12 +343,6 @@ impl<'a> CFGBuilder<'a> {
         self.cfg.connect(self.current_block, to);
     }
 
-    // 处理跳转后的基本块更新
-    fn jump_to(&mut self, to: NodeIndex) {
-        self.connect_to(to);
-        self.current_block = to;
-    }
-
     fn set_current_block(&mut self, new_block: NodeIndex) {
         self.current_block = new_block;
     }

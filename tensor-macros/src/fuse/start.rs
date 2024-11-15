@@ -69,14 +69,10 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     let mut builder = CFGBuilder::new(&mut cfg);
     builder.visit_item_fn(item_fn);
     let dominators = petgraph::algo::dominators::simple_fast(&cfg.graph, cfg.entry);
-    println!("{:#?}", dominators);
     let dominance_frontiers = compute_dominance_frontiers(&cfg, &dominators);
-    println!("dominance_frontiers: {:#?}", dominance_frontiers);
 
     let definitions = cfg.get_variable_definitions();
-    println!("definitions: {:#?}", definitions);
     cfg.insert_phi_functions(&dominance_frontiers, &definitions);
-    println!("{:#?}", cfg.graph);
     rename_variables(&mut cfg, &dominators);
     println!("rename: {:#?}", cfg.graph);
     Ok(cfg)
