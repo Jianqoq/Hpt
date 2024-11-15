@@ -21,32 +21,13 @@ impl std::fmt::Debug for CustomStmt {
 #[derive(Debug, Clone)]
 pub(crate) struct BasicBlock {
     pub(crate) statements: Vec<CustomStmt>,
-    pub(crate) stmt_defs: Vec<String>,
     pub(crate) origin_vars: HashSet<String>,
-    phi_functions: Vec<PhiFunction>, // 用于 SSA（后续步骤）
-}
-
-// Phi 函数结构（用于 SSA）
-#[derive(Clone)]
-struct PhiFunction {
-    variable: String,
-    origin_var: String,
-    arguments: Vec<String>,
-    origin_args: Vec<String>,
-}
-
-impl std::fmt::Debug for PhiFunction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} = phi({})", self.variable, self.arguments.join(", "))
-    }
 }
 
 // CFG 结构
 pub(crate) struct CFG {
     pub(crate) graph: Graph<BasicBlock, ()>,
     pub(crate) entry: NodeIndex,
-    pub(crate) live_in: HashMap<NodeIndex, HashSet<String>>,
-    pub(crate) live_out: HashMap<NodeIndex, HashSet<String>>,
 }
 
 impl CFG {
@@ -54,12 +35,10 @@ impl CFG {
         let mut graph = Graph::<BasicBlock, ()>::new();
         let entry_block = BasicBlock {
             statements: vec![],
-            phi_functions: vec![],
             origin_vars: HashSet::new(),
-            stmt_defs: vec![],
         };
         let entry = graph.add_node(entry_block);
-        CFG { graph, entry, live_in: HashMap::new(), live_out: HashMap::new() }
+        CFG { graph, entry }
     }
 
     fn add_block(&mut self, block: BasicBlock) -> NodeIndex {
@@ -104,31 +83,23 @@ impl CFG {
                 if let Some(frontiers) = dominance_frontiers.get(&def) {
                     for frontier in frontiers {
                         if !has_already[var].contains(frontier) {
+                            let preds_cnt = self.graph
+                                .neighbors_directed(*frontier, petgraph::Direction::Incoming)
+                                .count();
                             // 插入 Φ 函数
                             let phi_ident = syn::Ident::new(
                                 &format!("{}", var),
                                 proc_macro2::Span::call_site()
                             );
+                            let args = vec![phi_ident.clone(); preds_cnt];
                             let phi_stmt: syn::Stmt =
                                 parse_quote! {
-                                    let #phi_ident = __phi();
+                                    let #phi_ident = #[#phi_ident] __phi(#(#args),*);
                                 };
                             self.graph
                                 .node_weight_mut(*frontier)
                                 .unwrap()
                                 .statements.insert(0, CustomStmt { stmt: phi_stmt });
-                            let preds_cnt = self.graph
-                                .neighbors_directed(*frontier, petgraph::Direction::Incoming)
-                                .count();
-                            self.graph
-                                .node_weight_mut(*frontier)
-                                .unwrap()
-                                .phi_functions.push(PhiFunction {
-                                    variable: var.clone(),
-                                    arguments: vec![var.clone(); preds_cnt],
-                                    origin_args: vec![var.clone(); preds_cnt],
-                                    origin_var: var.clone(),
-                                });
                             has_already.get_mut(var).unwrap().insert(*frontier);
 
                             // **只有当变量 v 不在 frontier 的 orig 中时，才将 frontier 加入工作集**
@@ -177,7 +148,6 @@ pub(crate) fn rename_variables(cfg: &mut CFG, dominators: &Dominators<NodeIndex>
                         if let syn::Pat::Ident(pat_ident) = &mut local.pat {
                             let var = pat_ident.ident.to_string();
                             block.origin_vars.insert(var.clone());
-                            block.stmt_defs.push(var);
                         }
                     }
                     _ => {}
@@ -202,10 +172,10 @@ fn rename(
     versions: &mut HashMap<String, usize>,
     dominators: &Dominators<NodeIndex>
 ) {
-    for phi in &mut cfg.graph[node].phi_functions {
-        let var = &phi.origin_var;
-        phi.variable = new_name(var, versions, stacks);
-    }
+    // for phi in &mut cfg.graph[node].phi_functions {
+    //     let var = &phi.origin_var;
+    //     phi.variable = new_name(var, versions, stacks);
+    // }
     for stmt in &mut cfg.graph[node].statements {
         match &mut stmt.stmt {
             Stmt::Local(local) => {
@@ -224,27 +194,61 @@ fn rename(
             Stmt::Macro(_) => unimplemented!("rename::Stmt::Macro"),
         }
     }
-    for phi in &mut cfg.graph[node].phi_functions {
-        let var = &mut phi.origin_var;
-        if let Some(stack) = stacks.get_mut(var) {
-            if let Some(&current_version) = stack.last() {
-                phi.variable = format!("{}{}", var, current_version);
-            }
-        }
-    }
-    let mut succs: Vec<NodeIndex> = cfg.graph
+    let succs: Vec<NodeIndex> = cfg.graph
         .neighbors_directed(node, petgraph::Direction::Outgoing)
         .collect();
     // for each succ of current node in the cfg
     //  fill in phi function parameters
-    succs.sort();
-    for (j, succ) in succs.iter().enumerate() {
-        for phi in &mut cfg.graph[*succ].phi_functions {
-            let var = &phi.origin_var;
-            if let Some(stack) = stacks.get(var) {
-                if let Some(&current_version) = stack.last() {
-                    phi.arguments[j] = format!("{}{}", var, current_version);
+    for succ in succs.iter() {
+        let mut incomings: Vec<NodeIndex> = cfg.graph
+            .neighbors_directed(*succ, petgraph::Direction::Incoming)
+            .collect();
+        incomings.sort();
+        let j = incomings
+            .iter()
+            .position(|x| *x == node)
+            .unwrap_or(0);
+        for stmt in &mut cfg.graph[*succ].statements {
+            match &mut stmt.stmt {
+                Stmt::Local(local) => {
+                    if let Some(init) = &mut local.init {
+                        if let syn::Expr::Call(call) = init.expr.as_mut() {
+                            if let syn::Expr::Path(path) = &call.func.as_ref() {
+                                if let Some(ident) = path.path.get_ident() {
+                                    if ident.to_string() == "__phi" {
+                                        let origin_var = call.attrs[0].meta
+                                            .path()
+                                            .get_ident()
+                                            .expect("__phi origin var not found")
+                                            .to_string();
+                                        if
+                                            let Some(current_version) = stacks.get(
+                                                &origin_var.to_string()
+                                            )
+                                        {
+                                            if let Some(version) = current_version.last() {
+                                                let new_var = format!("{}{}", origin_var, version);
+                                                let ident = syn::Ident::new(
+                                                    &new_var,
+                                                    proc_macro2::Span::call_site()
+                                                );
+                                                let path = parse_quote!(#ident);
+                                                call.args[j] = syn::Expr::Path(syn::ExprPath {
+                                                    attrs: vec![],
+                                                    qself: None,
+                                                    path,
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
+                Stmt::Item(_) => unimplemented!("rename::Stmt::Item"),
+                Stmt::Expr(..) => {}
+                Stmt::Macro(_) => unimplemented!("rename::Stmt::Macro"),
             }
         }
     }
@@ -258,12 +262,8 @@ fn rename(
     for succ in dom_succs {
         rename(cfg, succ, stacks, versions, dominators);
     }
-    for phi in &mut cfg.graph[node].phi_functions {
-        let var = &mut phi.origin_var;
+    for var in &cfg.graph[node].origin_vars {
         stacks.get_mut(var).expect(&format!("rename::phi::stacks: {}", var)).pop();
-    }
-    for stmt in &mut cfg.graph[node].stmt_defs {
-        stacks.get_mut(stmt).expect(&format!("rename::stmt_defs::stacks: {}", stmt)).pop();
     }
 }
 
@@ -301,11 +301,12 @@ fn new_name(
     stacks: &mut HashMap<String, Vec<usize>>
 ) -> String {
     if let Some(cnt) = versions.get_mut(var) {
-        *cnt += 1;
         if let Some(stack) = stacks.get_mut(var) {
             stack.push(*cnt);
         }
-        format!("{}{}", var, cnt)
+        let ret = format!("{}{}", var, cnt);
+        *cnt += 1;
+        ret
     } else {
         panic!("{} not found in new_name", var);
     }
@@ -331,9 +332,7 @@ impl<'a> CFGBuilder<'a> {
     fn new_block(&mut self) -> NodeIndex {
         let block = BasicBlock {
             statements: vec![],
-            phi_functions: vec![],
             origin_vars: HashSet::new(),
-            stmt_defs: vec![],
         };
         self.cfg.add_block(block)
     }
@@ -427,7 +426,7 @@ impl<'a> CFGBuilder<'a> {
 
     // 处理 continue 语句
     fn handle_continue(&mut self, _expr_continue: &syn::ExprContinue) {
-        if let Some(after_loop_block) = self.loop_stack.last() {
+        if let Some(_) = self.loop_stack.last() {
             // 假设循环体块是上一个块，重新连接到循环体块以进行下一次迭代
             // 你可能需要更精确地跟踪循环入口块
             // 这里简化处理，连接回当前循环体块
@@ -626,6 +625,10 @@ impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
 
     fn visit_expr_for_loop(&mut self, i: &'ast syn::ExprForLoop) {
         self.handle_for_loop(i);
+    }
+
+    fn visit_expr_while(&mut self, i: &'ast syn::ExprWhile) {
+        self.handle_while_loop(i);
     }
 
     fn visit_expr(&mut self, node: &'ast syn::Expr) {
