@@ -1,7 +1,15 @@
 use std::collections::{ HashMap, HashSet };
 
 use crate::fuse::{
-    cfg::rename_variables, codegen::{ Codegen, _Codegen }, dag::Graph, fuse::fuse_graph, gen_fuse::gen_fuse, rcmut::RCMut, ssa::SSAContext, to_remove::gen_to_remove, visitor::Visitor
+    cfg::rename_variables,
+    codegen::{ Codegen, _Codegen },
+    dag::Graph,
+    fuse::fuse_graph,
+    gen_fuse::gen_fuse,
+    rcmut::RCMut,
+    ssa::SSAContext,
+    to_remove::gen_to_remove,
+    visitor::Visitor,
 };
 use petgraph::{ algo::dominators::Dominators, graph::NodeIndex };
 use syn::visit::Visit;
@@ -69,7 +77,7 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     println!("definitions: {:#?}", definitions);
     cfg.insert_phi_functions(&dominance_frontiers, &definitions);
     println!("{:#?}", cfg.graph);
-    rename_variables(&mut cfg, &dominators, &dominance_frontiers);
+    rename_variables(&mut cfg, &dominators);
     println!("rename: {:#?}", cfg.graph);
     Ok(cfg)
 }

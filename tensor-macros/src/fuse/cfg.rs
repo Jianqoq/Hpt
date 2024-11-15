@@ -21,15 +21,24 @@ impl std::fmt::Debug for CustomStmt {
 #[derive(Debug, Clone)]
 pub(crate) struct BasicBlock {
     pub(crate) statements: Vec<CustomStmt>,
+    pub(crate) stmt_defs: Vec<String>,
     pub(crate) origin_vars: HashSet<String>,
     phi_functions: Vec<PhiFunction>, // 用于 SSA（后续步骤）
 }
 
 // Phi 函数结构（用于 SSA）
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct PhiFunction {
     variable: String,
+    origin_var: String,
     arguments: Vec<String>,
+    origin_args: Vec<String>,
+}
+
+impl std::fmt::Debug for PhiFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} = phi({})", self.variable, self.arguments.join(", "))
+    }
 }
 
 // CFG 结构
@@ -47,6 +56,7 @@ impl CFG {
             statements: vec![],
             phi_functions: vec![],
             origin_vars: HashSet::new(),
+            stmt_defs: vec![],
         };
         let entry = graph.add_node(entry_block);
         CFG { graph, entry, live_in: HashMap::new(), live_out: HashMap::new() }
@@ -107,12 +117,17 @@ impl CFG {
                                 .node_weight_mut(*frontier)
                                 .unwrap()
                                 .statements.insert(0, CustomStmt { stmt: phi_stmt });
+                            let preds_cnt = self.graph
+                                .neighbors_directed(*frontier, petgraph::Direction::Incoming)
+                                .count();
                             self.graph
                                 .node_weight_mut(*frontier)
                                 .unwrap()
                                 .phi_functions.push(PhiFunction {
                                     variable: var.clone(),
-                                    arguments: vec![],
+                                    arguments: vec![var.clone(); preds_cnt],
+                                    origin_args: vec![var.clone(); preds_cnt],
+                                    origin_var: var.clone(),
                                 });
                             has_already.get_mut(var).unwrap().insert(*frontier);
 
@@ -129,12 +144,8 @@ impl CFG {
 }
 
 // 变量重命名
-pub(crate) fn rename_variables(
-    cfg: &mut CFG,
-    dominators: &Dominators<NodeIndex>,
-    dominance_frontiers: &HashMap<NodeIndex, HashSet<NodeIndex>>
-) {
-    let mut stacks: HashMap<String, Vec<String>> = HashMap::new();
+pub(crate) fn rename_variables(cfg: &mut CFG, dominators: &Dominators<NodeIndex>) {
+    let mut stacks: HashMap<String, Vec<usize>> = HashMap::new();
     let mut versions: HashMap<String, usize> = HashMap::new();
 
     // 收集所有变量
@@ -165,7 +176,8 @@ pub(crate) fn rename_variables(
                     CustomStmt { stmt: syn::Stmt::Local(local) } => {
                         if let syn::Pat::Ident(pat_ident) = &mut local.pat {
                             let var = pat_ident.ident.to_string();
-                            block.origin_vars.insert(var);
+                            block.origin_vars.insert(var.clone());
+                            block.stmt_defs.push(var);
                         }
                     }
                     _ => {}
@@ -180,96 +192,85 @@ pub(crate) fn rename_variables(
         versions.insert(var.clone(), 0);
     }
 
-    // 遍历 CFG 的支配树（深度优先）
-    fn dfs(
-        node: NodeIndex,
-        cfg: &mut CFG,
-        dominators: &Dominators<NodeIndex>,
-        dominance_frontiers: &HashMap<NodeIndex, HashSet<NodeIndex>>,
-        stacks: &mut HashMap<String, Vec<String>>,
-        versions: &mut HashMap<String, usize>
-    ) {
-        println!("node: {:?}", node);
-        for pred in cfg.graph.neighbors_directed(node, petgraph::Direction::Incoming) {
-            if let Some(block) = cfg.graph.node_weight(pred) {
-                for var in &block.origin_vars {
-                    if let Some(stack) = stacks.get_mut(var) {
-                        if let Some(latest_var) = stack.last() {
-                            println!("latest_var: {}", latest_var);
-                        }
-                    }
+    rename(cfg, cfg.entry, &mut stacks, &mut versions, dominators);
+}
+
+fn rename(
+    cfg: &mut CFG,
+    node: NodeIndex,
+    stacks: &mut HashMap<String, Vec<usize>>,
+    versions: &mut HashMap<String, usize>,
+    dominators: &Dominators<NodeIndex>
+) {
+    for phi in &mut cfg.graph[node].phi_functions {
+        let var = &phi.origin_var;
+        phi.variable = new_name(var, versions, stacks);
+    }
+    for stmt in &mut cfg.graph[node].statements {
+        match &mut stmt.stmt {
+            Stmt::Local(local) => {
+                if let Some(init) = &mut local.init {
+                    replace_vars(&mut init.expr, stacks);
+                }
+                if let syn::Pat::Ident(pat_ident) = &mut local.pat {
+                    let new_name = new_name(&pat_ident.ident.to_string(), versions, stacks);
+                    pat_ident.ident = syn::Ident::new(&new_name, pat_ident.ident.span());
+                }
+            }
+            Stmt::Item(_) => unimplemented!("rename::Stmt::Item"),
+            Stmt::Expr(expr, ..) => {
+                replace_vars(expr, stacks);
+            }
+            Stmt::Macro(_) => unimplemented!("rename::Stmt::Macro"),
+        }
+    }
+    for phi in &mut cfg.graph[node].phi_functions {
+        let var = &mut phi.origin_var;
+        if let Some(stack) = stacks.get_mut(var) {
+            if let Some(&current_version) = stack.last() {
+                phi.variable = format!("{}{}", var, current_version);
+            }
+        }
+    }
+    let mut succs: Vec<NodeIndex> = cfg.graph
+        .neighbors_directed(node, petgraph::Direction::Outgoing)
+        .collect();
+    // for each succ of current node in the cfg
+    //  fill in phi function parameters
+    succs.sort();
+    for (j, succ) in succs.iter().enumerate() {
+        for phi in &mut cfg.graph[*succ].phi_functions {
+            let var = &phi.origin_var;
+            if let Some(stack) = stacks.get(var) {
+                if let Some(&current_version) = stack.last() {
+                    phi.arguments[j] = format!("{}{}", var, current_version);
                 }
             }
         }
-        // 处理 Φ 函数
-        for PhiFunction { variable, arguments } in cfg.graph[node].phi_functions.iter_mut() {
-            // 为 Φ 函数分配新版本
-            let count = versions.get_mut(variable).unwrap();
-            *count += 1;
-            let new_var = format!("{}{}", variable, count);
-            // 推入栈
-            stacks.get_mut(variable).expect(&format!("{} not found 1", variable)).push(new_var);
-        }
-        // 处理语句
-        for stmt in &mut cfg.graph[node].statements {
-            match stmt {
-                CustomStmt { stmt: syn::Stmt::Local(local) } => {
-                    if let syn::Pat::Ident(pat_ident) = &mut local.pat {
-                        let var = pat_ident.ident.to_string();
-                        // 分配新版本
-                        let count = versions.get_mut(&var).expect(&format!("{} not found", var));
-                        *count += 1;
-                        let new_var = format!("{}{}", var, count);
-                        pat_ident.ident = syn::Ident::new(&new_var, pat_ident.ident.span());
-
-                        // 更新赋值表达式
-                        if let Some(expr) = &mut local.init {
-                            expr.expr = Box::new(replace_vars(&expr.expr, stacks));
-                        }
-                        // 推入栈
-                        stacks
-                            .get_mut(&var)
-                            .expect(&format!("{} not found 2", var))
-                            .push(new_var.clone());
-                    }
-                }
-                CustomStmt { stmt: syn::Stmt::Expr(expr, ..) } => {
-                    *expr = replace_vars(expr, stacks);
-                }
-                _ => {}
-            }
-        }
-
-        // 递归处理子节点
-        for succ in cfg.graph.node_indices() {
-            if dominators.immediate_dominator(succ) == Some(node) {
-                dfs(succ, cfg, dominators, dominance_frontiers, stacks, versions);
-            }
-        }
-
-        // 回溯：弹出变量版本
-        // 处理 Φ 函数
-        for PhiFunction { variable, .. } in cfg.graph[node].phi_functions.iter() {
-            stacks.get_mut(variable).expect(&format!("{} not found 3", variable)).pop();
-        }
-
-        for var in cfg.graph[node].origin_vars.iter() {
-            stacks.get_mut(var).expect(&format!("{} not found 4", var)).pop();
+    }
+    let mut dom_succs = Vec::new();
+    for node_idx in cfg.graph.node_indices() {
+        if dominators.immediate_dominator(node_idx) == Some(node) {
+            dom_succs.push(node_idx);
         }
     }
 
-    // 替换表达式中的变量为当前版本
-    fn replace_vars(expr: &syn::Expr, stacks: &HashMap<String, Vec<String>>) -> syn::Expr {
-        let mut expr = expr.clone();
-        syn::visit_mut::visit_expr_mut(&mut (VarRenamer { stacks }), &mut expr);
-        expr
+    for succ in dom_succs {
+        rename(cfg, succ, stacks, versions, dominators);
     }
+    for phi in &mut cfg.graph[node].phi_functions {
+        let var = &mut phi.origin_var;
+        stacks.get_mut(var).expect(&format!("rename::phi::stacks: {}", var)).pop();
+    }
+    for stmt in &mut cfg.graph[node].stmt_defs {
+        stacks.get_mut(stmt).expect(&format!("rename::stmt_defs::stacks: {}", stmt)).pop();
+    }
+}
 
-    // 结构体用于遍历并替换变量
+fn replace_vars(expr: &mut syn::Expr, stacks: &HashMap<String, Vec<usize>>) {
     struct VarRenamer<'a> {
-        stacks: &'a HashMap<String, Vec<String>>,
+        stacks: &'a HashMap<String, Vec<usize>>,
     }
-
     impl<'a> syn::visit_mut::VisitMut for VarRenamer<'a> {
         fn visit_expr_mut(&mut self, node: &mut syn::Expr) {
             match node {
@@ -277,9 +278,9 @@ pub(crate) fn rename_variables(
                     if expr_path.qself.is_none() && expr_path.path.segments.len() == 1 {
                         let var = expr_path.path.segments[0].ident.to_string();
                         if let Some(stack) = self.stacks.get(&var) {
-                            if let Some(current_var) = stack.last() {
+                            if let Some(current_cnt) = stack.last() {
                                 expr_path.path.segments[0].ident = syn::Ident::new(
-                                    current_var,
+                                    &format!("{}{}", var, current_cnt),
                                     expr_path.path.segments[0].ident.span()
                                 );
                             }
@@ -291,9 +292,23 @@ pub(crate) fn rename_variables(
             syn::visit_mut::visit_expr_mut(self, node);
         }
     }
+    syn::visit_mut::visit_expr_mut(&mut (VarRenamer { stacks }), expr);
+}
 
-    // 开始 DFS 遍历
-    dfs(cfg.entry, cfg, dominators, dominance_frontiers, &mut stacks, &mut versions);
+fn new_name(
+    var: &str,
+    versions: &mut HashMap<String, usize>,
+    stacks: &mut HashMap<String, Vec<usize>>
+) -> String {
+    if let Some(cnt) = versions.get_mut(var) {
+        *cnt += 1;
+        if let Some(stack) = stacks.get_mut(var) {
+            stack.push(*cnt);
+        }
+        format!("{}{}", var, cnt)
+    } else {
+        panic!("{} not found in new_name", var);
+    }
 }
 
 pub(crate) struct CFGBuilder<'a> {
@@ -318,6 +333,7 @@ impl<'a> CFGBuilder<'a> {
             statements: vec![],
             phi_functions: vec![],
             origin_vars: HashSet::new(),
+            stmt_defs: vec![],
         };
         self.cfg.add_block(block)
     }
