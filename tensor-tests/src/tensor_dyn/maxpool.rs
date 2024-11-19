@@ -48,14 +48,12 @@ fn assert_eq(
     let res = a
         .maxpool2d(
             &a_kernel.shape(),
-            None,
             [1, 1],
             [
                 (0, 0),
                 (0, 0),
             ],
-            [1, 1],
-            None
+            [1, 1]
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
@@ -83,14 +81,12 @@ fn assert_eq_pad(
     let res = a
         .maxpool2d(
             &a_kernel.shape(),
-            None,
             [1, 1],
             [
                 (2, 2),
                 (2, 2),
             ],
-            [1, 1],
-            None
+            [1, 1]
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;

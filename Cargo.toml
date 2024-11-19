@@ -30,7 +30,6 @@ cache-size = "0.7.0"
 rust_xlsxwriter = "=0.25.0"
 num-complex = "0.4"
 # candle-core = "0.7.2"
-syn =  {version = "2.0.82", default-features = false, features = ["derive", "full", "visit", "visit-mut"] }
 
 [[test]]
 name = "tensor-tests"
@@ -43,7 +42,7 @@ path = "src/main.rs"
 [profile.release]
 opt-level = 3
 incremental = false
-debug = true
+debug = false
 lto = "fat"
 codegen-units = 1
 

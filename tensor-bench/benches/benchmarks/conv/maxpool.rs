@@ -63,14 +63,12 @@ fn maxpool_benchmark(c: &mut Criterion) {
                                 b.iter(||
                                     a2.maxpool2d(
                                         &[kh, kw].into(),
-                                        None,
                                         [1, 1],
                                         [
                                             (0, 0),
                                             (0, 0),
                                         ],
                                         [1, 1],
-                                        None
                                     )
                                 );
                             }
@@ -97,14 +95,12 @@ fn maxpool_benchmark(c: &mut Criterion) {
                         let a2_res = a2
                             .maxpool2d(
                                 &[kh, kw].into(),
-                                None,
                                 [1, 1],
                                 [
                                     (0, 0),
                                     (0, 0),
                                 ],
                                 [1, 1],
-                                None
                             )
                             .unwrap()
                             .permute([0, 3, 1, 2])

@@ -1,6 +1,4 @@
 use crate::ops::cpu::cache_utils::cache::Cache;
-use crate::ops::cpu::kernels::maxpool::bias_remain_oc_kernel_dispatch;
-use crate::ops::cpu::kernels::maxpool::conv2d_full_oc_bias_kernel_dispatch;
 use crate::ops::cpu::kernels::maxpool::conv2d_full_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::maxpool::remain_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::maxpool::Params;
@@ -49,11 +47,9 @@ impl<T> _Tensor<T>
     pub fn maxpool2d(
         &self,
         kernels_shape: &Shape,
-        bias: Option<&_Tensor<T>>,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
-        dilation: [i64; 2],
-        activation: Option<fn(T::Vec) -> T::Vec>
+        dilation: [i64; 2]
     ) -> anyhow::Result<_Tensor<T>> {
         let img_shape = self.shape();
         if img_shape.len() != 4 {
@@ -86,7 +82,6 @@ impl<T> _Tensor<T>
                 Err(InvalidInputShape(out_width, core::panic::Location::caller()).into())
             };
         }
-        let activation = activation.unwrap_or(|x| x);
         let output = _Tensor::<T>::empty([batch, out_height, out_width, in_channels])?;
         let out = output.ptr();
         let inp = img.ptr();
@@ -134,49 +129,6 @@ impl<T> _Tensor<T>
             &mut 1,
             &mut ((out_width as usize) % ow_block)
         );
-        let has_bias = bias.is_some();
-        let bias_full_oc_kernel = if has_bias {
-            Some(conv2d_full_oc_bias_kernel_dispatch::<T>(&mut ic_nvec, &mut ow_block).unwrap())
-        } else {
-            None
-        };
-        let bias_one_oc_kernel = if has_bias {
-            Some(conv2d_full_oc_bias_kernel_dispatch::<T>(&mut 1, &mut ow_block).unwrap())
-        } else {
-            None
-        };
-        let bias_remain_oc_kernel = if has_bias {
-            Some(bias_remain_oc_kernel_dispatch::<T>(&mut ow_block).unwrap())
-        } else {
-            None
-        };
-        let bias_full_oc_ow_remain = if has_bias {
-            Some(
-                conv2d_full_oc_bias_kernel_dispatch::<T>(
-                    &mut ic_nvec,
-                    &mut ((out_width as usize) % ow_block)
-                ).unwrap()
-            )
-        } else {
-            None
-        };
-        let bias_one_oc_ow_remain = if has_bias {
-            Some(
-                conv2d_full_oc_bias_kernel_dispatch::<T>(
-                    &mut 1,
-                    &mut ((out_width as usize) % ow_block)
-                ).unwrap()
-            )
-        } else {
-            None
-        };
-        let bias_partial_oc_ow_remain = if has_bias {
-            Some(
-                bias_remain_oc_kernel_dispatch::<T>(&mut ((out_width as usize) % ow_block)).unwrap()
-            )
-        } else {
-            None
-        };
 
         // retrieve micro kernels end
 
@@ -209,232 +161,108 @@ impl<T> _Tensor<T>
                 arg9: [img_height, img_width],
             };
             let full_ic_block_size_end = in_channels - (in_channels % (ic_block_size as i64));
-            if has_bias {
-                let bias = bias.unwrap().ptr();
-                let bias_full_ic_kernel = bias_full_oc_kernel.unwrap();
-                for ii in (0..full_ic_block_size_end).step_by(ic_block_size) {
-                    ow_loop(
-                        [out_width_full_end, out_width],
-                        [ll, l_end],
-                        [ow_block],
-                        &mut out,
-                        |k, l, out| {
-                            bias_full_ic_kernel(
-                                Params {
-                                    arg1: ii,
-                                    arg3: [b, l, k],
-                                    ..params
-                                },
-                                out,
-                                &inp,
-                                &bias,
-                                activation
-                            );
-                        },
-                        |k, l, out| {
-                            (unsafe { bias_full_oc_ow_remain.unwrap_unchecked() })(
-                                Params {
-                                    arg1: ii,
-                                    arg3: [b, l, k],
-                                    ..params
-                                },
-                                out,
-                                &inp,
-                                &bias,
-                                activation
-                            );
-                        }
-                    );
-                }
-                let remain = in_channels % (ic_block_size as i64);
-                let remain = remain % (T::Vec::SIZE as i64);
-                for ii in (full_ic_block_size_end..in_channels - remain).step_by(T::Vec::SIZE) {
-                    ow_loop(
-                        [out_width_full_end, out_width],
-                        [ll, l_end],
-                        [ow_block],
-                        &mut out,
-                        |k, l, out| {
-                            (unsafe { bias_one_oc_kernel.unwrap_unchecked() })(
-                                Params {
-                                    arg1: ii,
-                                    arg3: [b, l, k],
-                                    ..params
-                                },
-                                out,
-                                &inp,
-                                &bias,
-                                activation
-                            );
-                        },
-                        |k, l, out| {
-                            (unsafe { bias_one_oc_ow_remain.unwrap_unchecked() })(
-                                Params {
-                                    arg1: ii,
-                                    arg3: [b, l, k],
-                                    ..params
-                                },
-                                out,
-                                &inp,
-                                &bias,
-                                activation
-                            );
-                        }
-                    );
-                }
-                for ii in (in_channels - remain..in_channels).step_by(T::Vec::SIZE) {
-                    let params = PartialParams {
-                        arg1: ii,
-                        arg2: [kernel_height, kernel_width],
-                        arg3: [b, 0, 0],
-                        arg4: [osb, osh, osw],
-                        arg5: [step_height, step_width],
-                        arg6: [isb, ish, isw],
-                        arg7: [ph_start, pw_start],
-                        arg8: [dh, dw],
-                        arg9: [img_height, img_width],
-                        oc_remain: remain,
-                    };
-                    ow_loop(
-                        [out_width_full_end, out_width],
-                        [ll, l_end],
-                        [ow_block],
-                        &mut out,
-                        |k, l, out| {
-                            (unsafe { bias_remain_oc_kernel.unwrap_unchecked() })(
-                                PartialParams {
-                                    arg3: [b, l, k],
-                                    ..params
-                                },
-                                out,
-                                &inp,
-                                &bias,
-                                activation
-                            );
-                        },
-                        |k, l, out| {
-                            (unsafe { bias_partial_oc_ow_remain.unwrap_unchecked() })(
-                                PartialParams {
-                                    arg3: [b, l, k],
-                                    ..params
-                                },
-                                out,
-                                &inp,
-                                &bias,
-                                activation
-                            );
-                        }
-                    );
-                }
-            } else {
-                for ii in (0..full_ic_block_size_end).step_by(ic_block_size) {
-                    ow_loop(
-                        [out_width_full_end, out_width],
-                        [ll, l_end],
-                        [ow_block],
-                        &mut out,
-                        |k, l, out| {
-                            full_oc_kernel_fn(
-                                Params {
-                                    arg1: ii,
-                                    arg3: [b, l, k],
-                                    ..params
-                                },
-                                out,
-                                &inp,
-                                activation
-                            );
-                        },
-                        |k, l, out| {
-                            (unsafe { full_oc_kernel_ow_remain.unwrap_unchecked().kernel })(
-                                Params {
-                                    arg1: ii,
-                                    arg3: [b, l, k],
-                                    ..params
-                                },
-                                out,
-                                &inp,
-                                activation
-                            );
-                        }
-                    );
-                }
-                let remain = in_channels % (ic_block_size as i64);
-                let remain = remain % (T::Vec::SIZE as i64);
-                for ii in (full_ic_block_size_end..in_channels - remain).step_by(T::Vec::SIZE) {
-                    ow_loop(
-                        [out_width_full_end, out_width],
-                        [ll, l_end],
-                        [ow_block],
-                        &mut out,
-                        |k, l, out| {
-                            (unsafe { full_oc_kernel_fn_1_oc.unwrap_unchecked().kernel })(
-                                Params {
-                                    arg1: ii,
-                                    arg3: [b, l, k],
-                                    ..params
-                                },
-                                out,
-                                &inp,
-                                activation
-                            );
-                        },
-                        |k, l, out| {
-                            (unsafe { full_oc_kernel_fn_1_oc_ow_remain.unwrap_unchecked().kernel })(
-                                Params {
-                                    arg1: ii,
-                                    arg3: [b, l, k],
-                                    ..params
-                                },
-                                out,
-                                &inp,
-                                activation
-                            );
-                        }
-                    );
-                }
-                for ii in (in_channels - remain..in_channels).step_by(T::Vec::SIZE) {
-                    let params = PartialParams {
-                        arg1: ii,
-                        arg2: [kernel_height, kernel_width],
-                        arg3: [b, 0, 0],
-                        arg4: [osb, osh, osw],
-                        arg5: [step_height, step_width],
-                        arg6: [isb, ish, isw],
-                        arg7: [ph_start, pw_start],
-                        arg8: [dh, dw],
-                        arg9: [img_height, img_width],
-                        oc_remain: remain,
-                    };
-                    ow_loop(
-                        [out_width_full_end, out_width],
-                        [ll, l_end],
-                        [ow_block],
-                        &mut out,
-                        |k, l, out| {
-                            (unsafe { partial_oc_kernel.unwrap_unchecked().kernel })(
-                                PartialParams {
-                                    arg3: [b, l, k],
-                                    ..params
-                                },
-                                out,
-                                &inp,
-                                activation
-                            );
-                        },
-                        |k, l, out| {
-                            (unsafe { partial_oc_kernel_ow_remain.unwrap_unchecked().kernel })(
-                                PartialParams {
-                                    arg3: [b, l, k],
-                                    ..params
-                                },
-                                out,
-                                &inp,
-                                activation
-                            );
-                        }
-                    );
-                }
+
+            for ii in (0..full_ic_block_size_end).step_by(ic_block_size) {
+                ow_loop(
+                    [out_width_full_end, out_width],
+                    [ll, l_end],
+                    [ow_block],
+                    &mut out,
+                    |k, l, out| {
+                        full_oc_kernel_fn(
+                            Params {
+                                arg1: ii,
+                                arg3: [b, l, k],
+                                ..params
+                            },
+                            out,
+                            &inp
+                        );
+                    },
+                    |k, l, out| {
+                        (unsafe { full_oc_kernel_ow_remain.unwrap_unchecked().kernel })(
+                            Params {
+                                arg1: ii,
+                                arg3: [b, l, k],
+                                ..params
+                            },
+                            out,
+                            &inp
+                        );
+                    }
+                );
+            }
+            let remain = in_channels % (ic_block_size as i64);
+            let remain = remain % (T::Vec::SIZE as i64);
+            for ii in (full_ic_block_size_end..in_channels - remain).step_by(T::Vec::SIZE) {
+                ow_loop(
+                    [out_width_full_end, out_width],
+                    [ll, l_end],
+                    [ow_block],
+                    &mut out,
+                    |k, l, out| {
+                        (unsafe { full_oc_kernel_fn_1_oc.unwrap_unchecked().kernel })(
+                            Params {
+                                arg1: ii,
+                                arg3: [b, l, k],
+                                ..params
+                            },
+                            out,
+                            &inp
+                        );
+                    },
+                    |k, l, out| {
+                        (unsafe { full_oc_kernel_fn_1_oc_ow_remain.unwrap_unchecked().kernel })(
+                            Params {
+                                arg1: ii,
+                                arg3: [b, l, k],
+                                ..params
+                            },
+                            out,
+                            &inp
+                        );
+                    }
+                );
+            }
+            for ii in (in_channels - remain..in_channels).step_by(T::Vec::SIZE) {
+                let params = PartialParams {
+                    arg1: ii,
+                    arg2: [kernel_height, kernel_width],
+                    arg3: [b, 0, 0],
+                    arg4: [osb, osh, osw],
+                    arg5: [step_height, step_width],
+                    arg6: [isb, ish, isw],
+                    arg7: [ph_start, pw_start],
+                    arg8: [dh, dw],
+                    arg9: [img_height, img_width],
+                    oc_remain: remain,
+                };
+                ow_loop(
+                    [out_width_full_end, out_width],
+                    [ll, l_end],
+                    [ow_block],
+                    &mut out,
+                    |k, l, out| {
+                        (unsafe { partial_oc_kernel.unwrap_unchecked().kernel })(
+                            PartialParams {
+                                arg3: [b, l, k],
+                                ..params
+                            },
+                            out,
+                            &inp
+                        );
+                    },
+                    |k, l, out| {
+                        (unsafe { partial_oc_kernel_ow_remain.unwrap_unchecked().kernel })(
+                            PartialParams {
+                                arg3: [b, l, k],
+                                ..params
+                            },
+                            out,
+                            &inp
+                        );
+                    }
+                );
             }
         });
         Ok(output)

@@ -59,7 +59,7 @@ fn conv2d() -> Result<(), anyhow::Error> {
     let h_sets = [256];
     let w_sets = [256];
 
-    set_num_threads(16);
+    // set_num_threads(10);
     let mut workbook = Workbook::new();
     let decimal_format = Format::new().set_num_format("0.0000000000");
     let format = Format::new();
@@ -67,59 +67,56 @@ fn conv2d() -> Result<(), anyhow::Error> {
 
     let mut row = 0;
     for ic in ic_sets {
-        for oc in oc_sets {
-            for kh in kh_sets {
-                for kw in kw_sets {
-                    for h in h_sets {
-                        for w in w_sets {
-                            let a = _Tensor::<f32>
-                                ::arange(0, 1 * ic * h * w)?
-                                .reshape([1, ic, h, w])?
-                                .permute([0, 2, 3, 1])?
-                                .contiguous()?;
-                            // let device = Device::Cpu;
-                            // let a = Tensor::randn(1.0, 1.0, &[1, ic, h, w], &device)?;
-                            // let kernel = Tensor::randn(1.0, 1.0, &[oc, ic, kh, kw], &device)?;
-                            let now = std::time::Instant::now();
+        for kh in kh_sets {
+            for kw in kw_sets {
+                for h in h_sets {
+                    for w in w_sets {
+                        let a = _Tensor::<f32>
+                            ::arange(0, 1 * ic * h * w)?
+                            .reshape([1, ic, h, w])?
+                            .permute([0, 2, 3, 1])?
+                            .contiguous()?;
+                        // let device = Device::Cpu;
+                        // let a = Tensor::randn(1.0, 1.0, &[1, ic, h, w], &device)?;
+                        // let kernel = Tensor::randn(1.0, 1.0, &[oc, ic, kh, kw], &device)?;
+                        let now = std::time::Instant::now();
+                        for _ in 0..10 {
                             let _ = a.maxpool2d(
                                 &[kh, kw].into(),
-                                None,
                                 [1, 1],
                                 [
                                     (0, 0),
                                     (0, 0),
                                 ],
-                                [1, 1],
-                                None
+                                [1, 1]
                             )?;
-                            // println!("{:?}", res.shape());
-                            worksheet.write_number(
-                                row,
-                                0,
-                                now.elapsed().as_micros() as f64,
-                                &decimal_format
-                            )?;
-                            worksheet.write_string(
-                                row,
-                                1,
-                                &format!("({}, {}, {}, {}, {}, {})", ic, oc, kh, kw, h, w),
-                                &format
-                            )?;
-                            print!(
-                                "\rprogress: {}%",
-                                ((row + 1) * 100) /
-                                    (
-                                        (ic_sets.len() *
-                                            oc_sets.len() *
-                                            kh_sets.len() *
-                                            kw_sets.len() *
-                                            h_sets.len() *
-                                            w_sets.len()) as u32
-                                    )
-                            );
-                            std::io::stdout().flush().expect("Failed to flush stdout");
-                            row += 1;
                         }
+                        worksheet.write_number(
+                            row,
+                            0,
+                            now.elapsed().as_micros() as f64 / 10.0,
+                            &decimal_format
+                        )?;
+                        worksheet.write_string(
+                            row,
+                            1,
+                            &format!("({}, {}, {}, {}, {})", ic, kh, kw, h, w),
+                            &format
+                        )?;
+                        print!(
+                            "\rprogress: {}%",
+                            ((row + 1) * 100) /
+                                (
+                                    (ic_sets.len() *
+                                        oc_sets.len() *
+                                        kh_sets.len() *
+                                        kw_sets.len() *
+                                        h_sets.len() *
+                                        w_sets.len()) as u32
+                                )
+                        );
+                        std::io::stdout().flush().expect("Failed to flush stdout");
+                        row += 1;
                     }
                 }
             }
