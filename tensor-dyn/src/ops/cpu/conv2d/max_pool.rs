@@ -1,15 +1,8 @@
-use crate::ops::cpu::cache_utils::cache::Cache;
-use crate::ops::cpu::kernels::maxpool::conv2d_full_oc_kernel_dispatch;
-use crate::ops::cpu::kernels::maxpool::remain_oc_kernel_dispatch;
-use crate::ops::cpu::kernels::maxpool::Params;
-use crate::ops::cpu::kernels::maxpool::PartialParams;
 use crate::tensor_base::_Tensor;
 use crate::REGNUM;
-use crate::SIMD_WIDTH;
 use rayon::prelude::*;
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::err_handler::ErrHandler::InvalidInputShape;
-use tensor_common::pointer::Pointer;
 use tensor_common::shape::Shape;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
@@ -94,247 +87,139 @@ impl<T> _Tensor<T>
         let ish = img.strides()[1]; // height
         let isw = img.strides()[2]; // width
 
-        let oh_block = (3).min(out_height).max(1);
+        let out_size = batch * out_height * out_width;
 
-        let cache = Cache::<T>::new();
+        const IC_BLOCK_SIZE: usize = REGNUM / 2;
+        let in_channel_remain = in_channels % ((IC_BLOCK_SIZE * T::Vec::SIZE) as i64);
 
-        let mut ic_nvec = cache.l1_line_size / T::Vec::SIZE;
-        let mut ow_block = predict_ow_block(ic_nvec);
+        (0..out_size).into_par_iter().for_each(|idx| {
+            let out = out.clone();
+            let b = idx / (out_height * out_width);
+            let h = (idx / out_width) % out_height;
+            let w = idx % out_width;
 
-        // retrieve micro kernels start
-
-        let full_oc_kernel = conv2d_full_oc_kernel_dispatch(&mut ic_nvec, &mut ow_block).expect(
-            &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, ic_nvec)
-        );
-        let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
-        let full_oc_kernel_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
-            &mut ic_nvec,
-            &mut ((out_width as usize) % ow_block)
-        );
-        if full_oc_kernel_ow_remain.is_none() {
-            assert_eq!((out_width as usize) % ow_block, 0);
-        }
-        let partial_oc_kernel = remain_oc_kernel_dispatch::<T>(&mut ow_block);
-        if let Some(partial_oc_kernel) = partial_oc_kernel {
-            assert_eq!(ow_block, partial_oc_kernel.ow_block);
-        }
-        let partial_oc_kernel_ow_remain = remain_oc_kernel_dispatch::<T>(
-            &mut ((out_width as usize) % ow_block)
-        );
-        if partial_oc_kernel_ow_remain.is_none() {
-            assert_eq!((out_width as usize) % ow_block, 0);
-        }
-        let full_oc_kernel_fn_1_oc = conv2d_full_oc_kernel_dispatch::<T>(&mut 1, &mut ow_block);
-        let full_oc_kernel_fn_1_oc_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
-            &mut 1,
-            &mut ((out_width as usize) % ow_block)
-        );
-
-        // retrieve micro kernels end
-
-        let num_oh = (out_height + oh_block - 1) / oh_block; // div ceil, i.e. ceiling of out_height / oh_block
-        let outer = batch * num_oh;
-        let out_width_full_end = out_width - (out_width % (ow_block as i64)); // the end of the out width that is a multiple of ow_block
-
-        // create new memory space to store the reordered kernel filter
-
-        // reorder the kernel filter, so that when we do convolution, we can simply increment the pointer and get the data, this can significantly reduce cache miss rate and improve performance
-        // println!("{}", kernels);
-        // println!("{}", ro_kernel);
-
-        let ic_block_size = ic_nvec * T::Vec::SIZE; // in channel block size
-        (0..outer).into_par_iter().for_each(|idx| {
-            let mut out = out.clone();
-            let b = idx / num_oh;
-            let ll = idx % num_oh;
-            let ll = ll * oh_block;
-            let l_end = (ll + oh_block).min(out_height);
-            let params = Params {
-                arg1: 0,
-                arg2: [kernel_height, kernel_width],
-                arg3: [b, 0, 0],
-                arg4: [osb, osh, osw],
-                arg5: [step_height, step_width],
-                arg6: [isb, ish, isw],
-                pads: [ph_start, pw_start],
-                arg8: [dh, dw],
-                arg9: [img_height, img_width],
-            };
-            let full_ic_block_size_end = in_channels - (in_channels % (ic_block_size as i64));
-
-            for ii in (0..full_ic_block_size_end).step_by(ic_block_size) {
-                ow_loop(
-                    [out_width_full_end, out_width],
-                    [ll, l_end],
-                    [ow_block],
-                    &mut out,
-                    |k, l, out| {
-                        full_oc_kernel_fn(
-                            Params {
-                                arg1: ii,
-                                arg3: [b, l, k],
-                                ..params
-                            },
-                            out,
-                            &inp
-                        );
-                    },
-                    |k, l, out| {
-                        (unsafe { full_oc_kernel_ow_remain.unwrap_unchecked().kernel })(
-                            Params {
-                                arg1: ii,
-                                arg3: [b, l, k],
-                                ..params
-                            },
-                            out,
-                            &inp
-                        );
+            for ii in (0..in_channels - in_channel_remain).step_by(IC_BLOCK_SIZE * T::Vec::SIZE) {
+                let mut res_vecs = [T::Vec::splat(T::NEG_INF); IC_BLOCK_SIZE];
+                for kh in 0..kernel_height {
+                    if
+                        h * step_height + kh * dh < ph_start ||
+                        h * step_height + kh * dh - ph_start >= img_height
+                    {
+                        continue;
                     }
-                );
+                    for kw in 0..kernel_width {
+                        if
+                            w * step_width + kw * dw < pw_start ||
+                            w * step_width + kw * dw - pw_start >= img_width
+                        {
+                            continue;
+                        }
+                        let mut inp_vecs = [T::Vec::splat(T::ZERO); IC_BLOCK_SIZE];
+                        for (idx, vec) in inp_vecs.iter_mut().enumerate() {
+                            let i = ii + ((idx * T::Vec::SIZE) as i64);
+                            let inp_idx =
+                                b * isb +
+                                (h * step_height + kh * dh - ph_start) * ish +
+                                (w * step_width + kw * dw - pw_start) * isw +
+                                i;
+                            *vec = unsafe { T::Vec::from_ptr(&inp[inp_idx]) };
+                        }
+
+                        maxpool2d_kernel::<T, IC_BLOCK_SIZE>(&inp_vecs, &mut res_vecs);
+                    }
+                }
+                for (idx, vec) in res_vecs.iter().enumerate() {
+                    let i = ii + ((idx * T::Vec::SIZE) as i64);
+                    let out_idx = b * osb + h * osh + w * osw + i;
+                    let out_vec = (unsafe { out.ptr.add(out_idx as usize) }) as *mut T::Vec;
+                    unsafe {
+                        out_vec.write_unaligned(*vec);
+                    }
+                }
             }
-            let remain = in_channels % (ic_block_size as i64);
-            let remain = remain % (T::Vec::SIZE as i64);
-            for ii in (full_ic_block_size_end..in_channels - remain).step_by(T::Vec::SIZE) {
-                ow_loop(
-                    [out_width_full_end, out_width],
-                    [ll, l_end],
-                    [ow_block],
-                    &mut out,
-                    |k, l, out| {
-                        (unsafe { full_oc_kernel_fn_1_oc.unwrap_unchecked().kernel })(
-                            Params {
-                                arg1: ii,
-                                arg3: [b, l, k],
-                                ..params
-                            },
-                            out,
-                            &inp
-                        );
-                    },
-                    |k, l, out| {
-                        (unsafe { full_oc_kernel_fn_1_oc_ow_remain.unwrap_unchecked().kernel })(
-                            Params {
-                                arg1: ii,
-                                arg3: [b, l, k],
-                                ..params
-                            },
-                            out,
-                            &inp
-                        );
+
+            let remain = in_channel_remain % (T::Vec::SIZE as i64);
+            for ii in (in_channels - in_channel_remain..in_channels - remain).step_by(
+                T::Vec::SIZE
+            ) {
+                let mut res_vecs = T::Vec::splat(T::NEG_INF);
+                for kh in 0..kernel_height {
+                    if
+                        h * step_height + kh * dh < ph_start ||
+                        h * step_height + kh * dh - ph_start >= img_height
+                    {
+                        continue;
                     }
-                );
+                    for kw in 0..kernel_width {
+                        if
+                            w * step_width + kw * dw < pw_start ||
+                            w * step_width + kw * dw - pw_start >= img_width
+                        {
+                            continue;
+                        }
+                        let i = ii;
+                        let inp_idx =
+                            b * isb +
+                            (h * step_height + kh * dh - ph_start) * ish +
+                            (w * step_width + kw * dw - pw_start) * isw +
+                            i;
+                        let inp_vec = unsafe { T::Vec::from_ptr(&inp[inp_idx]) };
+
+                        res_vecs = res_vecs._max(inp_vec);
+                    }
+                }
+                let i = ii;
+                let out_idx = b * osb + h * osh + w * osw + i;
+                let out_vec = (unsafe { out.ptr.add(out_idx as usize) }) as *mut T::Vec;
+                unsafe {
+                    out_vec.write_unaligned(res_vecs);
+                }
             }
-            for ii in (in_channels - remain..in_channels).step_by(T::Vec::SIZE) {
-                let params = PartialParams {
-                    arg1: ii,
-                    arg2: [kernel_height, kernel_width],
-                    arg3: [b, 0, 0],
-                    arg4: [osb, osh, osw],
-                    arg5: [step_height, step_width],
-                    arg6: [isb, ish, isw],
-                    arg7: [ph_start, pw_start],
-                    arg8: [dh, dw],
-                    arg9: [img_height, img_width],
-                    oc_remain: remain,
-                };
-                ow_loop(
-                    [out_width_full_end, out_width],
-                    [ll, l_end],
-                    [ow_block],
-                    &mut out,
-                    |k, l, out| {
-                        (unsafe { partial_oc_kernel.unwrap_unchecked().kernel })(
-                            PartialParams {
-                                arg3: [b, l, k],
-                                ..params
-                            },
-                            out,
-                            &inp
-                        );
-                    },
-                    |k, l, out| {
-                        (unsafe { partial_oc_kernel_ow_remain.unwrap_unchecked().kernel })(
-                            PartialParams {
-                                arg3: [b, l, k],
-                                ..params
-                            },
-                            out,
-                            &inp
-                        );
+
+            for ii in in_channels - remain..in_channels {
+                let mut res = T::NEG_INF;
+                for kh in 0..kernel_height {
+                    if
+                        h * step_height + kh * dh < ph_start ||
+                        h * step_height + kh * dh - ph_start >= img_height
+                    {
+                        continue;
                     }
-                );
+                    for kw in 0..kernel_width {
+                        if
+                            w * step_width + kw * dw < pw_start ||
+                            w * step_width + kw * dw - pw_start >= img_width
+                        {
+                            continue;
+                        }
+                        let i = ii;
+                        let inp_idx =
+                            b * isb +
+                            (h * step_height + kh * dh - ph_start) * ish +
+                            (w * step_width + kw * dw - pw_start) * isw +
+                            i;
+
+                        res = res._max(inp[inp_idx]);
+                    }
+                }
+                let i = ii;
+                let out_idx = b * osb + h * osh + w * osw + i;
+                let out = (unsafe { out.ptr.add(out_idx as usize) }) as *mut T;
+                unsafe {
+                    out.write_unaligned(res);
+                }
             }
         });
+
         Ok(output)
     }
 }
 
-#[allow(unused)]
-fn out_used<T: CommonBounds>(
-    lb: usize,
-    jb: usize,
-    oc_nvec: usize,
-    owb: usize,
-    line_size: usize
-) -> usize {
-    let nv = line_size / (SIMD_WIDTH / 8 / core::mem::size_of::<T>());
-    lb * jb * oc_nvec.div_ceil(nv) * owb * line_size
-}
-#[allow(unused)]
-fn inp_used<T: CommonBounds>(
-    lb: usize,
-    owb: usize,
-    ic_nvec: usize,
-    kh: usize,
-    kw: usize,
-    step_height: usize,
-    step_width: usize,
-    line_size: usize
-) -> usize {
-    let nv = line_size / (SIMD_WIDTH / 8 / core::mem::size_of::<T>());
-    let in_range_num_w = (0..owb).take_while(|&idx| idx * step_width < kw).count();
-    let in_range_num_h = (0..lb).take_while(|&idx| idx * step_height < kh).count();
-    owb *
-        ic_nvec.div_ceil(nv) *
-        (kh + lb - in_range_num_h) *
-        (kw + owb - in_range_num_w) *
-        line_size
-}
-#[allow(unused)]
-fn kernel_used<T: CommonBounds>(
-    oc_nvec: usize,
-    ic_nvec: usize,
-    jb: usize,
-    kh: usize,
-    kw: usize
-) -> usize {
-    oc_nvec * ic_nvec * T::Vec::SIZE * kh * kw * jb
-}
-
-fn predict_ow_block(ic_block: usize) -> usize {
-    (REGNUM - 1) / (1 + ic_block)
-}
-
-fn ow_loop<F1, F2, T: CommonBounds>(
-    [out_width_full_end, out_width]: [i64; 2],
-    [ll, l_end]: [i64; 2],
-    [ow_block]: [usize; 1],
-    out: &mut Pointer<T>,
-    full_oc_kernel: F1,
-    full_oc_kernel_ow_remain: F2
-)
-    where F1: Fn(i64, i64, &mut Pointer<T>), F2: Fn(i64, i64, &mut Pointer<T>)
-{
-    for k in (0..out_width_full_end).step_by(ow_block) {
-        for l in ll..l_end {
-            full_oc_kernel(k, l, out);
-        }
-    }
-    if out_width > out_width_full_end {
-        for k in (out_width_full_end..out_width).step_by(ow_block) {
-            for l in ll..l_end {
-                full_oc_kernel_ow_remain(k, l, out);
-            }
-        }
+fn maxpool2d_kernel<T: CommonBounds, const IC_BLOCK_SIZE: usize>(
+    inps: &[T::Vec; IC_BLOCK_SIZE],
+    outs: &mut [T::Vec; IC_BLOCK_SIZE]
+) {
+    for idx in 0..IC_BLOCK_SIZE {
+        outs[idx] = outs[idx]._max(inps[idx]);
     }
 }

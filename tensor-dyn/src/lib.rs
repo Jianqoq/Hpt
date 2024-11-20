@@ -77,8 +77,6 @@ pub mod ops {
             pub mod conv;
             /// a module defines the lp_pool2d kernels
             pub mod lp_pool_kernels;
-            /// a module defines the maxpool2d kernels
-            pub mod maxpool;
             /// a module defines the reduce kernels
             pub mod reduce;
             /// a module defines the dwconv2d kernels

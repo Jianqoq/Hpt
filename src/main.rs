@@ -88,13 +88,14 @@ fn conv2d() -> Result<(), anyhow::Error> {
                                     (0, 0),
                                     (0, 0),
                                 ],
-                                [1, 1]
+                                [2, 2]
                             )?;
                         }
+                        // println!("{:?}", now.elapsed() / 10);
                         worksheet.write_number(
                             row,
                             0,
-                            now.elapsed().as_micros() as f64 / 10.0,
+                            now.elapsed().as_millis() as f64 / 10.0,
                             &decimal_format
                         )?;
                         worksheet.write_string(
