@@ -14,6 +14,7 @@ pub mod tensor_dyn {
     pub mod binary_out;
     pub mod softmax;
     pub mod maxpool;
+    pub mod cumulate;
 }
 
 pub mod tensor_common {

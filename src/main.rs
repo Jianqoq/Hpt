@@ -53,7 +53,7 @@ fn main() -> anyhow::Result<()> {
 
 fn conv2d() -> Result<(), anyhow::Error> {
     let oc_sets = [128, 256, 512, 1024, 2048, 4096, 8192];
-    let ic_sets = [128, 256, 512, 1024, 2048, 4096, 8192];
+    let ic_sets = [8192];
     let kh_sets = [4];
     let kw_sets = [4];
     let h_sets = [256];
@@ -91,7 +91,7 @@ fn conv2d() -> Result<(), anyhow::Error> {
                                 [2, 2]
                             )?;
                         }
-                        // println!("{:?}", now.elapsed() / 10);
+                        println!("{:?}", now.elapsed() / 10);
                         worksheet.write_number(
                             row,
                             0,
