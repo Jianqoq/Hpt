@@ -1,8 +1,13 @@
+#![allow(unused_imports)]
+
 use tch::Tensor;
+use tensor_common::slice;
 use tensor_dyn::{ tensor_base::_Tensor, TensorCreator };
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
 use tensor_dyn::TensorInfo;
+use tensor_macros::match_selection;
+use tensor_common::slice::Slice;
 
 #[allow(unused)]
 fn assert_eq(b: &_Tensor<i64>, a: &Tensor) {
@@ -11,32 +16,35 @@ fn assert_eq(b: &_Tensor<i64>, a: &Tensor) {
 
     for i in 0..b.size() {
         if a_raw[i] != b_raw[i] {
-            panic!("{} != {}, bytes: {:?}, {:?}", a_raw[i], b_raw[i], a_raw[i].to_ne_bytes(), b_raw[i].to_ne_bytes());
+            panic!(
+                "{} != {}, bytes: {:?}, {:?}",
+                a_raw[i],
+                b_raw[i],
+                a_raw[i].to_ne_bytes(),
+                b_raw[i].to_ne_bytes()
+            );
         }
     }
 }
 
 #[test]
 fn test_cumsum_1dim() -> anyhow::Result<()> {
-    let a = _Tensor::<f64>::arange(0, 10)?;
+    let a = _Tensor::<i64>::arange(0, 10)?;
     let b = a.cumsum(0)?;
-    let tch_a = tch::Tensor::arange(10, (tch::Kind::Double, tch::Device::Cpu));
-    let tch_b = tch_a.cumsum(0, None);
-    println!("{}", b);
-    println!("{}", tch_b);
+    let tch_a = tch::Tensor::arange(10, (tch::Kind::Int64, tch::Device::Cpu));
+    let tch_b = tch_a.cumsum(0, tch::Kind::Int64);
+    assert_eq(&b, &tch_b);
     Ok(())
 }
 
 #[test]
 fn test_cumsum_2dim() -> anyhow::Result<()> {
     let a = _Tensor::<i64>::arange(0, 100)?.reshape(&[10, 10])?;
-    println!("{}", a);
     let tch_a = tch::Tensor::arange(100, (tch::Kind::Int64, tch::Device::Cpu)).reshape(&[10, 10]);
     let b = a.cumsum(0)?;
     let tch_b = tch_a.cumsum(0, tch::Kind::Int64);
-    println!("{}", b);
     assert_eq(&b, &tch_b);
-    
+
     let c = a.cumsum(1)?;
     let tch_c = tch_a.cumsum(1, tch::Kind::Int64);
     assert_eq(&c, &tch_c);
@@ -48,7 +56,10 @@ fn test_cumsum_2dim() -> anyhow::Result<()> {
 fn test_cumsum_2dim_uncontiguous() -> anyhow::Result<()> {
     let a = _Tensor::<i64>::arange(0, 100)?.reshape(&[10, 10])?;
     let a = a.permute([1, 0])?;
-    let tch_a = tch::Tensor::arange(100, (tch::Kind::Int64, tch::Device::Cpu)).reshape(&[10, 10]).permute(&[1, 0][..]);
+    let tch_a = tch::Tensor
+        ::arange(100, (tch::Kind::Int64, tch::Device::Cpu))
+        .reshape(&[10, 10])
+        .permute(&[1, 0][..]);
     let b = a.cumsum(0)?;
     let tch_b = tch_a.cumsum(0, tch::Kind::Int64);
     assert_eq(&b, &tch_b);
@@ -56,6 +67,21 @@ fn test_cumsum_2dim_uncontiguous() -> anyhow::Result<()> {
     let c = a.cumsum(1)?;
     let tch_c = tch_a.cumsum(1, tch::Kind::Int64);
     assert_eq(&c, &tch_c);
+
+    Ok(())
+}
+
+#[test]
+fn test_cumsum_2dim_sub() -> anyhow::Result<()> {
+    let a = _Tensor::<i64>::arange(0, 2 * 5 * 10)?.reshape(&[2, 5, 10])?;
+    let tch_a = tch::Tensor
+        ::arange(2 * 5 * 10, (tch::Kind::Int64, tch::Device::Cpu))
+        .reshape(&[2, 5, 10]);
+    let a = slice!(a[:, 1:3, 2:5])?;
+    let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
+    let b = a.cumsum(0)?;
+    let tch_b = tch_a.cumsum(0, tch::Kind::Int64);
+    assert_eq(&b, &tch_b);
 
     Ok(())
 }

@@ -166,7 +166,6 @@ impl<T> _Tensor<T> where T: CommonBounds {
                 let mut _axis = axis;
                 ErrHandler::check_index_in_range_mut(self.ndim(), &mut _axis)?;
                 let stride = self.strides()[_axis as usize];
-                println!("stride: {}", stride);
                 let inner_loop = self.shape()[_axis as usize] as usize;
                 let outer_loop = self.size() / inner_loop;
                 let mut shape = self.shape().to_vec();
@@ -183,7 +182,7 @@ impl<T> _Tensor<T> where T: CommonBounds {
                 THREAD_POOL.with_borrow_mut(|pool: &mut ThreadPool| {
                     let num_threads;
                     if outer_loop < pool.max_count() {
-                        num_threads = 1;
+                        num_threads = outer_loop;
                     } else {
                         num_threads = pool.max_count();
                     }
@@ -202,7 +201,7 @@ impl<T> _Tensor<T> where T: CommonBounds {
                         let mut amount = (start as i64) * (shape[shape.len() - 1] + 1);
                         let mut inp_amount = 0i64;
                         let mut res_amount = 0i64;
-                        for j in (0..(self.shape().len() as i64)).rev() {
+                        for j in (0..self.shape().len() as i64).rev() {
                             prg_tmp[j as usize] = amount % (shape[j as usize] + 1);
                             amount /= shape[j as usize] + 1;
                             inp_amount += prg_tmp[j as usize] * strides[j as usize];
@@ -339,7 +338,7 @@ impl<T> _Tensor<T> where T: CommonBounds {
                         let mut amount = (start as i64) * (shape[shape.len() - 1] + 1);
                         let mut inp_amount = 0i64;
                         let mut res_amount = 0i64;
-                        for j in (0..(self.shape().len() as i64)).rev() {
+                        for j in (0..self.shape().len() as i64).rev() {
                             prg_tmp[j as usize] = amount % (shape[j as usize] + 1);
                             amount /= shape[j as usize] + 1;
                             inp_amount += prg_tmp[j as usize] * strides[j as usize];
