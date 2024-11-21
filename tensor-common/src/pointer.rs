@@ -159,7 +159,7 @@ impl<T> Pointer<T> {
 
 unsafe impl<T> Send for Pointer<T> {}
 
-impl<T: Display> Index<i64> for Pointer<T> {
+impl<T> Index<i64> for Pointer<T> {
     type Output = T;
     fn index(&self, index: i64) -> &Self::Output {
         #[cfg(feature = "bound_check")]
@@ -272,6 +272,18 @@ impl<T> AddAssign<usize> for &mut Pointer<T> {
     }
 }
 
+impl<T> AddAssign<i64> for &mut Pointer<T> {
+    fn add_assign(&mut self, rhs: i64) {
+        #[cfg(feature = "bound_check")]
+        {
+            self.len -= rhs;
+        }
+        unsafe {
+            self.ptr = self.ptr.offset(rhs as isize);
+        }
+    }
+}
+
 impl<T> Add<usize> for &mut Pointer<T> {
     type Output = Pointer<T>;
     fn add(self, rhs: usize) -> Self::Output {
@@ -363,6 +375,18 @@ impl<T> SubAssign<isize> for Pointer<T> {
 }
 
 impl<T> SubAssign<i64> for Pointer<T> {
+    fn sub_assign(&mut self, rhs: i64) {
+        #[cfg(feature = "bound_check")]
+        {
+            self.len += rhs as i64;
+        }
+        unsafe {
+            self.ptr = self.ptr.offset(-rhs as isize);
+        }
+    }
+}
+
+impl<T> SubAssign<i64> for &mut Pointer<T> {
     fn sub_assign(&mut self, rhs: i64) {
         #[cfg(feature = "bound_check")]
         {

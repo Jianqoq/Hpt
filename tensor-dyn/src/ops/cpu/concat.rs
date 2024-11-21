@@ -1,6 +1,11 @@
 use std::{ panic::Location, sync::{ Arc, Barrier } };
 
-use tensor_common::{ err_handler::ErrHandler, shape_utils::mt_intervals, slice::Slice };
+use tensor_common::{
+    err_handler::ErrHandler,
+    prg_update::next_sub1,
+    shape_utils::mt_intervals,
+    slice::Slice,
+};
 use tensor_traits::{
     shape_manipulate::ShapeManipulate,
     tensor::{ CommonBounds, TensorCreator, TensorInfo },
@@ -119,19 +124,13 @@ pub(crate) fn concat<T>(
                             let a_val = a_data[i * a_last_stride];
                             res_ptr[i] = a_val;
                         }
-                        for j in (0..(input.ndim() as i64) - 1).rev() {
-                            let j = j as usize;
-                            if prg[j] < input.shape()[j] - 1 {
-                                prg[j] += 1;
-                                a_data += input.strides()[j];
-                                res_ptr += res.strides()[j];
-                                break;
-                            } else {
-                                prg[j] = 0;
-                                a_data -= (input.shape()[j] - 1) * input.strides()[j];
-                                res_ptr -= (res.shape()[j] - 1) * res.strides()[j];
-                            }
-                        }
+                        next_sub1(
+                            &mut prg,
+                            input.shape(),
+                            [&mut a_data, &mut res_ptr],
+                            [&input.shape(), &res.shape()],
+                            [&input.strides(), &res.strides()]
+                        );
                     }
                 }
                 barrier_clone.wait();
