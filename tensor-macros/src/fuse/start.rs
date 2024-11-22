@@ -1,15 +1,7 @@
 use std::collections::{ HashMap, HashSet };
 
 use crate::fuse::{
-    cfg::rename_variables,
-    codegen::{ Codegen, _Codegen },
-    dag::Graph,
-    fuse::fuse_graph,
-    gen_fuse::gen_fuse,
-    rcmut::RCMut,
-    ssa::SSAContext,
-    to_remove::gen_to_remove,
-    visitor::Visitor,
+    cfg::rename_variables, codegen::{ Codegen, _Codegen }, dag::Graph, fuse::fuse_graph, gen_fuse::gen_fuse, rcmut::RCMut, ssa::SSAContext, to_remove::gen_to_remove, ty_infer::TyInfer, visitor::Visitor
 };
 use petgraph::{ algo::dominators::Dominators, graph::NodeIndex };
 use syn::visit::Visit;
@@ -69,12 +61,16 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     let mut builder = CFGBuilder::new(&mut cfg);
     builder.visit_item_fn(item_fn);
     let dominators = petgraph::algo::dominators::simple_fast(&cfg.graph, cfg.entry);
+    println!("dominators: {:#?}", dominators);
     let dominance_frontiers = compute_dominance_frontiers(&cfg, &dominators);
 
     let definitions = cfg.get_variable_definitions();
     cfg.insert_phi_functions(&dominance_frontiers, &definitions);
     rename_variables(&mut cfg, &dominators);
     println!("rename: {:#?}", cfg.graph);
+    let mut type_table = TyInfer::new();
+    type_table.infer(&cfg);
+    println!("type_table: {:#?}", type_table.table);
     Ok(cfg)
 }
 

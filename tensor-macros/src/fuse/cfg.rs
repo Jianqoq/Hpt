@@ -9,7 +9,20 @@ use syn::{ parse_quote, Stmt };
 
 #[derive(Clone)]
 pub(crate) struct CustomStmt {
-    stmt: syn::Stmt,
+    pub(crate) stmt: syn::Stmt,
+}
+
+#[derive(Debug, Clone, PartialEq, Copy)]
+pub(crate) enum BlockType {
+    Normal,
+    Then,
+    Else,
+    ForInit,
+    ForBody,
+    ForCond,
+    WhileCond,
+    WhileBody,
+    LoopBody,
 }
 
 impl std::fmt::Debug for CustomStmt {
@@ -22,6 +35,7 @@ impl std::fmt::Debug for CustomStmt {
 pub(crate) struct BasicBlock {
     pub(crate) statements: Vec<CustomStmt>,
     pub(crate) origin_vars: HashSet<String>,
+    pub(crate) block_type: BlockType,
 }
 
 // CFG 结构
@@ -30,12 +44,115 @@ pub(crate) struct CFG {
     pub(crate) entry: NodeIndex,
 }
 
+fn visit_pat(pat: &syn::Pat, definitions: &mut HashMap<String, Vec<NodeIndex>>, node: NodeIndex) {
+    match pat {
+        syn::Pat::Const(_) => unimplemented!("visit_pat::Pat::Const"),
+        syn::Pat::Ident(pat_ident) => {
+            let var = pat_ident.ident.to_string();
+            definitions.entry(var).or_insert_with(Vec::new).push(node);
+        }
+        syn::Pat::Lit(_) => unimplemented!("visit_pat::Pat::Lit"),
+        syn::Pat::Macro(_) => unimplemented!("visit_pat::Pat::Macro"),
+        syn::Pat::Or(_) => unimplemented!("visit_pat::Pat::Or"),
+        syn::Pat::Paren(_) => unimplemented!("visit_pat::Pat::Paren"),
+        syn::Pat::Path(_) => unimplemented!("visit_pat::Pat::Path"),
+        syn::Pat::Range(_) => unimplemented!("visit_pat::Pat::Range"),
+        syn::Pat::Reference(_) => unimplemented!("visit_pat::Pat::Reference"),
+        syn::Pat::Rest(_) => unimplemented!("visit_pat::Pat::Rest"),
+        syn::Pat::Slice(_) => unimplemented!("visit_pat::Pat::Slice"),
+        syn::Pat::Struct(_) => unimplemented!("visit_pat::Pat::Struct"),
+        syn::Pat::Tuple(_) => unimplemented!("visit_pat::Pat::Tuple"),
+        syn::Pat::TupleStruct(_) => unimplemented!("visit_pat::Pat::TupleStruct"),
+        syn::Pat::Type(ty) => {
+            visit_pat(&ty.pat, definitions, node);
+        }
+        syn::Pat::Verbatim(_) => unimplemented!("visit_pat::Pat::Verbatim"),
+        syn::Pat::Wild(_) => {}
+        _ => unimplemented!("visit_pat::Pat::Other"),
+    }
+}
+
+fn visit_expr_assign_add_var(
+    expr: &syn::ExprAssign,
+    definitions: &mut HashMap<String, Vec<NodeIndex>>,
+    node: NodeIndex
+) {
+    match expr.left.as_ref() {
+        syn::Expr::Path(path) => {
+            if let Some(ident) = path.path.get_ident() {
+                definitions.entry(ident.to_string()).or_insert_with(Vec::new).push(node);
+            }
+        }
+        _ => unimplemented!("visit_expr_assign_add_var::Expr::Other"),
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum VarStatus {
+    Assigned,
+    Redeclare,
+    NotFound,
+}
+
+fn check_expr_assign(expr: &syn::ExprAssign, var: &str, status: &mut VarStatus) {
+    match &expr.left.as_ref() {
+        syn::Expr::Array(_) => unimplemented!("cfg::insert_phi_functions::Expr::Array"),
+        syn::Expr::Assign(_) => unimplemented!("cfg::insert_phi_functions::Expr::Assign"),
+        syn::Expr::Async(_) => unimplemented!("cfg::insert_phi_functions::Expr::Async"),
+        syn::Expr::Await(_) => unimplemented!("cfg::insert_phi_functions::Expr::Await"),
+        syn::Expr::Binary(_) => unimplemented!("cfg::insert_phi_functions::Expr::Binary"),
+        syn::Expr::Block(_) => unimplemented!("cfg::insert_phi_functions::Expr::Block"),
+        syn::Expr::Break(_) => unimplemented!("cfg::insert_phi_functions::Expr::Break"),
+        syn::Expr::Call(_) => unimplemented!("cfg::insert_phi_functions::Expr::Call"),
+        syn::Expr::Cast(_) => unimplemented!("cfg::insert_phi_functions::Expr::Cast"),
+        syn::Expr::Closure(_) => unimplemented!("cfg::insert_phi_functions::Expr::Closure"),
+        syn::Expr::Const(_) => unimplemented!("cfg::insert_phi_functions::Expr::Const"),
+        syn::Expr::Continue(_) => unimplemented!("cfg::insert_phi_functions::Expr::Continue"),
+        syn::Expr::Field(_) => unimplemented!("cfg::insert_phi_functions::Expr::Field"),
+        syn::Expr::ForLoop(_) => unimplemented!("cfg::insert_phi_functions::Expr::ForLoop"),
+        syn::Expr::Group(_) => unimplemented!("cfg::insert_phi_functions::Expr::Group"),
+        syn::Expr::If(_) => unimplemented!("cfg::insert_phi_functions::Expr::If"),
+        syn::Expr::Index(_) => unimplemented!("cfg::insert_phi_functions::Expr::Index"),
+        syn::Expr::Infer(_) => unimplemented!("cfg::insert_phi_functions::Expr::Infer"),
+        syn::Expr::Let(_) => unimplemented!("cfg::insert_phi_functions::Expr::Let"),
+        syn::Expr::Lit(_) => unimplemented!("cfg::insert_phi_functions::Expr::Lit"),
+        syn::Expr::Loop(_) => unimplemented!("cfg::insert_phi_functions::Expr::Loop"),
+        syn::Expr::Macro(_) => unimplemented!("cfg::insert_phi_functions::Expr::Macro"),
+        syn::Expr::Match(_) => unimplemented!("cfg::insert_phi_functions::Expr::Match"),
+        syn::Expr::MethodCall(_) => unimplemented!("cfg::insert_phi_functions::Expr::MethodCall"),
+        syn::Expr::Paren(_) => unimplemented!("cfg::insert_phi_functions::Expr::Paren"),
+        syn::Expr::Path(path) => {
+            if let Some(ident) = path.path.get_ident() {
+                if &ident.to_string() == var {
+                    *status = VarStatus::Assigned;
+                }
+            }
+        }
+        syn::Expr::Range(_) => unimplemented!("cfg::insert_phi_functions::Expr::Range"),
+        syn::Expr::RawAddr(_) => unimplemented!("cfg::insert_phi_functions::Expr::RawAddr"),
+        syn::Expr::Reference(_) => unimplemented!("cfg::insert_phi_functions::Expr::Reference"),
+        syn::Expr::Repeat(_) => unimplemented!("cfg::insert_phi_functions::Expr::Repeat"),
+        syn::Expr::Return(_) => unimplemented!("cfg::insert_phi_functions::Expr::Return"),
+        syn::Expr::Struct(_) => unimplemented!("cfg::insert_phi_functions::Expr::Struct"),
+        syn::Expr::Try(_) => unimplemented!("cfg::insert_phi_functions::Expr::Try"),
+        syn::Expr::TryBlock(_) => unimplemented!("cfg::insert_phi_functions::Expr::TryBlock"),
+        syn::Expr::Tuple(_) => unimplemented!("cfg::insert_phi_functions::Expr::Tuple"),
+        syn::Expr::Unary(_) => unimplemented!("cfg::insert_phi_functions::Expr::Unary"),
+        syn::Expr::Unsafe(_) => unimplemented!("cfg::insert_phi_functions::Expr::Unsafe"),
+        syn::Expr::Verbatim(_) => unimplemented!("cfg::insert_phi_functions::Expr::Verbatim"),
+        syn::Expr::While(_) => unimplemented!("cfg::insert_phi_functions::Expr::While"),
+        syn::Expr::Yield(_) => unimplemented!("cfg::insert_phi_functions::Expr::Yield"),
+        _ => unimplemented!("cfg::insert_phi_functions::Expr::Other"),
+    }
+}
+
 impl CFG {
     pub(crate) fn new() -> Self {
         let mut graph = Graph::<BasicBlock, ()>::new();
         let entry_block = BasicBlock {
             statements: vec![],
             origin_vars: HashSet::new(),
+            block_type: BlockType::Normal,
         };
         let entry = graph.add_node(entry_block);
         CFG { graph, entry }
@@ -54,11 +171,16 @@ impl CFG {
 
         for node in self.graph.node_indices() {
             for stmt in &self.graph[node].statements {
-                if let CustomStmt { stmt: syn::Stmt::Local(local) } = stmt {
-                    if let syn::Pat::Ident(pat_ident) = &local.pat {
-                        let var = pat_ident.ident.to_string();
-                        definitions.entry(var).or_insert_with(Vec::new).push(node);
+                match &stmt.stmt {
+                    Stmt::Local(local) => {
+                        visit_pat(&local.pat, &mut definitions, node);
                     }
+                    Stmt::Expr(expr, _) => {
+                        if let syn::Expr::Assign(assign) = &expr {
+                            visit_expr_assign_add_var(assign, &mut definitions, node);
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
@@ -83,23 +205,59 @@ impl CFG {
                 if let Some(frontiers) = dominance_frontiers.get(&def) {
                     for frontier in frontiers {
                         if !has_already[var].contains(frontier) {
-                            let preds_cnt = self.graph
-                                .neighbors_directed(*frontier, petgraph::Direction::Incoming)
-                                .count();
-                            // 插入 Φ 函数
-                            let phi_ident = syn::Ident::new(
-                                &format!("{}", var),
-                                proc_macro2::Span::call_site()
+                            let incomings = self.graph.neighbors_directed(
+                                *frontier,
+                                petgraph::Direction::Incoming
                             );
-                            let args = vec![phi_ident.clone(); preds_cnt];
-                            let phi_stmt: syn::Stmt =
-                                parse_quote! {
+                            let mut status = VarStatus::NotFound;
+                            let mut has_assigned = false;
+                            for incoming in incomings {
+                                for stmt in &self.graph[incoming].statements {
+                                    match &stmt.stmt {
+                                        Stmt::Local(local) => {
+                                            if let syn::Pat::Ident(pat_ident) = &local.pat {
+                                                if &pat_ident.ident.to_string() == var {
+                                                    status = VarStatus::Redeclare;
+                                                }
+                                            }
+                                        }
+                                        Stmt::Expr(expr, ..) => {
+                                            if let syn::Expr::Assign(assign) = &expr {
+                                                check_expr_assign(assign, var, &mut status);
+                                            }
+                                        }
+                                        _ => {}
+                                    }
+                                    if status != VarStatus::NotFound {
+                                        break;
+                                    }
+                                }
+                                if status == VarStatus::Assigned {
+                                    has_assigned = true;
+                                    break;
+                                } else {
+                                    status = VarStatus::NotFound; // reset status
+                                }
+                            }
+                            if has_assigned {
+                                let preds_cnt = self.graph
+                                    .neighbors_directed(*frontier, petgraph::Direction::Incoming)
+                                    .count();
+                                // 插入 Φ 函数
+                                let phi_ident = syn::Ident::new(
+                                    &format!("{}", var),
+                                    proc_macro2::Span::call_site()
+                                );
+                                let args = vec![phi_ident.clone(); preds_cnt];
+                                let phi_stmt: syn::Stmt =
+                                    parse_quote! {
                                     let #phi_ident = #[#phi_ident] __phi(#(#args),*);
                                 };
-                            self.graph
-                                .node_weight_mut(*frontier)
-                                .unwrap()
-                                .statements.insert(0, CustomStmt { stmt: phi_stmt });
+                                self.graph
+                                    .node_weight_mut(*frontier)
+                                    .unwrap()
+                                    .statements.insert(0, CustomStmt { stmt: phi_stmt });
+                            }
                             has_already.get_mut(var).unwrap().insert(*frontier);
 
                             // **只有当变量 v 不在 frontier 的 orig 中时，才将 frontier 加入工作集**
@@ -114,6 +272,60 @@ impl CFG {
     }
 }
 
+fn insert_origin_var(origin_vars: &mut HashSet<String>, pat: &syn::Pat) {
+    match pat {
+        syn::Pat::Const(_) => unimplemented!("insert_origin_var::Pat::Const"),
+        syn::Pat::Ident(pat_ident) => {
+            origin_vars.insert(pat_ident.ident.to_string());
+        }
+        syn::Pat::Lit(_) => unimplemented!("insert_origin_var::Pat::Lit"),
+        syn::Pat::Macro(_) => unimplemented!("insert_origin_var::Pat::Macro"),
+        syn::Pat::Or(_) => unimplemented!("insert_origin_var::Pat::Or"),
+        syn::Pat::Paren(_) => unimplemented!("insert_origin_var::Pat::Paren"),
+        syn::Pat::Path(_) => unimplemented!("insert_origin_var::Pat::Path"),
+        syn::Pat::Range(_) => unimplemented!("insert_origin_var::Pat::Range"),
+        syn::Pat::Reference(_) => unimplemented!("insert_origin_var::Pat::Reference"),
+        syn::Pat::Rest(_) => unimplemented!("insert_origin_var::Pat::Rest"),
+        syn::Pat::Slice(_) => unimplemented!("insert_origin_var::Pat::Slice"),
+        syn::Pat::Struct(_) => unimplemented!("insert_origin_var::Pat::Struct"),
+        syn::Pat::Tuple(_) => unimplemented!("insert_origin_var::Pat::Tuple"),
+        syn::Pat::TupleStruct(_) => unimplemented!("insert_origin_var::Pat::TupleStruct"),
+        syn::Pat::Type(pat_type) => {
+            insert_origin_var(origin_vars, &pat_type.pat);
+        }
+        syn::Pat::Verbatim(_) => unimplemented!("insert_origin_var::Pat::Verbatim"),
+        syn::Pat::Wild(_) => {}
+        _ => unimplemented!("insert_origin_var::Pat::Other"),
+    }
+}
+
+fn collect_all_vars_pat(pat: &syn::Pat) -> HashSet<String> {
+    match pat {
+        syn::Pat::Const(_) => HashSet::new(),
+        syn::Pat::Ident(pat_ident) => {
+            let mut vars = HashSet::new();
+            vars.insert(pat_ident.ident.to_string());
+            vars
+        }
+        syn::Pat::Lit(_) => HashSet::new(),
+        syn::Pat::Macro(_) => HashSet::new(),
+        syn::Pat::Or(_) => HashSet::new(),
+        syn::Pat::Paren(_) => HashSet::new(),
+        syn::Pat::Path(_) => HashSet::new(),
+        syn::Pat::Range(_) => HashSet::new(),
+        syn::Pat::Reference(_) => HashSet::new(),
+        syn::Pat::Rest(_) => HashSet::new(),
+        syn::Pat::Slice(_) => HashSet::new(),
+        syn::Pat::Struct(_) => HashSet::new(),
+        syn::Pat::Tuple(_) => HashSet::new(),
+        syn::Pat::TupleStruct(_) => HashSet::new(),
+        syn::Pat::Type(pat_type) => collect_all_vars_pat(&pat_type.pat),
+        syn::Pat::Verbatim(_) => HashSet::new(),
+        syn::Pat::Wild(_) => HashSet::new(),
+        _ => HashSet::new(),
+    }
+}
+
 // 变量重命名
 pub(crate) fn rename_variables(cfg: &mut CFG, dominators: &Dominators<NodeIndex>) {
     let mut stacks: HashMap<String, Vec<usize>> = HashMap::new();
@@ -123,20 +335,22 @@ pub(crate) fn rename_variables(cfg: &mut CFG, dominators: &Dominators<NodeIndex>
     let variables: HashSet<String> = cfg.graph
         .node_indices()
         .flat_map(|node| {
-            cfg.graph[node].statements
+            let vars = cfg.graph[node].statements
                 .iter()
                 .filter_map(|stmt| {
                     if let CustomStmt { stmt: syn::Stmt::Local(local) } = stmt {
-                        if let syn::Pat::Ident(pat_ident) = &local.pat {
-                            Some(pat_ident.ident.to_string())
-                        } else {
+                        let vars: HashSet<String> = collect_all_vars_pat(&local.pat);
+                        if vars.is_empty() {
                             None
+                        } else {
+                            Some(vars)
                         }
                     } else {
                         None
                     }
                 })
-                .collect::<Vec<_>>()
+                .collect::<Vec<HashSet<String>>>();
+            vars.into_iter().flatten().collect::<Vec<_>>()
         })
         .collect();
 
@@ -145,10 +359,7 @@ pub(crate) fn rename_variables(cfg: &mut CFG, dominators: &Dominators<NodeIndex>
             for stmt in &mut block.statements {
                 match stmt {
                     CustomStmt { stmt: syn::Stmt::Local(local) } => {
-                        if let syn::Pat::Ident(pat_ident) = &mut local.pat {
-                            let var = pat_ident.ident.to_string();
-                            block.origin_vars.insert(var.clone());
-                        }
+                        insert_origin_var(&mut block.origin_vars, &local.pat);
                     }
                     _ => {}
                 }
@@ -165,6 +376,38 @@ pub(crate) fn rename_variables(cfg: &mut CFG, dominators: &Dominators<NodeIndex>
     rename(cfg, cfg.entry, &mut stacks, &mut versions, dominators);
 }
 
+fn new_name_pat(
+    pat: &mut syn::Pat,
+    stacks: &mut HashMap<String, Vec<usize>>,
+    versions: &mut HashMap<String, usize>
+) {
+    match pat {
+        syn::Pat::Const(_) => unimplemented!("rename::new_name_pat::Pat::Const"),
+        syn::Pat::Ident(pat_ident) => {
+            let new_name = new_name(&pat_ident.ident.to_string(), versions, stacks);
+            pat_ident.ident = syn::Ident::new(&new_name, pat_ident.ident.span());
+        }
+        syn::Pat::Lit(_) => unimplemented!("rename::new_name_pat::Pat::Lit"),
+        syn::Pat::Macro(_) => unimplemented!("rename::new_name_pat::Pat::Macro"),
+        syn::Pat::Or(_) => unimplemented!("rename::new_name_pat::Pat::Or"),
+        syn::Pat::Paren(_) => unimplemented!("rename::new_name_pat::Pat::Paren"),
+        syn::Pat::Path(_) => unimplemented!("rename::new_name_pat::Pat::Path"),
+        syn::Pat::Range(_) => unimplemented!("rename::new_name_pat::Pat::Range"),
+        syn::Pat::Reference(_) => unimplemented!("rename::new_name_pat::Pat::Reference"),
+        syn::Pat::Rest(_) => unimplemented!("rename::new_name_pat::Pat::Rest"),
+        syn::Pat::Slice(_) => unimplemented!("rename::new_name_pat::Pat::Slice"),
+        syn::Pat::Struct(_) => unimplemented!("rename::new_name_pat::Pat::Struct"),
+        syn::Pat::Tuple(_) => unimplemented!("rename::new_name_pat::Pat::Tuple"),
+        syn::Pat::TupleStruct(_) => unimplemented!("rename::new_name_pat::Pat::TupleStruct"),
+        syn::Pat::Type(pat_type) => {
+            new_name_pat(&mut pat_type.pat, stacks, versions);
+        }
+        syn::Pat::Verbatim(_) => unimplemented!("rename::new_name_pat::Pat::Verbatim"),
+        syn::Pat::Wild(_) => {}
+        _ => unimplemented!("rename::new_name_pat::Pat::Other"),
+    }
+}
+
 fn rename(
     cfg: &mut CFG,
     node: NodeIndex,
@@ -172,20 +415,13 @@ fn rename(
     versions: &mut HashMap<String, usize>,
     dominators: &Dominators<NodeIndex>
 ) {
-    // for phi in &mut cfg.graph[node].phi_functions {
-    //     let var = &phi.origin_var;
-    //     phi.variable = new_name(var, versions, stacks);
-    // }
     for stmt in &mut cfg.graph[node].statements {
         match &mut stmt.stmt {
             Stmt::Local(local) => {
                 if let Some(init) = &mut local.init {
                     replace_vars(&mut init.expr, stacks);
                 }
-                if let syn::Pat::Ident(pat_ident) = &mut local.pat {
-                    let new_name = new_name(&pat_ident.ident.to_string(), versions, stacks);
-                    pat_ident.ident = syn::Ident::new(&new_name, pat_ident.ident.span());
-                }
+                new_name_pat(&mut local.pat, stacks, versions);
             }
             Stmt::Item(_) => unimplemented!("rename::Stmt::Item"),
             Stmt::Expr(expr, ..) => {
@@ -329,10 +565,11 @@ impl<'a> CFGBuilder<'a> {
     }
 
     // 创建新的基本块并返回其索引
-    fn new_block(&mut self) -> NodeIndex {
+    fn new_block(&mut self, block_type: BlockType) -> NodeIndex {
         let block = BasicBlock {
             statements: vec![],
             origin_vars: HashSet::new(),
+            block_type,
         };
         self.cfg.add_block(block)
     }
@@ -349,11 +586,11 @@ impl<'a> CFGBuilder<'a> {
     // 处理 if 语句
     fn handle_if(&mut self, expr_if: &syn::ExprIf) {
         // 创建 then 分支块
-        let then_block = self.new_block();
+        let then_block = self.new_block(BlockType::Then);
         // 创建 else 分支块
-        let else_block = self.new_block();
+        let else_block = self.new_block(BlockType::Else);
         // 创建合并块
-        let merge_block = self.new_block();
+        let merge_block = self.new_block(BlockType::Normal);
 
         // 连接当前块到 then 和 else 分支
         self.connect_to(then_block);
@@ -386,9 +623,9 @@ impl<'a> CFGBuilder<'a> {
     // 处理 loop 语句
     fn handle_loop(&mut self, expr_loop: &syn::ExprLoop) {
         // 创建循环体块
-        let loop_block = self.new_block();
+        let loop_block = self.new_block(BlockType::LoopBody);
         // 创建循环后的块
-        let after_loop_block = self.new_block();
+        let after_loop_block = self.new_block(BlockType::Normal);
 
         // 连接当前块到循环体块
         self.connect_to(loop_block);
@@ -420,7 +657,7 @@ impl<'a> CFGBuilder<'a> {
             eprintln!("Error: 'break' outside of loop");
         }
         // 创建一个新的块，因为 break 语句通常会终止当前块
-        let new_block = self.new_block();
+        let new_block = self.new_block(BlockType::Normal);
         self.set_current_block(new_block);
     }
 
@@ -443,18 +680,18 @@ impl<'a> CFGBuilder<'a> {
             eprintln!("Error: 'continue' outside of loop");
         }
         // 创建一个新的块，因为 continue 语句通常会终止当前块
-        let new_block = self.new_block();
+        let new_block = self.new_block(BlockType::Normal);
         self.set_current_block(new_block);
     }
 
     // 处理 match 语句
     fn handle_match(&mut self, expr_match: &syn::ExprMatch) {
         // 创建合并块
-        let merge_block = self.new_block();
+        let merge_block = self.new_block(BlockType::Normal);
 
         for arm in &expr_match.arms {
             // 为每个匹配分支创建一个块
-            let arm_block = self.new_block();
+            let arm_block = self.new_block(BlockType::Normal);
             // 连接当前块到分支块
             self.connect_to(arm_block);
             // 处理分支块中的语句
@@ -470,11 +707,11 @@ impl<'a> CFGBuilder<'a> {
 
     fn handle_while_loop(&mut self, expr_while: &syn::ExprWhile) {
         // 创建条件检查块
-        let condition_block = self.new_block();
+        let condition_block = self.new_block(BlockType::WhileCond);
         // 创建循环体块
-        let loop_block = self.new_block();
+        let loop_block = self.new_block(BlockType::WhileBody);
         // 创建循环后的块
-        let after_loop_block = self.new_block();
+        let after_loop_block = self.new_block(BlockType::Normal);
 
         // 连接当前块到条件检查块
         self.connect_to(condition_block);
@@ -511,13 +748,13 @@ impl<'a> CFGBuilder<'a> {
 
     fn handle_for_loop(&mut self, expr_for: &syn::ExprForLoop) {
         // 创建迭代器初始化块
-        let init_block = self.new_block();
+        let init_block = self.new_block(BlockType::ForInit);
         // 创建条件检查块
-        let condition_block = self.new_block();
+        let condition_block = self.new_block(BlockType::ForCond);
         // 创建循环体块
-        let loop_block = self.new_block();
+        let loop_block = self.new_block(BlockType::ForBody);
         // 创建循环后的块
-        let after_loop_block = self.new_block();
+        let after_loop_block = self.new_block(BlockType::Normal);
 
         // 连接当前块到初始化块
         self.connect_to(init_block);
@@ -571,18 +808,19 @@ impl<'a> CFGBuilder<'a> {
 
 impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
     fn visit_item_fn(&mut self, i: &'ast syn::ItemFn) {
-        let new_block = self.new_block();
+        let new_block = self.new_block(BlockType::Normal);
         for arg in &i.sig.inputs {
             match arg {
                 syn::FnArg::Receiver(_) => {}
                 syn::FnArg::Typed(pat_type) => {
+                    let ty = pat_type.ty.as_ref();
                     match &*pat_type.pat {
                         syn::Pat::Ident(pat_ident) => {
                             if let Some(block) = self.cfg.graph.node_weight_mut(self.current_block) {
                                 let local = syn
                                     ::parse2(
                                         quote::quote! {
-                                    let #pat_ident;
+                                    let #pat_ident: #ty;
                                 }
                                     )
                                     .unwrap();

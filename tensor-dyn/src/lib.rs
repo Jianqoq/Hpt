@@ -166,8 +166,8 @@ pub use tensor_iterator::iterator_traits::*;
 pub use tensor_iterator::TensorIterator;
 
 pub use tensor_macros::match_selection;
-// pub use tensor_macros::fuse;
-// pub use tensor_macros::fuse_proc_macro;
+pub use tensor_macros::fuse;
+pub use tensor_macros::fuse_proc_macro;
 pub use tensor_traits::*;
 pub use tensor_types::vectors::*;
 pub use tensor_types::*;
