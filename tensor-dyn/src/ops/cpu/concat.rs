@@ -1,4 +1,4 @@
-use std::{ panic::Location, sync::{ Arc, Barrier } };
+use std::panic::Location;
 
 use tensor_common::{
     err_handler::ErrHandler,
@@ -104,10 +104,8 @@ pub(crate) fn concat<T>(
         } else {
             num_threads = pool.max_count();
         }
-        let barrier = Arc::new(Barrier::new(num_threads + 1));
         let intervals: Vec<(usize, usize)> = mt_intervals(length, num_threads);
         for i in 0..num_threads {
-            let barrier_clone = Arc::clone(&barrier);
             let (start, end) = intervals[i];
             let res_tensors = res_slices[start..end].to_vec();
             let inputs = tensors[start..end].to_vec();
@@ -133,10 +131,9 @@ pub(crate) fn concat<T>(
                         );
                     }
                 }
-                barrier_clone.wait();
             });
         }
-        barrier.wait();
+        pool.join();
     });
     if keepdims {
         let mut res_shape = Vec::with_capacity(new_shape.len() + 1);
