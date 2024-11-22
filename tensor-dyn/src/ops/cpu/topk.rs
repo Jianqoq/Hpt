@@ -8,11 +8,36 @@ use crate::tensor::Tensor;
 use crate::tensor_base::_Tensor;
 use crate::THREAD_POOL;
 use rand::Rng;
+use tensor_common::err_handler::ErrHandler;
+use tensor_common::pointer::Pointer;
 use tensor_common::shape_utils::mt_intervals;
 use tensor_traits::CommonBounds;
 use tensor_traits::ShapeManipulate;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
+
+fn fill_buffer<T: Copy>(
+    data: &mut Vec<(T, usize)>,
+    ptr: Pointer<T>,
+    inner_loop: i64,
+    tls: i64
+) -> &mut Vec<(T, usize)> {
+    let mut i = 0;
+    if tls != 1 {
+        assert_eq!(data.len(), inner_loop as usize);
+        while i < inner_loop {
+            data[i as usize] = (ptr[i * tls], i as usize);
+            i += 1;
+        }
+    } else {
+        assert_eq!(data.len(), inner_loop as usize);
+        while i < inner_loop {
+            data[i as usize] = (ptr[i], i as usize);
+            i += 1;
+        }
+    }
+    data
+}
 
 impl<T> _Tensor<T> where T: CommonBounds + PartialOrd {
     /// Returns the top `k` values and their indices along the specified dimension.
@@ -41,6 +66,7 @@ impl<T> _Tensor<T> where T: CommonBounds + PartialOrd {
         largest: bool,
         sorted: bool
     ) -> anyhow::Result<(_Tensor<i64>, _Tensor<T>)> {
+        let caller = core::panic::Location::caller();
         let mut axes = (0..self.ndim() as i64).collect::<Vec<i64>>();
         axes.swap(dim as usize, self.ndim() - 1);
         let transposed = self.permute(&axes)?;
@@ -61,7 +87,7 @@ impl<T> _Tensor<T> where T: CommonBounds + PartialOrd {
         let res_indices_ptr = transposed_res_indices.ptr();
         let transposed_res_shape = transposed_res.shape();
         let transposed_res_strides = transposed_res.strides();
-        THREAD_POOL.with_borrow_mut(move |x| {
+        let status = THREAD_POOL.with_borrow_mut(move |x| {
             let num_threads = if outer_loop_size < x.max_count() {
                 outer_loop_size
             } else {
@@ -102,7 +128,12 @@ impl<T> _Tensor<T> where T: CommonBounds + PartialOrd {
                 res_indices_ptrs.push(res_indices_ptr_cpy);
                 res_prgs.push(res_shape_prg);
             }
-            let barrier = Arc::new(Barrier::new(num_threads + 1));
+            let inner_loop = *transposed.shape().last().unwrap() as isize;
+            if inner_loop < (k as isize) {
+                anyhow::bail!(
+                    ErrHandler::KLargerThanInnerLoopSize(k as usize, inner_loop as usize, caller)
+                );
+            }
             for (
                 (((((start, end), mut prg), mut res_prg), mut ptr), mut res_ptr),
                 mut res_indices_ptr,
@@ -114,9 +145,7 @@ impl<T> _Tensor<T> where T: CommonBounds + PartialOrd {
                 .zip(ptrs.into_iter().rev())
                 .zip(res_ptrs.into_iter().rev())
                 .zip(res_indices_ptrs.into_iter().rev()) {
-                let inner_loop = *transposed.shape().last().unwrap() as isize;
                 let res_inner_loop = *transposed_res_shape.last().unwrap() as isize;
-                let barrier_clone = barrier.clone();
                 let tls = *transposed.strides().last().unwrap() as isize;
                 let rls = *transposed_res_strides.last().unwrap() as isize;
                 let ndim = transposed.ndim() as i64;
@@ -124,12 +153,10 @@ impl<T> _Tensor<T> where T: CommonBounds + PartialOrd {
                 let rts = transposed_res_strides.clone();
                 let tsp = transposed.shape().clone();
                 let rtsp = transposed_res_shape.clone();
-                let mut data = vec![(T::ZERO, 0); inner_loop as usize];
                 x.execute(move || {
+                    let mut data = &mut vec![(T::ZERO, 0); inner_loop as usize];
                     for _ in start..end {
-                        for i in 0..inner_loop {
-                            data[i as usize] = (ptr[i * tls], i as usize);
-                        }
+                        let data = fill_buffer(data, ptr.clone(), inner_loop as i64, tls as i64);
                         let (before, _, _) = if largest {
                             data.select_nth_unstable_by(k as usize, |x, y| {
                                 y.0.partial_cmp(&x.0).unwrap()
@@ -140,7 +167,11 @@ impl<T> _Tensor<T> where T: CommonBounds + PartialOrd {
                             })
                         };
                         if sorted {
-                            before.sort_by(|(a, _), (b, _)| b.partial_cmp(a).unwrap());
+                            if largest {
+                                before.sort_by(|(a, _), (b, _)| b.partial_cmp(a).unwrap());
+                            } else {
+                                before.sort_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap());
+                            }
                         }
                         for i in 0..res_inner_loop {
                             let (val, idx) = before[i as usize];
@@ -151,32 +182,32 @@ impl<T> _Tensor<T> where T: CommonBounds + PartialOrd {
                             let j = j as usize;
                             if prg[j] < tsp[j] - 1 {
                                 prg[j] += 1;
-                                ptr.offset(ts[j]);
+                                ptr += ts[j];
                                 break;
                             } else {
                                 prg[j] = 0;
-                                ptr.offset(-ts[j] * (tsp[j] - 1));
+                                ptr -= ts[j] * (tsp[j] - 1);
                             }
                         }
                         for j in (0..ndim - 1).rev() {
                             let j = j as usize;
                             if res_prg[j] < rtsp[j] - 1 {
                                 res_prg[j] += 1;
-                                res_ptr.offset(rts[j]);
-                                res_indices_ptr.offset(rts[j]);
+                                res_ptr += rts[j];
+                                res_indices_ptr += rts[j];
                                 break;
                             } else {
                                 res_prg[j] = 0;
-                                res_ptr.offset(-rts[j] * (rtsp[j] - 1));
-                                res_indices_ptr.offset(-rts[j] * (rtsp[j] - 1));
+                                res_ptr -= rts[j] * (rtsp[j] - 1);
+                                res_indices_ptr -= rts[j] * (rtsp[j] - 1);
                             }
                         }
                     }
-                    barrier_clone.wait();
                 });
             }
-            barrier.wait();
-        });
+            x.join();
+            Ok(())
+        })?;
         Ok((transposed_res_indices.permute(&axes)?, transposed_res.permute(&axes)?))
     }
 }

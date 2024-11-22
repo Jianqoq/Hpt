@@ -49,7 +49,15 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds>(
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
         if res_layout.size() != out.layout().size() {
-            return Err(anyhow::Error::msg(format!("Output array has incorrect size, expected {}, got {}", res_layout.size(), out.layout().size())));
+            return Err(
+                anyhow::Error::msg(
+                    format!(
+                        "Output array has incorrect size, expected {}, got {}",
+                        res_layout.size(),
+                        out.layout().size()
+                    )
+                )
+            );
         } else if !out.is_contiguous() {
             return Err(anyhow::Error::msg("Output array is not contiguous".to_string()));
         }
@@ -176,13 +184,11 @@ impl<T, U> UCReductionPreprocessor<T, U> where T: Clone, U: Clone {
             task_amout += intervals[id].1 - intervals[id].0;
             let mut res_ptr_cpy = res_ptrs.clone();
             let mut tmp = intervals[id].0 as i64;
-            let mut offset = 0;
             for i in (0..res_shape.len()).rev() {
                 res_prg[i] = tmp % res_shape[i];
                 tmp /= res_shape[i];
-                offset += res_prg[i] * res_strides[i];
+                res_ptr_cpy += res_prg[i] * res_strides[i];
             }
-            res_ptr_cpy.offset(offset);
 
             let mut tmp2 = task_amout as i64;
             for j in (0..=res_shape.len() - 1).rev() {
@@ -240,13 +246,11 @@ impl<T, U> UCReductionPreprocessor<T, U> where T: Clone, U: Clone {
             let mut res_prg = vec![0; res_shape.len()];
             let mut res_ptr_cpy = res_ptrs.clone();
             let mut res_task_amout = (intervals[id].0 * inner_loop_size) as i64;
-            let mut index = 0;
             for j in (0..res_shape.len()).rev() {
                 res_prg[j] = res_task_amout % res_shape[j];
                 res_task_amout /= res_shape[j];
-                index += res_prg[j] * res_strides[j];
+                res_ptr_cpy += res_prg[j] * res_strides[j];
             }
-            res_ptr_cpy.offset(index);
 
             let mut tmp = task_amout as i64;
             for j in (0..ndim - 1).rev() {

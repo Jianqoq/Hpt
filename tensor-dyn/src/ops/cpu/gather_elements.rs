@@ -1,5 +1,3 @@
-use std::sync::{ Arc, Barrier };
-
 use tensor_common::shape_utils::mt_intervals;
 use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
 
@@ -64,7 +62,6 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds {
             let idx_last_stride = indices.strides()[indices.ndim() - 1];
             let ndim = self.ndim() as i64;
 
-            let barrier = Arc::new(Barrier::new(num_threads + 1));
             for ((((start, end), mut res_ptr), mut idx_ptr), mut prg) in intervals
                 .into_iter()
                 .zip(res_ptrs.into_iter())
@@ -77,7 +74,6 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds {
                 let inp_strides = self.strides().clone();
                 let inp_idx_stride = self.strides()[axis];
                 let inp_last_stride = self.strides()[(ndim as usize) - 1];
-                let barrier_clone = barrier.clone();
                 pool.execute(move || {
                     if axis == (ndim as usize) - 1 {
                         let index_cal = |prg: &[i64]| {
@@ -155,10 +151,9 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds {
                             }
                         }
                     }
-                    barrier_clone.wait();
                 });
             }
-            barrier.wait();
+            pool.join();
         });
         Ok(ret)
     }

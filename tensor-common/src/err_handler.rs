@@ -94,6 +94,10 @@ pub enum ErrHandler {
     /// used when the out pass to the out method is not valid
     #[error("out size is invalid, expect out to be {0} bits but got {1} bits, at {2}")]
     InvalidOutSize(usize, usize, &'static Location<'static>),
+
+    /// used when the k is larger than the inner loop size
+    #[error("k is larger than the inner loop size, k: {0}, inner loop size: {1}, at {2}")]
+    KLargerThanInnerLoopSize(usize, usize, &'static Location<'static>),
 }
 
 impl ErrHandler {

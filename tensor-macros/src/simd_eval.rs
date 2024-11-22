@@ -74,7 +74,7 @@ pub fn impl_simd_eval() -> TokenStream {
                         #[cfg(target_feature = "avx2")]
                         let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
                         #[cfg(all(
-                            any(target_feature = "sse2", target_feature = "arm", target_arch = "aarch64"),
+                            any(target_feature = "sse2", target_arch = "aarch64"),
                             not(target_feature = "avx2")
                         ))]
                         let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
@@ -89,7 +89,7 @@ pub fn impl_simd_eval() -> TokenStream {
                         #[cfg(target_feature = "avx2")]
                         let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
                         #[cfg(all(
-                            any(target_feature = "sse2", target_feature = "arm", target_arch = "aarch64"),
+                            any(target_feature = "sse2", target_arch = "aarch64"),
                             not(target_feature = "avx2")
                         ))]
                         let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };

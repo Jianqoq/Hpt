@@ -1,6 +1,11 @@
-use std::{ panic::Location, sync::{ Arc, Barrier } };
+use std::panic::Location;
 
-use tensor_common::{ err_handler::ErrHandler, shape_utils::mt_intervals, slice::Slice };
+use tensor_common::{
+    err_handler::ErrHandler,
+    prg_update::next_sub1,
+    shape_utils::mt_intervals,
+    slice::Slice,
+};
 use tensor_traits::{
     shape_manipulate::ShapeManipulate,
     tensor::{ CommonBounds, TensorCreator, TensorInfo },
@@ -99,10 +104,8 @@ pub(crate) fn concat<T>(
         } else {
             num_threads = pool.max_count();
         }
-        let barrier = Arc::new(Barrier::new(num_threads + 1));
         let intervals: Vec<(usize, usize)> = mt_intervals(length, num_threads);
         for i in 0..num_threads {
-            let barrier_clone = Arc::clone(&barrier);
             let (start, end) = intervals[i];
             let res_tensors = res_slices[start..end].to_vec();
             let inputs = tensors[start..end].to_vec();
@@ -119,25 +122,18 @@ pub(crate) fn concat<T>(
                             let a_val = a_data[i * a_last_stride];
                             res_ptr[i] = a_val;
                         }
-                        for j in (0..(input.ndim() as i64) - 1).rev() {
-                            let j = j as usize;
-                            if prg[j] < input.shape()[j] - 1 {
-                                prg[j] += 1;
-                                a_data += input.strides()[j];
-                                res_ptr += res.strides()[j];
-                                break;
-                            } else {
-                                prg[j] = 0;
-                                a_data -= (input.shape()[j] - 1) * input.strides()[j];
-                                res_ptr -= (res.shape()[j] - 1) * res.strides()[j];
-                            }
-                        }
+                        next_sub1(
+                            &mut prg,
+                            input.shape(),
+                            [&mut a_data, &mut res_ptr],
+                            [&input.shape(), &res.shape()],
+                            [&input.strides(), &res.strides()]
+                        );
                     }
                 }
-                barrier_clone.wait();
             });
         }
-        barrier.wait();
+        pool.join();
     });
     if keepdims {
         let mut res_shape = Vec::with_capacity(new_shape.len() + 1);

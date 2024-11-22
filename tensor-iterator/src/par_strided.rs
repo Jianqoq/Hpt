@@ -243,13 +243,11 @@ pub mod par_strided_simd {
                 let mut curent_shape_prg: Vec<i64> = vec![0; self.shape().len()];
                 let mut amount =
                     self.intervals[self.start_index].0 * (*self.shape().last().unwrap() as usize);
-                let mut index = 0;
                 for j in (0..self.shape().len()).rev() {
                     curent_shape_prg[j] = (amount as i64) % self.shape()[j];
                     amount /= self.shape()[j] as usize;
-                    index += curent_shape_prg[j] * self.strides()[j];
+                    self.ptr += curent_shape_prg[j] * self.strides()[j];
                 }
-                self.ptr.offset(index);
                 self.prg = curent_shape_prg;
                 let mut new_shape = self.shape().to_vec();
                 new_shape.iter_mut().for_each(|x| {

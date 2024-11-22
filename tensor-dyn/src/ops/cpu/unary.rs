@@ -158,10 +158,10 @@ impl<T> _Tensor<T> where T: CommonBounds {
     /// This function returns a `Result` containing a new tensor with the cumulative sum computed along the specified axis.
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn cumsum(&self, axis: Option<i64>) -> anyhow::Result<Self>
+    pub fn cumsum<A: Into<Option<i64>>>(&self, axis: A) -> anyhow::Result<Self>
         where T: NormalOut<T, Output = T>
     {
-        match axis {
+        match axis.into() {
             Some(axis) => {
                 let mut _axis = axis;
                 ErrHandler::check_index_in_range_mut(self.ndim(), &mut _axis)?;
@@ -182,34 +182,33 @@ impl<T> _Tensor<T> where T: CommonBounds {
                 THREAD_POOL.with_borrow_mut(|pool: &mut ThreadPool| {
                     let num_threads;
                     if outer_loop < pool.max_count() {
-                        num_threads = 1;
+                        num_threads = outer_loop;
                     } else {
-                        num_threads = 1;
+                        num_threads = pool.max_count();
                     }
                     let mut intervals = mt_intervals(outer_loop, num_threads);
-
                     let mut prgs = Vec::with_capacity(num_threads);
                     let mut ptrs = Vec::with_capacity(num_threads);
                     let mut res_ptrs = Vec::with_capacity(num_threads);
                     let mut shapes = Vec::with_capacity(num_threads);
                     let mut __res_strides = Vec::with_capacity(num_threads);
                     let mut __inp_strides = Vec::with_capacity(num_threads);
-                    let mut amount = 0i64;
                     for i in 0..num_threads {
                         let (start, end) = intervals[i];
-                        let mut amount_cpy = amount;
-                        let mut prg_tmp = vec![0; self.shape().len() - 1];
+                        let mut prg_tmp = vec![0; self.shape().len()];
                         let mut ptr_tmp = self.ptr();
                         let mut res_ptr_tmp = res.ptr();
-                        for j in (0..(self.shape().len() as i64) - 1).rev() {
-                            prg_tmp[j as usize] = amount_cpy % (shape[j as usize] + 1);
-                            amount_cpy /= self.shape()[j as usize];
-                            let inp_gap = prg_tmp[j as usize] * strides[j as usize];
-                            let res_gap = prg_tmp[j as usize] * res_strides[j as usize];
-                            ptr_tmp.offset(inp_gap);
-                            res_ptr_tmp.offset(res_gap);
+                        let mut amount = (start as i64) * (shape[shape.len() - 1] + 1);
+                        let mut inp_amount = 0i64;
+                        let mut res_amount = 0i64;
+                        for j in (0..self.shape().len() as i64).rev() {
+                            prg_tmp[j as usize] = amount % (shape[j as usize] + 1);
+                            amount /= shape[j as usize] + 1;
+                            inp_amount += prg_tmp[j as usize] * strides[j as usize];
+                            res_amount += prg_tmp[j as usize] * res_strides[j as usize];
                         }
-                        amount += ((end - start) as i64) * (shape[shape.len() - 1] + 1);
+                        res_ptr_tmp.offset(res_amount);
+                        ptr_tmp.offset(inp_amount);
                         prgs.push(prg_tmp);
                         ptrs.push(ptr_tmp);
                         res_ptrs.push(res_ptr_tmp);
@@ -231,7 +230,7 @@ impl<T> _Tensor<T> where T: CommonBounds {
                                 let mut tmp = T::ZERO;
                                 for i in 0..inner_loop as i64 {
                                     tmp = tmp._add(ptr[i * stride]);
-                                    res_ptr.modify(i * res_stride, tmp);
+                                    res_ptr[i * res_stride] = tmp;
                                 }
                                 for j in (0..(__shape.len() as i64) - 1).rev() {
                                     let j = j as usize;
@@ -331,22 +330,22 @@ impl<T> _Tensor<T> where T: CommonBounds {
                     let mut shapes = Vec::with_capacity(num_threads);
                     let mut __res_strides = Vec::with_capacity(num_threads);
                     let mut __inp_strides = Vec::with_capacity(num_threads);
-                    let mut amount = 0i64;
                     for i in 0..num_threads {
                         let (start, end) = intervals[i];
-                        let mut amount_cpy = amount;
-                        let mut prg_tmp = vec![0; self.shape().len() - 1];
+                        let mut prg_tmp = vec![0; self.shape().len()];
                         let mut ptr_tmp = self.ptr();
                         let mut res_ptr_tmp = res.ptr();
-                        for j in (0..(self.shape().len() as i64) - 1).rev() {
-                            prg_tmp[j as usize] = amount_cpy % (shape[j as usize] + 1);
-                            amount_cpy /= self.shape()[j as usize];
-                            let inp_gap = prg_tmp[j as usize] * strides[j as usize];
-                            let res_gap = prg_tmp[j as usize] * res_strides[j as usize];
-                            ptr_tmp.offset(inp_gap);
-                            res_ptr_tmp.offset(res_gap);
+                        let mut amount = (start as i64) * (shape[shape.len() - 1] + 1);
+                        let mut inp_amount = 0i64;
+                        let mut res_amount = 0i64;
+                        for j in (0..self.shape().len() as i64).rev() {
+                            prg_tmp[j as usize] = amount % (shape[j as usize] + 1);
+                            amount /= shape[j as usize] + 1;
+                            inp_amount += prg_tmp[j as usize] * strides[j as usize];
+                            res_amount += prg_tmp[j as usize] * res_strides[j as usize];
                         }
-                        amount += ((end - start) as i64) * (shape[shape.len() - 1] + 1);
+                        res_ptr_tmp.offset(res_amount);
+                        ptr_tmp.offset(inp_amount);
                         prgs.push(prg_tmp);
                         ptrs.push(ptr_tmp);
                         res_ptrs.push(res_ptr_tmp);
