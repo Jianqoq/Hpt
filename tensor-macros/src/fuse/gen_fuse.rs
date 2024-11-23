@@ -1,4 +1,6 @@
 use std::collections::{ HashMap, HashSet };
+use petgraph::graph::NodeIndex;
+
 use crate::{ fuse::node::Node, TokenStream2 };
 use super::{ dag::_Graph, fuse::FusionGroup };
 
@@ -6,10 +8,12 @@ pub(crate) struct GenFuse {
     pub(crate) fused_outs: Vec<syn::Ident>,
     pub(crate) fused_inputs: Vec<HashSet<syn::Ident>>,
     pub(crate) codes: HashMap<syn::Ident, TokenStream2>,
-    pub(crate) next_gen_fuse: Option<Box<GenFuse>>,
 }
 
-pub(crate) fn gen_fuse(graph: &_Graph, groups: &FusionGroup) -> GenFuse {
+pub(crate) fn gen_fuse(
+    graph: &petgraph::Graph<&crate::fuse::node::Node<'_>, ()>,
+    groups: &FusionGroup
+) -> GenFuse {
     let (fused_codes, fused_outs, fused_inputs) = _gen_fuse(&graph, &groups.vars);
     let mut codes = HashMap::new();
     for (i, code) in fused_codes.iter().enumerate() {
@@ -18,35 +22,45 @@ pub(crate) fn gen_fuse(graph: &_Graph, groups: &FusionGroup) -> GenFuse {
                 #out = #code;
             ));
     }
-    let mut ret = GenFuse { fused_outs, fused_inputs, next_gen_fuse: None, codes };
-    match (&graph.next_graph, &groups._next_group) {
-        (Some(next_graph), Some(next_group)) => {
-            let next_gen_fuse = Some(Box::new(gen_fuse(&next_graph, &next_group)));
-            ret.next_gen_fuse = next_gen_fuse;
-        }
-        _ => {}
-    }
-    ret
+    GenFuse { fused_outs, fused_inputs, codes }
 }
 
 pub(crate) fn _gen_fuse(
-    graph: &_Graph,
-    groups: &Vec<HashSet<syn::Ident>>
+    graph: &petgraph::Graph<&crate::fuse::node::Node<'_>, ()>,
+    groups: &Vec<HashSet<NodeIndex>>
 ) -> (Vec<TokenStream2>, Vec<syn::Ident>, Vec<HashSet<syn::Ident>>) {
+    let id_to_ident = graph
+        .node_indices()
+        .map(|idx| (
+            idx,
+            {
+                match &graph[idx] {
+                    Node::Unary(unary) => unary.output.clone(),
+                    Node::Binary(binary) => binary.output.clone(),
+                    Node::Input(ident) => ident.clone(),
+                }
+            },
+        ))
+        .collect::<HashMap<_, _>>();
+    let ident_to_id = graph
+        .node_indices()
+        .map(|idx| (&id_to_ident[&idx], idx))
+        .collect::<HashMap<_, _>>();
+
     let inputs_vec = groups
         .iter()
         .map(|group| {
             let mut inputs = Vec::new();
-            for ident in group {
-                if let Some(node) = graph.map.get(&ident) {
+            for &idx in group {
+                if let Some(node) = graph.node_weight(idx) {
                     match node {
                         Node::Unary(unary) => {
-                            if !group.contains(&unary.operand) {
+                            if !group.contains(&ident_to_id[&unary.operand]) {
                                 inputs.push(unary.output.clone());
                             }
                         }
                         Node::Binary(binary) => {
-                            if !group.contains(&binary.left) && !group.contains(&binary.right) {
+                            if !group.contains(&ident_to_id[&binary.left]) && !group.contains(&ident_to_id[&binary.right]) {
                                 inputs.push(binary.output.clone());
                             }
                         }
@@ -81,7 +95,7 @@ pub(crate) fn _gen_fuse(
         ));
     }
 
-    let sorteds = graph.topological_sort().expect("gen_fuse::topological_sort");
+    let sorteds = petgraph::algo::toposort(graph, None).expect("gen_fuse::topological_sort");
 
     let mut sorted_groups = Vec::new();
 
@@ -99,11 +113,11 @@ pub(crate) fn _gen_fuse(
     for (i, sorted) in sorted_groups.iter().enumerate() {
         let mut output = syn::Ident::new("__out0", proc_macro2::Span::call_site());
         let mut comp_tokens = TokenStream2::new();
-        for ident in sorted {
-            if let Some(node) = graph.map.get(&ident) {
+        for &idx in sorted {
+            let node = &graph[idx];
                 match node {
                     Node::Unary(unary) => {
-                        if sorted.contains(&unary.operand) {
+                        if sorted.contains(&ident_to_id[&unary.operand]) {
                             comp_tokens.extend(
                                 quote::quote!(
                                 #unary
@@ -113,7 +127,7 @@ pub(crate) fn _gen_fuse(
                         output = unary.output.clone();
                     }
                     Node::Binary(binary) => {
-                        if !(!sorted.contains(&binary.left) && !sorted.contains(&binary.right)) {
+                        if !(!sorted.contains(&ident_to_id[&binary.left]) && !sorted.contains(&ident_to_id[&binary.right])) {
                             comp_tokens.extend(
                                 quote::quote!(
                                     #binary
@@ -124,7 +138,6 @@ pub(crate) fn _gen_fuse(
                     }
                     Node::Input(_) => {}
                 }
-            }
         }
         let mut vec_comp_tokens = comp_tokens.clone();
         comp_tokens.extend(quote::quote!(

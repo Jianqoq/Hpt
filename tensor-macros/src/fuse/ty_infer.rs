@@ -13,6 +13,12 @@ pub(crate) enum Type {
     Unknown,
 }
 
+impl Type {
+    pub(crate) fn is_tensor(&self) -> bool {
+        matches!(self, Type::Tensor)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct TyInfer {
     pub(crate) table: HashMap<String, Type>,

@@ -1,5 +1,6 @@
 use std::collections::{ HashMap, HashSet };
 
+use petgraph::graph::DiGraph;
 use proc_macro2::Span;
 use quote::ToTokens;
 use syn::spanned::Spanned;
@@ -8,7 +9,7 @@ use super::{ node::{ Binary, Node, Unary }, ty_infer::Type };
 
 pub(crate) struct Graph<'ast> {
     pub(crate) nodes: Vec<Node<'ast>>,
-    pub(crate) inputs: HashMap<String, Type>,
+    pub(crate) inputs: HashMap<Node<'ast>, Type>,
     pub(crate) type_table: &'ast HashMap<String, Type>,
     pub(crate) variables: HashSet<String>,
     pub(crate) current_var: syn::Ident,
@@ -27,6 +28,86 @@ impl<'ast> Graph<'ast> {
             tmp_var_version: 0,
             current_assignment: None,
         }
+    }
+
+    pub(crate) fn to_petgraph(&self) -> DiGraph<&Node<'ast>, ()> {
+        let mut graph = DiGraph::new();
+        let mut node_index_map = HashMap::new();
+
+        // 将节点添加到 petgraph
+        for node in &self.nodes {
+            let index = graph.add_node(node);
+            node_index_map.insert(node, index);
+        }
+
+        for (input, ty) in &self.inputs {
+            if ty.is_tensor() {
+                let index = graph.add_node(input);
+                node_index_map.insert(input, index);
+            }
+        }
+
+        // 添加边（假设 Node 有一个 `dependencies` 字段存储依赖节点的索引）
+        for node in &self.nodes {
+            match node {
+                Node::Unary(unary) => {
+                    if
+                        let Some(inp) = self.nodes.iter().find(|node| {
+                            match node {
+                                Node::Unary(node) => node.output == unary.operand,
+                                Node::Binary(node) => { node.output == unary.operand }
+                                Node::Input(_) => false,
+                            }
+                        })
+                    {
+                        graph.add_edge(node_index_map[inp], node_index_map[node], ());
+                    }
+                }
+                Node::Binary(binary) => {
+                    if
+                        let Some(left) = self.nodes.iter().find(|node| {
+                            match node {
+                                Node::Unary(node) =>
+                                    node.output == binary.left || node.output == binary.right,
+                                Node::Binary(node) =>
+                                    node.output == binary.left || node.output == binary.right,
+                                Node::Input(_) => false,
+                            }
+                        })
+                    {
+                        graph.add_edge(node_index_map[left], node_index_map[node], ());
+                    }
+                }
+                Node::Input(_) => unreachable!(),
+            }
+        }
+
+        for (inp, ty) in &self.inputs {
+            if ty.is_tensor() {
+                if let Node::Input(input) = inp {
+                    if let Some(index) = node_index_map.get(inp) {
+                        for node_idx in graph.node_indices() {
+                            let node = graph.node_weight(node_idx).expect("node weight not found");
+                            match node {
+                                Node::Unary(unary) => {
+                                    if &unary.operand == input {
+                                        graph.add_edge(*index, node_idx, ());
+                                    }
+                                }
+                                Node::Binary(binary) => {
+                                    if &binary.left == input || &binary.right == input {
+                                        graph.add_edge(*index, node_idx, ());
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        graph
     }
 
     fn push_input_node_if_not_exist_expr(&mut self, expr: &syn::Expr) {
@@ -97,7 +178,10 @@ impl<'ast> Graph<'ast> {
                     if self.variables.contains(&string) {
                         return;
                     }
-                    self.inputs.insert(string.clone(), self.type_table[&string]);
+                    self.inputs.insert(
+                        Node::Input(syn::Ident::new(&string, Span::call_site())),
+                        self.type_table[&string]
+                    );
                     self.variables.insert(string);
                 }
             }
@@ -881,16 +965,18 @@ impl<'ast> syn::visit::Visit<'ast> for Graph<'ast> {
         let left_var = self.current_var.to_string();
         if !self.variables.contains(&left_var) {
             self.variables.insert(left_var.clone());
-            if !self.inputs.contains_key(&left_var) {
-                self.inputs.insert(left_var.clone(), self.type_table[&left_var].clone());
+            let node = Node::Input(syn::Ident::new(&left_var, node.left.span()));
+            if !self.inputs.contains_key(&node) {
+                self.inputs.insert(node.clone(), self.type_table[&left_var].clone());
             }
         }
         self.visit_expr(&node.right);
         let right_var = self.current_var.to_string();
         if !self.variables.contains(&right_var) {
             self.variables.insert(right_var.clone());
-            if !self.inputs.contains_key(&right_var) {
-                self.inputs.insert(right_var.clone(), self.type_table[&right_var].clone());
+            let node = Node::Input(syn::Ident::new(&right_var, node.right.span()));
+            if !self.inputs.contains_key(&node) {
+                self.inputs.insert(node.clone(), self.type_table[&right_var].clone());
             }
         }
         let method = match node.op {

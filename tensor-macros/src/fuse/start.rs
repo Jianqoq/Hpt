@@ -1,6 +1,6 @@
 use std::collections::{ HashMap, HashSet };
-
-use crate::fuse::{ cfg::rename_variables, ty_infer::TyInfer };
+use quote::ToTokens;
+use crate::fuse::{ cfg::rename_variables, gen_fuse::GenFuse, ty_infer::TyInfer };
 use petgraph::{ algo::dominators::Dominators, graph::NodeIndex };
 use syn::visit::Visit;
 use super::cfg::{ CFGBuilder, CFG };
@@ -77,6 +77,46 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
     println!("type_table: {:#?}", type_table.table);
     let graphs = cfg.build_graphs(&type_table.table);
     println!("{:#?}", graphs);
+
+    for graph in graphs.node_indices() {
+        let graph = graphs.node_weight(graph).expect("graph weight not found");
+        let petgraph = graph.to_petgraph();
+        if petgraph.node_count() > 0 && !petgraph::algo::is_cyclic_directed(&petgraph) {
+            let fusion_group = crate::fuse::fuse::fuse(&petgraph);
+            // println!("fusion_group: {:#?}", fusion_group);
+            let GenFuse { fused_outs, fused_inputs, codes } = crate::fuse::gen_fuse::gen_fuse(
+                &petgraph,
+                &fusion_group
+            );
+            println!(
+                "fused_outs: {:#?}",
+                fused_outs
+                    .iter()
+                    .map(|out| out.to_string())
+                    .collect::<Vec<_>>()
+            );
+            println!(
+                "fused_inputs: {:#?}",
+                fused_inputs
+                    .iter()
+                    .map(|input|
+                        input
+                            .iter()
+                            .map(|ident| ident.to_string())
+                            .collect::<Vec<_>>()
+                    )
+                    .collect::<Vec<_>>()
+            );
+            println!(
+                "codes: {:#?}",
+                codes
+                    .values()
+                    .map(|code| code.to_token_stream().to_string())
+                    .collect::<Vec<_>>()
+            );
+        }
+    }
+
     // let mut visitor = SSATransformer::new();
     // visitor.visit_item_fn_mut(&mut func);
     // if !visitor.visitor.errors.is_empty() {

@@ -879,49 +879,49 @@ impl<'ast> Visit<'ast> for _Codegen<'ast> {
     }
 
     fn visit_expr_block(&mut self, block: &'ast syn::ExprBlock) {
-        match (&self.fused_codes.next_gen_fuse, &self.to_remove.next, &self._visitor.next_visitor) {
-            (Some(fused_codes), Some(to_remove), Some(_visitor)) => {
-                let mut new_codegen = _Codegen {
-                    fused_codes,
-                    to_remove,
-                    current_tokens: Vec::new(),
-                    ssa_ctx: RCMut::new(SSAContext::new()),
-                    _visitor,
-                    next_codegen: None,
-                    pat_ident_need_remove: false,
-                    pat_ident_is_ret: false,
-                };
-                new_codegen.ssa_ctx.borrow_mut().prev_ssa_ctx = Some(self.ssa_ctx.clone());
-                syn::visit::visit_expr_block(&mut new_codegen, block);
-                let code = new_codegen.current_tokens.drain(..).collect::<TokenStream2>();
-                self.current_tokens.push(quote::quote! { {#code} });
-                self.next_codegen = Some(Box::new(new_codegen));
-            }
-            _ => {}
-        }
+        // match (&self.to_remove.next, &self._visitor.next_visitor) {
+        //     (Some(fused_codes), Some(to_remove), Some(_visitor)) => {
+        //         let mut new_codegen = _Codegen {
+        //             fused_codes,
+        //             to_remove,
+        //             current_tokens: Vec::new(),
+        //             ssa_ctx: RCMut::new(SSAContext::new()),
+        //             _visitor,
+        //             next_codegen: None,
+        //             pat_ident_need_remove: false,
+        //             pat_ident_is_ret: false,
+        //         };
+        //         new_codegen.ssa_ctx.borrow_mut().prev_ssa_ctx = Some(self.ssa_ctx.clone());
+        //         syn::visit::visit_expr_block(&mut new_codegen, block);
+        //         let code = new_codegen.current_tokens.drain(..).collect::<TokenStream2>();
+        //         self.current_tokens.push(quote::quote! { {#code} });
+        //         self.next_codegen = Some(Box::new(new_codegen));
+        //     }
+        //     _ => {}
+        // }
     }
 
     fn visit_block(&mut self, block: &'ast syn::Block) {
-        match (&self.fused_codes.next_gen_fuse, &self.to_remove.next, &self._visitor.next_visitor) {
-            (Some(fused_codes), Some(to_remove), Some(_visitor)) => {
-                let mut new_codegen = _Codegen {
-                    fused_codes,
-                    to_remove,
-                    current_tokens: Vec::new(),
-                    ssa_ctx: RCMut::new(SSAContext::new()),
-                    _visitor,
-                    next_codegen: None,
-                    pat_ident_need_remove: false,
-                    pat_ident_is_ret: false,
-                };
-                new_codegen.ssa_ctx.borrow_mut().prev_ssa_ctx = Some(self.ssa_ctx.clone());
-                syn::visit::visit_block(&mut new_codegen, block);
-                let code = new_codegen.current_tokens.drain(..).collect::<TokenStream2>();
-                self.current_tokens.push(quote::quote! { {#code} });
-                self.next_codegen = Some(Box::new(new_codegen));
-            }
-            _ => {}
-        }
+        // match (&self.fused_codes.next_gen_fuse, &self.to_remove.next, &self._visitor.next_visitor) {
+        //     (Some(fused_codes), Some(to_remove), Some(_visitor)) => {
+        //         let mut new_codegen = _Codegen {
+        //             fused_codes,
+        //             to_remove,
+        //             current_tokens: Vec::new(),
+        //             ssa_ctx: RCMut::new(SSAContext::new()),
+        //             _visitor,
+        //             next_codegen: None,
+        //             pat_ident_need_remove: false,
+        //             pat_ident_is_ret: false,
+        //         };
+        //         new_codegen.ssa_ctx.borrow_mut().prev_ssa_ctx = Some(self.ssa_ctx.clone());
+        //         syn::visit::visit_block(&mut new_codegen, block);
+        //         let code = new_codegen.current_tokens.drain(..).collect::<TokenStream2>();
+        //         self.current_tokens.push(quote::quote! { {#code} });
+        //         self.next_codegen = Some(Box::new(new_codegen));
+        //     }
+        //     _ => {}
+        // }
     }
 
     fn visit_local(&mut self, node: &'ast syn::Local) {
