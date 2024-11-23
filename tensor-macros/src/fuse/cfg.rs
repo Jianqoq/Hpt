@@ -283,9 +283,12 @@ impl CFG {
         sorted_indices.sort();
         for node in sorted_indices {
             let mut comp_graph = super::build_graph::Graph::new(type_table);
-            for stmt in &self.graph
+            for (idx, stmt) in self.graph
                 .node_weight(node)
-                .expect("fuse::cfg::build_graphs::node weight not found").statements {
+                .expect("fuse::cfg::build_graphs::node weight not found")
+                .statements.iter()
+                .enumerate() {
+                comp_graph.current_idx = idx;
                 comp_graph.visit_stmt(&stmt.stmt);
             }
             graph.add_node(comp_graph);

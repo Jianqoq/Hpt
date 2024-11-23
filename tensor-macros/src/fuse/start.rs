@@ -71,65 +71,52 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
 
 pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let func = syn::parse_macro_input!(item as syn::ItemFn);
-    let cfg = build_cfg(&func).expect("build cfg failed");
+    let mut cfg = build_cfg(&func).expect("build cfg failed");
     let mut type_table = TyInfer::new();
     type_table.infer(&cfg);
-    println!("type_table: {:#?}", type_table.table);
+    // println!("type_table: {:#?}", type_table.table);
     let graphs = cfg.build_graphs(&type_table.table);
-    println!("{:#?}", graphs);
+    // println!("{:#?}", graphs);
 
-    for graph in graphs.node_indices() {
-        let graph = graphs.node_weight(graph).expect("graph weight not found");
+    let mut genfuse_map = Vec::new();
+    for idx in graphs.node_indices() {
+        let graph = graphs.node_weight(idx).expect("graph weight not found");
         let petgraph = graph.to_petgraph();
         if petgraph.node_count() > 0 && !petgraph::algo::is_cyclic_directed(&petgraph) {
             let fusion_group = crate::fuse::fuse::fuse(&petgraph);
-            // println!("fusion_group: {:#?}", fusion_group);
-            let GenFuse { fused_outs, fused_inputs, codes } = crate::fuse::gen_fuse::gen_fuse(
-                &petgraph,
-                &fusion_group
+            let genfuse = crate::fuse::gen_fuse::gen_fuse(&petgraph, &fusion_group);
+            let to_remove = crate::fuse::to_remove::gen_to_remove(
+                &genfuse,
+                &fusion_group,
+                &petgraph
             );
-            println!(
-                "fused_outs: {:#?}",
-                fused_outs
-                    .iter()
-                    .map(|out| out.to_string())
-                    .collect::<Vec<_>>()
-            );
-            println!(
-                "fused_inputs: {:#?}",
-                fused_inputs
-                    .iter()
-                    .map(|input|
-                        input
-                            .iter()
-                            .map(|ident| ident.to_string())
-                            .collect::<Vec<_>>()
-                    )
-                    .collect::<Vec<_>>()
-            );
-            println!(
-                "codes: {:#?}",
-                codes
-                    .values()
-                    .map(|code| code.to_token_stream().to_string())
-                    .collect::<Vec<_>>()
-            );
+            genfuse_map.push((idx, genfuse, to_remove));
         }
     }
 
-    // let mut visitor = SSATransformer::new();
-    // visitor.visit_item_fn_mut(&mut func);
-    // if !visitor.visitor.errors.is_empty() {
-    //     // 合并所有错误
-    //     let combined_error = visitor.visitor.errors
-    //         .into_iter()
-    //         .reduce(|mut acc, e| {
-    //             acc.combine(e);
-    //             acc
-    //         })
-    //         .unwrap();
-    //     return combined_error.to_compile_error().into();
-    // }
+    for (idx, gen_fuse, to_remove) in genfuse_map {
+        if let Some(block) = cfg.graph.node_weight_mut(idx) {
+            let GenFuse { fused_outs, codes, fused_inputs } = gen_fuse;
+            for ((_, out_idx), code) in fused_outs.into_iter().zip(codes.into_values()) {
+                if out_idx != -1 {
+                    block.statements[out_idx as usize].stmt = syn::Stmt::Expr(
+                        syn::Expr::Verbatim(code.clone()),
+                        None
+                    );
+                    for set in to_remove.to_remove.iter() {
+                        for (_, idx) in set {
+                            block.statements[*idx as usize].stmt = syn::Stmt::Expr(
+                                syn::Expr::Verbatim(quote::quote!()),
+                                None
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+    println!("{:#?}", cfg.graph);
+
     // visitor.remove_unused();
     // let graph = Graph::from_visitor(&visitor.visitor);
     // println!("{:#?}", graph);

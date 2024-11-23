@@ -10,7 +10,7 @@ pub(crate) struct FusionGroup {
     pub(crate) vars: Vec<HashSet<NodeIndex>>,
 }
 
-pub(crate) fn fuse_graph<'ast>(graph: &'ast petgraph::Graph<&crate::fuse::node::Node<'ast>, ()>) -> FusionGroup {
+pub(crate) fn fuse_graph<'ast>(graph: &'ast petgraph::Graph<&(crate::fuse::node::Node<'ast>, i64), ()>) -> FusionGroup {
     fuse(&graph)
 }
 
@@ -59,7 +59,7 @@ pub(crate) fn _out_degree<'ast>(
 }
 
 pub(crate) fn fuse<'ast>(
-    candidates: &'ast petgraph::Graph<&crate::fuse::node::Node<'ast>, ()>
+    candidates: &'ast petgraph::Graph<&(crate::fuse::node::Node<'ast>, i64), ()>
 ) -> FusionGroup {
     let mut unfused = candidates.clone();
 
@@ -67,7 +67,7 @@ pub(crate) fn fuse<'ast>(
     while let Some(idx) = yield_candidate(&mut unfused) {
         let mut block = HashSet::new();
         match unfused.node_weight(idx).expect("node weight not found") {
-            Node::Unary(_) => {
+            (Node::Unary(_), _) => {
                 block.insert(idx);
                 let kernel_type = KernelType::Unary;
                 for succ in unfused.neighbors_directed(idx, petgraph::Direction::Outgoing) {
@@ -77,7 +77,7 @@ pub(crate) fn fuse<'ast>(
                     fuse_parents(pred, kernel_type, &mut block, &unfused);
                 }
             }
-            Node::Binary(_) => {
+            (Node::Binary(_), _) => {
                 block.insert(idx);
                 let kernel_type = KernelType::Binary;
                 for succ in unfused.neighbors_directed(idx, petgraph::Direction::Outgoing) {
@@ -87,7 +87,7 @@ pub(crate) fn fuse<'ast>(
                     fuse_parents(pred, kernel_type, &mut block, &unfused);
                 }
             }
-            Node::Input(_) => {
+            (Node::Input(_), _) => {
                 block.insert(idx);
             }
         }
@@ -105,11 +105,11 @@ pub(crate) fn fuse<'ast>(
 }
 
 pub(crate) fn yield_candidate<'a, 'ast>(
-    unfused_candidates: &mut petgraph::Graph<&Node<'ast>, ()>
+    unfused_candidates: &mut petgraph::Graph<&(crate::fuse::node::Node<'ast>, i64), ()>
 ) -> Option<NodeIndex> {
     let unary = unfused_candidates.node_indices().find(|x| {
         match unfused_candidates.node_weight(*x) {
-            Some(Node::Unary(_)) => true,
+            Some((Node::Unary(_), _)) => true,
             _ => false,
         }
     });
@@ -131,7 +131,7 @@ pub fn fuse_parents<'ast>(
     pred: NodeIndex,
     next_kernel_type: KernelType,
     block: &mut HashSet<NodeIndex>,
-    graph: &'ast petgraph::Graph<&Node<'ast>, ()>
+    graph: &'ast petgraph::Graph<&(crate::fuse::node::Node<'ast>, i64), ()>
 ) {
     match
         pred_kernel_fusable(
@@ -141,7 +141,7 @@ pub fn fuse_parents<'ast>(
     {
         Ok(Some(kernel_type)) => {
             match graph.node_weight(pred).expect("node weight not found") {
-                Node::Unary(_) | Node::Binary(_) | Node::Input(_) => {
+                (Node::Unary(_), _) | (Node::Binary(_), _) | (Node::Input(_), _) => {
                     block.insert(pred);
                 }
             }
@@ -158,7 +158,7 @@ pub fn fuse_children<'ast>(
     succ: NodeIndex,
     prev_kernel_type: KernelType,
     block: &mut HashSet<NodeIndex>,
-    graph: &'ast petgraph::Graph<&Node<'ast>, ()>
+    graph: &'ast petgraph::Graph<&(crate::fuse::node::Node<'ast>, i64), ()>
 ) {
     match
         suc_kernel_fusable(
@@ -168,7 +168,7 @@ pub fn fuse_children<'ast>(
     {
         Ok(Some(kernel_type)) => {
             match graph.node_weight(succ).expect("node weight not found") {
-                Node::Unary(_) | Node::Binary(_) | Node::Input(_) => {
+                (Node::Unary(_), _) | (Node::Binary(_), _) | (Node::Input(_), _) => {
                     block.insert(succ);
                 }
             }
@@ -183,24 +183,24 @@ pub fn fuse_children<'ast>(
 
 pub fn pred_kernel_fusable<'ast>(
     next_kernel_type: KernelType,
-    pred: &Node<'ast>
+    pred: &(crate::fuse::node::Node<'ast>, i64)
 ) -> anyhow::Result<Option<KernelType>> {
     let pred_kernel_type = match pred {
-        Node::Unary(..) => KernelType::Unary,
-        Node::Binary(..) => KernelType::Binary,
-        Node::Input(..) => KernelType::Unary,
+        (Node::Unary(..), _) => KernelType::Unary,
+        (Node::Binary(..), _) => KernelType::Binary,
+        (Node::Input(..), _) => KernelType::Unary,
     };
     Ok(pred_kernel_type.infer_pred_kernel(&next_kernel_type))
 }
 
 pub fn suc_kernel_fusable<'ast>(
     kernel_type: KernelType,
-    next: &Node<'ast>
+    next: &(crate::fuse::node::Node<'ast>, i64)
 ) -> anyhow::Result<Option<KernelType>> {
     let next_kernel_type = match next {
-        Node::Unary(..) => KernelType::Unary,
-        Node::Binary(..) => KernelType::Binary,
-        Node::Input(..) => KernelType::Unary,
+        (Node::Unary(..), _) => KernelType::Unary,
+        (Node::Binary(..), _) => KernelType::Binary,
+        (Node::Input(..), _) => KernelType::Unary,
     };
     Ok(kernel_type.infer_suc_kernel(&next_kernel_type))
 }

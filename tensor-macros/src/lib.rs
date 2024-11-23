@@ -54,7 +54,7 @@ mod fuse {
     pub(crate) mod kernel_type;
     pub(crate) mod gen_fuse;
     pub(crate) mod edges;
-    pub(crate) mod codegen;
+    // pub(crate) mod codegen;
     pub(crate) mod ssa;
     pub(crate) mod rcmut;
     pub(crate) mod to_remove;

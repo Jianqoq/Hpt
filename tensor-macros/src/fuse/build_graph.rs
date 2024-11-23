@@ -1,6 +1,6 @@
 use std::collections::{ HashMap, HashSet };
 
-use petgraph::graph::DiGraph;
+use petgraph::graph::{ DiGraph, NodeIndex };
 use proc_macro2::Span;
 use quote::ToTokens;
 use syn::spanned::Spanned;
@@ -8,13 +8,14 @@ use syn::spanned::Spanned;
 use super::{ node::{ Binary, Node, Unary }, ty_infer::Type };
 
 pub(crate) struct Graph<'ast> {
-    pub(crate) nodes: Vec<Node<'ast>>,
-    pub(crate) inputs: HashMap<Node<'ast>, Type>,
+    pub(crate) nodes: Vec<(Node<'ast>, i64)>,
+    pub(crate) inputs: HashMap<(Node<'ast>, i64), Type>,
     pub(crate) type_table: &'ast HashMap<String, Type>,
     pub(crate) variables: HashSet<String>,
     pub(crate) current_var: syn::Ident,
     pub(crate) tmp_var_version: usize,
     pub(crate) current_assignment: Option<syn::Ident>,
+    pub(crate) current_idx: usize,
 }
 
 impl<'ast> Graph<'ast> {
@@ -27,10 +28,11 @@ impl<'ast> Graph<'ast> {
             current_var: syn::Ident::new("__out", Span::call_site()),
             tmp_var_version: 0,
             current_assignment: None,
+            current_idx: 0,
         }
     }
 
-    pub(crate) fn to_petgraph(&self) -> DiGraph<&Node<'ast>, ()> {
+    pub(crate) fn to_petgraph(&self) -> DiGraph<&(Node<'ast>, i64), ()> {
         let mut graph = DiGraph::new();
         let mut node_index_map = HashMap::new();
 
@@ -49,10 +51,10 @@ impl<'ast> Graph<'ast> {
 
         // 添加边（假设 Node 有一个 `dependencies` 字段存储依赖节点的索引）
         for node in &self.nodes {
-            match node {
+            match &node.0 {
                 Node::Unary(unary) => {
                     if
-                        let Some(inp) = self.nodes.iter().find(|node| {
+                        let Some(tuple) = self.nodes.iter().find(|(node, _)| {
                             match node {
                                 Node::Unary(node) => node.output == unary.operand,
                                 Node::Binary(node) => { node.output == unary.operand }
@@ -60,12 +62,12 @@ impl<'ast> Graph<'ast> {
                             }
                         })
                     {
-                        graph.add_edge(node_index_map[inp], node_index_map[node], ());
+                        graph.add_edge(node_index_map[tuple], node_index_map[node], ());
                     }
                 }
                 Node::Binary(binary) => {
                     if
-                        let Some(left) = self.nodes.iter().find(|node| {
+                        let Some(tuple) = self.nodes.iter().find(|(node, _)| {
                             match node {
                                 Node::Unary(node) =>
                                     node.output == binary.left || node.output == binary.right,
@@ -75,7 +77,7 @@ impl<'ast> Graph<'ast> {
                             }
                         })
                     {
-                        graph.add_edge(node_index_map[left], node_index_map[node], ());
+                        graph.add_edge(node_index_map[tuple], node_index_map[node], ());
                     }
                 }
                 Node::Input(_) => unreachable!(),
@@ -84,10 +86,10 @@ impl<'ast> Graph<'ast> {
 
         for (inp, ty) in &self.inputs {
             if ty.is_tensor() {
-                if let Node::Input(input) = inp {
+                if let Node::Input(input) = &inp.0 {
                     if let Some(index) = node_index_map.get(inp) {
                         for node_idx in graph.node_indices() {
-                            let node = graph.node_weight(node_idx).expect("node weight not found");
+                            let (node, _) = graph.node_weight(node_idx).expect("node weight not found");
                             match node {
                                 Node::Unary(unary) => {
                                     if &unary.operand == input {
@@ -179,7 +181,7 @@ impl<'ast> Graph<'ast> {
                         return;
                     }
                     self.inputs.insert(
-                        Node::Input(syn::Ident::new(&string, Span::call_site())),
+                        (Node::Input(syn::Ident::new(&string, Span::call_site())), -1),
                         self.type_table[&string]
                     );
                     self.variables.insert(string);
@@ -892,6 +894,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph<'ast> {
         let current_assignment = self.current_assignment.clone();
         self.visit_expr(&node.receiver);
 
+        let is_assignment = current_assignment.is_some();
         let out = if let Some(current_assignment) = current_assignment {
             self.current_assignment = None;
             self.current_var = current_assignment.clone();
@@ -945,7 +948,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph<'ast> {
             args,
             output: out.clone(),
         });
-        self.nodes.push(method);
+        self.nodes.push((method, if is_assignment { self.current_idx as i64 } else { -1 }));
     }
 
     fn visit_ident(&mut self, i: &'ast proc_macro2::Ident) {
@@ -966,8 +969,8 @@ impl<'ast> syn::visit::Visit<'ast> for Graph<'ast> {
         if !self.variables.contains(&left_var) {
             self.variables.insert(left_var.clone());
             let node = Node::Input(syn::Ident::new(&left_var, node.left.span()));
-            if !self.inputs.contains_key(&node) {
-                self.inputs.insert(node.clone(), self.type_table[&left_var].clone());
+            if !self.inputs.contains_key(&(node.clone(), -1)) {
+                self.inputs.insert((node, -1), self.type_table[&left_var].clone());
             }
         }
         self.visit_expr(&node.right);
@@ -975,8 +978,8 @@ impl<'ast> syn::visit::Visit<'ast> for Graph<'ast> {
         if !self.variables.contains(&right_var) {
             self.variables.insert(right_var.clone());
             let node = Node::Input(syn::Ident::new(&right_var, node.right.span()));
-            if !self.inputs.contains_key(&node) {
-                self.inputs.insert(node.clone(), self.type_table[&right_var].clone());
+            if !self.inputs.contains_key(&(node.clone(), -1)) {
+                self.inputs.insert((node, -1), self.type_table[&right_var].clone());
             }
         }
         let method = match node.op {
@@ -1010,6 +1013,8 @@ impl<'ast> syn::visit::Visit<'ast> for Graph<'ast> {
             syn::BinOp::ShrAssign(_) => "shr_assign",
             _ => todo!(),
         };
+
+        let is_assignment = current_assignment.is_some();
         let out = if let Some(current_assignment) = current_assignment {
             self.current_assignment = None;
             self.current_var = current_assignment.clone();
@@ -1024,13 +1029,14 @@ impl<'ast> syn::visit::Visit<'ast> for Graph<'ast> {
             self.tmp_var_version += 1;
             out
         };
-        self.nodes.push(
+        self.nodes.push((
             Node::Binary(Binary {
                 method: proc_macro2::Ident::new(method, node.span()),
                 left: proc_macro2::Ident::new(&left_var, node.left.span()),
                 right: proc_macro2::Ident::new(&right_var, node.right.span()),
                 output: out.clone(),
-            })
-        );
+            }),
+            if is_assignment { self.current_idx as i64 } else { -1 },
+        ));
     }
 }
