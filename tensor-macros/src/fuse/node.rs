@@ -100,7 +100,7 @@ impl<'ast> std::fmt::Debug for Node<'ast> {
         match self {
             Node::Unary(unary, ..) => write!(f, "{:#?}", unary),
             Node::Binary(binary, ..) => write!(f, "{:#?}", binary),
-            Node::Input(input) => write!(f, "{}", input.to_string()),
+            Node::Input(input) => write!(f, "input({})", input.to_string()),
         }
     }
 }

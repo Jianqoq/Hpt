@@ -101,7 +101,7 @@ fn conv2d() -> Result<(), anyhow::Error> {
                         worksheet.write_number(
                             row,
                             0,
-                            now.elapsed().as_millis() as f64 / 10.0,
+                            (now.elapsed().as_millis() as f64) / 10.0,
                             &decimal_format
                         )?;
                         worksheet.write_string(

@@ -2,10 +2,13 @@ use std::collections::{ HashMap, HashSet };
 
 use petgraph::algo::dominators::Dominators;
 use petgraph::graph::NodeIndex;
+use petgraph::visit::EdgeRef;
 use petgraph::Graph;
 use quote::ToTokens;
 use syn::visit::Visit;
 use syn::{ parse_quote, Stmt };
+
+use super::ty_infer::Type;
 
 #[derive(Clone)]
 pub(crate) struct CustomStmt {
@@ -269,6 +272,31 @@ impl CFG {
                 }
             }
         }
+    }
+
+    pub(crate) fn build_graphs<'ast>(
+        &'ast self,
+        type_table: &'ast HashMap<String, Type>
+    ) -> Graph<super::build_graph::Graph<'ast>, ()> {
+        let mut graph = Graph::<super::build_graph::Graph<'ast>, ()>::new();
+        let mut sorted_indices = self.graph.node_indices().collect::<Vec<_>>();
+        sorted_indices.sort();
+        for node in sorted_indices {
+            let mut comp_graph = super::build_graph::Graph::new(type_table);
+            for stmt in &self.graph
+                .node_weight(node)
+                .expect("fuse::cfg::build_graphs::node weight not found").statements {
+                comp_graph.visit_stmt(&stmt.stmt);
+            }
+            graph.add_node(comp_graph);
+        }
+        for idx in self.graph.node_indices() {
+            let edges = self.graph.edges(idx);
+            for edge in edges {
+                graph.add_edge(edge.source(), edge.target(), ());
+            }
+        }
+        graph
     }
 }
 

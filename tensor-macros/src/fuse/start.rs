@@ -1,12 +1,9 @@
 use std::collections::{ HashMap, HashSet };
 
-use crate::fuse::{
-    cfg::rename_variables, codegen::{ Codegen, _Codegen }, dag::Graph, fuse::fuse_graph, gen_fuse::gen_fuse, rcmut::RCMut, ssa::SSAContext, to_remove::gen_to_remove, ty_infer::TyInfer, visitor::Visitor
-};
+use crate::fuse::{ cfg::rename_variables, ty_infer::TyInfer };
 use petgraph::{ algo::dominators::Dominators, graph::NodeIndex };
 use syn::visit::Visit;
-use syn::visit_mut::VisitMut;
-use super::{ cfg::{ BasicBlock, CFGBuilder, CFG }, ssa_visitor::SSATransformer };
+use super::cfg::{ CFGBuilder, CFG };
 
 fn compute_dominance_frontiers(
     cfg: &CFG,
@@ -61,22 +58,25 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     let mut builder = CFGBuilder::new(&mut cfg);
     builder.visit_item_fn(item_fn);
     let dominators = petgraph::algo::dominators::simple_fast(&cfg.graph, cfg.entry);
-    println!("dominators: {:#?}", dominators);
+    // println!("dominators: {:#?}", dominators);
     let dominance_frontiers = compute_dominance_frontiers(&cfg, &dominators);
 
     let definitions = cfg.get_variable_definitions();
     cfg.insert_phi_functions(&dominance_frontiers, &definitions);
     rename_variables(&mut cfg, &dominators);
     println!("rename: {:#?}", cfg.graph);
-    let mut type_table = TyInfer::new();
-    type_table.infer(&cfg);
-    println!("type_table: {:#?}", type_table.table);
+    // println!("type_table: {:#?}", type_table.table);
     Ok(cfg)
 }
 
 pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let func = syn::parse_macro_input!(item as syn::ItemFn);
-    let cfg = build_cfg(&func);
+    let cfg = build_cfg(&func).expect("build cfg failed");
+    let mut type_table = TyInfer::new();
+    type_table.infer(&cfg);
+    println!("type_table: {:#?}", type_table.table);
+    let graphs = cfg.build_graphs(&type_table.table);
+    println!("{:#?}", graphs);
     // let mut visitor = SSATransformer::new();
     // visitor.visit_item_fn_mut(&mut func);
     // if !visitor.visitor.errors.is_empty() {
