@@ -33,7 +33,7 @@ pub(crate) fn _gen_to_remove(
         .zip(fused_outs.iter()) {
         let mut intermediate = total
             .iter()
-            .map(|i| (*i, graph[*i].1))
+            .map(|i| (*i, graph.node_weight(*i).expect("fuse_impl::to_remove::graph.get_node_weight").1))
             .collect::<HashSet<_>>();
         for input in input {
             intermediate.remove(input);

@@ -22,7 +22,7 @@ fn compute2(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
             d = d.tan()?;
         }
     } else {
-        let c = d.selu(alpha, gamma)?;
+        let c1 = d.selu(alpha, gamma)?;
     }
     for _ in 0..1000000 {
         c = &d + &c;

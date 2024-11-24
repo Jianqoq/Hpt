@@ -17,12 +17,14 @@ pub(crate) fn gen_fuse(
     let (fused_codes, fused_outs, fused_inputs) = _gen_fuse(&graph, &groups.vars);
     let mut codes = HashMap::new();
     for (i, code) in fused_codes.iter().enumerate() {
-        let out = graph[fused_outs[i].0];
+        let out = graph
+            .node_weight(fused_outs.get(i).expect("gen_fuse::fused_outs::i").0)
+            .expect("gen_fuse::graph.node_weight");
         match out {
             (Node::Unary(unary), _) => {
                 let out_ident = &unary.output;
                 codes.insert(
-                    fused_outs[i],
+                    *fused_outs.get(i).expect("gen_fuse::fused_outs::i2"),
                     quote::quote!(
                 #out_ident = #code;
             )
@@ -31,7 +33,7 @@ pub(crate) fn gen_fuse(
             (Node::Binary(binary), _) => {
                 let out_ident = &binary.output;
                 codes.insert(
-                    fused_outs[i],
+                    *fused_outs.get(i).expect("gen_fuse::fused_outs::i3"),
                     quote::quote!(
                 #out_ident = #code;
             )
@@ -62,7 +64,7 @@ pub(crate) fn _gen_fuse(
         .collect::<HashMap<_, _>>();
     let ident_to_id = graph
         .node_indices()
-        .map(|idx| (&id_to_ident[&idx], idx))
+        .map(|idx| (id_to_ident.get(&idx).expect("gen_fuse::id_to_ident::idx"), idx))
         .collect::<HashMap<_, _>>();
 
     let inputs_vec = groups
@@ -74,15 +76,15 @@ pub(crate) fn _gen_fuse(
                 if let Some(node) = graph.node_weight(idx) {
                     match node {
                         (Node::Unary(unary), stmt_idx) => {
-                            if !group.contains(&ident_to_id[&unary.operand]) {
+                            if !group.contains(&ident_to_id.get(&unary.operand).expect("gen_fuse::ident_to_id::unary.operand")) {
                                 inputs_ident.push(unary.output.clone());
                                 inputs_idx.push((idx, *stmt_idx));
                             }
                         }
                         (Node::Binary(binary), stmt_idx) => {
                             if
-                                !group.contains(&ident_to_id[&binary.left]) &&
-                                !group.contains(&ident_to_id[&binary.right])
+                                !group.contains(&ident_to_id.get(&binary.left).expect("gen_fuse::ident_to_id::binary.left")) &&
+                                !group.contains(&ident_to_id.get(&binary.right).expect("gen_fuse::ident_to_id::binary.right"))
                             {
                                 inputs_ident.push(binary.output.clone());
                                 inputs_idx.push((idx, *stmt_idx));
@@ -149,7 +151,7 @@ pub(crate) fn _gen_fuse(
             let node = &graph[idx];
             match node {
                 (Node::Unary(unary), stmt_idx) => {
-                    if sorted.contains(&ident_to_id[&unary.operand]) {
+                    if sorted.contains(&ident_to_id.get(&unary.operand).expect("gen_fuse::ident_to_id::unary.operand")) {
                         comp_tokens.extend(
                             quote::quote!(
                                 #unary
@@ -162,8 +164,8 @@ pub(crate) fn _gen_fuse(
                 (Node::Binary(binary), stmt_idx) => {
                     if
                         !(
-                            !sorted.contains(&ident_to_id[&binary.left]) &&
-                            !sorted.contains(&ident_to_id[&binary.right])
+                            !sorted.contains(&ident_to_id.get(&binary.left).expect("gen_fuse::ident_to_id::binary.left")) &&
+                            !sorted.contains(&ident_to_id.get(&binary.right).expect("gen_fuse::ident_to_id::binary.right"))
                         )
                     {
                         comp_tokens.extend(
@@ -202,7 +204,7 @@ pub(crate) fn _gen_fuse(
     let inputs_vec = inputs_vec
         .iter()
         .map(|(_, idx)|
-        idx
+            idx
                 .iter()
                 .map(|i| i.clone())
                 .collect::<HashSet<_>>()

@@ -63,6 +63,9 @@ mod fuse {
     pub(crate) mod ty_infer;
     pub(crate) mod expr_ty;
     pub(crate) mod build_graph;
+    pub(crate) mod use_define_visitor;
+    pub(crate) mod variable_collector;
+    pub(crate) mod phi_function;
 }
 
 use crate::simd_cmp::impl_simd_cmp;

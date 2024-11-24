@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{ HashMap, HashSet };
 
 use petgraph::graph::NodeIndex;
 use quote::ToTokens;
@@ -57,21 +57,7 @@ impl TyInfer {
             }
             syn::Expr::Lit(_) => Type::Scalar,
             syn::Expr::Try(try_expr) => self.type_of(&try_expr.expr),
-            syn::Expr::Call(call) => {
-                let func_name = call.func.to_token_stream().to_string();
-                if func_name == "__phi" {
-                    let arg_type = self.type_of(&call.args[0]);
-                    for arg in call.args.iter() {
-                        let arg_type = self.type_of(&arg);
-                        if arg_type != arg_type {
-                            panic!("phi function's arguments must have the same type");
-                        }
-                    }
-                    arg_type
-                } else {
-                    Type::Unknown
-                }
-            }
+            syn::Expr::Call(_) => { Type::Unknown }
             syn::Expr::MethodCall(method_call) => {
                 let receiver_type = self.type_of(&method_call.receiver);
                 if receiver_type == Type::Tensor {
@@ -94,6 +80,10 @@ impl TyInfer {
 
     fn _infer(&mut self, cfg: &CFG, node: NodeIndex) {
         if let Some(block) = cfg.graph.node_weight(node) {
+            for phi_function in &block.phi_functions {
+                let first_arg = &phi_function.args[0];
+                self.table.insert(phi_function.name.clone(), self.table[first_arg].clone());
+            }
             for stmt in &block.statements {
                 self.visit_stmt(&stmt.stmt);
             }

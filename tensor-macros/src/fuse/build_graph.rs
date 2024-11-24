@@ -1,6 +1,6 @@
 use std::collections::{ HashMap, HashSet };
 
-use petgraph::graph::{ DiGraph, NodeIndex };
+use petgraph::graph::DiGraph;
 use proc_macro2::Span;
 use quote::ToTokens;
 use syn::spanned::Spanned;
@@ -962,6 +962,11 @@ impl<'ast> syn::visit::Visit<'ast> for Graph<'ast> {
         }
     }
     fn visit_expr_binary(&mut self, node: &'ast syn::ExprBinary) {
+        let left_ty = handle_expr_type(&node.left, &self.type_table);
+        let right_ty = handle_expr_type(&node.right, &self.type_table);
+        if left_ty != Type::Tensor && right_ty != Type::Tensor {
+            return;
+        }
         let current_assignment = self.current_assignment.clone();
         self.current_assignment = None;
         self.visit_expr(&node.left);
@@ -1038,5 +1043,57 @@ impl<'ast> syn::visit::Visit<'ast> for Graph<'ast> {
             }),
             if is_assignment { self.current_idx as i64 } else { -1 },
         ));
+    }
+}
+
+fn handle_expr_type<'ast>(node: &'ast syn::Expr, type_table: &HashMap<String, Type>) -> Type {
+    match node {
+        syn::Expr::Binary(expr_binary) => {
+            let left_ty = handle_expr_type(&expr_binary.left, type_table);
+            let right_ty = handle_expr_type(&expr_binary.right, type_table);
+            if left_ty == Type::Tensor || right_ty == Type::Tensor {
+                Type::Tensor
+            } else {
+                Type::Unknown
+            }
+        },
+        syn::Expr::Call(_) => unimplemented!("build_graph::handle_expr_type::Call"),
+        syn::Expr::Cast(_) => unimplemented!("build_graph::handle_expr_type::Cast"),
+        syn::Expr::Closure(_) => unimplemented!("build_graph::handle_expr_type::Closure"),
+        syn::Expr::Const(_) => unimplemented!("build_graph::handle_expr_type::Const"),
+        syn::Expr::Continue(_) => unimplemented!("build_graph::handle_expr_type::Continue"),
+        syn::Expr::Field(_) => unimplemented!("build_graph::handle_expr_type::Field"),
+        syn::Expr::Group(_) => unimplemented!("build_graph::handle_expr_type::Group"),
+        syn::Expr::Index(_) => unimplemented!("build_graph::handle_expr_type::Index"),
+        syn::Expr::Infer(_) => unimplemented!("build_graph::handle_expr_type::Infer"),
+        syn::Expr::Let(_) => unimplemented!("build_graph::handle_expr_type::Let"),
+        syn::Expr::Lit(_) => Type::Scalar,
+        syn::Expr::Macro(_) => unimplemented!("build_graph::handle_expr_type::Macro"),
+        syn::Expr::Match(_) => unimplemented!("build_graph::handle_expr_type::Match"),
+        syn::Expr::MethodCall(_) => unimplemented!("build_graph::handle_expr_type::MethodCall"),
+        syn::Expr::Paren(_) => unimplemented!("build_graph::handle_expr_type::Paren"),
+        syn::Expr::Path(expr_path) => {
+            if let Some(ident) = expr_path.path.get_ident() {
+                type_table.get(&ident.to_string()).unwrap_or(&Type::Unknown).clone()
+            } else {
+                Type::Unknown
+            }
+        },
+        syn::Expr::Range(_) => unimplemented!("build_graph::handle_expr_type::Range"),
+        syn::Expr::RawAddr(_) => unimplemented!("build_graph::handle_expr_type::RawAddr"),
+        syn::Expr::Reference(reference) => {
+            handle_expr_type(&reference.expr, type_table)
+        },
+        syn::Expr::Repeat(_) => unimplemented!("build_graph::handle_expr_type::Repeat"),
+        syn::Expr::Return(_) => unimplemented!("build_graph::handle_expr_type::Return"),
+        syn::Expr::Struct(_) => unimplemented!("build_graph::handle_expr_type::Struct"),
+        syn::Expr::Try(_) => unimplemented!("build_graph::handle_expr_type::Try"),
+        syn::Expr::TryBlock(_) => unimplemented!("build_graph::handle_expr_type::TryBlock"),
+        syn::Expr::Tuple(_) => unimplemented!("build_graph::handle_expr_type::Tuple"),
+        syn::Expr::Unary(_) => unimplemented!("build_graph::handle_expr_type::Unary"),
+        syn::Expr::Unsafe(_) => unimplemented!("build_graph::handle_expr_type::Unsafe"),
+        syn::Expr::Verbatim(_) => unimplemented!("build_graph::handle_expr_type::Verbatim"),
+        syn::Expr::Yield(_) => unimplemented!("build_graph::handle_expr_type::Yield"),
+        _ => Type::Unknown,
     }
 }
