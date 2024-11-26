@@ -25,6 +25,9 @@ pub mod ops {
             pub mod dwconv2d;
             /// a module defines maxpool2d operation
             pub mod max_pool;
+             /// a module defines avgpool2d operation
+             pub mod avg_pool;
+
         }
         /// a module defines dropout operation
         pub mod dropout;
