@@ -52,6 +52,7 @@ pub(crate) struct BasicBlock {
     pub(crate) phi_functions: Vec<PhiFunction>,
     pub(crate) origin_vars: HashSet<String>,
     pub(crate) defined_vars: HashSet<String>,
+    pub(crate) assigned_vars: HashSet<String>,
     pub(crate) used_vars: HashSet<String>,
     pub(crate) block_type: BlockType,
     pub(crate) live_in: HashSet<String>,
@@ -180,6 +181,7 @@ impl CFG {
             block_type: BlockType::Normal,
             phi_functions: vec![],
             origin_var_map: HashMap::new(),
+            assigned_vars: HashSet::new(),
         };
         let entry = graph.add_node(entry_block);
         CFG { graph, entry }
@@ -389,21 +391,21 @@ impl CFG {
                 let vars = self.graph[node].statements
                     .iter()
                     .filter_map(|stmt| {
-                        if let CustomStmt { stmt: syn::Stmt::Local(local) } = stmt {
-                            let vars: HashSet<String> = collect_all_vars_pat(&local.pat);
-                            if vars.is_empty() {
-                                None
-                            } else {
-                                Some(vars)
-                            }
-                        } else {
-                            None
-                        }
+                        let mut visitor = UseDefineVisitor::new();
+                        visitor.visit_stmt(&stmt.stmt);
+                        let mut vars = HashSet::new();
+                        vars.extend(visitor.used_vars.drain());
+                        vars.extend(visitor.define_vars.drain());
+                        vars.extend(visitor.assigned_vars.drain());
+                        Some(vars)
                     })
                     .collect::<Vec<HashSet<String>>>();
+                println!("node: {}", node.index());
+                println!("vars: {:#?}", vars);
                 for var in vars.iter().flatten() {
                     self.graph[node].origin_var_map.insert(var.clone(), var.clone());
                 }
+                println!("origin_var_map: {:#?}", self.graph[node].origin_var_map);
                 vars.into_iter().flatten().collect::<Vec<_>>()
             })
             .collect();
@@ -437,6 +439,7 @@ impl CFG {
         let mut body = quote::quote!();
         let mut order = self.reverse_postorder();
         order.retain(|x| *x != self.entry.index());
+        println!("order: {:#?}", order);
         for node in order {
             let block = &self.graph[NodeIndex::new(node)];
             body.extend(codegen::stmt(block));
@@ -453,6 +456,11 @@ impl CFG {
                 .edge_endpoints(idx)
                 .expect("fuse::cfg::gen_code::edge endpoints not found");
             graph.entry(src.index()).or_insert_with(Vec::new).push(dst.index());
+        }
+
+        for neighbors in graph.values_mut() {
+            neighbors.sort_unstable();
+            neighbors.reverse();
         }
 
         let mut visited: HashSet<usize> = HashSet::new();
@@ -492,7 +500,6 @@ impl CFG {
         // 按节点编号排序，确保遍历顺序一致
         let mut sorted_nodes: Vec<usize> = nodes.into_iter().collect();
         sorted_nodes.sort_unstable();
-
         // 对所有节点进行 DFS，以确保覆盖所有连通分量
         for &node in &sorted_nodes {
             if !visited.contains(&node) {
@@ -539,33 +546,6 @@ fn insert_origin_var(origin_vars: &mut HashSet<String>, pat: &syn::Pat) {
         syn::Pat::Verbatim(_) => unimplemented!("insert_origin_var::Pat::Verbatim"),
         syn::Pat::Wild(_) => {}
         _ => unimplemented!("insert_origin_var::Pat::Other"),
-    }
-}
-
-fn collect_all_vars_pat(pat: &syn::Pat) -> HashSet<String> {
-    match pat {
-        syn::Pat::Const(_) => HashSet::new(),
-        syn::Pat::Ident(pat_ident) => {
-            let mut vars = HashSet::new();
-            vars.insert(pat_ident.ident.to_string());
-            vars
-        }
-        syn::Pat::Lit(_) => HashSet::new(),
-        syn::Pat::Macro(_) => HashSet::new(),
-        syn::Pat::Or(_) => HashSet::new(),
-        syn::Pat::Paren(_) => HashSet::new(),
-        syn::Pat::Path(_) => HashSet::new(),
-        syn::Pat::Range(_) => HashSet::new(),
-        syn::Pat::Reference(_) => HashSet::new(),
-        syn::Pat::Rest(_) => HashSet::new(),
-        syn::Pat::Slice(_) => HashSet::new(),
-        syn::Pat::Struct(_) => HashSet::new(),
-        syn::Pat::Tuple(_) => HashSet::new(),
-        syn::Pat::TupleStruct(_) => HashSet::new(),
-        syn::Pat::Type(pat_type) => collect_all_vars_pat(&pat_type.pat),
-        syn::Pat::Verbatim(_) => HashSet::new(),
-        syn::Pat::Wild(_) => HashSet::new(),
-        _ => HashSet::new(),
     }
 }
 
@@ -633,6 +613,7 @@ fn rename(
     let mut new_origin_var_map = HashMap::new();
     let mut all_vars = cfg.graph[node].used_vars.clone();
     all_vars.extend(cfg.graph[node].defined_vars.clone());
+    all_vars.extend(cfg.graph[node].assigned_vars.clone());
     for var in all_vars {
         let mut new_key = var.clone();
         replace_string(&mut new_key, stacks);
@@ -759,6 +740,7 @@ impl<'a> CFGBuilder<'a> {
             live_out: HashSet::new(),
             phi_functions: vec![],
             origin_var_map: HashMap::new(),
+            assigned_vars: HashSet::new(),
         };
         self.cfg.add_block(block)
     }
@@ -785,7 +767,11 @@ impl<'a> CFGBuilder<'a> {
         // 连接当前块到条件检查块
         self.connect_to(cond_block);
         self.set_current_block(cond_block);
+        let mut visitor = UseDefineVisitor::new();
+        visitor.visit_expr(&expr_if.cond);
         self.visit_expr(&expr_if.cond);
+        self.cfg.graph[cond_block].defined_vars.extend(visitor.define_vars.drain());
+        self.cfg.graph[cond_block].used_vars.extend(visitor.used_vars.drain());
         // 连接当前块到 then 和 else 分支
         self.connect_to(then_block);
         self.connect_to(else_block);
@@ -1149,6 +1135,7 @@ impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
                 collector.visit_stmt(&last.stmt);
                 block.used_vars.extend(collector.used_vars);
                 block.defined_vars.extend(collector.define_vars);
+                block.assigned_vars.extend(collector.assigned_vars);
             }
         }
     }

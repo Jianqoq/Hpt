@@ -10,28 +10,28 @@ use tensor_dyn::type_promote::FloatOutBinary;
 fuse_proc_macro!(
 fn compute2(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
     let mut c = &a + &b;
-    let d = c.sin()?;
-    // let e = d.relu()?;
-    // let alpha = 1.673263242354358;
-    // let gamma = 1.050700987355822;
-    // if alpha > 0.0 {
-    //     d = e.selu(alpha, gamma)?;
-    //     // if alpha > 0.0 {
-    //     //     d = e.tanh()?;
-    //     // } else {
-    //     //     d = d.tan()?;
-    //     // }
-    // } else {
-    //     d = d.selu(alpha, gamma)?;
-    // }
-    for _ in 0..1000000 {
-        c = &d + &c;
-        c = &d + &c;
+    let mut d = c.sin()?;
+    let e = d.relu()?;
+    let alpha = 1.673263242354358;
+    let gamma = 1.050700987355822;
+    if alpha > 0.0 {
+        d = e.selu(alpha, gamma)?;
+        // if alpha > 0.0 {
+        //     d = e.tanh()?;
+        // } else {
+        //     d = d.tan()?;
+        // }
+    } else {
+        d = d.selu(alpha, gamma)?;
     }
+    // for _ in 0..1000000 {
+    //     c = &d + &c;
+    //     c = &d + &c;
+    // }
     // // while true {
     // //     let c = &d + &c;
     // // }
-    Ok(c)
+    Ok(d)
 });
 
 // // #[fuse]

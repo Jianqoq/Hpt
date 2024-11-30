@@ -29,7 +29,7 @@ pub(crate) fn fuse<'ast>(
                     .expect("node weight not found");
                 let origin_var = basic_block.origin_var_map
                     .get(&unary.output.to_string())
-                    .expect("origin var not found");
+                    .expect(&format!("origin var not found::32::{}", unary.output.to_string()));
                 block.insert(idx);
                 let kernel_type = KernelType::Unary;
                 if !basic_block.live_out.contains(origin_var) {
@@ -44,15 +44,15 @@ pub(crate) fn fuse<'ast>(
                         (Node::Unary(unary), _, _) =>
                             basic_block.origin_var_map
                                 .get(&unary.output.to_string())
-                                .expect("origin var not found"),
+                                .expect("origin var not found::47"),
                         (Node::Binary(binary), _, _) =>
                             basic_block.origin_var_map
                                 .get(&binary.output.to_string())
-                                .expect("origin var not found"),
+                                .expect("origin var not found::51"),
                         (Node::Input(input), _, _) =>
                             basic_block.origin_var_map
                                 .get(&input.to_string())
-                                .expect("origin var not found"),
+                                .expect("origin var not found::55"),
                     };
                     if !basic_block.live_out.contains(origin_var) {
                         fuse_parents(pred, kernel_type, &mut block, &unfused);
@@ -65,7 +65,7 @@ pub(crate) fn fuse<'ast>(
                     .expect("node weight not found");
                 let origin_var = basic_block.origin_var_map
                     .get(&binary.output.to_string())
-                    .expect("origin var not found");
+                    .expect("origin var not found::68");
                 block.insert(idx);
                 let kernel_type = KernelType::Binary;
                 if !basic_block.live_out.contains(origin_var) {
@@ -80,15 +80,15 @@ pub(crate) fn fuse<'ast>(
                         (Node::Unary(unary), _, _) =>
                             basic_block.origin_var_map
                                 .get(&unary.output.to_string())
-                                .expect("origin var not found"),
+                                .expect("origin var not found::83"),
                         (Node::Binary(binary), _, _) =>
                             basic_block.origin_var_map
                                 .get(&binary.output.to_string())
-                                .expect("origin var not found"),
+                                .expect("origin var not found::87"),
                         (Node::Input(input), _, _) =>
                             basic_block.origin_var_map
                                 .get(&input.to_string())
-                                .expect("origin var not found"),
+                                .expect("origin var not found::91"),
                     };
                     if !basic_block.live_out.contains(origin_var) {
                         fuse_parents(pred, kernel_type, &mut block, &unfused);
