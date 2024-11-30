@@ -21,7 +21,6 @@ pub(crate) fn fuse<'ast>(
     let mut results = Vec::new();
     while let Some(idx) = yield_candidate(&mut unfused) {
         let mut block = HashSet::new();
-        // println!("fused node: {:?}", idx);
         match unfused.node_weight(idx).expect("node weight not found") {
             (Node::Unary(unary), _, block_idx) => {
                 let basic_block = cfg.graph
@@ -102,9 +101,7 @@ pub(crate) fn fuse<'ast>(
         let mut block_vec = block.iter().collect::<Vec<_>>();
         block_vec.sort_by(|a, b| b.cmp(a));
         block_vec.into_iter().for_each(|node| {
-            // println!("remove node: {:?}", node);
             unfused.remove_node(*node);
-            // println!("remove res: {:?}", res);
         });
         results.push(block);
     }

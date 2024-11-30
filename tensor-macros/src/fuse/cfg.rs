@@ -63,6 +63,7 @@ pub(crate) struct BasicBlock {
 // CFG 结构
 pub(crate) struct CFG {
     pub(crate) graph: Graph<BasicBlock, ()>,
+    pub(crate) block_id: BlockId,
     pub(crate) entry: NodeIndex,
 }
 
@@ -184,7 +185,7 @@ impl CFG {
             assigned_vars: HashSet::new(),
         };
         let entry = graph.add_node(entry_block);
-        CFG { graph, entry }
+        CFG { graph, entry, block_id: BlockId::new(entry) }
     }
 
     pub(crate) fn live_analysis(&mut self) {
@@ -237,6 +238,19 @@ impl CFG {
         for block in self.graph.node_indices() {
             self.graph[block].live_in = live_in[&block].clone();
             self.graph[block].live_out = live_out[&block].clone();
+
+            // check if current block has return statement
+            if self.graph[block].block_type == BlockType::Normal {
+                let mut extra_live_outs = HashSet::new();
+                if let Some(stmt) = self.graph[block].statements.last() {
+                    if let syn::Stmt::Expr(expr, ..) = &stmt.stmt {
+                        let mut visitor = UseDefineVisitor::new();
+                        visitor.visit_expr(expr);
+                        extra_live_outs.extend(visitor.used_vars.drain());
+                    }
+                }
+                self.graph[block].live_out.extend(extra_live_outs.drain());
+            }
         }
     }
 
@@ -400,12 +414,9 @@ impl CFG {
                         Some(vars)
                     })
                     .collect::<Vec<HashSet<String>>>();
-                println!("node: {}", node.index());
-                println!("vars: {:#?}", vars);
                 for var in vars.iter().flatten() {
                     self.graph[node].origin_var_map.insert(var.clone(), var.clone());
                 }
-                println!("origin_var_map: {:#?}", self.graph[node].origin_var_map);
                 vars.into_iter().flatten().collect::<Vec<_>>()
             })
             .collect();
@@ -435,80 +446,50 @@ impl CFG {
         rename(self, self.entry, &mut stacks, &mut versions, dominators);
     }
 
-    pub(crate) fn gen_code(&self) -> crate::TokenStream2 {
-        let mut body = quote::quote!();
-        let mut order = self.reverse_postorder();
-        order.retain(|x| *x != self.entry.index());
-        println!("order: {:#?}", order);
-        for node in order {
-            let block = &self.graph[NodeIndex::new(node)];
-            body.extend(codegen::stmt(block));
+    pub(crate) fn gen_code(&mut self) -> crate::TokenStream2 {
+        let block_id = core::mem::take(&mut self.block_id);
+        let mut child_code = quote::quote!();
+        for child in block_id.children.into_iter() {
+            child_code.extend(self._gen_code(child));
         }
-        body
+        child_code
     }
 
-    // 定义函数 reverse_postorder
-    fn reverse_postorder(&self) -> Vec<usize> {
-        // 构建邻接表
-        let mut graph: HashMap<usize, Vec<usize>> = HashMap::new();
-        for idx in self.graph.edge_indices() {
-            let (src, dst) = self.graph
-                .edge_endpoints(idx)
-                .expect("fuse::cfg::gen_code::edge endpoints not found");
-            graph.entry(src.index()).or_insert_with(Vec::new).push(dst.index());
+    fn _gen_code(&self, block_id: BlockId) -> crate::TokenStream2 {
+        let mut body = quote::quote!();
+        let block = &self.graph[block_id.id];
+        let code = codegen::stmt(block);
+        let mut child_code = quote::quote!();
+        for child in block_id.children.into_iter() {
+            child_code.extend(self._gen_code(child));
         }
-
-        for neighbors in graph.values_mut() {
-            neighbors.sort_unstable();
-            neighbors.reverse();
-        }
-
-        let mut visited: HashSet<usize> = HashSet::new();
-        let mut order: Vec<usize> = Vec::new();
-
-        // 定义递归的深度优先搜索函数
-        fn dfs(
-            node: usize,
-            graph: &HashMap<usize, Vec<usize>>,
-            visited: &mut HashSet<usize>,
-            order: &mut Vec<usize>
-        ) {
-            if visited.contains(&node) {
-                return;
+        match block.block_type {
+            BlockType::Normal => {
+                body.extend(quote::quote!(#code #child_code));
             }
-            visited.insert(node);
-            if let Some(neighbors) = graph.get(&node) {
-                for &neighbor in neighbors {
-                    if !visited.contains(&neighbor) {
-                        dfs(neighbor, graph, visited, order);
-                    }
-                }
+            BlockType::IfCond => {
+                body.extend(quote::quote!(if #code #child_code));
             }
-            order.push(node);
-        }
-
-        // 获取所有节点
-        let mut nodes: HashSet<usize> = HashSet::new();
-        for idx in self.graph.edge_indices() {
-            let (src, dst) = self.graph
-                .edge_endpoints(idx)
-                .expect("fuse::cfg::gen_code::edge endpoints not found");
-            nodes.insert(src.index());
-            nodes.insert(dst.index());
-        }
-
-        // 按节点编号排序，确保遍历顺序一致
-        let mut sorted_nodes: Vec<usize> = nodes.into_iter().collect();
-        sorted_nodes.sort_unstable();
-        // 对所有节点进行 DFS，以确保覆盖所有连通分量
-        for &node in &sorted_nodes {
-            if !visited.contains(&node) {
-                dfs(node, &graph, &mut visited, &mut order);
+            BlockType::IfThen => {
+                body.extend(quote::quote!({ #code #child_code }));
             }
+            BlockType::IfElse => {
+                body.extend(quote::quote!(else { #code #child_code }));
+            }
+            BlockType::ForInit => {
+                body.extend(quote::quote!(for #code #child_code));
+            }
+            BlockType::ForBody => {
+                body.extend(quote::quote!({#code #child_code}));
+            }
+            BlockType::ForCond => {
+                body.extend(quote::quote!(in #code #child_code));
+            }
+            BlockType::WhileCond => todo!(),
+            BlockType::WhileBody => todo!(),
+            BlockType::LoopBody => todo!(),
         }
-
-        // 逆后序
-        order.into_iter().rev().collect()
+        body
     }
 
     pub(crate) fn replace_all_var_back(&mut self) {
@@ -712,9 +693,35 @@ fn new_name(
     }
 }
 
+#[derive(Clone, Default)]
+pub(crate) struct BlockId {
+    pub(crate) children: Vec<BlockId>,
+    pub(crate) id: NodeIndex,
+}
+
+impl std::fmt::Debug for BlockId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if !self.children.is_empty() {
+            f.debug_struct("BlockId")
+                .field("children", &self.children)
+                .field("id", &self.id)
+                .finish()
+        } else {
+            write!(f, "{:?}", self.id)
+        }
+    }
+}
+
+impl BlockId {
+    pub(crate) fn new(id: NodeIndex) -> Self {
+        BlockId { children: vec![], id }
+    }
+}
+
 pub(crate) struct CFGBuilder<'a> {
     pub(crate) cfg: &'a mut CFG,
     pub(crate) current_block: NodeIndex,
+    pub(crate) block_ids: BlockId,
     loop_stack: Vec<NodeIndex>,
 }
 
@@ -725,6 +732,7 @@ impl<'a> CFGBuilder<'a> {
             cfg,
             current_block: entry,
             loop_stack: Vec::new(),
+            block_ids: BlockId { children: vec![], id: entry },
         }
     }
 
@@ -754,34 +762,49 @@ impl<'a> CFGBuilder<'a> {
         self.current_block = new_block;
     }
 
+    fn set_current_block_id(&mut self, new_block_id: BlockId) {
+        self.block_ids = new_block_id;
+    }
+
     // 处理 if 语句
     fn handle_if(&mut self, expr_if: &syn::ExprIf) {
         let cond_block = self.new_block(BlockType::IfCond);
+        let cond_block_id = BlockId::new(cond_block);
         // 创建 then 分支块
         let then_block = self.new_block(BlockType::IfThen);
+        let then_block_id = BlockId::new(then_block);
         // 创建 else 分支块
         let else_block = self.new_block(BlockType::IfElse);
+        let else_block_id = BlockId::new(else_block);
         // 创建合并块
         let merge_block = self.new_block(BlockType::Normal);
+        let merge_block_id = BlockId::new(merge_block);
 
+        let mut current_block_id = core::mem::take(&mut self.block_ids);
         // 连接当前块到条件检查块
         self.connect_to(cond_block);
         self.set_current_block(cond_block);
+        self.set_current_block_id(cond_block_id);
+
         let mut visitor = UseDefineVisitor::new();
         visitor.visit_expr(&expr_if.cond);
         self.visit_expr(&expr_if.cond);
+        let cond_block_id = core::mem::take(&mut self.block_ids);
         self.cfg.graph[cond_block].defined_vars.extend(visitor.define_vars.drain());
         self.cfg.graph[cond_block].used_vars.extend(visitor.used_vars.drain());
         // 连接当前块到 then 和 else 分支
         self.connect_to(then_block);
         self.connect_to(else_block);
 
+        self.set_current_block_id(then_block_id);
         // 处理 then 分支
         self.set_current_block(then_block);
         self.visit_block(&expr_if.then_branch);
+        let then_block_id = core::mem::take(&mut self.block_ids);
         self.connect_to(merge_block);
 
         // 处理 else 分支
+        self.set_current_block_id(else_block_id);
         self.set_current_block(else_block);
         if let Some(else_branch) = &expr_if.else_branch {
             match &else_branch.1.as_ref() {
@@ -794,10 +817,16 @@ impl<'a> CFGBuilder<'a> {
                 }
             }
         }
+        let else_block_id = core::mem::take(&mut self.block_ids);
         self.connect_to(merge_block);
 
+        current_block_id.children.push(cond_block_id);
+        current_block_id.children.push(then_block_id);
+        current_block_id.children.push(else_block_id);
+        current_block_id.children.push(merge_block_id);
         // 更新当前块为合并块
         self.set_current_block(merge_block);
+        self.set_current_block_id(current_block_id);
     }
 
     // 处理 loop 语句
@@ -927,20 +956,26 @@ impl<'a> CFGBuilder<'a> {
     }
 
     fn handle_for_loop(&mut self, expr_for: &syn::ExprForLoop) {
+        let mut current_block_id = core::mem::take(&mut self.block_ids);
         // 创建迭代器初始化块
         let init_block = self.new_block(BlockType::ForInit);
+        let init_block_id = BlockId::new(init_block);
         // 创建条件检查块
         let condition_block = self.new_block(BlockType::ForCond);
+        let condition_block_id = BlockId::new(condition_block);
         // 创建循环体块
         let loop_block = self.new_block(BlockType::ForBody);
+        let loop_block_id = BlockId::new(loop_block);
         // 创建循环后的块
         let after_loop_block = self.new_block(BlockType::Normal);
+        let after_loop_block_id = BlockId::new(after_loop_block);
 
         // 连接当前块到初始化块
         self.connect_to(init_block);
 
         // 处理迭代器初始化和元素绑定
         self.set_current_block(init_block);
+        self.set_current_block_id(init_block_id);
         // 创建 `let pat = expr` 语句
         let pat = &expr_for.pat;
         let local = quote::quote! {
@@ -951,17 +986,18 @@ impl<'a> CFGBuilder<'a> {
         if let Some(block) = self.cfg.graph.node_weight_mut(init_block) {
             block.statements.push(CustomStmt { stmt });
         }
-
+        let init_block_id = core::mem::take(&mut self.block_ids);
         // 连接初始化块到条件检查块
         self.connect_to(condition_block);
 
         // 处理条件检查
         self.set_current_block(condition_block);
+        self.set_current_block_id(condition_block_id);
         if let Some(block) = self.cfg.graph.node_weight_mut(condition_block) {
             let expr = &expr_for.expr;
             block.statements.push(CustomStmt { stmt: Stmt::Expr(*(*expr).clone(), None) });
         }
-
+        let condition_block_id = core::mem::take(&mut self.block_ids);
         // 创建连接：条件为真进入循环体块，条件为假进入循环后的块
         self.connect_to(loop_block);
         self.connect_to(after_loop_block);
@@ -971,8 +1007,9 @@ impl<'a> CFGBuilder<'a> {
 
         // 处理循环体
         self.set_current_block(loop_block);
+        self.set_current_block_id(loop_block_id);
         self.visit_block(&expr_for.body);
-
+        let loop_block_id = core::mem::take(&mut self.block_ids);
         // 连接循环体块回到条件检查块（表示下一次迭代）
         self.connect_to(condition_block);
         // 连接循环体块到循环后的块（如果有 break）
@@ -983,12 +1020,19 @@ impl<'a> CFGBuilder<'a> {
 
         // 设置当前块为循环后的块，继续处理后续语句
         self.set_current_block(after_loop_block);
+        current_block_id.children.push(init_block_id);
+        current_block_id.children.push(condition_block_id);
+        current_block_id.children.push(loop_block_id);
+        current_block_id.children.push(after_loop_block_id);
+        self.set_current_block_id(current_block_id);
     }
 }
 
 impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
     fn visit_item_fn(&mut self, i: &'ast syn::ItemFn) {
+        let mut current_block_id = core::mem::take(&mut self.block_ids);
         let new_block = self.new_block(BlockType::Normal);
+        let new_block_id = BlockId::new(new_block);
         for arg in &i.sig.inputs {
             match arg {
                 syn::FnArg::Receiver(_) => {}
@@ -1019,7 +1063,11 @@ impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
         }
         self.connect_to(new_block);
         self.set_current_block(new_block);
+        self.set_current_block_id(new_block_id);
         self.visit_block(&i.block);
+        let new_block_id = core::mem::take(&mut self.block_ids);
+        current_block_id.children.push(new_block_id);
+        self.set_current_block_id(current_block_id);
     }
 
     fn visit_expr_break(&mut self, expr_break: &'ast syn::ExprBreak) {
