@@ -1,20 +1,8 @@
 use std::collections::{ HashMap, HashSet };
-
-use crate::fuse::{
-    cfg::rename_variables,
-    codegen::{ Codegen, _Codegen },
-    dag::Graph,
-    fuse::fuse_graph,
-    gen_fuse::gen_fuse,
-    rcmut::RCMut,
-    ssa::SSAContext,
-    to_remove::gen_to_remove,
-    visitor::Visitor,
-};
+use crate::fuse::ty_infer::TyInfer;
 use petgraph::{ algo::dominators::Dominators, graph::NodeIndex };
 use syn::visit::Visit;
-use syn::visit_mut::VisitMut;
-use super::{ cfg::{ BasicBlock, CFGBuilder, CFG }, ssa_visitor::SSATransformer };
+use super::cfg::{ CFGBuilder, CFG };
 
 fn compute_dominance_frontiers(
     cfg: &CFG,
@@ -69,55 +57,112 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     let mut builder = CFGBuilder::new(&mut cfg);
     builder.visit_item_fn(item_fn);
     let dominators = petgraph::algo::dominators::simple_fast(&cfg.graph, cfg.entry);
+    // println!("dominators: {:#?}", dominators);
     let dominance_frontiers = compute_dominance_frontiers(&cfg, &dominators);
-
+    // println!("dominance_frontiers: {:#?}", dominance_frontiers);
     let definitions = cfg.get_variable_definitions();
     cfg.insert_phi_functions(&dominance_frontiers, &definitions);
-    rename_variables(&mut cfg, &dominators);
+    cfg.live_analysis();
+    // println!("rename: {:#?}", cfg.graph);
+    cfg.rename_variables(&dominators);
     println!("rename: {:#?}", cfg.graph);
+    // println!("type_table: {:#?}", type_table.table);
     Ok(cfg)
 }
 
 pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let func = syn::parse_macro_input!(item as syn::ItemFn);
-    let cfg = build_cfg(&func);
-    // let mut visitor = SSATransformer::new();
-    // visitor.visit_item_fn_mut(&mut func);
-    // if !visitor.visitor.errors.is_empty() {
-    //     // 合并所有错误
-    //     let combined_error = visitor.visitor.errors
-    //         .into_iter()
-    //         .reduce(|mut acc, e| {
-    //             acc.combine(e);
-    //             acc
-    //         })
-    //         .unwrap();
-    //     return combined_error.to_compile_error().into();
-    // }
-    // visitor.remove_unused();
-    // let graph = Graph::from_visitor(&visitor.visitor);
-    // println!("{:#?}", graph);
-    // let fused = fuse_graph(&graph);
-    // let gen_fuse = gen_fuse(&graph._graph, &fused);
-    // let to_remove = gen_to_remove(&gen_fuse, &fused);
+    let mut cfg = build_cfg(&func).expect("build cfg failed");
+    let mut type_table = TyInfer::new();
+    type_table.infer(&cfg);
+    // // println!("type_table: {:#?}", type_table.table);
+    let graphs = cfg.build_graphs(&type_table.table);
 
-    // let mut codegen = Codegen {
-    //     _codegen: _Codegen {
-    //         fused_codes: &gen_fuse,
-    //         to_remove: &to_remove,
-    //         current_tokens: Vec::new(),
-    //         ssa_ctx: RCMut::new(SSAContext::new()),
-    //         _visitor: &visitor.visitor,
-    //         next_codegen: None,
-    //         pat_ident_need_remove: false,
-    //         pat_ident_is_ret: false,
-    //     },
-    // };
-    // codegen.visit_item_fn(&func);
-    // let code = codegen.get_code();
+    let mut genfuse_map = HashMap::new();
+    for idx in graphs.node_indices() {
+        let graph = graphs.node_weight(idx).expect("graph weight not found");
+        let petgraph = graph.to_petgraph();
+        // println!("petgraph: {:#?}", petgraph);
+        if petgraph.node_count() > 0 && !petgraph::algo::is_cyclic_directed(&petgraph) {
+            let fusion_group = crate::fuse::fuse::fuse(&cfg, &petgraph);
+            // println!("fusion_group: {:#?}", fusion_group);
+            let genfuse = crate::fuse::gen_fuse::gen_fuse(&cfg, &petgraph, &fusion_group);
+            let mut to_remove = Vec::new();
+            for group in fusion_group.vars {
+                to_remove.push(
+                    group
+                        .iter()
+                        .map(|idx| petgraph[*idx].1)
+                        .collect::<Vec<_>>()
+                );
+            }
+            for (i, (inp, out)) in genfuse.1.iter().enumerate() {
+                to_remove[i].retain(|v| !inp.iter().any(|(_, stmt_idx)| *stmt_idx == *v));
+                to_remove[i].retain(|v| !out.iter().any(|(_, stmt_idx)| *stmt_idx == *v));
+            }
+            genfuse_map.insert(idx, (genfuse.0, genfuse.1, to_remove));
+        }
+    }
+
+    for (idx, (codes, inp_outs, to_remove)) in genfuse_map {
+        for (code, (_, out)) in codes.into_iter().zip(inp_outs.into_iter()) {
+            assert_eq!(out.len(), 1);
+            let (out, out_stmt_idx) = &out[0];
+            if
+                let syn::Stmt::Local(local) =
+                    &mut cfg.graph[idx].statements[*out_stmt_idx as usize].stmt
+            {
+                if let syn::Pat::Ident(ident) = &mut local.pat {
+                    ident.ident = syn::Ident::new(&out.to_string(), out.span());
+                } else {
+                    panic!("fuse_impl::local::not_ident");
+                }
+                local.init.as_mut().map(|x| {
+                    x.expr = Box::new(syn::Expr::Verbatim(code));
+                });
+            }
+            for &stmt_idx in to_remove.iter().flatten() {
+                if stmt_idx >= 0 {
+                    cfg.graph[idx].statements[stmt_idx as usize].stmt = syn::Stmt::Expr(
+                        syn::Expr::Verbatim(quote::quote!()),
+                        None
+                    );
+                }
+            }
+        }
+    }
+    cfg.replace_all_var_back();
+    // cfg.remove_phi_functions();
+    println!("{:#?}", cfg.graph);
+
+    // // process function signature
+    let visibility = &func.vis;
+    let mut token_stream = proc_macro2::TokenStream::new();
+    token_stream.extend(quote::quote!(#visibility));
+    let mut signature = func.sig;
+    let mut arguments = syn::punctuated::Punctuated::<syn::FnArg, syn::Token![,]>::new();
+    let new_inputs = cfg.graph.node_weight((0).into()).expect("node weight not found");
+    for inp in new_inputs.statements.iter() {
+        if let syn::Stmt::Local(local) = &inp.stmt {
+            if let syn::Pat::Type(pat_type) = &local.pat {
+                arguments.push(syn::FnArg::Typed(pat_type.clone()));
+            } else {
+                panic!("fuse_impl::process_function_signature::not_pat_type");
+            }
+        } else {
+            panic!("fuse_impl::process_function_signature::not_local");
+        }
+    }
+    signature.inputs = arguments;
+    token_stream.extend(quote::quote!(#signature));
+    // println!("{:#?}", token_stream.to_string());
+    let body = cfg.gen_code();
+    // println!("{:#?}", body.to_string());
 
     let ret = quote::quote!(
-        // #func
+        #token_stream {
+            #body
+        }
     );
     ret.into()
 }

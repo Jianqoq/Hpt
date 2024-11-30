@@ -89,18 +89,12 @@ pub(crate) enum Node<'ast> {
     Input(syn::Ident),
 }
 
-impl<'ast> Node<'ast> {
-    pub fn is_input(&self) -> bool {
-        matches!(self, Node::Input(_))
-    }
-}
-
 impl<'ast> std::fmt::Debug for Node<'ast> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Node::Unary(unary, ..) => write!(f, "{:#?}", unary),
             Node::Binary(binary, ..) => write!(f, "{:#?}", binary),
-            Node::Input(input) => write!(f, "{}", input.to_string()),
+            Node::Input(input) => write!(f, "input({})", input.to_string()),
         }
     }
 }
