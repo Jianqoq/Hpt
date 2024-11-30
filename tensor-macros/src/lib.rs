@@ -47,18 +47,11 @@ mod conv2d;
 
 mod fuse {
     pub(crate) mod start;
-    pub(crate) mod dag;
-    pub(crate) mod visitor;
     pub(crate) mod node;
     pub(crate) mod fuse;
     pub(crate) mod kernel_type;
     pub(crate) mod gen_fuse;
-    pub(crate) mod edges;
-    // pub(crate) mod codegen;
-    pub(crate) mod ssa;
-    pub(crate) mod rcmut;
-    pub(crate) mod to_remove;
-    pub(crate) mod ssa_visitor;
+    pub(crate) mod codegen;
     pub(crate) mod cfg;
     pub(crate) mod ty_infer;
     pub(crate) mod expr_ty;
@@ -66,6 +59,7 @@ mod fuse {
     pub(crate) mod use_define_visitor;
     pub(crate) mod variable_collector;
     pub(crate) mod phi_function;
+    pub(crate) mod var_recover;
 }
 
 use crate::simd_cmp::impl_simd_cmp;

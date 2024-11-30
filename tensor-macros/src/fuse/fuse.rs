@@ -1,100 +1,110 @@
-use std::{ cell::{ RefCell, RefMut }, collections::{ HashMap, HashSet } };
+use std::collections::HashSet;
 
 use petgraph::graph::NodeIndex;
-use quote::ToTokens;
 
-use super::{ dag::{ Graph, Graph2, _Graph }, kernel_type::KernelType, node::Node };
+use super::{ kernel_type::KernelType, node::Node };
 
 #[derive(Debug)]
 pub(crate) struct FusionGroup {
     pub(crate) vars: Vec<HashSet<NodeIndex>>,
 }
 
-pub(crate) fn fuse_graph<'ast>(graph: &'ast petgraph::Graph<&(crate::fuse::node::Node<'ast>, i64), ()>) -> FusionGroup {
-    fuse(&graph)
-}
-
-pub(crate) fn out_degree<'ast>(graph: &'ast _Graph<'ast>) -> HashMap<syn::Ident, usize> {
-    let mut out_degree = HashMap::new();
-    let mut current_graph = Some(graph);
-    while let Some(next_graph) = current_graph {
-        _out_degree(&next_graph.map, &mut out_degree);
-        if let Some(next_graph) = &next_graph.next_graph {
-            current_graph = Some(next_graph);
-        } else {
-            break;
-        }
-    }
-    out_degree
-}
-
-pub(crate) fn _out_degree<'ast>(
-    map: &'ast HashMap<&'ast syn::Ident, &'ast Node<'ast>>,
-    out_degree: &mut HashMap<syn::Ident, usize>
-) {
-    for out in map.keys() {
-        let mut degree = 0;
-        for node in map.values() {
-            match node {
-                Node::Unary(unary) => {
-                    if &unary.operand == *out {
-                        degree += 1;
-                    }
-                }
-                Node::Binary(binary) => {
-                    if &binary.left == *out || &binary.right == *out {
-                        degree += 1;
-                    }
-                }
-                Node::Input(_) => {}
-            }
-        }
-        out_degree
-            .entry((*out).clone())
-            .and_modify(|d| {
-                *d += degree;
-            })
-            .or_insert(degree);
-    }
-}
-
 pub(crate) fn fuse<'ast>(
-    candidates: &'ast petgraph::Graph<&(crate::fuse::node::Node<'ast>, i64), ()>
+    cfg: &crate::fuse::cfg::CFG,
+    candidates: &'ast petgraph::stable_graph::StableGraph<
+        &(crate::fuse::node::Node<'ast>, i64, usize),
+        ()
+    >
 ) -> FusionGroup {
     let mut unfused = candidates.clone();
 
     let mut results = Vec::new();
     while let Some(idx) = yield_candidate(&mut unfused) {
         let mut block = HashSet::new();
+        // println!("fused node: {:?}", idx);
         match unfused.node_weight(idx).expect("node weight not found") {
-            (Node::Unary(_), _) => {
+            (Node::Unary(unary), _, block_idx) => {
+                let basic_block = cfg.graph
+                    .node_weight(NodeIndex::new(*block_idx))
+                    .expect("node weight not found");
+                let origin_var = basic_block.origin_var_map
+                    .get(&unary.output.to_string())
+                    .expect("origin var not found");
                 block.insert(idx);
                 let kernel_type = KernelType::Unary;
-                for succ in unfused.neighbors_directed(idx, petgraph::Direction::Outgoing) {
-                    fuse_children(succ, kernel_type, &mut block, &unfused);
+                if !basic_block.live_out.contains(origin_var) {
+                    for succ in unfused.neighbors_directed(idx, petgraph::Direction::Outgoing) {
+                        fuse_children(succ, kernel_type, &mut block, &unfused);
+                    }
                 }
                 for pred in unfused.neighbors_directed(idx, petgraph::Direction::Incoming) {
-                    fuse_parents(pred, kernel_type, &mut block, &unfused);
+                    let origin_var = match
+                        unfused.node_weight(pred).expect("node weight not found")
+                    {
+                        (Node::Unary(unary), _, _) =>
+                            basic_block.origin_var_map
+                                .get(&unary.output.to_string())
+                                .expect("origin var not found"),
+                        (Node::Binary(binary), _, _) =>
+                            basic_block.origin_var_map
+                                .get(&binary.output.to_string())
+                                .expect("origin var not found"),
+                        (Node::Input(input), _, _) =>
+                            basic_block.origin_var_map
+                                .get(&input.to_string())
+                                .expect("origin var not found"),
+                    };
+                    if !basic_block.live_out.contains(origin_var) {
+                        fuse_parents(pred, kernel_type, &mut block, &unfused);
+                    }
                 }
             }
-            (Node::Binary(_), _) => {
+            (Node::Binary(binary), _, block_idx) => {
+                let basic_block = cfg.graph
+                    .node_weight(NodeIndex::new(*block_idx))
+                    .expect("node weight not found");
+                let origin_var = basic_block.origin_var_map
+                    .get(&binary.output.to_string())
+                    .expect("origin var not found");
                 block.insert(idx);
                 let kernel_type = KernelType::Binary;
-                for succ in unfused.neighbors_directed(idx, petgraph::Direction::Outgoing) {
-                    fuse_children(succ, kernel_type, &mut block, &unfused);
+                if !basic_block.live_out.contains(origin_var) {
+                    for succ in unfused.neighbors_directed(idx, petgraph::Direction::Outgoing) {
+                        fuse_children(succ, kernel_type, &mut block, &unfused);
+                    }
                 }
                 for pred in unfused.neighbors_directed(idx, petgraph::Direction::Incoming) {
-                    fuse_parents(pred, kernel_type, &mut block, &unfused);
+                    let origin_var = match
+                        unfused.node_weight(pred).expect("node weight not found")
+                    {
+                        (Node::Unary(unary), _, _) =>
+                            basic_block.origin_var_map
+                                .get(&unary.output.to_string())
+                                .expect("origin var not found"),
+                        (Node::Binary(binary), _, _) =>
+                            basic_block.origin_var_map
+                                .get(&binary.output.to_string())
+                                .expect("origin var not found"),
+                        (Node::Input(input), _, _) =>
+                            basic_block.origin_var_map
+                                .get(&input.to_string())
+                                .expect("origin var not found"),
+                    };
+                    if !basic_block.live_out.contains(origin_var) {
+                        fuse_parents(pred, kernel_type, &mut block, &unfused);
+                    }
                 }
             }
-            (Node::Input(_), _) => {
+            (Node::Input(_), _, _) => {
                 block.insert(idx);
             }
         }
         let mut block_vec = block.iter().collect::<Vec<_>>();
         block_vec.sort_by(|a, b| b.cmp(a));
         block_vec.into_iter().for_each(|node| {
+            // println!("remove node: {:?}", node);
             unfused.remove_node(*node);
+            // println!("remove res: {:?}", res);
         });
         results.push(block);
     }
@@ -105,11 +115,14 @@ pub(crate) fn fuse<'ast>(
 }
 
 pub(crate) fn yield_candidate<'a, 'ast>(
-    unfused_candidates: &mut petgraph::Graph<&(crate::fuse::node::Node<'ast>, i64), ()>
+    unfused_candidates: &mut petgraph::stable_graph::StableGraph<
+        &(crate::fuse::node::Node<'ast>, i64, usize),
+        ()
+    >
 ) -> Option<NodeIndex> {
     let unary = unfused_candidates.node_indices().find(|x| {
         match unfused_candidates.node_weight(*x) {
-            Some((Node::Unary(_), _)) => true,
+            Some((Node::Unary(_), _, _)) => true,
             _ => false,
         }
     });
@@ -131,7 +144,10 @@ pub fn fuse_parents<'ast>(
     pred: NodeIndex,
     next_kernel_type: KernelType,
     block: &mut HashSet<NodeIndex>,
-    graph: &'ast petgraph::Graph<&(crate::fuse::node::Node<'ast>, i64), ()>
+    graph: &'ast petgraph::stable_graph::StableGraph<
+        &(crate::fuse::node::Node<'ast>, i64, usize),
+        ()
+    >
 ) {
     match
         pred_kernel_fusable(
@@ -141,7 +157,7 @@ pub fn fuse_parents<'ast>(
     {
         Ok(Some(kernel_type)) => {
             match graph.node_weight(pred).expect("node weight not found") {
-                (Node::Unary(_), _) | (Node::Binary(_), _) | (Node::Input(_), _) => {
+                (Node::Unary(_), _, _) | (Node::Binary(_), _, _) | (Node::Input(_), _, _) => {
                     block.insert(pred);
                 }
             }
@@ -158,7 +174,10 @@ pub fn fuse_children<'ast>(
     succ: NodeIndex,
     prev_kernel_type: KernelType,
     block: &mut HashSet<NodeIndex>,
-    graph: &'ast petgraph::Graph<&(crate::fuse::node::Node<'ast>, i64), ()>
+    graph: &'ast petgraph::stable_graph::StableGraph<
+        &(crate::fuse::node::Node<'ast>, i64, usize),
+        ()
+    >
 ) {
     match
         suc_kernel_fusable(
@@ -168,7 +187,7 @@ pub fn fuse_children<'ast>(
     {
         Ok(Some(kernel_type)) => {
             match graph.node_weight(succ).expect("node weight not found") {
-                (Node::Unary(_), _) | (Node::Binary(_), _) | (Node::Input(_), _) => {
+                (Node::Unary(_), _, _) | (Node::Binary(_), _, _) | (Node::Input(_), _, _) => {
                     block.insert(succ);
                 }
             }
@@ -183,45 +202,24 @@ pub fn fuse_children<'ast>(
 
 pub fn pred_kernel_fusable<'ast>(
     next_kernel_type: KernelType,
-    pred: &(crate::fuse::node::Node<'ast>, i64)
+    pred: &(crate::fuse::node::Node<'ast>, i64, usize)
 ) -> anyhow::Result<Option<KernelType>> {
     let pred_kernel_type = match pred {
-        (Node::Unary(..), _) => KernelType::Unary,
-        (Node::Binary(..), _) => KernelType::Binary,
-        (Node::Input(..), _) => KernelType::Unary,
+        (Node::Unary(..), _, _) => KernelType::Unary,
+        (Node::Binary(..), _, _) => KernelType::Binary,
+        (Node::Input(..), _, _) => KernelType::Unary,
     };
     Ok(pred_kernel_type.infer_pred_kernel(&next_kernel_type))
 }
 
 pub fn suc_kernel_fusable<'ast>(
     kernel_type: KernelType,
-    next: &(crate::fuse::node::Node<'ast>, i64)
+    next: &(crate::fuse::node::Node<'ast>, i64, usize)
 ) -> anyhow::Result<Option<KernelType>> {
     let next_kernel_type = match next {
-        (Node::Unary(..), _) => KernelType::Unary,
-        (Node::Binary(..), _) => KernelType::Binary,
-        (Node::Input(..), _) => KernelType::Unary,
+        (Node::Unary(..), _, _) => KernelType::Unary,
+        (Node::Binary(..), _, _) => KernelType::Binary,
+        (Node::Input(..), _, _) => KernelType::Unary,
     };
     Ok(kernel_type.infer_suc_kernel(&next_kernel_type))
-}
-
-pub fn parents<'a, 'ast>(node: &Node<'ast>, graph: &'a _Graph<'ast>) -> HashSet<&'a Node<'ast>> {
-    let mut parents = HashSet::new();
-    match node {
-        Node::Unary(unary) => {
-            if let Some(parent) = graph.map.get(&unary.operand) {
-                parents.insert(*parent);
-            }
-        }
-        Node::Binary(binary) => {
-            if let Some(parent) = graph.map.get(&binary.left) {
-                parents.insert(*parent);
-            }
-            if let Some(parent) = graph.map.get(&binary.right) {
-                parents.insert(*parent);
-            }
-        }
-        Node::Input(..) => {}
-    }
-    parents
 }
