@@ -246,78 +246,78 @@ impl std::fmt::Debug for Graph {
 
 impl<'ast> syn::visit::Visit<'ast> for Graph {
     fn visit_abi(&mut self, _: &'ast syn::Abi) {
-        unimplemented!("visitor::visit_abi");
+        unimplemented!("graph::visit_abi");
     }
 
     fn visit_angle_bracketed_generic_arguments(
         &mut self,
         _: &'ast syn::AngleBracketedGenericArguments
     ) {
-        unimplemented!("visitor::visit_angle_bracketed_generic_arguments");
+        unimplemented!("graph::visit_angle_bracketed_generic_arguments");
     }
 
     fn visit_arm(&mut self, _: &'ast syn::Arm) {
-        unimplemented!("visitor::visit_arm");
+        unimplemented!("graph::visit_arm");
     }
 
     fn visit_assoc_const(&mut self, _: &'ast syn::AssocConst) {
-        unimplemented!("visitor::visit_assoc_const");
+        unimplemented!("graph::visit_assoc_const");
     }
 
     fn visit_assoc_type(&mut self, _: &'ast syn::AssocType) {
-        unimplemented!("visitor::visit_assoc_type");
+        unimplemented!("graph::visit_assoc_type");
     }
 
     fn visit_bare_fn_arg(&mut self, _: &'ast syn::BareFnArg) {
-        unimplemented!("visitor::visit_bare_fn_arg");
+        unimplemented!("graph::visit_bare_fn_arg");
     }
 
     fn visit_bare_variadic(&mut self, _: &'ast syn::BareVariadic) {
-        unimplemented!("visitor::visit_bare_variadic");
+        unimplemented!("graph::visit_bare_variadic");
     }
 
     fn visit_bin_op(&mut self, _: &'ast syn::BinOp) {
-        unimplemented!("visitor::visit_bin_op");
+        unimplemented!("graph::visit_bin_op");
     }
 
     fn visit_bound_lifetimes(&mut self, _: &'ast syn::BoundLifetimes) {
-        unimplemented!("visitor::visit_bound_lifetimes");
+        unimplemented!("graph::visit_bound_lifetimes");
     }
 
     fn visit_captured_param(&mut self, _: &'ast syn::CapturedParam) {
-        unimplemented!("visitor::visit_captured_param");
+        unimplemented!("graph::visit_captured_param");
     }
 
     fn visit_const_param(&mut self, _: &'ast syn::ConstParam) {
-        unimplemented!("visitor::visit_const_param");
+        unimplemented!("graph::visit_const_param");
     }
 
     fn visit_constraint(&mut self, _: &'ast syn::Constraint) {
-        unimplemented!("visitor::visit_constraint");
+        unimplemented!("graph::visit_constraint");
     }
 
     fn visit_data(&mut self, _: &'ast syn::Data) {
-        unimplemented!("visitor::visit_data");
+        unimplemented!("graph::visit_data");
     }
 
     fn visit_data_enum(&mut self, _: &'ast syn::DataEnum) {
-        unimplemented!("visitor::visit_data_enum");
+        unimplemented!("graph::visit_data_enum");
     }
 
     fn visit_data_struct(&mut self, _: &'ast syn::DataStruct) {
-        unimplemented!("visitor::visit_data_struct");
+        unimplemented!("graph::visit_data_struct");
     }
 
     fn visit_data_union(&mut self, _: &'ast syn::DataUnion) {
-        unimplemented!("visitor::visit_data_union");
+        unimplemented!("graph::visit_data_union");
     }
 
     fn visit_derive_input(&mut self, _: &'ast syn::DeriveInput) {
-        unimplemented!("visitor::visit_derive_input");
+        unimplemented!("graph::visit_derive_input");
     }
 
     fn visit_expr_array(&mut self, _: &'ast syn::ExprArray) {
-        unimplemented!("visitor::visit_expr_array");
+        unimplemented!("graph::visit_expr_array");
     }
 
     fn visit_expr_assign(&mut self, assign: &'ast syn::ExprAssign) {
@@ -334,324 +334,316 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
                 }
             }
             _ => {
-                unimplemented!("visitor::visit_expr_assign::left");
+                unimplemented!("graph::visit_expr_assign::left");
             }
         }
     }
 
     fn visit_expr_async(&mut self, _: &'ast syn::ExprAsync) {
-        unimplemented!("visitor::visit_expr_async");
+        unimplemented!("graph::visit_expr_async");
     }
 
     fn visit_expr_await(&mut self, _: &'ast syn::ExprAwait) {
-        unimplemented!("visitor::visit_expr_await");
+        unimplemented!("graph::visit_expr_await");
     }
 
     fn visit_expr_block(&mut self, _: &'ast syn::ExprBlock) {
-        unimplemented!("visitor::visit_expr_block");
+        unimplemented!("graph::visit_expr_block");
     }
 
     fn visit_expr_cast(&mut self, _: &'ast syn::ExprCast) {
-        unimplemented!("visitor::visit_expr_cast");
+        unimplemented!("graph::visit_expr_cast");
     }
 
     fn visit_expr_closure(&mut self, _: &'ast syn::ExprClosure) {
-        unimplemented!("visitor::visit_expr_closure");
+        unimplemented!("graph::visit_expr_closure");
     }
 
     fn visit_expr_const(&mut self, _: &'ast syn::ExprConst) {
-        unimplemented!("visitor::visit_expr_const");
+        unimplemented!("graph::visit_expr_const");
     }
 
     fn visit_expr_field(&mut self, _: &'ast syn::ExprField) {
-        unimplemented!("visitor::visit_expr_field");
+        unimplemented!("graph::visit_expr_field");
     }
 
     fn visit_expr_for_loop(&mut self, _: &'ast syn::ExprForLoop) {
-        unimplemented!("visitor::visit_expr_for_loop");
+        unimplemented!("graph::visit_expr_for_loop");
     }
 
     fn visit_expr_group(&mut self, _: &'ast syn::ExprGroup) {
-        unimplemented!("visitor::visit_expr_group");
+        unimplemented!("graph::visit_expr_group");
     }
 
     fn visit_expr_index(&mut self, _: &'ast syn::ExprIndex) {
-        unimplemented!("visitor::visit_expr_index");
+        unimplemented!("graph::visit_expr_index");
     }
 
     fn visit_expr_infer(&mut self, _: &'ast syn::ExprInfer) {
-        unimplemented!("visitor::visit_expr_infer");
+        unimplemented!("graph::visit_expr_infer");
     }
 
     fn visit_expr_let(&mut self, _: &'ast syn::ExprLet) {
-        unimplemented!("visitor::visit_expr_let");
+        unimplemented!("graph::visit_expr_let");
     }
 
     fn visit_expr_loop(&mut self, _: &'ast syn::ExprLoop) {
-        unimplemented!("visitor::visit_expr_loop");
+        unimplemented!("graph::visit_expr_loop");
     }
 
     fn visit_expr_macro(&mut self, _: &'ast syn::ExprMacro) {
-        unimplemented!("visitor::visit_expr_macro");
+        unimplemented!("graph::visit_expr_macro");
     }
 
     fn visit_expr_match(&mut self, _: &'ast syn::ExprMatch) {
-        unimplemented!("visitor::visit_expr_match");
+        unimplemented!("graph::visit_expr_match");
     }
 
     fn visit_expr_paren(&mut self, _: &'ast syn::ExprParen) {
-        unimplemented!("visitor::visit_expr_paren");
+        unimplemented!("graph::visit_expr_paren");
     }
 
     fn visit_expr_raw_addr(&mut self, _: &'ast syn::ExprRawAddr) {
-        unimplemented!("visitor::visit_expr_raw_addr");
+        unimplemented!("graph::visit_expr_raw_addr");
     }
 
     fn visit_expr_repeat(&mut self, _: &'ast syn::ExprRepeat) {
-        unimplemented!("visitor::visit_expr_repeat");
+        unimplemented!("graph::visit_expr_repeat");
     }
 
     fn visit_expr_return(&mut self, _: &'ast syn::ExprReturn) {
-        unimplemented!("visitor::visit_expr_return");
+        unimplemented!("graph::visit_expr_return");
     }
 
     fn visit_expr_struct(&mut self, _: &'ast syn::ExprStruct) {
-        unimplemented!("visitor::visit_expr_struct");
+        unimplemented!("graph::visit_expr_struct");
     }
 
     fn visit_expr_try_block(&mut self, _: &'ast syn::ExprTryBlock) {
-        unimplemented!("visitor::visit_expr_try_block");
+        unimplemented!("graph::visit_expr_try_block");
     }
 
     fn visit_expr_unary(&mut self, _: &'ast syn::ExprUnary) {
-        unimplemented!("visitor::visit_expr_unary");
+        unimplemented!("graph::visit_expr_unary");
     }
 
     fn visit_expr_unsafe(&mut self, _: &'ast syn::ExprUnsafe) {
-        unimplemented!("visitor::visit_expr_unsafe");
+        unimplemented!("graph::visit_expr_unsafe");
     }
 
     fn visit_expr_while(&mut self, _: &'ast syn::ExprWhile) {
-        unimplemented!("visitor::visit_expr_while");
+        unimplemented!("graph::visit_expr_while");
     }
 
     fn visit_expr_yield(&mut self, _: &'ast syn::ExprYield) {
-        unimplemented!("visitor::visit_expr_yield");
+        unimplemented!("graph::visit_expr_yield");
     }
 
     fn visit_field(&mut self, _: &'ast syn::Field) {
-        unimplemented!("visitor::visit_field");
+        unimplemented!("graph::visit_field");
     }
 
     fn visit_field_mutability(&mut self, _: &'ast syn::FieldMutability) {
-        unimplemented!("visitor::visit_field_mutability");
+        unimplemented!("graph::visit_field_mutability");
     }
 
     fn visit_field_pat(&mut self, _: &'ast syn::FieldPat) {
-        unimplemented!("visitor::visit_field_pat");
+        unimplemented!("graph::visit_field_pat");
     }
 
     fn visit_field_value(&mut self, _: &'ast syn::FieldValue) {
-        unimplemented!("visitor::visit_field_value");
+        unimplemented!("graph::visit_field_value");
     }
 
     fn visit_fields(&mut self, _: &'ast syn::Fields) {
-        unimplemented!("visitor::visit_fields");
+        unimplemented!("graph::visit_fields");
     }
 
     fn visit_fields_named(&mut self, _: &'ast syn::FieldsNamed) {
-        unimplemented!("visitor::visit_fields_named");
+        unimplemented!("graph::visit_fields_named");
     }
 
     fn visit_fields_unnamed(&mut self, _: &'ast syn::FieldsUnnamed) {
-        unimplemented!("visitor::visit_fields_unnamed");
+        unimplemented!("graph::visit_fields_unnamed");
     }
 
     fn visit_file(&mut self, _: &'ast syn::File) {
-        unimplemented!("visitor::visit_file");
+        unimplemented!("graph::visit_file");
     }
 
     fn visit_foreign_item(&mut self, _: &'ast syn::ForeignItem) {
-        unimplemented!("visitor::visit_foreign_item");
+        unimplemented!("graph::visit_foreign_item");
     }
 
     fn visit_foreign_item_fn(&mut self, _: &'ast syn::ForeignItemFn) {
-        unimplemented!("visitor::visit_foreign_item_fn");
+        unimplemented!("graph::visit_foreign_item_fn");
     }
 
     fn visit_foreign_item_macro(&mut self, _: &'ast syn::ForeignItemMacro) {
-        unimplemented!("visitor::visit_foreign_item_macro");
+        unimplemented!("graph::visit_foreign_item_macro");
     }
 
     fn visit_foreign_item_static(&mut self, _: &'ast syn::ForeignItemStatic) {
-        unimplemented!("visitor::visit_foreign_item_static");
+        unimplemented!("graph::visit_foreign_item_static");
     }
 
     fn visit_foreign_item_type(&mut self, _: &'ast syn::ForeignItemType) {
-        unimplemented!("visitor::visit_foreign_item_type");
+        unimplemented!("graph::visit_foreign_item_type");
     }
 
     fn visit_generic_argument(&mut self, _: &'ast syn::GenericArgument) {
-        unimplemented!("visitor::visit_generic_argument");
+        unimplemented!("graph::visit_generic_argument");
     }
 
     fn visit_generic_param(&mut self, _: &'ast syn::GenericParam) {
-        unimplemented!("visitor::visit_generic_param");
+        unimplemented!("graph::visit_generic_param");
     }
 
     fn visit_impl_item(&mut self, _: &'ast syn::ImplItem) {
-        unimplemented!("visitor::visit_impl_item");
+        unimplemented!("graph::visit_impl_item");
     }
 
     fn visit_impl_item_const(&mut self, _: &'ast syn::ImplItemConst) {
-        unimplemented!("visitor::visit_impl_item_const");
+        unimplemented!("graph::visit_impl_item_const");
     }
 
     fn visit_impl_item_fn(&mut self, _: &'ast syn::ImplItemFn) {
-        unimplemented!("visitor::visit_impl_item_fn");
+        unimplemented!("graph::visit_impl_item_fn");
     }
 
     fn visit_impl_item_macro(&mut self, _: &'ast syn::ImplItemMacro) {
-        unimplemented!("visitor::visit_impl_item_macro");
+        unimplemented!("graph::visit_impl_item_macro");
     }
 
     fn visit_impl_item_type(&mut self, _: &'ast syn::ImplItemType) {
-        unimplemented!("visitor::visit_impl_item_type");
+        unimplemented!("graph::visit_impl_item_type");
     }
 
     fn visit_impl_restriction(&mut self, _: &'ast syn::ImplRestriction) {
-        unimplemented!("visitor::visit_impl_restriction");
+        unimplemented!("graph::visit_impl_restriction");
     }
 
     fn visit_index(&mut self, _: &'ast syn::Index) {
-        unimplemented!("visitor::visit_index");
+        unimplemented!("graph::visit_index");
     }
 
     fn visit_item(&mut self, _: &'ast syn::Item) {
-        unimplemented!("visitor::visit_item");
+        unimplemented!("graph::visit_item");
     }
 
     fn visit_item_const(&mut self, _: &'ast syn::ItemConst) {
-        unimplemented!("visitor::visit_item_const");
+        unimplemented!("graph::visit_item_const");
     }
 
     fn visit_item_enum(&mut self, _: &'ast syn::ItemEnum) {
-        unimplemented!("visitor::visit_item_enum");
+        unimplemented!("graph::visit_item_enum");
     }
 
     fn visit_item_extern_crate(&mut self, _: &'ast syn::ItemExternCrate) {
-        unimplemented!("visitor::visit_item_extern_crate");
+        unimplemented!("graph::visit_item_extern_crate");
     }
 
     fn visit_item_fn(&mut self, _: &'ast syn::ItemFn) {
-        unimplemented!("visitor::visit_item_fn");
+        unimplemented!("graph::visit_item_fn");
     }
 
     fn visit_item_foreign_mod(&mut self, _: &'ast syn::ItemForeignMod) {
-        unimplemented!("visitor::visit_item_foreign_mod");
+        unimplemented!("graph::visit_item_foreign_mod");
     }
 
     fn visit_item_impl(&mut self, _: &'ast syn::ItemImpl) {
-        unimplemented!("visitor::visit_item_impl");
+        unimplemented!("graph::visit_item_impl");
     }
 
     fn visit_item_macro(&mut self, _: &'ast syn::ItemMacro) {
-        unimplemented!("visitor::visit_item_macro");
+        unimplemented!("graph::visit_item_macro");
     }
 
     fn visit_item_mod(&mut self, _: &'ast syn::ItemMod) {
-        unimplemented!("visitor::visit_item_mod");
+        unimplemented!("graph::visit_item_mod");
     }
 
     fn visit_item_static(&mut self, _: &'ast syn::ItemStatic) {
-        unimplemented!("visitor::visit_item_static");
+        unimplemented!("graph::visit_item_static");
     }
 
     fn visit_item_struct(&mut self, _: &'ast syn::ItemStruct) {
-        unimplemented!("visitor::visit_item_struct");
+        unimplemented!("graph::visit_item_struct");
     }
 
     fn visit_item_trait(&mut self, _: &'ast syn::ItemTrait) {
-        unimplemented!("visitor::visit_item_trait");
+        unimplemented!("graph::visit_item_trait");
     }
 
     fn visit_item_trait_alias(&mut self, _: &'ast syn::ItemTraitAlias) {
-        unimplemented!("visitor::visit_item_trait_alias");
+        unimplemented!("graph::visit_item_trait_alias");
     }
 
     fn visit_item_type(&mut self, _: &'ast syn::ItemType) {
-        unimplemented!("visitor::visit_item_type");
+        unimplemented!("graph::visit_item_type");
     }
 
     fn visit_item_union(&mut self, _: &'ast syn::ItemUnion) {
-        unimplemented!("visitor::visit_item_union");
+        unimplemented!("graph::visit_item_union");
     }
 
     fn visit_item_use(&mut self, _: &'ast syn::ItemUse) {
-        unimplemented!("visitor::visit_item_use");
+        unimplemented!("graph::visit_item_use");
     }
 
     fn visit_label(&mut self, _: &'ast syn::Label) {
-        unimplemented!("visitor::visit_label");
-    }
-
-    fn visit_macro(&mut self, _: &'ast syn::Macro) {
-        unimplemented!("visitor::visit_macro");
-    }
-
-    fn visit_macro_delimiter(&mut self, _: &'ast syn::MacroDelimiter) {
-        unimplemented!("visitor::visit_macro_delimiter");
+        unimplemented!("graph::visit_label");
     }
 
     fn visit_member(&mut self, _: &'ast syn::Member) {
-        unimplemented!("visitor::visit_member");
+        unimplemented!("graph::visit_member");
     }
 
     fn visit_meta_list(&mut self, _: &'ast syn::MetaList) {
-        unimplemented!("visitor::visit_meta_list");
+        unimplemented!("graph::visit_meta_list");
     }
 
     fn visit_meta_name_value(&mut self, _: &'ast syn::MetaNameValue) {
-        unimplemented!("visitor::visit_meta_name_value");
+        unimplemented!("graph::visit_meta_name_value");
     }
 
     fn visit_parenthesized_generic_arguments(
         &mut self,
         _: &'ast syn::ParenthesizedGenericArguments
     ) {
-        unimplemented!("visitor::visit_parenthesized_generic_arguments");
+        unimplemented!("graph::visit_parenthesized_generic_arguments");
     }
 
     fn visit_pat_or(&mut self, _: &'ast syn::PatOr) {
-        unimplemented!("visitor::visit_pat_or");
+        unimplemented!("graph::visit_pat_or");
     }
 
     fn visit_pat_paren(&mut self, _: &'ast syn::PatParen) {
-        unimplemented!("visitor::visit_pat_paren");
+        unimplemented!("graph::visit_pat_paren");
     }
 
     fn visit_pat_reference(&mut self, _: &'ast syn::PatReference) {
-        unimplemented!("visitor::visit_pat_reference");
+        unimplemented!("graph::visit_pat_reference");
     }
 
     fn visit_pat_rest(&mut self, _: &'ast syn::PatRest) {
-        unimplemented!("visitor::visit_pat_rest");
+        unimplemented!("graph::visit_pat_rest");
     }
 
     fn visit_pat_slice(&mut self, _: &'ast syn::PatSlice) {
-        unimplemented!("visitor::visit_pat_slice");
+        unimplemented!("graph::visit_pat_slice");
     }
 
     fn visit_pat_struct(&mut self, _: &'ast syn::PatStruct) {
-        unimplemented!("visitor::visit_pat_struct");
+        unimplemented!("graph::visit_pat_struct");
     }
 
     fn visit_pat_tuple(&mut self, _: &'ast syn::PatTuple) {
-        unimplemented!("visitor::visit_pat_tuple");
+        unimplemented!("graph::visit_pat_tuple");
     }
 
     fn visit_pat_tuple_struct(&mut self, _: &'ast syn::PatTupleStruct) {
-        unimplemented!("visitor::visit_pat_tuple_struct");
+        unimplemented!("graph::visit_pat_tuple_struct");
     }
 
     fn visit_path(&mut self, path: &'ast syn::Path) {
@@ -661,186 +653,186 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
     }
 
     fn visit_path_arguments(&mut self, _: &'ast syn::PathArguments) {
-        unimplemented!("visitor::visit_path_arguments");
+        unimplemented!("graph::visit_path_arguments");
     }
 
     fn visit_path_segment(&mut self, segment: &'ast syn::PathSegment) {
-        unimplemented!("visitor::visit_path_segment::{}", segment.to_token_stream().to_string());
+        unimplemented!("graph::visit_path_segment::{}", segment.to_token_stream().to_string());
     }
 
     fn visit_pointer_mutability(&mut self, _: &'ast syn::PointerMutability) {
-        unimplemented!("visitor::visit_pointer_mutability");
+        unimplemented!("graph::visit_pointer_mutability");
     }
 
     fn visit_precise_capture(&mut self, _: &'ast syn::PreciseCapture) {
-        unimplemented!("visitor::visit_precise_capture");
+        unimplemented!("graph::visit_precise_capture");
     }
 
     fn visit_predicate_lifetime(&mut self, _: &'ast syn::PredicateLifetime) {
-        unimplemented!("visitor::visit_predicate_lifetime");
+        unimplemented!("graph::visit_predicate_lifetime");
     }
 
     fn visit_predicate_type(&mut self, _: &'ast syn::PredicateType) {
-        unimplemented!("visitor::visit_predicate_type");
+        unimplemented!("graph::visit_predicate_type");
     }
 
     fn visit_qself(&mut self, _: &'ast syn::QSelf) {
-        unimplemented!("visitor::visit_qself");
+        unimplemented!("graph::visit_qself");
     }
 
     fn visit_receiver(&mut self, _: &'ast syn::Receiver) {
-        unimplemented!("visitor::visit_receiver");
+        unimplemented!("graph::visit_receiver");
     }
 
     fn visit_static_mutability(&mut self, _: &'ast syn::StaticMutability) {
-        unimplemented!("visitor::visit_static_mutability");
+        unimplemented!("graph::visit_static_mutability");
     }
 
     fn visit_trait_bound(&mut self, _: &'ast syn::TraitBound) {
-        unimplemented!("visitor::visit_trait_bound");
+        unimplemented!("graph::visit_trait_bound");
     }
 
     fn visit_trait_bound_modifier(&mut self, _: &'ast syn::TraitBoundModifier) {
-        unimplemented!("visitor::visit_trait_bound_modifier");
+        unimplemented!("graph::visit_trait_bound_modifier");
     }
 
     fn visit_trait_item(&mut self, _: &'ast syn::TraitItem) {
-        unimplemented!("visitor::visit_trait_item");
+        unimplemented!("graph::visit_trait_item");
     }
 
     fn visit_trait_item_const(&mut self, _: &'ast syn::TraitItemConst) {
-        unimplemented!("visitor::visit_trait_item_const");
+        unimplemented!("graph::visit_trait_item_const");
     }
 
     fn visit_trait_item_fn(&mut self, _: &'ast syn::TraitItemFn) {
-        unimplemented!("visitor::visit_trait_item_fn");
+        unimplemented!("graph::visit_trait_item_fn");
     }
 
     fn visit_trait_item_macro(&mut self, _: &'ast syn::TraitItemMacro) {
-        unimplemented!("visitor::visit_trait_item_macro");
+        unimplemented!("graph::visit_trait_item_macro");
     }
 
     fn visit_trait_item_type(&mut self, _: &'ast syn::TraitItemType) {
-        unimplemented!("visitor::visit_trait_item_type");
+        unimplemented!("graph::visit_trait_item_type");
     }
 
     fn visit_type(&mut self, _: &'ast syn::Type) {
-        unimplemented!("visitor::visit_type");
+        unimplemented!("graph::visit_type");
     }
 
     fn visit_type_array(&mut self, _: &'ast syn::TypeArray) {
-        unimplemented!("visitor::visit_type_array");
+        unimplemented!("graph::visit_type_array");
     }
 
     fn visit_type_bare_fn(&mut self, _: &'ast syn::TypeBareFn) {
-        unimplemented!("visitor::visit_type_bare_fn");
+        unimplemented!("graph::visit_type_bare_fn");
     }
 
     fn visit_type_group(&mut self, _: &'ast syn::TypeGroup) {
-        unimplemented!("visitor::visit_type_group");
+        unimplemented!("graph::visit_type_group");
     }
 
     fn visit_type_impl_trait(&mut self, _: &'ast syn::TypeImplTrait) {
-        unimplemented!("visitor::visit_type_impl_trait");
+        unimplemented!("graph::visit_type_impl_trait");
     }
 
     fn visit_type_infer(&mut self, _: &'ast syn::TypeInfer) {
-        unimplemented!("visitor::visit_type_infer");
+        unimplemented!("graph::visit_type_infer");
     }
 
     fn visit_type_macro(&mut self, _: &'ast syn::TypeMacro) {
-        unimplemented!("visitor::visit_type_macro");
+        unimplemented!("graph::visit_type_macro");
     }
 
     fn visit_type_never(&mut self, _: &'ast syn::TypeNever) {
-        unimplemented!("visitor::visit_type_never");
+        unimplemented!("graph::visit_type_never");
     }
 
     fn visit_type_param(&mut self, _: &'ast syn::TypeParam) {
-        unimplemented!("visitor::visit_type_param");
+        unimplemented!("graph::visit_type_param");
     }
 
     fn visit_type_param_bound(&mut self, _: &'ast syn::TypeParamBound) {
-        unimplemented!("visitor::visit_type_param_bound");
+        unimplemented!("graph::visit_type_param_bound");
     }
 
     fn visit_type_paren(&mut self, _: &'ast syn::TypeParen) {
-        unimplemented!("visitor::visit_type_paren");
+        unimplemented!("graph::visit_type_paren");
     }
 
     fn visit_type_path(&mut self, _: &'ast syn::TypePath) {
-        unimplemented!("visitor::visit_type_path");
+        unimplemented!("graph::visit_type_path");
     }
 
     fn visit_type_ptr(&mut self, _: &'ast syn::TypePtr) {
-        unimplemented!("visitor::visit_type_ptr");
+        unimplemented!("graph::visit_type_ptr");
     }
 
     fn visit_type_reference(&mut self, _: &'ast syn::TypeReference) {
-        unimplemented!("visitor::visit_type_reference");
+        unimplemented!("graph::visit_type_reference");
     }
 
     fn visit_type_slice(&mut self, _: &'ast syn::TypeSlice) {
-        unimplemented!("visitor::visit_type_slice");
+        unimplemented!("graph::visit_type_slice");
     }
 
     fn visit_type_trait_object(&mut self, _: &'ast syn::TypeTraitObject) {
-        unimplemented!("visitor::visit_type_trait_object");
+        unimplemented!("graph::visit_type_trait_object");
     }
 
     fn visit_type_tuple(&mut self, _: &'ast syn::TypeTuple) {
-        unimplemented!("visitor::visit_type_tuple");
+        unimplemented!("graph::visit_type_tuple");
     }
 
     fn visit_un_op(&mut self, _: &'ast syn::UnOp) {
-        unimplemented!("visitor::visit_un_op");
+        unimplemented!("graph::visit_un_op");
     }
 
     fn visit_use_glob(&mut self, _: &'ast syn::UseGlob) {
-        unimplemented!("visitor::visit_use_glob");
+        unimplemented!("graph::visit_use_glob");
     }
 
     fn visit_use_group(&mut self, _: &'ast syn::UseGroup) {
-        unimplemented!("visitor::visit_use_group");
+        unimplemented!("graph::visit_use_group");
     }
 
     fn visit_use_name(&mut self, _: &'ast syn::UseName) {
-        unimplemented!("visitor::visit_use_name");
+        unimplemented!("graph::visit_use_name");
     }
 
     fn visit_use_path(&mut self, _: &'ast syn::UsePath) {
-        unimplemented!("visitor::visit_use_path");
+        unimplemented!("graph::visit_use_path");
     }
 
     fn visit_use_rename(&mut self, _: &'ast syn::UseRename) {
-        unimplemented!("visitor::visit_use_rename");
+        unimplemented!("graph::visit_use_rename");
     }
 
     fn visit_use_tree(&mut self, _: &'ast syn::UseTree) {
-        unimplemented!("visitor::visit_use_tree");
+        unimplemented!("graph::visit_use_tree");
     }
 
     fn visit_variadic(&mut self, _: &'ast syn::Variadic) {
-        unimplemented!("visitor::visit_variadic");
+        unimplemented!("graph::visit_variadic");
     }
 
     fn visit_variant(&mut self, _: &'ast syn::Variant) {
-        unimplemented!("visitor::visit_variant");
+        unimplemented!("graph::visit_variant");
     }
 
     fn visit_vis_restricted(&mut self, _: &'ast syn::VisRestricted) {
-        unimplemented!("visitor::visit_vis_restricted");
+        unimplemented!("graph::visit_vis_restricted");
     }
 
     fn visit_where_clause(&mut self, _: &'ast syn::WhereClause) {
-        unimplemented!("visitor::visit_where_clause");
+        unimplemented!("graph::visit_where_clause");
     }
 
     fn visit_where_predicate(&mut self, _: &'ast syn::WherePredicate) {
-        unimplemented!("visitor::visit_where_predicate");
+        unimplemented!("graph::visit_where_predicate");
     }
     fn visit_block(&mut self, _: &'ast syn::Block) {
-        unimplemented!("visitor::visit_block");
+        unimplemented!("graph::visit_block");
     }
 
     fn visit_pat_type(&mut self, node: &'ast syn::PatType) {

@@ -579,7 +579,27 @@ fn rename(
             Stmt::Expr(expr, ..) => {
                 replace_vars(expr, stacks, &mut new_origin_var_map);
             }
-            Stmt::Macro(_) => unimplemented!("rename::Stmt::Macro"),
+            Stmt::Macro(mc) => {
+                let tokens = mc.mac.tokens.clone();
+                let mut new_tokens = proc_macro2::TokenStream::new();
+                for token in tokens.into_iter() {
+                    if let proc_macro2::TokenTree::Ident(ident) = token {
+                        if let Some(stack) = stacks.get(&ident) {
+                            if let Some(version) = stack.last() {
+                                let new_ident = syn::Ident::new(
+                                    &format!("{}{}", ident, version),
+                                    ident.span()
+                                );
+                                new_origin_var_map.insert(new_ident.clone(), ident);
+                                new_tokens.extend(quote::quote!(#new_ident));
+                            }
+                        }
+                    } else {
+                        new_tokens.extend(quote::quote!(#token));
+                    }
+                }
+                mc.mac.tokens = new_tokens;
+            },
         }
     }
     cfg.graph[node].origin_var_map = new_origin_var_map;
@@ -1094,7 +1114,7 @@ impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
                     }
                 }
             }
-            Stmt::Item(_) => {
+            Stmt::Item(_) | Stmt::Macro(_) => {
                 if let Some(block) = self.cfg.graph.node_weight_mut(self.current_block) {
                     block.statements.push(CustomStmt { stmt: node.clone() });
                 }
@@ -1119,7 +1139,6 @@ impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
                     }
                 }
             }
-            Stmt::Macro(_) => unimplemented!("cfg::visit_stmt::Macro"),
         }
         if let Some(block) = self.cfg.graph.node_weight_mut(self.current_block) {
             if let Some(last) = block.statements.last() {
