@@ -171,6 +171,7 @@ pub use tensor_macros::fuse_proc_macro;
 pub use tensor_traits::*;
 pub use tensor_types::vectors::*;
 pub use tensor_types::*;
+pub use tensor_types::type_promote::*;
 
 use std::{ cell::RefCell, sync::atomic::AtomicUsize };
 thread_local! {
