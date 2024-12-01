@@ -57,6 +57,7 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     let mut builder = CFGBuilder::new(&mut cfg);
     builder.visit_item_fn(item_fn);
     cfg.block_id = core::mem::take(&mut builder.block_ids);
+    println!("block_id: {:#?}", cfg.block_id);
     let dominators = petgraph::algo::dominators::simple_fast(&cfg.graph, cfg.entry);
     let dominance_frontiers = compute_dominance_frontiers(&cfg, &dominators);
     let definitions = cfg.get_variable_definitions();
@@ -69,7 +70,6 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
 pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let func = syn::parse_macro_input!(item as syn::ItemFn);
     let mut cfg = build_cfg(&func).expect("build cfg failed");
-    println!("graph: {:#?}", cfg.graph);
     let mut type_table = TyInfer::new();
     type_table.infer(&cfg);
     let graphs = cfg.build_graphs(&type_table.table);
@@ -135,7 +135,6 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
     }
     cfg.replace_all_var_back();
 
-    // // process function signature
     let visibility = &func.vis;
     let mut token_stream = proc_macro2::TokenStream::new();
     token_stream.extend(quote::quote!(#visibility));
@@ -155,8 +154,9 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
     }
     signature.inputs = arguments;
     token_stream.extend(quote::quote!(#signature));
+    println!("cfg: {:#?}", cfg.graph);
     let body = cfg.gen_code();
-
+    println!("body: {:#?}", body.to_string());
     let ret = quote::quote!(
         #token_stream {
             #body

@@ -24,9 +24,9 @@ fn compute2(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
         c = &d + &c;
         c = &d + &c;
     }
-    // // while true {
-    // //     let c = &d + &c;
-    // // }
+    while true {
+        let c = &d + &c;
+    }
     Ok(d)
 });
 

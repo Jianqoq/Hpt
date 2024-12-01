@@ -217,7 +217,6 @@ impl CFG {
                 // 计算IN[B] = USE[B] ∪ (OUT[B] - DEF[B])
                 let block_data = &self.graph[block];
                 let mut new_in = block_data.used_vars.clone();
-                new_in.retain(|var| !block_data.defined_vars.contains(var));
                 for var in new_out.iter() {
                     if !block_data.defined_vars.contains(var) {
                         new_in.insert(var.clone());
@@ -414,9 +413,6 @@ impl CFG {
                         Some(vars)
                     })
                     .collect::<Vec<HashSet<String>>>();
-                for var in vars.iter().flatten() {
-                    self.graph[node].origin_var_map.insert(var.clone(), var.clone());
-                }
                 vars.into_iter().flatten().collect::<Vec<_>>()
             })
             .collect();
@@ -485,9 +481,15 @@ impl CFG {
             BlockType::ForCond => {
                 body.extend(quote::quote!(in #code #child_code));
             }
-            BlockType::WhileCond => todo!(),
-            BlockType::WhileBody => todo!(),
-            BlockType::LoopBody => todo!(),
+            BlockType::WhileCond => {
+                body.extend(quote::quote!(while #code #child_code));
+            }
+            BlockType::WhileBody => {
+                body.extend(quote::quote!({#code #child_code}));
+            }
+            BlockType::LoopBody => {
+                body.extend(quote::quote!(loop {#code #child_code}));
+            }
         }
         body
     }
@@ -533,12 +535,18 @@ fn insert_origin_var(origin_vars: &mut HashSet<String>, pat: &syn::Pat) {
 fn new_name_pat(
     pat: &mut syn::Pat,
     stacks: &mut HashMap<String, Vec<usize>>,
-    versions: &mut HashMap<String, usize>
+    versions: &mut HashMap<String, usize>,
+    new_origin_var_map: &mut HashMap<String, String>
 ) {
     match pat {
         syn::Pat::Const(_) => unimplemented!("rename::new_name_pat::Pat::Const"),
         syn::Pat::Ident(pat_ident) => {
-            let new_name = new_name(&pat_ident.ident.to_string(), versions, stacks);
+            let new_name = new_name(
+                &pat_ident.ident.to_string(),
+                versions,
+                stacks,
+                new_origin_var_map
+            );
             pat_ident.ident = syn::Ident::new(&new_name, pat_ident.ident.span());
         }
         syn::Pat::Lit(_) => unimplemented!("rename::new_name_pat::Pat::Lit"),
@@ -554,7 +562,7 @@ fn new_name_pat(
         syn::Pat::Tuple(_) => unimplemented!("rename::new_name_pat::Pat::Tuple"),
         syn::Pat::TupleStruct(_) => unimplemented!("rename::new_name_pat::Pat::TupleStruct"),
         syn::Pat::Type(pat_type) => {
-            new_name_pat(&mut pat_type.pat, stacks, versions);
+            new_name_pat(&mut pat_type.pat, stacks, versions, new_origin_var_map);
         }
         syn::Pat::Verbatim(_) => unimplemented!("rename::new_name_pat::Pat::Verbatim"),
         syn::Pat::Wild(_) => {}
@@ -569,36 +577,28 @@ fn rename(
     versions: &mut HashMap<String, usize>,
     dominators: &Dominators<NodeIndex>
 ) {
+    let mut new_origin_var_map = cfg.graph[node].origin_var_map.clone();
     for phi_function in &mut cfg.graph[node].phi_functions {
         for arg in &mut phi_function.args {
             replace_string(arg, stacks);
         }
-        let new_name = new_name(&phi_function.name, versions, stacks);
+        let new_name = new_name(&phi_function.name, versions, stacks, &mut new_origin_var_map);
         phi_function.name = new_name;
     }
     for stmt in &mut cfg.graph[node].statements {
         match &mut stmt.stmt {
             Stmt::Local(local) => {
                 if let Some(init) = &mut local.init {
-                    replace_vars(&mut init.expr, stacks);
+                    replace_vars(&mut init.expr, stacks, &mut new_origin_var_map);
                 }
-                new_name_pat(&mut local.pat, stacks, versions);
+                new_name_pat(&mut local.pat, stacks, versions, &mut new_origin_var_map);
             }
             Stmt::Item(_) => unimplemented!("rename::Stmt::Item"),
             Stmt::Expr(expr, ..) => {
-                replace_vars(expr, stacks);
+                replace_vars(expr, stacks, &mut new_origin_var_map);
             }
             Stmt::Macro(_) => unimplemented!("rename::Stmt::Macro"),
         }
-    }
-    let mut new_origin_var_map = HashMap::new();
-    let mut all_vars = cfg.graph[node].used_vars.clone();
-    all_vars.extend(cfg.graph[node].defined_vars.clone());
-    all_vars.extend(cfg.graph[node].assigned_vars.clone());
-    for var in all_vars {
-        let mut new_key = var.clone();
-        replace_string(&mut new_key, stacks);
-        new_origin_var_map.insert(new_key, var.clone());
     }
     cfg.graph[node].origin_var_map = new_origin_var_map;
     let succs: Vec<NodeIndex> = cfg.graph
@@ -640,9 +640,14 @@ fn rename(
     }
 }
 
-fn replace_vars(expr: &mut syn::Expr, stacks: &HashMap<String, Vec<usize>>) {
+fn replace_vars(
+    expr: &mut syn::Expr,
+    stacks: &HashMap<String, Vec<usize>>,
+    new_origin_var_map: &mut HashMap<String, String>
+) {
     struct VarRenamer<'a> {
         stacks: &'a HashMap<String, Vec<usize>>,
+        new_origin_var_map: &'a mut HashMap<String, String>,
     }
     impl<'a> syn::visit_mut::VisitMut for VarRenamer<'a> {
         fn visit_expr_mut(&mut self, node: &mut syn::Expr) {
@@ -656,6 +661,10 @@ fn replace_vars(expr: &mut syn::Expr, stacks: &HashMap<String, Vec<usize>>) {
                                     &format!("{}{}", var, current_cnt),
                                     expr_path.path.segments[0].ident.span()
                                 );
+                                self.new_origin_var_map.insert(
+                                    format!("{}{}", var, current_cnt),
+                                    var
+                                );
                             }
                         }
                     }
@@ -665,7 +674,7 @@ fn replace_vars(expr: &mut syn::Expr, stacks: &HashMap<String, Vec<usize>>) {
             syn::visit_mut::visit_expr_mut(self, node);
         }
     }
-    syn::visit_mut::visit_expr_mut(&mut (VarRenamer { stacks }), expr);
+    syn::visit_mut::visit_expr_mut(&mut (VarRenamer { stacks, new_origin_var_map }), expr);
 }
 
 fn replace_string(var: &mut String, stacks: &HashMap<String, Vec<usize>>) {
@@ -679,7 +688,8 @@ fn replace_string(var: &mut String, stacks: &HashMap<String, Vec<usize>>) {
 fn new_name(
     var: &str,
     versions: &mut HashMap<String, usize>,
-    stacks: &mut HashMap<String, Vec<usize>>
+    stacks: &mut HashMap<String, Vec<usize>>,
+    new_origin_var_map: &mut HashMap<String, String>
 ) -> String {
     if let Some(cnt) = versions.get_mut(var) {
         if let Some(stack) = stacks.get_mut(var) {
@@ -687,6 +697,7 @@ fn new_name(
         }
         let ret = format!("{}{}", var, cnt);
         *cnt += 1;
+        new_origin_var_map.insert(ret.clone(), var.to_string());
         ret
     } else {
         panic!("{} not found in new_name", var);
@@ -915,22 +926,28 @@ impl<'a> CFGBuilder<'a> {
     }
 
     fn handle_while_loop(&mut self, expr_while: &syn::ExprWhile) {
+        let mut current_block_id = core::mem::take(&mut self.block_ids);
         // 创建条件检查块
         let condition_block = self.new_block(BlockType::WhileCond);
+        let condition_block_id = BlockId::new(condition_block);
         // 创建循环体块
         let loop_block = self.new_block(BlockType::WhileBody);
+        let loop_block_id = BlockId::new(loop_block);
         // 创建循环后的块
         let after_loop_block = self.new_block(BlockType::Normal);
+        let after_loop_block_id = BlockId::new(after_loop_block);
 
         // 连接当前块到条件检查块
         self.connect_to(condition_block);
 
         // 连接条件检查块到循环体块（如果条件为真）和循环后的块（如果条件为假）
         self.set_current_block(condition_block);
+        self.set_current_block_id(condition_block_id);
         if let Some(block) = self.cfg.graph.node_weight_mut(condition_block) {
             // 你可以将条件表达式添加到条件检查块中
             block.statements.push(CustomStmt { stmt: Stmt::Expr(*expr_while.cond.clone(), None) });
         }
+        let condition_block_id = core::mem::take(&mut self.block_ids);
 
         // 创建两个新的连接：条件为真和条件为假
         self.connect_to(loop_block);
@@ -941,7 +958,9 @@ impl<'a> CFGBuilder<'a> {
 
         // 处理循环体
         self.set_current_block(loop_block);
+        self.set_current_block_id(loop_block_id);
         self.visit_block(&expr_while.body);
+        let loop_block_id = core::mem::take(&mut self.block_ids);
 
         // 连接循环体块回到条件检查块（表示下一次迭代）
         self.connect_to(condition_block);
@@ -953,6 +972,10 @@ impl<'a> CFGBuilder<'a> {
 
         // 设置当前块为循环后的块，继续处理后续语句
         self.set_current_block(after_loop_block);
+        current_block_id.children.push(condition_block_id);
+        current_block_id.children.push(loop_block_id);
+        current_block_id.children.push(after_loop_block_id);
+        self.set_current_block_id(current_block_id);
     }
 
     fn handle_for_loop(&mut self, expr_for: &syn::ExprForLoop) {

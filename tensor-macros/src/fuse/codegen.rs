@@ -51,9 +51,21 @@ pub(crate) fn stmt(node: &crate::fuse::cfg::BasicBlock) -> TokenStream2 {
             let stmt = node.statements.get(0).expect("node::for_cond::stmt");
             body.extend(quote::quote!(#stmt));
         }
-        crate::fuse::cfg::BlockType::WhileCond => todo!(),
-        crate::fuse::cfg::BlockType::WhileBody => todo!(),
-        crate::fuse::cfg::BlockType::LoopBody => todo!(),
+        crate::fuse::cfg::BlockType::WhileCond => {
+            let stmt = node.statements.get(0).expect("node::while_cond::stmt");
+            println!("while_cond: {}", stmt.to_token_stream().to_string());
+            body.extend(quote::quote!(#stmt));
+        }
+        crate::fuse::cfg::BlockType::WhileBody => {
+            let iter = node.statements.iter().map(|stmt| { quote::quote!(#stmt) });
+            println!("while_body");
+            body.extend(quote::quote!(#(#iter)*));
+        }
+        crate::fuse::cfg::BlockType::LoopBody => {
+            let iter = node.statements.iter().map(|stmt| { quote::quote!(#stmt) });
+            println!("loop_body");
+            body.extend(quote::quote!(#(#iter)*));
+        }
     }
     body
 }
