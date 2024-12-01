@@ -69,7 +69,6 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
 pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let func = syn::parse_macro_input!(item as syn::ItemFn);
     let mut cfg = build_cfg(&func).expect("build cfg failed");
-    println!("graph: {:#?}", cfg.graph);
     let mut type_table = TyInfer::new();
     type_table.infer(&cfg);
     let table = core::mem::take(&mut type_table.table);
@@ -80,9 +79,7 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
         let graph = graphs.node_weight(idx).expect("graph weight not found");
         let petgraph = graph.to_petgraph();
         if petgraph.node_count() > 0 && !petgraph::algo::is_cyclic_directed(&petgraph) {
-            println!("graph: {:#?}", petgraph);
             let mut fusion_group = crate::fuse::fuse::fuse(&cfg, &petgraph);
-            println!("fusion_group: {:#?}", fusion_group);
             fusion_group.vars.retain(|x| x.len() > 1);
             let genfuse = crate::fuse::gen_fuse::gen_fuse(&cfg, &petgraph, &fusion_group);
             let mut stmt_to_remove = Vec::new();
@@ -102,10 +99,6 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
                 );
             }
             for (i, (inp, out)) in genfuse.1.iter().enumerate() {
-                println!("inp: {:#?}", inp);
-                println!("out: {:#?}", out);
-                println!("to_remove: {:#?}", stmt_to_remove[i]);
-                println!("intermediates: {:#?}", intermediates[i]);
                 stmt_to_remove[i].retain(
                     |v| !inp.iter().any(|(_, stmt_idx, _, _)| *stmt_idx == *v)
                 );
@@ -118,8 +111,6 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
                 intermediates[i].retain(
                     |v| !out.iter().any(|(_, _, _, comp_graph_idx)| *comp_graph_idx == *v)
                 );
-                println!("after to_remove: {:#?}", stmt_to_remove[i]);
-                println!("after intermediates: {:#?}", intermediates[i]);
             }
             genfuse_map.insert(idx, (genfuse.0, genfuse.1, stmt_to_remove, intermediates));
         }

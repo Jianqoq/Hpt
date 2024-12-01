@@ -443,7 +443,6 @@ impl CFG {
                 }
             }
         }
-
         // 初始化栈和版本
         for var in variables {
             stacks.insert(var.clone(), Vec::new());

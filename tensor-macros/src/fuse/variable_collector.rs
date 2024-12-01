@@ -32,6 +32,14 @@ impl<'ast> Visit<'ast> for VariableCollector {
     fn visit_pat(&mut self, i: &'ast syn::Pat) {
         match i {
             syn::Pat::Ident(i) => self.visit_ident(&i.ident),
+            syn::Pat::Path(path) => {
+                if let Some(ident) = path.path.get_ident() {
+                    self.vars.insert(ident.to_string());
+                }
+            }
+            syn::Pat::Type(ty) => {
+                self.visit_pat(&ty.pat);
+            }
             _ => {}
         }
     }

@@ -59,50 +59,88 @@ impl<'ast> Visit<'ast> for UseDefineVisitor {
     fn visit_expr_call(&mut self, i: &'ast syn::ExprCall) {
         for arg in i.args.iter() {
             match arg {
-                syn::Expr::Array(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::array"),
-                syn::Expr::Assign(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::assign"),
-                syn::Expr::Async(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::async"),
-                syn::Expr::Await(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::await"),
-                syn::Expr::Binary(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::binary"),
-                syn::Expr::Block(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::block"),
-                syn::Expr::Break(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::break"),
-                syn::Expr::Call(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::call"),
-                syn::Expr::Cast(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::cast"),
-                syn::Expr::Closure(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::closure"),
-                syn::Expr::Const(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::const"),
-                syn::Expr::Continue(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::continue"),
-                syn::Expr::Field(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::field"),
-                syn::Expr::ForLoop(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::for_loop"),
-                syn::Expr::Group(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::group"),
+                syn::Expr::Array(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::array"),
+                syn::Expr::Assign(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::assign"),
+                syn::Expr::Async(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::async"),
+                syn::Expr::Await(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::await"),
+                syn::Expr::Binary(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::binary"),
+                syn::Expr::Block(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::block"),
+                syn::Expr::Break(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::break"),
+                syn::Expr::Call(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::call"),
+                syn::Expr::Cast(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::cast"),
+                syn::Expr::Closure(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::closure"),
+                syn::Expr::Const(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::const"),
+                syn::Expr::Continue(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::continue"),
+                syn::Expr::Field(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::field"),
+                syn::Expr::ForLoop(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::for_loop"),
+                syn::Expr::Group(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::group"),
                 syn::Expr::If(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::if"),
-                syn::Expr::Index(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::index"),
-                syn::Expr::Infer(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::infer"),
-                syn::Expr::Let(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::let"),
-                syn::Expr::Lit(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::lit"),
-                syn::Expr::Loop(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::loop"),
-                syn::Expr::Macro(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::macro"),
-                syn::Expr::Match(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::match"),
-                syn::Expr::MethodCall(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::method_call"),
-                syn::Expr::Paren(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::paren"),
+                syn::Expr::Index(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::index"),
+                syn::Expr::Infer(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::infer"),
+                syn::Expr::Let(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::let"),
+                syn::Expr::Lit(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::lit"),
+                syn::Expr::Loop(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::loop"),
+                syn::Expr::Macro(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::macro"),
+                syn::Expr::Match(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::match"),
+                syn::Expr::MethodCall(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::method_call"),
+                syn::Expr::Paren(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::paren"),
                 syn::Expr::Path(path) => {
                     if let Some(ident) = path.path.get_ident() {
                         self.used_vars.insert(ident.to_string());
                     }
-                },
-                syn::Expr::Range(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::range"),
-                syn::Expr::RawAddr(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::raw_addr"),
-                syn::Expr::Reference(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::reference"),
-                syn::Expr::Repeat(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::repeat"),
-                syn::Expr::Return(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::return"),
-                syn::Expr::Struct(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::struct"),
-                syn::Expr::Try(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::try"),
-                syn::Expr::TryBlock(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::try_block"),
-                syn::Expr::Tuple(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::tuple"),
-                syn::Expr::Unary(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::unary"),
-                syn::Expr::Unsafe(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::unsafe"),
-                syn::Expr::Verbatim(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::verbatim"),
-                syn::Expr::While(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::while"),
-                syn::Expr::Yield(_) => unimplemented!("fuse::use_define_visitor::visit_expr_call::yield"),
+                }
+                syn::Expr::Range(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::range"),
+                syn::Expr::RawAddr(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::raw_addr"),
+                syn::Expr::Reference(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::reference"),
+                syn::Expr::Repeat(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::repeat"),
+                syn::Expr::Return(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::return"),
+                syn::Expr::Struct(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::struct"),
+                syn::Expr::Try(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::try"),
+                syn::Expr::TryBlock(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::try_block"),
+                syn::Expr::Tuple(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::tuple"),
+                syn::Expr::Unary(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::unary"),
+                syn::Expr::Unsafe(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::unsafe"),
+                syn::Expr::Verbatim(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::verbatim"),
+                syn::Expr::While(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::while"),
+                syn::Expr::Yield(_) =>
+                    unimplemented!("fuse::use_define_visitor::visit_expr_call::yield"),
                 _ => unimplemented!("fuse::use_define_visitor::visit_expr_call::other"),
             }
         }
