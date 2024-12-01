@@ -13,13 +13,13 @@ pub(crate) fn gen_fuse(
     (fused_codes, inp_outs)
 }
 
-fn fill_indegree(node: &Node, in_degrees: &mut HashMap<String, (usize, i64, usize, NodeIndex)>) {
+fn fill_indegree(node: &Node, in_degrees: &mut HashMap<syn::Ident, (usize, i64, usize, NodeIndex)>) {
     match node {
         Node::Unary(unary) => {
-            in_degrees.entry(unary.output.to_string()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 1;
+            in_degrees.entry(unary.output.clone()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 1;
         }
         Node::Binary(binary) => {
-            in_degrees.entry(binary.output.to_string()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 2;
+            in_degrees.entry(binary.output.clone()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 2;
         }
         Node::Input(_) => {}
     }
@@ -30,17 +30,17 @@ fn init_degrees(
     stmt_index: i64,
     block_idx: usize,
     node: &Node,
-    degrees: &mut HashMap<String, (usize, i64, usize, NodeIndex)>
+    degrees: &mut HashMap<syn::Ident, (usize, i64, usize, NodeIndex)>
 ) {
     match node {
         Node::Unary(unary) => {
-            degrees.insert(unary.output.to_string(), (0, stmt_index, block_idx, comp_graph_idx));
+            degrees.insert(unary.output.clone(), (0, stmt_index, block_idx, comp_graph_idx));
         }
         Node::Binary(binary) => {
-            degrees.insert(binary.output.to_string(), (0, stmt_index, block_idx, comp_graph_idx));
+            degrees.insert(binary.output.clone(), (0, stmt_index, block_idx, comp_graph_idx));
         }
         Node::Input(ident) => {
-            degrees.insert(ident.to_string(), (0, stmt_index, block_idx, comp_graph_idx));
+            degrees.insert(ident.clone(), (0, stmt_index, block_idx, comp_graph_idx));
         }
     }
 }
@@ -50,34 +50,34 @@ fn init_degrees_remain(
     comp_graph_idx: NodeIndex,
     block_idx: usize,
     node: &Node,
-    degrees: &mut HashMap<String, (usize, i64, usize, NodeIndex)>
+    degrees: &mut HashMap<syn::Ident, (usize, i64, usize, NodeIndex)>
 ) {
     match node {
         Node::Unary(unary) => {
-            if let None = degrees.get_mut(&unary.operand.to_string()) {
-                degrees.insert(unary.operand.to_string(), (0, -1, block_idx, comp_graph_idx));
+            if let None = degrees.get_mut(&unary.operand) {
+                degrees.insert(unary.operand.clone(), (0, -1, block_idx, comp_graph_idx));
             }
         }
         Node::Binary(binary) => {
-            if let None = degrees.get_mut(&binary.left.to_string()) {
-                degrees.insert(binary.left.to_string(), (0, -1, block_idx, comp_graph_idx));
+            if let None = degrees.get_mut(&binary.left) {
+                degrees.insert(binary.left.clone(), (0, -1, block_idx, comp_graph_idx));
             }
-            if let None = degrees.get_mut(&binary.right.to_string()) {
-                degrees.insert(binary.right.to_string(), (0, -1, block_idx, comp_graph_idx));
+            if let None = degrees.get_mut(&binary.right) {
+                degrees.insert(binary.right.clone(), (0, -1, block_idx, comp_graph_idx));
             }
         }
         Node::Input(_) => {}
     }
 }
 
-fn fill_outdegree(node: &Node, out_degrees: &mut HashMap<String, (usize, i64, usize, NodeIndex)>) {
+fn fill_outdegree(node: &Node, out_degrees: &mut HashMap<syn::Ident, (usize, i64, usize, NodeIndex)>) {
     match node {
         Node::Unary(unary) => {
-            out_degrees.entry(unary.operand.to_string()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 1;
+            out_degrees.entry(unary.operand.clone()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 1;
         }
         Node::Binary(binary) => {
-            out_degrees.entry(binary.left.to_string()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 1;
-            out_degrees.entry(binary.right.to_string()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 1;
+            out_degrees.entry(binary.left.clone()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 1;
+            out_degrees.entry(binary.right.clone()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 1;
         }
         Node::Input(_) => {}
     }
@@ -94,13 +94,13 @@ fn gen_body(
         match &mut node {
             (Node::Unary(unary), _, block_idx) => {
                 let origin_out = cfg.graph[NodeIndex::new(*block_idx)].origin_var_map
-                    .get(&unary.output.to_string())
+                    .get(&unary.output)
                     .expect("gen_fuse::out");
                 let origin_operand = cfg.graph[NodeIndex::new(*block_idx)].origin_var_map
-                    .get(&unary.operand.to_string())
+                    .get(&unary.operand)
                     .expect("gen_fuse::origin_operand");
-                unary.operand = syn::Ident::new(&origin_operand.to_string(), unary.operand.span());
-                unary.output = syn::Ident::new(origin_out, unary.output.span());
+                unary.operand = origin_operand.clone();
+                unary.output = origin_out.clone();
                 comp_tokens.extend(
                     quote::quote!(
                         #unary
@@ -109,17 +109,17 @@ fn gen_body(
             }
             (Node::Binary(binary), _, block_idx) => {
                 let origin_out = cfg.graph[NodeIndex::new(*block_idx)].origin_var_map
-                    .get(&binary.output.to_string())
+                    .get(&binary.output)
                     .expect("gen_fuse::out");
                 let origin_left = cfg.graph[NodeIndex::new(*block_idx)].origin_var_map
-                    .get(&binary.left.to_string())
+                    .get(&binary.left)
                     .expect("gen_fuse::origin_left");
-                binary.left = syn::Ident::new(&origin_left.to_string(), binary.left.span());
+                binary.left = origin_left.clone();
                 let origin_right = cfg.graph[NodeIndex::new(*block_idx)].origin_var_map
-                    .get(&binary.right.to_string())
+                    .get(&binary.right)
                     .expect("gen_fuse::origin_right");
-                binary.right = syn::Ident::new(&origin_right.to_string(), binary.right.span());
-                binary.output = syn::Ident::new(origin_out, binary.output.span());
+                binary.right = origin_right.clone();
+                binary.output = origin_out.clone();
                 comp_tokens.extend(
                     quote::quote!(
                             #binary

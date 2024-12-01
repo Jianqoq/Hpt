@@ -4,9 +4,9 @@ use syn::visit::Visit;
 use super::variable_collector::VariableCollector;
 
 pub(crate) struct UseDefineVisitor {
-    pub(crate) used_vars: HashSet<String>,
-    pub(crate) define_vars: HashSet<String>,
-    pub(crate) assigned_vars: HashSet<String>,
+    pub(crate) used_vars: HashSet<syn::Ident>,
+    pub(crate) define_vars: HashSet<syn::Ident>,
+    pub(crate) assigned_vars: HashSet<syn::Ident>,
 }
 
 impl UseDefineVisitor {
@@ -20,11 +20,44 @@ impl UseDefineVisitor {
 }
 
 impl<'ast> Visit<'ast> for UseDefineVisitor {
+    fn visit_pat(&mut self, pat: &'ast syn::Pat) {
+        match pat {
+            syn::Pat::Const(_) => unimplemented!("use_define_visitor::visit_pat::const"),
+            syn::Pat::Ident(ident) => {
+                self.define_vars.insert(ident.ident.clone());
+            }
+            syn::Pat::Lit(_) => unimplemented!("use_define_visitor::visit_pat::lit"),
+            syn::Pat::Macro(_) => unimplemented!("use_define_visitor::visit_pat::macro"),
+            syn::Pat::Or(_) => unimplemented!("use_define_visitor::visit_pat::or"),
+            syn::Pat::Paren(_) => unimplemented!("use_define_visitor::visit_pat::paren"),
+            syn::Pat::Path(path) => {
+                if let Some(ident) = path.path.get_ident() {
+                    self.used_vars.insert(ident.clone());
+                }
+            }
+            syn::Pat::Range(_) => unimplemented!("use_define_visitor::visit_pat::range"),
+            syn::Pat::Reference(_) => unimplemented!("use_define_visitor::visit_pat::reference"),
+            syn::Pat::Rest(_) => unimplemented!("use_define_visitor::visit_pat::rest"),
+            syn::Pat::Slice(_) => unimplemented!("use_define_visitor::visit_pat::slice"),
+            syn::Pat::Struct(_) => unimplemented!("use_define_visitor::visit_pat::struct"),
+            syn::Pat::Tuple(tuple) => {
+                for el in &tuple.elems {
+                    self.visit_pat(el);
+                }
+            }
+            syn::Pat::TupleStruct(_) =>
+                unimplemented!("use_define_visitor::visit_pat::tuple_struct"),
+            syn::Pat::Type(ty) => self.visit_pat(&ty.pat),
+            syn::Pat::Verbatim(_) => unimplemented!("use_define_visitor::visit_pat::verbatim"),
+            syn::Pat::Wild(_) => unimplemented!("use_define_visitor::visit_pat::wild"),
+            _ => unimplemented!("use_define_visitor::visit_pat::other"),
+        }
+    }
     fn visit_expr_assign(&mut self, node: &'ast syn::ExprAssign) {
         let mut collector = VariableCollector::new();
         if let syn::Expr::Path(left) = node.left.as_ref() {
             if let Some(ident) = left.path.get_ident() {
-                self.assigned_vars.insert(ident.to_string());
+                self.assigned_vars.insert(ident.clone());
             }
         }
         collector.visit_expr(node.right.as_ref());
@@ -43,14 +76,14 @@ impl<'ast> Visit<'ast> for UseDefineVisitor {
     fn visit_expr_binary(&mut self, i: &'ast syn::ExprBinary) {
         if let syn::Expr::Path(left) = i.left.as_ref() {
             if let Some(ident) = left.path.get_ident() {
-                self.used_vars.insert(ident.to_string());
+                self.used_vars.insert(ident.clone());
             }
         } else {
             self.visit_expr(i.left.as_ref());
         }
         if let syn::Expr::Path(right) = i.right.as_ref() {
             if let Some(ident) = right.path.get_ident() {
-                self.used_vars.insert(ident.to_string());
+                self.used_vars.insert(ident.clone());
             }
         } else {
             self.visit_expr(i.right.as_ref());
@@ -110,7 +143,7 @@ impl<'ast> Visit<'ast> for UseDefineVisitor {
                     unimplemented!("fuse::use_define_visitor::visit_expr_call::paren"),
                 syn::Expr::Path(path) => {
                     if let Some(ident) = path.path.get_ident() {
-                        self.used_vars.insert(ident.to_string());
+                        self.used_vars.insert(ident.clone());
                     }
                 }
                 syn::Expr::Range(_) =>

@@ -27,7 +27,7 @@ pub(crate) fn fuse<'ast>(
                     .node_weight(NodeIndex::new(*block_idx))
                     .expect("node weight not found");
                 let origin_var = basic_block.origin_var_map
-                    .get(&unary.output.to_string())
+                    .get(&unary.output)
                     .expect(&format!("origin var not found::32::{}", unary.output.to_string()));
                 block.insert(idx);
                 let kernel_type = KernelType::Unary;
@@ -42,15 +42,15 @@ pub(crate) fn fuse<'ast>(
                     {
                         (Node::Unary(unary), _, _) =>
                             basic_block.origin_var_map
-                                .get(&unary.output.to_string())
+                                .get(&unary.output)
                                 .expect("origin var not found::47"),
                         (Node::Binary(binary), _, _) =>
                             basic_block.origin_var_map
-                                .get(&binary.output.to_string())
+                                .get(&binary.output)
                                 .expect("origin var not found::51"),
                         (Node::Input(input), _, _) =>
                             basic_block.origin_var_map
-                                .get(&input.to_string())
+                                .get(&input)
                                 .expect("origin var not found::55"),
                     };
                     if !basic_block.live_out.contains(origin_var) {
@@ -65,7 +65,7 @@ pub(crate) fn fuse<'ast>(
                 block.insert(idx);
                 let kernel_type = KernelType::Binary;
                 let origin_var = basic_block.origin_var_map
-                    .get(&binary.output.to_string())
+                    .get(&binary.output)
                     .expect("origin var not found::68");
                 if !basic_block.live_out.contains(origin_var) {
                     for succ in unfused.neighbors_directed(idx, petgraph::Direction::Outgoing) {
@@ -78,15 +78,15 @@ pub(crate) fn fuse<'ast>(
                     {
                         (Node::Unary(unary), _, _) =>
                             basic_block.origin_var_map
-                                .get(&unary.output.to_string())
+                                .get(&unary.output)
                                 .expect("origin var not found::83"),
                         (Node::Binary(binary), _, _) =>
                             basic_block.origin_var_map
-                                .get(&binary.output.to_string())
+                                .get(&binary.output)
                                 .expect("origin var not found::87"),
                         (Node::Input(input), _, _) =>
                             basic_block.origin_var_map
-                                .get(&input.to_string())
+                                .get(&input)
                                 .expect("origin var not found::91"),
                     };
                     if !basic_block.live_out.contains(origin_var) {

@@ -10,18 +10,18 @@ use super::{ node::{ Binary, Node, Unary }, ty_infer::Type };
 pub(crate) struct Graph {
     pub(crate) nodes: Vec<(Node, i64, usize)>,
     pub(crate) inputs: HashMap<(Node, i64, usize), Type>,
-    pub(crate) type_table: Rc<HashMap<String, Type>>,
-    pub(crate) variables: HashSet<String>,
+    pub(crate) type_table: Rc<HashMap<syn::Ident, Type>>,
+    pub(crate) variables: HashSet<syn::Ident>,
     pub(crate) current_var: syn::Ident,
     pub(crate) tmp_var_version: usize,
     pub(crate) current_assignment: Option<syn::Ident>,
     pub(crate) current_idx: usize,
     pub(crate) current_block: usize,
-    pub(crate) extra_temps: Vec<String>,
+    pub(crate) extra_temps: Vec<syn::Ident>,
 }
 
 impl Graph {
-    pub fn new(type_table: Rc<HashMap<String, Type>>, current_block: usize) -> Self {
+    pub fn new(type_table: Rc<HashMap<syn::Ident, Type>>, current_block: usize) -> Self {
         Self {
             type_table,
             nodes: vec![],
@@ -183,19 +183,18 @@ impl Graph {
                 unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Paren"),
             syn::Expr::Path(path) => {
                 if let Some(ident) = path.path.get_ident() {
-                    let string = ident.to_string();
-                    if self.variables.contains(&string) {
+                    if self.variables.contains(&ident) {
                         return;
                     }
                     self.inputs.insert(
                         (
-                            Node::Input(syn::Ident::new(&string, Span::call_site())),
+                            Node::Input(ident.clone()),
                             -1,
                             self.current_block,
                         ),
-                        self.type_table[&string]
+                        self.type_table[&ident]
                     );
-                    self.variables.insert(string);
+                    self.variables.insert(ident.clone());
                 }
             }
             syn::Expr::Range(_) =>
@@ -331,7 +330,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
                     self.visit_ident(ident);
                     self.current_assignment = Some(ident.clone());
                     self.visit_expr(&assign.right);
-                    self.variables.insert(ident.to_string());
+                    self.variables.insert(ident.clone());
                 }
             }
             _ => {
@@ -852,7 +851,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
             syn::Pat::Const(..) => unimplemented!("visitor::visit_pat_type::Const"),
             syn::Pat::Ident(pat_ident) => {
                 self.visit_pat_ident(pat_ident);
-                self.variables.insert(pat_ident.ident.to_string());
+                self.variables.insert(pat_ident.ident.clone());
             }
             syn::Pat::Lit(_) => unimplemented!("visitor::visit_pat_type::Lit"),
             syn::Pat::Macro(_) => unimplemented!("visitor::visit_pat_type::Macro"),
@@ -882,7 +881,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
                 self.current_assignment = Some(pat_ident.ident.clone());
                 if let Some(it) = &local.init {
                     self.visit_local_init(it);
-                    self.variables.insert(pat_ident.ident.to_string());
+                    self.variables.insert(pat_ident.ident.clone());
                 }
             }
             _ => {
@@ -907,8 +906,8 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
                 &format!("__out_{}", self.tmp_var_version),
                 node.span()
             );
-            self.variables.insert(out.to_string());
-            self.extra_temps.push(out.to_string());
+            self.variables.insert(out.clone());
+            self.extra_temps.push(out.clone());
             self.current_var = out.clone();
             self.tmp_var_version += 1;
             out
@@ -978,10 +977,10 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         let current_assignment = self.current_assignment.clone();
         self.current_assignment = None;
         self.visit_expr(&node.left);
-        let left_var = self.current_var.to_string();
-        if !self.variables.contains(&left_var) {
+        let left_var = self.current_var.clone();
+        if !self.variables.contains(&self.current_var) {
             self.variables.insert(left_var.clone());
-            let node = Node::Input(syn::Ident::new(&left_var, node.left.span()));
+            let node = Node::Input(left_var.clone());
             if !self.inputs.contains_key(&(node.clone(), -1, self.current_block)) {
                 self.inputs.insert(
                     (node, -1, self.current_block),
@@ -990,10 +989,10 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
             }
         }
         self.visit_expr(&node.right);
-        let right_var = self.current_var.to_string();
+        let right_var = self.current_var.clone();
         if !self.variables.contains(&right_var) {
             self.variables.insert(right_var.clone());
-            let node = Node::Input(syn::Ident::new(&right_var, node.right.span()));
+            let node = Node::Input(right_var.clone());
             if !self.inputs.contains_key(&(node.clone(), -1, self.current_block)) {
                 self.inputs.insert(
                     (node, -1, self.current_block),
@@ -1043,8 +1042,8 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
                 &format!("__out_{}", self.tmp_var_version),
                 node.span()
             );
-            self.variables.insert(out.to_string());
-            self.extra_temps.push(out.to_string());
+            self.variables.insert(out.clone());
+            self.extra_temps.push(out.clone());
             self.current_var = out.clone();
             self.tmp_var_version += 1;
             out
@@ -1052,8 +1051,8 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         self.nodes.push((
             Node::Binary(Binary {
                 method: proc_macro2::Ident::new(method, node.span()),
-                left: proc_macro2::Ident::new(&left_var, node.left.span()),
-                right: proc_macro2::Ident::new(&right_var, node.right.span()),
+                left: left_var,
+                right: right_var,
                 output: out.clone(),
             }),
             if is_assignment { self.current_idx as i64 } else { -1 },
@@ -1062,7 +1061,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
     }
 }
 
-fn handle_expr_type<'ast>(node: &'ast syn::Expr, type_table: &HashMap<String, Type>) -> Type {
+fn handle_expr_type<'ast>(node: &'ast syn::Expr, type_table: &HashMap<syn::Ident, Type>) -> Type {
     match node {
         syn::Expr::Binary(expr_binary) => {
             let left_ty = handle_expr_type(&expr_binary.left, type_table);
@@ -1090,7 +1089,7 @@ fn handle_expr_type<'ast>(node: &'ast syn::Expr, type_table: &HashMap<String, Ty
         syn::Expr::Paren(_) => unimplemented!("build_graph::handle_expr_type::Paren"),
         syn::Expr::Path(expr_path) => {
             if let Some(ident) = expr_path.path.get_ident() {
-                type_table.get(&ident.to_string()).unwrap_or(&Type::Unknown).clone()
+                type_table.get(ident).unwrap_or(&Type::Unknown).clone()
             } else {
                 Type::Unknown
             }

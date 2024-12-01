@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use syn::visit::Visit;
 
 pub(crate) struct VariableCollector {
-    pub(crate) vars: HashSet<String>,
+    pub(crate) vars: HashSet<syn::Ident>,
 }
 
 impl VariableCollector {
@@ -19,12 +19,12 @@ impl<'ast> Visit<'ast> for VariableCollector {
             self.visit_expr(arg);
         }
     }
-    fn visit_ident(&mut self, i: &'ast proc_macro2::Ident) {
-        self.vars.insert(i.to_string());
+    fn visit_ident(&mut self, i: &'ast syn::Ident) {
+        self.vars.insert(i.clone());
     }
     fn visit_expr_path(&mut self, i: &'ast syn::ExprPath) {
         if let Some(ident) = i.path.get_ident() {
-            self.vars.insert(ident.to_string());
+            self.vars.insert(ident.clone());
         }
     }
     fn visit_generic_argument(&mut self, _: &'ast syn::GenericArgument) {}
@@ -34,7 +34,7 @@ impl<'ast> Visit<'ast> for VariableCollector {
             syn::Pat::Ident(i) => self.visit_ident(&i.ident),
             syn::Pat::Path(path) => {
                 if let Some(ident) = path.path.get_ident() {
-                    self.vars.insert(ident.to_string());
+                    self.vars.insert(ident.clone());
                 }
             }
             syn::Pat::Type(ty) => {

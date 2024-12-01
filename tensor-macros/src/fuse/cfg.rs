@@ -51,14 +51,14 @@ impl ToTokens for CustomStmt {
 pub(crate) struct BasicBlock {
     pub(crate) statements: Vec<CustomStmt>,
     pub(crate) phi_functions: Vec<PhiFunction>,
-    pub(crate) origin_vars: HashSet<String>,
-    pub(crate) defined_vars: HashSet<String>,
-    pub(crate) assigned_vars: HashSet<String>,
-    pub(crate) used_vars: HashSet<String>,
+    pub(crate) origin_vars: HashSet<syn::Ident>,
+    pub(crate) defined_vars: HashSet<syn::Ident>,
+    pub(crate) assigned_vars: HashSet<syn::Ident>,
+    pub(crate) used_vars: HashSet<syn::Ident>,
     pub(crate) block_type: BlockType,
-    pub(crate) live_in: HashSet<String>,
-    pub(crate) live_out: HashSet<String>,
-    pub(crate) origin_var_map: HashMap<String, String>,
+    pub(crate) live_in: HashSet<syn::Ident>,
+    pub(crate) live_out: HashSet<syn::Ident>,
+    pub(crate) origin_var_map: HashMap<syn::Ident, syn::Ident>,
 }
 
 // CFG 结构
@@ -68,43 +68,15 @@ pub(crate) struct CFG {
     pub(crate) entry: NodeIndex,
 }
 
-fn visit_pat(pat: &syn::Pat, definitions: &mut HashMap<String, Vec<NodeIndex>>, node: NodeIndex) {
-    match pat {
-        syn::Pat::Const(_) => unimplemented!("visit_pat::Pat::Const"),
-        syn::Pat::Ident(pat_ident) => {
-            let var = pat_ident.ident.to_string();
-            definitions.entry(var).or_insert_with(Vec::new).push(node);
-        }
-        syn::Pat::Lit(_) => unimplemented!("visit_pat::Pat::Lit"),
-        syn::Pat::Macro(_) => unimplemented!("visit_pat::Pat::Macro"),
-        syn::Pat::Or(_) => unimplemented!("visit_pat::Pat::Or"),
-        syn::Pat::Paren(_) => unimplemented!("visit_pat::Pat::Paren"),
-        syn::Pat::Path(_) => unimplemented!("visit_pat::Pat::Path"),
-        syn::Pat::Range(_) => unimplemented!("visit_pat::Pat::Range"),
-        syn::Pat::Reference(_) => unimplemented!("visit_pat::Pat::Reference"),
-        syn::Pat::Rest(_) => unimplemented!("visit_pat::Pat::Rest"),
-        syn::Pat::Slice(_) => unimplemented!("visit_pat::Pat::Slice"),
-        syn::Pat::Struct(_) => unimplemented!("visit_pat::Pat::Struct"),
-        syn::Pat::Tuple(_) => unimplemented!("visit_pat::Pat::Tuple"),
-        syn::Pat::TupleStruct(_) => unimplemented!("visit_pat::Pat::TupleStruct"),
-        syn::Pat::Type(ty) => {
-            visit_pat(&ty.pat, definitions, node);
-        }
-        syn::Pat::Verbatim(_) => unimplemented!("visit_pat::Pat::Verbatim"),
-        syn::Pat::Wild(_) => {}
-        _ => unimplemented!("visit_pat::Pat::Other"),
-    }
-}
-
 fn visit_expr_assign_add_var(
     expr: &syn::ExprAssign,
-    definitions: &mut HashMap<String, Vec<NodeIndex>>,
+    definitions: &mut HashMap<syn::Ident, Vec<NodeIndex>>,
     node: NodeIndex
 ) {
     match expr.left.as_ref() {
         syn::Expr::Path(path) => {
             if let Some(ident) = path.path.get_ident() {
-                definitions.entry(ident.to_string()).or_insert_with(Vec::new).push(node);
+                definitions.entry(ident.clone()).or_insert_with(Vec::new).push(node);
             }
         }
         _ => unimplemented!("visit_expr_assign_add_var::Expr::Other"),
@@ -118,7 +90,7 @@ enum VarStatus {
     NotFound,
 }
 
-fn check_expr_assign(expr: &syn::ExprAssign, var: &str, status: &mut VarStatus) {
+fn check_expr_assign(expr: &syn::ExprAssign, var: &syn::Ident, status: &mut VarStatus) {
     match &expr.left.as_ref() {
         syn::Expr::Array(_) => unimplemented!("cfg::insert_phi_functions::Expr::Array"),
         syn::Expr::Assign(_) => unimplemented!("cfg::insert_phi_functions::Expr::Assign"),
@@ -147,7 +119,7 @@ fn check_expr_assign(expr: &syn::ExprAssign, var: &str, status: &mut VarStatus) 
         syn::Expr::Paren(_) => unimplemented!("cfg::insert_phi_functions::Expr::Paren"),
         syn::Expr::Path(path) => {
             if let Some(ident) = path.path.get_ident() {
-                if &ident.to_string() == var {
+                if ident == var {
                     *status = VarStatus::Assigned;
                 }
             }
@@ -210,7 +182,7 @@ impl CFG {
                 let old_out = live_out[&block].clone();
 
                 // 计算OUT[B] = ∪(IN[S]) 其中S是B的后继
-                let mut new_out: HashSet<String> = HashSet::new();
+                let mut new_out = HashSet::new();
                 for succ in self.graph.neighbors_directed(block, petgraph::Direction::Outgoing) {
                     new_out.extend(live_in[&succ].iter().cloned());
                 }
@@ -262,14 +234,21 @@ impl CFG {
         self.graph.add_edge(from, to, ());
     }
 
-    pub(crate) fn get_variable_definitions(&self) -> HashMap<String, Vec<NodeIndex>> {
-        let mut definitions: HashMap<String, Vec<NodeIndex>> = HashMap::new();
+    pub(crate) fn get_variable_definitions(&self) -> HashMap<syn::Ident, Vec<NodeIndex>> {
+        let mut definitions: HashMap<syn::Ident, Vec<NodeIndex>> = HashMap::new();
 
         for node in self.graph.node_indices() {
             for stmt in &self.graph[node].statements {
                 match &stmt.stmt {
                     Stmt::Local(local) => {
-                        visit_pat(&local.pat, &mut definitions, node);
+                        let mut use_define_visitor = UseDefineVisitor::new();
+                        use_define_visitor.visit_pat(&local.pat);
+                        for var in use_define_visitor.define_vars.drain() {
+                            definitions.entry(var).or_insert_with(Vec::new).push(node);
+                        }
+                        for var in use_define_visitor.used_vars.drain() {
+                            definitions.entry(var).or_insert_with(Vec::new).push(node);
+                        }
                     }
                     Stmt::Expr(expr, _) => {
                         if let syn::Expr::Assign(assign) = &expr {
@@ -287,9 +266,9 @@ impl CFG {
     pub(crate) fn insert_phi_functions(
         &mut self,
         dominance_frontiers: &HashMap<NodeIndex, HashSet<NodeIndex>>,
-        variable_definitions: &HashMap<String, Vec<NodeIndex>>
+        variable_definitions: &HashMap<syn::Ident, Vec<NodeIndex>>
     ) {
-        let mut has_already: HashMap<String, HashSet<NodeIndex>> = HashMap::new();
+        let mut has_already = HashMap::new();
 
         for var in variable_definitions.keys() {
             has_already.insert(var.clone(), HashSet::new());
@@ -314,7 +293,7 @@ impl CFG {
                                     match &stmt.stmt {
                                         Stmt::Local(local) => {
                                             if let syn::Pat::Ident(pat_ident) = &local.pat {
-                                                if &pat_ident.ident.to_string() == var {
+                                                if &pat_ident.ident == var {
                                                     status = VarStatus::Redeclare;
                                                 }
                                             }
@@ -367,7 +346,7 @@ impl CFG {
 
     pub(crate) fn build_graphs(
         &self,
-        type_table: HashMap<String, Type>
+        type_table: HashMap<syn::Ident, Type>
     ) -> Graph<super::build_graph::Graph, ()> {
         let table = Rc::new(type_table);
         let mut graph = Graph::<super::build_graph::Graph, ()>::new();
@@ -405,11 +384,11 @@ impl CFG {
 
     // 变量重命名
     pub(crate) fn rename_variables(&mut self, dominators: &Dominators<NodeIndex>) {
-        let mut stacks: HashMap<String, Vec<usize>> = HashMap::new();
-        let mut versions: HashMap<String, usize> = HashMap::new();
+        let mut stacks = HashMap::new();
+        let mut versions = HashMap::new();
 
         // 收集所有变量
-        let variables: HashSet<String> = self.graph
+        let variables: HashSet<syn::Ident> = self.graph
             .node_indices()
             .flat_map(|node| {
                 let vars = self.graph[node].statements
@@ -423,19 +402,25 @@ impl CFG {
                         vars.extend(visitor.assigned_vars.drain());
                         Some(vars)
                     })
-                    .collect::<Vec<HashSet<String>>>();
+                    .collect::<Vec<HashSet<syn::Ident>>>();
                 vars.into_iter().flatten().collect::<Vec<_>>()
             })
             .collect();
+        println!("{:?}", variables);
 
         for node in self.graph.node_indices() {
             if let Some(block) = self.graph.node_weight_mut(node) {
                 for stmt in &mut block.statements {
-                    match stmt {
-                        CustomStmt { stmt: syn::Stmt::Local(local) } => {
-                            insert_origin_var(&mut block.origin_vars, &local.pat);
-                        }
-                        _ => {}
+                    let mut use_define_visitor = UseDefineVisitor::new();
+                    use_define_visitor.visit_stmt(&stmt.stmt);
+                    for var in use_define_visitor.define_vars.drain() {
+                        block.origin_vars.insert(var);
+                    }
+                    for var in use_define_visitor.used_vars.drain() {
+                        block.origin_vars.insert(var);
+                    }
+                    for var in use_define_visitor.assigned_vars.drain() {
+                        block.origin_vars.insert(var);
                     }
                 }
                 for phi_function in &mut block.phi_functions {
@@ -515,11 +500,11 @@ impl CFG {
     }
 }
 
-fn insert_origin_var(origin_vars: &mut HashSet<String>, pat: &syn::Pat) {
+fn insert_origin_var(origin_vars: &mut HashSet<syn::Ident>, pat: &syn::Pat) {
     match pat {
         syn::Pat::Const(_) => unimplemented!("insert_origin_var::Pat::Const"),
         syn::Pat::Ident(pat_ident) => {
-            origin_vars.insert(pat_ident.ident.to_string());
+            origin_vars.insert(pat_ident.ident.clone());
         }
         syn::Pat::Lit(_) => unimplemented!("insert_origin_var::Pat::Lit"),
         syn::Pat::Macro(_) => unimplemented!("insert_origin_var::Pat::Macro"),
@@ -544,20 +529,14 @@ fn insert_origin_var(origin_vars: &mut HashSet<String>, pat: &syn::Pat) {
 
 fn new_name_pat(
     pat: &mut syn::Pat,
-    stacks: &mut HashMap<String, Vec<usize>>,
-    versions: &mut HashMap<String, usize>,
-    new_origin_var_map: &mut HashMap<String, String>
+    stacks: &mut HashMap<syn::Ident, Vec<usize>>,
+    versions: &mut HashMap<syn::Ident, usize>,
+    new_origin_var_map: &mut HashMap<syn::Ident, syn::Ident>
 ) {
     match pat {
         syn::Pat::Const(_) => unimplemented!("rename::new_name_pat::Pat::Const"),
         syn::Pat::Ident(pat_ident) => {
-            let new_name = new_name(
-                &pat_ident.ident.to_string(),
-                versions,
-                stacks,
-                new_origin_var_map
-            );
-            pat_ident.ident = syn::Ident::new(&new_name, pat_ident.ident.span());
+            pat_ident.ident = new_name(&pat_ident.ident, versions, stacks, new_origin_var_map);
         }
         syn::Pat::Lit(_) => unimplemented!("rename::new_name_pat::Pat::Lit"),
         syn::Pat::Macro(_) => unimplemented!("rename::new_name_pat::Pat::Macro"),
@@ -569,7 +548,11 @@ fn new_name_pat(
         syn::Pat::Rest(_) => unimplemented!("rename::new_name_pat::Pat::Rest"),
         syn::Pat::Slice(_) => unimplemented!("rename::new_name_pat::Pat::Slice"),
         syn::Pat::Struct(_) => unimplemented!("rename::new_name_pat::Pat::Struct"),
-        syn::Pat::Tuple(_) => unimplemented!("rename::new_name_pat::Pat::Tuple"),
+        syn::Pat::Tuple(tuple) => {
+            for pat in tuple.elems.iter_mut() {
+                new_name_pat(pat, stacks, versions, new_origin_var_map);
+            }
+        }
         syn::Pat::TupleStruct(_) => unimplemented!("rename::new_name_pat::Pat::TupleStruct"),
         syn::Pat::Type(pat_type) => {
             new_name_pat(&mut pat_type.pat, stacks, versions, new_origin_var_map);
@@ -583,8 +566,8 @@ fn new_name_pat(
 fn rename(
     cfg: &mut CFG,
     node: NodeIndex,
-    stacks: &mut HashMap<String, Vec<usize>>,
-    versions: &mut HashMap<String, usize>,
+    stacks: &mut HashMap<syn::Ident, Vec<usize>>,
+    versions: &mut HashMap<syn::Ident, usize>,
     dominators: &Dominators<NodeIndex>
 ) {
     let mut new_origin_var_map = cfg.graph[node].origin_var_map.clone();
@@ -629,8 +612,10 @@ fn rename(
             let origin_var = &phi_function.origin_var;
             if let Some(current_version) = stacks.get(origin_var) {
                 if let Some(version) = current_version.last() {
-                    let new_var = format!("{}{}", origin_var, version);
-                    phi_function.args[j] = new_var.clone();
+                    phi_function.args[j] = syn::Ident::new(
+                        &format!("{}{}", origin_var, version),
+                        origin_var.span()
+                    );
                 }
             }
         }
@@ -652,19 +637,19 @@ fn rename(
 
 fn replace_vars(
     expr: &mut syn::Expr,
-    stacks: &HashMap<String, Vec<usize>>,
-    new_origin_var_map: &mut HashMap<String, String>
+    stacks: &HashMap<syn::Ident, Vec<usize>>,
+    new_origin_var_map: &mut HashMap<syn::Ident, syn::Ident>
 ) {
     struct VarRenamer<'a> {
-        stacks: &'a HashMap<String, Vec<usize>>,
-        new_origin_var_map: &'a mut HashMap<String, String>,
+        stacks: &'a HashMap<syn::Ident, Vec<usize>>,
+        new_origin_var_map: &'a mut HashMap<syn::Ident, syn::Ident>,
     }
     impl<'a> syn::visit_mut::VisitMut for VarRenamer<'a> {
         fn visit_expr_mut(&mut self, node: &mut syn::Expr) {
             match node {
                 syn::Expr::Path(expr_path) => {
                     if expr_path.qself.is_none() && expr_path.path.segments.len() == 1 {
-                        let var = expr_path.path.segments[0].ident.to_string();
+                        let var = expr_path.path.segments[0].ident.clone();
                         if let Some(stack) = self.stacks.get(&var) {
                             if let Some(current_cnt) = stack.last() {
                                 expr_path.path.segments[0].ident = syn::Ident::new(
@@ -672,7 +657,10 @@ fn replace_vars(
                                     expr_path.path.segments[0].ident.span()
                                 );
                                 self.new_origin_var_map.insert(
-                                    format!("{}{}", var, current_cnt),
+                                    syn::Ident::new(
+                                        &format!("{}{}", var, current_cnt),
+                                        expr_path.path.segments[0].ident.span()
+                                    ),
                                     var
                                 );
                             }
@@ -687,27 +675,27 @@ fn replace_vars(
     syn::visit_mut::visit_expr_mut(&mut (VarRenamer { stacks, new_origin_var_map }), expr);
 }
 
-fn replace_string(var: &mut String, stacks: &HashMap<String, Vec<usize>>) {
+fn replace_string(var: &mut syn::Ident, stacks: &HashMap<syn::Ident, Vec<usize>>) {
     if let Some(stack) = stacks.get(var) {
         if let Some(current_cnt) = stack.last() {
-            *var = format!("{}{}", var, current_cnt);
+            *var = syn::Ident::new(&format!("{}{}", var, current_cnt), var.span());
         }
     }
 }
 
 fn new_name(
-    var: &str,
-    versions: &mut HashMap<String, usize>,
-    stacks: &mut HashMap<String, Vec<usize>>,
-    new_origin_var_map: &mut HashMap<String, String>
-) -> String {
+    var: &syn::Ident,
+    versions: &mut HashMap<syn::Ident, usize>,
+    stacks: &mut HashMap<syn::Ident, Vec<usize>>,
+    new_origin_var_map: &mut HashMap<syn::Ident, syn::Ident>
+) -> syn::Ident {
     if let Some(cnt) = versions.get_mut(var) {
         if let Some(stack) = stacks.get_mut(var) {
             stack.push(*cnt);
         }
-        let ret = format!("{}{}", var, cnt);
+        let ret = syn::Ident::new(&format!("{}{}", var, cnt), var.span());
         *cnt += 1;
-        new_origin_var_map.insert(ret.clone(), var.to_string());
+        new_origin_var_map.insert(ret.clone(), var.clone());
         ret
     } else {
         panic!("{} not found in new_name", var);
@@ -1016,25 +1004,21 @@ impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
                 syn::FnArg::Receiver(_) => {}
                 syn::FnArg::Typed(pat_type) => {
                     let ty = pat_type.ty.as_ref();
-                    match &*pat_type.pat {
-                        syn::Pat::Ident(pat_ident) => {
-                            if let Some(block) = self.cfg.graph.node_weight_mut(self.current_block) {
-                                let local = syn
-                                    ::parse2(
-                                        quote::quote! {
-                                    let #pat_ident: #ty;
-                                }
-                                    )
-                                    .unwrap();
-                                block.statements.push(CustomStmt { stmt: local });
-                                block.defined_vars.insert(pat_ident.ident.to_string());
-                            }
+                    let mut vars_collector = UseDefineVisitor::new();
+                    vars_collector.visit_pat(&pat_type.pat);
+                    if let Some(block) = self.cfg.graph.node_weight_mut(self.current_block) {
+                        for var in vars_collector.define_vars {
+                            block.defined_vars.insert(var.clone());
                         }
-                        _ =>
-                            unimplemented!(
-                                "cfg_builder::visit_item_fn::fn_arg::typed::{}",
-                                pat_type.to_token_stream().to_string()
-                            ),
+                        for var in vars_collector.used_vars {
+                            block.defined_vars.insert(var.clone());
+                        }
+                        let pat = &pat_type.pat;
+                        let local =
+                            quote::quote! {
+                            let #pat: #ty;
+                        };
+                        block.statements.push(CustomStmt { stmt: syn::parse2(local).expect("cfg::visit_item_fn::local") });
                     }
                 }
             }

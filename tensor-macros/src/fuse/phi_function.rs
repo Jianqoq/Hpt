@@ -2,14 +2,14 @@ use petgraph::graph::NodeIndex;
 
 #[derive(Clone)]
 pub(crate) struct PhiFunction {
-    pub(crate) name: String,
-    pub(crate) args: Vec<String>,
+    pub(crate) name: syn::Ident,
+    pub(crate) args: Vec<syn::Ident>,
     pub(crate) preds: Vec<NodeIndex>,
-    pub(crate) origin_var: String,
+    pub(crate) origin_var: syn::Ident,
 }
 
 impl PhiFunction {
-    pub(crate) fn new(name: String, args: Vec<String>, preds: Vec<NodeIndex>) -> Self {
+    pub(crate) fn new(name: syn::Ident, args: Vec<syn::Ident>, preds: Vec<NodeIndex>) -> Self {
         let origin_var = name.clone();
         Self { name, args, origin_var, preds }
     }

@@ -1,5 +1,5 @@
 use std::collections::{ HashMap, HashSet };
-
+use syn::spanned::Spanned;
 use petgraph::graph::NodeIndex;
 use quote::ToTokens;
 use syn::visit::Visit;
@@ -21,7 +21,7 @@ impl Type {
 
 #[derive(Debug, Clone)]
 pub(crate) struct TyInfer {
-    pub(crate) table: HashMap<String, Type>,
+    pub(crate) table: HashMap<syn::Ident, Type>,
     pub(crate) visited: HashSet<NodeIndex>,
 }
 
@@ -50,7 +50,7 @@ impl TyInfer {
             syn::Expr::Reference(reference) => { self.type_of(&reference.expr) }
             syn::Expr::Path(path) => {
                 if let Some(ident) = path.path.get_ident() {
-                    *self.table.get(&ident.to_string()).unwrap_or(&Type::Unknown)
+                    *self.table.get(&ident).unwrap_or(&Type::Unknown)
                 } else {
                     Type::Unknown
                 }
@@ -119,10 +119,10 @@ impl<'ast> Visit<'ast> for TyInfer {
                 ];
                 match pat {
                     syn::Pat::Ident(pat_ident) => {
-                        let ident = pat_ident.ident.to_string();
+                        let ident = pat_ident.ident.clone();
                         if tys.iter().any(|t| ty == *t) {
                             self.table.insert(ident, Type::Scalar);
-                        } else if ident.contains("Tensor") || ident.contains("_Tensor") {
+                        } else if ident.to_string().contains("Tensor") || ident.to_string().contains("_Tensor") {
                             self.table.insert(ident, Type::Tensor);
                         } else {
                             self.table.insert(ident, Type::Unknown);
@@ -158,7 +158,7 @@ impl<'ast> Visit<'ast> for TyInfer {
         match &i.pat {
             syn::Pat::Const(_) => unimplemented!("ty_infer::visit_local::Const"),
             syn::Pat::Ident(pat_ident) => {
-                let ident = pat_ident.ident.to_string();
+                let ident = pat_ident.ident.clone();
                 if let Some(init) = &i.init {
                     self.table.insert(ident, self.type_of(&init.expr));
                 } else {
@@ -179,7 +179,7 @@ impl<'ast> Visit<'ast> for TyInfer {
             syn::Pat::TupleStruct(_) => unimplemented!("ty_infer::visit_local::TupleStruct"),
             syn::Pat::Type(ty) => {
                 if let syn::Pat::Ident(pat_ident) = ty.pat.as_ref() {
-                    let ident = pat_ident.ident.to_string();
+                    let ident = pat_ident.ident.clone();
                     let ty = ty.ty.to_token_stream().to_string();
                     if ty.contains("Tensor") || ty.contains("_Tensor") {
                         self.table.insert(ident, Type::Tensor);
@@ -191,8 +191,8 @@ impl<'ast> Visit<'ast> for TyInfer {
                 }
             }
             syn::Pat::Verbatim(_) => unimplemented!("ty_infer::visit_local::Verbatim"),
-            syn::Pat::Wild(_) => {
-                self.table.insert("_".to_string(), Type::Unknown);
+            syn::Pat::Wild(wild) => {
+                self.table.insert(syn::Ident::new("_", wild.underscore_token.span()), Type::Unknown);
             }
             _ => unimplemented!("ty_infer::visit_local::{}", i.pat.to_token_stream().to_string()),
         }
