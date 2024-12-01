@@ -9,24 +9,24 @@ fn compute2(a: _Tensor<f32>, b: _Tensor<f32>, k: ((f32, f32), f32)) -> anyhow::R
     let mut d = c.sin()?;
     let e = d.relu()?;
     println!("{:?}", d);
-    // let alpha = 1.673263242354358;
-    // let gamma = 1.050700987355822;
-    // if alpha > 0.0 {
-    //     d = e.selu(alpha, gamma)?;
-    //     if alpha > 0.0 {
-    //         d = e.tanh()?;
-    //     } else {
-    //         d = d.tan()?;
-    //     }
-    // } else {
-    //     d = d.selu(alpha, gamma)?;
-    // }
-    // for _ in 0..1000000 {
-    //     c = &d + &c;
-    //     c = &d + &c;
-    //     break;
-    // }
-    Ok(e)
+    let alpha = 1.673263242354358;
+    let gamma = 1.050700987355822;
+    if alpha > 0.0 {
+        d = e.selu(alpha, gamma)?;
+        if alpha > 0.0 {
+            d = e.tanh()?;
+        } else {
+            d = d.tan()?;
+        }
+    } else {
+        d = d.selu(alpha, gamma)?;
+    }
+    for _ in 0..1000000 {
+        c = &d + &c;
+        c = &d + &c;
+        break;
+    }
+    Ok(c)
 });
 
 // #[fuse]

@@ -60,6 +60,7 @@ mod fuse {
     pub(crate) mod variable_collector;
     pub(crate) mod phi_function;
     pub(crate) mod var_recover;
+    pub(crate) mod expr_call_use_visitor;
 }
 
 use crate::simd_cmp::impl_simd_cmp;

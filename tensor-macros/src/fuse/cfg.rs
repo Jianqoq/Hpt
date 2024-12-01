@@ -11,6 +11,7 @@ use syn::visit_mut::VisitMut;
 use syn::Stmt;
 
 use super::codegen;
+use super::expr_call_use_visitor::ExprCallUseVisitor;
 use super::phi_function::PhiFunction;
 use super::ty_infer::Type;
 use super::use_define_visitor::UseDefineVisitor;
@@ -55,7 +56,6 @@ pub(crate) struct BasicBlock {
     pub(crate) assigned_vars: HashSet<syn::Ident>,
     pub(crate) used_vars: HashSet<syn::Ident>,
     pub(crate) block_type: BlockType,
-    pub(crate) live_in: HashSet<syn::Ident>,
     pub(crate) live_out: HashSet<syn::Ident>,
     pub(crate) origin_var_map: HashMap<syn::Ident, syn::Ident>,
 }
@@ -87,13 +87,6 @@ impl std::fmt::Debug for BasicBlock {
                     .collect::<Vec<_>>()
             )
             .field("block_type", &self.block_type)
-            .field(
-                "live_in",
-                &self.live_in
-                    .iter()
-                    .map(|v| v.to_string())
-                    .collect::<Vec<_>>()
-            )
             .field(
                 "live_out",
                 &self.live_out
@@ -200,7 +193,6 @@ impl CFG {
             statements: vec![],
             defined_vars: HashSet::new(),
             used_vars: HashSet::new(),
-            live_in: HashSet::new(),
             live_out: HashSet::new(),
             block_type: BlockType::Normal,
             phi_functions: vec![],
@@ -211,9 +203,27 @@ impl CFG {
         CFG { graph, entry, block_id: BlockId::new(entry) }
     }
 
-    pub(crate) fn live_analysis(&mut self) {
+    pub(crate) fn live_analysis(&mut self, type_table: &HashMap<syn::Ident, Type>) {
         let mut live_in = HashMap::new();
         let mut live_out = HashMap::new();
+        let mut used_vars = HashMap::new();
+        let mut defined_vars = HashMap::new();
+
+        for block in self.graph.node_indices() {
+            let block_data = &self.graph[block];
+            let mut use_define_visitor = UseDefineVisitor::new();
+            for stmt in &block_data.statements {
+                use_define_visitor.visit_stmt(&stmt.stmt);
+            }
+            used_vars.insert(block, use_define_visitor.used_vars);
+            defined_vars.insert(block, use_define_visitor.define_vars);
+            for phi in &block_data.phi_functions {
+                for arg in &phi.args {
+                    used_vars.entry(block).or_insert_with(HashSet::new).insert(arg.clone());
+                }
+                defined_vars.entry(block).or_insert_with(HashSet::new).insert(phi.name.clone());
+            }
+        }
 
         // 初始化所有基本块的live_in和live_out集合
         for block in self.graph.node_indices() {
@@ -238,10 +248,9 @@ impl CFG {
                 }
 
                 // 计算IN[B] = USE[B] ∪ (OUT[B] - DEF[B])
-                let block_data = &self.graph[block];
-                let mut new_in = block_data.used_vars.clone();
+                let mut new_in = used_vars[&block].clone();
                 for var in new_out.iter() {
-                    if !block_data.defined_vars.contains(var) {
+                    if !defined_vars[&block].contains(var) {
                         new_in.insert(var.clone());
                     }
                 }
@@ -258,18 +267,15 @@ impl CFG {
 
         // 将结果存储到CFG中
         for block in self.graph.node_indices() {
-            self.graph[block].live_in = live_in[&block].clone();
             self.graph[block].live_out = live_out[&block].clone();
 
             // check if current block has return statement
             if self.graph[block].block_type == BlockType::Normal {
                 let mut extra_live_outs = HashSet::new();
-                if let Some(stmt) = self.graph[block].statements.last() {
-                    if let syn::Stmt::Expr(expr, ..) = &stmt.stmt {
-                        let mut visitor = UseDefineVisitor::new();
-                        visitor.visit_expr(expr);
-                        extra_live_outs.extend(visitor.used_vars.drain());
-                    }
+                for stmt in &self.graph[block].statements {
+                    let mut visitor = ExprCallUseVisitor::new(type_table);
+                    visitor.visit_stmt(&stmt.stmt);
+                    extra_live_outs.extend(visitor.used_vars.drain());
                 }
                 self.graph[block].live_out.extend(extra_live_outs.drain());
             }
@@ -599,7 +605,7 @@ fn rename(
                     }
                 }
                 mc.mac.tokens = new_tokens;
-            },
+            }
         }
     }
     cfg.graph[node].origin_var_map = new_origin_var_map;
@@ -759,7 +765,6 @@ impl<'a> CFGBuilder<'a> {
             defined_vars: HashSet::new(),
             used_vars: HashSet::new(),
             block_type,
-            live_in: HashSet::new(),
             live_out: HashSet::new(),
             phi_functions: vec![],
             origin_var_map: HashMap::new(),

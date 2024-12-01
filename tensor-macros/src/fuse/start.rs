@@ -61,9 +61,7 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     let dominance_frontiers = compute_dominance_frontiers(&cfg, &dominators);
     let definitions = cfg.get_variable_definitions();
     cfg.insert_phi_functions(&dominance_frontiers, &definitions);
-    cfg.live_analysis();
     cfg.rename_variables(&dominators);
-    println!("rename::cfg: {:#?}", cfg.graph);
     Ok(cfg)
 }
 
@@ -72,6 +70,8 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
     let mut cfg = build_cfg(&func).expect("build cfg failed");
     let mut type_table = TyInfer::new();
     type_table.infer(&cfg);
+    cfg.live_analysis(&type_table.table);
+    println!("rename::cfg: {:#?}", cfg.graph);
     let table = core::mem::take(&mut type_table.table);
     let graphs = cfg.build_graphs(table);
     cfg.add_extra_temps(&graphs);
