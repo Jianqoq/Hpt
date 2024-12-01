@@ -1,14 +1,14 @@
 use quote::ToTokens;
 
 #[derive(Clone, Eq, PartialEq, Hash)]
-pub(crate) struct Unary<'ast> {
-    pub(crate) method: &'ast syn::Ident,
+pub(crate) struct Unary {
+    pub(crate) method: syn::Ident,
     pub(crate) operand: syn::Ident,
     pub(crate) args: Vec<syn::Expr>,
     pub(crate) output: syn::Ident,
 }
 
-impl<'ast> std::fmt::Debug for Unary<'ast> {
+impl std::fmt::Debug for Unary {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -25,7 +25,7 @@ impl<'ast> std::fmt::Debug for Unary<'ast> {
     }
 }
 
-impl<'ast> ToTokens for Unary<'ast> {
+impl ToTokens for Unary {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let method = proc_macro2::Ident::new(&format!("_{}", self.method), self.method.span());
         let operand = proc_macro2::Ident::new(&format!("{}", self.operand), self.operand.span());
@@ -83,13 +83,13 @@ impl<'ast> ToTokens for Binary {
 }
 
 #[derive(Clone, Eq, PartialEq, Hash)]
-pub(crate) enum Node<'ast> {
-    Unary(Unary<'ast>),
+pub(crate) enum Node {
+    Unary(Unary),
     Binary(Binary),
     Input(syn::Ident),
 }
 
-impl<'ast> std::fmt::Debug for Node<'ast> {
+impl std::fmt::Debug for Node {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Node::Unary(unary, ..) => write!(f, "{:#?}", unary),

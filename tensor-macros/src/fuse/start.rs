@@ -57,7 +57,6 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     let mut builder = CFGBuilder::new(&mut cfg);
     builder.visit_item_fn(item_fn);
     cfg.block_id = core::mem::take(&mut builder.block_ids);
-    println!("block_id: {:#?}", cfg.block_id);
     let dominators = petgraph::algo::dominators::simple_fast(&cfg.graph, cfg.entry);
     let dominance_frontiers = compute_dominance_frontiers(&cfg, &dominators);
     let definitions = cfg.get_variable_definitions();
@@ -70,45 +69,73 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
 pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let func = syn::parse_macro_input!(item as syn::ItemFn);
     let mut cfg = build_cfg(&func).expect("build cfg failed");
+    println!("graph: {:#?}", cfg.graph);
     let mut type_table = TyInfer::new();
     type_table.infer(&cfg);
-    let graphs = cfg.build_graphs(&type_table.table);
-
+    let table = core::mem::take(&mut type_table.table);
+    let graphs = cfg.build_graphs(table);
+    cfg.add_extra_temps(&graphs);
     let mut genfuse_map = HashMap::new();
     for idx in graphs.node_indices() {
         let graph = graphs.node_weight(idx).expect("graph weight not found");
         let petgraph = graph.to_petgraph();
         if petgraph.node_count() > 0 && !petgraph::algo::is_cyclic_directed(&petgraph) {
+            println!("graph: {:#?}", petgraph);
             let mut fusion_group = crate::fuse::fuse::fuse(&cfg, &petgraph);
+            println!("fusion_group: {:#?}", fusion_group);
             fusion_group.vars.retain(|x| x.len() > 1);
             let genfuse = crate::fuse::gen_fuse::gen_fuse(&cfg, &petgraph, &fusion_group);
-            let mut to_remove = Vec::new();
+            let mut stmt_to_remove = Vec::new();
+            let mut intermediates = Vec::new();
             for group in fusion_group.vars {
-                to_remove.push(
+                stmt_to_remove.push(
                     group
                         .iter()
                         .map(|idx| petgraph[*idx].1)
                         .collect::<Vec<_>>()
                 );
+                intermediates.push(
+                    group
+                        .iter()
+                        .map(|idx| *idx)
+                        .collect::<Vec<_>>()
+                );
             }
             for (i, (inp, out)) in genfuse.1.iter().enumerate() {
-                to_remove[i].retain(|v| !inp.iter().any(|(_, stmt_idx, _)| *stmt_idx == *v));
-                to_remove[i].retain(|v| !out.iter().any(|(_, stmt_idx, _)| *stmt_idx == *v));
+                println!("inp: {:#?}", inp);
+                println!("out: {:#?}", out);
+                println!("to_remove: {:#?}", stmt_to_remove[i]);
+                println!("intermediates: {:#?}", intermediates[i]);
+                stmt_to_remove[i].retain(
+                    |v| !inp.iter().any(|(_, stmt_idx, _, _)| *stmt_idx == *v)
+                );
+                stmt_to_remove[i].retain(
+                    |v| !out.iter().any(|(_, stmt_idx, _, _)| *stmt_idx == *v)
+                );
+                intermediates[i].retain(
+                    |v| !inp.iter().any(|(_, _, _, comp_graph_idx)| *comp_graph_idx == *v)
+                );
+                intermediates[i].retain(
+                    |v| !out.iter().any(|(_, _, _, comp_graph_idx)| *comp_graph_idx == *v)
+                );
+                println!("after to_remove: {:#?}", stmt_to_remove[i]);
+                println!("after intermediates: {:#?}", intermediates[i]);
             }
-            genfuse_map.insert(idx, (genfuse.0, genfuse.1, to_remove));
+            genfuse_map.insert(idx, (genfuse.0, genfuse.1, stmt_to_remove, intermediates));
         }
     }
 
-    for (idx, (codes, inp_outs, to_remove)) in genfuse_map {
-        for ((code, (_, out)), remove) in codes
+    for (idx, (codes, inp_outs, stmt_to_remove, intermediates)) in genfuse_map {
+        for (((code, (_, out)), remove), intermediate) in codes
             .into_iter()
             .zip(inp_outs.into_iter())
-            .zip(to_remove.into_iter()) {
-            if remove.is_empty() {
+            .zip(stmt_to_remove.into_iter())
+            .zip(intermediates.into_iter()) {
+            if intermediate.is_empty() {
                 continue;
             }
             assert_eq!(out.len(), 1);
-            let (out, out_stmt_idx, _) = &out[0];
+            let (out, out_stmt_idx, _, _) = &out[0];
             assert_ne!(*out_stmt_idx, -1);
             if
                 let syn::Stmt::Local(local) =
@@ -154,9 +181,7 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
     }
     signature.inputs = arguments;
     token_stream.extend(quote::quote!(#signature));
-    println!("cfg: {:#?}", cfg.graph);
     let body = cfg.gen_code();
-    println!("body: {:#?}", body.to_string());
     let ret = quote::quote!(
         #token_stream {
             #body

@@ -1,4 +1,4 @@
-use std::collections::{ HashMap, HashSet };
+use std::{ collections::{ HashMap, HashSet }, rc::Rc };
 
 use petgraph::prelude::StableGraph;
 use proc_macro2::Span;
@@ -7,20 +7,21 @@ use syn::spanned::Spanned;
 
 use super::{ node::{ Binary, Node, Unary }, ty_infer::Type };
 
-pub(crate) struct Graph<'ast> {
-    pub(crate) nodes: Vec<(Node<'ast>, i64, usize)>,
-    pub(crate) inputs: HashMap<(Node<'ast>, i64, usize), Type>,
-    pub(crate) type_table: &'ast HashMap<String, Type>,
+pub(crate) struct Graph {
+    pub(crate) nodes: Vec<(Node, i64, usize)>,
+    pub(crate) inputs: HashMap<(Node, i64, usize), Type>,
+    pub(crate) type_table: Rc<HashMap<String, Type>>,
     pub(crate) variables: HashSet<String>,
     pub(crate) current_var: syn::Ident,
     pub(crate) tmp_var_version: usize,
     pub(crate) current_assignment: Option<syn::Ident>,
     pub(crate) current_idx: usize,
     pub(crate) current_block: usize,
+    pub(crate) extra_temps: Vec<String>,
 }
 
-impl<'ast> Graph<'ast> {
-    pub fn new(type_table: &'ast HashMap<String, Type>, current_block: usize) -> Self {
+impl Graph {
+    pub fn new(type_table: Rc<HashMap<String, Type>>, current_block: usize) -> Self {
         Self {
             type_table,
             nodes: vec![],
@@ -31,10 +32,11 @@ impl<'ast> Graph<'ast> {
             current_assignment: None,
             current_idx: 0,
             current_block,
+            extra_temps: vec![],
         }
     }
 
-    pub(crate) fn to_petgraph(&self) -> StableGraph<&(Node<'ast>, i64, usize), ()> {
+    pub(crate) fn to_petgraph(&self) -> StableGraph<&(Node, i64, usize), ()> {
         let mut graph = StableGraph::new();
         let mut node_index_map = HashMap::new();
 
@@ -92,7 +94,9 @@ impl<'ast> Graph<'ast> {
                     if let Some(index) = node_index_map.get(inp) {
                         let node_indices = graph.node_indices().collect::<Vec<_>>();
                         for node_idx in node_indices {
-                            let (node, _, _) = graph.node_weight(node_idx).expect("node weight not found");
+                            let (node, _, _) = graph
+                                .node_weight(node_idx)
+                                .expect("node weight not found");
                             match node {
                                 Node::Unary(unary) => {
                                     if &unary.operand == input {
@@ -184,7 +188,11 @@ impl<'ast> Graph<'ast> {
                         return;
                     }
                     self.inputs.insert(
-                        (Node::Input(syn::Ident::new(&string, Span::call_site())), -1, self.current_block),
+                        (
+                            Node::Input(syn::Ident::new(&string, Span::call_site())),
+                            -1,
+                            self.current_block,
+                        ),
                         self.type_table[&string]
                     );
                     self.variables.insert(string);
@@ -231,13 +239,13 @@ impl<'ast> Graph<'ast> {
     }
 }
 
-impl<'ast> std::fmt::Debug for Graph<'ast> {
+impl std::fmt::Debug for Graph {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Graph").field("inputs", &self.inputs).field("nodes", &self.nodes).finish()
     }
 }
 
-impl<'ast> syn::visit::Visit<'ast> for Graph<'ast> {
+impl<'ast> syn::visit::Visit<'ast> for Graph {
     fn visit_abi(&mut self, _: &'ast syn::Abi) {
         unimplemented!("visitor::visit_abi");
     }
@@ -344,10 +352,6 @@ impl<'ast> syn::visit::Visit<'ast> for Graph<'ast> {
         unimplemented!("visitor::visit_expr_block");
     }
 
-    fn visit_expr_break(&mut self, _: &'ast syn::ExprBreak) {
-        unimplemented!("visitor::visit_expr_break");
-    }
-
     fn visit_expr_cast(&mut self, _: &'ast syn::ExprCast) {
         unimplemented!("visitor::visit_expr_cast");
     }
@@ -358,10 +362,6 @@ impl<'ast> syn::visit::Visit<'ast> for Graph<'ast> {
 
     fn visit_expr_const(&mut self, _: &'ast syn::ExprConst) {
         unimplemented!("visitor::visit_expr_const");
-    }
-
-    fn visit_expr_continue(&mut self, _: &'ast syn::ExprContinue) {
-        unimplemented!("visitor::visit_expr_continue");
     }
 
     fn visit_expr_field(&mut self, _: &'ast syn::ExprField) {
@@ -908,6 +908,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph<'ast> {
                 node.span()
             );
             self.variables.insert(out.to_string());
+            self.extra_temps.push(out.to_string());
             self.current_var = out.clone();
             self.tmp_var_version += 1;
             out
@@ -946,12 +947,16 @@ impl<'ast> syn::visit::Visit<'ast> for Graph<'ast> {
         self.push_input_node_if_not_exist_expr(&node.receiver);
         let operand = node.receiver.to_token_stream().to_string();
         let method = Node::Unary(Unary {
-            method: &node.method,
+            method: node.method.clone(),
             operand: proc_macro2::Ident::new(&operand, node.span()),
             args,
             output: out.clone(),
         });
-        self.nodes.push((method, if is_assignment { self.current_idx as i64 } else { -1 }, self.current_block));
+        self.nodes.push((
+            method,
+            if is_assignment { self.current_idx as i64 } else { -1 },
+            self.current_block,
+        ));
     }
 
     fn visit_ident(&mut self, i: &'ast proc_macro2::Ident) {
@@ -978,7 +983,10 @@ impl<'ast> syn::visit::Visit<'ast> for Graph<'ast> {
             self.variables.insert(left_var.clone());
             let node = Node::Input(syn::Ident::new(&left_var, node.left.span()));
             if !self.inputs.contains_key(&(node.clone(), -1, self.current_block)) {
-                self.inputs.insert((node, -1, self.current_block), self.type_table[&left_var].clone());
+                self.inputs.insert(
+                    (node, -1, self.current_block),
+                    self.type_table[&left_var].clone()
+                );
             }
         }
         self.visit_expr(&node.right);
@@ -987,7 +995,10 @@ impl<'ast> syn::visit::Visit<'ast> for Graph<'ast> {
             self.variables.insert(right_var.clone());
             let node = Node::Input(syn::Ident::new(&right_var, node.right.span()));
             if !self.inputs.contains_key(&(node.clone(), -1, self.current_block)) {
-                self.inputs.insert((node, -1, self.current_block), self.type_table[&right_var].clone());
+                self.inputs.insert(
+                    (node, -1, self.current_block),
+                    self.type_table[&right_var].clone()
+                );
             }
         }
         let method = match node.op {
@@ -1033,6 +1044,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph<'ast> {
                 node.span()
             );
             self.variables.insert(out.to_string());
+            self.extra_temps.push(out.to_string());
             self.current_var = out.clone();
             self.tmp_var_version += 1;
             out
@@ -1060,7 +1072,7 @@ fn handle_expr_type<'ast>(node: &'ast syn::Expr, type_table: &HashMap<String, Ty
             } else {
                 Type::Unknown
             }
-        },
+        }
         syn::Expr::Call(_) => unimplemented!("build_graph::handle_expr_type::Call"),
         syn::Expr::Cast(_) => unimplemented!("build_graph::handle_expr_type::Cast"),
         syn::Expr::Closure(_) => unimplemented!("build_graph::handle_expr_type::Closure"),
@@ -1082,12 +1094,10 @@ fn handle_expr_type<'ast>(node: &'ast syn::Expr, type_table: &HashMap<String, Ty
             } else {
                 Type::Unknown
             }
-        },
+        }
         syn::Expr::Range(_) => unimplemented!("build_graph::handle_expr_type::Range"),
         syn::Expr::RawAddr(_) => unimplemented!("build_graph::handle_expr_type::RawAddr"),
-        syn::Expr::Reference(reference) => {
-            handle_expr_type(&reference.expr, type_table)
-        },
+        syn::Expr::Reference(reference) => { handle_expr_type(&reference.expr, type_table) }
         syn::Expr::Repeat(_) => unimplemented!("build_graph::handle_expr_type::Repeat"),
         syn::Expr::Return(_) => unimplemented!("build_graph::handle_expr_type::Return"),
         syn::Expr::Struct(_) => unimplemented!("build_graph::handle_expr_type::Struct"),

@@ -1,4 +1,5 @@
 use std::collections::{ HashMap, HashSet };
+use std::rc::Rc;
 
 use petgraph::algo::dominators::Dominators;
 use petgraph::graph::NodeIndex;
@@ -364,15 +365,16 @@ impl CFG {
         }
     }
 
-    pub(crate) fn build_graphs<'ast>(
-        &'ast self,
-        type_table: &'ast HashMap<String, Type>
-    ) -> Graph<super::build_graph::Graph<'ast>, ()> {
-        let mut graph = Graph::<super::build_graph::Graph<'ast>, ()>::new();
+    pub(crate) fn build_graphs(
+        &self,
+        type_table: HashMap<String, Type>
+    ) -> Graph<super::build_graph::Graph, ()> {
+        let table = Rc::new(type_table);
+        let mut graph = Graph::<super::build_graph::Graph, ()>::new();
         let mut sorted_indices = self.graph.node_indices().collect::<Vec<_>>();
         sorted_indices.sort();
         for node in sorted_indices {
-            let mut comp_graph = super::build_graph::Graph::new(type_table, node.index());
+            let mut comp_graph = super::build_graph::Graph::new(table.clone(), node.index());
             for (idx, stmt) in self.graph
                 .node_weight(node)
                 .expect("fuse::cfg::build_graphs::node weight not found")
@@ -390,6 +392,15 @@ impl CFG {
             }
         }
         graph
+    }
+
+    pub(crate) fn add_extra_temps(&mut self, graph: &Graph<super::build_graph::Graph, ()>) {
+        for node in graph.node_indices() {
+            let graph = graph.node_weight(node).expect("graph weight not found");
+            for temp in graph.extra_temps.iter() {
+                self.graph[node].origin_var_map.insert(temp.clone(), temp.clone());
+            }
+        }
     }
 
     // 变量重命名
@@ -733,7 +744,6 @@ pub(crate) struct CFGBuilder<'a> {
     pub(crate) cfg: &'a mut CFG,
     pub(crate) current_block: NodeIndex,
     pub(crate) block_ids: BlockId,
-    loop_stack: Vec<NodeIndex>,
 }
 
 impl<'a> CFGBuilder<'a> {
@@ -742,7 +752,6 @@ impl<'a> CFGBuilder<'a> {
         CFGBuilder {
             cfg,
             current_block: entry,
-            loop_stack: Vec::new(),
             block_ids: BlockId { children: vec![], id: entry },
         }
     }
@@ -850,9 +859,6 @@ impl<'a> CFGBuilder<'a> {
         // 连接当前块到循环体块
         self.connect_to(loop_block);
 
-        // 将循环后的块推入栈中，以便处理 break 语句
-        self.loop_stack.push(after_loop_block);
-
         // 设置当前块为循环体块，并处理循环体
         self.set_current_block(loop_block);
         self.visit_block(&expr_loop.body);
@@ -862,46 +868,8 @@ impl<'a> CFGBuilder<'a> {
         // 连接循环体块到循环后的块，表示退出循环
         self.connect_to(after_loop_block);
 
-        // 处理完循环后，将循环后的块从栈中弹出
-        self.loop_stack.pop();
-
         // 更新当前块为循环后的块，继续处理后续语句
         self.set_current_block(after_loop_block);
-    }
-
-    fn handle_break(&mut self, _expr_break: &syn::ExprBreak) {
-        if let Some(after_loop_block) = self.loop_stack.last() {
-            self.connect_to(*after_loop_block);
-        } else {
-            // 处理非循环中的 break，可以选择报错或其他处理方式
-            eprintln!("Error: 'break' outside of loop");
-        }
-        // 创建一个新的块，因为 break 语句通常会终止当前块
-        let new_block = self.new_block(BlockType::Normal);
-        self.set_current_block(new_block);
-    }
-
-    // 处理 continue 语句
-    fn handle_continue(&mut self, _expr_continue: &syn::ExprContinue) {
-        if let Some(_) = self.loop_stack.last() {
-            // 假设循环体块是上一个块，重新连接到循环体块以进行下一次迭代
-            // 你可能需要更精确地跟踪循环入口块
-            // 这里简化处理，连接回当前循环体块
-            // 你需要确保 `loop_block` 是循环体块的 NodeIndex
-            // 这里假设 `loop_block` 是当前循环体块
-            if let Some(&loop_block) = self.loop_stack.iter().rev().nth(1) {
-                self.connect_to(loop_block);
-            } else {
-                // 如果无法找到循环体块，可以选择报错或其他处理方式
-                eprintln!("Error: 'continue' without loop body reference");
-            }
-        } else {
-            // 处理非循环中的 continue，可以选择报错或其他处理方式
-            eprintln!("Error: 'continue' outside of loop");
-        }
-        // 创建一个新的块，因为 continue 语句通常会终止当前块
-        let new_block = self.new_block(BlockType::Normal);
-        self.set_current_block(new_block);
     }
 
     // 处理 match 语句
@@ -953,9 +921,6 @@ impl<'a> CFGBuilder<'a> {
         self.connect_to(loop_block);
         self.connect_to(after_loop_block);
 
-        // Push after_loop_block to loop_stack for handling break
-        self.loop_stack.push(after_loop_block);
-
         // 处理循环体
         self.set_current_block(loop_block);
         self.set_current_block_id(loop_block_id);
@@ -966,9 +931,6 @@ impl<'a> CFGBuilder<'a> {
         self.connect_to(condition_block);
         // 连接循环体块到循环后的块（如果有 break）
         self.connect_to(after_loop_block);
-
-        // Pop after_loop_block from loop_stack
-        self.loop_stack.pop();
 
         // 设置当前块为循环后的块，继续处理后续语句
         self.set_current_block(after_loop_block);
@@ -1025,9 +987,6 @@ impl<'a> CFGBuilder<'a> {
         self.connect_to(loop_block);
         self.connect_to(after_loop_block);
 
-        // Push after_loop_block to loop_stack for handling break
-        self.loop_stack.push(after_loop_block);
-
         // 处理循环体
         self.set_current_block(loop_block);
         self.set_current_block_id(loop_block_id);
@@ -1037,9 +996,6 @@ impl<'a> CFGBuilder<'a> {
         self.connect_to(condition_block);
         // 连接循环体块到循环后的块（如果有 break）
         self.connect_to(after_loop_block);
-
-        // Pop after_loop_block from loop_stack
-        self.loop_stack.pop();
 
         // 设置当前块为循环后的块，继续处理后续语句
         self.set_current_block(after_loop_block);
@@ -1091,14 +1047,6 @@ impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
         let new_block_id = core::mem::take(&mut self.block_ids);
         current_block_id.children.push(new_block_id);
         self.set_current_block_id(current_block_id);
-    }
-
-    fn visit_expr_break(&mut self, expr_break: &'ast syn::ExprBreak) {
-        self.handle_break(expr_break);
-    }
-
-    fn visit_expr_continue(&mut self, expr_continue: &'ast syn::ExprContinue) {
-        self.handle_continue(expr_continue);
     }
 
     fn visit_expr_if(&mut self, i: &'ast syn::ExprIf) {

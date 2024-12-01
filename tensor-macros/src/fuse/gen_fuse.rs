@@ -6,76 +6,78 @@ use super::fuse::FusionGroup;
 
 pub(crate) fn gen_fuse(
     cfg: &crate::fuse::cfg::CFG,
-    graph: &petgraph::stable_graph::StableGraph<&(crate::fuse::node::Node<'_>, i64, usize), ()>,
+    graph: &petgraph::stable_graph::StableGraph<&(crate::fuse::node::Node, i64, usize), ()>,
     groups: &FusionGroup
-) -> (Vec<TokenStream2>, Vec<(Vec<(syn::Ident, i64, usize)>, Vec<(syn::Ident, i64, usize)>)>) {
+) -> (Vec<TokenStream2>, Vec<(Vec<(syn::Ident, i64, usize, NodeIndex)>, Vec<(syn::Ident, i64, usize, NodeIndex)>)>) {
     let (fused_codes, inp_outs) = _gen_fuse(cfg, &graph, &groups.vars);
     (fused_codes, inp_outs)
 }
 
-fn fill_indegree(node: &Node, in_degrees: &mut HashMap<String, (usize, i64, usize)>) {
+fn fill_indegree(node: &Node, in_degrees: &mut HashMap<String, (usize, i64, usize, NodeIndex)>) {
     match node {
         Node::Unary(unary) => {
-            in_degrees.entry(unary.output.to_string()).or_insert((0, 0, 0)).0 += 1;
+            in_degrees.entry(unary.output.to_string()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 1;
         }
         Node::Binary(binary) => {
-            in_degrees.entry(binary.output.to_string()).or_insert((0, 0, 0)).0 += 2;
+            in_degrees.entry(binary.output.to_string()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 2;
         }
         Node::Input(_) => {}
     }
 }
 
 fn init_degrees(
+    comp_graph_idx: NodeIndex,
     stmt_index: i64,
     block_idx: usize,
     node: &Node,
-    degrees: &mut HashMap<String, (usize, i64, usize)>
+    degrees: &mut HashMap<String, (usize, i64, usize, NodeIndex)>
 ) {
     match node {
         Node::Unary(unary) => {
-            degrees.insert(unary.output.to_string(), (0, stmt_index, block_idx));
+            degrees.insert(unary.output.to_string(), (0, stmt_index, block_idx, comp_graph_idx));
         }
         Node::Binary(binary) => {
-            degrees.insert(binary.output.to_string(), (0, stmt_index, block_idx));
+            degrees.insert(binary.output.to_string(), (0, stmt_index, block_idx, comp_graph_idx));
         }
         Node::Input(ident) => {
-            degrees.insert(ident.to_string(), (0, stmt_index, block_idx));
+            degrees.insert(ident.to_string(), (0, stmt_index, block_idx, comp_graph_idx));
         }
     }
 }
 
 // handle node inputs, they may not be initilized after init_degrees
 fn init_degrees_remain(
+    comp_graph_idx: NodeIndex,
     block_idx: usize,
     node: &Node,
-    degrees: &mut HashMap<String, (usize, i64, usize)>
+    degrees: &mut HashMap<String, (usize, i64, usize, NodeIndex)>
 ) {
     match node {
         Node::Unary(unary) => {
             if let None = degrees.get_mut(&unary.operand.to_string()) {
-                degrees.insert(unary.operand.to_string(), (0, -1, block_idx));
+                degrees.insert(unary.operand.to_string(), (0, -1, block_idx, comp_graph_idx));
             }
         }
         Node::Binary(binary) => {
             if let None = degrees.get_mut(&binary.left.to_string()) {
-                degrees.insert(binary.left.to_string(), (0, -1, block_idx));
+                degrees.insert(binary.left.to_string(), (0, -1, block_idx, comp_graph_idx));
             }
             if let None = degrees.get_mut(&binary.right.to_string()) {
-                degrees.insert(binary.right.to_string(), (0, -1, block_idx));
+                degrees.insert(binary.right.to_string(), (0, -1, block_idx, comp_graph_idx));
             }
         }
         Node::Input(_) => {}
     }
 }
 
-fn fill_outdegree(node: &Node, out_degrees: &mut HashMap<String, (usize, i64, usize)>) {
+fn fill_outdegree(node: &Node, out_degrees: &mut HashMap<String, (usize, i64, usize, NodeIndex)>) {
     match node {
         Node::Unary(unary) => {
-            out_degrees.entry(unary.operand.to_string()).or_insert((0, 0, 0)).0 += 1;
+            out_degrees.entry(unary.operand.to_string()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 1;
         }
         Node::Binary(binary) => {
-            out_degrees.entry(binary.left.to_string()).or_insert((0, 0, 0)).0 += 1;
-            out_degrees.entry(binary.right.to_string()).or_insert((0, 0, 0)).0 += 1;
+            out_degrees.entry(binary.left.to_string()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 1;
+            out_degrees.entry(binary.right.to_string()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 1;
         }
         Node::Input(_) => {}
     }
@@ -83,7 +85,7 @@ fn fill_outdegree(node: &Node, out_degrees: &mut HashMap<String, (usize, i64, us
 
 fn gen_body(
     sorted: Vec<NodeIndex>,
-    graph: &petgraph::stable_graph::StableGraph<&(crate::fuse::node::Node<'_>, i64, usize), ()>,
+    graph: &petgraph::stable_graph::StableGraph<&(crate::fuse::node::Node, i64, usize), ()>,
     cfg: &crate::fuse::cfg::CFG
 ) -> crate::TokenStream2 {
     let mut comp_tokens = TokenStream2::new();
@@ -132,9 +134,9 @@ fn gen_body(
 
 pub(crate) fn _gen_fuse(
     cfg: &crate::fuse::cfg::CFG,
-    graph: &petgraph::stable_graph::StableGraph<&(crate::fuse::node::Node<'_>, i64, usize), ()>,
+    graph: &petgraph::stable_graph::StableGraph<&(crate::fuse::node::Node, i64, usize), ()>,
     groups: &Vec<HashSet<NodeIndex>>
-) -> (Vec<TokenStream2>, Vec<(Vec<(syn::Ident, i64, usize)>, Vec<(syn::Ident, i64, usize)>)>) {
+) -> (Vec<TokenStream2>, Vec<(Vec<(syn::Ident, i64, usize, NodeIndex)>, Vec<(syn::Ident, i64, usize, NodeIndex)>)>) {
     let sorteds = petgraph::algo::toposort(graph, None).expect("gen_fuse::topological_sort");
 
     let results = groups
@@ -145,19 +147,19 @@ pub(crate) fn _gen_fuse(
             let mut in_degrees = HashMap::new();
             let mut out_degrees = HashMap::new();
             for &idx in group {
-                init_degrees(graph[idx].1, graph[idx].2, &graph[idx].0, &mut in_degrees);
-                init_degrees(graph[idx].1, graph[idx].2, &graph[idx].0, &mut out_degrees);
+                init_degrees(idx, graph[idx].1, graph[idx].2, &graph[idx].0, &mut in_degrees);
+                init_degrees(idx, graph[idx].1, graph[idx].2, &graph[idx].0, &mut out_degrees);
             }
             for &idx in group {
-                init_degrees_remain(graph[idx].2, &graph[idx].0, &mut in_degrees);
-                init_degrees_remain(graph[idx].2, &graph[idx].0, &mut out_degrees);
+                init_degrees_remain(idx, graph[idx].2, &graph[idx].0, &mut in_degrees);
+                init_degrees_remain(idx, graph[idx].2, &graph[idx].0, &mut out_degrees);
             }
 
             for &idx in group {
                 fill_indegree(&graph[idx].0, &mut in_degrees);
                 fill_outdegree(&graph[idx].0, &mut out_degrees);
             }
-            for (string, (cnt, stmt_index, block_idx)) in in_degrees.into_iter() {
+            for (string, (cnt, stmt_index, block_idx, comp_graph_idx)) in in_degrees.into_iter() {
                 if cnt == 0 {
                     let origin_ident = cfg.graph[NodeIndex::new(block_idx)].origin_var_map
                         .get(&string)
@@ -166,10 +168,11 @@ pub(crate) fn _gen_fuse(
                         syn::Ident::new(&origin_ident.to_string(), proc_macro2::Span::call_site()),
                         stmt_index,
                         block_idx,
+                        comp_graph_idx,
                     ));
                 }
             }
-            for (string, (cnt, stmt_index, block_idx)) in out_degrees.into_iter() {
+            for (string, (cnt, stmt_index, block_idx, comp_graph_idx)) in out_degrees.into_iter() {
                 if cnt == 0 {
                     let origin_ident = cfg.graph[NodeIndex::new(block_idx)].origin_var_map
                         .get(&string)
@@ -178,6 +181,7 @@ pub(crate) fn _gen_fuse(
                         syn::Ident::new(&origin_ident.to_string(), proc_macro2::Span::call_site()),
                         stmt_index,
                         block_idx,
+                        comp_graph_idx,
                     ));
                 }
             }
@@ -187,7 +191,7 @@ pub(crate) fn _gen_fuse(
     let mut iters_vec = Vec::new();
     for (inputs_ident, _) in results.iter() {
         let mut iters = Vec::new();
-        for (input, _, _) in inputs_ident {
+        for (input, _, _, _) in inputs_ident {
             iters.push(quote::quote!(
                     #input.par_iter_simd()
                 ));
@@ -205,7 +209,7 @@ pub(crate) fn _gen_fuse(
         .map(|(inputs_ident, _)|
             inputs_ident
                 .iter()
-                .map(|(ident, _, _)| ident.clone())
+                .map(|(ident, _, _, _)| ident.clone())
                 .collect::<Vec<_>>()
         )
         .collect::<Vec<_>>() {

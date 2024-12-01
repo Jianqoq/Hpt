@@ -12,7 +12,7 @@ pub(crate) struct FusionGroup {
 pub(crate) fn fuse<'ast>(
     cfg: &crate::fuse::cfg::CFG,
     candidates: &'ast petgraph::stable_graph::StableGraph<
-        &(crate::fuse::node::Node<'ast>, i64, usize),
+        &(crate::fuse::node::Node, i64, usize),
         ()
     >
 ) -> FusionGroup {
@@ -62,11 +62,11 @@ pub(crate) fn fuse<'ast>(
                 let basic_block = cfg.graph
                     .node_weight(NodeIndex::new(*block_idx))
                     .expect("node weight not found");
+                block.insert(idx);
+                let kernel_type = KernelType::Binary;
                 let origin_var = basic_block.origin_var_map
                     .get(&binary.output.to_string())
                     .expect("origin var not found::68");
-                block.insert(idx);
-                let kernel_type = KernelType::Binary;
                 if !basic_block.live_out.contains(origin_var) {
                     for succ in unfused.neighbors_directed(idx, petgraph::Direction::Outgoing) {
                         fuse_children(succ, kernel_type, &mut block, &unfused);
@@ -111,9 +111,9 @@ pub(crate) fn fuse<'ast>(
     ret
 }
 
-pub(crate) fn yield_candidate<'a, 'ast>(
+pub(crate) fn yield_candidate<'a>(
     unfused_candidates: &mut petgraph::stable_graph::StableGraph<
-        &(crate::fuse::node::Node<'ast>, i64, usize),
+        &(crate::fuse::node::Node, i64, usize),
         ()
     >
 ) -> Option<NodeIndex> {
@@ -137,12 +137,12 @@ pub(crate) fn yield_candidate<'a, 'ast>(
     }
 }
 
-pub fn fuse_parents<'ast>(
+pub fn fuse_parents(
     pred: NodeIndex,
     next_kernel_type: KernelType,
     block: &mut HashSet<NodeIndex>,
-    graph: &'ast petgraph::stable_graph::StableGraph<
-        &(crate::fuse::node::Node<'ast>, i64, usize),
+    graph: &petgraph::stable_graph::StableGraph<
+        &(crate::fuse::node::Node, i64, usize),
         ()
     >
 ) {
@@ -167,12 +167,12 @@ pub fn fuse_parents<'ast>(
     }
 }
 
-pub fn fuse_children<'ast>(
+pub fn fuse_children(
     succ: NodeIndex,
     prev_kernel_type: KernelType,
     block: &mut HashSet<NodeIndex>,
-    graph: &'ast petgraph::stable_graph::StableGraph<
-        &(crate::fuse::node::Node<'ast>, i64, usize),
+    graph: &petgraph::stable_graph::StableGraph<
+        &(crate::fuse::node::Node, i64, usize),
         ()
     >
 ) {
@@ -197,9 +197,9 @@ pub fn fuse_children<'ast>(
     }
 }
 
-pub fn pred_kernel_fusable<'ast>(
+pub fn pred_kernel_fusable(
     next_kernel_type: KernelType,
-    pred: &(crate::fuse::node::Node<'ast>, i64, usize)
+    pred: &(crate::fuse::node::Node, i64, usize)
 ) -> anyhow::Result<Option<KernelType>> {
     let pred_kernel_type = match pred {
         (Node::Unary(..), _, _) => KernelType::Unary,
@@ -209,9 +209,9 @@ pub fn pred_kernel_fusable<'ast>(
     Ok(pred_kernel_type.infer_pred_kernel(&next_kernel_type))
 }
 
-pub fn suc_kernel_fusable<'ast>(
+pub fn suc_kernel_fusable(
     kernel_type: KernelType,
-    next: &(crate::fuse::node::Node<'ast>, i64, usize)
+    next: &(crate::fuse::node::Node, i64, usize)
 ) -> anyhow::Result<Option<KernelType>> {
     let next_kernel_type = match next {
         (Node::Unary(..), _, _) => KernelType::Unary,

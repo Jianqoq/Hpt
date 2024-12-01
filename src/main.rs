@@ -5,44 +5,46 @@ use tensor_dyn::*;
 
 fuse_proc_macro!(
 fn compute2(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
-    let mut c = &a + &b;
-    let mut d = c.sin()?;
+    let mut c = &a + &b / &a;
+    // let mut d = c.sin()?;
+    // let e = d.relu()?;
+    // let alpha = 1.673263242354358;
+    // let gamma = 1.050700987355822;
+    // if alpha > 0.0 {
+    //     d = e.selu(alpha, gamma)?;
+    //     if alpha > 0.0 {
+    //         d = e.tanh()?;
+    //     } else {
+    //         d = d.tan()?;
+    //     }
+    // } else {
+    //     d = d.selu(alpha, gamma)?;
+    // }
+    // for _ in 0..1000000 {
+    //     c = &d + &c;
+    //     c = &d + &c;
+    //     break;
+    // }
+    // while true {
+    //     let c = &d + &c;
+    //     continue;
+    // }
+    Ok(c)
+});
+
+// #[fuse]
+fn compute(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
+    let c = &a + &b / &a;
+    let d = c.sin()?;
     let e = d.relu()?;
     let alpha = 1.673263242354358;
     let gamma = 1.050700987355822;
-    if alpha > 0.0 {
-        d = e.selu(alpha, gamma)?;
-        if alpha > 0.0 {
-            d = e.tanh()?;
-        } else {
-            d = d.tan()?;
-        }
-    } else {
-        d = d.selu(alpha, gamma)?;
-    }
+    let d = e.selu(alpha, gamma)?;
     for _ in 0..1000000 {
-        c = &d + &c;
-        c = &d + &c;
-    }
-    while true {
-        let c = &d + &c;
+        let f = &d + &c;
     }
     Ok(d)
-});
-
-// // #[fuse]
-// fn compute(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
-//     let c = &a + &b / &a;
-//     let d = c.sin()?;
-//     let e = d.relu()?;
-//     let alpha = 1.673263242354358;
-//     let gamma = 1.050700987355822;
-//     let d = e.selu(alpha, gamma)?;
-//     for _ in 0..1000000 {
-//         let f = &d + &c;
-//     }
-//     Ok(d)
-// }
+}
 
 fn main() -> anyhow::Result<()> {
     conv2d()?;
