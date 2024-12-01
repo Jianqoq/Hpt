@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use syn::visit::Visit;
+use syn::{ spanned::Spanned, visit::Visit };
 
 use super::variable_collector::VariableCollector;
 
@@ -40,16 +40,18 @@ impl<'ast> Visit<'ast> for UseDefineVisitor {
             syn::Pat::Rest(_) => unimplemented!("use_define_visitor::visit_pat::rest"),
             syn::Pat::Slice(_) => unimplemented!("use_define_visitor::visit_pat::slice"),
             syn::Pat::Struct(_) => unimplemented!("use_define_visitor::visit_pat::struct"),
-            syn::Pat::Tuple(tuple) => {
-                for el in &tuple.elems {
-                    self.visit_pat(el);
-                }
+            syn::Pat::Tuple(_) => {
+                let mut collector = VariableCollector::new();
+                collector.visit_pat(pat);
+                self.used_vars.extend(collector.vars);
             }
             syn::Pat::TupleStruct(_) =>
                 unimplemented!("use_define_visitor::visit_pat::tuple_struct"),
             syn::Pat::Type(ty) => self.visit_pat(&ty.pat),
             syn::Pat::Verbatim(_) => unimplemented!("use_define_visitor::visit_pat::verbatim"),
-            syn::Pat::Wild(_) => unimplemented!("use_define_visitor::visit_pat::wild"),
+            syn::Pat::Wild(_) => {
+                self.used_vars.insert(syn::Ident::new("_", pat.span()));
+            }
             _ => unimplemented!("use_define_visitor::visit_pat::other"),
         }
     }

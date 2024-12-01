@@ -40,6 +40,11 @@ impl<'ast> Visit<'ast> for VariableCollector {
             syn::Pat::Type(ty) => {
                 self.visit_pat(&ty.pat);
             }
+            syn::Pat::Tuple(tuple) => {
+                for pat in tuple.elems.iter() {
+                    self.visit_pat(pat);
+                }
+            }
             _ => {}
         }
     }

@@ -63,6 +63,7 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     cfg.insert_phi_functions(&dominance_frontiers, &definitions);
     cfg.live_analysis();
     cfg.rename_variables(&dominators);
+    println!("rename::cfg: {:#?}", cfg.graph);
     Ok(cfg)
 }
 

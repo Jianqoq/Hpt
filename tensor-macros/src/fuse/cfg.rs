@@ -47,11 +47,10 @@ impl ToTokens for CustomStmt {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(crate) struct BasicBlock {
     pub(crate) statements: Vec<CustomStmt>,
     pub(crate) phi_functions: Vec<PhiFunction>,
-    pub(crate) origin_vars: HashSet<syn::Ident>,
     pub(crate) defined_vars: HashSet<syn::Ident>,
     pub(crate) assigned_vars: HashSet<syn::Ident>,
     pub(crate) used_vars: HashSet<syn::Ident>,
@@ -59,6 +58,58 @@ pub(crate) struct BasicBlock {
     pub(crate) live_in: HashSet<syn::Ident>,
     pub(crate) live_out: HashSet<syn::Ident>,
     pub(crate) origin_var_map: HashMap<syn::Ident, syn::Ident>,
+}
+
+impl std::fmt::Debug for BasicBlock {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BasicBlock")
+            .field("statements", &self.statements)
+            .field("phi_functions", &self.phi_functions)
+            .field(
+                "defined_vars",
+                &self.defined_vars
+                    .iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+            )
+            .field(
+                "assigned_vars",
+                &self.assigned_vars
+                    .iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+            )
+            .field(
+                "used_vars",
+                &self.used_vars
+                    .iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+            )
+            .field("block_type", &self.block_type)
+            .field(
+                "live_in",
+                &self.live_in
+                    .iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+            )
+            .field(
+                "live_out",
+                &self.live_out
+                    .iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+            )
+            .field(
+                "origin_var_map",
+                &self.origin_var_map
+                    .iter()
+                    .map(|(k, v)| (k.to_string(), v.to_string()))
+                    .collect::<HashMap<_, _>>()
+            )
+            .finish()
+    }
 }
 
 // CFG 结构
@@ -147,7 +198,6 @@ impl CFG {
         let mut graph = Graph::<BasicBlock, ()>::new();
         let entry_block = BasicBlock {
             statements: vec![],
-            origin_vars: HashSet::new(),
             defined_vars: HashSet::new(),
             used_vars: HashSet::new(),
             live_in: HashSet::new(),
@@ -322,19 +372,14 @@ impl CFG {
                                     .count();
                                 let args = vec![var.clone(); preds_cnt];
                                 let phi_function = PhiFunction::new(var.clone(), args, indices);
-                                self.graph
-                                    .node_weight_mut(*frontier)
-                                    .unwrap()
-                                    .used_vars.insert(var.clone());
-                                self.graph
-                                    .node_weight_mut(*frontier)
-                                    .unwrap()
-                                    .phi_functions.push(phi_function);
+                                self.graph[*frontier].used_vars.insert(var.clone());
+                                self.graph[*frontier].phi_functions.push(phi_function);
+                                self.graph[*frontier].defined_vars.insert(var.clone());
                             }
                             has_already.get_mut(var).unwrap().insert(*frontier);
 
                             // **只有当变量 v 不在 frontier 的 orig 中时，才将 frontier 加入工作集**
-                            if !self.graph[*frontier].origin_vars.contains(var) {
+                            if !self.graph[*frontier].defined_vars.contains(var) {
                                 work.push(*frontier);
                             }
                         }
@@ -391,43 +436,14 @@ impl CFG {
         let variables: HashSet<syn::Ident> = self.graph
             .node_indices()
             .flat_map(|node| {
-                let vars = self.graph[node].statements
-                    .iter()
-                    .filter_map(|stmt| {
-                        let mut visitor = UseDefineVisitor::new();
-                        visitor.visit_stmt(&stmt.stmt);
-                        let mut vars = HashSet::new();
-                        vars.extend(visitor.used_vars.drain());
-                        vars.extend(visitor.define_vars.drain());
-                        vars.extend(visitor.assigned_vars.drain());
-                        Some(vars)
-                    })
-                    .collect::<Vec<HashSet<syn::Ident>>>();
-                vars.into_iter().flatten().collect::<Vec<_>>()
+                let mut vars = HashSet::new();
+                vars.extend(self.graph[node].defined_vars.clone());
+                vars.extend(self.graph[node].used_vars.clone());
+                vars.extend(self.graph[node].assigned_vars.clone());
+                vars
             })
             .collect();
-        println!("{:?}", variables);
 
-        for node in self.graph.node_indices() {
-            if let Some(block) = self.graph.node_weight_mut(node) {
-                for stmt in &mut block.statements {
-                    let mut use_define_visitor = UseDefineVisitor::new();
-                    use_define_visitor.visit_stmt(&stmt.stmt);
-                    for var in use_define_visitor.define_vars.drain() {
-                        block.origin_vars.insert(var);
-                    }
-                    for var in use_define_visitor.used_vars.drain() {
-                        block.origin_vars.insert(var);
-                    }
-                    for var in use_define_visitor.assigned_vars.drain() {
-                        block.origin_vars.insert(var);
-                    }
-                }
-                for phi_function in &mut block.phi_functions {
-                    block.origin_vars.insert(phi_function.origin_var.clone());
-                }
-            }
-        }
         // 初始化栈和版本
         for var in variables {
             stacks.insert(var.clone(), Vec::new());
@@ -497,33 +513,6 @@ impl CFG {
                 recover.visit_stmt_mut(&mut stmt.stmt);
             }
         }
-    }
-}
-
-fn insert_origin_var(origin_vars: &mut HashSet<syn::Ident>, pat: &syn::Pat) {
-    match pat {
-        syn::Pat::Const(_) => unimplemented!("insert_origin_var::Pat::Const"),
-        syn::Pat::Ident(pat_ident) => {
-            origin_vars.insert(pat_ident.ident.clone());
-        }
-        syn::Pat::Lit(_) => unimplemented!("insert_origin_var::Pat::Lit"),
-        syn::Pat::Macro(_) => unimplemented!("insert_origin_var::Pat::Macro"),
-        syn::Pat::Or(_) => unimplemented!("insert_origin_var::Pat::Or"),
-        syn::Pat::Paren(_) => unimplemented!("insert_origin_var::Pat::Paren"),
-        syn::Pat::Path(_) => unimplemented!("insert_origin_var::Pat::Path"),
-        syn::Pat::Range(_) => unimplemented!("insert_origin_var::Pat::Range"),
-        syn::Pat::Reference(_) => unimplemented!("insert_origin_var::Pat::Reference"),
-        syn::Pat::Rest(_) => unimplemented!("insert_origin_var::Pat::Rest"),
-        syn::Pat::Slice(_) => unimplemented!("insert_origin_var::Pat::Slice"),
-        syn::Pat::Struct(_) => unimplemented!("insert_origin_var::Pat::Struct"),
-        syn::Pat::Tuple(_) => unimplemented!("insert_origin_var::Pat::Tuple"),
-        syn::Pat::TupleStruct(_) => unimplemented!("insert_origin_var::Pat::TupleStruct"),
-        syn::Pat::Type(pat_type) => {
-            insert_origin_var(origin_vars, &pat_type.pat);
-        }
-        syn::Pat::Verbatim(_) => unimplemented!("insert_origin_var::Pat::Verbatim"),
-        syn::Pat::Wild(_) => {}
-        _ => unimplemented!("insert_origin_var::Pat::Other"),
     }
 }
 
@@ -630,7 +619,7 @@ fn rename(
     for succ in dom_succs {
         rename(cfg, succ, stacks, versions, dominators);
     }
-    for var in &cfg.graph[node].origin_vars {
+    for var in &cfg.graph[node].defined_vars {
         stacks.get_mut(var).expect(&format!("rename::phi::stacks: {}", var)).pop();
     }
 }
@@ -747,7 +736,6 @@ impl<'a> CFGBuilder<'a> {
     fn new_block(&mut self, block_type: BlockType) -> NodeIndex {
         let block = BasicBlock {
             statements: vec![],
-            origin_vars: HashSet::new(),
             defined_vars: HashSet::new(),
             used_vars: HashSet::new(),
             block_type,
@@ -1018,7 +1006,9 @@ impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
                             quote::quote! {
                             let #pat: #ty;
                         };
-                        block.statements.push(CustomStmt { stmt: syn::parse2(local).expect("cfg::visit_item_fn::local") });
+                        block.statements.push(CustomStmt {
+                            stmt: syn::parse2(local).expect("cfg::visit_item_fn::local"),
+                        });
                     }
                 }
             }

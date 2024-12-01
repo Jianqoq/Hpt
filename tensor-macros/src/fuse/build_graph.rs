@@ -5,7 +5,7 @@ use proc_macro2::Span;
 use quote::ToTokens;
 use syn::spanned::Spanned;
 
-use super::{ node::{ Binary, Node, Unary }, ty_infer::Type };
+use super::{ node::{ Binary, Node, Unary }, ty_infer::Type, variable_collector::VariableCollector };
 
 pub(crate) struct Graph {
     pub(crate) nodes: Vec<(Node, i64, usize)>,
@@ -844,32 +844,9 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
     }
 
     fn visit_pat_type(&mut self, node: &'ast syn::PatType) {
-        for it in &node.attrs {
-            self.visit_attribute(it);
-        }
-        match node.pat.as_ref() {
-            syn::Pat::Const(..) => unimplemented!("visitor::visit_pat_type::Const"),
-            syn::Pat::Ident(pat_ident) => {
-                self.visit_pat_ident(pat_ident);
-                self.variables.insert(pat_ident.ident.clone());
-            }
-            syn::Pat::Lit(_) => unimplemented!("visitor::visit_pat_type::Lit"),
-            syn::Pat::Macro(_) => unimplemented!("visitor::visit_pat_type::Macro"),
-            syn::Pat::Or(_) => unimplemented!("visitor::visit_pat_type::Or"),
-            syn::Pat::Paren(_) => unimplemented!("visitor::visit_pat_type::Paren"),
-            syn::Pat::Path(_) => unimplemented!("visitor::visit_pat_type::Path"),
-            syn::Pat::Range(_) => unimplemented!("visitor::visit_pat_type::Range"),
-            syn::Pat::Reference(_) => unimplemented!("visitor::visit_pat_type::Reference"),
-            syn::Pat::Rest(_) => unimplemented!("visitor::visit_pat_type::Rest"),
-            syn::Pat::Slice(_) => unimplemented!("visitor::visit_pat_type::Slice"),
-            syn::Pat::Struct(_) => unimplemented!("visitor::visit_pat_type::Struct"),
-            syn::Pat::Tuple(_) => unimplemented!("visitor::visit_pat_type::Tuple"),
-            syn::Pat::TupleStruct(_) => unimplemented!("visitor::visit_pat_type::TupleStruct"),
-            syn::Pat::Type(_) => unimplemented!("visitor::visit_pat_type::Type"),
-            syn::Pat::Verbatim(_) => unimplemented!("visitor::visit_pat_type::Verbatim"),
-            syn::Pat::Wild(_) => unimplemented!("visitor::visit_pat_type::Wild"),
-            _ => unimplemented!("visitor::visit_pat_type::Other"),
-        }
+        let mut collector = VariableCollector::new();
+        collector.visit_pat(&node.pat);
+        self.variables.extend(collector.vars);
     }
     fn visit_local(&mut self, local: &'ast syn::Local) {
         for it in &local.attrs {
