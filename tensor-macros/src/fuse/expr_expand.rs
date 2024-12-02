@@ -1,4 +1,3 @@
-
 pub(crate) struct ExprExpander {
     pub(crate) stmts: Vec<syn::Stmt>,
     pub(crate) current_expr: Option<syn::Expr>,
@@ -38,16 +37,32 @@ impl<'ast> syn::visit::Visit<'ast> for ExprExpander {
             }
         }
     }
+    fn visit_expr_lit(&mut self, lit: &'ast syn::ExprLit) {
+        self.current_expr = Some(syn::Expr::Lit(lit.clone()));
+    }
+
+    fn visit_expr_break(&mut self, i: &'ast syn::ExprBreak) {
+        self.current_expr = Some(syn::Expr::Break(i.clone()));
+    }
 
     fn visit_expr(&mut self, expr: &'ast syn::Expr) {
         match expr {
             syn::Expr::Array(_) => unimplemented!("expr_expand::visit_expr::Array"),
-            syn::Expr::Assign(_) => unimplemented!("expr_expand::visit_expr::Assign"),
+            syn::Expr::Assign(assign) => {
+                self.visit_expr(&assign.left);
+                let left_expr = self.current_expr.take().unwrap();
+                self.visit_expr(&assign.right);
+                let right_expr = self.current_expr.take().unwrap();
+                let mut new_assign = assign.clone();
+                new_assign.left = Box::new(left_expr);
+                new_assign.right = Box::new(right_expr);
+                self.current_expr = Some(syn::Expr::Assign(new_assign));
+            }
             syn::Expr::Async(_) => unimplemented!("expr_expand::visit_expr::Async"),
             syn::Expr::Await(_) => unimplemented!("expr_expand::visit_expr::Await"),
             syn::Expr::Binary(expr_binary) => self.visit_expr_binary(expr_binary),
             syn::Expr::Block(_) => unimplemented!("expr_expand::visit_expr::Block"),
-            syn::Expr::Break(_) => unimplemented!("expr_expand::visit_expr::Break"),
+            syn::Expr::Break(break_expr) => self.visit_expr_break(break_expr),
             syn::Expr::Call(call) => {
                 let mut new_call = call.clone();
                 for arg in new_call.args.iter_mut() {
@@ -55,9 +70,7 @@ impl<'ast> syn::visit::Visit<'ast> for ExprExpander {
                     if let Some(expr) = self.current_expr.take() {
                         if let syn::Expr::Binary(binary) = expr {
                             let tmp_out = syn
-                                ::parse2::<syn::Stmt>(
-                                    quote::quote!(let __binop_out = #binary;)
-                                )
+                                ::parse2::<syn::Stmt>(quote::quote!(let __binop_out = #binary;))
                                 .expect("failed to parse stmt::115");
                             self.stmts.push(tmp_out);
                             *arg = syn
@@ -68,7 +81,6 @@ impl<'ast> syn::visit::Visit<'ast> for ExprExpander {
                         }
                     }
                 }
-                println!("new_call: {:?}", new_call);
                 self.current_expr = Some(syn::Expr::Call(new_call));
             }
             syn::Expr::Cast(_) => unimplemented!("expr_expand::visit_expr::Cast"),
@@ -80,7 +92,7 @@ impl<'ast> syn::visit::Visit<'ast> for ExprExpander {
             syn::Expr::Index(_) => unimplemented!("expr_expand::visit_expr::Index"),
             syn::Expr::Infer(_) => unimplemented!("expr_expand::visit_expr::Infer"),
             syn::Expr::Let(_) => unimplemented!("expr_expand::visit_expr::Let"),
-            syn::Expr::Lit(_) => unimplemented!("expr_expand::visit_expr::Lit"),
+            syn::Expr::Lit(lit) => self.visit_expr_lit(lit),
             syn::Expr::Macro(_) => unimplemented!("expr_expand::visit_expr::Macro"),
             syn::Expr::Match(_) => unimplemented!("expr_expand::visit_expr::Match"),
             syn::Expr::MethodCall(method_call) => {

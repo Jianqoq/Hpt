@@ -1091,7 +1091,7 @@ impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
             _ => {
                 if let Some(block) = self.cfg.graph.node_weight_mut(self.current_block) {
                     let mut expander = ExprExpander::new();
-                    expander.visit_expr(node);
+                    expander.visit_stmt(&syn::Stmt::Expr(node.clone(), None));
                     for stmt in expander.stmts {
                         let mut collector = UseDefineVisitor::new();
                         collector.visit_stmt(&stmt);

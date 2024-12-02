@@ -57,12 +57,12 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     let mut builder = CFGBuilder::new(&mut cfg);
     builder.visit_item_fn(item_fn);
     cfg.block_id = core::mem::take(&mut builder.block_ids);
-    println!("cfg: {:#?}", cfg.graph);
     let dominators = petgraph::algo::dominators::simple_fast(&cfg.graph, cfg.entry);
     let dominance_frontiers = compute_dominance_frontiers(&cfg, &dominators);
     let definitions = cfg.get_variable_definitions();
     cfg.insert_phi_functions(&dominance_frontiers, &definitions);
     cfg.rename_variables(&dominators);
+    println!("cfg: {:#?}", cfg.graph);
     Ok(cfg)
 }
 

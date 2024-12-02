@@ -883,10 +883,6 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         for arg in node.args.iter() {
             self.push_input_node_if_not_exist_expr(arg);
         }
-        if !self.variables.contains(&receiver_var) {
-            // we are expecting the receiver is tmp var, so it should be in variables already
-            unreachable!("build_graph::visit_expr_method_call::receiver_var");
-        }
         let method = Node::Unary(Unary {
             method: node.method.clone(),
             operand: receiver_var.clone(),
@@ -996,7 +992,6 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
             self.tmp_var_version += 1;
             out
         };
-        println!("out: {}", out.to_string());
         self.nodes.push((
             Node::Binary(Binary {
                 method: proc_macro2::Ident::new(method, node.span()),
