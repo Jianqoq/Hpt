@@ -1092,25 +1092,13 @@ impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
                 if let Some(block) = self.cfg.graph.node_weight_mut(self.current_block) {
                     let mut expander = ExprExpander::new();
                     expander.visit_expr(node);
-                    if expander.stmts.len() > 1 {
-                        for stmt in expander.stmts {
-                            let mut collector = UseDefineVisitor::new();
-                            collector.visit_stmt(&stmt);
-                            block.used_vars.extend(collector.used_vars);
-                            block.defined_vars.extend(collector.define_vars);
-                            block.assigned_vars.extend(collector.assigned_vars);
-                            block.statements.push(CustomStmt { stmt });
-                        }
-                        if let Some(expr) = expander.current_expr.take() {
-                            let mut collector = UseDefineVisitor::new();
-                            collector.visit_expr(&expr);
-                            block.used_vars.extend(collector.used_vars);
-                            block.defined_vars.extend(collector.define_vars);
-                            block.assigned_vars.extend(collector.assigned_vars);
-                            block.statements.push(CustomStmt { stmt: Stmt::Expr(expr, None) });
-                        }
-                    } else {
-                        block.statements.push(CustomStmt { stmt: Stmt::Expr(node.clone(), None) });
+                    for stmt in expander.stmts {
+                        let mut collector = UseDefineVisitor::new();
+                        collector.visit_stmt(&stmt);
+                        block.used_vars.extend(collector.used_vars);
+                        block.defined_vars.extend(collector.define_vars);
+                        block.assigned_vars.extend(collector.assigned_vars);
+                        block.statements.push(CustomStmt { stmt });
                     }
                 }
             }

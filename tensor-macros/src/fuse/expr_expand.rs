@@ -1,4 +1,3 @@
-use quote::ToTokens;
 
 pub(crate) struct ExprExpander {
     pub(crate) stmts: Vec<syn::Stmt>,
@@ -28,8 +27,11 @@ impl<'ast> syn::visit::Visit<'ast> for ExprExpander {
                     self.stmts.push(stmt.clone());
                 }
             }
-            syn::Stmt::Expr(expr, _) => {
+            syn::Stmt::Expr(expr, semi) => {
                 self.visit_expr(expr);
+                if let Some(expr) = self.current_expr.take() {
+                    self.stmts.push(syn::Stmt::Expr(expr, semi.clone()));
+                }
             }
             _ => {
                 self.stmts.push(stmt.clone());
@@ -47,16 +49,27 @@ impl<'ast> syn::visit::Visit<'ast> for ExprExpander {
             syn::Expr::Block(_) => unimplemented!("expr_expand::visit_expr::Block"),
             syn::Expr::Break(_) => unimplemented!("expr_expand::visit_expr::Break"),
             syn::Expr::Call(call) => {
-                for arg in call.args.iter() {
-                    // self.visit_expr(arg);
-                    // if let Some(expr) = self.current_expr.take() {
-                    //     if let syn::Expr::Path(path) = expr {
-
-                    //     } else {
-
-                    //     }
-                    // }
+                let mut new_call = call.clone();
+                for arg in new_call.args.iter_mut() {
+                    self.visit_expr(arg);
+                    if let Some(expr) = self.current_expr.take() {
+                        if let syn::Expr::Binary(binary) = expr {
+                            let tmp_out = syn
+                                ::parse2::<syn::Stmt>(
+                                    quote::quote!(let __binop_out = #binary;)
+                                )
+                                .expect("failed to parse stmt::115");
+                            self.stmts.push(tmp_out);
+                            *arg = syn
+                                ::parse2::<syn::Expr>(quote::quote!(__binop_out))
+                                .expect("failed to parse expr::115");
+                        } else {
+                            *arg = expr;
+                        }
+                    }
                 }
+                println!("new_call: {:?}", new_call);
+                self.current_expr = Some(syn::Expr::Call(new_call));
             }
             syn::Expr::Cast(_) => unimplemented!("expr_expand::visit_expr::Cast"),
             syn::Expr::Closure(_) => unimplemented!("expr_expand::visit_expr::Closure"),
