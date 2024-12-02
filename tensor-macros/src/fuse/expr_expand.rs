@@ -142,7 +142,6 @@ impl<'ast> syn::visit::Visit<'ast> for ExprExpander {
                 if let Some(expr) = self.current_expr.take() {
                     let mut new_try_expr = try_expr.clone();
                     new_try_expr.expr = Box::new(expr);
-                    println!("new_try_expr: {}", new_try_expr.to_token_stream().to_string());
                     self.current_expr = Some(syn::Expr::Try(new_try_expr));
                 } else {
                     self.current_expr = Some(syn::Expr::Try(try_expr.clone()));
