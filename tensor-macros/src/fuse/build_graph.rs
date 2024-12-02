@@ -17,6 +17,7 @@ pub(crate) struct Graph {
     pub(crate) current_assignment: Option<syn::Ident>,
     pub(crate) current_idx: usize,
     pub(crate) current_block: usize,
+    pub(crate) is_first_time: bool,
     pub(crate) extra_temps: Vec<syn::Ident>,
 }
 
@@ -32,6 +33,7 @@ impl Graph {
             current_assignment: None,
             current_idx: 0,
             current_block,
+            is_first_time: true,
             extra_temps: vec![],
         }
     }
@@ -187,11 +189,7 @@ impl Graph {
                         return;
                     }
                     self.inputs.insert(
-                        (
-                            Node::Input(ident.clone()),
-                            -1,
-                            self.current_block,
-                        ),
+                        (Node::Input(ident.clone()), -1, self.current_block),
                         self.type_table[&ident]
                     );
                     self.variables.insert(ident.clone());
@@ -203,10 +201,9 @@ impl Graph {
                 unimplemented!(
                     "build_graph::push_input_node_if_not_exist_expr::syn::Expr::RawAddr"
                 ),
-            syn::Expr::Reference(_) =>
-                unimplemented!(
-                    "build_graph::push_input_node_if_not_exist_expr::syn::Expr::Reference"
-                ),
+            syn::Expr::Reference(reference) => {
+                self.push_input_node_if_not_exist_expr(&reference.expr);
+            }
             syn::Expr::Repeat(_) =>
                 unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Repeat"),
             syn::Expr::Return(_) =>
@@ -862,7 +859,9 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         }
     }
     fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
+        let first_time = self.is_first_time;
         let current_assignment = self.current_assignment.clone();
+        self.is_first_time = false;
         self.visit_expr(&node.receiver);
 
         let is_assignment = current_assignment.is_some();
@@ -881,35 +880,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
             self.tmp_var_version += 1;
             out
         };
-        let args = match node.method.to_string().as_str() {
-            | "sin"
-            | "cos"
-            | "tan"
-            | "asin"
-            | "acos"
-            | "atan"
-            | "sinh"
-            | "cosh"
-            | "tanh"
-            | "asinh"
-            | "acosh"
-            | "atanh"
-            | "relu" => {
-                vec![]
-            }
-            "selu" => {
-                node.args
-                    .iter()
-                    .map(|arg| arg.clone())
-                    .collect()
-            }
-            _ =>
-                unimplemented!(
-                    "_visitor::visit_expr_method_call::{}",
-                    node.method.to_string().as_str()
-                ),
-        };
-        for arg in args.iter() {
+        for arg in node.args.iter() {
             self.push_input_node_if_not_exist_expr(arg);
         }
         self.push_input_node_if_not_exist_expr(&node.receiver);
@@ -917,14 +888,18 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         let method = Node::Unary(Unary {
             method: node.method.clone(),
             operand: proc_macro2::Ident::new(&operand, node.span()),
-            args,
+            args: node.args
+                .iter()
+                .map(|arg| arg.clone())
+                .collect(),
             output: out.clone(),
         });
         self.nodes.push((
             method,
-            if is_assignment { self.current_idx as i64 } else { -1 },
+            if first_time || is_assignment { self.current_idx as i64 } else { -1 },
             self.current_block,
         ));
+        self.is_first_time = first_time;
     }
 
     fn visit_ident(&mut self, i: &'ast proc_macro2::Ident) {
@@ -938,6 +913,8 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         }
     }
     fn visit_expr_binary(&mut self, node: &'ast syn::ExprBinary) {
+        let first_time = self.is_first_time;
+        self.is_first_time = false;
         let left_ty = handle_expr_type(&node.left, &self.type_table);
         let right_ty = handle_expr_type(&node.right, &self.type_table);
         if left_ty != Type::Tensor && right_ty != Type::Tensor {
@@ -1024,9 +1001,10 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
                 right: right_var,
                 output: out.clone(),
             }),
-            if is_assignment { self.current_idx as i64 } else { -1 },
+            if first_time || is_assignment { self.current_idx as i64 } else { -1 },
             self.current_block,
         ));
+        self.is_first_time = first_time;
     }
 }
 
@@ -1041,8 +1019,8 @@ fn handle_expr_type<'ast>(node: &'ast syn::Expr, type_table: &HashMap<syn::Ident
                 Type::Unknown
             }
         }
-        syn::Expr::Call(_) => unimplemented!("build_graph::handle_expr_type::Call"),
-        syn::Expr::Cast(_) => unimplemented!("build_graph::handle_expr_type::Cast"),
+        syn::Expr::Call(_) => Type::Unknown,
+        syn::Expr::Cast(_) => Type::Unknown,
         syn::Expr::Closure(_) => unimplemented!("build_graph::handle_expr_type::Closure"),
         syn::Expr::Const(_) => unimplemented!("build_graph::handle_expr_type::Const"),
         syn::Expr::Continue(_) => unimplemented!("build_graph::handle_expr_type::Continue"),
@@ -1054,7 +1032,36 @@ fn handle_expr_type<'ast>(node: &'ast syn::Expr, type_table: &HashMap<syn::Ident
         syn::Expr::Lit(_) => Type::Scalar,
         syn::Expr::Macro(_) => unimplemented!("build_graph::handle_expr_type::Macro"),
         syn::Expr::Match(_) => unimplemented!("build_graph::handle_expr_type::Match"),
-        syn::Expr::MethodCall(_) => unimplemented!("build_graph::handle_expr_type::MethodCall"),
+        syn::Expr::MethodCall(method_call) => {
+            let receiver_ty = handle_expr_type(&method_call.receiver, type_table);
+            if receiver_ty == Type::Tensor {
+                let valid_methods = [
+                    "sin",
+                    "cos",
+                    "tan",
+                    "asin",
+                    "acos",
+                    "atan",
+                    "sinh",
+                    "cosh",
+                    "tanh",
+                    "asinh",
+                    "acosh",
+                    "atanh",
+                    "relu",
+                    "selu",
+                    "tanh",
+                    "tan",
+                ];
+                if valid_methods.contains(&method_call.method.to_string().as_str()) {
+                    Type::Tensor
+                } else {
+                    Type::Unknown
+                }
+            } else {
+                Type::Unknown
+            }
+        }
         syn::Expr::Paren(_) => unimplemented!("build_graph::handle_expr_type::Paren"),
         syn::Expr::Path(expr_path) => {
             if let Some(ident) = expr_path.path.get_ident() {

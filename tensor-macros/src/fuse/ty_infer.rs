@@ -19,10 +19,24 @@ impl Type {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(crate) struct TyInfer {
     pub(crate) table: HashMap<syn::Ident, Type>,
     pub(crate) visited: HashSet<NodeIndex>,
+}
+
+impl std::fmt::Debug for TyInfer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TyInfer")
+            .field(
+                "table",
+                &self.table
+                    .iter()
+                    .map(|(k, v)| (k.to_string(), v))
+                    .collect::<HashMap<_, _>>()
+            )
+            .finish()
+    }
 }
 
 impl TyInfer {
@@ -90,7 +104,7 @@ impl TyInfer {
                             &format!(
                                 "type_infer::_infer::phi_function::first_arg::{:?}::{}",
                                 phi_function,
-                                first_arg.to_string(),
+                                first_arg.to_string()
                             )
                         )
                         .clone()

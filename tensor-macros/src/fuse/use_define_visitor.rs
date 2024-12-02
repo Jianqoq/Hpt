@@ -131,8 +131,7 @@ impl<'ast> Visit<'ast> for UseDefineVisitor {
                     unimplemented!("fuse::use_define_visitor::visit_expr_call::infer"),
                 syn::Expr::Let(_) =>
                     unimplemented!("fuse::use_define_visitor::visit_expr_call::let"),
-                syn::Expr::Lit(_) =>
-                    unimplemented!("fuse::use_define_visitor::visit_expr_call::lit"),
+                syn::Expr::Lit(_) => {}
                 syn::Expr::Loop(_) =>
                     unimplemented!("fuse::use_define_visitor::visit_expr_call::loop"),
                 syn::Expr::Macro(_) =>

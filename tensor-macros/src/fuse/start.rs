@@ -71,7 +71,6 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
     let mut type_table = TyInfer::new();
     type_table.infer(&cfg);
     cfg.live_analysis(&type_table.table);
-    println!("rename::cfg: {:#?}", cfg.graph);
     let table = core::mem::take(&mut type_table.table);
     let graphs = cfg.build_graphs(table);
     cfg.add_extra_temps(&graphs);
@@ -99,19 +98,30 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
                         .collect::<Vec<_>>()
                 );
             }
+            // println!("intermediates: {:?}", intermediates);
+            // println!("stmt_to_remove: {:?}", stmt_to_remove);
+            // println!("inp_outs: {:#?}", genfuse.1);
             for (i, (inp, out)) in genfuse.1.iter().enumerate() {
-                stmt_to_remove[i].retain(
-                    |v| !inp.iter().any(|(_, stmt_idx, _, _)| *stmt_idx == *v)
-                );
-                stmt_to_remove[i].retain(
-                    |v| !out.iter().any(|(_, stmt_idx, _, _)| *stmt_idx == *v)
-                );
-                intermediates[i].retain(
-                    |v| !inp.iter().any(|(_, _, _, comp_graph_idx)| *comp_graph_idx == *v)
-                );
-                intermediates[i].retain(
-                    |v| !out.iter().any(|(_, _, _, comp_graph_idx)| *comp_graph_idx == *v)
-                );
+                for (_, stmt_idx, _, comp_graph_idx) in inp.iter() {
+                    let pos = intermediates[i].iter().position(|x| x == comp_graph_idx);
+                    if let Some(pos) = pos {
+                        intermediates[i].remove(pos);
+                    }
+                    let pos = stmt_to_remove[i].iter().position(|x| x == stmt_idx);
+                    if let Some(pos) = pos {
+                        stmt_to_remove[i].remove(pos);
+                    }
+                }
+                for (_, stmt_idx, _, comp_graph_idx) in out.iter() {
+                    let pos = intermediates[i].iter().position(|x| x == comp_graph_idx);
+                    if let Some(pos) = pos {
+                        intermediates[i].remove(pos);
+                    }
+                    let pos = stmt_to_remove[i].iter().position(|x| x == stmt_idx);
+                    if let Some(pos) = pos {
+                        stmt_to_remove[i].remove(pos);
+                    }
+                }
             }
             genfuse_map.insert(idx, (genfuse.0, genfuse.1, stmt_to_remove, intermediates));
         }
@@ -123,12 +133,16 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
             .zip(inp_outs.into_iter())
             .zip(stmt_to_remove.into_iter())
             .zip(intermediates.into_iter()) {
+            // println!("stmt to remove: {:?}", remove);
+            // println!("intermediate: {:?}", intermediate);
+            // println!("code: {:?}", code.to_string());
             if intermediate.is_empty() {
                 continue;
             }
             assert_eq!(out.len(), 1);
             let (out, out_stmt_idx, _, _) = &out[0];
             assert_ne!(*out_stmt_idx, -1);
+            // println!("out_stmt_idx: {:?}", *out_stmt_idx);
             if
                 let syn::Stmt::Local(local) =
                     &mut cfg.graph[idx].statements[*out_stmt_idx as usize].stmt
@@ -141,6 +155,11 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
                 local.init.as_mut().map(|x| {
                     x.expr = Box::new(syn::Expr::Verbatim(code));
                 });
+            } else {
+                cfg.graph[idx].statements[*out_stmt_idx as usize].stmt = syn::Stmt::Expr(
+                    syn::Expr::Verbatim(quote::quote!(#code;)),
+                    None
+                );
             }
             for &stmt_idx in remove.iter() {
                 if stmt_idx >= 0 {
