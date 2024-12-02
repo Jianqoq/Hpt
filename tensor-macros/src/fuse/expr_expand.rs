@@ -45,6 +45,10 @@ impl<'ast> syn::visit::Visit<'ast> for ExprExpander {
         self.current_expr = Some(syn::Expr::Break(i.clone()));
     }
 
+    fn visit_expr_continue(&mut self, i: &'ast syn::ExprContinue) {
+        self.current_expr = Some(syn::Expr::Continue(i.clone()));
+    }
+
     fn visit_expr(&mut self, expr: &'ast syn::Expr) {
         match expr {
             syn::Expr::Array(_) => unimplemented!("expr_expand::visit_expr::Array"),
@@ -86,7 +90,7 @@ impl<'ast> syn::visit::Visit<'ast> for ExprExpander {
             syn::Expr::Cast(_) => unimplemented!("expr_expand::visit_expr::Cast"),
             syn::Expr::Closure(_) => unimplemented!("expr_expand::visit_expr::Closure"),
             syn::Expr::Const(_) => unimplemented!("expr_expand::visit_expr::Const"),
-            syn::Expr::Continue(_) => unimplemented!("expr_expand::visit_expr::Continue"),
+            syn::Expr::Continue(c) => self.visit_expr_continue(c),
             syn::Expr::Field(_) => unimplemented!("expr_expand::visit_expr::Field"),
             syn::Expr::Group(_) => unimplemented!("expr_expand::visit_expr::Group"),
             syn::Expr::Index(_) => unimplemented!("expr_expand::visit_expr::Index"),
