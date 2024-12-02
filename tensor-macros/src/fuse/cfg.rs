@@ -12,6 +12,7 @@ use syn::Stmt;
 
 use super::codegen;
 use super::expr_call_use_visitor::ExprCallUseVisitor;
+use super::expr_expand::ExprExpander;
 use super::phi_function::PhiFunction;
 use super::ty_infer::Type;
 use super::use_define_visitor::UseDefineVisitor;
@@ -1089,7 +1090,18 @@ impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
             }
             _ => {
                 if let Some(block) = self.cfg.graph.node_weight_mut(self.current_block) {
-                    block.statements.push(CustomStmt { stmt: Stmt::Expr(node.clone(), None) });
+                    let mut expander = ExprExpander::new();
+                    expander.visit_expr(node);
+                    if expander.stmts.len() > 1 {
+                        for stmt in expander.stmts {
+                            block.statements.push(CustomStmt { stmt });
+                        }
+                        if let Some(expr) = expander.current_expr.take() {
+                            block.statements.push(CustomStmt { stmt: Stmt::Expr(expr, None) });
+                        }
+                    } else {
+                        block.statements.push(CustomStmt { stmt: Stmt::Expr(node.clone(), None) });
+                    }
                 }
             }
         }
@@ -1114,14 +1126,22 @@ impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
                         syn::visit::visit_stmt(self, node);
                     } else {
                         if let Some(block) = self.cfg.graph.node_weight_mut(self.current_block) {
-                            block.statements.push(CustomStmt { stmt: node.clone() });
+                            let mut expander = ExprExpander::new();
+                            expander.visit_stmt(node);
+                            for stmt in expander.stmts {
+                                block.statements.push(CustomStmt { stmt });
+                            }
                         }
                     }
                 }
             }
             Stmt::Item(_) | Stmt::Macro(_) => {
                 if let Some(block) = self.cfg.graph.node_weight_mut(self.current_block) {
-                    block.statements.push(CustomStmt { stmt: node.clone() });
+                    let mut expander = ExprExpander::new();
+                    expander.visit_stmt(node);
+                    for stmt in expander.stmts {
+                        block.statements.push(CustomStmt { stmt });
+                    }
                 }
             }
             Stmt::Expr(expr, _) => {
@@ -1140,7 +1160,11 @@ impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
                     syn::visit::visit_stmt(self, node);
                 } else {
                     if let Some(block) = self.cfg.graph.node_weight_mut(self.current_block) {
-                        block.statements.push(CustomStmt { stmt: node.clone() });
+                        let mut expander = ExprExpander::new();
+                        expander.visit_stmt(node);
+                        for stmt in expander.stmts {
+                            block.statements.push(CustomStmt { stmt });
+                        }
                     }
                 }
             }

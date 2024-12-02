@@ -181,8 +181,7 @@ impl Graph {
                 unimplemented!(
                     "build_graph::push_input_node_if_not_exist_expr::syn::Expr::MethodCall"
                 ),
-            syn::Expr::Paren(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Paren"),
+            syn::Expr::Paren(paren) => self.push_input_node_if_not_exist_expr(&paren.expr),
             syn::Expr::Path(path) => {
                 if let Some(ident) = path.path.get_ident() {
                     if self.variables.contains(&ident) {
@@ -195,8 +194,7 @@ impl Graph {
                     self.variables.insert(ident.clone());
                 }
             }
-            syn::Expr::Range(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Range"),
+            syn::Expr::Range(_) => {}
             syn::Expr::RawAddr(_) =>
                 unimplemented!(
                     "build_graph::push_input_node_if_not_exist_expr::syn::Expr::RawAddr"
@@ -394,10 +392,6 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
 
     fn visit_expr_match(&mut self, _: &'ast syn::ExprMatch) {
         unimplemented!("graph::visit_expr_match");
-    }
-
-    fn visit_expr_paren(&mut self, _: &'ast syn::ExprParen) {
-        unimplemented!("graph::visit_expr_paren");
     }
 
     fn visit_expr_raw_addr(&mut self, _: &'ast syn::ExprRawAddr) {
@@ -859,10 +853,16 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         }
     }
     fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
+        let receiver_ty = handle_expr_type(&node.receiver, &self.type_table);
+        if receiver_ty != Type::Tensor {
+            return;
+        }
         let first_time = self.is_first_time;
         let current_assignment = self.current_assignment.clone();
         self.is_first_time = false;
+        self.current_assignment = None;
         self.visit_expr(&node.receiver);
+        let receiver_var = self.current_var.clone();
 
         let is_assignment = current_assignment.is_some();
         let out = if let Some(current_assignment) = current_assignment {
@@ -883,11 +883,13 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         for arg in node.args.iter() {
             self.push_input_node_if_not_exist_expr(arg);
         }
-        self.push_input_node_if_not_exist_expr(&node.receiver);
-        let operand = node.receiver.to_token_stream().to_string();
+        if !self.variables.contains(&receiver_var) {
+            // we are expecting the receiver is tmp var, so it should be in variables already
+            unreachable!("build_graph::visit_expr_method_call::receiver_var");
+        }
         let method = Node::Unary(Unary {
             method: node.method.clone(),
-            operand: proc_macro2::Ident::new(&operand, node.span()),
+            operand: receiver_var.clone(),
             args: node.args
                 .iter()
                 .map(|arg| arg.clone())
@@ -994,6 +996,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
             self.tmp_var_version += 1;
             out
         };
+        println!("out: {}", out.to_string());
         self.nodes.push((
             Node::Binary(Binary {
                 method: proc_macro2::Ident::new(method, node.span()),
@@ -1062,7 +1065,7 @@ fn handle_expr_type<'ast>(node: &'ast syn::Expr, type_table: &HashMap<syn::Ident
                 Type::Unknown
             }
         }
-        syn::Expr::Paren(_) => unimplemented!("build_graph::handle_expr_type::Paren"),
+        syn::Expr::Paren(paren) => handle_expr_type(&paren.expr, type_table),
         syn::Expr::Path(expr_path) => {
             if let Some(ident) = expr_path.path.get_ident() {
                 type_table.get(ident).unwrap_or(&Type::Unknown).clone()
@@ -1070,10 +1073,7 @@ fn handle_expr_type<'ast>(node: &'ast syn::Expr, type_table: &HashMap<syn::Ident
                 Type::Unknown
             }
         }
-        syn::Expr::Range(_) => unimplemented!("build_graph::handle_expr_type::Range"),
-        syn::Expr::RawAddr(_) => unimplemented!("build_graph::handle_expr_type::RawAddr"),
         syn::Expr::Reference(reference) => { handle_expr_type(&reference.expr, type_table) }
-        syn::Expr::Repeat(_) => unimplemented!("build_graph::handle_expr_type::Repeat"),
         syn::Expr::Return(_) => unimplemented!("build_graph::handle_expr_type::Return"),
         syn::Expr::Struct(_) => unimplemented!("build_graph::handle_expr_type::Struct"),
         syn::Expr::Try(_) => unimplemented!("build_graph::handle_expr_type::Try"),

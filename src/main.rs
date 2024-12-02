@@ -4,11 +4,10 @@ use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
 fuse_proc_macro!(
-fn compute2(a: _Tensor<f32>, b: _Tensor<f32>, k: ((f32, f32), f32)) -> anyhow::Result<_Tensor<f32>> {
-    let inp = _Tensor::<f32>::arange(0, 10000)?;
-    let mut c = &a + &b / &inp;
-    let mut d = c.sin()?;
-    let e = d.relu()?;
+fn compute(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
+    // let mut c = &a + &b / &a;
+    let mut c = &a + &b / &a;
+    // let e = d.relu()?;
     // let alpha = 1.673263242354358;
     // let gamma = 1.050700987355822;
     // if alpha > 0.0 {
@@ -21,12 +20,12 @@ fn compute2(a: _Tensor<f32>, b: _Tensor<f32>, k: ((f32, f32), f32)) -> anyhow::R
     // } else {
     //     d = d.selu(alpha, gamma)?;
     // }
-    // for _ in 0..1000000 {
+    // for _ in (0..1000000).into_iter() {
     //     c = &d + &c;
     //     c = &d + &c;
     //     break;
     // }
-    Ok(e)
+    Ok(c)
 });
 
 // fuse_proc_macro!(

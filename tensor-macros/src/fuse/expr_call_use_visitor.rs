@@ -58,6 +58,7 @@ impl<'ast> ExprCallUseVisitor<'ast> {
                     Type::Unknown
                 }
             }
+            syn::Expr::Paren(paren) => self.type_of(&paren.expr),
             _ =>
                 unimplemented!("ExprCallUseVisitor::type_of::{:#?}", expr_ty::ExprType::from(expr)),
         }
