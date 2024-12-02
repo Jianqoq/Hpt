@@ -6,7 +6,7 @@ use tensor_dyn::*;
 fuse_proc_macro!(
 fn compute(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
     // let mut c = &a + &b / &a;
-    let mut c = &a + &b / &a;
+    let mut c = (&a + &b / &a).sin()?;
     // let e = d.relu()?;
     // let alpha = 1.673263242354358;
     // let gamma = 1.050700987355822;
