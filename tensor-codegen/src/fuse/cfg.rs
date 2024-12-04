@@ -29,14 +29,18 @@ pub(crate) struct CustomStmt {
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub(crate) enum BlockType {
     Normal,
+    IfAssign,
     IfCond,
     IfThen,
     IfElse,
+    ForAssign,
     ForInit,
     ForBody,
     ForCond,
+    WhileAssign,
     WhileCond,
     WhileBody,
+    LoopAssign,
     LoopBody,
     ExprBlockAssign,
     ExprBlock,
@@ -516,7 +520,11 @@ impl CFG {
             BlockType::ExprBlock => {
                 body.extend(quote::quote!({#code #child_code};));
             }
-            BlockType::ExprBlockAssign => {
+            | BlockType::ExprBlockAssign
+            | BlockType::IfAssign
+            | BlockType::ForAssign
+            | BlockType::WhileAssign
+            | BlockType::LoopAssign => {
                 body.extend(quote::quote!(let #code #child_code =));
             }
         }
@@ -1173,9 +1181,7 @@ impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
                     );
                     self.global_block_cnt += 1;
                 }
-                syn::Expr::Paren(expr_paren) => {
-                    
-                }
+                syn::Expr::Paren(expr_paren) => {}
                 _ => {
                     panic!("cfg_builder::visit_expr_method_call::receiver");
                 }

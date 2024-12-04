@@ -65,6 +65,9 @@ impl<'a> CFGBuilder<'a> {
 
     // 处理 if 语句
     fn handle_if(&mut self, expr_if: &syn::ExprIf) {
+        let assign_block = self.new_block(BlockType::IfAssign);
+        let assign_block_id = BlockId::new(assign_block);
+
         let cond_block = self.new_block(BlockType::IfCond);
         let cond_block_id = BlockId::new(cond_block);
         // 创建 then 分支块
@@ -78,12 +81,27 @@ impl<'a> CFGBuilder<'a> {
         let merge_block_id = BlockId::new(merge_block);
 
         let mut current_block_id = core::mem::take(&mut self.block_ids);
+
+        self.connect_to(assign_block);
+        self.set_current_block(assign_block);
+        self.set_current_block_id(assign_block_id);
+        let assign_ident = syn::Ident::new(
+            &format!("__if_assign_{}", self.global_block_cnt),
+            proc_macro2::Span::call_site()
+        );
+        self.cfg.graph[assign_block].statements.push(CustomStmt {
+            stmt: syn::parse2(quote::quote! { let #assign_ident; }).expect("assign stmt is none"),
+        });
+
         // 连接当前块到条件检查块
         self.connect_to(cond_block);
         self.set_current_block(cond_block);
         self.set_current_block_id(cond_block_id);
 
         self.visit_expr(&expr_if.cond);
+        let cond_expr = core::mem::take(&mut self.current_expr).expect("cond expr is none");
+        println!("cond_expr: {:?}", cond_expr.to_token_stream().to_string());
+        self.push_stmt(syn::Stmt::Expr(cond_expr, None));
         let cond_block_id = core::mem::take(&mut self.block_ids);
         // 连接当前块到 then 和 else 分支
         self.connect_to(then_block);
@@ -94,6 +112,8 @@ impl<'a> CFGBuilder<'a> {
         self.set_current_block(then_block);
         self.visit_block(&expr_if.then_branch);
         let then_block_id = core::mem::take(&mut self.block_ids);
+        let then_expr = core::mem::take(&mut self.current_expr).expect("then expr is none");
+        self.push_stmt(syn::parse2(quote::quote! { #then_expr }).expect("then stmt is none"));
         self.connect_to(merge_block);
 
         // 处理 else 分支
@@ -109,6 +129,8 @@ impl<'a> CFGBuilder<'a> {
                     self.visit_expr(&else_branch.1);
                 }
             }
+            let else_expr = core::mem::take(&mut self.current_expr).expect("else expr is none");
+            self.push_stmt(syn::parse2(quote::quote! { #else_expr }).expect("else stmt is none"));
         }
         let else_block_id = core::mem::take(&mut self.block_ids);
         self.connect_to(merge_block);
@@ -120,6 +142,8 @@ impl<'a> CFGBuilder<'a> {
         // 更新当前块为合并块
         self.set_current_block(merge_block);
         self.set_current_block_id(current_block_id);
+
+        self.current_expr = Some(syn::parse2(quote::quote! { #assign_ident }).expect("expr is none"));
     }
 
     // 处理 loop 语句
@@ -178,16 +202,24 @@ impl<'a> CFGBuilder<'a> {
 
         self.connect_to(assign_block);
         self.set_current_block(assign_block);
-
-        self.connect_to(new_block);
-        self.set_current_block(new_block);
-        self.set_current_block_id(new_block_id);
-        self.visit_block(&block.block);
         let block_ident = syn::Ident::new(
             &format!("__block_out_{}", self.global_block_cnt),
             proc_macro2::Span::call_site()
         );
-        self.current_expr = Some(syn::parse2(quote::quote! { #block_ident }).expect("block expr is none"));
+        self.cfg.graph[assign_block].statements.push(CustomStmt {
+            stmt: syn
+                ::parse2(quote::quote! {
+                let #block_ident;
+            })
+                .expect("cfg_builder::handle_block::assign_block"),
+        });
+        self.connect_to(new_block);
+        self.set_current_block(new_block);
+        self.set_current_block_id(new_block_id);
+        self.visit_block(&block.block);
+        self.current_expr = Some(
+            syn::parse2(quote::quote! { #block_ident }).expect("block expr is none")
+        );
         let new_block_id = core::mem::take(&mut self.block_ids);
         current_block_id.children.push(assign_block_id);
         current_block_id.children.push(new_block_id);
@@ -298,6 +330,11 @@ impl<'a> CFGBuilder<'a> {
 }
 
 impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
+    fn visit_block(&mut self, block: &'ast syn::Block) {
+        syn::visit::visit_block(self, block);
+        
+    }
+
     fn visit_item_fn(&mut self, i: &'ast syn::ItemFn) {
         let mut current_block_id = core::mem::take(&mut self.block_ids);
         let new_block = self.new_block(BlockType::Normal);
@@ -476,6 +513,10 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         }
     }
 
+    fn visit_expr_lit(&mut self, i: &'ast syn::ExprLit) {
+        self.current_expr = Some(syn::Expr::Lit(i.clone()));
+    }
+
     fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
         let mut new_call = call.clone();
         self.visit_expr(call.func.as_ref());
@@ -488,7 +529,37 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         new_call.func = Box::new(func);
         self.current_expr = Some(syn::Expr::Call(new_call));
     }
-    fn visit_expr_method_call(&mut self, i: &'ast syn::ExprMethodCall) {}
+    fn visit_expr_method_call(&mut self, method_call: &'ast syn::ExprMethodCall) {
+        let mut new_method_call = method_call.clone();
+        self.visit_expr(method_call.receiver.as_ref());
+        let receiver = core::mem::take(&mut self.current_expr).expect("receiver is none");
+        match receiver {
+            syn::Expr::Binary(_) | syn::Expr::Reference(_) | syn::Expr::Tuple(_) => {
+                self.push_stmt(
+                    syn
+                        ::parse2(
+                            quote::quote! {
+                        let __expr_receiver = #receiver;
+                    }
+                        )
+                        .expect("stmt is none")
+                );
+                new_method_call.receiver = Box::new(
+                    syn::parse2(quote::quote! { __expr_receiver }).expect("expr is none::519")
+                );
+            }
+            _ => {
+                new_method_call.receiver = Box::new(receiver);
+            }
+        }
+        for arg in new_method_call.args.iter_mut() {
+            self.visit_expr(arg);
+            let new_arg = core::mem::take(&mut self.current_expr).expect("arg is none");
+            *arg = new_arg;
+        }
+        println!("{:?}", new_method_call.to_token_stream().to_string());
+        self.current_expr = Some(syn::Expr::MethodCall(new_method_call));
+    }
 
     fn visit_local(&mut self, i: &'ast syn::Local) {}
 
@@ -559,7 +630,8 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             }
             syn::Stmt::Expr(expr, semi) => {
                 self.visit_expr(expr);
-                let expr = core::mem::take(&mut self.current_expr).expect("expr is none");
+                println!("expr: {:?}", expr.to_token_stream().to_string());
+                let expr = core::mem::take(&mut self.current_expr).expect("expr is none::604");
                 self.push_stmt(syn::Stmt::Expr(expr, semi.clone()));
             }
             syn::Stmt::Macro(stmt_macro) => {}
