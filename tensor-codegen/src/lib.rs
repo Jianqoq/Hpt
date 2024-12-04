@@ -1,4 +1,6 @@
-pub mod fuse {
+use proc_macro::TokenStream;
+
+pub(crate) mod fuse {
     pub mod start;
     pub(crate) mod node;
     pub(crate) mod fuse;
@@ -19,4 +21,9 @@ pub mod fuse {
     pub(crate) mod cfg_builder;
 }
 
-pub use fuse::start::*;
+#[proc_macro]
+pub fn fuse_proc_macro(item: TokenStream) -> TokenStream {
+    let func = syn::parse_macro_input!(item as syn::ItemFn);
+    fuse::start::fuse_impl(func).into()
+}
+

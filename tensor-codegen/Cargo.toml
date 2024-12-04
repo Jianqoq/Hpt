@@ -4,9 +4,21 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-syn =  {version = "2.0.82", default-features = false, features = ["derive", "full", "visit", "visit-mut"] }
+syn = { version = "2.0.82", default-features = false, features = [
+    "derive",
+    "full",
+    "visit",
+    "visit-mut",
+] }
 quote = "1.0.36"
 regex = "1.11.0"
-proc-macro2 = {version = "1.0.86", features = ["span-locations"] }
+proc-macro2 = { version = "1.0.86", features = ["span-locations"] }
 anyhow = "1.0.75"
 petgraph = "0.6.5"
+
+[lib]
+proc-macro = true
+
+[package.metadata.rust-analyzer]
+rustc_private = true
+proc_macro_srv = true

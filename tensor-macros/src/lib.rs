@@ -759,18 +759,3 @@ pub fn dwconv2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
 pub fn maxpool2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
     conv2d::maxpool2d_microkernel_gen_results(input)
 }
-
-/// perform fuse optimization
-#[proc_macro_attribute]
-pub fn fuse(_: TokenStream, item: TokenStream) -> TokenStream
-{
-    let func = syn::parse_macro_input!(item as syn::ItemFn);
-    tensor_codegen::fuse_impl(func).into()
-}
-
-/// fuse proc macro
-#[proc_macro]
-pub fn fuse_proc_macro(item: TokenStream) -> TokenStream {
-    let func = syn::parse_macro_input!(item as syn::ItemFn);
-    tensor_codegen::fuse_impl(func).into()
-}
