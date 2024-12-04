@@ -183,6 +183,11 @@ impl<'a> CFGBuilder<'a> {
         self.set_current_block(new_block);
         self.set_current_block_id(new_block_id);
         self.visit_block(&block.block);
+        let block_ident = syn::Ident::new(
+            &format!("__block_out_{}", self.global_block_cnt),
+            proc_macro2::Span::call_site()
+        );
+        self.current_expr = Some(syn::parse2(quote::quote! { #block_ident }).expect("block expr is none"));
         let new_block_id = core::mem::take(&mut self.block_ids);
         current_block_id.children.push(assign_block_id);
         current_block_id.children.push(new_block_id);
