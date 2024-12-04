@@ -1,19 +1,25 @@
 use std::collections::{ HashMap, HashSet };
 use petgraph::graph::NodeIndex;
-
-use crate::{ fuse::node::Node, TokenStream2 };
+use proc_macro2::TokenStream as TokenStream2;
+use crate::fuse::node::Node;
 use super::fuse::FusionGroup;
 
 pub(crate) fn gen_fuse(
     cfg: &crate::fuse::cfg::CFG,
     graph: &petgraph::stable_graph::StableGraph<&(crate::fuse::node::Node, i64, usize), ()>,
     groups: &FusionGroup
-) -> (Vec<TokenStream2>, Vec<(Vec<(syn::Ident, i64, usize, NodeIndex)>, Vec<(syn::Ident, i64, usize, NodeIndex)>)>) {
+) -> (
+    Vec<TokenStream2>,
+    Vec<(Vec<(syn::Ident, i64, usize, NodeIndex)>, Vec<(syn::Ident, i64, usize, NodeIndex)>)>,
+) {
     let (fused_codes, inp_outs) = _gen_fuse(cfg, &graph, &groups.vars);
     (fused_codes, inp_outs)
 }
 
-fn fill_indegree(node: &Node, in_degrees: &mut HashMap<syn::Ident, (usize, i64, usize, NodeIndex)>) {
+fn fill_indegree(
+    node: &Node,
+    in_degrees: &mut HashMap<syn::Ident, (usize, i64, usize, NodeIndex)>
+) {
     match node {
         Node::Unary(unary) => {
             in_degrees.entry(unary.output.clone()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 1;
@@ -70,7 +76,10 @@ fn init_degrees_remain(
     }
 }
 
-fn fill_outdegree(node: &Node, out_degrees: &mut HashMap<syn::Ident, (usize, i64, usize, NodeIndex)>) {
+fn fill_outdegree(
+    node: &Node,
+    out_degrees: &mut HashMap<syn::Ident, (usize, i64, usize, NodeIndex)>
+) {
     match node {
         Node::Unary(unary) => {
             out_degrees.entry(unary.operand.clone()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 1;
@@ -87,8 +96,8 @@ fn gen_body(
     sorted: Vec<NodeIndex>,
     graph: &petgraph::stable_graph::StableGraph<&(crate::fuse::node::Node, i64, usize), ()>,
     cfg: &crate::fuse::cfg::CFG
-) -> crate::TokenStream2 {
-    let mut comp_tokens = TokenStream2::new();
+) -> proc_macro2::TokenStream {
+    let mut comp_tokens = proc_macro2::TokenStream::new();
     for idx in sorted {
         let mut node = graph[idx].clone();
         match &mut node {
@@ -136,7 +145,10 @@ pub(crate) fn _gen_fuse(
     cfg: &crate::fuse::cfg::CFG,
     graph: &petgraph::stable_graph::StableGraph<&(crate::fuse::node::Node, i64, usize), ()>,
     groups: &Vec<HashSet<NodeIndex>>
-) -> (Vec<TokenStream2>, Vec<(Vec<(syn::Ident, i64, usize, NodeIndex)>, Vec<(syn::Ident, i64, usize, NodeIndex)>)>) {
+) -> (
+    Vec<TokenStream2>,
+    Vec<(Vec<(syn::Ident, i64, usize, NodeIndex)>, Vec<(syn::Ident, i64, usize, NodeIndex)>)>,
+) {
     let sorteds = petgraph::algo::toposort(graph, None).expect("gen_fuse::topological_sort");
 
     let results = groups

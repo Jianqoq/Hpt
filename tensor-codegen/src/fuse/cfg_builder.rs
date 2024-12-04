@@ -1,6 +1,7 @@
 use std::collections::{ HashMap, HashSet };
 
 use petgraph::graph::NodeIndex;
+use syn::visit::Visit;
 
 use super::{ cfg::{ BasicBlock, BlockId, BlockType, CFG }, use_define_visitor::UseDefineVisitor };
 
@@ -317,6 +318,10 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         self.handle_block(block);
     }
 
+    fn visit_expr_binary(&mut self, binary: &'ast syn::ExprBinary) {
+        
+    }
+
     fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {}
     fn visit_expr_method_call(&mut self, i: &'ast syn::ExprMethodCall) {}
 
@@ -381,7 +386,6 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 self.visit_expr(expr);
             }
             syn::Stmt::Macro(stmt_macro) => {
-                self.visit_macro(stmt_macro);
             }
         }
     }

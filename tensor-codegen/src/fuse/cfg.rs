@@ -465,7 +465,7 @@ impl CFG {
         rename(self, self.entry, &mut stacks, &mut versions, dominators);
     }
 
-    pub(crate) fn gen_code(&mut self) -> crate::TokenStream2 {
+    pub(crate) fn gen_code(&mut self) -> proc_macro2::TokenStream {
         let block_id = core::mem::take(&mut self.block_id);
         let mut child_code = quote::quote!();
         for child in block_id.children.into_iter() {
@@ -474,7 +474,7 @@ impl CFG {
         child_code
     }
 
-    fn _gen_code(&self, block_id: BlockId) -> crate::TokenStream2 {
+    fn _gen_code(&self, block_id: BlockId) -> proc_macro2::TokenStream {
         let mut body = quote::quote!();
         let block = &self.graph[block_id.id];
         let code = codegen::stmt(block);

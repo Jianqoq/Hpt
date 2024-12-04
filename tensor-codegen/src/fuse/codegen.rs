@@ -1,5 +1,5 @@
 use quote::ToTokens;
-use crate::TokenStream2;
+use proc_macro2::TokenStream as TokenStream2;
 
 pub(crate) fn stmt(node: &crate::fuse::cfg::BasicBlock) -> TokenStream2 {
     let mut body = quote::quote!();

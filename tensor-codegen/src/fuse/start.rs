@@ -66,8 +66,7 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     Ok(cfg)
 }
 
-pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let func = syn::parse_macro_input!(item as syn::ItemFn);
+pub fn fuse_impl(func: syn::ItemFn) -> proc_macro2::TokenStream {
     let mut cfg = build_cfg(&func).expect("build cfg failed");
     let mut type_table = TyInfer::new();
     type_table.infer(&cfg);
@@ -199,9 +198,6 @@ pub(crate) fn fuse_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStrea
             #body
         }
     );
-    ret.into()
+    ret
 }
 
-pub(crate) fn fuse_proc_macro(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    fuse_impl(item)
-}
