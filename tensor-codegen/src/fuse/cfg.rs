@@ -47,6 +47,9 @@ pub(crate) enum BlockType {
     LoopBody,
     ExprBlockAssign,
     ExprBlock,
+    ClosureArgs,
+    ClosureBody,
+    ClosureAssign,
 }
 
 impl std::fmt::Debug for CustomStmt {
@@ -551,8 +554,19 @@ impl CFG {
             BlockType::ExprBlock => {
                 body.extend(quote::quote!({#code #child_code};));
             }
-            BlockType::ExprBlockAssign | BlockType::IfAssign | BlockType::ForAssign | BlockType::WhileAssign | BlockType::LoopAssign => {
+            | BlockType::ExprBlockAssign
+            | BlockType::IfAssign
+            | BlockType::ForAssign
+            | BlockType::WhileAssign
+            | BlockType::LoopAssign
+            | BlockType::ClosureAssign => {
                 body.extend(quote::quote!(let #code #child_code =));
+            }
+            BlockType::ClosureArgs => {
+                body.extend(quote::quote!(|#code #child_code|));
+            }
+            BlockType::ClosureBody => {
+                body.extend(quote::quote!({#code #child_code};));
             }
         }
         body
@@ -1208,9 +1222,7 @@ impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
                     );
                     self.global_block_cnt += 1;
                 }
-                syn::Expr::Paren(expr_paren) => {
-                    
-                }
+                syn::Expr::Paren(expr_paren) => {}
                 _ => {
                     panic!("cfg_builder::visit_expr_method_call::receiver");
                 }

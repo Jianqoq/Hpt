@@ -75,13 +75,28 @@ pub(crate) fn stmt(node: &crate::fuse::cfg::BasicBlock) -> TokenStream2 {
         | crate::fuse::cfg::BlockType::IfAssign
         | crate::fuse::cfg::BlockType::ForAssign
         | crate::fuse::cfg::BlockType::WhileAssign
-        | crate::fuse::cfg::BlockType::LoopAssign => {
+        | crate::fuse::cfg::BlockType::LoopAssign
+        | crate::fuse::cfg::BlockType::ClosureAssign => {
             if let syn::Stmt::Local(local) = &node.statements[0].stmt {
                 let pat = &local.pat;
                 body.extend(quote::quote!(#pat));
             } else {
                 panic!("cfg_builder::gen_code::BlockType::ExprBlockAssign");
             }
+        }
+        crate::fuse::cfg::BlockType::ClosureArgs => {
+            let iter = node.statements.iter().map(|stmt| {
+                if let syn::Stmt::Local(local) = &stmt.stmt {
+                    &local.pat
+                } else {
+                    panic!("cfg_builder::gen_code::BlockType::ClosureArgs");
+                }
+            });
+            body.extend(quote::quote!(#(#iter), *));
+        }
+        crate::fuse::cfg::BlockType::ClosureBody => {
+            let iter = node.statements.iter().map(|stmt| { quote::quote!(#stmt) });
+            body.extend(quote::quote!(#(#iter)*));
         }
     }
     body
