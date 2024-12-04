@@ -62,6 +62,8 @@ mod fuse {
     pub(crate) mod var_recover;
     pub(crate) mod expr_call_use_visitor;
     pub(crate) mod expr_expand;
+    pub(crate) mod controlflow_detector;
+    pub(crate) mod cfg_builder;
 }
 
 use crate::simd_cmp::impl_simd_cmp;

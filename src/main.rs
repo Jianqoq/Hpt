@@ -6,25 +6,33 @@ use tensor_dyn::*;
 fuse_proc_macro!(
 fn compute(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
     let mut c = &a + &b / &a;
-    let mut d = (&a + &b / &a).sin()?;
-    let e = c.relu()?;
-    let alpha = 1.673263242354358;
-    let gamma = 1.050700987355822;
-    if alpha > 0.0 {
-        d = e.selu(alpha, gamma)?;
-        if alpha > 0.0 {
-            d = e.tanh()?;
+    let d = ({&a + &b / &a}).hello({
+        let i = 10;
+        if i > 0 {
+            2 + 3
         } else {
-            d = d.tan()?;
+            1 + 2
         }
-    } else {
-        d = d.selu(alpha, gamma)?;
-    }
-    for _ in (0..1000000).into_iter() {
-        c = &d + &c;
-        c = &d + &c;
-        break;
-    }
+    });
+    // let mut d = (&a + &b / &a).sin()?;
+    // let e = c.relu()?;
+    // let alpha = 1.673263242354358;
+    // let gamma = 1.050700987355822;
+    // if alpha > 0.0 {
+    //     d = e.selu(alpha, gamma)?;
+    //     if alpha > 0.0 {
+    //         d = e.tanh()?;
+    //     } else {
+    //         d = d.tan()?;
+    //     }
+    // } else {
+    //     d = d.selu(alpha, gamma)?;
+    // }
+    // for _ in (0..1000000).into_iter() {
+    //     c = &d + &c;
+    //     c = &d + &c;
+    //     break;
+    // }
     Ok(c)
 });
 
@@ -59,7 +67,9 @@ fn compute(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
 // });
 
 fn main() -> anyhow::Result<()> {
-    conv2d()?;
+    let o = loop {
+    };
+    // conv2d()?;
     // let a = _Tensor::<f32>::arange(0, 10000)?;
     // let b = _Tensor::<f32>::arange(0, 10000)?;
     // let now = std::time::Instant::now();

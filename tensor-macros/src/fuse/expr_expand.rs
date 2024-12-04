@@ -1,3 +1,5 @@
+use quote::ToTokens;
+
 pub(crate) struct ExprExpander {
     pub(crate) stmts: Vec<syn::Stmt>,
     pub(crate) current_expr: Option<syn::Expr>,
@@ -65,7 +67,21 @@ impl<'ast> syn::visit::Visit<'ast> for ExprExpander {
             syn::Expr::Async(_) => unimplemented!("expr_expand::visit_expr::Async"),
             syn::Expr::Await(_) => unimplemented!("expr_expand::visit_expr::Await"),
             syn::Expr::Binary(expr_binary) => self.visit_expr_binary(expr_binary),
-            syn::Expr::Block(_) => unimplemented!("expr_expand::visit_expr::Block"),
+            syn::Expr::Block(block) => {
+                let mut current_stmts = core::mem::take(&mut self.stmts);
+                for it in &block.block.stmts {
+                    self.visit_stmt(it);
+                }
+                let new_stmts = core::mem::take(&mut self.stmts);
+                let new_stmt = syn
+                    ::parse2(quote::quote!(let __block_out = {#(#new_stmts)*};))
+                    .expect("failed to parse stmt::115");
+                current_stmts.push(new_stmt);
+                self.stmts = current_stmts;
+                self.current_expr = Some(
+                    syn::parse2(quote::quote!(__block_out)).expect("failed to parse expr::115")
+                );
+            }
             syn::Expr::Break(break_expr) => self.visit_expr_break(break_expr),
             syn::Expr::Call(call) => {
                 let mut new_call = call.clone();

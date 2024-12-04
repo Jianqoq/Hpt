@@ -202,3 +202,51 @@ impl From<&syn::Expr> for ExprType {
         }
     }
 }
+
+impl From<&mut syn::Expr> for ExprType {
+    fn from(expr: &mut syn::Expr) -> Self {
+        match expr {
+            syn::Expr::Array(_) => Self::Array,
+            syn::Expr::Assign(_) => Self::Assign,
+            syn::Expr::Async(_) => Self::Async,
+            syn::Expr::Await(_) => Self::Await,
+            syn::Expr::Binary(_) => Self::Binary,
+            syn::Expr::Block(_) => Self::Block,
+            syn::Expr::Break(_) => Self::Break,
+            syn::Expr::Call(_) => Self::Call,
+            syn::Expr::Cast(_) => Self::Cast,
+            syn::Expr::Closure(_) => Self::Closure,
+            syn::Expr::Const(_) => Self::Const,
+            syn::Expr::Continue(_) => Self::Continue,
+            syn::Expr::Field(_) => Self::Field,
+            syn::Expr::ForLoop(_) => Self::ForLoop,
+            syn::Expr::Group(_) => Self::Group,
+            syn::Expr::If(_) => Self::If,
+            syn::Expr::Index(_) => Self::Index,
+            syn::Expr::Infer(_) => Self::Infer,
+            syn::Expr::Let(_) => Self::Let,
+            syn::Expr::Lit(_) => Self::Lit,
+            syn::Expr::Loop(_) => Self::Loop,
+            syn::Expr::Macro(_) => Self::Macro,
+            syn::Expr::Match(_) => Self::Match,
+            syn::Expr::MethodCall(_) => Self::MethodCall,
+            syn::Expr::Paren(_) => Self::Paren,
+            syn::Expr::Path(_) => Self::Path,
+            syn::Expr::Range(_) => Self::Range,
+            syn::Expr::RawAddr(_) => Self::RawAddr,
+            syn::Expr::Reference(_) => Self::Reference,
+            syn::Expr::Repeat(_) => Self::Repeat,
+            syn::Expr::Return(_) => Self::Return,
+            syn::Expr::Struct(_) => Self::Struct,
+            syn::Expr::Try(_) => Self::Try,
+            syn::Expr::TryBlock(_) => Self::TryBlock,
+            syn::Expr::Tuple(_) => Self::Tuple,
+            syn::Expr::Unary(_) => Self::Unary,
+            syn::Expr::Unsafe(_) => Self::Unsafe,
+            syn::Expr::Verbatim(_) => Self::Verbatim,
+            syn::Expr::While(_) => Self::While,
+            syn::Expr::Yield(_) => Self::Yield,
+            _ => todo!(),
+        }
+    }
+}
