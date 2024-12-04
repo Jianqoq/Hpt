@@ -65,44 +65,55 @@ impl<'a> CFGBuilder<'a> {
 
     // 处理 if 语句
     fn handle_if(&mut self, expr_if: &syn::ExprIf) {
-        let assign_block = self.new_block(BlockType::IfAssign);
-        let assign_block_id = BlockId::new(assign_block);
+        let mut current_block_id = Some(core::mem::take(&mut self.block_ids));
+        let (cond_block, cond_block_id, assign_ident, assign_block_id) = if
+            self.cfg.graph[self.current_block].block_type == BlockType::IfElseEnd
+        {
+            self.cfg.graph[self.current_block].block_type = BlockType::ElseIfCond;
+            (self.current_block, None, None, None)
+        } else {
+            let assign_block = self.new_block(BlockType::IfAssign);
+            let assign_block_id = BlockId::new(assign_block);
+            self.connect_to(assign_block);
+            self.set_current_block(assign_block);
+            let assign_ident = syn::Ident::new(
+                &format!("__if_assign_{}", self.global_block_cnt),
+                proc_macro2::Span::call_site()
+            );
+            self.cfg.graph[assign_block].statements.push(CustomStmt {
+                stmt: syn
+                    ::parse2(quote::quote! { let #assign_ident; })
+                    .expect("assign stmt is none"),
+            });
+            let new_cond_block = self.new_block(BlockType::IfCond);
+            let cond_block_id = BlockId::new(new_cond_block);
+            (new_cond_block, Some(cond_block_id), Some(assign_ident), Some(assign_block_id))
+        };
 
-        let cond_block = self.new_block(BlockType::IfCond);
-        let cond_block_id = BlockId::new(cond_block);
         // 创建 then 分支块
-        let then_block = self.new_block(BlockType::IfThen);
+        let then_block = self.new_block(BlockType::IfThenEnd);
         let then_block_id = BlockId::new(then_block);
         // 创建 else 分支块
-        let else_block = self.new_block(BlockType::IfElse);
+        let else_block = self.new_block(BlockType::IfElseEnd);
         let else_block_id = BlockId::new(else_block);
         // 创建合并块
         let merge_block = self.new_block(BlockType::Normal);
         let merge_block_id = BlockId::new(merge_block);
 
-        let mut current_block_id = core::mem::take(&mut self.block_ids);
-
-        self.connect_to(assign_block);
-        self.set_current_block(assign_block);
-        self.set_current_block_id(assign_block_id);
-        let assign_ident = syn::Ident::new(
-            &format!("__if_assign_{}", self.global_block_cnt),
-            proc_macro2::Span::call_site()
-        );
-        self.cfg.graph[assign_block].statements.push(CustomStmt {
-            stmt: syn::parse2(quote::quote! { let #assign_ident; }).expect("assign stmt is none"),
-        });
-
         // 连接当前块到条件检查块
         self.connect_to(cond_block);
         self.set_current_block(cond_block);
-        self.set_current_block_id(cond_block_id);
+        if let Some(cond_block_id) = cond_block_id {
+            self.set_current_block_id(cond_block_id);
+        } else {
+            self.set_current_block_id(current_block_id.unwrap());
+            current_block_id = None;
+        }
 
         self.visit_expr(&expr_if.cond);
         let cond_expr = core::mem::take(&mut self.current_expr).expect("cond expr is none");
-        println!("cond_expr: {:?}", cond_expr.to_token_stream().to_string());
         self.push_stmt(syn::Stmt::Expr(cond_expr, None));
-        let cond_block_id = core::mem::take(&mut self.block_ids);
+        let mut cond_block_id = core::mem::take(&mut self.block_ids);
         // 连接当前块到 then 和 else 分支
         self.connect_to(then_block);
         self.connect_to(else_block);
@@ -112,14 +123,13 @@ impl<'a> CFGBuilder<'a> {
         self.set_current_block(then_block);
         self.visit_block(&expr_if.then_branch);
         let then_block_id = core::mem::take(&mut self.block_ids);
-        let then_expr = core::mem::take(&mut self.current_expr).expect("then expr is none");
-        self.push_stmt(syn::parse2(quote::quote! { #then_expr }).expect("then stmt is none"));
         self.connect_to(merge_block);
-
+        println!("else branch {:?}", else_block_id.id);
         // 处理 else 分支
         self.set_current_block_id(else_block_id);
         self.set_current_block(else_block);
         if let Some(else_branch) = &expr_if.else_branch {
+            self.cfg.graph[then_block].block_type = BlockType::IfThen;
             match &else_branch.1.as_ref() {
                 syn::Expr::Block(expr_block) => {
                     self.visit_block(&expr_block.block);
@@ -129,21 +139,37 @@ impl<'a> CFGBuilder<'a> {
                     self.visit_expr(&else_branch.1);
                 }
             }
-            let else_expr = core::mem::take(&mut self.current_expr).expect("else expr is none");
-            self.push_stmt(syn::parse2(quote::quote! { #else_expr }).expect("else stmt is none"));
         }
         let else_block_id = core::mem::take(&mut self.block_ids);
         self.connect_to(merge_block);
 
-        current_block_id.children.push(cond_block_id);
-        current_block_id.children.push(then_block_id);
-        current_block_id.children.push(else_block_id);
-        current_block_id.children.push(merge_block_id);
+        if let Some(mut current_block_id) = current_block_id {
+            if let Some(assign_block_id) = assign_block_id {
+                current_block_id.children.push(assign_block_id);
+            }
+            current_block_id.children.push(cond_block_id);
+            current_block_id.children.push(then_block_id);
+            current_block_id.children.push(else_block_id);
+            current_block_id.children.push(merge_block_id);
+            self.set_current_block(merge_block);
+            self.set_current_block_id(current_block_id);
+        } else {
+            if let Some(assign_block_id) = assign_block_id {
+                cond_block_id.children.push(assign_block_id);
+            }
+            cond_block_id.children.push(then_block_id);
+            cond_block_id.children.push(else_block_id);
+            cond_block_id.children.push(merge_block_id);
+            self.set_current_block(merge_block);
+            self.set_current_block_id(cond_block_id);
+        }
         // 更新当前块为合并块
-        self.set_current_block(merge_block);
-        self.set_current_block_id(current_block_id);
 
-        self.current_expr = Some(syn::parse2(quote::quote! { #assign_ident }).expect("expr is none"));
+        if let Some(assign_ident) = assign_ident {
+            self.current_expr = Some(
+                syn::parse2(quote::quote! { #assign_ident }).expect("expr is none")
+            );
+        }
     }
 
     // 处理 loop 语句
@@ -330,11 +356,6 @@ impl<'a> CFGBuilder<'a> {
 }
 
 impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
-    fn visit_block(&mut self, block: &'ast syn::Block) {
-        syn::visit::visit_block(self, block);
-        
-    }
-
     fn visit_item_fn(&mut self, i: &'ast syn::ItemFn) {
         let mut current_block_id = core::mem::take(&mut self.block_ids);
         let new_block = self.new_block(BlockType::Normal);
@@ -630,11 +651,11 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             }
             syn::Stmt::Expr(expr, semi) => {
                 self.visit_expr(expr);
-                println!("expr: {:?}", expr.to_token_stream().to_string());
-                let expr = core::mem::take(&mut self.current_expr).expect("expr is none::604");
-                self.push_stmt(syn::Stmt::Expr(expr, semi.clone()));
+                let new_expr = core::mem::take(&mut self.current_expr).expect("expr is none::604");
+                // println!("expr: {:#?}", new_expr.to_token_stream().to_string());
+                self.push_stmt(syn::Stmt::Expr(new_expr, semi.clone()));
             }
-            syn::Stmt::Macro(stmt_macro) => {}
+            syn::Stmt::Macro(_) => {}
         }
     }
 }

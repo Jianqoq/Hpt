@@ -6,14 +6,16 @@ use tensor_dyn::*;
 fuse_proc_macro!(
 fn compute(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
     let mut c = a.sin(
-        {
-            let i = 10;
-            if i > 0 {
-                2 + 3
-            } else {
-                1 + 2
-            }
+        {if i > 0 {
+            2 + 3
+        } else if i > 2 {
+            1 + 2
+        } else if i == 0 {
+            1 + 2
+        } else {
+            0
         }
+    }
     );
     // let d = ({&a + &b / &a}).hello({
     //     let i = 10;

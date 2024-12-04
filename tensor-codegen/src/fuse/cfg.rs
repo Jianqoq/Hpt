@@ -32,7 +32,10 @@ pub(crate) enum BlockType {
     IfAssign,
     IfCond,
     IfThen,
+    IfThenEnd,
     IfElse,
+    IfElseEnd,
+    ElseIfCond,
     ForAssign,
     ForInit,
     ForBody,
@@ -469,6 +472,25 @@ impl CFG {
         rename(self, self.entry, &mut stacks, &mut versions, dominators);
     }
 
+    pub(crate) fn fill_variables(&mut self) {
+        for node in self.graph.node_indices() {
+            let block = &mut self.graph[node];
+            for stmt in &mut block.statements {
+                let mut use_define_visitor = UseDefineVisitor::new();
+                use_define_visitor.visit_stmt(&stmt.stmt);
+                for var in use_define_visitor.used_vars.drain() {
+                    block.used_vars.insert(var);
+                }
+                for var in use_define_visitor.define_vars.drain() {
+                    block.defined_vars.insert(var);
+                }
+                for assigned_var in use_define_visitor.assigned_vars.drain() {
+                    block.assigned_vars.insert(assigned_var);
+                }
+            }
+        }
+    }
+
     pub(crate) fn gen_code(&mut self) -> proc_macro2::TokenStream {
         let block_id = core::mem::take(&mut self.block_id);
         let mut child_code = quote::quote!();
@@ -493,11 +515,20 @@ impl CFG {
             BlockType::IfCond => {
                 body.extend(quote::quote!(if #code #child_code));
             }
+            BlockType::ElseIfCond => {
+                body.extend(quote::quote!(else if #code #child_code));
+            }
             BlockType::IfThen => {
                 body.extend(quote::quote!({ #code #child_code }));
             }
+            BlockType::IfThenEnd => {
+                body.extend(quote::quote!({ #code #child_code };));
+            }
             BlockType::IfElse => {
                 body.extend(quote::quote!(else { #code #child_code }));
+            }
+            BlockType::IfElseEnd => {
+                body.extend(quote::quote!(else { #code #child_code };));
             }
             BlockType::ForInit => {
                 body.extend(quote::quote!(for #code #child_code));
@@ -520,11 +551,7 @@ impl CFG {
             BlockType::ExprBlock => {
                 body.extend(quote::quote!({#code #child_code};));
             }
-            | BlockType::ExprBlockAssign
-            | BlockType::IfAssign
-            | BlockType::ForAssign
-            | BlockType::WhileAssign
-            | BlockType::LoopAssign => {
+            BlockType::ExprBlockAssign | BlockType::IfAssign | BlockType::ForAssign | BlockType::WhileAssign | BlockType::LoopAssign => {
                 body.extend(quote::quote!(let #code #child_code =));
             }
         }
@@ -1181,7 +1208,9 @@ impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
                     );
                     self.global_block_cnt += 1;
                 }
-                syn::Expr::Paren(expr_paren) => {}
+                syn::Expr::Paren(expr_paren) => {
+                    
+                }
                 _ => {
                     panic!("cfg_builder::visit_expr_method_call::receiver");
                 }

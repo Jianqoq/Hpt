@@ -56,22 +56,25 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     let mut cfg = CFG::new();
     let mut builder = crate::fuse::cfg_builder::CFGBuilder::new(&mut cfg);
     builder.visit_item_fn(item_fn);
-    // cfg.block_id = core::mem::take(&mut builder.block_ids);
-    // let dominators = petgraph::algo::dominators::simple_fast(&cfg.graph, cfg.entry);
-    // let dominance_frontiers = compute_dominance_frontiers(&cfg, &dominators);
-    // let definitions = cfg.get_variable_definitions();
-    // cfg.insert_phi_functions(&dominance_frontiers, &definitions);
-    // cfg.rename_variables(&dominators);
+    cfg.block_id = core::mem::take(&mut builder.block_ids);
+    println!("block_id: {:#?}", cfg.block_id);
+    cfg.fill_variables();
+    let dominators = petgraph::algo::dominators::simple_fast(&cfg.graph, cfg.entry);
+    let dominance_frontiers = compute_dominance_frontiers(&cfg, &dominators);
+    let definitions = cfg.get_variable_definitions();
+    cfg.insert_phi_functions(&dominance_frontiers, &definitions);
+    cfg.rename_variables(&dominators);
     println!("cfg: {:#?}", cfg.graph);
     Ok(cfg)
 }
 
 pub fn fuse_impl(func: syn::ItemFn) -> proc_macro2::TokenStream {
     let mut cfg = build_cfg(&func).expect("build cfg failed");
-    // let mut type_table = TyInfer::new();
-    // type_table.infer(&cfg);
-    // cfg.live_analysis(&type_table.table);
-    // let table = core::mem::take(&mut type_table.table);
+    let mut type_table = TyInfer::new();
+    type_table.infer(&cfg);
+    cfg.live_analysis(&type_table.table);
+    let table = core::mem::take(&mut type_table.table);
+    // println!("table: {:#?}", table);
     // let graphs = cfg.build_graphs(table);
     // cfg.add_extra_temps(&graphs);
     // let mut genfuse_map = HashMap::new();
@@ -171,32 +174,33 @@ pub fn fuse_impl(func: syn::ItemFn) -> proc_macro2::TokenStream {
     //         }
     //     }
     // }
-    // cfg.replace_all_var_back();
+    cfg.replace_all_var_back();
 
-    // let visibility = &func.vis;
-    // let mut token_stream = proc_macro2::TokenStream::new();
-    // token_stream.extend(quote::quote!(#visibility));
-    // let mut signature = func.sig;
-    // let mut arguments = syn::punctuated::Punctuated::<syn::FnArg, syn::Token![,]>::new();
-    // let new_inputs = cfg.graph.node_weight((0).into()).expect("node weight not found");
-    // for inp in new_inputs.statements.iter() {
-    //     if let syn::Stmt::Local(local) = &inp.stmt {
-    //         if let syn::Pat::Type(pat_type) = &local.pat {
-    //             arguments.push(syn::FnArg::Typed(pat_type.clone()));
-    //         } else {
-    //             panic!("fuse_impl::process_function_signature::not_pat_type");
-    //         }
-    //     } else {
-    //         panic!("fuse_impl::process_function_signature::not_local");
-    //     }
-    // }
-    // signature.inputs = arguments;
-    // token_stream.extend(quote::quote!(#signature));
-    // let body = cfg.gen_code();
+    let visibility = &func.vis;
+    let mut token_stream = proc_macro2::TokenStream::new();
+    token_stream.extend(quote::quote!(#visibility));
+    let mut signature = func.sig;
+    let mut arguments = syn::punctuated::Punctuated::<syn::FnArg, syn::Token![,]>::new();
+    let new_inputs = cfg.graph.node_weight((0).into()).expect("node weight not found");
+    for inp in new_inputs.statements.iter() {
+        if let syn::Stmt::Local(local) = &inp.stmt {
+            if let syn::Pat::Type(pat_type) = &local.pat {
+                arguments.push(syn::FnArg::Typed(pat_type.clone()));
+            } else {
+                panic!("fuse_impl::process_function_signature::not_pat_type");
+            }
+        } else {
+            panic!("fuse_impl::process_function_signature::not_local");
+        }
+    }
+    signature.inputs = arguments;
+    token_stream.extend(quote::quote!(#signature));
+    let body = cfg.gen_code();
+    println!("body: {:#?}", body.to_string());
     let ret = quote::quote!(
-        // #token_stream {
-        //     #body
-        // }
+        #token_stream {
+            #body
+        }
     );
     ret
 }
