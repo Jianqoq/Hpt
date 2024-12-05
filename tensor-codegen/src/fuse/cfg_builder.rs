@@ -12,6 +12,7 @@ pub(crate) struct CFGBuilder<'a> {
     pub(crate) current_expr: Option<syn::Expr>,
     pub(crate) current_pat: Option<syn::Pat>,
     pub(crate) current_type: Option<syn::Type>,
+    pub(crate) current_item: Option<syn::Item>,
     pub(crate) is_last_stmt: bool,
     pub(crate) global_block_cnt: usize,
 }
@@ -28,6 +29,7 @@ impl<'a> CFGBuilder<'a> {
             is_last_stmt: false,
             current_pat: None,
             current_type: None,
+            current_item: None,
         }
     }
 
@@ -780,6 +782,10 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         );
     }
 
+    fn visit_item_const(&mut self, i: &'ast syn::ItemConst) {
+        self.current_item = Some(syn::Item::Const(i.clone()));
+    }
+
     fn visit_expr(&mut self, node: &'ast syn::Expr) {
         match node {
             syn::Expr::Array(expr_array) => self.visit_expr_array(expr_array),
@@ -852,6 +858,8 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             }
             syn::Stmt::Item(item) => {
                 self.visit_item(item);
+                let item = core::mem::take(&mut self.current_item).expect("item is none");
+                self.push_stmt(syn::Stmt::Item(item));
             }
             syn::Stmt::Expr(expr, semi) => {
                 let is_last_stmt = self.is_last_stmt;

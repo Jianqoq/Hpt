@@ -518,14 +518,6 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         unimplemented!("graph::visit_index");
     }
 
-    fn visit_item(&mut self, _: &'ast syn::Item) {
-        unimplemented!("graph::visit_item");
-    }
-
-    fn visit_item_const(&mut self, _: &'ast syn::ItemConst) {
-        unimplemented!("graph::visit_item_const");
-    }
-
     fn visit_item_enum(&mut self, _: &'ast syn::ItemEnum) {
         unimplemented!("graph::visit_item_enum");
     }
@@ -707,10 +699,6 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         unimplemented!("graph::visit_trait_item_type");
     }
 
-    fn visit_type(&mut self, _: &'ast syn::Type) {
-        unimplemented!("graph::visit_type");
-    }
-
     fn visit_type_array(&mut self, _: &'ast syn::TypeArray) {
         unimplemented!("graph::visit_type_array");
     }
@@ -749,14 +737,6 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
 
     fn visit_type_paren(&mut self, _: &'ast syn::TypeParen) {
         unimplemented!("graph::visit_type_paren");
-    }
-
-    fn visit_type_path(&mut self, _: &'ast syn::TypePath) {
-        unimplemented!("graph::visit_type_path");
-    }
-
-    fn visit_type_ptr(&mut self, _: &'ast syn::TypePtr) {
-        unimplemented!("graph::visit_type_ptr");
     }
 
     fn visit_type_reference(&mut self, _: &'ast syn::TypeReference) {

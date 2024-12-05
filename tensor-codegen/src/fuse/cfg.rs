@@ -635,7 +635,9 @@ fn rename(
                 }
                 new_name_pat(&mut local.pat, stacks, versions, &mut new_origin_var_map);
             }
-            Stmt::Item(_) => unimplemented!("rename::Stmt::Item"),
+            Stmt::Item(item) => {
+                replace_vars_item(item, stacks, &mut new_origin_var_map);
+            }
             Stmt::Expr(expr, ..) => {
                 replace_vars(expr, stacks, &mut new_origin_var_map);
             }
@@ -717,8 +719,7 @@ fn replace_vars(
         fn visit_expr_mut(&mut self, node: &mut syn::Expr) {
             match node {
                 syn::Expr::Path(expr_path) => {
-                    if expr_path.qself.is_none() && expr_path.path.segments.len() == 1 {
-                        let var = expr_path.path.segments[0].ident.clone();
+                    if let Some(var) = expr_path.path.get_ident().cloned() {
                         if let Some(stack) = self.stacks.get(&var) {
                             if let Some(current_cnt) = stack.last() {
                                 expr_path.path.segments[0].ident = syn::Ident::new(
@@ -742,6 +743,67 @@ fn replace_vars(
         }
     }
     syn::visit_mut::visit_expr_mut(&mut (VarRenamer { stacks, new_origin_var_map }), expr);
+}
+
+fn replace_vars_item(
+    item: &mut syn::Item,
+    stacks: &HashMap<syn::Ident, Vec<usize>>,
+    new_origin_var_map: &mut HashMap<syn::Ident, syn::Ident>
+) {
+    struct VarRenamer<'a> {
+        stacks: &'a HashMap<syn::Ident, Vec<usize>>,
+        new_origin_var_map: &'a mut HashMap<syn::Ident, syn::Ident>,
+    }
+    impl<'a> syn::visit_mut::VisitMut for VarRenamer<'a> {
+        fn visit_expr_mut(&mut self, node: &mut syn::Expr) {
+            match node {
+                syn::Expr::Path(expr_path) => {
+                    if let Some(var) = expr_path.path.get_ident().cloned() {
+                        if let Some(stack) = self.stacks.get(&var) {
+                            if let Some(current_cnt) = stack.last() {
+                                expr_path.path.segments[0].ident = syn::Ident::new(
+                                    &format!("{}{}", var, current_cnt),
+                                    expr_path.path.segments[0].ident.span()
+                                );
+                                self.new_origin_var_map.insert(
+                                    syn::Ident::new(
+                                        &format!("{}{}", var, current_cnt),
+                                        expr_path.path.segments[0].ident.span()
+                                    ),
+                                    var
+                                );
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+            syn::visit_mut::visit_expr_mut(self, node);
+        }
+        fn visit_item_mut(&mut self, i: &mut syn::Item) {
+            match i {
+                syn::Item::Const(item_const) => {
+                    if let Some(stack) = self.stacks.get(&item_const.ident) {
+                        if let Some(current_cnt) = stack.last() {
+                            item_const.ident = syn::Ident::new(
+                                &format!("{}{}", item_const.ident, current_cnt),
+                                item_const.ident.span()
+                            );
+                            self.new_origin_var_map.insert(
+                                syn::Ident::new(
+                                    &format!("{}{}", item_const.ident, current_cnt),
+                                    item_const.ident.span()
+                                ),
+                                item_const.ident.clone()
+                            );
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    syn::visit_mut::visit_item_mut(&mut (VarRenamer { stacks, new_origin_var_map }), item);
 }
 
 fn replace_string(var: &mut syn::Ident, stacks: &HashMap<syn::Ident, Vec<usize>>) {
