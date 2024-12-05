@@ -17,13 +17,14 @@ pub(crate) mod fuse {
     pub(crate) mod var_recover;
     pub(crate) mod expr_call_use_visitor;
     pub(crate) mod expr_expand;
-    pub(crate) mod controlflow_detector;
     pub(crate) mod cfg_builder;
 }
 
 #[proc_macro]
 pub fn fuse_proc_macro(item: TokenStream) -> TokenStream {
     let func = syn::parse_macro_input!(item as syn::ItemFn);
-    fuse::start::fuse_impl(func).into()
+    match fuse::start::fuse_impl(func) {
+        Ok(ret) => ret.into(),
+        Err(e) => e.downcast::<syn::Error>().unwrap().to_compile_error().into(),
+    }
 }
-

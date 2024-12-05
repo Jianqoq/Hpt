@@ -11,8 +11,6 @@ use syn::visit::Visit;
 use syn::visit_mut::VisitMut;
 use syn::Stmt;
 
-use crate::fuse::controlflow_detector::ControlFlowDetector;
-
 use super::{ codegen, expr_ty };
 use super::expr_call_use_visitor::ExprCallUseVisitor;
 use super::expr_expand::ExprExpander;
@@ -537,7 +535,7 @@ impl CFG {
                 body.extend(quote::quote!(for #code #child_code));
             }
             BlockType::ForBody => {
-                body.extend(quote::quote!({#code #child_code}));
+                body.extend(quote::quote!({#code #child_code};));
             }
             BlockType::ForCond => {
                 body.extend(quote::quote!(in #code #child_code));
@@ -546,10 +544,10 @@ impl CFG {
                 body.extend(quote::quote!(while #code #child_code));
             }
             BlockType::WhileBody => {
-                body.extend(quote::quote!({#code #child_code}));
+                body.extend(quote::quote!({#code #child_code};));
             }
             BlockType::LoopBody => {
-                body.extend(quote::quote!(loop {#code #child_code}));
+                body.extend(quote::quote!(loop {#code #child_code};));
             }
             BlockType::ExprBlock => {
                 body.extend(quote::quote!({#code #child_code};));
@@ -1076,7 +1074,6 @@ impl<'a> CFGBuilder<'a> {
         let init_block_id = core::mem::take(&mut self.block_ids);
         // 连接初始化块到条件检查块
         self.connect_to(condition_block);
-
         // 处理条件检查
         self.set_current_block(condition_block);
         self.set_current_block_id(condition_block_id);
@@ -1199,68 +1196,6 @@ impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
         }
         self.current_expr = Some(syn::Expr::Call(new_call));
     }
-    fn visit_expr_method_call(&mut self, i: &'ast syn::ExprMethodCall) {
-        let mut new_call = i.clone();
-        let mut detector = ControlFlowDetector::new();
-        detector.visit_expr(&new_call.receiver);
-        if detector.has_control_flow {
-            match &mut new_call.receiver.as_mut() {
-                syn::Expr::Block(expr_block) => {
-                    self.visit_expr_block(expr_block);
-                    let ident = syn::Ident::new(
-                        &format!("__block_out_{}", self.global_block_cnt),
-                        expr_block.span()
-                    );
-                    new_call.receiver = Box::new(
-                        syn
-                            ::parse2(
-                                quote::quote! {
-                        #ident
-                    }
-                            )
-                            .expect("cfg_builder::visit_expr_method_call::block_out")
-                    );
-                    self.global_block_cnt += 1;
-                }
-                syn::Expr::Paren(expr_paren) => {}
-                _ => {
-                    panic!("cfg_builder::visit_expr_method_call::receiver");
-                }
-            }
-        } else {
-            let mut expander = ExprExpander::new();
-            expander.visit_expr(&new_call.receiver);
-            for stmt in expander.stmts {
-                self.visit_stmt(&stmt);
-            }
-            if let Some(expr) = expander.current_expr {
-                new_call.receiver = Box::new(expr);
-            }
-        }
-        for arg in &mut new_call.args {
-            match arg {
-                syn::Expr::Block(expr_block) => {
-                    self.visit_expr_block(expr_block);
-                    let ident = syn::Ident::new(
-                        &format!("__block_out_{}", self.global_block_cnt),
-                        expr_block.span()
-                    );
-                    *arg = syn
-                        ::parse2(quote::quote! {
-                        #ident
-                    })
-                        .expect("cfg_builder::visit_expr_call::block_out");
-                    self.global_block_cnt += 1;
-                }
-                _ =>
-                    unimplemented!(
-                        "cfg_builder::visit_expr_call::{:?}",
-                        expr_ty::ExprType::from(arg)
-                    ),
-            }
-        }
-        self.current_expr = Some(syn::Expr::MethodCall(new_call));
-    }
 
     fn visit_local(&mut self, i: &'ast syn::Local) {
         if let Some(init) = &i.init {
@@ -1282,67 +1217,6 @@ impl<'ast, 'a> Visit<'ast> for CFGBuilder<'a> {
             }
         } else {
             panic!("cfg_builder::visit_local::init");
-        }
-    }
-
-    // fn visit_macro(&mut self, i: &'ast syn::Macro) {
-
-    // }
-
-    // fn visit_item(&mut self, i: &'ast syn::Item) {
-
-    // }
-
-    fn visit_expr(&mut self, node: &'ast syn::Expr) {
-        let mut detector = ControlFlowDetector::new();
-        detector.visit_expr(node);
-        if detector.has_control_flow {
-            syn::visit::visit_expr(self, node);
-        } else {
-            if let Some(block) = self.cfg.graph.node_weight_mut(self.current_block) {
-                let mut expander = ExprExpander::new();
-                expander.visit_stmt(&syn::Stmt::Expr(node.clone(), None));
-                for stmt in expander.stmts {
-                    let mut collector = UseDefineVisitor::new();
-                    collector.visit_stmt(&stmt);
-                    block.used_vars.extend(collector.used_vars);
-                    block.defined_vars.extend(collector.define_vars);
-                    block.assigned_vars.extend(collector.assigned_vars);
-                    block.statements.push(CustomStmt { stmt });
-                }
-            }
-        }
-    }
-
-    fn visit_stmt(&mut self, node: &'ast syn::Stmt) {
-        println!("stmt: {:#?}", node.to_token_stream().to_string());
-        let mut detector = ControlFlowDetector::new();
-        detector.visit_stmt(node);
-        if detector.has_control_flow {
-            println!("has control flow");
-            syn::visit::visit_stmt(self, node);
-        } else {
-            if let Some(block) = self.cfg.graph.node_weight_mut(self.current_block) {
-                let mut expander = ExprExpander::new();
-                expander.visit_stmt(node);
-                for stmt in expander.stmts {
-                    let mut collector = UseDefineVisitor::new();
-                    collector.visit_stmt(&stmt);
-                    block.used_vars.extend(collector.used_vars);
-                    block.defined_vars.extend(collector.define_vars);
-                    block.assigned_vars.extend(collector.assigned_vars);
-                    block.statements.push(CustomStmt { stmt });
-                }
-            }
-        }
-        if let Some(block) = self.cfg.graph.node_weight_mut(self.current_block) {
-            if let Some(last) = block.statements.last() {
-                let mut collector = UseDefineVisitor::new();
-                collector.visit_stmt(&last.stmt);
-                block.used_vars.extend(collector.used_vars);
-                block.defined_vars.extend(collector.define_vars);
-                block.assigned_vars.extend(collector.assigned_vars);
-            }
         }
     }
 }

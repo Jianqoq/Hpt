@@ -85,31 +85,36 @@ impl TyInfer {
                 }
             }
             syn::Expr::Paren(paren) => self.type_of(&paren.expr),
+            syn::Expr::Tuple(_) => Type::Unknown,
             _ => unimplemented!("ty_infer::type_of::{:#?}", expr_ty::ExprType::from(expr)),
         }
     }
 
-    pub(crate) fn infer(&mut self, cfg: &CFG) {
-        self._infer(cfg, cfg.entry);
+    pub(crate) fn infer(&mut self, cfg: &CFG) -> anyhow::Result<()> {
+        self._infer(cfg, cfg.entry)?;
+        Ok(())
     }
 
-    fn _infer(&mut self, cfg: &CFG, node: NodeIndex) {
+    fn _infer(&mut self, cfg: &CFG, node: NodeIndex) -> anyhow::Result<()> {
         if let Some(block) = cfg.graph.node_weight(node) {
             for phi_function in &block.phi_functions {
                 let first_arg = &phi_function.args[0];
-                self.table.insert(
-                    phi_function.name.clone(),
-                    self.table
-                        .get(first_arg)
-                        .expect(
-                            &format!(
-                                "type_infer::_infer::phi_function::first_arg::{:?}::{}",
-                                phi_function,
-                                first_arg.to_string()
-                            )
-                        )
-                        .clone()
-                );
+                self.table.insert(phi_function.name.clone(), match self.table.get(first_arg) {
+                    Some(ty) => ty.clone(),
+                    None => {
+                        return Err(
+                            syn::Error
+                                ::new(
+                                    first_arg.span(),
+                                    &format!(
+                                        "Internal: can't find type for variable {}",
+                                        first_arg.to_string()
+                                    )
+                                )
+                                .into()
+                        );
+                    }
+                });
             }
             for stmt in &block.statements {
                 self.visit_stmt(&stmt.stmt);
@@ -119,9 +124,10 @@ impl TyInfer {
                     continue;
                 }
                 self.visited.insert(succ);
-                self._infer(cfg, succ);
+                self._infer(cfg, succ)?;
             }
         }
+        Ok(())
     }
 }
 
