@@ -63,7 +63,6 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     let definitions = cfg.get_variable_definitions();
     cfg.insert_phi_functions(&dominance_frontiers, &definitions);
     cfg.rename_variables(&dominators);
-    println!("cfg: {:#?}", cfg.graph);
     Ok(cfg)
 }
 
@@ -73,7 +72,6 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
     type_table.infer(&cfg)?;
     cfg.live_analysis(&type_table.table);
     let table = core::mem::take(&mut type_table.table);
-    // println!("table: {:#?}", table);
     let graphs = cfg.build_graphs(table);
     cfg.add_extra_temps(&graphs);
     let mut genfuse_map = HashMap::new();
@@ -100,9 +98,6 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
                         .collect::<Vec<_>>()
                 );
             }
-            // println!("intermediates: {:?}", intermediates);
-            // println!("stmt_to_remove: {:?}", stmt_to_remove);
-            // println!("inp_outs: {:#?}", genfuse.1);
             for (i, (inp, out)) in genfuse.1.iter().enumerate() {
                 for (_, stmt_idx, _, comp_graph_idx) in inp.iter() {
                     let pos = intermediates[i].iter().position(|x| x == comp_graph_idx);
@@ -135,16 +130,12 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
             .zip(inp_outs.into_iter())
             .zip(stmt_to_remove.into_iter())
             .zip(intermediates.into_iter()) {
-            // println!("stmt to remove: {:?}", remove);
-            // println!("intermediate: {:?}", intermediate);
-            // println!("code: {:?}", code.to_string());
             if intermediate.is_empty() {
                 continue;
             }
             assert_eq!(out.len(), 1);
             let (out, out_stmt_idx, _, _) = &out[0];
             assert_ne!(*out_stmt_idx, -1);
-            // println!("out_stmt_idx: {:?}", *out_stmt_idx);
             if
                 let syn::Stmt::Local(local) =
                     &mut cfg.graph[idx].statements[*out_stmt_idx as usize].stmt
