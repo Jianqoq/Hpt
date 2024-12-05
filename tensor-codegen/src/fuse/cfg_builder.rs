@@ -175,17 +175,39 @@ impl<'a> CFGBuilder<'a> {
 
     // 处理 loop 语句
     fn handle_loop(&mut self, expr_loop: &syn::ExprLoop) {
+        let mut current_block_id = core::mem::take(&mut self.block_ids);
+        let assign_block = self.new_block(BlockType::LoopAssign);
+        let assign_block_id = BlockId::new(assign_block);
         // 创建循环体块
         let loop_block = self.new_block(BlockType::LoopBody);
+        let loop_block_id = BlockId::new(loop_block);
         // 创建循环后的块
         let after_loop_block = self.new_block(BlockType::Normal);
+        let after_loop_block_id = BlockId::new(after_loop_block);
+
+        self.connect_to(assign_block);
+        self.set_current_block(assign_block);
+        let assign_ident = syn::Ident::new(
+            &format!("__loop_assign_{}", self.global_block_cnt()),
+            proc_macro2::Span::call_site()
+        );
+        self.cfg.graph[assign_block].statements.push(CustomStmt {
+            stmt: syn
+                ::parse2(quote::quote! { let #assign_ident; })
+                .expect("assign stmt is none"),
+        });
 
         // 连接当前块到循环体块
         self.connect_to(loop_block);
 
         // 设置当前块为循环体块，并处理循环体
         self.set_current_block(loop_block);
+        self.set_current_block_id(loop_block_id);
         self.visit_block(&expr_loop.body);
+        self.current_expr = Some(
+            syn::parse2(quote::quote! { #assign_ident }).expect("expr is none")
+        );
+        let loop_block_id = core::mem::take(&mut self.block_ids);
 
         // 连接循环体块回到自身，表示下一次迭代
         self.connect_to(loop_block);
@@ -194,6 +216,10 @@ impl<'a> CFGBuilder<'a> {
 
         // 更新当前块为循环后的块，继续处理后续语句
         self.set_current_block(after_loop_block);
+        current_block_id.children.push(assign_block_id);
+        current_block_id.children.push(loop_block_id);
+        current_block_id.children.push(after_loop_block_id);
+        self.set_current_block_id(current_block_id);
     }
 
     // 处理 match 语句

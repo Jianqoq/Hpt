@@ -21,7 +21,7 @@ pub(crate) fn stmt(node: &crate::fuse::cfg::BasicBlock) -> TokenStream2 {
                 quote::quote!(#(#iter)*)
             });
         }
-        crate::fuse::cfg::BlockType::IfElse | crate::fuse::cfg::BlockType::IfElseEnd => {
+        crate::fuse::cfg::BlockType::IfElseEnd => {
             body.extend({
                 let iter = node.statements.iter().map(|stmt| { quote::quote!(#stmt) });
                 quote::quote!(#(#iter)*)

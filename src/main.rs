@@ -55,6 +55,11 @@ fn compute2(a: _Tensor<f32>, b: _Tensor<f32>, k: f32) -> anyhow::Result<_Tensor<
         c.sin()?;
         continue;
     }
+    loop {
+        let c = &d + &c;
+        c.sin()?;
+        continue;
+    }
     Ok(c)
 });
 
