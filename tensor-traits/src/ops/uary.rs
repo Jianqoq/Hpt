@@ -639,11 +639,8 @@ pub trait FloatUaryOps {
     ///
     /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn selu<U>(
-        &self,
-        alpha: U,
-        gamma: U
-    ) -> Result<Self::Output> where U: Into<Option<Self::OutputMeta>>;
+    fn selu<U>(&self, alpha: U, gamma: U) -> Result<Self::Output>
+        where U: Into<Option<Self::OutputMeta>>;
 
     /// selu method with output tensor, this method will write the result to the output tensor
     /// # See Also
@@ -927,7 +924,7 @@ pub trait NormalUaryOps where Self: Sized {
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sign_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput>;
 
-    /// Clips (limits) the values of the tensor between the specified `min` and `max`.
+    /// Clamps (limits) the values of the tensor between the specified `min` and `max`.
     ///
     /// This function returns a new tensor where each element is clipped to be within the range `[min, max]`. If an element is less than `min`, it is set to `min`. If it is greater than `max`, it is set to `max`.
     ///
@@ -944,13 +941,13 @@ pub trait NormalUaryOps where Self: Sized {
     ///
     /// * This function will panic if `min` is greater than `max`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn clip(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> Result<Self::Output>;
+    fn clamp(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> Result<Self::Output>;
 
-    /// clip method with output tensor, this method will write the result to the output tensor
+    /// clamp method with output tensor, this method will write the result to the output tensor
     /// # See Also
-    /// - [`clip`]: Clips (limits) the values of the tensor between the specified `min` and `max`.
+    /// - [`clamp`]: Clamps (limits) the values of the tensor between the specified `min` and `max`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn clip_<U>(&self, min: Self::OutputMeta, max: Self::OutputMeta, out: U) -> Result<Self::Output>
+    fn clamp_<U>(&self, min: Self::OutputMeta, max: Self::OutputMeta, out: U) -> Result<Self::Output>
         where U: Borrow<Self::InplaceOutput>;
 
     /// Computes the element-wise rounding of the tensor.

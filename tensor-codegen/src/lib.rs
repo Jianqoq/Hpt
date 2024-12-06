@@ -18,6 +18,7 @@ pub(crate) mod fuse {
     pub(crate) mod expr_call_use_visitor;
     pub(crate) mod cfg_builder;
     pub(crate) mod errors;
+    pub(crate) mod operator_lists;
 }
 
 #[proc_macro]

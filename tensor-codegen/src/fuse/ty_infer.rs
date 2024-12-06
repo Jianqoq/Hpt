@@ -4,7 +4,7 @@ use petgraph::graph::NodeIndex;
 use quote::ToTokens;
 use syn::visit::Visit;
 
-use super::{ cfg::CFG, expr_ty };
+use super::{ cfg::CFG, expr_ty, operator_lists::UNARY_OPERATORS };
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub(crate) enum Type {
@@ -76,10 +76,10 @@ impl TyInfer {
                 let receiver_type = self.type_of(&method_call.receiver);
                 if receiver_type == Type::Tensor {
                     let func_name = method_call.method.to_token_stream().to_string();
-                    if ["shape", "strides"].contains(&func_name.as_str()) {
-                        return Type::Unknown;
+                    if UNARY_OPERATORS.contains(&func_name.as_str()) {
+                        return Type::Tensor;
                     }
-                    Type::Tensor
+                    Type::Unknown
                 } else {
                     Type::Unknown
                 }

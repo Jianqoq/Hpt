@@ -23,7 +23,7 @@ pub(crate) struct CustomStmt {
     pub(crate) stmt: syn::Stmt,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub(crate) enum BlockType {
     Normal,
     IfAssign,
@@ -53,6 +53,41 @@ pub(crate) enum BlockType {
     Generics(syn::Generics),
     FnBody,
     Where(syn::WhereClause),
+}
+
+impl std::fmt::Debug for BlockType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Normal => write!(f, "Normal"),
+            Self::IfAssign => write!(f, "IfAssign"),
+            Self::IfCond => write!(f, "IfCond"),
+            Self::IfThen => write!(f, "IfThen"),
+            Self::IfThenEnd => write!(f, "IfThenEnd"),
+            Self::IfElseEnd => write!(f, "IfElseEnd"),
+            Self::ElseIfCond => write!(f, "ElseIfCond"),
+            Self::ForAssign => write!(f, "ForAssign"),
+            Self::ForInit => write!(f, "ForInit"),
+            Self::ForBody => write!(f, "ForBody"),
+            Self::ForCond => write!(f, "ForCond"),
+            Self::WhileAssign => write!(f, "WhileAssign"),
+            Self::WhileCond => write!(f, "WhileCond"),
+            Self::WhileBody => write!(f, "WhileBody"),
+            Self::LoopAssign => write!(f, "LoopAssign"),
+            Self::LoopBody => write!(f, "LoopBody"),
+            Self::ExprBlockAssign => write!(f, "ExprBlockAssign"),
+            Self::ExprBlock => write!(f, "ExprBlock"),
+            Self::ClosureArgs => write!(f, "ClosureArgs"),
+            Self::ClosureBody => write!(f, "ClosureBody"),
+            Self::ClosureAssign => write!(f, "ClosureAssign"),
+            Self::FnArgs => write!(f, "FnArgs"),
+            Self::FnVisibility(_) => write!(f, "FnVisibility"),
+            Self::FnName => write!(f, "FnName"),
+            Self::FnRet(_) => write!(f, "FnRet"),
+            Self::Generics(_) => write!(f, "Generics"),
+            Self::FnBody => write!(f, "FnBody"),
+            Self::Where(_) => write!(f, "Where"),
+        }
+    }
 }
 
 impl std::fmt::Debug for CustomStmt {

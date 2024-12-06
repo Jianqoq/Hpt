@@ -436,7 +436,6 @@ impl<'a> CFGBuilder<'a> {
 
 impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
     fn visit_item_fn(&mut self, i: &'ast syn::ItemFn) {
-        println!("visit_item_fn: {:#?}", i);
         let mut current_block_id = core::mem::take(&mut self.block_ids);
         let visibility_block = self.new_block(BlockType::FnVisibility(i.vis.clone()));
         let visibility_block_id = BlockId::new(visibility_block);

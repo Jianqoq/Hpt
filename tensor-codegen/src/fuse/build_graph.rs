@@ -122,113 +122,19 @@ impl Graph {
     }
 
     fn push_input_node_if_not_exist_expr(&mut self, expr: &syn::Expr) {
-        match expr {
-            syn::Expr::Array(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Array"),
-            syn::Expr::Assign(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Assign"),
-            syn::Expr::Async(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Async"),
-            syn::Expr::Await(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Await"),
-            syn::Expr::Binary(binary) => {
-                self.push_input_node_if_not_exist_expr(&binary.left);
-                self.push_input_node_if_not_exist_expr(&binary.right);
-            }
-            syn::Expr::Block(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Block"),
-            syn::Expr::Break(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Break"),
-            syn::Expr::Call(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Call"),
-            syn::Expr::Cast(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Cast"),
-            syn::Expr::Closure(_) =>
-                unimplemented!(
-                    "build_graph::push_input_node_if_not_exist_expr::syn::Expr::Closure"
-                ),
-            syn::Expr::Const(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Const"),
-            syn::Expr::Continue(_) =>
-                unimplemented!(
-                    "build_graph::push_input_node_if_not_exist_expr::syn::Expr::Continue"
-                ),
-            syn::Expr::Field(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Field"),
-            syn::Expr::ForLoop(_) =>
-                unimplemented!(
-                    "build_graph::push_input_node_if_not_exist_expr::syn::Expr::ForLoop"
-                ),
-            syn::Expr::Group(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Group"),
-            syn::Expr::If(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::If"),
-            syn::Expr::Index(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Index"),
-            syn::Expr::Infer(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Infer"),
-            syn::Expr::Let(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Let"),
-            syn::Expr::Lit(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Lit"),
-            syn::Expr::Loop(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Loop"),
-            syn::Expr::Macro(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Macro"),
-            syn::Expr::Match(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Match"),
-            syn::Expr::MethodCall(_) =>
-                unimplemented!(
-                    "build_graph::push_input_node_if_not_exist_expr::syn::Expr::MethodCall"
-                ),
-            syn::Expr::Paren(paren) => self.push_input_node_if_not_exist_expr(&paren.expr),
-            syn::Expr::Path(path) => {
-                if let Some(ident) = path.path.get_ident() {
-                    if self.variables.contains(&ident) {
-                        return;
-                    }
-                    self.inputs.insert(
-                        (Node::Input(ident.clone()), -1, self.current_block),
-                        self.type_table[&ident]
-                    );
-                    self.variables.insert(ident.clone());
+        if let syn::Expr::Path(path) = expr {
+            if let Some(ident) = path.path.get_ident() {
+                if self.variables.contains(&ident) {
+                    return;
                 }
+                self.inputs.insert(
+                    (Node::Input(ident.clone()), -1, self.current_block),
+                    self.type_table[&ident]
+                );
+                self.variables.insert(ident.clone());
             }
-            syn::Expr::Range(_) => {}
-            syn::Expr::RawAddr(_) =>
-                unimplemented!(
-                    "build_graph::push_input_node_if_not_exist_expr::syn::Expr::RawAddr"
-                ),
-            syn::Expr::Reference(reference) => {
-                self.push_input_node_if_not_exist_expr(&reference.expr);
-            }
-            syn::Expr::Repeat(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Repeat"),
-            syn::Expr::Return(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Return"),
-            syn::Expr::Struct(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Struct"),
-            syn::Expr::Try(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Try"),
-            syn::Expr::TryBlock(_) =>
-                unimplemented!(
-                    "build_graph::push_input_node_if_not_exist_expr::syn::Expr::TryBlock"
-                ),
-            syn::Expr::Tuple(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Tuple"),
-            syn::Expr::Unary(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Unary"),
-            syn::Expr::Unsafe(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Unsafe"),
-            syn::Expr::Verbatim(_) =>
-                unimplemented!(
-                    "build_graph::push_input_node_if_not_exist_expr::syn::Expr::Verbatim"
-                ),
-            syn::Expr::While(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::While"),
-            syn::Expr::Yield(_) =>
-                unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Yield"),
-            _ => unimplemented!("build_graph::push_input_node_if_not_exist_expr::syn::Expr::Other"),
+        } else {
+            self.errors.push(Error::ExpectedPath(expr.span(), "build graph"));
         }
     }
 }
@@ -872,6 +778,11 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         }
     }
     fn visit_expr_binary(&mut self, node: &'ast syn::ExprBinary) {
+        let left_ty = handle_expr_type(&node.left, &self.type_table);
+        let right_ty = handle_expr_type(&node.right, &self.type_table);
+        if left_ty != Type::Tensor || right_ty != Type::Tensor {
+            return;
+        }
         let current_assignment = if let Some(current_assignment) = &self.current_assignment {
             current_assignment
         } else {
@@ -948,59 +859,6 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
 
 fn handle_expr_type<'ast>(node: &'ast syn::Expr, type_table: &HashMap<syn::Ident, Type>) -> Type {
     match node {
-        syn::Expr::Binary(expr_binary) => {
-            let left_ty = handle_expr_type(&expr_binary.left, type_table);
-            let right_ty = handle_expr_type(&expr_binary.right, type_table);
-            if left_ty == Type::Tensor || right_ty == Type::Tensor {
-                Type::Tensor
-            } else {
-                Type::Unknown
-            }
-        }
-        syn::Expr::Call(_) => Type::Unknown,
-        syn::Expr::Cast(_) => Type::Unknown,
-        syn::Expr::Closure(_) => unimplemented!("build_graph::handle_expr_type::Closure"),
-        syn::Expr::Const(_) => unimplemented!("build_graph::handle_expr_type::Const"),
-        syn::Expr::Continue(_) => unimplemented!("build_graph::handle_expr_type::Continue"),
-        syn::Expr::Field(_) => unimplemented!("build_graph::handle_expr_type::Field"),
-        syn::Expr::Group(_) => unimplemented!("build_graph::handle_expr_type::Group"),
-        syn::Expr::Index(_) => unimplemented!("build_graph::handle_expr_type::Index"),
-        syn::Expr::Infer(_) => unimplemented!("build_graph::handle_expr_type::Infer"),
-        syn::Expr::Let(_) => unimplemented!("build_graph::handle_expr_type::Let"),
-        syn::Expr::Lit(_) => Type::Scalar,
-        syn::Expr::Macro(_) => unimplemented!("build_graph::handle_expr_type::Macro"),
-        syn::Expr::Match(_) => unimplemented!("build_graph::handle_expr_type::Match"),
-        syn::Expr::MethodCall(method_call) => {
-            let receiver_ty = handle_expr_type(&method_call.receiver, type_table);
-            if receiver_ty == Type::Tensor {
-                let valid_methods = [
-                    "sin",
-                    "cos",
-                    "tan",
-                    "asin",
-                    "acos",
-                    "atan",
-                    "sinh",
-                    "cosh",
-                    "tanh",
-                    "asinh",
-                    "acosh",
-                    "atanh",
-                    "relu",
-                    "selu",
-                    "tanh",
-                    "tan",
-                ];
-                if valid_methods.contains(&method_call.method.to_string().as_str()) {
-                    Type::Tensor
-                } else {
-                    Type::Unknown
-                }
-            } else {
-                Type::Unknown
-            }
-        }
-        syn::Expr::Paren(paren) => handle_expr_type(&paren.expr, type_table),
         syn::Expr::Path(expr_path) => {
             if let Some(ident) = expr_path.path.get_ident() {
                 type_table.get(ident).unwrap_or(&Type::Unknown).clone()
@@ -1008,16 +866,6 @@ fn handle_expr_type<'ast>(node: &'ast syn::Expr, type_table: &HashMap<syn::Ident
                 Type::Unknown
             }
         }
-        syn::Expr::Reference(reference) => { handle_expr_type(&reference.expr, type_table) }
-        syn::Expr::Return(_) => unimplemented!("build_graph::handle_expr_type::Return"),
-        syn::Expr::Struct(_) => unimplemented!("build_graph::handle_expr_type::Struct"),
-        syn::Expr::Try(_) => unimplemented!("build_graph::handle_expr_type::Try"),
-        syn::Expr::TryBlock(_) => unimplemented!("build_graph::handle_expr_type::TryBlock"),
-        syn::Expr::Tuple(_) => unimplemented!("build_graph::handle_expr_type::Tuple"),
-        syn::Expr::Unary(_) => unimplemented!("build_graph::handle_expr_type::Unary"),
-        syn::Expr::Unsafe(_) => unimplemented!("build_graph::handle_expr_type::Unsafe"),
-        syn::Expr::Verbatim(_) => unimplemented!("build_graph::handle_expr_type::Verbatim"),
-        syn::Expr::Yield(_) => unimplemented!("build_graph::handle_expr_type::Yield"),
         _ => Type::Unknown,
     }
 }

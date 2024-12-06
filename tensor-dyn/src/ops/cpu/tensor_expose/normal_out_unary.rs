@@ -195,14 +195,14 @@ impl<T> NormalUaryOps
     /// let a = Tensor::<f64>::new([-1.0, 1.5, -2.9, 3.0]);
     /// let b = a.clip(-1.0, 1.0).unwrap();
     /// ```
-    fn clip(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> Result<Self::Output> {
-        Ok(_Tensor::clip(self, min, max)?.into())
+    fn clamp(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> Result<Self::Output> {
+        Ok(_Tensor::clamp(self, min, max)?.into())
     }
 
-    fn clip_<U>(&self, min: Self::OutputMeta, max: Self::OutputMeta, out: U) -> Result<Self::Output>
+    fn clamp_<U>(&self, min: Self::OutputMeta, max: Self::OutputMeta, out: U) -> Result<Self::Output>
         where U: Borrow<Self::InplaceOutput>
     {
-        Ok(_Tensor::clip_(self, min, max, out)?.into())
+        Ok(_Tensor::clamp_(self, min, max, out)?.into())
     }
 
     /// Computes the element-wise rounding of the tensor.
