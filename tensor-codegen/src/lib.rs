@@ -27,3 +27,9 @@ pub fn fuse_proc_macro(item: TokenStream) -> TokenStream {
         Err(e) => e.downcast::<syn::Error>().unwrap().to_compile_error().into(),
     }
 }
+
+#[proc_macro_attribute]
+pub fn compile(_: TokenStream, item: TokenStream) -> TokenStream {
+    fuse_proc_macro(item)
+}
+

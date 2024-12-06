@@ -1,10 +1,22 @@
+use into_scalar::IntoScalar;
 use rust_xlsxwriter::{ Format, Workbook };
 use std::io::Write;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
 fuse_proc_macro!(
-fn compute(a: _Tensor<f32>, b: _Tensor<f32>, k: f32) -> anyhow::Result<_Tensor<f32>> {
+    fn compute<T: CommonBounds>(a: _Tensor<T>, b: _Tensor<T>, k: f32) -> anyhow::Result<_Tensor<T>>
+    where
+        T: FloatOutUnary<Output = T, Base = T>,
+        T::Vec: FloatOutUnary<Output = T::Vec, Base = T>,
+        T: NormalOutUnary<Base = T>,
+        T::Vec: NormalOutUnary<Base = T>,
+        f64: IntoScalar<T>,
+        Option<T>: From<f64>
+{
+    fn hello(a: f32, b: f64) -> f32 {
+        a + b
+    }
     let mut c = &a + &b / &a;
     let mut d = c.sin()?;
     let e = d.relu()?;
@@ -14,12 +26,12 @@ fn compute(a: _Tensor<f32>, b: _Tensor<f32>, k: f32) -> anyhow::Result<_Tensor<f
     if shape.len() > 0 {
         d = e.selu(alpha, gamma)?;
         if alpha > 0.0 {
-            d = e.tanh()?;
+            e.tanh()?;
         } else {
-            d = d.tan()?;
+            d.tan()?;
         }
     } else {
-        d = d.selu(alpha, gamma)?;
+        d.selu(alpha, gamma)?;
     }
     for _ in 0..1000000 {
         c = &d + &c;
@@ -32,6 +44,44 @@ fn compute(a: _Tensor<f32>, b: _Tensor<f32>, k: f32) -> anyhow::Result<_Tensor<f
     }
     Ok(c)
 });
+
+// #[compile]
+// fn compute2<T: CommonBounds>(a: _Tensor<T>, b: _Tensor<T>, k: f32) -> anyhow::Result<_Tensor<T>>
+//     where
+//         T: FloatOutUnary<Output = T, Base = T>,
+//         T::Vec: FloatOutUnary<Output = T::Vec, Base = T>,
+//         T: NormalOutUnary<Base = T>,
+//         T::Vec: NormalOutUnary<Base = T>,
+//         f64: IntoScalar<T>,
+//         Option<T>: From<f64>
+// {
+//     let mut c = &a + &b / &a;
+//     let mut d = c.sin()?;
+//     let e = d.relu()?;
+//     let shape = a.shape();
+//     let alpha = 1.673263242354358;
+//     let gamma = 1.050700987355822;
+//     if shape.len() > 0 {
+//         d = e.selu(alpha, gamma)?;
+//         if alpha > 0.0 {
+//             e.tanh()?;
+//         } else {
+//             d.tan()?;
+//         }
+//     } else {
+//         d.selu(alpha, gamma)?;
+//     }
+//     for _ in 0..1000000 {
+//         c = &d + &c;
+//         break;
+//     }
+//     while true {
+//         let c = &d + &c;
+//         c.sin()?;
+//         continue;
+//     }
+//     Ok(c)
+// }
 
 fn main() -> anyhow::Result<()> {
     let o = loop {

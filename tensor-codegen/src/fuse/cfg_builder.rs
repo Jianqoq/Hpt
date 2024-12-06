@@ -194,9 +194,7 @@ impl<'a> CFGBuilder<'a> {
             proc_macro2::Span::call_site()
         );
         self.cfg.graph[assign_block].statements.push(CustomStmt {
-            stmt: syn
-                ::parse2(quote::quote! { let #assign_ident; })
-                .expect("assign stmt is none"),
+            stmt: syn::parse2(quote::quote! { let #assign_ident; }).expect("assign stmt is none"),
         });
 
         // 连接当前块到循环体块
@@ -438,22 +436,72 @@ impl<'a> CFGBuilder<'a> {
 
 impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
     fn visit_item_fn(&mut self, i: &'ast syn::ItemFn) {
+        println!("visit_item_fn: {:#?}", i);
         let mut current_block_id = core::mem::take(&mut self.block_ids);
-        let new_block = self.new_block(BlockType::Normal);
-        let new_block_id = BlockId::new(new_block);
+        let visibility_block = self.new_block(BlockType::FnVisibility(i.vis.clone()));
+        let visibility_block_id = BlockId::new(visibility_block);
+        let args_block = self.new_block(BlockType::FnArgs);
+        let args_block_id = BlockId::new(args_block);
+        let name_block = self.new_block(BlockType::FnName);
+        let name_block_id = BlockId::new(name_block);
+        let generics_block = self.new_block(BlockType::Generics(i.sig.generics.clone()));
+        let generics_block_id = BlockId::new(generics_block);
+        let ret_block = self.new_block(BlockType::FnRet(i.sig.output.clone()));
+        let ret_block_id = BlockId::new(ret_block);
+        let body_block = self.new_block(BlockType::FnBody);
+        let body_block_id = BlockId::new(body_block);
+        let (where_block, where_block_id) = if let Some(where_clause) = &i.sig.generics.where_clause {
+            let where_block = self.new_block(BlockType::Where(where_clause.clone()));
+            let where_block_id = BlockId::new(where_block);
+            (Some(where_block), Some(where_block_id))
+        } else {
+            (None, None)
+        };
+        let after_fn_block = self.new_block(BlockType::Normal);
+        let after_fn_block_id = BlockId::new(after_fn_block);
+        self.connect_to(visibility_block);
+        self.set_current_block(visibility_block);
+        self.connect_to(name_block);
+        self.set_current_block(name_block);
+        let name = &i.sig.ident;
+        self.push_stmt(syn::parse2(quote::quote! { let #name; }).expect("fn name is none"));
+        self.connect_to(args_block);
+        self.set_current_block(args_block);
         for arg in &i.sig.inputs {
-            self.visit_fn_arg(arg);
-            let arg = core::mem::take(&mut self.current_pat).expect("arg is none::364");
-            let arg_stmt = syn::parse2(quote::quote! { let #arg; }).expect("arg stmt is none::365");
-            self.push_stmt(arg_stmt);
+            match arg {
+                syn::FnArg::Receiver(_) => {
+                    unimplemented!("cfg_builder::visit_item_fn::receiver")
+                },
+                syn::FnArg::Typed(pat_type) => {
+                    let arg_stmt = syn::parse2(quote::quote! { let #pat_type; }).expect("arg stmt is none::365");
+                    self.push_stmt(arg_stmt);
+                },
+            }
         }
-        self.connect_to(new_block);
-        self.set_current_block(new_block);
-        self.set_current_block_id(new_block_id);
+        self.connect_to(ret_block);
+        self.set_current_block(ret_block);
+        if let Some(where_block) = where_block {
+            self.connect_to(where_block);
+            self.set_current_block(where_block);
+        }
+        self.connect_to(body_block);
+        self.set_current_block(body_block);
+        self.set_current_block_id(body_block_id);
         self.visit_block(&i.block);
-        let new_block_id = core::mem::take(&mut self.block_ids);
-        current_block_id.children.push(new_block_id);
+        let body_block_id = core::mem::take(&mut self.block_ids);
+        current_block_id.children.push(visibility_block_id);
+        current_block_id.children.push(name_block_id);
+        current_block_id.children.push(generics_block_id);
+        current_block_id.children.push(args_block_id);
+        current_block_id.children.push(ret_block_id);
+        if let Some(where_block_id) = where_block_id {
+            current_block_id.children.push(where_block_id);
+        }
+        current_block_id.children.push(body_block_id);
+        current_block_id.children.push(after_fn_block_id);
         self.set_current_block_id(current_block_id);
+        self.connect_to(after_fn_block);
+        self.set_current_block(after_fn_block);
     }
 
     fn visit_fn_arg(&mut self, arg: &'ast syn::FnArg) {
@@ -857,9 +905,32 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 }
             }
             syn::Stmt::Item(item) => {
-                self.visit_item(item);
-                let item = core::mem::take(&mut self.current_item).expect("item is none");
-                self.push_stmt(syn::Stmt::Item(item));
+                if let syn::Item::Macro(_) = item {
+                    self.push_stmt(syn::Stmt::Item(item.clone()));
+                } else {
+                    self.visit_item(item);
+                }
+                match item {
+                    syn::Item::ExternCrate(_) => todo!(),
+                    | syn::Item::Fn(_)
+                    | syn::Item::Enum(_)
+                    | syn::Item::Macro(_)
+                    | syn::Item::Trait(_)
+                    | syn::Item::Struct(_) => {}
+                    syn::Item::ForeignMod(_) => todo!(),
+                    syn::Item::Impl(_) => todo!(),
+                    syn::Item::Mod(_) => todo!(),
+                    syn::Item::Static(_) => todo!(),
+                    syn::Item::TraitAlias(_) => todo!(),
+                    syn::Item::Type(_) => todo!(),
+                    syn::Item::Union(_) => todo!(),
+                    syn::Item::Use(_) => todo!(),
+                    syn::Item::Verbatim(_) => todo!(),
+                    _ => {
+                        let item = core::mem::take(&mut self.current_item).expect("item is none");
+                        self.push_stmt(syn::Stmt::Item(item));
+                    }
+                }
             }
             syn::Stmt::Expr(expr, semi) => {
                 let is_last_stmt = self.is_last_stmt;

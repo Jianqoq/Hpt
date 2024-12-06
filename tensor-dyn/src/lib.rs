@@ -167,6 +167,7 @@ pub use tensor_iterator::TensorIterator;
 
 pub use tensor_macros::match_selection;
 pub use tensor_codegen::fuse_proc_macro;
+pub use tensor_codegen::compile;
 pub use tensor_traits::*;
 pub use tensor_types::vectors::*;
 pub use tensor_types::*;

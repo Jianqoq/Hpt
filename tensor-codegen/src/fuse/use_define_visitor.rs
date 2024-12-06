@@ -55,6 +55,9 @@ impl<'ast> Visit<'ast> for UseDefineVisitor {
             _ => unimplemented!("use_define_visitor::visit_pat::other"),
         }
     }
+    fn visit_item_fn(&mut self, i: &'ast syn::ItemFn) {
+        self.define_vars.insert(i.sig.ident.clone());
+    }
     fn visit_expr_assign(&mut self, node: &'ast syn::ExprAssign) {
         let mut collector = VariableCollector::new();
         if let syn::Expr::Path(left) = node.left.as_ref() {

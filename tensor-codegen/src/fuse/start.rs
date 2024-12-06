@@ -1,7 +1,7 @@
 use std::collections::{ HashMap, HashSet };
 use crate::fuse::ty_infer::TyInfer;
 use petgraph::{ algo::dominators::Dominators, graph::NodeIndex };
-use syn::{ spanned::Spanned, visit::Visit };
+use syn::visit::Visit;
 use super::cfg::CFG;
 
 fn compute_dominance_frontiers(
@@ -63,6 +63,7 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     let definitions = cfg.get_variable_definitions();
     cfg.insert_phi_functions(&dominance_frontiers, &definitions);
     cfg.rename_variables(&dominators);
+    println!("graph: {:#?}", cfg.graph);
     Ok(cfg)
 }
 
@@ -166,37 +167,9 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
     }
     cfg.replace_all_var_back();
 
-    let visibility = &func.vis;
-    let mut token_stream = proc_macro2::TokenStream::new();
-    token_stream.extend(quote::quote!(#visibility));
-    let mut signature = func.sig;
-    let mut arguments = syn::punctuated::Punctuated::<syn::FnArg, syn::Token![,]>::new();
-    let new_inputs = cfg.graph.node_weight((0).into()).expect("node weight not found");
-    for inp in new_inputs.statements.iter() {
-        if let syn::Stmt::Local(local) = &inp.stmt {
-            if let syn::Pat::Type(pat_type) = &local.pat {
-                arguments.push(syn::FnArg::Typed(pat_type.clone()));
-            } else {
-                return Err(
-                    syn::Error
-                        ::new(
-                            local.pat.span(),
-                            "fuse macro currently only function argument in the format: `a: type` "
-                        )
-                        .into()
-                );
-            }
-        } else {
-            panic!("fuse_impl::process_function_signature::not_local");
-        }
-    }
-    signature.inputs = arguments;
-    token_stream.extend(quote::quote!(#signature));
-    let body = cfg.gen_code();
+    let code = cfg.gen_code();
     let ret = quote::quote!(
-        #token_stream {
-            #body
-        }
+        #code
     );
     Ok(ret)
 }

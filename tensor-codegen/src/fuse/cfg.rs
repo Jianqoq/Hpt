@@ -23,7 +23,7 @@ pub(crate) struct CustomStmt {
     pub(crate) stmt: syn::Stmt,
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum BlockType {
     Normal,
     IfAssign,
@@ -46,6 +46,13 @@ pub(crate) enum BlockType {
     ClosureArgs,
     ClosureBody,
     ClosureAssign,
+    FnArgs,
+    FnVisibility(syn::Visibility),
+    FnName,
+    FnRet(syn::ReturnType),
+    Generics(syn::Generics),
+    FnBody,
+    Where(syn::WhereClause),
 }
 
 impl std::fmt::Debug for CustomStmt {
@@ -507,7 +514,7 @@ impl CFG {
         for child in block_id.children.into_iter() {
             child_code.extend(self._gen_code(child));
         }
-        match block.block_type {
+        match &block.block_type {
             BlockType::Normal => {
                 body.extend(quote::quote!(#code #child_code));
             }
@@ -547,6 +554,9 @@ impl CFG {
             BlockType::ExprBlock => {
                 body.extend(quote::quote!({#code #child_code};));
             }
+            BlockType::FnBody => {
+                body.extend(quote::quote!({#code #child_code}));
+            }
             | BlockType::ExprBlockAssign
             | BlockType::IfAssign
             | BlockType::ForAssign
@@ -561,6 +571,24 @@ impl CFG {
             BlockType::ClosureBody => {
                 body.extend(quote::quote!({#code #child_code};));
             }
+            BlockType::FnArgs => {
+                body.extend(quote::quote!((#code)));
+            }
+            BlockType::FnVisibility(vis) => {
+                body.extend(quote::quote!(#vis));
+            }
+            BlockType::FnName => {
+                body.extend(quote::quote!(fn #code));
+            }
+            BlockType::FnRet(ret) => {
+                body.extend(quote::quote!(#ret));
+            }
+            BlockType::Generics(generics) => {
+                body.extend(quote::quote!(#generics));
+            }
+            BlockType::Where(where_clause) => {
+                body.extend(quote::quote!(#where_clause));
+            },
         }
         body
     }
