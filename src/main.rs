@@ -81,8 +81,6 @@ fn compute2<T: CommonBounds>(a: _Tensor<T>, b: _Tensor<T>, k: f32) -> anyhow::Re
 }
 
 fn main() -> anyhow::Result<()> {
-    let o = loop {
-    };
     // conv2d()?;
     // let a = _Tensor::<f32>::arange(0, 10000)?;
     // let b = _Tensor::<f32>::arange(0, 10000)?;

@@ -74,6 +74,11 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
     cfg.live_analysis(&type_table.table);
     let table = core::mem::take(&mut type_table.table);
     let graphs = cfg.build_graphs(table);
+    for err in graphs.node_weights().map(|x| x.errors.iter()) {
+        for err in err {
+            return Err(err.to_anyhow_error());
+        }
+    }
     cfg.add_extra_temps(&graphs);
     let mut genfuse_map = HashMap::new();
     for idx in graphs.node_indices() {

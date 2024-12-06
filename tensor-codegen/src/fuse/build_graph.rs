@@ -7,6 +7,7 @@ use syn::spanned::Spanned;
 use super::{
     errors::Error,
     node::{ Binary, Node, Unary },
+    operator_lists::UNARY_OPERATORS,
     ty_infer::Type,
     variable_collector::VariableCollector,
 };
@@ -741,6 +742,10 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
     fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
         let receiver_ty = handle_expr_type(&node.receiver, &self.type_table);
         if receiver_ty != Type::Tensor {
+            return;
+        }
+        let method_name = node.method.to_string();
+        if !UNARY_OPERATORS.contains(&method_name.as_str()) {
             return;
         }
         let current_assignment = if let Some(assingment) = self.current_assignment.clone() {
