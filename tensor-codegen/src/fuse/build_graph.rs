@@ -1,24 +1,26 @@
 use std::{ collections::{ HashMap, HashSet }, rc::Rc };
 
 use petgraph::prelude::StableGraph;
-use proc_macro2::Span;
 use quote::ToTokens;
 use syn::spanned::Spanned;
 
-use super::{ node::{ Binary, Node, Unary }, ty_infer::Type, variable_collector::VariableCollector };
+use super::{
+    errors::Error,
+    node::{ Binary, Node, Unary },
+    ty_infer::Type,
+    variable_collector::VariableCollector,
+};
 
 pub(crate) struct Graph {
     pub(crate) nodes: Vec<(Node, i64, usize)>,
     pub(crate) inputs: HashMap<(Node, i64, usize), Type>,
     pub(crate) type_table: Rc<HashMap<syn::Ident, Type>>,
     pub(crate) variables: HashSet<syn::Ident>,
-    pub(crate) current_var: syn::Ident,
-    pub(crate) tmp_var_version: usize,
     pub(crate) current_assignment: Option<syn::Ident>,
     pub(crate) current_idx: usize,
     pub(crate) current_block: usize,
-    pub(crate) is_first_time: bool,
     pub(crate) extra_temps: Vec<syn::Ident>,
+    pub(crate) errors: Vec<Error>,
 }
 
 impl Graph {
@@ -28,13 +30,11 @@ impl Graph {
             nodes: vec![],
             inputs: HashMap::new(),
             variables: HashSet::new(),
-            current_var: syn::Ident::new("__out", Span::call_site()),
-            tmp_var_version: 0,
             current_assignment: None,
             current_idx: 0,
             current_block,
-            is_first_time: true,
             extra_temps: vec![],
+            errors: vec![],
         }
     }
 
@@ -837,28 +837,17 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         if receiver_ty != Type::Tensor {
             return;
         }
-        let first_time = self.is_first_time;
-        let current_assignment = self.current_assignment.clone();
-        self.is_first_time = false;
-        self.current_assignment = None;
-        self.visit_expr(&node.receiver);
-        let receiver_var = self.current_var.clone();
-
-        let is_assignment = current_assignment.is_some();
-        let out = if let Some(current_assignment) = current_assignment {
-            self.current_assignment = None;
-            self.current_var = current_assignment.clone();
-            current_assignment
+        let current_assignment = if let Some(assingment) = self.current_assignment.clone() {
+            assingment
         } else {
-            let out = proc_macro2::Ident::new(
-                &format!("__out_{}", self.tmp_var_version),
-                node.span()
-            );
-            self.variables.insert(out.clone());
-            self.extra_temps.push(out.clone());
-            self.current_var = out.clone();
-            self.tmp_var_version += 1;
-            out
+            self.errors.push(Error::ExpectedAssignment(node.span(), "build graph"));
+            return;
+        };
+        let receiver_var = if let syn::Expr::Path(path) = node.receiver.as_ref() {
+            path.path.get_ident().unwrap()
+        } else {
+            self.errors.push(Error::ExpectedPath(node.receiver.span(), "build graph"));
+            return;
         };
         for arg in node.args.iter() {
             self.push_input_node_if_not_exist_expr(arg);
@@ -870,19 +859,11 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
                 .iter()
                 .map(|arg| arg.clone())
                 .collect(),
-            output: out.clone(),
+            output: current_assignment,
         });
-        self.nodes.push((
-            method,
-            if first_time || is_assignment { self.current_idx as i64 } else { -1 },
-            self.current_block,
-        ));
-        self.is_first_time = first_time;
+        self.nodes.push((method, self.current_idx as i64, self.current_block));
     }
 
-    fn visit_ident(&mut self, i: &'ast proc_macro2::Ident) {
-        self.current_var = i.clone();
-    }
     fn visit_expr_path(&mut self, i: &'ast syn::ExprPath) {
         if i.path.get_ident().is_some() {
             self.visit_ident(&i.path.segments[0].ident);
@@ -891,39 +872,35 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         }
     }
     fn visit_expr_binary(&mut self, node: &'ast syn::ExprBinary) {
-        let first_time = self.is_first_time;
-        self.is_first_time = false;
-        let left_ty = handle_expr_type(&node.left, &self.type_table);
-        let right_ty = handle_expr_type(&node.right, &self.type_table);
-        if left_ty != Type::Tensor && right_ty != Type::Tensor {
+        let current_assignment = if let Some(current_assignment) = &self.current_assignment {
+            current_assignment
+        } else {
+            self.errors.push(Error::ExpectedAssignment(node.span(), "build graph"));
             return;
-        }
-        let current_assignment = self.current_assignment.clone();
-        self.current_assignment = None;
-        self.visit_expr(&node.left);
-        let left_var = self.current_var.clone();
-        if !self.variables.contains(&self.current_var) {
-            self.variables.insert(left_var.clone());
-            let node = Node::Input(left_var.clone());
-            if !self.inputs.contains_key(&(node.clone(), -1, self.current_block)) {
-                self.inputs.insert(
-                    (node, -1, self.current_block),
-                    self.type_table[&left_var].clone()
-                );
+        };
+        let left = if let syn::Expr::Path(path) = node.left.as_ref() {
+            if let Some(ident) = path.path.get_ident() {
+                ident
+            } else {
+                self.errors.push(Error::ExpectedIdentifier(path.span(), "build graph"));
+                return;
             }
-        }
-        self.visit_expr(&node.right);
-        let right_var = self.current_var.clone();
-        if !self.variables.contains(&right_var) {
-            self.variables.insert(right_var.clone());
-            let node = Node::Input(right_var.clone());
-            if !self.inputs.contains_key(&(node.clone(), -1, self.current_block)) {
-                self.inputs.insert(
-                    (node, -1, self.current_block),
-                    self.type_table[&right_var].clone()
-                );
+        } else {
+            self.errors.push(Error::ExpectedPath(node.left.span(), "build graph"));
+            return;
+        };
+        let right = if let syn::Expr::Path(path) = node.right.as_ref() {
+            if let Some(ident) = path.path.get_ident() {
+                ident
+            } else {
+                self.errors.push(Error::ExpectedIdentifier(path.span(), "build graph"));
+                return;
             }
-        }
+        } else {
+            self.errors.push(Error::ExpectedPath(node.right.span(), "build graph"));
+            return;
+        };
+
         let method = match node.op {
             syn::BinOp::Add(_) => "add",
             syn::BinOp::Sub(_) => "sub",
@@ -956,33 +933,16 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
             _ => todo!(),
         };
 
-        let is_assignment = current_assignment.is_some();
-        let out = if let Some(current_assignment) = current_assignment {
-            self.current_assignment = None;
-            self.current_var = current_assignment.clone();
-            current_assignment
-        } else {
-            let out = proc_macro2::Ident::new(
-                &format!("__out_{}", self.tmp_var_version),
-                node.span()
-            );
-            self.variables.insert(out.clone());
-            self.extra_temps.push(out.clone());
-            self.current_var = out.clone();
-            self.tmp_var_version += 1;
-            out
-        };
         self.nodes.push((
             Node::Binary(Binary {
                 method: proc_macro2::Ident::new(method, node.span()),
-                left: left_var,
-                right: right_var,
-                output: out.clone(),
+                left: left.clone(),
+                right: right.clone(),
+                output: current_assignment.clone(),
             }),
-            if first_time || is_assignment { self.current_idx as i64 } else { -1 },
+            self.current_idx as i64,
             self.current_block,
         ));
-        self.is_first_time = first_time;
     }
 }
 

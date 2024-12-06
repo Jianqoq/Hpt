@@ -14,9 +14,6 @@ fuse_proc_macro!(
         f64: IntoScalar<T>,
         Option<T>: From<f64>
 {
-    fn hello(a: f32, b: f64) -> f32 {
-        a + b
-    }
     let mut c = &a + &b / &a;
     let mut d = c.sin()?;
     let e = d.relu()?;

@@ -15,6 +15,7 @@ regex = "1.11.0"
 proc-macro2 = { version = "1.0.86", features = ["span-locations"] }
 anyhow = "1.0.75"
 petgraph = "0.6.5"
+thiserror = "2.0.4"
 
 [lib]
 proc-macro = true
