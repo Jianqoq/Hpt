@@ -11,7 +11,8 @@ use syn::visit::Visit;
 use syn::visit_mut::VisitMut;
 use syn::Stmt;
 
-use super::codegen;
+use super::{ codegen, expr_ty };
+use super::errors::Error;
 use super::expr_call_use_visitor::ExprCallUseVisitor;
 use super::phi_function::PhiFunction;
 use super::ty_infer::Type;
@@ -164,6 +165,7 @@ pub(crate) struct CFG {
     pub(crate) graph: Graph<BasicBlock, ()>,
     pub(crate) block_id: BlockId,
     pub(crate) entry: NodeIndex,
+    pub(crate) errors: Vec<Error>,
 }
 
 fn visit_expr_assign_add_var(
@@ -188,33 +190,13 @@ enum VarStatus {
     NotFound,
 }
 
-fn check_expr_assign(expr: &syn::ExprAssign, var: &syn::Ident, status: &mut VarStatus) {
+fn check_expr_assign(
+    errors: &mut Vec<Error>,
+    expr: &syn::ExprAssign,
+    var: &syn::Ident,
+    status: &mut VarStatus
+) {
     match &expr.left.as_ref() {
-        syn::Expr::Array(_) => unimplemented!("cfg::insert_phi_functions::Expr::Array"),
-        syn::Expr::Assign(_) => unimplemented!("cfg::insert_phi_functions::Expr::Assign"),
-        syn::Expr::Async(_) => unimplemented!("cfg::insert_phi_functions::Expr::Async"),
-        syn::Expr::Await(_) => unimplemented!("cfg::insert_phi_functions::Expr::Await"),
-        syn::Expr::Binary(_) => unimplemented!("cfg::insert_phi_functions::Expr::Binary"),
-        syn::Expr::Block(_) => unimplemented!("cfg::insert_phi_functions::Expr::Block"),
-        syn::Expr::Break(_) => unimplemented!("cfg::insert_phi_functions::Expr::Break"),
-        syn::Expr::Call(_) => unimplemented!("cfg::insert_phi_functions::Expr::Call"),
-        syn::Expr::Cast(_) => unimplemented!("cfg::insert_phi_functions::Expr::Cast"),
-        syn::Expr::Closure(_) => unimplemented!("cfg::insert_phi_functions::Expr::Closure"),
-        syn::Expr::Const(_) => unimplemented!("cfg::insert_phi_functions::Expr::Const"),
-        syn::Expr::Continue(_) => unimplemented!("cfg::insert_phi_functions::Expr::Continue"),
-        syn::Expr::Field(_) => unimplemented!("cfg::insert_phi_functions::Expr::Field"),
-        syn::Expr::ForLoop(_) => unimplemented!("cfg::insert_phi_functions::Expr::ForLoop"),
-        syn::Expr::Group(_) => unimplemented!("cfg::insert_phi_functions::Expr::Group"),
-        syn::Expr::If(_) => unimplemented!("cfg::insert_phi_functions::Expr::If"),
-        syn::Expr::Index(_) => unimplemented!("cfg::insert_phi_functions::Expr::Index"),
-        syn::Expr::Infer(_) => unimplemented!("cfg::insert_phi_functions::Expr::Infer"),
-        syn::Expr::Let(_) => unimplemented!("cfg::insert_phi_functions::Expr::Let"),
-        syn::Expr::Lit(_) => unimplemented!("cfg::insert_phi_functions::Expr::Lit"),
-        syn::Expr::Loop(_) => unimplemented!("cfg::insert_phi_functions::Expr::Loop"),
-        syn::Expr::Macro(_) => unimplemented!("cfg::insert_phi_functions::Expr::Macro"),
-        syn::Expr::Match(_) => unimplemented!("cfg::insert_phi_functions::Expr::Match"),
-        syn::Expr::MethodCall(_) => unimplemented!("cfg::insert_phi_functions::Expr::MethodCall"),
-        syn::Expr::Paren(_) => unimplemented!("cfg::insert_phi_functions::Expr::Paren"),
         syn::Expr::Path(path) => {
             if let Some(ident) = path.path.get_ident() {
                 if ident == var {
@@ -222,21 +204,15 @@ fn check_expr_assign(expr: &syn::ExprAssign, var: &syn::Ident, status: &mut VarS
                 }
             }
         }
-        syn::Expr::Range(_) => unimplemented!("cfg::insert_phi_functions::Expr::Range"),
-        syn::Expr::RawAddr(_) => unimplemented!("cfg::insert_phi_functions::Expr::RawAddr"),
-        syn::Expr::Reference(_) => unimplemented!("cfg::insert_phi_functions::Expr::Reference"),
-        syn::Expr::Repeat(_) => unimplemented!("cfg::insert_phi_functions::Expr::Repeat"),
-        syn::Expr::Return(_) => unimplemented!("cfg::insert_phi_functions::Expr::Return"),
-        syn::Expr::Struct(_) => unimplemented!("cfg::insert_phi_functions::Expr::Struct"),
-        syn::Expr::Try(_) => unimplemented!("cfg::insert_phi_functions::Expr::Try"),
-        syn::Expr::TryBlock(_) => unimplemented!("cfg::insert_phi_functions::Expr::TryBlock"),
-        syn::Expr::Tuple(_) => unimplemented!("cfg::insert_phi_functions::Expr::Tuple"),
-        syn::Expr::Unary(_) => unimplemented!("cfg::insert_phi_functions::Expr::Unary"),
-        syn::Expr::Unsafe(_) => unimplemented!("cfg::insert_phi_functions::Expr::Unsafe"),
-        syn::Expr::Verbatim(_) => unimplemented!("cfg::insert_phi_functions::Expr::Verbatim"),
-        syn::Expr::While(_) => unimplemented!("cfg::insert_phi_functions::Expr::While"),
-        syn::Expr::Yield(_) => unimplemented!("cfg::insert_phi_functions::Expr::Yield"),
-        _ => unimplemented!("cfg::insert_phi_functions::Expr::Other"),
+        _ => {
+            errors.push(
+                Error::Unsupported(
+                    expr.span(),
+                    "check_expr_assign",
+                    format!("{:?}", expr_ty::ExprType::from(expr.left.as_ref()))
+                )
+            );
+        }
     }
 }
 
@@ -254,7 +230,7 @@ impl CFG {
             assigned_vars: HashSet::new(),
         };
         let entry = graph.add_node(entry_block);
-        CFG { graph, entry, block_id: BlockId::new(entry) }
+        CFG { graph, entry, block_id: BlockId::new(entry), errors: vec![] }
     }
 
     pub(crate) fn live_analysis(&mut self, type_table: &HashMap<syn::Ident, Type>) {
@@ -383,7 +359,7 @@ impl CFG {
         for var in variable_definitions.keys() {
             has_already.insert(var.clone(), HashSet::new());
         }
-
+        let mut errors = Vec::new();
         for (var, defs) in variable_definitions {
             let mut work = defs.clone();
             while let Some(def) = work.pop() {
@@ -410,7 +386,12 @@ impl CFG {
                                         }
                                         Stmt::Expr(expr, ..) => {
                                             if let syn::Expr::Assign(assign) = &expr {
-                                                check_expr_assign(assign, var, &mut status);
+                                                check_expr_assign(
+                                                    &mut errors,
+                                                    assign,
+                                                    var,
+                                                    &mut status
+                                                );
                                             }
                                         }
                                         _ => {}
@@ -447,6 +428,7 @@ impl CFG {
                 }
             }
         }
+        self.errors.extend(errors);
     }
 
     pub(crate) fn build_graphs(
@@ -488,7 +470,10 @@ impl CFG {
     }
 
     // 变量重命名
-    pub(crate) fn rename_variables(&mut self, dominators: &Dominators<NodeIndex>) {
+    pub(crate) fn rename_variables(
+        &mut self,
+        dominators: &Dominators<NodeIndex>
+    ) -> anyhow::Result<()> {
         let mut stacks = HashMap::new();
         let mut versions = HashMap::new();
 
@@ -510,7 +495,8 @@ impl CFG {
             versions.insert(var, 0);
         }
 
-        rename(self, self.entry, &mut stacks, &mut versions, dominators);
+        rename(self, self.entry, &mut stacks, &mut versions, dominators)?;
+        Ok(())
     }
 
     pub(crate) fn fill_variables(&mut self) {
@@ -623,7 +609,7 @@ impl CFG {
             }
             BlockType::Where(where_clause) => {
                 body.extend(quote::quote!(#where_clause));
-            },
+            }
         }
         body
     }
@@ -640,39 +626,95 @@ impl CFG {
 }
 
 fn new_name_pat(
+    errors: &mut Vec<Error>,
     pat: &mut syn::Pat,
     stacks: &mut HashMap<syn::Ident, Vec<usize>>,
     versions: &mut HashMap<syn::Ident, usize>,
     new_origin_var_map: &mut HashMap<syn::Ident, syn::Ident>
-) {
+) -> anyhow::Result<()> {
     match pat {
-        syn::Pat::Const(_) => unimplemented!("rename::new_name_pat::Pat::Const"),
-        syn::Pat::Ident(pat_ident) => {
-            pat_ident.ident = new_name(&pat_ident.ident, versions, stacks, new_origin_var_map);
+        syn::Pat::Const(const_pat) => {
+            errors.push(
+                Error::Unsupported(const_pat.span(), "new_name_pat", "const pattern".to_string())
+            );
         }
-        syn::Pat::Lit(_) => unimplemented!("rename::new_name_pat::Pat::Lit"),
-        syn::Pat::Macro(_) => unimplemented!("rename::new_name_pat::Pat::Macro"),
-        syn::Pat::Or(_) => unimplemented!("rename::new_name_pat::Pat::Or"),
-        syn::Pat::Paren(_) => unimplemented!("rename::new_name_pat::Pat::Paren"),
-        syn::Pat::Path(_) => unimplemented!("rename::new_name_pat::Pat::Path"),
-        syn::Pat::Range(_) => unimplemented!("rename::new_name_pat::Pat::Range"),
-        syn::Pat::Reference(_) => unimplemented!("rename::new_name_pat::Pat::Reference"),
-        syn::Pat::Rest(_) => unimplemented!("rename::new_name_pat::Pat::Rest"),
-        syn::Pat::Slice(_) => unimplemented!("rename::new_name_pat::Pat::Slice"),
-        syn::Pat::Struct(_) => unimplemented!("rename::new_name_pat::Pat::Struct"),
+        syn::Pat::Ident(pat_ident) => {
+            pat_ident.ident = new_name(
+                errors,
+                &pat_ident.ident,
+                versions,
+                stacks,
+                new_origin_var_map
+            )?;
+        }
+        syn::Pat::Lit(lit) => {
+            errors.push(Error::Unsupported(lit.span(), "new_name_pat", "lit pattern".to_string()));
+        }
+        syn::Pat::Macro(_) => {
+            errors.push(
+                Error::Unsupported(pat.span(), "new_name_pat", "macro pattern".to_string())
+            );
+        }
+        syn::Pat::Or(_) => {
+            errors.push(Error::Unsupported(pat.span(), "new_name_pat", "or pattern".to_string()));
+        }
+        syn::Pat::Paren(_) => {
+            errors.push(
+                Error::Unsupported(pat.span(), "new_name_pat", "paren pattern".to_string())
+            );
+        }
+        syn::Pat::Path(_) => {
+            errors.push(Error::Unsupported(pat.span(), "new_name_pat", "path pattern".to_string()));
+        }
+        syn::Pat::Range(_) => {
+            errors.push(
+                Error::Unsupported(pat.span(), "new_name_pat", "range pattern".to_string())
+            );
+        }
+        syn::Pat::Reference(_) => {
+            errors.push(
+                Error::Unsupported(pat.span(), "new_name_pat", "reference pattern".to_string())
+            );
+        }
+        syn::Pat::Rest(_) => {
+            errors.push(Error::Unsupported(pat.span(), "new_name_pat", "rest pattern".to_string()));
+        }
+        syn::Pat::Slice(_) => {
+            errors.push(
+                Error::Unsupported(pat.span(), "new_name_pat", "slice pattern".to_string())
+            );
+        }
+        syn::Pat::Struct(_) => {
+            errors.push(
+                Error::Unsupported(pat.span(), "new_name_pat", "struct pattern".to_string())
+            );
+        }
         syn::Pat::Tuple(tuple) => {
             for pat in tuple.elems.iter_mut() {
-                new_name_pat(pat, stacks, versions, new_origin_var_map);
+                new_name_pat(errors, pat, stacks, versions, new_origin_var_map)?;
             }
         }
-        syn::Pat::TupleStruct(_) => unimplemented!("rename::new_name_pat::Pat::TupleStruct"),
-        syn::Pat::Type(pat_type) => {
-            new_name_pat(&mut pat_type.pat, stacks, versions, new_origin_var_map);
+        syn::Pat::TupleStruct(_) => {
+            errors.push(
+                Error::Unsupported(pat.span(), "new_name_pat", "tuple struct pattern".to_string())
+            );
         }
-        syn::Pat::Verbatim(_) => unimplemented!("rename::new_name_pat::Pat::Verbatim"),
+        syn::Pat::Type(pat_type) => {
+            new_name_pat(errors, &mut pat_type.pat, stacks, versions, new_origin_var_map)?;
+        }
+        syn::Pat::Verbatim(_) => {
+            errors.push(
+                Error::Unsupported(pat.span(), "new_name_pat", "verbatim pattern".to_string())
+            );
+        }
         syn::Pat::Wild(_) => {}
-        _ => unimplemented!("rename::new_name_pat::Pat::Other"),
+        _ => {
+            errors.push(
+                Error::Unsupported(pat.span(), "new_name_pat", "other pattern".to_string())
+            );
+        }
     }
+    Ok(())
 }
 
 fn rename(
@@ -681,13 +723,20 @@ fn rename(
     stacks: &mut HashMap<syn::Ident, Vec<usize>>,
     versions: &mut HashMap<syn::Ident, usize>,
     dominators: &Dominators<NodeIndex>
-) {
+) -> anyhow::Result<()> {
+    let mut errors = Vec::new();
     let mut new_origin_var_map = cfg.graph[node].origin_var_map.clone();
     for phi_function in &mut cfg.graph[node].phi_functions {
         for arg in &mut phi_function.args {
             replace_string(arg, stacks);
         }
-        let new_name = new_name(&phi_function.name, versions, stacks, &mut new_origin_var_map);
+        let new_name = new_name(
+            &mut errors,
+            &phi_function.name,
+            versions,
+            stacks,
+            &mut new_origin_var_map
+        )?;
         phi_function.name = new_name;
     }
     for stmt in &mut cfg.graph[node].statements {
@@ -696,7 +745,13 @@ fn rename(
                 if let Some(init) = &mut local.init {
                     replace_vars(&mut init.expr, stacks, &mut new_origin_var_map);
                 }
-                new_name_pat(&mut local.pat, stacks, versions, &mut new_origin_var_map);
+                new_name_pat(
+                    &mut errors,
+                    &mut local.pat,
+                    stacks,
+                    versions,
+                    &mut new_origin_var_map
+                )?;
             }
             Stmt::Item(item) => {
                 replace_vars_item(item, stacks, &mut new_origin_var_map);
@@ -727,6 +782,7 @@ fn rename(
             }
         }
     }
+    cfg.errors.extend(errors);
     cfg.graph[node].origin_var_map = new_origin_var_map;
     let succs: Vec<NodeIndex> = cfg.graph
         .neighbors_directed(node, petgraph::Direction::Outgoing)
@@ -762,11 +818,12 @@ fn rename(
     }
 
     for succ in dom_succs {
-        rename(cfg, succ, stacks, versions, dominators);
+        rename(cfg, succ, stacks, versions, dominators)?;
     }
     for var in &cfg.graph[node].defined_vars {
         stacks.get_mut(var).expect(&format!("rename::phi::stacks: {}", var)).pop();
     }
+    Ok(())
 }
 
 fn replace_vars(
@@ -878,11 +935,12 @@ fn replace_string(var: &mut syn::Ident, stacks: &HashMap<syn::Ident, Vec<usize>>
 }
 
 fn new_name(
+    errors: &mut Vec<Error>,
     var: &syn::Ident,
     versions: &mut HashMap<syn::Ident, usize>,
     stacks: &mut HashMap<syn::Ident, Vec<usize>>,
     new_origin_var_map: &mut HashMap<syn::Ident, syn::Ident>
-) -> syn::Ident {
+) -> anyhow::Result<syn::Ident> {
     if let Some(cnt) = versions.get_mut(var) {
         if let Some(stack) = stacks.get_mut(var) {
             stack.push(*cnt);
@@ -890,9 +948,16 @@ fn new_name(
         let ret = syn::Ident::new(&format!("{}{}", var, cnt), var.span());
         *cnt += 1;
         new_origin_var_map.insert(ret.clone(), var.clone());
-        ret
+        Ok(ret)
     } else {
-        panic!("{} not found in new_name", var);
+        errors.push(Error::OriginalVariableNotFound(var.span(), "new_name", var.to_string()));
+        Err(
+            Error::OriginalVariableNotFound(
+                var.span(),
+                "new_name",
+                var.to_string()
+            ).to_anyhow_error()
+        )
     }
 }
 

@@ -1,7 +1,7 @@
 use std::collections::{ HashMap, HashSet };
-use crate::fuse::ty_infer::TyInfer;
+use crate::fuse::{ errors::Error, ty_infer::TyInfer };
 use petgraph::{ algo::dominators::Dominators, graph::NodeIndex };
-use syn::visit::Visit;
+use syn::{spanned::Spanned, visit::Visit};
 use super::cfg::CFG;
 
 fn compute_dominance_frontiers(
@@ -62,22 +62,37 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     let dominance_frontiers = compute_dominance_frontiers(&cfg, &dominators);
     let definitions = cfg.get_variable_definitions();
     cfg.insert_phi_functions(&dominance_frontiers, &definitions);
-    cfg.rename_variables(&dominators);
+    cfg.rename_variables(&dominators)?;
     println!("graph: {:#?}", cfg.graph);
     Ok(cfg)
 }
 
 pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> {
-    let mut cfg = build_cfg(&func).expect("build cfg failed");
+    let mut cfg = build_cfg(&func)?;
+    if !cfg.errors.is_empty() {
+        let mut errs = cfg.errors[0].to_syn_error();
+        for err in cfg.errors.iter().skip(1) {
+            errs.combine(err.to_syn_error());
+        }
+        return Err(errs.into());
+    }
     let mut type_table = TyInfer::new();
     type_table.infer(&cfg)?;
     cfg.live_analysis(&type_table.table);
     let table = core::mem::take(&mut type_table.table);
     let graphs = cfg.build_graphs(table);
+    let mut all_errs = Vec::new();
     for err in graphs.node_weights().map(|x| x.errors.iter()) {
-        for err in err {
-            return Err(err.to_anyhow_error());
+        for e in err {
+            all_errs.push(e.to_syn_error());
         }
+    }
+    if !all_errs.is_empty() {
+        let mut first = all_errs[0].clone();
+        for e in all_errs.iter().skip(1) {
+            first.combine(e.clone());
+        }
+        return Err(first.into());
     }
     cfg.add_extra_temps(&graphs);
     let mut genfuse_map = HashMap::new();
@@ -149,7 +164,9 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
                 if let syn::Pat::Ident(ident) = &mut local.pat {
                     ident.ident = syn::Ident::new(&out.to_string(), out.span());
                 } else {
-                    panic!("fuse_impl::local::not_ident");
+                    return Err(
+                        Error::ExpectedIdentifier(local.span(), "fuse_impl").to_anyhow_error()
+                    );
                 }
                 local.init.as_mut().map(|x| {
                     x.expr = Box::new(syn::Expr::Verbatim(code));

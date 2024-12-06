@@ -11,6 +11,16 @@ pub(crate) enum Error {
         proc_macro2::Span,
         &'static str,
     ),
+    #[error("Internal {1} error: {2} is not supported yet")] Unsupported(
+        proc_macro2::Span,
+        &'static str,
+        String,
+    ),
+    #[error("Internal {1} error: original variable {2} not found")] OriginalVariableNotFound(
+        proc_macro2::Span,
+        &'static str,
+        String,
+    ),
 }
 
 impl Error {
@@ -18,11 +28,16 @@ impl Error {
         let syn_err = syn::Error::new(self.span(), self.to_string());
         syn_err.into()
     }
+    pub(crate) fn to_syn_error(&self) -> syn::Error {
+        syn::Error::new(self.span(), self.to_string())
+    }
     pub(crate) fn span(&self) -> proc_macro2::Span {
         match self {
             Self::ExpectedIdentifier(span, _) => *span,
             Self::ExpectedPath(span, _) => *span,
             Self::ExpectedAssignment(span, _) => *span,
+            Self::Unsupported(span, _, _) => *span,
+            Self::OriginalVariableNotFound(span, _, _) => *span,
         }
     }
 }
