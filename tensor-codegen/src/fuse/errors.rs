@@ -21,6 +21,16 @@ pub(crate) enum Error {
         &'static str,
         String,
     ),
+    #[error("Internal {1} error: {2} didn't accumulate any expression")] ExprAccumulateError(
+        proc_macro2::Span,
+        &'static str,
+        String,
+    ),
+    #[error("Internal {1} error: syn parsing `{2}` failed")] SynParseError(
+        proc_macro2::Span,
+        &'static str,
+        String,
+    ),
 }
 
 impl Error {
@@ -38,6 +48,8 @@ impl Error {
             Self::ExpectedAssignment(span, _) => *span,
             Self::Unsupported(span, _, _) => *span,
             Self::OriginalVariableNotFound(span, _, _) => *span,
+            Self::ExprAccumulateError(span, _, _) => *span,
+            Self::SynParseError(span, _, _) => *span,
         }
     }
 }

@@ -1,9 +1,10 @@
 use std::collections::{ HashMap, HashSet };
 
 use petgraph::graph::NodeIndex;
-use syn::visit::Visit;
+use quote::ToTokens;
+use syn::{ spanned::Spanned, visit::Visit };
 
-use super::cfg::{ BasicBlock, BlockId, BlockType, CustomStmt, CFG };
+use super::{ cfg::{ BasicBlock, BlockId, BlockType, CustomStmt, CFG }, errors::Error };
 
 pub(crate) struct CFGBuilder<'a> {
     pub(crate) cfg: &'a mut CFG,
@@ -15,6 +16,7 @@ pub(crate) struct CFGBuilder<'a> {
     pub(crate) current_item: Option<syn::Item>,
     pub(crate) is_last_stmt: bool,
     pub(crate) global_block_cnt: usize,
+    pub(crate) errors: Vec<Error>,
 }
 
 impl<'a> CFGBuilder<'a> {
@@ -30,6 +32,7 @@ impl<'a> CFGBuilder<'a> {
             current_pat: None,
             current_type: None,
             current_item: None,
+            errors: vec![],
         }
     }
 
@@ -54,7 +57,7 @@ impl<'a> CFGBuilder<'a> {
         self.cfg.add_block(block)
     }
 
-    // 连接当前块到目标块
+    /// connect current block to target block
     fn connect_to(&mut self, to: NodeIndex) {
         self.cfg.connect(self.current_block, to);
     }
@@ -67,7 +70,7 @@ impl<'a> CFGBuilder<'a> {
         self.block_ids = new_block_id;
     }
 
-    // 处理 if 语句
+    /// handle if statement
     fn handle_if(&mut self, expr_if: &syn::ExprIf) {
         let mut current_block_id = Some(core::mem::take(&mut self.block_ids));
         let (cond_block, cond_block_id, assign_ident, assign_block_id) = if
@@ -94,17 +97,17 @@ impl<'a> CFGBuilder<'a> {
             (new_cond_block, Some(cond_block_id), Some(assign_ident), Some(assign_block_id))
         };
 
-        // 创建 then 分支块
+        // create then branch block
         let then_block = self.new_block(BlockType::IfThenEnd);
         let then_block_id = BlockId::new(then_block);
-        // 创建 else 分支块
+        // create else branch block
         let else_block = self.new_block(BlockType::IfElseEnd);
         let else_block_id = BlockId::new(else_block);
-        // 创建合并块
+        // create merge block
         let merge_block = self.new_block(BlockType::Normal);
         let merge_block_id = BlockId::new(merge_block);
 
-        // 连接当前块到条件检查块
+        // connect current block to condition check block
         self.connect_to(cond_block);
         self.set_current_block(cond_block);
         if let Some(cond_block_id) = cond_block_id {
@@ -115,20 +118,31 @@ impl<'a> CFGBuilder<'a> {
         }
 
         self.visit_expr(&expr_if.cond);
-        let cond_expr = core::mem::take(&mut self.current_expr).expect("cond expr is none");
+        let cond_expr = if let Some(cond_expr) = core::mem::take(&mut self.current_expr) {
+            cond_expr
+        } else {
+            self.errors.push(
+                Error::ExprAccumulateError(
+                    expr_if.cond.span(),
+                    "CFG builder",
+                    "if condition".to_string()
+                )
+            );
+            return;
+        };
         self.push_stmt(syn::Stmt::Expr(cond_expr, None));
         let mut cond_block_id = core::mem::take(&mut self.block_ids);
-        // 连接当前块到 then 和 else 分支
+        // connect current block to then and else branch
         self.connect_to(then_block);
         self.connect_to(else_block);
 
         self.set_current_block_id(then_block_id);
-        // 处理 then 分支
+        // handle then branch
         self.set_current_block(then_block);
         self.visit_block(&expr_if.then_branch);
         let then_block_id = core::mem::take(&mut self.block_ids);
         self.connect_to(merge_block);
-        // 处理 else 分支
+        // handle else branch
         self.set_current_block_id(else_block_id);
         self.set_current_block(else_block);
         if let Some(else_branch) = &expr_if.else_branch {
@@ -138,7 +152,6 @@ impl<'a> CFGBuilder<'a> {
                     self.visit_block(&expr_block.block);
                 }
                 _ => {
-                    // 其他表达式类型
                     self.visit_expr(&else_branch.1);
                 }
             }
@@ -166,24 +179,31 @@ impl<'a> CFGBuilder<'a> {
             self.set_current_block(merge_block);
             self.set_current_block_id(cond_block_id);
         }
-        // 更新当前块为合并块
 
         if let Some(assign_ident) = assign_ident {
-            self.current_expr = Some(
-                syn::parse2(quote::quote! { #assign_ident }).expect("expr is none")
-            );
+            if let Ok(expr) = syn::parse2(quote::quote! { #assign_ident }) {
+                self.current_expr = Some(expr);
+            } else {
+                self.errors.push(
+                    Error::SynParseError(
+                        expr_if.span(),
+                        "CFG builder",
+                        format!("{}", assign_ident.to_string())
+                    )
+                );
+            }
         }
     }
 
-    // 处理 loop 语句
+    /// handle loop statement
     fn handle_loop(&mut self, expr_loop: &syn::ExprLoop) {
         let mut current_block_id = core::mem::take(&mut self.block_ids);
         let assign_block = self.new_block(BlockType::LoopAssign);
         let assign_block_id = BlockId::new(assign_block);
-        // 创建循环体块
+        // create loop body block
         let loop_block = self.new_block(BlockType::LoopBody);
         let loop_block_id = BlockId::new(loop_block);
-        // 创建循环后的块
+        // create after loop block
         let after_loop_block = self.new_block(BlockType::Normal);
         let after_loop_block_id = BlockId::new(after_loop_block);
 
@@ -193,28 +213,47 @@ impl<'a> CFGBuilder<'a> {
             &format!("__loop_assign_{}", self.global_block_cnt()),
             proc_macro2::Span::call_site()
         );
-        self.cfg.graph[assign_block].statements.push(CustomStmt {
-            stmt: syn::parse2(quote::quote! { let #assign_ident; }).expect("assign stmt is none"),
-        });
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #assign_ident; }) {
+            self.cfg.graph[assign_block].statements.push(CustomStmt {
+                stmt,
+            });
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    expr_loop.span(),
+                    "CFG builder",
+                    format!("let {};", assign_ident.to_string())
+                )
+            );
+            return;
+        }
 
-        // 连接当前块到循环体块
+        // connect current block to loop body block
         self.connect_to(loop_block);
 
-        // 设置当前块为循环体块，并处理循环体
+        // set current block to loop body block and handle loop body
         self.set_current_block(loop_block);
         self.set_current_block_id(loop_block_id);
         self.visit_block(&expr_loop.body);
-        self.current_expr = Some(
-            syn::parse2(quote::quote! { #assign_ident }).expect("expr is none")
-        );
+        if let Ok(expr) = syn::parse2(quote::quote! { #assign_ident }) {
+            self.current_expr = Some(expr);
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    expr_loop.span(),
+                    "CFG builder",
+                    format!("{}", assign_ident.to_string())
+                )
+            );
+        }
         let loop_block_id = core::mem::take(&mut self.block_ids);
 
-        // 连接循环体块回到自身，表示下一次迭代
+        // connect loop body block to itself, represent next iteration
         self.connect_to(loop_block);
-        // 连接循环体块到循环后的块，表示退出循环
+        // connect loop body block to after loop block, represent exit loop
         self.connect_to(after_loop_block);
 
-        // 更新当前块为循环后的块，继续处理后续语句
+        // set current block to after loop block and handle next statements
         self.set_current_block(after_loop_block);
         current_block_id.children.push(assign_block_id);
         current_block_id.children.push(loop_block_id);
@@ -222,9 +261,9 @@ impl<'a> CFGBuilder<'a> {
         self.set_current_block_id(current_block_id);
     }
 
-    // 处理 match 语句
+    // handle match statement
     fn handle_match(&mut self, expr_match: &syn::ExprMatch) {
-        // 创建合并块
+        // create merge block
         let merge_block = self.new_block(BlockType::Normal);
 
         for arm in &expr_match.arms {
@@ -259,20 +298,35 @@ impl<'a> CFGBuilder<'a> {
             &format!("__block_out_{}", self.global_block_cnt()),
             proc_macro2::Span::call_site()
         );
-        self.cfg.graph[assign_block].statements.push(CustomStmt {
-            stmt: syn
-                ::parse2(quote::quote! {
-                let #block_ident;
-            })
-                .expect("cfg_builder::handle_block::assign_block"),
-        });
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #block_ident; }) {
+            self.cfg.graph[assign_block].statements.push(CustomStmt {
+                stmt,
+            });
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    block.span(),
+                    "CFG builder",
+                    format!("let {};", block_ident.to_string())
+                )
+            );
+            return;
+        }
         self.connect_to(new_block);
         self.set_current_block(new_block);
         self.set_current_block_id(new_block_id);
         self.visit_block(&block.block);
-        self.current_expr = Some(
-            syn::parse2(quote::quote! { #block_ident }).expect("block expr is none")
-        );
+        if let Ok(expr) = syn::parse2(quote::quote! { #block_ident }) {
+            self.current_expr = Some(expr);
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    block.span(),
+                    "CFG builder",
+                    format!("{}", block_ident.to_string())
+                )
+            );
+        }
         let new_block_id = core::mem::take(&mut self.block_ids);
         current_block_id.children.push(assign_block_id);
         current_block_id.children.push(new_block_id);
@@ -302,13 +356,20 @@ impl<'a> CFGBuilder<'a> {
             &format!("__while_out_{}", self.global_block_cnt()),
             proc_macro2::Span::call_site()
         );
-        self.cfg.graph[assign_block].statements.push(CustomStmt {
-            stmt: syn
-                ::parse2(quote::quote! {
-                let #block_ident;
-            })
-                .expect("cfg_builder::handle_while_loop::assign_block"),
-        });
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #block_ident; }) {
+            self.cfg.graph[assign_block].statements.push(CustomStmt {
+                stmt,
+            });
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    expr_while.span(),
+                    "CFG builder",
+                    format!("let {};", block_ident.to_string())
+                )
+            );
+            return;
+        }
 
         // 连接当前块到条件检查块
         self.connect_to(condition_block);
@@ -317,8 +378,18 @@ impl<'a> CFGBuilder<'a> {
         self.set_current_block(condition_block);
         self.set_current_block_id(condition_block_id);
         self.visit_expr(&expr_while.cond);
-        let expr = core::mem::take(&mut self.current_expr).expect("cfg::handle_while_loop::expr");
-        self.push_stmt(syn::Stmt::Expr(expr, None));
+        if let Some(expr) = core::mem::take(&mut self.current_expr) {
+            self.push_stmt(syn::Stmt::Expr(expr, None));
+        } else {
+            self.errors.push(
+                Error::ExprAccumulateError(
+                    expr_while.span(),
+                    "CFG builder",
+                    "while loop".to_string()
+                )
+            );
+            return;
+        }
         let condition_block_id = core::mem::take(&mut self.block_ids);
 
         // 创建两个新的连接：条件为真和条件为假
@@ -329,9 +400,17 @@ impl<'a> CFGBuilder<'a> {
         self.set_current_block(loop_block);
         self.set_current_block_id(loop_block_id);
         self.visit_block(&expr_while.body);
-        self.current_expr = Some(
-            syn::parse2(quote::quote! { #block_ident }).expect("while loop expr is none")
-        );
+        if let Ok(expr) = syn::parse2(quote::quote! { #block_ident }) {
+            self.current_expr = Some(expr);
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    expr_while.span(),
+                    "CFG builder",
+                    format!("{}", block_ident.to_string())
+                )
+            );
+        }
         let loop_block_id = core::mem::take(&mut self.block_ids);
 
         // 连接循环体块回到条件检查块（表示下一次迭代）
@@ -352,16 +431,16 @@ impl<'a> CFGBuilder<'a> {
         let mut current_block_id = core::mem::take(&mut self.block_ids);
         let assign_block = self.new_block(BlockType::ForAssign);
         let assign_block_id = BlockId::new(assign_block);
-        // 创建迭代器初始化块
+        // create iterator init block
         let init_block = self.new_block(BlockType::ForInit);
         let init_block_id = BlockId::new(init_block);
-        // 创建条件检查块
+        // create condition check block
         let condition_block = self.new_block(BlockType::ForCond);
         let condition_block_id = BlockId::new(condition_block);
-        // 创建循环体块
+        // create loop body block
         let loop_block = self.new_block(BlockType::ForBody);
         let loop_block_id = BlockId::new(loop_block);
-        // 创建循环后的块
+        // create after loop block
         let after_loop_block = self.new_block(BlockType::Normal);
         let after_loop_block_id = BlockId::new(after_loop_block);
 
@@ -371,18 +450,25 @@ impl<'a> CFGBuilder<'a> {
             &format!("__for_out_{}", self.global_block_cnt()),
             proc_macro2::Span::call_site()
         );
-        self.cfg.graph[assign_block].statements.push(CustomStmt {
-            stmt: syn
-                ::parse2(quote::quote! {
-                let #block_ident;
-            })
-                .expect("cfg_builder::handle_for_loop::assign_block"),
-        });
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #block_ident; }) {
+            self.cfg.graph[assign_block].statements.push(CustomStmt {
+                stmt,
+            });
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    expr_for.span(),
+                    "CFG builder",
+                    format!("let {};", block_ident.to_string())
+                )
+            );
+            return;
+        }
 
-        // 连接当前块到初始化块
+        // connect current block to init block
         self.connect_to(init_block);
 
-        // 处理迭代器初始化和元素绑定
+        // handle iterator init and element binding
         self.set_current_block(init_block);
         self.set_current_block_id(init_block_id);
         let init_block_id = core::mem::take(&mut self.block_ids);
@@ -390,36 +476,61 @@ impl<'a> CFGBuilder<'a> {
         let local = quote::quote! {
             let #pat;
         };
-        let stmt = syn::parse2(local).expect("cfg::handle_for_loop::local");
-        self.push_stmt(stmt);
-        // 连接初始化块到条件检查块
+        if let Ok(stmt) = syn::parse2(local) {
+            self.push_stmt(stmt);
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    expr_for.span(),
+                    "CFG builder",
+                    format!("let {};", pat.to_token_stream().to_string())
+                )
+            );
+            return;
+        }
+        // connect init block to condition check block
         self.connect_to(condition_block);
 
-        // 处理条件检查
+        // handle condition check
         self.set_current_block(condition_block);
         self.set_current_block_id(condition_block_id);
         let condition_block_id = core::mem::take(&mut self.block_ids);
         self.visit_expr(&expr_for.expr);
-        let expr = core::mem::take(&mut self.current_expr).expect("cfg::handle_for_loop::expr");
-        self.push_stmt(syn::Stmt::Expr(expr, None));
-        // 创建连接：条件为真进入循环体块，条件为假进入循环后的块
+        if let Some(expr) = core::mem::take(&mut self.current_expr) {
+            self.push_stmt(syn::Stmt::Expr(expr, None));
+        } else {
+            self.errors.push(
+                Error::ExprAccumulateError(expr_for.span(), "CFG builder", "for loop".to_string())
+            );
+            return;
+        }
+        // create connection: condition is true enter loop body block, condition is false enter after loop block
         self.connect_to(loop_block);
         self.connect_to(after_loop_block);
 
-        // 处理循环体
+        // handle loop body
         self.set_current_block(loop_block);
         self.set_current_block_id(loop_block_id);
         self.visit_block(&expr_for.body);
-        self.current_expr = Some(
-            syn::parse2(quote::quote! { #block_ident }).expect("for loop expr is none")
-        );
+        if let Ok(expr) = syn::parse2(quote::quote! { #block_ident }) {
+            self.current_expr = Some(expr);
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    expr_for.span(),
+                    "CFG builder",
+                    format!("{}", block_ident.to_string())
+                )
+            );
+            return;
+        }
         let loop_block_id = core::mem::take(&mut self.block_ids);
-        // 连接循环体块回到条件检查块（表示下一次迭代）
+        // connect loop body block to condition check block (represent next iteration)
         self.connect_to(condition_block);
-        // 连接循环体块到循环后的块（如果有 break）
+        // connect loop body block to after loop block (if there is break)
         self.connect_to(after_loop_block);
 
-        // 设置当前块为循环后的块，继续处理后续语句
+        // set current block to after loop block and handle next statements
         self.set_current_block(after_loop_block);
         current_block_id.children.push(assign_block_id);
         current_block_id.children.push(init_block_id);
@@ -449,7 +560,9 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         let ret_block_id = BlockId::new(ret_block);
         let body_block = self.new_block(BlockType::FnBody);
         let body_block_id = BlockId::new(body_block);
-        let (where_block, where_block_id) = if let Some(where_clause) = &i.sig.generics.where_clause {
+        let (where_block, where_block_id) = if
+            let Some(where_clause) = &i.sig.generics.where_clause
+        {
             let where_block = self.new_block(BlockType::Where(where_clause.clone()));
             let where_block_id = BlockId::new(where_block);
             (Some(where_block), Some(where_block_id))
@@ -463,18 +576,37 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         self.connect_to(name_block);
         self.set_current_block(name_block);
         let name = &i.sig.ident;
-        self.push_stmt(syn::parse2(quote::quote! { let #name; }).expect("fn name is none"));
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #name; }) {
+            self.push_stmt(stmt);
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    i.sig.ident.span(),
+                    "CFG builder",
+                    format!("let {};", name.to_string())
+                )
+            );
+        }
         self.connect_to(args_block);
         self.set_current_block(args_block);
         for arg in &i.sig.inputs {
             match arg {
                 syn::FnArg::Receiver(_) => {
-                    unimplemented!("cfg_builder::visit_item_fn::receiver")
-                },
+                    self.errors.push(
+                        Error::Unsupported(
+                            arg.span(),
+                            "CFG builder",
+                            "function receiver".to_string()
+                        )
+                    );
+                    return;
+                }
                 syn::FnArg::Typed(pat_type) => {
-                    let arg_stmt = syn::parse2(quote::quote! { let #pat_type; }).expect("arg stmt is none::365");
+                    let arg_stmt = syn
+                        ::parse2(quote::quote! { let #pat_type; })
+                        .expect("arg stmt is none::365");
                     self.push_stmt(arg_stmt);
-                },
+                }
             }
         }
         self.connect_to(ret_block);
@@ -505,7 +637,12 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
 
     fn visit_fn_arg(&mut self, arg: &'ast syn::FnArg) {
         match arg {
-            syn::FnArg::Receiver(_) => { unimplemented!("cfg_builder::visit_fn_arg::receiver") }
+            syn::FnArg::Receiver(_) => {
+                self.errors.push(
+                    Error::Unsupported(arg.span(), "CFG builder", "function receiver".to_string())
+                );
+                return;
+            }
             syn::FnArg::Typed(pat_type) => {
                 self.visit_pat_type(pat_type);
             }
@@ -523,12 +660,21 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
     fn visit_pat_type(&mut self, i: &'ast syn::PatType) {
         let mut new_pat = i.clone();
         self.visit_pat(i.pat.as_ref());
-        let pat = core::mem::take(&mut self.current_pat).expect("pat is none");
+        if let Some(pat) = core::mem::take(&mut self.current_pat) {
+            new_pat.pat = Box::new(pat);
+        } else {
+            self.errors.push(
+                Error::ExprAccumulateError(i.pat.span(), "CFG builder", "pat type".to_string())
+            );
+            return;
+        }
         self.visit_type(&i.ty);
-        let ty = core::mem::take(&mut self.current_type).expect("ty is none");
-        new_pat.pat = Box::new(pat);
-        new_pat.ty = Box::new(ty);
-        self.current_pat = Some(syn::Pat::Type(new_pat));
+        handle_accumulation(&mut self.errors, i.ty.span(), "pat type", &mut self.current_type).map(
+            |ty| {
+                new_pat.ty = Box::new(ty);
+                self.current_pat = Some(syn::Pat::Type(new_pat));
+            }
+        );
     }
 
     fn visit_expr_range(&mut self, i: &'ast syn::ExprRange) {
@@ -539,24 +685,50 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             }
             (None, Some(right)) => {
                 self.visit_expr(right);
-                let right = core::mem::take(&mut self.current_expr).expect("right is none");
-                new_expr.end = Some(Box::new(right));
-                self.current_expr = Some(syn::Expr::Range(new_expr));
+                handle_accumulation(
+                    &mut self.errors,
+                    i.end.span(),
+                    "range",
+                    &mut self.current_expr
+                ).map(|right| {
+                    new_expr.end = Some(Box::new(right));
+                    self.current_expr = Some(syn::Expr::Range(new_expr));
+                });
             }
             (Some(left), None) => {
                 self.visit_expr(left);
-                let left = core::mem::take(&mut self.current_expr).expect("left is none");
-                new_expr.start = Some(Box::new(left));
-                self.current_expr = Some(syn::Expr::Range(new_expr));
+                handle_accumulation(
+                    &mut self.errors,
+                    i.start.span(),
+                    "range",
+                    &mut self.current_expr
+                ).map(|start| {
+                    new_expr.start = Some(Box::new(start));
+                    self.current_expr = Some(syn::Expr::Range(new_expr));
+                });
             }
             (Some(left), Some(right)) => {
                 self.visit_expr(left);
-                let left = core::mem::take(&mut self.current_expr).expect("left is none");
+                let start_status = handle_accumulation(
+                    &mut self.errors,
+                    i.start.span(),
+                    "range",
+                    &mut self.current_expr
+                ).map(|start| {
+                    new_expr.start = Some(Box::new(start));
+                });
                 self.visit_expr(right);
-                let right = core::mem::take(&mut self.current_expr).expect("right is none");
-                new_expr.start = Some(Box::new(left));
-                new_expr.end = Some(Box::new(right));
-                self.current_expr = Some(syn::Expr::Range(new_expr));
+                let end_status = handle_accumulation(
+                    &mut self.errors,
+                    i.end.span(),
+                    "range",
+                    &mut self.current_expr
+                ).map(|right| {
+                    new_expr.end = Some(Box::new(right));
+                });
+                if start_status.is_some() && end_status.is_some() {
+                    self.current_expr = Some(syn::Expr::Range(new_expr));
+                }
             }
         }
     }
@@ -600,9 +772,16 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
     fn visit_expr_reference(&mut self, i: &'ast syn::ExprReference) {
         let mut new_expr = i.clone();
         self.visit_expr(i.expr.as_ref());
-        let expr = core::mem::take(&mut self.current_expr).expect("expr is none::374");
-        new_expr.expr = Box::new(expr);
-        self.current_expr = Some(syn::Expr::Reference(new_expr));
+
+        handle_accumulation(
+            &mut self.errors,
+            i.expr.span(),
+            "reference",
+            &mut self.current_expr
+        ).map(|expr| {
+            new_expr.expr = Box::new(expr);
+            self.current_expr = Some(syn::Expr::Reference(new_expr));
+        });
     }
 
     fn visit_expr_binary(&mut self, binary: &'ast syn::ExprBinary) {
@@ -611,91 +790,219 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         match (new_binary.left.as_mut(), new_binary.right.as_mut()) {
             (syn::Expr::Binary(left), syn::Expr::Binary(right)) => {
                 self.visit_expr_binary(left);
-                let left = core::mem::take(&mut self.current_expr).expect("left is none");
+                let left = handle_accumulation(
+                    &mut self.errors,
+                    left.span(),
+                    "binary",
+                    &mut self.current_expr
+                );
+                let left_stmt = if let Some(left) = left {
+                    if
+                        let Ok(stmt) = syn::parse2::<syn::Stmt>(
+                            quote::quote! { let __out_1 = #left; }
+                        )
+                    {
+                        stmt
+                    } else {
+                        self.errors.push(
+                            Error::SynParseError(left.span(), "CFG builder", "binary".to_string())
+                        );
+                        return;
+                    }
+                } else {
+                    return;
+                };
                 self.visit_expr_binary(right);
-                let right = core::mem::take(&mut self.current_expr).expect("right is none");
+                let right = handle_accumulation(
+                    &mut self.errors,
+                    right.span(),
+                    "binary",
+                    &mut self.current_expr
+                );
+                let right_stmt = if let Some(right) = right {
+                    if
+                        let Ok(stmt) = syn::parse2::<syn::Stmt>(
+                            quote::quote!(let __out_2 = #right;)
+                        )
+                    {
+                        stmt
+                    } else {
+                        self.errors.push(
+                            Error::SynParseError(right.span(), "CFG builder", "binary".to_string())
+                        );
+                        return;
+                    }
+                } else {
+                    return;
+                };
                 let op = &binary.op;
-                let left_stmt = syn
-                    ::parse2::<syn::Stmt>(
-                        quote::quote! {
-                    let __out_1 = #left;
+                if let Ok(expr) = syn::parse2::<syn::Expr>(quote::quote!(__out_1 #op __out_2)) {
+                    self.current_expr = Some(expr);
+                } else {
+                    self.errors.push(
+                        Error::SynParseError(
+                            binary.span(),
+                            "CFG builder",
+                            format!("__out_1 {} __out_2", op.to_token_stream().to_string())
+                        )
+                    );
+                    return;
                 }
-                    )
-                    .unwrap();
-                let right_stmt = syn
-                    ::parse2::<syn::Stmt>(
-                        quote::quote! {
-                    let __out_2 = #right;
-                }
-                    )
-                    .expect("right stmt is none");
-                let expr = syn
-                    ::parse2::<syn::Expr>(
-                        quote::quote! {
-                    __out_1 #op __out_2
-                }
-                    )
-                    .expect("expr is none::409");
-                self.current_expr = Some(expr);
                 self.push_stmt(left_stmt);
                 self.push_stmt(right_stmt);
             }
             (syn::Expr::Binary(left), _) => {
                 self.visit_expr_binary(left);
-                let left = core::mem::take(&mut self.current_expr).expect("left is none");
+                let left = handle_accumulation(
+                    &mut self.errors,
+                    left.span(),
+                    "binary",
+                    &mut self.current_expr
+                );
+                let left_stmt = if let Some(left) = left {
+                    if
+                        let Ok(stmt) = syn::parse2::<syn::Stmt>(
+                            quote::quote! { let __out_1 = #left; }
+                        )
+                    {
+                        stmt
+                    } else {
+                        self.errors.push(
+                            Error::SynParseError(left.span(), "CFG builder", "binary".to_string())
+                        );
+                        return;
+                    }
+                } else {
+                    return;
+                };
                 self.visit_expr(binary.right.as_ref());
-                let right = core::mem::take(&mut self.current_expr).expect("right is none");
+                let right = handle_accumulation(
+                    &mut self.errors,
+                    binary.right.span(),
+                    "binary",
+                    &mut self.current_expr
+                );
+                let right = if let Some(right) = right {
+                    right
+                } else {
+                    return;
+                };
                 let op = &binary.op;
-                let left_stmt = syn
-                    ::parse2::<syn::Stmt>(
-                        quote::quote! {
-                    let __out_1 = #left;
+                if let Ok(expr) = syn::parse2::<syn::Expr>(quote::quote!(__out_1 #op #right)) {
+                    self.current_expr = Some(expr);
+                } else {
+                    self.errors.push(
+                        Error::SynParseError(
+                            binary.span(),
+                            "CFG builder",
+                            format!(
+                                "__out_1 {} {}",
+                                op.to_token_stream().to_string(),
+                                right.to_token_stream().to_string()
+                            )
+                        )
+                    );
+                    return;
                 }
-                    )
-                    .unwrap();
-                let expr = syn
-                    ::parse2::<syn::Expr>(
-                        quote::quote! {
-                    __out_1 #op #right
-                }
-                    )
-                    .expect("expr is none::433");
-                self.current_expr = Some(expr);
                 self.push_stmt(left_stmt);
             }
             (_, syn::Expr::Binary(right)) => {
                 self.visit_expr(binary.left.as_ref());
-                let left = core::mem::take(&mut self.current_expr).expect("left is none");
+                let left = handle_accumulation(
+                    &mut self.errors,
+                    binary.left.span(),
+                    "binary",
+                    &mut self.current_expr
+                );
+                let left = if let Some(left) = left {
+                    left
+                } else {
+                    return;
+                };
                 self.visit_expr_binary(right);
-                let right = core::mem::take(&mut self.current_expr).expect("right is none");
+                let right = handle_accumulation(
+                    &mut self.errors,
+                    binary.right.span(),
+                    "binary",
+                    &mut self.current_expr
+                );
+                let right_stmt = if let Some(right) = right {
+                    if
+                        let Ok(stmt) = syn::parse2::<syn::Stmt>(
+                            quote::quote!(let __out_2 = #right;)
+                        )
+                    {
+                        stmt
+                    } else {
+                        self.errors.push(
+                            Error::SynParseError(right.span(), "CFG builder", "binary".to_string())
+                        );
+                        return;
+                    }
+                } else {
+                    return;
+                };
                 let op = &binary.op;
-                let right_stmt = syn
-                    ::parse2::<syn::Stmt>(
-                        quote::quote! {
-                    let __out_2 = #right;
+                if let Ok(expr) = syn::parse2::<syn::Expr>(quote::quote!(#left #op __out_2)) {
+                    self.current_expr = Some(expr);
+                } else {
+                    self.errors.push(
+                        Error::SynParseError(
+                            binary.span(),
+                            "CFG builder",
+                            format!(
+                                "{} {} __out_2",
+                                left.to_token_stream().to_string(),
+                                op.to_token_stream().to_string()
+                            )
+                        )
+                    );
+                    return;
                 }
-                    )
-                    .expect("right stmt is none");
-                let expr = syn
-                    ::parse2::<syn::Expr>(
-                        quote::quote! {
-                    #left #op __out_2
-                }
-                    )
-                    .expect("expr is none::456");
-                self.current_expr = Some(expr);
                 self.push_stmt(right_stmt);
             }
             _ => {
                 self.visit_expr(binary.left.as_ref());
-                let left = core::mem::take(&mut self.current_expr).expect("left is none");
+                let left = handle_accumulation(
+                    &mut self.errors,
+                    binary.left.span(),
+                    "binary",
+                    &mut self.current_expr
+                );
+                let left = if let Some(left) = left {
+                    left
+                } else {
+                    return;
+                };
                 self.visit_expr(binary.right.as_ref());
-                let right = core::mem::take(&mut self.current_expr).expect("right is none");
+                let right = handle_accumulation(
+                    &mut self.errors,
+                    binary.right.span(),
+                    "binary",
+                    &mut self.current_expr
+                );
+                let right = if let Some(right) = right {
+                    right
+                } else {
+                    return;
+                };
                 let op = &binary.op;
-                let expr = syn
-                    ::parse2(quote::quote! { #left #op #right })
-                    .expect("expr is none::466");
-                self.current_expr = Some(expr);
+                if let Ok(expr) = syn::parse2::<syn::Expr>(quote::quote!(#left #op #right)) {
+                    self.current_expr = Some(expr);
+                } else {
+                    self.errors.push(
+                        Error::SynParseError(
+                            binary.span(),
+                            "CFG builder",
+                            format!(
+                                "{} {} {}",
+                                left.to_token_stream().to_string(),
+                                op.to_token_stream().to_string(),
+                                right.to_token_stream().to_string()
+                            )
+                        )
+                    );
+                }
             }
         }
     }
@@ -710,7 +1017,17 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         let func = core::mem::take(&mut self.current_expr).expect("func is none");
         for arg in new_call.args.iter_mut() {
             self.visit_expr(arg);
-            let new_arg = core::mem::take(&mut self.current_expr).expect("arg is none::546");
+            let new_arg = handle_accumulation(
+                &mut self.errors,
+                arg.span(),
+                "expr_call",
+                &mut self.current_expr
+            );
+            let new_arg = if let Some(new_arg) = new_arg {
+                new_arg
+            } else {
+                return;
+            };
             *arg = new_arg;
         }
         new_call.func = Box::new(func);
@@ -719,21 +1036,43 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
     fn visit_expr_method_call(&mut self, method_call: &'ast syn::ExprMethodCall) {
         let mut new_method_call = method_call.clone();
         self.visit_expr(method_call.receiver.as_ref());
-        let receiver = core::mem::take(&mut self.current_expr).expect("receiver is none");
+        let receiver = handle_accumulation(
+            &mut self.errors,
+            method_call.receiver.span(),
+            "expr_method_call",
+            &mut self.current_expr
+        );
+        let receiver = if let Some(receiver) = receiver {
+            receiver
+        } else {
+            return;
+        };
         match receiver {
             syn::Expr::Binary(_) | syn::Expr::Reference(_) | syn::Expr::Tuple(_) => {
-                self.push_stmt(
-                    syn
-                        ::parse2(
-                            quote::quote! {
-                        let __expr_receiver = #receiver;
-                    }
+                if let Ok(stmt) = syn::parse2(quote::quote!(let __expr_receiver = #receiver;)) {
+                    self.push_stmt(stmt);
+                } else {
+                    self.errors.push(
+                        Error::SynParseError(
+                            receiver.span(),
+                            "CFG builder",
+                            "expr_method_call::stmt".to_string()
                         )
-                        .expect("stmt is none")
-                );
-                new_method_call.receiver = Box::new(
-                    syn::parse2(quote::quote! { __expr_receiver }).expect("expr is none::519")
-                );
+                    );
+                    return;
+                }
+                if let Ok(expr) = syn::parse2(quote::quote! { __expr_receiver }) {
+                    self.current_expr = Some(expr);
+                } else {
+                    self.errors.push(
+                        Error::SynParseError(
+                            receiver.span(),
+                            "CFG builder",
+                            "expr_method_call::expr".to_string()
+                        )
+                    );
+                    return;
+                }
             }
             _ => {
                 new_method_call.receiver = Box::new(receiver);
@@ -741,7 +1080,17 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         }
         for arg in new_method_call.args.iter_mut() {
             self.visit_expr(arg);
-            let new_arg = core::mem::take(&mut self.current_expr).expect("arg is none::577");
+            let new_arg = handle_accumulation(
+                &mut self.errors,
+                arg.span(),
+                "expr_method_call",
+                &mut self.current_expr
+            );
+            let new_arg = if let Some(new_arg) = new_arg {
+                new_arg
+            } else {
+                return;
+            };
             *arg = new_arg;
         }
         self.current_expr = Some(syn::Expr::MethodCall(new_method_call));
@@ -751,21 +1100,58 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         let mut new_tuple = tuple.clone();
         for elem in new_tuple.elems.iter_mut() {
             self.visit_expr(elem);
-            let new_elem = core::mem::take(&mut self.current_expr).expect("elem is none");
+            let new_elem = handle_accumulation(
+                &mut self.errors,
+                elem.span(),
+                "expr_tuple",
+                &mut self.current_expr
+            );
+            let new_elem = if let Some(new_elem) = new_elem {
+                new_elem
+            } else {
+                return;
+            };
             *elem = new_elem;
         }
-        self.push_stmt(
-            syn::parse2(quote::quote! { let __expr_tuple = #new_tuple; }).expect("stmt is none")
-        );
-        self.current_expr = Some(
-            syn::parse2(quote::quote! { __expr_tuple }).expect("expr is none")
-        );
+        if let Ok(stmt) = syn::parse2(quote::quote! { let __expr_tuple = #new_tuple; }) {
+            self.push_stmt(stmt);
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    new_tuple.span(),
+                    "CFG builder",
+                    "expr_tuple::stmt".to_string()
+                )
+            );
+            return;
+        }
+        if let Ok(expr) = syn::parse2(quote::quote! { __expr_tuple }) {
+            self.current_expr = Some(expr);
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    new_tuple.span(),
+                    "CFG builder",
+                    "expr_tuple::expr".to_string()
+                )
+            );
+        }
     }
 
     fn visit_expr_try(&mut self, i: &'ast syn::ExprTry) {
         let mut new_try = i.clone();
         self.visit_expr(&i.expr);
-        let expr = core::mem::take(&mut self.current_expr).expect("expr is none");
+        let expr = handle_accumulation(
+            &mut self.errors,
+            i.expr.span(),
+            "expr_try",
+            &mut self.current_expr
+        );
+        let expr = if let Some(expr) = expr {
+            expr
+        } else {
+            return;
+        };
         new_try.expr = Box::new(expr);
         self.current_expr = Some(syn::Expr::Try(new_try));
     }
@@ -773,7 +1159,17 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
     fn visit_expr_assign(&mut self, i: &'ast syn::ExprAssign) {
         let mut new_assign = i.clone();
         self.visit_expr(&i.right);
-        let right = core::mem::take(&mut self.current_expr).expect("right is none");
+        let right = handle_accumulation(
+            &mut self.errors,
+            i.right.span(),
+            "expr_assign",
+            &mut self.current_expr
+        );
+        let right = if let Some(right) = right {
+            right
+        } else {
+            return;
+        };
         new_assign.right = Box::new(right);
         self.current_expr = Some(syn::Expr::Assign(new_assign));
     }
@@ -789,9 +1185,18 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             &format!("__closure_assign_{}", self.global_block_cnt()),
             proc_macro2::Span::call_site()
         );
-        self.cfg.graph[assign_block].statements.push(CustomStmt {
-            stmt: syn::parse2(quote::quote! { let #assign_ident; }).expect("assign stmt is none"),
-        });
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #assign_ident; }) {
+            self.cfg.graph[assign_block].statements.push(CustomStmt { stmt });
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    closure.span(),
+                    "CFG builder",
+                    "expr_closure::assign_stmt".to_string()
+                )
+            );
+            return;
+        }
 
         let init_block = self.new_block(BlockType::ClosureArgs);
         let init_block_id = BlockId::new(init_block);
@@ -799,7 +1204,17 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         self.set_current_block(init_block);
         for arg in closure.inputs.iter() {
             self.visit_pat(arg);
-            let pat = core::mem::take(&mut self.current_pat).expect("pat is none");
+            let pat = handle_accumulation(
+                &mut self.errors,
+                arg.span(),
+                "expr_closure",
+                &mut self.current_pat
+            );
+            let pat = if let Some(pat) = pat {
+                pat
+            } else {
+                return;
+            };
             let pat_stmt = syn::parse2(quote::quote! { let #pat; }).expect("pat stmt is none");
             self.push_stmt(pat_stmt);
         }
@@ -810,7 +1225,17 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         self.set_current_block(body_block);
         self.set_current_block_id(body_block_id);
         self.visit_expr(&closure.body);
-        let body = core::mem::take(&mut self.current_expr).expect("body is none");
+        let body = handle_accumulation(
+            &mut self.errors,
+            closure.body.span(),
+            "expr_closure",
+            &mut self.current_expr
+        );
+        let body = if let Some(body) = body {
+            body
+        } else {
+            return;
+        };
         let body_stmt = syn::Stmt::Expr(body, None);
         self.push_stmt(body_stmt);
         let body_block_id = core::mem::take(&mut self.block_ids);
@@ -893,14 +1318,32 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             syn::Stmt::Local(local) => {
                 if let Some(init) = &local.init {
                     self.visit_expr(&init.expr);
-                    let expr = core::mem::take(&mut self.current_expr).expect("init is none");
+                    let expr = handle_accumulation(
+                        &mut self.errors,
+                        init.expr.span(),
+                        "stmt_local",
+                        &mut self.current_expr
+                    );
+                    let expr = if let Some(expr) = expr {
+                        expr
+                    } else {
+                        return;
+                    };
                     let mut new_local = local.clone();
                     new_local.init.as_mut().unwrap().expr = Box::new(expr);
                     self.push_stmt(syn::Stmt::Local(new_local));
                 } else {
-                    self.push_stmt(
-                        syn::parse2(quote::quote! { #local }).expect("local stmt is none")
-                    );
+                    if let Ok(stmt) = syn::parse2(quote::quote! { #local }) {
+                        self.push_stmt(stmt);
+                    } else {
+                        self.errors.push(
+                            Error::SynParseError(
+                                local.span(),
+                                "CFG builder",
+                                "stmt_local::stmt".to_string()
+                            )
+                        );
+                    }
                 }
             }
             syn::Stmt::Item(item) => {
@@ -926,7 +1369,17 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     syn::Item::Use(_) => todo!(),
                     syn::Item::Verbatim(_) => todo!(),
                     _ => {
-                        let item = core::mem::take(&mut self.current_item).expect("item is none");
+                        let item = handle_accumulation(
+                            &mut self.errors,
+                            item.span(),
+                            "stmt_item",
+                            &mut self.current_item
+                        );
+                        let item = if let Some(item) = item {
+                            item
+                        } else {
+                            return;
+                        };
                         self.push_stmt(syn::Stmt::Item(item));
                     }
                 }
@@ -934,7 +1387,17 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             syn::Stmt::Expr(expr, semi) => {
                 let is_last_stmt = self.is_last_stmt;
                 self.visit_expr(expr);
-                let new_expr = core::mem::take(&mut self.current_expr).expect("expr is none::604");
+                let new_expr = handle_accumulation(
+                    &mut self.errors,
+                    expr.span(),
+                    "stmt_expr",
+                    &mut self.current_expr
+                );
+                let new_expr = if let Some(new_expr) = new_expr {
+                    new_expr
+                } else {
+                    return;
+                };
                 match new_expr {
                     syn::Expr::Path(_) => {
                         if is_last_stmt {
@@ -948,5 +1411,19 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             }
             syn::Stmt::Macro(_) => {}
         }
+    }
+}
+
+fn handle_accumulation<T>(
+    errors: &mut Vec<Error>,
+    span: proc_macro2::Span,
+    msg: &str,
+    current_expr: &mut Option<T>
+) -> Option<T> {
+    if let Some(left) = core::mem::take(current_expr) {
+        Some(left)
+    } else {
+        errors.push(Error::ExprAccumulateError(span, "CFG builder", msg.to_string()));
+        None
     }
 }

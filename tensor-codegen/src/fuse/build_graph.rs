@@ -97,9 +97,7 @@ impl Graph {
                     if let Some(index) = node_index_map.get(inp) {
                         let node_indices = graph.node_indices().collect::<Vec<_>>();
                         for node_idx in node_indices {
-                            let (node, _, _) = graph
-                                .node_weight(node_idx)
-                                .expect("node weight not found");
+                            let (node, _, _) = graph[node_idx];
                             match node {
                                 Node::Unary(unary) => {
                                     if &unary.operand == input {
@@ -731,13 +729,9 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
                     self.variables.insert(pat_ident.ident.clone());
                 }
             }
-            _ => {
-                syn::visit::visit_pat(self, &local.pat);
-                if let Some(it) = &local.init {
-                    self.visit_local_init(it);
-                }
-            }
+            _ => {}
         }
+        self.current_assignment = None;
     }
     fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
         let receiver_ty = handle_expr_type(&node.receiver, &self.type_table);
@@ -751,7 +745,6 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         let current_assignment = if let Some(assingment) = self.current_assignment.clone() {
             assingment
         } else {
-            self.errors.push(Error::ExpectedAssignment(node.span(), "build graph"));
             return;
         };
         let receiver_var = if let syn::Expr::Path(path) = node.receiver.as_ref() {

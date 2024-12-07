@@ -267,7 +267,6 @@ impl<'ast> Visit<'ast> for TyInfer {
                     self.table.insert(ident, Type::Unknown);
                 }
             }
-            syn::Pat::Lit(_) => unimplemented!("ty_infer::visit_local::Lit"),
             syn::Pat::Macro(_) => unimplemented!("ty_infer::visit_local::Macro"),
             syn::Pat::Or(_) => unimplemented!("ty_infer::visit_local::Or"),
             syn::Pat::Paren(_) => unimplemented!("ty_infer::visit_local::Paren"),
@@ -277,7 +276,7 @@ impl<'ast> Visit<'ast> for TyInfer {
             syn::Pat::Rest(_) => unimplemented!("ty_infer::visit_local::Rest"),
             syn::Pat::Slice(_) => unimplemented!("ty_infer::visit_local::Slice"),
             syn::Pat::Struct(_) => unimplemented!("ty_infer::visit_local::Struct"),
-            syn::Pat::Tuple(_) => unimplemented!("ty_infer::visit_local::Tuple"),
+            syn::Pat::Tuple(_) => {}
             syn::Pat::TupleStruct(_) => unimplemented!("ty_infer::visit_local::TupleStruct"),
             syn::Pat::Type(ty) => {
                 self.visit_pat_type(ty);

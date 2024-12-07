@@ -4,43 +4,43 @@ use std::io::Write;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
-fuse_proc_macro!(
-    fn compute<T: CommonBounds>(a: _Tensor<T>, b: _Tensor<T>, k: f32) -> anyhow::Result<_Tensor<T>>
-    where
-        T: FloatOutUnary<Output = T, Base = T>,
-        T::Vec: FloatOutUnary<Output = T::Vec, Base = T>,
-        T: NormalOutUnary<Base = T>,
-        T::Vec: NormalOutUnary<Base = T>,
-        f64: IntoScalar<T>,
-        Option<T>: From<f64>
-{
-    let mut c = &a + &b / &a;
-    let mut d = c.sin()?;
-    let e = d.relu()?;
-    let shape = a.shape();
-    let alpha = 1.673263242354358;
-    let gamma = 1.050700987355822;
-    if shape.len() > 0 {
-        d = e.selu(alpha, gamma)?;
-        if alpha > 0.0 {
-            e.tanh()?;
-        } else {
-            d.tan()?;
-        }
-    } else {
-        d.selu(alpha, gamma)?;
-    }
-    for _ in 0..1000000 {
-        c = &d + &c;
-        break;
-    }
-    while true {
-        let c = &d + &c;
-        c.sin()?;
-        continue;
-    }
-    Ok(c)
-});
+// fuse_proc_macro!(
+//     fn compute<T: CommonBounds>(a: _Tensor<T>, b: _Tensor<T>, k: f32) -> anyhow::Result<_Tensor<T>>
+//     where
+//         T: FloatOutUnary<Output = T, Base = T>,
+//         T::Vec: FloatOutUnary<Output = T::Vec, Base = T>,
+//         T: NormalOutUnary<Base = T>,
+//         T::Vec: NormalOutUnary<Base = T>,
+//         f64: IntoScalar<T>,
+//         Option<T>: From<f64>
+// {
+//     let mut c = &a + &b / &a;
+//     let mut d = c.sin()?;
+//     let e = d.relu()?;
+//     let shape = a.shape();
+//     let alpha = 1.673263242354358;
+//     let gamma = 1.050700987355822;
+//     if shape.len() > 0 {
+//         d = e.selu(alpha, gamma)?;
+//         if alpha > 0.0 {
+//             e.tanh()?;
+//         } else {
+//             d.tan()?;
+//         }
+//     } else {
+//         d.selu(alpha, gamma)?;
+//     }
+//     for _ in 0..1000000 {
+//         c = &d + &c;
+//         break;
+//     }
+//     while true {
+//         let c = &d + &c;
+//         c.sin()?;
+//         continue;
+//     }
+//     Ok(c)
+// });
 
 #[compile]
 fn compute2<T: CommonBounds>(a: _Tensor<T>, b: _Tensor<T>, k: f32) -> anyhow::Result<_Tensor<T>>
@@ -53,13 +53,13 @@ fn compute2<T: CommonBounds>(a: _Tensor<T>, b: _Tensor<T>, k: f32) -> anyhow::Re
         Option<T>: From<f64>
 {
     let mut c = &a + &b / &a;
-    let mut d = c.sin()?;
+    let d = c.sin()?;
     let e = d.relu()?;
     let shape = a.shape();
     let alpha = 1.673263242354358;
     let gamma = 1.050700987355822;
     if shape.len() > 0 {
-        d = e.selu(alpha, gamma)?;
+        e.selu(alpha, gamma)?;
         if alpha > 0.0 {
             e.tanh()?;
         } else {

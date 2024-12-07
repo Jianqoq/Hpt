@@ -19,6 +19,7 @@ pub(crate) mod fuse {
     pub(crate) mod cfg_builder;
     pub(crate) mod errors;
     pub(crate) mod operator_lists;
+    pub(crate) mod dead_node_elimination;
 }
 
 #[proc_macro]
