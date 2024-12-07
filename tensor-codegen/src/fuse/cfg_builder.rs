@@ -780,14 +780,41 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             &mut self.current_expr
         ).map(|expr| {
             new_expr.expr = Box::new(expr);
-            let ident = syn::Ident::new(&format!("__ref_out_{}", self.global_block_cnt()), i.span());
-            if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_expr; }) {
-                self.push_stmt(stmt);
-            } else {
-                self.errors.push(Error::SynParseError(new_expr.span(), "CFG builder", "reference".to_string()));
-                return;
+            let new_expr = syn::Expr::Reference(new_expr);
+            let mut has_same_right = false;
+            for stmt in self.cfg.graph[self.current_block].statements.iter() {
+                if let syn::Stmt::Local(local) = &stmt.stmt {
+                    let pat = &local.pat;
+                    if let Some(init) = &local.init {
+                        if init.expr.as_ref() == &new_expr {
+                            has_same_right = true;
+                            self.current_expr = Some(syn::parse2(quote::quote! { #pat }).expect("reference expr is none"));
+                            break;
+                        }
+                    }
+                }
             }
-            self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("reference expr is none"));
+            if !has_same_right {
+                let ident = syn::Ident::new(
+                    &format!("__ref_out_{}", self.global_block_cnt()),
+                    i.span()
+                );
+                if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_expr; }) {
+                    self.push_stmt(stmt);
+                } else {
+                    self.errors.push(
+                        Error::SynParseError(
+                            new_expr.span(),
+                            "CFG builder",
+                            "reference".to_string()
+                        )
+                    );
+                    return;
+                }
+                self.current_expr = Some(
+                    syn::parse2(quote::quote! { #ident }).expect("reference expr is none")
+                );
+            }
         });
     }
 

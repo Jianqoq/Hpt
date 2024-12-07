@@ -14,10 +14,9 @@ fuse_proc_macro!(
         f64: IntoScalar<T>,
         Option<T>: From<f64>
 {
-    let c = &a + &b / &a;
-    let d = a + b + &c;
-    // let d = c.sin()?;
-    // let e = d.relu()?;
+    let mut c = &a + &b / &a;
+    let d = c.sin()?;
+    let e = d.relu()?;
     // let shape = a.shape();
     // let alpha = 1.673263242354358;
     // let gamma = 1.050700987355822;

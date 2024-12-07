@@ -1,99 +1,20 @@
-use std::collections::{ HashMap, HashSet };
+use std::collections::HashSet;
 use petgraph::graph::NodeIndex;
 use proc_macro2::TokenStream as TokenStream2;
 use crate::fuse::node::Node;
-use super::fuse::FusionGroup;
+use super::fuse::{ FusionGroup, Input, Output };
 
 pub(crate) fn gen_fuse(
     cfg: &crate::fuse::cfg::CFG,
     graph: &petgraph::stable_graph::StableGraph<&(crate::fuse::node::Node, i64, usize), ()>,
     groups: &FusionGroup
-) -> (
-    Vec<TokenStream2>,
-    Vec<(Vec<(syn::Ident, i64, usize, NodeIndex)>, Vec<(syn::Ident, i64, usize, NodeIndex)>)>,
-) {
-    let (fused_codes, inp_outs) = _gen_fuse(cfg, &graph, &groups.vars);
-    (fused_codes, inp_outs)
-}
-
-fn fill_indegree(
-    node: &Node,
-    in_degrees: &mut HashMap<syn::Ident, (usize, i64, usize, NodeIndex)>
-) {
-    match node {
-        Node::Unary(unary) => {
-            in_degrees.entry(unary.output.clone()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 1;
-        }
-        Node::Binary(binary) => {
-            in_degrees.entry(binary.output.clone()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 2;
-        }
-        Node::Input(_) => {}
-    }
-}
-
-fn init_degrees(
-    comp_graph_idx: NodeIndex,
-    stmt_index: i64,
-    block_idx: usize,
-    node: &Node,
-    degrees: &mut HashMap<syn::Ident, (usize, i64, usize, NodeIndex)>
-) {
-    match node {
-        Node::Unary(unary) => {
-            degrees.insert(unary.output.clone(), (0, stmt_index, block_idx, comp_graph_idx));
-        }
-        Node::Binary(binary) => {
-            degrees.insert(binary.output.clone(), (0, stmt_index, block_idx, comp_graph_idx));
-        }
-        Node::Input(ident) => {
-            degrees.insert(ident.clone(), (0, stmt_index, block_idx, comp_graph_idx));
-        }
-    }
-}
-
-// handle node inputs, they may not be initilized after init_degrees
-fn init_degrees_remain(
-    comp_graph_idx: NodeIndex,
-    block_idx: usize,
-    node: &Node,
-    degrees: &mut HashMap<syn::Ident, (usize, i64, usize, NodeIndex)>
-) {
-    match node {
-        Node::Unary(unary) => {
-            if let None = degrees.get_mut(&unary.operand) {
-                degrees.insert(unary.operand.clone(), (0, -1, block_idx, comp_graph_idx));
-            }
-        }
-        Node::Binary(binary) => {
-            if let None = degrees.get_mut(&binary.left) {
-                degrees.insert(binary.left.clone(), (0, -1, block_idx, comp_graph_idx));
-            }
-            if let None = degrees.get_mut(&binary.right) {
-                degrees.insert(binary.right.clone(), (0, -1, block_idx, comp_graph_idx));
-            }
-        }
-        Node::Input(_) => {}
-    }
-}
-
-fn fill_outdegree(
-    node: &Node,
-    out_degrees: &mut HashMap<syn::Ident, (usize, i64, usize, NodeIndex)>
-) {
-    match node {
-        Node::Unary(unary) => {
-            out_degrees.entry(unary.operand.clone()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 1;
-        }
-        Node::Binary(binary) => {
-            out_degrees.entry(binary.left.clone()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 1;
-            out_degrees.entry(binary.right.clone()).or_insert((0, 0, 0, NodeIndex::new(0))).0 += 1;
-        }
-        Node::Input(_) => {}
-    }
+) -> Vec<TokenStream2> {
+    _gen_fuse(cfg, &graph, &groups.vars)
 }
 
 fn gen_body(
     sorted: Vec<NodeIndex>,
+    inputs: &HashSet<Input>,
     graph: &petgraph::stable_graph::StableGraph<&(crate::fuse::node::Node, i64, usize), ()>,
     cfg: &crate::fuse::cfg::CFG
 ) -> proc_macro2::TokenStream {
@@ -101,7 +22,10 @@ fn gen_body(
     for idx in sorted {
         let mut node = graph[idx].clone();
         match &mut node {
-            (Node::Unary(unary), _, block_idx) => {
+            (Node::Unary(unary), stmt_index, block_idx) => {
+                if inputs.iter().any(|input| input.stmt_index == *stmt_index && input.block_idx == *block_idx) {
+                    continue;
+                }
                 let origin_out = cfg.graph[NodeIndex::new(*block_idx)].origin_var_map
                     .get(&unary.output)
                     .expect("gen_fuse::out");
@@ -116,7 +40,10 @@ fn gen_body(
                     )
                 );
             }
-            (Node::Binary(binary), _, block_idx) => {
+            (Node::Binary(binary), stmt_index, block_idx) => {
+                if inputs.iter().any(|input| input.stmt_index == *stmt_index && input.block_idx == *block_idx) {
+                    continue;
+                }
                 let origin_out = cfg.graph[NodeIndex::new(*block_idx)].origin_var_map
                     .get(&binary.output)
                     .expect("gen_fuse::out");
@@ -144,68 +71,20 @@ fn gen_body(
 pub(crate) fn _gen_fuse(
     cfg: &crate::fuse::cfg::CFG,
     graph: &petgraph::stable_graph::StableGraph<&(crate::fuse::node::Node, i64, usize), ()>,
-    groups: &Vec<HashSet<NodeIndex>>
-) -> (
-    Vec<TokenStream2>,
-    Vec<(Vec<(syn::Ident, i64, usize, NodeIndex)>, Vec<(syn::Ident, i64, usize, NodeIndex)>)>,
-) {
+    groups: &Vec<(HashSet<NodeIndex>, HashSet<Input>, HashSet<Output>)>
+) -> Vec<TokenStream2> {
     let sorteds = petgraph::algo::toposort(graph, None).expect("gen_fuse::topological_sort");
 
-    let results = groups
-        .iter()
-        .map(|group| {
-            let mut inputs_ident = Vec::new();
-            let mut outputs_ident = Vec::new();
-            let mut in_degrees = HashMap::new();
-            let mut out_degrees = HashMap::new();
-            for &idx in group {
-                init_degrees(idx, graph[idx].1, graph[idx].2, &graph[idx].0, &mut in_degrees);
-                init_degrees(idx, graph[idx].1, graph[idx].2, &graph[idx].0, &mut out_degrees);
-            }
-            for &idx in group {
-                init_degrees_remain(idx, graph[idx].2, &graph[idx].0, &mut in_degrees);
-                init_degrees_remain(idx, graph[idx].2, &graph[idx].0, &mut out_degrees);
-            }
-
-            for &idx in group {
-                fill_indegree(&graph[idx].0, &mut in_degrees);
-                fill_outdegree(&graph[idx].0, &mut out_degrees);
-            }
-            for (string, (cnt, stmt_index, block_idx, comp_graph_idx)) in in_degrees.into_iter() {
-                if cnt == 0 {
-                    let origin_ident = cfg.graph[NodeIndex::new(block_idx)].origin_var_map
-                        .get(&string)
-                        .expect("gen_fuse::origin_ident");
-                    inputs_ident.push((
-                        syn::Ident::new(&origin_ident.to_string(), proc_macro2::Span::call_site()),
-                        stmt_index,
-                        block_idx,
-                        comp_graph_idx,
-                    ));
-                }
-            }
-            for (string, (cnt, stmt_index, block_idx, comp_graph_idx)) in out_degrees.into_iter() {
-                if cnt == 0 {
-                    let origin_ident = cfg.graph[NodeIndex::new(block_idx)].origin_var_map
-                        .get(&string)
-                        .expect("gen_fuse::origin_ident");
-                    outputs_ident.push((
-                        syn::Ident::new(&origin_ident.to_string(), proc_macro2::Span::call_site()),
-                        stmt_index,
-                        block_idx,
-                        comp_graph_idx,
-                    ));
-                }
-            }
-            (inputs_ident, outputs_ident)
-        })
-        .collect::<Vec<_>>();
     let mut iters_vec = Vec::new();
-    for (inputs_ident, _) in results.iter() {
+    for (_, inputs, _) in groups.iter() {
         let mut iters = Vec::new();
-        for (input, _, _, _) in inputs_ident {
+        for input in inputs {
+            let ident = &input.var;
+            let origin_ident = cfg.graph[NodeIndex::new(input.block_idx)].origin_var_map
+                .get(&ident)
+                .expect("gen_fuse::origin_ident");
             iters.push(quote::quote!(
-                    #input.par_iter_simd()
+                    #origin_ident.par_iter_simd()
                 ));
         }
         iters_vec.push(iters);
@@ -216,12 +95,16 @@ pub(crate) fn _gen_fuse(
         zipped_vec.push(tokens);
     }
     let mut tuple_vec = vec![];
-    for mut iters in results
+    for mut iters in groups
         .iter()
-        .map(|(inputs_ident, _)|
-            inputs_ident
+        .map(|(_, inputs, _)|
+            inputs
                 .iter()
-                .map(|(ident, _, _, _)| ident.clone())
+                .map(|input| {
+                    cfg.graph[NodeIndex::new(input.block_idx)].origin_var_map
+                        .get(&input.var)
+                        .expect("gen_fuse::origin_ident").clone()
+                })
                 .collect::<Vec<_>>()
         )
         .collect::<Vec<_>>() {
@@ -236,26 +119,29 @@ pub(crate) fn _gen_fuse(
     for group in groups.iter() {
         let mut v = vec![];
         for sorted in sorteds.iter() {
-            if group.contains(sorted) {
+            if group.0.contains(sorted) {
                 v.push(sorted.clone());
             }
         }
         sorted_groups.push(v);
     }
     let mut fused_vec = Vec::new();
-    for (i, (sorted, (_, outputs))) in sorted_groups.into_iter().zip(results.iter()).enumerate() {
+    for (i, (sorted, (_, inputs, outputs))) in sorted_groups.into_iter().zip(groups.iter()).enumerate() {
         assert_eq!(outputs.len(), 1);
         let mut scalar_comp = TokenStream2::new();
         let mut vec_comp = TokenStream2::new();
-        let output = &outputs.iter().next().expect("gen_fuse::output").0;
-        let tokens = gen_body(sorted, graph, cfg);
+        let output = &outputs.iter().next().expect("gen_fuse::output");
+        let origin_output = cfg.graph[NodeIndex::new(output.block_idx)].origin_var_map
+            .get(&output.var)
+            .expect("gen_fuse::origin_output");
+        let tokens = gen_body(sorted, inputs, graph, cfg);
         scalar_comp.extend(tokens.clone());
         scalar_comp.extend(quote::quote!(
-            *res = #output
+            *res = #origin_output
         ));
         vec_comp.extend(tokens);
         vec_comp.extend(quote::quote!(
-            res.write_unaligned(#output)
+            res.write_unaligned(#origin_output)
         ));
         let zipped = &zipped_vec[i];
         let tuple = &tuple_vec[i];
@@ -269,7 +155,7 @@ pub(crate) fn _gen_fuse(
             );
         fused_vec.push(fused);
     }
-    (fused_vec, results)
+    fused_vec
 }
 
 fn gen_zip(iters: &mut Vec<TokenStream2>) -> TokenStream2 {
