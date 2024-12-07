@@ -780,7 +780,14 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             &mut self.current_expr
         ).map(|expr| {
             new_expr.expr = Box::new(expr);
-            self.current_expr = Some(syn::Expr::Reference(new_expr));
+            let ident = syn::Ident::new(&format!("__ref_out_{}", self.global_block_cnt()), i.span());
+            if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_expr; }) {
+                self.push_stmt(stmt);
+            } else {
+                self.errors.push(Error::SynParseError(new_expr.span(), "CFG builder", "reference".to_string()));
+                return;
+            }
+            self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("reference expr is none"));
         });
     }
 

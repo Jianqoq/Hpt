@@ -725,8 +725,19 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
                 self.visit_pat_ident(pat_ident);
                 self.current_assignment = Some(pat_ident.ident.clone());
                 if let Some(it) = &local.init {
-                    self.visit_local_init(it);
-                    self.variables.insert(pat_ident.ident.clone());
+                    if let syn::Expr::Reference(expr_reference) = it.expr.as_ref() {
+                        let ty = handle_expr_type(&expr_reference.expr, &self.type_table);
+                        if ty == Type::Tensor {
+                            self.inputs.insert(
+                                (Node::Input(pat_ident.ident.clone()), self.current_idx as i64, self.current_block),
+                                ty
+                            );
+                            self.variables.insert(pat_ident.ident.clone());
+                        }
+                    } else {
+                        self.visit_local_init(it);
+                        self.variables.insert(pat_ident.ident.clone());
+                    }
                 }
             }
             _ => {}
@@ -782,7 +793,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
             return;
         }
         let current_assignment = if let Some(current_assignment) = &self.current_assignment {
-            current_assignment
+            current_assignment.clone()
         } else {
             self.errors.push(Error::ExpectedAssignment(node.span(), "build graph"));
             return;
@@ -842,6 +853,9 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
             _ => todo!(),
         };
 
+        self.push_input_node_if_not_exist_expr(&node.left);
+        self.push_input_node_if_not_exist_expr(&node.right);
+
         self.nodes.push((
             Node::Binary(Binary {
                 method: proc_macro2::Ident::new(method, node.span()),
@@ -863,6 +877,9 @@ fn handle_expr_type<'ast>(node: &'ast syn::Expr, type_table: &HashMap<syn::Ident
             } else {
                 Type::Unknown
             }
+        }
+        syn::Expr::Reference(expr_reference) => {
+            handle_expr_type(&expr_reference.expr, type_table)
         }
         _ => Type::Unknown,
     }

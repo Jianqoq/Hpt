@@ -39,7 +39,9 @@ pub(crate) fn fuse<'ast>(
                         (Node::Binary(binary), _, _) => &binary.output,
                         (Node::Input(input), _, _) => input,
                     };
-                    if !basic_block.live_out.contains(var) {
+                    if basic_block.live_out.contains(var) {
+                        block.insert(pred);
+                    } else {
                         fuse_parents(pred, kernel_type, &mut block, &unfused);
                     }
                 }
@@ -61,7 +63,9 @@ pub(crate) fn fuse<'ast>(
                         (Node::Binary(binary), _, _) => &binary.output,
                         (Node::Input(input), _, _) => input,
                     };
-                    if !basic_block.live_out.contains(var) {
+                    if basic_block.live_out.contains(var) {
+                        block.insert(pred);
+                    } else {
                         fuse_parents(pred, kernel_type, &mut block, &unfused);
                     }
                 }

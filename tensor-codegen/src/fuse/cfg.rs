@@ -312,6 +312,29 @@ impl CFG {
         }
     }
 
+    /// analyze the variables being used in the inter-block
+    pub(crate) fn inter_live_analysis(&mut self) {
+        for block in self.graph.node_indices() {
+            let block_data = &mut self.graph[block];
+            let mut record = HashSet::new();
+            let mut live_out = HashSet::new();
+            for stmt in &block_data.statements {
+                let mut use_define_visitor = UseDefineVisitor::new();
+                use_define_visitor.visit_stmt(&stmt.stmt);
+                for used in use_define_visitor.used_vars
+                    .drain()
+                    .chain(use_define_visitor.assigned_vars.drain()) {
+                    if record.contains(&used) {
+                        live_out.insert(used);
+                    } else {
+                        record.insert(used);
+                    }
+                }
+            }
+            block_data.live_out.extend(live_out.drain());
+        }
+    }
+
     pub(crate) fn add_block(&mut self, block: BasicBlock) -> NodeIndex {
         self.graph.add_node(block)
     }
