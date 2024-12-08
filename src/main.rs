@@ -4,40 +4,40 @@ use std::io::Write;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
-// fuse_proc_macro!(
-//     fn compute(a: _Tensor<f32>, b: _Tensor<f32>, k: f32) -> anyhow::Result<_Tensor<f32>>
-// {
-//     let c = &a + &b / &a;
-//     let d = c.sin()?;
-//     let e = d.relu()?;
-//     let g = c.matmul(&e)?.tanh()?;
-//     let f = g.relu()?;
-//     let h = f.tanh()?;
-//     // let shape = a.shape();
-//     // let alpha = 1.673263242354358;
-//     // let gamma = 1.050700987355822;
-//     // if shape.len() > 0 {
-//     //     e.selu(alpha, gamma)?;
-//     //     if alpha > 0.0 {
-//     //         e.tanh()?
-//     //     } else {
-//     //         d.tan()?
-//     //     }
-//     // } else {
-//     //     d.selu(alpha, gamma)?
-//     // }
-//     // for _ in 0..1000000 {
-//     //     c = &d + &c;
-//     //     break;
-//     // }
-//     // while true {
-//     //     let c = &d + &c;
-//     //     c.sin()?;
-//     //     continue;
-//     // }
+fuse_proc_macro!(
+    fn compute(a: _Tensor<f32>, b: _Tensor<f32>, k: f32) -> anyhow::Result<_Tensor<f32>>
+{
+    let mut c = &a + &b / &a;
+    let d = c.sin()?;
+    let e = d.relu()?;
+    let g = c.matmul(&e)?.tanh()?;
+    let f = g.relu()?;
+    let h = f.tanh()?;
+    let shape = a.shape();
+    let alpha = 1.673263242354358;
+    let gamma = 1.050700987355822;
+    if shape.len() > 0 {
+        e.selu(alpha, gamma)?;
+        if alpha > 0.0 {
+            e.tanh()?
+        } else {
+            d.tan()?
+        }
+    } else {
+        d.selu(alpha, gamma)?
+    }
+    for _ in 0..1000000 {
+        c = &d + &c;
+        break;
+    }
+    while true {
+        let c = &d + &c;
+        c.sin()?;
+        continue;
+    }
     
-//     Ok(g)
-// });
+    Ok(g)
+});
 
 // #[compile]
 // fn compute2<T: CommonBounds>(a: _Tensor<T>, b: _Tensor<T>, k: f32) -> anyhow::Result<_Tensor<T>>

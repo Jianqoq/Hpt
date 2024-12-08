@@ -979,7 +979,9 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
     }
 
     fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+        let has_assignment = self.has_assignment;
         let mut new_call = call.clone();
+        self.has_assignment = false;
         self.visit_expr(call.func.as_ref());
         let func = core::mem::take(&mut self.current_expr).expect("func is none");
         for arg in new_call.args.iter_mut() {
@@ -998,7 +1000,18 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             *arg = new_arg;
         }
         new_call.func = Box::new(func);
-        self.current_expr = Some(syn::Expr::Call(new_call));
+        if has_assignment {
+            self.current_expr = Some(syn::Expr::Call(new_call));
+        } else {
+            let ident = syn::Ident::new(
+                &format!("__call_{}", self.global_block_cnt()),
+                proc_macro2::Span::call_site()
+            );
+            if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_call; }) {
+                self.push_stmt(stmt);
+            }
+            self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
+        }
     }
     fn visit_expr_method_call(&mut self, method_call: &'ast syn::ExprMethodCall) {
         let has_assignment = self.has_assignment;
