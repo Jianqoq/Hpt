@@ -55,6 +55,14 @@ impl<'ast> Visit<'ast> for VariableCollector {
                     self.visit_pat(&field.pat);
                 }
             }
+            syn::Pat::Paren(paren) => {
+                self.visit_pat(&paren.pat);
+            }
+            syn::Pat::Slice(slice) => {
+                for elem in slice.elems.iter() {
+                    self.visit_pat(elem);
+                }
+            }
             _ => {}
         }
     }

@@ -56,6 +56,8 @@ pub(crate) enum BlockType {
     Generics(syn::Generics),
     FnBody,
     Where(syn::WhereClause),
+    MatchCond,
+    MatchCase,
 }
 
 impl std::fmt::Debug for BlockType {
@@ -89,6 +91,8 @@ impl std::fmt::Debug for BlockType {
             Self::Generics(_) => write!(f, "Generics"),
             Self::FnBody => write!(f, "FnBody"),
             Self::Where(_) => write!(f, "Where"),
+            Self::MatchCond => write!(f, "MatchCond"),
+            Self::MatchCase => write!(f, "MatchCase"),
         }
     }
 }
@@ -708,6 +712,12 @@ impl CFG {
             BlockType::Where(where_clause) => {
                 body.extend(quote::quote!(#where_clause));
             }
+            BlockType::MatchCond => {
+                body.extend(quote::quote!(match #code #child_code));
+            }
+            BlockType::MatchCase => {
+                body.extend(quote::quote!((#code #child_code) =>));
+            }
         }
         body
     }
@@ -756,31 +766,28 @@ fn new_name_pat(
         syn::Pat::Or(_) => {
             errors.push(Error::Unsupported(pat.span(), "new_name_pat", "or pattern".to_string()));
         }
-        syn::Pat::Paren(_) => {
-            errors.push(
-                Error::Unsupported(pat.span(), "new_name_pat", "paren pattern".to_string())
-            );
+        syn::Pat::Paren(paren) => {
+            new_name_pat(errors, &mut paren.pat, stacks, versions, new_origin_var_map)?;
         }
-        syn::Pat::Path(_) => {
-            errors.push(Error::Unsupported(pat.span(), "new_name_pat", "path pattern".to_string()));
+        syn::Pat::Path(path) => {
+            if let Some(ident) = path.path.get_ident().clone() {
+                let new_ident = new_name(errors, &ident, versions, stacks, new_origin_var_map)?;
+                path.path.segments[0].ident = new_ident;
+            }
         }
         syn::Pat::Range(_) => {
             errors.push(
                 Error::Unsupported(pat.span(), "new_name_pat", "range pattern".to_string())
             );
         }
-        syn::Pat::Reference(_) => {
-            errors.push(
-                Error::Unsupported(pat.span(), "new_name_pat", "reference pattern".to_string())
-            );
+        syn::Pat::Reference(reference) => {
+            new_name_pat(errors, &mut reference.pat, stacks, versions, new_origin_var_map)?;
         }
-        syn::Pat::Rest(_) => {
-            errors.push(Error::Unsupported(pat.span(), "new_name_pat", "rest pattern".to_string()));
-        }
-        syn::Pat::Slice(_) => {
-            errors.push(
-                Error::Unsupported(pat.span(), "new_name_pat", "slice pattern".to_string())
-            );
+        syn::Pat::Rest(_) => {}
+        syn::Pat::Slice(slice) => {
+            for elem in slice.elems.iter_mut() {
+                new_name_pat(errors, elem, stacks, versions, new_origin_var_map)?;
+            }
         }
         syn::Pat::Struct(struct_pat) => {
             for field in struct_pat.fields.iter_mut() {
@@ -792,10 +799,10 @@ fn new_name_pat(
                 new_name_pat(errors, pat, stacks, versions, new_origin_var_map)?;
             }
         }
-        syn::Pat::TupleStruct(_) => {
-            errors.push(
-                Error::Unsupported(pat.span(), "new_name_pat", "tuple struct pattern".to_string())
-            );
+        syn::Pat::TupleStruct(tuple_struct) => {
+            for elem in tuple_struct.elems.iter_mut() {
+                new_name_pat(errors, elem, stacks, versions, new_origin_var_map)?;
+            }
         }
         syn::Pat::Type(pat_type) => {
             new_name_pat(errors, &mut pat_type.pat, stacks, versions, new_origin_var_map)?;

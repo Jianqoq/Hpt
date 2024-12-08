@@ -113,6 +113,8 @@ pub(crate) fn stmt(node: &crate::fuse::cfg::BasicBlock) -> TokenStream2 {
         super::cfg::BlockType::FnRet(_) => {}
         super::cfg::BlockType::Generics(_) => {}
         super::cfg::BlockType::Where(_) => {}
+        super::cfg::BlockType::MatchCond => todo!(),
+        super::cfg::BlockType::MatchCase => todo!(),
     }
     body
 }

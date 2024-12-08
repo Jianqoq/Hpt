@@ -53,16 +53,24 @@ impl<'ast> Visit<'ast> for UseDefineVisitor {
             syn::Pat::Lit(_) => unimplemented!("use_define_visitor::visit_pat::lit"),
             syn::Pat::Macro(_) => unimplemented!("use_define_visitor::visit_pat::macro"),
             syn::Pat::Or(_) => unimplemented!("use_define_visitor::visit_pat::or"),
-            syn::Pat::Paren(_) => unimplemented!("use_define_visitor::visit_pat::paren"),
+            syn::Pat::Paren(paren) => {
+                self.visit_pat(&paren.pat);
+            }
             syn::Pat::Path(path) => {
                 if let Some(ident) = path.path.get_ident() {
                     self.insert(ident.clone());
                 }
             }
             syn::Pat::Range(_) => unimplemented!("use_define_visitor::visit_pat::range"),
-            syn::Pat::Reference(_) => unimplemented!("use_define_visitor::visit_pat::reference"),
-            syn::Pat::Rest(_) => unimplemented!("use_define_visitor::visit_pat::rest"),
-            syn::Pat::Slice(_) => unimplemented!("use_define_visitor::visit_pat::slice"),
+            syn::Pat::Reference(reference) => {
+                self.visit_pat(&reference.pat);
+            }
+            syn::Pat::Rest(_) => {}
+            syn::Pat::Slice(slice) => {
+                for elem in slice.elems.iter() {
+                    self.visit_pat(elem);
+                }
+            }
             syn::Pat::Struct(struct_pat) => {
                 for field in struct_pat.fields.iter() {
                     self.visit_pat(&field.pat);

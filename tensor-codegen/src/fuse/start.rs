@@ -13,6 +13,7 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     let dominance_frontiers = cfg.compute_dominance_frontiers(&dominators);
     let definitions = cfg.get_variable_definitions();
     cfg.insert_phi_functions(&dominance_frontiers, &definitions);
+    // println!("graph: {:#?}", cfg.graph);
     cfg.rename_variables(&dominators)?;
     cfg.var_coalescer();
     Ok(cfg)

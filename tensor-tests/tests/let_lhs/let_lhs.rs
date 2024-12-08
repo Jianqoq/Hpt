@@ -42,4 +42,28 @@ pub fn main() {
             Ok(a)
         }
     );
+    fuse_proc_macro!(
+        fn case1(a: f32, b: f32) -> anyhow::Result<f32>{
+            let (ok, lk) = a;
+            Ok(a)
+        }
+    );
+    fuse_proc_macro!(
+        fn case1(a: f32, b: f32) -> anyhow::Result<f32>{
+            let (ok) = a;
+            Ok(a)
+        }
+    );
+    fuse_proc_macro!(
+        fn case1(a: f32, b: f32) -> anyhow::Result<f32>{
+            let [ok, ok2] = a;
+            Ok(a)
+        }
+    );
+    fuse_proc_macro!(
+        fn case1(a: f32, b: f32) -> anyhow::Result<f32>{
+            let [ok, ok2, ..] = a;
+            Ok(a)
+        }
+    );
 }

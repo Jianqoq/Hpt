@@ -224,8 +224,12 @@ fn handle_pat(lhs: &syn::Pat, table: &mut HashMap<syn::Ident, Type>) {
         }
         syn::Pat::Range(_) => unimplemented!("handle_pat::Range"),
         syn::Pat::Reference(reference) => handle_pat(reference.pat.as_ref(), table),
-        syn::Pat::Rest(_) => unimplemented!("handle_pat::Rest"),
-        syn::Pat::Slice(_) => unimplemented!("handle_pat::Slice"),
+        syn::Pat::Rest(_) => {},
+        syn::Pat::Slice(slice) => {
+            for elem in slice.elems.iter() {
+                handle_pat(elem, table);
+            }
+        }
         syn::Pat::Struct(struct_pat) => {
             for field in struct_pat.fields.iter() {
                 handle_pat(field.pat.as_ref(), table);
@@ -318,12 +322,18 @@ impl<'ast> Visit<'ast> for TyInfer {
             }
             syn::Pat::Macro(_) => unimplemented!("ty_infer::visit_local::Macro"),
             syn::Pat::Or(_) => unimplemented!("ty_infer::visit_local::Or"),
-            syn::Pat::Paren(_) => unimplemented!("ty_infer::visit_local::Paren"),
+            syn::Pat::Paren(paren) => {
+                handle_pat(paren.pat.as_ref(), &mut self.table);
+            }
             syn::Pat::Path(_) => unimplemented!("ty_infer::visit_local::Path"),
             syn::Pat::Range(_) => unimplemented!("ty_infer::visit_local::Range"),
             syn::Pat::Reference(_) => unimplemented!("ty_infer::visit_local::Reference"),
-            syn::Pat::Rest(_) => unimplemented!("ty_infer::visit_local::Rest"),
-            syn::Pat::Slice(_) => unimplemented!("ty_infer::visit_local::Slice"),
+            syn::Pat::Rest(_) => {}
+            syn::Pat::Slice(slice) => {
+                for elem in slice.elems.iter() {
+                    handle_pat(elem, &mut self.table);
+                }
+            }
             syn::Pat::Struct(struct_pat) => {
                 for field in struct_pat.fields.iter() {
                     handle_pat(field.pat.as_ref(), &mut self.table);

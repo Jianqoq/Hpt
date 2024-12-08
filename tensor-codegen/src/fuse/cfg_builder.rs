@@ -252,18 +252,47 @@ impl<'a> CFGBuilder<'a> {
 
     // handle match statement
     fn handle_match(&mut self, expr_match: &syn::ExprMatch) {
+
+        let mut current_block_id = core::mem::take(&mut self.block_ids);
+        let cond_block = self.new_block(BlockType::MatchCond);
+        let cond_block_id = BlockId::new(cond_block);
         // create merge block
         let merge_block = self.new_block(BlockType::Normal);
+        let merge_block_id = BlockId::new(merge_block);
+
+        self.connect_to(cond_block);
+        self.set_current_block(cond_block);
+        self.push_stmt(syn::Stmt::Expr(*expr_match.expr.clone(), None));
 
         for arm in &expr_match.arms {
             // 为每个匹配分支创建一个块
-            let arm_block = self.new_block(BlockType::Normal);
+            let case_block = self.new_block(BlockType::MatchCase);
+            let case_block_id = BlockId::new(case_block);
             // 连接当前块到分支块
-            self.connect_to(arm_block);
+            self.connect_to(case_block);
             // 处理分支块中的语句
-            self.set_current_block(arm_block);
+            self.set_current_block(case_block);
+            let pat = &arm.pat;
+            if let Ok(stmt) = syn::parse2(quote::quote! { let __pat = #pat; }) {
+                self.push_stmt(stmt);
+            } else {
+                self.errors.push(
+                    Error::SynParseError(
+                        arm.pat.span(),
+                        "CFG builder",
+                        format!("{}", arm.pat.to_token_stream().to_string())
+                    )
+                );
+            }
+            let body_block = self.new_block(BlockType::Normal);
+            let body_block_id = BlockId::new(body_block);
+            self.connect_to(body_block);
+            self.set_current_block(body_block);
+            self.set_current_block_id(body_block_id);
             self.visit_expr(&arm.body);
-            // 连接分支块到合并块
+            let body_block_id = core::mem::take(&mut self.block_ids);
+            current_block_id.children.push(case_block_id);
+            current_block_id.children.push(body_block_id);
             self.connect_to(merge_block);
         }
 
