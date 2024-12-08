@@ -39,26 +39,28 @@ use tensor_dyn::*;
 //     Ok(g)
 // });
 
-fuse_proc_macro!(
-    fn case5(a: f32, b: f32) -> anyhow::Result<f32>{
-        let c = if a > 0.0 {
-            let d = a + b;
-            if d > 0.0 {
-                d + b.sin()
-            } else {
-                d - b.sin()
-            }
-        } else {
-            let d = a - b;
-            if d > 0.0 {
-                d + b.sin()
-            } else {
-                d - b.sin()
-            }
-        };
-        Ok(c)
-    }
-);
+// fuse_proc_macro!(
+//     fn case6(a: f32, b: f32) -> anyhow::Result<f32>{
+//         let c = if a > 0.0 {
+//             let mut d = a + b;
+//             if d > 0.0 {
+//                 d = d.sin().sin()?.tanh()
+//             } else {
+//                 d = d.sin().sin()?.tanh()
+//             }
+//             d
+//         } else {
+//             let mut d = a + b;
+//             if d > 0.0 {
+//                 d = d.cos().cos()?.tanh()
+//             } else {
+//                 d = d.cos().cos()?.tanh()
+//             }
+//             d
+//         };
+//         Ok(c)
+//     }
+// );
 // #[compile]
 // fn compute2<T: CommonBounds>(a: _Tensor<T>, b: _Tensor<T>, k: f32) -> anyhow::Result<_Tensor<T>>
 //     where

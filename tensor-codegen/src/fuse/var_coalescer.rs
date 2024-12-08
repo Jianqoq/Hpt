@@ -18,21 +18,34 @@ impl<'ast> VarCoalescer<'ast> {
             self.current_block = node;
             let block = &mut self.cfg.graph[node];
             let mut rhs = syn::Expr::Verbatim(quote::quote! {});
-            let mut lhs = syn::Ident::new("a", proc_macro2::Span::call_site());
+            let mut lhs = syn::Ident::new("_____________a", proc_macro2::Span::call_site());
             let mut to_remove = Vec::new();
             for (idx, stmt) in block.statements.iter_mut().enumerate() {
                 match &mut stmt.stmt {
                     syn::Stmt::Local(local) => {
                         if let Some(init) = &mut local.init {
-                            if let syn::Expr::Try(expr_try) = &mut *init.expr {
-                                if let syn::Expr::Path(path) = &mut *expr_try.expr {
-                                    if let Some(ident) = path.path.get_ident() {
-                                        if ident == &lhs {
-                                            *expr_try.expr = rhs.clone();
-                                            to_remove.push(idx - 1);
+                            match &mut *init.expr {
+                                syn::Expr::Try(expr_try) => {
+                                    if let syn::Expr::Path(path) = &mut *expr_try.expr {
+                                        if let Some(ident) = path.path.get_ident() {
+                                            if ident == &lhs {
+                                                *expr_try.expr = rhs.clone();
+                                                to_remove.push(idx - 1);
+                                                block.defined_vars.remove(&lhs);
+                                            }
                                         }
                                     }
                                 }
+                                syn::Expr::Path(path) => {
+                                    if let Some(ident) = path.path.get_ident() {
+                                        if ident == &lhs {
+                                            *init.expr = rhs.clone();
+                                            to_remove.push(idx - 1);
+                                            block.defined_vars.remove(&lhs);
+                                        }
+                                    }
+                                }
+                                _ => {}
                             }
                         }
                         if let syn::Pat::Ident(pat) = &local.pat {

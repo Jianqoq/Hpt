@@ -74,11 +74,11 @@ pub fn main() {
             };
             __if_assign_1
         };
-        let __expr_tuple = (0, __block_out_0);
-        let __try_7 = __expr_tuple.sin(&a)?;
-        let __try_9 = __try_7.cos(a)?;
-        let __try_11 = a.selu()?;
-        let c = __try_9.tan(__try_11)?;
+        let __expr_tuple_6 = (0, __block_out_0);
+        let __try_8 = __expr_tuple_6.sin(&a)?;
+        let __try_10 = __try_8.cos(a)?;
+        let __try_12 = a.selu()?;
+        let c = __try_10.tan(__try_12)?;
         Ok(c)
     }
     fn case10(a: f32) -> anyhow::Result<f32> {
@@ -92,11 +92,11 @@ pub fn main() {
             };
             __if_assign_1
         };
-        let __expr_tuple = (0, __block_out_0);
-        let __try_7 = __expr_tuple.sin(&a)?;
-        let __try_9 = __try_7.cos(a)?;
-        let __try_11 = a.selu()?;
-        let c = __try_9.tan(__try_11)?;
+        let __expr_tuple_6 = (0, __block_out_0);
+        let __try_8 = __expr_tuple_6.sin(&a)?;
+        let __try_10 = __try_8.cos(a)?;
+        let __try_12 = a.selu()?;
+        let c = __try_10.tan(__try_12)?;
         Ok(c)
     }
 }
