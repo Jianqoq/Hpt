@@ -97,4 +97,30 @@ pub fn main() {
             Ok(c)
         }
     );
+    fuse_proc_macro!(
+        fn case7(a: f32, b: f32) -> anyhow::Result<f32>{
+            if a > 0.0 {
+                a += 10;
+            } else if a > 0.0 {
+                a += 20;
+            } else {
+                a += 30;
+            }
+            Ok(a)
+        }
+    );
+    fuse_proc_macro!(
+        fn case8(a: f32, b: f32) -> anyhow::Result<f32>{
+            if a > 0.0 {
+                10
+            } else if a > 0.0 {
+                20
+            } else if a == 0.0 {
+                30
+            } else {
+                40
+            }
+            Ok(a)
+        }
+    );
 }

@@ -34,7 +34,6 @@ pub(crate) enum BlockType {
     IfThen,
     IfThenEnd,
     IfElseEnd,
-    ElseIfCond,
     ForAssign,
     ForInit,
     ForBody,
@@ -69,7 +68,6 @@ impl std::fmt::Debug for BlockType {
             Self::IfThen => write!(f, "IfThen"),
             Self::IfThenEnd => write!(f, "IfThenEnd"),
             Self::IfElseEnd => write!(f, "IfElseEnd"),
-            Self::ElseIfCond => write!(f, "ElseIfCond"),
             Self::ForAssign => write!(f, "ForAssign"),
             Self::ForInit => write!(f, "ForInit"),
             Self::ForBody => write!(f, "ForBody"),
@@ -643,9 +641,6 @@ impl CFG {
             }
             BlockType::IfCond => {
                 body.extend(quote::quote!(if #code #child_code));
-            }
-            BlockType::ElseIfCond => {
-                body.extend(quote::quote!(else if #code #child_code));
             }
             BlockType::IfThen => {
                 body.extend(quote::quote!({ #code #child_code }));

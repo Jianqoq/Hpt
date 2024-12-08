@@ -10,6 +10,11 @@ fn test_control_flows() {
 }
 
 #[test]
+fn test_if_statements() {
+    macrotest::expand("tests/control_flows/if_statements.rs");
+}
+
+#[test]
 fn test_let_lhs() {
     macrotest::expand("tests/let_lhs/*.rs");
 }

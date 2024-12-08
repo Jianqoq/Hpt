@@ -11,10 +11,6 @@ pub(crate) fn stmt(node: &crate::fuse::cfg::BasicBlock) -> TokenStream2 {
             let stmt = node.statements.get(0).expect("node::if_cond::stmt");
             body.extend(quote::quote!(#stmt));
         }
-        crate::fuse::cfg::BlockType::ElseIfCond => {
-            let stmt = node.statements.get(0).expect("node::else_if_cond::stmt");
-            body.extend(quote::quote!(#stmt));
-        }
         crate::fuse::cfg::BlockType::IfThen | crate::fuse::cfg::BlockType::IfThenEnd => {
             body.extend({
                 let iter = node.statements.iter().map(|stmt| { quote::quote!(#stmt) });

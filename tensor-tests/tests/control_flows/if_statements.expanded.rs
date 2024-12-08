@@ -5,11 +5,13 @@ pub fn main() {
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
         let __if_assign_0 = if a > 0.0 { a + b } else { a - b };
         let c = __if_assign_0;
-        Ok(c)
+        let __call_1 = Ok(c);
+        __call_1
     }
     fn case2(a: f32, b: f32) -> anyhow::Result<f32> {
         let __if_assign_0 = if a > 0.0 { a + b } else { a - b };
-        Ok(__if_assign_0)
+        let __call_1 = Ok(__if_assign_0);
+        __call_1
     }
     fn case3(a: f32, b: f32) -> anyhow::Result<f32> {
         let __if_assign_0 = if a > 0.0 {
@@ -20,7 +22,8 @@ pub fn main() {
             d
         };
         let c = __if_assign_0;
-        Ok(c)
+        let __call_1 = Ok(c);
+        __call_1
     }
     fn case4(a: f32, b: f32) -> anyhow::Result<f32> {
         let __if_assign_0 = if a > 0.0 {
@@ -33,7 +36,8 @@ pub fn main() {
             d + __method_call_2
         };
         let c = __if_assign_0;
-        Ok(c)
+        let __call_3 = Ok(c);
+        __call_3
     }
     fn case5(a: f32, b: f32) -> anyhow::Result<f32> {
         let __if_assign_0 = if a > 0.0 {
@@ -58,7 +62,8 @@ pub fn main() {
             __if_assign_4
         };
         let c = __if_assign_0;
-        Ok(c)
+        let __call_7 = Ok(c);
+        __call_7
     }
     fn case6(a: f32, b: f32) -> anyhow::Result<f32> {
         let __if_assign_0 = if a > 0.0 {
@@ -91,7 +96,8 @@ pub fn main() {
             d
         };
         let c = __if_assign_0;
-        Ok(c)
+        let __call_19 = Ok(c);
+        __call_19
     }
     fn case6(a: f32, b: f32) -> anyhow::Result<f32> {
         let __if_assign_0 = if a.shape() > 0.0 && a.len() > 0
@@ -102,6 +108,36 @@ pub fn main() {
             d
         };
         let c = __if_assign_0;
-        Ok(c)
+        let __call_1 = Ok(c);
+        __call_1
+    }
+    fn case7(a: f32, b: f32) -> anyhow::Result<f32> {
+        let __if_assign_0 = if a > 0.0 {
+            a += 10;
+        } else {
+            let __if_assign_1 = if a > 0.0 {
+                a += 20;
+            } else {
+                a += 30;
+            };
+            __if_assign_1
+        };
+        let __call_2 = Ok(a);
+        __call_2
+    }
+    fn case8(a: f32, b: f32) -> anyhow::Result<f32> {
+        let __if_assign_0 = if a > 0.0 {
+            10
+        } else {
+            let __if_assign_1 = if a > 0.0 {
+                20
+            } else {
+                let __if_assign_2 = if a == 0.0 { 30 } else { 40 };
+                __if_assign_2
+            };
+            __if_assign_1
+        };
+        let __call_3 = Ok(a);
+        __call_3
     }
 }

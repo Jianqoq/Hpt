@@ -5,38 +5,18 @@ use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
 fuse_proc_macro!(
-    fn compute(a: _Tensor<f32>, b: _Tensor<f32>, k: f32) -> anyhow::Result<_Tensor<f32>>
-{
-    let c = &a + &b / &a;
-    let d = c.sin()?;
-    let e = d.relu()?;
-    let g = c.matmul(&e)?.tanh()?;
-    let f = g.relu()?;
-    // let shape = a.shape();
-    // let alpha = 1.673263242354358;
-    // let gamma = 1.050700987355822;
-    // if shape.len() > 0 {
-    //     e.selu(alpha, gamma)?;
-    //     if alpha > 0.0 {
-    //         e.tanh()?
-    //     } else {
-    //         d.tan()?
-    //     }
-    // } else {
-    //     d.selu(alpha, gamma)?
-    // }
-    // for _ in 0..1000000 {
-    //     c = &d + &c;
-    //     break;
-    // }
-    // while true {
-    //     let c = &d + &c;
-    //     c.sin()?;
-    //     continue;
-    // }
-    
-    Ok(g)
-});
+    fn case8(a: f32, b: f32) -> anyhow::Result<f32>{
+        if a > 0.0 {
+            10
+        } else if a > 0.0 {
+            20
+        } else if a == 0.0 {
+            30
+        } else {
+            40
+        }
+        Ok(a)
+    });
 
 // #[compile]
 // fn compute2<T: CommonBounds>(a: _Tensor<T>, b: _Tensor<T>, k: f32) -> anyhow::Result<_Tensor<T>>
@@ -48,30 +28,12 @@ fuse_proc_macro!(
 //         f64: IntoScalar<T>,
 //         Option<T>: From<f64>
 // {
-//     let mut c = &a + &b / &a;
-//     let d = c.sin()?;
-//     let e = d.relu()?;
-//     let shape = a.shape();
-//     let alpha = 1.673263242354358;
-//     let gamma = 1.050700987355822;
-//     if shape.len() > 0 {
-//         e.selu(alpha, gamma)?;
-//         if alpha > 0.0 {
-//             e.tanh()?;
-//         } else {
-//             d.tan()?;
-//         }
+//     if a > 0.0 {
+//         a = 10
+//     } else if a > 0.0 {
+//         a = 20
 //     } else {
-//         d.selu(alpha, gamma)?;
-//     }
-//     for _ in 0..1000000 {
-//         c = &d + &c;
-//         break;
-//     }
-//     while true {
-//         let c = &d + &c;
-//         c.sin()?;
-//         continue;
+//         a = 30
 //     }
 //     Ok(c)
 // }

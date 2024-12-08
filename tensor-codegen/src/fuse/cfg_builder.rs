@@ -74,31 +74,20 @@ impl<'a> CFGBuilder<'a> {
 
     /// handle if statement
     fn handle_if(&mut self, expr_if: &syn::ExprIf) {
-        let mut current_block_id = Some(core::mem::take(&mut self.block_ids));
-        let (cond_block, cond_block_id, assign_ident, assign_block_id) = if
-            self.cfg.graph[self.current_block].block_type == BlockType::IfElseEnd &&
-            self.cfg.graph[self.current_block].statements.len() == 0
-        {
-            self.cfg.graph[self.current_block].block_type = BlockType::ElseIfCond;
-            (self.current_block, None, None, None)
-        } else {
-            let assign_block = self.new_block(BlockType::IfAssign);
-            let assign_block_id = BlockId::new(assign_block);
-            self.connect_to(assign_block);
-            self.set_current_block(assign_block);
-            let assign_ident = syn::Ident::new(
-                &format!("__if_assign_{}", self.global_block_cnt()),
-                proc_macro2::Span::call_site()
-            );
-            self.cfg.graph[assign_block].statements.push(CustomStmt {
-                stmt: syn
-                    ::parse2(quote::quote! { let #assign_ident; })
-                    .expect("assign stmt is none"),
-            });
-            let new_cond_block = self.new_block(BlockType::IfCond);
-            let cond_block_id = BlockId::new(new_cond_block);
-            (new_cond_block, Some(cond_block_id), Some(assign_ident), Some(assign_block_id))
-        };
+        let mut current_block_id = core::mem::take(&mut self.block_ids);
+        let assign_block = self.new_block(BlockType::IfAssign);
+        let assign_block_id = BlockId::new(assign_block);
+        self.connect_to(assign_block);
+        self.set_current_block(assign_block);
+        let assign_ident = syn::Ident::new(
+            &format!("__if_assign_{}", self.global_block_cnt()),
+            proc_macro2::Span::call_site()
+        );
+        self.cfg.graph[assign_block].statements.push(CustomStmt {
+            stmt: syn::parse2(quote::quote! { let #assign_ident; }).expect("assign stmt is none"),
+        });
+        let cond_block = self.new_block(BlockType::IfCond);
+        let cond_block_id = BlockId::new(cond_block);
 
         // create then branch block
         let then_block = self.new_block(BlockType::IfThenEnd);
@@ -113,14 +102,9 @@ impl<'a> CFGBuilder<'a> {
         // connect current block to condition check block
         self.connect_to(cond_block);
         self.set_current_block(cond_block);
-        if let Some(cond_block_id) = cond_block_id {
-            self.set_current_block_id(cond_block_id);
-        } else {
-            self.set_current_block_id(current_block_id.unwrap());
-            current_block_id = None;
-        }
+        self.set_current_block_id(cond_block_id);
         self.push_stmt(syn::Stmt::Expr(*expr_if.cond.clone(), None));
-        let mut cond_block_id = core::mem::take(&mut self.block_ids);
+        let cond_block_id = core::mem::take(&mut self.block_ids);
         // connect current block to then and else branch
         self.connect_to(then_block);
         self.connect_to(else_block);
@@ -140,6 +124,12 @@ impl<'a> CFGBuilder<'a> {
                 syn::Expr::Block(expr_block) => {
                     self.visit_block(&expr_block.block);
                 }
+                syn::Expr::If(expr_if) => {
+                    self.handle_if(expr_if);
+                    if let Some(expr) = self.current_expr.take() {
+                        self.push_stmt(syn::Stmt::Expr(expr, None));
+                    }
+                }
                 _ => {
                     self.visit_expr(&else_branch.1);
                 }
@@ -148,39 +138,24 @@ impl<'a> CFGBuilder<'a> {
         let else_block_id = core::mem::take(&mut self.block_ids);
         self.connect_to(merge_block);
 
-        if let Some(mut current_block_id) = current_block_id {
-            if let Some(assign_block_id) = assign_block_id {
-                current_block_id.children.push(assign_block_id);
-            }
-            current_block_id.children.push(cond_block_id);
-            current_block_id.children.push(then_block_id);
-            current_block_id.children.push(else_block_id);
-            current_block_id.children.push(merge_block_id);
-            self.set_current_block(merge_block);
-            self.set_current_block_id(current_block_id);
-        } else {
-            if let Some(assign_block_id) = assign_block_id {
-                cond_block_id.children.push(assign_block_id);
-            }
-            cond_block_id.children.push(then_block_id);
-            cond_block_id.children.push(else_block_id);
-            cond_block_id.children.push(merge_block_id);
-            self.set_current_block(merge_block);
-            self.set_current_block_id(cond_block_id);
-        }
+        current_block_id.children.push(assign_block_id);
+        current_block_id.children.push(cond_block_id);
+        current_block_id.children.push(then_block_id);
+        current_block_id.children.push(else_block_id);
+        current_block_id.children.push(merge_block_id);
+        self.set_current_block(merge_block);
+        self.set_current_block_id(current_block_id);
 
-        if let Some(assign_ident) = assign_ident {
-            if let Ok(expr) = syn::parse2(quote::quote! { #assign_ident }) {
-                self.current_expr = Some(expr);
-            } else {
-                self.errors.push(
-                    Error::SynParseError(
-                        expr_if.span(),
-                        "CFG builder",
-                        format!("{}", assign_ident.to_string())
-                    )
-                );
-            }
+        if let Ok(expr) = syn::parse2(quote::quote! { #assign_ident }) {
+            self.current_expr = Some(expr);
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    expr_if.span(),
+                    "CFG builder",
+                    format!("{}", assign_ident.to_string())
+                )
+            );
         }
     }
 
@@ -252,7 +227,6 @@ impl<'a> CFGBuilder<'a> {
 
     // handle match statement
     fn handle_match(&mut self, expr_match: &syn::ExprMatch) {
-
         let mut current_block_id = core::mem::take(&mut self.block_ids);
         let cond_block = self.new_block(BlockType::MatchCond);
         let cond_block_id = BlockId::new(cond_block);
